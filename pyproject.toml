@@ -1,0 +1,113 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "financial-data-agents"
+version = "0.1.0"
+description = "Autonomous Python agents for ETF momentum analysis using yfinance and local LLMs (Ollama)"
+readme = "README.md"
+requires-python = ">=3.14"
+license = {text = "MIT"}
+authors = [
+    {name = "Peter", email = "peter.pontbriand@gmail.com"}
+]
+keywords = [["finance", "etf", "momentum", "yfinance", "agentic", "ollama"]]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+dependencies = [
+    "yfinance>=1.3.0",           # Latest as of April 2026
+    "massive-api-client>=0.0.4", # Modern, official library wrapper
+    "pandas>=2.2.0",
+    "numpy>=1.26.0",
+    "matplotlib>=3.8.0",
+    "seaborn>=0.13.0",          # Better plotting
+    "ollama>=0.4.0",            # Official Python client for your local Ollama
+    "python-dotenv>=1.0.0",     # For .env files (API keys later)
+    "pydantic>=2.8.0",          # For clean data models
+    "pydantic-settings>=2.2.0",
+    "tenacity>=8.0.0",          # Retry logic for API calls
+    "typer>=0.26.8",
+]
+
+[project.scripts]
+financial-data-agents = "src.main:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.10.0",
+    "ruff>=0.4.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "responses>=0.25.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "D", "UP", "B", "A", "C4", "SIM", "ARG", "PT", "PL"]
+ignore = [
+    "D100", "D104",  # Ignore missing docstrings in public modules/packages
+    "S101",          # Allow assert statements (critical for tests)
+    "PLR2004",       # Allow magic values/constants in comparisons
+    "D203",          # Suppress warning: Incompatible with D211 (no-blank-line-before-class)
+    "D212",          # Suppress warning: Incompatible with D213 (multi-line-summary-second-line)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true  # Suppresses errors if *args and **kwargs are typed as Any
+ignore-fully-untyped = false
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+pythonpath = ["."]  # Ensures your tests runner accurately finds src.* from the repository root
+python_files = ["test_*.py"]
+addopts = "--cov=src --cov-report=term-missing --cov-report=html"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true # Tracks both True and False outcomes of 'if' statements
+source = ["src"]
+
+[tool.coverage.report]
+# Do not count configuration files or tests against code coverage percentages
+omit = [
+    "src/config.py",
+    "tests/*",
+]
+# Highlight missing statements clearly in the terminal output
+show_missing = true
+
+[tool.mypy]
+python_version = "3.14"
+mypy_path = "."  # Tells mypy to resolve namespace lookups directly from the repository root
+explicit_package_bases = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true        # Force signatures to have explicit type hints
+disallow_incomplete_defs = true     # Catch partial hinting
+check_untyped_defs = true           # Look inside un-hinted functions
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict_equality = true              # Prevent comparing unrelated types

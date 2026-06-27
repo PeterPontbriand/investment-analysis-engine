@@ -1,0 +1,48 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  quality-and-test:
+    name: Validate on ${{ matrix.os }} (Python ${{ matrix.python-version }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.14"] # Aligned with your local environment target
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out Repository Code
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Project and Dependencies
+        run: uv sync --frozen
+
+      - name: Enforce Code Formatting (Ruff)
+        run: uv run ruff format --check
+
+      - name: Enforce Linting Rules (Ruff)
+        run: uv run ruff check
+
+      - name: Enforce Static Type Safety (MyPy)
+        run: uv run mypy src
+
+      - name: Execute Cross-Platform Test Suite with Coverage
+        run: uv run pytest

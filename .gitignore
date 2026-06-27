@@ -1,0 +1,104 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDE and editor files
+.zed/
+.vscode/
+.idea/
+*.tmp
+*.swp
+*.swo
+*~
+
+# Project specific
+.env
+.env*
+*.log
+data/*.csv
+notebooks/*.ipynb.checkpoints/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.sync-conflict*.md
+
+# Coverage and test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+
+# Common backup patterns
+*.orig
+*.bk
+*.old
+*.~*
+
+# Ollama / large model files (if any are cached locally)
+ollama/
+
+# Copilot / workspace metadata
+.claude/
+
+# Byte-compiled / optimized / dll ~/pyc files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache
+
+# Databases (Keep your local data local)
+*.sqlite
+*.db
+local/
+dev_db/
+database_backups/
+
+# --- Python Runtime Objects ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# --- Application Running State Log Volumes ---
+# Explicitly ignores local files but keeps the directory structure tracked in git
+src/logs/*.log
+src/logs/*.zip
+
+# --- Test Coverage Artifacts ---
+.coverage
+htmlcov/
+*.lcov
+
+# --- Repo snapshotting artifacts ---
+repo_snapshot*
