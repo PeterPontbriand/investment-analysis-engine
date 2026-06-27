@@ -1,3 +1,4 @@
+[![Continuous Integration](https://github.com/PeterPontbriand/financial-data-agents/actions/workflows/ci.yaml/badge.svg)](https://github.com/PeterPontbriand/financial-data-agents/actions/workflows/ci.yaml)
 # Financial Data Agents Project
 
 This repository builds autonomous Python agents for ETF / momentum investment analysis using Massive.com and yfinance. Core goal: Pull live or historical data → compute momentum signals / backtests → generate reports/dashboards with zero manual coding after initial prompt. See CLAUDE.md for details.
