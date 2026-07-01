@@ -14,7 +14,7 @@ from queue import Queue
 from types import TracebackType
 from typing import Any, ClassVar, override
 
-from ..config import settings
+from src.config import settings
 
 # --- GLOBAL LOGGING SYSTEM STATE ---
 
@@ -283,15 +283,37 @@ def setup_global_logging() -> None:
 
 
 def teardown_global_logging() -> None:
-    """Stop execution hooks, flush pipelines, and join file handles."""
+    """Stop execution hooks, flush pipelines, and join file handles cleanly across test runs."""
+    global _global_logging_initialized  # noqa: PLW0603
+
+    # 1. Stop all background listener threads completely
     for listener in _listeners:
         if hasattr(listener, "stop"):
             listener.stop()
-    if len(_listeners) == 0 and _log_queue:
-        _log_queue.queue.clear()
+    _listeners.clear()
 
+    # 2. Clear any lingering records in the queue safely
+    if _log_queue:
+        with contextlib.suppress(AttributeError), _log_queue.mutex:
+            _log_queue.queue.clear()
+
+    # 3. Force-flush and close all handlers attached to the root logger to release file locks
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        try:
+            handler.flush()
+        except Exception:
+            pass
+        finally:
+            handler.close()
+            root_logger.removeHandler(handler)
+
+    # 4. Shutdown the rest of the log subsystem and wait for worker compression threads
     logging.shutdown()
     wait_for_log_compression_shutdown()
+
+    # 5. RESET THE GATE: Allow subsequent tests to completely re-initialize the logging pipeline
+    _global_logging_initialized = False
 
 
 # Automatic hook registration to protect Docker containers on sudden SIGTERM
