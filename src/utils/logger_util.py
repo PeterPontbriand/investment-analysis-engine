@@ -142,6 +142,13 @@ class ThreadSafeSizeAwareTimedRotatingFileHandler(TimedRotatingFileHandler):
                 self.stream = None
 
             if not os.path.exists(self.baseFilename) or os.path.getsize(self.baseFilename) == 0:
+                # Still must compute the next rollover timestamp boundary even if skipping
+                current_time = int(time.time())
+                new_rollover_at = self.computeRollover(current_time)
+                while new_rollover_at <= current_time:
+                    new_rollover_at = new_rollover_at + self.interval
+                self.rolloverAt = new_rollover_at
+
                 if not self.delay:
                     self.stream = self._open()
                 return
@@ -169,6 +176,13 @@ class ThreadSafeSizeAwareTimedRotatingFileHandler(TimedRotatingFileHandler):
                 import sys  # noqa: PLC0415
 
                 print(f"Failed to rotate log file: {e}", file=sys.stderr)
+
+            # Compute and update the next rollover timestamp boundary (stops infinite rollover loop)
+            curr_time = int(time.time())
+            new_rollover_at = self.computeRollover(curr_time)
+            while new_rollover_at <= curr_time:
+                new_rollover_at = new_rollover_at + self.interval
+            self.rolloverAt = new_rollover_at
 
             if self.backupCount > 0:
                 self.handle_backup_count()

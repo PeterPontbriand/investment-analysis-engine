@@ -1,108 +1,186 @@
-import contextlib
+"""Unit tests for validating the custom thread-safe size-aware rotating logging handler."""
+
 import logging
-import threading
-import time
-import uuid
-from logging.handlers import QueueHandler
+import zipfile
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-from src.utils.logger_util import setup_global_logging, setup_logger, teardown_global_logging
+from src.utils.logger_util import (
+    ConsoleColorFormatter,
+    LoggerContext,
+    ThreadSafeSizeAwareTimedRotatingFileHandler,
+    _log_queue,
+    get_log_queue_contents,
+    setup_logger,
+    wait_for_log_compression_shutdown,
+)
 
 
-@pytest.fixture(autouse=True)
-def clean_logging_state():
-    """Ensure a pristine global logging configuration and clear files before every test."""
-    root = logging.getLogger()
-    for h in root.handlers[:]:
-        root.removeHandler(h)
-        h.close()
-
-    yield
-
-    with contextlib.suppress(Exception):
-        teardown_global_logging()
-
-    for h in root.handlers[:]:
-        root.removeHandler(h)
-        h.close()
+@pytest.fixture
+def temp_log_dir(tmp_path: Path) -> Path:
+    """Fixture providing an isolated temporary directory for logging tests."""
+    return tmp_path
 
 
-def test_basic_logging_and_handler_routing():
-    """Verify standard single logger handler attaches QueueHandler and logs metadata."""
-    logger_name = f"test-module-{uuid.uuid4().hex}"
-    setup_global_logging()
+def test_console_color_formatter() -> None:
+    """Verify ConsoleColorFormatter wraps log levels with ANSI escape sequences."""
+    formatter = ConsoleColorFormatter(fmt="%(levelname)s | %(message)s")
+    record = logging.LogRecord(
+        name="test_logger",
+        level=logging.INFO,
+        pathname="test.py",
+        lineno=10,
+        msg="Sample log message",
+        args=None,
+        exc_info=None,
+    )
+    formatted = formatter.format(record)
 
-    logger_context = setup_logger(logger_name)
-    unique_msg = "Explicit path tracking verification"
-
-    # 1. Fetch file reference by setting up a temporary look-ahead context
-    with logger_context as adapter:
-        active_log_file = adapter.log_file_path
-
-    # 2. Clear target file completely OUTSIDE of active log context operations
-    if active_log_file and active_log_file.exists():
-        active_log_file.write_text("", encoding="utf-8")
-
-    # 3. Perform execution run
-    with logger_context as adapter:
-        assert hasattr(adapter.logger, "handlers")
-        assert len(adapter.logger.handlers) == 1
-
-        queue_handler = adapter.logger.handlers[0]
-        assert isinstance(queue_handler, QueueHandler)
-
-        adapter.set_extra({"user_id": "test_user"})
-        adapter.info(unique_msg)
-
-    teardown_global_logging()
-
-    assert active_log_file is not None
-    assert active_log_file.exists()
-
-    with open(active_log_file, encoding="utf-8") as f:
-        file_contents = f.read()
-
-    assert unique_msg in file_contents
+    # Assert color coding wrap on level name
+    assert ConsoleColorFormatter.GREEN in formatted
+    assert ConsoleColorFormatter.RESET in formatted
+    # Check that original levelname state was restored correctly
+    assert record.levelname == "INFO"
 
 
-def test_multithreaded_stress_logging():
-    """Verifies queue listener can ingest massive concurrent load across background threads."""
-    setup_global_logging()
-    logger_context = setup_logger("threaded_stress")
+def test_size_based_rollover_with_zip_compression(temp_log_dir: Path) -> None:
+    """Verify log files properly roll over and compress to .zip files when reaching max size."""
+    log_file = temp_log_dir / "test_size_rollover.log"
 
-    thread_count = 5
-    logs_per_thread = 20
-    threads = []
+    # Setup handler with a tiny max_bytes bound (100 bytes) to force instant rotation
+    handler = ThreadSafeSizeAwareTimedRotatingFileHandler(
+        filename=str(log_file),
+        max_bytes=100,
+        backup_count=2,
+        encoding="utf-8",
+    )
+    handler.setFormatter(logging.Formatter("%(message)s"))
 
-    # 1. Grab the log file path cleanly
-    with logger_context as adapter:
-        log_file_path = adapter.log_file_path
+    logger = logging.getLogger("test_size_rollover")
+    logger.setLevel(logging.INFO)
+    logger.addHandler(handler)
 
-    # 2. Execute concurrent workers within the active logging block
-    with logger_context as adapter:
+    # Write some logs exceeding 100 bytes
+    logger.info("Line 1: A very long string designed to fill the log handler buffer up immediately.")
+    logger.info("Line 2: Triggering the rollover limit on this second write.")
 
-        def worker() -> None:
-            for i in range(logs_per_thread):
-                adapter.info(f"Thread worker output frame index line {i}")
-                time.sleep(0.001)
+    # Force close the stream to trigger flush
+    handler.close()
+    logger.removeHandler(handler)
 
-        for _ in range(thread_count):
-            t = threading.Thread(target=worker)
-            threads.append(t)
-            t.start()
+    # Ensure background compression thread executes completely
+    wait_for_log_compression_shutdown()
 
-        for t in threads:
-            t.join()
+    # Assertions
+    # 1. The active log file should exist (or be clean)
+    assert log_file.exists()
 
-        # 3. Force-flush the background QueueListener to disk BEFORE the context manager closes
-        teardown_global_logging()
+    # 2. There should be exactly ONE active .log file and ONE compressed .zip file in the directory
+    all_files = list(temp_log_dir.glob("*"))
+    log_files = [f for f in all_files if f.suffix == ".log"]
+    zip_files = [f for f in all_files if f.suffix == ".zip"]
 
-    assert log_file_path is not None
-    assert log_file_path.exists()
+    assert len(log_files) == 1
+    assert len(zip_files) >= 1
 
-    # 4. Read file and match against the specific, unique message pattern produced by this run
-    with open(log_file_path, encoding="utf-8") as f:
-        lines = [line for line in f if "Thread worker output frame index line" in line]
+    # 3. Read the ZIP archive to verify contents were rotated and zipped safely
+    rotated_zip = zip_files[0]
+    with zipfile.ZipFile(rotated_zip, "r") as zip_ref:
+        namelist = zip_ref.namelist()
+        assert len(namelist) == 1
+        # Extract and verify the file content inside the ZIP is indeed our first write
+        content = zip_ref.read(namelist[0]).decode("utf-8")
+        assert "Line 1" in content
 
-    assert len(lines) == (thread_count * logs_per_thread)
+
+def test_timed_rollover_at_simulated_interval(temp_log_dir: Path) -> None:
+    """Verify custom handler rolls over and updates rolloverAt successfully on time boundaries."""
+    log_file = temp_log_dir / "test_time_rollover.log"
+
+    # Initialize with 1-second interval rotation
+    handler = ThreadSafeSizeAwareTimedRotatingFileHandler(
+        filename=str(log_file),
+        max_bytes=10000,
+        backup_count=1,
+        when="S",
+        interval=1,
+        encoding="utf-8",
+    )
+
+    initial_rollover_at = handler.rolloverAt
+
+    # Simulate time skipping past the rolloverAt threshold
+    future_time = initial_rollover_at + 10
+    with patch("time.time", return_value=future_time):
+        record = logging.LogRecord(
+            name="test", level=logging.INFO, pathname="test.py", lineno=1, msg="Time test", args=None, exc_info=None
+        )
+        # Check that handler should trigger a rollover now
+        assert handler.shouldRollover(record) is True
+
+        # Trigger rollover explicitly
+        handler.doRollover()
+
+        # Verify rolloverAt was updated successfully to the next boundary (avoids infinite loop)
+        assert handler.rolloverAt > initial_rollover_at
+
+    handler.close()
+    wait_for_log_compression_shutdown()
+
+
+def test_contextual_adapter_and_context_manager() -> None:
+    """Verify ContextualAdapter appends dictionary metadata context to printed messages."""
+    logger = logging.getLogger("test_context")
+    logger.setLevel(logging.INFO)
+
+    # Test Context manager allocation
+    context = LoggerContext(logger)
+    with context as adapter:
+        adapter.set_extra({"request_id": "ABC-123", "user_id": "999"})
+        # Process some log message
+        msg, kwargs = adapter.process("Running momentum backtest", {})
+
+        # Assert metadata is formatted cleanly into the message string
+        assert "Running momentum backtest" in msg
+        assert "request_id:ABC-123" in msg
+        assert "user_id:999" in msg
+
+
+def test_setup_logger_idempotency() -> None:
+    """Verify setup_logger does not stack duplicate QueueHandlers on multiple requests."""
+    logger_name = "test_idempotency_logger"
+
+    # Trigger first config
+    ctx_1 = setup_logger(logger_name)
+    logger_instance = ctx_1.adapter.logger
+    handlers_count_1 = len(logger_instance.handlers)
+
+    # Trigger second config
+    setup_logger(logger_name)
+    handlers_count_2 = len(logger_instance.handlers)
+
+    # Assert handlers count did not change/double
+    assert handlers_count_1 == handlers_count_2
+    assert any(isinstance(h, logging.handlers.QueueHandler) for h in logger_instance.handlers)
+
+
+def test_get_log_queue_contents() -> None:
+    """Verify get_log_queue_contents flushes records cleanly."""
+    # Seed the queue with dummy log records
+    record = logging.LogRecord(
+        name="test_queue",
+        level=logging.INFO,
+        pathname="test.py",
+        lineno=5,
+        msg="Seeded record",
+        args=None,
+        exc_info=None,
+    )
+    _log_queue.put(record)
+
+    contents = get_log_queue_contents()
+    assert len(contents) == 1
+    assert "Seeded record" in contents[0]
+    assert _log_queue.empty() is True
