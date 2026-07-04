@@ -1,19 +1,20 @@
 # CLAUDE.md – Financial Data Agents Project
 
-This repository builds autonomous Python agents for ETF / momentum investment analysis using Massive.com (formerly Massive.com) and yfinance. Core goal: Pull live or historical data → compute momentum signals / backtests → generate reports/dashboards with zero manual coding after initial prompt.
+This repository builds autonomous Python agents for investment analysis using yfinance and local LLMs (Ollama). Core goal: Pull live or historical data → compute momentum signals / backtests → generate reports/dashboards with zero manual coding after initial prompt.
 High-level overview and index for project guidelines. For detailed information, see the guides in `.claude/`.
 
 ## 📋 Project Overview
 
-This repository builds autonomous Python agents for ETF / momentum investment analysis using Massive.com and yfinance.
+This repository builds autonomous Python agents for  investment analysis using yfinance.
 
-**Core Goal:** Pull live or historical data → compute momentum signals / backtests → generate reports/dashboards with zero manual coding after initial prompt.
+**Core Goal:** Pull live or historical data → compute signals / backtests → generate reports/dashboards with zero manual coding after initial prompt.
 
 **Key Principles:**
-- Production-ready patterns (type hints, async, error handling, logging)
+- Production-ready patterns (strict type hints, async execution, standardized error handling, local centralized logging)
 - Prefer adjusted close prices for all calculations
 - Never hardcode API keys – use `src/config.py` and dotenv
 - Portfolio-first, modular architecture
+- Strict runtime validation constraints (e.g., Short window intervals must strictly be less than Long window intervals)
 
 ---
 
@@ -23,65 +24,31 @@ All detailed requirements are organized in `.claude/` sub-guides:
 
 ### 🔧 Development & Code Quality
 - **[Coding Conventions](./.claude/coding_conventions.md)** — Python 3.14+, Google-style docstrings, Ruff formatting, type hints, file naming, architecture patterns
-- **[Testing Workflow](./.claude/testing_workflow.md)** — TDD approach, pytest usage, mocking APIs, coverage targets, edge case testing
+- **[Testing Workflow](./.claude/testing_workflow.md)** — TDD approach, pytest usage, mocking APIs, coverage targets, edge case testing, and optimal local execution commands
 
 ### 📊 Financial & Data Rules
-- **[Finance Math & Data](./.claude/finance_math.md)** — Data sources (yfinance, Massive.com), adjusted close prices, momentum calculations, Sharpe ratio, volatility, portfolio analysis
-- **[Logging Rules](./.claude/logging_rules.md)** — Centralized logging architecture, initialization, error handling, no `print()` statements
-
-### 🤖 Agents & Automation
-- **[Agent Behavior Rules](./.claude/agent_behavior.md)** — Workflow (Plan → Fetch → Analyze → Report → Test), human-in-the-loop, cost management, error handling
-- **[Commands Reference](./.claude/commands_reference.md)** — Quick commands for testing, analysis, environment management, troubleshooting
-
-### ⛔ Restrictions
-- **[Forbidden Actions](./.claude/forbidden_actions.md)** — Security, code quality, testing, and repository violations with enforcement notes
+- **[Finance Math](./.claude/finance_math.md)** — Crossover indicators, adjusted tracking calculations, data sanitization patterns, and error constraints
+- **[Logging Rules](./.claude/logging_rules.md)** — Centralized logging standards, asynchronous queue handlers, context tracking parameters, and process safety cleanups
 
 ---
 
-## 🚀 Quick Start
+## 🛠️ Quick Commands Reference
 
-### Pre-Commit Checklist
-```bash
-# Format and lint
-ruff format . && ruff check --fix .
+### Testing & Verification
+- **Run local tests (Fast Iteration):** `uv run pytest tests/ --import-mode=importlib --cov=src --cov-report=html`
+- **Run clean isolated tests (CI Pre-Check):** `uv run --isolated pytest tests/ --import-mode=importlib --cov=src --cov-report=html`
+- **Lint Codebase:** `ruff format . && ruff check --fix .`
+- **Static Type Check:** `uv run python -m mypy --config-file ./.mypyrc src`
 
-# Run tests
-pytest -v --cov=src
-
-# Run analysis
-uv run python -m src.agents.run_analysis "TICKER vs peers"
-```
-
-### Environment Setup
-- Python 3.14+
-- See [Coding Conventions](./.claude/coding_conventions.md#language--version)
-- Activate venv: `.\.venv\Scripts\Activate.ps1` (PowerShell)
+### Application Command Interfaces
+- **Execute Analysis Agent (Default Run):** `python -m src.main momentum`
+- **Run Momentum Module with Explicit Flags:** `python -m src.main momentum --ticker BTC-USD --short-window 10 --long-window 30`
 
 ---
 
-## 🔑 Critical Rules (TL;DR)
+## 📁 Repository Map
 
-✅ **DO:**
-- Use type hints everywhere
-- Log instead of printing
-- Mock all API calls in tests
-- Validate data before calculations
-- Ask for approval before expensive operations
-
-❌ **DON'T:**
-- Commit `.env` or API keys
-- Use unadjusted prices
-- Hardcode configuration
-- Disable error handling
-- Scrape websites
-
-**For complete details, see [Forbidden Actions](./.claude/forbidden_actions.md).**
-
----
-
-## 📁 Repository Structure
-
-```
+```text
 .claude/                        # Project guidelines (this index)
 ├── coding_conventions.md       # Code style, architecture, naming
 ├── testing_workflow.md         # Testing requirements and patterns
@@ -93,11 +60,12 @@ uv run python -m src.agents.run_analysis "TICKER vs peers"
 
 src/                           # Main source code
 ├── config.py                  # Configuration management
-├── main.py                    # Entry point
-├── analysis/                  # Analysis logic (momentum, Sharpe, etc.)
+├── main.py                    # Entry point (routes to cli.py)
+├── cli.py                     # Command line interface subcommands (momentum)
+├── analysis/                  # Analysis logic (momentum indicators, SMA math)
 ├── data/                      # Data fetching clients
 ├── agents/                    # Agent workflows
-└── utils/                     # Logging and utilities
+└── utils/                     # Centralized logging utilities & handlers
 
 tests/                         # Test suite
 data/                          # Data directory (never commit real data)
@@ -109,12 +77,12 @@ docs/                          # Documentation
 
 ## 📞 Support & Reference
 
-- **Python Docs:** See `src/utils/logging.py` for logger setup
-- **Config:** See `src/config.py` for environment variables
-- **Examples:** Check `tests/` for mock patterns and fixtures
+- **Python Docs:** See `src/utils/logger_util.py` for logger setup and teardown contexts
+- **Config:** See `src/config.py` for environment variables and TOML configurations
+- **Examples:** Check `tests/` for mock patterns, patching strategies, and global state fixtures
 
 ---
 
-**Last Updated:** May 3, 2026  
+**Last Updated:** July 2026  
 **Maintained by:** AI Agent Architecture  
 **Status:** Active Development

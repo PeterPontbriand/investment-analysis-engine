@@ -1,7 +1,8 @@
-[![Continuous Integration](https://github.com/PeterPontbriand/financial-data-agents/actions/workflows/ci.yaml/badge.svg)](https://github.com/PeterPontbriand/financial-data-agents/actions/workflows/ci.yaml)
 # Financial Data Agents Project
 
-This repository builds autonomous Python agents for ETF / momentum investment analysis using Massive.com and yfinance. Core goal: Pull live or historical data → compute momentum signals / backtests → generate reports/dashboards with zero manual coding after initial prompt. See CLAUDE.md for details.
+This repository builds autonomous Python agents for investment analysis using yfinance and local Large Language Models (LLMs).
+
+**Core Goal:** Pull live or historical data → compute signals / backtests → generate reports/dashboards with zero manual coding after initial prompt. See CLAUDE.md for details.
 
 ## Jupyter Notebooks
 
@@ -14,21 +15,28 @@ jupyter notebook
 
 ## Running the Application
 
-### Module Entry Point
-To execute the baseline analytical process script framework as a module:
+The CLI is structured around subcommands. To run the a quantitative analysis, use the appropriate subcommand, e.g. `momentum`.
+
+### Command Line Interface Syntax
+
+To execute the momentum analysis agent:
 
 ```bash
 # General Syntax
-python -m src.typer_main [OPTIONS] DATASET
+python -m src.main momentum [OPTIONS]
 
-# Example: Run analysis on a data file using default parameters
-python -m src.typer_main mock_dataset.csv
+# Example: Run momentum analysis with default settings (BTC-USD)
+python -m src.main momentum
+
+# Example: Run analysis on a specific ticker with custom short and long windows
+python -m src.main momentum --ticker AAPL --short-window 10 --long-window 30
 
 # Example: Run analysis with custom worker thread allocations
-python -m src.typer_main mock_dataset.csv --threads 8
+python -m src.main momentum --threads 8
 
 # View the auto-generated CLI parameter help menu
-python -m src.typer_main --help
+python -m src.main --help
+python -m src.main momentum --help
 ```
 
 ## Testing
@@ -36,14 +44,27 @@ python -m src.typer_main --help
 To run the complete cross-platform, asynchronous test suite with full coverage metrics:
 
 ```bash
-uv run pytest -v --cov=src tests/
+uv run pytest tests/ --import-mode=importlib --cov=src --cov-report=html
+# (Or simply pytest tests/... if the .venv is actively activated in the PowerShell session).
+
+# For specific isolated sanity-check scenarios:
+uv run --isolated pytest tests/ --import-mode=importlib --cov=src --cov-report=html
 ```
 
 ## Static type checking
+
 To perform static type checking:
 
 ```bash
 uv run python -m mypy --config-file ./.mypyrc src
+```
+
+## Linting
+
+To run the Ruff linter:
+
+```bash
+ruff format . && ruff check --fix .
 ```
 
 ## Troubleshooting
