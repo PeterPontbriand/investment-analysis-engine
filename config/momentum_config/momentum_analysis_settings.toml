@@ -1,0 +1,19 @@
+[window_sizes]
+short_window = 50
+medium_window = 100
+long_window = 200
+
+[crossSignals]
+signal_period = 9
+lookback_periods = [28, 56, 14]  # Weekly (7*2), monthly (7*4), quarterly (7*6)
+moving_averages = ["SMA", "EMA"]
+
+[thresholds]
+overbought_level = 0.7
+oversold_level = -0.3
+volatility_adjustment = 0.15
+
+[performance_metrics]
+lookback_days = 365
+roll_window_days = 20
+min_volume_multiple = 500000  # $M minimum volume for valid signals

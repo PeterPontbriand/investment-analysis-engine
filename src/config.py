@@ -1,11 +1,30 @@
-from pathlib import Path
+"""Application configurations managed via Pydantic-settings and external TOML profiles."""
 
+import tomllib
+from pathlib import Path
+from typing import Any
+
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Ensure core environment variables are populated
+load_dotenv()
+
+
+def load_config_file(file_path: str) -> dict[str, Any]:
+    """Load configuration values from a specified TOML file profile."""
+    try:
+        with open(file_path, "rb") as f:
+            return tomllib.load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Configuration file not found at path: {file_path}") from None
+    except tomllib.TOMLDecodeError:
+        raise ValueError(f"Failed to decode configuration file at path: {file_path}") from None
 
 
 class ProjectSettings(BaseSettings):
     """
-    Application configurations loaded from environment variables.
+    Application configurations loaded from environment variables and config tables.
 
     Inherits from pydantic_settings.BaseSettings.
     """
@@ -42,7 +61,7 @@ class ProjectSettings(BaseSettings):
     encoding: str = "utf-8"
 
     # Project Root Directory
-    base_dir: Path = Path(__file__).resolve().parent.parent.parent
+    base_dir: Path = Path(__file__).resolve().parent.parent
 
     # Core Paths
     data_dir: Path = base_dir / "data"
@@ -55,8 +74,18 @@ class ProjectSettings(BaseSettings):
         case_sensitive=True,
     )
 
+    def get_analysis_settings(self) -> dict[str, Any]:
+        """Retrieve historical and ingestion settings."""
+        analysis_config_path = self.base_dir / "config" / "general_analysis_settings.toml"
+        return load_config_file(str(self.base_dir / analysis_config_path))
 
-# Create instance of settings
+    def get_momentum_analysis(self) -> dict[str, Any]:
+        """Retrieve core fast/slow moving average parameters settings."""
+        momentum_config_path = self.base_dir / "config" / "momentum_config" / "momentum_analysis_settings.toml"
+        return load_config_file(str(self.base_dir / momentum_config_path))
+
+
+# Instantiate singleton settings proxy
 settings = ProjectSettings()
 
 # Ensure directories exist
