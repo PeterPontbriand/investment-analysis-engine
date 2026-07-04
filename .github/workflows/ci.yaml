@@ -42,7 +42,7 @@ jobs:
         run: uv run ruff check
 
       - name: Enforce Static Type Safety (MyPy)
-        run: uv run mypy src
+        run: uv run python -m mypy --config-file ./.mypyrc src
 
       - name: Execute Cross-Platform Test Suite with Coverage
         run: uv run pytest

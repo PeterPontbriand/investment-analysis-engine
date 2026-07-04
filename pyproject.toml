@@ -45,6 +45,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
     "responses>=0.25.0",
+    "pandas-stubs>=3.0.3.260530",
 ]
 
 [tool.uv]
@@ -67,6 +68,7 @@ ignore = [
     "D203",          # Suppress warning: Incompatible with D211 (no-blank-line-before-class)
     "D212",          # Suppress warning: Incompatible with D213 (multi-line-summary-second-line)
 ]
+extend-select = ["D"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -77,6 +79,15 @@ line-ending = "auto"
 [tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true  # Suppresses errors if *args and **kwargs are typed as Any
 ignore-fully-untyped = false
+
+[tool.ruff.lint.pydocstyle]
+# Explicitly mandates the Google docstring convention layout
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Protects your test suite from forcing verbose docstrings on every test case
+"tests/**/*.py" = ["D100", "D101", "D102", "D103", "D104"]
+"__init__.py" = ["D104"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
