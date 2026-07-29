@@ -46,6 +46,7 @@ dev = [
     "pytest-cov>=5.0.0",
     "responses>=0.25.0",
     "pandas-stubs>=3.0.3.260530",
+    "pytest-asyncio>=1.4.0",
 ]
 
 [tool.uv]
@@ -69,6 +70,7 @@ ignore = [
     "D212",          # Suppress warning: Incompatible with D213 (multi-line-summary-second-line)
 ]
 extend-select = ["D"]
+fixable = ["ALL"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -95,6 +97,7 @@ pythonpath = ["."]  # Ensures your tests runner accurately finds src.* from the 
 python_files = ["test_*.py"]
 addopts = "--cov=src --cov-report=term-missing --cov-report=html"
 testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.coverage.run]
 branch = true # Tracks both True and False outcomes of 'if' statements
@@ -114,7 +117,7 @@ python_version = "3.14"
 mypy_path = "."  # Tells mypy to resolve namespace lookups directly from the repository root
 explicit_package_bases = true
 warn_return_any = true
-warn_unused_configs = true
+warn_unused_configs = false
 disallow_untyped_defs = true        # Force signatures to have explicit type hints
 disallow_incomplete_defs = true     # Catch partial hinting
 check_untyped_defs = true           # Look inside un-hinted functions
@@ -122,3 +125,7 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 strict_equality = true              # Prevent comparing unrelated types
+
+[[tool.mypy.overrides]]
+module = ["yfinance", "yfinance.*"]
+ignore_missing_imports = true

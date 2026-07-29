@@ -94,6 +94,8 @@ __pycache__/
 # Explicitly ignores local files but keeps the directory structure tracked in git
 src/logs/*.log
 src/logs/*.zip
+logs/*.log
+logs/*.zip
 
 # --- Test Coverage Artifacts ---
 .coverage
@@ -102,3 +104,6 @@ htmlcov/
 
 # --- Repo snapshotting artifacts ---
 repo_snapshot*
+
+# --- SyncThing file synchronization artifacts ---
+.stignore

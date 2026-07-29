@@ -3,6 +3,7 @@
 import contextlib
 import io
 import logging
+from typing import cast
 
 import pandas as pd
 import yfinance as yf
@@ -43,4 +44,4 @@ class YFinanceClient(BaseDataClient):
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
 
-        return df
+        return cast(pd.DataFrame, df)

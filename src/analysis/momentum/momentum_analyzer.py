@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Final, cast
+from typing import Final
 
 import numpy as np
 import pandas as pd
@@ -91,9 +91,9 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
             logger.debug(f"Executing vectorized metrics matrix: SMA({s_win}), SMA({l_win}) on {target_ticker}")
 
         # Explicit typing casts to satisfy static analysis checkers
-        close_series = cast(pd.Series, df.loc[:, DataColumns.CLOSE])
-        sma_short = cast(pd.Series, close_series.rolling(window=s_win).mean().astype(float))
-        sma_long = cast(pd.Series, close_series.rolling(window=l_win).mean().astype(float))
+        close_series = df.loc[:, DataColumns.CLOSE]
+        sma_short = close_series.rolling(window=s_win).mean().astype(float)
+        sma_long = close_series.rolling(window=l_win).mean().astype(float)
 
         signal_vector = np.where(sma_short > sma_long, 1, 0)
         crossover_vector = np.diff(signal_vector, prepend=0)
