@@ -12,7 +12,7 @@ license = {text = "MIT"}
 authors = [
     {name = "Peter", email = "peter.pontbriand@gmail.com"}
 ]
-keywords = [["finance", "etf", "momentum", "yfinance", "agentic", "ollama"]]
+keywords = ["finance", "etf", "momentum", "yfinance", "agentic", "ollama"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.14",
@@ -36,7 +36,7 @@ dependencies = [
 ]
 
 [project.scripts]
-financial-data-agents = "src.main:main"
+financial-agents = "src.main:main"
 
 [dependency-groups]
 dev = [
@@ -50,7 +50,7 @@ dev = [
 ]
 
 [tool.uv]
-package = false
+package = true
 
 [tool.setuptools.packages.find]
 where = ["."]

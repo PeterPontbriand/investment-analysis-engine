@@ -107,3 +107,6 @@ repo_snapshot*
 
 # --- SyncThing file synchronization artifacts ---
 .stignore
+
+# Local PR Drafts
+.github/.pr_draft.md

@@ -23,20 +23,20 @@ To execute the momentum analysis agent:
 
 ```bash
 # General Syntax
-python -m src.main momentum [OPTIONS]
+uv run financial-agents momentum [OPTIONS]
 
 # Example: Run momentum analysis with default settings (BTC-USD)
-python -m src.main momentum
+uv run financial-agents momentum
 
 # Example: Run analysis on a specific ticker with custom short and long windows
-python -m src.main momentum --ticker AAPL --short-window 10 --long-window 30
+uv run financial-agents momentum --ticker AAPL --short-window 10 --long-window 30
 
 # Example: Run analysis with custom worker thread allocations
-python -m src.main momentum --threads 8
+uv run financial-agents momentum --threads 8
 
 # View the auto-generated CLI parameter help menu
-python -m src.main --help
-python -m src.main momentum --help
+uv run financial-agents --help
+uv run financial-agents momentum --help
 ```
 
 ## Testing
@@ -64,7 +64,7 @@ uv run python -m mypy --config-file ./.mypyrc src
 To run the Ruff linter:
 
 ```bash
-ruff format . && ruff check --fix .
+uv run ruff format . ; uv run ruff check --fix .
 ```
 
 ## Troubleshooting
