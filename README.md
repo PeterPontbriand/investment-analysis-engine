@@ -4,22 +4,23 @@ This repository builds autonomous Python agents for investment analysis using yf
 
 **Core Goal:** Pull live or historical data → compute signals / backtests → generate reports/dashboards with zero manual coding after initial prompt. See CLAUDE.md for details.
 
+> **Execution Note:** Unless specified otherwise, execute all commands from the **project root directory** (`financial-data-agents/`).
+
+---
+
 ## Jupyter Notebooks
 
 To run an interactive data science notebook environment:
 
 ```bash
-cd path/to/your/project
-jupyter notebook
+uv run jupyter notebook
 ```
+
+---
 
 ## Running the Application
 
-The CLI is structured around subcommands. To run the a quantitative analysis, use the appropriate subcommand, e.g. `momentum`.
-
-### Command Line Interface Syntax
-
-To execute the momentum analysis agent:
+The CLI is structured around subcommands. To execute quantitative analysis modules:
 
 ```bash
 # General Syntax
@@ -39,19 +40,31 @@ uv run financial-agents --help
 uv run financial-agents momentum --help
 ```
 
+*Note: If executing python modules directly without project entry point scripts, use the python module syntax from root:*
+```bash
+uv run python -m src.main momentum
+```
+
+---
+
 ## Testing
 
-To run the complete cross-platform, asynchronous test suite with full coverage metrics:
+To run the complete cross-platform test suite with coverage metrics:
 
 ```bash
+# Run full test suite
 uv run pytest tests/ --import-mode=importlib --cov=src --cov-report=html
-# (Or simply pytest tests/... if the .venv is actively activated in the PowerShell session).
 
-# For specific isolated sanity-check scenarios:
+# Run core orchestration layer tests only
+uv run pytest tests/core/
+
+# For isolated pre-commit / CI sanity checks:
 uv run --isolated pytest tests/ --import-mode=importlib --cov=src --cov-report=html
 ```
 
-## Static type checking
+---
+
+## Static Type Checking
 
 To perform static type checking:
 
@@ -59,14 +72,12 @@ To perform static type checking:
 uv run python -m mypy --config-file ./.mypyrc src
 ```
 
-## Linting
+---
 
-To run the Ruff linter:
+## Linting & Formatting
+
+To check, fix, and format code using Ruff:
 
 ```bash
-uv run ruff format . ; uv run ruff check --fix .
+uv run ruff check --fix . && uv run ruff format .
 ```
-
-## Troubleshooting
-
-If you encounter a `ModuleNotFoundError` when attempting to run local files directly, always ensure you invoke them as execution modules from the project root using the **`python -m`** flag prefix commands shown above.

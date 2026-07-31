@@ -1,11 +1,14 @@
 # CLAUDE.md – Financial Data Agents Project
 
 This repository builds autonomous Python agents for investment analysis using yfinance and local LLMs (Ollama). Core goal: Pull live or historical data → compute momentum signals / backtests → generate reports/dashboards with zero manual coding after initial prompt.
+
 High-level overview and index for project guidelines. For detailed information, see the guides in `.claude/`.
+
+---
 
 ## 📋 Project Overview
 
-This repository builds autonomous Python agents for  investment analysis using yfinance.
+This repository builds autonomous Python agents for investment analysis using yfinance.
 
 **Core Goal:** Pull live or historical data → compute signals / backtests → generate reports/dashboards with zero manual coding after initial prompt.
 
@@ -34,15 +37,19 @@ All detailed requirements are organized in `.claude/` sub-guides:
 
 ## 🛠️ Quick Commands Reference
 
+> **Note:** Execute all commands from the **project root directory**.
+
 ### Testing & Verification
-- **Run local tests (Fast Iteration):** `uv run pytest tests/ --import-mode=importlib --cov=src --cov-report=html`
+- **Run local tests (Full Suite):** `uv run pytest tests/ --import-mode=importlib --cov=src --cov-report=html`
+- **Run core orchestration tests:** `uv run pytest tests/core/`
 - **Run clean isolated tests (CI Pre-Check):** `uv run --isolated pytest tests/ --import-mode=importlib --cov=src --cov-report=html`
-- **Lint Codebase:** `ruff format . && ruff check --fix .`
+- **Lint & Format Codebase:** `uv run ruff check --fix . && uv run ruff format .`
 - **Static Type Check:** `uv run python -m mypy --config-file ./.mypyrc src`
 
 ### Application Command Interfaces
-- **Execute Analysis Agent (Default Run):** `python -m src.main momentum`
-- **Run Momentum Module with Explicit Flags:** `python -m src.main momentum --ticker BTC-USD --short-window 10 --long-window 30`
+- **Execute Analysis Agent (Console Entry Point):** `uv run financial-agents momentum`
+- **Execute Analysis Agent (Module Mode):** `uv run python -m src.main momentum`
+- **Run Momentum Module with Explicit Flags:** `uv run financial-agents momentum --ticker BTC-USD --short-window 10 --long-window 30`
 
 ---
 
@@ -62,12 +69,18 @@ src/                           # Main source code
 ├── config.py                  # Configuration management
 ├── main.py                    # Entry point (routes to cli.py)
 ├── cli.py                     # Command line interface subcommands (momentum)
+├── core/                      # Engine & Orchestration
+│   └── tools/                 # Pydantic schema generation, parsing & dispatch
+│       ├── schema_generator.py # ToolRegistry & Ollama JSON schema generation
+│       ├── parser.py          # LLM output parser & think block extractor
+│       └── dispatcher.py      # Execution dispatcher & timing envelope
 ├── analysis/                  # Analysis logic (momentum indicators, SMA math)
 ├── data/                      # Data fetching clients
 ├── agents/                    # Agent workflows
 └── utils/                     # Centralized logging utilities & handlers
 
 tests/                         # Test suite
+└── core/                      # Orchestration & tools test suite (test_tools.py)
 data/                          # Data directory (never commit real data)
 notebooks/                     # Jupyter exploration notebooks
 docs/                          # Documentation

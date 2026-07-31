@@ -28,13 +28,19 @@ When running quality checks on Python code:
   - `export VAR=val` -> Use `$env:VAR="val"`.
 
 
-# Tool Usage Guidelines
+# Tool Usage Guidelines for Local Models
 
-## `replace_in_file` Instructions
-* **Exact Matching:** The `SEARCH` block MUST match the target file content character-for-character, including exact indentation, whitespace, blank lines, and comments.
-* **No Placeholders:** NEVER use placeholder comments or ellipses (e.g., `// ...`, `# ...`, `/* existing code */`) inside a `SEARCH` block. Paste the full, actual code block to be replaced.
-* **Keep Blocks Focused:** Keep `SEARCH` blocks short and focused (5–15 lines max). Include just enough surrounding context lines to uniquely identify the location in the file.
-* **Avoid Full File Overwrites:** Prefer fixing code with `replace_in_file` over `write_to_file` whenever making localized updates.
+## File Modification Strategy
+* **Small/Medium Files (< 200 lines):** ALWAYS prefer `write_to_file` to overwrite the complete file. Local models generate entire files far more reliably than partial search-and-replace blocks.
+* **Large Files:** Use `replace_in_file` only when rewriting the entire file is impractical due to length.
+
+## `replace_in_file` Rules (When Used)
+* **Exact Matching:** The `SEARCH` block MUST match the target file content character-for-character, including exact indentation and whitespace.
+* **No Placeholders:** NEVER use placeholder comments or ellipses (e.g., `# ...`, `/* existing code */`) inside a `SEARCH` block. Paste the full, actual code block.
+* **Keep Blocks Short:** Keep `SEARCH` blocks short and focused (5–10 lines max) with just enough context lines to uniquely identify the location.
+
+## Execution Rules
+* **Direct Execution:** Do not pause to summarize or explain your plan if you have a clear tool to execute. Invoke the tool immediately.
 
 
 # Python Code Modification Rules
