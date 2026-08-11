@@ -67,9 +67,6 @@ htmlcov/
 # Ollama / large model files (if any are cached locally)
 ollama/
 
-# Copilot / workspace metadata
-.claude/
-
 # Byte-compiled / optimized / dll ~/pyc files
 __pycache__/
 *.py[cod]

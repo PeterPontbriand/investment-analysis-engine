@@ -3,6 +3,7 @@ import signal
 import sys
 from multiprocessing import Queue
 from types import FrameType
+from typing import Any
 
 from .logger_util import setup_logger
 
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def worker(
-    log_queue: Queue,
+    log_queue: Queue[Any],
     logger_name: str = "default_logger",
 ) -> None:
     """

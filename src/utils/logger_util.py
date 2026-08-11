@@ -335,7 +335,7 @@ atexit.register(teardown_global_logging)
 
 
 # --- ADAPTERS & MANAGERS ---
-class ContextualAdapter(logging.LoggerAdapter):
+class ContextualAdapter(logging.LoggerAdapter[logging.Logger]):
     """Set up a logger with contextual data and append parameters to log outputs."""
 
     def __init__(
