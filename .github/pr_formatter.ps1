@@ -12,6 +12,13 @@ if ([string]::IsNullOrWhiteSpace($prBody)) {
     return
 }
 
+# 1. Clean up internal model citations
+# Spaced string representation to bypass UI markup sanitizer
+$rawSpacedPattern = '\ s * \ [ c i t e : \ s * \ d + ( , \ s * \ d + ) * \ ]'
+$citationPattern = $rawSpacedPattern -replace ' ', ''
+
+$cleanedBody = $prBody -replace $citationPattern, ''
+
 # Fetch dynamic branch context for GitHub URLs
 $currentBranch = (git branch --show-current).Trim()
 $repoUrl = "https://github.com/PeterPontbriand/financial-data-agents/blob/$currentBranch"
@@ -19,7 +26,7 @@ $repoUrl = "https://github.com/PeterPontbriand/financial-data-agents/blob/$curre
 # Regex matches backticked paths (supporting /, \, top-level dotfiles, and trailing periods)
 $pattern = '`\\?/?((?:src|tests|\.github|\.clinerules|\.gitignore|pyproject\.toml)[^`\s]*?)\.?`'
 
-$formattedBody = [regex]::Replace($prBody, $pattern, {
+$formattedBody = [regex]::Replace($cleanedBody, $pattern, {
     param($match)
     # Extract path and normalize backslashes to forward slashes for URLs and strip trailing dot
     $cleanPath = $match.Groups[1].Value -replace '\\', '/' -replace '\.$', ''
@@ -31,7 +38,7 @@ $formattedBody = [regex]::Replace($prBody, $pattern, {
 # Save formatted body back to .pr_draft.md
 Set-Content -Path $draftFile -Value $formattedBody -NoNewline
 
-Write-Host "Successfully formatted links in $draftFile" -ForegroundColor Green
+Write-Host "Successfully cleaned citations and formatted links in $draftFile" -ForegroundColor Green
 
 # Optional PR Creation
 $confirmation = Read-Host "Do you want to create a PR on GitHub now? (Yes/No)"

@@ -65,7 +65,7 @@ htmlcov/
 *.~*
 
 # Ollama / large model files (if any are cached locally)
-ollama/
+/ollama/
 
 # Byte-compiled / optimized / dll ~/pyc files
 __pycache__/
