@@ -24,7 +24,7 @@ $currentBranch = (git branch --show-current).Trim()
 $repoUrl = "https://github.com/PeterPontbriand/financial-data-agents/blob/$currentBranch"
 
 # Regex matches backticked paths (supporting /, \, top-level dotfiles, and trailing periods)
-$pattern = '`\\?/?((?:src|tests|\.github|\.clinerules|\.gitignore|pyproject\.toml)[^`\s]*?)\.?`'
+$pattern = '`\\?/?((?:src|tests|docs|\.github|\.clinerules|\.gitignore|README\.md|pyproject\.toml)[^`\s]*?)\.?`'
 
 $formattedBody = [regex]::Replace($cleanedBody, $pattern, {
     param($match)
