@@ -2,7 +2,7 @@
 
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -23,11 +23,7 @@ def load_config_file(file_path: str) -> dict[str, Any]:
 
 
 class ProjectSettings(BaseSettings):
-    """
-    Application configurations loaded from environment variables and config tables.
-
-    Inherits from pydantic_settings.BaseSettings.
-    """
+    """Application configuration loaded from environment variables and config tables."""
 
     # ProjectSettings
     project_name: str = "financial-data-agents"
@@ -37,7 +33,7 @@ class ProjectSettings(BaseSettings):
     ollama_base_url: str = "http://192.168.1.19:11434"
     model_selection: str = "deepseek-r1:14b"
 
-    # Logging Configuration
+    # Human-readable operational logging
     log_level: str = "INFO"
     log_file_name: str = "app.log"
     log_file_mode: str = "a"
@@ -46,6 +42,18 @@ class ProjectSettings(BaseSettings):
     log_encoding: str = "utf-8"
     log_when: str = "D"  # Rotate daily
     log_interval: int = 1
+
+    # Structured trajectory telemetry (Step 2.1)
+    # Keep these separate from the human-readable logger configuration while
+    # following the same project log directory convention.
+    telemetry_sink: Literal["jsonl"] = "jsonl"
+    telemetry_log_dir: Path = Path(__file__).resolve().parent.parent / "logs"
+    telemetry_level: Literal["INFO", "DEBUG", "OFF"] = "INFO"
+    # File-based retention for completed trajectory JSONL files. This is an
+    # audit-log retention policy, not time-based expiry: keep at most this many
+    # run files and this aggregate byte size, deleting oldest files first.
+    telemetry_max_log_files: int = 100
+    telemetry_max_total_size: int = 100 * 1024 * 1024
 
     # Database Configuration
     database_url: str = "sqlite:///./test.db"
@@ -77,12 +85,12 @@ class ProjectSettings(BaseSettings):
     def get_analysis_settings(self) -> dict[str, Any]:
         """Retrieve historical and ingestion settings."""
         analysis_config_path = self.base_dir / "config" / "general_analysis_settings.toml"
-        return load_config_file(str(self.base_dir / analysis_config_path))
+        return load_config_file(str(analysis_config_path))
 
     def get_momentum_analysis(self) -> dict[str, Any]:
         """Retrieve core fast/slow moving average parameters settings."""
         momentum_config_path = self.base_dir / "config" / "momentum_config" / "momentum_analysis_settings.toml"
-        return load_config_file(str(self.base_dir / momentum_config_path))
+        return load_config_file(str(momentum_config_path))
 
 
 # Instantiate singleton settings proxy
@@ -95,6 +103,5 @@ if not settings.data_dir.exists():
 if not settings.log_dir.exists():
     settings.log_dir.mkdir(parents=True, exist_ok=True)
 
-# AI/Agent Settings (Local via Ollama) - accessed through settings.ollama_base_url and settings.model_selection
-# Example usage would be:
-# ollama_url = settings.ollama_base_url
+if not settings.telemetry_log_dir.exists():
+    settings.telemetry_log_dir.mkdir(parents=True, exist_ok=True)

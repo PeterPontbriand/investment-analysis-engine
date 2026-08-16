@@ -1,19 +1,13 @@
 # Milestone v0.2 Implementation Plan
 ## Reliability, Observability & Data Persistence
 
-**Project:** Financial Data Agents
-
-**Repository:** https://github.com/PeterPontbriand/financial-data-agents
-
-**Source of truth:** Current `docs/MASTER_PLAN.md` (Milestone v0.2 section)
-
-**Companion rationale:** Current `docs/DISCOVERY_WORKBOOK.md`
-
-**Prepared:** 2026-08-15
-
-**Revised:** 2026-08-16 — Sequencing, telemetry/logging boundaries, deterministic Golden Suite data access, schema-compatibility deferral, retention configuration, and fine-grained branch strategy aligned with the current planning decisions.
-
-**Status:** Draft for development-team review and sequencing
+**Project:** Financial Data Agents  
+**Repository:** [https://github.com/PeterPontbriand/financial-data-agents](https://github.com/PeterPontbriand/financial-data-agents)  
+**Source of truth:** Current `docs/MASTER_PLAN.md` (Milestone v0.2 section)  
+**Companion rationale:** Current `docs/DISCOVERY_WORKBOOK.md`  
+**Prepared:** 2026-08-15  
+**Revised:** 2026-08-16 — Reframed telemetry boundaries, added constraint-to-package mapping, explicitly typed initial telemetry events, and finalized step sequencing.  
+**Status:** Draft for development-team review and sequencing  
 
 ---
 
@@ -32,7 +26,7 @@ This plan turns the high-level Master Plan steps for Milestone v0.2 into an acti
 - Multi-step autonomy / executive reporting (Milestone v1.0)
 - Any UI / dashboard work
 
-**Success definition for the milestone**
+**Success definition for the milestone**  
 A clean, Light-Mode-capable analysis path exists that:
 1. Logs full trajectories (prompts, tool calls, latency, tokens).
 2. Enforces native Ollama JSON schema constraints + Pydantic validation.
@@ -43,16 +37,20 @@ A clean, Light-Mode-capable analysis path exists that:
 
 ---
 
-## 2. Guiding Constraints (from Master Plan & Discovery Workbook)
+## 2. Guiding Constraints
 
-- Deterministic math stays in Python; LLM is used only for planning, tool selection, and narrative.
-- All tool arguments and returns are Pydantic models.
-- Native Ollama `format=Schema` (or equivalent) is preferred over post-hoc string parsing.
-- Light Mode is the default adoption path; Full Dual-Tier remains optional.
-- Strict typing (`mypy --strict`), Ruff, and pytest are non-negotiable quality gates.
-- Outbound network access is guarded (cache-first, rate-limited, domain-whitelisted).
-- Failures are classified (transient vs. non-recoverable) and surface clear diagnostics.
-- Prefer decoupled, swappable implementations behind narrow interfaces over hard dependencies on a specific storage or library choice (Discovery Workbook §4.1–4.2) — this is the principle behind the Step 2.1 sequencing design in §4.1 below.
+The following core principles govern all technical decisions across Milestone v0.2.
+
+| Constraint | Description & Architectural Principle | Primary Impacted Packages |
+| :--- | :--- | :--- |
+| **Python Determinism** | Deterministic math stays in Python; LLM is used only for planning, tool selection, and narrative synthesis. | Step 2.2, Step 2.3 |
+| **Typed Tool Interfaces** | All tool arguments and return structures must be strictly defined via Pydantic models. | Step 2.1, Step 2.2, Step 3.2 |
+| **Native Schema Formatting** | Native Ollama `format=Schema` (or provider equivalent) is preferred over post-hoc string/regex parsing. | Step 2.2 |
+| **Light-Mode Default** | Light Mode is the default adoption and execution path; Full Dual-Tier remains optional. | Step 3.5 |
+| **Strict Quality Gates** | Strict typing (`mypy --strict`), Ruff, and pytest coverage are non-negotiable CI gates. | All Work Packages |
+| **Guarded Egress** | Outbound network access is strictly guarded (cache-first, rate-limited, domain-whitelisted). | Step 3.1, Step 3.3 |
+| **Classified Diagnostics** | Failures are categorized (transient vs. non-recoverable) and surface structured diagnostics. | Step 2.1, Step 2.4 |
+| **Decoupled Contracts** | Decoupled, swappable implementations behind narrow interfaces are preferred over direct library dependencies. | Step 2.1, Step 2.3, Step 3.1 |
 
 ---
 
@@ -60,22 +58,20 @@ A clean, Light-Mode-capable analysis path exists that:
 
 Use **fine-grained branches aligned with coherent implementation units within a Master Plan step**. Do not use one branch spanning the entire milestone, and do not create trivial one-change branches merely for mechanical edits.
 
-Recommended examples:
-
 | Work unit | Suggested branch | Rationale |
-|------------|------------------|-----------|
-| Step 2.1 telemetry model | `feature/step-2.1-telemetry-model` | Establishes the stable event contract |
-| Step 2.1 sinks | `feature/step-2.1-telemetry-sinks` | Adds sink abstraction + JSONL persistence |
-| Step 2.1 runtime instrumentation | `feature/step-2.1-runtime-instrumentation` | Wires telemetry into orchestrator/LLM/tool boundaries |
-| Step 2.1 integration tests/docs | `feature/step-2.1-telemetry-integration` | Demonstrates complete trajectory reconstruction |
-| Step 2.2 schema enforcement | `feature/step-2.2-schema-enforcement` | Isolates native structured-output work |
-| Step 2.3 data abstraction | `feature/step-2.3-data-fixtures` | Defines deterministic benchmark data contract |
-| Step 2.3 Golden runner | `feature/step-2.3-golden-suite` | Implements benchmark cases and evaluation harness |
-| Step 2.4 reliability limits | `feature/step-2.4-circuit-breakers` | Isolates hard execution limits |
-| Step 3.1 persistence foundation | `feature/step-3.1-sqlite-foundation` | Alembic, schema, SQLite telemetry sink, production data access |
-| Step 3.2 repositories | `feature/step-3.2-repositories` | Typed DAO/repository layer |
-| Step 3.3 data quality | `feature/step-3.3-data-quality` | Validation, staleness, invalidation |
-| Step 3.5 Light Mode | `feature/step-3.5-light-mode` | Adoption path and smoke validation |
+| :--- | :--- | :--- |
+| Step 2.1 telemetry model | `feat/step-2.1-telemetry-model` | Establishes the stable event contract |
+| Step 2.1 sinks | `feat/step-2.1-telemetry-sinks` | Adds sink abstraction + JSONL persistence |
+| Step 2.1 runtime instrumentation | `feat/step-2.1-runtime-instrumentation` | Wires telemetry into orchestrator/LLM/tool boundaries |
+| Step 2.1 integration tests/docs | `feat/step-2.1-telemetry-integration` | Demonstrates complete trajectory reconstruction |
+| Step 2.2 schema enforcement | `feat/step-2.2-schema-enforcement` | Isolates native structured-output work |
+| Step 2.3 data abstraction | `feat/step-2.3-data-fixtures` | Defines deterministic benchmark data contract |
+| Step 2.3 Golden runner | `feat/step-2.3-golden-suite` | Implements benchmark cases and evaluation harness |
+| Step 2.4 reliability limits | `feat/step-2.4-circuit-breakers` | Isolates hard execution limits |
+| Step 3.1 persistence foundation | `feat/step-3.1-sqlite-foundation` | Alembic, schema, SQLite telemetry sink, production data access |
+| Step 3.2 repositories | `feat/step-3.2-repositories` | Typed DAO/repository layer |
+| Step 3.3 data quality | `feat/step-3.3-data-quality` | Validation, staleness, invalidation |
+| Step 3.5 Light Mode | `feat/step-3.5-light-mode` | Adoption path and smoke validation |
 
 **Working agreement**
 - Prefer small, reviewable PRs that each leave `main` green.
@@ -90,8 +86,7 @@ Recommended examples:
 
 ### 4.1 Step 2.1 – Trajectory Logging & Telemetry
 
-**Goal**
-
+**Goal**  
 Establish the project's machine-readable observability foundation without duplicating the existing human-oriented operational logger or blocking on the production SQLite layer.
 
 **Architectural boundary**
@@ -113,68 +108,71 @@ Establish the project's machine-readable observability foundation without duplic
                                   (Step 2.1)      (Step 3.1)
 ```
 
-The existing `src/utils/logger_util.py` already provides asynchronous queue-based logging, dual console/file routing, time- and size-based rotation, configurable backup counts, background compression, contextual metadata, and graceful shutdown. Step 2.1 must **reuse its configuration conventions, not replace it**.
+The existing `src/utils/logger_util.py` provides asynchronous queue-based logging, dual console/file routing, rotation, compression, and graceful shutdown. Step 2.1 will **reuse its configuration conventions** rather than replace it.
 
-**Sequencing decision**
+**Sequencing decision**  
+Step 2.1 defines a narrow `TrajectorySink` abstraction and implements JSONL first. Step 3.1 later adds a SQLite sink satisfying the same abstraction. The orchestrator and telemetry recorder remain decoupled from the specific underlying storage choice.
 
-Step 2.1 defines a narrow `TrajectorySink` abstraction and implements JSONL first. Step 3.1 later adds a SQLite sink satisfying the same abstraction. The orchestrator and telemetry recorder therefore do not care whether telemetry is persisted to JSONL or SQLite.
+**Telemetry semantics & Concrete Event Types**  
+To ensure clarity during implementation, the initial system will emit a closed set of concrete, strongly-typed event types:
 
-**Telemetry semantics**
+* `RUN_START`: Triggered when an overall analysis session or trajectory begins.
+* `RUN_END`: Triggered when a session completes (successfully or with terminal error).
+* `STEP_START`: Emitted at the start of an orchestrator planning cycle.
+* `STEP_END`: Emitted at the completion of an orchestrator planning cycle.
+* `LLM_REQUEST`: Logged prior to sending prompts to the underlying model provider.
+* `LLM_RESPONSE`: Logged upon receiving completion outputs from the model.
+* `TOOL_CALL_START`: Emitted when an internal Python tool invocation begins.
+* `TOOL_CALL_END`: Emitted upon successful tool execution, capturing validated results.
+* `TOOL_CALL_FAILED`: Logged when a tool throws an unhandled exception or validation failure.
+* `RECOVERY_ATTEMPT`: Triggered when a transient failure initiates a retry or fallback path.
 
-The initial event model should support:
+Every telemetry event envelope captures standard metadata fields including `event_id`, `trajectory_id`, `sequence`, `timestamp`, `event_type`, `component`, `schema_version`, latency, parent/correlation identifiers, and payload metadata according to configurable retention rules.
 
-- `event_id`
-- `trajectory_id`
-- `sequence`
-- `timestamp`
-- `event_type`
-- `component`
-- `schema_version`
-- correlation/parent identifiers where needed
-- model/provider metadata
-- step number
-- tool name and validated arguments
-- tool result/error metadata
-- latency
-- token usage when exposed by the provider
-- payload hash and/or retained payload according to configurable retention rules
-
-Initial event categories should remain deliberately small: trajectory start/end, step start/end, LLM request/response, tool request/execution start/end/failure, and recovery attempt.
-
-**Important reasoning boundary**
-
-"Latent steps" means observable runtime steps and model-emitted auxiliary output that the application actually receives. The implementation must not infer, reconstruct, or claim to store private/internal model reasoning that is not exposed by the model/provider.
+**Observability & Data Boundaries**  
+The telemetry recorder will capture and store observable data explicitly exposed by the model or provider during execution. This includes prompts, returned completions, tool inputs/outputs, wall-clock timing, and provider token metrics. If specific metrics (such as token counts or extended latency breakdown) are omitted by a local model/provider, the event will explicitly capture these as `null` or missing fields rather than estimating or fabricating metrics.
 
 **Implementation outline**
-
-1. Define typed telemetry event/envelope models.
-2. Define the `TrajectorySink` Protocol.
-3. Implement `JSONLTrajectorySink` as the first persistence sink.
-4. Implement `TrajectoryRecorder` to own trajectory IDs and monotonic sequence assignment.
-5. Place the event model, TrajectorySink Protocol, JSONLTrajectorySink, and TrajectoryRecorder under src/core/telemetry/.
-6. Instrument trajectory, step, LLM, tool, and failure boundaries without changing execution semantics.
-7. Capture token usage when available; represent unavailable usage explicitly rather than inventing values.
-8. Add payload sanitization/redaction at the telemetry boundary.
-9. Add telemetry configuration to the existing `ProjectSettings` model, following the same conventions already used by `logger_util.py`. Keep retention configurable.
-10. Add unit tests for event validation, sequencing, serialization, redaction, and sink behavior.
-11. Add integration tests demonstrating complete trajectory reconstruction.
-12. Update `docs/ARCHITECTURE.md` with the telemetry/logging boundary and sink contract.
+1. Define typed telemetry event schemas (including the concrete `event_type` enumeration) and envelope models under `src/core/telemetry/`.
+2. Define the `TrajectorySink` Protocol interface.
+3. Implement `JSONLTrajectorySink` as the initial persistence sink.
+4. Implement `TrajectoryRecorder` to manage monotonic sequence assignment and `trajectory_id` tracking.
+5. Instrument trajectory, step, LLM, tool, and failure boundaries without altering core execution semantics.
+6. Capture token usage when available; render missing provider metrics explicitly as `None`.
+7. Add payload sanitization/redaction at the telemetry boundary to guard secrets.
+8. Integrate telemetry configuration into `ProjectSettings`, mirroring `logger_util.py` retention options.
+9. Add unit tests for serialization, redaction, sequencing, and sink behavior.
+10. Add integration tests verifying complete trajectory reconstruction from logged JSONL files.
+11. Update `docs/ARCHITECTURE.md` with sink contracts and logging boundaries.
 
 **Acceptance criteria**
-
-- [ ] A complete representative analysis produces a coherent ordered trajectory.
-- [ ] LLM requests/responses, tool calls/results, failures, latency, and token usage when available are observable.
-- [ ] No private/internal model reasoning is inferred or reconstructed.
+- [ ] A complete representative analysis produces a coherent ordered trajectory using the defined event types.
+- [ ] LLM requests/responses, tool calls/results, failures, latency, and exposed token metrics are fully recorded.
+- [ ] Provider limitations (e.g., missing token counts) are logged explicitly as missing data without execution failure.
 - [ ] Telemetry persistence is independent of the orchestrator through the sink abstraction.
-- [ ] JSONL readback reconstructs the same logical event sequence that was recorded.
-- [ ] Telemetry retention/storage controls are configurable.
-- [ ] Telemetry failures do not silently alter business execution semantics.
-- [ ] No secrets or API keys appear in telemetry payloads.
-- [ ] `mypy --strict`, Ruff, and tests pass.
+- [ ] JSONL readback cleanly reconstructs the exact recorded event sequence.
+- [ ] Telemetry retention and storage controls are fully configurable via settings.
+- [ ] Telemetry failures fail-open and do not disrupt business execution semantics.
+- [ ] Secrets, API keys, and sensitive tokens are automatically redacted prior to persistence.
+- [ ] Quality gates pass (`mypy --strict`, Ruff, pytest).
+
+**Follow-ups (non-blocking for Step 2.1 merge)**
+
+- **Emit `RECOVERY_ATTEMPTED`:** The event type is defined. When the orchestrator
+  repair/retry path runs, record a `RECOVERY_ATTEMPTED` event on each attempt
+  (component, step_index, span linkage, sanitized error context). If recovery
+  is still minimal, wire this when Step 2.4 circuit-breakers / repair policy
+  lands.
+- **Always set `payload_hash` when a payload is retained:** Confirm
+  `TrajectoryRecorder` sets `payload_hash` for every event that keeps a
+  non-null payload (integrity without storing full bodies). Leave hash null
+  only when payload is omitted.
+  
+---
 
 ### 4.2 Step 2.2 – Native Schema Enforcement
 
-**Goal**
+**Goal**  
 Prevent unstructured / drifting LLM output by using Ollama's native JSON-schema constraint (`format=Schema` or equivalent) wherever the model is expected to emit structured tool calls or final synthesis objects.
 
 **Implementation outline**
@@ -187,10 +185,10 @@ Prevent unstructured / drifting LLM output by using Ollama's native JSON-schema 
 **Acceptance criteria**
 - [ ] All tool-call extraction paths use native schema constraints when the underlying Ollama version supports them.
 - [ ] Schema violations are classified as transient and do not crash the process.
-- [ ] Golden-test or smoke tests demonstrate reduced output-drift failures compared with the pre-constraint baseline (qualitative or measured).
+- [ ] Golden-test or smoke tests demonstrate reduced output-drift failures compared with the pre-constraint baseline.
 
 **Dependencies / risks**
-- The detailed Ollama/model support matrix is deliberately deferred until this step because it is an implementation/evaluation question, not a Step 2.1 prerequisite.
+- The detailed Ollama/model support matrix is deferred until this step as an implementation task.
 - Verify the actual installed Ollama version and supported Light Mode model configurations.
 - Define a documented fallback for model/provider configurations that do not reliably honour native schema constraints.
 - Retain Pydantic validation as the application-level defense even when native schema enforcement is active.
@@ -199,24 +197,18 @@ Prevent unstructured / drifting LLM output by using Ollama's native JSON-schema 
 
 ### 4.3 Step 2.3 – Golden-Test Suite
 
-**Goal**
-
+**Goal**  
 Establish a deterministic benchmark of representative investment-analysis tasks with verified quantitative outcomes and observable tool-selection behaviour.
 
-**Key architectural decision**
-
-The Golden Suite must not depend on repeatedly fetching live market data.
-
-Before benchmark cases are implemented, define the **minimal typed market-data access abstraction** required by the cases. Step 2.3 uses a deterministic fixture-backed implementation of that abstraction. Step 3.1 later supplies the production SQLite/cache-backed implementation of the same contract.
+**Key architectural decision**  
+The Golden Suite must not depend on repeatedly fetching live market data. Before benchmark cases are implemented, define the **minimal typed market-data access abstraction** required by the cases. Step 2.3 uses a deterministic fixture-backed implementation of that abstraction. Step 3.1 later supplies the production SQLite/cache-backed implementation of the same contract.
 
 This deliberately separates:
-
 1. **Golden fixtures** — immutable/deterministic benchmark evidence;
 2. **Market-data persistence** — production cached historical data;
 3. **Trajectory telemetry** — execution history.
 
 **Implementation outline**
-
 1. Define the minimal market-data access contract needed by benchmark scenarios.
 2. Implement an in-memory/file-backed fixture adapter for deterministic historical market data.
 3. Define a small, high-signal initial set of golden cases (start with roughly 8–15).
@@ -224,15 +216,11 @@ This deliberately separates:
 5. Define expected tool-selection behaviour and verified numeric outcomes/tolerances.
 6. Build a headless runner that can execute against deterministic mocks/fixtures and, where explicitly desired, a real local Ollama configuration.
 7. Record the trajectory and final outputs for every run.
-8. Produce a machine-readable report separating:
-   - tool-selection accuracy;
-   - numeric accuracy;
-   - overall case pass/fail.
+8. Produce a machine-readable report separating tool-selection accuracy, numeric accuracy, and overall case pass/fail status.
 9. Add at least one intentionally failing case to prove the harness detects regressions.
 10. Document fixture creation, provenance, update policy, and benchmark execution in `docs/EVALUATIONS.md`.
 
 **Acceptance criteria**
-
 - [ ] Golden cases do not require live external market-data calls.
 - [ ] Historical fixture data is deterministic and provenance is documented.
 - [ ] The benchmark consumes the shared market-data abstraction rather than bypassing it.
@@ -241,22 +229,17 @@ This deliberately separates:
 - [ ] At least one intentionally failing case demonstrates regression detection.
 - [ ] Current pass rate is measured, with ≥90% remaining the Master Plan target.
 
-**Dependencies / risks**
-
-- Depends on Step 2.1 telemetry for trajectory evidence.
-- Benefits from Step 2.2 schema enforcement, but the fixture/data abstraction can be developed in parallel.
-- The production SQLite persistence layer is **not** required to begin Golden Suite implementation.
-- The fixture representation must be designed so Step 3.1 can later implement the same data-access contract without changing benchmark cases.
+---
 
 ### 4.4 Step 2.4 – Circuit Breakers & Timeout Limits
 
-**Goal**
+**Goal**  
 Hard execution caps, wall-clock bounds, and error thresholds that prevent unbounded loops or runaway token spend.
 
 **Implementation outline**
 1. Centralise limits in the existing Settings / config model (max steps, max transient retries, per-step and overall wall-clock timeouts, max consecutive schema violations, etc.).
 2. Implement a small `CircuitBreaker` (or equivalent) that the orchestrator consults before each planning step and after each tool/LLM call.
-3. On threshold breach: halt cleanly, emit a human-readable diagnostic that includes the `run_id` and last few trajectory events, and return a structured failure result to the CLI.
+3. On threshold breach: halt cleanly, emit a human-readable diagnostic that includes the `run_id` and last few trajectory events, and return a structured failure result to the CLI. Also emit RECOVERY_ATTEMPTED if not already done in 2.1.
 4. Unit tests covering: normal completion, max-steps hit, timeout hit, repeated schema-violation trip.
 
 **Acceptance criteria**
@@ -268,105 +251,85 @@ Hard execution caps, wall-clock bounds, and error thresholds that prevent unboun
 
 ### 4.5 Step 3.1 – SQLite DB & Migration Infrastructure
 
-**Goal**
-
+**Goal**  
 Establish the production SQLite persistence foundation while implementing the SQLite telemetry sink and production market-data access behind the abstractions established earlier.
 
 **Implementation outline**
-
 1. Add Alembic and establish the migration environment using the existing application database configuration.
-2. Create the initial production schema for:
-   - market prices/OHLCV;
-   - instrument and source metadata;
-   - trajectory telemetry storage;
-   - any other entities required by the current Master Plan, but do not prematurely absorb unrelated application state.
+2. Create the initial production schema for market prices/OHLCV, instrument/source metadata, and trajectory telemetry storage.
 3. Enforce SQLite WAL mode and appropriate busy-timeout/connection settings.
 4. Implement `SQLiteTrajectorySink` against the exact `TrajectorySink` contract established in Step 2.1.
 5. Implement the production market-data repository/data source against the minimal contract consumed by the Golden Suite.
-6. Implementation lives under `src/core/repositories/`.
-7. Ensure cache-first retrieval can reuse previously fetched historical market data rather than repeatedly querying the external provider.
+6. Place implementation under `src/core/repositories/`.
+7. Ensure cache-first retrieval reuses previously fetched historical market data rather than repeatedly querying external providers.
 8. Provide a documented migration command and fresh-database smoke test.
-9. Verify that the same trajectory can be persisted and reconstructed through JSONL or SQLite without changing the telemetry event model.
-
-**Architectural distinction**
-
-The database contains at least two conceptually distinct classes of information:
-
-- **market-data persistence/cache** — answers what financial data is available;
-- **trajectory telemetry** — answers what the agent did.
-
-Golden fixtures remain deterministic benchmark artifacts and are not simply aliases for the mutable production cache.
+9. Verify that trajectories can be persisted and reconstructed identically through either JSONL or SQLite sinks.
 
 **Acceptance criteria**
-
 - [ ] `alembic upgrade head` succeeds on a clean environment.
 - [ ] WAL mode is verified.
 - [ ] Schema is migration-controlled.
 - [ ] `SQLiteTrajectorySink` conforms to the Step 2.1 sink contract.
 - [ ] A representative trajectory can be written to and reconstructed from SQLite.
-- [ ] The production market-data implementation satisfies the same abstraction consumed by the Golden Suite.
+- [ ] Production market-data implementation satisfies the shared abstraction consumed by the Golden Suite.
 - [ ] Previously fetched historical data can be reused without an unnecessary external refetch.
-- [ ] No benchmark case requires rewriting because SQLite replaces the fixture adapter.
+
+---
 
 ### 4.6 Step 3.2 – DAO & Repository Layer
 
-**Goal**
+**Goal**  
 Strongly-typed Python data-access objects for cache inspection, audit logging, and later analytics.
 
 **Implementation outline**
 1. Define narrow repository interfaces (e.g. `PriceRepository`, `TrajectoryRepository`, `MetadataRepository`).
-2. Implement SQLite-backed concrete classes that accept/return Pydantic models only.
-3. Implementation lives under `src/core/repositories/`.
-4. Keep all SQL inside the repository layer; no raw SQL in the orchestrator or tools.
-5. Unit tests with an in-memory or temporary-file SQLite DB.
+2. Implement SQLite-backed concrete classes that accept/return Pydantic models only under `src/core/repositories/`.
+3. Keep all SQL inside the repository layer; no raw SQL in the orchestrator or tools.
+4. Unit tests with an in-memory or temporary-file SQLite DB.
 
 **Acceptance criteria**
 - [ ] Public repository methods are fully typed and mypy-clean.
-- [ ] Round-trip tests pass for the core entities.
+- [ ] Round-trip tests pass for core entities.
 - [ ] Connection management is consistent with WAL / single-writer guidance.
 
 ---
 
 ### 4.7 Step 3.3 – Data Quality & Cache Invalidation Pipeline
 
-**Goal**
+**Goal**  
 Validate incoming financial data (FX adjustments, corporate actions, staleness) and invalidate or refresh cache entries when quality rules fail.
 
 **Implementation outline**
-1. Define a small set of quality rules (examples):
-   - price series continuity / missing-bar detection,
-   - currency consistency (CAD vs USD),
-   - maximum age of a cached bar before forced refresh,
-   - basic corporate-action flags if data source provides them.
+1. Define core quality rules: price series continuity/missing-bar detection, currency consistency (CAD vs USD), and maximum age of cached bars before forced refresh.
 2. Run rules on every fetch path before writing to the cache.
-3. On failure: either reject the write, mark the entry stale, or trigger a controlled re-fetch (with circuit-breaker awareness).
-4. Log quality decisions into the trajectory / execution log for auditability.
-5. Unit tests with synthetic good and bad series.
+3. On failure: reject the write, mark the entry stale, or trigger a controlled re-fetch (with circuit-breaker awareness).
+4. Log quality decisions into the execution trajectory for auditability.
+5. Unit tests with synthetic valid and invalid data series.
 
 **Acceptance criteria**
 - [ ] Documented quality rules with clear pass/fail behaviour.
-- [ ] Stale or invalid data cannot silently become the "source of truth" for downstream analytics.
-- [ ] Quality failures appear in the trajectory log.
+- [ ] Stale or invalid data cannot silently become the source of truth for downstream analytics.
+- [ ] Quality failures appear transparently in the trajectory log.
 
 ---
 
 ### 4.8 Step 3.5 – Light Mode Support
 
-**Goal**
+**Goal**  
 The full single-step analysis path (data fetch → deterministic analytics → basic synthesis/report) runs cleanly under Light Mode configuration with a 14B-class (or smaller) model.
 
 **Implementation outline**
 1. Make Light Mode the configuration default (model tag, single-tier behaviour).
 2. Ensure README and `docs/HARDWARE.md` give a new user a complete, copy-pasteable path to a first successful analysis under Light Mode.
-3. Add a minimal smoke-test (or mark an existing golden case) that is expected to pass under Light Mode resource constraints.
-4. Confirm that dual-tier code paths remain available but are opt-in.
-5. Verify that trajectory logging, schema enforcement, and circuit breakers all function under the Light Mode model.
+3. Add a minimal smoke-test expected to pass under Light Mode resource constraints.
+4. Confirm dual-tier code paths remain available as opt-in features.
+5. Verify trajectory logging, schema enforcement, and circuit breakers function cleanly under the Light Mode model.
 
 **Acceptance criteria (exit criterion for Step 3.5)**
-- [ ] A user following only the Light Mode instructions can complete a real analysis end-to-end.
+- [ ] A user following only Light Mode instructions can complete an end-to-end analysis.
 - [ ] Configuration defaults favour Light Mode.
 - [ ] Basic smoke tests pass under Light Mode constraints.
-- [ ] Documentation is consistent across README, HARDWARE.md, Master Plan, and Discovery Workbook.
+- [ ] Documentation is consistent across README, `HARDWARE.md`, Master Plan, and Discovery Workbook.
 
 ---
 
@@ -374,7 +337,7 @@ The full single-step analysis path (data fetch → deterministic analytics → b
 
 ```text
 Phase A — Step 2.1 foundation
-  ├─ 2.1 telemetry model
+  ├─ 2.1 telemetry model & event types
   ├─ 2.1 sink abstraction + JSONL sink
   └─ 2.1 runtime instrumentation
 
@@ -405,69 +368,55 @@ Phase E — Adoption gate
        → unlocks Milestone v0.2.5 real-user validation
 ```
 
-**Parallelism guidance**
+---
 
-- Step 2.1 telemetry model/sinks and Step 2.4 circuit-breaker design can proceed independently.
-- Step 2.2 schema enforcement can begin once the existing LLM boundary is understood; its detailed model-support verification belongs here, not earlier.
-- Step 2.3 fixture/data-access work may begin before Step 3.1, but must use the agreed abstraction rather than a one-off mock API.
-- Step 3.1 may proceed in parallel with late Step 2 work, but it must implement the abstractions already established rather than redesigning them.
-- Step 3.5 is the final adoption gate and should be validated after the core reliability/persistence path is operational.
+## 6. Quality Gates
 
-## 6. Quality Gates (apply to every PR in this milestone)
+The following quality checks must pass on every pull request within this milestone:
 
-- `ruff check . && ruff format --check .`
-- `mypy --strict src/`
-- `pytest` (unit + any new integration tests) with coverage trend monitored
-- No new untyped public interfaces
-- Trajectory / diagnostic output must never leak secrets
-- Light Mode path must remain functional once Step 3.5 lands
+* `ruff check . && ruff format --check .`
+* `mypy --strict src/`
+* `pytest` (unit and integration) with monitored coverage trends
+* Zero untyped public interfaces
+* Zero secret or API key leaks in trajectory outputs
+* Verified Light Mode path functionality once Step 3.5 lands
 
 ---
 
 ## 7. Exit Criteria for Milestone v0.2
 
-All of the following must be true before declaring the milestone complete and opening the v0.2.5 real-user validation window:
+All of the following must be true before declaring the milestone complete and opening the v0.2.5 validation window:
 
-1. Steps 2.1–2.4, 3.1–3.3, and 3.5 are implemented and merged.
-2. Golden-test suite exists, is runnable, and current pass rate is known (path to ≥ 90 % documented).
-3. A fresh clone + Light Mode setup instructions produce a successful end-to-end analysis.
-4. CI is green on `main`.
-5. Master Plan and Discovery Workbook cross-references are consistent (no stale document version numbers).
-6. Any temporary scaffolding or TODOs that block real-user testing have been removed or clearly marked.
+1. Steps 2.1–2.4, 3.1–3.3, and 3.5 are fully implemented and merged.
+2. Golden-test suite exists, runs headlessly, and reports a clear pass rate against the ≥ 90 % target.
+3. A fresh repository clone running Light Mode setup instructions completes an end-to-end analysis successfully.
+4. CI pipeline is green on `main`.
+5. Master Plan and Discovery Workbook cross-references remain consistent.
+6. Temporary scaffolding and blocking TODOs are cleaned up or documented.
 
 ---
 
 ## 8. Decisions & Deferred Questions
 
 ### Resolved before implementation
-
 1. **Trajectory storage sequencing** — JSONL first in Step 2.1; SQLite sink in Step 3.1 behind the same sink abstraction.
-2. **Golden Suite market-data determinism** — define the shared market-data access abstraction before Step 2.3; use deterministic fixtures in the Golden Suite; implement the production SQLite/cache-backed version in Step 3.1.
-3. **Telemetry retention** — configurable, following the existing logger's configuration conventions; no fixed retention period is required at the architectural level.
-4. **Branch granularity** — use fine-grained branches aligned with coherent implementation units within each Master Plan step.
+2. **Golden Suite market-data determinism** — Shared market-data access abstraction defined prior to Step 2.3; deterministic fixtures used for Golden Suite; production SQLite implementation supplied in Step 3.1.
+3. **Telemetry retention** — Configurable via `ProjectSettings`, adhering to existing `logger_util.py` options.
+4. **Branch granularity** — Fine-grained branches mapped to coherent implementation units.
+5. **Telemetry boundaries** — Telemetry captures observable provider output; missing metrics are stored explicitly as `None` rather than estimated.
 
 ### Explicitly deferred
-
-5. **Ollama schema/model support matrix** — deferred to Step 2.2. The matrix is only useful once native schema enforcement is being implemented and verified against the supported model/provider configurations. Step 2.1 should capture enough model/provider metadata to make those later tests reproducible.
-
-### Design principles now locked
-
-- The existing operational logger remains the human-oriented logging subsystem.
-- Structured trajectory telemetry is a separate machine-readable subsystem.
-- Telemetry is observational and must not alter business execution semantics.
-- Golden Suite fixtures, production market-data cache, and trajectory telemetry are separate persistence concerns.
-- Production data access and Golden Suite fixtures share a narrow typed contract.
-- Document version numbers are not embedded in the Master Plan or Discovery Workbook; Git history is authoritative.
-
-## 9. Next Immediate Actions
-
-1. Review and approve this implementation plan.
-2. Start with `feature/step-2.1-telemetry-model`.
-3. Follow with the sink and runtime-instrumentation branches as coherent units.
-4. Before Step 2.3, agree on the minimal market-data access contract and deterministic fixture representation.
-5. Defer the Ollama/model support matrix until Step 2.2.
-6. Keep the Master Plan and Discovery Workbook free of arbitrary document version numbers; Git history is authoritative.
+1. **Ollama schema/model support matrix** — Deferred to Step 2.2 evaluation during native schema enforcement implementation.
 
 ---
 
-*This plan is derived directly from the current Master Plan Milestone v0.2 definition and the architectural constraints recorded in the Discovery Workbook. It is intentionally detailed enough for the team to organise work, estimate, and start coding without further high-level design cycles.*
+## 9. Next Immediate Actions
+
+1. Approve this revised implementation plan.
+2. Create and checkout `feat/step-2.1-telemetry-model`.
+3. Implement the concrete telemetry event types and envelope schemas under `src/core/telemetry/`.
+4. Follow with sink abstraction and runtime instrumentation PRs.
+5. Agree on the minimal market-data access contract prior to initiating Step 2.3.
+
+---
+

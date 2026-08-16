@@ -93,6 +93,7 @@ src/logs/*.log
 src/logs/*.zip
 logs/*.log
 logs/*.zip
+*.jsonl
 
 # --- Test Coverage Artifacts ---
 .coverage

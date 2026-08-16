@@ -1,7 +1,7 @@
 from typing import Any
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.config import settings
 
@@ -10,6 +10,14 @@ class LLMResponse(BaseModel):
     """Response model for the LLM."""
 
     response: str
+
+
+class LLMGenerateResult(BaseModel):
+    """Text plus optional provider usage (never invent token counts)."""
+
+    text: str
+    prompt_tokens: int | None = Field(default=None, ge=0)
+    completion_tokens: int | None = Field(default=None, ge=0)
 
 
 class LLMClient:
@@ -26,16 +34,14 @@ class LLMClient:
         model: str | None = None,
         temperature: float | None = None,
         response_model: type[BaseModel] | None = None,
-    ) -> str:
-        """Generates a response from the LLM, optionally passing model and temperature overrides."""
+    ) -> LLMGenerateResult:
+        """Generate a response and surface Ollama usage when the API provides it."""
         target_model = model or self.default_model
 
-        # Pass options/temperature to Ollama payload
-        options = {}
+        options: dict[str, Any] = {}
         if temperature is not None:
             options["temperature"] = temperature
 
-        # ... execute Ollama API call with target_model and options
         try:
             response = await self.client.post(
                 "/generate",
@@ -47,10 +53,15 @@ class LLMClient:
 
             if response_model is not None:
                 parsed_obj = response_model(**data)
-                return str(parsed_obj)
+                text = str(parsed_obj)
+            else:
+                text = str(data.get("response", data))
 
-            # Fallback to returning the response string field or raw body
-            return str(data.get("response", data))
+            return LLMGenerateResult(
+                text=text,
+                prompt_tokens=_optional_nonneg_int(data.get("prompt_eval_count")),
+                completion_tokens=_optional_nonneg_int(data.get("eval_count")),
+            )
 
         except httpx.HTTPError as e:
             print(f"HTTP error occurred: {e}")
@@ -62,3 +73,14 @@ class LLMClient:
     async def close(self) -> None:
         """Close the client connection."""
         await self.client.aclose()
+
+
+def _optional_nonneg_int(value: Any) -> int | None:
+    """Return a non-negative int, or None when the provider omitted/invalidated usage."""
+    if value is None:
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= 0 else None
