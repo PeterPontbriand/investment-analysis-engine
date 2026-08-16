@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.core.llm_client import LLMClient, LLMResponse
+from src.llm.client import LLMClient, LLMResponse
 
 
 def test_llm_client_init() -> None:

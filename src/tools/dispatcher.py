@@ -5,8 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from src.core.tools.parser import ParsedToolCall
-from src.core.tools.schema_generator import ToolRegistry
+from src.tools.parser import ParsedToolCall
+from src.tools.schema_generator import ToolRegistry
 
 
 class ToolExecutionResult(BaseModel):

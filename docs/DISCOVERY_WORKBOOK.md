@@ -57,11 +57,13 @@ Senior software architects, AI systems engineers, technical recruiters evaluatin
 Decisions are documented with their justification and the main alternatives considered. Durable decisions are also entered in the Decision Log (Appendix A). Decisions that require Peter's judgment call rather than being a direct restatement of already-stated goals are logged with **Status: Proposed** until confirmed.
 
 ## Living Document Policy
-The workbook evolves via Pull Requests alongside major milestone completions. Changes to core principles or architecture require an update to the relevant section and an entry in the Decision Log and Revision History.
+The workbook evolves via Pull Requests alongside major milestone completions. Git history is the authoritative record of document revisions. Changes to core principles or architecture require an update to the relevant section and an entry in the Decision Log and Revision History.
 
 ## Relationship to the Master Plan
 - **Master Plan** = execution roadmap (what, when, quality gates, milestones).
-- **Discovery Workbook** = rationale and constraints (why, how, non-goals, trade-offs).
+- **Discovery Workbook** = rationale and constraints (why, how, non-goals, trade-offs). References to either document mean the current version unless explicitly qualified as a prior or subsequent version.
+
+Document version numbers are never embedded in the Master Plan or Discovery Workbook; Git records their revisions.
 
 ---
 
@@ -78,7 +80,7 @@ Deliver deterministic financial analytics through an auditable, multi-tier local
 
 ### 3.4 Definition of Success
 - ≥ 90 % accuracy on the Golden Benchmark suite (numeric results + correct tool selection).
-- Zero `mypy --strict` errors in supported source code; 100 % typed public interfaces.
+- 100 % strict type coverage (`mypy --strict`).
 - Zero unhandled runtime exceptions on the golden suite.
 - CLI startup < 500 ms and indexed SQLite cache reads < 50 ms.
 - At least 3 people outside the author install the tool under **Light Mode** and complete a real analysis before Milestone v1.0 begins.
@@ -130,16 +132,6 @@ Section 6 names two different kinds of stakeholders: people who need working inv
 - Record durable decisions in the Decision Log.
 - When usefulness-to-real-users and portfolio-signal goals conflict, usefulness wins.
 
-### 4.5 Architectural Principles vs. Implementation Decisions
-
-The workbook distinguishes durable architectural principles from implementation decisions that may change as the project evolves.
-
-- **Architectural principles** express stable constraints or values that should survive changes in libraries, models, or implementation details.
-- **Implementation decisions** record the current technical means chosen to satisfy those principles.
-- When an implementation decision changes without changing the underlying principle, update the Decision Log and affected implementation documentation, but do not silently redefine the principle.
-
-This distinction is intended to prevent temporary technology choices from becoming accidental architectural commitments.
-
 ---
 
 # 5. Project Success Criteria
@@ -149,7 +141,7 @@ This distinction is intended to prevent temporary technology choices from becomi
 - Indexed SQLite cache query latency < 50 ms.
 
 ### 5.2 Engineering
-- Zero `mypy --strict` errors in supported source code; 100 % typed public interfaces.
+- 100 % type annotations, zero `mypy --strict` errors.
 - ≥ 85 % line coverage on `/src` (`pytest --cov`).
 
 ### 5.3 Agent
@@ -224,13 +216,27 @@ CLI / Reports
 - **Deep Reasoning Tier (≈32B)**: optional Full Dual-Tier mode - multi-step planning and higher-fidelity synthesis.
 - **Tool Dispatcher**: typed, schema-validated function calling only.
 
-### 8.4 Module Layout (current intent)
-- `src/core` – configuration (`pydantic-settings`), telemetry, logging.
-- `src/llm` – Ollama clients, JSON schema handling, context management.
-- `src/tools` – strongly-typed tools.
-- `src/db` – Alembic migrations, connection handling, DAOs.
-- `src/analytics` – pure mathematical routines.
-- `src/reporting` – Jinja2 templates, charting, PDF/Markdown generation.
+### 8.4 Module Layout (current)
+```
+src/
+├── config.py                 # Canonical ProjectSettings (pydantic-settings)
+├── core/
+│   ├── constants.py
+│   └── telemetry/            # Structured trajectory telemetry (Step 2.1+)
+├── llm/                      # Ollama client & schema boundary
+├── tools/                    # Registry, schema generation, parser, dispatcher
+├── orchestrator/             # Planner loop, context, rules, types
+├── data/
+│   ├── *client.py            # External provider adapters (BaseDataClient)
+│   └── repositories/         # Typed DAOs (Step 3.2+)
+├── analysis/                 # Pure deterministic analytics
+├── reporting/                # Report generation (Step 7+)
+└── utils/                    # Operational logger, workers
+```
+
+Entry points (`main.py`, `cli.py`) remain at the package root. Tests mirror the same structure under `tests/`.
+
+This layout is the result of the 2026-08-16 rationalization: a single configuration surface, clear homes for telemetry and repositories, and promotion of the LLM and tools packages to top-level packages that match their architectural weight.
 
 ### 8.5 Constraints
 - No `eval()`, no raw shell execution, no cloud LLM fallbacks for core reasoning.
@@ -249,7 +255,14 @@ CLI / Reports
 - Golden evaluation suite for full agent trajectories (mocked or recorded LLM responses), run against both Light Mode and Full Mode configurations where behavior differs.
 
 ### 9.2 Observability
-Structured telemetry (JSON lines + SQLite) capturing prompts, tool calls, latencies, token usage, and payload hashes.
+
+Structured trajectory telemetry is a machine-readable execution history used for reconstruction, diagnosis, and later evaluation. It is distinct from the project's existing human-oriented operational logger.
+
+The existing `src/utils/logger_util.py` establishes the project's operational logging precedent: asynchronous queue-based routing, console/file output, time- and size-based rotation, configurable backup counts, background compression, contextual metadata, and graceful lifecycle management. Its configuration is driven through the central settings model.
+
+Step 2.1 should therefore add a typed telemetry model and recorder rather than replacing or duplicating the operational logger. JSONL is the first telemetry sink; SQLite is added later behind the same abstraction. Telemetry retention is configurable through the existing settings conventions.
+
+Telemetry records observable model output and runtime events. Model-emitted auxiliary/reasoning output may be recorded when explicitly exposed, but private/internal model reasoning is never inferred or reconstructed.
 
 ### 9.3 Failure Handling
 - Transient (timeouts, malformed JSON, rate limits) → retry with error context, up to configured limit (default 3).
@@ -277,12 +290,14 @@ Prompt injection via external data (news, API text), overly permissive tools, le
 
 # 11. Data Strategy
 
-- **Persistence**: SQLite in WAL mode.
+- **Persistence**: SQLite in WAL mode for production market-data and application persistence.
 - **Migrations**: Alembic.
 - **Caching**: Aggressive local cache, default 24 h TTL, explicit invalidation on corporate actions or FX changes.
 - **Provenance**: Every stored price/metric carries fetch timestamp, source, and snapshot identifier.
-- **Audit**: Full trajectory logging of agent steps.
-- **Abstraction**: All upstream providers implement `BaseDataClient` so `yfinance` (or any replacement) can be swapped without touching business logic.
+- **Audit**: Full trajectory logging of agent steps through structured telemetry.
+- **Provider abstraction**: All upstream providers implement a narrow data-access/provider contract so `yfinance` (or any replacement) can be swapped without touching business logic.
+- **Golden-test determinism**: The Golden Suite must not repeatedly fetch live market data. Before Step 2.3, it will consume deterministic historical fixtures through the same minimal market-data access abstraction that production SQLite-backed data access will later implement.
+- **Persistence distinction**: Market-data persistence, trajectory telemetry, and Golden Suite fixtures are separate concerns even when SQLite is used for more than one of them.
 
 ---
 
@@ -324,7 +339,7 @@ Golden suite compares tool selection and numeric outputs against verified ground
 - Designed for single-node local use (personal / small professional network).
 - Light Mode targets modest consumer hardware; Full Dual-Tier targets workstation-class local hardware.
 - Optimize the deterministic path (cache, DB, pure Python analytics) first; LLM latency is accepted as GPU/unified-memory bound.
-- Targets: CLI startup < 500 ms, excluding Ollama/model initialization and network access; indexed local SQLite cache reads < 50 ms under a representative single-user workload.
+- Targets: CLI < 500 ms, indexed cache reads < 50 ms.
 
 ---
 
@@ -355,7 +370,7 @@ Architecture and principle changes in this workbook trigger corresponding update
 
 # 17. Development Workflow
 
-- Feature-branch workflow against `main`.
+- Feature-branch workflow against `main`, using fine-grained branches aligned with coherent implementation units within a Master Plan step (for example, `feature/step-2.1-telemetry-model` or `feature/step-2.1-runtime-instrumentation`).
 - Definition of Done: implemented, `mypy --strict` clean, `ruff` clean, unit tests + golden coverage, documented.
 - CI enforces the quality gates listed in Section 9.
 
@@ -463,7 +478,7 @@ Resolved in this revision:
 | 2026-08-13 | Positioning, model, scope, and dependency answers; illustrative use case |
 | 2026-08-13 | User-validation criteria; portfolio-vs-usefulness prioritization; hardware/persona mismatch flagged; Milestone v0.2.5; Open Question on `fr-CA` timing |
 | 2026-08-13 | **Light Mode decision recorded.** Hardware bar resolved by making single-tier Light Mode the default adoption path; required before v0.2.5. Full Dual-Tier remains optional. Updated principles, success criteria, architecture, Decision Log, and Open Questions. |
-| 2026-08-14 | Surgical cleanup: clarified local-first networking terminology, separated architectural principles from implementation decisions, standardized quality metrics and documentation references. |
+| 2026-08-16 | **Reliability/observability sequencing clarified.** Structured trajectory telemetry is separated from the existing operational logger; JSONL is the initial telemetry sink and SQLite is added behind the same abstraction in Step 3.1. Golden Suite data is made deterministic through a fixture-backed market-data abstraction, with production SQLite data access implemented later. Branch strategy is made fine-grained. |
 
 ---
 
@@ -488,6 +503,14 @@ Resolved in this revision:
 | D15 | 2026-08    | Document the dual-tier hardware requirements as a named adoption constraint | Leave the Illustrative Use Case mismatched | Kept the persona honest; forced a deliberate choice                                      | Accepted |
 | D16 | 2026-08    | Let Milestone v0.2.5 feedback decide whether `fr-CA` localization stays in v0.3 or moves later | Keep localization fixed in v0.3 regardless of demand | Avoids sinking i18n effort before knowing if real users ask for it                       | Accepted |
 | D17 | 2026-08    | **Introduce a supported Light / single-tier mode as the default adoption path.** Light Mode (≈14B-class or smaller, modest hardware) must be fully usable before Milestone v0.2.5. Full Dual-Tier remains an optional higher-capability path for users with sufficient hardware. | Keep dual-tier as the only path; or abandon dual-tier entirely | Resolves the hardware/persona mismatch. Makes the Illustrative Use Case reachable. Preserves deeper capability for those who have the hardware. Aligns with usefulness-first priority. | Accepted |
+| D18 | 2026-08-16 | Rationalize module layout: single config surface, promote llm/ and tools/ to top-level packages, introduce core/telemetry/ and data/repositories/ and reporting/ placeholders | Leave organic layout unchanged | Removes dual config systems, gives clear homes for Step 2.1 and Step 3 work, aligns documentation with code | Accepted |
+| D19 | 2026-08-16 | JSONL-first trajectory telemetry + shared market-data access abstraction for Golden Suite (fixtures first, production SQLite later) | Require full SQLite before any telemetry or evaluation work | Keeps reliability and evaluation unblocked; preserves determinism of the ≥90 % target | Accepted |
+
+---
+
+### Document Versioning Policy
+
+The Master Plan and Discovery Workbook are versioned through Git. Document version numbers are never embedded in either document. When either document refers to the other, the current version is intended unless explicitly qualified as a prior or subsequent version.
 
 ---
 

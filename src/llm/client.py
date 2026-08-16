@@ -3,7 +3,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel
 
-from src.core.config import settings
+from src.config import settings
 
 
 class LLMResponse(BaseModel):

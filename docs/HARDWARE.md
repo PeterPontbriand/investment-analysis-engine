@@ -27,7 +27,7 @@ The configurations below are recommendations, not hard dependencies. Model avail
 ### Light Mode (simplest path for most users)
 
 **Highest simplicity (preferred for non-technical users):**
-- **Apple Silicon** — Mac Mini or Mac Studio with **32 GB unified memory is the minimum supported target for Light Mode** (M2/M3/M4 Pro/Max class).  
+- **Apple Silicon** — Mac Mini or Mac Studio with **32 GB+ unified memory is the minimum supported target for Light Mode** (M2/M3/M4 Pro/Max class).  
   Ollama installs as a simple application; models load into unified memory with minimal configuration. Silent and low-power.
 - **High-end mini-PCs** with large unified/shared memory (e.g., AMD Ryzen AI Max / Strix Halo platforms such as certain Minisforum, Geekom, Framework Desktop, or similar boxes with 64 GB shared memory). Pre-built, Windows-native Ollama support.
 

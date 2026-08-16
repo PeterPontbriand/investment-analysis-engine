@@ -1,1 +1,1 @@
-"""Centralized domain constants and localization registry."""
+"""Centralized domain constants."""

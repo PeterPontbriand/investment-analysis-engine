@@ -35,7 +35,7 @@ class ProjectSettings(BaseSettings):
 
     # AI/Agent Settings
     ollama_base_url: str = "http://192.168.1.19:11434"
-    model_name: str = "deepseek-r1:14b"
+    model_selection: str = "deepseek-r1:14b"
 
     # Logging Configuration
     log_level: str = "INFO"
@@ -95,6 +95,6 @@ if not settings.data_dir.exists():
 if not settings.log_dir.exists():
     settings.log_dir.mkdir(parents=True, exist_ok=True)
 
-# AI/Agent Settings (Local via Ollama) - accessed through settings.ollama_base_url and settings.model_name
+# AI/Agent Settings (Local via Ollama) - accessed through settings.ollama_base_url and settings.model_selection
 # Example usage would be:
 # ollama_url = settings.ollama_base_url

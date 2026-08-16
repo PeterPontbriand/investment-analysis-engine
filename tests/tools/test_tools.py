@@ -2,11 +2,11 @@
 
 import pytest
 
-from src.core.tools.dispatcher import ToolDispatcher
-from src.core.tools.parser import (
+from src.tools.dispatcher import ToolDispatcher
+from src.tools.parser import (
     ToolParser,
 )
-from src.core.tools.schema_generator import ToolRegistry
+from src.tools.schema_generator import ToolRegistry
 
 
 @pytest.fixture

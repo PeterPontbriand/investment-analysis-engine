@@ -6,9 +6,10 @@
 * **Status:** Current Step 1 architecture baseline
 * **Related Master Plan:** `MASTER_PLAN.md`
 * **Related Discovery Workbook:** `DISCOVERY_WORKBOOK.md`
-* **Last Updated:** 2026-08-13
+* **Last Updated:** 2026-08-16
 
-This document defines the architectural intent and Step 1 implementation blueprint. Implementation details may evolve provided the stated architectural invariants and acceptance criteria remain satisfied.
+This document defines the architectural intent and Step 1 implementation blueprint. Implementation details may evolve provided the stated architectural invariants and acceptance criteria remain satisfied.  
+Step 2.1 will further expand the telemetry portion.  
 
 ---
 
@@ -53,17 +54,19 @@ The Step 1 implementation is organized around the following logical module bound
 
 ```text
 src/
+├── config.py                 # Canonical ProjectSettings (pydantic-settings)
 ├── core/
-│   ├── config.py             # Hierarchical settings (pydantic-settings)
-│   └── telemetry.py          # Trajectory and audit logging
-├── llm/
-│   ├── client.py             # Ollama async client wrapper
-│   └── context.py            # Conversation window & prompt manager
-└── tools/
-    ├── __init__.py
-    ├── schema_generator.py   # ToolRegistry & Ollama JSON schema generation
-    ├── parser.py             # ToolParser & model-output normalization
-    └── dispatcher.py         # ToolDispatcher & timing result envelope
+│   ├── constants.py
+│   └── telemetry/            # Structured trajectory telemetry (Step 2.1+)
+├── llm/                      # Ollama client & schema boundary
+├── tools/                    # Registry, schema generation, parser, dispatcher
+├── orchestrator/             # Planner loop, context, rules, types
+├── data/
+│   ├── *client.py            # External provider adapters (BaseDataClient)
+│   └── repositories/         # Typed DAOs (Step 3.2+)
+├── analysis/                 # Pure deterministic analytics
+├── reporting/                # Report generation (Step 7+)
+└── utils/                    # Operational logger, workers
 ```
 
 ### Architectural Boundaries

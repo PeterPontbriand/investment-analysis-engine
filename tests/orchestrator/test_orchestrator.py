@@ -3,8 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.core.llm_client import LLMClient
-from src.core.tools.parser import ParsedToolCall, ToolParser, ToolParsingError
+from src.llm.client import LLMClient
 from src.orchestrator.context import ContextConfig, MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig
@@ -15,6 +14,7 @@ from src.orchestrator.types import (
     ToolCallRequest,
     ToolCallResult,
 )
+from src.tools.parser import ParsedToolCall, ToolParser, ToolParsingError
 
 # ---------------------------------------------------------------------------
 # Helper – canonical way to create a context with runtime rules injected

@@ -128,7 +128,7 @@ Planned milestones include:
 ollama pull qwen2.5-coder:14b-instruct-q4_K_M
 ```
 
-For Full Dual-Tier Mode (only if you have ~24 GB+ VRAM or high unified memory), you may additionally pull a 32B-class model such as `qwen2.5-coder:32b-instruct-q4_K_M` or `deepseek-r1:32b`.
+For Full Dual-Tier Mode (only if you have ~24 GB+ VRAM or 32 GB+ unified memory), you may additionally pull a 32B-class model such as `qwen2.5-coder:32b-instruct-q4_K_M` or `deepseek-r1:32b`.
 
 ### Setup
 

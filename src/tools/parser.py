@@ -4,7 +4,7 @@ import json
 import re
 from typing import Any, NamedTuple
 
-from src.core.tools.schema_generator import ToolRegistry
+from src.tools.schema_generator import ToolRegistry
 
 
 class ParsedToolCall(NamedTuple):

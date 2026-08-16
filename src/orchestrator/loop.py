@@ -2,18 +2,18 @@ from collections.abc import AsyncGenerator
 
 from pydantic import BaseModel, Field
 
-from src.core.llm_client import LLMClient
-from src.core.tools.parser import ToolParser
+from src.llm.client import LLMClient
 from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.types import AgentStepResult, ChatMessage, Role, ToolCallRequest
+from src.tools.parser import ToolParser
 
 
 class OrchestratorConfig(BaseModel):
     """Configuration for the AgentOrchestrator, including maximum steps, model name, and temperature settings."""
 
     max_steps: int = Field(default=10, ge=1, le=50)
-    model_name: str = "qwen2.5-coder:latest"
+    model_selection: str = "qwen2.5-coder:latest"
     temperature: float = 0.0
 
 
@@ -46,7 +46,7 @@ class AgentOrchestrator:
         for step in range(1, self.config.max_steps + 1):
             raw_response = await self.llm_client.generate(
                 prompt=context.to_ollama_payload(),
-                model=self.config.model_name,
+                model=self.config.model_selection,
                 temperature=self.config.temperature,
             )
 
