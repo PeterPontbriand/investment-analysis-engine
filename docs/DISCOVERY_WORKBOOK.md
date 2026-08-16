@@ -140,8 +140,6 @@ The workbook distinguishes durable architectural principles from implementation 
 
 This distinction is intended to prevent temporary technology choices from becoming accidental architectural commitments.
 
-### Architect's Reflection
-
 ---
 
 # 5. Project Success Criteria

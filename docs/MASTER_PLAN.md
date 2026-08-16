@@ -8,9 +8,9 @@
 **Hardware Context:** Two supported modes — **Light Mode** (single-tier, ~8–16 GB VRAM or 32 GB+ unified memory) as the default path for most users, and **Full Dual-Tier Mode** (~24–28 GB VRAM) for deeper reasoning. See `docs/HARDWARE.md`.  
 **Out of Scope (Separate Project):** Full UI integration (e.g., Osiris or WorldMonitor)
 
-**Companion Document:** Master Plan Discovery Workbook v0.6 (records *why* decisions were made; this Master Plan records *what* and *when*).
+**Companion Document:** Master Plan Discovery Workbook (records *why* decisions were made; this Master Plan records *what* and *when*). References between these two documents always mean the current version of each.
 
-**Note on this revision (v7.1):** Surgical cleanup following the Light Mode decision: clarified local-first networking terminology, standardized quality metrics, and aligned documentation references. Discovery Workbook v0.6 remains the companion architectural rationale.
+**Note on this revision:** Surgical cleanup following the Light Mode decision: clarified local-first networking terminology, standardized quality metrics, and aligned documentation references. The Discovery Workbook remains the companion architectural rationale.
 
 ---
 
