@@ -33,6 +33,31 @@ class MessageContext:
         self._messages.append(message)
         self._truncate_if_needed()
 
+    def append_raw_dicts(self, items: list[dict[str, Any]]) -> None:
+        """Append already-shaped Ollama message dicts to the context history.
+
+        Used by the schema-violation retry path to inject the assistant reply
+        and the validation-feedback user message produced by
+        ``build_retry_messages`` before re-issuing the LLM call.
+
+        Args:
+            items: A list of Ollama-shaped message dicts (role, content, and
+                optional name). Only ``user`` and ``assistant`` roles are
+                expected; other roles are silently skipped.
+        """
+        for item in items:
+            role_str = item.get("role", "")
+            try:
+                role = Role(role_str)
+            except ValueError:
+                continue
+            if role not in (Role.USER, Role.ASSISTANT):
+                continue
+            content = item.get("content", "")
+            name = item.get("name")
+            self._messages.append(ChatMessage(role=role, content=content, name=name))
+        self._truncate_if_needed()
+
     def get_messages(self) -> list[ChatMessage]:
         """Returns the current list of messages in the context."""
         return list(self._messages)

@@ -1,3 +1,4 @@
+# src/config.py
 """Application configurations managed via Pydantic-settings and external TOML profiles."""
 
 import tomllib
@@ -5,7 +6,10 @@ from pathlib import Path
 from typing import Any, Literal
 
 from dotenv import load_dotenv
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from src.schema.config import SchemaConfig  # Step 2.2 import
 
 # Ensure core environment variables are populated
 load_dotenv()
@@ -33,6 +37,9 @@ class ProjectSettings(BaseSettings):
     ollama_base_url: str = "http://192.168.1.19:11434"
     model_selection: str = "deepseek-r1:14b"
 
+    # Native Schema Enforcement Settings (Step 2.2)
+    schema_config: SchemaConfig = Field(default_factory=SchemaConfig.from_env)
+
     # Human-readable operational logging
     log_level: str = "INFO"
     log_file_name: str = "app.log"
@@ -44,14 +51,9 @@ class ProjectSettings(BaseSettings):
     log_interval: int = 1
 
     # Structured trajectory telemetry (Step 2.1)
-    # Keep these separate from the human-readable logger configuration while
-    # following the same project log directory convention.
     telemetry_sink: Literal["jsonl"] = "jsonl"
     telemetry_log_dir: Path = Path(__file__).resolve().parent.parent / "logs"
     telemetry_level: Literal["INFO", "DEBUG", "OFF"] = "INFO"
-    # File-based retention for completed trajectory JSONL files. This is an
-    # audit-log retention policy, not time-based expiry: keep at most this many
-    # run files and this aggregate byte size, deleting oldest files first.
     telemetry_max_log_files: int = 100
     telemetry_max_total_size: int = 100 * 1024 * 1024
 

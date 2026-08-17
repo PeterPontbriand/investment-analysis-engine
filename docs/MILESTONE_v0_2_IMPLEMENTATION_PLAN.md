@@ -7,7 +7,8 @@
 **Companion rationale:** Current `docs/DISCOVERY_WORKBOOK.md`  
 **Prepared:** 2026-08-15  
 **Revised:** 2026-08-16 — Reframed telemetry boundaries, added constraint-to-package mapping, explicitly typed initial telemetry events, and finalized step sequencing.  
-**Status:** Draft for development-team review and sequencing  
+**Status:** Step 2.2 → Complete
+↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
 
@@ -146,15 +147,15 @@ The telemetry recorder will capture and store observable data explicitly exposed
 11. Update `docs/ARCHITECTURE.md` with sink contracts and logging boundaries.
 
 **Acceptance criteria**
-- [ ] A complete representative analysis produces a coherent ordered trajectory using the defined event types.
-- [ ] LLM requests/responses, tool calls/results, failures, latency, and exposed token metrics are fully recorded.
-- [ ] Provider limitations (e.g., missing token counts) are logged explicitly as missing data without execution failure.
-- [ ] Telemetry persistence is independent of the orchestrator through the sink abstraction.
-- [ ] JSONL readback cleanly reconstructs the exact recorded event sequence.
-- [ ] Telemetry retention and storage controls are fully configurable via settings.
-- [ ] Telemetry failures fail-open and do not disrupt business execution semantics.
-- [ ] Secrets, API keys, and sensitive tokens are automatically redacted prior to persistence.
-- [ ] Quality gates pass (`mypy --strict`, Ruff, pytest).
+- [x] A complete representative analysis produces a coherent ordered trajectory using the defined event types.
+- [x] LLM requests/responses, tool calls/results, failures, latency, and exposed token metrics are fully recorded.
+- [x] Provider limitations (e.g., missing token counts) are logged explicitly as missing data without execution failure.
+- [x] Telemetry persistence is independent of the orchestrator through the sink abstraction.
+- [x] JSONL readback cleanly reconstructs the exact recorded event sequence.
+- [x] Telemetry retention and storage controls are fully configurable via settings.
+- [x] Telemetry failures fail-open and do not disrupt business execution semantics.
+- [x] Secrets, API keys, and sensitive tokens are automatically redacted prior to persistence.
+- [x] Quality gates pass (`mypy --strict`, Ruff, pytest).
 
 **Follow-ups (non-blocking for Step 2.1 merge)**
 
@@ -183,16 +184,30 @@ Prevent unstructured / drifting LLM output by using Ollama's native JSON-schema 
 5. Add focused unit/integration tests that mock an Ollama response and assert both successful constrained generation and graceful handling of schema violations.
 
 **Acceptance criteria**
-- [ ] All tool-call extraction paths use native schema constraints when the underlying Ollama version supports them.
-- [ ] Schema violations are classified as transient and do not crash the process.
+- [x] All tool-call extraction paths use native schema constraints when the underlying Ollama version supports them.
+- [x] Schema violations are classified as transient and do not crash the process.
 - [ ] Golden-test or smoke tests demonstrate reduced output-drift failures compared with the pre-constraint baseline.
 
+> **Status:** Implementation complete and ready for PR/merge. The remaining unchecked item is deferred to Step 2.3/3.5 validation because it requires empirical evaluation rather than further Step 2.2 implementation.
+
 **Dependencies / risks**
-- The detailed Ollama/model support matrix is deferred until this step as an implementation task.
+- The detailed Ollama/model support matrix is deferred to empirical validation against the actual Light Mode model configuration.
 - Verify the actual installed Ollama version and supported Light Mode model configurations.
 - Define a documented fallback for model/provider configurations that do not reliably honour native schema constraints.
 - Retain Pydantic validation as the application-level defense even when native schema enforcement is active.
 
+### Step 2.2 Follow-up Validation
+
+- **Empirical Light Mode model compatibility:** The runtime currently
+  determines native schema capability from Ollama server-version information
+  and falls back conservatively when capability is unknown. A model-by-model
+  empirical verification of native JSON-schema enforcement against the
+  supported Light Mode model configuration remains to be performed.
+
+  This validation is intentionally non-blocking for the Step 2.2 merge.
+  Record the tested Ollama version, model identifier, schema-constrained
+  request, observed response behavior, and pass/fail result when completed.
+  
 ---
 
 ### 4.3 Step 2.3 – Golden-Test Suite
@@ -404,19 +419,20 @@ All of the following must be true before declaring the milestone complete and op
 3. **Telemetry retention** — Configurable via `ProjectSettings`, adhering to existing `logger_util.py` options.
 4. **Branch granularity** — Fine-grained branches mapped to coherent implementation units.
 5. **Telemetry boundaries** — Telemetry captures observable provider output; missing metrics are stored explicitly as `None` rather than estimated.
+6. **Step 2.2 enforcement fallback** — Native schema enforcement is preferred when capability is confirmed; prompt-based schema instructions with Pydantic validation/retry provide the configured fallback when native capability is unavailable or unknown; legacy parsing remains the final compatibility fallback.
 
 ### Explicitly deferred
-1. **Ollama schema/model support matrix** — Deferred to Step 2.2 evaluation during native schema enforcement implementation.
+1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
 
 ---
 
 ## 9. Next Immediate Actions
 
-1. Approve this revised implementation plan.
-2. Create and checkout `feat/step-2.1-telemetry-model`.
-3. Implement the concrete telemetry event types and envelope schemas under `src/core/telemetry/`.
-4. Follow with sink abstraction and runtime instrumentation PRs.
-5. Agree on the minimal market-data access contract prior to initiating Step 2.3.
+1. Merge the Step 2.2 schema-enforcement PR after CI and review pass.
+2. Record the outstanding empirical Light Mode model/schema compatibility validation as a non-blocking follow-up.
+3. Begin Step 2.3 by agreeing on the minimal market-data access contract.
+4. Implement the deterministic fixture adapter and Golden Suite runner/cases.
+5. Complete the empirical Light Mode schema-compatibility validation before the Step 3.5 Light Mode exit criterion.
 
 ---
 

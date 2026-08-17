@@ -14,6 +14,7 @@ from src.llm.client import LLMGenerateResult
 from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
+from src.schema.config import SchemaConfig
 from src.tools.parser import ParsedToolCall
 
 
@@ -24,12 +25,17 @@ class FakeLLMClient:
         """Initialize the fake client with a call counter."""
         self.calls = 0
 
+    async def get_ollama_version(self) -> str | None:
+        """Return a supported version to exercise the native-constraint path."""
+        return "0.6.0"
+
     async def generate(
         self,
         prompt: list[dict[str, Any]] | str,  # noqa: ARG002
         model: str | None = None,  # noqa: ARG002
         temperature: float | None = None,  # noqa: ARG002
         response_model: type[Any] | None = None,  # noqa: ARG002
+        **kwargs: type[Any],  # noqa: ARG002
     ) -> LLMGenerateResult:
         self.calls += 1
         if self.calls == 1:
@@ -62,7 +68,10 @@ async def test_complete_run_writes_reconstructable_jsonl(tmp_path: Path) -> None
     dispatcher.register_tool("echo", lambda value: value)
     recorder = TrajectoryRecorder(RunContext.new(), JSONLTrajectorySink(tmp_path))
     options = OrchestratorOptions(
-        config=OrchestratorConfig(model_selection="test-model"),
+        config=OrchestratorConfig(
+            model_selection="test-model",
+            schema_config=SchemaConfig(use_native_constraint=True, max_validation_retries=0),
+        ),
         recorder=recorder,
     )
     orchestrator = AgentOrchestrator(
@@ -81,17 +90,23 @@ async def test_complete_run_writes_reconstructable_jsonl(tmp_path: Path) -> None
 
     assert results[-1].is_terminal is True
     assert [event.sequence for event in events] == list(range(1, len(events) + 1))
+
+    for event in events:
+        print(f"{event.sequence}: {event.event_type.value} (parent: {event.parent_span_id})")
+
     assert [event.event_type.value for event in events] == [
         "run_start",
         "step_start",
         "prompt_sent",
         "llm_response",
+        "error",
         "tool_call",
         "tool_result",
         "step_end",
         "step_start",
         "prompt_sent",
         "llm_response",
+        "error",
         "error",
         "step_end",
         "run_end",

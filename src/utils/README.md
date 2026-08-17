@@ -76,12 +76,12 @@ The `ContextualAdapter` exposes safe properties to query active targets or inspe
 ```python
 with setup_logger(__name__) as adapter:
     adapter.info("Write something to file.")
-    
+
     # Fetch the absolute Path of the active log file destination
-    active_path = adapter.log_file_path  
-    
+    active_path = adapter.log_file_path
+
     # Extract the plain-text file contents safely (handles OS file-locking)
-    raw_text = adapter.read_log_contents()  
+    raw_text = adapter.read_log_contents()
 ```
 
 ---
