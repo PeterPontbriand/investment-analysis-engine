@@ -1,71 +1,110 @@
 # Financial Data Agents – Development LLM Guardrails
 
-These rules apply to agents that write, refactor, test, or maintain the codebase.
-They are intentionally denser than the runtime rules.
+These rules apply to agents that write, refactor, test, document, or maintain this codebase.
 
-## 1. Absolute Forbidden Actions
-* NEVER commit secrets, API keys, `.env` files, `.sqlite`/`.db` files, or raw log files.
-* NEVER install dependencies or edit `pyproject.toml` / `uv.lock` without explicit user permission.
-* NEVER leave `print()` statements, bare `except:` blocks, or unhandled NaN/Inf values in production paths.
-* NEVER hardcode financial parameters (risk-free rates, lookbacks, tickers); read from arguments or `src/config.py`.
-* NEVER make real external network/API or LLM calls during unit tests; mock all external responses.
-* NEVER write partial files, placeholder comments (`# TODO`, `# ... existing code ...`), or truncated snippets—always emit complete, runnable code.
-* NEVER delete, comment out, or omit existing public methods, exported interfaces, helper utilities, or feature logic unless explicitly instructed; update tests first.
-* NEVER ask the user to paste file contents; always use the `read_file` tool.
+## 1. Documentation precedence
 
-## 2. File Modification & Preservation
-* Prefer full-file writes for any file under ~200 lines. Local models generate complete files more reliably than surgical patches.
-* When editing larger files, keep SEARCH blocks short (5–10 lines), character-for-character exact (including whitespace), and free of placeholders.
-* Feature Preservation: Before any refactor, run the existing test suite to establish a baseline. Refactored code MUST pass the identical assertions.
-* Clean Diffs: Do not alter unrelated formatting, indentation, imports, or comments outside the target scope.
-* Always emit the complete function or class body that contains the change.
+When instructions differ, use this precedence:
 
-## 3. Python, Ruff & Syntactic Rules
-* Target Python 3.12+ (project baseline). Code must pass `ruff check --fix` and `mypy --strict` (or the project’s configured equivalent).
-* 100 % explicit type annotations on all function signatures, parameters, and return types (`-> None` when appropriate).
-* Google-style docstrings required on every module, class, and public function. The first line MUST end with `.`, `!`, or `?`.
-* Double quotes for strings, 4-space indentation, imports only at the absolute top of the file (never inside functions, classes, or control flow). Group: stdlib → third-party → local.
-* Unused loop variables must be prefixed with `_` (Ruff B007).
-* Prefer vectorized pandas/numpy operations; avoid row-wise Python loops over DataFrames.
+1. explicit human request for the current task;
+2. current active milestone implementation plan;
+3. `docs/MASTER_PLAN.md`;
+4. `docs/ARCHITECTURE.md` and `docs/DISCOVERY_WORKBOOK.md`;
+5. specialized references such as `docs/FINANCE_MATH.md`;
+6. README/convenience command files.
 
-## 4. Exact Logging Protocol
-* Use the project’s centralized async logging system exclusively:
-  - Call `setup_global_logging()` once at process start.
-  - Obtain a logger via `setup_logger(__name__)`.
-  - Prefer the context-manager form when injecting transient metadata:
-    ```python
-    with setup_logger(__name__) as adapter:
-        adapter.set_extra({"ticker": "AAPL", "request_id": "..."})
-        adapter.info("message")
-    ```
-* NEVER introduce a second logging system (`structlog`, plain `logging.getLogger` outside the utility, etc.).
-* NEVER use `print()` for application flow.
-* Levels: DEBUG for shapes/intermediates, INFO for milestones/timing, WARNING for fallbacks, ERROR with `exc_info=True`.
+Do not blend contradictory instructions. Surface the conflict and follow the more specific/current source.
 
-## 5. TDD, Verification Gate & Coverage
-* Write or update tests in `tests/` (mirroring `src/` structure) BEFORE implementation code.
-* Mandatory gate: run the relevant pytest suite (normally via `uv run pytest ...`) before declaring any task complete. Do not report success if tests fail.
-* Mock every external API and local LLM endpoint.
-* Minimum 85 % branch coverage on new financial-calculation modules; higher for `src/core/tools/` and `src/analysis/`.
+For Milestone v0.2, `docs/MILESTONE_v0_2_IMPLEMENTATION_PLAN.md` owns implementation sequencing, review gates, scope, and acceptance criteria.
 
-## 6. Financial Invariants (Development Awareness)
-* Always prefer Adjusted Close for returns, volatility, momentum, and performance calculations.
-* Enforce short-window < long-window at runtime validation points.
-* Explicitly handle empty series, NaN, Inf, and zero-volatility cases.
-* Detailed formulas and edge-case expectations live in `docs/FINANCE_MATH.md` (load on demand).
+## 2. Absolute forbidden actions
 
-## 7. OS, Shell & Execution
-* Primary development environment: Windows 11 + PowerShell.
-* Prefer PowerShell-compatible syntax. Use `pathlib.Path` or `os.path.join` for paths.
-* Execute all project tools through `uv run ...` from the repository root.
-* Quality-gate order: `uv run ruff check --fix .` → `uv run ruff format .` → type check → tests.
+- NEVER commit secrets, API keys, `.env` files, SQLite/database files, or raw operational/trajectory logs.
+- NEVER install dependencies or edit `pyproject.toml` / `uv.lock` without explicit user permission.
+- NEVER introduce `print()` statements, bare `except:`, or silently propagate NaN/Inf values in production paths.
+- NEVER bury financial assumptions as unexplained magic constants in calculation bodies. Intentional defaults belong in typed configuration/models and must be documented.
+- NEVER make real external API or LLM calls during deterministic unit tests.
+- NEVER leave partial files, placeholder comments, or truncated snippets.
+- NEVER delete or remove existing public interfaces or behavior unless the task explicitly requires it.
+- NEVER create a generic strategy/plugin/registry/factory hierarchy merely because two analyzers differ. Prefer existing `BaseAnalyzer`, tool dispatch, and dependency-injection patterns unless the active plan proves they are insufficient.
+- NEVER turn telemetry into control flow or benchmark fixtures into production cache data.
 
-## 8. Human-in-the-Loop & Cost Gates
-* Require explicit user confirmation before: file deletions, git resets/force-pushes, database migrations, opening PRs, or any structural repository change.
-* Prompt before launching long-running compute loops or heavy backtests.
+## 3. Scope preservation
 
-## 9. On-Demand Context Index
-* Financial mathematics & formulas → `docs/FINANCE_MATH.md`
-* Domain glossary & schemas → `docs/GLOSSARY.md`
-* Architecture & orchestration canvas → `docs/ARCHITECTURE.md`
-* Slash-command workflows → `.claude/commands/`
+- Before refactoring, establish the relevant test baseline.
+- Preserve unrelated behavior and formatting.
+- A pre-existing rule violation in a legacy file is not permission to refactor unrelated code while touching that file.
+- New or materially modified lines should follow current guardrails; opportunistic cleanup belongs in a separate task unless required to complete the requested change.
+- Honor explicit review gates in the active milestone plan. If a step says to stop for human review, stop there.
+
+## 4. Python, Ruff & typing
+
+- Target Python 3.12+.
+- All supported source must pass `mypy --strict`.
+- Use explicit type annotations on public interfaces.
+- Use Google-style docstrings for modules, classes, and public functions, consistent with current project conventions.
+- Double quotes, 4-space indentation, imports at module scope.
+- Prefer vectorized pandas/numpy operations for tabular calculations where appropriate.
+- CI checks are non-mutating: `uv run ruff check .` and `uv run ruff format --check .`.
+
+## 5. Logging & telemetry
+
+- Use the project's operational logging conventions for human-readable diagnostics.
+- Do not introduce a second logging framework as part of unrelated work.
+- Structured trajectory telemetry under `src/core/telemetry/` is a separate machine-readable concern.
+- Telemetry must fail open and must not alter business execution semantics.
+- Never persist secrets in telemetry payloads.
+
+When editing a legacy file that currently uses a different logging pattern, do not perform an unrelated logging migration unless the active task owns it.
+
+## 6. TDD, verification & coverage
+
+- Add or update focused tests with implementation changes.
+- Run the relevant pytest suite before declaring work complete.
+- Mock external APIs and local LLM endpoints in deterministic tests.
+- Project target: ≥85% line coverage overall; new financial-analysis code should directly exercise meaningful branches and edge cases.
+- Run the complete quality gate specified by the active milestone plan before completion.
+
+## 7. Financial-analysis guardrails
+
+- Deterministic financial math belongs in Python, never in the LLM.
+- `docs/FINANCE_MATH.md` is the project authority for currently implemented/project-selected formula semantics.
+- Preserve current Momentum semantics unless the task explicitly changes them.
+- Historical-series data and current-market quotes are distinct capabilities. Do not implement a current quote by pretending a one-day historical download is a quote API when the active plan requires a first-class quote boundary.
+- Missing financial data must be explicit; do not silently substitute zero.
+- Do not add RSI, MACD, Sharpe, valuation models, or other algorithms merely because an older convenience document mentions them.
+
+## 8. Heterogeneous strategy independence
+
+- Select/implement analyzers according to the task, not according to which analyzer existed first.
+- Do not treat Momentum as the universal financial-analysis shape.
+- A new strategy may legitimately use different config fields, data inputs, and result metrics.
+- Reuse `BaseAnalyzer` where sufficient; do not invent a parallel strategy framework speculatively.
+
+## 9. OS, shell & execution
+
+- Primary development environment: Windows 11 + PowerShell.
+- Prefer portable path handling through `pathlib.Path`.
+- Execute project tools through `uv run ...` from the repository root.
+- Recommended local repair/check order:
+  `uv run ruff check --fix .` → `uv run ruff format .` → type check → tests.
+
+## 10. Human-in-the-loop gates
+
+Require explicit user confirmation before:
+- destructive file deletion;
+- git reset/force-push;
+- database migrations against user data;
+- opening or merging PRs;
+- structural repository changes not already authorized by the active implementation plan.
+
+## 11. Context index
+
+- Active milestone implementation → `docs/MILESTONE_v0_2_IMPLEMENTATION_PLAN.md`
+- Roadmap → `docs/MASTER_PLAN.md`
+- Rationale / decision history → `docs/DISCOVERY_WORKBOOK.md`
+- Architecture → `docs/ARCHITECTURE.md`
+- Financial mathematics → `docs/FINANCE_MATH.md`
+- Domain terms → `docs/GLOSSARY.md`
+- Hardware/model modes → `docs/HARDWARE.md`
+- Convenience slash commands → `.claude/commands/` (lower authority than the documents above)

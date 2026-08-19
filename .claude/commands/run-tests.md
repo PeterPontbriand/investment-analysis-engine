@@ -1,13 +1,26 @@
 # /run-tests
 
-**Purpose**: Run the full test suite and show coverage.
+**Purpose:** Run the relevant project tests and quality checks.
 
-**Usage**: 
-/run-tests
-/run-tests -k momentum   (run only tests with "momentum" in name)
+## Instructions
 
-**Instructions for Claude**:
-- Execute: pytest -v --cov=src --cov-report=term-missing
-- If failures occur, analyze the error, suggest fixes, and apply them.
-- Aim for >80% coverage on new code.
-- Use pytest fixtures from tests/conftest.py for mocking yfinance responses.
+Use project tooling through `uv run`.
+
+Typical full test/coverage command:
+
+```bash
+uv run pytest --cov=src --cov-report=term-missing
+```
+
+Focused example:
+
+```bash
+uv run pytest -k momentum
+```
+
+Rules:
+- Mock/inject all external market-data and LLM interactions in deterministic tests.
+- Do not assume tests must use yfinance-specific fixtures; prefer the active typed data contract.
+- Project coverage target is ≥85% line coverage overall; new financial-analysis code must directly cover meaningful edge cases.
+- If tests fail, diagnose the failure within the requested task scope rather than broadening into unrelated refactors.
+- Follow the active milestone's exact completion quality gates.

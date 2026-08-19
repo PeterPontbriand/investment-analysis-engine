@@ -1,9 +1,9 @@
 # Financial Data Agents
 # Master Plan Discovery Workbook
 
-> **Purpose:** This workbook captures the architectural decisions, engineering philosophy, long-term vision, and design rationale that guide the evolution of the Financial Data Agents project. It documents *why* major decisions are made, not the detailed execution schedule.
->
-> It is the primary source from which the Master Plan, Architecture Guide, Contributor Guide, and other long-lived project documentation are derived.
+> **Purpose:** This workbook records why major architectural and product decisions are made. The Master Plan records what/when; the active milestone plan records implementation sequencing and acceptance criteria.
+
+Git history is the authoritative revision history. When this workbook conflicts with a more current Master Plan or active milestone implementation plan on sequencing, the plan governs and this workbook should be updated.
 
 ---
 
@@ -23,7 +23,7 @@
 12. AI Engineering Strategy
 13. User Experience Philosophy
 14. Performance & Scalability
-15. Extensibility & Plugin Strategy
+15. Extensibility Strategy
 16. Documentation Strategy
 17. Development Workflow
 18. Release Strategy
@@ -41,477 +41,409 @@
 # 1. Introduction
 
 ## Purpose
-This workbook is the foundational design record for `financial-data-agents`. It records the reasoning, constraints, security model, and engineering trade-offs that shape the system.
+`financial-data-agents` is a local-first investment-analysis project combining deterministic financial software with locally hosted LLM orchestration.
 
 ## Scope
-Covers full-stack AI engineering with local LLM orchestration (Ollama), deterministic tool dispatching, relational data persistence (SQLite + Alembic), localization (`en-CA` / `fr-CA`), quantitative analytics, and automated reporting. Full GUI/frontend frameworks are explicitly out of scope and belong to downstream integration projects.
-
-## Intended Audience
-Senior software architects, AI systems engineers, technical recruiters evaluating portfolio depth, open-source contributors, and the actual investors described in Section 6 as Primary Users. See Section 3.8 for how these audiences are prioritized when they pull in different directions.
+The project covers local Ollama orchestration, typed deterministic tools/analyzers, market-data access, SQLite/Alembic persistence, evaluation, Canadian localization, and report generation. Full GUI/frontend integration belongs to separate projects.
 
 ---
 
 # 2. How to Use This Workbook
 
-## How Decisions Are Recorded
-Decisions are documented with their justification and the main alternatives considered. Durable decisions are also entered in the Decision Log (Appendix A). Decisions that require Peter's judgment call rather than being a direct restatement of already-stated goals are logged with **Status: Proposed** until confirmed.
+- **Master Plan** = execution roadmap and milestone intent.
+- **Milestone implementation plan** = active implementation sequencing, guardrails, review gates, and acceptance criteria.
+- **Discovery Workbook** = rationale, trade-offs, long-lived constraints.
+- **Architecture Guide** = current architectural boundaries.
 
-## Living Document Policy
-The workbook evolves via Pull Requests alongside major milestone completions. Git history is the authoritative record of document revisions. Changes to core principles or architecture require an update to the relevant section and an entry in the Decision Log and Revision History.
-
-## Relationship to the Master Plan
-- **Master Plan** = execution roadmap (what, when, quality gates, milestones).
-- **Discovery Workbook** = rationale and constraints (why, how, non-goals, trade-offs). References to either document mean the current version unless explicitly qualified as a prior or subsequent version.
-
-Document version numbers are never embedded in the Master Plan or Discovery Workbook; Git records their revisions.
+Do not infer implementation scope from this workbook when the active milestone plan explicitly narrows it.
 
 ---
 
 # 3. Project Identity & Vision
 
 ### 3.1 Project Purpose
-Deliver reliable, local quantitative investment analysis and research briefs for serious retail investors and investment professionals, implemented as production-grade local-first AI systems engineering.
+Deliver reliable local quantitative investment analysis and research briefs for serious retail investors and investment professionals.
 
 ### 3.2 Long-Term Vision
-A self-contained, local-first, locally executing financial reasoning hub with controlled and auditable external data access that ingests market data, executes rigorous valuation models, and generates executive-grade localized research briefs. The core orchestration and caching layers remain designed so they could later support broader local-agent use cases if desired.
+A self-contained, local-first financial reasoning hub with controlled external market-data access, deterministic analytics, durable local persistence, and auditable reports.
 
-### 3.3 Mission Statement
-Deliver deterministic financial analytics through an auditable, multi-tier local LLM orchestration loop guarded by strict quality and type boundaries.
+### 3.3 Mission
+Use local LLMs for planning/tool selection/synthesis while deterministic Python owns financial calculations, validation, data handling, and persistence.
 
 ### 3.4 Definition of Success
-- ≥ 90 % accuracy on the Golden Benchmark suite (numeric results + correct tool selection).
-- 100 % strict type coverage (`mypy --strict`).
-- Zero unhandled runtime exceptions on the golden suite.
-- CLI startup < 500 ms and indexed SQLite cache reads < 50 ms.
-- At least 3 people outside the author install the tool under **Light Mode** and complete a real analysis before Milestone v1.0 begins.
-- At least 1 of those people confirms that an output told them something they'd genuinely have wanted to know.
-- Light Mode end-to-end path is documented and usable before the Real-User Validation Checkpoint (Milestone v0.2.5).
+- ≥90% aggregate Golden Benchmark pass rate with strategy/tool selection and numerical correctness reported separately.
+- Zero `mypy --strict` errors in supported source.
+- Zero unhandled exceptions in required deterministic Golden tests.
+- Light Mode usable before real-user validation.
+- At least 3 external Light Mode testers before v1.0 autonomy work.
+- At least 1 tester confirms a genuinely useful output.
 
-### 3.5 Project Values
+### 3.5 Values
 - Determinism over speculation.
-- Local privacy and isolation over cloud convenience.
-- Type safety and observability over rapid hacking.
-- Explicit schemas and boundaries over prompt-engineering cleverness.
-- Configurability and abstraction over hard, brittle third-party dependencies.
-- Usefulness to real users over pure portfolio optics when the two conflict.
-- Accessible by default, powerful when equipped.** The baseline experience should run on modest, common hardware. Heavier capability is something a user opts into, not something they're blocked without.
-
-### 3.6 Elevator Pitch
-`financial-data-agents` is a local investment analysis engine that lets serious retail and professional investors run rapid quantitative checks (intrinsic value, momentum, risk metrics) and produce audit-ready research briefs. It runs entirely on local open-weight models via Ollama, keeps all math deterministic in Python, and supports Canadian localization (`en-CA` / `fr-CA`). Most users run it in Light Mode on modest hardware.
-
-### 3.7 Illustrative Use Case
-A long-time retail investor who previously tracked stocks meticulously in FileMaker hears a friend mention a ticker over tea. He runs a quick CLI analysis or two with `financial-data-agents` under **Light Mode**, then decides whether to add the ticker to his watch list for ongoing agent-driven tracking and deeper analysis.
-
-Light Mode (single-tier / 14B-class or smaller) is the path intended to make this persona reachable. Full Dual-Tier Mode remains available for users who have workstation-class hardware.
-
-### 3.8 Resolving Competing Audiences
-Section 6 names two different kinds of stakeholders: people who need working investment analysis, and reviewers (recruiters, peer engineers) assessing engineering depth. Most of the time these pull in the same direction. Where they don't, this project prioritizes real usefulness to Primary Users first. Portfolio value is treated as a byproduct of building something genuinely useful, not a parallel design goal optimized for directly.
+- Local privacy over cloud convenience.
+- Explicit typed boundaries over prompt cleverness.
+- Usefulness over portfolio optics.
+- Accessible default path; heavier capability is optional.
+- Heterogeneous strategies over analytical monoculture.
 
 ---
 
 # 4. Guiding Principles
 
-### 4.1 Engineering Principles
-- Strict static typing: no untyped parameters; enforced by `mypy --strict`.
-- Defensive data parsing: every external or LLM-produced value passes through a Pydantic model before use.
-- Automated quality gates: un-linted or insufficiently tested code cannot merge to `main`.
-- Prefer configurability and clean abstractions over hard dependencies on specific third-party libraries or engines.
+### 4.1 Engineering
+- Strict typing.
+- Pydantic/typed validation at boundaries.
+- Automated quality gates.
+- Small, reviewable changes.
+- Preserve existing behavior outside the active task.
 
-### 4.2 Architectural Principles
-- Decoupled provider layers: LLM clients and data sources sit behind narrow interfaces (`BaseDataClient`, etc.) so implementations can be swapped.
-- Tiered hardware utilization with an explicit Light Mode path: the default experience targets modest hardware (~8–16 GB VRAM or 32–64 GB unified memory); Full Dual-Tier (~24–28 GB) is an optional higher-capability path.
-- Deterministic core: math, caching, persistence, and validation live in ordinary Python; the LLM is used only for planning, tool selection, and narrative synthesis.
+### 4.2 Architecture
+- LLM and data providers sit behind narrow boundaries.
+- `BaseAnalyzer` is the existing analyzer abstraction; do not invent a parallel strategy framework without evidence it is required.
+- `BaseDataClient` is the market-data provider boundary.
+- Historical-series access and current-quote access are distinct capabilities.
+- Different strategies may have different inputs and result models.
+- Production persistence, telemetry, fixtures, and evaluation artifacts are separate concerns.
 
-### 4.3 AI Principles
-- Math belongs in Python. Never ask the model to compute intrinsic value, RSI, or risk metrics.
-- Treat every LLM output as untrusted input that must be schema-validated.
-- Prefer hard circuit-breaker limits over unbounded autonomous loops.
-
-### 4.4 Decision-Making Principles
-- Prefer an explicit, safe halt with a diagnostic over silent continuation that could propagate hallucination.
-- Record durable decisions in the Decision Log.
-- When usefulness-to-real-users and portfolio-signal goals conflict, usefulness wins.
+### 4.3 AI
+- The model selects deterministic capabilities; it does not perform financial arithmetic.
+- LLM output is untrusted and schema validated.
+- Hard execution bounds are preferable to open-ended autonomy.
+- The model must not default to Momentum when a different registered strategy is appropriate.
 
 ---
 
 # 5. Project Success Criteria
 
-### 5.1 Technical
-- CLI startup latency < 500 ms.
-- Indexed SQLite cache query latency < 50 ms.
+### Technical / Engineering
+- CLI startup target <500 ms excluding model/network initialization.
+- Indexed SQLite cache-read target <50 ms under representative local load.
+- ≥85% project line coverage target.
+- Strict typing and Ruff compliance.
 
-### 5.2 Engineering
-- 100 % type annotations, zero `mypy --strict` errors.
-- ≥ 85 % line coverage on `/src` (`pytest --cov`).
+### Agent / Evaluation
+- ≥90% aggregate Golden pass-rate target.
+- Strategy/tool-selection score reported separately.
+- Deterministic numerical-correctness score reported separately.
+- Benchmark criteria are not weakened to obtain the target.
 
-### 5.3 Agent
-- ≥ 90 % pass rate on the Golden Benchmark suite (correct tool selection + numeric accuracy).
-- Zero unhandled exceptions on the golden suite.
-
-### 5.4 Portfolio / Process
-- Clean feature-branch history, complete docstrings, architectural diagrams, and reproducible evaluation artifacts.
-
-### 5.5 User Validation
-- At least 3 people outside the author install the tool under **Light Mode** and complete a real analysis before Milestone v1.0 begins.
-- At least 1 of those people reports that an output was something they'd have wanted anyway.
-- Findings from these sessions directly inform prioritization of Milestone v0.3.
-- Light Mode itself must be documented and usable before the validation checkpoint begins.
+### User Validation
+- Light Mode is documented and usable before Milestone v0.2.5.
+- ≥3 external tester sessions before v1.0.
+- Findings influence v0.3 scope.
 
 ---
 
 # 6. Stakeholders & Target Audiences
 
-- **Primary users**: Serious retail investors and investment professionals that need fast, local quantitative analysis and localized reports. Most are expected to run Light Mode.
-- **Secondary users**: System integrators who embed the agent engine into larger dashboards (Osiris, WorldMonitor, etc.).
-- **Contributors**: Developers adding tools, data clients, or localization catalogs.
-- **Recruiters / hiring managers**: People evaluating evidence of senior-level AI systems engineering, architecture, and testing discipline.
-- **Peer architects and AI engineers**: Reviewers interested in local LLM tool routing, schema enforcement, and reliability patterns.
+- Primary: serious retail investors and investment professionals.
+- Secondary: integrators embedding the local engine elsewhere.
+- Contributors: developers adding analyzers, tools, data providers, persistence, or localization.
+- Reviewers: peers/recruiters evaluating architecture and engineering quality.
+
+When these audiences conflict, usefulness to primary users wins.
 
 ---
 
 # 7. AI Philosophy
 
-### 7.1 Role of the LLM
-High-level task planning, tool selection, structured parameter extraction, and contextual narrative synthesis.
+### Role of the LLM
+Planning, capability selection, structured parameter extraction, bounded recovery, and narrative synthesis.
 
-### 7.2 Role of Deterministic Software
-Data fetching and caching, all mathematical processing (Graham intrinsic value, RSI, SMA, risk metrics), database operations, schema validation, and final output rendering.
+### Role of deterministic software
+Market-data handling, Momentum/Graham/risk calculations, caching, persistence, validation, evaluation, and rendering.
 
-### 7.3 Autonomy Boundaries
-Multi-step execution is allowed but hard-capped (default max steps = 10). Circuit breakers and timeouts are non-negotiable.
+### Autonomy
+Bounded by configured steps/retries/timeouts. The roadmap default is 10 planning steps; the runtime must not invent an independent five-turn cap.
 
-### 7.4 Human Oversight
-Final executive reports (Markdown / PDF) are the hand-off point for human review before any financial use.
-
-### 7.5 Explainability
-Every prompt, tool call, argument, return value, and latency measurement is recorded in structured trajectory logs.
-
-### 7.6 Trust Boundaries
-External market data and news text are treated as untrusted, sanitized, and wrapped in explicit delimiters before insertion into model context.
+### Explainability
+Capture observable execution evidence through structured trajectory telemetry. Never infer private model reasoning.
 
 ---
 
 # 8. Software Architecture
 
-### 8.1 Style
-Layered, modular, asynchronous runtime. Clean separation of concerns.
+### High-level flow
 
-### 8.2 High-Level Flow
-```
-CLI / Reports
-    → Agent Orchestrator & Planner Loop
-        (Context Manager + Circuit Breaker)
-            → Light / Fast Tier (≈14B) - always on, Light Mode default
-            → Deep Reasoning Tier (≈32B) [optional Full Dual-Tier]
-                → Async Tool Dispatcher
-                    → Data Layer (DAO / Cache)
-                    → Analytics Module
-                    → Report Module (Jinja2 + charts)
-                        → SQLite (WAL)
+```text
+CLI
+  → Orchestrator
+    → structured analysis/tool selection
+      → BaseAnalyzer implementations
+        ├─ MomentumAnalyzer
+        └─ GrahamValueAnalyzer (Step 2.3)
+      → BaseDataClient
+        ├─ historical series
+        └─ current quote
+      → provider/fixture adapter
+      → deterministic result
+  → synthesis/reporting
 ```
 
-### 8.3 Key Runtime Components
-- **Context Manager**: conversation window, middle-message truncation, system-prompt lock at index 0.
-- **Light / Fast Tier (≈14B)**: default mode — tool-call extraction, schema validation, single-step analysis.
-- **Deep Reasoning Tier (≈32B)**: optional Full Dual-Tier mode - multi-step planning and higher-fidelity synthesis.
-- **Tool Dispatcher**: typed, schema-validated function calling only.
+The initial Momentum and Graham pair is deliberately heterogeneous. Their coexistence tests whether the architecture is genuinely general rather than Momentum-specific.
 
-### 8.4 Module Layout (current)
-```
+### Current package intent
+
+```text
 src/
-├── config.py                 # Canonical ProjectSettings (pydantic-settings)
-├── core/
-│   ├── constants.py
-│   └── telemetry/            # Structured trajectory telemetry (Step 2.1+)
-├── llm/                      # Ollama client & schema boundary
-├── tools/                    # Registry, schema generation, parser, dispatcher
-├── orchestrator/             # Planner loop, context, rules, types
+├── core/telemetry/
+├── llm/
+├── tools/
+├── orchestrator/
 ├── data/
-│   ├── *client.py            # External provider adapters (BaseDataClient)
-│   └── repositories/         # Typed DAOs (Step 3.2+)
-├── analysis/                 # Pure deterministic analytics
-├── reporting/                # Report generation (Step 7+)
-└── utils/                    # Operational logger, workers
+│   ├── base_client.py
+│   ├── provider clients
+│   └── repositories/
+├── analysis/
+│   ├── base.py
+│   └── momentum/
+├── reporting/
+└── utils/
 ```
 
-Entry points (`main.py`, `cli.py`) remain at the package root. Tests mirror the same structure under `tests/`.
-
-This layout is the result of the 2026-08-16 rationalization: a single configuration surface, clear homes for telemetry and repositories, and promotion of the LLM and tools packages to top-level packages that match their architectural weight.
-
-### 8.5 Constraints
-- No `eval()`, no raw shell execution, no cloud LLM fallbacks for core reasoning.
-- All tool arguments and returns are Pydantic models.
-- Outbound network calls go through a single guarded client (cache-first, rate-limited, domain-whitelisted).
-- Avoid hard, brittle dependencies on specific third-party libraries or engines; prefer configuration and abstraction.
-- Core useful analysis must remain functional under Light Mode.
+Repositories belong under `src/data/repositories/`.
 
 ---
 
 # 9. Reliability & Quality
 
-### 9.1 Testing Pyramid
-- Unit tests for pure math and individual tools.
-- Integration tests for DAOs and caching.
-- Golden evaluation suite for full agent trajectories (mocked or recorded LLM responses), run against both Light Mode and Full Mode configurations where behavior differs.
+### Testing pyramid
+- deterministic unit tests for analyzers/tools;
+- contract/integration tests for data adapters/repositories;
+- deterministic Golden evaluator tests with fixture-backed data;
+- optional real-local-Ollama empirical evaluation for strategy/tool selection.
 
-### 9.2 Observability
+The deterministic/no-LLM mode cannot measure actual LLM strategy selection.
 
-Structured trajectory telemetry is a machine-readable execution history used for reconstruction, diagnosis, and later evaluation. It is distinct from the project's existing human-oriented operational logger.
+### Observability
+Step 2.1 established structured trajectory telemetry separately from operational logging. JSONL is the initial sink; SQLite is added in Step 3.1.
 
-The existing `src/utils/logger_util.py` establishes the project's operational logging precedent: asynchronous queue-based routing, console/file output, time- and size-based rotation, configurable backup counts, background compression, contextual metadata, and graceful lifecycle management. Its configuration is driven through the central settings model.
-
-Step 2.1 should therefore add a typed telemetry model and recorder rather than replacing or duplicating the operational logger. JSONL is the first telemetry sink; SQLite is added later behind the same abstraction. Telemetry retention is configurable through the existing settings conventions.
-
-Telemetry records observable model output and runtime events. Model-emitted auxiliary/reasoning output may be recorded when explicitly exposed, but private/internal model reasoning is never inferred or reconstructed.
-
-### 9.3 Failure Handling
-- Transient (timeouts, malformed JSON, rate limits) → retry with error context, up to configured limit (default 3).
-- Non-recoverable (DB corruption, missing critical data, max-steps exceeded) → immediate halt + diagnostic.
-
-### 9.4 Quality Gates (CI)
-`ruff`, `mypy --strict`, `pytest` with coverage threshold, dependency audit, and headless golden-suite run.
+### Structured output
+Step 2.2 prefers native schema constraints when supported, retains Pydantic validation, and uses configured fallbacks. Empirical Light Mode model/schema compatibility remains a non-blocking validation item before Step 3.5 exit.
 
 ---
 
 # 10. Security
 
-### 10.1 Primary Threats
-Prompt injection via external data (news, API text), overly permissive tools, leakage of secrets into traces.
-
-### 10.2 Controls
-- Tools accept only typed parameters; no dynamic code execution.
-- Filesystem writes restricted to designated directories (`/reports`, `/logs`, `/data`).
-- Outbound network traffic forced through a single guarded client.
-- Secrets loaded exclusively via environment variables / `pydantic-settings`.
-- External text sanitized and wrapped in structural delimiters before context injection.
-- No cloud LLM dependency for core loops.
+- No arbitrary code/shell execution by the LLM.
+- Registered tools only.
+- External data treated as untrusted.
+- Secrets from environment/settings only.
+- Outbound provider access is controlled by application/data boundaries.
+- No cloud LLM dependency for core reasoning.
 
 ---
 
 # 11. Data Strategy
 
-- **Persistence**: SQLite in WAL mode for production market-data and application persistence.
-- **Migrations**: Alembic.
-- **Caching**: Aggressive local cache, default 24 h TTL, explicit invalidation on corporate actions or FX changes.
-- **Provenance**: Every stored price/metric carries fetch timestamp, source, and snapshot identifier.
-- **Audit**: Full trajectory logging of agent steps through structured telemetry.
-- **Provider abstraction**: All upstream providers implement a narrow data-access/provider contract so `yfinance` (or any replacement) can be swapped without touching business logic.
-- **Golden-test determinism**: The Golden Suite must not repeatedly fetch live market data. Before Step 2.3, it will consume deterministic historical fixtures through the same minimal market-data access abstraction that production SQLite-backed data access will later implement.
-- **Persistence distinction**: Market-data persistence, trajectory telemetry, and Golden Suite fixtures are separate concerns even when SQLite is used for more than one of them.
+- **Provider boundary:** `BaseDataClient`.
+- **Current provider:** yfinance is an active adapter; other clients may exist as placeholders/alternatives but are not automatically the production authority.
+- **Historical data:** first-class capability used by Momentum/time-series strategies.
+- **Current quote:** first-class capability introduced in Step 2.3 for Graham/valuation comparison.
+- **Step 2.3 fixtures:** minimal deterministic adapter/data proving both capabilities; no live fallback.
+- **Step 2.4 fixtures:** Golden evidence using the stable Step 2.3 contract.
+- **Step 3.1 production persistence:** SQLite/WAL/cache-backed implementation of the shared contract.
+- **Provenance:** stored/fixture data carries enough source/date/schema information to audit its origin.
+- **Separation:** market-data persistence, trajectory telemetry, Golden fixtures, and evaluation results are distinct.
 
 ---
 
 # 12. AI Engineering Strategy
 
-### 12.1 Model Tiering & Modes
+### Model modes
+Light Mode is the default adoption path; Full Dual-Tier remains optional.
 
-| Mode / Tier | Example Models | Typical Footprint | Role |
-|-------------|----------------|-------------------|------|
-| **Light Mode (default)** | `qwen2.5-coder:14b-instruct-q4_K_M` or smaller | ~8–16 GB VRAM or 32–64 GB unified memory | Default path for most users and for external validation |
-| **Full Dual-Tier — Fast** | `qwen2.5-coder:14b-instruct-q4_K_M` | ~9–11 GB | Tool extraction when dual-tier is active |
-| **Full Dual-Tier — Deep** | `qwen2.5-coder:32b-instruct-q4_K_M` or `deepseek-r1:32b` (configurable) | ~19–24 GB | Optional deeper planning and synthesis |
+### Prompt/schema discipline
+- system-role invariants;
+- context management;
+- native structured output where supported;
+- Pydantic validation/fallbacks.
 
-Light Mode is the adoption path. Full Dual-Tier is an optional higher-capability path for users who have the hardware. See `docs/HARDWARE.md`.
+### Evaluation
+Step 2.4 measures:
+- strategy/tool selection;
+- deterministic numerical correctness;
+- overall case success.
 
-### 12.2 Prompt & Context Discipline
-- System prompt permanently locked at `Role.SYSTEM` (index 0).
-- Middle-message truncation to protect context limits.
-- Native Ollama JSON Schema constraints (`format=Schema`) preferred over free-form parsing.
-
-### 12.3 Evaluation
-Golden suite compares tool selection and numeric outputs against verified ground truth, for both Light and Full Mode where their behavior can diverge.
+Real-model evaluation is empirical and separate from deterministic regression infrastructure.
 
 ---
 
 # 13. User Experience Philosophy
 
-- CLI: fast startup, clear progress indication during inference, high-signal error messages.
-- Reports: clean Markdown and PDF executive briefs with embedded charts, audit snapshot IDs, and mandatory disclaimers.
-- Localization: first-class `en-CA` / `fr-CA` support (currency, dates, disclaimers, agent reasoning text).
-- Accessibility: scannable structure, high-contrast terminal output.
-- Installation: the install path itself should not be the reason someone gives up before running a single analysis. Prefer simple Ollama install paths (macOS app, Windows installer on mini-PCs). Track “time from `git clone` to first result” as a UX metric.
-- Hardware expectations are surfaced early and honestly (README + `docs/HARDWARE.md`).
+- Fast, understandable CLI.
+- High-signal diagnostics.
+- Honest hardware expectations.
+- Minimal setup friction.
+- Human review before financial use.
+- Reports/localization are roadmap capabilities and must not be pulled into Step 2.3 merely because they are long-term goals.
 
 ---
 
 # 14. Performance & Scalability
 
-- Designed for single-node local use (personal / small professional network).
-- Light Mode targets modest consumer hardware; Full Dual-Tier targets workstation-class local hardware.
-- Optimize the deterministic path (cache, DB, pure Python analytics) first; LLM latency is accepted as GPU/unified-memory bound.
-- Targets: CLI < 500 ms, indexed cache reads < 50 ms.
+Single-node local usage is the primary target. Optimize deterministic local paths first; accept that LLM latency depends heavily on local hardware.
 
 ---
 
-# 15. Extensibility & Plugin Strategy
+# 15. Extensibility Strategy
 
-Extension points:
-- New pure analytics functions in `src/analytics`.
-- New data providers implementing `BaseDataClient`.
-- New tools inheriting from the common tool base and registering with the dispatcher.
+Extension points include:
+- new analyzers under `src/analysis/`;
+- new provider adapters behind `BaseDataClient`;
+- new typed tools through existing registration/dispatch;
+- repository implementations under `src/data/repositories/`.
 
-The orchestration loop and SQLite caching layer are intentionally reusable. Finance remains the primary domain, but the design does not permanently close the door on later extraction as a more general local-agent framework.
+**Do not build a strategy plugin/registry framework speculatively.** The system should generalize only when concrete strategies expose a repeated need.
 
 ---
 
 # 16. Documentation Strategy
 
-Documentation lives in the repository and is updated with the code:
-- `README.md` – quickstart, disclaimer, and overview.
-- `docs/HARDWARE.md` – Light Mode vs Full Dual-Tier requirements and consumer hardware guidance.
-- `docs/ARCHITECTURE.md` – diagrams and layer responsibilities.
-- `docs/TOOL_DEVELOPMENT.md` – how to add a typed tool.
-- `docs/EVALUATIONS.md` – golden suite usage and extension.
-- `docs/I18N_GUIDE.md` – localization process.
+Current documents:
+- `README.md`
+- `AGENTS.md`
+- `RUNTIME_AGENTS.md`
+- `docs/MASTER_PLAN.md`
+- `docs/MILESTONE_v0_2_IMPLEMENTATION_PLAN.md`
+- `docs/ARCHITECTURE.md`
+- `docs/DISCOVERY_WORKBOOK.md`
+- `docs/FINANCE_MATH.md`
+- `docs/GLOSSARY.md`
+- `docs/HARDWARE.md`
 
-Architecture and principle changes in this workbook trigger corresponding updates to the above guides.
+Planned when their owning work lands:
+- `docs/EVALUATIONS.md` — Step 2.4;
+- `docs/TOOL_DEVELOPMENT.md`;
+- `docs/I18N_GUIDE.md`.
+
+A planned document must not be treated as an existing source of instructions.
 
 ---
 
 # 17. Development Workflow
 
-- Feature-branch workflow against `main`, using fine-grained branches aligned with coherent implementation units within a Master Plan step (for example, `feature/step-2.1-telemetry-model` or `feature/step-2.1-runtime-instrumentation`).
-- Definition of Done: implemented, `mypy --strict` clean, `ruff` clean, unit tests + golden coverage, documented.
-- CI enforces the quality gates listed in Section 9.
+- Fine-grained feature branches aligned with coherent implementation units.
+- Follow active milestone review gates.
+- Ruff + strict mypy + pytest before completion.
+- Do not opportunistically redesign unrelated architecture.
+- Documentation changes accompany durable architecture changes.
 
 ---
 
 # 18. Release Strategy
 
-Semantic versioning aligned with milestones:
-- **v0.1** – Core Orchestration Engine (completed).
-- **v0.2** – Reliability, Observability & Data Persistence + Light Mode support.
-- **v0.2.5** – Real-User Validation Checkpoint (under Light Mode).
-- **v0.3** – Analytics Expansion & Canadian Localization.
-- **v1.0** – Hardened multi-step autonomy + executive reporting.
-
-Database migrations via Alembic preserve compatibility of local SQLite files.
+- **v0.1** — Core orchestration engine.
+- **v0.2** — Reliability/observability + Graham/data-contract foundation + heterogeneous Golden evaluation + circuit breakers + SQLite/data quality + Light Mode completion.
+- **v0.2.5** — Real-user Light Mode validation.
+- **v0.3** — Analytics expansion beyond the initial Momentum/Graham pair plus localization subject to user feedback.
+- **v1.0** — Hardened autonomy and executive reporting.
 
 ---
 
 # 19. Portfolio Objectives
 
-The repository is intended to demonstrate:
-- Production Python async systems with strict typing.
-- Local LLM orchestration (Ollama) under real hardware constraints, including a usable Light Mode path.
-- Defensive architecture (circuit breakers, schema enforcement, trust boundaries).
-- Transactional data engineering (SQLite + Alembic + caching).
-- Quantitative correctness and evaluation discipline.
-- Clear technical writing and architectural decision records.
-
-These are treated as things a genuinely useful tool naturally demonstrates — not the primary target being optimized for.
+The repository naturally demonstrates local-LLM orchestration, strict Python engineering, deterministic quantitative analysis, typed data architecture, evaluation discipline, and technical writing. These are outcomes of building a useful tool, not competing product goals.
 
 ---
 
 # 20. Long-Term Vision
 
-Finance-first local reasoning hub remains the primary intent:
-- Multi-modal local node (earnings-call audio, PDF filings, deeper alternative data).
-- Optional multi-agent debate / consensus patterns still running entirely locally.
-
-The core orchestration and caching layers are kept deliberately modular so that, if desired later, they could support extraction into a more general local-agent framework. No commitment is made to that generalization at present.
+Finance remains primary. Core layers remain modular enough for possible later reuse, but the project does not commit to becoming a generic agent framework.
 
 ---
 
 # 21. Non-Goals
 
-Explicitly out of scope for the current project:
-- Full web or desktop GUI (belongs to separate integration projects).
-- Any dependence on commercial cloud LLMs for core reasoning.
-- Automated order execution or high-frequency trading.
-- Real-time WebSocket market data (deferred).
-
-Rejected approaches:
-- Unstructured string / regex parsing of tool calls (replaced by native schema constraints).
-- Hard, brittle dependencies on specific third-party libraries or engines when configurability and abstraction will suffice.
-- Treating dual-tier workstation hardware as a prerequisite for basic useful analysis.
+- Full GUI/frontend.
+- Cloud LLM dependency for core reasoning.
+- Automated order execution/HFT.
+- Real-time websocket market data in the current milestone.
+- Premature plugin/framework generalization.
+- Pulling later risk/localization/reporting work into Step 2.3.
 
 ---
 
 # 22. Architectural Regrets to Avoid
 
-- Letting the LLM perform raw numerical calculations.
-- Tight coupling of prompt templates to specific model tags.
-- Un-versioned or free-form tool-call outputs.
-- Loading multiple large reasoning models concurrently and exhausting VRAM.
-- Bypassing static typing or schema validation for short-term velocity.
-- Introducing hard third-party dependencies that reduce configurability.
-- Expanding engineering scope (autonomy, localization, reporting) before anyone outside the author has confirmed the current core loop is useful to them.
-- Presenting a dual-tier workstation requirement as the only supported path while describing a retail-investor persona.
+- LLM arithmetic replacing deterministic Python.
+- Momentum-specific assumptions embedded in generic orchestration.
+- Speculative strategy registries/plugin systems.
+- Treating a one-day historical download as a quote API when a current quote is a distinct requirement.
+- Telemetry becoming business control flow.
+- Golden expectations generated from the same implementation under test.
+- Live network fallback from deterministic fixtures.
+- Broad refactors under narrow milestone tasks.
+- Weakening benchmarks until the model reaches a target.
+- Requiring workstation-class dual-tier hardware for basic use.
 
 ---
 
 # 23. Open Questions & Future Decisions
 
-1. **SQLite concurrency**  
-   Will WAL mode + careful connection handling remain sufficient under denser multi-tool / multi-agent workloads, or will an explicit queue / single-writer pattern become necessary?
-
-2. **Does `fr-CA` localization belong in v0.3, or later?**  
-   Recommend letting Milestone v0.2.5 feedback answer this. If real users ask for it, it stays in v0.3; if not, it can move after v1.0 without losing the core value proposition.
-
-Resolved in this revision:
-- Deep-tier model preference → both `qwen2.5-coder:32b` and `deepseek-r1:32b` kept configurable.
-- Elevator pitch / positioning → investment analysis primary; local-AI systems engineering secondary.
-- Long-term scope → finance-first; door left open for possible later generalization of the core layers.
-- **Hardware bar vs. Illustrative Use Case (former Open Question 3)** → resolved by introducing a supported Light / single-tier mode as the default adoption path. Light Mode must be usable before Milestone v0.2.5. Full Dual-Tier remains an optional higher-capability path. See Decision D17 and `docs/HARDWARE.md`.
+1. Will WAL + connection discipline remain sufficient for future denser multi-tool/multi-agent workloads?
+2. Does `fr-CA` localization remain in v0.3 after v0.2.5 user feedback?
+3. Do future additional strategies reveal a genuine need for a richer analyzer registry/plugin mechanism? This remains intentionally unresolved until concrete repetition justifies it.
 
 ---
 
 # 24. Glossary
 
-- **DAO** – Data Access Object.
-- **Ollama** – Local open-weight model serving framework.
-- **Circuit Breaker** – Hard limit that stops an agent loop when step count, error count, or wall-clock time is exceeded.
-- **Golden Benchmark Suite** – Fixed set of queries with verified expected numeric outcomes and tool-selection behavior.
-- **WAL Mode** – SQLite Write-Ahead Logging, enabling concurrent readers with a single writer.
-- **Light Mode** – Single-tier / modest-hardware path (≈14B-class or smaller) that is the default recommended experience.
-- **Full Dual-Tier Mode** – Optional path that pairs a fast ≈14B tier with a deep ≈32B tier for users with sufficient local hardware.
+- **BaseAnalyzer** — Existing abstract analysis boundary.
+- **BaseDataClient** — Market-data provider boundary.
+- **Golden Benchmark Suite** — Fixed deterministic cases with verified behavioral/numeric expectations.
+- **Fixture adapter** — Deterministic test implementation of the market-data contract.
+- **Strategy-selection correctness** — Whether the appropriate deterministic analytical capability/tool was selected with valid arguments.
+- **Numerical correctness** — Whether deterministic outputs match independently verified expectations.
+- **Light Mode** — Default single-tier/modest-hardware path.
+- **Full Dual-Tier Mode** — Optional fast+deep local-model path.
+- **WAL** — SQLite Write-Ahead Logging.
 
 ---
 
 # 25. Revision History
 
-| Date       | Summary                                      |
-|------------|----------------------------------------------|
-| 2026-07-15 | Initial outline skeleton                     |
-| 2026-08-01 | Expanded content, added Decision Log         |
-| 2026-08-13 | Positioning, model, scope, and dependency answers; illustrative use case |
-| 2026-08-13 | User-validation criteria; portfolio-vs-usefulness prioritization; hardware/persona mismatch flagged; Milestone v0.2.5; Open Question on `fr-CA` timing |
-| 2026-08-13 | **Light Mode decision recorded.** Hardware bar resolved by making single-tier Light Mode the default adoption path; required before v0.2.5. Full Dual-Tier remains optional. Updated principles, success criteria, architecture, Decision Log, and Open Questions. |
-| 2026-08-16 | **Reliability/observability sequencing clarified.** Structured trajectory telemetry is separated from the existing operational logger; JSONL is the initial telemetry sink and SQLite is added behind the same abstraction in Step 3.1. Golden Suite data is made deterministic through a fixture-backed market-data abstraction, with production SQLite data access implemented later. Branch strategy is made fine-grained. |
+| Date | Summary |
+|---|---|
+| 2026-07-15 | Initial outline skeleton |
+| 2026-08-01 | Expanded content and decision log |
+| 2026-08-13 | Positioning, user-validation gate, and Light Mode decisions |
+| 2026-08-16 | Telemetry/persistence sequencing and deterministic Golden-data boundary clarified |
+| 2026-08-19 | Heterogeneous strategy independence adopted; Graham moved into v0.2 Step 2.3; current quote made first-class; Golden Suite separated into Step 2.4; circuit breakers bumped to Step 2.5; speculative strategy framework explicitly rejected |
 
 ---
 
 # 26. Appendix A: Decision Log
 
-| ID  | Date       | Decision                                                                 | Alternatives Considered                  | Rationale / Consequences                                                                 | Status   |
-|-----|------------|--------------------------------------------------------------------------|------------------------------------------|------------------------------------------------------------------------------------------|----------|
-| D1  | 2026-Q2    | 100 % local LLM orchestration (Ollama); no cloud LLM in core loop      | Cloud APIs (OpenAI, Anthropic, etc.)     | Privacy, zero marginal cost, forced learning of real local-model constraints             | Accepted |
-| D2  | 2026-Q2    | Dual-tier model strategy (≈14B execution + ≈32B reasoning) on 28 GB VRAM | Single large model, or smaller-only      | Maximizes capability while staying inside hardware envelope; clear responsibility split  | Accepted |
-| D3  | 2026-Q2    | All quantitative work (Graham, RSI, etc.) performed in deterministic Python | Asking the LLM to calculate              | Eliminates a major class of hallucination; LLM limited to planning and synthesis         | Accepted |
-| D4  | 2026-Q2    | SQLite + WAL + Alembic as the persistence layer                          | PostgreSQL, pure file/JSON cache         | Zero-ops local deployment, sufficient concurrency for target workload, simple migrations | Accepted |
-| D5  | 2026-Q2    | Strict `mypy --strict` + Pydantic at every boundary                      | Gradual typing or looser validation      | Portfolio signal + long-term maintainability under agent-generated code paths            | Accepted |
-| D6  | 2026-Q2    | Native Ollama JSON Schema constraints preferred over free-form parsing   | Regex / string parsing of tool calls     | Dramatically reduces output drift and retry loops                                        | Accepted |
-| D7  | 2026-Q2    | Canadian localization (`en-CA` / `fr-CA`) as a first-class concern       | English-only                             | Matches target user network and demonstrates i18n discipline                             | Accepted |
-| D8  | 2026-Q2    | Full GUI explicitly out of scope                                         | Building a web or desktop front-end      | Keeps the repository focused; UI work belongs to separate integration projects           | Accepted |
-| D9  | 2026-08    | Deep-tier models kept configurable (`qwen2.5-coder:32b` and `deepseek-r1:32b`) | Locking to a single model                | Avoids premature commitment; preserves flexibility as models evolve                      | Accepted |
-| D10 | 2026-08    | Public positioning prioritizes investment analysis; local-AI engineering is secondary | Technology-first positioning             | Aligns with primary user value and the illustrative retail-investor use case             | Accepted |
-| D11 | 2026-08    | Finance-first scope; core layers left modular enough for possible later generalization | Permanently finance-only, or early framework extraction | Matches current intent while preserving optionality                                      | Accepted |
-| D12 | 2026-08    | Prefer configurability and abstraction; avoid hard brittle third-party dependencies | Locking to specific libraries/engines    | Reduces long-term fragility and eases future swaps                                       | Accepted |
-| D13 | 2026-08    | Add a real-user validation gate (≥3 outside users) before Milestone v1.0 autonomy work begins | No validation gate; ship on the pre-set schedule | Ensures the most expensive remaining work is built only once there is evidence of usefulness | Accepted |
-| D14 | 2026-08    | When real-user-usefulness goals and portfolio-signal goals conflict, usefulness wins | Optimize primarily for portfolio/recruiter signal | Directly matches the project's current stated goal                                       | Accepted |
-| D15 | 2026-08    | Document the dual-tier hardware requirements as a named adoption constraint | Leave the Illustrative Use Case mismatched | Kept the persona honest; forced a deliberate choice                                      | Accepted |
-| D16 | 2026-08    | Let Milestone v0.2.5 feedback decide whether `fr-CA` localization stays in v0.3 or moves later | Keep localization fixed in v0.3 regardless of demand | Avoids sinking i18n effort before knowing if real users ask for it                       | Accepted |
-| D17 | 2026-08    | **Introduce a supported Light / single-tier mode as the default adoption path.** Light Mode (≈14B-class or smaller, modest hardware) must be fully usable before Milestone v0.2.5. Full Dual-Tier remains an optional higher-capability path for users with sufficient hardware. | Keep dual-tier as the only path; or abandon dual-tier entirely | Resolves the hardware/persona mismatch. Makes the Illustrative Use Case reachable. Preserves deeper capability for those who have the hardware. Aligns with usefulness-first priority. | Accepted |
-| D18 | 2026-08-16 | Rationalize module layout: single config surface, promote llm/ and tools/ to top-level packages, introduce core/telemetry/ and data/repositories/ and reporting/ placeholders | Leave organic layout unchanged | Removes dual config systems, gives clear homes for Step 2.1 and Step 3 work, aligns documentation with code | Accepted |
-| D19 | 2026-08-16 | JSONL-first trajectory telemetry + shared market-data access abstraction for Golden Suite (fixtures first, production SQLite later) | Require full SQLite before any telemetry or evaluation work | Keeps reliability and evaluation unblocked; preserves determinism of the ≥90 % target | Accepted |
+| ID | Date | Decision | Rationale / Consequence | Status |
+|---|---|---|---|---|
+| D1 | 2026-Q2 | 100% local LLM orchestration; no cloud LLM in core loop | Privacy, local control, zero cloud dependency | Accepted |
+| D2 | 2026-Q2 | Dual-tier model option | Preserves higher-capability local path | Accepted |
+| D3 | 2026-Q2 | All quantitative work in deterministic Python | Eliminates LLM arithmetic hallucination class | Accepted |
+| D4 | 2026-Q2 | SQLite + WAL + Alembic | Zero-ops local persistence | Accepted |
+| D5 | 2026-Q2 | Strict mypy + typed/Pydantic boundaries | Maintainability and reliability | Accepted |
+| D6 | 2026-Q2 | Prefer native Ollama JSON-schema constraints | Reduces structured-output drift | Accepted |
+| D7 | 2026-Q2 | Canadian localization as a first-class roadmap concern | Matches target network; timing still feedback-sensitive | Accepted |
+| D8 | 2026-Q2 | Full GUI out of scope | Keeps repository focused | Accepted |
+| D9 | 2026-08 | Deep-tier model remains configurable | Avoid premature model lock-in | Accepted |
+| D10 | 2026-08 | Investment-analysis positioning primary | Aligns with user value | Accepted |
+| D11 | 2026-08 | Finance-first scope with modular core | Optional future reuse without premature framework extraction | Accepted |
+| D12 | 2026-08 | Prefer configuration/abstraction over brittle dependencies | Reduces long-term fragility | Accepted |
+| D13 | 2026-08 | Real-user validation gate before expensive v1.0 work | Build autonomy on evidence of usefulness | Accepted |
+| D14 | 2026-08 | User usefulness wins over portfolio optics | Product-purpose priority | Accepted |
+| D15 | 2026-08 | Make hardware adoption constraints explicit | Prevent persona/hardware mismatch | Accepted |
+| D16 | 2026-08 | Let v0.2.5 feedback decide `fr-CA` timing | Avoid premature localization investment | Accepted |
+| D17 | 2026-08 | Light Mode is default; dual-tier optional | Makes project accessible to intended users | Accepted |
+| D18 | 2026-08-16 | Rationalized module layout, including `src/data/repositories/` | Clear ownership for data and telemetry layers | Accepted |
+| D19 | 2026-08-16 | JSONL-first telemetry; deterministic fixture-backed market-data abstraction before production SQLite | Unblocks reliability/evaluation while preserving determinism | Accepted |
+| D20 | 2026-08-19 | Use Momentum + Graham as intentionally heterogeneous early strategies | Tests whether architecture generalizes beyond Momentum | Accepted |
+| D21 | 2026-08-19 | Current quote is a first-class market-data capability distinct from historical series | Avoids one-day-history workaround; supports valuation cleanly | Accepted |
+| D22 | 2026-08-19 | Split Graham/data foundation (2.3) from Golden evaluation (2.4); bump circuit breakers to 2.5; reject speculative strategy registry | Gives Cline/humans a review gate and limits scope creep | Accepted |
 
 ---
 
 ### Document Versioning Policy
 
-The Master Plan and Discovery Workbook are versioned through Git. Document version numbers are never embedded in either document. When either document refers to the other, the current version is intended unless explicitly qualified as a prior or subsequent version.
-
----
+The Master Plan and Discovery Workbook are versioned through Git. Embedded document version numbers are intentionally avoided.
 
 *End of Discovery Workbook*

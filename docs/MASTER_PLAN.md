@@ -12,6 +12,8 @@
 
 **Document versioning:** These documents are versioned by Git. Document version numbers are never used within the Master Plan or Discovery Workbook; references to either document mean the current version unless explicitly qualified as a prior or subsequent version.
 
+**Implementation authority:** The Master Plan defines milestone intent and ordering. During an active milestone, the current milestone implementation plan is the more specific operational source for branch sequencing, implementation guardrails, and acceptance criteria. `docs/ARCHITECTURE.md` describes architectural boundaries; `docs/DISCOVERY_WORKBOOK.md` records rationale. If a lower-level guide conflicts with the current Master Plan or active milestone plan, do not blend the instructions—use the more specific/current source and surface the conflict.
+
 
 ---
 
@@ -22,7 +24,7 @@ This repository delivers a usable local investment analysis engine while demonst
 - **Local LLM Orchestration & Tool Dispatching:** Multi-turn state management, schema enforcement, and async function calling on local open-weight models.
 - **Systems & Architectural Design:** Modular tiering, async runtime loops, provider abstractions, and clean separation of concerns.
 - **Data Engineering & Persistence:** Transactional SQLite storage, schema migration versioning, data quality gates, and local caching pipelines.
-- **Quantitative Financial Modeling:** Mathematical rigor in intrinsic valuation (Benjamin Graham formula), momentum indicators, and risk metrics.
+- **Quantitative Financial Modeling:** Mathematical rigor across materially different analytical strategies, including intrinsic valuation (Benjamin Graham), market-price momentum, and later risk metrics. Analytical strategies are deterministic Python capabilities exposed through typed, swappable interfaces rather than model-specific reasoning.
 - **Production Quality & Security:** Defensive static typing (`mypy --strict`), automated unit testing, dependency auditing, and local network isolation.
 - **Localization (i18n):** Deep internationalization for Canadian financial standards (`en-CA` / `fr-CA`).
 
@@ -42,39 +44,51 @@ Illustrative use case: A long-time retail investor hears a ticker mentioned info
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    Agent Orchestrator & Planner Loop                    │
-│      - Context Manager (Truncation & System Prompt Injection)           │
-│      - Reliability Circuit Breaker & Step Boundary Guard                │
-└───────────────────┬─────────────────────────────────┬───────────────────┘
-                    │                                 │
-                    ▼                                 ▼
-┌───────────────────────────────┐   ┌─────────────────────────────────────┐
-│ Execution Tier (≈14B)         │   │ Deep Reasoning Tier (≈32B)          │
-│ - Default for most users      │   │ - Optional Full Dual-Tier mode      │
-│ - Tool Call Extraction        │   │ - Task Decomposition & Synthesis    │
-│ - Schema Validation           │   │ - Narrative & Report Generation     │
-│ - Planning/Synthesis (Light)  │   │                                     │
-└───────────────┬───────────────┘   └─────────────────┬───────────────────┘
-                │                                     │
-                └───────────────────┬─────────────────┘
+│      - Context Manager                                                  │
+│      - Structured-output / schema boundary                              │
+│      - Reliability limits (Step 2.5)                                    │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     Typed Tool / Analysis Dispatch                      │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                   ┌─────────────────┴─────────────────┐
+                   ▼                                   ▼
+┌─────────────────────────────────┐   ┌─────────────────────────────────┐
+│ MomentumAnalyzer                │   │ GrahamValueAnalyzer             │
+│ - historical market series      │   │ - EPS / growth / AAA yield      │
+│ - configurable SMA crossover    │   │ - intrinsic value / MOS         │
+│ - existing strategy             │   │ - Step 2.3 strategy             │
+└────────────────┬────────────────┘   └────────────────┬────────────────┘
+                 │                                     │
+                 └──────────────────┬──────────────────┘
+                                    ▼
+                     Existing analyzer abstraction
+                           (`BaseAnalyzer`)
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                   Async Tool Dispatcher & Parser                        │
-└──────┬────────────────────────────┬─────────────────────────────┬───────┘
-       │                            │                             │
-       ▼                            ▼                             ▼
-┌───────────────┐           ┌───────────────┐             ┌───────────────┐
-│  Data Layer   │           │ Analytics Mod │             │ Report Mod    │
-│  - DAO        │           │ - Intrinsic V │             │ - Jinja2      │
-│  - Cache      │           │ - Momentum    │             │ - Charting    │
-└──────┬────────┘           └───────────────┘             └───────────────┘
-       │
-       ▼
-┌───────────────┐
-│ SQLite DB     │
-│ (WAL Mode)    │
-└───────────────┘
+│                    Market-Data Provider Boundary                        │
+│                         (`BaseDataClient`)                              │
+│        historical market data  +  current quote / market price          │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                 ┌───────────────────┴────────────────────┐
+                 ▼                                        ▼
+        Provider adapters                         Fixture adapter
+        (e.g. yfinance)                     (Step 2.3 deterministic)
+                 │                                        │
+                 └───────────────────┬────────────────────┘
+                                     ▼
+                         Production persistence
+                        SQLite / cache (Step 3.1)
 ```
+
+The initial Momentum and Graham strategies are intentionally **heterogeneous**. They share the existing analyzer/tool/orchestration path, but they do not need identical inputs or outputs. The project must not introduce a speculative strategy/plugin/registry framework merely to make these two analyzers look alike.
+
+Step 2.3 establishes the minimum shared market-data capabilities required by the two strategies: historical-series access for Momentum and current-price/quote access for Graham. Step 2.4 consumes those stable contracts for deterministic Golden-Suite evaluation. Step 3.1 later supplies production SQLite/cache-backed implementations.
 
 ---
 
@@ -87,6 +101,7 @@ Illustrative use case: A long-time retail investor hears a ticker mentioned info
 5. **Fail Safely & Gracefully:** Classify failures into transient retries vs. hard boundaries; surface clear diagnostic traces rather than unhandled crashes.
 6. **Configurability over Brittle Dependencies:** Prefer clean abstractions and configuration so third-party libraries or engines can be swapped without cascading changes.
 7. **Light Mode First for Adoption:** Core useful analysis must work under Light Mode (single-tier / modest hardware) before external validation and before heavier dual-tier features are treated as required.
+8. **Heterogeneous Strategy Independence:** Financial-analysis strategies remain independently typed and deterministic. The runtime, data layer, and evaluation harness must not assume that every financial-analysis request is a Momentum request or force materially different strategies into one shape.
 
 ---
 
@@ -162,78 +177,66 @@ System settings are managed through the project's centralized `ProjectSettings` 
 * **Step 1.2: Pydantic Tool Definition & Parsing Layer** `[COMPLETED]`
 * **Step 1.3: Asynchronous Orchestration Loop & Message Context** `[COMPLETED]`
 
-### **Milestone v0.2: Reliability, Observability & Data Persistence**
-#### Step 2: Agent Reliability, Evaluation & Observability Foundation
-* **Branch strategy:** Use fine-grained feature branches aligned with coherent implementation units within each step (for example, `feature/step-2.1-telemetry-model` and `feature/step-2.1-runtime-instrumentation`). Avoid one branch spanning the entire milestone.
-* **Step 2.1: Trajectory Logging & Telemetry:** Establish a typed, sink-independent trajectory telemetry model and recorder. Persist deterministic JSONL first; a SQLite sink is added in Step 3.1 behind the same abstraction. Capture observable LLM requests/responses, tool calls/results, step boundaries, token usage when available, latency, failures, and model-emitted auxiliary output when explicitly exposed. Do not infer or reconstruct private model reasoning.
-* **Step 2.2: Native Schema Enforcement:** Enable native Ollama JSON schema constraints (`format=Schema` or the current supported equivalent) at the structured-output boundary, with Pydantic validation retained as a second line of defense. Verify actual support/behaviour for supported Light Mode models during this step; no model-support matrix is required before Step 2.1.
-* **Step 2.3: Golden-Test Suite:** Establish deterministic benchmark cases using a data-access abstraction with fixture-backed historical market data. The abstraction is defined before the suite; production SQLite-backed data access is implemented later in Step 3.1. Target ≥90% aggregate pass rate, with tool-selection and numeric accuracy reported separately.
-* **Step 2.4: Circuit Breakers & Timeout Limits:** Enforce hard execution caps, wall-clock time bounds, and error thresholds.
+### **Milestone v0.2: Reliability, Observability, Strategy Generalization & Data Persistence**
 
-### **Milestone v0.2: Reliability, Observability & Data Persistence**
-
-Detailed sequencing, branch strategy, acceptance criteria, and architectural decisions
-for this milestone live in:
+Detailed sequencing, branch strategy, acceptance criteria, implementation guardrails, and review gates for this milestone live in:
 
 → **`docs/MILESTONE_v0_2_IMPLEMENTATION_PLAN.md`**
 
-#### Step 2: Agent Reliability, Evaluation & Observability Foundation
-* **Branch strategy:** Fine-grained feature branches aligned with coherent implementation units
-  (see Implementation Plan).
-* **Step 2.1: Trajectory Logging & Telemetry:** Establish a typed, sink-independent trajectory telemetry model and recorder. Persist deterministic JSONL first; a SQLite sink is added in Step 3.1 behind the same abstraction. Capture observable LLM requests/responses, tool calls/results, step boundaries, token usage when available, latency, failures, and model-emitted auxiliary output when explicitly exposed. Do not infer or reconstruct private model reasoning.
-  Implementation lives under `src/core/telemetry/`.
-* **Step 2.2: Native Schema Enforcement:** Enable native Ollama JSON schema constraints (`format=Schema` or the current supported equivalent) at the structured-output boundary, with Pydantic validation retained as a second line of defense. Verify actual support/behaviour for supported Light Mode models during this step; no model-support matrix is required before Step 2.1.
-* **Step 2.3: Golden-Test Suite:** Establish deterministic benchmark cases using a data-access abstraction with fixture-backed historical market data. The abstraction is defined before the suite; production SQLite-backed data access is implemented later in Step 3.1. Target ≥90% aggregate pass rate, with tool-selection and numeric accuracy reported separately.
-* **Step 2.4: Circuit Breakers & Timeout Limits:** Enforce hard execution caps, wall-clock time bounds, and error thresholds.
+#### Step 2: Agent Reliability, Strategy Generalization, Evaluation & Observability Foundation
+* **Branch strategy:** Use fine-grained feature branches aligned with coherent implementation units within each step. Do not use one branch spanning the entire milestone.
+* **Step 2.1: Trajectory Logging & Telemetry** `[IMPLEMENTED]`: Typed, sink-independent trajectory telemetry with deterministic JSONL persistence. SQLite is added later in Step 3.1 behind the same sink abstraction.
+* **Step 2.2: Native Schema Enforcement** `[IMPLEMENTATION COMPLETE / MERGE-READY]`: Prefer native Ollama JSON-schema constraints at structured-output boundaries, retain Pydantic validation as an application-level defense, and use the documented fallback path when native capability is unavailable or unknown. **Empirical model-by-model Light Mode compatibility remains a non-blocking validation item and must be completed before the Step 3.5 Light Mode exit criterion.**
+* **Step 2.3: Graham Strategy & Market-Data Contract**: Add `GrahamValueAnalyzer` as the second materially different deterministic strategy. Extend the existing `BaseDataClient` boundary only as needed to support both historical market data and a first-class current-price/quote capability. Add the minimal deterministic fixture adapter needed to prove the shared contract. Do not build the Golden evaluator/reporting system in this step. Stop for review when Step 2.3 is complete.
+* **Step 2.4: Golden-Test Suite & Strategy Evaluation**: Build the fixture-backed Golden Suite on the stable Step 2.3 contracts. Exercise both Momentum and Graham. Report strategy/tool-selection correctness separately from deterministic numerical correctness and from overall case pass/fail. Keep deterministic/no-LLM regression tests separate from optional real-local-Ollama empirical evaluation. Target ≥90% aggregate pass rate without weakening benchmark criteria.
+* **Step 2.5: Circuit Breakers & Timeout Limits**: Enforce hard execution caps, wall-clock bounds, retry/error thresholds, and clean diagnostics.
 
 #### Step 3: Relational Data Persistence Layer & Data Quality (SQLite)
 * **Branch strategy:** Use fine-grained branches aligned with Step 3 implementation units.
-* Repositories land under `src/data/repositories/`.
-* **Step 3.1: SQLite DB & Migration Infrastructure:** Setup Alembic for schema migrations, enforce WAL mode, establish core market-data tables (prices, instruments/metadata), and add the SQLite implementation of the trajectory telemetry sink and the production data-access abstraction used by the Golden Suite. This step must preserve the distinction between telemetry persistence, market-data persistence, and deterministic Golden Suite fixtures.
-* **Step 3.2: DAO & Repository Layer:** Build strongly typed Python data-access/repository interfaces and SQLite implementations for market data, trajectory records, and metadata. The Golden Suite's fixture-backed implementation must satisfy the same market-data contract.
-* **Step 3.3: Data Quality & Cache Invalidation Pipeline:** Validate incoming financial data (CAD/USD FX adjustments, corporate actions, stale cache invalidation).
+* Repositories live under `src/data/repositories/`.
+* **Step 3.1: SQLite DB & Migration Infrastructure:** Set up Alembic, enforce WAL mode, establish market-data and trajectory storage, add `SQLiteTrajectorySink`, and implement production historical-series/current-quote access behind the Step 2.3 market-data contracts. This step preserves the distinction between telemetry persistence, production market-data persistence, and Golden fixtures.
+* **Step 3.2: DAO & Repository Layer:** Build strongly typed data-access/repository interfaces and SQLite implementations for market data, trajectory records, and metadata.
+* **Step 3.3: Data Quality & Cache Invalidation Pipeline:** Validate incoming financial data (currency consistency, corporate actions where applicable, continuity/missing data, and staleness) and apply controlled cache refresh/invalidation rules.
 
-#### Step 3.5: Light Mode Support (new, required before v0.2.5)
+#### Step 3.5: Light Mode Support (required before v0.2.5)
 * **Goal:** Ensure the full single-step analysis path (data fetch → deterministic analytics → basic synthesis/report) runs cleanly under Light Mode configuration with a 14B-class (or smaller) model.
-* **Deliverables:** Configuration defaults favor Light Mode; documentation and README point new users to Light Mode; basic smoke tests pass under Light Mode resource constraints.
-* **Exit criterion:** A user following only the Light Mode instructions in `docs/HARDWARE.md` and the README can complete a real analysis end-to-end.
+* **Deliverables:** Configuration defaults favor Light Mode; README and `docs/HARDWARE.md` provide the supported path; basic smoke tests pass; Step 2.2 empirical schema/model compatibility is recorded.
+* **Exit criterion:** A user following only the Light Mode instructions can complete a real analysis end-to-end.
 
 ### **Milestone v0.2.5: Real-User Validation Checkpoint**
-This milestone answers a question none of the technical quality gates can answer: does this help anyone besides the author? It sits after a working analysis loop (including Light Mode) exists and before larger investments in analytics expansion, localization, autonomy, and reporting.
+This milestone answers a question none of the technical quality gates can answer: does this help anyone besides the author?
 
-* **Step 0.5.1: Recruit real testers.** At least 3 people outside the author, ideally matching the Primary User description, install the tool under **Light Mode** and run at least one real analysis end-to-end.
-* **Step 0.5.2: Capture structured feedback.** For each tester: what confused them, where they stalled or gave up, whether the output told them something they wanted to know, and what they'd want next.
-* **Step 0.5.3: Confirm hardware assumptions.** Use what testers actually had available to validate or adjust the Light Mode recommendations.
-* **Step 0.5.4: Re-prioritize Milestone v0.3** using this input, including whether `fr-CA` localization stays in v0.3 or moves later.
-* **Exit criterion:** At least 3 completed tester sessions under Light Mode, findings documented, and Milestone v0.3 scope confirmed or adjusted before Step 4 work begins.
+* **Step 0.5.1:** Recruit at least 3 external testers using Light Mode.
+* **Step 0.5.2:** Capture structured feedback about setup, confusion, failures, usefulness, and desired next capabilities.
+* **Step 0.5.3:** Confirm or adjust hardware assumptions using actual tester hardware.
+* **Step 0.5.4:** Re-prioritize Milestone v0.3 using the findings, including whether `fr-CA` localization remains in v0.3.
+* **Exit criterion:** At least 3 completed tester sessions, documented findings, and v0.3 scope confirmed or adjusted before Step 4 begins.
 
 ### **Milestone v0.3: Analytics Expansion & Canadian Localization**
-#### Step 4: Analytical Modules & Quantitative Modeling
-* **PR Branch:** `feature/step-4.1-graham-valuation`
-* **Step 4.1: Benjamin Graham Intrinsic Value Engine:** Type-safe Graham valuation calculations with negative EPS and yield edge-case handling.
-* **Step 4.2: Technical Momentum Indicators:** Vectorized RSI, SMA, and price-crossover calculation tools.
-* **Step 4.3: Analytical Aggregator & Risk Metrics:** Combine technical and fundamental outputs into unified data models with basic risk metrics (max drawdown, volatility).
+#### Step 4: Analytical Expansion & Quantitative Modeling
+The initial Momentum and Graham strategies are established earlier as architectural/evaluation exemplars. Step 4 expands the analytical library rather than defining its first strategy contracts.
+
+* **Step 4.1: Additional Fundamental Valuation Models:** Add further fundamental/valuation strategies using the existing typed analyzer and market-data boundaries.
+* **Step 4.2: Additional Technical Indicators:** Expand beyond the initial SMA/crossover Momentum implementation (for example RSI/EMA/MACD only when explicitly selected and specified).
+* **Step 4.3: Analytical Aggregator & Risk Metrics:** Combine independent strategy outputs into unified typed models with basic risk measures such as maximum drawdown and volatility.
 
 #### Step 5: Localization Engine for Canadian Markets (en-CA / fr-CA)
-* **PR Branch:** `feature/step-5-localization`
-* **Status note:** Scope and timing confirmed at Milestone v0.2.5 (Step 0.5.4).
-* **Step 5.1: i18n Core Framework:** Translation catalogs for English (`en-CA`) and French (`fr-CA`).
-* **Step 5.2: Localized Financial & Currency Formatters:** CAD currency formatting, date/time standards, and metric translations.
-* **Step 5.3: Disclaimers & Agent Reasoning Localization:** Locale-aware agent reasoning output and mandatory compliance disclaimers.
+* **Status note:** Scope and timing are confirmed at Milestone v0.2.5.
+* **Step 5.1:** i18n core framework.
+* **Step 5.2:** Localized financial/currency formatters.
+* **Step 5.3:** Locale-aware reporting text and compliance disclaimers.
 
 ### **Milestone v1.0: Multi-Step Autonomy & Executive Reporting**
-* **Entry criterion:** Milestone v0.2.5 exit criteria met, and at least 1 tester has confirmed an output was genuinely useful to them. This is the most expensive remaining work — it should be built on evidence.
+* **Entry criterion:** Milestone v0.2.5 exit criteria met, and at least 1 tester has confirmed an output was genuinely useful.
 
 #### Step 6: Autonomous Multi-Step Tool Integration (Hardened)
-* **PR Branch:** `feature/step-6-autonomous-tool-loop`
-* **Step 6.1: Multi-Step Planner:** Autonomous chaining of database queries, calculation tools, and synthesis.
-* **Step 6.2: Argument Sanitization & Self-Correction:** Intercept malformed tool calls, feed exception context back to the agent, and retry up to limits.
-* **Step 6.3: Golden Suite Evaluation Gate:** Continuous integration validation against the Golden Benchmark suite.
+* **Step 6.1:** Multi-Step Planner.
+* **Step 6.2:** Argument Sanitization & Self-Correction.
+* **Step 6.3:** Continuous Golden-Suite Evaluation Gate using the Step 2.4 benchmark infrastructure.
 
 #### Step 7: High-Fidelity Data Visualization & Report Generation
-* **PR Branch:** `feature/step-7-reporting-visualization`
-* **Step 7.1: Visual Plotting Engine:** Render static charts (intrinsic value bands, momentum indicators) in PNG/SVG.
-* **Step 7.2: Executive PDF & Markdown Report Generator:** Compile Jinja2-templated Markdown and PDF research briefs with embedded charts, audit snapshot IDs, and disclaimers.
+* **Step 7.1:** Static plotting engine.
+* **Step 7.2:** Executive Markdown/PDF report generation with charts, audit identifiers, and disclaimers.
 
 ---
 
@@ -263,6 +266,7 @@ This milestone answers a question none of the technical quality gates can answer
 | **Context Degradation on Long Turns** | Model forgets original goal or tool rules | Prune middle conversation context while strictly locking `Role.SYSTEM` at index 0. |
 | **Database Lock / Concurrency Latency** | DB timeouts during multi-tool execution | Enforce SQLite Write-Ahead Logging (WAL) mode and single-writer/multi-reader connection pooling. |
 | **Hardware barrier excludes target users** | Dual-tier requirements out of reach for most Primary Users | **Light Mode is the default path.** Full Dual-Tier is optional. Hardware requirements are surfaced early in README and `docs/HARDWARE.md`. External validation (v0.2.5) runs under Light Mode. |
+| **Strategy fixation / analytical monoculture** | Local model repeatedly selects the first/only familiar analytical strategy even when another is appropriate | Maintain materially different deterministic analyzers behind the same existing runtime path; Step 2.4 measures strategy selection separately from numerical correctness; do not special-case the orchestrator around one strategy. |
 
 ---
 
@@ -274,21 +278,28 @@ Every Pull Request must pass the following automated GitHub Actions pipeline bef
 2. **Strict Static Analysis:** `mypy --strict src/`
 3. **Unit Tests & Coverage:** `pytest --cov=src --cov-report=term-missing`
 4. **Security & Dependency Audit:** `uv audit` / `pip-audit` for known vulnerabilities.
-5. **Golden Agent Evaluation:** Headless execution of golden query suite against mocked LLM outputs.
+5. **Golden Agent Evaluation:** Headless deterministic execution of the Step 2.4 Golden Suite in its no-LLM/test mode. Optional real-local-Ollama evaluation is recorded separately and is not a mandatory CI dependency unless explicitly configured.
 
 ---
 
-## 11.5 Market-Data Access & Golden-Test Determinism
+## 11.5 Strategy/Data Contracts & Golden-Test Determinism
 
-The project distinguishes three related but separate forms of persistence:
+The project distinguishes these related but separate concerns:
 
 1. **Operational logs** answer what happened operationally.
-2. **Trajectory telemetry** answers what an agent did during a specific execution.
-3. **Market-data persistence and Golden fixtures** answer what financial data was available to an analysis or benchmark.
+2. **Trajectory telemetry** answers what the agent/runtime did during a specific execution.
+3. **Market-data contracts** define what deterministic analytics may request.
+4. **Golden fixtures** provide immutable deterministic evidence for benchmark execution.
+5. **Production persistence/cache** provides durable market-data storage in Step 3.1.
+6. **Evaluation results** record whether a benchmark run selected the correct strategy/tool and produced the correct deterministic result.
 
-The Golden Suite must not depend on live external market-data calls. Before Step 2.3, the project will define the minimal typed market-data access abstraction needed by benchmark cases and provide a deterministic fixture-backed implementation. Step 3.1 will provide the production SQLite-backed implementation of that same abstraction and the cache-first external-data path.
+Step 2.3 establishes the minimum shared market-data capabilities required by the initial heterogeneous strategies:
+- historical market data for Momentum;
+- current quote/market price for Graham.
 
-This allows the Golden Suite to remain deterministic without prematurely coupling it to a particular provider or requiring the entire production persistence layer before evaluation work can begin.
+Step 2.3 also supplies only the minimal fixture adapter needed to prove that contract. Step 2.4 builds the Golden Suite on those stable foundations. Step 3.1 later supplies production SQLite/cache-backed implementations.
+
+The Golden Suite must never silently fall back to live market data when fixture evidence is missing.
 
 ---
 
@@ -297,7 +308,7 @@ This allows the Golden Suite to remain deterministic without prematurely couplin
 The project distinguishes **human-oriented operational logging** from **structured agent trajectory telemetry**.
 
 - `src/utils/logger_util.py` remains the operational logging infrastructure. It already provides asynchronous queue-based logging, console/file routing, time- and size-based rotation, configurable backup counts, background compression, contextual metadata, and graceful shutdown. Its configuration is driven through the existing settings system.
-- Step 2.1 introduces a separate typed trajectory telemetry model and recorder for machine-readable execution history. Telemetry is observational and must not become a second orchestration engine.
+- Step 2.1 established a separate typed trajectory telemetry model and recorder for machine-readable execution history. Telemetry is observational and must not become a second orchestration engine.
 - The telemetry model records observable execution events such as trajectory/step boundaries, LLM requests and responses, tool calls/results, failures, latency, and token usage when available.
 - Model-emitted auxiliary/reasoning output may be recorded when explicitly exposed to the application. Private/internal model reasoning is never inferred or reconstructed.
 - JSONL is the first telemetry persistence sink. SQLite is added in Step 3.1 behind the same sink abstraction.
@@ -310,12 +321,20 @@ The project distinguishes **human-oriented operational logging** from **structur
 
 Documentation lives in the repository and is updated with the code:
 
-- **`docs/ARCHITECTURE.md`:** System architecture, layer responsibilities, and data flow diagrams.
-- **`docs/TOOL_DEVELOPMENT.md`:** Guide for implementing new typed tools with Pydantic schemas.
-- **`docs/EVALUATIONS.md`:** Instructions for running and extending the Golden Benchmark suite.
-- **`docs/I18N_GUIDE.md`:** Standard operating procedures for adding translation strings and localized report templates.
+- **`README.md`:** Current capabilities, quickstart, disclaimer, and high-level roadmap.
+- **`AGENTS.md`:** Development-agent guardrails and documentation precedence.
+- **`RUNTIME_AGENTS.md`:** Runtime-agent behavioral guardrails.
+- **`docs/ARCHITECTURE.md`:** Current architectural boundaries and near-term target seams.
+- **`docs/DISCOVERY_WORKBOOK.md`:** Architectural rationale, decisions, and trade-offs.
+- **`docs/FINANCE_MATH.md`:** Authoritative project math/data semantics for implemented and explicitly planned deterministic strategies.
+- **`docs/GLOSSARY.md`:** Shared project terminology.
 - **`docs/HARDWARE.md`:** Light Mode vs Full Dual-Tier requirements and consumer hardware guidance.
-- **Master Plan Discovery Workbook:** Living record of architectural rationale, principles, and decision history (companion to this execution plan).
+- **`docs/MILESTONE_v0_2_IMPLEMENTATION_PLAN.md`:** Operational implementation detail for the active v0.2 milestone.
+- **`docs/EVALUATIONS.md`:** **Planned for Step 2.4.** Golden Suite usage, scoring, fixtures, and extension policy.
+- **`docs/TOOL_DEVELOPMENT.md`:** **Planned.** Guide for implementing new typed tools.
+- **`docs/I18N_GUIDE.md`:** **Planned for localization work.** Translation/report-localization procedures.
+
+Do not assume a planned guide already exists. During implementation, create/update planned documents only in the step that explicitly owns them.
 
 ---
 

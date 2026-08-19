@@ -1,124 +1,132 @@
-# 📖 Financial & Quantitative Analysis Glossary
+# Financial Data Agents Glossary
 
-This glossary outlines the financial concepts, technical indicators, and industry acronyms used throughout the development and future roadmapping of this repository.
-
----
-
-## 🔹 Core Terminology
-
-### Ticker (Ticker Symbol)
-A unique alphabetical code assigned to a security, asset, or cryptocurrency for trading purposes. 
-* *Project Context:* The system defaults to `BTC-USD` to track the Bitcoin-to-U.S.-Dollar pair via market data streams.
-
-### Momentum Indicator
-A technical analysis tool used to measure the velocity of asset price changes over a specified period. Momentum strategies operate on the thesis that assets moving strongly in a given direction are likely to continue that trajectory.
-* *Project Context:* Handled natively by the `src.analysis.momentum` module.
-
-### Bullish
-A market condition or sentiment characterized by rising prices, upward momentum, or the expectation that an asset's price will appreciate.
-
-### Bearish
-A market condition or sentiment characterized by falling prices, downward momentum, or the expectation that an asset's price will depreciate.
-* *Project Context:* The current default state outputted by the pipeline based on recent historical ingestion.
+This glossary defines project terms. Formula details and authoritative calculation semantics live in `docs/FINANCE_MATH.md`.
 
 ---
 
-## 📈 Technical Indicators & Strategy
+## Analysis architecture
+
+### Analyzer / Analytical Strategy
+A deterministic Python capability that implements one financial-analysis method. Each analyzer owns its typed configuration, calculation, and result model.
+
+### `BaseAnalyzer`
+The existing common analysis abstraction. Supporting multiple analyzers does not imply a separate strategy registry/plugin framework.
+
+### Momentum Analyzer
+The existing deterministic technical-analysis strategy. The current implementation uses configurable short/long simple moving averages and crossover state.
+
+### Graham Value Analyzer
+The Step 2.3 deterministic fundamental-valuation strategy using the project's selected revised Graham formula convention.
+
+### Heterogeneous Strategy Independence
+The principle that materially different financial strategies may use different inputs and outputs while sharing the existing orchestration/tool architecture. Generic orchestration must not assume all analysis is Momentum.
+
+---
+
+## Market data
+
+### `BaseDataClient`
+The provider boundary used by deterministic analyzers/data consumers.
+
+### Historical Market Data
+A time-indexed series of observations used for time-series calculations such as Momentum.
+
+### Current Quote / Current Market Price
+A point-in-time market price. Step 2.3 treats this as distinct from historical-series access.
+
+### OHLCV
+Open, High, Low, Close, Volume observations for a market-data interval.
+
+### Fixture Adapter
+A deterministic, no-network implementation of the market-data contract used to validate contracts and later run Golden cases.
+
+### Production Persistence
+SQLite/cache-backed durable market-data access introduced in Step 3.1. Production persistence is separate from Golden fixtures.
+
+---
+
+## Momentum terms
 
 ### SMA (Simple Moving Average)
-The unweighted mean of an asset's price over a specific number of periods (e.g., a 20-day or 50-day SMA). It smooths out price volatility to help identify the prevailing trend direction.
+The arithmetic mean of the selected price series over a rolling window.
 
-### EMA (Exponential Moving Average)
-A type of moving average that applies more weight and significance to the most recent data points. It reacts faster to recent price changes than an SMA.
+### Short Window / Long Window
+The two configured SMA windows. The current Momentum configuration requires `short_window < long_window`.
 
-### Crossover Strategy
-A trading methodology where two different moving averages (typically a short-term "fast" average and a long-term "slow" average) intersect. 
-* **Golden Cross:** A short-term average crosses *above* a long-term average, signaling long-term **bullish** momentum.
-* **Death Cross:** A short-term average crosses *below* a long-term average, signaling long-term **bearish** momentum.
+### Crossover
+A transition in the relation between short and long SMAs. The current implementation derives a binary `short_sma > long_sma` signal and differences it to identify transitions.
 
-### RSI (Relative Strength Index)
-A momentum oscillator that measures the speed and change of price movements on a scale from 0 to 100. Traditionally, an asset is considered **overbought** when above 70 (potential reversal down) and **oversold** when below 30 (potential reversal up).
+### Bullish / Bearish / Unknown
+Momentum result states. `UNKNOWN` is used when the final rolling values are not available, such as insufficient history.
 
-### MACD (Moving Average Convergence Divergence)
-A trend-following momentum indicator that shows the relationship between two moving averages of an asset’s price (usually the 26-period and 12-period EMAs). A 9-period EMA of the MACD, called the "signal line," is plotted on top to trigger buy or sell signals.
+### RSI / EMA / MACD
+Common technical indicators that may be added in later analytics-expansion work. Their presence in this glossary does not mean they are currently implemented by `MomentumAnalyzer`.
 
 ---
 
-## 📊 Performance & Risk Metrics
+## Graham valuation terms
 
-### Backtesting
-The process of testing a trading strategy or predictive model on historical data to estimate how it would have performed in the past. This is critical for validating the viability of a momentum algorithm before deploying it.
+### EPS (Earnings Per Share)
+Earnings attributable per share. The selected Step 2.3 Graham convention requires positive EPS.
 
-### Sharpe Ratio
-A metric used to understand the return of an investment compared to its risk. It measures the excess return per unit of deviation in an investment asset or a trading strategy. Higher numbers signify better risk-adjusted performance.
+### Expected Growth Rate (`g`)
+Growth assumption expressed in **percentage points** for the selected Graham formula. Example: `6.5` represents 6.5%.
 
-### Drawdown (Max Drawdown)
-The peak-to-trough decline during a specific record period of an investment, fund, or trading strategy. It is usually quoted as the percentage between the peak and the subsequent trough, serving as a primary metric for assessing downside risk.
+### AAA Corporate Bond Yield
+Yield input used in the selected revised Graham convention. The Step 2.3 strategy uses a current yield and a baseline/reference yield.
 
-### OHLCV (Open, High, Low, Close, Volume)
-A standard structured data format representing financial market data across a specific timeframe (e.g., 1-day intervals). 
-* **Open/Close:** The asset price at the beginning and end of the period.
-* **High/Low:** The maximum and minimum price reached during the period.
-* **Volume:** The total number of units traded during that period.
+### Intrinsic Value
+The deterministic value estimate produced by `GrahamValueAnalyzer` using the project-selected formula convention.
+
+### Margin of Safety (MOS)
+Percentage difference between estimated intrinsic value and current market price:
+
+```text
+(intrinsic_value - current_price) / intrinsic_value × 100
+```
+
+Positive means price below estimated intrinsic value; negative means price above it. If current price is unavailable, MOS is unavailable (`None`), not zero.
 
 ---
 
-## 💻 Data & Infrastructure
+## Evaluation
 
-### Market Data Ingestion
-The programmatic structural collection of real-time or historical market pricing data from external data APIs (e.g., `yfinance`, CCXT) into local computing environments or databases.
+### Golden Benchmark Suite
+The Step 2.4 deterministic benchmark of typed cases, fixtures, expected behavior, and independently verified numerical results.
+
+### Strategy/Tool-Selection Correctness
+Whether the runtime selected the appropriate registered deterministic capability and supplied valid case-appropriate arguments.
+
+### Numerical Correctness
+Whether deterministic Python output matches independently verified expected values within case-specific tolerance.
+
+### Overall Case Pass
+Whether all required case-level acceptance criteria pass. A correct strategy choice does not rescue an incorrect deterministic result, and vice versa.
+
+### Deterministic / No-LLM Mode
+Test mode that validates fixtures, contracts, analyzers, evaluator logic, and report serialization without a live model. It cannot measure actual LLM strategy selection.
+
+### Real-Local-Ollama Evaluation
+Empirical evaluation mode that measures actual local-model behavior. It remains separate from deterministic regression testing.
 
 ---
 
-## 📐 Mathematical & Algorithmic Specifications
+## Reliability & observability
 
-### 1. Simple Moving Average (SMA)
-The SMA computes the unweighted mean of the closing prices over a moving window of $n$ periods.
+### Trajectory Telemetry
+Machine-readable structured execution history introduced in Step 2.1.
 
-**Formula:**
-$$\text{SMA}_t = \frac{1}{n} \sum_{i=0}^{n-1} P_{t-i}$$
+### Operational Logging
+Human-oriented runtime diagnostics. It is separate from trajectory telemetry.
 
-Where:
-* $P_t$ = Closing price at time $t$
-* $n$ = Number of periods in the moving window (e.g., $n=50$ or $n=200$)
+### Circuit Breaker
+Configured hard limits on execution steps, retries/errors, or wall-clock time. Step 2.5 owns the reliability-limit implementation.
 
-### 2. Exponential Moving Average (EMA)
-Unlike the SMA, the EMA applies a smoothing factor $\alpha$ to give exponentially decreasing weight to older prices.
+### Light Mode
+Default single-tier/modest-hardware operating path.
 
-**Formula:**
-$$\text{EMA}_t = \left( P_t \times \alpha \right) + \left( \text{EMA}_{t-1} \times (1 - \alpha) \right)$$
+### Full Dual-Tier Mode
+Optional local configuration using a fast/execution tier plus a larger deep-reasoning tier.
 
-Where $\alpha = \frac{2}{n + 1}$
-
-### 3. Relative Strength Index (RSI)
-The RSI is a bounded momentum oscillator that evaluates whether an asset is overbought or oversold over a default window of 14 periods.
-
-**Formula:**
-$$\text{RSI} = 100 - \left( \frac{100}{1 + \text{RS}} \right)$$
-$$\text{RS} = \frac{\text{Average Gain}}{\text{Average Loss}}$$
-
-Wilder's Smoothing Technique:
-* $\text{Average Gain}_t = \frac{(\text{Average Gain}_{t-1} \times 13) + \text{Current Gain}}{14}$
-* $\text{Average Loss}_t = \frac{(\text{Average Loss}_{t-1} \times 13) + \text{Current Loss}}{14}$
-
-### 4. Moving Average Convergence Divergence (MACD)
-The MACD turns two trend-following indicators (EMAs) into a momentum oscillator.
-
-**Formula Components:**
-* $\text{MACD Line} = \text{EMA}_{12}(P) - \text{EMA}_{26}(P)$
-* $\text{Signal Line} = \text{EMA}_9(\text{MACD Line})$
-* $\text{MACD Histogram} = \text{MACD Line} - \text{Signal Line}$
-
-### 5. Sharpe Ratio (Risk-Adjusted Return)
-The Sharpe Ratio quantifies the excess return generated per unit of asset volatility.
-
-**Formula:**
-$$S = \frac{R_p - R_f}{\sigma_p}$$
-
-Where:
-* $R_p$ = Expected portfolio or strategy return
-* $R_f$ = Risk-free rate of return (often approximated as 0 for crypto)
-* $\sigma_p$ = Standard deviation of the strategy's excess returns
-
-Annualization Layer (Crypto 24/7/365):
-$$\text{Sharpe}_{\text{Annualized}} = \frac{\text{Mean}(\text{Daily Returns})}{\text{StdDev}(\text{Daily Returns})} \times \sqrt{365}$$
+### WAL (Write-Ahead Logging)
+SQLite mode allowing readers to continue while writes are serialized appropriately.
