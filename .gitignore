@@ -108,3 +108,7 @@ repo_snapshot*
 
 # Local PR Drafts
 .github/.pr_draft.md
+
+# Convenience Git diff script and output file
+/all_changes.diff
+/all_changes.diff.sh

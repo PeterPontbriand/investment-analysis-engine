@@ -2,6 +2,10 @@
 
 import typer
 
+from src.analysis.graham_value.graham_value_analyzer import (
+    GrahamValueAnalyzer,
+    GrahamValueConfig,
+)
 from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
 from src.core.telemetry import RunContext
 from src.core.telemetry.run_context import get_current_run_context, set_current_run_context
@@ -59,17 +63,91 @@ def momentum(
             adapter.info(f"Analysis Complete for {metrics.ticker}")
             adapter.info(f"Current Price: ${metrics.current_price:,.2f}")
             adapter.info(f"Trend Status: {metrics.status.name}")
-            adapter.info(f"SMA({config.short_window}): {metrics.short_sma_val:.2f}")
-            adapter.info(f"SMA({config.long_window}): {metrics.long_sma_val:.2f}")
-            adapter.info(f"Crossover Signal: {metrics.crossover_signal}")
+            adapter.info(f"SMA({config.short_window}): {_display_optional_metric(metrics.short_sma_val)}")
+            adapter.info(f"SMA({config.long_window}): {_display_optional_metric(metrics.long_sma_val)}")
+            adapter.info(f"Crossover Signal: {_display_optional_metric(metrics.crossover_signal)}")
 
     except DataFetchError as err:
         with logger_context as adapter:
             adapter.error(
                 f"Market data retrieval failed: Ticker symbol '{ticker or analyzer._fallback_ticker}' "
-                "appears to be delisted, invalid, or returned empty data. "
-                "Please verify the ticker spelling and try again."
+                "appears to be invalid, unavailable, delisted, or returned no market data. "
+                "Please verify the ticker symbol and try again."
             )
+        raise typer.Exit(code=1) from err
+
+    except ValueError as err:
+        with logger_context as adapter:
+            adapter.error(f"Validation constraints breached: {err}")
+        raise typer.Exit(code=1) from err
+
+    except Exception as err:
+        with logger_context as adapter:
+            adapter.error(f"An unexpected error occurred during execution: {err}")
+        raise typer.Exit(code=1) from err
+
+
+def _display_optional_metric(value: float | None) -> str:
+    """Render a transitional CLI metric without exposing non-finite sentinels."""
+    return "unavailable" if value is None else f"{value:.2f}"
+
+
+@app.command(name="graham")
+def graham(
+    ticker: str | None = typer.Option(
+        None,
+        "--ticker",
+        "-t",
+        help="Target stock/asset ticker symbol (e.g., AAPL, KO)",
+    ),
+    eps: float = typer.Option(..., "--eps", "-e", help="TTM earnings per share (must be positive)"),
+    expected_growth_rate: float = typer.Option(
+        ...,
+        "--expected-growth-rate",
+        "-g",
+        help="Expected annual growth rate in percent (e.g., 5.0 for 5 %)",
+    ),
+    current_aaa_yield: float = typer.Option(
+        ...,
+        "--current-aaa-yield",
+        "-y",
+        help="Current AAA corporate bond yield in percent (e.g., 5.25)",
+    ),
+    current_price: float | None = typer.Option(
+        None,
+        "--current-price",
+        "-p",
+        help="Optional explicit current market price; fetched via the data client when omitted",
+    ),
+) -> None:
+    """Execute Benjamin Graham intrinsic value analysis with margin of safety."""
+    with logger_context as adapter:
+        adapter.info(f"Launching Graham valuation agent... [analysis_mode:graham, ticker:{ticker}]")
+
+    analyzer = GrahamValueAnalyzer(default_ticker=ticker)
+
+    try:
+        config = GrahamValueConfig(
+            eps=eps,
+            expected_growth_rate=expected_growth_rate,
+            current_aaa_yield=current_aaa_yield,
+        )
+        metrics = analyzer.run_analysis(config=config, ticker=ticker, current_price=current_price)
+
+        with logger_context as adapter:
+            adapter.info(f"Analysis Complete for {metrics.ticker}")
+            adapter.info(f"TTM EPS: ${metrics.eps:,.2f}")
+            adapter.info(f"Growth Rate (g): {metrics.expected_growth_rate:.2f}%")
+            adapter.info(f"Intrinsic Value: ${metrics.intrinsic_value:,.2f}")
+            if metrics.current_price is not None and metrics.margin_of_safety_percent is not None:
+                adapter.info(f"Current Price: ${metrics.current_price:,.2f}")
+                adapter.info(f"Margin of Safety: {metrics.margin_of_safety_percent:.2f}%")
+            else:
+                adapter.warning("Margin of Safety: unavailable (no current quote obtained)")
+
+    except DataFetchError as err:
+        with logger_context as adapter:
+            adapter.error(f"Market data retrieval failed: {err}")
         raise typer.Exit(code=1) from err
 
     except ValueError as err:

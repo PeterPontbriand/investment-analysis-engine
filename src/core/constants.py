@@ -147,6 +147,10 @@ class ConfigKeys:
         WINDOW_SIZES: Window sizes configuration key.
         SHORT_WINDOW: Short window size key.
         LONG_WINDOW: Long window size key.
+        GRAHAM_VALUES: Section name for Benjamin Graham valuation parameters.
+        BASE_PE: Base P/E ratio lookup key.
+        GROWTH_MULTIPLIER: Growth rate multiplier lookup key.
+        BASELINE_AAA_YIELD: Historical benchmark AAA bond yield lookup key.
 
     """
 
@@ -156,6 +160,12 @@ class ConfigKeys:
     WINDOW_SIZES: Final[str] = "window_sizes"
     SHORT_WINDOW: Final[str] = "short_window"
     LONG_WINDOW: Final[str] = "long_window"
+
+    # Graham specific
+    GRAHAM_VALUES: Final[str] = "graham_values"
+    BASE_PE: Final[str] = "base_pe"
+    GROWTH_MULTIPLIER: Final[str] = "growth_multiplier"
+    BASELINE_AAA_YIELD: Final[str] = "baseline_aaa_yield"
 
 
 class DataColumns:

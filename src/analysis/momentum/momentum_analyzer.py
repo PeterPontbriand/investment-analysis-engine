@@ -1,5 +1,6 @@
 """Module for tracking, calculating, and presenting market price momentum indicators."""
 
+import math
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Final
@@ -18,14 +19,19 @@ from src.utils.logger_util import setup_logger
 
 @dataclass(frozen=True)
 class MomentumMetrics:
-    """Read-only container for finalized computation metrics."""
+    """Read-only container for finalized computation metrics.
+
+    Moving-average and crossover values are ``None`` when the available
+    historical series cannot support the configured windows. Non-finite
+    numeric sentinels are never exposed as valid result values.
+    """
 
     ticker: str
     status: TrendStatus
     current_price: float
-    short_sma_val: float
-    long_sma_val: float
-    crossover_signal: float
+    short_sma_val: float | None
+    long_sma_val: float | None
+    crossover_signal: float | None
     timestamp: datetime
 
 
@@ -68,7 +74,6 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
         self._fallback_ticker: Final[str] = default_ticker or default_section[ConfigKeys.TICKER]
         self._start_date: Final[str] = default_section[ConfigKeys.START_DATE]
 
-        # Decoupled Dependency Injection
         self.data_client: Final[BaseDataClient] = data_client or YFinanceClient()
 
     def run_analysis(
@@ -83,14 +88,12 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
         s_win: int = config.short_window
         l_win: int = config.long_window
 
-        # Fetch market data using the decoupled engine only if a pre-loaded df is not passed
         if df is None:
             df = self.data_client.fetch_data(target_ticker, self._start_date)
 
         with setup_logger(__name__) as logger:
             logger.debug(f"Executing vectorized metrics matrix: SMA({s_win}), SMA({l_win}) on {target_ticker}")
 
-        # Explicit typing casts to satisfy static analysis checkers
         close_series = df.loc[:, DataColumns.CLOSE]
         sma_short = close_series.rolling(window=s_win).mean().astype(float)
         sma_long = close_series.rolling(window=l_win).mean().astype(float)
@@ -100,34 +103,46 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
 
         try:
             current_price = float(close_series.iloc[-1])
-            last_short_val = float(sma_short.iloc[-1])
-            last_long_val = float(sma_long.iloc[-1])
-            last_crossover = float(crossover_vector[-1])
-            is_bullish = bool(signal_vector[-1] == 1)
+            raw_short_sma = float(sma_short.iloc[-1])
+            raw_long_sma = float(sma_long.iloc[-1])
+            raw_crossover = float(crossover_vector[-1])
         except IndexError as err:
             raise ValueError(
                 "Insufficient historical data points to populate calculation range matrix window."
             ) from err
 
-        status: TrendStatus = TrendStatus.BULLISH if is_bullish else TrendStatus.BEARISH
-        if np.isnan(last_short_val) or np.isnan(last_long_val):
+        if not math.isfinite(current_price):
+            raise ValueError(f"Momentum current price must be finite (received {current_price!r}).")
+
+        short_sma_val = _finite_or_none(raw_short_sma)
+        long_sma_val = _finite_or_none(raw_long_sma)
+
+        if short_sma_val is None or long_sma_val is None:
             status = TrendStatus.UNKNOWN
+            crossover_signal = None
+        else:
+            status = TrendStatus.BULLISH if short_sma_val > long_sma_val else TrendStatus.BEARISH
+            crossover_signal = _finite_or_none(raw_crossover)
 
         return MomentumMetrics(
             ticker=target_ticker,
             status=status,
             current_price=current_price,
-            short_sma_val=last_short_val,
-            long_sma_val=last_long_val,
-            crossover_signal=last_crossover,
+            short_sma_val=short_sma_val,
+            long_sma_val=long_sma_val,
+            crossover_signal=crossover_signal,
             timestamp=datetime.now(UTC),
         )
+
+
+def _finite_or_none(value: float) -> float | None:
+    """Return a finite value or explicit unavailability for a non-finite calculation."""
+    return value if math.isfinite(value) else None
 
 
 if __name__ == "__main__":
     analyzer = MomentumAnalyzer()
     try:
-        # Self-test harness instantiates empty config, automatically loading defaults via factory methods
         default_config = MomentumConfig()
         metrics = analyzer.run_analysis(config=default_config)
 
@@ -139,7 +154,11 @@ if __name__ == "__main__":
             main_logger.info(f"Trend Status (EN): {display_en}")
             main_logger.info(f"Trend Status (FR): {display_fr}")
             main_logger.info(f"Last Price: ${metrics.current_price:,.2f}")
-            main_logger.info(f"Signal Flag: {metrics.crossover_signal} (Generated at {metrics.timestamp})")
-    except Exception as e:
+            main_logger.info(
+                "Signal Flag: %s (Generated at %s)",
+                metrics.crossover_signal if metrics.crossover_signal is not None else "unavailable",
+                metrics.timestamp,
+            )
+    except Exception as exc:
         with setup_logger(__name__) as main_logger:
-            main_logger.critical(f"Self-test harness faulted: {e}", exc_info=True)
+            main_logger.critical(f"Self-test harness faulted: {exc}", exc_info=True)

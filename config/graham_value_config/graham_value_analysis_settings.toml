@@ -1,0 +1,4 @@
+[graham_values]
+base_pe = 8.5
+growth_multiplier = 2.0
+baseline_aaa_yield = 4.4

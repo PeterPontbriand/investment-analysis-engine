@@ -89,6 +89,11 @@ class ProjectSettings(BaseSettings):
         analysis_config_path = self.base_dir / "config" / "general_analysis_settings.toml"
         return load_config_file(str(analysis_config_path))
 
+    def get_graham_value_analysis(self) -> dict[str, Any]:
+        """Benjamin Graham formula settings (base P/E, growth multiplier, baseline AAA yield)."""
+        toml_path = self.base_dir / "config" / "graham_value_config" / "graham_value_analysis_settings.toml"
+        return load_config_file(str(toml_path))
+
     def get_momentum_analysis(self) -> dict[str, Any]:
         """Retrieve core fast/slow moving average parameters settings."""
         momentum_config_path = self.base_dir / "config" / "momentum_config" / "momentum_analysis_settings.toml"

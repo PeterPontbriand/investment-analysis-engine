@@ -27,7 +27,6 @@ def mock_settings_config():
             "long_window": 5,
         }
     }
-    # Patch the class methods rather than the instantiated instance proxy
     with (
         patch("src.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis),
         patch("src.config.ProjectSettings.get_momentum_analysis", return_value=mock_momentum),
@@ -67,10 +66,7 @@ def bearish_dataframe() -> pd.DataFrame:
 
 def test_momentum_config_dynamic_factory_defaults() -> None:
     """Verify that MomentumConfig automatically populates its fields from TOML settings when empty."""
-    # When initialized with no arguments, fields trigger their default_factory methods
     config = MomentumConfig()
-
-    # Assert values match mock_settings_config values (2 and 5)
     assert config.short_window == 2
     assert config.long_window == 5
 
@@ -78,14 +74,11 @@ def test_momentum_config_dynamic_factory_defaults() -> None:
 def test_momentum_analyzer_fallback_ticker_assignment() -> None:
     """Verify that MomentumAnalyzer assigns its default fallback ticker if initialized without one."""
     analyzer = MomentumAnalyzer()
-    # Confirm it correctly extracted the default from configuration block
     assert analyzer._fallback_ticker == "BTC-USD"
 
 
 @patch("src.data.yfinance_client.yf.download")
-def test_fetch_market_data_handles_multiindex_flattening(
-    mock_download: MagicMock,
-) -> None:
+def test_fetch_market_data_handles_multiindex_flattening(mock_download: MagicMock) -> None:
     """Verify MultiIndex columns are properly handled and flattened by the data layer."""
     multi_cols = pd.MultiIndex.from_product([["Close", "Volume"], ["BTC-USD"]])
     multi_df = pd.DataFrame(np.random.randn(5, 2), columns=multi_cols)
@@ -109,6 +102,8 @@ def test_analyze_momentum_bullish(mock_fetch: MagicMock, bullish_dataframe: pd.D
     assert metrics.ticker == "BTC-USD"
     assert metrics.status == TrendStatus.BULLISH
     assert metrics.current_price == 40.0
+    assert metrics.short_sma_val is not None
+    assert metrics.long_sma_val is not None
     assert metrics.short_sma_val > metrics.long_sma_val
     assert isinstance(metrics.timestamp, datetime)
 
@@ -123,7 +118,40 @@ def test_analyze_momentum_bearish(mock_fetch: MagicMock, bearish_dataframe: pd.D
 
     assert metrics.status == TrendStatus.BEARISH
     assert metrics.current_price == 8.0
+    assert metrics.short_sma_val is not None
+    assert metrics.long_sma_val is not None
     assert metrics.short_sma_val < metrics.long_sma_val
+
+
+def test_insufficient_window_history_returns_unknown_without_nan() -> None:
+    """Represent unsupported moving-average windows with explicit unavailable values."""
+    df = pd.DataFrame({"Close": [10.0, 11.0, 12.0]})
+    analyzer = MomentumAnalyzer()
+
+    metrics = analyzer.run_analysis(
+        ticker="SHORT",
+        config=MomentumConfig(short_window=2, long_window=5),
+        df=df,
+    )
+
+    assert metrics.status is TrendStatus.UNKNOWN
+    assert metrics.current_price == 12.0
+    assert metrics.short_sma_val == pytest.approx(11.5)
+    assert metrics.long_sma_val is None
+    assert metrics.crossover_signal is None
+
+
+def test_non_finite_latest_price_is_rejected() -> None:
+    """Never permit a non-finite current price into MomentumMetrics."""
+    df = pd.DataFrame({"Close": [10.0, 11.0, float("nan")]})
+    analyzer = MomentumAnalyzer()
+
+    with pytest.raises(ValueError, match="current price must be finite"):
+        analyzer.run_analysis(
+            ticker="BAD",
+            config=MomentumConfig(short_window=2, long_window=3),
+            df=df,
+        )
 
 
 @patch("src.data.yfinance_client.YFinanceClient.fetch_data")
@@ -148,8 +176,8 @@ def test_analyze_momentum_window_validation() -> None:
 @patch("src.data.yfinance_client.YFinanceClient.fetch_data")
 def test_analyze_momentum_empty_dataset_fault(mock_fetch: MagicMock) -> None:
     """Verify that completely empty datasets instantly trigger explicit validation failures."""
-    mock_fetch.side_effect = DataFetchError("Target market ticker data resolved to empty: 'XYZ'")
+    mock_fetch.side_effect = DataFetchError("No market data was returned for ticker 'XYZ'.")
 
     analyzer = MomentumAnalyzer()
-    with pytest.raises(ValueError, match="Target market ticker data resolved to empty"):
+    with pytest.raises(DataFetchError, match="No market data was returned"):
         analyzer.run_analysis(ticker="XYZ", config=MomentumConfig())

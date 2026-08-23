@@ -24,7 +24,7 @@ Status: **Active development — pre-v1.0**
 For implementation work, use the documentation in this order:
 
 1. the explicit human task/request;
-2. the active milestone implementation plan (currently `docs/MILESTONE_v0_2_IMPLEMENTATION_PLAN.md`);
+2. the active milestone implementation plan (currently `docs/milestones/v0.2/IMPLEMENTATION_PLAN.md`);
 3. `docs/MASTER_PLAN.md`;
 4. `docs/ARCHITECTURE.md` and `docs/DISCOVERY_WORKBOOK.md`;
 5. specialized references such as `docs/FINANCE_MATH.md`;
@@ -174,7 +174,7 @@ Developers may use Ruff's mutating `--fix` / formatter commands locally, but CI 
 ## Documentation
 
 - [Master Plan](docs/MASTER_PLAN.md)
-- [Milestone v0.2 Implementation Plan](docs/MILESTONE_v0_2_IMPLEMENTATION_PLAN.md)
+- [Milestone v0.2 Implementation Plan](docs/milestones/v0.2/IMPLEMENTATION_PLAN.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Discovery Workbook](docs/DISCOVERY_WORKBOOK.md)
 - [Financial Math](docs/FINANCE_MATH.md)

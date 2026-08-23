@@ -34,3 +34,21 @@ class BaseDataClient(ABC):
             DataFetchError: If retrieval fails, the asset is invalid, or the dataset is empty.
         """
         pass
+
+    @abstractmethod
+    def fetch_current_price(self, ticker: str) -> float:
+        """Resolve the current market price (quote) for a given asset ticker.
+
+        Current quotes are a first-class capability, distinct from the
+        historical series downloaded via :meth:`fetch_data`.
+
+        Args:
+            ticker: The target stock or asset ticker symbol.
+
+        Returns:
+            float: The latest available price for the ticker.
+
+        Raises:
+            DataFetchError: If the quote cannot be resolved or is not positive.
+        """
+        pass

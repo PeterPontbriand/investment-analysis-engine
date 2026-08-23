@@ -42,3 +42,11 @@ class MassiveClient(BaseDataClient):
             return pd.DataFrame(mock_data, index=dates)
         except Exception as err:
             raise DataFetchError(f"Massive client pipeline failure: {err}") from err
+
+    def fetch_current_price(self, ticker: str) -> float:
+        """Resolve the current price from Massive.
+
+        (Placeholder implementation awaiting final integration endpoints.)
+        """
+        logger.warning(f"Current quote requested for '{ticker}' before the integration endpoint is live.")
+        raise DataFetchError(f"Massive API current quote endpoint is not yet implemented for '{ticker}'.")

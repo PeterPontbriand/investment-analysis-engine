@@ -15,7 +15,7 @@ When instructions differ, use this precedence:
 
 Do not blend contradictory instructions. Surface the conflict and follow the more specific/current source.
 
-For Milestone v0.2, `docs/MILESTONE_v0_2_IMPLEMENTATION_PLAN.md` owns implementation sequencing, review gates, scope, and acceptance criteria.
+For Milestone v0.2, `docs/milestones/v0.2/IMPLEMENTATION_PLAN.md` owns implementation sequencing, review gates, scope, and acceptance criteria.
 
 ## 2. Absolute forbidden actions
 
@@ -100,7 +100,7 @@ Require explicit user confirmation before:
 
 ## 11. Context index
 
-- Active milestone implementation → `docs/MILESTONE_v0_2_IMPLEMENTATION_PLAN.md`
+- Active milestone implementation → `docs/milestones/v0.2/IMPLEMENTATION_PLAN.md`
 - Roadmap → `docs/MASTER_PLAN.md`
 - Rationale / decision history → `docs/DISCOVERY_WORKBOOK.md`
 - Architecture → `docs/ARCHITECTURE.md`
