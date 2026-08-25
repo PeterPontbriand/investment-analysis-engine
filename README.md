@@ -14,7 +14,7 @@ The application currently provides [Momentum](docs/user/GLOSSARY.md#momentum-ana
 
 ## See what it does first
 
-A default [Graham Number](docs/user/GLOSSARY.md#graham-number) analysis resolves [EPS](docs/user/GLOSSARY.md#eps-earnings-per-share) and [BVPS](docs/user/GLOSSARY.md#bvps-book-value-per-share) from available financial evidence and can compare the resulting [maximum indicated price / screening ceiling](docs/user/GLOSSARY.md#maximum-indicated-price-screening-ceiling) with a [current market price](docs/user/GLOSSARY.md#current-quote-current-market-price), expressed as a [price relationship](docs/user/GLOSSARY.md#price-relationship):
+A default [Graham Number](docs/user/GLOSSARY.md#graham-number) analysis resolves [EPS](docs/user/GLOSSARY.md#eps-earnings-per-share) and [BVPS](docs/user/GLOSSARY.md#bvps-book-value-per-share) from available financial evidence and can compare the resulting [maximum indicated price / screening ceiling](docs/user/GLOSSARY.md#maximum-indicated-price--screening-ceiling) with a [current market price](docs/user/GLOSSARY.md#current-quote--current-market-price), expressed as a [price relationship](docs/user/GLOSSARY.md#price-relationship):
 
 ```bash
 uv run financial-agents graham KO
@@ -163,7 +163,7 @@ The [Project & Technical Documentation Index](docs/project/README.md) is the sin
 
 Financial Data Agents is not an investment recommendation engine. A deterministic formula can still be inappropriate for a particular company, and accurate provider data can still be incomplete, stale, restated, differently defined, or economically misleading without context.
 
-For example, the [Graham Number](docs/user/GLOSSARY.md#graham-number) is a limited earnings-and-book-value screen, the [Graham growth-value method](docs/user/GLOSSARY.md#graham-growth-value-method-grahamgrowthvalue) depends materially on user-supplied assumptions, and [Momentum](docs/user/GLOSSARY.md#momentum-analyzer) describes price-series behavior rather than business quality or fair value.
+For example, the [Graham Number](docs/user/GLOSSARY.md#graham-number) is a limited earnings-and-book-value screen, the [Graham growth-value method](docs/user/GLOSSARY.md#graham-growth-value-method-graham_growth_value) depends materially on user-supplied assumptions, and [Momentum](docs/user/GLOSSARY.md#momentum-analyzer) describes price-series behavior rather than business quality or fair value.
 
 Nothing in this repository, its documentation, generated output, or related materials constitutes financial, investment, legal, or tax advice. Verify source data, assumptions, methods, and outputs independently before making investment decisions.
 

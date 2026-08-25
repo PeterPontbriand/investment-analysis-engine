@@ -89,6 +89,91 @@ When editing a legacy file that currently uses a different logging pattern, do n
 - Recommended local repair/check order:
   `uv run ruff check --fix .` → `uv run ruff format .` → type check → tests.
 
+### Repository search & file inspection
+
+Use the simplest search mechanism that matches the question. A search that
+returns no matches is information, not a reason to repeatedly invent more
+complex patterns.
+
+- If the exact file is known, read that file directly before searching.
+- For exact text, Markdown links, identifiers, headings, paths, CLI flags, or
+  punctuation-heavy strings, prefer a **literal search**, not a regular
+  expression.
+- Treat strings containing Markdown or code punctuation such as `#`, `[`, `]`,
+  `(`, `)`, backticks, `/`, `\`, `_`, `*`, `+`, `?`, or `.` as literal by
+  default unless regex semantics are explicitly required.
+- On Windows/PowerShell, prefer:
+  `Select-String -SimpleMatch '<literal text>'`
+  for exact text searches.
+- For a repository-wide literal Markdown search, prefer a simple pipeline such
+  as:
+  `Get-ChildItem -Recurse -Filter *.md | Select-String -SimpleMatch 'GLOSSARY.md#'`
+  rather than constructing a speculative regex.
+- Use regex only when the task genuinely requires pattern matching. Start with
+  the smallest regex that can work and escape literal punctuation correctly.
+- Do not retry a failing/no-match search by making the pattern progressively
+  more elaborate without first verifying:
+  1. the target file/path exists;
+  2. the expected text actually appears in a directly inspected file; and
+  3. the search tool is interpreting the pattern as literal text or regex as
+     intended.
+- After one unexpected no-match result, inspect a likely file directly or use a
+  simpler literal search. After two no-match attempts, stop changing patterns
+  and reassess the search assumption.
+- When auditing links or references, enumerate the source material first
+  (for example, headings and literal links), then compare the resulting lists.
+  Do not try to encode the entire audit into one complex search expression.
+- Never interpret "no search matches" as proof that a file or concept does not
+  exist when direct file inspection is available.
+
+### Non-interactive commands and pagers
+
+Agent-run shell commands must be safe for non-interactive execution. Do not
+invoke commands that may wait for pager input, editor input, confirmation, or
+other interactive terminal state unless the task explicitly requires it.
+
+For Git commands that can invoke a pager, explicitly disable paging:
+
+- use `git --no-pager diff` instead of `git diff`;
+- use `git --no-pager log ...` instead of `git log ...`;
+- use `git --no-pager show ...` instead of `git show ...`;
+- use `git --no-pager branch ...` when branch output may page.
+- Commands run by an agent should be non-interactive and bounded by default;
+  explicitly disable pagers and avoid prompts that require terminal input.
+
+Prefer per-command pager suppression rather than changing the user's global Git
+configuration.
+
+Examples:
+
+```powershell
+git --no-pager diff
+git --no-pager diff --stat
+git --no-pager diff -- path/to/file
+git --no-pager log -10 --oneline
+git --no-pager show --stat HEAD
+```
+
+For large output, do not dump an unbounded repository-wide result merely because
+paging has been disabled. Narrow the command first:
+
+1. inspect `--stat`, `--name-only`, or `--name-status`;
+2. identify the relevant files;
+3. inspect targeted diffs or bounded log history.
+
+Do not use `less`, `more`, `Out-Host -Paging`, or another pager in agent-driven
+commands.
+
+If a command unexpectedly enters a pager or other interactive state:
+
+1. exit it once (`q` for common Git pagers);
+2. do not rerun the same command unchanged;
+3. rerun it in explicitly non-interactive form, normally with `git --no-pager`
+   or a narrower bounded command.
+
+A tool appearing to hang after producing output should be treated as a possible
+pager/interactive-state problem before assuming the underlying command failed.
+
 ## 10. Human-in-the-loop gates
 
 Require explicit user confirmation before:

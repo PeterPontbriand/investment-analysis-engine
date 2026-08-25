@@ -115,7 +115,7 @@ Where supported:
 uv run financial-agents graham KO --as-of 2025-12-31
 ```
 
-`--as-of` creates an information boundary. Financial facts that had not yet been published by that date cannot be used merely because their reporting period ended earlier. See [`as_of`](GLOSSARY.md#asof), [publication date](GLOSSARY.md#available-at-filing-date-publication-date), and [look-ahead bias](GLOSSARY.md#look-ahead-bias).
+`--as-of` creates an information boundary. Financial facts that had not yet been published by that date cannot be used merely because their reporting period ended earlier. See [`as_of`](GLOSSARY.md#as_of), [publication date](GLOSSARY.md#available-at--filing-date--publication-date), and [look-ahead bias](GLOSSARY.md#look-ahead-bias).
 
 A provider that only supplies today's quote does not manufacture a historical quote. A historical calculation may therefore succeed without a market-price comparison.
 

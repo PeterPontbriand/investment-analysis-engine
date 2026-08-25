@@ -35,7 +35,7 @@ Resolved financial values retain enough [provenance](GLOSSARY.md#provenance) to 
 
 ### `as_of` and publication timing
 
-A requested [`as_of`](GLOSSARY.md#asof) date is a hard information boundary.
+A requested [`as_of`](GLOSSARY.md#as_of) date is a hard information boundary.
 
 A company's fiscal year may end on December 31 while the corresponding filing is not published until weeks or months later. A historical analysis dated January 15 must not use a filing that did not become public until February.
 
