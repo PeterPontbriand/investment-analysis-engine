@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
 from src.core.telemetry.sinks import JSONLTrajectorySink
-from src.llm.client import LLMGenerateResult
+from src.llm.client import LLMClient, LLMGenerateResult
 from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
 from src.schema.config import SchemaConfig
-from src.tools.parser import ParsedToolCall
+from src.tools.parser import ParsedToolCall, ToolParser
 
 
 class FakeLLMClient:
@@ -75,9 +75,9 @@ async def test_complete_run_writes_reconstructable_jsonl(tmp_path: Path) -> None
         recorder=recorder,
     )
     orchestrator = AgentOrchestrator(
-        llm_client=FakeLLMClient(),
+        llm_client=cast("LLMClient", FakeLLMClient()),
         dispatcher=dispatcher,
-        parser=FakeParser(),
+        parser=cast("ToolParser", FakeParser()),
         options=options,
     )
 

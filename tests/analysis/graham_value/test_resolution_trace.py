@@ -6,23 +6,23 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.analysis.graham_value.cache import InMemoryValuationCache
-from src.analysis.graham_value.facts import (
+from src.analysis.graham_value.input_resolver import GrahamInputResolver
+from src.core.analysis_status import CalculationStatus
+from src.data.valuation.cache import InMemoryValuationCache
+from src.data.valuation.facts import (
     ProviderFact,
     ValuationFactRequest,
     ValuationField,
     ValuationProviderError,
     ValuationUnit,
 )
-from src.analysis.graham_value.models import CalculationStatus
-from src.analysis.graham_value.provenance import ValuationSubjectKind
-from src.analysis.graham_value.resolution_trace import (
+from src.data.valuation.provenance import ValuationSubjectKind
+from src.data.valuation.resolution_trace import (
     ResolutionEvent,
     ResolutionOutcome,
     ResolutionStage,
     ResolutionTrace,
 )
-from src.analysis.graham_value.resolver import InputResolver
 
 NOW = datetime(2026, 8, 22, 16, 0, tzinfo=UTC)
 PERIOD_END = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)
@@ -113,7 +113,9 @@ def test_resolution_event_rejects_blank_identifiers_and_messages() -> None:
 def test_override_trace_short_circuits_cache_and_provider() -> None:
     """An explicit override records only the path that was actually taken."""
     provider = RecordingProvider({})
-    resolver = InputResolver(provider=provider, cache=InMemoryValuationCache(clock=lambda: NOW), clock=lambda: NOW)
+    resolver = GrahamInputResolver(
+        provider=provider, cache=InMemoryValuationCache(clock=lambda: NOW), clock=lambda: NOW
+    )
 
     result = resolver.resolve(_request(ValuationField.EPS, basis="ttm"), override=5.0)
 
@@ -134,7 +136,9 @@ def test_cache_miss_then_provider_success_is_recorded_in_order() -> None:
         currency="USD",
     )
     provider = RecordingProvider({ValuationField.EPS: (fact,)})
-    resolver = InputResolver(provider=provider, cache=InMemoryValuationCache(clock=lambda: NOW), clock=lambda: NOW)
+    resolver = GrahamInputResolver(
+        provider=provider, cache=InMemoryValuationCache(clock=lambda: NOW), clock=lambda: NOW
+    )
 
     result = resolver.resolve(_request(ValuationField.EPS, basis="ttm"))
 
@@ -160,7 +164,7 @@ def test_cache_hit_records_hit_and_does_not_repeat_provider_attempt() -> None:
     )
     provider = RecordingProvider({ValuationField.EPS: (fact,)})
     cache = InMemoryValuationCache(clock=lambda: NOW)
-    resolver = InputResolver(provider=provider, cache=cache, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
     request = _request(ValuationField.EPS, basis="ttm")
 
     first = resolver.resolve(request)
@@ -177,7 +181,7 @@ def test_cache_hit_records_hit_and_does_not_repeat_provider_attempt() -> None:
 
 def test_provider_error_is_classified_without_losing_attempt_event() -> None:
     """Operational provider failures are distinct from ordinary unavailability."""
-    resolver = InputResolver(provider=ErrorProvider(), clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=ErrorProvider(), clock=lambda: NOW)
 
     result = resolver.resolve(_request(ValuationField.EPS, basis="ttm"))
 
@@ -216,7 +220,7 @@ def test_bvps_fallback_trace_preserves_direct_failure_component_paths_and_deriva
             ValuationField.COMMON_SHARES_OUTSTANDING: (common,),
         }
     )
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
 
     result = resolver.resolve_bvps(_request(ValuationField.BVPS))
 
@@ -236,7 +240,7 @@ def test_bvps_fallback_trace_preserves_direct_failure_component_paths_and_deriva
 def test_graham_number_assembly_aggregates_field_traces_in_resolution_order() -> None:
     """Method-level assembly exposes one ordered trace across all resolved fields."""
     provider = RecordingProvider({})
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
 
     assembly = resolver.assemble_graham_number(
         security_subject_id="NDAQ",
@@ -277,7 +281,7 @@ def test_optional_quote_unavailability_is_retained_in_method_trace() -> None:
             ValuationField.BVPS: (bvps,),
         }
     )
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
 
     assembly = resolver.assemble_graham_number(
         security_subject_id="NDAQ",

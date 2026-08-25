@@ -6,13 +6,13 @@ This module provides a production-grade, asynchronous, centralized logging archi
 
 ## Key Features
 
-- **Asynchronous, Non-Blocking Architecture**: Thread-safe logging that routes records through a central memory queue to keep analytical execution paths fast.
+- **Asynchronous, Non-Blocking Architecture**: Thread-safe logging that routes records through a central memory queue to keep analytical execution flows fast.
 - **Dual-Output Routing**: Dispatches log entries to both native standard console output (`sys.stdout`) and a dedicated file pipeline concurrently.
 - **Enhanced Cross-Platform Rotation**: Subclasses `TimedRotatingFileHandler` to seamlessly enforce *both* time-based (e.g., daily) and size-based limits (`maxBytes`) without filename collisions.
 - **Thread-Safe Log Compression**: Automatically compresses older logs into standard `.zip` files via background threads, strictly avoiding native Windows host file-locking crashes (`PermissionError`).
 - **Dynamic Metadata Injection**: Captures context keys at runtime and cleanly appends them inline to log strings (e.g., `[user_id:1234, request_id:ABCD]`).
 - **ANSI Terminal Colorization**: Features high-visibility, color-coded level tags on the console, while maintaining standard plain-text formatting in the log files for seamless log scanning.
-- **Global Failure Interception**: Catches and logs uncaught exceptions with full stack traces across both the main execution path and secondary worker threads automatically.
+- **Global Failure Interception**: Catches and logs uncaught exceptions with full stack traces across both the main execution flow and secondary worker threads automatically.
 - **Docker-Safe Graceful Exits**: Hooks directly into Python's `atexit` cycle to fully finish and zip pending log files when receiving container termination signals (`SIGTERM`).
 
 ---

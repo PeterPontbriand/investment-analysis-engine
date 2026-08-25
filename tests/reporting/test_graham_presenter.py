@@ -3,25 +3,20 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
 
-from src.analysis.graham_value.models import (
-    CalculationStatus,
-    GrahamGrowthValueResult,
-    GrahamNumberResult,
-)
-from src.analysis.graham_value.provenance import ComponentLineage, ResolvedInput, SourceKind
-from src.analysis.graham_value.resolution_trace import (
+from src.analysis.graham_value.input_resolver import GrahamNumberInputAssembly, GrowthValueInputAssembly
+from src.analysis.graham_value.models import GrahamGrowthValueResult, GrahamNumberResult
+from src.core.analysis_status import CalculationStatus
+from src.data.valuation.provenance import ComponentLineage, ResolvedInput, SourceKind
+from src.data.valuation.resolution_trace import (
     ResolutionEvent,
     ResolutionOutcome,
     ResolutionStage,
     ResolutionTrace,
-)
-from src.analysis.graham_value.resolver import (
-    GrahamNumberInputAssembly,
-    GrowthValueInputAssembly,
 )
 from src.reporting.graham import (
     GrahamGrowthPresentation,
@@ -151,7 +146,7 @@ def test_number_concise_uses_screening_ceiling_language_and_not_intrinsic_value(
 
     rendered = render_graham_number(presentation)
 
-    assert "Maximum indicated price" in rendered
+    assert "NDAQ — Graham Number (maximum indicated price): 33.80 USD" in rendered
     assert "screening ceiling" in rendered
     assert "Intrinsic Value" not in rendered
     assert "Current price: unavailable" in rendered
@@ -244,8 +239,9 @@ def test_growth_concise_makes_user_growth_assumption_conspicuous() -> None:
 
     rendered = render_graham_growth(presentation)
 
-    assert "USER ASSUMPTION — expected growth" in rendered
-    assert "user override, not provider-verified data" in rendered
+    assert "Expected growth assumption: 6.50 percentage points" in rendered
+    assert "expected_growth is a user override" not in rendered
+    assert "Warning:" not in rendered
     assert "forecast-dependent" in rendered.lower()
 
 
@@ -349,7 +345,7 @@ def test_number_presentation_rejects_as_of_mismatch_with_resolved_input() -> Non
 
 
 def test_growth_presentation_accepts_matching_historical_as_of() -> None:
-    historical_as_of = datetime(2025, 12, 31, tzinfo=UTC)
+    historical_as_of = datetime(2025, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)
     eps = ResolvedInput(
         field_name="eps",
         value=2.0,
@@ -391,7 +387,9 @@ def test_growth_presentation_accepts_matching_historical_as_of() -> None:
         as_of=historical_as_of,
     )
 
-    assert f"As of: {historical_as_of.isoformat()}" in render_graham_growth(presentation)
+    rendered = render_graham_growth(presentation)
+    assert "SYNTH — Graham Growth Value as of 2025-12-31: 31.01 (currency unspecified)" in rendered
+    assert "As of:" not in rendered
 
 
 def test_graham_presentation_rejects_naive_as_of() -> None:
@@ -404,3 +402,149 @@ def test_graham_presentation_rejects_naive_as_of() -> None:
             result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=33.8004677786747),
             as_of=datetime(2026, 8, 22),
         )
+
+
+def test_number_not_applicable_is_humanized_and_suppresses_quote_noise() -> None:
+    bvps = replace(
+        _derived_bvps(),
+        value=-4.986447241045498,
+        observation_period_end=datetime(2025, 12, 31, 23, 59, 59, 999999, tzinfo=UTC),
+    )
+    assembly = GrahamNumberInputAssembly(
+        status=CalculationStatus.OK,
+        eps=_eps(),
+        bvps=bvps,
+        quote_status=CalculationStatus.INPUT_UNAVAILABLE,
+        quote_reason="technical quote reason",
+    )
+    presentation = GrahamNumberPresentation(
+        ticker="HLF",
+        assembly=assembly,
+        result=GrahamNumberResult(
+            status=CalculationStatus.NOT_APPLICABLE,
+            reason="BVPS must be positive for Graham Number (received -4.986447241045498).",
+        ),
+    )
+    rendered = render_graham_number(presentation)
+    assert "Status: not applicable" in rendered
+    assert "Book value per common share is negative (-4.99 USD), so the Graham Number does not apply." in rendered
+    assert "-4.986447241045498" not in rendered
+    assert "Current quote unavailable" not in rendered
+
+
+def test_number_details_use_human_dates_and_omit_operational_timestamps() -> None:
+    presentation = GrahamNumberPresentation(
+        ticker="NDAQ",
+        assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=_eps(), bvps=_derived_bvps()),
+        result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=33.8),
+    )
+    rendered = render_graham_number(presentation, PresentationMode.DETAILS)
+    assert "basis: fiscal-year-end" in rendered
+    assert "period end: 2025-12-31" in rendered
+    assert "available at: 2026-02-12 21:29 UTC" in rendered
+    assert "retrieved at:" not in rendered
+    assert "resolved at:" not in rendered
+    assert "T23:59:59" not in rendered
+    assert ".999999" not in rendered
+
+
+def test_provider_side_inference_and_derivation_have_explicit_source_labels() -> None:
+    preferred = _provider_input(
+        "preferred_shares_outstanding",
+        0.0,
+        units="shares",
+        currency=None,
+        provider_field="inferred:sec-company-facts:no-issued-preferred-equity",
+    )
+    common = _provider_input(
+        "common_shares_outstanding",
+        4_302_000_000.0,
+        units="shares",
+        currency=None,
+        provider_field="derived:us-gaap:CommonStockSharesIssued-us-gaap:TreasuryStockCommonShares",
+    )
+    bvps = ResolvedInput(
+        field_name="bvps",
+        value=7.48,
+        source_kind=SourceKind.DERIVED,
+        resolved_at=NOW,
+        basis="fiscal_year_end",
+        units="currency_per_share",
+        currency="USD",
+        provider_id="sec_edgar",
+        available_at=AVAILABLE,
+        retrieved_at=NOW,
+        lineage=ComponentLineage(transformation="test", components=(preferred, common)),
+    )
+    presentation = GrahamNumberPresentation(
+        ticker="KO",
+        assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=_eps(), bvps=bvps),
+        result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=21.14),
+    )
+    rendered = render_graham_number(presentation, PresentationMode.DETAILS)
+    assert "source: inferred (SEC EDGAR)" in rendered
+    assert "source: provider-derived (SEC EDGAR)" in rendered
+
+
+def test_concise_freshness_uses_semantic_dates() -> None:
+    presentation = GrahamNumberPresentation(
+        ticker="KO",
+        assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=_eps(), bvps=_derived_bvps()),
+        result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=21.14),
+    )
+    rendered = render_graham_number(presentation)
+    assert "(available 2026-02-12)" in rendered
+    assert "2026-02-12T21:29:07" not in rendered
+
+
+def test_cross_currency_quote_is_shown_without_price_relationship() -> None:
+    quote = ResolvedInput(
+        field_name="current_price",
+        value=50.0,
+        source_kind=SourceKind.PROVIDER,
+        resolved_at=NOW,
+        units="currency_per_share",
+        currency="CAD",
+        provider_id="yfinance",
+        provider_field="fast_info.last_price",
+        observed_at=NOW,
+        available_at=NOW,
+        retrieved_at=NOW,
+    )
+    presentation = GrahamNumberPresentation(
+        ticker="TEST",
+        assembly=GrahamNumberInputAssembly(
+            status=CalculationStatus.OK,
+            eps=_eps(),
+            bvps=_derived_bvps(),
+            current_price=quote,
+        ),
+        result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=33.8),
+        margin_of_safety_percent=None,
+    )
+    rendered = render_graham_number(presentation)
+    assert "Current price: 50.00 CAD" in rendered
+    assert "Price comparison: unavailable (valuation and quote currencies differ)" in rendered
+    assert "Price relationship:" not in rendered
+
+
+def test_not_applicable_json_preserves_raw_status_value_and_precision() -> None:
+    bvps_value = -4.986447241045498
+    available = datetime(2026, 2, 18, 21, 23, 3, 123456, tzinfo=UTC)
+    bvps = replace(
+        _derived_bvps(),
+        value=bvps_value,
+        available_at=available,
+    )
+    presentation = GrahamNumberPresentation(
+        ticker="HLF",
+        assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=_eps(), bvps=bvps),
+        result=GrahamNumberResult(
+            status=CalculationStatus.NOT_APPLICABLE,
+            reason=f"BVPS must be positive for Graham Number (received {bvps_value}).",
+        ),
+    )
+    payload = json.loads(render_graham_number(presentation, PresentationMode.JSON))
+    assert payload["status"] == "not_applicable"
+    assert payload["inputs"]["bvps"]["value"] == pytest.approx(bvps_value)
+    assert payload["inputs"]["bvps"]["available_at"] == available.isoformat()

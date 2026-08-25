@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Callable, Generator, Mapping
 from types import ModuleType
 from unittest.mock import Mock, patch
 
@@ -19,20 +20,20 @@ from src.schema.validator import build_retry_messages, validate_response
 
 
 @pytest.fixture
-def mock_ollama_response():
+def mock_ollama_response() -> Callable[[Mapping[str, object]], Mock]:
     """Fixture for a mock Ollama response."""
 
-    def _make_response(content: dict):
-        return Mock(message=Mock(content=json.dumps(content)))
+    def _make_response(content: Mapping[str, object]) -> Mock:
+        return Mock(message=Mock(content=json.dumps(dict(content))))
 
     return _make_response
 
 
 @pytest.fixture
-def mock_ollama_chat():
+def mock_ollama_chat() -> Generator[Mock, None, None]:
     """Fixture to mock ollama.chat without requiring the ollama package."""
     fake = ModuleType("ollama")
-    fake.chat = Mock()
+    fake.chat = Mock()  # type: ignore[attr-defined]  # Dynamic attribute on ModuleType mock
     with (
         patch.dict(sys.modules, {"ollama": fake}),
         patch.object(fake, "chat") as mock_chat,
@@ -43,7 +44,11 @@ def mock_ollama_chat():
 class TestNativeEnforcement:
     """Integration tests for native schema enforcement."""
 
-    def test_tool_call_with_schema_constraint(self, mock_ollama_chat, mock_ollama_response):
+    def test_tool_call_with_schema_constraint(
+        self,
+        mock_ollama_chat: Mock,
+        mock_ollama_response: Callable[[Mapping[str, object]], Mock],
+    ) -> None:
         """Test a tool call generation with schema constraint."""
         expected_response = {
             "tool_name": "get_price",
@@ -71,7 +76,11 @@ class TestNativeEnforcement:
         assert "schema" not in call_kwargs
         assert "strict" not in call_kwargs
 
-    def test_plan_with_schema_constraint(self, mock_ollama_chat, mock_ollama_response):
+    def test_plan_with_schema_constraint(
+        self,
+        mock_ollama_chat: Mock,
+        mock_ollama_response: Callable[[Mapping[str, object]], Mock],
+    ) -> None:
         """Test a plan generation with schema constraint."""
         expected_response = {
             "goal": "Analyze Tesla stock",
@@ -104,7 +113,11 @@ class TestNativeEnforcement:
         assert len(result.data.steps) == 2
         assert result.data.goal == "Analyze Tesla stock"
 
-    def test_synthesis_with_schema_constraint(self, mock_ollama_chat, mock_ollama_response):
+    def test_synthesis_with_schema_constraint(
+        self,
+        mock_ollama_chat: Mock,
+        mock_ollama_response: Callable[[Mapping[str, object]], Mock],
+    ) -> None:
         """Test a synthesis generation with schema constraint."""
         expected_response = {
             "summary": "Tesla shows strong growth potential",
@@ -127,7 +140,11 @@ class TestNativeEnforcement:
         assert result.data.confidence_score == 0.78
         assert result.data.recommendation == "BUY"
 
-    def test_schema_violation_handling(self, mock_ollama_chat, mock_ollama_response):
+    def test_schema_violation_handling(
+        self,
+        mock_ollama_chat: Mock,
+        mock_ollama_response: Callable[[Mapping[str, object]], Mock],
+    ) -> None:
         """Test handling of schema violations (recoverable)."""
         bad_response = {"tool_name": "get_price", "unexpected": True}
         mock_ollama_chat.return_value = mock_ollama_response(bad_response)
@@ -144,7 +161,7 @@ class TestNativeEnforcement:
         assert result.is_recoverable is True
         assert result.error_type is not None
 
-    def test_malformed_json_handling(self, mock_ollama_chat):
+    def test_malformed_json_handling(self, mock_ollama_chat: Mock) -> None:
         """Test handling of malformed JSON response."""
         mock_ollama_chat.return_value = Mock(message=Mock(content="This is not JSON"))
 
@@ -158,9 +175,14 @@ class TestNativeEnforcement:
         result = validate_response(response.message.content, ToolCallResponse)
         assert result.valid is False
         assert result.is_recoverable is True
+        assert result.error_type is not None
         assert result.error_type.value == "malformed_json"
 
-    def test_strict_mode_rejects_extra_fields(self, mock_ollama_chat, mock_ollama_response):
+    def test_strict_mode_rejects_extra_fields(
+        self,
+        mock_ollama_chat: Mock,
+        mock_ollama_response: Callable[[Mapping[str, object]], Mock],
+    ) -> None:
         """Test that models with extra=forbid reject unexpected fields."""
         response_with_extra = {
             "tool_name": "get_price",
@@ -179,9 +201,14 @@ class TestNativeEnforcement:
 
         result = validate_response(response.message.content, ToolCallResponse, strict=True)
         assert result.valid is False
+        assert result.error_type is not None
         assert result.error_type.value == "extra_field"
 
-    def test_fallback_to_pydantic_validation(self, mock_ollama_chat, mock_ollama_response):
+    def test_fallback_to_pydantic_validation(
+        self,
+        mock_ollama_chat: Mock,
+        mock_ollama_response: Callable[[Mapping[str, object]], Mock],
+    ) -> None:
         """Test that Pydantic validation acts as second-line defense."""
         response_with_invalid_confidence = {
             "summary": "Test",
@@ -201,7 +228,11 @@ class TestNativeEnforcement:
         assert result.valid is False
         assert result.error_type is not None
 
-    def test_recoverable_error_does_not_crash(self, mock_ollama_chat, mock_ollama_response):
+    def test_recoverable_error_does_not_crash(
+        self,
+        mock_ollama_chat: Mock,
+        mock_ollama_response: Callable[[Mapping[str, object]], Mock],
+    ) -> None:
         """Schema violations are transient and do not crash the process."""
         bad_response = {"invalid": "data"}
         mock_ollama_chat.return_value = mock_ollama_response(bad_response)
@@ -217,7 +248,11 @@ class TestNativeEnforcement:
         assert result.valid is False
         assert result.is_recoverable is True
 
-    def test_end_to_end_with_retry_flow(self, mock_ollama_chat, mock_ollama_response):
+    def test_end_to_end_with_retry_flow(
+        self,
+        mock_ollama_chat: Mock,
+        mock_ollama_response: Callable[[Mapping[str, object]], Mock],
+    ) -> None:
         """Test the full flow with retry on validation failure using build_retry_messages."""
         bad_response = {"tool_name": "get_price", "extra": True}
         good_response = {

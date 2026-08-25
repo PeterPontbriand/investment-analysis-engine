@@ -1,8 +1,4 @@
-"""Tests for src.analysis.graham_value.resolver deterministic single-fact resolution.
-
-Uses tiny in-test fakes/spies only.  All datetimes are fixed timezone-aware
-values.  No live network access.
-"""
+"""Tests for deterministic valuation input resolution and Graham method assembly."""
 
 from __future__ import annotations
 
@@ -12,29 +8,28 @@ from typing import Any
 
 import pytest
 
-from src.analysis.graham_value.cache import (
+from src.analysis.graham_value.input_resolver import GrahamInputResolver
+from src.analysis.graham_value.models import GrahamMethod
+from src.core.analysis_status import CalculationStatus
+from src.data.valuation.cache import (
     InMemoryValuationCache,
     ValuationCacheEntry,
     ValuationCacheKey,
 )
-from src.analysis.graham_value.facts import (
+from src.data.valuation.facts import (
     ProviderFact,
     ValuationFactRequest,
     ValuationField,
     ValuationProviderError,
     ValuationUnit,
 )
-from src.analysis.graham_value.models import CalculationStatus, GrahamMethod
-from src.analysis.graham_value.provenance import (
+from src.data.valuation.provenance import (
     ComponentLineage,
     ResolvedInput,
     SourceKind,
     ValuationSubjectKind,
 )
-from src.analysis.graham_value.resolver import (
-    InputResolutionResult,
-    InputResolver,
-)
+from src.data.valuation.resolver import InputResolutionResult
 
 # ---------------------------------------------------------------------------
 # Fixed datetimes
@@ -221,8 +216,8 @@ def _make_resolver(
     cache: Any = None,
     clock: Any = None,
     schema_version: int = 1,
-) -> InputResolver:
-    return InputResolver(
+) -> GrahamInputResolver:
+    return GrahamInputResolver(
         provider=provider or FakeProvider(),
         cache=cache,
         clock=clock or _fixed_clock(),
@@ -1795,7 +1790,7 @@ def test_c2d_graham_number_three_year_avg_success() -> None:
             ValuationField.CURRENT_PRICE: (_price_fact(),),
         }
     )
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -1828,7 +1823,7 @@ def test_c2d_graham_number_ttm_override_bypasses_eps_provider() -> None:
             ValuationField.CURRENT_PRICE: (_price_fact(),),
         }
     )
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -1858,7 +1853,7 @@ def test_c2d_graham_number_bvps_failure_prevents_quote() -> None:
             # No CURRENT_PRICE handler: would return empty if called.
         }
     )
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -1885,7 +1880,7 @@ def test_c2d_growth_value_success() -> None:
             ValuationField.CURRENT_PRICE: (_price_fact(),),
         }
     )
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -1929,7 +1924,7 @@ def test_c2d_growth_value_missing_growth() -> None:
             # No AAA or quote handlers
         }
     )
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -1959,7 +1954,7 @@ def test_c2d_growth_value_non_finite_growth() -> None:
             ValuationField.EPS: (_ttm_eps_fact(),),
         }
     )
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -1988,7 +1983,7 @@ def test_c2d_graham_number_quote_unavailable_still_ok() -> None:
             ValuationField.CURRENT_PRICE: (),  # empty → INPUT_UNAVAILABLE
         }
     )
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -2217,7 +2212,7 @@ def test_c2d_graham_number_quote_provider_error_non_fatal() -> None:
         },
         error_fields={ValuationField.CURRENT_PRICE},
     )
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -2244,7 +2239,7 @@ def test_c2d_graham_number_quote_override_invalid() -> None:
             ValuationField.BVPS: (_bvps_fact(),),
         }
     )
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -2272,7 +2267,7 @@ def test_c2d_growth_value_aaa_yield_override() -> None:
             # No AAA handler — would return empty if called.
         }
     )
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -2355,7 +2350,7 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
         }
     )
     cache = SpyCache()
-    resolver = InputResolver(provider=provider, cache=cache, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
 
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,

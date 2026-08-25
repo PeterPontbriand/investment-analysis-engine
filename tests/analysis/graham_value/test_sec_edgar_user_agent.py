@@ -6,9 +6,9 @@ from collections.abc import Mapping
 
 import pytest
 
-from src.analysis.graham_value.facts import ValuationFactRequest, ValuationField
-from src.analysis.graham_value.provenance import ValuationSubjectKind
-from src.analysis.graham_value.providers.sec_edgar import SEC_PROVIDER_ID, SecEdgarValuationAdapter
+from src.data.sec_edgar.valuation import SEC_PROVIDER_ID, SecEdgarValuationAdapter
+from src.data.valuation.facts import ValuationFactRequest, ValuationField
+from src.data.valuation.provenance import ValuationSubjectKind
 
 
 class HeaderCaptureFetcher:

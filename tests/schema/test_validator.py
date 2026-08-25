@@ -27,7 +27,7 @@ class StrictModel(BaseModel):
     name: str
 
 
-def test_validate_response_success():
+def test_validate_response_success() -> None:
     """Test successful validation."""
     response = '{"name": "test", "value": 42}'
     result = validate_response(response, SimpleModel)
@@ -40,7 +40,7 @@ def test_validate_response_success():
     assert result.error_type is None
 
 
-def test_validate_response_malformed_json():
+def test_validate_response_malformed_json() -> None:
     """Test handling of malformed JSON."""
     response = '{"name": "test", "value": 42'  # Missing closing brace
     result = validate_response(response, SimpleModel)
@@ -51,7 +51,7 @@ def test_validate_response_malformed_json():
     assert len(result.errors) == 1
 
 
-def test_validate_response_missing_field():
+def test_validate_response_missing_field() -> None:
     """Test validation with missing required field."""
     response = '{"name": "test"}'  # Missing 'value'
     result = validate_response(response, SimpleModel)
@@ -62,7 +62,7 @@ def test_validate_response_missing_field():
     assert len(result.errors) >= 1
 
 
-def test_validate_response_invalid_type():
+def test_validate_response_invalid_type() -> None:
     """Test validation with wrong type."""
     response = '{"name": "test", "value": "not an int"}'
     result = validate_response(response, SimpleModel)
@@ -72,7 +72,7 @@ def test_validate_response_invalid_type():
     assert result.is_recoverable is True
 
 
-def test_validate_response_strict_mode_extra_fields():
+def test_validate_response_strict_mode_extra_fields() -> None:
     """Test that extra fields are rejected when model forbids them."""
     response = '{"name": "test", "extra": "field"}'
     result = validate_response(response, StrictModel, strict=True)
@@ -82,7 +82,7 @@ def test_validate_response_strict_mode_extra_fields():
     assert result.is_recoverable is True
 
 
-def test_tool_call_extra_fields_rejected():
+def test_tool_call_extra_fields_rejected() -> None:
     """ToolCallResponse has extra=forbid; extras must fail validation."""
     response = json.dumps(
         {
@@ -96,7 +96,7 @@ def test_tool_call_extra_fields_rejected():
     assert result.error_type == ValidationErrorType.EXTRA_FIELD
 
 
-def test_validate_with_schema_success():
+def test_validate_with_schema_success() -> None:
     """Test validate_with_schema returns model on success."""
     response = '{"tool_name": "get_price", "tool_args": {"symbol": "AAPL"}}'
     result = validate_with_schema(response, ToolCallResponse)
@@ -106,14 +106,14 @@ def test_validate_with_schema_success():
     assert result.tool_args == {"symbol": "AAPL"}
 
 
-def test_validate_with_schema_raises():
+def test_validate_with_schema_raises() -> None:
     """Test validate_with_schema raises on failure."""
     response = '{"tool_name": "", "tool_args": {}}'
     with pytest.raises(SchemaValidationError):
         validate_with_schema(response, ToolCallResponse)
 
 
-def test_validate_tool_call_response():
+def test_validate_tool_call_response() -> None:
     """Test validation of ToolCallResponse."""
     response = '{"tool_name": "get_price", "tool_args": {"symbol": "AAPL"}, "reasoning": "Need price"}'
     result = validate_response(response, ToolCallResponse)
@@ -126,7 +126,7 @@ def test_validate_tool_call_response():
     assert result.error_type == ValidationErrorType.VALUE_ERROR
 
 
-def test_validate_plan_response():
+def test_validate_plan_response() -> None:
     """Test validation of PlanResponse."""
     response = json.dumps(
         {
@@ -150,7 +150,7 @@ def test_validate_plan_response():
     assert result.valid is False
 
 
-def test_validate_synthesis_response():
+def test_validate_synthesis_response() -> None:
     """Test validation of SynthesisResponse."""
     response = json.dumps(
         {
@@ -177,14 +177,14 @@ def test_validate_synthesis_response():
     )
 
 
-def test_classify_validation_error():
+def test_classify_validation_error() -> None:
     """Test error classification via pytest.raises."""
     with pytest.raises(json.JSONDecodeError) as exc_info:
         json.loads("{invalid}")
     assert classify_validation_error(exc_info.value) == ValidationErrorType.MALFORMED_JSON
 
 
-def test_validation_result_to_dict():
+def test_validation_result_to_dict() -> None:
     """Test ValidationResult.to_dict()."""
     result = ValidationResult(
         valid=True,
@@ -212,7 +212,7 @@ def test_validation_result_to_dict():
     assert d["error_count"] == 1
 
 
-def test_error_summary():
+def test_error_summary() -> None:
     """error_summary produces readable text for retry prompts."""
     result = ValidationResult(
         valid=False,
@@ -228,7 +228,7 @@ def test_error_summary():
     assert "missing_field" in summary or "Validation failed" in summary
 
 
-def test_build_retry_messages():
+def test_build_retry_messages() -> None:
     """build_retry_messages appends assistant turn (optional) and feedback."""
     original = [{"role": "user", "content": "Get price for AAPL"}]
     result = ValidationResult(

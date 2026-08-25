@@ -36,13 +36,13 @@ jobs:
         run: uv sync --frozen
 
       - name: Enforce Code Formatting (Ruff)
-        run: uv run ruff format --check
+        run: uv run ruff format --check .
 
       - name: Enforce Linting Rules (Ruff)
-        run: uv run ruff check
+        run: uv run ruff check .
 
       - name: Enforce Static Type Safety (MyPy)
-        run: uv run python -m mypy --config-file ./.mypyrc src
+        run: uv run mypy --strict src tests
 
       - name: Execute Cross-Platform Test Suite with Coverage
         run: uv run pytest

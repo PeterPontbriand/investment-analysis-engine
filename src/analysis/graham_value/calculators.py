@@ -21,11 +21,8 @@ not 0.065.
 import math
 from typing import Final
 
-from src.analysis.graham_value.models import (
-    CalculationStatus,
-    GrahamGrowthValueResult,
-    GrahamNumberResult,
-)
+from src.analysis.graham_value.models import GrahamGrowthValueResult, GrahamNumberResult
+from src.core.analysis_status import CalculationStatus
 
 # Classic Graham multiplier: maximum P/E 15 × maximum P/B 1.5 = 22.5
 _GRAHAM_MULTIPLIER: Final[float] = 22.5

@@ -8,25 +8,26 @@ from typing import Any
 
 import pytest
 
-from src.analysis.graham_value.facts import (
-    ProviderFact,
-    ValuationFactRequest,
-    ValuationField,
-    ValuationProviderError,
-    ValuationUnit,
-)
-from src.analysis.graham_value.models import CalculationStatus
-from src.analysis.graham_value.provenance import SourceKind, ValuationSubjectKind
-from src.analysis.graham_value.providers.massive import MASSIVE_PROVIDER_ID, MassiveValuationAdapter
-from src.analysis.graham_value.providers.production import ProductionValuationProvider
-from src.analysis.graham_value.providers.sec_edgar import (
+from src.analysis.graham_value.input_resolver import GrahamInputResolver
+from src.core.analysis_status import CalculationStatus
+from src.data.massive import MASSIVE_PROVIDER_ID
+from src.data.massive.valuation import MassiveValuationAdapter
+from src.data.sec_edgar.valuation import (
     SEC_COMMON_SHARES_FIELD,
     SEC_PREFERRED_SHARES_FIELD,
     SEC_PROVIDER_ID,
     SEC_STOCKHOLDERS_EQUITY_FIELD,
     SecEdgarValuationAdapter,
 )
-from src.analysis.graham_value.resolver import InputResolver
+from src.data.valuation.facts import (
+    ProviderFact,
+    ValuationFactRequest,
+    ValuationField,
+    ValuationProviderError,
+    ValuationUnit,
+)
+from src.data.valuation.production import ProductionValuationProvider
+from src.data.valuation.provenance import SourceKind, ValuationSubjectKind
 
 NOW = datetime(2026, 8, 21, 18, 0, tzinfo=UTC)
 
@@ -246,13 +247,31 @@ def _sec_component_request(field: ValuationField, *, as_of: datetime | None = No
     )
 
 
+def test_sec_adapter_sends_explicit_declared_user_agent_unchanged() -> None:
+    declared_identity = "financial-data-agents-test test@example.invalid"
+    fetcher = _sec_fetcher()
+    adapter = SecEdgarValuationAdapter(
+        json_fetcher=fetcher,
+        clock=lambda: NOW,
+        user_agent=declared_identity,
+    )
+
+    adapter.fetch_facts(_sec_request())
+
+    assert all(headers["User-Agent"] == declared_identity for _url, headers in fetcher.calls)
+
+
 def test_sec_adapter_returns_one_annual_eps_fact_per_period_with_acceptance_provenance() -> None:
     fetcher = _sec_fetcher()
     adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
 
     facts = adapter.fetch_facts(_sec_request())
 
-    assert [fact.observation_period_end.year for fact in facts] == [2023, 2024, 2025]
+    assert [fact.observation_period_end.year for fact in facts if fact.observation_period_end is not None] == [
+        2023,
+        2024,
+        2025,
+    ]
     assert [fact.value for fact in facts] == pytest.approx([6.13, 6.10, 7.00])
     assert all(fact.provider_id == SEC_PROVIDER_ID for fact in facts)
     assert all(fact.provider_field == "us-gaap:EarningsPerShareDiluted" for fact in facts)
@@ -270,7 +289,10 @@ def test_sec_adapter_historical_as_of_uses_restatement_known_at_boundary() -> No
     facts = adapter.fetch_facts(_sec_request(as_of=as_of))
 
     # FY2025 and the Jan-2025 FY2024 amendment are both unavailable at as_of.
-    assert [fact.observation_period_end.year for fact in facts] == [2023, 2024]
+    assert [fact.observation_period_end.year for fact in facts if fact.observation_period_end is not None] == [
+        2023,
+        2024,
+    ]
     assert facts[-1].value == pytest.approx(6.08)
     assert facts[-1].available_at == datetime(2024, 11, 1, 18, 0, tzinfo=UTC)
 
@@ -348,7 +370,7 @@ def test_sec_component_ambiguous_latest_share_class_values_are_unavailable() -> 
 def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
     adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
-    resolver = InputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
     request = ValuationFactRequest(
         subject_kind=ValuationSubjectKind.SECURITY,
         subject_id="AAPL",
@@ -373,7 +395,7 @@ def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -
 def test_resolver_historical_bvps_uses_components_known_at_as_of() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
     adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
-    resolver = InputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
     as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
     request = ValuationFactRequest(
         subject_kind=ValuationSubjectKind.SECURITY,
@@ -399,7 +421,7 @@ def test_resolver_bvps_missing_or_nonzero_preferred_share_guard_is_unavailable(
 ) -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components(preferred_shares=preferred_shares))
     adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
-    resolver = InputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
     request = ValuationFactRequest(
         subject_kind=ValuationSubjectKind.SECURITY,
         subject_id="AAPL",
@@ -411,6 +433,48 @@ def test_resolver_bvps_missing_or_nonzero_preferred_share_guard_is_unavailable(
 
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None
+
+
+def test_wfc_negative_control_material_preferred_stock_blocks_bvps_derivation() -> None:
+    """WFC-shaped 2025 evidence must not be treated as common-equity-only."""
+    # Wells Fargo's 2025 annual report disclosed 4,600,746 preferred shares
+    # issued and outstanding and a $16.608B preferred-stock carrying value.
+    # The current provider-neutral contract represents the positive evidence
+    # through preferred_shares_outstanding; future SEC evidence fallbacks must
+    # preserve this negative control when broadening missing-tag handling.
+    payload = _sec_payload_with_bvps_components(preferred_shares=4_600_746.0)
+    us_gaap = payload["facts"]["us-gaap"]
+    us_gaap["StockholdersEquity"]["units"]["USD"][-1]["val"] = 181_100_000_000.0
+    us_gaap["CommonStockSharesOutstanding"]["units"]["shares"][-1]["val"] = 3_092_600_000.0
+
+    fetcher = FakeJsonFetcher(
+        {
+            "company_tickers.json": {
+                "0": {
+                    "cik_str": 72971,
+                    "ticker": "WFC",
+                    "title": "Wells Fargo & Company",
+                }
+            },
+            "/companyfacts/": payload,
+            "/submissions/": _submissions_payload(),
+        }
+    )
+    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
+    request = ValuationFactRequest(
+        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_id="WFC",
+        field_name=ValuationField.BVPS,
+        provider_id=SEC_PROVIDER_ID,
+    )
+
+    result = resolver.resolve_bvps(request)
+
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.resolved_input is None
+    assert result.reason is not None
+    assert "preferred_shares_outstanding is non-zero" in result.reason
 
 
 def _massive_currency_payload() -> object:
@@ -636,7 +700,7 @@ def test_graham_number_assembly_can_use_sec_eps_and_massive_quote() -> None:
     )
     massive = StaticProvider((_massive_quote_fact(),))
     provider = ProductionValuationProvider(sec_edgar=sec, massive=massive)
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
 
     result = resolver.assemble_graham_number(
         security_subject_id="AAPL",

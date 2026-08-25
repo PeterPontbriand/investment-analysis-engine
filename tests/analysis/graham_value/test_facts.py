@@ -1,4 +1,4 @@
-"""Tests for src.analysis.graham_value.facts provider-neutral contracts.
+"""Tests for src.data.valuation.facts provider-neutral contracts.
 
 Uses tiny in-test fakes only; no reusable fixture datasets.  All datetimes are
 fixed timezone-aware values — no ``datetime.now()``.
@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from src.analysis.graham_value.facts import (
+from src.data.valuation.facts import (
     ProviderFact,
     ValuationFactRequest,
     ValuationFactsProvider,
@@ -20,7 +20,7 @@ from src.analysis.graham_value.facts import (
     ValuationProviderError,
     ValuationUnit,
 )
-from src.analysis.graham_value.provenance import ValuationSubjectKind
+from src.data.valuation.provenance import ValuationSubjectKind
 
 AW = datetime(2025, 6, 1, 12, 0, tzinfo=UTC)  # aware
 NAIVE = datetime(2025, 6, 1, 12, 0)  # naive

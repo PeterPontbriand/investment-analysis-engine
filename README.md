@@ -1,190 +1,174 @@
 # Financial Data Agents
 
-> **Local-first AI agents for deterministic quantitative investment analysis, typed tool orchestration, and reproducible financial research.**
+> **Local-first investment analysis with deterministic calculations, traceable financial data, and optional AI-assisted research.**
 
-**Disclaimer:** Nothing in this repository, its documentation, generated reports, or related materials constitutes financial, investment, legal, or tax advice. The project is provided for educational, research, and software-engineering demonstration purposes only. You are responsible for verifying outputs and for any investment decisions you make.
+Financial Data Agents is a terminal-first research tool for investors who want useful quantitative analysis **without treating an AI model as a calculator or an oracle**. Financial calculations are performed by deterministic Python [analysis strategies](docs/user/GLOSSARY.md#analysis-strategy); financial values retain [provenance](docs/user/GLOSSARY.md#provenance), measurement basis, and time boundaries so that a result can be inspected rather than merely accepted.
 
-Financial Data Agents is an AI-native Python project that performs quantitative investment analysis using **locally hosted LLMs**, structured tool execution, and deterministic analytical strategies.
+The application currently provides [Momentum](docs/user/GLOSSARY.md#momentum-analyzer) and dual-method [Graham analysis](docs/user/GLOSSARY.md#graham-analysis). Local [LLM](docs/user/GLOSSARY.md#llm-large-language-model) orchestration through Ollama is a separate capability: AI may help select, organize, or explain [typed evidence](docs/user/GLOSSARY.md#typed-evidence), but it does not perform financial arithmetic or silently invent missing values.
 
-The project emphasizes:
+**Status:** Active development — pre-v1.0.
 
-- 100% local LLM inference through Ollama;
-- deterministic Python calculations rather than LLM arithmetic;
-- typed tool/analyzer/data boundaries;
-- reproducible evaluation;
-- reliability and observability before autonomy;
-- a Light Mode path suitable for modest local hardware.
-
-Status: **Active development — pre-v1.0**
+> Financial Data Agents is research/educational software, not investment advice. See [Limitations & disclaimer](#limitations--disclaimer).
 
 ---
 
-## Documentation authority
+## See what it does first
 
-For implementation work, use the documentation in this order:
+A default [Graham Number](docs/user/GLOSSARY.md#graham-number) analysis resolves [EPS](docs/user/GLOSSARY.md#eps-earnings-per-share) and [BVPS](docs/user/GLOSSARY.md#bvps-book-value-per-share) from available financial evidence and can compare the resulting [maximum indicated price / screening ceiling](docs/user/GLOSSARY.md#maximum-indicated-price-screening-ceiling) with a [current market price](docs/user/GLOSSARY.md#current-quote-current-market-price), expressed as a [price relationship](docs/user/GLOSSARY.md#price-relationship):
 
-1. the explicit human task/request;
-2. the active milestone implementation plan (currently `docs/milestones/v0.2/IMPLEMENTATION_PLAN.md`);
-3. `docs/MASTER_PLAN.md`;
-4. `docs/ARCHITECTURE.md` and `docs/DISCOVERY_WORKBOOK.md`;
-5. specialized references such as `docs/FINANCE_MATH.md`;
-6. this README and convenience command files.
+```bash
+uv run financial-agents graham KO
+```
 
-Do not infer a new architecture from a lower-level convenience document when a current plan states otherwise.
-
----
-
-## Hardware & Operating Modes
-
-The project supports two modes. **Most users should start with Light Mode.**
-
-| Mode | Typical Hardware | Purpose |
-|---|---|---|
-| **Light Mode** (recommended) | ~8–16 GB VRAM **or** 32–64 GB unified memory | Useful single-step analysis for most users |
-| **Full Dual-Tier Mode** | ~24–28 GB VRAM or equivalent high unified memory | Optional deeper planning/synthesis |
-
-Light Mode must be fully usable before external user validation begins.
-
-See [docs/HARDWARE.md](docs/HARDWARE.md).
-
----
-
-## Current / Near-Term Analytical Architecture
-
-The project intentionally supports materially different deterministic strategies rather than treating all financial analysis as Momentum.
+A representative result looks like this:
 
 ```text
-                     existing analysis/tool path
-                              │
-                 ┌────────────┴────────────┐
-                 ▼                         ▼
-        MomentumAnalyzer          GrahamValueAnalyzer
-        historical prices         EPS / growth / yields
-        SMA crossover             intrinsic value / MOS
-                 │                         │
-                 └────────────┬────────────┘
-                              ▼
-                     existing BaseAnalyzer
-                              │
-                              ▼
-                      BaseDataClient
-                 historical data + quote
+KO — Graham Number (maximum indicated price): 21.14 USD
+Current price: 91.86 USD
+Price relationship: 334.47% above the Graham Number
+
+Basis: 3-year average diluted EPS + latest eligible fiscal-year-end BVPS
+EPS (3-year average): 2.66 USD
+Book value per common share: 7.48 USD
+Sources / freshness: EPS — derived from SEC EDGAR (available 2026-02-20); BVPS — derived from SEC EDGAR (available 2026-02-20)
+Limitation: The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation.
 ```
 
-- **Momentum** is the existing deterministic analyzer and currently performs configurable SMA/crossover analysis.
-- **Graham valuation** is the Step 2.3 second strategy and intentionally has different inputs/outputs.
-- Step 2.3 adds the minimum current-quote capability to the market-data boundary and a minimal deterministic fixture adapter.
-- Step 2.4 builds the heterogeneous Golden Suite on those stable contracts.
-- Production SQLite/cache-backed data access remains Step 3.1.
+Live prices and newly published filings change, so the numbers above are illustrative. The important part is the shape of the answer: the result names the method, shows the market comparison, identifies the financial basis, summarizes data sources/freshness, and states the method limitation.
 
-No speculative strategy/plugin registry is required merely because the strategies differ.
-
----
-
-## Current Features
-
-- Local Ollama orchestration engine
-- Structured command-line interface (CLI)
-- Typed tool registration/dispatch
-- Configurable SMA/crossover Momentum analysis
-- Structured trajectory telemetry with JSONL persistence
-- Native structured-output/schema enforcement with Pydantic validation/fallback safeguards
-- Strict static typing (`mypy --strict`)
-- Automated tests (`pytest`)
-- Ruff linting/formatting
-
-The empirical model-by-model validation of native schema enforcement for supported Light Mode model configurations remains a non-blocking follow-up before the Light Mode exit criterion.
-
----
-
-## High-Level Roadmap
-
-The detailed implementation numbering lives in the Master Plan and active milestone plan. At a high level:
-
-- ✅ Core local orchestration and typed tool dispatch
-- ✅ Trajectory telemetry foundation
-- ✅ Native schema-enforcement implementation
-- ⏭ **Heterogeneous strategy/data foundation:** Graham + shared historical/current-quote data contract
-- ⏭ **Golden strategy evaluation:** deterministic fixtures, Momentum/Graham cases, separate strategy-selection and numerical scores
-- ⏭ Circuit breakers and timeout limits
-- ⏭ SQLite/Alembic persistence, repositories, and data quality
-- ⏭ Light Mode completion and external-user validation
-- Later: additional valuation/technical strategies, risk metrics, localization, autonomy, and reporting
-
-The initial Graham and Momentum strategies are **not** deferred to the later analytics-expansion milestone; they are the heterogeneous exemplars used to establish and evaluate the architecture first.
-
----
-
-## Installation & Prerequisites
-
-### Prerequisites
-
-- Python 3.12+
-- `uv`
-- Ollama running locally
-
-Recommended first model for the documented Light Mode path:
+Want to inspect more?
 
 ```bash
-ollama pull qwen2.5-coder:14b-instruct-q4_K_M
+uv run financial-agents graham KO --details
+uv run financial-agents graham KO --diagnostics
+uv run financial-agents graham KO --json
 ```
 
-Setup:
+`--json` produces [machine-readable output](docs/user/GLOSSARY.md#machine-readable-output) in [JSON](docs/user/GLOSSARY.md#json-javascript-object-notation), intended for another program rather than primarily for a person.
 
-```bash
-git clone https://github.com/PeterPontbriand/financial-data-agents.git
-cd financial-data-agents
-uv sync
-```
+For ordinary usage, see the [Usage Guide](docs/user/USAGE.md). For the formula, assumptions, data sources, and interpretation, see the [Graham Analysis Strategy Guide](docs/user/strategies/GRAHAM.md).
 
 ---
 
-## Running the Application
+## Who is this for?
 
-```bash
-# Existing Momentum analysis
-uv run financial-agents momentum
+Financial Data Agents is being built for several overlapping audiences, with investors first:
 
-uv run financial-agents momentum \
-    --ticker AAPL \
-    --short-window 10 \
-    --long-window 30
+- **Experienced investors who already maintain spreadsheets, databases, screens, or scripts** and want calculations whose data and assumptions they can challenge, compare, override, and audit.
+- **Experienced investors who are not software specialists** and want a low-friction way to go from a ticker symbol to a useful, intelligible result. The project does not yet have a one-click installer, so the installation guide deliberately assumes very little prior software-development knowledge.
+- **Technically comfortable people learning investing** who want the running software and its documentation to reinforce one another.
+- **Software engineers, architects, AI practitioners, and prospective contributors** who want to review the project design, implementation plans, and reliability boundaries. See [Project & Technical Documentation](docs/project/README.md).
 
-uv run financial-agents --help
-uv run financial-agents momentum --help
-```
-
-Do not assume a Graham CLI command exists until Step 2.3 lands and documents the supported invocation path.
+When terms such as [TTM](docs/user/GLOSSARY.md#ttm-trailing-twelve-months), [SMA](docs/user/GLOSSARY.md#sma-simple-moving-average), [margin of safety](docs/user/GLOSSARY.md#margin-of-safety-mos), [look-ahead bias](docs/user/GLOSSARY.md#look-ahead-bias), or [override](docs/user/GLOSSARY.md#override) have a project-specific meaning, the documentation links to the project's definition rather than assuming that every reader uses the term identically.
 
 ---
 
-## Development & Quality Gates
+## Getting started
 
-```bash
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy --strict src/
-uv run pytest
-```
+Choose the guide that matches what you need:
 
-Developers may use Ruff's mutating `--fix` / formatter commands locally, but CI verification should remain non-mutating.
+- **New to Git or Python?** Follow the [Installation & Configuration Guide](docs/user/INSTALLATION.md).
+- **Already comfortable with Python development?** Use the [Quick Start](docs/user/QUICKSTART.md).
+- **Already installed?** Go directly to the [Usage Guide](docs/user/USAGE.md).
+
+Direct deterministic analysis does **not** require Ollama or a GPU. Local-AI features are optional.
+
+---
+
+## What you can analyze today
+
+| Analysis strategy / method | Values used | Data sources | What the result means |
+|---|---|---|---|
+| [Momentum](docs/user/strategies/MOMENTUM.md) | Historical closing prices; configurable short/long [SMA](docs/user/GLOSSARY.md#sma-simple-moving-average) windows | Yahoo Finance historical prices via `yfinance` | Current SMA/[crossover](docs/user/GLOSSARY.md#crossover) state when sufficient history is available; otherwise the result reports insufficient history |
+| [Graham Number](docs/user/strategies/GRAHAM.md#graham-number-default-method) | Three completed fiscal years of diluted EPS averaged together + latest eligible fiscal-year-end BVPS; current quote optional for comparison | [SEC](docs/user/GLOSSARY.md#sec) [EDGAR](docs/user/GLOSSARY.md#edgar) financial facts + Yahoo Finance current quote via `yfinance` | Maximum indicated price / screening ceiling based on earnings and book value |
+| [Graham Growth Value](docs/user/strategies/GRAHAM.md#graham-growth-value-secondary-method) | Explicit expected-growth assumption + explicit current [AAA corporate-bond yield](docs/user/GLOSSARY.md#aaa-corporate-bond-yield) + supported EPS basis; current quote optional for comparison | SEC EDGAR + Yahoo Finance current quote via `yfinance`, or optionally [Massive](docs/user/GLOSSARY.md#massive) for supported current TTM EPS/quote data | Forecast-dependent growth-formula estimate; not the Graham Number |
+
+[`yfinance`](https://ranaroussi.github.io/yfinance/) is an independent open-source library that Financial Data Agents uses to access Yahoo Finance data. It is not affiliated with, endorsed by, or vetted by Yahoo.
+
+An [analysis strategy](docs/user/GLOSSARY.md#analysis-strategy) is a deterministic analytical capability in the application. A [method](docs/user/GLOSSARY.md#method) is a particular calculation within a strategy when that strategy offers more than one approach. For example, the Graham Analysis Strategy currently offers the Graham Number and Graham Growth Value methods.
+
+Each strategy has its own guide under [Analysis Strategy Guides](docs/user/strategies/).
+
+---
+
+## Understanding and trusting a result
+
+Financial Data Agents uses **progressive disclosure** so an ordinary result can stay readable without hiding the evidence needed to inspect or audit it. A result can be expanded from a concise investor-oriented view into progressively deeper layers of information:
+
+- the calculation result, interpretation, important freshness/source context, warnings, and limitations;
+- the financial facts, measurement bases, dates, data sources, and derivations behind the calculation;
+- technical information about how the software resolved or failed to resolve those facts; and
+- a structured [machine-readable representation](docs/user/GLOSSARY.md#machine-readable-output) for integration with other software.
+
+This separation keeps routine analysis approachable while preserving the provenance and technical evidence needed for deeper scrutiny. The [Usage Guide](docs/user/USAGE.md) and individual [Analysis Strategy Guides](docs/user/strategies/README.md) explain how to request the available levels of detail.
+
+Historical analysis also distinguishes when a fact describes from when that fact actually became available. This helps avoid [look-ahead bias](docs/user/GLOSSARY.md#look-ahead-bias).
+
+Two calculations can legitimately disagree because they use different formulas, data sources, measurement conventions, dates, adjustment rules, or assumptions. The individual strategy guides explain the most important comparison points for each analysis.
+
+---
+
+## How AI fits — and where it does not
+
+The core rule is simple: **AI may help reason about structured evidence, but it does not become the source of financial truth.**
+
+- Financial calculations, validation, resolution rules, and computed values are always performed by deterministic Python analysis strategies, never by AI models.
+- Data providers supply external information through narrow validated boundaries.
+- Local AI may assist with planning, capability selection, bounded recovery, and later synthesis of already-computed evidence.
+- Missing financial facts do not silently become zero.
+- Analysis strategies never receive invented financial values from the model.
+- Structured model output is schema-validated rather than trusted as free-form application state.
+
+A GPU is not required for direct deterministic analysis. See [Hardware & Local AI](docs/user/HARDWARE.md) if you want to use optional local-model features.
+
+---
+
+## For technical reviewers and contributors
+
+The investor/user documentation is intentionally separated from project implementation material.
+
+Start with the [Project & Technical Documentation Index](docs/project/README.md) for:
+
+- the architecture;
+- the Master Plan and design rationale;
+- the active milestone implementation plan;
+- active step/slice plans and status;
+- engineering quality gates; and
+- deployment/configuration artifacts intended for project reviewers.
+
+### Documentation authority
+
+For implementation work, use:
+
+1. the implementation request, issue, or explicitly agreed task currently being worked on;
+2. the **active milestone implementation plan**;
+3. the Master Plan;
+4. the Architecture Guide and Discovery Workbook;
+5. specialized references such as Financial Math and strategy guides; and
+6. convenience/readme material.
+
+The [Project & Technical Documentation Index](docs/project/README.md) is the single navigation point for identifying the active milestone, step, and slice documents. The root README intentionally does not hard-code that moving project status.
 
 ---
 
 ## Documentation
 
-- [Master Plan](docs/MASTER_PLAN.md)
-- [Milestone v0.2 Implementation Plan](docs/milestones/v0.2/IMPLEMENTATION_PLAN.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Discovery Workbook](docs/DISCOVERY_WORKBOOK.md)
-- [Financial Math](docs/FINANCE_MATH.md)
-- [Glossary](docs/GLOSSARY.md)
-- [Hardware Requirements](docs/HARDWARE.md)
+- [Investor & User Documentation](docs/user/README.md) — installation, usage, terminology, financial math, hardware, and strategy guides.
+- [Project & Technical Documentation](docs/project/README.md) — architecture, roadmap, design rationale, milestone plans, step/slice plans, and engineering review material.
+- [Documentation Router](docs/README.md) — choose the documentation set relevant to you.
 
-`docs/EVALUATIONS.md`, `docs/TOOL_DEVELOPMENT.md`, and `docs/I18N_GUIDE.md` are roadmap-owned planned documents; do not assume they already exist.
+---
+
+## Limitations & disclaimer
+
+Financial Data Agents is not an investment recommendation engine. A deterministic formula can still be inappropriate for a particular company, and accurate provider data can still be incomplete, stale, restated, differently defined, or economically misleading without context.
+
+For example, the [Graham Number](docs/user/GLOSSARY.md#graham-number) is a limited earnings-and-book-value screen, the [Graham growth-value method](docs/user/GLOSSARY.md#graham-growth-value-method-grahamgrowthvalue) depends materially on user-supplied assumptions, and [Momentum](docs/user/GLOSSARY.md#momentum-analyzer) describes price-series behavior rather than business quality or fair value.
+
+Nothing in this repository, its documentation, generated output, or related materials constitutes financial, investment, legal, or tax advice. Verify source data, assumptions, methods, and outputs independently before making investment decisions.
 
 ---
 
 ## License
 
-Distributed under the Apache 2.0 License. See `LICENSE`.
+Distributed under the [Apache License 2.0](LICENSE).

@@ -25,13 +25,13 @@ from typing import Final
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from src.analysis.base import BaseAnalyzer
+from src.analysis.base_analyzer import BaseAnalyzer
 from src.analysis.graham_value.calculators import compute_graham_growth_value
-from src.analysis.graham_value.models import CalculationStatus
 from src.config import settings
+from src.core.analysis_status import CalculationStatus
 from src.core.constants import ConfigKeys
 from src.data.base_client import BaseDataClient, DataFetchError
-from src.data.yfinance_client import YFinanceClient
+from src.data.yfinance import YFinanceClient
 from src.utils.logger_util import setup_logger
 
 

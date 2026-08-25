@@ -9,11 +9,12 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel, Field, model_validator
 
-from src.analysis.base import BaseAnalyzer
+from src.analysis.base_analyzer import BaseAnalyzer
 from src.config import settings
 from src.core.constants import ConfigKeys, DataColumns, TrendStatus
 from src.data.base_client import BaseDataClient
-from src.data.yfinance_client import YFinanceClient
+from src.data.market_data import MarketDataContext
+from src.data.yfinance import YFinanceClient
 from src.utils.logger_util import setup_logger
 
 
@@ -35,35 +36,45 @@ class MomentumMetrics:
     timestamp: datetime
 
 
+@dataclass(frozen=True)
+class MomentumRun:
+    """One Momentum calculation paired with retained market-data context."""
+
+    metrics: MomentumMetrics
+    market_data: MarketDataContext
+
+
 def _get_default_short_window() -> int:
-    """Helper factory function to read short window default from settings."""
+    """Read the configured default short SMA window."""
     return int(settings.get_momentum_analysis()[ConfigKeys.WINDOW_SIZES][ConfigKeys.SHORT_WINDOW])
 
 
 def _get_default_long_window() -> int:
-    """Helper factory function to read long window default from settings."""
+    """Read the configured default long SMA window."""
     return int(settings.get_momentum_analysis()[ConfigKeys.WINDOW_SIZES][ConfigKeys.LONG_WINDOW])
 
 
 class MomentumConfig(BaseModel):
-    """Parameter tracking definitions specific to SMA Momentum Indicators.
+    """Parameter definitions specific to SMA momentum indicators.
 
     Defaults are evaluated dynamically from the configuration TOML settings.
     """
 
-    short_window: int = Field(default_factory=_get_default_short_window)
-    long_window: int = Field(default_factory=_get_default_long_window)
+    short_window: int = Field(default_factory=_get_default_short_window, gt=0)
+    long_window: int = Field(default_factory=_get_default_long_window, gt=0)
 
     @model_validator(mode="after")
     def validate_windows(self) -> "MomentumConfig":
-        """Verify boundaries ensuring short window properties do not eclipse long windows."""
+        """Require a positive short window that is smaller than the long window."""
         if self.short_window >= self.long_window:
-            raise ValueError(f"Short window ({self.short_window}) cannot be >= Long window ({self.long_window})")
+            raise ValueError(
+                f"Short window ({self.short_window}) must be smaller than Long window ({self.long_window})."
+            )
         return self
 
 
 class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
-    """Executes vectorized financial momentum analysis over historical market metrics."""
+    """Execute vectorized financial momentum analysis over historical market metrics."""
 
     def __init__(self, default_ticker: str | None = None, data_client: BaseDataClient | None = None) -> None:
         """Initialize analyzer with custom dependency injections and fallback policies."""
@@ -76,17 +87,27 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
 
         self.data_client: Final[BaseDataClient] = data_client or YFinanceClient()
 
-    def run_analysis(
-        self, config: MomentumConfig, ticker: str | None = None, df: pd.DataFrame | None = None
-    ) -> MomentumMetrics:
-        """Calculate Simple Moving Average (SMA) crossover indicators using a verified configuration schema.
+    def run_with_context(self, config: MomentumConfig, ticker: str | None = None) -> MomentumRun:
+        """Fetch market data once, calculate metrics, and retain retrieval context."""
+        target_ticker = ticker or self._fallback_ticker
+        market_data = self.data_client.fetch_data_with_context(target_ticker, self._start_date)
+        metrics = self.run_analysis(config=config, ticker=target_ticker, df=market_data.frame)
+        return MomentumRun(metrics=metrics, market_data=market_data.context)
 
-        Supports fully stateless execution by accepting a pre-loaded DataFrame, or uses its
-        injected data client to dynamically download data if omitted.
+    def run_analysis(
+        self,
+        config: MomentumConfig,
+        ticker: str | None = None,
+        df: pd.DataFrame | None = None,
+    ) -> MomentumMetrics:
+        """Calculate Simple Moving Average crossover indicators for one price series.
+
+        A pre-loaded frame keeps the calculation layer stateless. When a frame
+        is not supplied, the injected client provides historical market data.
         """
-        target_ticker: str = ticker or self._fallback_ticker
-        s_win: int = config.short_window
-        l_win: int = config.long_window
+        target_ticker = ticker or self._fallback_ticker
+        s_win = config.short_window
+        l_win = config.long_window
 
         if df is None:
             df = self.data_client.fetch_data(target_ticker, self._start_date)
@@ -112,7 +133,7 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
             ) from err
 
         if not math.isfinite(current_price):
-            raise ValueError(f"Momentum current price must be finite (received {current_price!r}).")
+            raise ValueError(f"Momentum latest close must be finite (received {current_price!r}).")
 
         short_sma_val = _finite_or_none(raw_short_sma)
         long_sma_val = _finite_or_none(raw_long_sma)
@@ -153,7 +174,7 @@ if __name__ == "__main__":
             main_logger.info(f"Local Runtime Test Execution Successful for {metrics.ticker}")
             main_logger.info(f"Trend Status (EN): {display_en}")
             main_logger.info(f"Trend Status (FR): {display_fr}")
-            main_logger.info(f"Last Price: ${metrics.current_price:,.2f}")
+            main_logger.info(f"Last Close: ${metrics.current_price:,.2f}")
             main_logger.info(
                 "Signal Flag: %s (Generated at %s)",
                 metrics.crossover_signal if metrics.crossover_signal is not None else "unavailable",

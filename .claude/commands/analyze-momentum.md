@@ -10,7 +10,7 @@
 - Use configured/default short/long SMA windows unless the caller supplies valid alternatives.
 - Preserve `short_window < long_window` validation.
 - For deterministic tests, inject/mock market data; never make live external calls.
-- Follow `AGENTS.md`, `docs/FINANCE_MATH.md`, and the active milestone plan when they are more specific.
+- Follow `AGENTS.md`, `docs/user/FINANCE_MATH.md`, and the active milestone plan when they are more specific.
 - Run relevant `uv run` quality/test commands after changes.
 
 Example application invocation:

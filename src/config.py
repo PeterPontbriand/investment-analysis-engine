@@ -40,6 +40,9 @@ class ProjectSettings(BaseSettings):
     # Native Schema Enforcement Settings (Step 2.2)
     schema_config: SchemaConfig = Field(default_factory=SchemaConfig.from_env)
 
+    # External data-provider settings
+    sec_user_agent: str | None = Field(default=None, validation_alias="SEC_USER_AGENT")
+
     # Human-readable operational logging
     log_level: str = "INFO"
     log_file_name: str = "app.log"

@@ -18,7 +18,7 @@ class SimpleModel(BaseModel):
     value: int = Field(..., description="Value field")
 
 
-def test_build_schema_constraint():
+def test_build_schema_constraint() -> None:
     """Test building a schema constraint from a Pydantic model."""
     constraint = build_schema_constraint(SimpleModel)
 
@@ -32,20 +32,20 @@ def test_build_schema_constraint():
     assert "value" in constraint.schema_dict["properties"]
 
 
-def test_build_schema_constraint_additional_properties():
+def test_build_schema_constraint_additional_properties() -> None:
     """Test building with additional properties disabled."""
     constraint = build_schema_constraint(SimpleModel, additional_properties=False)
     assert constraint.schema_dict.get("additionalProperties") is False
 
 
-def test_build_schema_constraint_required_fields():
+def test_build_schema_constraint_required_fields() -> None:
     """Test that required fields are properly set."""
     constraint = build_schema_constraint(SimpleModel)
     assert "required" in constraint.schema_dict
     assert set(constraint.schema_dict["required"]) == {"name", "value"}
 
 
-def test_schema_constraint_to_ollama_format():
+def test_schema_constraint_to_ollama_format() -> None:
     """Test converting to Ollama format value (the schema object itself)."""
     constraint = build_schema_constraint(SimpleModel)
     ollama_value = constraint.to_ollama_format()
@@ -56,7 +56,7 @@ def test_schema_constraint_to_ollama_format():
     assert ollama_value is constraint.schema_dict or ollama_value == constraint.schema_dict
 
 
-def test_schema_constraint_to_ollama_params():
+def test_schema_constraint_to_ollama_params() -> None:
     """Test getting full Ollama parameters (correct contract)."""
     constraint = build_schema_constraint(SimpleModel)
     params = constraint.to_ollama_params()
@@ -68,7 +68,7 @@ def test_schema_constraint_to_ollama_params():
     assert "strict" not in params
 
 
-def test_format_schema_for_ollama_convenience():
+def test_format_schema_for_ollama_convenience() -> None:
     """Test the convenience function returns correct kwargs."""
     params = format_schema_for_ollama(ToolCallResponse)
 
@@ -81,7 +81,7 @@ def test_format_schema_for_ollama_convenience():
     assert schema.get("additionalProperties") is False
 
 
-def test_nested_additional_properties():
+def test_nested_additional_properties() -> None:
     """AdditionalProperties is applied to nested object schemas too."""
     constraint = build_schema_constraint(PlanResponse, additional_properties=False)
     schema = constraint.schema_dict
@@ -92,7 +92,7 @@ def test_nested_additional_properties():
             assert defn.get("additionalProperties") is False
 
 
-def test_detect_ollama_schema_support():
+def test_detect_ollama_schema_support() -> None:
     """Test Ollama version detection (schema support ~0.5+)."""
     assert detect_ollama_schema_support("0.5.0") is True
     assert detect_ollama_schema_support("0.5.1") is True
@@ -106,13 +106,13 @@ def test_detect_ollama_schema_support():
     assert detect_ollama_schema_support("0.3.0") is False
 
 
-def test_detect_ollama_schema_support_with_version_suffix():
+def test_detect_ollama_schema_support_with_version_suffix() -> None:
     """Test version detection with suffixes."""
     assert detect_ollama_schema_support("0.5.0-rc1") is True
     assert detect_ollama_schema_support("0.4.9-dev") is False
 
 
-def test_detect_ollama_schema_support_unknown_states():
+def test_detect_ollama_schema_support_unknown_states() -> None:
     """Test UNKNOWN state (None) for missing/unparseable versions."""
     assert detect_ollama_schema_support(None) is None
     assert detect_ollama_schema_support("") is None
@@ -121,7 +121,7 @@ def test_detect_ollama_schema_support_unknown_states():
     assert detect_ollama_schema_support("1.x.0") is None
 
 
-def test_detect_ollama_schema_support_edge_cases():
+def test_detect_ollama_schema_support_edge_cases() -> None:
     """Test edge cases: single component, non-string, prefix variants."""
     assert detect_ollama_schema_support("0") is None
     assert detect_ollama_schema_support(123) is None  # type: ignore[arg-type]
@@ -129,7 +129,7 @@ def test_detect_ollama_schema_support_edge_cases():
     assert detect_ollama_schema_support("version 1.0.0") is True
 
 
-def test_build_schema_constraint_error():
+def test_build_schema_constraint_error() -> None:
     """Test error handling when schema building fails."""
 
     class Broken:

@@ -8,20 +8,20 @@ When instructions differ, use this precedence:
 
 1. explicit human request for the current task;
 2. current active milestone implementation plan;
-3. `docs/MASTER_PLAN.md`;
-4. `docs/ARCHITECTURE.md` and `docs/DISCOVERY_WORKBOOK.md`;
-5. specialized references such as `docs/FINANCE_MATH.md`;
+3. `docs/project/MASTER_PLAN.md`;
+4. `docs/project/ARCHITECTURE.md` and `docs/project/DISCOVERY_WORKBOOK.md`;
+5. specialized references such as `docs/user/FINANCE_MATH.md`;
 6. README/convenience command files.
 
 Do not blend contradictory instructions. Surface the conflict and follow the more specific/current source.
 
-For Milestone v0.2, `docs/milestones/v0.2/IMPLEMENTATION_PLAN.md` owns implementation sequencing, review gates, scope, and acceptance criteria.
+For Milestone v0.2, `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` owns implementation sequencing, review gates, scope, and acceptance criteria.
 
 ## 2. Absolute forbidden actions
 
 - NEVER commit secrets, API keys, `.env` files, SQLite/database files, or raw operational/trajectory logs.
 - NEVER install dependencies or edit `pyproject.toml` / `uv.lock` without explicit user permission.
-- NEVER introduce `print()` statements, bare `except:`, or silently propagate NaN/Inf values in production paths.
+- NEVER introduce `print()` statements, bare `except:`, or silently propagate NaN/Inf values in production code.
 - NEVER bury financial assumptions as unexplained magic constants in calculation bodies. Intentional defaults belong in typed configuration/models and must be documented.
 - NEVER make real external API or LLM calls during deterministic unit tests.
 - NEVER leave partial files, placeholder comments, or truncated snippets.
@@ -68,7 +68,7 @@ When editing a legacy file that currently uses a different logging pattern, do n
 ## 7. Financial-analysis guardrails
 
 - Deterministic financial math belongs in Python, never in the LLM.
-- `docs/FINANCE_MATH.md` is the project authority for currently implemented/project-selected formula semantics.
+- `docs/user/FINANCE_MATH.md` is the project authority for currently implemented/project-selected formula semantics.
 - Preserve current Momentum semantics unless the task explicitly changes them.
 - Historical-series data and current-market quotes are distinct capabilities. Do not implement a current quote by pretending a one-day historical download is a quote API when the active plan requires a first-class quote boundary.
 - Missing financial data must be explicit; do not silently substitute zero.
@@ -100,11 +100,11 @@ Require explicit user confirmation before:
 
 ## 11. Context index
 
-- Active milestone implementation → `docs/milestones/v0.2/IMPLEMENTATION_PLAN.md`
-- Roadmap → `docs/MASTER_PLAN.md`
-- Rationale / decision history → `docs/DISCOVERY_WORKBOOK.md`
-- Architecture → `docs/ARCHITECTURE.md`
-- Financial mathematics → `docs/FINANCE_MATH.md`
-- Domain terms → `docs/GLOSSARY.md`
-- Hardware/model modes → `docs/HARDWARE.md`
+- Active milestone implementation → `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`
+- Roadmap → `docs/project/MASTER_PLAN.md`
+- Rationale / decision history → `docs/project/DISCOVERY_WORKBOOK.md`
+- Architecture → `docs/project/ARCHITECTURE.md`
+- Financial mathematics → `docs/user/FINANCE_MATH.md`
+- Domain terms → `docs/user/GLOSSARY.md`
+- Hardware/model modes → `docs/user/HARDWARE.md`
 - Convenience slash commands → `.claude/commands/` (lower authority than the documents above)

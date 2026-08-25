@@ -140,12 +140,13 @@ def test_contextual_adapter_and_context_manager() -> None:
     with context as adapter:
         adapter.set_extra({"request_id": "ABC-123", "user_id": "999"})
         # Process some log message
-        msg, kwargs = adapter.process("Running momentum backtest", {})
+        msg, _kwargs = adapter.process("Running momentum backtest", {})
+        msg_str: str = str(msg)
 
         # Assert metadata is formatted cleanly into the message string
-        assert "Running momentum backtest" in msg
-        assert "request_id:ABC-123" in msg
-        assert "user_id:999" in msg
+        assert "Running momentum backtest" in msg_str
+        assert "request_id:ABC-123" in msg_str
+        assert "user_id:999" in msg_str
 
 
 def test_setup_logger_idempotency() -> None:

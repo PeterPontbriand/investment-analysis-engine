@@ -17,14 +17,14 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from src.analysis.graham_value.facts import (
+from src.data.valuation.facts import (
     ProviderFact,
     ValuationFactRequest,
     ValuationField,
     ValuationProviderError,
     ValuationUnit,
 )
-from src.analysis.graham_value.provenance import ValuationSubjectKind
+from src.data.valuation.provenance import ValuationSubjectKind
 
 # ---------------------------------------------------------------------------
 # Synthetic identity constants (NOT production mappings)
