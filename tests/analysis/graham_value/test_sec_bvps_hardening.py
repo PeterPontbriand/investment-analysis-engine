@@ -10,10 +10,10 @@ import pytest
 
 from src.analysis.graham_value.input_resolver import GrahamInputResolver
 from src.core.analysis_status import CalculationStatus
-from src.data.sec_edgar.valuation import SEC_PROVIDER_ID, SecEdgarValuationAdapter
-from src.data.valuation.facts import ValuationFactRequest, ValuationField
-from src.data.valuation.provenance import ValuationSubjectKind
-from src.data.valuation.resolver import InputResolutionResult
+from src.data.financial.facts import FinancialFactRequest, FinancialField
+from src.data.financial.provenance import FinancialSubjectKind
+from src.data.financial.resolver import InputResolutionResult
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 
 NOW = datetime(2026, 8, 23, 16, 0, tzinfo=UTC)
 PERIOD_END = "2025-12-31"
@@ -92,17 +92,17 @@ def _add_hlf_neutral_preferred_concepts(payload: dict[str, Any]) -> None:
     us_gaap["PreferredStockParOrStatedValuePerShare"] = {"units": {"USD/shares": [_annual_observation(0.002)]}}
 
 
-def _adapter(ticker: str, payload: object) -> SecEdgarValuationAdapter:
-    return SecEdgarValuationAdapter(
+def _adapter(ticker: str, payload: object) -> SecEdgarFinancialFactsAdapter:
+    return SecEdgarFinancialFactsAdapter(
         json_fetcher=FakeJsonFetcher(ticker=ticker, payload=payload),
         clock=lambda: NOW,
         user_agent="Fixture Tester fixture@example.com",
     )
 
 
-def _component_request(ticker: str, field: ValuationField) -> ValuationFactRequest:
-    return ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+def _component_request(ticker: str, field: FinancialField) -> FinancialFactRequest:
+    return FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=ticker,
         field_name=field,
         provider_id=SEC_PROVIDER_ID,
@@ -113,10 +113,10 @@ def _component_request(ticker: str, field: ValuationField) -> ValuationFactReque
 def _resolve_bvps(ticker: str, payload: object) -> InputResolutionResult:
     adapter = _adapter(ticker, payload)
     resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
-    request = ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    request = FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=ticker,
-        field_name=ValuationField.BVPS,
+        field_name=FinancialField.BVPS,
         provider_id=SEC_PROVIDER_ID,
     )
     return resolver.resolve_bvps(request)
@@ -152,7 +152,7 @@ def test_hlf_shape_authorized_and_par_only_preferred_concepts_infer_zero_guard()
     preferred = next(
         component
         for component in result.resolved_input.lineage.components
-        if component.field_name == ValuationField.PREFERRED_SHARES_OUTSTANDING.value
+        if component.field_name == FinancialField.PREFERRED_SHARES_OUTSTANDING.value
     )
     assert preferred.value == pytest.approx(0.0)
     assert preferred.provider_field == "inferred:sec-company-facts:no-issued-preferred-equity"
@@ -168,10 +168,10 @@ def test_ko_direct_adapter_infers_zero_preferred_from_derived_common_shares() ->
     adapter = _adapter("KO", payload)
 
     common = adapter.fetch_facts(
-        ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id="KO",
-            field_name=ValuationField.COMMON_SHARES_OUTSTANDING,
+            field_name=FinancialField.COMMON_SHARES_OUTSTANDING,
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
@@ -182,10 +182,10 @@ def test_ko_direct_adapter_infers_zero_preferred_from_derived_common_shares() ->
     assert common[0].provider_field == "derived:us-gaap:CommonStockSharesIssued-us-gaap:TreasuryStockCommonShares"
 
     preferred = adapter.fetch_facts(
-        ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id="KO",
-            field_name=ValuationField.PREFERRED_SHARES_OUTSTANDING,
+            field_name=FinancialField.PREFERRED_SHARES_OUTSTANDING,
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
@@ -211,10 +211,10 @@ def test_hlf_direct_adapter_infers_zero_preferred_from_authorized_par_only() -> 
     adapter = _adapter("HLF", payload)
 
     preferred = adapter.fetch_facts(
-        ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id="HLF",
-            field_name=ValuationField.PREFERRED_SHARES_OUTSTANDING,
+            field_name=FinancialField.PREFERRED_SHARES_OUTSTANDING,
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
@@ -261,7 +261,7 @@ def test_issued_minus_treasury_common_share_fallback_accepts_zero_treasury() -> 
     _add_common_issued_treasury(payload, issued=15_000_000_000.0, treasury=0.0)
     adapter = _adapter("ZERO", payload)
 
-    facts = adapter.fetch_facts(_component_request("ZERO", ValuationField.COMMON_SHARES_OUTSTANDING))
+    facts = adapter.fetch_facts(_component_request("ZERO", FinancialField.COMMON_SHARES_OUTSTANDING))
 
     assert len(facts) == 1
     assert facts[0].value == pytest.approx(15_000_000_000.0)
@@ -285,10 +285,10 @@ def test_future_preferred_equity_fact_does_not_create_historical_lookahead() -> 
     adapter = _adapter("KOH", payload)
     resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
     as_of = datetime(2026, 3, 1, tzinfo=UTC)
-    request = ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    request = FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="KOH",
-        field_name=ValuationField.BVPS,
+        field_name=FinancialField.BVPS,
         provider_id=SEC_PROVIDER_ID,
         as_of=as_of,
     )
@@ -314,10 +314,10 @@ def test_inferred_preferred_available_at_reflects_latest_neutral_evidence() -> N
 
     adapter = _adapter("HLF2", payload)
     preferred = adapter.fetch_facts(
-        ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id="HLF2",
-            field_name=ValuationField.PREFERRED_SHARES_OUTSTANDING,
+            field_name=FinancialField.PREFERRED_SHARES_OUTSTANDING,
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
@@ -342,10 +342,10 @@ def test_mismatched_equity_and_common_periods_cannot_infer_preferred() -> None:
 
     adapter = _adapter("MIS", payload)
     preferred = adapter.fetch_facts(
-        ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id="MIS",
-            field_name=ValuationField.PREFERRED_SHARES_OUTSTANDING,
+            field_name=FinancialField.PREFERRED_SHARES_OUTSTANDING,
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
@@ -377,10 +377,10 @@ def test_unrelated_concept_with_preferred_in_description_does_not_block_inferenc
 
     # Common shares still resolve correctly
     common = adapter.fetch_facts(
-        ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id="KO",
-            field_name=ValuationField.COMMON_SHARES_OUTSTANDING,
+            field_name=FinancialField.COMMON_SHARES_OUTSTANDING,
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
@@ -391,10 +391,10 @@ def test_unrelated_concept_with_preferred_in_description_does_not_block_inferenc
 
     # Preferred still infers zero (unrelated concept with "preferred" in description is ignored)
     preferred = adapter.fetch_facts(
-        ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id="KO",
-            field_name=ValuationField.PREFERRED_SHARES_OUTSTANDING,
+            field_name=FinancialField.PREFERRED_SHARES_OUTSTANDING,
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
@@ -406,10 +406,10 @@ def test_unrelated_concept_with_preferred_in_description_does_not_block_inferenc
 
     # BVPS still resolves successfully end-to-end
     resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
-    request = ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    request = FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="KO",
-        field_name=ValuationField.BVPS,
+        field_name=FinancialField.BVPS,
         provider_id=SEC_PROVIDER_ID,
     )
     result = resolver.resolve_bvps(request)

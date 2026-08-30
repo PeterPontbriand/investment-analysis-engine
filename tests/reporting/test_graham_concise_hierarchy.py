@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from src.analysis.graham_value.input_resolver import GrahamNumberInputAssembly, GrowthValueInputAssembly
 from src.analysis.graham_value.models import GrahamGrowthValueResult, GrahamNumberResult
 from src.core.analysis_status import CalculationStatus
-from src.data.valuation.provenance import ResolvedInput, SourceKind
+from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.reporting.graham import (
     GrahamGrowthPresentation,
     GrahamNumberPresentation,

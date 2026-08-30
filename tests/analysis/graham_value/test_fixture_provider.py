@@ -1,7 +1,7 @@
 """Step 2.3 Slice D: Fixture-backed provider, resolver, and assembly tests.
 
-These tests exercise the ``ValuationFactsProvider`` protocol implementation
-(``FixtureValuationProvider``), the ``GrahamInputResolver`` (single-fact and
+These tests exercise the ``FinancialFactsProvider`` protocol implementation
+(``FixtureFinancialFactsProvider``), the ``GrahamInputResolver`` (single-fact and
 three-year-average EPS paths), and the C2D method-level assembly
 (``assemble_graham_number`` / ``assemble_growth_value``) using only
 deterministic fixture data.
@@ -20,21 +20,21 @@ import pytest
 
 from src.analysis.graham_value.input_resolver import GrahamInputResolver
 from src.core.analysis_status import CalculationStatus
-from src.data.valuation.cache import InMemoryValuationCache
-from src.data.valuation.facts import (
+from src.data.financial.cache import InMemoryResolvedInputCache
+from src.data.financial.facts import (
+    FinancialFactRequest,
+    FinancialFactsProvider,
+    FinancialField,
+    FinancialProviderError,
+    FinancialUnit,
     ProviderFact,
-    ValuationFactRequest,
-    ValuationFactsProvider,
-    ValuationField,
-    ValuationProviderError,
-    ValuationUnit,
 )
-from src.data.valuation.provenance import (
+from src.data.financial.provenance import (
+    FinancialSubjectKind,
     ResolvedInput,
     SourceKind,
-    ValuationSubjectKind,
 )
-from tests.analysis.graham_value.fixture_valuation_provider import (
+from tests.analysis.graham_value.fixture_financial_facts_provider import (
     AAA_YIELD_VALUE,
     BVPS_VALUE,
     EPS_FY2022,
@@ -50,7 +50,7 @@ from tests.analysis.graham_value.fixture_valuation_provider import (
     SUBJECT_FUTURE,
     SUBJECT_INCOMPATIBLE,
     SUBJECT_MISSING,
-    FixtureValuationProvider,
+    FixtureFinancialFactsProvider,
 )
 
 # ---------------------------------------------------------------------------
@@ -78,19 +78,19 @@ class MutableClock:
 
 
 class ErrorProvider:
-    """A provider that always raises ``ValuationProviderError``.
+    """A provider that always raises ``FinancialProviderError``.
 
     Used to prove that override or cache short-circuits the provider call.
     If the provider is reached, the test will fail.
     """
 
-    def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:  # noqa: ARG002
+    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:  # noqa: ARG002
         """Always raises to prove the provider was reached.
 
         Args:
             request: Ignored; presence proves the provider was called.
         """
-        raise ValuationProviderError("Provider was reached; override/cache should have short-circuited.")
+        raise FinancialProviderError("Provider was reached; override/cache should have short-circuited.")
 
 
 # ===========================================================================
@@ -104,10 +104,10 @@ class TestProviderFactBoundary:
     def _make_fact_kwargs(self) -> dict[str, Any]:
         """Return base kwargs for a minimal valid ProviderFact."""
         return {
-            "subject_kind": ValuationSubjectKind.SECURITY,
+            "subject_kind": FinancialSubjectKind.SECURITY,
             "subject_id": SECURITY_ID,
-            "field_name": ValuationField.BVPS,
-            "units": ValuationUnit.CURRENCY_PER_SHARE,
+            "field_name": FinancialField.BVPS,
+            "units": FinancialUnit.CURRENCY_PER_SHARE,
             "provider_id": PROVIDER_ID,
             "provider_field": "fx_bvps",
             "retrieved_at": NOW,
@@ -151,17 +151,17 @@ class TestFixtureProviderContract:
     """Verify the fixture provider satisfies the protocol contract."""
 
     def test_satisfies_protocol(self) -> None:
-        """FixtureValuationProvider is structurally compatible with ValuationFactsProvider."""
-        provider = FixtureValuationProvider()
-        assert isinstance(provider, ValuationFactsProvider)
+        """FixtureFinancialFactsProvider is structurally compatible with FinancialFactsProvider."""
+        provider = FixtureFinancialFactsProvider()
+        assert isinstance(provider, FinancialFactsProvider)
 
     def test_happy_path_returns_non_empty_tuple(self) -> None:
         """SYNTH subject returns a non-empty tuple for BVPS."""
-        provider = FixtureValuationProvider()
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        provider = FixtureFinancialFactsProvider()
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
         facts = provider.fetch_facts(request)
@@ -170,35 +170,35 @@ class TestFixtureProviderContract:
 
     def test_missing_subject_returns_empty_tuple(self) -> None:
         """MISSING subject returns an empty tuple (fact unavailable)."""
-        provider = FixtureValuationProvider()
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        provider = FixtureFinancialFactsProvider()
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_MISSING,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
         facts = provider.fetch_facts(request)
         assert facts == ()
 
     def test_error_subject_raises(self) -> None:
-        """ERROR subject raises ValuationProviderError."""
-        provider = FixtureValuationProvider()
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        """ERROR subject raises FinancialProviderError."""
+        provider = FixtureFinancialFactsProvider()
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_ERROR,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
-        with pytest.raises(ValuationProviderError):
+        with pytest.raises(FinancialProviderError):
             provider.fetch_facts(request)
 
     def test_unsupported_eps_basis_returns_empty(self) -> None:
         """Unsupported EPS basis (not ttm, not observation_count=3) returns empty."""
-        provider = FixtureValuationProvider()
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        provider = FixtureFinancialFactsProvider()
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.EPS,
+            field_name=FinancialField.EPS,
             provider_id=PROVIDER_ID,
             basis="unsupported_basis",
         )
@@ -207,11 +207,11 @@ class TestFixtureProviderContract:
 
     def test_ttm_eps_returns_single_fact(self) -> None:
         """EPS with basis='ttm' returns exactly one TTM fact."""
-        provider = FixtureValuationProvider()
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        provider = FixtureFinancialFactsProvider()
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.EPS,
+            field_name=FinancialField.EPS,
             provider_id=PROVIDER_ID,
             basis="ttm",
         )
@@ -222,11 +222,11 @@ class TestFixtureProviderContract:
 
     def test_three_year_eps_returns_three_facts(self) -> None:
         """EPS with observation_count=3 returns three fiscal-year facts."""
-        provider = FixtureValuationProvider()
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        provider = FixtureFinancialFactsProvider()
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.EPS,
+            field_name=FinancialField.EPS,
             provider_id=PROVIDER_ID,
             basis="fiscal_year",
             observation_count=3,
@@ -247,12 +247,12 @@ class TestResolverSingleFact:
 
     def test_resolve_happy_path(self) -> None:
         """BVPS resolves to a PROVIDER-sourced ResolvedInput."""
-        provider = FixtureValuationProvider()
+        provider = FixtureFinancialFactsProvider()
         resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
         result = resolver.resolve(request)
@@ -263,12 +263,12 @@ class TestResolverSingleFact:
 
     def test_resolve_missing(self) -> None:
         """MISSING subject yields INPUT_UNAVAILABLE."""
-        provider = FixtureValuationProvider()
+        provider = FixtureFinancialFactsProvider()
         resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_MISSING,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
         result = resolver.resolve(request)
@@ -276,12 +276,12 @@ class TestResolverSingleFact:
 
     def test_resolve_error(self) -> None:
         """ERROR subject yields PROVIDER_ERROR."""
-        provider = FixtureValuationProvider()
+        provider = FixtureFinancialFactsProvider()
         resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_ERROR,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
         result = resolver.resolve(request)
@@ -289,12 +289,12 @@ class TestResolverSingleFact:
 
     def test_resolve_incompatible_basis(self) -> None:
         """INCOMPATIBLE subject (mismatched basis) yields PROVIDER_ERROR."""
-        provider = FixtureValuationProvider()
+        provider = FixtureFinancialFactsProvider()
         resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_INCOMPATIBLE,
-            field_name=ValuationField.EPS,
+            field_name=FinancialField.EPS,
             provider_id=PROVIDER_ID,
             basis="ttm",
         )
@@ -325,15 +325,15 @@ class TestNetworkGuard:
         """Full resolve flow succeeds while all socket operations are blocked."""
         self._block_network(monkeypatch)
 
-        provider = FixtureValuationProvider()
-        cache = InMemoryValuationCache(clock=lambda: NOW)
+        provider = FixtureFinancialFactsProvider()
+        cache = InMemoryResolvedInputCache(clock=lambda: NOW)
         resolver = GrahamInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
 
         # Resolve a single fact (BVPS) — must succeed without network.
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
         result = resolver.resolve(request)
@@ -345,13 +345,13 @@ class TestNetworkGuard:
         """Three-year-average EPS assembly succeeds while network is blocked."""
         self._block_network(monkeypatch)
 
-        provider = FixtureValuationProvider()
+        provider = FixtureFinancialFactsProvider()
         resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
 
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.EPS,
+            field_name=FinancialField.EPS,
             provider_id=PROVIDER_ID,
             basis="fiscal_year",
             observation_count=3,
@@ -373,15 +373,15 @@ class TestCacheStaleness:
 
     def test_stale_cache_entry_is_rejected(self) -> None:
         """A cache entry older than TTL is treated as a miss; provider is used."""
-        provider = FixtureValuationProvider()
-        cache = InMemoryValuationCache(clock=lambda: NOW, ttl=timedelta(hours=1))
+        provider = FixtureFinancialFactsProvider()
+        cache = InMemoryResolvedInputCache(clock=lambda: NOW, ttl=timedelta(hours=1))
         resolver = GrahamInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
 
         # First resolve populates the cache.
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
         result1 = resolver.resolve(request)
@@ -390,7 +390,7 @@ class TestCacheStaleness:
         # Advance the clock beyond TTL.
         # Use a mutable clock to advance time.
         mutable_clock = MutableClock(NOW)
-        cache2 = InMemoryValuationCache(clock=mutable_clock, ttl=timedelta(hours=1))
+        cache2 = InMemoryResolvedInputCache(clock=mutable_clock, ttl=timedelta(hours=1))
         resolver2 = GrahamInputResolver(provider=provider, cache=cache2, clock=mutable_clock)
 
         # Populate cache with entry at NOW.
@@ -408,15 +408,15 @@ class TestCacheStaleness:
 
     def test_cache_hit_returns_cache_sourced_input(self) -> None:
         """A fresh cache entry is served as CACHE source."""
-        provider = FixtureValuationProvider()
+        provider = FixtureFinancialFactsProvider()
         mutable_clock = MutableClock(NOW)
-        cache = InMemoryValuationCache(clock=mutable_clock, ttl=timedelta(hours=24))
+        cache = InMemoryResolvedInputCache(clock=mutable_clock, ttl=timedelta(hours=24))
         resolver = GrahamInputResolver(provider=provider, cache=cache, clock=mutable_clock)
 
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
 
@@ -435,15 +435,15 @@ class TestCacheStaleness:
 
     def test_future_published_facts_rejected_with_as_of(self) -> None:
         """A fact with available_at after as_of is rejected (future publication)."""
-        provider = FixtureValuationProvider()
+        provider = FixtureFinancialFactsProvider()
         resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
 
         # Use a historical as_of boundary that is before FUTURE_AVAIL (2025-08-01).
         historical_as_of = datetime(2025, 7, 1, 12, 0, tzinfo=UTC)
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_FUTURE,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
             as_of=historical_as_of,
         )
@@ -462,12 +462,12 @@ class TestThreeYearEPSProvenance:
 
     def _resolve_3yr(self) -> ResolvedInput:
         """Helper: resolve 3-year average EPS and return the ResolvedInput."""
-        provider = FixtureValuationProvider()
+        provider = FixtureFinancialFactsProvider()
         resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.EPS,
+            field_name=FinancialField.EPS,
             provider_id=PROVIDER_ID,
             basis="fiscal_year",
             observation_count=3,
@@ -525,10 +525,10 @@ class TestOverrideCachePrecedence:
         error_provider = ErrorProvider()
         resolver = GrahamInputResolver(provider=error_provider, clock=lambda: NOW)
 
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
         override_value = 99.0
@@ -541,15 +541,15 @@ class TestOverrideCachePrecedence:
     def test_cache_short_circuits_error_provider(self) -> None:
         """Cache hit succeeds even when the provider would raise."""
         # Build a cache entry using the fixture provider first.
-        fixture_provider = FixtureValuationProvider()
+        fixture_provider = FixtureFinancialFactsProvider()
         mutable_clock = MutableClock(NOW)
-        cache = InMemoryValuationCache(clock=mutable_clock, ttl=timedelta(hours=24))
+        cache = InMemoryResolvedInputCache(clock=mutable_clock, ttl=timedelta(hours=24))
         fixture_resolver = GrahamInputResolver(provider=fixture_provider, cache=cache, clock=mutable_clock)
 
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
         # Populate the cache.
@@ -570,10 +570,10 @@ class TestOverrideCachePrecedence:
         error_provider = ErrorProvider()
         resolver = GrahamInputResolver(provider=error_provider, clock=lambda: NOW)
 
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
         result = resolver.resolve(request)
@@ -591,7 +591,7 @@ class TestC2DAssembly:
 
     def test_graham_number_assembly_three_year_avg(self) -> None:
         """assemble_graham_number() succeeds via fixture-backed three-year-average EPS."""
-        provider = FixtureValuationProvider()
+        provider = FixtureFinancialFactsProvider()
         resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
 
         result = resolver.assemble_graham_number(
@@ -622,7 +622,7 @@ class TestC2DAssembly:
 
     def test_growth_value_assembly_ttm_eps(self) -> None:
         """assemble_growth_value() succeeds via fixture-backed TTM EPS and AAA yield."""
-        provider = FixtureValuationProvider()
+        provider = FixtureFinancialFactsProvider()
         resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
 
         expected_growth = 12.0  # explicit override-only

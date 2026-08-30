@@ -11,25 +11,28 @@ import pytest
 from src.analysis.graham_value.input_resolver import GrahamInputResolver
 from src.analysis.graham_value.models import GrahamMethod
 from src.core.analysis_status import CalculationStatus
-from src.data.valuation.cache import (
-    InMemoryValuationCache,
-    ValuationCacheEntry,
-    ValuationCacheKey,
+from src.data.financial.cache import (
+    InMemoryResolvedInputCache,
+    ResolvedInputCacheEntry,
+    ResolvedInputCacheKey,
 )
-from src.data.valuation.facts import (
+from src.data.financial.facts import (
+    FinancialFactRequest,
+    FinancialField,
+    FinancialProviderError,
+    FinancialUnit,
     ProviderFact,
-    ValuationFactRequest,
-    ValuationField,
-    ValuationProviderError,
-    ValuationUnit,
 )
-from src.data.valuation.provenance import (
+from src.data.financial.provenance import (
+    AccountingScope,
+    CapitalExpenditureSign,
     ComponentLineage,
+    FinancialSubjectKind,
+    PeriodKind,
     ResolvedInput,
     SourceKind,
-    ValuationSubjectKind,
 )
-from src.data.valuation.resolver import InputResolutionResult
+from src.data.financial.resolver import InputResolutionResult
 
 # ---------------------------------------------------------------------------
 # Fixed datetimes
@@ -57,18 +60,18 @@ PROVIDER_FIELD = "synthetic_eps_field"
 class FakeProvider:
     """Configurable provider fake."""
 
-    def __init__(self, facts: tuple[ProviderFact, ...] | ValuationProviderError | None = None) -> None:
+    def __init__(self, facts: tuple[ProviderFact, ...] | FinancialProviderError | None = None) -> None:
         """Initialize the fake with facts to return or an error to raise."""
         if facts is None:
             self._facts: tuple[ProviderFact, ...] = ()
-        elif isinstance(facts, ValuationProviderError):
+        elif isinstance(facts, FinancialProviderError):
             self._error = facts
         else:
             self._facts = facts
         self.call_count = 0
-        self.last_request: ValuationFactRequest | None = None
+        self.last_request: FinancialFactRequest | None = None
 
-    def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         self.call_count += 1
         self.last_request = request
         if hasattr(self, "_error"):
@@ -79,21 +82,21 @@ class FakeProvider:
 class SpyCache:
     """Cache spy that records get/put calls."""
 
-    def __init__(self, entry: ValuationCacheEntry | None = None) -> None:
+    def __init__(self, entry: ResolvedInputCacheEntry | None = None) -> None:
         """Initialize the spy with an optional cached entry."""
         self._entry = entry
         self.get_count = 0
         self.put_count = 0
-        self.last_get_key: ValuationCacheKey | None = None
-        self.last_put_key: ValuationCacheKey | None = None
+        self.last_get_key: ResolvedInputCacheKey | None = None
+        self.last_put_key: ResolvedInputCacheKey | None = None
         self.last_put_input: ResolvedInput | None = None
 
-    def get(self, key: ValuationCacheKey) -> ValuationCacheEntry | None:
+    def get(self, key: ResolvedInputCacheKey) -> ResolvedInputCacheEntry | None:
         self.get_count += 1
         self.last_get_key = key
         return self._entry
 
-    def put(self, key: ValuationCacheKey, resolved_input: ResolvedInput) -> None:
+    def put(self, key: ResolvedInputCacheKey, resolved_input: ResolvedInput) -> None:
         self.put_count += 1
         self.last_put_key = key
         self.last_put_input = resolved_input
@@ -109,15 +112,15 @@ def _fixed_clock() -> Any:
 
 
 def _make_request(  # noqa: PLR0913, PLR0917
-    field: ValuationField = ValuationField.EPS,
-    subject_kind: ValuationSubjectKind = ValuationSubjectKind.SECURITY,
+    field: FinancialField = FinancialField.EPS,
+    subject_kind: FinancialSubjectKind = FinancialSubjectKind.SECURITY,
     subject_id: str = SUBJECT_ID,
     provider_id: str = PROVIDER_ID,
     basis: str | None = None,
     as_of: datetime | None = None,
     observation_count: int = 1,
-) -> ValuationFactRequest:
-    return ValuationFactRequest(
+) -> FinancialFactRequest:
+    return FinancialFactRequest(
         subject_kind=subject_kind,
         subject_id=subject_id,
         field_name=field,
@@ -129,9 +132,9 @@ def _make_request(  # noqa: PLR0913, PLR0917
 
 
 def _make_fact(  # noqa: PLR0913, PLR0917
-    field: ValuationField = ValuationField.EPS,
+    field: FinancialField = FinancialField.EPS,
     value: float = 4.5,
-    subject_kind: ValuationSubjectKind = ValuationSubjectKind.SECURITY,
+    subject_kind: FinancialSubjectKind = FinancialSubjectKind.SECURITY,
     subject_id: str = SUBJECT_ID,
     provider_id: str = PROVIDER_ID,
     provider_field: str = PROVIDER_FIELD,
@@ -141,14 +144,14 @@ def _make_fact(  # noqa: PLR0913, PLR0917
     **kwargs: Any,
 ) -> ProviderFact:
     # For percentage-point fields, currency must be None.
-    if field is ValuationField.CURRENT_AAA_YIELD:
+    if field is FinancialField.CURRENT_AAA_YIELD:
         currency = None
     defaults: dict[str, Any] = {
         "subject_kind": subject_kind,
         "subject_id": subject_id,
         "field_name": field,
         "value": value,
-        "units": ValuationUnit.CURRENCY_PER_SHARE if currency else ValuationUnit.PERCENTAGE_POINTS,
+        "units": FinancialUnit.CURRENCY_PER_SHARE if currency else FinancialUnit.PERCENTAGE_POINTS,
         "provider_id": provider_id,
         "provider_field": provider_field,
         "retrieved_at": RETRIEVED_AT,
@@ -277,7 +280,7 @@ def test_nan_infinite_override_rejected(bad_value: float) -> None:
 @pytest.mark.parametrize("val", [0.0, -1.0])
 def test_zero_negative_current_price_override_rejected(val: float) -> None:
     resolver = _make_resolver()
-    req = _make_request(field=ValuationField.CURRENT_PRICE)
+    req = _make_request(field=FinancialField.CURRENT_PRICE)
     result = resolver.resolve(req, override=val)
     assert result.status is CalculationStatus.INVALID_INPUT
     assert result.resolved_input is None
@@ -292,8 +295,8 @@ def test_zero_negative_current_price_override_rejected(val: float) -> None:
 def test_zero_negative_aaa_yield_override_rejected(val: float) -> None:
     resolver = _make_resolver()
     req = _make_request(
-        field=ValuationField.CURRENT_AAA_YIELD,
-        subject_kind=ValuationSubjectKind.MACRO,
+        field=FinancialField.CURRENT_AAA_YIELD,
+        subject_kind=FinancialSubjectKind.MACRO,
         subject_id="macro-a",
     )
     result = resolver.resolve(req, override=val)
@@ -309,7 +312,7 @@ def test_zero_negative_aaa_yield_override_rejected(val: float) -> None:
 @pytest.mark.parametrize("val", [0.0, -3.5])
 def test_zero_negative_eps_override_valid(val: float) -> None:
     resolver = _make_resolver()
-    result = resolver.resolve(_make_request(field=ValuationField.EPS), override=val)
+    result = resolver.resolve(_make_request(field=FinancialField.EPS), override=val)
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
     assert result.resolved_input.value == val
@@ -323,7 +326,7 @@ def test_zero_negative_eps_override_valid(val: float) -> None:
 @pytest.mark.parametrize("val", [0.0, -10.0])
 def test_zero_negative_bvps_override_valid(val: float) -> None:
     resolver = _make_resolver()
-    result = resolver.resolve(_make_request(field=ValuationField.BVPS), override=val)
+    result = resolver.resolve(_make_request(field=FinancialField.BVPS), override=val)
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
     assert result.resolved_input.value == val
@@ -336,7 +339,7 @@ def test_zero_negative_bvps_override_valid(val: float) -> None:
 
 def test_override_preserves_fields() -> None:
     resolver = _make_resolver()
-    req = _make_request(field=ValuationField.EPS, basis="ttm", as_of=AS_OF)
+    req = _make_request(field=FinancialField.EPS, basis="ttm", as_of=AS_OF)
     result = resolver.resolve(req, override=7.5)
     ri = result.resolved_input
     assert ri is not None
@@ -350,7 +353,7 @@ def test_override_preserves_fields() -> None:
 
 def test_override_current_as_of_none() -> None:
     resolver = _make_resolver()
-    req = _make_request(field=ValuationField.EPS)
+    req = _make_request(field=FinancialField.EPS)
     result = resolver.resolve(req, override=7.5)
     ri = result.resolved_input
     assert ri is not None
@@ -364,8 +367,8 @@ def test_override_current_as_of_none() -> None:
 
 def test_valid_cache_hit_wins_over_provider() -> None:
     stored = _make_provider_input(field_name="eps", value=3.3)
-    key = ValuationCacheKey(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    key = ResolvedInputCacheKey(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
         basis=None,
@@ -373,7 +376,7 @@ def test_valid_cache_hit_wins_over_provider() -> None:
         analysis_as_of=None,
         schema_version=1,
     )
-    entry = ValuationCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
+    entry = ResolvedInputCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
     provider = FakeProvider(facts=(_make_fact(),))
     cache = SpyCache(entry=entry)
     resolver = _make_resolver(provider=provider, cache=cache)
@@ -392,8 +395,8 @@ def test_valid_cache_hit_wins_over_provider() -> None:
 
 def test_cache_hit_returns_new_cache_sourced_value() -> None:
     stored = _make_provider_input(field_name="eps", value=2.0)
-    key = ValuationCacheKey(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    key = ResolvedInputCacheKey(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
         basis=None,
@@ -401,7 +404,7 @@ def test_cache_hit_returns_new_cache_sourced_value() -> None:
         analysis_as_of=None,
         schema_version=1,
     )
-    entry = ValuationCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
+    entry = ResolvedInputCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
     cache = SpyCache(entry=entry)
     resolver = _make_resolver(cache=cache)
 
@@ -419,8 +422,8 @@ def test_cache_hit_returns_new_cache_sourced_value() -> None:
 
 def test_cache_hit_preserves_origin_provider() -> None:
     stored = _make_provider_input(field_name="eps")
-    key = ValuationCacheKey(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    key = ResolvedInputCacheKey(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
         basis=None,
@@ -428,7 +431,7 @@ def test_cache_hit_preserves_origin_provider() -> None:
         analysis_as_of=None,
         schema_version=1,
     )
-    entry = ValuationCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
+    entry = ResolvedInputCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
     cache = SpyCache(entry=entry)
     resolver = _make_resolver(cache=cache)
 
@@ -458,9 +461,13 @@ def test_cache_hit_preserves_provenance() -> None:
         observation_period_start=PERIOD_START,
         observation_period_end=PERIOD_END,
         observed_at=OBSERVED_AT,
+        fiscal_year=2025,
+        period_kind=PeriodKind.COMPLETED_ANNUAL,
+        accounting_scope=AccountingScope.CONSOLIDATED,
+        provider_fact_id="fact-2025",
     )
-    key = ValuationCacheKey(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    key = ResolvedInputCacheKey(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
         basis="ttm",
@@ -468,7 +475,7 @@ def test_cache_hit_preserves_provenance() -> None:
         analysis_as_of=None,
         schema_version=1,
     )
-    entry = ValuationCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
+    entry = ResolvedInputCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
     cache = SpyCache(entry=entry)
     resolver = _make_resolver(cache=cache)
 
@@ -486,6 +493,10 @@ def test_cache_hit_preserves_provenance() -> None:
     assert ri.observation_period_start == PERIOD_START
     assert ri.observation_period_end == PERIOD_END
     assert ri.observed_at == OBSERVED_AT
+    assert ri.fiscal_year == 2025
+    assert ri.period_kind is PeriodKind.COMPLETED_ANNUAL
+    assert ri.accounting_scope is AccountingScope.CONSOLIDATED
+    assert ri.provider_fact_id == "fact-2025"
     assert ri.units == "currency_per_share"
 
 
@@ -496,8 +507,8 @@ def test_cache_hit_preserves_provenance() -> None:
 
 def test_cache_hit_derived_retains_lineage() -> None:
     derived = _make_derived_input(field_name="eps", basis="three_year_average")
-    key = ValuationCacheKey(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    key = ResolvedInputCacheKey(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
         basis="three_year_average",
@@ -505,12 +516,12 @@ def test_cache_hit_derived_retains_lineage() -> None:
         analysis_as_of=None,
         schema_version=1,
     )
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     cache.put(key, derived)
     provider = FakeProvider(facts=(_make_fact(),))
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    req = _make_request(field=ValuationField.EPS, basis="three_year_average")
+    req = _make_request(field=FinancialField.EPS, basis="three_year_average")
     result = resolver.resolve(req)
     ri = result.resolved_input
     assert ri is not None
@@ -529,8 +540,8 @@ def test_cache_hit_derived_retains_lineage() -> None:
 
 def test_cache_hit_does_not_mutate_stored_input() -> None:
     stored = _make_provider_input(field_name="eps", value=1.0)
-    key = ValuationCacheKey(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    key = ResolvedInputCacheKey(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
         basis=None,
@@ -538,7 +549,7 @@ def test_cache_hit_does_not_mutate_stored_input() -> None:
         analysis_as_of=None,
         schema_version=1,
     )
-    entry = ValuationCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
+    entry = ResolvedInputCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
     cache = SpyCache(entry=entry)
     resolver = _make_resolver(cache=cache)
 
@@ -575,10 +586,10 @@ def test_cache_miss_falls_through_to_provider() -> None:
 def test_stale_ttl_entry_falls_through() -> None:
     # Cache with TTL shorter than the age of the entry.
     old_time = NOW - timedelta(hours=2)
-    cache = InMemoryValuationCache(clock=_fixed_clock(), ttl=timedelta(hours=1))
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock(), ttl=timedelta(hours=1))
     stored = _make_provider_input(field_name="eps", value=9.9)
-    key = ValuationCacheKey(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    key = ResolvedInputCacheKey(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
         basis=None,
@@ -587,7 +598,7 @@ def test_stale_ttl_entry_falls_through() -> None:
         schema_version=1,
     )
     # Manually insert with a cached_at that is old relative to NOW.
-    old_entry = ValuationCacheEntry(key=key, resolved_input=stored, cached_at=old_time)
+    old_entry = ResolvedInputCacheEntry(key=key, resolved_input=stored, cached_at=old_time)
     cache._store[key] = old_entry
 
     fact = _make_fact()
@@ -605,15 +616,15 @@ def test_stale_ttl_entry_falls_through() -> None:
 
 
 def test_historical_cache_future_available_at_falls_through() -> None:
-    # InMemoryValuationCache already treats this as a miss for historical keys.
+    # InMemoryResolvedInputCache already treats this as a miss for historical keys.
     stored = _make_provider_input(
         field_name="eps",
         value=5.0,
         available_at=FUTURE_AVAILABLE,
         as_of=AS_OF,
     )
-    key = ValuationCacheKey(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    key = ResolvedInputCacheKey(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
         basis=None,
@@ -621,8 +632,8 @@ def test_historical_cache_future_available_at_falls_through() -> None:
         analysis_as_of=AS_OF,
         schema_version=1,
     )
-    cache = InMemoryValuationCache(clock=_fixed_clock())
-    entry = ValuationCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
+    entry = ResolvedInputCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
     cache._store[key] = entry
 
     fact = _make_fact(available_at=AVAILABLE_AT)
@@ -642,8 +653,8 @@ def test_historical_cache_future_available_at_falls_through() -> None:
 def test_schema_version_mismatch_falls_through() -> None:
     # Store under schema version 1, resolve with schema version 2.
     stored = _make_provider_input(field_name="eps", value=2.0)
-    key_v1 = ValuationCacheKey(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    key_v1 = ResolvedInputCacheKey(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
         basis=None,
@@ -651,8 +662,8 @@ def test_schema_version_mismatch_falls_through() -> None:
         analysis_as_of=None,
         schema_version=1,
     )
-    cache = InMemoryValuationCache(clock=_fixed_clock())
-    entry = ValuationCacheEntry(key=key_v1, resolved_input=stored, cached_at=NOW)
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
+    entry = ResolvedInputCacheEntry(key=key_v1, resolved_input=stored, cached_at=NOW)
     cache._store[key_v1] = entry
 
     fact = _make_fact()
@@ -732,12 +743,12 @@ def test_empty_provider_tuple_input_unavailable() -> None:
 
 
 # ===========================================================================
-# 23. ValuationProviderError -> PROVIDER_ERROR
+# 23. FinancialProviderError -> PROVIDER_ERROR
 # ===========================================================================
 
 
 def test_provider_error_raises() -> None:
-    provider = FakeProvider(facts=ValuationProviderError("synthetic failure"))
+    provider = FakeProvider(facts=FinancialProviderError("synthetic failure"))
     resolver = _make_resolver(provider=provider)
 
     result = resolver.resolve(_make_request())
@@ -770,8 +781,8 @@ def test_multiple_facts_provider_error() -> None:
 def test_mismatched_subject_kind() -> None:
     # Request is EPS/SECURITY; fact is AAA_YIELD/MACRO (structurally valid but wrong subject).
     fact = _make_fact(
-        field=ValuationField.CURRENT_AAA_YIELD,
-        subject_kind=ValuationSubjectKind.MACRO,
+        field=FinancialField.CURRENT_AAA_YIELD,
+        subject_kind=FinancialSubjectKind.MACRO,
         subject_id="macro-a",
         provider_field="synthetic_yield_field",
     )
@@ -801,12 +812,12 @@ def test_mismatched_subject_id() -> None:
 
 
 def test_mismatched_field_name() -> None:
-    fact = _make_fact(field=ValuationField.BVPS)
+    fact = _make_fact(field=FinancialField.BVPS)
     provider = FakeProvider(facts=(fact,))
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request(field=ValuationField.EPS))
+    result = resolver.resolve(_make_request(field=FinancialField.EPS))
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert cache.put_count == 0
 
@@ -985,6 +996,32 @@ def test_provider_success_preserves_provenance() -> None:
     assert ri.cache_schema_version is None
 
 
+def test_provider_success_preserves_annual_fact_metadata() -> None:
+    fact = _make_fact(
+        field=FinancialField.CAPITAL_EXPENDITURES,
+        basis="fiscal_year",
+        units=FinancialUnit.CURRENCY,
+        observation_period_start=PERIOD_START,
+        observation_period_end=PERIOD_END,
+        fiscal_year=2025,
+        period_kind=PeriodKind.COMPLETED_ANNUAL,
+        accounting_scope=AccountingScope.CONSOLIDATED,
+        capital_expenditure_sign=CapitalExpenditureSign.NEGATIVE_CASH_OUTFLOW,
+        provider_fact_id=" capex-2025 ",
+    )
+    resolver = _make_resolver(provider=FakeProvider(facts=(fact,)))
+
+    result = resolver.resolve(_make_request(field=FinancialField.CAPITAL_EXPENDITURES, basis="fiscal_year"))
+
+    ri = result.resolved_input
+    assert ri is not None
+    assert ri.fiscal_year == 2025
+    assert ri.period_kind is PeriodKind.COMPLETED_ANNUAL
+    assert ri.accounting_scope is AccountingScope.CONSOLIDATED
+    assert ri.capital_expenditure_sign is CapitalExpenditureSign.NEGATIVE_CASH_OUTFLOW
+    assert ri.provider_fact_id == "capex-2025"
+
+
 # ===========================================================================
 # 36. Missing/unavailable provider data never becomes numeric zero
 # ===========================================================================
@@ -1007,7 +1044,7 @@ def test_unavailable_does_not_become_zero() -> None:
 def test_multi_observation_rejected_bare() -> None:
     provider = FakeProvider(facts=(_make_fact(),))
     resolver = _make_resolver(provider=provider)
-    req = _make_request(field=ValuationField.EPS, observation_count=3)
+    req = _make_request(field=FinancialField.EPS, basis="fiscal_year", observation_count=3)
 
     result = resolver.resolve(req)
     assert result.status is CalculationStatus.INVALID_INPUT
@@ -1020,7 +1057,7 @@ def test_multi_observation_rejected_with_override() -> None:
     provider = FakeProvider(facts=(_make_fact(),))
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
-    req = _make_request(field=ValuationField.EPS, observation_count=3)
+    req = _make_request(field=FinancialField.EPS, basis="fiscal_year", observation_count=3)
 
     result = resolver.resolve(req, override=99.0)
     assert result.status is CalculationStatus.INVALID_INPUT
@@ -1034,7 +1071,7 @@ def test_multi_observation_rejected_with_cache() -> None:
     provider = FakeProvider(facts=(_make_fact(),))
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
-    req = _make_request(field=ValuationField.EPS, observation_count=3)
+    req = _make_request(field=FinancialField.EPS, basis="fiscal_year", observation_count=3)
 
     result = resolver.resolve(req)
     assert result.status is CalculationStatus.INVALID_INPUT
@@ -1056,8 +1093,8 @@ def test_current_cache_future_available_at_falls_through() -> None:
         value=5.5,
         available_at=FUTURE_AVAILABLE,  # 2026-01-01, after NOW (2025-07-01)
     )
-    key = ValuationCacheKey(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    key = ResolvedInputCacheKey(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
         basis=None,
@@ -1065,7 +1102,7 @@ def test_current_cache_future_available_at_falls_through() -> None:
         analysis_as_of=None,
         schema_version=1,
     )
-    entry = ValuationCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
+    entry = ResolvedInputCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
     cache = SpyCache(entry=entry)
     # Provider returns an eligible fact (available_at is in the past).
     provider = FakeProvider(facts=(_make_fact(available_at=AVAILABLE_AT),))
@@ -1091,8 +1128,8 @@ def test_historical_cache_missing_available_at_falls_through() -> None:
         available_at=None,
         as_of=AS_OF,
     )
-    key = ValuationCacheKey(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    key = ResolvedInputCacheKey(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
         basis=None,
@@ -1100,7 +1137,7 @@ def test_historical_cache_missing_available_at_falls_through() -> None:
         analysis_as_of=AS_OF,
         schema_version=1,
     )
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     cache.put(key, stored)
     provider = FakeProvider(facts=(_make_fact(available_at=AVAILABLE_AT),))
     resolver = _make_resolver(provider=provider, cache=cache)
@@ -1198,11 +1235,11 @@ def _fy_fact(  # noqa: PLR0913
 ) -> ProviderFact:
     """Build a fiscal-year EPS ProviderFact for C2C tests."""
     return ProviderFact(
-        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
-        field_name=ValuationField.EPS,
+        field_name=FinancialField.EPS,
         value=value,
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=provider_id,
         provider_field=provider_field,
         retrieved_at=retrieved_at,
@@ -1217,12 +1254,12 @@ def _fy_fact(  # noqa: PLR0913
 
 def _c2c_request(
     as_of: datetime | None = None,
-) -> ValuationFactRequest:
+) -> FinancialFactRequest:
     """Build a valid C2C request: EPS, observation_count=3, basis=fiscal_year."""
-    return ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    return FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
-        field_name=ValuationField.EPS,
+        field_name=FinancialField.EPS,
         provider_id=PROVIDER_ID,
         basis=FISCAL_YEAR,
         as_of=as_of,
@@ -1249,10 +1286,10 @@ def test_c2c_wrong_field_rejected_before_cache_provider() -> None:
     provider = FakeProvider(facts=_three_fy_facts())
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
-    req = ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    req = FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
-        field_name=ValuationField.BVPS,
+        field_name=FinancialField.BVPS,
         provider_id=PROVIDER_ID,
         basis=FISCAL_YEAR,
         observation_count=1,
@@ -1269,10 +1306,10 @@ def test_c2c_wrong_observation_count_rejected() -> None:
     provider = FakeProvider(facts=_three_fy_facts())
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
-    req = ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    req = FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
-        field_name=ValuationField.EPS,
+        field_name=FinancialField.EPS,
         provider_id=PROVIDER_ID,
         basis=FISCAL_YEAR,
         observation_count=2,
@@ -1285,20 +1322,18 @@ def test_c2c_wrong_observation_count_rejected() -> None:
 
 
 def test_c2c_wrong_basis_rejected() -> None:
-    """Basis != 'fiscal_year' => INVALID_INPUT."""
+    """The request contract rejects a multi-observation non-fiscal basis."""
     provider = FakeProvider(facts=_three_fy_facts())
     cache = SpyCache()
-    resolver = _make_resolver(provider=provider, cache=cache)
-    req = ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
-        subject_id=SUBJECT_ID,
-        field_name=ValuationField.EPS,
-        provider_id=PROVIDER_ID,
-        basis="ttm",
-        observation_count=3,
-    )
-    result = resolver.resolve_three_year_average_eps(req)
-    assert result.status is CalculationStatus.INVALID_INPUT
+    with pytest.raises(ValueError, match="basis='fiscal_year'"):
+        FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
+            subject_id=SUBJECT_ID,
+            field_name=FinancialField.EPS,
+            provider_id=PROVIDER_ID,
+            basis="ttm",
+            observation_count=3,
+        )
     assert provider.call_count == 0
     assert cache.get_count == 0
     assert cache.put_count == 0
@@ -1444,8 +1479,8 @@ def test_c2c_current_future_dated_fact_excluded() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_c2c_duplicate_in_selected_period_provider_error() -> None:
-    """Two candidates with same period_end in a selected period => PROVIDER_ERROR."""
+def test_c2c_duplicate_in_selected_period_is_unavailable() -> None:
+    """Ambiguous restatement evidence makes the EPS series unavailable."""
     facts = (
         _fy_fact(2.0, FY2022_START, FY2022_END),
         _fy_fact(3.0, FY2023_START, FY2023_END),
@@ -1455,7 +1490,7 @@ def test_c2c_duplicate_in_selected_period_provider_error() -> None:
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
     result = resolver.resolve_three_year_average_eps(_c2c_request())
-    assert result.status is CalculationStatus.PROVIDER_ERROR
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
 
 def test_c2c_duplicate_in_unselected_period_harmless() -> None:
@@ -1482,8 +1517,8 @@ def test_c2c_duplicate_in_unselected_period_harmless() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_c2c_incompatible_provider_field_provider_error() -> None:
-    """Incompatible provider_field in selected facts => PROVIDER_ERROR."""
+def test_c2c_incompatible_provider_field_is_unavailable() -> None:
+    """Incompatible provider concepts make the EPS series unavailable."""
     facts = (
         _fy_fact(2.0, FY2022_START, FY2022_END),
         _fy_fact(3.0, FY2023_START, FY2023_END),
@@ -1492,11 +1527,11 @@ def test_c2c_incompatible_provider_field_provider_error() -> None:
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
     result = resolver.resolve_three_year_average_eps(_c2c_request())
-    assert result.status is CalculationStatus.PROVIDER_ERROR
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
 
-def test_c2c_incompatible_currency_provider_error() -> None:
-    """Incompatible currency in selected facts => PROVIDER_ERROR."""
+def test_c2c_incompatible_currency_is_unavailable() -> None:
+    """Incompatible currencies make the EPS series unavailable."""
     facts = (
         _fy_fact(2.0, FY2022_START, FY2022_END),
         _fy_fact(3.0, FY2023_START, FY2023_END),
@@ -1505,7 +1540,7 @@ def test_c2c_incompatible_currency_provider_error() -> None:
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
     result = resolver.resolve_three_year_average_eps(_c2c_request())
-    assert result.status is CalculationStatus.PROVIDER_ERROR
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
 
 # ---------------------------------------------------------------------------
@@ -1642,7 +1677,7 @@ def test_c2c_derived_cache_hit() -> None:
     """A later call hits the derived cache and returns CACHE source."""
     facts = _three_fy_facts()
     provider = FakeProvider(facts=facts)
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     resolver = _make_resolver(provider=provider, cache=cache)
 
     # First call: miss -> provider -> cache write
@@ -1681,7 +1716,7 @@ def test_c2c_use_cache_false_skips_both() -> None:
 
 def test_c2c_provider_error_never_caches() -> None:
     """Provider error => no cache write."""
-    provider = FakeProvider(facts=ValuationProviderError("synthetic failure"))
+    provider = FakeProvider(facts=FinancialProviderError("synthetic failure"))
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
     result = resolver.resolve_three_year_average_eps(_c2c_request())
@@ -1700,29 +1735,29 @@ class MultiFieldProvider:
     Records every request so tests can assert which fields were requested.
     """
 
-    def __init__(self, *, handlers: dict[ValuationField, tuple[ProviderFact, ...]] | None = None) -> None:
+    def __init__(self, *, handlers: dict[FinancialField, tuple[ProviderFact, ...]] | None = None) -> None:
         """Initialize the fake with optional per-field fact handlers."""
-        self._handlers: dict[ValuationField, tuple[ProviderFact, ...]] = handlers or {}
-        self.requests: list[ValuationFactRequest] = []
+        self._handlers: dict[FinancialField, tuple[ProviderFact, ...]] = handlers or {}
+        self.requests: list[FinancialFactRequest] = []
         self.call_count = 0
 
-    def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         self.call_count += 1
         self.requests.append(request)
         return self._handlers.get(request.field_name, ())
 
-    def requested_fields(self) -> list[ValuationField]:
-        """Return the list of ValuationField values requested in order."""
+    def requested_fields(self) -> list[FinancialField]:
+        """Return the list of FinancialField values requested in order."""
         return [r.field_name for r in self.requests]
 
 
 def _bvps_fact(value: float = 50.0) -> ProviderFact:
     return ProviderFact(
-        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
-        field_name=ValuationField.BVPS,
+        field_name=FinancialField.BVPS,
         value=value,
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=PROVIDER_ID,
         provider_field="bvps_synthetic",
         retrieved_at=RETRIEVED_AT,
@@ -1733,11 +1768,11 @@ def _bvps_fact(value: float = 50.0) -> ProviderFact:
 
 def _price_fact(value: float = 100.0) -> ProviderFact:
     return ProviderFact(
-        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
-        field_name=ValuationField.CURRENT_PRICE,
+        field_name=FinancialField.CURRENT_PRICE,
         value=value,
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=PROVIDER_ID,
         provider_field="price_synthetic",
         retrieved_at=RETRIEVED_AT,
@@ -1749,11 +1784,11 @@ def _price_fact(value: float = 100.0) -> ProviderFact:
 
 def _aaa_fact(value: float = 5.0) -> ProviderFact:
     return ProviderFact(
-        subject_kind=ValuationSubjectKind.MACRO,
+        subject_kind=FinancialSubjectKind.MACRO,
         subject_id="AAA",
-        field_name=ValuationField.CURRENT_AAA_YIELD,
+        field_name=FinancialField.CURRENT_AAA_YIELD,
         value=value,
-        units=ValuationUnit.PERCENTAGE_POINTS,
+        units=FinancialUnit.PERCENTAGE_POINTS,
         provider_id="provider-aaa",
         provider_field="aaa_synthetic",
         retrieved_at=RETRIEVED_AT,
@@ -1763,11 +1798,11 @@ def _aaa_fact(value: float = 5.0) -> ProviderFact:
 
 def _ttm_eps_fact(value: float = 8.0) -> ProviderFact:
     return ProviderFact(
-        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
-        field_name=ValuationField.EPS,
+        field_name=FinancialField.EPS,
         value=value,
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=PROVIDER_ID,
         provider_field="ttm_eps_synthetic",
         retrieved_at=RETRIEVED_AT,
@@ -1785,9 +1820,9 @@ def test_c2d_graham_number_three_year_avg_success() -> None:
     """Graham Number: three-year-avg EPS (provider) + BVPS (provider) + quote (provider) → OK."""
     provider = MultiFieldProvider(
         handlers={
-            ValuationField.EPS: _three_fy_facts(),
-            ValuationField.BVPS: (_bvps_fact(),),
-            ValuationField.CURRENT_PRICE: (_price_fact(),),
+            FinancialField.EPS: _three_fy_facts(),
+            FinancialField.BVPS: (_bvps_fact(),),
+            FinancialField.CURRENT_PRICE: (_price_fact(),),
         }
     )
     resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
@@ -1819,8 +1854,8 @@ def test_c2d_graham_number_ttm_override_bypasses_eps_provider() -> None:
     # No EPS handler registered — provider would return empty if called.
     provider = MultiFieldProvider(
         handlers={
-            ValuationField.BVPS: (_bvps_fact(),),
-            ValuationField.CURRENT_PRICE: (_price_fact(),),
+            FinancialField.BVPS: (_bvps_fact(),),
+            FinancialField.CURRENT_PRICE: (_price_fact(),),
         }
     )
     resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
@@ -1836,7 +1871,7 @@ def test_c2d_graham_number_ttm_override_bypasses_eps_provider() -> None:
     assert result.eps.source_kind is SourceKind.OVERRIDE
     assert result.eps.basis == "ttm"
     # EPS field must never have reached the provider.
-    assert ValuationField.EPS not in provider.requested_fields()
+    assert FinancialField.EPS not in provider.requested_fields()
 
 
 # ---------------------------------------------------------------------------
@@ -1848,8 +1883,8 @@ def test_c2d_graham_number_bvps_failure_prevents_quote() -> None:
     """BVPS unavailable → assembly INPUT_UNAVAILABLE; quote never requested."""
     provider = MultiFieldProvider(
         handlers={
-            ValuationField.EPS: _three_fy_facts(),
-            ValuationField.BVPS: (),  # empty → INPUT_UNAVAILABLE
+            FinancialField.EPS: _three_fy_facts(),
+            FinancialField.BVPS: (),  # empty → INPUT_UNAVAILABLE
             # No CURRENT_PRICE handler: would return empty if called.
         }
     )
@@ -1863,7 +1898,7 @@ def test_c2d_graham_number_bvps_failure_prevents_quote() -> None:
     assert result.bvps is None
     assert result.current_price is None
     assert "bvps" in (result.reason or "")
-    assert ValuationField.CURRENT_PRICE not in provider.requested_fields()
+    assert FinancialField.CURRENT_PRICE not in provider.requested_fields()
 
 
 # ---------------------------------------------------------------------------
@@ -1875,9 +1910,9 @@ def test_c2d_growth_value_success() -> None:
     """Growth Value: TTM EPS (provider) + growth 12 + AAA 5 + quote 100 → OK."""
     provider = MultiFieldProvider(
         handlers={
-            ValuationField.EPS: (_ttm_eps_fact(),),
-            ValuationField.CURRENT_AAA_YIELD: (_aaa_fact(),),
-            ValuationField.CURRENT_PRICE: (_price_fact(),),
+            FinancialField.EPS: (_ttm_eps_fact(),),
+            FinancialField.CURRENT_AAA_YIELD: (_aaa_fact(),),
+            FinancialField.CURRENT_PRICE: (_price_fact(),),
         }
     )
     resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
@@ -1920,7 +1955,7 @@ def test_c2d_growth_value_missing_growth() -> None:
     """expected_growth not provided → INPUT_UNAVAILABLE; AAA and quote never reached."""
     provider = MultiFieldProvider(
         handlers={
-            ValuationField.EPS: (_ttm_eps_fact(),),
+            FinancialField.EPS: (_ttm_eps_fact(),),
             # No AAA or quote handlers
         }
     )
@@ -1938,8 +1973,8 @@ def test_c2d_growth_value_missing_growth() -> None:
     assert result.current_aaa_yield is None
     assert result.current_price is None
     # AAA and quote must never have been requested.
-    assert ValuationField.CURRENT_AAA_YIELD not in provider.requested_fields()
-    assert ValuationField.CURRENT_PRICE not in provider.requested_fields()
+    assert FinancialField.CURRENT_AAA_YIELD not in provider.requested_fields()
+    assert FinancialField.CURRENT_PRICE not in provider.requested_fields()
 
 
 # ---------------------------------------------------------------------------
@@ -1951,7 +1986,7 @@ def test_c2d_growth_value_non_finite_growth() -> None:
     """expected_growth=inf → INVALID_INPUT; AAA and quote never reached."""
     provider = MultiFieldProvider(
         handlers={
-            ValuationField.EPS: (_ttm_eps_fact(),),
+            FinancialField.EPS: (_ttm_eps_fact(),),
         }
     )
     resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
@@ -1965,8 +2000,8 @@ def test_c2d_growth_value_non_finite_growth() -> None:
     )
     assert result.status is CalculationStatus.INVALID_INPUT
     assert "expected_growth" in (result.reason or "")
-    assert ValuationField.CURRENT_AAA_YIELD not in provider.requested_fields()
-    assert ValuationField.CURRENT_PRICE not in provider.requested_fields()
+    assert FinancialField.CURRENT_AAA_YIELD not in provider.requested_fields()
+    assert FinancialField.CURRENT_PRICE not in provider.requested_fields()
 
 
 # ---------------------------------------------------------------------------
@@ -1978,9 +2013,9 @@ def test_c2d_graham_number_quote_unavailable_still_ok() -> None:
     """Quote unavailable → assembly OK, current_price=None, quote_status preserved."""
     provider = MultiFieldProvider(
         handlers={
-            ValuationField.EPS: _three_fy_facts(),
-            ValuationField.BVPS: (_bvps_fact(),),
-            ValuationField.CURRENT_PRICE: (),  # empty → INPUT_UNAVAILABLE
+            FinancialField.EPS: _three_fy_facts(),
+            FinancialField.BVPS: (_bvps_fact(),),
+            FinancialField.CURRENT_PRICE: (),  # empty → INPUT_UNAVAILABLE
         }
     )
     resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
@@ -2011,8 +2046,8 @@ def test_c2c_provider_origin_cache_entry_falls_through() -> None:
         basis="three_year_average",
         provider_field=None,
     )
-    derived_key = ValuationCacheKey(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    derived_key = ResolvedInputCacheKey(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
         basis="three_year_average",
@@ -2020,7 +2055,7 @@ def test_c2c_provider_origin_cache_entry_falls_through() -> None:
         analysis_as_of=None,
         schema_version=1,
     )
-    entry = ValuationCacheEntry(key=derived_key, resolved_input=poisoned_entry, cached_at=NOW)
+    entry = ResolvedInputCacheEntry(key=derived_key, resolved_input=poisoned_entry, cached_at=NOW)
     cache = SpyCache(entry=entry)
 
     # Provider returns valid 3-year facts.
@@ -2069,7 +2104,7 @@ def test_c2c_cache_hit_preserves_provider_id() -> None:
         _fy_fact(4.0, FY2024_START, FY2024_END),
     )
     provider = FakeProvider(facts=facts)
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     resolver = _make_resolver(provider=provider, cache=cache)
     resolver.resolve_three_year_average_eps(_c2c_request())
 
@@ -2170,7 +2205,7 @@ def test_c2c_provider_error_candidate_never_caches() -> None:
 
 
 class MultiFieldProviderWithError:
-    """Provider fake that can raise ValuationProviderError for specific fields.
+    """Provider fake that can raise FinancialProviderError for specific fields.
 
     Extends MultiFieldProvider by adding per-field error injection.
     """
@@ -2178,23 +2213,23 @@ class MultiFieldProviderWithError:
     def __init__(
         self,
         *,
-        handlers: dict[ValuationField, tuple[ProviderFact, ...]] | None = None,
-        error_fields: set[ValuationField] | None = None,
+        handlers: dict[FinancialField, tuple[ProviderFact, ...]] | None = None,
+        error_fields: set[FinancialField] | None = None,
     ) -> None:
         """Initialize with optional per-field handlers and error fields."""
-        self._handlers: dict[ValuationField, tuple[ProviderFact, ...]] = handlers or {}
-        self._error_fields: set[ValuationField] = error_fields or set()
-        self.requests: list[ValuationFactRequest] = []
+        self._handlers: dict[FinancialField, tuple[ProviderFact, ...]] = handlers or {}
+        self._error_fields: set[FinancialField] = error_fields or set()
+        self.requests: list[FinancialFactRequest] = []
         self.call_count = 0
 
-    def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         self.call_count += 1
         self.requests.append(request)
         if request.field_name in self._error_fields:
-            raise ValuationProviderError("synthetic provider failure")
+            raise FinancialProviderError("synthetic provider failure")
         return self._handlers.get(request.field_name, ())
 
-    def requested_fields(self) -> list[ValuationField]:
+    def requested_fields(self) -> list[FinancialField]:
         return [r.field_name for r in self.requests]
 
 
@@ -2207,10 +2242,10 @@ def test_c2d_graham_number_quote_provider_error_non_fatal() -> None:
     """Quote provider error → assembly OK, current_price=None, quote_status=PROVIDER_ERROR."""
     provider = MultiFieldProviderWithError(
         handlers={
-            ValuationField.EPS: _three_fy_facts(),
-            ValuationField.BVPS: (_bvps_fact(),),
+            FinancialField.EPS: _three_fy_facts(),
+            FinancialField.BVPS: (_bvps_fact(),),
         },
-        error_fields={ValuationField.CURRENT_PRICE},
+        error_fields={FinancialField.CURRENT_PRICE},
     )
     resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
@@ -2235,8 +2270,8 @@ def test_c2d_graham_number_quote_override_invalid() -> None:
     """Explicit quote override <= 0 → assembly INVALID_INPUT."""
     provider = MultiFieldProvider(
         handlers={
-            ValuationField.EPS: _three_fy_facts(),
-            ValuationField.BVPS: (_bvps_fact(),),
+            FinancialField.EPS: _three_fy_facts(),
+            FinancialField.BVPS: (_bvps_fact(),),
         }
     )
     resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
@@ -2262,8 +2297,8 @@ def test_c2d_growth_value_aaa_yield_override() -> None:
     """Growth Value with explicit AAA-yield override: provider not called for AAA."""
     provider = MultiFieldProvider(
         handlers={
-            ValuationField.EPS: (_ttm_eps_fact(),),
-            ValuationField.CURRENT_PRICE: (_price_fact(),),
+            FinancialField.EPS: (_ttm_eps_fact(),),
+            FinancialField.CURRENT_PRICE: (_price_fact(),),
             # No AAA handler — would return empty if called.
         }
     )
@@ -2289,7 +2324,7 @@ def test_c2d_growth_value_aaa_yield_override() -> None:
     assert result.expected_growth.value == 12.0
     assert result.expected_growth.source_kind is SourceKind.OVERRIDE
     # AAA field must never have reached the provider
-    assert ValuationField.CURRENT_AAA_YIELD not in provider.requested_fields()
+    assert FinancialField.CURRENT_AAA_YIELD not in provider.requested_fields()
 
 
 # ---------------------------------------------------------------------------
@@ -2304,11 +2339,11 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
     hist_available = datetime(2024, 6, 29, tzinfo=UTC)
 
     eps_fact = ProviderFact(
-        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
-        field_name=ValuationField.EPS,
+        field_name=FinancialField.EPS,
         value=8.0,
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=PROVIDER_ID,
         provider_field="ttm_eps_synthetic",
         retrieved_at=RETRIEVED_AT,
@@ -2317,11 +2352,11 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
         available_at=hist_available,
     )
     aaa_fact = ProviderFact(
-        subject_kind=ValuationSubjectKind.MACRO,
+        subject_kind=FinancialSubjectKind.MACRO,
         subject_id="AAA",
-        field_name=ValuationField.CURRENT_AAA_YIELD,
+        field_name=FinancialField.CURRENT_AAA_YIELD,
         value=5.0,
-        units=ValuationUnit.PERCENTAGE_POINTS,
+        units=FinancialUnit.PERCENTAGE_POINTS,
         provider_id="provider-aaa",
         provider_field="aaa_synthetic",
         retrieved_at=RETRIEVED_AT,
@@ -2329,11 +2364,11 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
         available_at=hist_available,
     )
     price_fact = ProviderFact(
-        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
-        field_name=ValuationField.CURRENT_PRICE,
+        field_name=FinancialField.CURRENT_PRICE,
         value=100.0,
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=PROVIDER_ID,
         provider_field="price_synthetic",
         retrieved_at=RETRIEVED_AT,
@@ -2344,9 +2379,9 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
 
     provider = MultiFieldProvider(
         handlers={
-            ValuationField.EPS: (eps_fact,),
-            ValuationField.CURRENT_AAA_YIELD: (aaa_fact,),
-            ValuationField.CURRENT_PRICE: (price_fact,),
+            FinancialField.EPS: (eps_fact,),
+            FinancialField.CURRENT_AAA_YIELD: (aaa_fact,),
+            FinancialField.CURRENT_PRICE: (price_fact,),
         }
     )
     cache = SpyCache()

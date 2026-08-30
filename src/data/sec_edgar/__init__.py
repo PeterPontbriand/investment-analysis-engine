@@ -1,5 +1,5 @@
 """SEC EDGAR valuation-data adapter package."""
 
-from src.data.sec_edgar.valuation import SEC_PROVIDER_ID, SecEdgarValuationAdapter
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 
-__all__ = ["SEC_PROVIDER_ID", "SecEdgarValuationAdapter"]
+__all__ = ["SEC_PROVIDER_ID", "SecEdgarFinancialFactsAdapter"]

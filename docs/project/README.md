@@ -7,10 +7,14 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 ## Current work — single source of truth
 
 **Active milestone:** v0.2<br/>
-**Completed step:** Step 2.3 — dual-method Graham valuation and investor-facing direct analysis — complete and approved<br/>
-**Next planned step:** Step 2.4 — Golden Suite and evaluation — not started<br/>
+**Completed step:** Step 2.4 — Free Cash Flow & Earnings Growth Analysis, pre-Golden hardening, shared security identity, and Slice G closeout — complete and approved<br/>
+**Active step:** Step 2.5 — Golden-Test Suite & Strategy Evaluation<br/>
 **Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
-**Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md)
+**Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md)<br/>
+**Active milestone implementation plan:** [Milestone v0.2 Implementation Plan](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>
+**Governing Step 2.4 design:** [Step 2.4 FCF & Earnings Growth Design](milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md)<br/>
+**Step 2.4 provider mapping record:** [Step 2.4 Provider Mapping Record](milestones/v0.2/STEP_2_4_PROVIDER_MAPPING_RECORD.md)<br/>
+**Initial Step 2.4 reconnaissance:** [Step 2.4 Slice A Reconnaissance](milestones/v0.2/STEP_2_4_SLICE_A_RECONNAISSANCE.md)
 
 Update **this section** when the active milestone, step, or slice changes. General user documentation and the root README should link here rather than duplicating current project status.
 
@@ -41,6 +45,42 @@ Unless a more specific approved task says otherwise, use the following precedenc
 7. convenience/readme material.
 
 If governing documents conflict, surface the conflict rather than blending incompatible requirements.
+
+## Quality gates
+
+Run the complete non-mutating repository gate from the repository root before requesting technical review or declaring implementation work complete:
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy --strict src tests
+uv run pytest
+```
+
+These commands verify lint, formatting, strict typing, deterministic unit/integration behavior, and the pytest-cov configuration in `pyproject.toml`. The project target is at least 85% aggregate line coverage; new financial-analysis code should directly cover meaningful branches and edge cases. Automated tests must not make real external API or LLM calls.
+
+The commands above are the ordinary developer and CI interface. Managed agents whose sandbox cannot write to Windows user-profile temp/cache directories should run the portable wrapper for their active shell instead:
+
+```powershell
+& (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gates.ps1')
+```
+
+```bash
+bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"
+```
+
+The wrappers run the same four gates with `uv run --no-sync` and isolate writable pytest, coverage, mypy, Ruff, and UV artifacts under a unique ignored `/.tmp/quality-runs/` directory. They are safe for concurrent managed-agent runs and contain no machine-specific repository path. Developers with normal user-directory access do not need the wrappers.
+
+When local repair is required, the recommended order is:
+
+```bash
+uv run ruff check --fix .
+uv run ruff format .
+uv run mypy --strict src tests
+uv run pytest
+```
+
+The first two repair commands intentionally mutate files. Review their diff before rerunning the non-mutating gate. Do not install or update dependencies, edit `pyproject.toml` or `uv.lock`, or weaken a gate merely to obtain a passing result without explicit authorization.
 
 ## Documentation conventions
 

@@ -1,4 +1,4 @@
-"""Tests for src.data.valuation.cache models and InMemoryValuationCache."""
+"""Tests for src.data.financial.cache models and InMemoryResolvedInputCache."""
 
 from __future__ import annotations
 
@@ -7,17 +7,19 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.data.valuation.cache import (
-    InMemoryValuationCache,
-    ValuationCacheEntry,
-    ValuationCacheKey,
-    ValuationCacheProtocol,
+from src.data.financial.cache import (
+    InMemoryResolvedInputCache,
+    ResolvedInputCacheEntry,
+    ResolvedInputCacheKey,
+    ResolvedInputCacheProtocol,
+    ResolvedInputSeriesCacheProtocol,
+    ResolvedInputSeriesCacheQuery,
 )
-from src.data.valuation.provenance import (
+from src.data.financial.provenance import (
     ComponentLineage,
+    FinancialSubjectKind,
     ResolvedInput,
     SourceKind,
-    ValuationSubjectKind,
 )
 
 AW = datetime(2025, 6, 1, 12, 0, tzinfo=UTC)
@@ -53,15 +55,17 @@ def _make_provider_input(
 
 
 def _make_key(  # noqa: PLR0913, PLR0917
-    subject_kind: ValuationSubjectKind = ValuationSubjectKind.SECURITY,
+    subject_kind: FinancialSubjectKind = FinancialSubjectKind.SECURITY,
     subject_id: str = "AAPL",
     field_name: str = "eps",
     basis: str | None = None,
     provider_id: str = "fixture",
     analysis_as_of: datetime | None = None,
     schema_version: int = 1,
-) -> ValuationCacheKey:
-    return ValuationCacheKey(
+    observation_period_start: datetime | None = None,
+    observation_period_end: datetime | None = None,
+) -> ResolvedInputCacheKey:
+    return ResolvedInputCacheKey(
         subject_kind=subject_kind,
         subject_id=subject_id,
         field_name=field_name,
@@ -69,6 +73,8 @@ def _make_key(  # noqa: PLR0913, PLR0917
         provider_id=provider_id,
         analysis_as_of=analysis_as_of,
         schema_version=schema_version,
+        observation_period_start=observation_period_start,
+        observation_period_end=observation_period_end,
     )
 
 
@@ -94,7 +100,7 @@ def _make_derived_input(
 
 
 # ===========================================================================
-# ValuationCacheKey — constructor validation
+# ResolvedInputCacheKey — constructor validation
 # ===========================================================================
 
 
@@ -105,7 +111,7 @@ def test_key_security_normalization() -> None:
 
 def test_key_macro_case_preserved() -> None:
     key = _make_key(
-        subject_kind=ValuationSubjectKind.MACRO,
+        subject_kind=FinancialSubjectKind.MACRO,
         subject_id="  aaa  ",
         field_name="current_aaa_yield",
     )
@@ -114,7 +120,7 @@ def test_key_macro_case_preserved() -> None:
 
 def test_key_macro_upper_preserved() -> None:
     key = _make_key(
-        subject_kind=ValuationSubjectKind.MACRO,
+        subject_kind=FinancialSubjectKind.MACRO,
         subject_id="AAA",
         field_name="current_aaa_yield",
     )
@@ -173,7 +179,7 @@ def test_key_frozen() -> None:
 
 
 # ===========================================================================
-# ValuationCacheEntry — constructor validation
+# ResolvedInputCacheEntry — constructor validation
 # ===========================================================================
 
 
@@ -181,42 +187,42 @@ def test_entry_naive_cached_at_rejected() -> None:
     key = _make_key()
     ri = _make_provider_input()
     with pytest.raises(ValueError, match="timezone-aware"):
-        ValuationCacheEntry(key=key, resolved_input=ri, cached_at=NAIVE)
+        ResolvedInputCacheEntry(key=key, resolved_input=ri, cached_at=NAIVE)
 
 
 def test_entry_field_mismatch_rejected() -> None:
     key = _make_key(field_name="bvps")
     ri = _make_provider_input(field_name="eps")
     with pytest.raises(ValueError, match="field_name"):
-        ValuationCacheEntry(key=key, resolved_input=ri, cached_at=AW)
+        ResolvedInputCacheEntry(key=key, resolved_input=ri, cached_at=AW)
 
 
 def test_entry_basis_mismatch_rejected() -> None:
     key = _make_key(basis="ttm")
     ri = _make_provider_input(basis="three_year_average")
     with pytest.raises(ValueError, match="basis"):
-        ValuationCacheEntry(key=key, resolved_input=ri, cached_at=AW)
+        ResolvedInputCacheEntry(key=key, resolved_input=ri, cached_at=AW)
 
 
 def test_entry_asof_mismatch_rejected() -> None:
     key = _make_key(analysis_as_of=AS_OF)
     ri = _make_provider_input(as_of=None)
     with pytest.raises(ValueError, match="analysis_as_of"):
-        ValuationCacheEntry(key=key, resolved_input=ri, cached_at=AW)
+        ResolvedInputCacheEntry(key=key, resolved_input=ri, cached_at=AW)
 
 
 def test_entry_provider_mismatch_rejected() -> None:
     key = _make_key(provider_id="yfinance")
     ri = _make_provider_input(provider_id="fixture")
     with pytest.raises(ValueError, match="provider_id"):
-        ValuationCacheEntry(key=key, resolved_input=ri, cached_at=AW)
+        ResolvedInputCacheEntry(key=key, resolved_input=ri, cached_at=AW)
 
 
 def test_entry_equivalent_provider_ids_pass_coherence() -> None:
     """Differently formatted but canonically equivalent provider IDs pass entry coherence."""
     key = _make_key(provider_id="YFinance")
     ri = _make_provider_input(provider_id=" yfinance ")
-    entry = ValuationCacheEntry(key=key, resolved_input=ri, cached_at=AW)
+    entry = ResolvedInputCacheEntry(key=key, resolved_input=ri, cached_at=AW)
     assert entry.key.provider_id == "yfinance"
     assert entry.resolved_input.provider_id == "yfinance"
 
@@ -230,7 +236,7 @@ def test_entry_override_source_rejected() -> None:
         resolved_at=AW,
     )
     with pytest.raises(ValueError, match="PROVIDER or DERIVED"):
-        ValuationCacheEntry(key=key, resolved_input=ri, cached_at=AW)
+        ResolvedInputCacheEntry(key=key, resolved_input=ri, cached_at=AW)
 
 
 def test_entry_cache_source_rejected() -> None:
@@ -245,24 +251,24 @@ def test_entry_cache_source_rejected() -> None:
         cache_schema_version=1,
     )
     with pytest.raises(ValueError, match="PROVIDER or DERIVED"):
-        ValuationCacheEntry(key=key, resolved_input=ri, cached_at=AW)
+        ResolvedInputCacheEntry(key=key, resolved_input=ri, cached_at=AW)
 
 
 def test_entry_frozen() -> None:
     key = _make_key()
     ri = _make_provider_input()
-    entry = ValuationCacheEntry(key=key, resolved_input=ri, cached_at=AW)
+    entry = ResolvedInputCacheEntry(key=key, resolved_input=ri, cached_at=AW)
     with pytest.raises(AttributeError):
         entry.cached_at = datetime(2026, 1, 1, tzinfo=UTC)  # type: ignore[misc]
 
 
 # ===========================================================================
-# InMemoryValuationCache — put/get basic
+# InMemoryResolvedInputCache — put/get basic
 # ===========================================================================
 
 
 def test_put_get_current_hit() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key()
     ri = _make_provider_input()
     cache.put(key, ri)
@@ -273,12 +279,12 @@ def test_put_get_current_hit() -> None:
 
 
 def test_get_without_put_returns_none() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     assert cache.get(_make_key()) is None
 
 
 def test_put_get_derived_input() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key(field_name="avg_eps")
     ri = _make_derived_input(field_name="avg_eps")
     cache.put(key, ri)
@@ -288,7 +294,7 @@ def test_put_get_derived_input() -> None:
 
 
 def test_last_write_wins() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key()
     ri1 = ResolvedInput(
         field_name="eps",
@@ -312,16 +318,16 @@ def test_last_write_wins() -> None:
 
 
 def test_get_returns_entry_type() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key()
     ri = _make_provider_input()
     cache.put(key, ri)
     entry = cache.get(key)
-    assert isinstance(entry, ValuationCacheEntry)
+    assert isinstance(entry, ResolvedInputCacheEntry)
 
 
 def test_stored_input_not_relabelled() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key()
     ri = _make_provider_input()
     cache.put(key, ri)
@@ -332,12 +338,12 @@ def test_stored_input_not_relabelled() -> None:
 
 
 # ===========================================================================
-# InMemoryValuationCache — source restrictions
+# InMemoryResolvedInputCache — source restrictions
 # ===========================================================================
 
 
 def test_override_input_cannot_be_cached() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key()
     ri = ResolvedInput(
         field_name="eps",
@@ -350,7 +356,7 @@ def test_override_input_cannot_be_cached() -> None:
 
 
 def test_cache_input_cannot_be_cached() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key()
     ri = ResolvedInput(
         field_name="eps",
@@ -366,13 +372,13 @@ def test_cache_input_cannot_be_cached() -> None:
 
 
 # ===========================================================================
-# InMemoryValuationCache — naive clock rejection
+# InMemoryResolvedInputCache — naive clock rejection
 # ===========================================================================
 
 
 def test_put_naive_clock_rejected() -> None:
     naive_clock: Callable[[], datetime] = lambda: NAIVE  # noqa: E731
-    cache = InMemoryValuationCache(clock=naive_clock)
+    cache = InMemoryResolvedInputCache(clock=naive_clock)
     key = _make_key()
     ri = _make_provider_input()
     with pytest.raises(ValueError, match="naive"):
@@ -380,7 +386,7 @@ def test_put_naive_clock_rejected() -> None:
 
 
 # ===========================================================================
-# InMemoryValuationCache — TTL
+# InMemoryResolvedInputCache — TTL
 # ===========================================================================
 
 
@@ -395,7 +401,7 @@ def test_ttl_exact_boundary_hit() -> None:
     def mutable_clock() -> datetime:
         return state["time"]
 
-    cache = InMemoryValuationCache(clock=mutable_clock, ttl=ttl)
+    cache = InMemoryResolvedInputCache(clock=mutable_clock, ttl=ttl)
     key = _make_key()
     ri = _make_provider_input()
     cache.put(key, ri)
@@ -416,7 +422,7 @@ def test_ttl_beyond_boundary_miss() -> None:
     def mutable_clock() -> datetime:
         return state["time"]
 
-    cache = InMemoryValuationCache(clock=mutable_clock, ttl=ttl)
+    cache = InMemoryResolvedInputCache(clock=mutable_clock, ttl=ttl)
     key = _make_key()
     ri = _make_provider_input()
     cache.put(key, ri)
@@ -437,7 +443,7 @@ def test_ttl_within_boundary_hit() -> None:
     def mutable_clock() -> datetime:
         return state["time"]
 
-    cache = InMemoryValuationCache(clock=mutable_clock, ttl=ttl)
+    cache = InMemoryResolvedInputCache(clock=mutable_clock, ttl=ttl)
     key = _make_key()
     ri = _make_provider_input()
     cache.put(key, ri)
@@ -457,7 +463,7 @@ def test_ttl_none_no_staleness() -> None:
     def mutable_clock() -> datetime:
         return state["time"]
 
-    cache = InMemoryValuationCache(clock=mutable_clock)
+    cache = InMemoryResolvedInputCache(clock=mutable_clock)
     key = _make_key()
     ri = _make_provider_input()
     cache.put(key, ri)
@@ -469,11 +475,11 @@ def test_ttl_none_no_staleness() -> None:
 
 def test_negative_ttl_rejected() -> None:
     with pytest.raises(ValueError, match="non-negative"):
-        InMemoryValuationCache(ttl=timedelta(seconds=-1))
+        InMemoryResolvedInputCache(ttl=timedelta(seconds=-1))
 
 
 def test_cached_at_from_injected_clock() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key()
     ri = _make_provider_input()
     cache.put(key, ri)
@@ -484,7 +490,7 @@ def test_cached_at_from_injected_clock() -> None:
 
 def test_original_retrieved_at_preserved() -> None:
     retrieved = datetime(2025, 5, 1, 8, 0, tzinfo=UTC)
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key()
     ri = _make_provider_input(retrieved_at=retrieved)
     cache.put(key, ri)
@@ -494,13 +500,13 @@ def test_original_retrieved_at_preserved() -> None:
 
 
 # ===========================================================================
-# InMemoryValuationCache — historical eligibility
+# InMemoryResolvedInputCache — historical eligibility
 # ===========================================================================
 
 
 def test_historical_available_after_as_of_miss() -> None:
     avail = datetime(2026, 1, 1, tzinfo=UTC)
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key(analysis_as_of=AS_OF)
     ri = _make_provider_input(available_at=avail, as_of=AS_OF)
     cache.put(key, ri)
@@ -509,7 +515,7 @@ def test_historical_available_after_as_of_miss() -> None:
 
 def test_historical_available_before_as_of_hit() -> None:
     avail = datetime(2025, 6, 1, tzinfo=UTC)
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key(analysis_as_of=AS_OF)
     ri = _make_provider_input(available_at=avail, as_of=AS_OF)
     cache.put(key, ri)
@@ -518,7 +524,7 @@ def test_historical_available_before_as_of_hit() -> None:
 
 def test_historical_available_equal_as_of_hit() -> None:
     """available_at == analysis_as_of is eligible."""
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key(analysis_as_of=AS_OF)
     ri = _make_provider_input(available_at=AS_OF, as_of=AS_OF)
     cache.put(key, ri)
@@ -526,7 +532,7 @@ def test_historical_available_equal_as_of_hit() -> None:
 
 
 def test_historical_available_none_miss() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key(analysis_as_of=AS_OF)
     ri = _make_provider_input(available_at=None, as_of=AS_OF)
     cache.put(key, ri)
@@ -535,7 +541,7 @@ def test_historical_available_none_miss() -> None:
 
 def test_current_available_none_hit() -> None:
     """Current key: missing available_at does not cause a miss."""
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key(analysis_as_of=None)
     ri = _make_provider_input(available_at=None, as_of=None)
     cache.put(key, ri)
@@ -548,14 +554,14 @@ def test_current_available_none_hit() -> None:
 
 
 def test_security_macro_no_collision() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key_sec = _make_key(
-        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAA",
         field_name="current_aaa_yield",
     )
     key_macro = _make_key(
-        subject_kind=ValuationSubjectKind.MACRO,
+        subject_kind=FinancialSubjectKind.MACRO,
         subject_id="AAA",
         field_name="current_aaa_yield",
     )
@@ -569,7 +575,7 @@ def test_security_macro_no_collision() -> None:
 
 
 def test_different_subject_id_no_collision() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key1 = _make_key(subject_id="AAPL")
     key2 = _make_key(subject_id="MSFT")
     ri = _make_provider_input()
@@ -580,7 +586,7 @@ def test_different_subject_id_no_collision() -> None:
 
 
 def test_different_field_no_collision() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key_eps = _make_key(field_name="eps")
     key_bvps = _make_key(field_name="bvps")
     ri_eps = _make_provider_input(field_name="eps")
@@ -592,7 +598,7 @@ def test_different_field_no_collision() -> None:
 
 
 def test_different_basis_no_collision() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key_ttm = _make_key(basis="ttm")
     key_3yr = _make_key(basis="three_year_average")
     ri_ttm = _make_provider_input(basis="ttm")
@@ -604,7 +610,7 @@ def test_different_basis_no_collision() -> None:
 
 
 def test_different_provider_no_collision() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key_fix = _make_key(provider_id="fixture")
     key_yf = _make_key(provider_id="yfinance")
     ri_fix = _make_provider_input(provider_id="fixture")
@@ -616,7 +622,7 @@ def test_different_provider_no_collision() -> None:
 
 
 def test_current_vs_historical_no_collision() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key_cur = _make_key(analysis_as_of=None)
     key_hist = _make_key(analysis_as_of=AS_OF)
     ri_cur = _make_provider_input(as_of=None)
@@ -631,7 +637,7 @@ def test_current_vs_historical_no_collision() -> None:
 def test_two_historical_boundaries_no_collision() -> None:
     as_of_1 = datetime(2025, 12, 31, tzinfo=UTC)
     as_of_2 = datetime(2026, 6, 30, tzinfo=UTC)
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key1 = _make_key(analysis_as_of=as_of_1)
     key2 = _make_key(analysis_as_of=as_of_2)
     ri1 = _make_provider_input(as_of=as_of_1, available_at=AW)
@@ -644,7 +650,7 @@ def test_two_historical_boundaries_no_collision() -> None:
 
 
 def test_schema_version_isolation() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key_v1 = _make_key(schema_version=1)
     key_v2 = _make_key(schema_version=2)
     ri = _make_provider_input()
@@ -659,9 +665,9 @@ def test_schema_version_isolation() -> None:
 
 
 def test_macro_entry_no_ticker_required() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key(
-        subject_kind=ValuationSubjectKind.MACRO,
+        subject_kind=FinancialSubjectKind.MACRO,
         subject_id="AAA",
         field_name="current_aaa_yield",
         basis="percentage_points",
@@ -678,7 +684,7 @@ def test_macro_entry_no_ticker_required() -> None:
     cache.put(key, ri)
     entry = cache.get(key)
     assert entry is not None
-    assert entry.key.subject_kind is ValuationSubjectKind.MACRO
+    assert entry.key.subject_kind is FinancialSubjectKind.MACRO
     assert entry.key.subject_id == "AAA"
 
 
@@ -688,7 +694,7 @@ def test_macro_entry_no_ticker_required() -> None:
 
 
 def test_provider_id_normalization_hit() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     key = _make_key(provider_id="YFinance")
     ri = _make_provider_input(provider_id="yfinance")
     cache.put(key, ri)
@@ -701,5 +707,136 @@ def test_provider_id_normalization_hit() -> None:
 
 
 def test_runtime_protocol_conformance() -> None:
-    cache = InMemoryValuationCache(clock=_fixed_clock())
-    assert isinstance(cache, ValuationCacheProtocol)
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
+    assert isinstance(cache, ResolvedInputCacheProtocol)
+
+
+# ===========================================================================
+# Period-aware series cache contract
+# ===========================================================================
+
+
+def _period(year: int) -> tuple[datetime, datetime]:
+    return datetime(year - 1, 7, 1, tzinfo=UTC), datetime(year, 6, 30, tzinfo=UTC)
+
+
+def _put_annual_eps(
+    cache: InMemoryResolvedInputCache,
+    *,
+    year: int,
+    analysis_as_of: datetime | None = None,
+    available_at: datetime | None = None,
+    schema_version: int = 2,
+) -> None:
+    period_start, period_end = _period(year)
+    key = _make_key(
+        basis="fiscal_year",
+        analysis_as_of=analysis_as_of,
+        schema_version=schema_version,
+        observation_period_start=period_start,
+        observation_period_end=period_end,
+    )
+    value = _make_provider_input(
+        basis="fiscal_year",
+        as_of=analysis_as_of,
+        available_at=available_at,
+        observation_period_start=period_start,
+        observation_period_end=period_end,
+        provider_fact_id=f"eps-{year}",
+    )
+    cache.put(key, value)
+
+
+def _series_query(*, analysis_as_of: datetime | None = None, schema_version: int = 2) -> ResolvedInputSeriesCacheQuery:
+    return ResolvedInputSeriesCacheQuery(
+        subject_kind=FinancialSubjectKind.SECURITY,
+        subject_id="aapl",
+        field_name="eps",
+        basis="fiscal_year",
+        provider_id="FIXTURE",
+        analysis_as_of=analysis_as_of,
+        schema_version=schema_version,
+    )
+
+
+def test_period_key_requires_both_bounds() -> None:
+    with pytest.raises(ValueError, match="both be present"):
+        _make_key(observation_period_start=_period(2025)[0])
+
+
+def test_period_key_rejects_naive_bound() -> None:
+    with pytest.raises(ValueError, match="timezone-aware"):
+        _make_key(observation_period_start=NAIVE, observation_period_end=_period(2025)[1])
+
+
+def test_period_key_rejects_reversed_bounds() -> None:
+    period_start, period_end = _period(2025)
+    with pytest.raises(ValueError, match="must not be later"):
+        _make_key(observation_period_start=period_end, observation_period_end=period_start)
+
+
+def test_period_scoped_entry_requires_matching_input_period() -> None:
+    period_start, period_end = _period(2025)
+    key = _make_key(
+        observation_period_start=period_start,
+        observation_period_end=period_end,
+    )
+    with pytest.raises(ValueError, match="must match"):
+        ResolvedInputCacheEntry(key=key, resolved_input=_make_provider_input(), cached_at=AW)
+
+
+def test_periods_do_not_collide() -> None:
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
+    _put_annual_eps(cache, year=2024)
+    _put_annual_eps(cache, year=2025)
+    assert len(cache.get_series(_series_query())) == 2
+
+
+def test_series_query_normalizes_identity() -> None:
+    query = _series_query()
+    assert query.subject_id == "AAPL"
+    assert query.provider_id == "fixture"
+
+
+def test_series_query_returns_oldest_to_newest() -> None:
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
+    _put_annual_eps(cache, year=2025)
+    _put_annual_eps(cache, year=2023)
+    _put_annual_eps(cache, year=2024)
+    entries = cache.get_series(_series_query())
+    assert [entry.resolved_input.provider_fact_id for entry in entries] == ["eps-2023", "eps-2024", "eps-2025"]
+
+
+def test_series_query_excludes_scalar_graham_entry() -> None:
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
+    scalar_key = _make_key(basis="fiscal_year", schema_version=2)
+    cache.put(scalar_key, _make_provider_input(basis="fiscal_year"))
+    assert cache.get_series(_series_query()) == ()
+
+
+def test_series_query_isolates_schema_and_analysis_boundary() -> None:
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
+    _put_annual_eps(cache, year=2025, schema_version=1)
+    _put_annual_eps(cache, year=2025, analysis_as_of=AS_OF, available_at=AW)
+    assert cache.get_series(_series_query()) == ()
+    assert len(cache.get_series(_series_query(analysis_as_of=AS_OF))) == 1
+
+
+def test_series_query_excludes_fact_unavailable_at_historical_boundary() -> None:
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
+    unavailable_until = datetime(2026, 1, 15, tzinfo=UTC)
+    _put_annual_eps(cache, year=2025, analysis_as_of=AS_OF, available_at=unavailable_until)
+    assert cache.get_series(_series_query(analysis_as_of=AS_OF)) == ()
+
+
+def test_series_query_applies_ttl_staleness() -> None:
+    now = [FIXED_TIME]
+    cache = InMemoryResolvedInputCache(clock=lambda: now[0], ttl=timedelta(days=1))
+    _put_annual_eps(cache, year=2025)
+    now[0] += timedelta(days=2)
+    assert cache.get_series(_series_query()) == ()
+
+
+def test_runtime_series_protocol_conformance() -> None:
+    cache = InMemoryResolvedInputCache(clock=_fixed_clock())
+    assert isinstance(cache, ResolvedInputSeriesCacheProtocol)

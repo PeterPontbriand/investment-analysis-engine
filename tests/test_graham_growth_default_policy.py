@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from typer.testing import CliRunner
 
 from src.cli import GrahamCliMethod, app
-from src.data.valuation.providers import MASSIVE_PROVIDER_ID, SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
+from src.data.financial.providers import MASSIVE_PROVIDER_ID, SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
 from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()

@@ -58,7 +58,7 @@ See [Financial Math](../FINANCE_MATH.md#momentum-analysis-strategy) for the exac
 uv run financial-agents momentum AAPL
 ```
 
-Shows the current moving averages, their relationship, recent crossover information when applicable, data-source/freshness information, and the strategy limitation.
+Shows the current moving averages, their relationship, recent crossover information when applicable, data-source/freshness information, and the strategy limitation. When provider metadata supplies an instrument name, the heading shows `Instrument Name (TICKER)`; otherwise it uses the ticker alone.
 
 ### `--details`
 
@@ -82,7 +82,7 @@ Shows more technical execution/diagnostic information.
 uv run financial-agents momentum AAPL --json
 ```
 
-Produces [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json-javascript-object-notation).
+Produces [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json-javascript-object-notation), including an explicit nullable security-identity snapshot.
 
 ## Sufficient history is required
 

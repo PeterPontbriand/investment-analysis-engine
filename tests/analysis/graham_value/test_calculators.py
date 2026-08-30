@@ -516,6 +516,14 @@ class TestResultStateInvariants:
         with pytest.raises(ValueError, match="maximum_indicated_price"):
             GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=None)
 
+    def test_graham_number_ok_rejects_reason(self) -> None:
+        with pytest.raises(ValueError, match="reason to be None"):
+            GrahamNumberResult(
+                status=CalculationStatus.OK,
+                maximum_indicated_price=10.0,
+                reason="success cannot carry a failure reason",
+            )
+
     def test_graham_number_non_ok_rejects_value(self) -> None:
         with pytest.raises(ValueError, match="maximum_indicated_price"):
             GrahamNumberResult(
@@ -531,6 +539,14 @@ class TestResultStateInvariants:
     def test_growth_value_ok_requires_value(self) -> None:
         with pytest.raises(ValueError, match="growth_value"):
             GrahamGrowthValueResult(status=CalculationStatus.OK, growth_value=None)
+
+    def test_growth_value_ok_rejects_reason(self) -> None:
+        with pytest.raises(ValueError, match="reason to be None"):
+            GrahamGrowthValueResult(
+                status=CalculationStatus.OK,
+                growth_value=10.0,
+                reason="success cannot carry a failure reason",
+            )
 
     def test_growth_value_non_ok_rejects_value(self) -> None:
         with pytest.raises(ValueError, match="growth_value"):

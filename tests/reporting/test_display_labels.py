@@ -19,9 +19,9 @@ from src.analysis.graham_value.models import GrahamNumberResult
 from src.analysis.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import TrendStatus
+from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
+from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.data.market_data import MarketDataContext
-from src.data.valuation.provenance import ComponentLineage, ResolvedInput, SourceKind
-from src.data.valuation.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.reporting.graham import (
     BASIS_DISPLAY_NAMES,
     FIELD_DISPLAY_NAMES,

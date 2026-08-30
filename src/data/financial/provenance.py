@@ -41,13 +41,19 @@ def _require_non_empty(text: str, *, field_name: str) -> None:
         raise ValueError(msg)
 
 
+def _validate_optional_non_empty(text: str | None, *, field_name: str) -> None:
+    """Validate an optional non-empty string field when present."""
+    if text is not None:
+        _require_non_empty(text, field_name=field_name)
+
+
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
 
 
-class ValuationSubjectKind(StrEnum):
-    """Discriminator for the subject of a valuation fact."""
+class FinancialSubjectKind(StrEnum):
+    """Discriminator for the subject of a financial fact."""
 
     SECURITY = "security"
     MACRO = "macro"
@@ -60,6 +66,29 @@ class SourceKind(StrEnum):
     CACHE = "cache"
     PROVIDER = "provider"
     DERIVED = "derived"
+
+
+class PeriodKind(StrEnum):
+    """Classification of the reporting period behind a financial fact."""
+
+    COMPLETED_ANNUAL = "completed_annual"
+    QUARTERLY = "quarterly"
+    TTM = "ttm"
+
+
+class AccountingScope(StrEnum):
+    """Accounting scope of a financial-statement line item."""
+
+    CONSOLIDATED = "consolidated"
+    PARENT = "parent"
+    SEGMENT = "segment"
+
+
+class CapitalExpenditureSign(StrEnum):
+    """Sign convention used by a provider when reporting capital expenditures."""
+
+    POSITIVE_EXPENDITURE = "positive_expenditure"
+    NEGATIVE_CASH_OUTFLOW = "negative_cash_outflow"
 
 
 # ---------------------------------------------------------------------------
@@ -116,6 +145,12 @@ class ResolvedInput:
         lineage: Required when ``source_kind`` is ``DERIVED`` or when
             ``origin_source_kind`` is ``DERIVED``.
         notes: Immutable additional provenance annotations.
+        fiscal_year: Optional provider-supplied fiscal-year label for an annual
+            observation; ``None`` when the period is not annual.
+        period_kind: Optional classification of the reporting period.
+        accounting_scope: Optional accounting scope of the source line item.
+        capital_expenditure_sign: Optional sign convention for capital-expenditure amounts.
+        provider_fact_id: Optional provider-specific fact identifier.
     """
 
     field_name: str
@@ -137,6 +172,11 @@ class ResolvedInput:
     cache_schema_version: int | None = None
     lineage: ComponentLineage | None = None
     notes: tuple[str, ...] = field(default=())
+    fiscal_year: int | None = None
+    period_kind: PeriodKind | None = None
+    accounting_scope: AccountingScope | None = None
+    capital_expenditure_sign: CapitalExpenditureSign | None = None
+    provider_fact_id: str | None = None
 
     def __post_init__(self) -> None:
         """Validate all invariants for this ResolvedInput."""
@@ -168,6 +208,18 @@ def _validate_general_invariants(ri: ResolvedInput) -> None:
     _validate_optional_datetime(ri.available_at, "available_at")
     _validate_optional_datetime(ri.as_of, "as_of")
     _validate_optional_datetime(ri.retrieved_at, "retrieved_at")
+    _validate_optional_non_empty(ri.provider_fact_id, field_name="provider_fact_id")
+    if ri.fiscal_year is not None and ri.fiscal_year < 1:
+        msg = f"fiscal_year must be a positive year label (received {ri.fiscal_year})."
+        raise ValueError(msg)
+    if ri.fiscal_year is not None and ri.period_kind is not PeriodKind.COMPLETED_ANNUAL:
+        msg = "fiscal_year requires period_kind=completed_annual."
+        raise ValueError(msg)
+    if ri.capital_expenditure_sign is not None and ri.field_name != "capital_expenditures":
+        msg = "capital_expenditure_sign is only applicable to capital_expenditures inputs."
+        raise ValueError(msg)
+    if ri.provider_fact_id is not None:
+        object.__setattr__(ri, "provider_fact_id", ri.provider_fact_id.strip())
 
 
 def _validate_source_kind(ri: ResolvedInput) -> None:

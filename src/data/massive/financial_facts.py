@@ -7,23 +7,29 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, time
 from urllib.parse import urlencode
 
+from src.data.financial.facts import (
+    FinancialFactRequest,
+    FinancialField,
+    FinancialProviderError,
+    FinancialUnit,
+    ProviderFact,
+)
+from src.data.financial.provenance import FinancialSubjectKind
 from src.data.http_json import JsonFetcher, fetch_json
 from src.data.massive.constants import MASSIVE_PROVIDER_ID
-from src.data.valuation.facts import (
-    ProviderFact,
-    ValuationFactRequest,
-    ValuationField,
-    ValuationProviderError,
-    ValuationUnit,
-)
-from src.data.valuation.provenance import ValuationSubjectKind
 
 MASSIVE_TTM_EPS_FIELD = "diluted_earnings_per_share"
 MASSIVE_LAST_TRADE_FIELD = "results.p"
+
+
+class _CurrencyMetadataUnavailableError(FinancialProviderError):
+    """Massive supplied no verified quote currency metadata."""
+
+
 _BASE_URL = "https://api.massive.com"
 
 
-class MassiveValuationAdapter:
+class MassiveFinancialFactsAdapter:
     """Provide the E1-approved current Massive valuation capabilities.
 
     Supported:
@@ -55,11 +61,11 @@ class MassiveValuationAdapter:
         """Return whether usable Massive API credentials are available."""
         return self._api_key is not None and bool(self._api_key.strip())
 
-    def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:  # noqa: PLR0911
+    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:  # noqa: PLR0911
         """Return supported current facts, or explicit unavailability."""
         if request.provider_id != MASSIVE_PROVIDER_ID:
             return ()
-        if request.subject_kind is not ValuationSubjectKind.SECURITY:
+        if request.subject_kind is not FinancialSubjectKind.SECURITY:
             return ()
         if request.as_of is not None:
             return ()
@@ -67,24 +73,24 @@ class MassiveValuationAdapter:
             return ()
 
         try:
-            if request.field_name is ValuationField.EPS and request.basis == "ttm" and request.observation_count == 1:
+            if request.field_name is FinancialField.EPS and request.basis == "ttm" and request.observation_count == 1:
                 fact = self._fetch_ttm_eps(request)
                 return () if fact is None else (fact,)
             if (
-                request.field_name is ValuationField.CURRENT_PRICE
+                request.field_name is FinancialField.CURRENT_PRICE
                 and request.basis is None
                 and request.observation_count == 1
             ):
                 fact = self._fetch_current_price(request)
                 return () if fact is None else (fact,)
             return ()
-        except ValuationProviderError:
+        except FinancialProviderError:
             raise
         except (KeyError, TypeError, ValueError, OSError) as exc:
             msg = f"Massive valuation retrieval failed for {request.subject_id}: {exc}"
-            raise ValuationProviderError(msg) from exc
+            raise FinancialProviderError(msg) from exc
 
-    def _fetch_ttm_eps(self, request: ValuationFactRequest) -> ProviderFact | None:
+    def _fetch_ttm_eps(self, request: FinancialFactRequest) -> ProviderFact | None:
         currency = self._currency_for_ticker(request.subject_id)
         params = urlencode(
             {
@@ -131,11 +137,11 @@ class MassiveValuationAdapter:
             notes += (f"cik={cik.strip()}",)
 
         return ProviderFact(
-            subject_kind=ValuationSubjectKind.SECURITY,
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=request.subject_id,
-            field_name=ValuationField.EPS,
+            field_name=FinancialField.EPS,
             value=float(value),
-            units=ValuationUnit.CURRENCY_PER_SHARE,
+            units=FinancialUnit.CURRENCY_PER_SHARE,
             provider_id=MASSIVE_PROVIDER_ID,
             provider_field=MASSIVE_TTM_EPS_FIELD,
             retrieved_at=self._clock(),
@@ -146,8 +152,11 @@ class MassiveValuationAdapter:
             notes=notes,
         )
 
-    def _fetch_current_price(self, request: ValuationFactRequest) -> ProviderFact | None:
-        currency = self._currency_for_ticker(request.subject_id)
+    def _fetch_current_price(self, request: FinancialFactRequest) -> ProviderFact | None:
+        try:
+            currency = self._currency_for_ticker(request.subject_id)
+        except _CurrencyMetadataUnavailableError:
+            return None
         payload = self._get(f"/v2/last/trade/{request.subject_id}")
         result = _result_object(payload)
         if result is None:
@@ -176,11 +185,11 @@ class MassiveValuationAdapter:
             notes.append(f"participant_timestamp={participant_timestamp.isoformat()}")
 
         return ProviderFact(
-            subject_kind=ValuationSubjectKind.SECURITY,
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=request.subject_id,
-            field_name=ValuationField.CURRENT_PRICE,
+            field_name=FinancialField.CURRENT_PRICE,
             value=float(value),
-            units=ValuationUnit.CURRENCY_PER_SHARE,
+            units=FinancialUnit.CURRENCY_PER_SHARE,
             provider_id=MASSIVE_PROVIDER_ID,
             provider_field=MASSIVE_LAST_TRADE_FIELD,
             retrieved_at=self._clock(),
@@ -217,7 +226,7 @@ class MassiveValuationAdapter:
             return currency
 
         msg = f"Massive returned no verified currency metadata for {ticker!r}."
-        raise ValuationProviderError(msg)
+        raise _CurrencyMetadataUnavailableError(msg)
 
     def _get(self, path: str) -> object:
         assert self._api_key is not None
@@ -237,7 +246,7 @@ def _require_ok(payload: object) -> None:
     status = payload.get("status")
     if status is not None and status != "OK":
         msg = f"Massive returned non-OK status {status!r}."
-        raise ValuationProviderError(msg)
+        raise FinancialProviderError(msg)
 
 
 def _results(payload: object) -> tuple[Mapping[object, object], ...]:

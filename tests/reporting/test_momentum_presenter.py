@@ -80,10 +80,11 @@ def test_momentum_diagnostics_expose_retained_raw_and_market_context() -> None:
     assert "adjustment=adjusted" in rendered
 
 
-def test_momentum_json_adds_semantic_fields_without_removing_schema_one_fields() -> None:
+def test_momentum_json_adds_semantic_fields_with_identity_schema_version() -> None:
     payload = json.loads(render_momentum(_presentation(), PresentationMode.JSON))
 
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
+    assert payload["security_identity"]["instrument_name"] is None
     assert payload["analysis"] == "momentum"
     assert payload["method"] == "sma_crossover"
     assert payload["as_of"] == DATA_AS_OF.isoformat()

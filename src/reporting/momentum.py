@@ -6,7 +6,14 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.analysis.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
+from src.core.metric_result import MetricResult
 from src.data.market_data import MarketDataContext
+from src.data.security_identity import (
+    IdentityResolutionStatus,
+    SecurityIdentityResolution,
+    security_display_label,
+    security_identity_payload,
+)
 from src.reporting.presentation import (
     PresentationMode,
     ResolutionDiagnostic,
@@ -18,7 +25,7 @@ from src.reporting.presentation import (
     provider_display_name,
 )
 
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
 _LIMITATION = (
     "SMA momentum describes recent price trend; it is not a valuation, "
     "fundamental-quality conclusion, or investment recommendation."
@@ -34,6 +41,7 @@ class MomentumPresentation:
     market_data: MarketDataContext | None = None
     warnings: tuple[str, ...] = ()
     diagnostics: tuple[ResolutionDiagnostic, ...] = ()
+    identity_resolution: SecurityIdentityResolution | None = None
 
 
 def render_momentum(
@@ -61,11 +69,12 @@ def _concise_lines(p: MomentumPresentation) -> list[str]:
     spread_percent = _sma_spread_percent(metrics)
 
     lines = [
-        f"{metrics.ticker.upper()} — Momentum",
+        f"{security_display_label(metrics.ticker, p.identity_resolution)} — Momentum",
         f"Status: {metrics.status.display_name(locale='en')}",
         f"Price used ({_close_label(p.market_data)}): {format_money(metrics.current_price, currency)}",
         f"{short_label}: {_optional_money(metrics.short_sma_val, currency)}",
         f"{long_label}: {_optional_money(metrics.long_sma_val, currency)}",
+        f"RSI ({p.config.rsi_period} observations): {_metric_result_text(metrics.rsi_14)}",
     ]
 
     if spread is not None:
@@ -100,6 +109,7 @@ def _detail_lines(p: MomentumPresentation) -> list[str]:
         "-------",
         "Method: simple moving-average crossover",
         f"Configured windows: {p.config.short_window} / {p.config.long_window} {_window_basis(context)}",
+        f"Configured RSI period: {p.config.rsi_period} observations",
         f"Price basis: {_price_basis_detail(context)}",
         f"Analysis timestamp: {format_datetime(p.metrics.timestamp)}",
         f"Data provider: {provider_display_name(provider)}",
@@ -107,6 +117,7 @@ def _detail_lines(p: MomentumPresentation) -> list[str]:
         f"Latest data observation: {data_as_of.isoformat() if data_as_of is not None else 'unavailable'}",
         f"Observations returned: {observation_count if observation_count is not None else 'unavailable'}",
         f"Currency: {currency or 'unavailable'}",
+        *_identity_detail_lines(p.identity_resolution),
     ]
 
 
@@ -123,7 +134,24 @@ def _diagnostic_lines(p: MomentumPresentation) -> list[str]:
     ]
     for item in p.diagnostics:
         lines.append(f"{item.field_name}: {item.stage} -> {item.outcome} — {item.message}")
+    if p.identity_resolution is not None:
+        lines.append(
+            f"security_identity: provider -> {p.identity_resolution.status.value} — {p.identity_resolution.message}"
+        )
     return lines
+
+
+def _identity_detail_lines(resolution: SecurityIdentityResolution | None) -> list[str]:
+    """Describe the retained current identity snapshot without historical implication."""
+    if resolution is None or resolution.identity is None:
+        return ["Security identity: unavailable"]
+    identity = resolution.identity
+    return [
+        f"Instrument name: {identity.instrument_name or 'unavailable'}",
+        f"Listing venue: {identity.listing_venue or 'unavailable'}",
+        f"Identity provider: {provider_display_name(identity.provider_id)}",
+        f"Identity resolved: {format_datetime(identity.resolved_at)} (current descriptive metadata)",
+    ]
 
 
 def _trend_interpretation(
@@ -271,6 +299,11 @@ def _optional_metric(value: float | None, *, decimals: int) -> str:
     return "unavailable" if value is None else format_number(value, decimals=decimals)
 
 
+def _metric_result_text(result: MetricResult) -> str:
+    """Render a standard metric result without leaking machine reason codes."""
+    return "unavailable" if result.value is None else format_number(result.value)
+
+
 def _sma_spread(metrics: MomentumMetrics) -> float | None:
     if metrics.short_sma_val is None or metrics.long_sma_val is None:
         return None
@@ -316,6 +349,7 @@ def _payload(p: MomentumPresentation) -> dict[str, Any]:
         "schema_version": _SCHEMA_VERSION,
         "analysis": "momentum",
         "ticker": metrics.ticker.upper(),
+        "security_identity": security_identity_payload(metrics.ticker, p.identity_resolution),
         "method": "sma_crossover",
         "as_of": data_as_of.isoformat() if data_as_of is not None else None,
         "analysis_timestamp": metrics.timestamp.isoformat(),
@@ -330,10 +364,17 @@ def _payload(p: MomentumPresentation) -> dict[str, Any]:
             "trend_relationship": _trend_relationship(metrics),
             "crossover_signal": metrics.crossover_signal,
             "crossover_state": _crossover_state(metrics.crossover_signal),
+            "rsi": {
+                "status": metrics.rsi_14.status.value,
+                "value": metrics.rsi_14.value,
+                "reason_code": metrics.rsi_14.reason_code.value if metrics.rsi_14.reason_code else None,
+                "reason": metrics.rsi_14.reason,
+            },
         },
         "parameters": {
             "short_window": p.config.short_window,
             "long_window": p.config.long_window,
+            "rsi_period": p.config.rsi_period,
         },
         "source": {
             "provider": context.provider_id if context is not None else None,
@@ -345,5 +386,20 @@ def _payload(p: MomentumPresentation) -> dict[str, Any]:
         },
         "warnings": _warnings(p),
         "limitations": [_LIMITATION],
-        "diagnostics": [diagnostic_payload(item) for item in p.diagnostics],
+        "diagnostics": [
+            *[diagnostic_payload(item) for item in p.diagnostics],
+            *(
+                [
+                    {
+                        "field_name": "security_identity",
+                        "stage": "provider",
+                        "outcome": p.identity_resolution.status.value,
+                        "message": p.identity_resolution.message,
+                    }
+                ]
+                if p.identity_resolution is not None
+                and p.identity_resolution.status is not IdentityResolutionStatus.RESOLVED
+                else []
+            ),
+        ],
     }

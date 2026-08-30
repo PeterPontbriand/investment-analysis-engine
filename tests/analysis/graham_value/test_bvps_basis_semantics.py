@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from src.analysis.graham_value.input_resolver import _with_semantic_bvps_basis
-from src.data.valuation.provenance import ComponentLineage, ResolvedInput, SourceKind
+from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 
 NOW = datetime(2026, 8, 24, 2, 50, tzinfo=UTC)
 

@@ -119,6 +119,8 @@ Designed to answer:
 - What are the most important sources/assumptions?
 - Is there an important limitation or warning?
 
+When supported provider evidence supplies an instrument name, the heading shows `Instrument Name (TICKER)`; otherwise it uses the ticker alone. Identity metadata is descriptive and cannot change a Graham calculation or its status.
+
 ### `--details`
 
 Shows resolved financial values, dates, bases, data sources, and derivations.
@@ -129,7 +131,7 @@ Shows software resolution behavior such as override/cache/provider selection and
 
 ### `--json`
 
-Emits [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json-javascript-object-notation), including the stable result/provenance representation.
+Emits [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json-javascript-object-notation), including the stable result/provenance representation and an explicit nullable security-identity snapshot.
 
 ## Inputs, assumptions, and overrides
 

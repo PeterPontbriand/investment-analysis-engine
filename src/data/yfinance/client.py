@@ -4,7 +4,9 @@ import contextlib
 import io
 import logging
 import math
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import cast
 
 import pandas as pd
@@ -12,6 +14,7 @@ import yfinance as yf
 
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.market_data import HistoricalMarketData, MarketDataContext, latest_observation_date
+from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +33,10 @@ class YFinanceQuote:
 
 class YFinanceClient(BaseDataClient):
     """Concrete data client for acquiring market vectors from yfinance."""
+
+    def __init__(self, *, clock: Callable[[], datetime] | None = None) -> None:
+        """Initialize with an injectable metadata-resolution clock."""
+        self._clock = clock or (lambda: datetime.now(UTC))
 
     @property
     def provider_id(self) -> str:
@@ -126,6 +133,36 @@ class YFinanceClient(BaseDataClient):
         """
         return self.fetch_current_quote(ticker).price
 
+    def resolve_security_identity(self, request: SecurityIdentityRequest) -> SecurityIdentity | None:
+        """Return best-effort current Yahoo descriptive metadata for one instrument."""
+        if request.provider_id != YFINANCE_PROVIDER_ID:
+            return None
+
+        stderr_buffer = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(stderr_buffer):
+                raw_metadata = yf.Ticker(request.ticker).info
+        except Exception as err:
+            logger.debug("Optional identity metadata unavailable for %r: %s", request.ticker, err)
+            logger.debug(f"Stderr buffer contents: {stderr_buffer.getvalue()} - Ticker: {request.ticker}")
+            raise DataFetchError(f"Unable to resolve identity metadata for '{request.ticker}' via yfinance.") from err
+
+        if not isinstance(raw_metadata, Mapping):
+            return None
+        instrument_name = _first_metadata_text(raw_metadata, "longName", "shortName", "displayName")
+        listing_venue = _first_metadata_text(raw_metadata, "fullExchangeName", "exchange")
+        instrument_identifier = _first_metadata_text(raw_metadata, "uuid")
+        if instrument_name is None and listing_venue is None and instrument_identifier is None:
+            return None
+        return SecurityIdentity(
+            ticker=request.ticker,
+            instrument_name=instrument_name,
+            listing_venue=listing_venue,
+            instrument_identifier=instrument_identifier,
+            provider_id=YFINANCE_PROVIDER_ID,
+            resolved_at=self._clock(),
+        )
+
     def _fetch_currency(self, ticker: str) -> str | None:
         """Best-effort currency enrichment that never invalidates usable price history."""
         stderr_buffer = io.StringIO()
@@ -141,3 +178,12 @@ class YFinanceClient(BaseDataClient):
             return None
         currency = raw_currency.strip().upper()
         return currency or None
+
+
+def _first_metadata_text(metadata: Mapping[object, object], *keys: str) -> str | None:
+    """Return the first non-empty Yahoo metadata string without changing its case."""
+    for key in keys:
+        value = metadata.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return None

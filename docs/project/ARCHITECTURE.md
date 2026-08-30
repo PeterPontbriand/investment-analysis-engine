@@ -4,8 +4,8 @@
 **Active implementation detail:** `milestones/v0.2/IMPLEMENTATION_PLAN.md`<br/>
 **Step 2.3 implementation specification:** `milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Rationale:** `docs/project/DISCOVERY_WORKBOOK.md`<br/>
-**Last updated:** 2026-08-24<br/>
-**Current status:** Step 2.2 implementation complete. Step 2.3 Slices A–F2 are implemented and approved; Slice G documentation synchronization, final cleanup, complete gate, and explicit completion review are in progress. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
+**Last updated:** 2026-08-30<br/>
+**Current status:** Steps 2.2–2.4 are complete and approved. Slice G documentation synchronization, the complete repository gate, and explicit Step 2.4 closeout approval completed on 2026-08-30. Step 2.5 Golden-Test Suite & Strategy Evaluation is the current step. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
 
 This document describes current boundaries and approved near-term target seams. Current Step 2.3 components are identified as implemented; later persistence/workspace/evaluation components remain explicitly labeled targets. It does not override the active milestone plan's sequencing or review gates.
 
@@ -17,7 +17,7 @@ This document describes current boundaries and approved near-term target seams. 
 2. **Typed boundaries:** Tool/analyzer/data inputs and outputs are explicitly typed at application boundaries.
 3. **Heterogeneous strategies:** Different financial strategies may have different config/data/result shapes. The architecture must not make every analysis Momentum-shaped.
 4. **No speculative strategy framework:** Reuse the existing `BaseAnalyzer` and current tool-dispatch flow unless implementation proves a new abstraction is necessary.
-5. **Provider isolation:** Historical-price access remains behind `BaseDataClient`; Step 2.3 valuation facts use a dedicated provider/resolution boundary rather than enlarging a price-history-shaped interface.
+5. **Provider isolation:** Historical-price access remains behind `BaseDataClient`; Step 2.3 financial facts use a dedicated provider/resolution boundary rather than enlarging a price-history-shaped interface.
 6. **Historical prices, quotes, fundamentals, and macro series are distinct capabilities:** A composed valuation façade may coordinate narrow providers, but no upstream service is assumed to supply every capability.
 7. **Evaluation is not persistence:** Golden fixtures, evaluation results, trajectory telemetry, and production market-data storage are separate concerns.
 8. **Local-LLM boundary:** The LLM cannot directly execute shell/code or access the external network. Registered data tools may perform controlled provider access.
@@ -25,10 +25,11 @@ This document describes current boundaries and approved near-term target seams. 
 10. **Light Mode first:** Core useful analysis must remain viable under the documented Light Mode workflow.
 11. **Method-explicit financial semantics:** Graham Number and Graham growth value retain distinct names, inputs, typed results, and limitations.
 12. **Time-bounded provenance:** Resolved inputs preserve source, reporting/observation and availability dates, transformations, cache/override state, and requested analysis `as_of`.
-13. **Presentation without homogenization:** Momentum and Graham use a coherent investor-facing visual grammar while retaining strategy-specific typed result models.
+13. **Presentation without homogenization:** Momentum, Graham, and Free Cash Flow & Earnings Growth use a coherent investor-facing visual grammar while retaining strategy-specific typed result models.
 14. **Operational logs are not product UI:** User results are rendered by a presentation boundary; logs and trajectory telemetry remain diagnostics/execution evidence.
 15. **Analysis Run is a product-domain record:** Step 3.4 persists requested analysis/config/result/provenance history separately from telemetry `RunContext`; reports/views render that record.
 16. **Bounded v0.2 agentic behavior:** User-initiated refresh may execute independent analysis jobs concurrently. Daemons, unattended scheduling, proactive monitoring, and notifications remain later autonomy work.
+17. **Deterministic, versioned investor-report projection:** A stored Analysis Run is projected into an investor report without provider access, LLM synthesis, financial recalculation, or current-state enrichment. The projection contract has its own explicit version, independent of strategy method and result-schema versions.
 
 ---
 
@@ -45,17 +46,14 @@ This document describes current boundaries and approved near-term target seams. 
                               ▼
                     Tool / analysis dispatch
                               │
-               ┌──────────────┴──────────────┐
-               ▼                             ▼
-      MomentumAnalyzer                  Graham analysis
-        (implemented)              number / growth methods
-               │                             │
-      historical prices              GrahamInputResolver
-               │               override → cache → provider
-               │                             │
-       BaseDataClient              ValuationFactsProvider
-               │              SEC · Massive · Yahoo quote
-               └──────────────┬──────────────┘
+       ┌───────────────┬───────────────────┐
+       ▼               ▼                   ▼
+ MomentumAnalyzer  Graham analysis   FCFEarningsGrowthAnalyzer
+       │           number / growth           │
+historical prices  GrahamInputResolver  AnnualGrowthSeriesResolver
+       │               │                   │
+ BaseDataClient   FinancialFactsProvider  SEC annual facts
+       └───────────────┴───────────────────┘
                               ▼
                      typed strategy result
                               │
@@ -86,7 +84,7 @@ Existing abstract analysis boundary. A strategy owns:
 - only the data capabilities it actually requires.
 
 ### `MomentumAnalyzer`
-Existing deterministic SMA/crossover analyzer. It consumes historical market data and returns Momentum-specific metrics.
+Deterministic SMA/crossover/RSI analyzer. `MomentumInputResolver` consumes the provider-neutral `MarketDataProvider` boundary, applies strict `bar_timestamp <= effective_as_of` truncation before calculation, wraps retained closes in `ResolvedInput` provenance, and records a `ResolutionTrace`. `MomentumPolicy` owns the short/long/RSI defaults. SMA and RSI availability is exposed through standard `MetricResult` values with `insufficient_history` reason codes while compatibility views preserve the existing optional numeric fields.
 
 ### Graham analysis (Step 2.3 implemented through F2)
 The Graham family has two method identifiers:
@@ -98,21 +96,33 @@ The implemented direct command is `financial-agents graham TICKER [--method numb
 
 Graham is intentionally not required to return `TrendStatus` or consume a historical DataFrame merely to look like Momentum.
 
+### Free Cash Flow & Earnings Growth analysis (Step 2.4 implemented through Slice F-1)
+`FCFEarningsGrowthAnalyzer` deterministically derives completed annual total-company FCF and FCF per diluted share, computes their CAGRs alongside diluted-EPS CAGR, and returns a versioned `FCFEarningsGrowthResult`. Its classification is `PASS`, `FAIL`, or `INDETERMINATE`, separate from software execution status.
+
+`ProductionAnnualGrowthSeriesResolver` selects compatible, contiguous annual evidence under the requested `as_of` boundary. The default horizon policy prefers 5 elapsed years, then 4, then 3; explicit horizons are strict. Total-company FCF controls classification by default, while an explicit policy can select FCF per diluted share. Optional FCF yield is informational only, and optional forward EPS evidence follows an explicit display-only, confirmation, or hard-gate policy.
+
+The direct command is `financial-agents fcf-growth TICKER`. The strategy retains its own policy, annual-observation, metric, classification, and forward-evidence types rather than being forced into either the Momentum or Graham result shape.
+
 ### `BaseDataClient`
 Existing provider boundary for historical market prices. Under the selected Step 2.3 Option A direction, it remains price-history focused rather than becoming the owner of fundamentals, valuation quotes, macro series, and cache policy.
 
 Current quote retrieval is a separate valuation capability; it is not implemented as a one-day historical request.
 
-### `ValuationFactsProvider` boundary (Step 2.3 implemented)
-A dedicated provider-neutral valuation-input boundary supplies or composes the minimum quote and company-fundamental capabilities required by the two Graham methods. The contract can represent macro observations, but the production CLI does not currently claim an approved live AAA-yield series.
+### `FinancialFactsProvider` boundary (Step 2.3 implemented)
+A dedicated provider-neutral financial-fact boundary supplies or composes the minimum quote and company-fundamental capabilities required by the two Graham methods. The contract can represent macro observations, but the production CLI does not currently claim an approved live AAA-yield series.
 
 Implemented production adapters are deliberately narrow:
 
 - **SEC EDGAR (`sec_edgar`)** — completed fiscal-year diluted EPS and fiscal-year-end balance-sheet components used for conservative BVPS derivation. Common shares may use the verified issued-minus-treasury derivation; zero preferred shares may be inferred only under the narrowly approved evidence rules. Direct BVPS remains unsupported by SEC Company Facts in this adapter.
 - **Massive (`massive`)** — current TTM diluted EPS and current price for the Massive when explicitly selected. Live use requires `MASSIVE_API_KEY`; current-only facts do not masquerade as historical evidence.
-- **Yahoo Finance (`yfinance`)** — narrow current-price valuation adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts. It does not claim historical quote support through the valuation-facts contract.
+- **Yahoo Finance (`yfinance`)** — narrow current-price financial-facts adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts. It does not claim historical quote support through the financial-facts contract.
 
-The Graham Number using its standard SEC financial facts uses SEC financial facts plus Yahoo current quote comparison. SEC-backed Growth also defaults to three-year-average EPS plus Yahoo quote; explicitly selecting Massive uses its supported TTM EPS/current-price data.
+The Graham Number using its standard SEC financial facts uses SEC financial facts plus Yahoo current quote comparison. Its explicit Massive route is deliberately limited to Massive TTM EPS plus a BVPS override and may use a Massive quote. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote; explicitly selecting Massive uses its supported TTM EPS/current-price data. Unsupported provider/basis combinations are rejected before provider work.
+
+### Security identity (Step 2.4 Slice F-1 implemented)
+`SecurityIdentityProvider` is a narrow optional capability beside, not inside, numeric financial facts. It returns an immutable current descriptive snapshot with normalized ticker, optional instrument name/listing venue/issuer and instrument identifiers, provider identity, and timezone-aware `resolved_at`. SEC retains current ticker-title/CIK evidence from its ticker mapping; Yahoo retains supported instrument metadata, including non-company names where available.
+
+Identity resolution is best-effort and occurs at most once for one direct analysis after the strategy data path has had an opportunity to retain provider evidence. Missing metadata, unsupported capability, and lookup failure fall back to ticker-only display and cannot alter calculation status, financial classification, data eligibility, warnings, or ticker-verification behavior. A present name uses `Instrument Name (TICKER) — Analysis`; whitespace is normalized without changing official capitalization or punctuation. Current metadata does not prove the identity that applied at a historical analysis `as_of`.
 
 ### `GrahamInputResolver` / input resolution (Step 2.3 implemented)
 Resolves each required field independently using:
@@ -123,14 +133,14 @@ explicit override → valid cache → configured provider → unavailable
 
 Calculators receive resolved values and do not perform I/O. The resolver enforces requested `as_of` boundaries and preserves typed provenance. Method-input assembly adds only method-semantic annotations that are justified by retained evidence, such as fiscal-year-end basis on derived BVPS.
 
-### Valuation cache seam (Step 2.3 implemented)
+### Resolved-input cache seam (Step 2.3 implemented)
 A narrow in-memory/fixture-backed `get`/`put` seam proves precedence, temporal eligibility, and provenance. The resolver—not the cache—owns provider fallback. Durable SQLite-backed caching remains Step 3.1.
 
 ### Resolved input and provenance models (Step 2.3 implemented)
 Typed records preserve value, units/currency, source kind, provider field/series, reporting/observation period, availability/filing date where supplied, analysis `as_of`, retrieval time, transformations/derived lineage, and override/cache state.
 
 ### Fixture-backed data capabilities
-Introduced minimally in Step 2.3 to prove the historical-price and valuation-input contracts:
+Introduced minimally in Step 2.3 to prove the historical-price and financial-fact contracts:
 - deterministic;
 - historical data for Momentum;
 - quote, EPS history/TTM EPS, BVPS facts/components, and AAA-yield observations for Graham;
@@ -141,15 +151,19 @@ Introduced minimally in Step 2.3 to prove the historical-price and valuation-inp
 
 Fixture support for a capability does not claim that the same capability exists in a production adapter. Step 2.4 reuses this foundation for Golden cases.
 
-### Investor-facing result presentation (Step 2.3 implemented)
-A narrow presentation seam maps Momentum and Graham typed outputs into a common investor-facing grammar without altering their domain models. The default view is concise and result-first where a successful method has a headline value; details expose financial provenance; diagnostics expose resolution mechanics; JSON exposes stable machine-readable data with `schema_version = 1`. Material overrides and warnings remain visible.
+### Investor-facing result presentation (Steps 2.3 and 2.4 implemented through Slice F-1)
+A narrow presentation seam maps Momentum, Graham, and Free Cash Flow & Earnings Growth typed outputs into a common investor-facing grammar without altering their domain models. The default view is concise and result-first; details expose financial provenance; diagnostics expose resolution mechanics; JSON exposes each strategy's stable versioned machine-readable contract. Material overrides and warnings remain visible.
 
-The Graham Number is labeled as a **maximum indicated price / screening ceiling**. The Growth view makes the expected-growth assumption explicit and warns when the AAA yield is user-supplied. Successful concise output omits redundant `Status: ok` and `As of: current`; historical requests surface the `as_of` boundary in the heading.
+Each JSON presentation exposes one explicit nullable `security_identity` snapshot. Momentum and Graham presentation schemas increment from 1 to 2. The FCF/Earnings Growth presentation schema increments from 2 to 3 while retaining `result_schema_version = 2`, because identity is presentation metadata and does not change the typed calculation result.
+
+The Graham Number is labeled as a **maximum indicated price / screening ceiling**. The Growth view makes the expected-growth assumption explicit and warns when the AAA yield is user-supplied. Successful concise output omits redundant `Status: ok` and `As of: current`; historical requests surface the `as_of` boundary in the heading. All required-input/provider/ticker failures pass through the typed presentation boundary, and every calculation status has an exhaustive plain-English investor label.
 
 ### `AnalysisRun` (Step 3.4 target)
-A durable investor-domain record of one requested analysis. It owns an `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, warnings, timestamps, and calculation/version identifiers. It may link to execution/trajectory identity but must not overload telemetry `RunContext`.
+A durable investor-domain record of one requested analysis. It owns an `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, warnings, timestamps, calculation/version identifiers, and the nullable security-identity snapshot used by that completed run (including `resolved_at`). It may link to execution/trajectory identity but must not overload telemetry `RunContext`.
 
-A report is a rendering of an Analysis Run, not a second canonical result object in v0.2.
+A report is a rendering of an Analysis Run, not a second canonical result object in v0.2. Viewing an old run must use its persisted identity snapshot rather than re-resolving the ticker and silently relabeling history after ticker reuse.
+
+The investor-report boundary is a deterministic, versioned projection. Given the same persisted Analysis Run, projection version, presentation mode, and explicit locale/format options, it must produce the same semantic report without provider calls, LLM calls, financial recalculation, mutable cache reads, or wall-clock-dependent enrichment. The report exposes its projection version separately from the run's calculation method version and typed result-schema version. A breaking change to report structure or field meaning requires a new projection version; historical projection versions remain reproducible or require an explicit, auditable migration rather than being silently reinterpreted.
 
 ### Watchlist / refresh workspace (Step 3.4 target)
 Named watchlists hold tickers and supported requested analyses. A user-initiated refresh may execute independent ticker/analysis jobs concurrently and persist each outcome as it finishes. No daemon, scheduler, proactive monitoring, or notification service is implied.
@@ -185,6 +199,11 @@ src/
 ├── analysis/
 │   ├── base.py
 │   ├── momentum/
+│   ├── fcf_earnings_growth/
+│   │   ├── analyzer.py
+│   │   ├── calculators.py
+│   │   ├── input_resolver.py
+│   │   └── models.py
 │   └── graham_value/
 │       ├── calculators.py
 │       ├── input_resolver.py
@@ -209,6 +228,7 @@ src/
 │       └── valuation.py
 ├── reporting/
 │   ├── graham.py
+│   ├── fcf_earnings_growth.py
 │   ├── momentum.py
 │   └── presentation.py
 ├── llm/
@@ -232,8 +252,8 @@ External Provider
 Provider Adapter Boundary
       │
       ├── BaseDataClient ─────────────► historical series ─► Momentum
-      │
-      └── ValuationFactsProvider
+      ├── SecurityIdentityProvider ───► current descriptive identity snapshot
+      └── FinancialFactsProvider
               ├── quote
               ├── company fundamentals
               └── macro observation contract
@@ -261,15 +281,17 @@ Golden fixture data ──► fixture adapter ──► deterministic/evaluation
 trajectory events   ──► telemetry sink (JSONL / SQLite)
 production data     ──► SQLite/cache repositories
 analysis result     ──► Analysis Run repository (Step 3.4)
-Analysis Run        ──► concise/details/diagnostic/JSON view
+identity snapshot   ──► same Analysis Run (never re-resolved for historical viewing)
+Analysis Run        ──► versioned deterministic report projection
+report projection   ──► concise/details/diagnostic/JSON view
 evaluation result   ──► Golden evaluation artifact
 ```
 
 These stores/artifacts must not be collapsed merely because they can all be serialized. In particular, telemetry describes execution, while an Analysis Run is the durable investor-facing outcome of one requested analysis.
 
-## 7. Golden-Suite architecture (Step 2.4)
+## 7. Golden-Suite architecture (Step 2.5)
 
-Step 2.4 consumes the stable Step 2.3 contracts.
+Step 2.5 consumes the stable Steps 2.3–2.4 contracts.
 
 ```text
 Golden Case
@@ -326,7 +348,7 @@ Private model reasoning is never reconstructed.
 
 - Recoverable failures may enter a bounded retry/repair flow.
 - Non-recoverable failures halt with structured diagnostics.
-- Step 2.5 owns hard execution/time/error caps.
+- Step 2.6 owns hard execution/time/error caps.
 - The configured limits are authoritative; runtime documents must not invent a separate fixed turn limit.
 - Telemetry sink failures fail open.
 
@@ -341,7 +363,7 @@ Private model reasoning is never reconstructed.
 - Keep calculators free of provider/cache/CLI I/O.
 - Enforce requested `as_of` as an information boundary; do not substitute later current facts.
 - Do not claim a production AAA-yield series until its identity, semantics, availability, and integration are explicitly approved.
-- Do not build Step 2.4 evaluator/reporting work during Step 2.3.
+- Do not build Step 2.5 evaluator/reporting work during Steps 2.3–2.4.
 - Do not build Step 3.1 production persistence/cache during Step 2.3/2.4.
 - Do not use operational logger lines as the primary investor-facing result renderer.
 - Do not force Momentum and Graham into one generic result object merely for presentation.

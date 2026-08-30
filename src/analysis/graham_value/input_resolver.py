@@ -8,15 +8,15 @@ from datetime import datetime
 
 from src.analysis.graham_value.models import GrahamMethod
 from src.core.analysis_status import CalculationStatus
-from src.data.valuation.facts import ValuationFactRequest, ValuationField
-from src.data.valuation.provenance import ResolvedInput, SourceKind, ValuationSubjectKind
-from src.data.valuation.resolution_trace import (
+from src.data.financial.facts import FinancialFactRequest, FinancialField
+from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from src.data.financial.resolution_trace import (
     ResolutionEvent,
     ResolutionOutcome,
     ResolutionStage,
     ResolutionTrace,
 )
-from src.data.valuation.resolver import InputResolutionResult, InputResolver
+from src.data.financial.resolver import InputResolutionResult, InputResolver
 
 
 @dataclass(frozen=True)
@@ -150,10 +150,10 @@ class GrahamInputResolver(InputResolver):
             )
         eps_input = eps_result.resolved_input
 
-        bvps_request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        bvps_request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=security_subject_id,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             provider_id=security_provider_id,
             as_of=as_of,
         )
@@ -262,10 +262,10 @@ class GrahamInputResolver(InputResolver):
             )
         growth_input = growth_result.resolved_input
 
-        aaa_request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.MACRO,
+        aaa_request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.MACRO,
             subject_id=aaa_subject_id,
-            field_name=ValuationField.CURRENT_AAA_YIELD,
+            field_name=FinancialField.CURRENT_AAA_YIELD,
             provider_id=aaa_provider_id,
             as_of=as_of,
         )
@@ -337,10 +337,10 @@ class GrahamInputResolver(InputResolver):
         """
         if eps_override is not None:
             # Override bypasses cache/provider; retain the selected basis.
-            request = ValuationFactRequest(
-                subject_kind=ValuationSubjectKind.SECURITY,
+            request = FinancialFactRequest(
+                subject_kind=FinancialSubjectKind.SECURITY,
                 subject_id=security_subject_id,
-                field_name=ValuationField.EPS,
+                field_name=FinancialField.EPS,
                 provider_id=security_provider_id,
                 basis=eps_basis,
                 as_of=as_of,
@@ -348,10 +348,10 @@ class GrahamInputResolver(InputResolver):
             return self.resolve(request, override=eps_override, use_cache=use_cache)
 
         if eps_basis == "three_year_average":
-            request = ValuationFactRequest(
-                subject_kind=ValuationSubjectKind.SECURITY,
+            request = FinancialFactRequest(
+                subject_kind=FinancialSubjectKind.SECURITY,
                 subject_id=security_subject_id,
-                field_name=ValuationField.EPS,
+                field_name=FinancialField.EPS,
                 provider_id=security_provider_id,
                 basis="fiscal_year",
                 as_of=as_of,
@@ -360,10 +360,10 @@ class GrahamInputResolver(InputResolver):
             return self.resolve_three_year_average_eps(request, use_cache=use_cache)
 
         # Single-observation basis (ttm, etc.)
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=security_subject_id,
-            field_name=ValuationField.EPS,
+            field_name=FinancialField.EPS,
             provider_id=security_provider_id,
             basis=eps_basis,
             as_of=as_of,
@@ -436,10 +436,10 @@ class GrahamInputResolver(InputResolver):
 
         Note: this method is only called after all required inputs succeed.
         """
-        request = ValuationFactRequest(
-            subject_kind=ValuationSubjectKind.SECURITY,
+        request = FinancialFactRequest(
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=security_subject_id,
-            field_name=ValuationField.CURRENT_PRICE,
+            field_name=FinancialField.CURRENT_PRICE,
             provider_id=security_provider_id,
             as_of=as_of,
         )

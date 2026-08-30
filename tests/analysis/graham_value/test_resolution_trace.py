@@ -8,16 +8,16 @@ import pytest
 
 from src.analysis.graham_value.input_resolver import GrahamInputResolver
 from src.core.analysis_status import CalculationStatus
-from src.data.valuation.cache import InMemoryValuationCache
-from src.data.valuation.facts import (
+from src.data.financial.cache import InMemoryResolvedInputCache
+from src.data.financial.facts import (
+    FinancialFactRequest,
+    FinancialField,
+    FinancialProviderError,
+    FinancialUnit,
     ProviderFact,
-    ValuationFactRequest,
-    ValuationField,
-    ValuationProviderError,
-    ValuationUnit,
 )
-from src.data.valuation.provenance import ValuationSubjectKind
-from src.data.valuation.resolution_trace import (
+from src.data.financial.provenance import FinancialSubjectKind
+from src.data.financial.resolution_trace import (
     ResolutionEvent,
     ResolutionOutcome,
     ResolutionStage,
@@ -31,12 +31,12 @@ PERIOD_END = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)
 class RecordingProvider:
     """Small provider fake that records requests and returns configured facts."""
 
-    def __init__(self, facts_by_field: dict[ValuationField, tuple[ProviderFact, ...]]) -> None:
+    def __init__(self, facts_by_field: dict[FinancialField, tuple[ProviderFact, ...]]) -> None:
         """Initialize configured facts."""
         self.facts_by_field = facts_by_field
-        self.calls: list[ValuationFactRequest] = []
+        self.calls: list[FinancialFactRequest] = []
 
-    def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Record the request and return facts for its semantic field."""
         self.calls.append(request)
         return self.facts_by_field.get(request.field_name, ())
@@ -45,15 +45,15 @@ class RecordingProvider:
 class ErrorProvider:
     """Provider fake that always raises an operational provider error."""
 
-    def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Raise a deterministic provider error."""
-        raise ValuationProviderError(f"boom for {request.field_name.value}")
+        raise FinancialProviderError(f"boom for {request.field_name.value}")
 
 
-def _request(field: ValuationField, *, basis: str | None = None) -> ValuationFactRequest:
+def _request(field: FinancialField, *, basis: str | None = None) -> FinancialFactRequest:
     """Build a current security request."""
-    return ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    return FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="NDAQ",
         field_name=field,
         provider_id="fixture",
@@ -62,16 +62,16 @@ def _request(field: ValuationField, *, basis: str | None = None) -> ValuationFac
 
 
 def _fact(
-    field: ValuationField,
+    field: FinancialField,
     value: float,
     *,
-    units: ValuationUnit,
+    units: FinancialUnit,
     basis: str | None = None,
     currency: str | None = None,
 ) -> ProviderFact:
     """Build one deterministic provider fact."""
     return ProviderFact(
-        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="NDAQ",
         field_name=field,
         value=value,
@@ -114,10 +114,10 @@ def test_override_trace_short_circuits_cache_and_provider() -> None:
     """An explicit override records only the path that was actually taken."""
     provider = RecordingProvider({})
     resolver = GrahamInputResolver(
-        provider=provider, cache=InMemoryValuationCache(clock=lambda: NOW), clock=lambda: NOW
+        provider=provider, cache=InMemoryResolvedInputCache(clock=lambda: NOW), clock=lambda: NOW
     )
 
-    result = resolver.resolve(_request(ValuationField.EPS, basis="ttm"), override=5.0)
+    result = resolver.resolve(_request(FinancialField.EPS, basis="ttm"), override=5.0)
 
     assert result.status is CalculationStatus.OK
     assert _event_signature(result.resolution_trace) == [
@@ -129,18 +129,18 @@ def test_override_trace_short_circuits_cache_and_provider() -> None:
 def test_cache_miss_then_provider_success_is_recorded_in_order() -> None:
     """A real cache miss and provider fallback produce an ordered trace."""
     fact = _fact(
-        ValuationField.EPS,
+        FinancialField.EPS,
         5.0,
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         basis="ttm",
         currency="USD",
     )
-    provider = RecordingProvider({ValuationField.EPS: (fact,)})
+    provider = RecordingProvider({FinancialField.EPS: (fact,)})
     resolver = GrahamInputResolver(
-        provider=provider, cache=InMemoryValuationCache(clock=lambda: NOW), clock=lambda: NOW
+        provider=provider, cache=InMemoryResolvedInputCache(clock=lambda: NOW), clock=lambda: NOW
     )
 
-    result = resolver.resolve(_request(ValuationField.EPS, basis="ttm"))
+    result = resolver.resolve(_request(FinancialField.EPS, basis="ttm"))
 
     assert result.status is CalculationStatus.OK
     assert _event_signature(result.resolution_trace) == [
@@ -156,16 +156,16 @@ def test_cache_miss_then_provider_success_is_recorded_in_order() -> None:
 def test_cache_hit_records_hit_and_does_not_repeat_provider_attempt() -> None:
     """A second identical request resolves from cache without inventing a provider attempt."""
     fact = _fact(
-        ValuationField.EPS,
+        FinancialField.EPS,
         5.0,
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         basis="ttm",
         currency="USD",
     )
-    provider = RecordingProvider({ValuationField.EPS: (fact,)})
-    cache = InMemoryValuationCache(clock=lambda: NOW)
+    provider = RecordingProvider({FinancialField.EPS: (fact,)})
+    cache = InMemoryResolvedInputCache(clock=lambda: NOW)
     resolver = GrahamInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
-    request = _request(ValuationField.EPS, basis="ttm")
+    request = _request(FinancialField.EPS, basis="ttm")
 
     first = resolver.resolve(request)
     second = resolver.resolve(request)
@@ -183,7 +183,7 @@ def test_provider_error_is_classified_without_losing_attempt_event() -> None:
     """Operational provider failures are distinct from ordinary unavailability."""
     resolver = GrahamInputResolver(provider=ErrorProvider(), clock=lambda: NOW)
 
-    result = resolver.resolve(_request(ValuationField.EPS, basis="ttm"))
+    result = resolver.resolve(_request(FinancialField.EPS, basis="ttm"))
 
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert _event_signature(result.resolution_trace)[-2:] == [
@@ -195,34 +195,34 @@ def test_provider_error_is_classified_without_losing_attempt_event() -> None:
 def test_bvps_fallback_trace_preserves_direct_failure_component_paths_and_derivation() -> None:
     """A derived BVPS trace shows why fallback occurred and how derivation succeeded."""
     equity = _fact(
-        ValuationField.STOCKHOLDERS_EQUITY,
+        FinancialField.STOCKHOLDERS_EQUITY,
         100.0,
-        units=ValuationUnit.CURRENCY,
+        units=FinancialUnit.CURRENCY,
         basis="fiscal_year_end",
         currency="USD",
     )
     preferred = _fact(
-        ValuationField.PREFERRED_SHARES_OUTSTANDING,
+        FinancialField.PREFERRED_SHARES_OUTSTANDING,
         0.0,
-        units=ValuationUnit.SHARES,
+        units=FinancialUnit.SHARES,
         basis="fiscal_year_end",
     )
     common = _fact(
-        ValuationField.COMMON_SHARES_OUTSTANDING,
+        FinancialField.COMMON_SHARES_OUTSTANDING,
         10.0,
-        units=ValuationUnit.SHARES,
+        units=FinancialUnit.SHARES,
         basis="fiscal_year_end",
     )
     provider = RecordingProvider(
         {
-            ValuationField.STOCKHOLDERS_EQUITY: (equity,),
-            ValuationField.PREFERRED_SHARES_OUTSTANDING: (preferred,),
-            ValuationField.COMMON_SHARES_OUTSTANDING: (common,),
+            FinancialField.STOCKHOLDERS_EQUITY: (equity,),
+            FinancialField.PREFERRED_SHARES_OUTSTANDING: (preferred,),
+            FinancialField.COMMON_SHARES_OUTSTANDING: (common,),
         }
     )
     resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
 
-    result = resolver.resolve_bvps(_request(ValuationField.BVPS))
+    result = resolver.resolve_bvps(_request(FinancialField.BVPS))
 
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
@@ -263,22 +263,22 @@ def test_graham_number_assembly_aggregates_field_traces_in_resolution_order() ->
 def test_optional_quote_unavailability_is_retained_in_method_trace() -> None:
     """A valid valuation keeps its value while diagnostics retain quote degradation."""
     eps = _fact(
-        ValuationField.EPS,
+        FinancialField.EPS,
         5.0,
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         basis="ttm",
         currency="USD",
     )
     bvps = _fact(
-        ValuationField.BVPS,
+        FinancialField.BVPS,
         10.0,
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         currency="USD",
     )
     provider = RecordingProvider(
         {
-            ValuationField.EPS: (eps,),
-            ValuationField.BVPS: (bvps,),
+            FinancialField.EPS: (eps,),
+            FinancialField.BVPS: (bvps,),
         }
     )
     resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)

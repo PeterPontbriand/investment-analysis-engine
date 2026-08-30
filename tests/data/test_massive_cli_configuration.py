@@ -6,7 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from src.cli import app
-from src.data.massive.valuation import MassiveValuationAdapter
+from src.data.massive.financial_facts import MassiveFinancialFactsAdapter
 
 runner = CliRunner()
 
@@ -15,7 +15,7 @@ def test_massive_adapter_remains_constructible_without_credentials(monkeypatch: 
     """Preserve the provider contract: missing credentials do not break construction."""
     monkeypatch.delenv("MASSIVE_API_KEY", raising=False)
 
-    adapter = MassiveValuationAdapter()
+    adapter = MassiveFinancialFactsAdapter()
 
     assert adapter.is_configured is False
 

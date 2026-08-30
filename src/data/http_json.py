@@ -1,4 +1,4 @@
-"""Shared HTTP/JSON transport primitives for production valuation adapters."""
+"""Shared HTTP/JSON transport primitives for production financial-facts adapters."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from urllib.request import Request, urlopen
 
 
 class JsonFetcher(Protocol):
-    """Callable transport used by production valuation adapters."""
+    """Callable transport used by production financial-facts adapters."""
 
     def __call__(self, url: str, *, headers: Mapping[str, str]) -> object:
         """Return the decoded JSON payload for *url*."""

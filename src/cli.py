@@ -10,6 +10,14 @@ from typing import Annotated
 
 import typer
 
+from src.analysis.fcf_earnings_growth import (
+    FCFClassificationBasis,
+    FCFEarningsGrowthAnalyzer,
+    FCFEarningsGrowthPolicy,
+    ForwardPolicy,
+    HistoricalHorizon,
+    ProductionAnnualGrowthSeriesResolver,
+)
 from src.analysis.graham_value.calculators import compute_graham_growth_value, compute_graham_number
 from src.analysis.graham_value.input_resolver import (
     GrahamInputResolver,
@@ -23,18 +31,24 @@ from src.core.constants import ConfigKeys
 from src.core.telemetry import RunContext
 from src.core.telemetry.run_context import get_current_run_context, set_current_run_context
 from src.data.base_client import DataFetchError
-from src.data.valuation.cache import InMemoryValuationCache
-from src.data.valuation.facts import ValuationFactsProvider
-from src.data.valuation.provenance import ResolvedInput, SourceKind
-from src.data.valuation.providers import (
+from src.data.financial.cache import InMemoryResolvedInputCache
+from src.data.financial.facts import FinancialFactsProvider
+from src.data.financial.provenance import ResolvedInput, SourceKind
+from src.data.financial.providers import (
     MASSIVE_PROVIDER_ID,
     SEC_PROVIDER_ID,
     YFINANCE_PROVIDER_ID,
-    MassiveValuationAdapter,
-    ProductionValuationProvider,
-    SecEdgarValuationAdapter,
+    MassiveFinancialFactsAdapter,
+    ProductionFinancialFactsProvider,
+    SecEdgarFinancialFactsAdapter,
+)
+from src.data.security_identity import (
+    SecurityIdentityRequest,
+    SecurityIdentityResolution,
+    resolve_security_identity,
 )
 from src.data.yfinance import YFinanceClient
+from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.graham import (
     GrahamGrowthPresentation,
     GrahamNumberPresentation,
@@ -94,6 +108,11 @@ def momentum(  # noqa: PLR0913
         "-l",
         help="Long SMA window in daily market observations",
     ),
+    rsi_period: int = typer.Option(
+        _MOMENTUM_CLI_DEFAULTS.rsi_period,
+        "--rsi-period",
+        help="RSI lookback period in daily market observations",
+    ),
     details: bool = typer.Option(False, "--details", help="Show calculation and data-context details"),
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show retained execution diagnostics"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
@@ -101,17 +120,22 @@ def momentum(  # noqa: PLR0913
     """Execute SMA crossover momentum analysis over daily historical market prices."""
     target_ticker = _resolve_ticker(ticker, ticker_option, required=False)
     mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
-    _validate_momentum_windows(short_window, long_window)
+    _validate_momentum_windows(short_window, long_window, rsi_period)
 
     try:
         data_client = YFinanceClient()
         analyzer = MomentumAnalyzer(default_ticker=target_ticker, data_client=data_client)
-        config = MomentumConfig(short_window=short_window, long_window=long_window)
+        config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
         run = analyzer.run_with_context(config=config, ticker=target_ticker)
+        identity_resolution = resolve_security_identity(
+            data_client,
+            SecurityIdentityRequest(ticker=run.metrics.ticker, provider_id=data_client.provider_id),
+        )
         presentation = MomentumPresentation(
             metrics=run.metrics,
             config=config,
             market_data=run.market_data,
+            identity_resolution=identity_resolution,
         )
         typer.echo(render_momentum(presentation, mode))
     except DataFetchError as err:
@@ -162,7 +186,7 @@ def graham(  # noqa: PLR0913
         "--data-provider",
         help="Security-fact provider override; defaults to SEC EDGAR",
     ),
-    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the in-memory valuation cache"),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the in-memory resolved-input cache"),
     eps: float | None = typer.Option(None, "--eps", "-e", help="Explicit EPS override"),
     eps_basis: str | None = typer.Option(
         None,
@@ -262,7 +286,87 @@ def graham(  # noqa: PLR0913
         raise typer.Exit(code=exit_code)
 
 
-def _build_sec_production_provider() -> ProductionValuationProvider:
+@app.command(name="fcf-growth")
+def fcf_growth(  # noqa: PLR0913
+    ticker: str = typer.Argument(..., help="Target stock ticker symbol (e.g., AAPL, KO)"),
+    *,
+    growth_years: int | None = typer.Option(
+        None,
+        "--growth-years",
+        help="Strict elapsed-year horizon (3, 4, or 5); omit for automatic 5 → 4 → 3 selection",
+    ),
+    forward_policy: str = typer.Option(
+        "display-only",
+        "--forward-policy",
+        help="Forward evidence policy: display-only, confirmation, or hard-gate",
+    ),
+    classification_basis: str = typer.Option(
+        "total-fcf",
+        "--classification-basis",
+        help="Classification basis: total-fcf or fcf-per-share",
+    ),
+    as_of: str | None = typer.Option(
+        None, "--as-of", help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp"
+    ),
+    data_provider: str | None = typer.Option(None, "--data-provider", help="Defaults to SEC EDGAR"),
+    currency: str = typer.Option("USD", "--currency", help="ISO 4217 reporting currency for compatible annual facts"),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the in-memory resolved-input cache"),
+    details: bool = typer.Option(False, "--details", help="Show annual facts, provenance, and derivation lineage"),
+    diagnostics: bool = typer.Option(False, "--diagnostics", help="Show resolver execution trace"),
+    json_output: bool = typer.Option(False, "--json", help="Emit the complete versioned typed result"),
+) -> None:
+    """Execute the historical free-cash-flow and diluted-EPS growth screen."""
+    target_ticker = _resolve_ticker(ticker, None, required=True)
+    assert target_ticker is not None
+    mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+    horizon = _historical_horizon(growth_years)
+    analysis_as_of = _parse_as_of(as_of)
+    provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
+    normalized_currency = currency.strip().upper()
+    if len(normalized_currency) != 3 or not normalized_currency.isalpha():
+        raise typer.BadParameter("--currency must be a three-letter ISO 4217 code.")
+    policy = FCFEarningsGrowthPolicy(
+        historical_horizon=horizon,
+        classification_basis=_fcf_classification_basis(classification_basis),
+        forward_policy=_forward_policy(forward_policy),
+    )
+    boundary = analysis_as_of or datetime.now(UTC)
+
+    try:
+        provider = _build_sec_production_provider()
+        resolver = ProductionAnnualGrowthSeriesResolver(
+            provider,
+            cache=InMemoryResolvedInputCache(),
+            clock=lambda: boundary,
+        )
+        result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
+            ticker=target_ticker,
+            policy=policy,
+            currency=normalized_currency,
+            as_of=analysis_as_of,
+            provider_id=provider_id,
+            use_cache=not no_cache,
+            effective_as_of=boundary,
+        )
+        identity_resolution = resolve_security_identity(
+            provider,
+            SecurityIdentityRequest(ticker=target_ticker, provider_id=provider_id),
+        )
+    except ValueError as err:
+        typer.echo(f"Unable to start FCF & earnings-growth analysis: {err}", err=True)
+        raise typer.Exit(code=1) from err
+    except Exception as err:
+        typer.echo(f"FCF & earnings-growth analysis failed unexpectedly for {target_ticker}.", err=True)
+        raise typer.Exit(code=1) from err
+
+    output = render_fcf_earnings_growth(result, mode, identity_resolution)
+    exit_code = 0 if result.execution_status is CalculationStatus.OK else 1
+    typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
+    if exit_code:
+        raise typer.Exit(code=exit_code)
+
+
+def _build_sec_production_provider() -> ProductionFinancialFactsProvider:
     """Build the SEC-backed production provider from declared application identity."""
     user_agent = settings.sec_user_agent
     if user_agent is None or not user_agent.strip():
@@ -271,13 +375,13 @@ def _build_sec_production_provider() -> ProductionValuationProvider:
             "Set SEC_USER_AGENT to a declared identity such as "
             '"Your Name your-email@example.com" and retry.'
         )
-    sec_edgar = SecEdgarValuationAdapter(user_agent=user_agent)
-    return ProductionValuationProvider(sec_edgar=sec_edgar)
+    sec_edgar = SecEdgarFinancialFactsAdapter(user_agent=user_agent)
+    return ProductionFinancialFactsProvider(sec_edgar=sec_edgar)
 
 
-def _build_massive_production_provider() -> MassiveValuationAdapter:
+def _build_massive_production_provider() -> MassiveFinancialFactsAdapter:
     """Build Massive only when usable API credentials are configured."""
-    massive = MassiveValuationAdapter()
+    massive = MassiveFinancialFactsAdapter()
     if not massive.is_configured:
         raise ValueError("Massive access is not configured. Set MASSIVE_API_KEY and retry.")
     return massive
@@ -285,7 +389,7 @@ def _build_massive_production_provider() -> MassiveValuationAdapter:
 
 def _build_graham_resolver(*, method: GrahamCliMethod, data_provider: str | None) -> GrahamInputResolver:
     """Build only the production provider capabilities needed by this invocation."""
-    provider: ValuationFactsProvider
+    provider: FinancialFactsProvider
     if data_provider == MASSIVE_PROVIDER_ID:
         provider = _build_massive_production_provider()
     elif data_provider == SEC_PROVIDER_ID:
@@ -300,7 +404,7 @@ def _build_graham_resolver(*, method: GrahamCliMethod, data_provider: str | None
     else:
         raise AssertionError(f"Unhandled Graham method: {method!r}")
 
-    return GrahamInputResolver(provider, cache=InMemoryValuationCache())
+    return GrahamInputResolver(provider, cache=InMemoryResolvedInputCache())
 
 
 def _effective_graham_provider_id(method: GrahamCliMethod, data_provider: str | None) -> str:
@@ -349,14 +453,30 @@ def _run_graham_number(  # noqa: PLR0913
         as_of=as_of,
         use_cache=use_cache,
     )
+    identity_resolution = resolve_security_identity(
+        resolver.provider,
+        SecurityIdentityRequest(ticker=ticker, provider_id=security_provider_id),
+    )
 
     if assembly.status is not CalculationStatus.OK:
-        return _number_failure_output(ticker=ticker, assembly=assembly, as_of=as_of, mode=mode)
+        return _number_failure_output(
+            ticker=ticker,
+            assembly=assembly,
+            as_of=as_of,
+            mode=mode,
+            identity_resolution=identity_resolution,
+        )
 
     if not _has_provider_backed_security_evidence(assembly.eps, assembly.bvps, assembly.current_price):
         reason = _unverified_ticker_reason(ticker)
         unverified = replace(assembly, status=CalculationStatus.INPUT_UNAVAILABLE, reason=reason)
-        return _number_failure_output(ticker=ticker, assembly=unverified, as_of=as_of, mode=mode)
+        return _number_failure_output(
+            ticker=ticker,
+            assembly=unverified,
+            as_of=as_of,
+            mode=mode,
+            identity_resolution=identity_resolution,
+        )
 
     assert assembly.eps is not None
     assert assembly.bvps is not None
@@ -374,6 +494,7 @@ def _run_graham_number(  # noqa: PLR0913
         result=result,
         as_of=as_of,
         margin_of_safety_percent=margin,
+        identity_resolution=identity_resolution,
     )
     exit_code = 1 if result.status is CalculationStatus.INVALID_INPUT else 0
     return render_graham_number(presentation, mode), exit_code
@@ -409,14 +530,30 @@ def _run_graham_growth(  # noqa: PLR0913
         as_of=as_of,
         use_cache=use_cache,
     )
+    identity_resolution = resolve_security_identity(
+        resolver.provider,
+        SecurityIdentityRequest(ticker=ticker, provider_id=security_provider_id),
+    )
 
     if assembly.status is not CalculationStatus.OK:
-        return _growth_failure_output(ticker=ticker, assembly=assembly, as_of=as_of, mode=mode)
+        return _growth_failure_output(
+            ticker=ticker,
+            assembly=assembly,
+            as_of=as_of,
+            mode=mode,
+            identity_resolution=identity_resolution,
+        )
 
     if not _has_provider_backed_security_evidence(assembly.eps, assembly.current_price):
         reason = _unverified_ticker_reason(ticker)
         unverified = replace(assembly, status=CalculationStatus.INPUT_UNAVAILABLE, reason=reason)
-        return _growth_failure_output(ticker=ticker, assembly=unverified, as_of=as_of, mode=mode)
+        return _growth_failure_output(
+            ticker=ticker,
+            assembly=unverified,
+            as_of=as_of,
+            mode=mode,
+            identity_resolution=identity_resolution,
+        )
 
     assert assembly.eps is not None
     assert assembly.expected_growth is not None
@@ -445,6 +582,7 @@ def _run_graham_growth(  # noqa: PLR0913
         baseline_aaa_yield=baseline_aaa_yield,
         as_of=as_of,
         margin_of_safety_percent=margin,
+        identity_resolution=identity_resolution,
     )
     exit_code = 1 if result.status is CalculationStatus.INVALID_INPUT else 0
     return render_graham_growth(presentation, mode), exit_code
@@ -456,13 +594,18 @@ def _number_failure_output(
     assembly: GrahamNumberInputAssembly,
     as_of: datetime | None,
     mode: PresentationMode,
+    identity_resolution: SecurityIdentityResolution,
 ) -> tuple[str, int]:
     """Render a failed Number analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
-    if mode in (PresentationMode.CONCISE, PresentationMode.DETAILS):
-        return reason, 1
     safe_assembly = _number_with_public_quote_reason(replace(assembly, reason=reason))
-    presentation = GrahamNumberPresentation(ticker=ticker, assembly=safe_assembly, result=None, as_of=as_of)
+    presentation = GrahamNumberPresentation(
+        ticker=ticker,
+        assembly=safe_assembly,
+        result=None,
+        as_of=as_of,
+        identity_resolution=identity_resolution,
+    )
     return render_graham_number(presentation, mode), 1
 
 
@@ -472,11 +615,10 @@ def _growth_failure_output(
     assembly: GrowthValueInputAssembly,
     as_of: datetime | None,
     mode: PresentationMode,
+    identity_resolution: SecurityIdentityResolution,
 ) -> tuple[str, int]:
     """Render a failed growth analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
-    if mode in (PresentationMode.CONCISE, PresentationMode.DETAILS):
-        return reason, 1
     safe_assembly = _growth_with_public_quote_reason(replace(assembly, reason=reason))
     base_pe, growth_multiplier, baseline_aaa_yield = _growth_assumptions()
     presentation = GrahamGrowthPresentation(
@@ -487,6 +629,7 @@ def _growth_failure_output(
         growth_multiplier=growth_multiplier,
         baseline_aaa_yield=baseline_aaa_yield,
         as_of=as_of,
+        identity_resolution=identity_resolution,
     )
     return render_graham_growth(presentation, mode), 1
 
@@ -601,6 +744,13 @@ def _validate_graham_options(  # noqa: PLR0912, PLR0913
         selected = normalized_basis or "three_year_average"
         if selected not in ("three_year_average", "ttm"):
             raise typer.BadParameter("Number EPS basis must be 'three_year_average' or 'ttm'.")
+        if provider_id == MASSIVE_PROVIDER_ID and (selected != "ttm" or bvps is None):
+            raise typer.BadParameter("Massive Graham Number requires --eps-basis ttm and an explicit --bvps override.")
+        if provider_id == SEC_PROVIDER_ID and selected != "three_year_average":
+            raise typer.BadParameter(
+                "SEC EDGAR Graham Number supports --eps-basis three_year_average only; "
+                "use --data-provider massive with --bvps for TTM EPS."
+            )
         return selected
 
     if bvps is not None:
@@ -636,13 +786,16 @@ def _validate_graham_options(  # noqa: PLR0912, PLR0913
     return selected
 
 
-def _validate_momentum_windows(short_window: int, long_window: int) -> None:
-    """Reject invalid SMA windows with investor-readable domain language."""
+def _validate_momentum_windows(short_window: int, long_window: int, rsi_period: int) -> None:
+    """Reject invalid SMA/RSI periods with investor-readable domain language."""
     if short_window <= 0:
         typer.echo(f"Invalid momentum window: short window must be positive (received {short_window}).", err=True)
         raise typer.Exit(code=2)
     if long_window <= 0:
         typer.echo(f"Invalid momentum window: long window must be positive (received {long_window}).", err=True)
+        raise typer.Exit(code=2)
+    if rsi_period <= 0:
+        typer.echo(f"Invalid momentum period: RSI period must be positive (received {rsi_period}).", err=True)
         raise typer.Exit(code=2)
     if short_window >= long_window:
         typer.echo(
@@ -651,6 +804,39 @@ def _validate_momentum_windows(short_window: int, long_window: int) -> None:
             err=True,
         )
         raise typer.Exit(code=2)
+
+
+def _historical_horizon(growth_years: int | None) -> HistoricalHorizon:
+    """Convert the optional CLI horizon to the typed strict/automatic policy."""
+    if growth_years is None:
+        return HistoricalHorizon.LONGEST_AVAILABLE
+    mapping = {
+        3: HistoricalHorizon.THREE_YEARS,
+        4: HistoricalHorizon.FOUR_YEARS,
+        5: HistoricalHorizon.FIVE_YEARS,
+    }
+    try:
+        return mapping[growth_years]
+    except KeyError as exc:
+        raise typer.BadParameter("--growth-years must be 3, 4, or 5.") from exc
+
+
+def _forward_policy(value: str) -> ForwardPolicy:
+    """Map hyphenated investor-facing CLI values to the normative enum."""
+    normalized = value.strip().lower().replace("-", "_")
+    try:
+        return ForwardPolicy(normalized)
+    except ValueError as exc:
+        raise typer.BadParameter("--forward-policy must be display-only, confirmation, or hard-gate.") from exc
+
+
+def _fcf_classification_basis(value: str) -> FCFClassificationBasis:
+    """Map the investor-facing CLI value to the typed FCF basis policy."""
+    normalized = value.strip().lower().replace("-", "_")
+    try:
+        return FCFClassificationBasis(normalized)
+    except ValueError as exc:
+        raise typer.BadParameter("--classification-basis must be total-fcf or fcf-per-share.") from exc
 
 
 def _presentation_mode(*, details: bool, diagnostics: bool, json_output: bool) -> PresentationMode:

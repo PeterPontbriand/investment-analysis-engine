@@ -8,21 +8,21 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from src.core.analysis_status import CalculationStatus
-from src.data.valuation.cache import ValuationCacheKey, ValuationCacheProtocol
-from src.data.valuation.facts import (
+from src.data.financial.cache import ResolvedInputCacheKey, ResolvedInputCacheProtocol
+from src.data.financial.facts import (
+    FinancialFactRequest,
+    FinancialFactsProvider,
+    FinancialField,
+    FinancialProviderError,
+    FinancialUnit,
     ProviderFact,
-    ValuationFactRequest,
-    ValuationFactsProvider,
-    ValuationField,
-    ValuationProviderError,
-    ValuationUnit,
 )
-from src.data.valuation.provenance import (
+from src.data.financial.provenance import (
     ComponentLineage,
     ResolvedInput,
     SourceKind,
 )
-from src.data.valuation.resolution_trace import (
+from src.data.financial.resolution_trace import (
     ResolutionEvent,
     ResolutionOutcome,
     ResolutionStage,
@@ -83,7 +83,7 @@ class InputResolutionResult:
 
 
 class InputResolver:
-    """Resolves a single valuation fact through override, cache, or provider.
+    """Resolve a single financial fact through override, cache, or provider.
 
     Precedence for one field:
         1. Explicit override (short-circuits cache and provider).
@@ -92,8 +92,8 @@ class InputResolver:
         4. Explicit unavailable / provider-error outcome.
 
     Args:
-        provider: The configured ``ValuationFactsProvider``.
-        cache: Optional valuation cache implementation.
+        provider: The configured ``FinancialFactsProvider``.
+        cache: Optional resolved-input cache implementation.
         clock: Zero-argument callable returning a timezone-aware datetime.
             Defaults to ``datetime.now(UTC)``.
         cache_schema_version: Positive integer schema version for cache keys.
@@ -103,16 +103,16 @@ class InputResolver:
 
     def __init__(
         self,
-        provider: ValuationFactsProvider,
-        cache: ValuationCacheProtocol | None = None,
+        provider: FinancialFactsProvider,
+        cache: ResolvedInputCacheProtocol | None = None,
         clock: Callable[[], datetime] | None = None,
         cache_schema_version: int = 1,
     ) -> None:
         """Create an ``InputResolver``.
 
         Args:
-            provider: The configured ``ValuationFactsProvider``.
-            cache: Optional valuation cache.
+            provider: The configured ``FinancialFactsProvider``.
+            cache: Optional resolved-input cache.
             clock: Clock callable returning a timezone-aware datetime.
             cache_schema_version: Positive integer schema version for cache keys.
 
@@ -127,14 +127,23 @@ class InputResolver:
         self._clock: Callable[[], datetime] = clock if clock is not None else self._DEFAULT_CLOCK
         self._schema_version = cache_schema_version
 
+    @property
+    def provider(self) -> FinancialFactsProvider:
+        """Return the injected provider for optional sibling capabilities.
+
+        Callers may inspect narrow runtime-checkable capabilities such as
+        security identity without changing the financial-fact resolution path.
+        """
+        return self._provider
+
     def resolve(
         self,
-        request: ValuationFactRequest,
+        request: FinancialFactRequest,
         *,
         override: float | None = None,
         use_cache: bool = True,
     ) -> InputResolutionResult:
-        """Resolve a single valuation fact and retain the path actually taken."""
+        """Resolve a single financial fact and retain the path actually taken."""
         field_name = request.field_name.value
 
         # 0. Single-observation contract.
@@ -178,7 +187,7 @@ class InputResolver:
                     field_name,
                     ResolutionStage.CACHE,
                     ResolutionOutcome.NOT_USED,
-                    "No valuation cache is configured.",
+                    "No resolved-input cache is configured.",
                 )
             )
         else:
@@ -225,7 +234,7 @@ class InputResolver:
 
     def resolve_bvps(
         self,
-        request: ValuationFactRequest,
+        request: FinancialFactRequest,
         *,
         override: float | None = None,
         use_cache: bool = True,
@@ -236,7 +245,7 @@ class InputResolver:
         shares outstanding, and same-period zero preferred-share evidence. The
         resolver itself never interprets missing preferred-share data as zero.
         """
-        if request.field_name is not ValuationField.BVPS:
+        if request.field_name is not FinancialField.BVPS:
             reason = f"resolve_bvps requires a BVPS request (received {request.field_name.value})."
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
@@ -260,7 +269,7 @@ class InputResolver:
 
     def resolve_three_year_average_eps(  # noqa: PLR0911, PLR0912, PLR0915
         self,
-        request: ValuationFactRequest,
+        request: FinancialFactRequest,
         *,
         use_cache: bool = True,
     ) -> InputResolutionResult:
@@ -269,10 +278,10 @@ class InputResolver:
         The financial selection/composition behavior is unchanged; this method
         additionally retains the cache/provider/derivation path actually taken.
         """
-        field_name = ValuationField.EPS.value
+        field_name = FinancialField.EPS.value
 
         # --- 1. Request validation (before any cache/provider work) ---
-        if request.field_name is not ValuationField.EPS:
+        if request.field_name is not FinancialField.EPS:
             reason = f"resolve_three_year_average_eps requires field_name=EPS (received {request.field_name.name})."
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
@@ -334,7 +343,7 @@ class InputResolver:
                     field_name,
                     ResolutionStage.CACHE,
                     ResolutionOutcome.NOT_USED,
-                    "No valuation cache is configured.",
+                    "No resolved-input cache is configured.",
                 )
             )
         else:
@@ -388,7 +397,7 @@ class InputResolver:
         )
         try:
             facts = self._provider.fetch_facts(request)
-        except ValuationProviderError as exc:
+        except FinancialProviderError as exc:
             reason = f"Provider error: {exc}"
             return InputResolutionResult(
                 status=CalculationStatus.PROVIDER_ERROR,
@@ -480,7 +489,7 @@ class InputResolver:
                     f"observation_period_end={end.isoformat()} in a selected period."
                 )
                 return InputResolutionResult(
-                    status=CalculationStatus.PROVIDER_ERROR,
+                    status=CalculationStatus.INPUT_UNAVAILABLE,
                     reason=reason,
                     resolution_trace=trace.append(
                         _event(
@@ -495,39 +504,15 @@ class InputResolver:
         selected_facts = [by_period_end[end][0] for end in selected_ends]
 
         # --- 7. Selected-series compatibility ---
-        common_provider_field = selected_facts[0].provider_field
         common_units = selected_facts[0].units
         common_currency = selected_facts[0].currency
-        common_basis = selected_facts[0].basis
-        for fact in selected_facts[1:]:
-            if fact.provider_field != common_provider_field:
-                reason = f"Incompatible provider_field: {fact.provider_field!r} != {common_provider_field!r}."
-                return InputResolutionResult(
-                    status=CalculationStatus.PROVIDER_ERROR,
-                    reason=reason,
-                    resolution_trace=_derivation_error_trace(trace, field_name, reason),
-                )
-            if fact.units is not common_units:
-                reason = f"Incompatible units: {fact.units.name} != {common_units.name}."
-                return InputResolutionResult(
-                    status=CalculationStatus.PROVIDER_ERROR,
-                    reason=reason,
-                    resolution_trace=_derivation_error_trace(trace, field_name, reason),
-                )
-            if fact.currency != common_currency:
-                reason = f"Incompatible currency: {fact.currency!r} != {common_currency!r}."
-                return InputResolutionResult(
-                    status=CalculationStatus.PROVIDER_ERROR,
-                    reason=reason,
-                    resolution_trace=_derivation_error_trace(trace, field_name, reason),
-                )
-            if fact.basis != common_basis:
-                reason = f"Incompatible basis: {fact.basis!r} != {common_basis!r}."
-                return InputResolutionResult(
-                    status=CalculationStatus.PROVIDER_ERROR,
-                    reason=reason,
-                    resolution_trace=_derivation_error_trace(trace, field_name, reason),
-                )
+        compatibility_reason = _earnings_compatibility_reason(selected_facts)
+        if compatibility_reason is not None:
+            return InputResolutionResult(
+                status=CalculationStatus.INPUT_UNAVAILABLE,
+                reason=compatibility_reason,
+                resolution_trace=_derivation_error_trace(trace, field_name, compatibility_reason),
+            )
 
         # --- 8. Composition ---
         def _end_key(f: ProviderFact) -> datetime:
@@ -556,6 +541,11 @@ class InputResolver:
                 as_of=request.as_of,
                 retrieved_at=fact.retrieved_at,
                 notes=fact.notes,
+                fiscal_year=fact.fiscal_year,
+                period_kind=fact.period_kind,
+                accounting_scope=fact.accounting_scope,
+                capital_expenditure_sign=fact.capital_expenditure_sign,
+                provider_fact_id=fact.provider_fact_id,
             )
             components.append(comp)
 
@@ -590,6 +580,11 @@ class InputResolver:
             as_of=request.as_of,
             retrieved_at=derived_retrieved_at,
             lineage=lineage,
+            notes=(
+                "Annual EPS compatibility established for provider concept, earnings-per-share basis, "
+                "currency, units, fiscal periods, and exposed share-class/split metadata.",
+                "Duplicate-period restatements are rejected unless the provider adapter has already selected one fact.",
+            ),
         )
 
         # --- 9. Cache the DERIVED result ---
@@ -612,19 +607,19 @@ class InputResolver:
 
     def _derive_bvps_from_components(  # noqa: PLR0911
         self,
-        request: ValuationFactRequest,
+        request: FinancialFactRequest,
         *,
         use_cache: bool,
     ) -> InputResolutionResult:
         trace = _trace_event(
-            ValuationField.BVPS.value,
+            FinancialField.BVPS.value,
             ResolutionStage.DERIVATION,
             ResolutionOutcome.ATTEMPTED,
             "Direct BVPS was unavailable; attempting conservative component derivation.",
         )
 
         equity_result = self.resolve(
-            _bvps_component_request(request, ValuationField.STOCKHOLDERS_EQUITY),
+            _bvps_component_request(request, FinancialField.STOCKHOLDERS_EQUITY),
             use_cache=use_cache,
         )
         trace = trace.extend(equity_result.resolution_trace)
@@ -634,7 +629,7 @@ class InputResolver:
         assert equity is not None
 
         shares_result = self.resolve(
-            _bvps_component_request(request, ValuationField.COMMON_SHARES_OUTSTANDING),
+            _bvps_component_request(request, FinancialField.COMMON_SHARES_OUTSTANDING),
             use_cache=use_cache,
         )
         trace = trace.extend(shares_result.resolution_trace)
@@ -644,7 +639,7 @@ class InputResolver:
         assert shares is not None
 
         preferred_result = self.resolve(
-            _bvps_component_request(request, ValuationField.PREFERRED_SHARES_OUTSTANDING),
+            _bvps_component_request(request, FinancialField.PREFERRED_SHARES_OUTSTANDING),
             use_cache=use_cache,
         )
         trace = trace.extend(preferred_result.resolution_trace)
@@ -660,7 +655,7 @@ class InputResolver:
                 reason=alignment_error,
                 resolution_trace=_derivation_outcome_trace(
                     trace,
-                    ValuationField.BVPS.value,
+                    FinancialField.BVPS.value,
                     ResolutionOutcome.UNAVAILABLE,
                     alignment_error,
                 ),
@@ -675,7 +670,7 @@ class InputResolver:
                 reason=reason,
                 resolution_trace=_derivation_outcome_trace(
                     trace,
-                    ValuationField.BVPS.value,
+                    FinancialField.BVPS.value,
                     ResolutionOutcome.UNAVAILABLE,
                     reason,
                 ),
@@ -689,7 +684,7 @@ class InputResolver:
                 reason=reason,
                 resolution_trace=_derivation_outcome_trace(
                     trace,
-                    ValuationField.BVPS.value,
+                    FinancialField.BVPS.value,
                     ResolutionOutcome.ERROR,
                     reason,
                 ),
@@ -706,12 +701,12 @@ class InputResolver:
             components=components,
         )
         derived = ResolvedInput(
-            field_name=ValuationField.BVPS.value,
+            field_name=FinancialField.BVPS.value,
             value=value,
             source_kind=SourceKind.DERIVED,
             resolved_at=resolved_at,
             basis=request.basis,
-            units=ValuationUnit.CURRENCY_PER_SHARE.value,
+            units=FinancialUnit.CURRENCY_PER_SHARE.value,
             currency=equity.currency,
             provider_id=request.provider_id,
             observation_period_end=equity.observation_period_end,
@@ -735,15 +730,15 @@ class InputResolver:
             resolved_input=derived,
             resolution_trace=_derivation_outcome_trace(
                 trace,
-                ValuationField.BVPS.value,
+                FinancialField.BVPS.value,
                 ResolutionOutcome.SUCCESS,
                 "Derived BVPS from compatible same-period components with a zero preferred-share evidence guard.",
             ),
         )
 
-    def _build_derived_cache_key(self, request: ValuationFactRequest) -> ValuationCacheKey:
+    def _build_derived_cache_key(self, request: FinancialFactRequest) -> ResolvedInputCacheKey:
         """Build the cache key for a derived three-year-average EPS result."""
-        return ValuationCacheKey(
+        return ResolvedInputCacheKey(
             subject_kind=request.subject_kind,
             subject_id=request.subject_id,
             field_name="eps",
@@ -756,7 +751,7 @@ class InputResolver:
     def _try_derived_cache_hit(
         self,
         stored: ResolvedInput,
-        key: ValuationCacheKey,
+        key: ResolvedInputCacheKey,
     ) -> ResolvedInput | None:
         """Relabel a cached DERIVED entry as a CACHE-sourced ResolvedInput.
 
@@ -787,18 +782,23 @@ class InputResolver:
             cache_schema_version=key.schema_version,
             lineage=stored.lineage,
             notes=stored.notes,
+            fiscal_year=stored.fiscal_year,
+            period_kind=stored.period_kind,
+            accounting_scope=stored.accounting_scope,
+            capital_expenditure_sign=stored.capital_expenditure_sign,
+            provider_fact_id=stored.provider_fact_id,
         )
 
     @staticmethod
     def _validate_candidate(  # noqa: PLR0911
-        fact: ProviderFact, request: ValuationFactRequest
+        fact: ProviderFact, request: FinancialFactRequest
     ) -> str | None:
         """Validate a single provider fact candidate. Returns error string or None."""
         if fact.subject_kind is not request.subject_kind:
             return f"Provider fact subject_kind ({fact.subject_kind}) does not match request ({request.subject_kind})."
         if fact.subject_id != request.subject_id:
             return f"Provider fact subject_id ({fact.subject_id!r}) does not match request ({request.subject_id!r})."
-        if fact.field_name is not ValuationField.EPS:
+        if fact.field_name is not FinancialField.EPS:
             return f"Provider fact field_name ({fact.field_name.name}) is not EPS."
         if fact.provider_id != request.provider_id:
             return f"Provider fact provider_id ({fact.provider_id!r}) does not match request ({request.provider_id!r})."
@@ -813,7 +813,7 @@ class InputResolver:
     @staticmethod
     def _is_temporally_eligible(  # noqa: PLR0911
         fact: ProviderFact,
-        request: ValuationFactRequest,
+        request: FinancialFactRequest,
         resolver_now: datetime,
     ) -> bool:
         """Check temporal eligibility of a single candidate."""
@@ -835,7 +835,7 @@ class InputResolver:
 
     def _resolve_override(
         self,
-        request: ValuationFactRequest,
+        request: FinancialFactRequest,
         override: float,
     ) -> InputResolutionResult:
         """Validate and construct an OVERRIDE resolution."""
@@ -853,7 +853,7 @@ class InputResolver:
                 ),
             )
 
-        if request.field_name is ValuationField.CURRENT_PRICE and override <= 0:
+        if request.field_name is FinancialField.CURRENT_PRICE and override <= 0:
             reason = f"current_price override must be strictly positive (received {override})."
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
@@ -865,7 +865,7 @@ class InputResolver:
                     reason,
                 ),
             )
-        if request.field_name is ValuationField.CURRENT_AAA_YIELD and override <= 0:
+        if request.field_name is FinancialField.CURRENT_AAA_YIELD and override <= 0:
             reason = f"current_aaa_yield override must be strictly positive (received {override})."
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
@@ -899,9 +899,9 @@ class InputResolver:
             ),
         )
 
-    def _build_cache_key(self, request: ValuationFactRequest) -> ValuationCacheKey:
+    def _build_cache_key(self, request: FinancialFactRequest) -> ResolvedInputCacheKey:
         """Construct the cache key from the request and configured schema version."""
-        return ValuationCacheKey(
+        return ResolvedInputCacheKey(
             subject_kind=request.subject_kind,
             subject_id=request.subject_id,
             field_name=request.field_name.value,
@@ -913,9 +913,9 @@ class InputResolver:
 
     def _try_cache_hit(
         self,
-        request: ValuationFactRequest,
+        request: FinancialFactRequest,
         stored: ResolvedInput,
-        key: ValuationCacheKey,
+        key: ResolvedInputCacheKey,
     ) -> ResolvedInput | None:
         """Relabel a valid cached entry as a new CACHE-sourced ``ResolvedInput``.
 
@@ -945,11 +945,16 @@ class InputResolver:
             cache_schema_version=key.schema_version,
             lineage=stored.lineage,
             notes=stored.notes,
+            fiscal_year=stored.fiscal_year,
+            period_kind=stored.period_kind,
+            accounting_scope=stored.accounting_scope,
+            capital_expenditure_sign=stored.capital_expenditure_sign,
+            provider_fact_id=stored.provider_fact_id,
         )
 
     def _resolve_provider(
         self,
-        request: ValuationFactRequest,
+        request: FinancialFactRequest,
         use_cache: bool,
     ) -> InputResolutionResult:
         """Call the provider, validate the response, and optionally cache it."""
@@ -962,7 +967,7 @@ class InputResolver:
         )
         try:
             facts = self._provider.fetch_facts(request)
-        except ValuationProviderError as exc:
+        except FinancialProviderError as exc:
             reason = f"Provider error: {exc}"
             return InputResolutionResult(
                 status=CalculationStatus.PROVIDER_ERROR,
@@ -1047,6 +1052,11 @@ class InputResolver:
             as_of=request.as_of,
             retrieved_at=fact.retrieved_at,
             notes=fact.notes,
+            fiscal_year=fact.fiscal_year,
+            period_kind=fact.period_kind,
+            accounting_scope=fact.accounting_scope,
+            capital_expenditure_sign=fact.capital_expenditure_sign,
+            provider_fact_id=fact.provider_fact_id,
         )
 
         if use_cache and self._cache is not None:
@@ -1143,20 +1153,24 @@ def _derivation_error_trace(
     )
 
 
-def _field_unit(field_name: ValuationField) -> ValuationUnit:
+def _field_unit(field_name: FinancialField) -> FinancialUnit:
     """Map a semantic field to its required unit."""
-    if field_name is ValuationField.CURRENT_AAA_YIELD:
-        return ValuationUnit.PERCENTAGE_POINTS
-    if field_name is ValuationField.STOCKHOLDERS_EQUITY:
-        return ValuationUnit.CURRENCY
-    if field_name in (ValuationField.COMMON_SHARES_OUTSTANDING, ValuationField.PREFERRED_SHARES_OUTSTANDING):
-        return ValuationUnit.SHARES
-    return ValuationUnit.CURRENCY_PER_SHARE
+    if field_name is FinancialField.CURRENT_AAA_YIELD:
+        return FinancialUnit.PERCENTAGE_POINTS
+    if field_name in (
+        FinancialField.STOCKHOLDERS_EQUITY,
+        FinancialField.OPERATING_CASH_FLOW,
+        FinancialField.CAPITAL_EXPENDITURES,
+    ):
+        return FinancialUnit.CURRENCY
+    if field_name in (FinancialField.COMMON_SHARES_OUTSTANDING, FinancialField.PREFERRED_SHARES_OUTSTANDING):
+        return FinancialUnit.SHARES
+    return FinancialUnit.CURRENCY_PER_SHARE
 
 
-def _bvps_component_request(request: ValuationFactRequest, field_name: ValuationField) -> ValuationFactRequest:
+def _bvps_component_request(request: FinancialFactRequest, field_name: FinancialField) -> FinancialFactRequest:
     """Build a fiscal-year-end component request inheriting the BVPS analysis boundary."""
-    return ValuationFactRequest(
+    return FinancialFactRequest(
         subject_kind=request.subject_kind,
         subject_id=request.subject_id,
         field_name=field_name,
@@ -1182,7 +1196,7 @@ def _bvps_component_failure(
         reason=reason,
         resolution_trace=_derivation_outcome_trace(
             trace,
-            ValuationField.BVPS.value,
+            FinancialField.BVPS.value,
             outcome,
             reason,
         ),
@@ -1201,9 +1215,9 @@ def _bvps_component_alignment_error(
         return "BVPS unavailable: equity and share-count components do not share one reporting-period end."
     if equity.currency is None:
         return "BVPS unavailable: stockholders_equity component has no currency."
-    if equity.units != ValuationUnit.CURRENCY.value:
+    if equity.units != FinancialUnit.CURRENCY.value:
         return "BVPS unavailable: stockholders_equity component is not a currency amount."
-    if preferred.units != ValuationUnit.SHARES.value or shares.units != ValuationUnit.SHARES.value:
+    if preferred.units != FinancialUnit.SHARES.value or shares.units != FinancialUnit.SHARES.value:
         return "BVPS unavailable: share-count components are not expressed in shares."
 
     error = None
@@ -1215,7 +1229,7 @@ def _bvps_component_alignment_error(
 
 
 def _validate_provider_response(
-    request: ValuationFactRequest,
+    request: FinancialFactRequest,
     fact: ProviderFact,
     now: datetime,
 ) -> tuple[CalculationStatus, str] | None:
@@ -1270,3 +1284,59 @@ def _validate_provider_response(
             f"Fact available_at ({fact.available_at.isoformat()}) is later than current time ({now.isoformat()}).",
         )
     return None
+
+
+def _earnings_compatibility_reason(facts: list[ProviderFact]) -> str | None:
+    """Return why annual EPS observations cannot safely form one series."""
+    first = facts[0]
+    expected = (
+        first.provider_id,
+        first.provider_field,
+        _eps_share_basis(first.provider_field),
+        first.units,
+        first.currency,
+        first.basis,
+        _note_value(first.notes, "share_class"),
+        _note_value(first.notes, "split_treatment"),
+    )
+    for fact in facts[1:]:
+        actual = (
+            fact.provider_id,
+            fact.provider_field,
+            _eps_share_basis(fact.provider_field),
+            fact.units,
+            fact.currency,
+            fact.basis,
+            _note_value(fact.notes, "share_class"),
+            _note_value(fact.notes, "split_treatment"),
+        )
+        if actual != expected:
+            return (
+                "Annual EPS observations are incompatible across provider concept, diluted/basic basis, "
+                "share class, currency, units, fiscal basis, or split treatment."
+            )
+    fiscal_years = [fact.fiscal_year for fact in facts]
+    if all(year is not None for year in fiscal_years) and len(set(fiscal_years)) != len(fiscal_years):
+        return "Annual EPS observations do not represent distinct fiscal years."
+    return None
+
+
+def _eps_share_basis(provider_field: str) -> str:
+    """Classify an upstream EPS concept as diluted, basic, or unspecified."""
+    normalized = provider_field.lower()
+    if "diluted" in normalized:
+        return "diluted"
+    if "basic" in normalized:
+        return "basic"
+    return "unspecified"
+
+
+def _note_value(notes: tuple[str, ...], key: str) -> str | None:
+    """Read optional structured compatibility evidence from provenance notes."""
+    prefix = f"{key}="
+    values = {note.removeprefix(prefix).strip().lower() for note in notes if note.startswith(prefix)}
+    if len(values) == 1:
+        return next(iter(values))
+    if not values:
+        return None
+    return "ambiguous"

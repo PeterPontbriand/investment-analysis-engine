@@ -4,8 +4,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
+from typing import Protocol, runtime_checkable
 
 import pandas as pd
+
+
+@runtime_checkable
+class MarketDataProvider(Protocol):
+    """Provider-neutral historical price boundary used by Momentum."""
+
+    @property
+    def provider_id(self) -> str | None:
+        """Return the stable provider identifier when known."""
+        ...
+
+    def fetch_historical_data(self, ticker: str, start_date: str, end_date: str | None = None) -> HistoricalMarketData:
+        """Return historical observations and retained retrieval context."""
+        ...
 
 
 @dataclass(frozen=True)

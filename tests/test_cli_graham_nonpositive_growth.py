@@ -6,18 +6,18 @@ from typer.testing import CliRunner
 
 from src.analysis.graham_value.input_resolver import GrahamInputResolver
 from src.cli import app
-from tests.analysis.graham_value.fixture_valuation_provider import (
+from tests.analysis.graham_value.fixture_financial_facts_provider import (
     NOW,
     PROVIDER_ID,
     SECURITY_ID,
-    FixtureValuationProvider,
+    FixtureFinancialFactsProvider,
 )
 
 runner = CliRunner()
 
 
 def test_cli_growth_non_positive_value_explains_omitted_price_comparison() -> None:
-    resolver = GrahamInputResolver(FixtureValuationProvider(), clock=lambda: NOW)
+    resolver = GrahamInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
 
     with patch("src.cli._build_graham_resolver", return_value=resolver):
         result = runner.invoke(

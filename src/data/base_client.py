@@ -67,6 +67,15 @@ class BaseDataClient(ABC):
         )
         return HistoricalMarketData(frame=frame, context=context)
 
+    def fetch_historical_data(
+        self,
+        ticker: str,
+        start_date: str,
+        end_date: str | None = None,
+    ) -> HistoricalMarketData:
+        """Satisfy the provider-neutral historical market-data boundary."""
+        return self.fetch_data_with_context(ticker, start_date, end_date)
+
     @abstractmethod
     def fetch_current_price(self, ticker: str) -> float:
         """Resolve the current market price (quote) for a given asset ticker.

@@ -8,5 +8,6 @@ An [analysis strategy](../GLOSSARY.md#analysis-strategy) is a deterministic anal
   - Graham Number (default method)
   - Graham Growth Value (secondary, forecast-dependent method)
 - [Momentum Analysis Strategy](MOMENTUM.md) — simple-moving-average/crossover analysis over historical prices.
+- [Free Cash Flow & Earnings Growth Strategy](FCF_EARNINGS_GROWTH.md) — historical total-company FCF, FCF-per-diluted-share, and diluted-EPS growth screening with explicit `PASS`, `FAIL`, or `INDETERMINATE` classification.
 
 Each strategy guide follows the same general order where applicable: what the strategy does, quick start, available methods, presentation modes, inputs/assumptions/overrides, data sources, historical behavior, comparison with other calculators, limitations, and related user documentation.

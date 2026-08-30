@@ -104,14 +104,14 @@ Status: complete and approved.
 
 Implement the immutable provenance and cache primitives required by later resolution work:
 
-- `ValuationSubjectKind`;
+- `FinancialSubjectKind`;
 - `SourceKind`;
 - `ComponentLineage`;
 - `ResolvedInput`;
-- `ValuationCacheKey`;
-- `ValuationCacheEntry`;
-- `ValuationCacheProtocol`; and
-- `InMemoryValuationCache`.
+- `ResolvedInputCacheKey`;
+- `ResolvedInputCacheEntry`;
+- `ResolvedInputCacheProtocol`; and
+- `InMemoryResolvedInputCache`.
 
 This slice owns constructor invariants, timezone-aware timestamps, finite values, provider-ID canonicalization, cache-key normalization, key/input coherence, TTL behavior, historical availability checks, schema isolation, and deterministic clock injection.
 

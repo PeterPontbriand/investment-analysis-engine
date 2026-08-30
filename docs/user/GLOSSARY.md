@@ -54,7 +54,7 @@ The principle that materially different financial strategies may use different i
 ## Market data
 
 ### `BaseDataClient`
-The existing historical-price provider boundary used by deterministic analyzers and data consumers. Financial Data Agents supplements it with a separate valuation-facts provider/resolution boundary for current quotes, company financial facts, macro observations, and valuation-cache semantics rather than enlarging `BaseDataClient` into a generic financial-data interface.
+The existing historical-price provider boundary used by deterministic analyzers and data consumers. Financial Data Agents supplements it with a separate financial-facts provider/resolution boundary for current quotes, company financial facts, macro observations, and valuation-cache semantics rather than enlarging `BaseDataClient` into a generic financial-data interface.
 
 ### Data Provider
 An external or local source that supplies market prices, company financial facts, or economic-series observations. Examples include a quote API, a financial-statements service, or a macroeconomic data service.
@@ -83,7 +83,10 @@ A **cache hit** finds a valid reusable observation. A **cache miss** finds none.
 A time-indexed series of observations used for time-series calculations such as Momentum.
 
 ### Current Quote / Current Market Price
-A point-in-time market price used for current valuation comparison. For an analysis with an explicit historical `as_of`, a quote is usable only if the selected provider can establish an eligible observation at or before that boundary. A current-only quote adapter therefore returns unavailable for historical valuation requests rather than substituting today's price.
+A point-in-time market price used for current valuation comparison. For an analysis with an explicit historical `as_of`, a quote is usable only if the selected provider can establish an eligible observation at or before that boundary. A current-only quote adapter therefore returns unavailable for historical financial-fact requests rather than substituting today's price.
+
+### Security Identity
+Best-effort descriptive metadata that associates a ticker with an instrument name and, when available, listing venue and issuer/instrument identifiers at a recorded resolution time. A ticker is not permanent identity and may be reused. Missing identity metadata never changes a financial result, and historical Analysis Runs retain their original identity snapshot rather than silently re-resolving the ticker later.
 
 ### Company Financial Facts / Fundamentals
 Reported accounting values such as earnings, common shareholders' equity, and shares outstanding. They come from financial statements and have reporting periods that usually differ from market-quote timestamps.
@@ -238,7 +241,7 @@ The explicit rule that supplies `g`. The current application supports only a use
 A possible future deterministic policy that could use historical EPS compound growth as a stand-in for `g`. It is **not currently implemented**. Any future adoption must be labeled as a historical proxy because past growth is not proof of future growth.
 
 ### Analyst Consensus Estimate
-An aggregation of forecasts from multiple analysts. Financial Data Agents does not currently use such estimates; any future adoption requires verified field meaning, forecast horizon, provenance, update behavior, and licensing.
+An aggregation of forecasts from multiple analysts. The Free Cash Flow & Earnings Growth contract can carry compatible FY1/FY2 diluted-EPS consensus as optional evidence, but the current production SEC mapping may not provide it. Such evidence requires verified field meaning, forecast horizon, provenance, update behavior, and licensing; the software does not invent it.
 
 ### CAGR (Compound Annual Growth Rate)
 The constant annual rate that would transform a beginning value into an ending value over a stated number of years:
@@ -306,6 +309,43 @@ A neutral description of the same price comparison represented by project MOS. A
 
 ### Percentage Point
 The arithmetic difference between two percentages. Moving from 4% to 6% is an increase of 2 percentage points, or 50% relative to the original 4%.
+
+---
+
+## Free Cash Flow & Earnings Growth terms
+
+### Free Cash Flow & Earnings Growth Strategy
+A deterministic historical screen that asks whether both the selected free-cash-flow measure and diluted EPS grew at positive, meaningful compound annual rates over one compatible contiguous period. It returns `PASS`, `FAIL`, or `INDETERMINATE`; it is not a valuation or investment recommendation.
+
+### Operating Cash Flow (OCF)
+Net cash provided by operating activities for a completed fiscal year. It is the starting component in the project's free-cash-flow calculation.
+
+### Capital Expenditures (CapEx)
+Cash spent to acquire or improve long-lived productive assets. Provider sign conventions differ, so Financial Data Agents normalizes CapEx to a positive expenditure amount and retains the transformation in provenance.
+
+### Free Cash Flow (FCF)
+For this strategy, completed annual operating cash flow minus normalized capital expenditures. FCF is a non-GAAP analytical measure, so another provider may use a different definition.
+
+### Total-Company FCF
+Free cash flow measured for the company as a whole. Its CAGR is the default FCF classification basis.
+
+### FCF per Diluted Share
+Annual total-company FCF divided by compatible weighted-average diluted shares for the same fiscal year. It reflects dilution and repurchases and can be selected as the controlling classification basis.
+
+### Weighted-Average Diluted Shares
+The average diluted share count applicable to an earnings period, including the effect of potentially dilutive securities under the reported accounting basis. It is not interchangeable with an ending shares-outstanding snapshot.
+
+### Classification Basis
+The explicit FCF measure whose CAGR controls the growth screen: `total_fcf` by default or `fcf_per_share` when selected. Both measures remain visible regardless of the choice.
+
+### `PASS` / `FAIL` / `INDETERMINATE`
+The FCF-growth strategy's financial screen outcomes. `PASS` means required growth rates are positive; `FAIL` means complete, meaningful evidence includes a nonpositive required rate; `INDETERMINATE` means the required classification cannot be made from admissible evidence. These are distinct from software execution status.
+
+### FCF Yield
+Latest completed annual FCF divided by current market capitalization, expressed as a percentage. It mixes an annual numerator with a current denominator and is informational only in the current method.
+
+### Forward Policy
+The rule controlling how optional FY1/FY2 analyst-consensus EPS evidence is treated: `display_only`, `confirmation`, or `hard_gate`. Only `hard_gate` can alter an otherwise passing historical classification.
 
 ---
 
@@ -386,8 +426,6 @@ Machine-readable output may intentionally retain stable identifiers such as snak
 
 ### JSON (JavaScript Object Notation)
 A widely used text format for structured data made from objects, arrays, names, strings, numbers, booleans, and null values. Financial Data Agents uses JSON for its `--json` machine-readable presentation mode and for other structured software interfaces.
-
-A structured text format used for data exchange and machine-readable results.
 
 ### JSONL (JSON Lines)
 A text format containing one JSON object per line. Financial Data Agents uses JSONL for structured trajectory-telemetry records.

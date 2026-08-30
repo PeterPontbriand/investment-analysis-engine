@@ -61,6 +61,7 @@ The strategy uses:
 
 - a short moving-average window;
 - a long moving-average window; and
+- an RSI lookback period; and
 - historical closing prices.
 
 The short window must be smaller than the long window.
@@ -91,6 +92,8 @@ Interpretation:
 - insufficient history → unavailable moving averages / unknown state rather than invented zeroes.
 
 Machine-readable JSON uses `null` for unavailable numeric outputs rather than non-standard `NaN`.
+
+Historical observations are truncated to `bar_timestamp <= as_of` before any metric is calculated. The short SMA, long SMA, and RSI use typed metric results: insufficient history produces `status = unavailable`, `reason_code = insufficient_history`, and no numeric value. The CLI exposes `--short-window`, `--long-window`, and `--rsi-period`.
 
 See the [Momentum Analysis Strategy Guide](strategies/MOMENTUM.md).
 
@@ -132,6 +135,8 @@ three-year-average EPS =
 ```
 
 The three observations must be compatible in financial meaning/share basis and must have been available by the requested historical boundary.
+
+Compatibility requires the same provider concept, diluted/basic basis, currency, units, and fiscal basis across distinct fiscal years. Provider-exposed share-class and split-treatment evidence must agree. Ambiguous restatements or compatibility gaps make the series unavailable rather than triggering a guessed normalization.
 
 TTM EPS is a distinct modern variation where explicitly supported/selected; it never silently replaces the standard three-year average.
 
@@ -214,6 +219,8 @@ The concise investor report describes this as a **price relationship** (for exam
 
 If a current quote is unavailable, the Graham calculation can still remain valid while the price comparison is omitted.
 
+An invalid explicit quote override is instead a fatal input error. An override may omit currency; a provider quote may not. Provider quotes without verified currency are classified as unavailable. A known cross-currency quote remains visible, but its price relationship is suppressed.
+
 A quote in a different currency is not used for a price relationship without an approved currency-conversion mechanism.
 
 ### Mathematical validation
@@ -223,6 +230,78 @@ NaN, infinity, and mathematically invalid configuration values are rejected dete
 Financial Data Agents does not impose arbitrary financial-domain cutoffs merely because a number “looks unusual.” A non-mathematical bound requires an explicit rationale.
 
 See the [Graham Analysis Strategy Guide](strategies/GRAHAM.md).
+
+## Free Cash Flow & Earnings Growth Strategy
+
+This strategy compares a company with its own completed annual history. It reports total-company free cash flow, free cash flow per diluted share, and diluted EPS growth over one compatible, contiguous span.
+
+### Annual measures
+
+For each eligible completed fiscal year:
+
+```text
+free_cash_flow = operating_cash_flow - normalized_capital_expenditures
+
+free_cash_flow_per_diluted_share =
+    free_cash_flow / weighted_average_diluted_shares
+```
+
+Operating cash flow is net cash provided by operating activities. Capital expenditures are normalized to a positive expenditure amount before subtraction because providers may report cash outflows with different sign conventions. The normalization and original provider field remain in provenance.
+
+Weighted-average diluted shares must be positive and compatible with the same completed fiscal year. Ending shares outstanding are not silently substituted. A provider's precomputed “free cash flow” is not accepted merely because its label matches; the strategy derives FCF from its resolved components.
+
+### Historical horizon
+
+The automatic `longest_available` policy prefers 5 elapsed years, then 4, then 3. An `N`-year CAGR requires `N + 1` contiguous annual observations:
+
+| Elapsed years | Annual observations |
+|---:|---:|
+| 5 | 6 |
+| 4 | 5 |
+| 3 | 4 |
+
+An explicitly requested horizon is strict and never falls back. Facts must also satisfy the analysis `as_of` boundary: a period ending before the boundary is not eligible if its filing became available afterward.
+
+### Compound annual growth
+
+For positive endpoints separated by `N` elapsed years:
+
+```text
+cagr_percent = ((ending_value / beginning_value) ** (1 / N) - 1) * 100
+```
+
+The beginning and ending values must be strictly positive, and the annual series must be contiguous. Zero or negative endpoints and sign changes make CAGR nonmeaningful under this policy. The raw history remains available, but the metric is unavailable with a reason; the calculation does not apply absolute values or manufacture “growth from loss.”
+
+Both total-company-FCF CAGR and FCF-per-diluted-share CAGR are returned. Total-company FCF controls classification by default. The explicit `fcf_per_share` policy makes per-share FCF controlling; presentation does not infer or change that choice.
+
+### Classification
+
+The selected policy returns:
+
+- `PASS` when the controlling FCF CAGR and diluted-EPS CAGR are meaningful and greater than zero, and any selected forward hard gate is satisfied;
+- `FAIL` when required metrics are meaningful and at least one required growth rate is zero or negative; or
+- `INDETERMINATE` when required evidence is missing, incompatible, non-contiguous, or mathematically nonmeaningful.
+
+Classification is separate from software execution status. `INDETERMINATE` is not equivalent to financial failure.
+
+### Optional FCF yield
+
+When compatible market-capitalization evidence is available:
+
+```text
+fcf_yield_percent =
+    latest_completed_fiscal_year_fcf / current_market_capitalization * 100
+```
+
+The numerator is annual while the denominator is current, so both dates must remain visible. FCF yield is informational only and has no pass threshold in the current method version.
+
+### Optional forward EPS evidence
+
+Compatible analyst-consensus diluted EPS for FY1 and FY2 may provide two implied growth intervals: latest actual to FY1 and FY1 to FY2. Each prior value must be positive for the corresponding growth rate to be meaningful.
+
+The `display_only` and `confirmation` policies do not change the historical classification. Under `hard_gate`, both intervals must be available and positive for `PASS`; missing required forward evidence produces `INDETERMINATE`. The current production SEC mapping may not supply analyst consensus, and the software does not generate estimates to fill that gap.
+
+See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_EARNINGS_GROWTH.md).
 
 ## Source notes
 

@@ -89,6 +89,33 @@ When editing a legacy file that currently uses a different logging pattern, do n
 - Recommended local repair/check order:
   `uv run ruff check --fix .` → `uv run ruff format .` → type check → tests.
 
+### Managed-agent quality-gate execution
+
+Managed agents must not use the Windows user-profile temp or UV cache paths for
+repository verification. Those locations may be inaccessible even when the
+interactive developer account can use them.
+
+For the complete non-mutating repository gate, run the wrapper matching the
+active shell from any repository subdirectory:
+
+- PowerShell: `& (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gates.ps1')`
+- Git Bash/Cline: `bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"`
+
+The wrappers derive the repository root at runtime and create a unique ignored
+directory below `/.tmp/quality-runs/` for that invocation. They isolate pytest
+temporary files, coverage output, mypy and Ruff caches, and the UV cache so
+concurrent agent runs cannot clear or overwrite one another. Never replace the
+unique run directory with a shared fixed `--basetemp`; pytest deletes its base
+temp directory at startup. The wrappers use `uv run --no-sync` against the
+already-synchronized project environment so managed verification neither
+mutates dependencies nor requires network access.
+
+Interactive developers and CI environments with normal user-directory access
+may continue to run the underlying `uv run ...` commands directly. Focused
+agent checks may also use direct commands when they do not require writable
+temp/cache paths; use the wrapper for the complete gate and whenever a direct
+command fails because a managed path is inaccessible.
+
 ### Repository search & file inspection
 
 Use the simplest search mechanism that matches the question. A search that
@@ -120,6 +147,9 @@ complex patterns.
 - After one unexpected no-match result, inspect a likely file directly or use a
   simpler literal search. After two no-match attempts, stop changing patterns
   and reassess the search assumption.
+- After one failed exact patch/edit match, directly reread the target section
+  and either retry once with exact current text or use a deterministic asserted
+  file-edit script. Never progressively shorten or fuzz an edit search pattern.
 - When auditing links or references, enumerate the source material first
   (for example, headings and literal links), then compare the resulting lists.
   Do not try to encode the entire audit into one complex search expression.

@@ -42,7 +42,7 @@ def humanized_status(status: CalculationStatus | None) -> str:
     """Return a reader-friendly phrase for a shared calculation status."""
     if status is None:
         return "unavailable"
-    return STATUS_LABELS.get(status, status.value)
+    return STATUS_LABELS[status]
 
 
 # ---------------------------------------------------------------------------

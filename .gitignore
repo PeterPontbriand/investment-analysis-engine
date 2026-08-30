@@ -86,6 +86,7 @@ __pycache__/
 *.pyo
 *.pyd
 .pytest_cache/
+/.tmp/
 
 # --- Application Running State Log Volumes ---
 # Explicitly ignores local files but keeps the directory structure tracked in git

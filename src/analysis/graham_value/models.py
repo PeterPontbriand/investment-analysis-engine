@@ -43,6 +43,8 @@ class GrahamNumberResult:
         if self.status is CalculationStatus.OK:
             if self.maximum_indicated_price is None:
                 raise ValueError("GrahamNumberResult: status OK requires maximum_indicated_price to be present.")
+            if self.reason is not None:
+                raise ValueError("GrahamNumberResult: status OK requires reason to be None.")
         else:
             if self.maximum_indicated_price is not None:
                 raise ValueError(
@@ -75,6 +77,8 @@ class GrahamGrowthValueResult:
         if self.status is CalculationStatus.OK:
             if self.growth_value is None:
                 raise ValueError("GrahamGrowthValueResult: status OK requires growth_value to be present.")
+            if self.reason is not None:
+                raise ValueError("GrahamGrowthValueResult: status OK requires reason to be None.")
         else:
             if self.growth_value is not None:
                 raise ValueError(f"GrahamGrowthValueResult: status {self.status} requires growth_value to be None.")

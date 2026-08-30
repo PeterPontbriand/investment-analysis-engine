@@ -39,7 +39,10 @@ MASSIVE_API_KEY="your-massive-api-key"
 uv run financial-agents --help
 uv run financial-agents graham KO
 uv run financial-agents momentum AAPL
+uv run financial-agents fcf-growth MSFT
 ```
+
+The Graham and FCF-growth commands require `SEC_USER_AGENT`. For a broader human-executed check, use the [Smoke Testing Commands](SMOKE_TESTING.md).
 
 ## Next
 

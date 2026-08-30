@@ -6,9 +6,9 @@ from collections.abc import Mapping
 
 import pytest
 
-from src.data.sec_edgar.valuation import SEC_PROVIDER_ID, SecEdgarValuationAdapter
-from src.data.valuation.facts import ValuationFactRequest, ValuationField
-from src.data.valuation.provenance import ValuationSubjectKind
+from src.data.financial.facts import FinancialFactRequest, FinancialField
+from src.data.financial.provenance import FinancialSubjectKind
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 
 
 class HeaderCaptureFetcher:
@@ -31,12 +31,12 @@ class HeaderCaptureFetcher:
         raise AssertionError(msg)
 
 
-def _annual_eps_request() -> ValuationFactRequest:
+def _annual_eps_request() -> FinancialFactRequest:
     """Return a supported SEC request that reaches the fake transport."""
-    return ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    return FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
-        field_name=ValuationField.EPS,
+        field_name=FinancialField.EPS,
         provider_id=SEC_PROVIDER_ID,
         basis="fiscal_year",
         observation_count=3,
@@ -49,7 +49,7 @@ def test_sec_user_agent_explicit_constructor_value_takes_precedence(
     """Use the explicit declared identity even when the environment differs."""
     monkeypatch.setenv("SEC_USER_AGENT", "environment-agent env@example.invalid")
     fetcher = HeaderCaptureFetcher()
-    adapter = SecEdgarValuationAdapter(
+    adapter = SecEdgarFinancialFactsAdapter(
         json_fetcher=fetcher,
         user_agent="explicit-agent explicit@example.invalid",
     )
@@ -63,7 +63,7 @@ def test_sec_user_agent_falls_back_to_environment(monkeypatch: pytest.MonkeyPatc
     """Use SEC_USER_AGENT when the constructor does not supply an identity."""
     monkeypatch.setenv("SEC_USER_AGENT", "environment-agent env@example.invalid")
     fetcher = HeaderCaptureFetcher()
-    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher)
 
     assert adapter.fetch_facts(_annual_eps_request()) == ()
     assert fetcher.calls
@@ -75,7 +75,7 @@ def test_sec_user_agent_missing_identity_fails_locally(monkeypatch: pytest.Monke
     monkeypatch.delenv("SEC_USER_AGENT", raising=False)
 
     with pytest.raises(ValueError, match="SEC_USER_AGENT"):
-        SecEdgarValuationAdapter(json_fetcher=HeaderCaptureFetcher())
+        SecEdgarFinancialFactsAdapter(json_fetcher=HeaderCaptureFetcher())
 
 
 def test_sec_user_agent_blank_explicit_identity_does_not_fall_back(
@@ -85,7 +85,7 @@ def test_sec_user_agent_blank_explicit_identity_does_not_fall_back(
     monkeypatch.setenv("SEC_USER_AGENT", "environment-agent env@example.invalid")
 
     with pytest.raises(ValueError, match="declared User-Agent"):
-        SecEdgarValuationAdapter(
+        SecEdgarFinancialFactsAdapter(
             json_fetcher=HeaderCaptureFetcher(),
             user_agent="   ",
         )

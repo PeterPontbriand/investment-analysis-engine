@@ -1,4 +1,4 @@
-"""Tests for verified Step 2.3 production valuation adapters."""
+"""Tests for verified Step 2.3 production financial-facts adapters."""
 
 from __future__ import annotations
 
@@ -10,24 +10,24 @@ import pytest
 
 from src.analysis.graham_value.input_resolver import GrahamInputResolver
 from src.core.analysis_status import CalculationStatus
+from src.data.financial.facts import (
+    FinancialFactRequest,
+    FinancialField,
+    FinancialProviderError,
+    FinancialUnit,
+    ProviderFact,
+)
+from src.data.financial.production import ProductionFinancialFactsProvider
+from src.data.financial.provenance import FinancialSubjectKind, SourceKind
 from src.data.massive import MASSIVE_PROVIDER_ID
-from src.data.massive.valuation import MassiveValuationAdapter
-from src.data.sec_edgar.valuation import (
+from src.data.massive.financial_facts import MassiveFinancialFactsAdapter
+from src.data.sec_edgar.financial_facts import (
     SEC_COMMON_SHARES_FIELD,
     SEC_PREFERRED_SHARES_FIELD,
     SEC_PROVIDER_ID,
     SEC_STOCKHOLDERS_EQUITY_FIELD,
-    SecEdgarValuationAdapter,
+    SecEdgarFinancialFactsAdapter,
 )
-from src.data.valuation.facts import (
-    ProviderFact,
-    ValuationFactRequest,
-    ValuationField,
-    ValuationProviderError,
-    ValuationUnit,
-)
-from src.data.valuation.production import ProductionValuationProvider
-from src.data.valuation.provenance import SourceKind, ValuationSubjectKind
 
 NOW = datetime(2026, 8, 21, 18, 0, tzinfo=UTC)
 
@@ -49,11 +49,11 @@ class FakeJsonFetcher:
         raise AssertionError(msg)
 
 
-def _sec_request(*, as_of: datetime | None = None) -> ValuationFactRequest:
-    return ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+def _sec_request(*, as_of: datetime | None = None) -> FinancialFactRequest:
+    return FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="aapl",
-        field_name=ValuationField.EPS,
+        field_name=FinancialField.EPS,
         provider_id=SEC_PROVIDER_ID,
         basis="fiscal_year",
         as_of=as_of,
@@ -63,6 +63,8 @@ def _sec_request(*, as_of: datetime | None = None) -> ValuationFactRequest:
 
 def _sec_payload() -> dict[str, Any]:
     return {
+        "cik": 320193,
+        "entityName": "Apple Inc.",
         "facts": {
             "us-gaap": {
                 "EarningsPerShareDiluted": {
@@ -101,6 +103,19 @@ def _sec_payload() -> dict[str, Any]:
                                 "form": "10-K/A",
                                 "filed": "2025-01-15",
                             },
+                            # The same amendment repeats FY2023 unchanged,
+                            # proving that it is on the amendment's common
+                            # accounting/share basis with the changed FY2024.
+                            {
+                                "start": "2022-09-25",
+                                "end": "2023-09-30",
+                                "val": 6.13,
+                                "accn": "0001-24a",
+                                "fy": 2024,
+                                "fp": "FY",
+                                "form": "10-K/A",
+                                "filed": "2025-01-15",
+                            },
                             {
                                 "start": "2024-09-29",
                                 "end": "2025-09-27",
@@ -127,7 +142,7 @@ def _sec_payload() -> dict[str, Any]:
                     }
                 }
             }
-        }
+        },
     }
 
 
@@ -236,9 +251,9 @@ def _sec_fetcher(company_facts: object | None = None) -> FakeJsonFetcher:
     )
 
 
-def _sec_component_request(field: ValuationField, *, as_of: datetime | None = None) -> ValuationFactRequest:
-    return ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+def _sec_component_request(field: FinancialField, *, as_of: datetime | None = None) -> FinancialFactRequest:
+    return FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
         field_name=field,
         provider_id=SEC_PROVIDER_ID,
@@ -250,7 +265,7 @@ def _sec_component_request(field: ValuationField, *, as_of: datetime | None = No
 def test_sec_adapter_sends_explicit_declared_user_agent_unchanged() -> None:
     declared_identity = "financial-data-agents-test test@example.invalid"
     fetcher = _sec_fetcher()
-    adapter = SecEdgarValuationAdapter(
+    adapter = SecEdgarFinancialFactsAdapter(
         json_fetcher=fetcher,
         clock=lambda: NOW,
         user_agent=declared_identity,
@@ -263,7 +278,7 @@ def test_sec_adapter_sends_explicit_declared_user_agent_unchanged() -> None:
 
 def test_sec_adapter_returns_one_annual_eps_fact_per_period_with_acceptance_provenance() -> None:
     fetcher = _sec_fetcher()
-    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
 
     facts = adapter.fetch_facts(_sec_request())
 
@@ -278,12 +293,12 @@ def test_sec_adapter_returns_one_annual_eps_fact_per_period_with_acceptance_prov
     assert all(fact.basis == "fiscal_year" for fact in facts)
     assert all(fact.currency == "USD" for fact in facts)
     assert facts[1].available_at == datetime(2025, 1, 15, 18, 0, tzinfo=UTC)
-    assert "available_at uses EDGAR acceptanceDateTime" in facts[1].notes
+    assert "availability_source=SEC submissions acceptanceDateTime, normalized to UTC" in facts[1].notes
 
 
 def test_sec_adapter_historical_as_of_uses_restatement_known_at_boundary() -> None:
     fetcher = _sec_fetcher()
-    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
     as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
 
     facts = adapter.fetch_facts(_sec_request(as_of=as_of))
@@ -299,11 +314,11 @@ def test_sec_adapter_historical_as_of_uses_restatement_known_at_boundary() -> No
 
 def test_sec_adapter_unsupported_capability_returns_empty_without_fetching() -> None:
     fetcher = _sec_fetcher()
-    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
-    request = ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    request = FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
-        field_name=ValuationField.BVPS,
+        field_name=FinancialField.BVPS,
         provider_id=SEC_PROVIDER_ID,
     )
 
@@ -313,18 +328,18 @@ def test_sec_adapter_unsupported_capability_returns_empty_without_fetching() -> 
 
 def test_sec_adapter_returns_bvps_components_with_exact_fields_and_period() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
-    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
 
-    equity = adapter.fetch_facts(_sec_component_request(ValuationField.STOCKHOLDERS_EQUITY))
-    common = adapter.fetch_facts(_sec_component_request(ValuationField.COMMON_SHARES_OUTSTANDING))
-    preferred = adapter.fetch_facts(_sec_component_request(ValuationField.PREFERRED_SHARES_OUTSTANDING))
+    equity = adapter.fetch_facts(_sec_component_request(FinancialField.STOCKHOLDERS_EQUITY))
+    common = adapter.fetch_facts(_sec_component_request(FinancialField.COMMON_SHARES_OUTSTANDING))
+    preferred = adapter.fetch_facts(_sec_component_request(FinancialField.PREFERRED_SHARES_OUTSTANDING))
 
     assert len(equity) == len(common) == len(preferred) == 1
     assert equity[0].provider_field == SEC_STOCKHOLDERS_EQUITY_FIELD
     assert common[0].provider_field == SEC_COMMON_SHARES_FIELD
     assert preferred[0].provider_field == SEC_PREFERRED_SHARES_FIELD
-    assert equity[0].units is ValuationUnit.CURRENCY
-    assert common[0].units is ValuationUnit.SHARES
+    assert equity[0].units is FinancialUnit.CURRENCY
+    assert common[0].units is FinancialUnit.SHARES
     assert preferred[0].value == pytest.approx(0.0)
     assert {fact.observation_period_end for fact in (equity[0], common[0], preferred[0])} == {
         datetime(2025, 9, 27, 23, 59, 59, 999999, tzinfo=UTC)
@@ -336,10 +351,10 @@ def test_sec_adapter_returns_bvps_components_with_exact_fields_and_period() -> N
 
 def test_sec_component_historical_as_of_uses_latest_period_known_at_boundary() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
-    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
     as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
 
-    facts = adapter.fetch_facts(_sec_component_request(ValuationField.STOCKHOLDERS_EQUITY, as_of=as_of))
+    facts = adapter.fetch_facts(_sec_component_request(FinancialField.STOCKHOLDERS_EQUITY, as_of=as_of))
 
     assert len(facts) == 1
     assert facts[0].value == pytest.approx(60_000_000_000.0)
@@ -362,19 +377,19 @@ def test_sec_component_ambiguous_latest_share_class_values_are_unavailable() -> 
         }
     )
     fetcher = _sec_fetcher(payload)
-    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
 
-    assert adapter.fetch_facts(_sec_component_request(ValuationField.COMMON_SHARES_OUTSTANDING)) == ()
+    assert adapter.fetch_facts(_sec_component_request(FinancialField.COMMON_SHARES_OUTSTANDING)) == ()
 
 
 def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
-    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
     resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
-    request = ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    request = FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
-        field_name=ValuationField.BVPS,
+        field_name=FinancialField.BVPS,
         provider_id=SEC_PROVIDER_ID,
     )
 
@@ -386,21 +401,21 @@ def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -
     assert result.resolved_input.source_kind is SourceKind.DERIVED
     assert result.resolved_input.lineage is not None
     assert {component.field_name for component in result.resolved_input.lineage.components} == {
-        ValuationField.STOCKHOLDERS_EQUITY.value,
-        ValuationField.PREFERRED_SHARES_OUTSTANDING.value,
-        ValuationField.COMMON_SHARES_OUTSTANDING.value,
+        FinancialField.STOCKHOLDERS_EQUITY.value,
+        FinancialField.PREFERRED_SHARES_OUTSTANDING.value,
+        FinancialField.COMMON_SHARES_OUTSTANDING.value,
     }
 
 
 def test_resolver_historical_bvps_uses_components_known_at_as_of() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
-    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
     resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
     as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
-    request = ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    request = FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
-        field_name=ValuationField.BVPS,
+        field_name=FinancialField.BVPS,
         provider_id=SEC_PROVIDER_ID,
         as_of=as_of,
     )
@@ -420,12 +435,12 @@ def test_resolver_bvps_missing_or_nonzero_preferred_share_guard_is_unavailable(
     preferred_shares: float | None,
 ) -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components(preferred_shares=preferred_shares))
-    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
     resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
-    request = ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    request = FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
-        field_name=ValuationField.BVPS,
+        field_name=FinancialField.BVPS,
         provider_id=SEC_PROVIDER_ID,
     )
 
@@ -460,12 +475,12 @@ def test_wfc_negative_control_material_preferred_stock_blocks_bvps_derivation() 
             "/submissions/": _submissions_payload(),
         }
     )
-    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
     resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
-    request = ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+    request = FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="WFC",
-        field_name=ValuationField.BVPS,
+        field_name=FinancialField.BVPS,
         provider_id=SEC_PROVIDER_ID,
     )
 
@@ -532,13 +547,13 @@ def _massive_fetcher() -> FakeJsonFetcher:
 
 
 def _massive_request(
-    field: ValuationField,
+    field: FinancialField,
     *,
     basis: str | None = None,
     as_of: datetime | None = None,
-) -> ValuationFactRequest:
-    return ValuationFactRequest(
-        subject_kind=ValuationSubjectKind.SECURITY,
+) -> FinancialFactRequest:
+    return FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
         field_name=field,
         provider_id=MASSIVE_PROVIDER_ID,
@@ -549,9 +564,9 @@ def _massive_request(
 
 def test_massive_ttm_eps_preserves_current_only_provenance_and_secret_stays_in_header() -> None:
     fetcher = _massive_fetcher()
-    adapter = MassiveValuationAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
 
-    facts = adapter.fetch_facts(_massive_request(ValuationField.EPS, basis="ttm"))
+    facts = adapter.fetch_facts(_massive_request(FinancialField.EPS, basis="ttm"))
 
     assert len(facts) == 1
     fact = facts[0]
@@ -568,9 +583,9 @@ def test_massive_ttm_eps_preserves_current_only_provenance_and_secret_stays_in_h
 
 def test_massive_latest_trade_price_has_observation_timestamp_and_currency() -> None:
     fetcher = _massive_fetcher()
-    adapter = MassiveValuationAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
 
-    facts = adapter.fetch_facts(_massive_request(ValuationField.CURRENT_PRICE))
+    facts = adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE))
 
     assert len(facts) == 1
     fact = facts[0]
@@ -582,11 +597,24 @@ def test_massive_latest_trade_price_has_observation_timestamp_and_currency() -> 
     assert "trade_id=trade-123" in fact.notes
 
 
+def test_massive_quote_without_verified_currency_is_unavailable() -> None:
+    """Missing required quote currency is absence, not an operational failure."""
+    fetcher = FakeJsonFetcher(
+        {
+            "/v3/reference/tickers?": {"status": "OK", "results": []},
+            "/v2/last/trade/": _massive_trade_payload(),
+        }
+    )
+    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
+
+    assert adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE)) == ()
+
+
 def test_massive_historical_request_is_unavailable_without_network_call() -> None:
     fetcher = _massive_fetcher()
-    adapter = MassiveValuationAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
     request = _massive_request(
-        ValuationField.EPS,
+        FinancialField.EPS,
         basis="ttm",
         as_of=datetime(2025, 12, 31, 23, 59, tzinfo=UTC),
     )
@@ -597,17 +625,17 @@ def test_massive_historical_request_is_unavailable_without_network_call() -> Non
 
 def test_massive_unsupported_bvps_is_unavailable_without_network_call() -> None:
     fetcher = _massive_fetcher()
-    adapter = MassiveValuationAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
 
-    assert adapter.fetch_facts(_massive_request(ValuationField.BVPS)) == ()
+    assert adapter.fetch_facts(_massive_request(FinancialField.BVPS)) == ()
     assert fetcher.calls == []
 
 
 def test_massive_missing_api_key_is_unavailable_without_network_call() -> None:
     fetcher = _massive_fetcher()
-    adapter = MassiveValuationAdapter(api_key="", json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = MassiveFinancialFactsAdapter(api_key="", json_fetcher=fetcher, clock=lambda: NOW)
 
-    assert adapter.fetch_facts(_massive_request(ValuationField.CURRENT_PRICE)) == ()
+    assert adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE)) == ()
     assert fetcher.calls == []
 
 
@@ -620,10 +648,10 @@ def test_massive_non_ok_response_is_provider_error() -> None:
             }
         }
     )
-    adapter = MassiveValuationAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
 
-    with pytest.raises(ValuationProviderError, match="non-OK status"):
-        adapter.fetch_facts(_massive_request(ValuationField.CURRENT_PRICE))
+    with pytest.raises(FinancialProviderError, match="non-OK status"):
+        adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE))
 
 
 class StaticProvider:
@@ -632,9 +660,9 @@ class StaticProvider:
     def __init__(self, facts: tuple[ProviderFact, ...]) -> None:
         """Initialize the fake with the facts it may return."""
         self.facts = facts
-        self.calls: list[ValuationFactRequest] = []
+        self.calls: list[FinancialFactRequest] = []
 
-    def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         self.calls.append(request)
         return tuple(
             fact
@@ -647,11 +675,11 @@ class StaticProvider:
 
 def _annual_eps_fact(value: float, year: int) -> ProviderFact:
     return ProviderFact(
-        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
-        field_name=ValuationField.EPS,
+        field_name=FinancialField.EPS,
         value=value,
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=SEC_PROVIDER_ID,
         provider_field="us-gaap:EarningsPerShareDiluted",
         retrieved_at=NOW,
@@ -666,11 +694,11 @@ def _annual_eps_fact(value: float, year: int) -> ProviderFact:
 def _massive_quote_fact() -> ProviderFact:
     observed = datetime(2026, 8, 21, 17, 59, tzinfo=UTC)
     return ProviderFact(
-        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
-        field_name=ValuationField.CURRENT_PRICE,
+        field_name=FinancialField.CURRENT_PRICE,
         value=250.5,
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=MASSIVE_PROVIDER_ID,
         provider_field="results.p",
         retrieved_at=NOW,
@@ -683,10 +711,10 @@ def _massive_quote_fact() -> ProviderFact:
 def test_production_provider_routes_without_rewriting_provider_identity() -> None:
     sec = StaticProvider((_annual_eps_fact(5.0, 2023),))
     massive = StaticProvider((_massive_quote_fact(),))
-    provider = ProductionValuationProvider(sec_edgar=sec, massive=massive)
+    provider = ProductionFinancialFactsProvider(sec_edgar=sec, massive=massive)
 
     sec_result = provider.fetch_facts(_sec_request())
-    quote_result = provider.fetch_facts(_massive_request(ValuationField.CURRENT_PRICE))
+    quote_result = provider.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE))
 
     assert sec_result[0].provider_id == SEC_PROVIDER_ID
     assert quote_result[0].provider_id == MASSIVE_PROVIDER_ID
@@ -694,12 +722,12 @@ def test_production_provider_routes_without_rewriting_provider_identity() -> Non
 
 def test_graham_number_assembly_can_use_sec_eps_and_massive_quote() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
-    sec = SecEdgarValuationAdapter(
+    sec = SecEdgarFinancialFactsAdapter(
         json_fetcher=fetcher,
         clock=lambda: NOW,
     )
     massive = StaticProvider((_massive_quote_fact(),))
-    provider = ProductionValuationProvider(sec_edgar=sec, massive=massive)
+    provider = ProductionFinancialFactsProvider(sec_edgar=sec, massive=massive)
     resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
 
     result = resolver.assemble_graham_number(
@@ -722,4 +750,4 @@ def test_graham_number_assembly_can_use_sec_eps_and_massive_quote() -> None:
     assert result.current_price is not None
     assert result.current_price.value == pytest.approx(250.5)
     assert result.current_price.provider_id == MASSIVE_PROVIDER_ID
-    assert massive.calls[-1].field_name is ValuationField.CURRENT_PRICE
+    assert massive.calls[-1].field_name is FinancialField.CURRENT_PRICE

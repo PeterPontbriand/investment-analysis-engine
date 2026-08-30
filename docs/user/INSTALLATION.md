@@ -66,7 +66,7 @@ Configuration tells Financial Data Agents how to identify itself to certain data
 
 ### SEC EDGAR identification
 
-The Graham Analysis Strategy can obtain public company financial facts from the U.S. [SEC](GLOSSARY.md#sec) [EDGAR](GLOSSARY.md#edgar) system.
+The Graham and Free Cash Flow & Earnings Growth strategies can obtain public company financial facts from the U.S. [SEC](GLOSSARY.md#sec) [EDGAR](GLOSSARY.md#edgar) system.
 
 The SEC asks automated software to identify itself in the HTTP `User-Agent` header. Financial Data Agents therefore requires `SEC_USER_AGENT` before requesting SEC data.
 
@@ -112,7 +112,7 @@ The temporary form disappears when that terminal session ends.
 
 [Massive](GLOSSARY.md#massive) is a commercial financial-market-data service. Financial Data Agents can optionally use it for supported current market/fundamental data in the Graham Growth Value method.
 
-You do **not** need Massive to run the Graham Number or Momentum strategies.
+You do **not** need Massive to run the Graham Number, Momentum, or Free Cash Flow & Earnings Growth strategies.
 
 A **Massive API key** is a credential supplied by Massive that allows software to access data permitted by your Massive account/plan. If you already have or want Massive access:
 
@@ -150,7 +150,13 @@ If you configured `SEC_USER_AGENT`, a simple Graham analysis is a useful live-da
 uv run financial-agents graham KO
 ```
 
-Once installation is working, continue with the [Usage Guide](USAGE.md).
+You can also verify the annual-fundamentals growth strategy:
+
+```bash
+uv run financial-agents fcf-growth MSFT
+```
+
+Once installation is working, continue with the [Usage Guide](USAGE.md). The [Smoke Testing Commands](SMOKE_TESTING.md) provide a broader human-executed check.
 
 ---
 

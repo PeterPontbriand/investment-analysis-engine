@@ -1,4 +1,4 @@
-"""Tests for src.data.valuation.provenance models."""
+"""Tests for src.data.financial.provenance models."""
 
 from __future__ import annotations
 
@@ -7,11 +7,14 @@ from math import inf, nan
 
 import pytest
 
-from src.data.valuation.provenance import (
+from src.data.financial.provenance import (
+    AccountingScope,
+    CapitalExpenditureSign,
     ComponentLineage,
+    FinancialSubjectKind,
+    PeriodKind,
     ResolvedInput,
     SourceKind,
-    ValuationSubjectKind,
 )
 
 AW = datetime(2025, 6, 1, 12, 0, tzinfo=UTC)  # aware
@@ -24,9 +27,9 @@ NAIVE = datetime(2025, 6, 1, 12, 0)  # naive
 
 
 def test_subject_kind_members() -> None:
-    assert ValuationSubjectKind.SECURITY.value == "security"
-    assert ValuationSubjectKind.MACRO.value == "macro"
-    assert len(list(ValuationSubjectKind)) == 2
+    assert FinancialSubjectKind.SECURITY.value == "security"
+    assert FinancialSubjectKind.MACRO.value == "macro"
+    assert len(list(FinancialSubjectKind)) == 2
 
 
 def test_source_kind_members() -> None:
@@ -35,6 +38,13 @@ def test_source_kind_members() -> None:
     assert SourceKind.PROVIDER.value == "provider"
     assert SourceKind.DERIVED.value == "derived"
     assert len(list(SourceKind)) == 4
+
+
+def test_annual_metadata_enum_members() -> None:
+    assert PeriodKind.COMPLETED_ANNUAL.value == "completed_annual"
+    assert AccountingScope.CONSOLIDATED.value == "consolidated"
+    assert CapitalExpenditureSign.POSITIVE_EXPENDITURE.value == "positive_expenditure"
+    assert CapitalExpenditureSign.NEGATIVE_CASH_OUTFLOW.value == "negative_cash_outflow"
 
 
 # ---------------------------------------------------------------------------
@@ -643,3 +653,35 @@ def test_lineage_empty_components_via_input_rejected() -> None:
     """ComponentLineage raises before ResolvedInput is ever reached."""
     with pytest.raises(ValueError, match="components"):
         ComponentLineage(transformation="mean", components=())
+
+
+def test_completed_annual_metadata_is_preserved_and_normalized() -> None:
+    ri = _make_provided_input(
+        field_name="capital_expenditures",
+        fiscal_year=2025,
+        period_kind=PeriodKind.COMPLETED_ANNUAL,
+        accounting_scope=AccountingScope.CONSOLIDATED,
+        capital_expenditure_sign=CapitalExpenditureSign.POSITIVE_EXPENDITURE,
+        provider_fact_id="  fact-2025  ",
+    )
+    assert ri.fiscal_year == 2025
+    assert ri.period_kind is PeriodKind.COMPLETED_ANNUAL
+    assert ri.accounting_scope is AccountingScope.CONSOLIDATED
+    assert ri.provider_fact_id == "fact-2025"
+
+
+def test_resolved_input_fiscal_year_requires_completed_annual_kind() -> None:
+    with pytest.raises(ValueError, match="completed_annual"):
+        _make_provided_input(fiscal_year=2025, period_kind=PeriodKind.QUARTERLY)
+
+
+def test_resolved_input_nonpositive_fiscal_year_rejected() -> None:
+    with pytest.raises(ValueError, match="positive year label"):
+        _make_provided_input(fiscal_year=0, period_kind=PeriodKind.COMPLETED_ANNUAL)
+
+
+def test_resolved_input_capex_sign_rejected_for_other_field() -> None:
+    with pytest.raises(ValueError, match="only applicable"):
+        _make_provided_input(
+            capital_expenditure_sign=CapitalExpenditureSign.NEGATIVE_CASH_OUTFLOW,
+        )

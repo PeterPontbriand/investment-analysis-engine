@@ -10,7 +10,7 @@ Commands are run from the Financial Data Agents installation folder:
 uv run financial-agents ANALYSIS [arguments] [options]
 ```
 
-An [analysis strategy](GLOSSARY.md#analysis-strategy) is a deterministic analytical capability such as Graham analysis or Momentum. A [method](GLOSSARY.md#method) is a particular calculation within a strategy when that strategy offers more than one approach.
+An [analysis strategy](GLOSSARY.md#analysis-strategy) is a deterministic analytical capability such as Graham analysis, Momentum, or Free Cash Flow & Earnings Growth. A [method](GLOSSARY.md#method) is a particular calculation within a strategy when that strategy offers more than one approach.
 
 See all available commands:
 
@@ -23,6 +23,7 @@ See help for a strategy:
 ```bash
 uv run financial-agents graham --help
 uv run financial-agents momentum --help
+uv run financial-agents fcf-growth --help
 ```
 
 ## Available analysis strategies
@@ -31,6 +32,7 @@ uv run financial-agents momentum --help
 |---|---|---|---|
 | Graham Analysis | `uv run financial-agents graham KO` | Earnings/book-value screening and optional forecast-dependent Graham valuation | [Graham](strategies/GRAHAM.md) |
 | Momentum | `uv run financial-agents momentum AAPL` | Simple-moving-average relationship/crossover over historical prices | [Momentum](strategies/MOMENTUM.md) |
+| Free Cash Flow & Earnings Growth | `uv run financial-agents fcf-growth MSFT` | Historical total-company FCF, FCF-per-diluted-share, and diluted-EPS growth | [FCF & Earnings Growth](strategies/FCF_EARNINGS_GROWTH.md) |
 
 ## Graham analysis
 
@@ -66,6 +68,31 @@ uv run financial-agents momentum AAPL \
 ```
 
 See the [Momentum Analysis Strategy Guide](strategies/MOMENTUM.md).
+
+## Free Cash Flow & Earnings Growth analysis
+
+```bash
+uv run financial-agents fcf-growth MSFT
+```
+
+The default command selects the longest usable contiguous span—5, 4, then 3 elapsed years—and classifies growth using total-company FCF and diluted EPS. Both total-company and per-diluted-share FCF growth remain visible.
+
+Request an exact historical span or select the per-share classification basis:
+
+```bash
+uv run financial-agents fcf-growth MSFT --growth-years 5
+uv run financial-agents fcf-growth MSFT --classification-basis fcf-per-share
+```
+
+Control how optional forward EPS evidence is treated:
+
+```bash
+uv run financial-agents fcf-growth MSFT --forward-policy display-only
+uv run financial-agents fcf-growth MSFT --forward-policy confirmation
+uv run financial-agents fcf-growth MSFT --forward-policy hard-gate
+```
+
+The current production SEC provider may not supply forward analyst-consensus evidence. A hard gate therefore returns `INDETERMINATE` when that required evidence is unavailable. See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_EARNINGS_GROWTH.md).
 
 ## Presentation modes
 
@@ -113,6 +140,7 @@ Where supported:
 
 ```bash
 uv run financial-agents graham KO --as-of 2025-12-31
+uv run financial-agents fcf-growth MSFT --as-of 2025-12-31
 ```
 
 `--as-of` creates an information boundary. Financial facts that had not yet been published by that date cannot be used merely because their reporting period ended earlier. See [`as_of`](GLOSSARY.md#as_of), [publication date](GLOSSARY.md#available-at--filing-date--publication-date), and [look-ahead bias](GLOSSARY.md#look-ahead-bias).

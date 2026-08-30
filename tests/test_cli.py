@@ -2,6 +2,7 @@
 
 import json
 import re
+from collections.abc import Iterator
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
@@ -14,18 +15,25 @@ from src.cli import GrahamCliMethod, _build_graham_resolver, _quote_provider_id,
 from src.config import settings
 from src.core.constants import TrendStatus
 from src.data.base_client import DataFetchError
+from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
 from src.data.market_data import MarketDataContext
-from src.data.valuation.facts import ProviderFact, ValuationFactRequest, ValuationField
 from tests._cli_helpers import normalize_cli_output
-from tests.analysis.graham_value.fixture_valuation_provider import (
+from tests.analysis.graham_value.fixture_financial_facts_provider import (
     NOW,
     PROVIDER_ID,
     SECURITY_ID,
     SUBJECT_MISSING,
-    FixtureValuationProvider,
+    FixtureFinancialFactsProvider,
 )
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def disable_live_yfinance_identity_resolution() -> Iterator[None]:
+    """Keep CLI tests deterministic by stubbing optional Yahoo identity metadata."""
+    with patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None):
+        yield
 
 
 def test_normalize_cli_output_strips_ansi_and_box_characters() -> None:
@@ -44,10 +52,10 @@ class QuoteUnavailableProvider:
 
     def __init__(self) -> None:
         """Initialize the deterministic fixture delegate."""
-        self._delegate = FixtureValuationProvider()
+        self._delegate = FixtureFinancialFactsProvider()
 
-    def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
-        if request.field_name is ValuationField.CURRENT_PRICE:
+    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+        if request.field_name is FinancialField.CURRENT_PRICE:
             return ()
         return self._delegate.fetch_facts(request)
 
@@ -69,7 +77,7 @@ def mock_metrics() -> MomentumMetrics:
 @pytest.fixture
 def fixture_resolver() -> GrahamInputResolver:
     """Return the deterministic Slice-D resolver used by CLI tests."""
-    return GrahamInputResolver(FixtureValuationProvider(), clock=lambda: NOW)
+    return GrahamInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
 
 
 def test_cli_help() -> None:
@@ -224,7 +232,7 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
     assert result.exit_code == 0
     assert "NaN" not in result.output
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["result"]["short_sma"] is None
     assert payload["result"]["long_sma"] is None
     assert payload["result"]["crossover_signal"] is None
@@ -316,7 +324,7 @@ def test_cli_graham_missing_sec_user_agent_is_clean_configuration_error() -> Non
     assert "Traceback" not in result.output
 
 
-@patch("src.cli.SecEdgarValuationAdapter")
+@patch("src.cli.SecEdgarFinancialFactsAdapter")
 def test_graham_resolver_passes_configured_sec_identity_explicitly(mock_sec_adapter: MagicMock) -> None:
     declared_identity = "financial-data-agents-test test@example.invalid"
 
@@ -326,7 +334,7 @@ def test_graham_resolver_passes_configured_sec_identity_explicitly(mock_sec_adap
     mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
 
 
-@patch("src.cli.SecEdgarValuationAdapter")
+@patch("src.cli.SecEdgarFinancialFactsAdapter")
 def test_graham_growth_default_uses_configured_sec_identity(mock_sec_adapter: MagicMock) -> None:
     declared_identity = "financial-data-agents-test test@example.invalid"
 
@@ -362,7 +370,7 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["analysis"] == "graham"
     assert payload["method"] == "graham_number"
     assert payload["ticker"] == SECURITY_ID

@@ -1,4 +1,4 @@
-"""Deterministic fixture-backed ValuationFactsProvider for Step 2.3 Slice D.
+"""Deterministic fixture-backed FinancialFactsProvider for Step 2.3 Slice D.
 
 Provides a small, internally coherent synthetic dataset sufficient to exercise
 both Graham methods and the resolver/assembly contracts without network access.
@@ -7,24 +7,24 @@ All field identifiers, provider IDs, and series names are **synthetic fixture
 identifiers** and do NOT represent verified production-provider capabilities.
 Production-provider evidence belongs to Slice E1.
 
-The provider satisfies the ``ValuationFactsProvider`` protocol:
+The provider satisfies the ``FinancialFactsProvider`` protocol:
     - ``fetch_facts(request) -> tuple[ProviderFact, ...]``
     - Empty tuple = fact unavailable.
-    - ``ValuationProviderError`` = operational provider failure.
+    - ``FinancialProviderError`` = operational provider failure.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from src.data.valuation.facts import (
+from src.data.financial.facts import (
+    FinancialFactRequest,
+    FinancialField,
+    FinancialProviderError,
+    FinancialUnit,
     ProviderFact,
-    ValuationFactRequest,
-    ValuationField,
-    ValuationProviderError,
-    ValuationUnit,
 )
-from src.data.valuation.provenance import ValuationSubjectKind
+from src.data.financial.provenance import FinancialSubjectKind
 
 # ---------------------------------------------------------------------------
 # Synthetic identity constants (NOT production mappings)
@@ -110,18 +110,18 @@ SUBJECT_INCOMPATIBLE: str = "INCOMPATIBLE"
 
 
 # ---------------------------------------------------------------------------
-# FixtureValuationProvider
+# FixtureFinancialFactsProvider
 # ---------------------------------------------------------------------------
 
 
-class FixtureValuationProvider:
-    """Deterministic fixture-backed ``ValuationFactsProvider``.
+class FixtureFinancialFactsProvider:
+    """Deterministic fixture-backed ``FinancialFactsProvider``.
 
     Dispatches on ``request.subject_id`` to select scenario behavior:
 
     - ``SYNTH``: Happy-path synthetic data.
     - ``MISSING``: Returns empty tuple (fact unavailable).
-    - ``ERROR``: Raises ``ValuationProviderError``.
+    - ``ERROR``: Raises ``FinancialProviderError``.
     - ``FUTURE``: Returns a fact whose ``available_at`` is after ``NOW``.
     - ``INCOMPATIBLE``: Returns a fact with a mismatched basis (coherence failure).
 
@@ -129,13 +129,13 @@ class FixtureValuationProvider:
     wall-clock dependency.
     """
 
-    def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Return provider observations for *request*.
 
         Dispatches based on subject_id to select the scenario.
 
         Raises:
-            ValuationProviderError: If subject_id is ``ERROR``.
+            FinancialProviderError: If subject_id is ``ERROR``.
         """
         subject = request.subject_id
 
@@ -143,7 +143,7 @@ class FixtureValuationProvider:
             return ()
 
         if subject == SUBJECT_ERROR:
-            raise ValuationProviderError("Simulated fixture provider operational failure.")
+            raise FinancialProviderError("Simulated fixture provider operational failure.")
 
         if subject == SUBJECT_FUTURE:
             return self._future_fact(request)
@@ -158,15 +158,15 @@ class FixtureValuationProvider:
     # Happy-path data
     # ------------------------------------------------------------------
 
-    def _happy_path(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def _happy_path(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Return the synthetic happy-path facts for the request."""
-        if request.subject_kind is ValuationSubjectKind.MACRO:
+        if request.subject_kind is FinancialSubjectKind.MACRO:
             return self._macro_facts(request)
         return self._security_facts(request)
 
-    def _security_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def _security_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Return security-subject facts."""
-        if request.field_name is ValuationField.EPS:
+        if request.field_name is FinancialField.EPS:
             if request.observation_count == 3:
                 return self._annual_eps_facts()
             if request.basis == "ttm":
@@ -174,18 +174,18 @@ class FixtureValuationProvider:
             # Unsupported EPS basis: unavailable.
             return ()
 
-        if request.field_name is ValuationField.BVPS:
+        if request.field_name is FinancialField.BVPS:
             return (self._bvps_fact(),)
 
-        if request.field_name is ValuationField.CURRENT_PRICE:
+        if request.field_name is FinancialField.CURRENT_PRICE:
             return (self._quote_fact(),)
 
         # Unknown field for security subject
         return ()
 
-    def _macro_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def _macro_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Return macro-subject facts."""
-        if request.field_name is ValuationField.CURRENT_AAA_YIELD:
+        if request.field_name is FinancialField.CURRENT_AAA_YIELD:
             return (self._aaa_yield_fact(),)
         return ()
 
@@ -197,11 +197,11 @@ class FixtureValuationProvider:
         """Three completed fiscal-year EPS observations."""
         return (
             ProviderFact(
-                subject_kind=ValuationSubjectKind.SECURITY,
+                subject_kind=FinancialSubjectKind.SECURITY,
                 subject_id=SECURITY_ID,
-                field_name=ValuationField.EPS,
+                field_name=FinancialField.EPS,
                 value=EPS_FY2022,
-                units=ValuationUnit.CURRENCY_PER_SHARE,
+                units=FinancialUnit.CURRENCY_PER_SHARE,
                 provider_id=PROVIDER_ID,
                 provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
@@ -213,11 +213,11 @@ class FixtureValuationProvider:
                 notes=("fixture: FY2022 annual EPS",),
             ),
             ProviderFact(
-                subject_kind=ValuationSubjectKind.SECURITY,
+                subject_kind=FinancialSubjectKind.SECURITY,
                 subject_id=SECURITY_ID,
-                field_name=ValuationField.EPS,
+                field_name=FinancialField.EPS,
                 value=EPS_FY2023,
-                units=ValuationUnit.CURRENCY_PER_SHARE,
+                units=FinancialUnit.CURRENCY_PER_SHARE,
                 provider_id=PROVIDER_ID,
                 provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
@@ -229,11 +229,11 @@ class FixtureValuationProvider:
                 notes=("fixture: FY2023 annual EPS",),
             ),
             ProviderFact(
-                subject_kind=ValuationSubjectKind.SECURITY,
+                subject_kind=FinancialSubjectKind.SECURITY,
                 subject_id=SECURITY_ID,
-                field_name=ValuationField.EPS,
+                field_name=FinancialField.EPS,
                 value=EPS_FY2024,
-                units=ValuationUnit.CURRENCY_PER_SHARE,
+                units=FinancialUnit.CURRENCY_PER_SHARE,
                 provider_id=PROVIDER_ID,
                 provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
@@ -249,11 +249,11 @@ class FixtureValuationProvider:
     def _ttm_eps_fact(self) -> ProviderFact:
         """Explicit TTM EPS observation."""
         return ProviderFact(
-            subject_kind=ValuationSubjectKind.SECURITY,
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.EPS,
+            field_name=FinancialField.EPS,
             value=EPS_TTM,
-            units=ValuationUnit.CURRENCY_PER_SHARE,
+            units=FinancialUnit.CURRENCY_PER_SHARE,
             provider_id=PROVIDER_ID,
             provider_field=FIELD_TTM_EPS,
             retrieved_at=RETRIEVED_AT,
@@ -268,11 +268,11 @@ class FixtureValuationProvider:
     def _bvps_fact(self) -> ProviderFact:
         """Provider-reported BVPS."""
         return ProviderFact(
-            subject_kind=ValuationSubjectKind.SECURITY,
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.BVPS,
+            field_name=FinancialField.BVPS,
             value=BVPS_VALUE,
-            units=ValuationUnit.CURRENCY_PER_SHARE,
+            units=FinancialUnit.CURRENCY_PER_SHARE,
             provider_id=PROVIDER_ID,
             provider_field=FIELD_BVPS,
             retrieved_at=RETRIEVED_AT,
@@ -285,11 +285,11 @@ class FixtureValuationProvider:
     def _quote_fact(self) -> ProviderFact:
         """Point-in-time quote observation."""
         return ProviderFact(
-            subject_kind=ValuationSubjectKind.SECURITY,
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
-            field_name=ValuationField.CURRENT_PRICE,
+            field_name=FinancialField.CURRENT_PRICE,
             value=QUOTE_VALUE,
-            units=ValuationUnit.CURRENCY_PER_SHARE,
+            units=FinancialUnit.CURRENCY_PER_SHARE,
             provider_id=PROVIDER_ID,
             provider_field=FIELD_QUOTE,
             retrieved_at=RETRIEVED_AT,
@@ -302,11 +302,11 @@ class FixtureValuationProvider:
     def _aaa_yield_fact(self) -> ProviderFact:
         """Identified AAA corporate-yield fixture observation."""
         return ProviderFact(
-            subject_kind=ValuationSubjectKind.MACRO,
+            subject_kind=FinancialSubjectKind.MACRO,
             subject_id=MACRO_ID,
-            field_name=ValuationField.CURRENT_AAA_YIELD,
+            field_name=FinancialField.CURRENT_AAA_YIELD,
             value=AAA_YIELD_VALUE,
-            units=ValuationUnit.PERCENTAGE_POINTS,
+            units=FinancialUnit.PERCENTAGE_POINTS,
             provider_id=PROVIDER_ID,
             provider_field=FIELD_AAA_YIELD,
             retrieved_at=RETRIEVED_AT,
@@ -319,21 +319,21 @@ class FixtureValuationProvider:
     # Adverse-case facts
     # ------------------------------------------------------------------
 
-    def _future_fact(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def _future_fact(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Return a fact with available_at after NOW (temporally ineligible).
 
         All FUTURE facts use ``FUTURE_RETRIEVED_AT`` to ensure
         ``retrieved_at >= available_at`` (temporal coherence), even though
         the data is in the future relative to the resolver clock.
         """
-        if request.subject_kind is ValuationSubjectKind.MACRO:
+        if request.subject_kind is FinancialSubjectKind.MACRO:
             return (
                 ProviderFact(
-                    subject_kind=ValuationSubjectKind.MACRO,
+                    subject_kind=FinancialSubjectKind.MACRO,
                     subject_id=SUBJECT_FUTURE,
-                    field_name=ValuationField.CURRENT_AAA_YIELD,
+                    field_name=FinancialField.CURRENT_AAA_YIELD,
                     value=AAA_YIELD_VALUE,
-                    units=ValuationUnit.PERCENTAGE_POINTS,
+                    units=FinancialUnit.PERCENTAGE_POINTS,
                     provider_id=PROVIDER_ID,
                     provider_field=FIELD_AAA_YIELD,
                     retrieved_at=FUTURE_RETRIEVED_AT,
@@ -342,14 +342,14 @@ class FixtureValuationProvider:
                     notes=("fixture: future-published adverse case",),
                 ),
             )
-        if request.field_name is ValuationField.EPS:
+        if request.field_name is FinancialField.EPS:
             return (
                 ProviderFact(
-                    subject_kind=ValuationSubjectKind.SECURITY,
+                    subject_kind=FinancialSubjectKind.SECURITY,
                     subject_id=SUBJECT_FUTURE,
-                    field_name=ValuationField.EPS,
+                    field_name=FinancialField.EPS,
                     value=EPS_TTM,
-                    units=ValuationUnit.CURRENCY_PER_SHARE,
+                    units=FinancialUnit.CURRENCY_PER_SHARE,
                     provider_id=PROVIDER_ID,
                     provider_field=FIELD_TTM_EPS,
                     retrieved_at=FUTURE_RETRIEVED_AT,
@@ -361,14 +361,14 @@ class FixtureValuationProvider:
                     notes=("fixture: future-published adverse case",),
                 ),
             )
-        if request.field_name is ValuationField.BVPS:
+        if request.field_name is FinancialField.BVPS:
             return (
                 ProviderFact(
-                    subject_kind=ValuationSubjectKind.SECURITY,
+                    subject_kind=FinancialSubjectKind.SECURITY,
                     subject_id=SUBJECT_FUTURE,
-                    field_name=ValuationField.BVPS,
+                    field_name=FinancialField.BVPS,
                     value=BVPS_VALUE,
-                    units=ValuationUnit.CURRENCY_PER_SHARE,
+                    units=FinancialUnit.CURRENCY_PER_SHARE,
                     provider_id=PROVIDER_ID,
                     provider_field=FIELD_BVPS,
                     retrieved_at=FUTURE_RETRIEVED_AT,
@@ -381,11 +381,11 @@ class FixtureValuationProvider:
         # CURRENT_PRICE and other fields
         return (
             ProviderFact(
-                subject_kind=ValuationSubjectKind.SECURITY,
+                subject_kind=FinancialSubjectKind.SECURITY,
                 subject_id=SUBJECT_FUTURE,
                 field_name=request.field_name,
                 value=QUOTE_VALUE,
-                units=ValuationUnit.CURRENCY_PER_SHARE,
+                units=FinancialUnit.CURRENCY_PER_SHARE,
                 provider_id=PROVIDER_ID,
                 provider_field=FIELD_QUOTE,
                 retrieved_at=FUTURE_RETRIEVED_AT,
@@ -396,7 +396,7 @@ class FixtureValuationProvider:
             ),
         )
 
-    def _incompatible_fact(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def _incompatible_fact(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Return a fact with a mismatched basis (coherence failure)."""
         # Return a fact whose basis is "mismatched_basis" while the request
         # asks for a different basis (or None). This triggers the resolver's
@@ -410,11 +410,11 @@ class FixtureValuationProvider:
             mismatched = "mismatched_basis" if requested_basis != "mismatched_basis" else "other"
         return (
             ProviderFact(
-                subject_kind=ValuationSubjectKind.SECURITY,
+                subject_kind=FinancialSubjectKind.SECURITY,
                 subject_id=SUBJECT_INCOMPATIBLE,
-                field_name=ValuationField.EPS,
+                field_name=FinancialField.EPS,
                 value=EPS_TTM,
-                units=ValuationUnit.CURRENCY_PER_SHARE,
+                units=FinancialUnit.CURRENCY_PER_SHARE,
                 provider_id=PROVIDER_ID,
                 provider_field=FIELD_TTM_EPS,
                 retrieved_at=RETRIEVED_AT,

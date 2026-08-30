@@ -4,7 +4,7 @@
 
 Financial Data Agents is a terminal-first research tool for investors who want useful quantitative analysis **without treating an AI model as a calculator or an oracle**. Financial calculations are performed by deterministic Python [analysis strategies](docs/user/GLOSSARY.md#analysis-strategy); financial values retain [provenance](docs/user/GLOSSARY.md#provenance), measurement basis, and time boundaries so that a result can be inspected rather than merely accepted.
 
-The application currently provides [Momentum](docs/user/GLOSSARY.md#momentum-analyzer) and dual-method [Graham analysis](docs/user/GLOSSARY.md#graham-analysis). Local [LLM](docs/user/GLOSSARY.md#llm-large-language-model) orchestration through Ollama is a separate capability: AI may help select, organize, or explain [typed evidence](docs/user/GLOSSARY.md#typed-evidence), but it does not perform financial arithmetic or silently invent missing values.
+The application currently provides [Momentum](docs/user/GLOSSARY.md#momentum-analyzer), dual-method [Graham analysis](docs/user/GLOSSARY.md#graham-analysis), and [Free Cash Flow & Earnings Growth](docs/user/GLOSSARY.md#free-cash-flow--earnings-growth-strategy). Local [LLM](docs/user/GLOSSARY.md#llm-large-language-model) orchestration through Ollama is a separate capability: AI may help select, organize, or explain [typed evidence](docs/user/GLOSSARY.md#typed-evidence), but it does not perform financial arithmetic or silently invent missing values.
 
 **Status:** Active development — pre-v1.0.
 
@@ -34,7 +34,7 @@ Sources / freshness: EPS — derived from SEC EDGAR (available 2026-02-20); BVPS
 Limitation: The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation.
 ```
 
-Live prices and newly published filings change, so the numbers above are illustrative. The important part is the shape of the answer: the result names the method, shows the market comparison, identifies the financial basis, summarizes data sources/freshness, and states the method limitation.
+Live prices and newly published filings change, so the numbers above are illustrative. When supported provider evidence supplies an instrument name, the heading uses `Instrument Name (TICKER)`; otherwise it safely falls back to the ticker alone. The important part is the shape of the answer: the result names the method, shows the market comparison, identifies the financial basis, summarizes data sources/freshness, and states the method limitation.
 
 Want to inspect more?
 
@@ -82,6 +82,7 @@ Direct deterministic analysis does **not** require Ollama or a GPU. Local-AI fea
 | [Momentum](docs/user/strategies/MOMENTUM.md) | Historical closing prices; configurable short/long [SMA](docs/user/GLOSSARY.md#sma-simple-moving-average) windows | Yahoo Finance historical prices via `yfinance` | Current SMA/[crossover](docs/user/GLOSSARY.md#crossover) state when sufficient history is available; otherwise the result reports insufficient history |
 | [Graham Number](docs/user/strategies/GRAHAM.md#graham-number-default-method) | Three completed fiscal years of diluted EPS averaged together + latest eligible fiscal-year-end BVPS; current quote optional for comparison | [SEC](docs/user/GLOSSARY.md#sec) [EDGAR](docs/user/GLOSSARY.md#edgar) financial facts + Yahoo Finance current quote via `yfinance` | Maximum indicated price / screening ceiling based on earnings and book value |
 | [Graham Growth Value](docs/user/strategies/GRAHAM.md#graham-growth-value-secondary-method) | Explicit expected-growth assumption + explicit current [AAA corporate-bond yield](docs/user/GLOSSARY.md#aaa-corporate-bond-yield) + supported EPS basis; current quote optional for comparison | SEC EDGAR + Yahoo Finance current quote via `yfinance`, or optionally [Massive](docs/user/GLOSSARY.md#massive) for supported current TTM EPS/quote data | Forecast-dependent growth-formula estimate; not the Graham Number |
+| [Free Cash Flow & Earnings Growth](docs/user/strategies/FCF_EARNINGS_GROWTH.md) | Completed annual operating cash flow, normalized capital expenditures, diluted EPS, and weighted-average diluted shares | SEC EDGAR annual company facts | `PASS`, `FAIL`, or `INDETERMINATE` historical growth screen; both total-company and per-share FCF growth are reported |
 
 [`yfinance`](https://ranaroussi.github.io/yfinance/) is an independent open-source library that Financial Data Agents uses to access Yahoo Finance data. It is not affiliated with, endorsed by, or vetted by Yahoo.
 
@@ -133,7 +134,7 @@ Start with the [Project & Technical Documentation Index](docs/project/README.md)
 - the Master Plan and design rationale;
 - the active milestone implementation plan;
 - active step/slice plans and status;
-- engineering quality gates; and
+- [engineering quality gates](docs/project/README.md#quality-gates); and
 - deployment/configuration artifacts intended for project reviewers.
 
 ### Documentation authority
@@ -163,7 +164,7 @@ The [Project & Technical Documentation Index](docs/project/README.md) is the sin
 
 Financial Data Agents is not an investment recommendation engine. A deterministic formula can still be inappropriate for a particular company, and accurate provider data can still be incomplete, stale, restated, differently defined, or economically misleading without context.
 
-For example, the [Graham Number](docs/user/GLOSSARY.md#graham-number) is a limited earnings-and-book-value screen, the [Graham growth-value method](docs/user/GLOSSARY.md#graham-growth-value-method-graham_growth_value) depends materially on user-supplied assumptions, and [Momentum](docs/user/GLOSSARY.md#momentum-analyzer) describes price-series behavior rather than business quality or fair value.
+For example, the [Graham Number](docs/user/GLOSSARY.md#graham-number) is a limited earnings-and-book-value screen, the [Graham growth-value method](docs/user/GLOSSARY.md#graham-growth-value-method-graham_growth_value) depends materially on user-supplied assumptions, [Momentum](docs/user/GLOSSARY.md#momentum-analyzer) describes price-series behavior rather than business quality or fair value, and [Free Cash Flow & Earnings Growth](docs/user/GLOSSARY.md#free-cash-flow--earnings-growth-strategy) does not establish a moat, forecast future growth, or determine fair value.
 
 Nothing in this repository, its documentation, generated output, or related materials constitutes financial, investment, legal, or tax advice. Verify source data, assumptions, methods, and outputs independently before making investment decisions.
 

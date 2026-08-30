@@ -11,9 +11,11 @@ This section is for people **using Financial Data Agents**. It deliberately avoi
 ## Use the application
 
 - [Usage Guide](USAGE.md) — common command structure, available analysis strategies, presentation modes, historical analysis, overrides, and data-source selection.
+- [Smoke Testing Commands](SMOKE_TESTING.md) — twelve representative commands for a human to run after a deployment or update.
 - [Analysis Strategy Guides](strategies/README.md) — method-specific use, interpretation, assumptions, data sources, comparison points, and limitations.
   - [Graham Analysis Strategy](strategies/GRAHAM.md)
   - [Momentum Analysis Strategy](strategies/MOMENTUM.md)
+  - [Free Cash Flow & Earnings Growth Strategy](strategies/FCF_EARNINGS_GROWTH.md)
 
 ## Understand the terminology and calculations
 
