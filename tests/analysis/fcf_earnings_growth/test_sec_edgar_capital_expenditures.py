@@ -138,22 +138,13 @@ def test_does_not_substitute_productive_assets_or_other_ppe_concepts() -> None:
     assert _adapter(_payload(extra_concepts=alternates)).fetch_facts(_request()) == ()
 
 
-def test_rejects_unsupported_period_unit_identity_and_request_shapes() -> None:
+def test_rejects_unsupported_period_unit_and_request_shapes() -> None:
     quarterly = _observation(5.0, accession="quarter", start="2025-04-01", end="2025-06-30")
     wrong_units = {
         "PaymentsToAcquirePropertyPlantAndEquipment": {"units": {"USD millions": [_observation(6.0, accession="unit")]}}
     }
-    multi_ticker = {
-        "0": {"cik_str": CIK, "ticker": "MSFT", "title": "Microsoft"},
-        "1": {"cik_str": CIK, "ticker": "MSFT-A", "title": "Microsoft"},
-    }
-
     assert _adapter(_payload([quarterly])).fetch_facts(_request()) == ()
     assert _adapter(_payload(extra_concepts=wrong_units)).fetch_facts(_request()) == ()
-    assert (
-        _adapter(_payload([_observation(5.0, accession="identity")]), ticker_rows=multi_ticker).fetch_facts(_request())
-        == ()
-    )
     assert (
         _adapter(_payload([_observation(5.0, accession="basis")])).fetch_facts(_request(basis="fiscal_year_end")) == ()
     )

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import math
+import asyncio
 from dataclasses import replace
 from datetime import UTC, date, datetime, time
 from enum import StrEnum
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -18,22 +19,25 @@ from src.analysis.fcf_earnings_growth import (
     HistoricalHorizon,
     ProductionAnnualGrowthSeriesResolver,
 )
-from src.analysis.graham_value.calculators import compute_graham_growth_value, compute_graham_number
 from src.analysis.graham_value.input_resolver import (
     GrahamInputResolver,
     GrahamNumberInputAssembly,
     GrowthValueInputAssembly,
 )
+from src.analysis.graham_value.service import (
+    GrahamGrowthCalculationPolicy,
+    run_graham_growth_analysis,
+    run_graham_number_analysis,
+)
 from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
 from src.config import settings
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import ConfigKeys
-from src.core.telemetry import RunContext
+from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.run_context import get_current_run_context, set_current_run_context
 from src.data.base_client import DataFetchError
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactsProvider
-from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.providers import (
     MASSIVE_PROVIDER_ID,
     SEC_PROVIDER_ID,
@@ -42,12 +46,28 @@ from src.data.financial.providers import (
     ProductionFinancialFactsProvider,
     SecEdgarFinancialFactsAdapter,
 )
-from src.data.security_identity import (
-    SecurityIdentityRequest,
-    SecurityIdentityResolution,
-    resolve_security_identity,
+from src.data.instrument_profile import (
+    InstrumentProfile,
+    InstrumentProfileCandidate,
+    compose_instrument_profile,
+    profile_identity_resolution,
 )
+from src.data.security_identity import SecurityIdentityResolution
 from src.data.yfinance import YFinanceClient
+from src.evaluation.catalog import (
+    DETERMINISTIC_FIXTURE_SET_VERSION,
+    DETERMINISTIC_SUITE_ID,
+    DETERMINISTIC_SUITE_VERSION,
+    build_deterministic_requests,
+)
+from src.evaluation.ollama_runner import (
+    OllamaEvaluationConfig,
+    OllamaEvaluationResult,
+    run_real_local_ollama_suite,
+)
+from src.evaluation.reporting import EvaluationReport
+from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
+from src.llm.client import LLMClient
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.graham import (
     GrahamGrowthPresentation,
@@ -60,7 +80,6 @@ from src.reporting.presentation import PresentationMode
 
 app = typer.Typer(help="Financial Data Agents Command Line Interface")
 
-_AAA_OVERRIDE_PROVIDER_ID = "user_override"
 _MOMENTUM_CLI_DEFAULTS = MomentumConfig()
 
 
@@ -69,6 +88,16 @@ class GrahamCliMethod(StrEnum):
 
     NUMBER = "number"
     GROWTH = "growth"
+
+
+class EvaluationCliMode(StrEnum):
+    """User-facing Golden-Suite execution choices."""
+
+    DETERMINISTIC = "deterministic"
+    OLLAMA = "ollama"
+
+
+type EvaluationCommandResult = EvaluationReport | OllamaEvaluationResult
 
 
 @app.callback()
@@ -127,21 +156,23 @@ def momentum(  # noqa: PLR0913
         analyzer = MomentumAnalyzer(default_ticker=target_ticker, data_client=data_client)
         config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
         run = analyzer.run_with_context(config=config, ticker=target_ticker)
-        identity_resolution = resolve_security_identity(
-            data_client,
-            SecurityIdentityRequest(ticker=run.metrics.ticker, provider_id=data_client.provider_id),
+        profile = compose_instrument_profile(
+            run.metrics.ticker,
+            identity_candidates=(InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client),),
+            kind_candidate=InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client),
         )
         presentation = MomentumPresentation(
             metrics=run.metrics,
             config=config,
             market_data=run.market_data,
-            identity_resolution=identity_resolution,
+            identity_resolution=profile_identity_resolution(profile),
+            instrument_profile=profile,
         )
         typer.echo(render_momentum(presentation, mode))
     except DataFetchError as err:
         label = target_ticker or "the configured default ticker"
         typer.echo(
-            f"Unable to analyze {label}: no usable market data was returned. Verify the ticker symbol and try again.",
+            f"Unable to analyze {label}: the configured market-data provider returned no usable price history.",
             err=True,
         )
         raise typer.Exit(code=1) from err
@@ -246,6 +277,7 @@ def graham(  # noqa: PLR0913
         raise typer.Exit(code=1) from err
 
     try:
+        profile_provider = YFinanceClient()
         if method is GrahamCliMethod.NUMBER:
             output, exit_code = _run_graham_number(
                 resolver=resolver,
@@ -259,6 +291,7 @@ def graham(  # noqa: PLR0913
                 as_of=analysis_as_of,
                 use_cache=not no_cache,
                 mode=mode,
+                profile_provider=profile_provider,
             )
         else:
             assert expected_growth is not None
@@ -276,6 +309,7 @@ def graham(  # noqa: PLR0913
                 as_of=analysis_as_of,
                 use_cache=not no_cache,
                 mode=mode,
+                profile_provider=profile_provider,
             )
     except Exception as err:
         typer.echo(f"Graham analysis failed unexpectedly for {target_ticker}.", err=True)
@@ -334,6 +368,12 @@ def fcf_growth(  # noqa: PLR0913
 
     try:
         provider = _build_sec_production_provider()
+        profile = _compose_analysis_profile(
+            target_ticker,
+            primary_provider=provider,
+            primary_provider_id=provider_id,
+            yahoo_provider=provider,
+        )
         resolver = ProductionAnnualGrowthSeriesResolver(
             provider,
             cache=InMemoryResolvedInputCache(),
@@ -347,11 +387,9 @@ def fcf_growth(  # noqa: PLR0913
             provider_id=provider_id,
             use_cache=not no_cache,
             effective_as_of=boundary,
+            instrument_profile=profile,
         )
-        identity_resolution = resolve_security_identity(
-            provider,
-            SecurityIdentityRequest(ticker=target_ticker, provider_id=provider_id),
-        )
+        identity_resolution = profile_identity_resolution(profile)
     except ValueError as err:
         typer.echo(f"Unable to start FCF & earnings-growth analysis: {err}", err=True)
         raise typer.Exit(code=1) from err
@@ -359,11 +397,199 @@ def fcf_growth(  # noqa: PLR0913
         typer.echo(f"FCF & earnings-growth analysis failed unexpectedly for {target_ticker}.", err=True)
         raise typer.Exit(code=1) from err
 
-    output = render_fcf_earnings_growth(result, mode, identity_resolution)
-    exit_code = 0 if result.execution_status is CalculationStatus.OK else 1
+    output = render_fcf_earnings_growth(result, mode, identity_resolution, profile)
+    exit_code = 0 if result.execution_status in (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE) else 1
     typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
     if exit_code:
         raise typer.Exit(code=exit_code)
+
+
+@app.command(name="evaluate")
+def evaluate(  # noqa: PLR0913
+    *,
+    mode: Annotated[
+        EvaluationCliMode,
+        typer.Option("--mode", help="Execution mode: deterministic (default) or ollama"),
+    ] = EvaluationCliMode.DETERMINISTIC,
+    case_id: str | None = typer.Option(None, "--case", help="Run one stable Golden case ID instead of the full suite"),
+    report_path: Annotated[Path, typer.Option("--report", help="Explicit JSON report destination")],
+    overwrite: bool = typer.Option(False, "--overwrite", help="Replace an existing report file"),
+    ollama_endpoint: str | None = typer.Option(
+        None,
+        "--ollama-endpoint",
+        help="Ollama endpoint; defaults to the configured application endpoint",
+    ),
+    model_id: str | None = typer.Option(
+        None,
+        "--model",
+        help="Local model identifier; defaults to the configured application model",
+    ),
+    temperature: float | None = typer.Option(None, "--temperature", help="Empirical sampling temperature"),
+    repetitions: int | None = typer.Option(
+        None,
+        "--repetitions",
+        min=1,
+        max=100,
+        help="Independent empirical repetitions (1-100)",
+    ),
+    max_steps: int | None = typer.Option(
+        None,
+        "--max-steps",
+        min=1,
+        max=50,
+        help="Maximum orchestration steps per case (1-50)",
+    ),
+) -> None:
+    """Run the versioned Golden Suite and write one machine-readable report."""
+    requests = _select_evaluation_requests(case_id)
+    _validate_evaluation_mode_options(
+        mode,
+        ollama_endpoint=ollama_endpoint,
+        model_id=model_id,
+        temperature=temperature,
+        repetitions=repetitions,
+        max_steps=max_steps,
+    )
+    target = report_path.expanduser().resolve()
+    if target.exists() and not overwrite:
+        raise typer.BadParameter(
+            f"Report already exists: {target}. Use --overwrite to replace it.",
+            param_hint="--report",
+        )
+
+    try:
+        result = asyncio.run(
+            _run_evaluation_command(
+                requests,
+                mode=mode,
+                executed_at=datetime.now(UTC),
+                ollama_endpoint=ollama_endpoint,
+                model_id=model_id,
+                temperature=temperature,
+                repetitions=repetitions,
+                max_steps=max_steps,
+            )
+        )
+        _write_evaluation_report(result, target=target, overwrite=overwrite)
+    except (OSError, ValueError) as err:
+        typer.echo(f"Evaluation failed: {err}", err=True)
+        raise typer.Exit(code=1) from err
+    except Exception as err:
+        typer.echo(f"Evaluation failed unexpectedly: {err}", err=True)
+        raise typer.Exit(code=1) from err
+
+    passed, failed, skipped = _evaluation_case_counts(result)
+    typer.echo(f"Evaluation report written to {target} ({passed} passed, {failed} failed, {skipped} skipped).")
+    if failed or skipped:
+        raise typer.Exit(code=1)
+
+
+def _select_evaluation_requests(case_id: str | None) -> tuple[DeterministicCaseRequest, ...]:
+    """Return the full canonical catalog or one exact stable case."""
+    requests = build_deterministic_requests()
+    if case_id is None:
+        return requests
+    normalized = case_id.strip().upper()
+    selected = tuple(request for request in requests if request.case.case_id == normalized)
+    if selected:
+        return selected
+    available = ", ".join(request.case.case_id for request in requests)
+    raise typer.BadParameter(
+        f"Unknown Golden case ID {case_id!r}. Available IDs: {available}.",
+        param_hint="--case",
+    )
+
+
+def _validate_evaluation_mode_options(  # noqa: PLR0913
+    mode: EvaluationCliMode,
+    *,
+    ollama_endpoint: str | None,
+    model_id: str | None,
+    temperature: float | None,
+    repetitions: int | None,
+    max_steps: int | None,
+) -> None:
+    """Reject empirical-only controls when deterministic execution is selected."""
+    empirical_options = (ollama_endpoint, model_id, temperature, repetitions, max_steps)
+    if mode is EvaluationCliMode.DETERMINISTIC and any(value is not None for value in empirical_options):
+        raise typer.BadParameter(
+            "Ollama options require --mode ollama.",
+            param_hint="--mode",
+        )
+
+
+async def _run_evaluation_command(  # noqa: PLR0913
+    requests: tuple[DeterministicCaseRequest, ...],
+    *,
+    mode: EvaluationCliMode,
+    executed_at: datetime,
+    ollama_endpoint: str | None,
+    model_id: str | None,
+    temperature: float | None,
+    repetitions: int | None,
+    max_steps: int | None,
+) -> EvaluationCommandResult:
+    """Route one CLI request through the reviewed deterministic or empirical runner."""
+    if mode is EvaluationCliMode.DETERMINISTIC:
+        recorder = TrajectoryRecorder.from_settings(get_cli_run_context())
+        return await run_deterministic_suite(
+            requests,
+            suite_id=DETERMINISTIC_SUITE_ID,
+            suite_version=DETERMINISTIC_SUITE_VERSION,
+            fixture_set_version=DETERMINISTIC_FIXTURE_SET_VERSION,
+            executed_at=executed_at,
+            recorder=recorder,
+        )
+
+    endpoint = ollama_endpoint or settings.ollama_base_url
+    selected_model = model_id or settings.model_selection
+    config = OllamaEvaluationConfig(
+        endpoint=endpoint,
+        model_id=selected_model,
+        temperature=0.0 if temperature is None else temperature,
+        repetitions=1 if repetitions is None else repetitions,
+        max_steps=10 if max_steps is None else max_steps,
+        schema_config=settings.schema_config,
+    )
+    client = LLMClient(config.endpoint, default_model=config.model_id)
+    try:
+        return await run_real_local_ollama_suite(
+            requests,
+            suite_id=DETERMINISTIC_SUITE_ID,
+            suite_version=DETERMINISTIC_SUITE_VERSION,
+            fixture_set_version=DETERMINISTIC_FIXTURE_SET_VERSION,
+            llm_client=client,
+            config=config,
+            executed_at=executed_at,
+        )
+    finally:
+        await client.close()
+
+
+def _write_evaluation_report(
+    result: EvaluationCommandResult,
+    *,
+    target: Path,
+    overwrite: bool,
+) -> None:
+    """Serialize a complete report without replacing an existing file implicitly."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    mode = "w" if overwrite else "x"
+    with target.open(mode, encoding="utf-8", newline="\n") as report_file:
+        report_file.write(result.model_dump_json(indent=2))
+        report_file.write("\n")
+
+
+def _evaluation_case_counts(result: EvaluationCommandResult) -> tuple[int, int, int]:
+    """Return aggregate passed, failed, and skipped case-execution counts."""
+    if isinstance(result, EvaluationReport):
+        return result.passed_cases, result.failed_cases, result.skipped_cases
+    reports = tuple(item.report for item in result.repetition_reports)
+    return (
+        sum(report.passed_cases for report in reports),
+        sum(report.failed_cases for report in reports),
+        sum(report.skipped_cases for report in reports),
+    )
 
 
 def _build_sec_production_provider() -> ProductionFinancialFactsProvider:
@@ -385,6 +611,27 @@ def _build_massive_production_provider() -> MassiveFinancialFactsAdapter:
     if not massive.is_configured:
         raise ValueError("Massive access is not configured. Set MASSIVE_API_KEY and retry.")
     return massive
+
+
+def _compose_analysis_profile(
+    ticker: str,
+    *,
+    primary_provider: object,
+    primary_provider_id: str,
+    yahoo_provider: object,
+) -> InstrumentProfile:
+    """Compose current profile evidence with explicit production precedence."""
+    yahoo_candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, yahoo_provider)
+    identity_candidates: tuple[InstrumentProfileCandidate, ...] = (
+        InstrumentProfileCandidate(primary_provider_id, primary_provider),
+    )
+    if primary_provider_id != YFINANCE_PROVIDER_ID:
+        identity_candidates = (*identity_candidates, yahoo_candidate)
+    return compose_instrument_profile(
+        ticker,
+        identity_candidates=identity_candidates,
+        kind_candidate=yahoo_candidate,
+    )
 
 
 def _build_graham_resolver(*, method: GrahamCliMethod, data_provider: str | None) -> GrahamInputResolver:
@@ -440,63 +687,62 @@ def _run_graham_number(  # noqa: PLR0913
     as_of: datetime | None,
     use_cache: bool,
     mode: PresentationMode,
+    profile_provider: object,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham Number analysis."""
-    assembly = resolver.assemble_graham_number(
-        security_subject_id=ticker,
+    profile = _compose_analysis_profile(
+        ticker,
+        primary_provider=resolver.provider,
+        primary_provider_id=security_provider_id,
+        yahoo_provider=profile_provider,
+    )
+    analysis = run_graham_number_analysis(
+        resolver=resolver,
+        ticker=ticker,
         security_provider_id=security_provider_id,
+        quote_provider_id=quote_provider_id,
         eps_basis=eps_basis,
         eps_override=eps_override,
         bvps_override=bvps_override,
         quote_override=quote_override,
-        quote_provider_id=quote_provider_id,
         as_of=as_of,
         use_cache=use_cache,
+        instrument_profile=profile,
     )
-    identity_resolution = resolve_security_identity(
-        resolver.provider,
-        SecurityIdentityRequest(ticker=ticker, provider_id=security_provider_id),
-    )
+    assembly = analysis.assembly
+    identity_resolution = profile_identity_resolution(profile)
 
     if assembly.status is not CalculationStatus.OK:
+        if assembly.status is CalculationStatus.NOT_APPLICABLE:
+            presentation = GrahamNumberPresentation(
+                ticker=ticker,
+                assembly=assembly,
+                result=analysis.result,
+                as_of=as_of,
+                identity_resolution=identity_resolution,
+                instrument_profile=profile,
+            )
+            return render_graham_number(presentation, mode), 0
         return _number_failure_output(
             ticker=ticker,
             assembly=assembly,
             as_of=as_of,
             mode=mode,
             identity_resolution=identity_resolution,
+            instrument_profile=profile,
         )
 
-    if not _has_provider_backed_security_evidence(assembly.eps, assembly.bvps, assembly.current_price):
-        reason = _unverified_ticker_reason(ticker)
-        unverified = replace(assembly, status=CalculationStatus.INPUT_UNAVAILABLE, reason=reason)
-        return _number_failure_output(
-            ticker=ticker,
-            assembly=unverified,
-            as_of=as_of,
-            mode=mode,
-            identity_resolution=identity_resolution,
-        )
-
-    assert assembly.eps is not None
-    assert assembly.bvps is not None
-    result = compute_graham_number(assembly.eps.value, assembly.bvps.value)
-    valuation_currency = _common_currency(assembly.eps, assembly.bvps)
-    margin = _margin_of_safety(
-        result.maximum_indicated_price,
-        assembly.current_price,
-        valuation_currency=valuation_currency,
-    )
     presentation_assembly = _number_with_public_quote_reason(assembly)
     presentation = GrahamNumberPresentation(
         ticker=ticker,
         assembly=presentation_assembly,
-        result=result,
+        result=analysis.result,
         as_of=as_of,
-        margin_of_safety_percent=margin,
+        margin_of_safety_percent=analysis.margin_of_safety_percent,
         identity_resolution=identity_resolution,
+        instrument_profile=profile,
     )
-    exit_code = 1 if result.status is CalculationStatus.INVALID_INPUT else 0
+    exit_code = 1 if analysis.result.status is CalculationStatus.INVALID_INPUT else 0
     return render_graham_number(presentation, mode), exit_code
 
 
@@ -514,87 +760,82 @@ def _run_graham_growth(  # noqa: PLR0913
     as_of: datetime | None,
     use_cache: bool,
     mode: PresentationMode,
+    profile_provider: object,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham growth-value analysis."""
-    assembly = resolver.assemble_growth_value(
-        security_subject_id=ticker,
+    policy = _growth_assumptions()
+    profile = _compose_analysis_profile(
+        ticker,
+        primary_provider=resolver.provider,
+        primary_provider_id=security_provider_id,
+        yahoo_provider=profile_provider,
+    )
+    analysis = run_graham_growth_analysis(
+        resolver=resolver,
+        ticker=ticker,
         security_provider_id=security_provider_id,
+        quote_provider_id=quote_provider_id,
         eps_basis=eps_basis,
         eps_override=eps_override,
         expected_growth=expected_growth,
-        aaa_subject_id="AAA",
-        aaa_provider_id=_AAA_OVERRIDE_PROVIDER_ID,
         aaa_yield_override=aaa_yield_override,
         quote_override=quote_override,
-        quote_provider_id=quote_provider_id,
         as_of=as_of,
         use_cache=use_cache,
+        policy=policy,
+        instrument_profile=profile,
     )
-    identity_resolution = resolve_security_identity(
-        resolver.provider,
-        SecurityIdentityRequest(ticker=ticker, provider_id=security_provider_id),
-    )
+    assembly = analysis.assembly
+    identity_resolution = profile_identity_resolution(profile)
 
     if assembly.status is not CalculationStatus.OK:
+        if assembly.status is CalculationStatus.NOT_APPLICABLE:
+            presentation = GrahamGrowthPresentation(
+                ticker=ticker,
+                assembly=assembly,
+                result=analysis.result,
+                base_pe=policy.base_pe,
+                growth_multiplier=policy.growth_multiplier,
+                baseline_aaa_yield=policy.baseline_aaa_yield,
+                as_of=as_of,
+                identity_resolution=identity_resolution,
+                instrument_profile=profile,
+            )
+            return render_graham_growth(presentation, mode), 0
         return _growth_failure_output(
             ticker=ticker,
             assembly=assembly,
             as_of=as_of,
             mode=mode,
             identity_resolution=identity_resolution,
+            instrument_profile=profile,
         )
 
-    if not _has_provider_backed_security_evidence(assembly.eps, assembly.current_price):
-        reason = _unverified_ticker_reason(ticker)
-        unverified = replace(assembly, status=CalculationStatus.INPUT_UNAVAILABLE, reason=reason)
-        return _growth_failure_output(
-            ticker=ticker,
-            assembly=unverified,
-            as_of=as_of,
-            mode=mode,
-            identity_resolution=identity_resolution,
-        )
-
-    assert assembly.eps is not None
-    assert assembly.expected_growth is not None
-    assert assembly.current_aaa_yield is not None
-    base_pe, growth_multiplier, baseline_aaa_yield = _growth_assumptions()
-    result = compute_graham_growth_value(
-        normalized_eps=assembly.eps.value,
-        expected_growth_rate=assembly.expected_growth.value,
-        current_aaa_yield=assembly.current_aaa_yield.value,
-        base_pe=base_pe,
-        growth_multiplier=growth_multiplier,
-        baseline_aaa_yield=baseline_aaa_yield,
-    )
-    margin = _margin_of_safety(
-        result.growth_value,
-        assembly.current_price,
-        valuation_currency=assembly.eps.currency,
-    )
     presentation_assembly = _growth_with_public_quote_reason(assembly)
     presentation = GrahamGrowthPresentation(
         ticker=ticker,
         assembly=presentation_assembly,
-        result=result,
-        base_pe=base_pe,
-        growth_multiplier=growth_multiplier,
-        baseline_aaa_yield=baseline_aaa_yield,
+        result=analysis.result,
+        base_pe=policy.base_pe,
+        growth_multiplier=policy.growth_multiplier,
+        baseline_aaa_yield=policy.baseline_aaa_yield,
         as_of=as_of,
-        margin_of_safety_percent=margin,
+        margin_of_safety_percent=analysis.margin_of_safety_percent,
         identity_resolution=identity_resolution,
+        instrument_profile=profile,
     )
-    exit_code = 1 if result.status is CalculationStatus.INVALID_INPUT else 0
+    exit_code = 1 if analysis.result.status is CalculationStatus.INVALID_INPUT else 0
     return render_graham_growth(presentation, mode), exit_code
 
 
-def _number_failure_output(
+def _number_failure_output(  # noqa: PLR0913
     *,
     ticker: str,
     assembly: GrahamNumberInputAssembly,
     as_of: datetime | None,
     mode: PresentationMode,
     identity_resolution: SecurityIdentityResolution,
+    instrument_profile: InstrumentProfile,
 ) -> tuple[str, int]:
     """Render a failed Number analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
@@ -605,31 +846,34 @@ def _number_failure_output(
         result=None,
         as_of=as_of,
         identity_resolution=identity_resolution,
+        instrument_profile=instrument_profile,
     )
     return render_graham_number(presentation, mode), 1
 
 
-def _growth_failure_output(
+def _growth_failure_output(  # noqa: PLR0913
     *,
     ticker: str,
     assembly: GrowthValueInputAssembly,
     as_of: datetime | None,
     mode: PresentationMode,
     identity_resolution: SecurityIdentityResolution,
+    instrument_profile: InstrumentProfile,
 ) -> tuple[str, int]:
     """Render a failed growth analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
     safe_assembly = _growth_with_public_quote_reason(replace(assembly, reason=reason))
-    base_pe, growth_multiplier, baseline_aaa_yield = _growth_assumptions()
+    policy = _growth_assumptions()
     presentation = GrahamGrowthPresentation(
         ticker=ticker,
         assembly=safe_assembly,
         result=None,
-        base_pe=base_pe,
-        growth_multiplier=growth_multiplier,
-        baseline_aaa_yield=baseline_aaa_yield,
+        base_pe=policy.base_pe,
+        growth_multiplier=policy.growth_multiplier,
+        baseline_aaa_yield=policy.baseline_aaa_yield,
         as_of=as_of,
         identity_resolution=identity_resolution,
+        instrument_profile=instrument_profile,
     )
     return render_graham_growth(presentation, mode), 1
 
@@ -659,66 +903,22 @@ def _public_quote_reason(status: CalculationStatus) -> str:
 
 def _friendly_graham_failure(ticker: str, status: CalculationStatus, reason: str | None) -> str:
     """Map resolver failure classes to concise investor-facing errors."""
-    if reason is not None and reason.startswith("Unable to verify ticker"):
+    if reason is not None and reason.startswith("Unable to analyze"):
         return reason
     if status is CalculationStatus.PROVIDER_ERROR:
-        return (
-            f"Unable to analyze {ticker}: provider-backed security data retrieval failed. "
-            "Verify the ticker and provider configuration."
-        )
+        return f"Unable to analyze {ticker}: the configured provider could not retrieve required security data."
     if status is CalculationStatus.INPUT_UNAVAILABLE:
-        return (
-            f"Unable to analyze {ticker}: required financial data is unavailable. "
-            "Verify the ticker, provider, and requested data basis."
-        )
+        return f"Unable to analyze {ticker}: required financial data is unavailable for the requested method."
     return f"Unable to analyze {ticker}: the requested Graham inputs are invalid. Review the method and overrides."
 
 
-def _unverified_ticker_reason(ticker: str) -> str:
-    """Return the trust-boundary failure for an entirely override-driven security."""
-    return (
-        f"Unable to verify ticker {ticker}: no provider-backed security fact or quote was resolved. "
-        "Fully override-driven security analysis is not accepted in v0.2."
-    )
-
-
-def _has_provider_backed_security_evidence(*inputs: ResolvedInput | None) -> bool:
-    """Return whether at least one security fact carries non-override provenance."""
-    return any(value is not None and value.source_kind is not SourceKind.OVERRIDE for value in inputs)
-
-
-def _margin_of_safety(
-    reference_value: float | None,
-    current_price: ResolvedInput | None,
-    *,
-    valuation_currency: str | None = None,
-) -> float | None:
-    """Compute comparison only when value, quote, and known currencies are compatible."""
-    if reference_value is None or current_price is None or reference_value <= 0:
-        return None
-    if (
-        valuation_currency is not None
-        and current_price.currency is not None
-        and valuation_currency != current_price.currency
-    ):
-        return None
-    margin = ((reference_value - current_price.value) / reference_value) * 100.0
-    return margin if math.isfinite(margin) else None
-
-
-def _common_currency(*inputs: ResolvedInput | None) -> str | None:
-    """Return one shared known currency, or None when inputs disagree or omit it."""
-    currencies = {item.currency for item in inputs if item is not None and item.currency}
-    return next(iter(currencies)) if len(currencies) == 1 else None
-
-
-def _growth_assumptions() -> tuple[float, float, float]:
+def _growth_assumptions() -> GrahamGrowthCalculationPolicy:
     """Read the configured constants for the growth-value method."""
     values = settings.get_graham_value_analysis()[ConfigKeys.GRAHAM_VALUES]
-    return (
-        float(values[ConfigKeys.BASE_PE]),
-        float(values[ConfigKeys.GROWTH_MULTIPLIER]),
-        float(values[ConfigKeys.BASELINE_AAA_YIELD]),
+    return GrahamGrowthCalculationPolicy(
+        base_pe=float(values[ConfigKeys.BASE_PE]),
+        growth_multiplier=float(values[ConfigKeys.GROWTH_MULTIPLIER]),
+        baseline_aaa_yield=float(values[ConfigKeys.BASELINE_AAA_YIELD]),
     )
 
 

@@ -1,7 +1,8 @@
-"""Deterministic annual financial-fact fixture for C2 resolver tests."""
+"""Deterministic annual financial-fact fixtures for evaluation and tests."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from src.data.financial.facts import (
@@ -20,6 +21,15 @@ from src.data.financial.provenance import (
 
 PROVIDER_ID = "annual-fixture"
 RETRIEVED_AT = datetime(2026, 2, 1, tzinfo=UTC)
+
+FCF_GROWTH_YEARS = (2020, 2021, 2022, 2023, 2024, 2025)
+FCF_GROWTH_FCF_VALUES = (80.0, 90.0, 100.0, 110.0, 120.0, 130.0)
+FCF_GROWTH_NONMEANINGFUL_FCF_VALUES = (80.0, 90.0, -5.0, 110.0, 120.0, 130.0)
+FCF_GROWTH_EPS_VALUES = (2.0, 2.5, 3.0, 3.5, 4.0, 4.5)
+FCF_GROWTH_CAPEX = 20.0
+FCF_GROWTH_DILUTED_SHARES = 100.0
+FCF_GROWTH_HISTORICAL_AS_OF = datetime(2025, 1, 15, tzinfo=UTC)
+FCF_GROWTH_MISALIGNED_FISCAL_YEAR = 2023
 
 
 class FixtureAnnualFinancialFactsProvider:
@@ -108,15 +118,55 @@ def annual_series(
         capex = 20.0
         facts.extend(
             (
-                annual_fact(FinancialField.OPERATING_CASH_FLOW, year, desired_fcf + capex),
+                annual_fact(
+                    FinancialField.OPERATING_CASH_FLOW,
+                    year,
+                    desired_fcf + capex,
+                    provider_fact_id=f"annual-{year}:operating_cash_flow",
+                ),
                 annual_fact(
                     FinancialField.CAPITAL_EXPENDITURES,
                     year,
                     capex,
                     capex_sign=CapitalExpenditureSign.POSITIVE_EXPENDITURE,
+                    provider_fact_id=f"annual-{year}:capital_expenditures",
                 ),
-                annual_fact(FinancialField.EPS, year, 2.0 + index * 0.5),
-                annual_fact(FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES, year, 100.0),
+                annual_fact(
+                    FinancialField.EPS,
+                    year,
+                    2.0 + index * 0.5,
+                    provider_fact_id=f"annual-{year}:eps",
+                ),
+                annual_fact(
+                    FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
+                    year,
+                    100.0,
+                    provider_fact_id=f"annual-{year}:weighted_average_diluted_shares",
+                ),
             )
         )
     return tuple(facts)
+
+
+def fcf_growth_success_facts() -> tuple[ProviderFact, ...]:
+    """Build the reviewed five-year positive-growth fixture evidence."""
+    return annual_series(range(2020, 2026), fcf_values=FCF_GROWTH_FCF_VALUES)
+
+
+def fcf_growth_nonmeaningful_facts() -> tuple[ProviderFact, ...]:
+    """Build annual evidence containing an interior free-cash-flow sign change."""
+    return annual_series(range(2020, 2026), fcf_values=FCF_GROWTH_NONMEANINGFUL_FCF_VALUES)
+
+
+def fcf_growth_period_as_of_facts() -> tuple[ProviderFact, ...]:
+    """Build evidence with one misaligned EPS period and a later unpublished year."""
+    facts = fcf_growth_success_facts()
+    return tuple(
+        replace(
+            fact,
+            observation_period_start=datetime(2022, 1, 2, tzinfo=UTC),
+        )
+        if fact.field_name is FinancialField.EPS and fact.fiscal_year == FCF_GROWTH_MISALIGNED_FISCAL_YEAR
+        else fact
+        for fact in facts
+    )

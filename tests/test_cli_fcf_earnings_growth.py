@@ -3,21 +3,36 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from dataclasses import replace
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from src.cli import app
 from src.data.financial.production import ProductionFinancialFactsProvider
+from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 from src.data.sec_edgar import SEC_PROVIDER_ID
-from tests._cli_helpers import normalize_cli_output
-from tests.analysis.fcf_earnings_growth.fixture_financial_facts_provider import (
+from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
+from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def disable_live_instrument_profile_resolution() -> Iterator[None]:
+    """Keep direct FCF CLI tests independent from current provider metadata."""
+
+    def unknown_profile(ticker: str, **_arguments: object) -> InstrumentProfile:
+        return InstrumentProfile(ticker=ticker, identity=None, kind_evidence=None, diagnostics=())
+
+    with patch("src.cli._compose_analysis_profile", side_effect=unknown_profile):
+        yield
 
 
 def _provider() -> ProductionFinancialFactsProvider:
@@ -43,6 +58,32 @@ def test_cli_fcf_growth_runs_concise_and_json_from_same_typed_path() -> None:
     payload = json.loads(json_result.output)
     assert payload["ticker"] == "ACME"
     assert payload["classification"] == "pass"
+
+
+def test_cli_fcf_growth_known_etf_is_successful_not_applicable_without_fact_resolution() -> None:
+    provider = _provider()
+    profile = fixture_instrument_profile(
+        "FLSW",
+        kind=InstrumentKind.ETF,
+        provider_value="ETF",
+        instrument_name="Franklin FTSE Switzerland ETF",
+    )
+    with (
+        patch("src.cli._build_sec_production_provider", return_value=provider),
+        patch("src.cli._compose_analysis_profile", return_value=profile),
+        patch.object(provider, "fetch_facts", wraps=provider.fetch_facts) as fetch_facts,
+    ):
+        result = runner.invoke(app, ["fcf-growth", "FLSW", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["execution_status"] == "not_applicable"
+    assert payload["classification"] == "indeterminate"
+    assert payload["classification_reason_code"] == "instrument_kind_not_applicable"
+    assert payload["security_identity"]["instrument_name"] == "Franklin FTSE Switzerland ETF"
+    assert payload["instrument_kind"]["kind"] == "etf"
+    assert payload["annual_observations"] == []
+    fetch_facts.assert_not_called()
 
 
 def test_cli_fcf_growth_selects_per_share_classification_basis() -> None:

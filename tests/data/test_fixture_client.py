@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from src.data.base_client import BaseDataClient, DataFetchError
-from tests.data.fixture_client import FixtureDataClient
+from src.evaluation.fixtures.market_data import FixtureDataClient
 
 
 class TestFixtureDataClientContract:

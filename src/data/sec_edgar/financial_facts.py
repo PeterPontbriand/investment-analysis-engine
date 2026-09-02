@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import os
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import UTC, datetime, time
+from types import MappingProxyType
 from typing import cast
 from zoneinfo import ZoneInfo
 
@@ -26,6 +31,10 @@ SEC_EPS_FIELD = "us-gaap:EarningsPerShareDiluted"
 SEC_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD = "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding"
 SEC_OPERATING_CASH_FLOW_FIELD = "us-gaap:NetCashProvidedByUsedInOperatingActivities"
 SEC_CAPITAL_EXPENDITURES_FIELD = "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment"
+SEC_IFRS_EPS_FIELD = "ifrs-full:DilutedEarningsLossPerShare"
+SEC_IFRS_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD = "ifrs-full:AdjustedWeightedAverageShares"
+SEC_IFRS_OPERATING_CASH_FLOW_FIELD = "ifrs-full:CashFlowsFromUsedInOperatingActivities"
+SEC_IFRS_CAPITAL_EXPENDITURES_FIELD = "ifrs-full:PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"
 SEC_STOCKHOLDERS_EQUITY_FIELD = "us-gaap:StockholdersEquity"
 SEC_COMMON_SHARES_FIELD = "us-gaap:CommonStockSharesOutstanding"
 SEC_PREFERRED_SHARES_FIELD = "us-gaap:PreferredStockSharesOutstanding"
@@ -36,14 +45,14 @@ _SEC_USER_AGENT_ENV = "SEC_USER_AGENT"
 _COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
-_ACCEPTED_FORMS = frozenset({"10-K", "10-K/A"})
+_COMPLETED_ANNUAL_FORMS = frozenset({"10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"})
 _SEC_EASTERN = ZoneInfo("America/New_York")
 # A completed fiscal year can vary around 365 days, including 52/53-week years.
 # The approved mapping excludes quarterly, YTD, and TTM durations; this bounded
 # tolerance admits ordinary issuer calendar variation without guessing at them.
 _MIN_ANNUAL_DURATION_DAYS = 335
 _MAX_ANNUAL_DURATION_DAYS = 395
-_BALANCE_SHEET_FORMS = _ACCEPTED_FORMS
+_BALANCE_SHEET_FORMS = frozenset({"10-K", "10-K/A"})
 _BALANCE_SHEET_FIELDS: Mapping[FinancialField, tuple[str, FinancialUnit]] = {
     FinancialField.STOCKHOLDERS_EQUITY: ("StockholdersEquity", FinancialUnit.CURRENCY),
     FinancialField.COMMON_SHARES_OUTSTANDING: ("CommonStockSharesOutstanding", FinancialUnit.SHARES),
@@ -63,27 +72,28 @@ _SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY = frozenset(
     }
 )
 
-# SEC Company Facts is entity-wide. For these approved D1/D2 mappings, a CIK
-# associated with multiple listed tickers cannot prove that the requested
-# security is represented unambiguously, so the fact remains unavailable.
-_SEC_FIELDS_REQUIRING_SINGLE_TICKER_IDENTITY = frozenset(
+# SEC Company Facts monetary cash-flow fields describe the issuer, so an exact
+# ticker-to-CIK match is sufficient even when the same CIK has other ticker
+# rows. Per-share fields describe an issuer share unit; until affirmative unit
+# evidence is implemented, multiple ticker rows cannot prove that the requested
+# listed security uses that same unit and therefore remain fail-closed.
+_SEC_ISSUER_LEVEL_COMPLETED_ANNUAL_FIELDS = frozenset(
     {
-        FinancialField.EPS,
         FinancialField.OPERATING_CASH_FLOW,
         FinancialField.CAPITAL_EXPENDITURES,
+    }
+)
+_SEC_SECURITY_UNIT_SENSITIVE_COMPLETED_ANNUAL_FIELDS = frozenset(
+    {
+        FinancialField.EPS,
         FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
     }
 )
 
 # These SEC capabilities return completed fiscal-year duration series and use
 # the shared annual-candidate eligibility boundary.
-_SEC_COMPLETED_ANNUAL_FIELDS = frozenset(
-    {
-        FinancialField.EPS,
-        FinancialField.OPERATING_CASH_FLOW,
-        FinancialField.CAPITAL_EXPENDITURES,
-        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
-    }
+_SEC_COMPLETED_ANNUAL_FIELDS = (
+    _SEC_ISSUER_LEVEL_COMPLETED_ANNUAL_FIELDS | _SEC_SECURITY_UNIT_SENSITIVE_COMPLETED_ANNUAL_FIELDS
 )
 
 
@@ -108,6 +118,7 @@ class _AnnualCashFlowParseContext:
     currency: str
     acceptance_by_accession: Mapping[str, datetime]
     retrieved_at: datetime
+    provider_field: str
 
 
 @dataclass(frozen=True)
@@ -119,6 +130,7 @@ class _AnnualEpsParseContext:
     currency: str
     acceptance_by_accession: Mapping[str, datetime]
     retrieved_at: datetime
+    provider_field: str
 
 
 @dataclass(frozen=True)
@@ -131,6 +143,27 @@ class _SecShareObservation:
     retrieved_at: datetime
     observation_period_end: datetime
     available_at: datetime
+
+
+@dataclass(frozen=True)
+class SecEdgarAnalysisSnapshot:
+    """Immutable Company Facts and filing-regime evidence for one analysis."""
+
+    subject_id: str
+    cik: str | None
+    as_of: datetime
+    retrieved_at: datetime
+    company_facts: object
+    acceptance_by_accession: Mapping[str, datetime]
+    accession_taxonomies: Mapping[str, frozenset[str]]
+    latest_annual_accession: str | None
+    eligible_annual_accessions: tuple[str, ...]
+    taxonomy: str | None
+    company_facts_sha256: str
+    submissions_sha256: str
+
+
+_ACTIVE_SNAPSHOT: ContextVar[SecEdgarAnalysisSnapshot | None] = ContextVar("sec_edgar_analysis_snapshot", default=None)
 
 
 class SecEdgarFinancialFactsAdapter:
@@ -171,6 +204,74 @@ class SecEdgarFinancialFactsAdapter:
         self._cik_to_tickers: dict[str, frozenset[str]] | None = None
         self._security_identities: dict[str, SecurityIdentity] | None = None
 
+    def create_analysis_snapshot(self, *, subject_id: str, as_of: datetime | None) -> SecEdgarAnalysisSnapshot:
+        """Fetch and freeze one SEC payload pair and its effective taxonomy regime."""
+        ticker = subject_id.strip().upper()
+        retrieved_at = self._clock()
+        effective_as_of = as_of or retrieved_at
+        try:
+            cik = self._resolve_cik(ticker)
+        except FinancialProviderError:
+            return SecEdgarAnalysisSnapshot(
+                subject_id=ticker,
+                cik=None,
+                as_of=effective_as_of,
+                retrieved_at=retrieved_at,
+                company_facts=MappingProxyType({}),
+                acceptance_by_accession=MappingProxyType({}),
+                accession_taxonomies=MappingProxyType({}),
+                latest_annual_accession=None,
+                eligible_annual_accessions=(),
+                taxonomy=None,
+                company_facts_sha256=_payload_sha256({}),
+                submissions_sha256=_payload_sha256({}),
+            )
+        company_facts_raw = self._fetch_json(_COMPANY_FACTS_URL.format(cik=cik), headers=self._headers)
+        submissions_raw = self._fetch_json(_SUBMISSIONS_URL.format(cik=cik), headers=self._headers)
+        acceptance_by_accession = _acceptance_times(submissions_raw)
+        accession_taxonomies = _accession_taxonomies(company_facts_raw)
+        eligible_accessions = _eligible_annual_accessions(
+            submissions_raw,
+            acceptance_by_accession=acceptance_by_accession,
+            as_of=effective_as_of,
+        )
+        latest_accession = eligible_accessions[0] if eligible_accessions else None
+        namespaces = accession_taxonomies.get(latest_accession, frozenset()) if latest_accession else frozenset()
+        taxonomy = next(iter(namespaces)) if len(namespaces) == 1 else None
+        return SecEdgarAnalysisSnapshot(
+            subject_id=ticker,
+            cik=cik,
+            as_of=effective_as_of,
+            retrieved_at=retrieved_at,
+            company_facts=_freeze_json(company_facts_raw),
+            acceptance_by_accession=MappingProxyType(dict(acceptance_by_accession)),
+            accession_taxonomies=MappingProxyType(dict(accession_taxonomies)),
+            latest_annual_accession=latest_accession,
+            eligible_annual_accessions=eligible_accessions,
+            taxonomy=taxonomy,
+            company_facts_sha256=_payload_sha256(company_facts_raw),
+            submissions_sha256=_payload_sha256(submissions_raw),
+        )
+
+    @contextmanager
+    def analysis_scope(
+        self,
+        *,
+        subject_id: str,
+        provider_id: str,
+        as_of: datetime | None,
+    ) -> Iterator[None]:
+        """Reuse one immutable SEC snapshot throughout an analysis request."""
+        if provider_id.strip().lower() != SEC_PROVIDER_ID:
+            yield
+            return
+        snapshot = self.create_analysis_snapshot(subject_id=subject_id, as_of=as_of)
+        token = _ACTIVE_SNAPSHOT.set(snapshot)
+        try:
+            yield
+        finally:
+            _ACTIVE_SNAPSHOT.reset(token)
+
     def resolve_security_identity(self, request: SecurityIdentityRequest) -> SecurityIdentity | None:
         """Return current SEC ticker-title and CIK evidence when available."""
         if request.provider_id != SEC_PROVIDER_ID:
@@ -181,7 +282,7 @@ class SecEdgarFinancialFactsAdapter:
             return None
         return identities.get(request.ticker)
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:  # noqa: PLR0911
+    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:  # noqa: PLR0911, PLR0912
         """Return supported SEC facts, or explicit unavailability."""
         if not self._supports(request):
             return ()
@@ -194,20 +295,34 @@ class SecEdgarFinancialFactsAdapter:
                     return ()
                 raise
             if (
-                request.field_name in _SEC_FIELDS_REQUIRING_SINGLE_TICKER_IDENTITY
+                request.field_name in _SEC_SECURITY_UNIT_SENSITIVE_COMPLETED_ANNUAL_FIELDS
                 and not self._has_single_ticker_identity(cik)
             ):
                 return ()
-            company_facts = self._fetch_json(
-                _COMPANY_FACTS_URL.format(cik=cik),
-                headers=self._headers,
-            )
-            submissions = self._fetch_json(
-                _SUBMISSIONS_URL.format(cik=cik),
-                headers=self._headers,
-            )
-            acceptance_by_accession = _acceptance_times(submissions)
-            provider_now = self._clock()
+            snapshot = _ACTIVE_SNAPSHOT.get()
+            if snapshot is not None and snapshot.subject_id == request.subject_id.strip().upper():
+                if snapshot.cik != cik:
+                    return ()
+                if request.field_name in _SEC_COMPLETED_ANNUAL_FIELDS and snapshot.taxonomy not in {
+                    "us-gaap",
+                    "ifrs-full",
+                }:
+                    return ()
+                company_facts = snapshot.company_facts
+                acceptance_by_accession = snapshot.acceptance_by_accession
+                provider_now = snapshot.retrieved_at
+            else:
+                company_facts = self._fetch_json(
+                    _COMPANY_FACTS_URL.format(cik=cik),
+                    headers=self._headers,
+                )
+                submissions = self._fetch_json(
+                    _SUBMISSIONS_URL.format(cik=cik),
+                    headers=self._headers,
+                )
+                acceptance_by_accession = _acceptance_times(submissions)
+                provider_now = self._clock()
+            taxonomy = snapshot.taxonomy if snapshot is not None and snapshot.taxonomy is not None else "us-gaap"
             if request.field_name is FinancialField.OPERATING_CASH_FLOW:
                 candidates = _annual_operating_cash_flow_candidates(
                     company_facts,
@@ -215,8 +330,10 @@ class SecEdgarFinancialFactsAdapter:
                     cik=cik,
                     acceptance_by_accession=acceptance_by_accession,
                     retrieved_at=provider_now,
+                    taxonomy=taxonomy,
                 )
-                return _eligible_annual_candidates(candidates, request=request, now=provider_now)
+                facts = _eligible_annual_candidates(candidates, request=request, now=provider_now)
+                return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
             if request.field_name is FinancialField.CAPITAL_EXPENDITURES:
                 candidates = _annual_capital_expenditure_candidates(
                     company_facts,
@@ -224,8 +341,10 @@ class SecEdgarFinancialFactsAdapter:
                     cik=cik,
                     acceptance_by_accession=acceptance_by_accession,
                     retrieved_at=provider_now,
+                    taxonomy=taxonomy,
                 )
-                return _eligible_annual_candidates(candidates, request=request, now=provider_now)
+                facts = _eligible_annual_candidates(candidates, request=request, now=provider_now)
+                return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
             if request.field_name is FinancialField.EPS:
                 candidates = _annual_eps_candidates(
                     company_facts,
@@ -233,8 +352,10 @@ class SecEdgarFinancialFactsAdapter:
                     cik=cik,
                     acceptance_by_accession=acceptance_by_accession,
                     retrieved_at=provider_now,
+                    taxonomy=taxonomy,
                 )
-                return _reconcile_annual_eps(candidates, request=request, now=provider_now)
+                facts = _reconcile_annual_eps(candidates, request=request, now=provider_now)
+                return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
             if request.field_name is FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES:
                 candidates = _annual_diluted_share_candidates(
                     company_facts,
@@ -242,8 +363,10 @@ class SecEdgarFinancialFactsAdapter:
                     cik=cik,
                     acceptance_by_accession=acceptance_by_accession,
                     retrieved_at=provider_now,
+                    taxonomy=taxonomy,
                 )
-                return _reconcile_annual_eps(candidates, request=request, now=provider_now)
+                facts = _reconcile_annual_eps(candidates, request=request, now=provider_now)
+                return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
 
             if request.field_name is FinancialField.COMMON_SHARES_OUTSTANDING:
                 return _common_shares_facts(
@@ -424,13 +547,120 @@ def _acceptance_times(payload: object) -> dict[str, datetime]:
     return result
 
 
-def _annual_eps_candidates(
+def _payload_sha256(payload: object) -> str:
+    """Return a stable checksum for one JSON-compatible SEC payload."""
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _freeze_json(value: object) -> object:
+    """Recursively freeze a JSON-compatible payload without changing values."""
+    if isinstance(value, Mapping):
+        return MappingProxyType({str(key): _freeze_json(item) for key, item in value.items()})
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return tuple(_freeze_json(item) for item in value)
+    return value
+
+
+def _accession_taxonomies(payload: object) -> dict[str, frozenset[str]]:
+    """Return exact SEC taxonomy namespaces observed for each accession."""
+    if not isinstance(payload, Mapping):
+        return {}
+    facts = payload.get("facts")
+    if not isinstance(facts, Mapping):
+        return {}
+    mutable: dict[str, set[str]] = {}
+    for namespace in ("us-gaap", "ifrs-full"):
+        concepts = facts.get(namespace)
+        if not isinstance(concepts, Mapping):
+            continue
+        for concept in concepts.values():
+            if not isinstance(concept, Mapping):
+                continue
+            units = concept.get("units")
+            if not isinstance(units, Mapping):
+                continue
+            for observations in units.values():
+                if not isinstance(observations, Sequence) or isinstance(observations, (str, bytes)):
+                    continue
+                for observation in observations:
+                    if not isinstance(observation, Mapping):
+                        continue
+                    accession = observation.get("accn")
+                    if isinstance(accession, str) and accession:
+                        mutable.setdefault(accession, set()).add(namespace)
+    return {accession: frozenset(namespaces) for accession, namespaces in mutable.items()}
+
+
+def _eligible_annual_accessions(
+    payload: object,
+    *,
+    acceptance_by_accession: Mapping[str, datetime],
+    as_of: datetime,
+) -> tuple[str, ...]:
+    """Return annual accessions publicly available at ``as_of``, latest first."""
+    if not isinstance(payload, Mapping):
+        return ()
+    filings = payload.get("filings")
+    if not isinstance(filings, Mapping):
+        return ()
+    recent = filings.get("recent")
+    if not isinstance(recent, Mapping):
+        return ()
+    accessions = recent.get("accessionNumber")
+    forms = recent.get("form")
+    if not isinstance(accessions, Sequence) or isinstance(accessions, (str, bytes)):
+        return ()
+    if not isinstance(forms, Sequence) or isinstance(forms, (str, bytes)):
+        return ()
+    eligible: list[tuple[datetime, str]] = []
+    for accession, form in zip(accessions, forms, strict=False):
+        if not isinstance(accession, str) or form not in _COMPLETED_ANNUAL_FORMS:
+            continue
+        accepted_at = acceptance_by_accession.get(accession)
+        if accepted_at is not None and accepted_at <= as_of:
+            eligible.append((accepted_at, accession))
+    return tuple(accession for _, accession in sorted(eligible, reverse=True))
+
+
+def _enforce_snapshot_regime(
+    facts: tuple[ProviderFact, ...],
+    *,
+    request: FinancialFactRequest,
+    snapshot: SecEdgarAnalysisSnapshot | None,
+) -> tuple[ProviderFact, ...]:
+    """Reject facts or requested spans not proven homogeneous in the locked taxonomy."""
+    if snapshot is None:
+        return facts
+    if snapshot.taxonomy not in {"us-gaap", "ifrs-full"}:
+        return ()
+    expected_taxonomy = frozenset({snapshot.taxonomy})
+    accessions = {accession for fact in facts if (accession := _note_value(fact.notes, "accession")) is not None}
+    if any(snapshot.accession_taxonomies.get(accession, frozenset()) != expected_taxonomy for accession in accessions):
+        return ()
+    if len(facts) < request.observation_count:
+        relevant = snapshot.eligible_annual_accessions[: request.observation_count]
+        if any(
+            snapshot.accession_taxonomies.get(accession, frozenset()) != expected_taxonomy for accession in relevant
+        ):
+            return ()
+    return facts
+
+
+def _note_value(notes: Sequence[str], key: str) -> str | None:
+    """Read one exact ``key=value`` provenance note."""
+    prefix = f"{key}="
+    return next((note.removeprefix(prefix) for note in notes if note.startswith(prefix)), None)
+
+
+def _annual_eps_candidates(  # noqa: PLR0913
     payload: object,
     *,
     request: FinancialFactRequest,
     cik: str,
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
+    taxonomy: str = "us-gaap",
 ) -> tuple[ProviderFact, ...]:
     """Parse annual ``EarningsPerShareDiluted`` Company Facts observations."""
     if not isinstance(payload, Mapping):
@@ -442,10 +672,12 @@ def _annual_eps_candidates(
     facts = payload.get("facts")
     if not isinstance(facts, Mapping):
         return ()
-    us_gaap = facts.get("us-gaap")
-    if not isinstance(us_gaap, Mapping):
+    namespace = facts.get(taxonomy)
+    if not isinstance(namespace, Mapping):
         return ()
-    eps = us_gaap.get("EarningsPerShareDiluted")
+    concept_name = "DilutedEarningsLossPerShare" if taxonomy == "ifrs-full" else "EarningsPerShareDiluted"
+    provider_field = SEC_IFRS_EPS_FIELD if taxonomy == "ifrs-full" else SEC_EPS_FIELD
+    eps = namespace.get(concept_name)
     if not isinstance(eps, Mapping):
         return ()
     units = eps.get("units")
@@ -465,6 +697,7 @@ def _annual_eps_candidates(
             currency=currency,
             acceptance_by_accession=acceptance_by_accession,
             retrieved_at=retrieved_at,
+            provider_field=provider_field,
         )
         for observation in observations:
             if not isinstance(observation, Mapping):
@@ -478,20 +711,31 @@ def _annual_eps_candidates(
     return tuple(result)
 
 
-def _annual_diluted_share_candidates(
+def _annual_diluted_share_candidates(  # noqa: PLR0913
     payload: object,
     *,
     request: FinancialFactRequest,
     cik: str,
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
+    taxonomy: str = "us-gaap",
 ) -> tuple[ProviderFact, ...]:
     """Parse exact-concept annual weighted-average diluted-share facts."""
     if not isinstance(payload, Mapping) or not _company_facts_matches_cik(payload, cik):
         return ()
     facts = payload.get("facts")
-    us_gaap = facts.get("us-gaap") if isinstance(facts, Mapping) else None
-    concept = us_gaap.get("WeightedAverageNumberOfDilutedSharesOutstanding") if isinstance(us_gaap, Mapping) else None
+    namespace = facts.get(taxonomy) if isinstance(facts, Mapping) else None
+    concept_name = (
+        "AdjustedWeightedAverageShares"
+        if taxonomy == "ifrs-full"
+        else "WeightedAverageNumberOfDilutedSharesOutstanding"
+    )
+    provider_field = (
+        SEC_IFRS_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD
+        if taxonomy == "ifrs-full"
+        else SEC_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD
+    )
+    concept = namespace.get(concept_name) if isinstance(namespace, Mapping) else None
     units = concept.get("units") if isinstance(concept, Mapping) else None
     observations = units.get("shares") if isinstance(units, Mapping) else None
     if not isinstance(observations, Sequence) or isinstance(observations, (str, bytes)):
@@ -506,19 +750,21 @@ def _annual_diluted_share_candidates(
             cik=cik,
             acceptance_by_accession=acceptance_by_accession,
             retrieved_at=retrieved_at,
+            provider_field=provider_field,
         )
         if fact is not None:
             result.append(fact)
     return tuple(result)
 
 
-def _annual_operating_cash_flow_candidates(
+def _annual_operating_cash_flow_candidates(  # noqa: PLR0913
     payload: object,
     *,
     request: FinancialFactRequest,
     cik: str,
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
+    taxonomy: str = "us-gaap",
 ) -> tuple[ProviderFact, ...]:
     """Parse exact-concept completed-annual operating-cash-flow observations."""
     if not isinstance(payload, Mapping):
@@ -530,10 +776,16 @@ def _annual_operating_cash_flow_candidates(
     facts = payload.get("facts")
     if not isinstance(facts, Mapping):
         return ()
-    us_gaap = facts.get("us-gaap")
-    if not isinstance(us_gaap, Mapping):
+    namespace = facts.get(taxonomy)
+    if not isinstance(namespace, Mapping):
         return ()
-    concept = us_gaap.get("NetCashProvidedByUsedInOperatingActivities")
+    concept_name = (
+        "CashFlowsFromUsedInOperatingActivities"
+        if taxonomy == "ifrs-full"
+        else "NetCashProvidedByUsedInOperatingActivities"
+    )
+    provider_field = SEC_IFRS_OPERATING_CASH_FLOW_FIELD if taxonomy == "ifrs-full" else SEC_OPERATING_CASH_FLOW_FIELD
+    concept = namespace.get(concept_name)
     if not isinstance(concept, Mapping):
         return ()
     units = concept.get("units")
@@ -553,6 +805,7 @@ def _annual_operating_cash_flow_candidates(
             currency=currency,
             acceptance_by_accession=acceptance_by_accession,
             retrieved_at=retrieved_at,
+            provider_field=provider_field,
         )
         for observation in observations:
             if not isinstance(observation, Mapping):
@@ -566,13 +819,14 @@ def _annual_operating_cash_flow_candidates(
     return tuple(result)
 
 
-def _annual_capital_expenditure_candidates(
+def _annual_capital_expenditure_candidates(  # noqa: PLR0913
     payload: object,
     *,
     request: FinancialFactRequest,
     cik: str,
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
+    taxonomy: str = "us-gaap",
 ) -> tuple[ProviderFact, ...]:
     """Parse exact-concept completed-annual PP&E acquisition payments."""
     if not isinstance(payload, Mapping):
@@ -584,10 +838,16 @@ def _annual_capital_expenditure_candidates(
     facts = payload.get("facts")
     if not isinstance(facts, Mapping):
         return ()
-    us_gaap = facts.get("us-gaap")
-    if not isinstance(us_gaap, Mapping):
+    namespace = facts.get(taxonomy)
+    if not isinstance(namespace, Mapping):
         return ()
-    concept = us_gaap.get("PaymentsToAcquirePropertyPlantAndEquipment")
+    concept_name = (
+        "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"
+        if taxonomy == "ifrs-full"
+        else "PaymentsToAcquirePropertyPlantAndEquipment"
+    )
+    provider_field = SEC_IFRS_CAPITAL_EXPENDITURES_FIELD if taxonomy == "ifrs-full" else SEC_CAPITAL_EXPENDITURES_FIELD
+    concept = namespace.get(concept_name)
     if not isinstance(concept, Mapping):
         return ()
     units = concept.get("units")
@@ -607,6 +867,7 @@ def _annual_capital_expenditure_candidates(
             currency=currency,
             acceptance_by_accession=acceptance_by_accession,
             retrieved_at=retrieved_at,
+            provider_field=provider_field,
         )
         for observation in observations:
             if not isinstance(observation, Mapping):
@@ -634,7 +895,7 @@ def _parse_operating_cash_flow_observation(  # noqa: PLR0911
 ) -> ProviderFact | None:
     """Parse one exact-concept annual operating-cash-flow observation."""
     form = observation.get("form")
-    if form not in _ACCEPTED_FORMS or observation.get("fp") != "FY":
+    if form not in _COMPLETED_ANNUAL_FORMS or observation.get("fp") != "FY":
         return None
 
     value = observation.get("val")
@@ -673,7 +934,7 @@ def _parse_operating_cash_flow_observation(  # noqa: PLR0911
 
     provider_fy = observation.get("fy")
     fiscal_year = period_end.year
-    provider_fact_id = f"{accession_text}:{SEC_OPERATING_CASH_FLOW_FIELD}:{context.currency}:{start_text}:{end_text}"
+    provider_fact_id = f"{accession_text}:{context.provider_field}:{context.currency}:{start_text}:{end_text}"
     return ProviderFact(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=context.request.subject_id,
@@ -681,7 +942,7 @@ def _parse_operating_cash_flow_observation(  # noqa: PLR0911
         value=numeric_value,
         units=FinancialUnit.CURRENCY,
         provider_id=SEC_PROVIDER_ID,
-        provider_field=SEC_OPERATING_CASH_FLOW_FIELD,
+        provider_field=context.provider_field,
         retrieved_at=context.retrieved_at,
         basis="fiscal_year",
         currency=context.currency,
@@ -713,7 +974,7 @@ def _parse_capital_expenditure_observation(  # noqa: PLR0911
 ) -> ProviderFact | None:
     """Parse one non-negative exact-concept annual PP&E payment observation."""
     form = observation.get("form")
-    if form not in _ACCEPTED_FORMS or observation.get("fp") != "FY":
+    if form not in _COMPLETED_ANNUAL_FORMS or observation.get("fp") != "FY":
         return None
 
     value = observation.get("val")
@@ -751,7 +1012,7 @@ def _parse_capital_expenditure_observation(  # noqa: PLR0911
         availability_note = "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
 
     provider_fy = observation.get("fy")
-    provider_fact_id = f"{accession_text}:{SEC_CAPITAL_EXPENDITURES_FIELD}:{context.currency}:{start_text}:{end_text}"
+    provider_fact_id = f"{accession_text}:{context.provider_field}:{context.currency}:{start_text}:{end_text}"
     return ProviderFact(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=context.request.subject_id,
@@ -759,7 +1020,7 @@ def _parse_capital_expenditure_observation(  # noqa: PLR0911
         value=numeric_value,
         units=FinancialUnit.CURRENCY,
         provider_id=SEC_PROVIDER_ID,
-        provider_field=SEC_CAPITAL_EXPENDITURES_FIELD,
+        provider_field=context.provider_field,
         retrieved_at=context.retrieved_at,
         basis="fiscal_year",
         currency=context.currency,
@@ -1346,16 +1607,17 @@ def _parse_balance_sheet_observation(  # noqa: PLR0911
     )
 
 
-def _parse_diluted_share_observation(  # noqa: PLR0911
+def _parse_diluted_share_observation(  # noqa: PLR0911, PLR0913
     observation: Mapping[object, object],
     *,
     request: FinancialFactRequest,
     cik: str,
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
+    provider_field: str,
 ) -> ProviderFact | None:
     """Parse one completed-annual diluted-share denominator observation."""
-    if observation.get("form") not in _ACCEPTED_FORMS or observation.get("fp") != "FY":
+    if observation.get("form") not in _COMPLETED_ANNUAL_FORMS or observation.get("fp") != "FY":
         return None
     value = observation.get("val")
     start = observation.get("start")
@@ -1377,7 +1639,7 @@ def _parse_diluted_share_observation(  # noqa: PLR0911
     available_at = acceptance_by_accession.get(accession_text) or _parse_sec_filed_date_end(filed_text)
     if available_at is None:
         return None
-    provider_fact_id = f"{accession_text}:{SEC_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD}:shares:{start_text}:{end_text}"
+    provider_fact_id = f"{accession_text}:{provider_field}:shares:{start_text}:{end_text}"
     return ProviderFact(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=request.subject_id,
@@ -1385,7 +1647,7 @@ def _parse_diluted_share_observation(  # noqa: PLR0911
         value=numeric_value,
         units=FinancialUnit.SHARES,
         provider_id=SEC_PROVIDER_ID,
-        provider_field=SEC_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD,
+        provider_field=provider_field,
         retrieved_at=retrieved_at,
         basis="fiscal_year",
         currency=None,
@@ -1408,7 +1670,7 @@ def _parse_eps_observation(  # noqa: PLR0911
     """Parse one exact-concept completed-annual diluted-EPS observation."""
     form = observation.get("form")
     fp = observation.get("fp")
-    if form not in _ACCEPTED_FORMS or fp != "FY":
+    if form not in _COMPLETED_ANNUAL_FORMS or fp != "FY":
         return None
 
     value = observation.get("val")
@@ -1447,7 +1709,7 @@ def _parse_eps_observation(  # noqa: PLR0911
         availability_note = "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
 
     provider_fy = observation.get("fy")
-    provider_fact_id = f"{accession_text}:{SEC_EPS_FIELD}:{context.currency}:{start_text}:{end_text}"
+    provider_fact_id = f"{accession_text}:{context.provider_field}:{context.currency}:{start_text}:{end_text}"
     notes = (
         f"cik={context.cik}",
         f"accession={accession_text}",
@@ -1466,7 +1728,7 @@ def _parse_eps_observation(  # noqa: PLR0911
         value=numeric_value,
         units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=SEC_PROVIDER_ID,
-        provider_field=SEC_EPS_FIELD,
+        provider_field=context.provider_field,
         retrieved_at=context.retrieved_at,
         basis="fiscal_year",
         currency=context.currency,

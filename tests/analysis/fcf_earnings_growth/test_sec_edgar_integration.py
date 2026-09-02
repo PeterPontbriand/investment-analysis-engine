@@ -30,7 +30,18 @@ class _SecFixtureFetcher:
         if "/companyfacts/" in url:
             return self._company_facts
         if "/submissions/" in url:
-            return {"filings": {"recent": {}}}
+            observations = self._company_facts["facts"]["us-gaap"][  # type: ignore[index]
+                "NetCashProvidedByUsedInOperatingActivities"
+            ]["units"]["USD"]
+            return {
+                "filings": {
+                    "recent": {
+                        "accessionNumber": [item["accn"] for item in observations],
+                        "acceptanceDateTime": [f"{item['filed']}T12:00:00Z" for item in observations],
+                        "form": [item["form"] for item in observations],
+                    }
+                }
+            }
         msg = f"Unexpected SEC URL: {url}"
         raise AssertionError(msg)
 

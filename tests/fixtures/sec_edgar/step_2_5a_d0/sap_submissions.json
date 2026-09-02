@@ -1,0 +1,30 @@
+{
+  "cik": "0001000184",
+  "name": "SAP SE",
+  "tickers": [
+    "SAP",
+    "SAPGF"
+  ],
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0001104659-26-020058"
+      ],
+      "acceptanceDateTime": [
+        "2026-02-26T12:01:22Z"
+      ],
+      "filingDate": [
+        "2026-02-26"
+      ],
+      "reportDate": [
+        "2025-12-31"
+      ],
+      "form": [
+        "20-F"
+      ],
+      "primaryDocument": [
+        "sap-20251231x20f.htm"
+      ]
+    }
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "cik": 353278,
+  "entityName": "NOVO NORDISK A/S",
+  "facts": {
+    "ifrs-full": {
+      "DilutedEarningsLossPerShare": {
+        "label": null,
+        "description": null,
+        "units": {
+          "DKK/shares": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 23.03,
+              "accn": "0000353278-26-000012",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-04",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "AdjustedWeightedAverageShares": {
+        "label": null,
+        "description": null,
+        "units": {
+          "shares": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 4447700000,
+              "accn": "0000353278-26-000012",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-04",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "CashFlowsFromUsedInOperatingActivities": {
+        "label": null,
+        "description": null,
+        "units": {
+          "DKK": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 119102000000,
+              "accn": "0000353278-26-000012",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-04",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities": {
+        "label": null,
+        "description": null,
+        "units": {
+          "DKK": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 60140000000,
+              "accn": "0000353278-26-000012",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-04",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "NumberOfSharesOutstanding": {
+        "label": null,
+        "description": null,
+        "units": {
+          "shares": [
+            {
+              "end": "2025-12-31",
+              "val": 4444000000,
+              "accn": "0000353278-26-000012",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-04",
+              "frame": "CY2025Q4I"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

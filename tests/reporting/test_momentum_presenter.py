@@ -83,7 +83,7 @@ def test_momentum_diagnostics_expose_retained_raw_and_market_context() -> None:
 def test_momentum_json_adds_semantic_fields_with_identity_schema_version() -> None:
     payload = json.loads(render_momentum(_presentation(), PresentationMode.JSON))
 
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     assert payload["security_identity"]["instrument_name"] is None
     assert payload["analysis"] == "momentum"
     assert payload["method"] == "sma_crossover"

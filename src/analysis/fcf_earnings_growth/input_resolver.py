@@ -33,6 +33,7 @@ from src.data.financial.facts import (
     FinancialProviderError,
     FinancialUnit,
     ProviderFact,
+    financial_facts_analysis_scope,
 )
 from src.data.financial.provenance import (
     AccountingScope,
@@ -112,18 +113,24 @@ class ProductionAnnualGrowthSeriesResolver:
                 trace=trace,
             )
 
-        binding = FinancialFieldProvider(normalized_provider_id, self._provider)
-        providers = dict.fromkeys(_ANNUAL_FIELDS, binding)
-        return resolve_annual_growth_series(
-            policy=policy,
+        with financial_facts_analysis_scope(
+            self._provider,
             subject_id=subject_id,
-            currency=currency,
+            provider_id=normalized_provider_id,
             as_of=as_of,
-            providers=providers,
-            cache=self._cache,
-            use_cache=use_cache,
-            clock=self._clock,
-        )
+        ):
+            binding = FinancialFieldProvider(normalized_provider_id, self._provider)
+            providers = dict.fromkeys(_ANNUAL_FIELDS, binding)
+            return resolve_annual_growth_series(
+                policy=policy,
+                subject_id=subject_id,
+                currency=currency,
+                as_of=as_of,
+                providers=providers,
+                cache=self._cache,
+                use_cache=use_cache,
+                clock=self._clock,
+            )
 
 
 @dataclass(frozen=True)

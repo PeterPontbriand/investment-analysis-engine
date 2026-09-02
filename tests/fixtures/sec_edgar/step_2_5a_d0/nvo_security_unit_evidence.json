@@ -1,0 +1,14 @@
+{
+  "accession": "0000353278-26-000012",
+  "form": "20-F",
+  "filing_security_title": "American Depositary Receipts, each representing one B Share",
+  "quoted_ticker": "NVO",
+  "quoted_venue": "New York Stock Exchange",
+  "depositary_receipt_kind": "ADR",
+  "underlying_security": "Novo Nordisk B share",
+  "deposited_shares_per_adr": 1,
+  "filing_per_share_currency": "DKK",
+  "test_quote_currency": "USD",
+  "test_quote_currency_source": "synthetic deterministic input",
+  "expected_quote_comparison": "unavailable_currency_conversion_not_approved"
+}

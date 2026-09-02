@@ -39,6 +39,7 @@ class ReasonCode(StrEnum):
     PROVIDER_ERROR = "provider_error"
     INVALID_REQUEST = "invalid_request"
     NOT_REQUESTED = "not_requested"
+    INSTRUMENT_KIND_NOT_APPLICABLE = "instrument_kind_not_applicable"
 
 
 @dataclass(frozen=True)

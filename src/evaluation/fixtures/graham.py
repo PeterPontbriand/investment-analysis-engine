@@ -1,4 +1,4 @@
-"""Deterministic fixture-backed FinancialFactsProvider for Step 2.3 Slice D.
+"""Deterministic Graham financial-facts provider for evaluation and tests.
 
 Provides a small, internally coherent synthetic dataset sufficient to exercise
 both Graham methods and the resolver/assembly contracts without network access.
@@ -15,8 +15,11 @@ The provider satisfies the ``FinancialFactsProvider`` protocol:
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
+from typing import Final
 
+from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheKey
 from src.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
@@ -24,7 +27,7 @@ from src.data.financial.facts import (
     FinancialUnit,
     ProviderFact,
 )
-from src.data.financial.provenance import FinancialSubjectKind
+from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 
 # ---------------------------------------------------------------------------
 # Synthetic identity constants (NOT production mappings)
@@ -99,6 +102,47 @@ BVPS_VALUE: float = 18.50
 QUOTE_VALUE: float = 52.30
 AAA_YIELD_VALUE: float = 4.15
 
+# Golden expectation assumptions and precedence inputs
+GOLDEN_EXPECTED_GROWTH: Final = 6.5
+GOLDEN_GROWTH_BASE_PE: Final = 8.5
+GOLDEN_GROWTH_MULTIPLIER: Final = 2.0
+GOLDEN_BASELINE_AAA_YIELD: Final = 4.4
+GOLDEN_PRECEDENCE_EPS_OVERRIDE: Final = 5.0
+GOLDEN_PRECEDENCE_BVPS_CACHE: Final = 20.0
+GOLDEN_HISTORICAL_AS_OF: Final = datetime(2024, 8, 1, 12, 0, tzinfo=UTC)
+
+
+def precedence_bvps_cache() -> InMemoryResolvedInputCache:
+    """Build the explicit reviewed cache evidence used by Golden case GRN-04."""
+    cache = InMemoryResolvedInputCache(clock=lambda: NOW)
+    cached_bvps = ResolvedInput(
+        field_name=FinancialField.BVPS,
+        value=GOLDEN_PRECEDENCE_BVPS_CACHE,
+        source_kind=SourceKind.PROVIDER,
+        resolved_at=NOW,
+        units="currency_per_share",
+        currency=CURRENCY,
+        provider_id=PROVIDER_ID,
+        provider_field=FIELD_BVPS,
+        available_at=BVPS_AVAIL,
+        as_of=NOW,
+        retrieved_at=RETRIEVED_AT,
+    )
+    cache.put(
+        ResolvedInputCacheKey(
+            subject_kind=FinancialSubjectKind.SECURITY,
+            subject_id=SECURITY_ID,
+            field_name=FinancialField.BVPS,
+            basis=None,
+            provider_id=PROVIDER_ID,
+            analysis_as_of=NOW,
+            schema_version=1,
+        ),
+        cached_bvps,
+    )
+    return cache
+
+
 # ---------------------------------------------------------------------------
 # Adverse-case subject IDs
 # ---------------------------------------------------------------------------
@@ -107,6 +151,7 @@ SUBJECT_MISSING: str = "MISSING"
 SUBJECT_ERROR: str = "ERROR"
 SUBJECT_FUTURE: str = "FUTURE"
 SUBJECT_INCOMPATIBLE: str = "INCOMPATIBLE"
+SUBJECT_MISSING_QUOTE: str = "MISSING_QUOTE"
 
 
 # ---------------------------------------------------------------------------
@@ -124,6 +169,7 @@ class FixtureFinancialFactsProvider:
     - ``ERROR``: Raises ``FinancialProviderError``.
     - ``FUTURE``: Returns a fact whose ``available_at`` is after ``NOW``.
     - ``INCOMPATIBLE``: Returns a fact with a mismatched basis (coherence failure).
+    - ``MISSING_QUOTE``: Returns happy-path required facts but no current quote.
 
     All data is synthetic and deterministic. No network, filesystem, or
     wall-clock dependency.
@@ -151,8 +197,17 @@ class FixtureFinancialFactsProvider:
         if subject == SUBJECT_INCOMPATIBLE:
             return self._incompatible_fact(request)
 
+        if subject == SUBJECT_MISSING_QUOTE:
+            return self._missing_quote_facts(request)
+
         # Happy path
         return self._happy_path(request)
+
+    def _missing_quote_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+        """Return subject-correct required facts while omitting the optional quote."""
+        if request.subject_kind is FinancialSubjectKind.MACRO or request.field_name is FinancialField.CURRENT_PRICE:
+            return ()
+        return tuple(replace(fact, subject_id=SUBJECT_MISSING_QUOTE) for fact in self._security_facts(request))
 
     # ------------------------------------------------------------------
     # Happy-path data

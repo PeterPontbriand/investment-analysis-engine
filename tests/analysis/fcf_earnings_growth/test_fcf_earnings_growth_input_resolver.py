@@ -24,7 +24,7 @@ from src.core.analysis_status import CalculationStatus
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialField
 from src.data.financial.provenance import AccountingScope, CapitalExpenditureSign
-from tests.analysis.fcf_earnings_growth.fixture_financial_facts_provider import (
+from src.evaluation.fixtures.fcf_earnings_growth import (
     PROVIDER_ID,
     FixtureAnnualFinancialFactsProvider,
     annual_fact,

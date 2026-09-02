@@ -96,6 +96,15 @@ book_value_per_common_share =
 
 The derivation is allowed only when preferred shares outstanding resolve to zero under the evidence rules in Section 10.2, so total stockholders' equity can be treated as common equity for this purpose. Equity and share counts must describe the same reporting period. Direct common-share and preferred-share facts outrank approved inferences; missing preferred-share information is not treated as zero. Ambiguous or incompatible evidence makes book value per common share unavailable, and every accepted derivation retains its components.
 
+The approved future Step 2.5A foreign-private-issuer extension does not broaden
+this BVPS contract. Its first IFRS phase covers annual duration facts only.
+Entity-level Company Facts and a generic outstanding-share value do not prove
+ordinary/common share capital, preferred equity of zero, a compatible period-end
+denominator, or ADR/ADS unit equivalence. IFRS-derived BVPS therefore remains
+unsupported unless a later dimensional/share-class mapping passes a separate
+evidence review. See the [SEC EDGAR FPI / IFRS D0 Mapping
+Record](../step-2.5a/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md).
+
 ## 3. Graham growth-value method
 
 ### 3.1 Formula and assumptions

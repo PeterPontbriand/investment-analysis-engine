@@ -2,7 +2,11 @@
 
 These rules apply to agents that write, refactor, test, document, or maintain this codebase.
 
-## 1. Documentation precedence
+# 1. Project Instructions
+
+You are an expert Python developer specializing in financial data analysis, pandas, NumPy, and quantitative workflows. Always prioritize correctness, readability, and performance. Use type hints and docstrings where helpful.
+
+## 2. Documentation precedence
 
 When instructions differ, use this precedence:
 
@@ -17,7 +21,7 @@ Do not blend contradictory instructions. Surface the conflict and follow the mor
 
 For Milestone v0.2, `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` owns implementation sequencing, review gates, scope, and acceptance criteria.
 
-## 2. Absolute forbidden actions
+## 3. Absolute forbidden actions
 
 - NEVER commit secrets, API keys, `.env` files, SQLite/database files, or raw operational/trajectory logs.
 - NEVER install dependencies or edit `pyproject.toml` / `uv.lock` without explicit user permission.
@@ -29,7 +33,7 @@ For Milestone v0.2, `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` owns i
 - NEVER create a generic strategy/plugin/registry/factory hierarchy merely because two analyzers differ. Prefer existing `BaseAnalyzer`, tool dispatch, and dependency-injection patterns unless the active plan proves they are insufficient.
 - NEVER turn telemetry into control flow or benchmark fixtures into production cache data.
 
-## 3. Scope preservation
+## 4. Scope preservation
 
 - Before refactoring, establish the relevant test baseline.
 - Preserve unrelated behavior and formatting.
@@ -37,7 +41,7 @@ For Milestone v0.2, `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` owns i
 - New or materially modified lines should follow current guardrails; opportunistic cleanup belongs in a separate task unless required to complete the requested change.
 - Honor explicit review gates in the active milestone plan. If a step says to stop for human review, stop there.
 
-## 4. Python, Ruff & typing
+## 5. Python, Ruff & typing
 
 - Target Python 3.12+.
 - All supported source must pass `mypy --strict`.
@@ -47,7 +51,7 @@ For Milestone v0.2, `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` owns i
 - Prefer vectorized pandas/numpy operations for tabular calculations where appropriate.
 - CI checks are non-mutating: `uv run ruff check .` and `uv run ruff format --check .`.
 
-## 5. Logging & telemetry
+## 6. Logging & telemetry
 
 - Use the project's operational logging conventions for human-readable diagnostics.
 - Do not introduce a second logging framework as part of unrelated work.
@@ -57,7 +61,7 @@ For Milestone v0.2, `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` owns i
 
 When editing a legacy file that currently uses a different logging pattern, do not perform an unrelated logging migration unless the active task owns it.
 
-## 6. TDD, verification & coverage
+## 7. TDD, verification & coverage
 
 - Add or update focused tests with implementation changes.
 - Run the relevant pytest suite before declaring work complete.
@@ -65,7 +69,7 @@ When editing a legacy file that currently uses a different logging pattern, do n
 - Project target: ≥85% line coverage overall; new financial-analysis code should directly exercise meaningful branches and edge cases.
 - Run the complete quality gate specified by the active milestone plan before completion.
 
-## 7. Financial-analysis guardrails
+## 8. Financial-analysis guardrails
 
 - Deterministic financial math belongs in Python, never in the LLM.
 - `docs/user/FINANCE_MATH.md` is the project authority for currently implemented/project-selected formula semantics.
@@ -74,14 +78,14 @@ When editing a legacy file that currently uses a different logging pattern, do n
 - Missing financial data must be explicit; do not silently substitute zero.
 - Do not add RSI, MACD, Sharpe, valuation models, or other algorithms merely because an older convenience document mentions them.
 
-## 8. Heterogeneous strategy independence
+## 9. Heterogeneous strategy independence
 
 - Select/implement analyzers according to the task, not according to which analyzer existed first.
 - Do not treat Momentum as the universal financial-analysis shape.
 - A new strategy may legitimately use different config fields, data inputs, and result metrics.
 - Reuse `BaseAnalyzer` where sufficient; do not invent a parallel strategy framework speculatively.
 
-## 9. OS, shell & execution
+## 10. OS, shell & execution
 
 - Primary development environment: Windows 11 + PowerShell.
 - Prefer portable path handling through `pathlib.Path`.
@@ -204,7 +208,7 @@ If a command unexpectedly enters a pager or other interactive state:
 A tool appearing to hang after producing output should be treated as a possible
 pager/interactive-state problem before assuming the underlying command failed.
 
-## 10. Human-in-the-loop gates
+## 11. Human-in-the-loop gates
 
 Require explicit user confirmation before:
 - destructive file deletion;
@@ -213,7 +217,7 @@ Require explicit user confirmation before:
 - opening or merging PRs;
 - structural repository changes not already authorized by the active implementation plan.
 
-## 11. Context index
+## 12. Context index
 
 - Active milestone implementation → `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`
 - Roadmap → `docs/project/MASTER_PLAN.md`

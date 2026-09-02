@@ -7,6 +7,7 @@ from typing import Any
 
 from src.analysis.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
 from src.core.metric_result import MetricResult
+from src.data.instrument_profile import InstrumentProfile, instrument_kind_evidence_payload, profile_identity_resolution
 from src.data.market_data import MarketDataContext
 from src.data.security_identity import (
     IdentityResolutionStatus,
@@ -25,7 +26,7 @@ from src.reporting.presentation import (
     provider_display_name,
 )
 
-_SCHEMA_VERSION = 2
+_SCHEMA_VERSION = 3
 _LIMITATION = (
     "SMA momentum describes recent price trend; it is not a valuation, "
     "fundamental-quality conclusion, or investment recommendation."
@@ -42,6 +43,12 @@ class MomentumPresentation:
     warnings: tuple[str, ...] = ()
     diagnostics: tuple[ResolutionDiagnostic, ...] = ()
     identity_resolution: SecurityIdentityResolution | None = None
+    instrument_profile: InstrumentProfile | None = None
+
+    def __post_init__(self) -> None:
+        """Project composed identity evidence when no legacy resolution was supplied."""
+        if self.identity_resolution is None and self.instrument_profile is not None:
+            object.__setattr__(self, "identity_resolution", profile_identity_resolution(self.instrument_profile))
 
 
 def render_momentum(
@@ -118,6 +125,7 @@ def _detail_lines(p: MomentumPresentation) -> list[str]:
         f"Observations returned: {observation_count if observation_count is not None else 'unavailable'}",
         f"Currency: {currency or 'unavailable'}",
         *_identity_detail_lines(p.identity_resolution),
+        *_kind_detail_lines(p.instrument_profile),
     ]
 
 
@@ -134,7 +142,12 @@ def _diagnostic_lines(p: MomentumPresentation) -> list[str]:
     ]
     for item in p.diagnostics:
         lines.append(f"{item.field_name}: {item.stage} -> {item.outcome} — {item.message}")
-    if p.identity_resolution is not None:
+    if p.instrument_profile is not None:
+        lines.extend(
+            f"{item.capability.value}: {item.provider_id}/{item.status.value} — {item.message}"
+            for item in p.instrument_profile.diagnostics
+        )
+    elif p.identity_resolution is not None:
         lines.append(
             f"security_identity: provider -> {p.identity_resolution.status.value} — {p.identity_resolution.message}"
         )
@@ -151,6 +164,19 @@ def _identity_detail_lines(resolution: SecurityIdentityResolution | None) -> lis
         f"Listing venue: {identity.listing_venue or 'unavailable'}",
         f"Identity provider: {provider_display_name(identity.provider_id)}",
         f"Identity resolved: {format_datetime(identity.resolved_at)} (current descriptive metadata)",
+    ]
+
+
+def _kind_detail_lines(profile: InstrumentProfile | None) -> list[str]:
+    """Describe current provider-backed instrument classification."""
+    if profile is None or profile.kind_evidence is None:
+        return ["Instrument kind: unavailable"]
+    evidence = profile.kind_evidence
+    return [
+        f"Instrument kind: {evidence.kind.value if evidence.kind is not None else 'unreviewed'}",
+        f"Kind provider value: {evidence.provider_value}",
+        f"Kind provider: {provider_display_name(evidence.provider_id)}",
+        f"Kind resolved: {format_datetime(evidence.resolved_at)} (current classification metadata)",
     ]
 
 
@@ -350,6 +376,9 @@ def _payload(p: MomentumPresentation) -> dict[str, Any]:
         "analysis": "momentum",
         "ticker": metrics.ticker.upper(),
         "security_identity": security_identity_payload(metrics.ticker, p.identity_resolution),
+        "instrument_kind": instrument_kind_evidence_payload(
+            p.instrument_profile.kind_evidence if p.instrument_profile is not None else None
+        ),
         "method": "sma_crossover",
         "as_of": data_as_of.isoformat() if data_as_of is not None else None,
         "analysis_timestamp": metrics.timestamp.isoformat(),
@@ -391,13 +420,28 @@ def _payload(p: MomentumPresentation) -> dict[str, Any]:
             *(
                 [
                     {
+                        "field_name": item.capability.value,
+                        "stage": "provider",
+                        "outcome": item.status.value,
+                        "message": item.message,
+                        "provider_id": item.provider_id,
+                    }
+                    for item in p.instrument_profile.diagnostics
+                ]
+                if p.instrument_profile is not None
+                else []
+            ),
+            *(
+                [
+                    {
                         "field_name": "security_identity",
                         "stage": "provider",
                         "outcome": p.identity_resolution.status.value,
                         "message": p.identity_resolution.message,
                     }
                 ]
-                if p.identity_resolution is not None
+                if p.instrument_profile is None
+                and p.identity_resolution is not None
                 and p.identity_resolution.status is not IdentityResolutionStatus.RESOLVED
                 else []
             ),

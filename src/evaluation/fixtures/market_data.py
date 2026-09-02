@@ -1,12 +1,63 @@
-"""Deterministic in-memory data client for unit tests.
+"""Deterministic in-memory market-data client for evaluation and tests.
 
 Implements the full `BaseDataClient` contract with synthetic data so
-analyzer and pipeline tests never touch external market-data providers.
+Golden evaluation and analyzer tests never touch external market-data providers.
 """
+
+from datetime import date
+from typing import Final
 
 import pandas as pd
 
 from src.data.base_client import BaseDataClient, DataFetchError
+from src.data.market_data import HistoricalMarketData, MarketDataContext
+
+MOMENTUM_SHORT_WINDOW: Final = 2
+MOMENTUM_LONG_WINDOW: Final = 3
+MOMENTUM_RSI_PERIOD: Final = 3
+MOMENTUM_SUCCESS_CLOSES: Final = (100.0, 101.0, 102.0, 103.0, 104.0)
+MOMENTUM_BOUNDARY_CLOSES: Final = MOMENTUM_SUCCESS_CLOSES[:2]
+
+
+def momentum_success_frame() -> pd.DataFrame:
+    """Return the five-observation rising series used by the success case."""
+    return _momentum_frame(MOMENTUM_SUCCESS_CLOSES)
+
+
+def momentum_boundary_frame() -> pd.DataFrame:
+    """Return the two-observation series that is one row short of the long SMA."""
+    return _momentum_frame(MOMENTUM_BOUNDARY_CLOSES)
+
+
+def _momentum_frame(closes: tuple[float, ...]) -> pd.DataFrame:
+    """Build a fresh UTC-indexed close-price frame from immutable fixture values."""
+    index = pd.date_range("2026-01-02", periods=len(closes), freq="D", tz="UTC", name="Timestamp")
+    return pd.DataFrame({"Close": closes}, index=index)
+
+
+class FixtureMarketDataProvider:
+    """Deterministic provider for point-in-time Momentum evaluation."""
+
+    provider_id = "fixture_market"
+
+    def __init__(self, frame: pd.DataFrame) -> None:
+        """Retain the deterministic historical frame."""
+        self._frame = frame
+
+    def fetch_historical_data(self, ticker: str, start_date: str, end_date: str | None = None) -> HistoricalMarketData:
+        """Return the complete fixture series so the resolver must truncate it."""
+        del ticker, start_date, end_date
+        return HistoricalMarketData(
+            frame=self._frame,
+            context=MarketDataContext(
+                provider_id=self.provider_id,
+                observation_interval="1d",
+                data_as_of=date(2026, 1, 6),
+                currency="USD",
+                observation_count=len(self._frame),
+                price_adjustment="adjusted",
+            ),
+        )
 
 
 class FixtureDataClient(BaseDataClient):

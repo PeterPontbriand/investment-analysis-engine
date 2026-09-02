@@ -1,0 +1,37 @@
+{
+  "0": {
+    "cik_str": 1725964,
+    "ticker": "NTR",
+    "title": "Nutrien Ltd."
+  },
+  "1": {
+    "cik_str": 1000184,
+    "ticker": "SAP",
+    "title": "SAP SE"
+  },
+  "2": {
+    "cik_str": 1000184,
+    "ticker": "SAPGF",
+    "title": "SAP SE"
+  },
+  "3": {
+    "cik_str": 353278,
+    "ticker": "NVO",
+    "title": "NOVO NORDISK A S"
+  },
+  "4": {
+    "cik_str": 353278,
+    "ticker": "NONOF",
+    "title": "NOVO NORDISK A S"
+  },
+  "5": {
+    "cik_str": 937966,
+    "ticker": "ASML",
+    "title": "ASML HOLDING NV"
+  },
+  "6": {
+    "cik_str": 937966,
+    "ticker": "ASMLF",
+    "title": "ASML HOLDING NV"
+  }
+}

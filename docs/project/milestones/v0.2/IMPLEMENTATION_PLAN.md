@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-08-30 — Recorded Slice G and Step 2.4 closeout approval and made Step 2.5 the current step.<br/>
-**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → complete and approved, including Slices A–F-1 and Slice G closeout; Step 2.5 → current
+**Revised:** 2026-09-01 — Recorded final approval and completion of Step 2.5A.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, and 2.5A → complete and approved; Step 2.6 → next, not started
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -78,6 +78,7 @@ Use **fine-grained branches aligned with coherent implementation units within a 
 | Step 2.4 FCF/earnings-growth strategy | `feat/step-2.4-fcf-earnings-growth` | Adds the third deterministic strategy and minimally extends financial-fact resolution |
 | Step 2.4 pre-Golden shared-contract hardening | `fix/step-2.4-pre-golden-contract-hardening` | Corrects bounded Graham result, presentation, quote, and compatibility seams before benchmark fixtures freeze them |
 | Step 2.5 Golden runner | `feat/step-2.5-golden-suite` | Implements heterogeneous benchmark cases and evaluation harness after the v0.2 strategy set is stable |
+| Step 2.5A SEC FPI/IFRS coverage | `feat/step-2.5a-sec-fpi-ifrs` | Adds foreign annual forms, exact IFRS duration mappings, snapshot consistency, and security-unit gates after Golden closeout |
 | Step 2.6 reliability limits | `feat/step-2.6-circuit-breakers` | Isolates hard execution limits |
 | Step 3.1 persistence foundation | `feat/step-3.1-sqlite-foundation` | Alembic, schema, SQLite telemetry sink, production data access |
 | Step 3.2 repositories | `feat/step-3.2-repositories` | Typed DAO/repository layer |
@@ -582,7 +583,7 @@ Add a third materially different deterministic investor analysis before the Gold
 
 The governing design is:
 
-`docs/project/milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`
+`docs/project/milestones/v0.2/step-2.4/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`
 
 Step 2.4 is a bounded strategy addition, not a reopening of Step 2.3 and not a reason to introduce speculative strategy/plugin architecture. Its closeout also owns the bounded shared-contract hardening identified while reconciling the completed Graham implementation with its design record. That work does not change Step 2.3's historical completion status, but it must finish before Step 2.5 freezes the strategy contracts into Golden fixtures.
 
@@ -841,6 +842,8 @@ F-1 is presentation and identity-provenance work, not financial calculation work
 **Planning approval:** Approved on 2026-08-29.<br/>
 **Implementation approval:** The completed F-1 implementation and focused gate were approved on 2026-08-30. Slice G owns final documentation synchronization, the complete repository gate, and Step 2.4 completion review.
 
+**Post-closeout P1 refinement:** The concrete FLSW defect recorded in Section 4.5.0 supersedes only F-1's preservation of existing ticker-verification behavior and its assumption that identity metadata can never participate in applicability. Lookup absence/failure remains fail-open and display-only; affirmative provider-backed instrument-kind evidence may establish strategy-specific `not_applicable` without changing financial formulas.
+
 #### 4.4.12 Non-goals
 
 Step 2.4 does **not** include:
@@ -899,11 +902,13 @@ Step 2.4 does **not** include:
 
 ### 4.5 Step 2.5 – Golden-Test Suite & Strategy Evaluation
 
-**Status:** Current step as of 2026-08-30.<br/>
+**Status:** Complete and approved on 2026-08-31. Verification and the final decision are recorded in the [Step 2.5 Closeout Verification Record](step-2.5/STEP_2_5_CLOSEOUT_RECORD.md).<br/>
 **Goal**<br/>
 Establish a deterministic, fixture-backed benchmark that exercises the approved v0.2 set of materially different analytical strategies and separates strategy/tool-selection correctness from deterministic numerical correctness.
 
 Step 2.5 consumes the stable strategy and data foundations established in Steps 2.3–2.4, including the approved pre-Golden shared-contract hardening gate. It must not begin before that gate or redesign those foundations unless implementation evidence reveals a concrete defect.
+
+The live FLSW review on 2026-08-30 revealed one such defect: Momentum identified the valid ETF, while Graham conflated unavailable company facts with a possibly invalid ticker and FCF Growth could not retain the resolved instrument name. The approved P1 correction below must close this bounded contract/applicability gap before Golden Suite model work begins.
 
 The initial benchmark targets:
 
@@ -914,7 +919,31 @@ The initial benchmark targets:
 
 This is the empirical test of the architectural objective established in Steps 2.3–2.4: financial analysis must not be implicitly synonymous with one analytical pattern.
 
-#### 4.5.1 Implementation guardrails for Cline
+
+#### 4.5.0 P1 — Pre-Golden instrument applicability hardening
+
+**Status:** Complete and approved. P1-A through P1-C were accepted before the typed Golden Case implementation began.
+
+**Goal:** Make the Step 2.4 identity, status, provider-composition, and presentation seams an adequate long-lived basis for known non-company instruments without adding persistence or an ETF aggregate strategy.
+
+P1 is a concrete-defect correction, not a reopening of the approved financial formulas. Implement it as one bounded production slice with these requirements:
+
+1. **Provider-evidence checkpoint:** inspect authoritative provider documentation and representative deterministic payloads before mapping provider instrument classifications. Record the initial normalized vocabulary and exact supported mappings. The minimum approved capability must distinguish a provider-confirmed ETF from an instrument that is not confirmed to be an ETF; do not infer kind from a ticker or instrument name.
+2. **Identity/profile evidence:** preserve the immutable one-provider `SecurityIdentity`, add separate immutable normalized/raw instrument-kind evidence with its own provider and timezone-aware resolution time, and compose both without rewriting field-level provenance. Do not broaden numeric `ProviderFact` to carry descriptive metadata. The exact P1-A proposal is recorded in [`STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md`](step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
+3. **Fail-open classification:** missing, unsupported, or failed identity/kind resolution remains unknown and must not invalidate or downgrade an otherwise usable analysis. Only affirmative provider-backed kind evidence may control strategy applicability. Unknown kind must continue through the existing data-resolution path.
+4. **Narrow fallback composition:** permit one analysis run to consult an ordered, explicitly injected identity/profile candidate list, using retained strategy-provider evidence first and Yahoo only when the required name or kind remains unresolved. Query each candidate at most once per run, retain the winning provider provenance, and do not introduce a broad provider registry or hidden live fallback in deterministic execution.
+5. **Strategy-specific applicability:** Momentum continues to support ETFs. A provider-confirmed ETF is `not_applicable` to both Graham methods and to the existing company-level Free Cash Flow & Earnings Growth strategy. This is a valid completed applicability result, not `input_unavailable`, `provider_error`, an invalid ticker, or an automatic request to run a future aggregate strategy.
+6. **Typed-result preservation:** represent `not_applicable` through each strategy's existing native typed status/result boundary. Do not add a generic strategy-result hierarchy. Keep calculation formulas unchanged and do not manufacture company facts for an ETF.
+7. **Investor presentation:** every concise/details/diagnostics/JSON path retains the shared `Instrument Name (TICKER) — Analysis` heading when identity is available, including unsuccessful and `not_applicable` Graham paths. Ordinary input unavailability or provider failure must not tell the user to verify the ticker unless affirmative evidence establishes an invalid symbol. A known ETF explanation must name the selected company-level method and why it does not apply.
+8. **Process status:** a successfully determined `not_applicable` analysis is a normal domain outcome and returns a successful direct-CLI process status. Invalid arguments, unresolved required inputs, and provider/execution failures retain non-zero process behavior.
+9. **Deterministic regression evidence:** add fixture-backed tests for a known ETF, known supported instrument, unknown kind, provider failure, ordered fallback, winning provenance, no duplicate candidate lookup, all affected presentation modes, native typed/JSON status, unchanged Momentum behavior, and CLI/tool-handler consistency. Deterministic tests make no live provider calls.
+10. **Review gate:** run focused Ruff, formatting, strict mypy, and tests, then the complete repository quality gate. Stop for human review before Slice A1 or any Golden case implementation begins.
+
+**P1 exclusions:** durable or cross-process metadata caching, SQLite/Alembic, TTL/invalidation policy, ETF holdings ingestion, constituent aggregation, automatic substitution of another strategy, changes to Graham/FCF mathematics, and unrelated provider expansion. Those deferred concerns belong to P2 after Step 3.1.
+
+#### 4.5.1 Implementation guardrails
+
+These guardrails apply to every Step 2.5 implementer. The earlier Cline experiment was terminated after repeated completion claims contradicted repository state; Codex owns P1 and the remaining implementation, with the human review gates unchanged.
 
 - Reuse the Steps 2.3–2.4 strategy and market/financial-data contracts; do not create parallel abstractions.
 - Reuse existing production orchestration/tool-dispatch wherever it already supports deterministic fixture injection.
@@ -984,6 +1013,7 @@ Minimum set:
 - straightforward Free Cash Flow & Earnings Growth case;
 - FCF/earnings-growth case with insufficient or mathematically nonmeaningful growth history;
 - FCF/earnings-growth case proving period alignment and historical `as_of` rejection;
+- known-ETF applicability case proving Momentum remains applicable while both Graham methods and company-level FCF Growth report `not_applicable` without treating the ticker as invalid;
 - at least one case where selecting a materially different strategy would produce a materially different analytical result.
 
 After that minimum works, expand toward the target range with additional coverage such as:
@@ -1147,23 +1177,26 @@ Golden case definitions should remain unchanged when the production persistence 
 
 #### 4.5.18 Implementation sequence
 
-1. Inspect and accept the stable Steps 2.3–2.4 strategy/data contracts; do not redesign them speculatively.
-2. Define the typed Golden Case model.
-3. Define independently verified expected values and tolerance rules.
-4. Implement strategy/tool-selection evaluation.
-5. Implement numerical evaluation.
-6. Implement case-level aggregation and pass-rate calculation.
-7. Implement machine-readable reporting.
-8. Implement deterministic/no-LLM harness tests.
-9. Add the evaluator regression/self-test.
-10. Add the minimum heterogeneous case set.
-11. Run the minimum deterministic suite and **stop for review**.
-12. Expand toward the approved initial target range.
-13. Add optional real-local-Ollama evaluation.
-14. Add the documented CLI.
-15. Update evaluation documentation.
-16. Run Ruff, formatting checks, `mypy --strict`, and pytest.
-17. Record deterministic and, when available, empirical model results separately.
+The formal bounded handoff boundaries, owned artifacts, intermediate review points, and current handoff are recorded in the [Step 2.5 Golden Suite Slice Plan](step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md). That document decomposes this governing sequence without changing its order or acceptance criteria.
+
+1. Implement P1, run the complete repository gate, and stop for explicit human approval of the corrected production contracts.
+2. Inspect and accept the stable Steps 2.3–2.4 plus P1 strategy/data/applicability contracts; do not redesign them speculatively.
+3. Define the typed Golden Case model.
+4. Define independently verified expected values and tolerance rules.
+5. Implement strategy/tool-selection evaluation.
+6. Implement numerical evaluation.
+7. Implement case-level aggregation and pass-rate calculation.
+8. Implement machine-readable reporting.
+9. Implement deterministic/no-LLM harness tests.
+10. Add the evaluator regression/self-test.
+11. Add the minimum heterogeneous case set.
+12. Run the minimum deterministic suite and **stop for review**.
+13. Perform only Gate M-directed correction or expansion, then rerun Gate M; skip this item only when Gate M approves the minimum unchanged.
+14. Add optional real-local-Ollama evaluation.
+15. Add the documented CLI.
+16. Update evaluation documentation.
+17. Run Ruff, formatting checks, `mypy --strict`, and pytest.
+18. Record deterministic and, when available, empirical model results separately.
 
 #### 4.5.19 Non-goals
 
@@ -1172,6 +1205,7 @@ Step 2.5 does **not** include:
 - SQLite persistence or Alembic;
 - production cache implementation;
 - analytical strategies beyond the approved v0.2 set;
+- durable instrument-profile caching or ETF constituent aggregation (deferred to P2 after Step 3.1);
 - broad provider abstraction;
 - UI/dashboard work;
 - autonomous planning changes;
@@ -1182,30 +1216,94 @@ Step 2.5 does **not** include:
 
 #### 4.5.20 Acceptance criteria
 
-- [ ] A reproducible fixture-backed Golden Suite exercises Momentum, the Graham Number, the Graham growth-value method, and Free Cash Flow & Earnings Growth.
-- [ ] No live market-data access is required for deterministic suite execution.
-- [ ] Existing production orchestration/tool-dispatch is reused as far as practical.
-- [ ] Expected numerical values are independently verified.
-- [ ] Strategy/tool-selection correctness is evaluated separately from numerical correctness.
-- [ ] Deterministic numerical evaluation does not depend on LLM prose.
-- [ ] A minimum heterogeneous case set works before expansion.
-- [ ] The default three-year-average EPS basis, explicit TTM variation, `not_applicable` behavior, and missing-current-price behavior are covered by Graham cases.
-- [ ] At least one case verifies Graham method-selection correctness independently of broad strategy selection.
-- [ ] Straightforward, insufficient/nonmeaningful-growth, and period/`as_of` FCF-growth cases are covered.
-- [ ] At least one case materially discriminates correct strategy selection from a plausible wrong strategy.
-- [ ] Machine-readable reporting distinguishes component and overall failures.
-- [ ] The ≥90% target is defined and reported without weakening criteria.
-- [ ] Strategy-selection accuracy is reported independently and is not artificially forced to ≥90%.
-- [ ] An evaluator self-test detects an intentionally incorrect result.
-- [ ] Deterministic/no-LLM mode is documented.
-- [ ] Optional real-local-Ollama evaluation is documented separately.
-- [ ] CLI execution and non-zero failure status work.
-- [ ] `docs/EVALUATIONS.md` is updated.
-- [ ] Step 3.1 can replace fixture-backed data sources with production persistence without changing Golden case definitions.
-- [ ] Ruff, formatting, `mypy --strict`, and pytest pass.
-- [ ] Actual measured benchmark results are recorded honestly.
+Checked items below are evidenced by the reviewed implementation and Slice K
+closeout record. The human approved Step 2.5 on 2026-08-31.
+
+- [x] A reproducible fixture-backed Golden Suite exercises Momentum, the Graham Number, the Graham growth-value method, and Free Cash Flow & Earnings Growth.
+- [x] P1 is approved before Golden models/cases are implemented; a provider-confirmed ETF is `not_applicable` to both Graham methods and company-level FCF Growth, remains applicable to Momentum, retains its identity when available, and is not described as an invalid ticker.
+- [x] No live market-data access is required for deterministic suite execution.
+- [x] Existing production orchestration/tool-dispatch is reused as far as practical.
+- [x] Expected numerical values are independently verified.
+- [x] Strategy/tool-selection correctness is evaluated separately from numerical correctness.
+- [x] Deterministic numerical evaluation does not depend on LLM prose.
+- [x] A minimum heterogeneous case set works before expansion.
+- [x] The default three-year-average EPS basis, explicit TTM variation, `not_applicable` behavior, and missing-current-price behavior are covered by Graham cases.
+- [x] At least one case verifies Graham method-selection correctness independently of broad strategy selection.
+- [x] Straightforward, insufficient/nonmeaningful-growth, and period/`as_of` FCF-growth cases are covered.
+- [x] At least one case materially discriminates correct strategy selection from a plausible wrong strategy.
+- [x] Machine-readable reporting distinguishes component and overall failures.
+- [x] The ≥90% target is defined and reported without weakening criteria.
+- [x] Strategy-selection accuracy is reported independently and is not artificially forced to ≥90%.
+- [x] An evaluator self-test detects an intentionally incorrect result.
+- [x] Deterministic/no-LLM mode is documented.
+- [x] Optional real-local-Ollama evaluation is documented separately.
+- [x] CLI execution and non-zero failure status work.
+- [x] `docs/EVALUATIONS.md` documents the implemented Slice J operator interface, report contract, failure interpretation, and maintenance workflow.
+- [x] Step 3.1 can replace fixture-backed data sources with production persistence without changing Golden case definitions.
+- [x] Ruff, formatting, `mypy --strict`, and pytest pass.
+- [x] Actual measured deterministic benchmark results are recorded honestly; empirical model selection remains unmeasured.
 
 **Definition of done:** Step 2.5 is complete when the repository contains a reproducible fixture-backed benchmark that exercises the approved heterogeneous v0.2 strategy set, distinguishes strategy/method-selection failures from deterministic numerical failures, produces an auditable machine-readable report, and remains decoupled from production persistence.
+
+---
+
+### 4.5A Step 2.5A – SEC EDGAR Foreign-Private-Issuer Annual-Filing Coverage
+
+**Status:** complete and approved on 2026-09-01.<br/>
+**Governing records:** [SEC EDGAR FPI / IFRS D0 Mapping Record](step-2.5a/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md), [SEC EDGAR FPI / IFRS Slice Plan](step-2.5a/SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md), [Step 2.5A D0 Evidence Freeze and Implementation Handoff](step-2.5a/STEP_2_5A_D0_EVIDENCE_FREEZE.md), and [Step 2.5A A0 Identity/Security-Unit Boundary Review](step-2.5a/STEP_2_5A_A0_REVIEW.md)<br/>
+**Goal**<br/>
+Extend the existing SEC annual financial-fact adapter to a narrow, evidence-backed foreign-private-issuer surface without weakening exact-concept, annual-period, `as_of`, currency, restatement, provenance, or security-unit requirements.
+
+The approved first implementation has two provider increments:
+
+1. accept `20-F`, `20-F/A`, `40-F`, and `40-F/A` for already-approved US-GAAP annual **duration** concepts while leaving balance-sheet/instant forms unchanged; and
+2. map exact IFRS annual duration concepts for diluted EPS, adjusted weighted-average shares, operating cash flow, and physical-PP&E capital expenditure.
+
+One immutable analysis-scoped SEC snapshot must supply all selected facts and accession availability evidence. Accounting taxonomy is selected from the latest eligible annual accession at effective `as_of`, not from any namespace that happened to occur in the issuer's lifetime history. Requested spans that cross an unproved taxonomy/accounting transition are unavailable.
+
+Foreign security units are an independent compatibility boundary. Issuer-level FCF facts may resolve when supported, but per-share or quote comparisons require affirmative ordinary-share / quoted-unit compatibility. The first implementation is limited to proven 1:1 shapes. ADR/ADS ratio conversion and currency conversion are not approved.
+
+IFRS book value per common/ordinary share is deferred. Missing preferred-share evidence is never zero, generic outstanding-share facts do not prove an ordinary-share denominator, and Company Facts' entity-level surface does not supply the dimensional share-class evidence required for a safe IFRS BVPS derivation.
+
+**Implementation order**
+
+1. freeze minimal deterministic evidence and confirm the exact owned files;
+2. correct the identity/security-unit boundary so multi-ticker CIKs do not erase
+   issuer-level facts while per-share use remains fail-closed, then stop for
+   review;
+3. add US-GAAP foreign annual forms for duration fields only and stop for review;
+4. add request-scoped snapshot and latest-accession taxonomy selection and stop for review;
+5. add the four exact IFRS duration mappings and negative boundaries and stop for review;
+6. complete the narrow security-unit compatibility predicate and stop for review;
+7. version and extend the Golden Suite only after the provider/resolver behavior is approved;
+8. update support documentation, run the complete repository and Golden gates, and stop for final approval.
+
+D0 found that the existing multi-ticker guard blocks the planned ASML, SAP, and
+NVO cases and erases issuer-level fields contrary to the approved unit boundary.
+It also confirmed that snapshot reuse spans both analysis resolvers. Gate A
+approved bounded A0 and the exact B1-A ownership on 2026-08-31. A0 must stop for
+review before A1.
+
+A0 is implemented and verified at that stop. Exact ticker-to-CIK resolution and
+payload-CIK validation are unchanged; OCF and CapEx no longer fail merely
+because the resolved CIK has multiple ticker rows, while EPS and diluted
+weighted-average shares remain fail-closed. The complete repository gate passed
+1,225 tests at 87% reported coverage. A1 is not started.
+
+**Acceptance criteria**
+
+- [x] Step 2.5 is complete and approved before implementation begins.
+- [x] D0 evidence fragments are minimized, sourced, dated, checksummed, and
+  covered by an exact deterministic test matrix and focused baseline.
+- [x] Existing US-GAAP duration concepts accept the approved foreign annual forms without broadening balance-sheet/instant forms.
+- [x] Exact IFRS EPS, diluted-share, OCF, and physical-PP&E CapEx mappings preserve units, sign, period, availability, currency, and provenance.
+- [x] One immutable SEC snapshot supplies all fields in one analysis.
+- [x] Latest-eligible-accession taxonomy selection and cross-regime rejection are deterministic and `as_of` safe.
+- [x] Missing exact concepts, ambiguous evidence, and unknown security-unit compatibility remain explicitly unavailable.
+- [x] IFRS BVPS, preferred-zero inference, ADR/ADS conversion, currency conversion, and custom extensions remain unsupported.
+- [x] Existing case IDs and historical Golden fixtures are preserved; additions are deliberately versioned.
+- [x] Focused checks, the complete repository gate, and the canonical Golden Suite pass without live provider or LLM calls.
+- [x] The final diff receives explicit human approval before Step 2.6.
 
 ---
 
@@ -1252,6 +1350,24 @@ Establish the production SQLite persistence foundation while implementing the SQ
 - [ ] Production data/cache implementations satisfy the historical-price and financial-fact contracts used by the approved strategies.
 - [ ] Valid cached inputs can be reused without unnecessary external refetch and without losing provenance or temporal semantics.
 
+### 4.7A P2 – Durable Instrument Profiles & ETF Aggregate FCF Growth (Post–Step 3.1)
+
+**Status:** Planned and explicitly deferred until Step 3.1 is implemented and approved. Its exact placement relative to Steps 3.2–3.4 must be reviewed after the Step 3.1 schema/repository boundary is concrete; this section does not authorize implementation during Step 2.5 or Step 3.1.
+
+**Goal:** Replace repeated live descriptive/classification lookups with durable, time-aware instrument profiles and add a distinct look-through FCF-growth strategy for ETFs without changing the meaning of the existing company-level strategy.
+
+**Required planning and implementation work:**
+
+1. Persist normalized instrument kind, raw provider classification, name, venue, stable identifiers where available, provider provenance, retrieval/resolution time, and explicit freshness/expiry metadata behind a narrow repository/cache contract. Ticker alone is not a permanent identity or sufficient cache key.
+2. Define cache precedence, TTL/invalidation, refresh, provider disagreement, ticker-reuse, and historical-snapshot rules. Step 3.4 Analysis Runs retain the exact identity/profile snapshot used at execution and never relabel a historical run from mutable current metadata.
+3. Complete a separate provider-evidence and product-policy checkpoint for ETF holdings: provider/licensing constraints, holdings effective dates, weights, cash/derivatives, duplicate exposure, constituent identifiers, currency conversion, missing/stale constituents, coverage thresholds, rebalancing, and `as_of` semantics.
+4. Implement ETF aggregate FCF Growth as a separate strategy/tool with its own typed configuration, result, method/version identifiers, coverage diagnostics, aggregation semantics, fixtures, and investor limitations. It may reuse approved company-level calculations per constituent, but it must not add ETF branches to or redefine `analyze_fcf_earnings_growth`.
+5. Keep selection explicit and auditable. A company-level FCF request for a known ETF remains `not_applicable`; it must not silently invoke the aggregate strategy. Any later convenience routing belongs at the orchestration layer and requires its own reviewed selection behavior.
+6. Add deterministic holdings/profile fixtures and independently verified aggregate expectations. Live providers and mutable caches remain excluded from deterministic tests and Golden fixture truth.
+7. Revisit Golden coverage only after the strategy's contracts and production behavior pass their own review gate. Add cases through the existing review-directed expansion process rather than changing the original benchmark retrospectively.
+
+**P2 non-goals:** treating an ETF as an operating company, deriving holdings from an instrument name, hiding incomplete constituent coverage, using an LLM for aggregation mathematics, silently substituting the ETF strategy, or coupling strategy calculators directly to SQLite.
+
 ### 4.8 Step 3.2 – DAO & Repository Layer
 
 **Goal**<br/>
@@ -1296,7 +1412,7 @@ Turn the command-line program into a small local research workbench before real-
 
 **Product model**
 - A **watchlist** is a named local collection of tickers plus supported requested analysis types/configuration.
-- An **Analysis Run** is the durable investor-domain record of one requested analysis: `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, warnings, start/completion times, and calculation/version identifiers. It may reference execution/telemetry identity, but does not overload `RunContext`.
+- An **Analysis Run** is the durable investor-domain record of one requested analysis: `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, the security identity/instrument-profile snapshot used by the run, warnings, start/completion times, and calculation/version identifiers. It may reference execution/telemetry identity, but does not overload `RunContext`.
 - A **report/view** is a deterministic, explicitly versioned projection of an Analysis Run. v0.2 does not persist a competing canonical report document.
 - A **refresh** is a user-initiated batch that may execute multiple ticker/analysis jobs concurrently and persist each completed Analysis Run immediately.
 
@@ -1391,6 +1507,7 @@ Phase D — Step 2.4 FCF & earnings growth
         │
         ▼
 Phase E — Step 2.5 Golden Suite
+  ├─ P1 instrument-kind/applicability hardening + review
   └─ heterogeneous selection + deterministic numeric evaluation
 
 Phase F — Step 2.6 reliability limits
@@ -1399,7 +1516,9 @@ Phase F — Step 2.6 reliability limits
 Phase G — Step 3 production persistence/data quality
   ├─ 3.1 SQLite + durable cache/data/telemetry
   ├─ 3.2 typed repositories
-  └─ 3.3 data quality / invalidation
+  ├─ 3.3 data quality / invalidation
+  └─ P2 durable instrument profiles + separate ETF aggregate FCF strategy
+       (exact placement reviewed after 3.1; may depend on 3.2/3.3)
         │
         ▼
 Phase H — Step 3.4 local research workspace
@@ -1470,21 +1589,26 @@ All of the following must be true before declaring the milestone complete and op
 28. **F-1 implementation approval** — The committed shared security-identity implementation was approved on 2026-08-30. Slice G may synchronize documentation and run the final gate; this does not itself declare Step 2.4 complete before the final review.
 29. **Deterministic versioned investor-report projection** — Step 3.4 renders persisted Analysis Runs through a pure, explicitly versioned projection contract. Projection versioning is independent of calculation method and result-schema versioning; historical rendering uses stored evidence and explicit options only, without provider/LLM calls, recalculation, or silent reinterpretation.
 30. **Slice G and Step 2.4 closeout approval** — Slice G documentation synchronization and the complete repository gate passed, and explicit human approval closed Step 2.4 on 2026-08-30. Step 2.5 is the current step and consumes the approved Steps 2.3–2.4 contracts.
+31. **Known-ETF applicability** — Live FLSW evidence exposed a concrete pre-Golden defect: unavailable company facts were conflated with ticker validity and provider-specific identity resolution produced inconsistent names. P1 is approved before Golden model/case work. Only affirmative provider-backed ETF evidence makes both Graham methods and company-level FCF Growth `not_applicable`; unknown kind remains fail-open, while Momentum remains applicable.
+32. **P1/P2 split** — P1 adds only the stable contract seam, request-scoped provider composition, native applicability outcomes, presentation/error corrections, and deterministic regression evidence. Durable instrument-profile caching and the distinct ETF aggregate FCF-growth strategy are P2, planned only after Step 3.1 and subject to a later provider/product-policy gate.
 
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
 2. **Provider/analyst consensus-growth policy** — Do not ingest a provider forecast until its field meaning, time horizon, provenance, update behavior, and licensing are verified.
 3. **Tangible-book and sector-specific variants** — Defer these until the base Graham methods and their limitations are validated.
 4. **Step 2.4 product refinements** — P/FCF thresholds, alternate FCF definitions, smoothing, horizons outside the approved three/four/five-year set, peer comparisons, cash conversion, and user-defined composite thresholds remain deferred. FCF yield and FY1/FY2 consensus EPS are in scope only as documented optional context and only after their provider evidence gates are satisfied. FCF/share growth is approved current scope under the versioned E1–E3 extension, not a deferred composite feature.
-5. **Ollama Modelfile consolidation** — The repository currently contains `Modelfile.agents` both at the repository root and under `docs/project/deploy/ollama/`. Determine the canonical location and reconcile or remove the duplicate in a separate reviewed documentation/deployment task; do not mix that cleanup into Step 2.4 strategy slices.
+5. **Ollama Modelfile consolidation (resolved 2026-08-30)** — `docs/project/deploy/ollama/` is the canonical location. The identical root `Modelfile.agents` duplicate was removed, the application artifact was retained there, and the Step 2.5 Cline implementation model received a separately named Modelfile and documented alias so development-agent configuration cannot be confused with application or Golden model-under-evaluation configuration.
+6. **P2 exact scheduling and ETF aggregation policy** — P2 is approved as a post–Step 3.1 work package, but its exact placement relative to Steps 3.2–3.4 and its provider, licensing, holdings, weighting, currency, coverage, freshness, and `as_of` policies require explicit review after the persistence boundary exists. No P2 implementation is authorized during P1 or Step 2.5.
 
 ---
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 and 2.4 are complete and approved. Step 2.5 Golden-Test Suite & Strategy Evaluation is the current step and should proceed on `feat/step-2.5-golden-suite` against the stable approved Steps 2.3–2.4 contracts.
+Steps 2.3 through 2.5A are complete and approved. Step 2.6 is the next planned
+step and has not started.
 
-1. Begin Step 2.5 with the typed Golden Case model, independently verified expected values, and the minimum heterogeneous deterministic suite under the Section 4.5 sequence and review gates.
-2. Preserve classified unavailability so later representative live validation can measure the useful-result ratio and identify whether a separately reviewed provider-mapping expansion is warranted.
-3. Implement Step 2.6 reliability limits, then Step 3.1–3.3 persistence/repositories/data quality and Step 3.4 research workspace.
-4. Complete Step 3.5 Light Mode workflow, including empirical schema/model compatibility validation, before opening v0.2.5 real-user validation.
+1. Preserve classified unavailability so later representative live validation
+   can measure the useful-result ratio and identify whether a separately
+   reviewed provider-mapping expansion is warranted.
+2. Implement Step 2.6 reliability limits and then Step
+   3.1 persistence. Review P2's exact placement only after Step 3.1 is approved.

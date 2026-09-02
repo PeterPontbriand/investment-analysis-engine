@@ -1,0 +1,84 @@
+{
+  "cik": 1000184,
+  "entityName": "SAP SE",
+  "facts": {
+    "ifrs-full": {
+      "DilutedEarningsLossPerShare": {
+        "label": null,
+        "description": null,
+        "units": {
+          "EUR/shares": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 6.1,
+              "accn": "0001104659-26-020058",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-26",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "AdjustedWeightedAverageShares": {
+        "label": null,
+        "description": null,
+        "units": {
+          "shares": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 1175000000,
+              "accn": "0001104659-26-020058",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-26",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "CashFlowsFromUsedInOperatingActivities": {
+        "label": null,
+        "description": null,
+        "units": {
+          "EUR": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 9156000000,
+              "accn": "0001104659-26-020058",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-26",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "PurchaseOfPropertyPlantAndEquipmentIntangibleAssetsOtherThanGoodwillInvestmentPropertyAndOtherNoncurrentAssets": {
+        "label": null,
+        "description": null,
+        "units": {
+          "EUR": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 739000000,
+              "accn": "0001104659-26-020058",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-26",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

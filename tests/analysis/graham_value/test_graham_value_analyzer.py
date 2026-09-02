@@ -17,7 +17,7 @@ from src.analysis.graham_value.graham_value_analyzer import (
 from src.config import settings
 from src.core.constants import ConfigKeys
 from src.data.base_client import BaseDataClient
-from tests.data.fixture_client import FixtureDataClient
+from src.evaluation.fixtures.market_data import FixtureDataClient
 
 
 class _UnexpectedErrorQuoteClient(BaseDataClient):

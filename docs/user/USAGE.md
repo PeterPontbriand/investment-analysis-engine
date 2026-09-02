@@ -26,6 +26,8 @@ uv run financial-agents momentum --help
 uv run financial-agents fcf-growth --help
 ```
 
+Technical operators can also run the versioned Golden Suite with `uv run financial-agents evaluate --help`. See [Golden Suite evaluation](#golden-suite-evaluation).
+
 ## Available analysis strategies
 
 | Strategy | Basic command | What it examines | Guide |
@@ -191,4 +193,22 @@ Start with the ordinary error message. Use `--details` or `--diagnostics` when y
 
 The commands above are deterministic analysis commands and do not require a local LLM.
 
-Local-AI orchestration/synthesis is an additional capability. See [Hardware & Local AI](HARDWARE.md) and the project's user-facing AI guidance as those workflows mature.
+Local-AI orchestration/synthesis is an additional capability. The optional Golden Suite mode below can evaluate local-model selection behavior; it does not move financial arithmetic into the model. See [Hardware & Local AI](HARDWARE.md).
+
+## Golden Suite evaluation
+
+The Golden Suite is a technical benchmark rather than an investor analysis strategy. Its default mode uses only tracked deterministic fixtures and does not contact Ollama or live financial-data providers:
+
+```bash
+uv run financial-agents evaluate --report artifacts/evaluations/deterministic.json
+```
+
+Use `--case GRN-01` to run one stable case. The report path is required; add `--overwrite` only when you intentionally want to replace an existing report.
+
+Optional model-selection evaluation is explicitly opt-in and remains separate from deterministic financial verification:
+
+```bash
+uv run financial-agents evaluate --mode ollama --model MODEL_TAG --ollama-endpoint http://127.0.0.1:11434 --report artifacts/evaluations/ollama.json
+```
+
+The command returns a non-zero status when a requested benchmark case fails or is skipped. For report fields, failure interpretation, empirical repetitions, and fixture maintenance, see [Evaluations & Golden Suite](../EVALUATIONS.md).

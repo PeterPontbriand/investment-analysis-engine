@@ -14,12 +14,12 @@ from src.analysis.fcf_earnings_growth import (
 from src.analysis.fcf_earnings_growth.models import Classification, MetricStatus, ReasonCode
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.sec_edgar import SEC_PROVIDER_ID
-from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
-from src.reporting.presentation import PresentationMode
-from tests.analysis.fcf_earnings_growth.fixture_financial_facts_provider import (
+from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
+from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
+from src.reporting.presentation import PresentationMode
 from tests.analysis.fcf_earnings_growth.test_fcf_earnings_growth_input_resolver import NOW
 
 
@@ -101,8 +101,8 @@ def test_presenter_modes_share_result_and_json_has_null_not_nan() -> None:
     assert "derivation: free_cash_flow / weighted_average_diluted_shares" in details
     assert "Diagnostics" in diagnostics
     assert "provider/success" in diagnostics
-    assert payload["schema_version"] == 3
-    assert payload["result_schema_version"] == 2
+    assert payload["schema_version"] == 4
+    assert payload["result_schema_version"] == 3
     assert payload["security_identity"]["instrument_name"] is None
     assert payload["strategy_id"] == "fcf_earnings_growth"
     assert payload["market_capitalization"] is None

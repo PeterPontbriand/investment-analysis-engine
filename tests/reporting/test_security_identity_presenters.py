@@ -19,12 +19,17 @@ from src.core.analysis_status import CalculationStatus
 from src.core.constants import TrendStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.financial.provenance import ResolvedInput, SourceKind
+from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.data.security_identity import (
     SecurityIdentity,
     SecurityIdentityRequest,
     SecurityIdentityResolution,
     resolve_security_identity,
+)
+from src.evaluation.fixtures.fcf_earnings_growth import (
+    FixtureAnnualFinancialFactsProvider,
+    annual_series,
 )
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.graham import (
@@ -35,10 +40,6 @@ from src.reporting.graham import (
 )
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
-from tests.analysis.fcf_earnings_growth.fixture_financial_facts_provider import (
-    FixtureAnnualFinancialFactsProvider,
-    annual_series,
-)
 
 NOW = datetime(2026, 8, 29, 20, 0, tzinfo=UTC)
 
@@ -66,6 +67,22 @@ def _resolution(ticker: str, name: str | None) -> SecurityIdentityResolution:
     return resolve_security_identity(
         _IdentityProvider(identity),
         SecurityIdentityRequest(ticker, "fixture_identity"),
+    )
+
+
+def _profile(identity: SecurityIdentityResolution) -> InstrumentProfile:
+    """Compose deterministic equity kind evidence beside the retained identity."""
+    return InstrumentProfile(
+        ticker="ACME",
+        identity=identity.identity,
+        kind_evidence=InstrumentKindEvidence(
+            ticker="ACME",
+            kind=InstrumentKind.EQUITY,
+            provider_value="EQUITY",
+            provider_id="yfinance",
+            resolved_at=NOW,
+        ),
+        diagnostics=(),
     )
 
 
@@ -165,7 +182,7 @@ def test_json_contracts_expose_same_snapshot_and_deliberate_versions() -> None:
         json.loads(render_fcf_earnings_growth(fcf_result, PresentationMode.JSON, identity)),
     )
 
-    assert [document["schema_version"] for document in documents] == [2, 2, 2, 3]
+    assert [document["schema_version"] for document in documents] == [3, 3, 3, 4]
     for document in documents:
         snapshot = document["security_identity"]
         assert snapshot["ticker"] == "ACME"
@@ -175,6 +192,39 @@ def test_json_contracts_expose_same_snapshot_and_deliberate_versions() -> None:
         assert snapshot["instrument_identifier"] is None
         assert snapshot["provider_id"] == "fixture_identity"
         assert snapshot["resolved_at"] == NOW.isoformat()
+
+
+def test_kind_evidence_is_consistent_across_strategy_json_and_detail_contracts() -> None:
+    identity = _resolution("ACME", "Acme Holdings, Inc.")
+    profile = _profile(identity)
+    momentum = replace(_momentum(identity), instrument_profile=profile)
+    number = replace(_graham_number(identity), instrument_profile=profile)
+    growth = replace(_graham_growth(identity), instrument_profile=profile)
+    fcf_result = replace(_fcf_result(), instrument_profile=profile)
+
+    documents = (
+        json.loads(render_momentum(momentum, PresentationMode.JSON)),
+        json.loads(render_graham_number(number, PresentationMode.JSON)),
+        json.loads(render_graham_growth(growth, PresentationMode.JSON)),
+        json.loads(render_fcf_earnings_growth(fcf_result, PresentationMode.JSON, identity, profile)),
+    )
+
+    for document in documents:
+        assert document["instrument_kind"] == {
+            "kind": "equity",
+            "provider_value": "EQUITY",
+            "provider_id": "yfinance",
+            "resolved_at": NOW.isoformat(),
+        }
+    assert "Instrument kind: equity" in render_momentum(momentum, PresentationMode.DETAILS)
+    assert "Instrument kind: equity" in render_graham_number(number, PresentationMode.DETAILS)
+    assert "Instrument kind: equity" in render_graham_growth(growth, PresentationMode.DETAILS)
+    assert "Instrument kind: equity" in render_fcf_earnings_growth(
+        fcf_result,
+        PresentationMode.DETAILS,
+        identity,
+        profile,
+    )
 
 
 def test_unavailable_name_falls_back_to_ticker_for_every_strategy() -> None:

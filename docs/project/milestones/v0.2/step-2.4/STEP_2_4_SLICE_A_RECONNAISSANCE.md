@@ -1,7 +1,7 @@
 # Step 2.4 Slice A Reconnaissance
 
 **Status:** Complete and approved; Slice B authorized<br/>
-**Governing design:** `docs/project/milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`<br/>
+**Governing design:** `docs/project/milestones/v0.2/step-2.4/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`<br/>
 **Scope:** Milestone v0.2, Step 2.4 Slice A only<br/>
 **Prepared:** 2026-08-26
 

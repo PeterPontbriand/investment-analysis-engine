@@ -12,6 +12,11 @@ from src.analysis.graham_value.models import GrahamGrowthValueResult, GrahamNumb
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionTrace
+from src.data.instrument_profile import (
+    InstrumentProfile,
+    instrument_kind_evidence_payload,
+    profile_identity_resolution,
+)
 from src.data.security_identity import (
     IdentityResolutionStatus,
     SecurityIdentityResolution,
@@ -110,7 +115,7 @@ def units_display_name(units: str | None) -> str:
 # Constants and models
 # ---------------------------------------------------------------------------
 
-_SCHEMA_VERSION = 2
+_SCHEMA_VERSION = 3
 _NUMBER_LIMITATION = (
     "The Graham Number is a maximum indicated price / screening ceiling, "
     "not a complete intrinsic-value conclusion or investment recommendation."
@@ -131,9 +136,12 @@ class GrahamNumberPresentation:
     as_of: datetime | None = None
     margin_of_safety_percent: float | None = None
     identity_resolution: SecurityIdentityResolution | None = None
+    instrument_profile: InstrumentProfile | None = None
 
     def __post_init__(self) -> None:
         """Validate presentation-only coherence without performing finance math."""
+        if self.identity_resolution is None and self.instrument_profile is not None:
+            object.__setattr__(self, "identity_resolution", profile_identity_resolution(self.instrument_profile))
         _validate_ticker(self.ticker)
         _validate_margin(self.margin_of_safety_percent, self.assembly.current_price)
         _validate_presentation_as_of(self.as_of, self.assembly.eps, self.assembly.bvps, self.assembly.current_price)
@@ -159,9 +167,12 @@ class GrahamGrowthPresentation:
     as_of: datetime | None = None
     margin_of_safety_percent: float | None = None
     identity_resolution: SecurityIdentityResolution | None = None
+    instrument_profile: InstrumentProfile | None = None
 
     def __post_init__(self) -> None:
         """Validate presentation-only coherence without performing finance math."""
+        if self.identity_resolution is None and self.instrument_profile is not None:
+            object.__setattr__(self, "identity_resolution", profile_identity_resolution(self.instrument_profile))
         _validate_ticker(self.ticker)
         _validate_margin(self.margin_of_safety_percent, self.assembly.current_price)
         _validate_presentation_as_of(
@@ -220,7 +231,7 @@ def render_graham_number(
         lines.extend(_number_detail_lines(presentation))
     elif mode is PresentationMode.DIAGNOSTICS:
         lines.extend(_diagnostic_lines(presentation.assembly.resolution_trace, presentation.assembly))
-        lines.extend(_identity_diagnostic_lines(presentation.identity_resolution))
+        lines.extend(_profile_diagnostic_lines(presentation.instrument_profile, presentation.identity_resolution))
     return "\n".join(lines)
 
 
@@ -251,7 +262,7 @@ def render_graham_growth(
         lines.extend(_growth_detail_lines(presentation))
     elif mode is PresentationMode.DIAGNOSTICS:
         lines.extend(_diagnostic_lines(presentation.assembly.resolution_trace, presentation.assembly))
-        lines.extend(_identity_diagnostic_lines(presentation.identity_resolution))
+        lines.extend(_profile_diagnostic_lines(presentation.instrument_profile, presentation.identity_resolution))
     return "\n".join(lines)
 
 
@@ -286,8 +297,6 @@ def _number_concise_lines(p: GrahamNumberPresentation) -> list[str]:
             )
         )
     else:
-        if p.result is None and reason:
-            return [_number_reason(p, status, reason)]
         lines = [
             _analysis_heading(p.ticker, "Graham Number", p.as_of, p.identity_resolution),
             f"Status: {_status_label(status)}",
@@ -324,8 +333,6 @@ def _growth_concise_lines(p: GrahamGrowthPresentation) -> list[str]:
             )
         ]
     else:
-        if p.result is None and reason:
-            return [reason]
         lines = [
             _analysis_heading(p.ticker, "Graham Growth Value", p.as_of, p.identity_resolution),
             f"Status: {_status_label(status)}",
@@ -391,6 +398,7 @@ def _result_heading(
 def _number_detail_lines(p: GrahamNumberPresentation) -> list[str]:
     lines = ["", "Details", "-------"]
     lines.extend(_identity_detail_lines(p.identity_resolution))
+    lines.extend(_kind_detail_lines(p.instrument_profile))
     lines.extend(_input_detail_lines("EPS", p.assembly.eps))
     lines.extend(_input_detail_lines("BVPS", p.assembly.bvps))
     lines.extend(_input_detail_lines("Current price", p.assembly.current_price))
@@ -400,6 +408,7 @@ def _number_detail_lines(p: GrahamNumberPresentation) -> list[str]:
 def _growth_detail_lines(p: GrahamGrowthPresentation) -> list[str]:
     lines = ["", "Details", "-------"]
     lines.extend(_identity_detail_lines(p.identity_resolution))
+    lines.extend(_kind_detail_lines(p.instrument_profile))
     lines.extend(_input_detail_lines("EPS", p.assembly.eps))
     lines.extend(_input_detail_lines("Expected growth", p.assembly.expected_growth))
     lines.extend(_input_detail_lines("Current AAA yield", p.assembly.current_aaa_yield))
@@ -433,6 +442,32 @@ def _identity_diagnostic_lines(resolution: SecurityIdentityResolution | None) ->
     if resolution is None:
         return []
     return [f"security_identity: provider/{resolution.status.value} — {resolution.message}"]
+
+
+def _kind_detail_lines(profile: InstrumentProfile | None) -> list[str]:
+    """Describe retained kind evidence separately from identity and financial inputs."""
+    if profile is None or profile.kind_evidence is None:
+        return ["Instrument kind: unavailable"]
+    evidence = profile.kind_evidence
+    return [
+        f"Instrument kind: {evidence.kind.value if evidence.kind is not None else 'unreviewed'}",
+        f"Kind provider value: {evidence.provider_value}",
+        f"Kind provider: {provider_display_name(evidence.provider_id)}",
+        f"Kind resolved: {format_utc_minute(evidence.resolved_at)} (current classification metadata)",
+    ]
+
+
+def _profile_diagnostic_lines(
+    profile: InstrumentProfile | None,
+    identity_resolution: SecurityIdentityResolution | None,
+) -> list[str]:
+    """Render ordered profile attempts, falling back to the legacy identity diagnostic."""
+    if profile is None:
+        return _identity_diagnostic_lines(identity_resolution)
+    return [
+        f"{item.capability.value}: {item.provider_id}/{item.status.value} — {item.message}"
+        for item in profile.diagnostics
+    ]
 
 
 def _input_detail_lines(label: str, value: ResolvedInput | None) -> list[str]:
@@ -782,6 +817,9 @@ def _number_payload(p: GrahamNumberPresentation) -> dict[str, Any]:
         "analysis": "graham",
         "ticker": p.ticker.upper(),
         "security_identity": security_identity_payload(p.ticker, p.identity_resolution),
+        "instrument_kind": instrument_kind_evidence_payload(
+            p.instrument_profile.kind_evidence if p.instrument_profile is not None else None
+        ),
         "method": "graham_number",
         "as_of": _json_datetime(p.as_of),
         "status": status.value,
@@ -804,6 +842,7 @@ def _number_payload(p: GrahamNumberPresentation) -> dict[str, Any]:
         "limitations": [_NUMBER_LIMITATION],
         "diagnostics": [
             *_trace_payload(p.assembly.resolution_trace),
+            *_profile_diagnostic_payloads(p.instrument_profile),
             *(
                 [
                     {
@@ -813,7 +852,8 @@ def _number_payload(p: GrahamNumberPresentation) -> dict[str, Any]:
                         "message": p.identity_resolution.message,
                     }
                 ]
-                if p.identity_resolution is not None
+                if p.instrument_profile is None
+                and p.identity_resolution is not None
                 and p.identity_resolution.status is not IdentityResolutionStatus.RESOLVED
                 else []
             ),
@@ -829,6 +869,9 @@ def _growth_payload(p: GrahamGrowthPresentation) -> dict[str, Any]:
         "analysis": "graham",
         "ticker": p.ticker.upper(),
         "security_identity": security_identity_payload(p.ticker, p.identity_resolution),
+        "instrument_kind": instrument_kind_evidence_payload(
+            p.instrument_profile.kind_evidence if p.instrument_profile is not None else None
+        ),
         "method": "graham_growth_value",
         "as_of": _json_datetime(p.as_of),
         "status": status.value,
@@ -857,6 +900,7 @@ def _growth_payload(p: GrahamGrowthPresentation) -> dict[str, Any]:
         "limitations": [_GROWTH_LIMITATION],
         "diagnostics": [
             *_trace_payload(p.assembly.resolution_trace),
+            *_profile_diagnostic_payloads(p.instrument_profile),
             *(
                 [
                     {
@@ -866,12 +910,29 @@ def _growth_payload(p: GrahamGrowthPresentation) -> dict[str, Any]:
                         "message": p.identity_resolution.message,
                     }
                 ]
-                if p.identity_resolution is not None
+                if p.instrument_profile is None
+                and p.identity_resolution is not None
                 and p.identity_resolution.status is not IdentityResolutionStatus.RESOLVED
                 else []
             ),
         ],
     }
+
+
+def _profile_diagnostic_payloads(profile: InstrumentProfile | None) -> list[dict[str, str]]:
+    """Convert ordered profile diagnostics to the stable presentation shape."""
+    if profile is None:
+        return []
+    return [
+        {
+            "field_name": item.capability.value,
+            "stage": "provider",
+            "outcome": item.status.value,
+            "message": item.message,
+            "provider_id": item.provider_id,
+        }
+        for item in profile.diagnostics
+    ]
 
 
 def _trace_payload(trace: ResolutionTrace) -> list[dict[str, str]]:

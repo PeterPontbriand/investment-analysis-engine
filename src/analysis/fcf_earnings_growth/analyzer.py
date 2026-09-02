@@ -19,6 +19,7 @@ from src.analysis.fcf_earnings_growth.models import (
 )
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput
+from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 
 
 def _unavailable_metric(reason_code: ReasonCode, reason: str) -> MetricResult:
@@ -35,6 +36,24 @@ def _forward_evidence(latest_actual_eps: ResolvedInput | None) -> ForwardEvidenc
         fy2_consensus_eps=None,
         actual_to_fy1_growth=unavailable,
         fy1_to_fy2_growth=unavailable,
+        confirms_positive_growth=None,
+    )
+
+
+def _etf_not_applicable_forward(reason: str) -> ForwardEvidence:
+    """Return coherent forward metrics when this company-level strategy does not apply."""
+    metric = MetricResult.failure(
+        MetricStatus.NOT_APPLICABLE,
+        ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE,
+        reason,
+    )
+    return ForwardEvidence(
+        status=ForwardEvidenceStatus.UNAVAILABLE,
+        latest_actual_eps=None,
+        fy1_consensus_eps=None,
+        fy2_consensus_eps=None,
+        actual_to_fy1_growth=metric,
+        fy1_to_fy2_growth=metric,
         confirms_positive_growth=None,
     )
 
@@ -56,9 +75,25 @@ class FCFEarningsGrowthAnalyzer:
         provider_id: str,
         use_cache: bool = True,
         effective_as_of: datetime | None = None,
+        instrument_profile: InstrumentProfile | None = None,
     ) -> FCFEarningsGrowthResult:
         """Run one deterministic analysis without optional unapproved data substitutions."""
         boundary = effective_as_of or as_of or datetime.now(UTC)
+        normalized_ticker = ticker.strip().upper()
+        if instrument_profile is not None and instrument_profile.ticker != normalized_ticker:
+            raise ValueError("Instrument profile ticker does not match the FCF & Earnings Growth analysis ticker.")
+        if (
+            instrument_profile is not None
+            and instrument_profile.kind_evidence is not None
+            and instrument_profile.kind_evidence.kind is InstrumentKind.ETF
+        ):
+            return _etf_not_applicable_result(
+                ticker=normalized_ticker,
+                policy=policy,
+                requested_as_of=as_of,
+                effective_as_of=boundary,
+                instrument_profile=instrument_profile,
+            )
         assembly = self._resolver.resolve(
             policy=policy,
             subject_id=ticker,
@@ -109,6 +144,7 @@ class FCFEarningsGrowthAnalyzer:
             requested_as_of=as_of,
             effective_as_of=boundary,
             policy=policy,
+            instrument_profile=instrument_profile,
             execution_status=assembly.status,
             classification=classification,
             classification_reason_code=reason_code,
@@ -129,3 +165,53 @@ class FCFEarningsGrowthAnalyzer:
             warnings=tuple(warnings),
             diagnostics=assembly.resolution_trace,
         )
+
+
+def _etf_not_applicable_result(
+    *,
+    ticker: str,
+    policy: FCFEarningsGrowthPolicy,
+    requested_as_of: datetime | None,
+    effective_as_of: datetime,
+    instrument_profile: InstrumentProfile,
+) -> FCFEarningsGrowthResult:
+    """Build the native completed outcome for a provider-confirmed ETF."""
+    reason = (
+        "Reported company free-cash-flow and diluted-EPS growth analysis does not apply directly to an ETF. "
+        "No holdings-level or aggregate ETF analysis was performed."
+    )
+    metric = MetricResult.failure(
+        MetricStatus.NOT_APPLICABLE,
+        ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE,
+        reason,
+    )
+    fcf_yield = (
+        metric
+        if policy.include_fcf_yield
+        else MetricResult.failure(MetricStatus.NOT_APPLICABLE, ReasonCode.NOT_REQUESTED, "FCF yield was not requested.")
+    )
+    return FCFEarningsGrowthResult(
+        ticker=ticker,
+        requested_as_of=requested_as_of,
+        effective_as_of=effective_as_of,
+        policy=policy,
+        instrument_profile=instrument_profile,
+        execution_status=CalculationStatus.NOT_APPLICABLE,
+        classification=Classification.INDETERMINATE,
+        classification_reason_code=ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE,
+        classification_reason=reason,
+        selected_horizon_years=None,
+        selected_observation_count=0,
+        used_horizon_fallback=False,
+        period_start=None,
+        period_end=None,
+        annual_observations=(),
+        fcf_cagr=metric,
+        fcf_per_share_cagr=metric,
+        eps_cagr=metric,
+        trend_classification=TrendClassification.INSUFFICIENT_OR_NONMEANINGFUL_GROWTH,
+        market_capitalization=None,
+        fcf_yield=fcf_yield,
+        forward_evidence=_etf_not_applicable_forward(reason),
+        warnings=(),
+    )

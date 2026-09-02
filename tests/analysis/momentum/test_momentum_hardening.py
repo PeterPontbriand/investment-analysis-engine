@@ -1,6 +1,6 @@
 """Slice F regression coverage for Momentum's shared contracts."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
 import pandas as pd
 
@@ -11,32 +11,7 @@ from src.analysis.momentum.momentum_analyzer import (
     MomentumInputResolver,
     MomentumPolicy,
 )
-from src.data.market_data import HistoricalMarketData, MarketDataContext
-
-
-class FixtureMarketDataProvider:
-    """Deterministic provider for point-in-time Momentum tests."""
-
-    provider_id = "fixture_market"
-
-    def __init__(self, frame: pd.DataFrame) -> None:
-        """Retain the deterministic historical frame."""
-        self._frame = frame
-
-    def fetch_historical_data(self, ticker: str, start_date: str, end_date: str | None = None) -> HistoricalMarketData:
-        """Return the complete fixture series so the resolver must truncate it."""
-        del ticker, start_date, end_date
-        return HistoricalMarketData(
-            frame=self._frame,
-            context=MarketDataContext(
-                provider_id=self.provider_id,
-                observation_interval="1d",
-                data_as_of=date(2026, 1, 6),
-                currency="USD",
-                observation_count=len(self._frame),
-                price_adjustment="adjusted",
-            ),
-        )
+from src.evaluation.fixtures.market_data import FixtureMarketDataProvider
 
 
 def test_resolver_truncates_future_bars_and_retains_provenance() -> None:

@@ -1,0 +1,30 @@
+{
+  "cik": "0000353278",
+  "name": "NOVO NORDISK A S",
+  "tickers": [
+    "NVO",
+    "NONOF"
+  ],
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0000353278-26-000012"
+      ],
+      "acceptanceDateTime": [
+        "2026-02-04T14:23:00Z"
+      ],
+      "filingDate": [
+        "2026-02-04"
+      ],
+      "reportDate": [
+        "2025-12-31"
+      ],
+      "form": [
+        "20-F"
+      ],
+      "primaryDocument": [
+        "nvo-20251231.htm"
+      ]
+    }
+  }
+}

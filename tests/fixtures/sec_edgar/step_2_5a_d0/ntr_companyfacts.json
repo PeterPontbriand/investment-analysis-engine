@@ -1,0 +1,84 @@
+{
+  "cik": 1725964,
+  "entityName": "NUTRIEN LTD.",
+  "facts": {
+    "ifrs-full": {
+      "DilutedEarningsLossPerShare": {
+        "label": null,
+        "description": null,
+        "units": {
+          "USD/shares": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 4.66,
+              "accn": "0001193125-26-081326",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "40-F",
+              "filed": "2026-02-27",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "AdjustedWeightedAverageShares": {
+        "label": null,
+        "description": null,
+        "units": {
+          "shares": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 486518000,
+              "accn": "0001193125-26-081326",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "40-F",
+              "filed": "2026-02-27",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "CashFlowsFromUsedInOperatingActivities": {
+        "label": null,
+        "description": null,
+        "units": {
+          "USD": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 4007000000,
+              "accn": "0001193125-26-081326",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "40-F",
+              "filed": "2026-02-27",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities": {
+        "label": null,
+        "description": null,
+        "units": {
+          "USD": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 1882000000,
+              "accn": "0001193125-26-081326",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "40-F",
+              "filed": "2026-02-27",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

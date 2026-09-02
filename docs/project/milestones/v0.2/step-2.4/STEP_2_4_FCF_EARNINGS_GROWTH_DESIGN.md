@@ -538,6 +538,8 @@ Before a provider capability is enabled, its approved mapping must be added to t
 
 The implementation cannot enable a production mapping until this record and its deterministic tests exist. Unsupported capabilities remain explicitly unavailable.
 
+**Post-closeout P1 refinement:** Live FLSW behavior exposed a cross-strategy distinction that this financial-fact mapping did not own: provider-backed instrument kind and method applicability. The proposed normalized Yahoo mappings, separate kind evidence, composed profile provenance, and known-ETF `not_applicable` behavior are governed by [`STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md`](../step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md). P1 does not change the company-level FCF formula or any approved SEC concept in this design.
+
 ### 9.1 Evidence-gated Slice D sequence
 
 Provider research and production implementation are deliberately separated:

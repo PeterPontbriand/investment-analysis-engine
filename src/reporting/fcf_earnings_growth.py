@@ -16,6 +16,11 @@ from src.analysis.fcf_earnings_growth.models import (
     TrendClassification,
 )
 from src.data.financial.provenance import ResolvedInput
+from src.data.instrument_profile import (
+    InstrumentProfile,
+    instrument_kind_evidence_payload,
+    profile_identity_resolution,
+)
 from src.data.security_identity import (
     IdentityResolutionStatus,
     SecurityIdentityResolution,
@@ -39,7 +44,7 @@ _LIMITATION = (
 
 # The calculation result remains schema v2.  Adding the run-time identity
 # snapshot changes only this machine-readable presentation contract.
-_PRESENTATION_SCHEMA_VERSION = 3
+_PRESENTATION_SCHEMA_VERSION = 4
 
 _TREND_LABELS = {
     TrendClassification.BOTH_GROWING: "Both free cash flow and diluted EPS increased over the measured period.",
@@ -60,6 +65,8 @@ _CLASSIFICATION_BASIS_LABELS = {
 def _metric(metric: MetricResult) -> str:
     if metric.status is MetricStatus.OK and metric.value is not None:
         return f"{metric.value:+.2f}%"
+    if metric.status is MetricStatus.NOT_APPLICABLE:
+        return f"not applicable — {metric.reason or 'This metric does not apply.'}"
     return f"unavailable — {metric.reason or 'No meaningful value is available.'}"
 
 
@@ -173,9 +180,11 @@ def _input_details(label: str, value: ResolvedInput) -> list[str]:
 def _details(
     result: FCFEarningsGrowthResult,
     identity_resolution: SecurityIdentityResolution | None,
+    instrument_profile: InstrumentProfile | None,
 ) -> list[str]:
     lines = [*_concise(result, identity_resolution), "", "Details"]
     lines.extend(_identity_detail_lines(identity_resolution))
+    lines.extend(_kind_detail_lines(instrument_profile))
     for observation in result.annual_observations:
         period_start = format_date(observation.period_start)
         period_end = format_date(observation.period_end)
@@ -203,6 +212,7 @@ def _details(
 def _diagnostics(
     result: FCFEarningsGrowthResult,
     identity_resolution: SecurityIdentityResolution | None,
+    instrument_profile: InstrumentProfile | None,
 ) -> list[str]:
     lines = [
         *_concise(result, identity_resolution),
@@ -217,7 +227,12 @@ def _diagnostics(
             f"- {event.field_name}: {event.stage.value}/{event.outcome.value} — {event.message}"
             for event in result.diagnostics.events
         )
-    if identity_resolution is not None:
+    if instrument_profile is not None:
+        lines.extend(
+            f"- {item.capability.value}: {item.provider_id}/{item.status.value} — {item.message}"
+            for item in instrument_profile.diagnostics
+        )
+    elif identity_resolution is not None:
         lines.append(
             f"- security_identity: provider/{identity_resolution.status.value} — {identity_resolution.message}"
         )
@@ -234,6 +249,19 @@ def _identity_detail_lines(resolution: SecurityIdentityResolution | None) -> lis
         f"Listing venue: {identity.listing_venue or 'unavailable'}",
         f"Identity provider: {provider_display_name(identity.provider_id)}",
         f"Identity resolved: {format_datetime(identity.resolved_at)} (current descriptive metadata)",
+    ]
+
+
+def _kind_detail_lines(profile: InstrumentProfile | None) -> list[str]:
+    """Describe current provider-backed instrument classification."""
+    if profile is None or profile.kind_evidence is None:
+        return ["Instrument kind: unavailable"]
+    evidence = profile.kind_evidence
+    return [
+        f"Instrument kind: {evidence.kind.value if evidence.kind is not None else 'unreviewed'}",
+        f"Kind provider value: {evidence.provider_value}",
+        f"Kind provider: {provider_display_name(evidence.provider_id)}",
+        f"Kind resolved: {format_datetime(evidence.resolved_at)} (current classification metadata)",
     ]
 
 
@@ -255,30 +283,54 @@ def render_fcf_earnings_growth(
     result: FCFEarningsGrowthResult,
     mode: PresentationMode,
     identity_resolution: SecurityIdentityResolution | None = None,
+    instrument_profile: InstrumentProfile | None = None,
 ) -> str:
     """Render one canonical result without recalculation or reclassification."""
+    profile = instrument_profile or result.instrument_profile
+    resolved_identity = (
+        identity_resolution
+        if identity_resolution is not None or profile is None
+        else profile_identity_resolution(profile)
+    )
     if mode is PresentationMode.JSON:
         payload = _json_value(result)
         assert isinstance(payload, dict)
+        payload.pop("instrument_profile", None)
         payload["schema_version"] = _PRESENTATION_SCHEMA_VERSION
         payload["result_schema_version"] = result.schema_version
-        payload["security_identity"] = security_identity_payload(result.ticker, identity_resolution)
-        if identity_resolution is not None and identity_resolution.status is not IdentityResolutionStatus.RESOLVED:
-            diagnostics = payload.get("diagnostics")
-            if isinstance(diagnostics, dict):
-                events = diagnostics.get("events")
-                if isinstance(events, list):
+        payload["security_identity"] = security_identity_payload(result.ticker, resolved_identity)
+        payload["instrument_kind"] = instrument_kind_evidence_payload(
+            profile.kind_evidence if profile is not None else None
+        )
+        diagnostics = payload.get("diagnostics")
+        if isinstance(diagnostics, dict):
+            events = diagnostics.get("events")
+            if isinstance(events, list):
+                if profile is not None:
+                    events.extend(
+                        {
+                            "field_name": item.capability.value,
+                            "stage": "provider",
+                            "outcome": item.status.value,
+                            "message": item.message,
+                            "provider_id": item.provider_id,
+                        }
+                        for item in profile.diagnostics
+                    )
+                elif (
+                    resolved_identity is not None and resolved_identity.status is not IdentityResolutionStatus.RESOLVED
+                ):
                     events.append(
                         {
                             "field_name": "security_identity",
                             "stage": "provider",
-                            "outcome": identity_resolution.status.value,
-                            "message": identity_resolution.message,
+                            "outcome": resolved_identity.status.value,
+                            "message": resolved_identity.message,
                         }
                     )
         return json_document(payload)
     if mode is PresentationMode.DETAILS:
-        return "\n".join(_details(result, identity_resolution))
+        return "\n".join(_details(result, resolved_identity, profile))
     if mode is PresentationMode.DIAGNOSTICS:
-        return "\n".join(_diagnostics(result, identity_resolution))
-    return "\n".join(_concise(result, identity_resolution))
+        return "\n".join(_diagnostics(result, resolved_identity, profile))
+    return "\n".join(_concise(result, resolved_identity))

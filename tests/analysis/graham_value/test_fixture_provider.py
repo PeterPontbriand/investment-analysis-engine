@@ -34,7 +34,7 @@ from src.data.financial.provenance import (
     ResolvedInput,
     SourceKind,
 )
-from tests.analysis.graham_value.fixture_financial_facts_provider import (
+from src.evaluation.fixtures.graham import (
     AAA_YIELD_VALUE,
     BVPS_VALUE,
     EPS_FY2022,

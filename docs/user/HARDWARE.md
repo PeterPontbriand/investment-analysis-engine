@@ -47,5 +47,6 @@ Typical configurations include:
 
 - [Installation & Configuration](INSTALLATION.md)
 - [Usage Guide](USAGE.md)
+- [Evaluations & Golden Suite](../EVALUATIONS.md) — optional empirical local-model evaluation and its separation from deterministic results
 - [Glossary — Light Mode](GLOSSARY.md#light-mode)
 - [Glossary — Full Dual-Tier Mode](GLOSSARY.md#full-dual-tier-mode)

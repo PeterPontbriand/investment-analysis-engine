@@ -151,6 +151,18 @@ The current production command resolves annual financial facts from SEC EDGAR. R
 - diluted EPS; and
 - weighted-average diluted shares.
 
+Eligible annual forms are `10-K`, `10-K/A`, `20-F`, `20-F/A`, `40-F`, and
+`40-F/A` for the reviewed duration fields. US-GAAP uses the existing exact
+concept mappings. IFRS support is deliberately limited to exact diluted EPS,
+diluted weighted-average shares, operating cash flow, and physical-PP&E CapEx
+concepts. Broader combined investing concepts, custom extensions, fuzzy
+matches, negative-to-positive CapEx normalization, and missing-value
+substitution remain unsupported.
+
+Issuer-level operating cash flow, CapEx, and derived FCF can remain valid even
+when per-share or quote-unit evidence is unavailable. ADR/ADS conversion and
+currency conversion are not performed.
+
 The calculation does not accept a provider's precomputed “free cash flow” solely because its label matches. It derives FCF from the resolved components and retains their provider fields, period dates, publication/availability dates, retrieval times, units, currency, and derivation lineage.
 
 The resolver rejects incompatible facts instead of combining values with mismatched fiscal periods, units, currency, or measurement bases. Amendments and restatements are handled by deterministic selection rules.

@@ -88,7 +88,7 @@ Direct deterministic analysis does **not** require Ollama or a GPU. Local-AI fea
 
 An [analysis strategy](docs/user/GLOSSARY.md#analysis-strategy) is a deterministic analytical capability in the application. A [method](docs/user/GLOSSARY.md#method) is a particular calculation within a strategy when that strategy offers more than one approach. For example, the Graham Analysis Strategy currently offers the Graham Number and Graham Growth Value methods.
 
-Each strategy has its own guide under [Analysis Strategy Guides](docs/user/strategies/).
+Each strategy has its own guide under [Analysis Strategy Guides](docs/user/strategies).
 
 ---
 

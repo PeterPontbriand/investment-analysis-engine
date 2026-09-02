@@ -3,6 +3,7 @@
 import json
 import re
 from collections.abc import Iterator
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
@@ -16,15 +17,17 @@ from src.config import settings
 from src.core.constants import TrendStatus
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
+from src.data.instrument_profile import InstrumentKind
 from src.data.market_data import MarketDataContext
-from tests._cli_helpers import normalize_cli_output
-from tests.analysis.graham_value.fixture_financial_facts_provider import (
+from src.evaluation.fixtures.graham import (
     NOW,
     PROVIDER_ID,
     SECURITY_ID,
     SUBJECT_MISSING,
     FixtureFinancialFactsProvider,
 )
+from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()
 
@@ -32,7 +35,10 @@ runner = CliRunner()
 @pytest.fixture(autouse=True)
 def disable_live_yfinance_identity_resolution() -> Iterator[None]:
     """Keep CLI tests deterministic by stubbing optional Yahoo identity metadata."""
-    with patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None):
+    with (
+        patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None),
+        patch("src.cli.YFinanceClient.resolve_instrument_kind", return_value=None),
+    ):
         yield
 
 
@@ -125,6 +131,29 @@ def test_cli_momentum_success_uses_investor_presenter(mock_run: MagicMock, mock_
     assert "Limitation:" in result.output
     assert "Analysis Complete" not in result.output
     assert "cli_runtime" not in result.output
+
+
+@patch("src.cli.MomentumAnalyzer.run_with_context")
+def test_cli_momentum_known_etf_remains_applicable_and_retains_kind(
+    mock_run: MagicMock,
+    mock_momentum_run: MomentumRun,
+) -> None:
+    mock_run.return_value = replace(mock_momentum_run, metrics=replace(mock_momentum_run.metrics, ticker="FLSW"))
+    profile = fixture_instrument_profile(
+        "FLSW",
+        kind=InstrumentKind.ETF,
+        provider_value="ETF",
+        instrument_name="Franklin FTSE Switzerland ETF",
+    )
+
+    with patch("src.cli.compose_instrument_profile", return_value=profile):
+        result = runner.invoke(app, ["momentum", "FLSW", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["status"] == "BULLISH"
+    assert payload["security_identity"]["instrument_name"] == "Franklin FTSE Switzerland ETF"
+    assert payload["instrument_kind"]["kind"] == "etf"
 
 
 @patch("src.cli.MomentumAnalyzer.run_with_context")
@@ -232,7 +261,7 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
     assert result.exit_code == 0
     assert "NaN" not in result.output
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     assert payload["result"]["short_sma"] is None
     assert payload["result"]["long_sma"] is None
     assert payload["result"]["crossover_signal"] is None
@@ -263,7 +292,8 @@ def test_cli_momentum_data_fetch_failure_is_one_clean_message(mock_run: MagicMoc
 
     assert result.exit_code == 1
     assert "Unable to analyze FCIM" in result.output
-    assert "verify the ticker symbol" in result.output.lower()
+    assert "configured market-data provider returned no usable price history" in result.output.lower()
+    assert "verify ticker" not in result.output.lower()
     assert "currentTradingPeriod" not in result.output
     assert "Traceback" not in result.output
 
@@ -370,7 +400,7 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     assert payload["analysis"] == "graham"
     assert payload["method"] == "graham_number"
     assert payload["ticker"] == SECURITY_ID
@@ -378,6 +408,51 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
     assert payload["result"]["maximum_indicated_price"] is not None
     assert payload["inputs"]["eps"]["basis"] == "three_year_average"
     assert payload["inputs"]["eps"]["source_kind"] == "derived"
+
+
+@pytest.mark.parametrize(
+    ("method_arguments", "method_label"),
+    [
+        ([], "Graham Number"),
+        (
+            ["--method", "growth", "--expected-growth", "5.0", "--aaa-yield", "4.4"],
+            "Graham Growth Value",
+        ),
+    ],
+)
+def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resolution(
+    fixture_resolver: GrahamInputResolver,
+    method_arguments: list[str],
+    method_label: str,
+) -> None:
+    profile = fixture_instrument_profile(
+        "FLSW",
+        kind=InstrumentKind.ETF,
+        provider_value="ETF",
+        instrument_name="Franklin FTSE Switzerland ETF",
+    )
+    with (
+        patch("src.cli._build_graham_resolver", return_value=fixture_resolver),
+        patch("src.cli._compose_analysis_profile", return_value=profile),
+        patch.object(
+            fixture_resolver,
+            "assemble_graham_number",
+            wraps=fixture_resolver.assemble_graham_number,
+        ) as number,
+        patch.object(fixture_resolver, "assemble_growth_value", wraps=fixture_resolver.assemble_growth_value) as growth,
+    ):
+        result = runner.invoke(
+            app,
+            ["graham", "FLSW", "--data-provider", PROVIDER_ID, *method_arguments],
+        )
+
+    assert result.exit_code == 0
+    assert result.output.startswith(f"Franklin FTSE Switzerland ETF (FLSW) — {method_label}")
+    assert "Status: not applicable" in result.output
+    assert "company-level" in result.output
+    assert "verify ticker" not in result.output.lower()
+    number.assert_not_called()
+    growth.assert_not_called()
 
 
 def test_cli_graham_number_eps_override_inherits_default_basis(fixture_resolver: GrahamInputResolver) -> None:
@@ -502,7 +577,8 @@ def test_cli_graham_fully_override_driven_unverified_ticker_is_rejected(fixture_
         )
 
     assert result.exit_code == 1
-    assert "Unable to verify ticker NOTREAL" in result.output
+    assert "Unable to analyze NOTREAL" in result.output
+    assert "verify ticker" not in result.output.lower()
     assert "no provider-backed security fact or quote was resolved" in result.output
     assert "Graham Growth Value:" not in result.output
 
@@ -513,9 +589,10 @@ def test_cli_graham_invalid_or_unavailable_ticker_has_one_clean_failure(fixture_
 
     assert result.exit_code == 1
     lines = [line for line in result.output.splitlines() if line.strip()]
-    assert len(lines) == 1
-    assert f"Unable to analyze {SUBJECT_MISSING}" in lines[0]
-    assert "required financial data is unavailable" in lines[0]
+    assert lines[0] == f"{SUBJECT_MISSING} — Graham Number"
+    assert "Status: input unavailable" in lines
+    assert any("required financial data is unavailable for the requested method" in line for line in lines)
+    assert "verify ticker" not in result.output.lower()
     assert "Traceback" not in result.output
     assert "pydantic.dev" not in result.output
 

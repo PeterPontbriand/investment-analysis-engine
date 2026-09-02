@@ -9,7 +9,7 @@ Data selection, sign normalization, and provenance assembly happen outside
 these functions (Slice C and later).
 
 Formulas follow ``docs/user/FINANCE_MATH.md`` and the normative contract in
-``docs/project/milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md``:
+``docs/project/milestones/v0.2/step-2.4/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md``:
 
 - free cash flow = operating cash flow - positive normalized CapEx;
 - growth percent = ``(current - prior) / prior * 100`` with a strictly positive prior;

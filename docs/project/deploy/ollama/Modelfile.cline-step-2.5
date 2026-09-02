@@ -1,0 +1,14 @@
+FROM qwen3-coder:30b
+
+# Match Cline's configured context window. This is intentionally below the
+# model's 256K maximum so the model and K/V cache can remain fully GPU-offloaded.
+PARAMETER num_ctx 65536
+
+# Qwen3-Coder model-card sampling recommendations.
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
+PARAMETER top_k 20
+PARAMETER repeat_penalty 1.05
+
+# Cline supplies the agent/system instructions. Do not add a competing SYSTEM
+# instruction or hard-code GPU layers here; current Ollama owns GPU placement.

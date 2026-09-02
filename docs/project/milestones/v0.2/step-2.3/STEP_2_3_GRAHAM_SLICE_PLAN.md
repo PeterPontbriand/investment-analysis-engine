@@ -1,13 +1,13 @@
 # Step 2.3 Graham Implementation Slice Plan
 
 **Status:** Step 2.3 complete and approved; Slices A–G complete<br/>
-**Governing design:** `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
+**Governing design:** `docs/project/milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Scope:** Milestone v0.2, Step 2.3 only<br/>
 **Last updated:** 2026-08-25
 
 ## 1. Purpose
 
-This document is the concise handoff and execution record for Step 2.3 with a smaller-context coding model. It supplements, but does not replace, the detailed financial, architectural, temporal, and provenance requirements in `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`.
+This document is the concise handoff and execution record for Step 2.3 with a smaller-context coding model. It supplements, but does not replace, the detailed financial, architectural, temporal, and provenance requirements in `docs/project/milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`.
 
 Each slice was implemented and reviewed independently. No Step 2.4 work or Step 3 durable persistence was begun during Step 2.3. Reviewed intermediate checkpoints could be committed/pushed only after explicit human approval and a green agreed gate; such a checkpoint did not declare Step 2.3 complete.
 
@@ -289,7 +289,7 @@ Synchronize all user-facing and architectural documentation with the implementat
 
 Required final documentation cleanup:
 
-- verify `README.md`, `docs/project/ARCHITECTURE.md`, `docs/project/DISCOVERY_WORKBOOK.md`, `docs/user/FINANCE_MATH.md`, `docs/user/GLOSSARY.md`, `docs/project/MASTER_PLAN.md`, `milestones/v0.2/IMPLEMENTATION_PLAN.md`, and `milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` against the final implementation;
+- verify `README.md`, `docs/project/ARCHITECTURE.md`, `docs/project/DISCOVERY_WORKBOOK.md`, `docs/user/FINANCE_MATH.md`, `docs/user/GLOSSARY.md`, `docs/project/MASTER_PLAN.md`, `milestones/v0.2/IMPLEMENTATION_PLAN.md`, and `milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md` against the final implementation;
 - replace intentional two-space Markdown hard breaks in changed material with explicit `<br/>` breaks;
 - search for remaining trailing whitespace, including untracked files;
 - confirm commands, flags, defaults, formulas, provenance terminology, growth policy, and current implementation status; and

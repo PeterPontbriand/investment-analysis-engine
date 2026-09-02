@@ -1,0 +1,29 @@
+{
+  "cik": "0001725964",
+  "name": "Nutrien Ltd.",
+  "tickers": [
+    "NTR"
+  ],
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0001193125-26-081326"
+      ],
+      "acceptanceDateTime": [
+        "2026-02-27T17:41:17Z"
+      ],
+      "filingDate": [
+        "2026-02-27"
+      ],
+      "reportDate": [
+        "2025-12-31"
+      ],
+      "form": [
+        "40-F"
+      ],
+      "primaryDocument": [
+        "d56746d40f.htm"
+      ]
+    }
+  }
+}

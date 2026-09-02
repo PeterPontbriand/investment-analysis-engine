@@ -156,8 +156,17 @@ Use `--details` to inspect what financial values were used and `--diagnostics` t
 
 Financial Data Agents currently uses eligible SEC filing facts for:
 
-- completed fiscal-year diluted EPS; and
-- fiscal-year-end accounting components used to derive BVPS conservatively.
+- completed annual diluted EPS from reviewed `10-K`/`20-F`/`40-F` forms and
+  exact US-GAAP or IFRS concepts; and
+- US-GAAP fiscal-year-end accounting components used to derive BVPS
+  conservatively.
+
+IFRS BVPS, preferred-zero inference for IFRS, custom-extension fallbacks, and
+broader-concept substitution are not supported. A filing per-share value is
+compared with a current quote only when affirmative evidence establishes a
+matching-currency ordinary-share 1:1 relationship. ADR/ADS and currency
+conversion are not performed; the valuation can remain available while its
+market-price comparison is unavailable.
 
 For market-price comparison, Financial Data Agents obtains current quote data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library when available. `yfinance` is not affiliated with or endorsed by Yahoo.
 

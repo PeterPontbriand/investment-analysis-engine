@@ -91,7 +91,7 @@ def test_non_positive_growth_value_explains_omitted_price_comparison() -> None:
 def test_non_positive_growth_value_warning_is_preserved_in_json() -> None:
     payload = json.loads(render_graham_growth(_presentation(), PresentationMode.JSON))
 
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     assert payload["status"] == "ok"
     assert payload["result"]["growth_value"] == pytest.approx(-31.465775136206044)
     assert payload["result"]["margin_of_safety_percent"] is None

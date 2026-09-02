@@ -2,10 +2,10 @@
 
 **Related roadmap:** `docs/project/MASTER_PLAN.md`<br/>
 **Active implementation detail:** `milestones/v0.2/IMPLEMENTATION_PLAN.md`<br/>
-**Step 2.3 implementation specification:** `milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
+**Step 2.3 implementation specification:** `milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Rationale:** `docs/project/DISCOVERY_WORKBOOK.md`<br/>
-**Last updated:** 2026-08-30<br/>
-**Current status:** Steps 2.2–2.4 are complete and approved. Slice G documentation synchronization, the complete repository gate, and explicit Step 2.4 closeout approval completed on 2026-08-30. Step 2.5 Golden-Test Suite & Strategy Evaluation is the current step. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
+**Last updated:** 2026-08-31<br/>
+**Current status:** Steps 2.2–2.5 are complete and approved. Step 2.5A D0 and Gate A are complete; bounded A0 is implemented and verified, with work stopped and A1 blocked until A0 review. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
 
 This document describes current boundaries and approved near-term target seams. Current Step 2.3 components are identified as implemented; later persistence/workspace/evaluation components remain explicitly labeled targets. It does not override the active milestone plan's sequencing or review gates.
 
@@ -113,16 +113,20 @@ A dedicated provider-neutral financial-fact boundary supplies or composes the mi
 
 Implemented production adapters are deliberately narrow:
 
-- **SEC EDGAR (`sec_edgar`)** — completed fiscal-year diluted EPS and fiscal-year-end balance-sheet components used for conservative BVPS derivation. Common shares may use the verified issued-minus-treasury derivation; zero preferred shares may be inferred only under the narrowly approved evidence rules. Direct BVPS remains unsupported by SEC Company Facts in this adapter.
+- **SEC EDGAR (`sec_edgar`)** — completed annual duration facts from `10-K`, `10-K/A`, `20-F`, `20-F/A`, `40-F`, and `40-F/A`. Existing exact US-GAAP mappings cover diluted EPS, diluted weighted-average shares, operating cash flow, and CapEx. Exact IFRS mappings cover diluted EPS, diluted weighted-average shares, operating cash flow, and physical-PP&E CapEx. Fiscal-year-end balance-sheet components and conservative BVPS derivation remain US-GAAP-only; IFRS BVPS and preferred-zero inference are unsupported.
 - **Massive (`massive`)** — current TTM diluted EPS and current price for the Massive when explicitly selected. Live use requires `MASSIVE_API_KEY`; current-only facts do not masquerade as historical evidence.
 - **Yahoo Finance (`yfinance`)** — narrow current-price financial-facts adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts. It does not claim historical quote support through the financial-facts contract.
 
 The Graham Number using its standard SEC financial facts uses SEC financial facts plus Yahoo current quote comparison. Its explicit Massive route is deliberately limited to Massive TTM EPS plus a BVPS override and may use a Massive quote. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote; explicitly selecting Massive uses its supported TTM EPS/current-price data. Unsupported provider/basis combinations are rejected before provider work.
 
-### Security identity (Step 2.4 Slice F-1 implemented)
-`SecurityIdentityProvider` is a narrow optional capability beside, not inside, numeric financial facts. It returns an immutable current descriptive snapshot with normalized ticker, optional instrument name/listing venue/issuer and instrument identifiers, provider identity, and timezone-aware `resolved_at`. SEC retains current ticker-title/CIK evidence from its ticker mapping; Yahoo retains supported instrument metadata, including non-company names where available.
+### Security identity and instrument applicability (Step 2.4 F-1 implemented; P1 approved)
+`SecurityIdentityProvider` is a narrow optional capability beside, not inside, numeric financial facts. F-1 returns an immutable current descriptive snapshot with normalized ticker, optional instrument name/listing venue/issuer and instrument identifiers, provider identity, and timezone-aware `resolved_at`. SEC retains current ticker-title/CIK evidence from its ticker mapping; Yahoo retains supported instrument metadata, including non-company names where available.
 
-Identity resolution is best-effort and occurs at most once for one direct analysis after the strategy data path has had an opportunity to retain provider evidence. Missing metadata, unsupported capability, and lookup failure fall back to ticker-only display and cannot alter calculation status, financial classification, data eligibility, warnings, or ticker-verification behavior. A present name uses `Instrument Name (TICKER) — Analysis`; whitespace is normalized without changing official capitalization or punctuation. Current metadata does not prove the identity that applied at a historical analysis `as_of`.
+Approved pre-Golden P1 preserves that one-provider snapshot and adds a separate immutable `InstrumentKindEvidence` value with normalized kind, retained raw provider classification, provider identity, and resolution time. A composed `InstrumentProfile` can therefore retain SEC identity/CIK and Yahoo kind evidence without pretending that one provider supplied both. Kind is provider-backed metadata: it is never inferred from a ticker, name, missing financial facts, or another strategy's success. The exact proposed mappings and schema consequences are recorded in the [P1 instrument applicability mapping record](milestones/v0.2/step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
+
+An ordered, explicitly injected profile resolver selects the best available descriptive identity by provider precedence and obtains kind evidence independently. Each provider/capability is consulted at most once per run, and one YFinance metadata fetch is shared by its identity and kind capabilities. Missing metadata, unsupported capability, and lookup failure remain unknown and fail open. They cannot invalidate or downgrade otherwise usable financial evidence. Affirmative kind evidence is different from lookup failure: a provider-confirmed ETF establishes that both Graham methods and the existing company-level FCF Growth strategy are `not_applicable`, while Momentum remains applicable. This strategy-specific applicability decision does not change any financial formula and does not silently select a future ETF strategy.
+
+A present name uses `Instrument Name (TICKER) — Analysis` in successful, unsuccessful, and `not_applicable` presentations; whitespace is normalized without changing official capitalization or punctuation. Ordinary unavailability/provider failures do not claim the ticker is invalid without affirmative provider evidence. Current metadata does not prove the identity or instrument kind that applied at a historical analysis `as_of`.
 
 ### `GrahamInputResolver` / input resolution (Step 2.3 implemented)
 Resolves each required field independently using:
@@ -135,6 +139,12 @@ Calculators receive resolved values and do not perform I/O. The resolver enforce
 
 ### Resolved-input cache seam (Step 2.3 implemented)
 A narrow in-memory/fixture-backed `get`/`put` seam proves precedence, temporal eligibility, and provenance. The resolver—not the cache—owns provider fallback. Durable SQLite-backed caching remains Step 3.1.
+
+### Durable instrument profiles and ETF aggregate FCF (P2 planned after Step 3.1)
+
+P1 is request-scoped and intentionally adds no durable cache. After Step 3.1 is implemented and approved, P2 may add a repository-backed instrument-profile cache retaining normalized/raw kind, descriptive identity, stable identifiers where available, provider provenance, resolution/retrieval time, and explicit freshness metadata. Its exact dependency on the Step 3.2 repository layer and Step 3.3 invalidation policy is reviewed after Step 3.1 rather than assumed now.
+
+P2 also plans a separate look-through ETF FCF-growth strategy after a holdings-provider and product-policy checkpoint. The strategy owns its holdings-effective-date, weighting, cash/derivative, currency, missing/stale constituent, coverage, rebalancing, and `as_of` semantics plus native typed configuration/result/tool identity. It may reuse company-level calculations for constituents but does not add ETF branches to or redefine the existing company-level FCF Growth strategy. Company-level FCF requested for a known ETF remains explicitly `not_applicable`; orchestration cannot silently substitute the aggregate strategy.
 
 ### Resolved input and provenance models (Step 2.3 implemented)
 Typed records preserve value, units/currency, source kind, provider field/series, reporting/observation period, availability/filing date where supplied, analysis `as_of`, retrieval time, transformations/derived lineage, and override/cache state.
@@ -159,7 +169,7 @@ Each JSON presentation exposes one explicit nullable `security_identity` snapsho
 The Graham Number is labeled as a **maximum indicated price / screening ceiling**. The Growth view makes the expected-growth assumption explicit and warns when the AAA yield is user-supplied. Successful concise output omits redundant `Status: ok` and `As of: current`; historical requests surface the `as_of` boundary in the heading. All required-input/provider/ticker failures pass through the typed presentation boundary, and every calculation status has an exhaustive plain-English investor label.
 
 ### `AnalysisRun` (Step 3.4 target)
-A durable investor-domain record of one requested analysis. It owns an `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, warnings, timestamps, calculation/version identifiers, and the nullable security-identity snapshot used by that completed run (including `resolved_at`). It may link to execution/trajectory identity but must not overload telemetry `RunContext`.
+A durable investor-domain record of one requested analysis. It owns an `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, warnings, timestamps, calculation/version identifiers, and the nullable security identity/instrument-profile snapshot used by that completed run (including provider and `resolved_at`). It may link to execution/trajectory identity but must not overload telemetry `RunContext`.
 
 A report is a rendering of an Analysis Run, not a second canonical result object in v0.2. Viewing an old run must use its persisted identity snapshot rather than re-resolving the ticker and silently relabeling history after ticker reuse.
 
@@ -252,7 +262,7 @@ External Provider
 Provider Adapter Boundary
       │
       ├── BaseDataClient ─────────────► historical series ─► Momentum
-      ├── SecurityIdentityProvider ───► current descriptive identity snapshot
+      ├── SecurityIdentityProvider ───► current identity / instrument-kind snapshot
       └── FinancialFactsProvider
               ├── quote
               ├── company fundamentals
@@ -281,7 +291,7 @@ Golden fixture data ──► fixture adapter ──► deterministic/evaluation
 trajectory events   ──► telemetry sink (JSONL / SQLite)
 production data     ──► SQLite/cache repositories
 analysis result     ──► Analysis Run repository (Step 3.4)
-identity snapshot   ──► same Analysis Run (never re-resolved for historical viewing)
+identity/profile snapshot ─► same Analysis Run (never re-resolved for historical viewing)
 Analysis Run        ──► versioned deterministic report projection
 report projection   ──► concise/details/diagnostic/JSON view
 evaluation result   ──► Golden evaluation artifact
@@ -291,7 +301,9 @@ These stores/artifacts must not be collapsed merely because they can all be seri
 
 ## 7. Golden-Suite architecture (Step 2.5)
 
-Step 2.5 consumes the stable Steps 2.3–2.4 contracts.
+Step 2.5 consumes the stable Steps 2.3–2.4 contracts after approved P1 instrument-applicability hardening. The initial [Gate M Review](milestones/v0.2/step-2.5/STEP_2_5_GATE_M_REVIEW.md) required bounded Slice H corrections; the corrected result and later Slice I empirical runner are now accepted, and Slice J supplies the CLI/report boundary pending review.
+
+The production orchestration seam exposes four explicit handlers in `src/orchestrator/analysis_tools.py`: Momentum, Graham Number, Graham growth value, and Free Cash Flow & Earnings Growth. `register_analysis_tools(...)` registers them on the existing `AsyncToolDispatcher` using injected analyzers, resolvers, provider selections, calculation policy, and clock. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. Tool argument schemas are derived from the strict Pydantic models in `ANALYSIS_TOOL_ARGUMENT_MODELS`; successful calls retain each strategy's native typed execution result.
 
 ```text
 Golden Case
@@ -317,9 +329,56 @@ Evaluator
 
 Deterministic/no-LLM tests validate fixtures, contracts, analytics, evaluator behavior, and report serialization. They cannot measure actual model strategy selection.
 
-Real-local-Ollama evaluation is an empirical mode and remains separate from deterministic regression/CI tests unless explicitly configured.
+Real-local-Ollama evaluation is an empirical mode and remains separate from deterministic regression/CI tests unless explicitly configured. The shared `evaluate` CLI selects one mode, one canonical full-suite or named-case request set, and one explicit local JSON report destination; it does not merge deterministic and empirical scores.
 
-The ≥90% target is a measurement target, not permission to weaken cases until a model passes.
+The ≥90% target is a measurement target, not permission to weaken cases until a model passes. Expected native domain outcomes are first-class evidence: a deliberate `input_unavailable` or `not_applicable` result passes only when the case expects its exact observable contract, and the same result fails when success was expected. Infrastructure/fixture failures remain distinct from valid non-success analytical outcomes.
+
+The deterministic runner requires one canonical versioned case catalog and
+request-building boundary so a mandatory gate can produce one auditable report.
+Test-local per-strategy invocations are supporting evidence, not a substitute for
+that complete-suite operation.
+
+### 7.1 SEC foreign-private-issuer seam (Step 2.5A implemented)
+
+The existing SEC adapter supports the reviewed FPI/IFRS slice without creating
+a parallel provider architecture:
+
+```text
+analysis request + effective as_of
+               │
+               ▼
+immutable request-scoped SEC snapshot
+    ├── Company Facts payload
+    └── submissions/accession availability evidence
+               │
+               ▼
+latest eligible annual accession / taxonomy regime
+               │
+       ┌───────┴────────┐
+       ▼                ▼
+US-GAAP duration    exact IFRS duration
+10-K/20-F/40-F      EPS / diluted shares /
+                    OCF / physical-PP&E CapEx
+       └───────┬────────┘
+               ▼
+existing provider-neutral facts, provenance, and resolvers
+```
+
+All fields in one analysis use the same snapshot. Accounting regime is selected
+at the requested historical boundary, not from lifetime namespace presence.
+Existing annual-period, availability, currency, duplicate/restatement,
+provenance, and exact-concept rules remain authoritative.
+
+Per-share filing values and market quotes cross a separate security-unit gate.
+The implemented predicate accepts only affirmative ordinary-share / 1:1 quoted-
+unit evidence; unknown and ADR/ADS shapes make quote-dependent comparisons
+unavailable without erasing independently supported issuer-level facts.
+
+IFRS BVPS is not in this seam. Company Facts does not preserve the
+dimensional ordinary/preference share-class evidence needed to infer common
+equity and denominator safely; missing preferred-share evidence is never zero.
+The exact approved scope and deferrals are in the
+[FPI / IFRS D0 Mapping Record](milestones/v0.2/step-2.5a/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md).
 
 ---
 

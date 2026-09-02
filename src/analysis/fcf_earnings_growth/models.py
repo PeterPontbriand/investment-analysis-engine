@@ -3,7 +3,7 @@
 Defines the normative strategy enums, the typed policy, the invariant-checked
 shared ``MetricResult`` and strategy-specific ``ForwardEvidence`` containers, the annual observation
 record, and the fixed-identifier ``FCFEarningsGrowthResult`` result type
-required by ``docs/project/milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md``.
+required by ``docs/project/milestones/v0.2/step-2.4/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md``.
 
 All models are frozen.  All ``datetime`` fields, when present, must be
 timezone-aware (inherited from the shared provenance contract).
@@ -20,6 +20,7 @@ from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.financial.provenance import ResolvedInput
 from src.data.financial.resolution_trace import ResolutionTrace
+from src.data.instrument_profile import InstrumentProfile
 
 __all__ = ["MetricResult", "MetricStatus", "ReasonCode"]
 
@@ -30,7 +31,7 @@ __all__ = ["MetricResult", "MetricStatus", "ReasonCode"]
 STRATEGY_ID = "fcf_earnings_growth"
 METHOD_ID = "reported_fcf_eps_cagr"
 METHOD_VERSION = 2
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 # ---------------------------------------------------------------------------
@@ -351,6 +352,7 @@ class FCFEarningsGrowthResult:
     requested_as_of: datetime | None = None
     effective_as_of: datetime
     policy: FCFEarningsGrowthPolicy
+    instrument_profile: InstrumentProfile | None = None
     execution_status: CalculationStatus
     classification: Classification
     classification_reason_code: ReasonCode | None = None
@@ -401,6 +403,11 @@ class FCFEarningsGrowthResult:
             msg = "include_fcf_yield=false requires fcf_yield to be not_applicable/not_requested."
             raise ValueError(msg)
 
+        if self.instrument_profile is not None and self.instrument_profile.ticker != self.ticker.strip().upper():
+            msg = "Instrument profile ticker does not match the FCF & Earnings Growth result ticker."
+            raise ValueError(msg)
+        self._validate_not_applicable_result()
+
         if self.classification in (Classification.PASS, Classification.FAIL) and (
             self.execution_status is not CalculationStatus.OK
             or (
@@ -431,5 +438,24 @@ class FCFEarningsGrowthResult:
             msg = (
                 f"A {self.classification.value} classification requires "
                 "classification_reason_code and a non-empty classification_reason."
+            )
+            raise ValueError(msg)
+
+    def _validate_not_applicable_result(self) -> None:
+        """Require a coherent empty company-history result for inapplicable instruments."""
+        if self.execution_status is not CalculationStatus.NOT_APPLICABLE:
+            return
+        if (
+            self.classification is not Classification.INDETERMINATE
+            or self.annual_observations
+            or self.selected_horizon_years is not None
+            or self.selected_observation_count != 0
+            or self.fcf_cagr.status is not MetricStatus.NOT_APPLICABLE
+            or self.fcf_per_share_cagr.status is not MetricStatus.NOT_APPLICABLE
+            or self.eps_cagr.status is not MetricStatus.NOT_APPLICABLE
+        ):
+            msg = (
+                "execution_status=not_applicable requires an indeterminate classification, no selected history, "
+                "and not-applicable historical metrics."
             )
             raise ValueError(msg)

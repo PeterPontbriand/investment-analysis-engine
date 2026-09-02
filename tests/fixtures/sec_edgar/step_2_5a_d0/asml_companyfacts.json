@@ -1,0 +1,80 @@
+{
+  "cik": 937966,
+  "entityName": "ASML HOLDING NV",
+  "facts": {
+    "us-gaap": {
+      "EarningsPerShareDiluted": {
+        "label": "Earnings Per Share, Diluted",
+        "units": {
+          "EUR/shares": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 24.71,
+              "accn": "0001628280-26-011378",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-25",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "WeightedAverageNumberOfDilutedSharesOutstanding": {
+        "label": "Weighted Average Number of Shares Outstanding, Diluted",
+        "units": {
+          "shares": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 388900000,
+              "accn": "0001628280-26-011378",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-25",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "NetCashProvidedByUsedInOperatingActivities": {
+        "label": "Net Cash Provided by (Used in) Operating Activities",
+        "units": {
+          "EUR": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 12658500000,
+              "accn": "0001628280-26-011378",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-25",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      },
+      "PaymentsToAcquirePropertyPlantAndEquipment": {
+        "label": "Payments to Acquire Property, Plant, and Equipment",
+        "units": {
+          "EUR": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 1573600000,
+              "accn": "0001628280-26-011378",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2026-02-25",
+              "frame": "CY2025"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

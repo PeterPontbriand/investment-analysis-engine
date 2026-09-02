@@ -7,14 +7,22 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 ## Current work — single source of truth
 
 **Active milestone:** v0.2<br/>
-**Completed step:** Step 2.4 — Free Cash Flow & Earnings Growth Analysis, pre-Golden hardening, shared security identity, and Slice G closeout — complete and approved<br/>
-**Active step:** Step 2.5 — Golden-Test Suite & Strategy Evaluation<br/>
-**Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
-**Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md)<br/>
+**Completed step:** Step 2.5A — SEC EDGAR Foreign-Private-Issuer Annual-Filing Coverage — complete and approved on 2026-09-01<br/>
+**Next planned step:** Step 2.6 — Circuit Breakers & Timeout Limits — not started<br/>
+**Last recorded checkpoint:** `6e9019e40df13277fac9353e53446da44d1b26c3`; the approved Step 2.5A changes remain in the working tree pending commit<br/>
+**Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
+**Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md)<br/>
 **Active milestone implementation plan:** [Milestone v0.2 Implementation Plan](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>
-**Governing Step 2.4 design:** [Step 2.4 FCF & Earnings Growth Design](milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md)<br/>
-**Step 2.4 provider mapping record:** [Step 2.4 Provider Mapping Record](milestones/v0.2/STEP_2_4_PROVIDER_MAPPING_RECORD.md)<br/>
-**Initial Step 2.4 reconnaissance:** [Step 2.4 Slice A Reconnaissance](milestones/v0.2/STEP_2_4_SLICE_A_RECONNAISSANCE.md)
+**Governing Step 2.4 design:** [Step 2.4 FCF & Earnings Growth Design](milestones/v0.2/step-2.4/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md)<br/>
+**Step 2.4 provider mapping record:** [Step 2.4 Provider Mapping Record](milestones/v0.2/step-2.4/STEP_2_4_PROVIDER_MAPPING_RECORD.md)<br/>
+**Initial Step 2.4 reconnaissance:** [Step 2.4 Slice A Reconnaissance](milestones/v0.2/step-2.4/STEP_2_4_SLICE_A_RECONNAISSANCE.md)<br/>
+**Step 2.5 evaluation guide:** [Evaluations & Golden Suite](../EVALUATIONS.md)<br/>
+**Completed Step 2.5 slice plan:** [Step 2.5 Golden Suite Slice Plan](milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md)<br/>
+**Gate M decision:** [Step 2.5 Gate M Review](milestones/v0.2/step-2.5/STEP_2_5_GATE_M_REVIEW.md)<br/>
+**Step 2.5 closeout evidence:** [Step 2.5 Closeout Verification Record](milestones/v0.2/step-2.5/STEP_2_5_CLOSEOUT_RECORD.md)<br/>
+**Step 2.5A provider design:** [SEC EDGAR FPI / IFRS D0 Mapping Record](milestones/v0.2/step-2.5a/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md)<br/>
+**Step 2.5A slice plan:** [SEC EDGAR FPI / IFRS Slice Plan](milestones/v0.2/step-2.5a/SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)<br/>
+**Step 2.5A closeout evidence:** [Step 2.5A Slice E Closeout Verification Record](milestones/v0.2/step-2.5a/STEP_2_5A_E_CLOSEOUT.md)
 
 Update **this section** when the active milestone, step, or slice changes. General user documentation and the root README should link here rather than duplicating current project status.
 
@@ -23,8 +31,17 @@ Update **this section** when the active milestone, step, or slice changes. Gener
 - [Master Plan](MASTER_PLAN.md) — project direction, milestone ordering, and long-term scope.
 - [Architecture](ARCHITECTURE.md) — current architectural boundaries and approved target seams.
 - [Discovery Workbook](DISCOVERY_WORKBOOK.md) — rationale, alternatives, decisions, and product/engineering context.
-- [Milestone plans](milestones/) — implementation plans plus step/slice specifications for each milestone.
-- [`deploy/`](deploy/) — deployment/configuration artifacts intended for project development and review.
+- [Evaluations & Golden Suite](../EVALUATIONS.md) — Step 2.5 benchmark purpose, execution modes, scoring boundaries, fixtures, and maintenance rules.
+- [Step 2.5 Golden Suite Slice Plan](milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md) — completed implementation handoffs, review-gate history, and final approval status.
+- [Step 2.5 Gate M Review](milestones/v0.2/step-2.5/STEP_2_5_GATE_M_REVIEW.md) — independent checkpoint audit, blocking findings, mandatory Slice H scope, and Gate M re-entry criteria.
+- [Step 2.5 Closeout Verification Record](milestones/v0.2/step-2.5/STEP_2_5_CLOSEOUT_RECORD.md) — complete quality-gate evidence, final deterministic metrics, explicit empirical absence, acceptance reconciliation, and recorded human approval.
+- [SEC EDGAR FPI / IFRS D0 Mapping Record](milestones/v0.2/step-2.5a/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md) — approved corrected foreign annual-form/IFRS mapping and explicit deferrals.
+- [SEC EDGAR FPI / IFRS Slice Plan](milestones/v0.2/step-2.5a/SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md) — completed Step 2.5A implementation order, review gates, and acceptance criteria.
+- [Step 2.5A D0 Evidence Freeze and Implementation Handoff](milestones/v0.2/step-2.5a/STEP_2_5A_D0_EVIDENCE_FREEZE.md) — frozen source/fixture checksums, exact test matrix, ownership audit, baseline, and mandatory Gate A decisions.
+- [Step 2.5A A0 Identity/Security-Unit Boundary Review](milestones/v0.2/step-2.5a/STEP_2_5A_A0_REVIEW.md) — bounded identity/unit correction, fail-closed preservation, deterministic proof, and complete quality-gate evidence.
+- [Step 2.5A Slice E Closeout Verification Record](milestones/v0.2/step-2.5a/STEP_2_5A_E_CLOSEOUT.md) — final approved scope, explicit deferrals, deterministic Golden result, and complete repository gate.
+- [Milestone plans](milestones) — implementation plans plus step/slice specifications for each milestone.
+- [`deploy/`](deploy) — deployment/configuration artifacts intended for project development and review.
 
 User-facing financial semantics remain authoritative in:
 

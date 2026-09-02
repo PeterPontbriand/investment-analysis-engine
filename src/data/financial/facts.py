@@ -19,6 +19,7 @@ normalization is identical to the C1 cache-key conventions.
 from __future__ import annotations
 
 import math
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -427,3 +428,31 @@ class FinancialFactsProvider(Protocol):
             FinancialProviderError: On an operational provider failure.
         """
         ...
+
+
+@runtime_checkable
+class AnalysisScopedFinancialFactsProvider(Protocol):
+    """Optional provider capability for one immutable analysis data view."""
+
+    def analysis_scope(
+        self,
+        *,
+        subject_id: str,
+        provider_id: str,
+        as_of: datetime | None,
+    ) -> AbstractContextManager[None]:
+        """Return a context that reuses one provider snapshot for the analysis."""
+        ...
+
+
+def financial_facts_analysis_scope(
+    provider: FinancialFactsProvider,
+    *,
+    subject_id: str,
+    provider_id: str,
+    as_of: datetime | None,
+) -> AbstractContextManager[None]:
+    """Use an analysis scope when supported, otherwise preserve legacy behavior."""
+    if isinstance(provider, AnalysisScopedFinancialFactsProvider):
+        return provider.analysis_scope(subject_id=subject_id, provider_id=provider_id, as_of=as_of)
+    return nullcontext()

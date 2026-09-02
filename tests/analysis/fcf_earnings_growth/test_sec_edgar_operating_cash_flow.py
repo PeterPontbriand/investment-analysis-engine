@@ -359,54 +359,24 @@ def test_rejects_nonannual_malformed_and_unsupported_unit_shapes() -> None:
     assert facts[0].value == pytest.approx(50.0)
 
 
-@pytest.mark.parametrize(
-    ("payload", "ticker_rows"),
-    [
-        (
-            _company_facts(
-                {
-                    "USD": [
-                        _observation(
-                            1.0,
-                            start="2024-01-01",
-                            end="2024-12-31",
-                            accession="one",
-                            filed="2025-02-01",
-                            fy=2024,
-                        )
-                    ]
-                },
-                cik=123456,
-            ),
-            None,
-        ),
-        (
-            _company_facts(
-                {
-                    "USD": [
-                        _observation(
-                            1.0,
-                            start="2024-01-01",
-                            end="2024-12-31",
-                            accession="one",
-                            filed="2025-02-01",
-                            fy=2024,
-                        )
-                    ]
-                }
-            ),
-            {
-                "0": {"cik_str": CIK, "ticker": "MSFT", "title": "Microsoft Corporation"},
-                "1": {"cik_str": CIK, "ticker": "MSFT-A", "title": "Microsoft Corporation"},
-            },
-        ),
-    ],
-)
-def test_rejects_company_facts_cik_mismatch_and_multi_ticker_cik(
-    payload: object,
-    ticker_rows: object | None,
-) -> None:
-    assert _adapter(payload, ticker_rows=ticker_rows).fetch_facts(_request()) == ()
+def test_rejects_company_facts_cik_mismatch() -> None:
+    payload = _company_facts(
+        {
+            "USD": [
+                _observation(
+                    1.0,
+                    start="2024-01-01",
+                    end="2024-12-31",
+                    accession="one",
+                    filed="2025-02-01",
+                    fy=2024,
+                )
+            ]
+        },
+        cik=123456,
+    )
+
+    assert _adapter(payload).fetch_facts(_request()) == ()
 
 
 def test_unsupported_request_shape_returns_empty_without_fetching() -> None:

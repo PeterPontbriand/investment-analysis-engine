@@ -13,6 +13,11 @@ import pandas as pd
 import yfinance as yf
 
 from src.data.base_client import BaseDataClient, DataFetchError
+from src.data.instrument_profile import (
+    InstrumentKindEvidence,
+    InstrumentKindRequest,
+    reviewed_instrument_kind,
+)
 from src.data.market_data import HistoricalMarketData, MarketDataContext, latest_observation_date
 from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 
@@ -31,12 +36,21 @@ class YFinanceQuote:
     currency: str | None
 
 
+@dataclass(frozen=True)
+class _YFinanceMetadataSnapshot:
+    """One lazily retrieved Yahoo metadata mapping and its retrieval time."""
+
+    metadata: Mapping[object, object] | None
+    resolved_at: datetime
+
+
 class YFinanceClient(BaseDataClient):
     """Concrete data client for acquiring market vectors from yfinance."""
 
     def __init__(self, *, clock: Callable[[], datetime] | None = None) -> None:
         """Initialize with an injectable metadata-resolution clock."""
         self._clock = clock or (lambda: datetime.now(UTC))
+        self._metadata_by_ticker: dict[str, _YFinanceMetadataSnapshot | DataFetchError] = {}
 
     @property
     def provider_id(self) -> str:
@@ -138,20 +152,12 @@ class YFinanceClient(BaseDataClient):
         if request.provider_id != YFINANCE_PROVIDER_ID:
             return None
 
-        stderr_buffer = io.StringIO()
-        try:
-            with contextlib.redirect_stderr(stderr_buffer):
-                raw_metadata = yf.Ticker(request.ticker).info
-        except Exception as err:
-            logger.debug("Optional identity metadata unavailable for %r: %s", request.ticker, err)
-            logger.debug(f"Stderr buffer contents: {stderr_buffer.getvalue()} - Ticker: {request.ticker}")
-            raise DataFetchError(f"Unable to resolve identity metadata for '{request.ticker}' via yfinance.") from err
-
-        if not isinstance(raw_metadata, Mapping):
+        snapshot = self._fetch_metadata_snapshot(request.ticker)
+        if snapshot.metadata is None:
             return None
-        instrument_name = _first_metadata_text(raw_metadata, "longName", "shortName", "displayName")
-        listing_venue = _first_metadata_text(raw_metadata, "fullExchangeName", "exchange")
-        instrument_identifier = _first_metadata_text(raw_metadata, "uuid")
+        instrument_name = _first_metadata_text(snapshot.metadata, "longName", "shortName", "displayName")
+        listing_venue = _first_metadata_text(snapshot.metadata, "fullExchangeName", "exchange")
+        instrument_identifier = _first_metadata_text(snapshot.metadata, "uuid")
         if instrument_name is None and listing_venue is None and instrument_identifier is None:
             return None
         return SecurityIdentity(
@@ -160,8 +166,52 @@ class YFinanceClient(BaseDataClient):
             listing_venue=listing_venue,
             instrument_identifier=instrument_identifier,
             provider_id=YFINANCE_PROVIDER_ID,
-            resolved_at=self._clock(),
+            resolved_at=snapshot.resolved_at,
         )
+
+    def resolve_instrument_kind(self, request: InstrumentKindRequest) -> InstrumentKindEvidence | None:
+        """Return reviewed Yahoo ``quoteType`` evidence without inferring kind."""
+        if request.provider_id != YFINANCE_PROVIDER_ID:
+            return None
+
+        snapshot = self._fetch_metadata_snapshot(request.ticker)
+        if snapshot.metadata is None:
+            return None
+        raw_provider_value = snapshot.metadata.get("quoteType")
+        if not isinstance(raw_provider_value, str) or not raw_provider_value.strip():
+            return None
+        provider_value = " ".join(raw_provider_value.split())
+        return InstrumentKindEvidence(
+            ticker=request.ticker,
+            kind=reviewed_instrument_kind(YFINANCE_PROVIDER_ID, provider_value),
+            provider_value=provider_value,
+            provider_id=YFINANCE_PROVIDER_ID,
+            resolved_at=snapshot.resolved_at,
+        )
+
+    def _fetch_metadata_snapshot(self, ticker: str) -> _YFinanceMetadataSnapshot:
+        """Fetch and retain one metadata result per client/ticker, including failure."""
+        cached = self._metadata_by_ticker.get(ticker)
+        if isinstance(cached, DataFetchError):
+            raise cached
+        if cached is not None:
+            return cached
+
+        stderr_buffer = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(stderr_buffer):
+                raw_metadata = yf.Ticker(ticker).info
+        except Exception as err:
+            logger.debug("Optional instrument metadata unavailable for %r: %s", ticker, err)
+            logger.debug(f"Stderr buffer contents: {stderr_buffer.getvalue()} - Ticker: {ticker}")
+            failure = DataFetchError(f"Unable to resolve instrument metadata for '{ticker}' via yfinance.")
+            self._metadata_by_ticker[ticker] = failure
+            raise failure from err
+
+        metadata = dict(raw_metadata) if isinstance(raw_metadata, Mapping) else None
+        snapshot = _YFinanceMetadataSnapshot(metadata=metadata, resolved_at=self._clock())
+        self._metadata_by_ticker[ticker] = snapshot
+        return snapshot
 
     def _fetch_currency(self, ticker: str) -> str | None:
         """Best-effort currency enrichment that never invalidates usable price history."""

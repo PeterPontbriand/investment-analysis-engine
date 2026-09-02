@@ -6,7 +6,7 @@ from typer.testing import CliRunner
 
 from src.analysis.graham_value.input_resolver import GrahamInputResolver
 from src.cli import app
-from tests.analysis.graham_value.fixture_financial_facts_provider import (
+from src.evaluation.fixtures.graham import (
     NOW,
     PROVIDER_ID,
     SECURITY_ID,

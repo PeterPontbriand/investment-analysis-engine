@@ -17,6 +17,7 @@ from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.base_client import BaseDataClient
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
+from src.data.instrument_profile import InstrumentProfile
 from src.data.market_data import HistoricalMarketData, MarketDataContext, MarketDataProvider
 from src.data.yfinance import YFinanceClient
 from src.utils.logger_util import setup_logger
@@ -66,6 +67,7 @@ class MomentumRun:
     market_data: MarketDataContext
     price_inputs: tuple[ResolvedInput, ...] = ()
     resolution_trace: ResolutionTrace = ResolutionTrace()
+    instrument_profile: InstrumentProfile | None = None
 
 
 def _get_default_short_window() -> int:
