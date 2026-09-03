@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import uuid
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from src.orchestrator.reliability import ReliabilityFailure
 
 
 class Role(StrEnum):
@@ -60,3 +64,11 @@ class AgentStepResult(BaseModel):
     message: ChatMessage
     executed_tools: list[ToolCallResult] = Field(default_factory=list)
     is_terminal: bool = False
+    failure: ReliabilityFailure | None = None
+
+    @model_validator(mode="after")
+    def validate_failure_state(self) -> AgentStepResult:
+        """Require reliability failures to use the terminal result path."""
+        if self.failure is not None and not self.is_terminal:
+            raise ValueError("A reliability failure requires a terminal step result.")
+        return self

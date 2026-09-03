@@ -38,7 +38,7 @@ class LLMClient:
         # contract and the kwargs produced by ``src.schema.constraint``.
         format: dict[str, Any] | str | None = None,  # noqa: A002
     ) -> LLMGenerateResult:
-        """Generate a response and surface Ollama usage when the API provides it.
+        """Generate a non-streaming response through Ollama's native API.
 
         Args:
             prompt: Chat messages or a plain prompt string.
@@ -57,41 +57,28 @@ class LLMClient:
         if temperature is not None:
             options["temperature"] = temperature
 
-        body: dict[str, Any] = {
-            "messages": prompt,
-            "target_model": target_model,
-            "options": options,
-        }
+        is_chat = isinstance(prompt, list)
+        endpoint = "/api/chat" if is_chat else "/api/generate"
+        body: dict[str, Any] = {"model": target_model, "options": options, "stream": False}
+        body["messages" if is_chat else "prompt"] = prompt
         if format is not None:
             body["format"] = format
 
-        try:
-            response = await self.client.post(
-                "/generate",
-                json=body,
-                timeout=None,
-            )
-            response.raise_for_status()
-            data = response.json()
+        response = await self.client.post(endpoint, json=body, timeout=None)
+        response.raise_for_status()
+        data = response.json()
 
-            if response_model is not None:
-                parsed_obj = response_model(**data)
-                text = str(parsed_obj)
-            else:
-                text = str(data.get("response", data))
+        if response_model is not None:
+            parsed_obj = response_model(**data)
+            text = str(parsed_obj)
+        else:
+            text = _ollama_response_text(data, is_chat=is_chat)
 
-            return LLMGenerateResult(
-                text=text,
-                prompt_tokens=_optional_nonneg_int(data.get("prompt_eval_count")),
-                completion_tokens=_optional_nonneg_int(data.get("eval_count")),
-            )
-
-        except httpx.HTTPError as e:
-            print(f"HTTP error occurred: {e}")
-            raise
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            raise
+        return LLMGenerateResult(
+            text=text,
+            prompt_tokens=_optional_nonneg_int(data.get("prompt_eval_count")),
+            completion_tokens=_optional_nonneg_int(data.get("eval_count")),
+        )
 
     async def get_ollama_version(self) -> str | None:
         """Query the remote Ollama server for its version.
@@ -126,3 +113,17 @@ def _optional_nonneg_int(value: Any) -> int | None:
     except (TypeError, ValueError):
         return None
     return parsed if parsed >= 0 else None
+
+
+def _ollama_response_text(data: dict[str, Any], *, is_chat: bool) -> str:
+    """Extract text from one native non-streaming Ollama response."""
+    value: Any
+    if is_chat:
+        message = data.get("message")
+        value = message.get("content") if isinstance(message, dict) else None
+    else:
+        value = data.get("response")
+    if not isinstance(value, str):
+        endpoint = "/api/chat" if is_chat else "/api/generate"
+        raise ValueError(f"Ollama {endpoint} response did not contain text.")
+    return value

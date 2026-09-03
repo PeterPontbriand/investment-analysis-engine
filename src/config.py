@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from src.orchestrator.reliability import ReliabilityLimits
 from src.schema.config import SchemaConfig  # Step 2.2 import
 
 # Ensure core environment variables are populated
@@ -39,6 +40,9 @@ class ProjectSettings(BaseSettings):
 
     # Native Schema Enforcement Settings (Step 2.2)
     schema_config: SchemaConfig = Field(default_factory=SchemaConfig.from_env)
+
+    # Orchestration reliability limits (Step 2.6)
+    reliability_limits: ReliabilityLimits = Field(default_factory=ReliabilityLimits)
 
     # External data-provider settings
     sec_user_agent: str | None = Field(default=None, validation_alias="SEC_USER_AGENT")

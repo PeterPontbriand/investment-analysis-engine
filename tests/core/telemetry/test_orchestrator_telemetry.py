@@ -70,7 +70,7 @@ async def test_complete_run_writes_reconstructable_jsonl(tmp_path: Path) -> None
     options = OrchestratorOptions(
         config=OrchestratorConfig(
             model_selection="test-model",
-            schema_config=SchemaConfig(use_native_constraint=True, max_validation_retries=0),
+            schema_config=SchemaConfig(use_native_constraint=False, max_validation_retries=0),
         ),
         recorder=recorder,
     )

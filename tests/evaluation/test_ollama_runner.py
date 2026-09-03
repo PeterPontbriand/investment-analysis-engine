@@ -207,6 +207,34 @@ async def test_empirical_runner_uses_production_orchestration_and_suppresses_pri
 
 
 @pytest.mark.asyncio
+async def test_empirical_runner_reports_typed_reliability_failure_with_run_identity() -> None:
+    """A circuit trip becomes inspectable evaluation evidence rather than an exception."""
+    tool_call = '{"tool_name":"analyze_graham_number","tool_args":{"ticker":"SYNTH","eps_basis":"three_year_average"}}'
+    client = ScriptedLLMClient((tool_call, tool_call, tool_call))
+    factory = RecordingFactory()
+
+    result = await run_real_local_ollama_suite(
+        (_request("GRN-01"),),
+        suite_id="empirical-test",
+        suite_version="i-v1",
+        fixture_set_version="fixtures-v1",
+        llm_client=client,
+        config=_config(),
+        executed_at=EXECUTED_AT,
+        recorder_factory=factory,
+    )
+
+    case = result.repetition_reports[0].report.case_results[0]
+    execution = _component(case, ComponentKind.EXECUTION_STATUS)
+    assert execution.outcome is ComponentOutcome.FAIL
+    assert execution.failure_reason is not None
+    assert "max_steps_exceeded" in execution.failure_reason
+    run_id = factory.sinks[0].events[0].run_id
+    assert str(run_id) in execution.failure_reason
+    assert factory.sinks[0].closed is True
+
+
+@pytest.mark.asyncio
 async def test_empirical_runner_classifies_wrong_case_arguments_as_selection_failure() -> None:
     """Correct tool/method selection does not hide a wrong normalized argument choice."""
     client = ScriptedLLMClient(

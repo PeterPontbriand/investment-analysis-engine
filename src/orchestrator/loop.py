@@ -1,14 +1,16 @@
 # src/orchestrator/loop.py
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from collections.abc import AsyncGenerator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+import httpx
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
 from src.config import settings
 from src.core.telemetry import (
@@ -23,7 +25,16 @@ from src.core.telemetry.run_context import get_current_run_context
 from src.llm.client import LLMClient
 from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
-from src.orchestrator.types import AgentStepResult, ChatMessage, Role, ToolCallRequest
+from src.orchestrator.reliability import (
+    CircuitBreaker,
+    CircuitSnapshot,
+    MonotonicClock,
+    ReliabilityFailure,
+    ReliabilityLimitReachedError,
+    ReliabilityLimits,
+    ReliabilityTripReason,
+)
+from src.orchestrator.types import AgentStepResult, ChatMessage, Role, ToolCallRequest, ToolCallResult
 from src.schema.config import SchemaConfig
 from src.schema.constraint import (
     build_schema_constraint,
@@ -38,11 +49,64 @@ from src.tools.parser import ToolParser
 class OrchestratorConfig(BaseModel):
     """Configuration for the AgentOrchestrator."""
 
-    max_steps: int = Field(default=10, ge=1, le=50)
+    model_config = ConfigDict(extra="forbid")
+
+    reliability_limits: ReliabilityLimits = Field(default_factory=lambda: settings.reliability_limits)
+    max_steps: int = Field(default=10, ge=1, le=50, exclude=True)
     model_selection: str = "qwen2.5-coder:latest"
     temperature: float = 0.0
     mode: Literal["light", "full"] = "light"
     schema_config: SchemaConfig = Field(default_factory=lambda: settings.schema_config)
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_limits(cls, value: Any) -> Any:
+        """Normalize supported legacy limit inputs into one reliability policy."""
+        if not isinstance(value, dict):
+            return value
+
+        normalized = dict(value)
+        legacy_max_steps = normalized.get("max_steps")
+        raw_limits = normalized.get("reliability_limits")
+        limits = settings.reliability_limits if raw_limits is None else ReliabilityLimits.model_validate(raw_limits)
+        if legacy_max_steps is None:
+            normalized["max_steps"] = limits.max_steps
+            migrated_limits = limits
+        else:
+            migrated_limits = ReliabilityLimits.model_validate({**limits.model_dump(), "max_steps": legacy_max_steps})
+            if raw_limits is not None and limits.max_steps != migrated_limits.max_steps:
+                raise ValueError("max_steps conflicts with reliability_limits.max_steps")
+
+        raw_schema_config = normalized.get("schema_config")
+        schema_config = settings.schema_config if raw_schema_config is None else raw_schema_config
+        if not isinstance(schema_config, SchemaConfig):
+            schema_config = TypeAdapter(SchemaConfig).validate_python(schema_config)
+
+        if raw_schema_config is not None and raw_limits is None:
+            migrated_limits = ReliabilityLimits.model_validate(
+                {
+                    **migrated_limits.model_dump(),
+                    "max_transient_retries": schema_config.max_validation_retries,
+                    "max_consecutive_schema_violations": schema_config.max_validation_retries + 1,
+                }
+            )
+        elif (
+            raw_schema_config is not None
+            and schema_config.max_validation_retries != migrated_limits.max_schema_validation_retries
+        ):
+            raise ValueError(
+                "schema_config.max_validation_retries conflicts with "
+                "reliability_limits.max_consecutive_schema_violations"
+            )
+        else:
+            schema_config = replace(
+                schema_config,
+                max_validation_retries=migrated_limits.max_schema_validation_retries,
+            )
+
+        normalized["reliability_limits"] = migrated_limits
+        normalized["schema_config"] = schema_config
+        return normalized
 
 
 @dataclass
@@ -52,6 +116,19 @@ class OrchestratorOptions:
     config: OrchestratorConfig = field(default_factory=OrchestratorConfig)
     recorder: TrajectoryRecorder | None = None
     run_context: RunContext | None = None
+    clock: MonotonicClock | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _RecoveryAttemptTelemetry:
+    """Sanitized metadata emitted immediately before a retry."""
+
+    step: int
+    span_id: UUID
+    parent_span_id: UUID
+    category: str
+    retry_number: int
+    maximum: int
 
 
 class AgentOrchestrator:
@@ -95,6 +172,13 @@ class AgentOrchestrator:
         # True=supported, False=unsupported, None=unknown/unresolved
         self._schema_capability: bool | None = None
         self._capability_resolved: bool = False
+        self._circuit: CircuitBreaker | None = None
+        self.last_reliability_failure: ReliabilityFailure | None = None
+
+    @property
+    def reliability_snapshot(self) -> CircuitSnapshot | None:
+        """Return the current request-scoped circuit state when a run has started."""
+        return self._circuit.snapshot if self._circuit is not None else None
 
     @staticmethod
     def _schema_instruction_message(schema_dict: dict[str, Any]) -> dict[str, Any]:
@@ -154,6 +238,9 @@ class AgentOrchestrator:
         final_step = 0
         started_at = time.perf_counter()
         run_span_id = self.recorder.start_span()
+        active_step_span_id: UUID | None = None
+        self._circuit = CircuitBreaker(self.config.reliability_limits, self.options.clock)
+        self.last_reliability_failure = None
 
         try:
             self._record_run_start(run_span_id, prompt)
@@ -161,24 +248,29 @@ class AgentOrchestrator:
             context.add_message(ChatMessage(role=Role.USER, content=prompt))
 
             for step in range(1, self.config.max_steps + 1):
+                self._circuit.begin_step(step)
                 final_step = step
                 step_span_id = self.recorder.start_span(parent_span_id=run_span_id)
+                active_step_span_id = step_span_id
                 self._record_step_start(step, step_span_id, run_span_id)
 
-                request_span_id = self.recorder.start_span(parent_span_id=step_span_id)
-
-                tool_requests, assistant_msg = await self._handle_llm_response(
-                    step, step_span_id, request_span_id, context
+                tool_requests, assistant_msg = await self._execute_llm_step(
+                    step,
+                    step_span_id,
+                    context,
                 )
+                self._circuit.check_deadlines()
 
                 if not tool_requests:
                     terminal_status = "completed"
                     self._record_step_end(step, step_span_id, run_span_id, {"status": "completed", "tool_count": 0})
                     self.recorder.end_span(step_span_id)
+                    active_step_span_id = None
                     yield AgentStepResult(step_number=step, message=assistant_msg, is_terminal=True)
                     return
 
                 tool_results = await self._execute_tools(step, tool_requests, step_span_id, context)
+                self._circuit.check_deadlines()
                 self._record_step_end(
                     step,
                     step_span_id,
@@ -186,6 +278,7 @@ class AgentOrchestrator:
                     {"status": "continued", "tool_count": len(tool_requests)},
                 )
                 self.recorder.end_span(step_span_id)
+                active_step_span_id = None
 
                 yield AgentStepResult(
                     step_number=step,
@@ -194,21 +287,89 @@ class AgentOrchestrator:
                     is_terminal=False,
                 )
 
-            terminal_status = "max_steps_exceeded"
-            yield AgentStepResult(
-                step_number=self.config.max_steps,
-                message=ChatMessage(role=Role.ASSISTANT, content="Exceeded maximum iteration steps."),
-                is_terminal=True,
+            self._circuit.trip(
+                ReliabilityTripReason.MAX_STEPS_EXCEEDED,
+                configured_limit=self.config.max_steps,
+                observed_value=self.config.max_steps + 1,
+            )
+        except ReliabilityLimitReachedError as exc:
+            terminal_status = exc.reason.value
+            yield self._handle_reliability_trip(
+                exc,
+                final_step=final_step,
+                active_step_span_id=active_step_span_id,
+                run_span_id=run_span_id,
             )
         except Exception:
             terminal_status = "failed"
             raise
         finally:
+            if active_step_span_id is not None:
+                self.recorder.end_span(active_step_span_id)
             if run_started:
                 self._record_run_end(run_span_id, final_step, started_at, terminal_status)
             self.recorder.end_span(run_span_id)
             self.recorder.flush()
             self.recorder.close()
+
+    async def _execute_llm_step(
+        self,
+        step: int,
+        step_span_id: UUID,
+        context: MessageContext,
+    ) -> tuple[list[ToolCallRequest], ChatMessage]:
+        """Execute one planning request and close its logical span exactly once."""
+        request_span_id = self.recorder.start_span(parent_span_id=step_span_id)
+        try:
+            return await self._handle_llm_response(step, step_span_id, request_span_id, context)
+        finally:
+            self.recorder.end_span(request_span_id)
+
+    def _build_reliability_failure(
+        self,
+        exc: ReliabilityLimitReachedError,
+        final_step: int,
+    ) -> ReliabilityFailure:
+        """Build the sanitized terminal reliability outcome for one circuit trip."""
+        message = f"{exc.reason.value}: reliability limit reached (run_id={self.recorder.run_id})."
+        return ReliabilityFailure(
+            reason=exc.reason,
+            message=message,
+            run_id=self.recorder.run_id,
+            final_step=final_step or None,
+            configured_limit=exc.configured_limit,
+            observed_value=exc.observed_value,
+            recent_events=self.recorder.recent_events(),
+            cancellation_confirmed=exc.cancellation_confirmed,
+        )
+
+    def _handle_reliability_trip(
+        self,
+        exc: ReliabilityLimitReachedError,
+        *,
+        final_step: int,
+        active_step_span_id: UUID | None,
+        run_span_id: UUID,
+    ) -> AgentStepResult:
+        """Record and return the typed terminal view of a reliability trip."""
+        failure = self._build_reliability_failure(exc, final_step)
+        self.last_reliability_failure = failure
+        self.recorder.record_error(
+            TrajectoryErrorRecord(
+                component="circuit_breaker",
+                message=failure.message,
+                step_index=final_step or None,
+                span_id=active_step_span_id or run_span_id,
+                parent_span_id=run_span_id if active_step_span_id is not None else None,
+                error_type=exc.reason.value,
+            )
+        )
+        return AgentStepResult(
+            step_number=final_step or 1,
+            message=ChatMessage(role=Role.ASSISTANT, content=failure.message),
+            is_terminal=True,
+            failure=failure,
+        )
 
     def _record_run_start(self, span_id: UUID, prompt: str) -> None:
         """Emit RUN_START event."""
@@ -369,9 +530,43 @@ class AgentOrchestrator:
         step_span_id: UUID,
         request_span_id: UUID,
     ) -> str:
-        """Perform LLM call with telemetry and schema constraints."""
+        """Call the LLM with bounded retries for classified transport failures."""
+        while True:
+            try:
+                response = await self._call_llm_once(step, prompt_payload, step_span_id, request_span_id)
+            except ReliabilityLimitReachedError:
+                raise
+            except Exception as exc:
+                if not self._is_transient_llm_error(exc):
+                    raise
+                circuit = self._require_circuit()
+                retry_number = circuit.authorize_transient_retry()
+                self._record_recovery_attempt(
+                    _RecoveryAttemptTelemetry(
+                        step=step,
+                        span_id=request_span_id,
+                        parent_span_id=step_span_id,
+                        category="llm_transport",
+                        retry_number=retry_number,
+                        maximum=circuit.limits.max_transient_retries,
+                    )
+                )
+                continue
+            self._require_circuit().reset_transient_retries()
+            return response
+
+    async def _call_llm_once(
+        self,
+        step: int,
+        prompt_payload: Any,
+        step_span_id: UUID,
+        request_span_id: UUID,
+    ) -> str:
+        """Perform one timeout-bounded LLM call with telemetry."""
         request_started = time.perf_counter()
         generate_kwargs = await self._build_generate_kwargs(prompt_payload)
+        circuit = self._require_circuit()
+        budget = circuit.timeout_budget(ReliabilityTripReason.LLM_TIMEOUT)
 
         self.recorder.record(
             TrajectoryRecord(
@@ -390,7 +585,13 @@ class AgentOrchestrator:
         )
 
         try:
-            result = await self.llm_client.generate(**generate_kwargs)
+            try:
+                async with asyncio.timeout(budget.seconds):
+                    result = await self.llm_client.generate(**generate_kwargs)
+            except TimeoutError:
+                circuit.trip_timeout(budget, cancellation_confirmed=True)
+        except ReliabilityLimitReachedError:
+            raise
         except Exception as exc:
             self.recorder.record_error(
                 TrajectoryErrorRecord(
@@ -403,9 +604,6 @@ class AgentOrchestrator:
                 )
             )
             raise
-        finally:
-            self.recorder.end_span(request_span_id)
-
         latency_ms = (time.perf_counter() - request_started) * 1000
         self.recorder.record(
             TrajectoryRecord(
@@ -422,6 +620,39 @@ class AgentOrchestrator:
             )
         )
         return result.text
+
+    @staticmethod
+    def _is_transient_llm_error(exc: Exception) -> bool:
+        """Classify the bounded transport failures eligible for retry."""
+        if isinstance(exc, httpx.TimeoutException):
+            return False
+        if isinstance(exc, httpx.HTTPStatusError):
+            status = exc.response.status_code
+            return status == 429 or status >= 500
+        return isinstance(exc, httpx.TransportError)
+
+    def _require_circuit(self) -> CircuitBreaker:
+        """Return the active request-scoped circuit."""
+        if self._circuit is None:
+            raise RuntimeError("Reliability circuit is not active.")
+        return self._circuit
+
+    def _record_recovery_attempt(self, attempt: _RecoveryAttemptTelemetry) -> None:
+        """Emit sanitized telemetry immediately before an actual retry."""
+        self.recorder.record(
+            TrajectoryRecord(
+                event_type=TrajectoryEventType.RECOVERY_ATTEMPTED,
+                component="orchestrator",
+                span_id=attempt.span_id,
+                parent_span_id=attempt.parent_span_id,
+                step_index=attempt.step,
+                payload={
+                    "failure_category": attempt.category,
+                    "retry_number": attempt.retry_number,
+                    "maximum_retries": attempt.maximum,
+                },
+            )
+        )
 
     async def _handle_llm_response(
         self,
@@ -457,6 +688,12 @@ class AgentOrchestrator:
             payload = self._inject_schema_instruction(payload, schema_dict)
         raw = await self._call_llm(step, payload, step_span_id, request_span_id)
         val = validate_response(raw, ToolCallResponse, strict=strict)
+        circuit = self._require_circuit()
+        if mode in ("native", "prompt"):
+            if val.valid:
+                circuit.reset_schema_violations()
+            else:
+                circuit.record_schema_violation()
 
         # --- bounded retry loop ---------------------------------------------
         attempts = 0
@@ -475,9 +712,23 @@ class AgentOrchestrator:
             delta = retry_messages[len(payload) :]
             context.append_raw_dicts(delta)
             payload = retry_messages
+            self._record_recovery_attempt(
+                _RecoveryAttemptTelemetry(
+                    step=step,
+                    span_id=request_span_id,
+                    parent_span_id=step_span_id,
+                    category="schema_validation",
+                    retry_number=attempts + 1,
+                    maximum=max_retries,
+                )
+            )
             raw = await self._call_llm(step, payload, step_span_id, request_span_id)
             val = validate_response(raw, ToolCallResponse, strict=strict)
             attempts += 1
+            if val.valid:
+                circuit.reset_schema_violations()
+            else:
+                circuit.record_schema_violation()
 
         # Record final validation failure when the retry loop never ran (max_retries=0)
         if not val.valid and attempts == 0:
@@ -540,11 +791,23 @@ class AgentOrchestrator:
         tool_requests: list[ToolCallRequest],
         step_span_id: UUID,
         context: MessageContext,
-    ) -> list[Any]:
+    ) -> list[ToolCallResult]:
         """Dispatch and record all tool calls in this step."""
-        results = []
+        results: list[ToolCallResult] = []
         for request in tool_requests:
-            tool_span_id = self.recorder.start_span(parent_span_id=step_span_id)
+            results.append(await self._execute_one_tool(step, request, step_span_id, context))
+        return results
+
+    async def _execute_one_tool(
+        self,
+        step: int,
+        request: ToolCallRequest,
+        step_span_id: UUID,
+        context: MessageContext,
+    ) -> ToolCallResult:
+        """Execute one timeout-bounded tool call and close its span exactly once."""
+        tool_span_id = self.recorder.start_span(parent_span_id=step_span_id)
+        try:
             self.recorder.record(
                 TrajectoryRecord(
                     event_type=TrajectoryEventType.TOOL_CALL,
@@ -559,9 +822,17 @@ class AgentOrchestrator:
             )
 
             tool_started = time.perf_counter()
-            response = await self.dispatcher.dispatch(request)
+            circuit = self._require_circuit()
+            budget = circuit.timeout_budget(ReliabilityTripReason.TOOL_TIMEOUT)
+            try:
+                async with asyncio.timeout(budget.seconds):
+                    response = await self.dispatcher.dispatch(request)
+            except TimeoutError:
+                circuit.trip_timeout(
+                    budget,
+                    cancellation_confirmed=self.dispatcher.cancellation_is_cooperative(request.tool_name),
+                )
             tool_latency_ms = (time.perf_counter() - tool_started) * 1000
-            results.append(response)
 
             tool_msg_content = str(response.result) if response.success else f"Error: {response.error_message}"
             context.add_message(
@@ -611,6 +882,6 @@ class AgentOrchestrator:
                         payload={"call_id": response.call_id},
                     )
                 )
+            return response
+        finally:
             self.recorder.end_span(tool_span_id)
-
-        return results

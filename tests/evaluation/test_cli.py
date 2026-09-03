@@ -50,12 +50,13 @@ def _empirical_result(*, passed: int, failed: int = 0, skipped: int = 0) -> Magi
 
 def _failed_deterministic_report() -> EvaluationReport:
     """Build one valid deterministic report containing a required execution failure."""
+    diagnostic = "max_steps_exceeded: reliability limit reached (run_id=12345678-1234-5678-1234-567812345678)."
     components = (
         ComponentResult(kind=ComponentKind.FIXTURE_STATUS, outcome=ComponentOutcome.PASS),
         ComponentResult(
             kind=ComponentKind.EXECUTION_STATUS,
             outcome=ComponentOutcome.FAIL,
-            failure_reason="mock required execution failure",
+            failure_reason=diagnostic,
         ),
         ComponentResult(kind=ComponentKind.NUMERICAL_CORRECTNESS, outcome=ComponentOutcome.PASS),
     )
@@ -202,7 +203,11 @@ def test_evaluate_cli_writes_deterministic_failure_report_before_returning_statu
     assert result.exit_code == 1
     payload = json.loads(target.read_text(encoding="utf-8"))
     assert payload["failed_cases"] == 1
-    assert payload["case_results"][0]["failure_reasons"] == ["execution_status: mock required execution failure"]
+    expected = (
+        "execution_status: max_steps_exceeded: reliability limit reached (run_id=12345678-1234-5678-1234-567812345678)."
+    )
+    assert payload["case_results"][0]["failure_reasons"] == [expected]
+    assert f"GRN-01: {expected}" in result.output
 
 
 def test_evaluate_cli_rejects_ollama_options_in_default_mode(tmp_path: Path) -> None:

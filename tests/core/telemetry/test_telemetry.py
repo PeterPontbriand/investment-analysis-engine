@@ -59,6 +59,31 @@ def test_recorder_assigns_monotonic_sequence_and_single_run_id() -> None:
     assert sink.events[0].event_id != sink.events[1].event_id
 
 
+def test_recorder_retains_only_bounded_sanitized_event_summaries() -> None:
+    """Terminal diagnostics expose metadata without retained event payloads."""
+    sink = RecordingSink()
+    recorder = TrajectoryRecorder(
+        RunContext.new(),
+        sink,
+        TrajectoryRecorderConfig(recent_event_limit=2),
+    )
+    recorder.record(TrajectoryRecord(event_type=TrajectoryEventType.RUN_START, component="run"))
+    recorder.record(
+        TrajectoryRecord(
+            event_type=TrajectoryEventType.PROMPT_SENT,
+            component="llm",
+            payload={"api_key": "must-not-appear"},
+        )
+    )
+    recorder.record(TrajectoryRecord(event_type=TrajectoryEventType.LLM_RESPONSE, component="llm"))
+
+    recent = recorder.recent_events()
+
+    assert [event.sequence for event in recent] == [2, 3]
+    assert [event.event_type for event in recent] == ["prompt_sent", "llm_response"]
+    assert all(not hasattr(event, "payload") for event in recent)
+
+
 def test_jsonl_sink_round_trips_events(tmp_path: Path) -> None:
     """JSONL persistence writes one valid JSON object per event."""
     sink = JSONLTrajectorySink(tmp_path)
@@ -125,6 +150,8 @@ def test_recorder_swallow_sink_failures() -> None:
     event = recorder.record(TrajectoryRecord(event_type=TrajectoryEventType.RUN_START, component="test"))
     recorder.flush()
     recorder.close()
+
+    assert len(recorder.recent_events()) == 1
 
     assert event is not None
     assert event.sequence == 1

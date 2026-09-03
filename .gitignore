@@ -57,6 +57,7 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 .ruff_cache/
+/artifacts/
 
 # Common backup patterns
 *.orig

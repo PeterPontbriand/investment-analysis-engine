@@ -7,9 +7,9 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 ## Current work — single source of truth
 
 **Active milestone:** v0.2<br/>
-**Completed step:** Step 2.5A — SEC EDGAR Foreign-Private-Issuer Annual-Filing Coverage — complete and approved on 2026-09-01<br/>
-**Next planned step:** Step 2.6 — Circuit Breakers & Timeout Limits — not started<br/>
-**Last recorded checkpoint:** `6e9019e40df13277fac9353e53446da44d1b26c3`; the approved Step 2.5A changes remain in the working tree pending commit<br/>
+**Completed step:** Step 2.6 — Circuit Breakers & Timeout Limits — complete and approved on 2026-09-03<br/>
+**Next planned step:** Step 3.1 — SQLite DB & Migration Infrastructure — not started<br/>
+**Last recorded checkpoint:** `07c73e5`; the approved Step 2.6 implementation remains in the working tree pending commit<br/>
 **Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
 **Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md)<br/>
 **Active milestone implementation plan:** [Milestone v0.2 Implementation Plan](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>
@@ -22,7 +22,8 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 **Step 2.5 closeout evidence:** [Step 2.5 Closeout Verification Record](milestones/v0.2/step-2.5/STEP_2_5_CLOSEOUT_RECORD.md)<br/>
 **Step 2.5A provider design:** [SEC EDGAR FPI / IFRS D0 Mapping Record](milestones/v0.2/step-2.5a/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md)<br/>
 **Step 2.5A slice plan:** [SEC EDGAR FPI / IFRS Slice Plan](milestones/v0.2/step-2.5a/SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)<br/>
-**Step 2.5A closeout evidence:** [Step 2.5A Slice E Closeout Verification Record](milestones/v0.2/step-2.5a/STEP_2_5A_E_CLOSEOUT.md)
+**Step 2.5A closeout evidence:** [Step 2.5A Slice E Closeout Verification Record](milestones/v0.2/step-2.5a/STEP_2_5A_E_CLOSEOUT.md)<br/>
+**Step 2.6 reliability plan and verification:** [Step 2.6 Reliability Limits Slice Plan](milestones/v0.2/step-2.6/STEP_2_6_RELIABILITY_SLICE_PLAN.md)
 
 Update **this section** when the active milestone, step, or slice changes. General user documentation and the root README should link here rather than duplicating current project status.
 
@@ -40,6 +41,7 @@ Update **this section** when the active milestone, step, or slice changes. Gener
 - [Step 2.5A D0 Evidence Freeze and Implementation Handoff](milestones/v0.2/step-2.5a/STEP_2_5A_D0_EVIDENCE_FREEZE.md) — frozen source/fixture checksums, exact test matrix, ownership audit, baseline, and mandatory Gate A decisions.
 - [Step 2.5A A0 Identity/Security-Unit Boundary Review](milestones/v0.2/step-2.5a/STEP_2_5A_A0_REVIEW.md) — bounded identity/unit correction, fail-closed preservation, deterministic proof, and complete quality-gate evidence.
 - [Step 2.5A Slice E Closeout Verification Record](milestones/v0.2/step-2.5a/STEP_2_5A_E_CLOSEOUT.md) — final approved scope, explicit deferrals, deterministic Golden result, and complete repository gate.
+- [Step 2.6 Reliability Limits Slice Plan](milestones/v0.2/step-2.6/STEP_2_6_RELIABILITY_SLICE_PLAN.md) — approved contracts, slice history, deterministic verification matrix, and current Gate C evidence.
 - [Milestone plans](milestones) — implementation plans plus step/slice specifications for each milestone.
 - [`deploy/`](deploy) — deployment/configuration artifacts intended for project development and review.
 

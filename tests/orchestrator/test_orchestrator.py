@@ -8,6 +8,7 @@ from src.orchestrator.context import ContextConfig, MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
 from src.orchestrator.prompts import SystemPromptBuilder
+from src.orchestrator.reliability import ReliabilityTripReason
 from src.orchestrator.types import (
     ChatMessage,
     Role,
@@ -208,7 +209,13 @@ async def test_orchestrator_single_step_terminal() -> None:
 
     dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
 
-    orchestrator = AgentOrchestrator(llm_client=llm_mock, dispatcher=dispatcher_mock, parser=parser_mock)
+    config = OrchestratorConfig(schema_config=SchemaConfig(use_native_constraint=False))
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
 
     # Canonical context creation with runtime rules
     context = make_context_with_runtime_rules()
@@ -258,7 +265,7 @@ async def test_orchestrator_tool_execution_loop() -> None:
 
     config = OrchestratorConfig(
         schema_config=SchemaConfig(
-            use_native_constraint=True,
+            use_native_constraint=False,
             max_validation_retries=0,
         ),
     )
@@ -308,7 +315,10 @@ async def test_orchestrator_max_steps_exceeded() -> None:
         )
     )
 
-    config = OrchestratorConfig(max_steps=2)
+    config = OrchestratorConfig(
+        max_steps=2,
+        schema_config=SchemaConfig(use_native_constraint=False),
+    )
     orchestrator = AgentOrchestrator(
         llm_client=llm_mock,
         dispatcher=dispatcher_mock,
@@ -324,7 +334,8 @@ async def test_orchestrator_max_steps_exceeded() -> None:
 
     assert len(steps) == 3
     assert steps[-1].is_terminal is True
-    assert "Exceeded maximum iteration steps." in steps[-1].message.content
+    assert orchestrator.last_reliability_failure is not None
+    assert orchestrator.last_reliability_failure.reason is ReliabilityTripReason.MAX_STEPS_EXCEEDED
 
 
 # ---------------------------------------------------------------------------
@@ -658,17 +669,15 @@ async def test_schema_retry_recovers_after_one_invalid_response() -> None:
     assert steps[0].is_terminal is False
     assert steps[0].executed_tools[0].result == {"price": 180.0}
     assert steps[1].is_terminal is True
-    # Parser was called (in step 2 after retries exhausted) but step 1 succeeded
-    # via retry — the tool result proves recovery without parser.
-    assert parser_mock.parse.call_count == 1
+    # Step 2 reaches the consecutive-violation cap before parser fallback.
+    assert parser_mock.parse.call_count == 0
+    assert orchestrator.last_reliability_failure is not None
+    assert orchestrator.last_reliability_failure.reason is ReliabilityTripReason.SCHEMA_VIOLATION_LIMIT
 
 
 @pytest.mark.asyncio
-async def test_schema_retry_exhaustion_falls_to_parser() -> None:
-    """When all retry attempts return schema-invalid responses, the budget exhausts.
-
-    The legacy parser fallback is then invoked as a last resort.
-    """
+async def test_schema_retry_exhaustion_trips_circuit() -> None:
+    """Consecutive invalid responses trip before compatibility fallback."""
     invalid_json = '{"name": "get_quote", "parameters": {"ticker": "AAPL"}}'
     terminal_text = "Apple is currently trading at $180."
 
@@ -722,15 +731,12 @@ async def test_schema_retry_exhaustion_falls_to_parser() -> None:
     async for step in orchestrator.run_stream("What is Apple price?", context=context):
         steps.append(step)
 
-    # Step 1: 3 calls (initial + 2 retries). Step 2: 3 calls (initial + 2 retries).
-    assert llm_mock.generate.await_count == 6
-    # Parser called once per step (after exhaustion)
-    assert parser_mock.parse.call_count == 2
-    # Tool executed in step 1 via parser fallback
-    assert len(steps) == 2
-    assert steps[0].is_terminal is False
-    assert steps[0].executed_tools[0].result == {"price": 180.0}
-    assert steps[1].is_terminal is True
+    assert llm_mock.generate.await_count == 3
+    assert parser_mock.parse.call_count == 0
+    assert len(steps) == 1
+    assert steps[0].is_terminal is True
+    assert orchestrator.last_reliability_failure is not None
+    assert orchestrator.last_reliability_failure.reason is ReliabilityTripReason.SCHEMA_VIOLATION_LIMIT
 
 
 @pytest.mark.asyncio
@@ -789,10 +795,12 @@ async def test_schema_retry_does_not_use_parser_as_primary_recovery() -> None:
     async for step in orchestrator.run_stream("What is Apple price?", context=context):
         steps.append(step)
 
-    # Step 1: 2 calls (initial + 1 retry). Step 2: 2 calls (initial + 1 retry).
-    assert llm_mock.generate.await_count == 4
-    # Parser called exactly once per step — only AFTER budget exhausted
-    assert parser_mock.parse.call_count == 2
+    # Step 1 reaches the cap after the initial response and one retry.
+    assert llm_mock.generate.await_count == 2
+    # The second consecutive violation trips before parser fallback or tool work.
+    assert parser_mock.parse.call_count == 0
+    assert orchestrator.last_reliability_failure is not None
+    assert orchestrator.last_reliability_failure.reason is ReliabilityTripReason.SCHEMA_VIOLATION_LIMIT
     # Verify the retry feedback message was injected into context
     msgs = context.get_messages()
     user_msgs = [m for m in msgs if m.role == Role.USER]

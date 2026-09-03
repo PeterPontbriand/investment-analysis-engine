@@ -348,7 +348,7 @@ async def _run_case(  # noqa: PLR0913
     tool_requests = tuple(tool_request for step in steps for tool_request in (step.message.tool_calls or ()))
     tool_results = tuple(result for step in steps for result in step.executed_tools)
     if execution_failure is None:
-        execution_failure = _tool_execution_failure(tool_results) or _terminal_failure(steps, config.max_steps)
+        execution_failure = _tool_execution_failure(tool_results) or _terminal_failure(steps)
 
     observation = _selection_observation(tool_requests, observed_at=executed_at)
     selection = _evaluate_tool_and_argument_selection(request, tool_requests, observation)
@@ -469,16 +469,12 @@ def _tool_execution_failure(results: tuple[ToolCallResult, ...]) -> str | None:
     return None if not failures else "Production tool execution failed: " + "; ".join(failures) + "."
 
 
-def _terminal_failure(steps: list[AgentStepResult], max_steps: int) -> str | None:
-    """Classify exhaustion of the real orchestration loop without inspecting model prose."""
-    if (
-        steps
-        and steps[-1].is_terminal
-        and steps[-1].step_number == max_steps
-        and steps[-1].message.content == ("Exceeded maximum iteration steps.")
-    ):
-        return f"Orchestration exceeded the configured {max_steps} steps."
-    return None
+def _terminal_failure(steps: list[AgentStepResult]) -> str | None:
+    """Return a typed terminal reliability diagnostic without inspecting model prose."""
+    if not steps:
+        return None
+    failure = steps[-1].failure
+    return None if failure is None else failure.message
 
 
 def _graham_method(tool_name: str) -> GrahamMethod | None:

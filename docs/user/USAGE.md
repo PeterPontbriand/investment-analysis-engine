@@ -28,6 +28,39 @@ uv run financial-agents fcf-growth --help
 
 Technical operators can also run the versioned Golden Suite with `uv run financial-agents evaluate --help`. See [Golden Suite evaluation](#golden-suite-evaluation).
 
+## Orchestration reliability limits
+
+Agent orchestration is bounded and returns a terminal diagnostic instead of
+letting a reliability limit escape as an unhandled error. The diagnostic names
+the stable reason and the run ID; command-line consumers return a nonzero exit
+status so automation can detect the failure.
+
+The defaults are:
+
+| Setting | Default |
+|---|---:|
+| `max_steps` | 10 |
+| `max_transient_retries` | 3 |
+| `max_consecutive_schema_violations` | 4 |
+| `overall_timeout_seconds` | 300 |
+| `step_timeout_seconds` | 180 |
+| `llm_call_timeout_seconds` | 120 |
+| `tool_call_timeout_seconds` | 60 |
+| `recent_diagnostic_events` | 5 |
+
+These values are fields below the `reliability_limits` application setting.
+They can be changed without editing code through the existing nested settings
+environment convention, for example
+`reliability_limits__overall_timeout_seconds=240`. An explicitly constructed
+`OrchestratorConfig` can instead supply one complete `ReliabilityLimits` value
+for a particular run.
+
+Timeouts cooperatively cancel asynchronous calls. Synchronous tool handlers are
+moved off the event-loop thread, but Python cannot safely terminate arbitrary
+thread work. If such a handler times out, orchestration stops awaiting it and
+reports that cancellation was not confirmed; the handler remains responsible
+for lower-level I/O timeouts and idempotent side effects.
+
 ## Available analysis strategies
 
 | Strategy | Basic command | What it examines | Guide |

@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import logging
 from collections.abc import Awaitable, Callable
@@ -38,10 +39,15 @@ class AsyncToolDispatcher:
             if inspect.iscoroutinefunction(handler):
                 res = await handler(**call.arguments)
             else:
-                res = handler(**call.arguments)
+                res = await asyncio.to_thread(handler, **call.arguments)
             return ToolCallResult(call_id=call.call_id, tool_name=call.tool_name, success=True, result=res)
         except Exception as exc:
             logger.exception(f"Tool '{call.tool_name}' execution failed.")
             return ToolCallResult(
                 call_id=call.call_id, tool_name=call.tool_name, success=False, result=None, error_message=str(exc)
             )
+
+    def cancellation_is_cooperative(self, tool_name: str) -> bool:
+        """Return whether cancelling dispatch can cancel the registered handler."""
+        handler = self._handlers.get(tool_name)
+        return handler is None or inspect.iscoroutinefunction(handler)

@@ -407,7 +407,21 @@ Private model reasoning is never reconstructed.
 
 - Recoverable failures may enter a bounded retry/repair flow.
 - Non-recoverable failures halt with structured diagnostics.
-- Step 2.6 owns hard execution/time/error caps.
+- Step 2.6 owns hard execution/time/error caps through one immutable
+  `ReliabilityLimits` value per orchestration run. The default caps are 10
+  planning steps, 3 transient retries, 4 consecutive schema violations, 300
+  seconds overall, 180 seconds per step, 120 seconds per LLM call, and 60
+  seconds per tool call; terminal diagnostics retain 5 sanitized recent-event
+  summaries.
+- A breached cap returns `ReliabilityFailure` on the terminal
+  `AgentStepResult`. Its stable reason and `run_id` cross the consumer boundary;
+  the internal circuit-trip exception does not.
+- Overall, step, and operation deadlines use monotonic time, and the earliest
+  applicable deadline determines the reason. No new work begins after a trip.
+- Asynchronous work is cooperatively cancelled. Synchronous tool handlers run
+  off the event-loop thread, but Python cannot safely terminate arbitrary
+  running thread work; a timeout therefore reports unconfirmed cancellation,
+  and handlers still require their own I/O timeouts and idempotency safeguards.
 - The configured limits are authoritative; runtime documents must not invent a separate fixed turn limit.
 - Telemetry sink failures fail open.
 

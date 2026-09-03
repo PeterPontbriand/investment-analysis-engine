@@ -24,7 +24,7 @@ async def test_llm_client_generate_success(mock_post: AsyncMock) -> None:
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "response": "Hello world",
+        "message": {"role": "assistant", "content": "Hello world"},
         "prompt_eval_count": 11,
         "eval_count": 3,
     }
@@ -46,7 +46,7 @@ async def test_llm_client_generate_success(mock_post: AsyncMock) -> None:
 async def test_llm_client_generate_missing_usage(mock_post: AsyncMock) -> None:
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {"response": "Hello world"}
+    mock_response.json.return_value = {"message": {"role": "assistant", "content": "Hello world"}}
     mock_post.return_value = mock_response
 
     client = LLMClient(base_url="http://example.com")
@@ -63,7 +63,7 @@ async def test_llm_client_generate_with_schema_format(mock_post: AsyncMock) -> N
     """format=<dict> is forwarded as a top-level body key."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {"response": '{"tool_name": "get_price"}'}
+    mock_response.json.return_value = {"message": {"role": "assistant", "content": '{"tool_name": "get_price"}'}}
     mock_post.return_value = mock_response
 
     schema = {
@@ -84,8 +84,10 @@ async def test_llm_client_generate_with_schema_format(mock_post: AsyncMock) -> N
     body = mock_post.call_args.kwargs["json"]
     assert body["format"] == schema
     assert body["messages"] == [{"role": "user", "content": "Get price"}]
-    assert body["target_model"] == "llama3"
+    assert body["model"] == "llama3"
+    assert body["stream"] is False
     assert body["options"]["temperature"] == 0.1
+    assert mock_post.call_args.args[0] == "/api/chat"
     # `format` must NOT be nested under options.
     assert "format" not in body["options"]
 
@@ -96,7 +98,7 @@ async def test_llm_client_generate_with_json_string_format(mock_post: AsyncMock)
     """format="json" (string) is forwarded verbatim."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {"response": "{}"}
+    mock_response.json.return_value = {"message": {"role": "assistant", "content": "{}"}}
     mock_post.return_value = mock_response
 
     client = LLMClient(base_url="http://example.com")
@@ -113,7 +115,7 @@ async def test_llm_client_generate_omits_format_when_none(mock_post: AsyncMock) 
     """When format is None, the body must not contain a format key."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {"response": "hello"}
+    mock_response.json.return_value = {"message": {"role": "assistant", "content": "hello"}}
     mock_post.return_value = mock_response
 
     client = LLMClient(base_url="http://example.com")
@@ -123,8 +125,28 @@ async def test_llm_client_generate_omits_format_when_none(mock_post: AsyncMock) 
     assert "format" not in body
     assert "format" not in body["options"]
     assert "messages" in body
-    assert "target_model" in body
+    assert "model" in body
     assert "options" in body
+    assert body["stream"] is False
+
+
+@pytest.mark.asyncio
+@patch("httpx.AsyncClient.post")
+async def test_llm_client_plain_prompt_uses_native_generate_endpoint(mock_post: AsyncMock) -> None:
+    """Plain prompts use Ollama's generate endpoint and native request keys."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"response": "hello"}
+    mock_post.return_value = mock_response
+
+    client = LLMClient(base_url="http://example.com", default_model="test-model")
+    result = await client.generate("hello")
+
+    assert result.text == "hello"
+    mock_post.assert_awaited_once_with(
+        "/api/generate",
+        json={"model": "test-model", "options": {}, "stream": False, "prompt": "hello"},
+        timeout=None,
+    )
 
 
 # --- get_ollama_version tests -------------------------------------------------
@@ -224,7 +246,7 @@ async def test_integration_format_reaches_wire_when_capability_supported() -> No
 
     Uses httpx.MockTransport to intercept the actual HTTP requests. Verifies
     that when the remote server reports a supported version, the outgoing
-    /generate body contains the ``format`` key with the JSON Schema.
+    /api/chat body contains the ``format`` key with the JSON Schema.
     """
     captured_requests: list[httpx.Request] = []
 
@@ -232,10 +254,13 @@ async def test_integration_format_reaches_wire_when_capability_supported() -> No
         captured_requests.append(request)
         if request.url.path == "/api/version":
             return httpx.Response(200, json={"version": "0.6.1"})
-        # /generate (the Ollama generate endpoint)
         return httpx.Response(
             200,
-            json={"response": "I will not call any tools.", "prompt_eval_count": 10, "eval_count": 5},
+            json={
+                "message": {"role": "assistant", "content": "I will not call any tools."},
+                "prompt_eval_count": 10,
+                "eval_count": 5,
+            },
         )
 
     transport = httpx.MockTransport(mock_handler)
@@ -273,14 +298,16 @@ async def test_integration_format_reaches_wire_when_capability_supported() -> No
     async for _step in orchestrator.run_stream("Hello", context=context):
         pass
 
-    # Verify the /generate request was captured and contains format
-    generate_requests = [r for r in captured_requests if r.url.path == "/generate"]
-    assert len(generate_requests) >= 1, "Expected at least one /generate request"
+    # Verify the native chat request was captured and contains format.
+    generate_requests = [r for r in captured_requests if r.url.path == "/api/chat"]
+    assert len(generate_requests) >= 1, "Expected at least one /api/chat request"
 
     body = json.loads(generate_requests[0].content)
     assert "format" in body, "Integration: format must be present in the wire body"
     assert body["format"]["type"] == "object"
     assert "tool_name" in body["format"]["properties"]
+    assert body["model"] == "qwen2.5-coder:latest"
+    assert body["stream"] is False
 
     # Verify the version endpoint was queried (capability detection occurred)
     version_requests = [r for r in captured_requests if r.url.path == "/api/version"]
@@ -292,7 +319,7 @@ async def test_integration_format_absent_from_wire_when_capability_unsupported()
     """Integration: unsupported server version → format NOT on wire.
 
     Uses httpx.MockTransport. Remote server reports 0.3.0 (unsupported).
-    The /generate body must NOT contain a format key.
+    The /api/chat body must NOT contain a format key.
     """
     captured_requests: list[httpx.Request] = []
 
@@ -302,7 +329,11 @@ async def test_integration_format_absent_from_wire_when_capability_unsupported()
             return httpx.Response(200, json={"version": "0.3.0"})
         return httpx.Response(
             200,
-            json={"response": "No tools needed.", "prompt_eval_count": 5, "eval_count": 3},
+            json={
+                "message": {"role": "assistant", "content": "No tools needed."},
+                "prompt_eval_count": 5,
+                "eval_count": 3,
+            },
         )
 
     transport = httpx.MockTransport(mock_handler)
@@ -338,7 +369,7 @@ async def test_integration_format_absent_from_wire_when_capability_unsupported()
     async for _step in orchestrator.run_stream("Hi", context=context):
         pass
 
-    generate_requests = [r for r in captured_requests if r.url.path == "/generate"]
+    generate_requests = [r for r in captured_requests if r.url.path == "/api/chat"]
     assert len(generate_requests) >= 1
     body = json.loads(generate_requests[0].content)
     assert "format" not in body, "Integration: format must NOT be on wire when server is known-unsupported"

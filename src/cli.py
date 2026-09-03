@@ -481,6 +481,8 @@ def evaluate(  # noqa: PLR0913
     passed, failed, skipped = _evaluation_case_counts(result)
     typer.echo(f"Evaluation report written to {target} ({passed} passed, {failed} failed, {skipped} skipped).")
     if failed or skipped:
+        for diagnostic in _evaluation_failure_diagnostics(result):
+            typer.echo(diagnostic, err=True)
         raise typer.Exit(code=1)
 
 
@@ -590,6 +592,24 @@ def _evaluation_case_counts(result: EvaluationCommandResult) -> tuple[int, int, 
         sum(report.failed_cases for report in reports),
         sum(report.skipped_cases for report in reports),
     )
+
+
+def _evaluation_failure_diagnostics(result: EvaluationCommandResult) -> tuple[str, ...]:
+    """Render concise case diagnostics, including typed reliability reasons and run IDs."""
+    reports = (
+        (result,) if isinstance(result, EvaluationReport) else tuple(item.report for item in result.repetition_reports)
+    )
+    diagnostics: list[str] = []
+    for repetition, report in enumerate(reports, start=1):
+        for case in getattr(report, "case_results", ()):
+            prefix = f"{case.case_id}"
+            if len(reports) > 1:
+                prefix += f" repetition {repetition}"
+            if case.failure_reasons:
+                diagnostics.extend(f"{prefix}: {reason}" for reason in case.failure_reasons)
+            elif case.skip_reason is not None:
+                diagnostics.append(f"{prefix}: skipped: {case.skip_reason}")
+    return tuple(diagnostics)
 
 
 def _build_sec_production_provider() -> ProductionFinancialFactsProvider:

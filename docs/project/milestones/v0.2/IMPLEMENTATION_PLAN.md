@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-09-01 — Recorded final approval and completion of Step 2.5A.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, and 2.5A → complete and approved; Step 2.6 → next, not started
+**Revised:** 2026-09-02 — Recorded Step 2.6 Slice B implementation and Gate B review stop.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, and 2.5A → complete and approved; Step 2.6 → Slice B implemented, pending Gate B review
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1309,6 +1309,11 @@ weighted-average shares remain fail-closed. The complete repository gate passed
 
 ### 4.6 Step 2.6 – Circuit Breakers & Timeout Limits
 
+**Status:** The [Step 2.6 Reliability Limits Slice Plan](step-2.6/STEP_2_6_RELIABILITY_SLICE_PLAN.md)
+was approved on 2026-09-02. Slices A and B, the Gate C native Ollama
+remediation, deterministic verification, and repeat optional LAN smoke were
+approved on 2026-09-03. Step 2.6 is complete.
+
 **Goal**<br/>
 Hard execution caps, wall-clock bounds, and error thresholds that prevent unbounded loops or runaway token spend.
 
@@ -1319,9 +1324,9 @@ Hard execution caps, wall-clock bounds, and error thresholds that prevent unboun
 4. Unit tests covering: normal completion, max-steps hit, timeout hit, repeated schema-violation trip.
 
 **Acceptance criteria**
-- [ ] Defaults are documented and match Master Plan intent (e.g. max steps ≈ 10, max retries ≈ 3).
-- [ ] Breach always produces a clear diagnostic; never an unhandled exception.
-- [ ] Limits are configurable without code changes.
+- [x] Defaults are documented and match Master Plan intent (e.g. max steps ≈ 10, max retries ≈ 3).
+- [x] Breach always produces a clear diagnostic; never an unhandled exception.
+- [x] Limits are configurable without code changes.
 
 ---
 
@@ -1591,6 +1596,9 @@ All of the following must be true before declaring the milestone complete and op
 30. **Slice G and Step 2.4 closeout approval** — Slice G documentation synchronization and the complete repository gate passed, and explicit human approval closed Step 2.4 on 2026-08-30. Step 2.5 is the current step and consumes the approved Steps 2.3–2.4 contracts.
 31. **Known-ETF applicability** — Live FLSW evidence exposed a concrete pre-Golden defect: unavailable company facts were conflated with ticker validity and provider-specific identity resolution produced inconsistent names. P1 is approved before Golden model/case work. Only affirmative provider-backed ETF evidence makes both Graham methods and company-level FCF Growth `not_applicable`; unknown kind remains fail-open, while Momentum remains applicable.
 32. **P1/P2 split** — P1 adds only the stable contract seam, request-scoped provider composition, native applicability outcomes, presentation/error corrections, and deterministic regression evidence. Durable instrument-profile caching and the distinct ETF aggregate FCF-growth strategy are P2, planned only after Step 3.1 and subject to a later provider/product-policy gate.
+33. **Step 2.6 reliability-plan approval** — The bounded reliability contract, defaults, timeout precedence, retry and schema-counter semantics, structured terminal outcome, deterministic verification matrix, and A–C slice gates in `step-2.6/STEP_2_6_RELIABILITY_SLICE_PLAN.md` were approved on 2026-09-02. Real local-model execution is not an acceptance requirement. Slice A begins only after the documentation-only checkpoint is created and pushed; this approval does not authorize later slices or Step 3.1.
+34. **Step 2.6 Gate B approval and Gate C remediation** — Slice B enforcement and telemetry were approved on 2026-09-03. Slice C exposed typed terminal failures through the evaluation/CLI boundary, synchronized documentation, and passed the complete repository gate with 1,331 tests at 88% coverage. An optional LAN smoke then proved that the pre-existing `LLMClient` wire contract used invalid native Ollama endpoint/payload semantics. The corrected native `/api/chat` and `/api/generate` contracts passed focused tests and the complete repository gate with 1,332 tests at 88% coverage. Repeat LAN smoke evidence then confirmed bounded `max_steps_exceeded` and `llm_timeout` terminal outcomes with matching diagnostic/run identities and preserved reports. Gate C awaits final approval; Step 3.1 is not authorized.
+35. **Step 2.6 final Gate C approval** — The complete reliability implementation, native Ollama remediation, deterministic verification, and optional LAN smoke evidence received explicit human approval on 2026-09-03. Step 2.6 is complete; its implementation checkpoint and PR workflow may proceed. Step 3.1 implementation remains a separate handoff.
 
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
@@ -1604,11 +1612,13 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 through 2.5A are complete and approved. Step 2.6 is the next planned
-step and has not started.
+Steps 2.3 through 2.6 are complete and approved. Step 3.1 is the next planned
+implementation step but has not started.
 
 1. Preserve classified unavailability so later representative live validation
    can measure the useful-result ratio and identify whether a separately
    reviewed provider-mapping expansion is warranted.
-2. Implement Step 2.6 reliability limits and then Step
-   3.1 persistence. Review P2's exact placement only after Step 3.1 is approved.
+2. Create the approved Step 2.6 implementation checkpoint and complete its PR
+   workflow.
+3. Plan Step 3.1 persistence as a separate handoff. Review P2's exact placement
+   only after Step 3.1 is approved.

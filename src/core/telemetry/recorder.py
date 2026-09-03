@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from collections import deque
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -16,6 +17,7 @@ from src.core.telemetry.models import TelemetryMode, TrajectoryEvent, Trajectory
 from src.core.telemetry.redaction import redact_value, sanitize_exception_message
 from src.core.telemetry.run_context import RunContext
 from src.core.telemetry.sinks import JSONLTrajectorySink, TrajectorySink
+from src.orchestrator.reliability import RecentEventSummary
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,7 @@ class TrajectoryRecorderConfig:
     model_tag: str | None = None
     provider: str = "ollama"
     enabled: bool = True
+    recent_event_limit: int = 5
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +93,7 @@ class TrajectoryRecorder:
         self.model_tag = recorder_config.model_tag
         self.provider = recorder_config.provider
         self.enabled = recorder_config.enabled
+        self._recent_events: deque[RecentEventSummary] = deque(maxlen=recorder_config.recent_event_limit)
         self._sequence = 0
         self._closed = False
         self._spans: dict[UUID, _SpanContext] = {}
@@ -113,6 +117,7 @@ class TrajectoryRecorder:
             model_tag=model_tag,
             provider="ollama",
             enabled=settings.telemetry_level.upper() != "OFF",
+            recent_event_limit=settings.reliability_limits.recent_diagnostic_events,
         )
         return cls(run_context, sink, config)
 
@@ -157,11 +162,24 @@ class TrajectoryRecorder:
             error=sanitized_error,
         )
 
+        self._recent_events.append(
+            RecentEventSummary(
+                sequence=event.sequence,
+                event_type=event.event_type.value,
+                component=event.component,
+                step_index=event.step_index,
+            )
+        )
+
         try:
             self.sink.record(event)
         except Exception:
             logger.exception("Trajectory telemetry sink failed; continuing without affecting agent execution.")
         return event
+
+    def recent_events(self) -> tuple[RecentEventSummary, ...]:
+        """Return bounded sanitized event metadata for terminal diagnostics."""
+        return tuple(self._recent_events)
 
     def flush(self) -> None:
         """Best-effort flush of the configured sink."""
