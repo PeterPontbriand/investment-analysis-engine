@@ -10,7 +10,7 @@ Commands are run from the Financial Data Agents installation folder:
 uv run financial-agents ANALYSIS [arguments] [options]
 ```
 
-An [analysis strategy](GLOSSARY.md#analysis-strategy) is a deterministic analytical capability such as Graham analysis, Momentum, or Free Cash Flow & Earnings Growth. A [method](GLOSSARY.md#method) is a particular calculation within a strategy when that strategy offers more than one approach.
+An [analysis strategy](GLOSSARY.md#analysis-strategy) is a deterministic analytical capability with its own inputs, methods, and result semantics. A [method](GLOSSARY.md#method) is a particular calculation within a strategy when that strategy offers more than one approach.
 
 See all available commands:
 
@@ -63,11 +63,7 @@ for lower-level I/O timeouts and idempotent side effects.
 
 ## Available analysis strategies
 
-| Strategy | Basic command | What it examines | Guide |
-|---|---|---|---|
-| Graham Analysis | `uv run financial-agents graham KO` | Earnings/book-value screening and optional forecast-dependent Graham valuation | [Graham](strategies/GRAHAM.md) |
-| Momentum | `uv run financial-agents momentum AAPL` | Simple-moving-average relationship/crossover over historical prices | [Momentum](strategies/MOMENTUM.md) |
-| Free Cash Flow & Earnings Growth | `uv run financial-agents fcf-growth MSFT` | Historical total-company FCF, FCF-per-diluted-share, and diluted-EPS growth | [FCF & Earnings Growth](strategies/FCF_EARNINGS_GROWTH.md) |
+Browse the [Analysis Strategy Guides](strategies/README.md) for available strategies, methods, data sources, and limitations. Use `uv run financial-agents --help` for the commands installed in your version. The examples below illustrate common invocation patterns; they are not an exhaustive strategy inventory.
 
 ## Graham analysis
 

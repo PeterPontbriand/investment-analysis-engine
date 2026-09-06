@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-09-02 — Recorded Step 2.6 Slice B implementation and Gate B review stop.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, and 2.5A → complete and approved; Step 2.6 → Slice B implemented, pending Gate B review
+**Revised:** 2026-09-06 — Recorded Slice G/Gate G approval and Step 3.1 completion; no subsequent work started.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; subsequent work remains unstarted
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1332,6 +1332,25 @@ Hard execution caps, wall-clock bounds, and error thresholds that prevent unboun
 
 ### 4.7 Step 3.1 – SQLite DB & Migration Infrastructure
 
+**Status:** Gate D0 mapping and exact first-migration table list approved on
+2026-09-05. Slices A/B1/B2 were subsequently approved and B3 explicitly authorized.
+Slice B3 is implemented with a green complete gate (1,406 tests, 88% coverage).
+The human approved Slice B3 and Gate B on 2026-09-05. Following the pushed
+checkpoint, C1 was implemented, verified, and approved on 2026-09-05. Authorized
+C2 reconstruction and runtime selection passed the complete gate (1,436 tests,
+88% coverage) and received human approval on 2026-09-05, closing Gate C.
+D1 scalar caching and D2 series caching are approved; the human completed
+Gate D review on 2026-09-05. The human approved E1 and authorized E2 on
+2026-09-05. The human approved E2 on 2026-09-06, closing Gate E and authorizing
+F1. The human approved F1 and F2, then authorized G on 2026-09-06. Operator
+workflow and integrated persistence closeout passed the complete gate (1,615
+tests, 88% coverage). The human approved Slice G on 2026-09-06, closing Gate G
+and completing Step 3.1. JSONL remains the default. P2, Step 3.2, and all other
+subsequent planning work remain unstarted pending separate authorization.
+The authoritative slice sequence,
+schema decisions, local-model execution protocol, review gates, and environment preparation are in
+[`step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md`](step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md).
+
 **Goal**
 Establish the production SQLite persistence foundation while implementing the SQLite telemetry sink and durable production data/cache access behind the contracts established in Steps 2.3–2.4.
 
@@ -1354,6 +1373,16 @@ Establish the production SQLite persistence foundation while implementing the SQ
 - [ ] A representative trajectory can be written to and reconstructed from SQLite.
 - [ ] Production data/cache implementations satisfy the historical-price and financial-fact contracts used by the approved strategies.
 - [ ] Valid cached inputs can be reused without unnecessary external refetch and without losing provenance or temporal semantics.
+
+**Approved planning sequence**
+
+Step 3.1 is divided into D0 (mapping freeze), A (authorized dependencies and
+settings), B1–B3 (connection policy, Alembic bootstrap, initial schema), C1–C2
+(SQLite trajectory persistence and reconstruction), D1–D2 (scalar and series
+financial-input cache), E1–E2 (historical-series storage and cache-backed
+client), F1–F2 (production composition), and G (operator workflow and closeout).
+Every slice is independently reviewed; no slice authorizes the next, Step 3.2,
+or P2.
 
 ### 4.7A P2 – Durable Instrument Profiles & ETF Aggregate FCF Growth (Post–Step 3.1)
 
@@ -1597,8 +1626,9 @@ All of the following must be true before declaring the milestone complete and op
 31. **Known-ETF applicability** — Live FLSW evidence exposed a concrete pre-Golden defect: unavailable company facts were conflated with ticker validity and provider-specific identity resolution produced inconsistent names. P1 is approved before Golden model/case work. Only affirmative provider-backed ETF evidence makes both Graham methods and company-level FCF Growth `not_applicable`; unknown kind remains fail-open, while Momentum remains applicable.
 32. **P1/P2 split** — P1 adds only the stable contract seam, request-scoped provider composition, native applicability outcomes, presentation/error corrections, and deterministic regression evidence. Durable instrument-profile caching and the distinct ETF aggregate FCF-growth strategy are P2, planned only after Step 3.1 and subject to a later provider/product-policy gate.
 33. **Step 2.6 reliability-plan approval** — The bounded reliability contract, defaults, timeout precedence, retry and schema-counter semantics, structured terminal outcome, deterministic verification matrix, and A–C slice gates in `step-2.6/STEP_2_6_RELIABILITY_SLICE_PLAN.md` were approved on 2026-09-02. Real local-model execution is not an acceptance requirement. Slice A begins only after the documentation-only checkpoint is created and pushed; this approval does not authorize later slices or Step 3.1.
-34. **Step 2.6 Gate B approval and Gate C remediation** — Slice B enforcement and telemetry were approved on 2026-09-03. Slice C exposed typed terminal failures through the evaluation/CLI boundary, synchronized documentation, and passed the complete repository gate with 1,331 tests at 88% coverage. An optional LAN smoke then proved that the pre-existing `LLMClient` wire contract used invalid native Ollama endpoint/payload semantics. The corrected native `/api/chat` and `/api/generate` contracts passed focused tests and the complete repository gate with 1,332 tests at 88% coverage. Repeat LAN smoke evidence then confirmed bounded `max_steps_exceeded` and `llm_timeout` terminal outcomes with matching diagnostic/run identities and preserved reports. Gate C awaits final approval; Step 3.1 is not authorized.
+34. **Step 2.6 Gate B approval and Gate C remediation** — Slice B enforcement and telemetry were approved on 2026-09-03. Slice C exposed typed terminal failures through the evaluation/CLI boundary, synchronized documentation, and passed the complete repository gate with 1,331 tests at 88% coverage. An optional LAN smoke then proved that the pre-existing `LLMClient` wire contract used invalid native Ollama endpoint/payload semantics. The corrected native `/api/chat` and `/api/generate` contracts passed focused tests and the complete repository gate with 1,332 tests at 88% coverage. Repeat LAN smoke evidence then confirmed bounded `max_steps_exceeded` and `llm_timeout` terminal outcomes with matching diagnostic/run identities and preserved reports. This remediation proceeded to the final Gate C approval recorded in Decision 35.
 35. **Step 2.6 final Gate C approval** — The complete reliability implementation, native Ollama remediation, deterministic verification, and optional LAN smoke evidence received explicit human approval on 2026-09-03. Step 2.6 is complete; its implementation checkpoint and PR workflow may proceed. Step 3.1 implementation remains a separate handoff.
+36. **Step 3.1 D0 start and local-model preflight** — The `glm-4.7-flash:latest` candidate (`4475827791a2`) was observed at 21 GB, 100% GPU, and 65,536 context. It then passed the bounded Cline edit/read-back/status/expected-failure preflight. Step 3.1 D0 contract and schema mapping is authorized and in progress; production code and migrations remain unstarted pending Gate D0.
 
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
@@ -1612,13 +1642,14 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 through 2.6 are complete and approved. Step 3.1 is the next planned
-implementation step but has not started.
+Steps 2.3 through 2.6 and Step 3.1 are complete and approved. Slice G and Gate G
+were approved on 2026-09-06. No subsequent planning step has been started.
 
 1. Preserve classified unavailability so later representative live validation
    can measure the useful-result ratio and identify whether a separately
    reviewed provider-mapping expansion is warranted.
 2. Create the approved Step 2.6 implementation checkpoint and complete its PR
    workflow.
-3. Plan Step 3.1 persistence as a separate handoff. Review P2's exact placement
-   only after Step 3.1 is approved.
+3. Prepare the approved Step 3.1 changes for commit and PR review. Await separate
+   human authorization before beginning P2, Step 3.2, or any other subsequent
+   planning work, including a review of P2's placement.

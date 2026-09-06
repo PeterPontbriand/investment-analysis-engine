@@ -339,7 +339,7 @@ async def test_orchestrator_max_steps_exceeded() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 5. Native schema constraint forwarding (Step 2.2)
+# 5. Native schema constraint forwarding
 # ---------------------------------------------------------------------------
 
 
@@ -602,7 +602,7 @@ async def test_orchestrator_get_ollama_version_not_called_when_disabled() -> Non
 
 
 # ---------------------------------------------------------------------------
-# 6. Schema-violation retry path (Step 2.2)
+# 6. Schema-violation retry path
 # ---------------------------------------------------------------------------
 
 
@@ -876,7 +876,7 @@ async def test_provider_compat_parser_fallback_when_native_disabled() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 7. Prompt-fallback (fallback_to_prompt) behaviour (Step 2.2)
+# 7. Prompt-fallback (fallback_to_prompt) behaviour
 # ---------------------------------------------------------------------------
 
 

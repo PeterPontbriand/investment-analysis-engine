@@ -15,7 +15,7 @@ This document describes current boundaries and approved near-term target seams. 
 
 1. **LLM orchestration, deterministic execution:** The LLM plans/selects tools and synthesizes results; Python performs calculations, validation, data processing, and persistence.
 2. **Typed boundaries:** Tool/analyzer/data inputs and outputs are explicitly typed at application boundaries.
-3. **Heterogeneous strategies:** Different financial strategies may have different config/data/result shapes. The architecture must not make every analysis Momentum-shaped.
+3. **Heterogeneous strategies:** Different financial strategies may have different config/data/result shapes. The architecture must not impose one strategy's data or result shape on other strategies.
 4. **No speculative strategy framework:** Reuse the existing `BaseAnalyzer` and current tool-dispatch flow unless implementation proves a new abstraction is necessary.
 5. **Provider isolation:** Historical-price access remains behind `BaseDataClient`; Step 2.3 financial facts use a dedicated provider/resolution boundary rather than enlarging a price-history-shaped interface.
 6. **Historical prices, quotes, fundamentals, and macro series are distinct capabilities:** A composed valuation façade may coordinate narrow providers, but no upstream service is assumed to supply every capability.
@@ -23,9 +23,9 @@ This document describes current boundaries and approved near-term target seams. 
 8. **Local-LLM boundary:** The LLM cannot directly execute shell/code or access the external network. Registered data tools may perform controlled provider access.
 9. **Telemetry is observational:** Telemetry failures must not change business execution semantics.
 10. **Light Mode first:** Core useful analysis must remain viable under the documented Light Mode workflow.
-11. **Method-explicit financial semantics:** Graham Number and Graham growth value retain distinct names, inputs, typed results, and limitations.
+11. **Method-explicit financial semantics:** Distinct analysis methods retain explicit names, inputs, typed results, and limitations.
 12. **Time-bounded provenance:** Resolved inputs preserve source, reporting/observation and availability dates, transformations, cache/override state, and requested analysis `as_of`.
-13. **Presentation without homogenization:** Momentum, Graham, and Free Cash Flow & Earnings Growth use a coherent investor-facing visual grammar while retaining strategy-specific typed result models.
+13. **Presentation without homogenization:** Analysis strategies use a coherent investor-facing visual grammar while retaining their own typed result models.
 14. **Operational logs are not product UI:** User results are rendered by a presentation boundary; logs and trajectory telemetry remain diagnostics/execution evidence.
 15. **Analysis Run is a product-domain record:** Step 3.4 persists requested analysis/config/result/provenance history separately from telemetry `RunContext`; reports/views render that record.
 16. **Bounded v0.2 agentic behavior:** User-initiated refresh may execute independent analysis jobs concurrently. Daemons, unattended scheduling, proactive monitoring, and notifications remain later autonomy work.
@@ -46,14 +46,16 @@ This document describes current boundaries and approved near-term target seams. 
                               ▼
                     Tool / analysis dispatch
                               │
-       ┌───────────────┬───────────────────┐
-       ▼               ▼                   ▼
- MomentumAnalyzer  Graham analysis   FCFEarningsGrowthAnalyzer
-       │           number / growth           │
-historical prices  GrahamInputResolver  AnnualGrowthSeriesResolver
-       │               │                   │
- BaseDataClient   FinancialFactsProvider  SEC annual facts
-       └───────────────┴───────────────────┘
+                  selected analysis method
+                              │
+                    typed input resolution
+                              │
+       ┌──────────────────────┼──────────────────────┐
+       ▼                      ▼                      ▼
+ historical series     financial facts        quotes / macro data
+       │                      │                      │
+ BaseDataClient       FinancialFactsProvider / narrow providers
+       └──────────────────────┬──────────────────────┘
                               ▼
                      typed strategy result
                               │
@@ -431,15 +433,15 @@ Private model reasoning is never reconstructed.
 
 - Preserve existing behavior outside the active step.
 - Use the smallest change that satisfies the current milestone plan.
-- Do not create a generic strategy registry merely to support Momentum + Graham.
-- Do not collapse the two Graham methods behind ambiguous names or optional-field bags.
+- Do not create a generic strategy registry merely because multiple strategies exist.
+- Do not collapse distinct analysis methods behind ambiguous names or optional-field bags.
 - Keep calculators free of provider/cache/CLI I/O.
 - Enforce requested `as_of` as an information boundary; do not substitute later current facts.
 - Do not claim a production AAA-yield series until its identity, semantics, availability, and integration are explicitly approved.
 - Do not build Step 2.5 evaluator/reporting work during Steps 2.3–2.4.
 - Do not build Step 3.1 production persistence/cache during Step 2.3/2.4.
 - Do not use operational logger lines as the primary investor-facing result renderer.
-- Do not force Momentum and Graham into one generic result object merely for presentation.
+- Do not force heterogeneous strategies into one generic result object merely for presentation.
 - Do not pull Step 3.4 watchlists/Analysis Run persistence into Step 2.3.
 - Do not build a daemon, scheduler, proactive-monitoring service, notification system, full-screen TUI, or executive-report generator before the roadmap step that owns it.
 - Use `src/data/repositories/` for the planned repository layer.

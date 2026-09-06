@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
+from contextlib import nullcontext
 from dataclasses import replace
 from unittest.mock import patch
 
@@ -11,6 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from src.cli import app
+from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 from src.data.sec_edgar import SEC_PROVIDER_ID
@@ -31,7 +33,10 @@ def disable_live_instrument_profile_resolution() -> Iterator[None]:
     def unknown_profile(ticker: str, **_arguments: object) -> InstrumentProfile:
         return InstrumentProfile(ticker=ticker, identity=None, kind_evidence=None, diagnostics=())
 
-    with patch("src.cli._compose_analysis_profile", side_effect=unknown_profile):
+    with (
+        patch("src.cli._compose_analysis_profile", side_effect=unknown_profile),
+        patch("src.cli._production_financial_cache", side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache())),
+    ):
         yield
 
 

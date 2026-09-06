@@ -5,6 +5,7 @@ This section is for people **using Financial Data Agents**. It deliberately avoi
 ## Get the application running
 
 - [Installation & Configuration](INSTALLATION.md) — patient, beginner-friendly setup instructions with explanations of Git, the installation folder, SEC EDGAR identification, optional Massive credentials, and troubleshooting.
+- [Local Database Operations](DATABASE.md) — schema preparation, cache settings, backup, and recovery.
 - [Quick Start](QUICKSTART.md) — terse setup for experienced developers and technically comfortable users.
 - [Hardware & Local AI](HARDWARE.md) — optional local-model hardware guidance. A GPU is not required for direct deterministic analysis.
 
@@ -13,9 +14,6 @@ This section is for people **using Financial Data Agents**. It deliberately avoi
 - [Usage Guide](USAGE.md) — common command structure, available analysis strategies, presentation modes, historical analysis, overrides, data-source selection, and the technical Golden Suite command.
 - [Smoke Testing Commands](SMOKE_TESTING.md) — twelve representative commands for a human to run after a deployment or update.
 - [Analysis Strategy Guides](strategies/README.md) — method-specific use, interpretation, assumptions, data sources, comparison points, and limitations.
-  - [Graham Analysis Strategy](strategies/GRAHAM.md)
-  - [Momentum Analysis Strategy](strategies/MOMENTUM.md)
-  - [Free Cash Flow & Earnings Growth Strategy](strategies/FCF_EARNINGS_GROWTH.md)
 
 ## Understand the terminology and calculations
 

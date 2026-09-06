@@ -168,7 +168,7 @@ class AgentOrchestrator:
         if self.recorder.run_context != self.run_context:
             raise ValueError("Orchestrator run_context must match the recorder run_context.")
 
-        # Step 2.2 – Native schema capability (lazy-resolved, cached per-instance)
+        # Native schema capability (lazy-resolved, cached per-instance)
         # True=supported, False=unsupported, None=unknown/unresolved
         self._schema_capability: bool | None = None
         self._capability_resolved: bool = False
@@ -663,7 +663,7 @@ class AgentOrchestrator:
     ) -> tuple[list[ToolCallRequest], ChatMessage]:
         """Parse LLM response with schema validation and bounded retry on violation.
 
-        Step 2.2: When the LLM is called with a native schema constraint and
+        When the LLM is called with a native schema constraint and
         the response fails Pydantic validation, the failure is treated as a
         recoverable schema violation.  The orchestrator builds a retry prompt
         via ``build_retry_messages``, re-issues the LLM call, and repeats up

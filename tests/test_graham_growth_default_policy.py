@@ -1,6 +1,6 @@
 """Focused tests for investor-facing Graham Growth provider defaults."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 from typer.testing import CliRunner
 
@@ -34,7 +34,7 @@ def test_growth_default_routes_sec_three_year_average_and_yahoo_quote() -> None:
 
     assert result.exit_code == 0
     assert result.output.strip() == "ok"
-    mock_build.assert_called_once_with(method=GrahamCliMethod.GROWTH, data_provider=SEC_PROVIDER_ID)
+    mock_build.assert_called_once_with(method=GrahamCliMethod.GROWTH, data_provider=SEC_PROVIDER_ID, cache=ANY)
     assert mock_run.call_args.kwargs["security_provider_id"] == SEC_PROVIDER_ID
     assert mock_run.call_args.kwargs["quote_provider_id"] == YFINANCE_PROVIDER_ID
     assert mock_run.call_args.kwargs["eps_basis"] == "three_year_average"
@@ -48,7 +48,7 @@ def test_growth_explicit_massive_routes_ttm_and_massive_quote() -> None:
         result = runner.invoke(app, _growth_args("--data-provider", "massive"))
 
     assert result.exit_code == 0
-    mock_build.assert_called_once_with(method=GrahamCliMethod.GROWTH, data_provider=MASSIVE_PROVIDER_ID)
+    mock_build.assert_called_once_with(method=GrahamCliMethod.GROWTH, data_provider=MASSIVE_PROVIDER_ID, cache=ANY)
     assert mock_run.call_args.kwargs["security_provider_id"] == MASSIVE_PROVIDER_ID
     assert mock_run.call_args.kwargs["quote_provider_id"] == MASSIVE_PROVIDER_ID
     assert mock_run.call_args.kwargs["eps_basis"] == "ttm"

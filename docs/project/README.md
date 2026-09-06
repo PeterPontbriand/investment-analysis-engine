@@ -8,7 +8,7 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 
 **Active milestone:** v0.2<br/>
 **Completed step:** Step 2.6 — Circuit Breakers & Timeout Limits — complete and approved on 2026-09-03<br/>
-**Next planned step:** Step 3.1 — SQLite DB & Migration Infrastructure — not started<br/>
+**Active step:** Step 3.1 — SQLite DB & Migration Infrastructure — D0 contract/schema mapping in progress; production code not started<br/>
 **Last recorded checkpoint:** `07c73e5`; the approved Step 2.6 implementation remains in the working tree pending commit<br/>
 **Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
 **Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md)<br/>

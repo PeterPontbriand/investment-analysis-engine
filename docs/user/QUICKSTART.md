@@ -15,7 +15,11 @@ This is the terse installation/configuration version. If any step is unfamiliar,
 git clone https://github.com/PeterPontbriand/financial-data-agents.git
 cd financial-data-agents
 uv sync
+uv run --no-sync alembic upgrade head
 ```
+
+Set `DATABASE_URL` before migration if using a nondefault location. See
+[Local Database Operations](DATABASE.md) for upgrades, backups, and recovery.
 
 ## Configure SEC EDGAR
 
@@ -42,7 +46,7 @@ uv run financial-agents momentum AAPL
 uv run financial-agents fcf-growth MSFT
 ```
 
-The Graham and FCF-growth commands require `SEC_USER_AGENT`. For a broader human-executed check, use the [Smoke Testing Commands](SMOKE_TESTING.md).
+Commands that access SEC EDGAR require `SEC_USER_AGENT`. For a broader human-executed check, use the [Smoke Testing Commands](SMOKE_TESTING.md).
 
 ## Next
 

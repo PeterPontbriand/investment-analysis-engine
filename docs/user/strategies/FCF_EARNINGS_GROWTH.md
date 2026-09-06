@@ -35,7 +35,7 @@ uv run financial-agents fcf-growth MSFT --json
 | `--as-of DATE_OR_TIMESTAMP` | Set a point-in-time information boundary. |
 | `--data-provider sec-edgar` | Select the current production annual-facts provider. |
 | `--currency USD` | Require a compatible three-letter ISO 4217 reporting currency for annual facts. |
-| `--no-cache` | Bypass the in-memory resolved-input cache for this run. |
+| `--no-cache` | Bypass resolved-input cache reads and writes for this run. |
 | `--details` | Show annual facts, provenance, and derivation lineage. |
 | `--diagnostics` | Show the resolver execution trace. |
 | `--json` | Emit the complete versioned typed result. |

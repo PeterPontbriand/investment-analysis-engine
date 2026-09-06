@@ -4,7 +4,9 @@ Execute this short set of commands as a smoke test after deploying or updating F
 
 ## Prerequisites
 
-- Complete the normal installation and configuration steps.
+- Complete the normal installation and configuration steps, including
+  [database schema preparation](DATABASE.md). The database guide also describes
+  the separate offline persistence test.
 - Allow outbound access required by Yahoo Finance, SEC EDGAR, and—when tested—Massive.
 - Configure the SEC EDGAR application identity described in the installation guidance.
 - Set `MASSIVE_API_KEY` before running the optional Massive command.

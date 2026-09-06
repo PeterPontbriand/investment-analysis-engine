@@ -16,7 +16,8 @@ from src.config import settings
 from src.core.telemetry.models import TelemetryMode, TrajectoryEvent, TrajectoryEventType
 from src.core.telemetry.redaction import redact_value, sanitize_exception_message
 from src.core.telemetry.run_context import RunContext
-from src.core.telemetry.sinks import JSONLTrajectorySink, TrajectorySink
+from src.core.telemetry.sinks import JSONLTrajectorySink, SQLiteTrajectorySink, TrajectorySink
+from src.data.repositories.sqlite import SQLiteDatabase
 from src.orchestrator.reliability import RecentEventSummary
 
 logger = logging.getLogger(__name__)
@@ -106,12 +107,20 @@ class TrajectoryRecorder:
         mode: TelemetryMode = TelemetryMode.LIGHT,
         model_tag: str | None = None,
     ) -> TrajectoryRecorder:
-        """Create the default Step 2.1 JSONL recorder from ProjectSettings."""
-        sink = JSONLTrajectorySink(
-            settings.telemetry_log_dir,
-            max_log_files=settings.telemetry_max_log_files,
-            max_total_size=settings.telemetry_max_total_size,
-        )
+        """Select the configured sink, retaining JSONL as the default.
+
+        SQLite opens lazily and requires an operator-migrated database. Its
+        operational failures are handled at the existing recorder boundary.
+        """
+        sink: TrajectorySink
+        if settings.telemetry_sink == "sqlite":
+            sink = SQLiteTrajectorySink(SQLiteDatabase(settings), close_database=True)
+        else:
+            sink = JSONLTrajectorySink(
+                settings.telemetry_log_dir,
+                max_log_files=settings.telemetry_max_log_files,
+                max_total_size=settings.telemetry_max_total_size,
+            )
         config = TrajectoryRecorderConfig(
             mode=mode,
             model_tag=model_tag,

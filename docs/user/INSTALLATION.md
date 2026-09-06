@@ -50,6 +50,15 @@ uv sync
 
 This lets `uv` download and set up the supporting Python software that Financial Data Agents needs.
 
+Prepare the local database before running analyses:
+
+```bash
+uv run --no-sync alembic upgrade head
+```
+
+For database location overrides, upgrades, backups, and recovery, see
+[Local Database Operations](DATABASE.md). Set any database override before running the migration.
+
 Then check that the command is available:
 
 ```bash
@@ -66,7 +75,7 @@ Configuration tells Financial Data Agents how to identify itself to certain data
 
 ### SEC EDGAR identification
 
-The Graham and Free Cash Flow & Earnings Growth strategies can obtain public company financial facts from the U.S. [SEC](GLOSSARY.md#sec) [EDGAR](GLOSSARY.md#edgar) system.
+Analysis strategies that use company filings can obtain public financial facts from the U.S. [SEC](GLOSSARY.md#sec) [EDGAR](GLOSSARY.md#edgar) system.
 
 The SEC asks automated software to identify itself in the HTTP `User-Agent` header. Financial Data Agents therefore requires `SEC_USER_AGENT` before requesting SEC data.
 
@@ -110,9 +119,9 @@ The temporary form disappears when that terminal session ends.
 
 ### Optional: Massive market-data access
 
-[Massive](GLOSSARY.md#massive) is a commercial financial-market-data service. Financial Data Agents can optionally use it for supported current market/fundamental data in the Graham Growth Value method.
+[Massive](GLOSSARY.md#massive) is a commercial financial-market-data service. Financial Data Agents can optionally use it for supported current market and fundamental data.
 
-You do **not** need Massive to run the Graham Number, Momentum, or Free Cash Flow & Earnings Growth strategies.
+Massive credentials are needed only when selecting a data source that uses Massive. Consult the selected strategy's guide for supported providers and required credentials.
 
 A **Massive API key** is a credential supplied by Massive that allows software to access data permitted by your Massive account/plan. If you already have or want Massive access:
 
@@ -126,7 +135,7 @@ MASSIVE_API_KEY="your-massive-api-key"
 
 Keep the key private. Your Massive plan must permit the data/endpoints you intend to use.
 
-For exactly what the current integration can supply, see [Graham Analysis Strategy — Data sources](strategies/GRAHAM.md#data-sources).
+The [Analysis Strategy Guides](strategies/README.md) describe supported data sources and any provider-specific limits for each strategy.
 
 ### Optional: local AI
 

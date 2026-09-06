@@ -35,6 +35,14 @@ For Milestone v0.2, `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` owns i
 
 ## 4. Scope preservation
 
+### Planning document boundary
+
+- Keep milestone-specific identifiers, implementation sequencing, approval criteria, and completion tracking within `docs/project/` or `.github/` artifacts explicitly dedicated to milestone planning. Before adding such content, verify that the target file is in an allowed location.
+- Outside those locations, describe behavior, requirements, and verification in durable technical terms without planning labels such as "Step 2.6," "Slice B," or "Gate D0."
+- Ordinary technical uses of words such as "step," "slice," and "gate" are allowed. Agent instruction files may define this policy and link to authoritative planning documents without reproducing their implementation details.
+
+### Implementation preservation
+
 - Before refactoring, establish the relevant test baseline.
 - Preserve unrelated behavior and formatting.
 - A pre-existing rule violation in a legacy file is not permission to refactor unrelated code while touching that file.
