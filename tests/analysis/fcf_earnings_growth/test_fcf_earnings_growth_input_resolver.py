@@ -7,13 +7,13 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.analysis.fcf_earnings_growth.input_resolver import (
+from src.analysis.strategy.fcf_earnings_growth.input_resolver import (
     CACHE_SCHEMA_VERSION,
     AnnualGrowthSeriesAssembly,
     FinancialFieldProvider,
     resolve_annual_growth_series,
 )
-from src.analysis.fcf_earnings_growth.models import (
+from src.analysis.strategy.fcf_earnings_growth.models import (
     FCFClassificationBasis,
     FCFEarningsGrowthPolicy,
     HistoricalHorizon,

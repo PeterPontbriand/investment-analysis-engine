@@ -40,7 +40,7 @@ Each attempted Cline implementation prompt was intended to enforce these boundar
 4. Do not edit `pyproject.toml`, `uv.lock`, provider mappings, financial formulas, production strategy semantics, or unrelated documentation.
 5. Add focused deterministic tests in the same slice. Tests must not use live APIs, wall-clock time, mutable production caches, or real LLM endpoints.
 6. Run focused Ruff, formatting, strict mypy, and pytest checks appropriate to the slice.
-7. Report changed files, checks run, and unresolved questions, then stop. Do not start the next slice or create a commit unless the human explicitly requests it.
+7. Report changed files, checks run, and unresolved questions, then stop. Do not start the next slice or create a commit unless the project owner explicitly requests it.
 
 The complete repository quality gate is required at the review checkpoints identified below and at final closeout. A focused slice may use narrower checks while it is still under review.
 
@@ -488,7 +488,7 @@ Rationale:
 
 Do not select `qwen3-coder-next:q4_K_M` for the initial run. It is attractive for agentic coding, but its 52 GB weights precede context-cache allocation and exceed the capacity demonstrated by the repository's current deployment artifact. Do not select the 290 GB Qwen3-Coder 480B local artifact. `devstral-small-2:24b-instruct-2512-q4_K_M` is the fallback only if Qwen3-Coder cannot remain fully GPU-offloaded or proves unable to use Cline's tools reliably; do not alternate models casually between slices.
 
-Final review decision on 2026-08-30: Qwen3-Coder remained fully GPU-offloaded but produced three completion claims that materially contradicted the files and check results on disk, including a fresh reduced A1 task. Although the original profile named `devstral-small-2:24b-instruct-2512-q4_K_M` as a possible fallback, the human elected not to spend further Step 2.5 time testing Cline implementation models. There is no active Cline fallback for the Golden Suite. Reconsidering Cline for a later milestone would require a separate explicit decision and would not reopen this Step 2.5 record.
+Final review decision on 2026-08-30: Qwen3-Coder remained fully GPU-offloaded but produced three completion claims that materially contradicted the files and check results on disk, including a fresh reduced A1 task. Although the original profile named `devstral-small-2:24b-instruct-2512-q4_K_M` as a possible fallback, the project owner elected not to spend further Step 2.5 time testing Cline implementation models. There is no active Cline fallback for the Golden Suite. Reconsidering Cline for a later milestone would require a separate explicit decision and would not reopen this Step 2.5 record.
 
 Primary sources:
 
@@ -599,7 +599,7 @@ The drafts below are retained as historical design artifacts and bounded-scope r
 Unless a prompt says otherwise, each task must:
 
 - work on branch `feat/step-2.5-golden-suite` in the existing working tree;
-- obey `AGENTS.md`, the active implementation plan, this slice plan, and `docs/EVALUATIONS.md` in that precedence order after the human request;
+- obey `AGENTS.md`, the active implementation plan, this slice plan, and `docs/EVALUATIONS.md` in that precedence order after the user request;
 - preserve reviewed prerequisite work already present in the working tree;
 - use `apply_patch` or Cline's normal file-edit tool rather than shell write tricks;
 - add Google-style docstrings and strict types consistent with the repository;
@@ -616,7 +616,7 @@ Do not issue these prompts. They preserve the intended slice boundaries and the 
 ```text
 Implement only Step 2.5 Slice A1 — enums and leaf constraints — on branch feat/step-2.5-golden-suite.
 
-The reviewed Git checkpoint is commit ff4140336381e98cff835e9ea05fa61620aca1f9. The worktree intentionally contains exactly one pre-existing human-owned modification: ` M docs/project/milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md`. Before any write, run git rev-parse HEAD and git status --short from the repository root. Stop if the SHA differs or status contains anything other than that one line. Preserve the human-owned plan modification byte-for-byte: do not edit, revert, stage, format, or otherwise take ownership of it. Use repository-relative paths in every file tool; never pass C:\Source\... or another absolute Windows path to a write/edit tool.
+The reviewed Git checkpoint is commit ff4140336381e98cff835e9ea05fa61620aca1f9. The worktree intentionally contains exactly one pre-existing human-owned modification: ` M docs/project/milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md`. Before any write, run git rev-parse HEAD and git status --short from the repository root. Stop if the SHA differs or status contains anything other than that one line. Preserve the user-owned plan modification byte-for-byte: do not edit, revert, stage, format, or otherwise take ownership of it. Use repository-relative paths in every file tool; never pass C:\Source\... or another absolute Windows path to a write/edit tool.
 
 Read AGENTS.md, Section 4.5 of docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md, Sections 2–6.1 and 19–21 of docs/project/milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md, docs/EVALUATIONS.md, and the existing src/evaluation/__init__.py. Inspect src/orchestrator/analysis_tools.py only to confirm the four approved tool names. Do not modify either inspected production/package file.
 
@@ -641,7 +641,7 @@ If a command cannot run, report its exact output and follow AGENTS.md's managed-
 ```text
 Implement only Step 2.5 Slice A2 — composed case, observation, and result contract — after A1 has been independently accepted.
 
-The human will replace [A1_CHECKPOINT_SHA] before sending this prompt. The reviewed baseline must be clean commit [A1_CHECKPOINT_SHA] on branch feat/step-2.5-golden-suite. Before any write, run git rev-parse HEAD and git status --short from the repository root. Stop if the SHA differs or status is not empty. Use repository-relative paths in every file tool and never pass an absolute Windows path to a write/edit tool.
+The project owner will replace [A1_CHECKPOINT_SHA] before sending this prompt. The reviewed baseline must be clean commit [A1_CHECKPOINT_SHA] on branch feat/step-2.5-golden-suite. Before any write, run git rev-parse HEAD and git status --short from the repository root. Stop if the SHA differs or status is not empty. Use repository-relative paths in every file tool and never pass an absolute Windows path to a write/edit tool.
 
 Read AGENTS.md, Section 4.5 of the implementation plan, Sections 2–6.2 and 19–21 of the Step 2.5 slice plan, docs/EVALUATIONS.md, and the complete reviewed A1 versions of src/evaluation/models.py and tests/evaluation/test_models.py. In Plan mode, enumerate the composed models, cross-field validators, public exports, test additions, and exact three owned files. Wait for approval before Act mode.
 
@@ -846,7 +846,7 @@ Read AGENTS.md, Sections 12–14 and 19–22 of the Step 2.5 slice plan, the Gat
 
 In Plan mode, explain why the action adds distinct benchmark signal or corrects a demonstrated defect, list exact files/tests, and prove it does not tune results merely to improve the pass rate. Wait for approval.
 
-In Act mode, implement only that action. Preserve all reviewed case IDs and expectations unless the human explicitly approved a versioned correction. Add focused deterministic tests and document the reason for any new case.
+In Act mode, implement only that action. Preserve all reviewed case IDs and expectations unless the project owner explicitly approved a versioned correction. Add focused deterministic tests and document the reason for any new case.
 
 Do not perform generic expansion, opportunistic cleanup, real-Ollama work, CLI work, production financial changes, or other review findings. Run focused checks, the canonical deterministic suite, and the complete repository quality-gate wrapper, then stop at Gate M. Do not commit.
 ```
@@ -897,7 +897,7 @@ Do not weaken or repair failing expectations merely to close the step. Make only
 
 ## 22. Implementation execution and review record
 
-This is the living audit trail for Step 2.5 implementation. The retired Cline attempts remain historical evidence; all P1 and later implementation is Codex-owned. Any implementation summary is evidence to review, not the review verdict. The human or reviewing agent updates this section after inspecting the actual diff and independently rerunning appropriate checks.
+This is the living audit trail for Step 2.5 implementation. The retired Cline attempts remain historical evidence; all P1 and later implementation is Codex-owned. Any implementation summary is evidence to review, not the review verdict. The project owner or reviewing agent updates this section after inspecting the actual diff and independently rerunning appropriate checks.
 
 ### 22.1 Runtime preflight record
 
@@ -960,14 +960,14 @@ Final preflight result on 2026-08-30: after fully stopping the stale server and 
 - Reviewed diff: only untracked artifacts existed. An absolute Windows path was mis-encoded into a zero-byte repository-root filename. The intended package initializer remained unchanged.
 - Findings: attempt 1's `models.py` began mid-module without imports/enums and could not import; its six tests omitted most of the approved matrix. After a bounded correction prompt, attempt 2 reduced `models.py` to `# Simple test file`, retained the malformed root file and old tests, and again claimed completion.
 - Independent verification: attempt 1 produced 76 Ruff errors, 69 strict-mypy errors, and a pytest collection `NameError`; formatting passed. Attempt 2 produced one Ruff error and a pytest collection `ImportError`; formatting passed, while mypy passed only because the source file contained no code.
-- Decision: reject and retire the monolithic slice. The human owns exact cleanup of the three untracked artifacts. Resume from a clean checkpoint with fresh A1 and A2 tasks.
+- Decision: reject and retire the monolithic slice. The project owner owns exact cleanup of the three untracked artifacts. Resume from a clean checkpoint with fresh A1 and A2 tasks.
 - Prompt lessons: keep each write small; prohibit absolute paths in file tools; require clean-SHA verification, full-file read-back, and exact command output; never accept a model's completion summary without inspecting disk and rerunning checks.
 
 #### 2026-08-30 — Slice A1, attempt 1
 
 - Prompt/configuration: fresh reduced A1 task; Cline `v4.1.16 (Next)`, Qwen3-Coder alias digest `5d94265d163a`, 65,536 context, 100% GPU; exact enums, fields, exclusions, relative paths, baseline state, read-back, and command requirements supplied.
 - Cline summary: claimed five `StrEnum` classes, all four frozen leaf models, comprehensive tests, and successful validation.
-- Reviewed diff: `src/evaluation/models.py` was the only Cline-owned artifact. It contained 41 lines defining only the five enums. `tests/evaluation/test_models.py` did not exist. The human-owned slice-plan modification remained separate.
+- Reviewed diff: `src/evaluation/models.py` was the only Cline-owned artifact. It contained 41 lines defining only the five enums. `tests/evaluation/test_models.py` did not exist. The user-owned slice-plan modification remained separate.
 - Findings: imported undeclared third-party `strenum` despite Python 3.12's standard-library `enum.StrEnum` and the no-dependency rule; omitted ToolConstraints, GrahamMethodConstraints, BehaviorConstraints, NumericalExpectation, all validators, all tests, module/class docstrings, and required verification.
 - Independent verification: Ruff reported 13 errors; format-check reported the source unformatted and the test path missing; strict mypy reported 6 errors; pytest reported the test path missing and ran zero tests.
 - Decision: reject and stop the current task. Because the failure recurred in a fresh, materially smaller slice after the tool smoke test and explicit corrections, treat Qwen3-Coder as unreliable for Cline implementation on this host. The Section 19.2 fallback condition is met.

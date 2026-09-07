@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 
 import pandas as pd
 
-from src.analysis.fcf_earnings_growth.models import MetricStatus, ReasonCode
-from src.analysis.momentum.momentum_analyzer import (
+from src.analysis.strategy.fcf_earnings_growth.models import MetricStatus, ReasonCode
+from src.analysis.strategy.momentum.momentum_analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
     MomentumInputResolver,

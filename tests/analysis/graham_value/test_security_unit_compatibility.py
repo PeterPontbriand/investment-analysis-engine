@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime
 
-from src.analysis.graham_value.service import _margin_of_safety
+from src.analysis.shared.financial_resolution import margin_of_safety
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.security_unit import SecurityUnitEvidence, SecurityUnitKind
 
@@ -36,7 +36,7 @@ def _ordinary_evidence() -> SecurityUnitEvidence:
 
 
 def test_affirmative_ordinary_share_evidence_permits_comparison() -> None:
-    margin = _margin_of_safety(
+    margin = margin_of_safety(
         100.0,
         _quote("USD"),
         valuation_currency="USD",
@@ -51,7 +51,7 @@ def test_missing_adr_or_currency_mismatch_evidence_suppresses_comparison() -> No
     evidence = _ordinary_evidence()
 
     assert (
-        _margin_of_safety(
+        margin_of_safety(
             100.0,
             _quote("USD"),
             valuation_currency="USD",
@@ -61,7 +61,7 @@ def test_missing_adr_or_currency_mismatch_evidence_suppresses_comparison() -> No
         is None
     )
     assert (
-        _margin_of_safety(
+        margin_of_safety(
             100.0,
             _quote("USD"),
             valuation_currency="USD",
@@ -71,7 +71,7 @@ def test_missing_adr_or_currency_mismatch_evidence_suppresses_comparison() -> No
         is None
     )
     assert (
-        _margin_of_safety(
+        margin_of_safety(
             100.0,
             _quote("USD"),
             valuation_currency="DKK",

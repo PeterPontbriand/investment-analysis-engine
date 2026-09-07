@@ -371,7 +371,7 @@ this record to D0 review before the affected production implementation proceeds.
 
 ## 10. Adoption-risk follow-up
 
-The human reviewer identified a material product risk: these conservative
+The reviewer identified a material product risk: these conservative
 evidence rules may make the ratio of useful to unavailable investor results too
 low for sustained use. There is not yet enough representative production
 evidence to forecast that ratio accurately, so D0 does not relax the mappings.

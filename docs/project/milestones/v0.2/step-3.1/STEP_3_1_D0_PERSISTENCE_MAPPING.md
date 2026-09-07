@@ -5,7 +5,7 @@
 **Owner:** [SQLite slice plan](STEP_3_1_SQLITE_SLICE_PLAN.md), Slice D0  
 **Scope:** Approved design record. Production work proceeds only through separately authorized slices.
 
-The human approved this mapping and the exact five-table first-migration list
+The project owner approved this mapping and the exact five-table first-migration list
 on 2026-09-05 and explicitly authorized Slice A, including edits to
 `pyproject.toml` and `uv.lock`. This closes Gate D0 and accepts the proposed gap
 dispositions below; it does not authorize migration creation or later slices.

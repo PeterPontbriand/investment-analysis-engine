@@ -6,15 +6,15 @@ import json
 from dataclasses import replace
 from datetime import UTC, datetime
 
-from src.analysis.fcf_earnings_growth import (
+from src.analysis.strategy.fcf_earnings_growth import (
     FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthPolicy,
     ProductionAnnualGrowthSeriesResolver,
 )
-from src.analysis.fcf_earnings_growth.models import FCFEarningsGrowthResult
-from src.analysis.graham_value.input_resolver import GrahamNumberInputAssembly, GrowthValueInputAssembly
-from src.analysis.graham_value.models import GrahamGrowthValueResult, GrahamNumberResult
-from src.analysis.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
+from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthResult
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import TrendStatus
 from src.data.financial.production import ProductionFinancialFactsProvider

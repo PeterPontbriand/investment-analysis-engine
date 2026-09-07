@@ -130,8 +130,9 @@ An ordered, explicitly injected profile resolver selects the best available desc
 
 A present name uses `Instrument Name (TICKER) — Analysis` in successful, unsuccessful, and `not_applicable` presentations; whitespace is normalized without changing official capitalization or punctuation. Ordinary unavailability/provider failures do not claim the ticker is invalid without affirmative provider evidence. Current metadata does not prove the identity or instrument kind that applied at a historical analysis `as_of`.
 
-### `GrahamInputResolver` / input resolution (Step 2.3 implemented)
-Resolves each required field independently using:
+### Method-specific Graham input resolution
+
+`GrahamNumberInputResolver` and `GrahamGrowthInputResolver` inherit the shared `InputResolver` constructor and field-resolution behavior. Each lives in its strategy package's `calculation.py` and assembles only its own method inputs. Both borrow the provider, cache, and clock supplied by composition; neither constructs or closes those dependencies. Each required field resolves independently using:
 
 ```text
 explicit override → valid cache → configured provider → unavailable
@@ -204,23 +205,35 @@ Do not rewrite the runtime around a model-specific assumption merely to make one
 
 ## 5. Module layout
 
+Strategy implementations live under `src/analysis/strategy/`. Shared financial-resolution helpers own strategy-neutral mechanics; callers supply strategy-specific messages. `shared/graham_contracts.py` holds common Graham configuration and method contracts. Each Graham package exports its own analyzer, configuration, calculation/resolver, and service contracts through `__init__.py`; Momentum and FCF Growth retain their distinct interfaces and internal layouts.
+
 Relevant current packages include:
 
 ```text
 src/
 ├── analysis/
-│   ├── base.py
-│   ├── momentum/
-│   ├── fcf_earnings_growth/
-│   │   ├── analyzer.py
-│   │   ├── calculators.py
-│   │   ├── input_resolver.py
-│   │   └── models.py
-│   └── graham_value/
-│       ├── calculators.py
-│       ├── input_resolver.py
-│       ├── models.py
-│       └── ...
+│   ├── base_analyzer.py
+│   ├── shared/
+│   │   ├── financial_resolution.py
+│   │   └── graham_contracts.py
+│   └── strategy/
+│       ├── momentum/
+│       │   └── momentum_analyzer.py
+│       ├── fcf_earnings_growth/
+│       │   ├── analyzer.py
+│       │   ├── calculators.py
+│       │   ├── input_resolver.py
+│       │   └── models.py
+│       ├── graham_number/
+│       │   ├── analyzer.py
+│       │   ├── calculation.py
+│       │   ├── config.py
+│       │   └── service.py
+│       └── graham_growth/
+│           ├── analyzer.py
+│           ├── calculation.py
+│           ├── config.py
+│           └── service.py
 ├── core/
 │   └── telemetry/
 ├── data/
@@ -271,7 +284,7 @@ Provider Adapter Boundary
               └── macro observation contract
                       │
                       ▼
-            GrahamInputResolver ◄── override / cache
+      method-specific Graham resolver ◄── override / cache
                       │
                       ▼
                resolved inputs

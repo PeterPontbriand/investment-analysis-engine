@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-09-06 — Recorded Slice G/Gate G approval and Step 3.1 completion; no subsequent work started.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; subsequent work remains unstarted
+**Revised:** 2026-09-06 — Recorded Step 3.1 and R1 completion, the pushed R1 checkpoint, and the revised R2 proposal with independent slice gates before Step 3.2. R2 documentation review does not authorize production implementation.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -19,6 +19,8 @@ This plan turns the high-level Master Plan steps for Milestone v0.2 into an acti
 **In scope**
 - Step 2 – Agent Reliability, Strategy Generalization, Evaluation & Observability Foundation (2.1 → 2.6)
 - Step 3 – Relational Data Persistence, Data Quality & Local Research Workspace (3.1 → 3.4)
+- R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (before Step 3.4)
+- R2 – Analysis Strategy Package Split (accepted plan after R1; complete and approved on 2026-09-07; before Step 3.2)
 - Step 3.5 – Light Mode Support (required before the v0.2.5 checkpoint)
 
 **Out of scope (explicit)**
@@ -81,6 +83,7 @@ Use **fine-grained branches aligned with coherent implementation units within a 
 | Step 2.5A SEC FPI/IFRS coverage | `feat/step-2.5a-sec-fpi-ifrs` | Adds foreign annual forms, exact IFRS duration mappings, snapshot consistency, and security-unit gates after Golden closeout |
 | Step 2.6 reliability limits | `feat/step-2.6-circuit-breakers` | Isolates hard execution limits |
 | Step 3.1 persistence foundation | `feat/step-3.1-sqlite-foundation` | Alembic, schema, SQLite telemetry sink, production data access |
+| R1 Graham analyzer split + CLI plumbing | `feat/r1-graham-split-cli-plumbing` | Splits Graham into two `BaseAnalyzer` implementations and extracts CLI helpers shared by Momentum, Graham, and FCF-growth |
 | Step 3.2 repositories | `feat/step-3.2-repositories` | Typed DAO/repository layer |
 | Step 3.3 data quality | `feat/step-3.3-data-quality` | Validation, staleness, invalidation |
 | Step 3.4 research workspace | `feat/step-3.4-research-workspace` | Watchlists, user-initiated concurrent refresh, durable Analysis Runs, run browsing |
@@ -92,7 +95,7 @@ Use **fine-grained branches aligned with coherent implementation units within a 
 - Branch names should identify the Master Plan step they implement.
 - Temporary scaffolding must be documented and have an explicit removal point.
 - Documentation-only changes may use `docs/...` branches where that is clearer.
-- A reviewed intermediate checkpoint may be committed and pushed after the human explicitly approves it and the agreed quality gates are green. Such a checkpoint does not declare the owning step complete and does not authorize beginning a later Master Plan step.
+- A reviewed intermediate checkpoint may be committed and pushed after the project owner explicitly approves it and the agreed quality gates are green. Such a checkpoint does not declare the owning step complete and does not authorize beginning a later Master Plan step.
 - Cline must never commit automatically; every commit/push remains an explicit human action or authorization.
 
 ---
@@ -943,7 +946,7 @@ P1 is a concrete-defect correction, not a reopening of the approved financial fo
 
 #### 4.5.1 Implementation guardrails
 
-These guardrails apply to every Step 2.5 implementer. The earlier Cline experiment was terminated after repeated completion claims contradicted repository state; Codex owns P1 and the remaining implementation, with the human review gates unchanged.
+These guardrails apply to every Step 2.5 implementer. The earlier Cline experiment was terminated after repeated completion claims contradicted repository state; Codex owns P1 and the remaining implementation, with the stakeholder review gates unchanged.
 
 - Reuse the Steps 2.3–2.4 strategy and market/financial-data contracts; do not create parallel abstractions.
 - Reuse existing production orchestration/tool-dispatch wherever it already supports deterministic fixture injection.
@@ -1217,7 +1220,7 @@ Step 2.5 does **not** include:
 #### 4.5.20 Acceptance criteria
 
 Checked items below are evidenced by the reviewed implementation and Slice K
-closeout record. The human approved Step 2.5 on 2026-08-31.
+closeout record. The project owner approved Step 2.5 on 2026-08-31.
 
 - [x] A reproducible fixture-backed Golden Suite exercises Momentum, the Graham Number, the Graham growth-value method, and Free Cash Flow & Earnings Growth.
 - [x] P1 is approved before Golden models/cases are implemented; a provider-confirmed ETF is `not_applicable` to both Graham methods and company-level FCF Growth, remains applicable to Momentum, retains its identity when available, and is not described as an invalid ticker.
@@ -1335,16 +1338,16 @@ Hard execution caps, wall-clock bounds, and error thresholds that prevent unboun
 **Status:** Gate D0 mapping and exact first-migration table list approved on
 2026-09-05. Slices A/B1/B2 were subsequently approved and B3 explicitly authorized.
 Slice B3 is implemented with a green complete gate (1,406 tests, 88% coverage).
-The human approved Slice B3 and Gate B on 2026-09-05. Following the pushed
+The project owner approved Slice B3 and Gate B on 2026-09-05. Following the pushed
 checkpoint, C1 was implemented, verified, and approved on 2026-09-05. Authorized
 C2 reconstruction and runtime selection passed the complete gate (1,436 tests,
 88% coverage) and received human approval on 2026-09-05, closing Gate C.
-D1 scalar caching and D2 series caching are approved; the human completed
-Gate D review on 2026-09-05. The human approved E1 and authorized E2 on
-2026-09-05. The human approved E2 on 2026-09-06, closing Gate E and authorizing
-F1. The human approved F1 and F2, then authorized G on 2026-09-06. Operator
+D1 scalar caching and D2 series caching are approved; the project owner completed
+Gate D review on 2026-09-05. The project owner approved E1 and authorized E2 on
+2026-09-05. The project owner approved E2 on 2026-09-06, closing Gate E and authorizing
+F1. The project owner approved F1 and F2, then authorized G on 2026-09-06. Operator
 workflow and integrated persistence closeout passed the complete gate (1,615
-tests, 88% coverage). The human approved Slice G on 2026-09-06, closing Gate G
+tests, 88% coverage). The project owner approved Slice G on 2026-09-06, closing Gate G
 and completing Step 3.1. JSONL remains the default. P2, Step 3.2, and all other
 subsequent planning work remain unstarted pending separate authorization.
 The authoritative slice sequence,
@@ -1386,7 +1389,25 @@ or P2.
 
 ### 4.7A P2 – Durable Instrument Profiles & ETF Aggregate FCF Growth (Post–Step 3.1)
 
-**Status:** Planned and explicitly deferred until Step 3.1 is implemented and approved. Its exact placement relative to Steps 3.2–3.4 must be reviewed after the Step 3.1 schema/repository boundary is concrete; this section does not authorize implementation during Step 2.5 or Step 3.1.
+**Status:** Split into independently scheduled deliverables; neither is started.
+The accepted sequence is R1 → Step 3.2 reconciliation/completion → Step 3.3 →
+P2-Profiles → Step 3.4 → Step 3.5. P2-ETF is deferred until after Step 3.5 and
+requires a separate prioritization/authorization decision; completion of 3.5
+neither starts it automatically nor makes it a prerequisite for v0.2.5 validation.
+
+**P2-Profiles — durable instrument profiles:** Owns items 1–2 below and the
+profile-specific fixtures in item 6. Schedule after 3.3 and before 3.4. Before
+implementation, review the identity key, provider disagreement/precedence,
+freshness/invalidation, refresh, and historical-snapshot contract against the
+completed repository and data-quality boundaries. Acceptance requires migrated
+storage, deterministic reopen/reuse and ticker-reuse tests, truthful retained
+provenance, and an immutable execution snapshot suitable for Analysis Runs.
+No ETF holdings ingestion or aggregation belongs to this deliverable.
+
+**P2-ETF — ETF aggregation strategy:** Owns items 3–5, holdings/aggregate fixtures
+in item 6, and item 7. Preserve the separate evidence/product-policy gate before
+implementation. Scheduling is strictly after 3.5, when prioritized. Do not create
+speculative ETF schemas or infrastructure while implementing P2-Profiles or 3.4.
 
 **Goal:** Replace repeated live descriptive/classification lookups with durable, time-aware instrument profiles and add a distinct look-through FCF-growth strategy for ETFs without changing the meaning of the existing company-level strategy.
 
@@ -1402,14 +1423,108 @@ or P2.
 
 **P2 non-goals:** treating an ETF as an operating company, deriving holdings from an instrument name, hiding incomplete constituent coverage, using an LLM for aggregation mathematics, silently substituting the ETF strategy, or coupling strategy calculators directly to SQLite.
 
+### 4.7B R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (Pre–Step 3.4)
+
+**Status:** Gate R1-A approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved. R1 remains scheduled ahead of Step 3.4 by explicit sequencing choice, not because of a recognized technical dependency. It does not require P2, Step 3.2, or Step 3.3 to begin or complete first. Gates R1-A, R1-B, and R1-C are approved. Later work requires separate authorization.
+
+**Rationale:** The Graham methods already have distinct assembly types, result types, calculators, and execution services. Thin method-specific analyzers and configuration models can expose those existing boundaries more clearly to callers. The shared CLI helper functions already have single implementations; the repeated work is their invocation and command orchestration, not duplicate implementations of those helpers. Extracting applicable support functions can reduce the responsibilities of `cli.py` without imposing identical command flows.
+
+The existing `FCFEarningsGrowthAnalyzer` does not inherit `BaseAnalyzer` and has its own execution signature. R1 does not change that interface or establish universal analyzer inheritance as a requirement. Durable Analysis Runs can preserve heterogeneous typed configurations/results without requiring every method to share a superclass. Completing R1 before Step 3.4 is a chosen work order only.
+
+**Goal**
+Expose each Graham method through a narrow typed analyzer/configuration boundary and simplify CLI support code while preserving analytical results, provenance, applicability, and presentation semantics. The public command removal described below is an explicitly approved compatibility break.
+
+**Approved CLI compatibility decision**
+On 2026-09-06 the project owner explicitly approved removing the existing `graham TICKER` / `graham --method {number,growth}` command surface without a compatibility alias. The sole current user accepts the invocation change. The reviewed proposal specifies two direct commands, `graham-number` and `graham-growth`; their spelling, argument/option mapping, and help contract are recorded in the R1 contract record approved at Gate R1-A on 2026-09-06. Any alternative spelling requires an explicit planning amendment rather than an implementation-time choice.
+
+Coordinate command removal with active documentation, examples, CLI help, completion/entry-point references where applicable, and tests in the same CLI slice. Provide an old-to-new invocation mapping, including default Number invocation and explicit Growth options. This is a CLI migration, not a database schema migration. Historical plans/review evidence retain their original command names with a historical annotation where needed; do not rewrite past evidence. Analytical method identifiers, tool names, and serialized result schemas remain stable.
+
+**Implementation slices and review gates**
+
+**R1-A — contract and implementation-plan review (planning only)**
+
+The completed planning deliverable is [R1 Contract and Implementation Handoff](r1/R1_CONTRACT_AND_SLICE_PLAN.md).
+It supplies the field/default matrix, typed interfaces, dependency ownership,
+command migration, implementation file scope, and verification requirements
+listed below. R1-A was approved on 2026-09-06. Approval of that record and
+this revised plan closes Gate R1-A and authorizes R1-B after the requested documentation checkpoint commit; no additional
+planning-only step is required. R1-C still requires Gate R1-B approval.
+
+- Freeze both config field sets, defaults, provider/EPS-basis validation matrix, method-specific overrides, requested `as_of`, and cache-use controls.
+- Specify `GrahamNumberAnalyzer(BaseAnalyzer[GrahamNumberConfig])` and `GrahamGrowthAnalyzer(BaseAnalyzer[GrahamGrowthConfig])`, with explicit `config_schema` attributes and `run_analysis(config, ticker=None)` returning `GrahamNumberAnalysis` and `GrahamGrowthAnalysis`, respectively. Preserve the complete service execution evidence rather than returning only calculator results.
+- Inject the existing resolver and the growth calculation policy; define how the caller supplies its resolved instrument profile and effective provider/quote selection. Keep resource construction and ownership in composition: analyzers borrow dependencies, perform no implicit production wiring, and do not close caller-owned resources. Freeze ticker/default resolution and clock ownership before coding; reuse existing service/resolver temporal behavior.
+- Preserve the public `GrahamValueAnalyzer`, `GrahamValueConfig`, and their existing behavior. The new wrappers do not authorize removal or replacement of that legacy interface. Existing orchestration handlers continue calling the services directly; orchestration migration is outside R1.
+- Freeze replacement CLI spelling, migration mapping, validation/error behavior, file allowlists, and focused regression tests. Establish the test baseline before refactoring.
+- **Gate R1-A:** Approved by the project owner on 2026-09-06. Commit the planning checkpoint before R1-B production changes.
+
+**R1-B — analyzer/configuration separation**
+1. Add the two analyzer wrappers, delegating to the existing `run_graham_number_analysis` / `run_graham_growth_analysis` service functions without changing them.
+2. Add separate Pydantic configuration models with `extra="forbid"`. Reject fields belonging to the other method, preserve provider-dependent EPS defaults and normalization, and reject every invalid combination currently rejected by `_validate_graham_options`. Defaults are part of the contract, not merely validation details.
+3. Keep `GrahamInputResolver` and shared service helpers unchanged. Preserve numerical validation, provenance, applicability, typed result schemas, and the legacy public analyzer interfaces.
+4. Add direct tests for each analyzer/config contract using injected deterministic dependencies, including full typed execution evidence and invalid/default option matrices. Existing CLI and orchestration paths remain intact in this slice.
+- **Gate R1-B:** Approved on 2026-09-06 after the managed repository quality gate.
+
+**R1-C — CLI separation, support extraction, and migration**
+1. Replace the old Graham command with the reviewed direct commands. CLI execution uses the new analyzers' `run_analysis` methods; presentation continues consuming the same typed service results. Remove `_validate_graham_options` and `GrahamCliMethod` after the replacement validation paths are in place.
+2. Move applicable existing support functions into `src/cli_support.py`: ticker resolution, presentation-mode resolution, `--as-of` parsing, provider-id normalization, and scoped financial-cache/historical-client composition. Preserve `src/cli.py` as the command owner and the existing application entry point; do not convert `src.cli` into a package.
+3. Each command reuses only applicable helpers. Preserve existing options, defaults, provider selection, and resource lifetimes. In particular, do not add a Momentum CLI `--as-of` option or force historical and financial caching through an identical flow as part of extraction.
+4. Share error-handling mechanics only where equivalent, allowing command-specific messages. Translate config validation failures into usage errors (exit 2), preserve execution failures (exit 1), successful/typed-result status mappings, stdout/stderr selection, and `--details`/`--diagnostics`/`--json` behavior. Intentional Typer exits must propagate without being caught and relabeled as execution failures. Do not expose raw Pydantic diagnostics in place of existing investor-facing messages.
+5. Update active documentation, help, command examples, and regression tests together. Test that removed invocations are rejected and replacement invocations preserve their intended results. Tests no longer construct `GrahamCliMethod`; retain coverage of every prior validation rule rather than deleting incompatible tests wholesale.
+- **Gate R1-C:** Approved by the project owner on 2026-09-06 after review of the command migration and passing managed gate: 1,809 tests, 89% coverage, Ruff, formatting, and strict mypy. R1 is complete. No subsequent work starts automatically.
+
+**Non-goals**
+- No self-registering per-package Typer sub-apps, `register(app)` convention, or analysis-package auto-discovery. These registration/discovery features are explicitly deferred under item 7 below.
+- No universal analyzer inheritance/signature requirement, generic strategy registry, or homogeneous result model.
+- No changes to other strategies' analytical logic, public options, result schemas, or presentation output.
+- No changes to already-approved Graham calculation, provenance, or applicability semantics (Decisions 11–13, 26, 31), legacy public analyzer interfaces, or orchestration tool contracts.
+- No database migration or changes to persistence internals.
+
+**Acceptance criteria**
+- [x] Both new analyzers expose the reviewed config schema, typed return value, and borrowed-dependency contract; delegate to unchanged execution services; and are exercised independently.
+- [x] Configs forbid extra fields and preserve the complete validation/default/provider matrix, including rejected cross-method fields and provider-dependent EPS defaults.
+- [x] The legacy public analyzer/config interfaces and existing orchestration tool contracts retain their behavior.
+- [x] The approved old CLI surface is removed; new commands, help, active documentation, and an explicit invocation migration mapping agree.
+- [x] Outputs, exit codes (including usage errors), streams, typed-status handling, presentation modes, and intentional Typer exits are regression-tested.
+- [x] Shared helpers live in `src/cli_support.py`; each command uses applicable helpers without new options, duplicate helper implementations, or resource-lifetime changes.
+- [x] `_validate_graham_options` and `GrahamCliMethod` are removed; their behavioral coverage is retained through the replacement paths.
+- [x] `GrahamInputResolver` and shared `service.py` helpers remain unmodified.
+- [x] Complete managed repository gates (Ruff, formatting, strict mypy, pytest/coverage) pass for implementation slices, followed by their explicit stakeholder review gates.
+
+### 4.7b R2 – Analysis Strategy Package Split
+
+**Status:** Plan accepted on 2026-09-06, including the separate-resolver design and explicit retirement approval. R2-A evidence completed on 2026-09-07: reconciled R1 scope, exact migration inventory, and fresh managed gate (1,809 tests, 89% reported coverage, Ruff, formatting, strict mypy). Gate R2-A approved on 2026-09-07; R2-B verified with 1,765 tests, 89% coverage, and the complete managed gate. Gate R2-B approved and R2-C implemented/verified on 2026-09-07: 1,811 tests, 89% coverage, Ruff, formatting, strict mypy. Gate R2-C was approved; R2-D was authorized and verified on 2026-09-07 (1,811 tests, 89% coverage, complete managed gate). Gate R2-D was approved. R2-E documentation reconciliation and final managed verification passed (1,811 tests, 89% reported coverage); Gate R2-E and final R2 approval were granted on 2026-09-07. R1 is complete and approved, as confirmed by the project owner on 2026-09-06.
+
+**Contract:** [R2 Contract and Implementation Handoff](r2/R2_CONTRACT_AND_SLICE_PLAN.md) defines the proposed symbol destinations, dependency migration, file boundaries, verification, and approval record. Sections 9.1/9.2 are accepted; section 9.3 evidence is complete in the [R2 migration inventory](r2/R2_MIGRATION_INVENTORY.md), accepted at Gate R2-A; R2-B through R2-E evidence is recorded in handoff sections 10–13. Historical R1 preservation requirements remain the record of R1's approved scope; only explicit R2 authorization supersedes the specific interfaces named for removal.
+
+**Selected ordering:** R1 → R2 → Step 3.2 → Step 3.3 → P2-Profiles → Step 3.4 → Step 3.5. R2's placement is a scheduling choice, not a technical prerequisite. P2-ETF remains separately deferred beyond Step 3.5.
+
+**Slices and approval boundaries**
+
+1. **R2-A — documentation checkpoint:** reconcile the R1 checkpoint, record a fresh managed baseline and exact migration inventory, freeze resolver/symbol contracts, and review compatibility/deletion decisions. Plan/resolver and retirement decisions are approved; complete section 9.3 evidence for Gate R2-A review before R2-B execution. Do not request the retirement decision again.
+2. **R2-B — legacy retirement:** delete the unused legacy Graham wrapper and dedicated tests after explicit approval. Reconcile removed cases and pass the managed gate; stop for review before R2-C.
+3. **R2-C — shared helper extraction:** update both Graham resolver and service consumers, and adopt the equivalent profile/ticker and affirmative-ETF checks in FCF Growth, without relocating existing files. Strategy callers own their complete messages and native results. Preserve current financial/provenance/quote semantics and add focused direct and FCF applicability tests; pass the managed gate and stop before R2-D.
+4. **R2-D — decomposition and atomic migration:** introduce method packages, perform the approved resolver dependency change, relocate Momentum/FCF, and migrate all executable consumers, exports, construction sites, and tests together. No broken imports may be deferred to R2-E. Pass the managed gate and stop for review.
+5. **R2-E — documentation and final reconciliation:** synchronize remaining active guidance, classify legitimate historical/migration references, reconcile test/coverage changes, and run the final managed gate. Explicit Gate R2-E approval completes R2; later work requires separate authorization.
+
+The existing-strategy review in R2's contract found two equivalent FCF helper consumers and no justified Momentum adoption of the proposed financial-resolution helpers. R2-D relocates all Momentum source (`__init__.py`, `momentum_analyzer.py`) and FCF source (`__init__.py`, `analyzer.py`, `input_resolver.py`, `calculators.py`, `models.py`) into `src/analysis/strategy/`, retaining their filenames and package interfaces at the new paths. Momentum historical prices and FCF annual-series resolution remain distinct from Graham scalar EPS/quote resolution; no new applicability rule, data fetch, or financial algorithm is introduced.
+
+**Preservation and acceptance**
+
+- [ ] Approved inventory and symbol/dependency map account for all consumers and intentional public-interface changes.
+- [ ] Each implementation slice passes the managed repository gate and receives its separate diff/evidence review.
+- [ ] Financial math, provenance/traces, clocks, request scope, cache/resource ownership, tool identifiers, serialized results, and CLI behavior remain unchanged.
+- [ ] Momentum/FCF retain heterogeneous interfaces; no new inheritance, discovery, registration, persistence, or dependency work is introduced.
+- [ ] All surviving behavioral tests remain covered; authorized legacy-test deletion and coverage-denominator changes are explicitly reconciled.
+- [ ] Old executable references and obsolete active guidance are removed; historical approvals and migration explanations are preserved with recorded reasons.
+
 ### 4.8 Step 3.2 – DAO & Repository Layer
 
 **Goal**<br/>
 Strongly-typed Python data-access objects for cache inspection, audit logging, and later analytics.
 
 **Implementation outline**
-1. Define narrow repository interfaces (e.g. `PriceRepository`, `TrajectoryRepository`, `MetadataRepository`).
-2. Implement SQLite-backed concrete classes that accept/return Pydantic models only under `src/data/repositories/`.
+1. Reconcile these requirements with the completed Step 3.1 repositories, cache interfaces, and connection policy. Review a gap matrix identifying satisfied requirements, missing capabilities, and the smallest remaining scope before implementation; do not recreate completed infrastructure.
+2. Add only demonstrated missing typed interfaces/SQLite implementations under `src/data/repositories/`. Preserve approved dataclass, Pydantic, and DataFrame contracts where appropriate; do not rewrite them solely to enforce a Pydantic-only representation.
 3. Keep all SQL inside the repository layer; no raw SQL in the orchestrator or tools.
 4. Unit tests with an in-memory or temporary-file SQLite DB.
 
@@ -1462,6 +1577,15 @@ financial-agents runs show ANALYSIS_RUN_ID [--details|--diagnostics|--json]
 ```
 
 Exact command spelling may be refined during implementation, but the user capability must remain equivalent. The initial default watchlist profile uses analyses that require no invented forward-growth assumption: Momentum, Graham Number, and the historical FCF/Earnings Growth strategy once Step 2.4 is complete. `graham_growth_value` may be enabled only when an explicit persisted/user-supplied growth configuration is attached and shown as an assumption.
+
+**Extension boundary:** Use stable method identifiers and versioned configuration/result
+contracts independently of CLI spelling or inheritance. Retain heterogeneous
+result/provenance shapes and explicit watchlist analysis selections; adding a
+strategy must not silently change existing watchlists. Persist the exact profile
+snapshot supplied by P2-Profiles and replay it without mutable metadata reads.
+Unsupported requests retain explicit applicability outcomes. ETF holdings and
+aggregation are not required for this workspace and are deferred to P2-ETF;
+no speculative plugin framework or ETF schema is authorized here.
 
 **Concurrency boundary**
 `refresh` may run independent jobs concurrently within the user-started process and write completed runs as they finish; a second CLI invocation may read already-persisted completed results under SQLite/WAL. Step 3.4 does **not** install a daemon/service, schedule unattended work, monitor markets proactively, or send notifications.
@@ -1549,10 +1673,13 @@ Phase F — Step 2.6 reliability limits
 
 Phase G — Step 3 production persistence/data quality
   ├─ 3.1 SQLite + durable cache/data/telemetry
-  ├─ 3.2 typed repositories
+  ├─ R1 Graham analyzer split + shared CLI plumbing extraction
+  │    (chosen sequencing before Phase H; no recognized technical dependency)
+  ├─ R2 analysis strategy package split (accepted; complete and approved on 2026-09-07)
+  │    (independent slice gates; no production implementation authorized)
+  ├─ 3.2 scope reconciliation + remaining typed repository work
   ├─ 3.3 data quality / invalidation
-  └─ P2 durable instrument profiles + separate ETF aggregate FCF strategy
-       (exact placement reviewed after 3.1; may depend on 3.2/3.3)
+  └─ P2-Profiles durable instrument profiles (no ETF aggregation)
         │
         ▼
 Phase H — Step 3.4 local research workspace
@@ -1562,6 +1689,9 @@ Phase H — Step 3.4 local research workspace
 Phase I — Step 3.5 adoption gate
   └─ Light Mode workflow + bounded typed-result synthesis
        → unlocks Milestone v0.2.5 real-user validation
+
+Deferred beyond Step 3.5 — P2-ETF aggregation strategy
+  └─ separate prioritization + provider/product-policy approval; not automatic
 ```
 
 ## 6. Quality Gates
@@ -1629,6 +1759,9 @@ All of the following must be true before declaring the milestone complete and op
 34. **Step 2.6 Gate B approval and Gate C remediation** — Slice B enforcement and telemetry were approved on 2026-09-03. Slice C exposed typed terminal failures through the evaluation/CLI boundary, synchronized documentation, and passed the complete repository gate with 1,331 tests at 88% coverage. An optional LAN smoke then proved that the pre-existing `LLMClient` wire contract used invalid native Ollama endpoint/payload semantics. The corrected native `/api/chat` and `/api/generate` contracts passed focused tests and the complete repository gate with 1,332 tests at 88% coverage. Repeat LAN smoke evidence then confirmed bounded `max_steps_exceeded` and `llm_timeout` terminal outcomes with matching diagnostic/run identities and preserved reports. This remediation proceeded to the final Gate C approval recorded in Decision 35.
 35. **Step 2.6 final Gate C approval** — The complete reliability implementation, native Ollama remediation, deterministic verification, and optional LAN smoke evidence received explicit human approval on 2026-09-03. Step 2.6 is complete; its implementation checkpoint and PR workflow may proceed. Step 3.1 implementation remains a separate handoff.
 36. **Step 3.1 D0 start and local-model preflight** — The `glm-4.7-flash:latest` candidate (`4475827791a2`) was observed at 21 GB, 100% GPU, and 65,536 context. It then passed the bounded Cline edit/read-back/status/expected-failure preflight. Step 3.1 D0 contract and schema mapping is authorized and in progress; production code and migrations remain unstarted pending Gate D0.
+37. **R1 Graham/CLI-plumbing scope and boundary** — R1 adds narrow typed wrappers/configs for the Graham methods and extracts applicable CLI support functions while preserving execution services, legacy public analyzer interfaces, orchestration contracts, and heterogeneous strategy shapes. The project owner approved removal of the old Graham command surface on 2026-09-06 with coordinated CLI migration documentation/help/tests; this does not authorize implementation. R1-A freezes contracts and command spelling, R1-B implements analyzers/configs, and R1-C implements the CLI/support migration, with stakeholder review gates between them. R1 remains before Step 3.4 by explicit sequencing choice, not a recognized technical dependency. P2/3.2/3.3 completion is not a prerequisite.
+
+38. **R1-A handoff approval** — The project owner approved the R1 Contract and Implementation Handoff on 2026-09-06 and authorized R1-B. A subsequent instruction requires a checkpoint commit of all pending planning documentation before implementation edits. R1-C remains subject to Gate R1-B approval.
 
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
@@ -1636,20 +1769,29 @@ All of the following must be true before declaring the milestone complete and op
 3. **Tangible-book and sector-specific variants** — Defer these until the base Graham methods and their limitations are validated.
 4. **Step 2.4 product refinements** — P/FCF thresholds, alternate FCF definitions, smoothing, horizons outside the approved three/four/five-year set, peer comparisons, cash conversion, and user-defined composite thresholds remain deferred. FCF yield and FY1/FY2 consensus EPS are in scope only as documented optional context and only after their provider evidence gates are satisfied. FCF/share growth is approved current scope under the versioned E1–E3 extension, not a deferred composite feature.
 5. **Ollama Modelfile consolidation (resolved 2026-08-30)** — `docs/project/deploy/ollama/` is the canonical location. The identical root `Modelfile.agents` duplicate was removed, the application artifact was retained there, and the Step 2.5 Cline implementation model received a separately named Modelfile and documented alias so development-agent configuration cannot be confused with application or Golden model-under-evaluation configuration.
-6. **P2 exact scheduling and ETF aggregation policy** — P2 is approved as a post–Step 3.1 work package, but its exact placement relative to Steps 3.2–3.4 and its provider, licensing, holdings, weighting, currency, coverage, freshness, and `as_of` policies require explicit review after the persistence boundary exists. No P2 implementation is authorized during P1 or Step 2.5.
+6. **P2 split scheduling and ETF aggregation policy** — P2-Profiles follows 3.2/3.3 and precedes 3.4. P2-ETF is deferred until after 3.5 and requires separate prioritization plus provider/licensing/holdings/aggregation policy approval. It does not block Step 3.4, Step 3.5, or the v0.2.5 validation checkpoint. Neither deliverable has started.
+7. **Full package-per-command CLI ownership and `src/analysis/` auto-discovery** — Considered alongside R1 and explicitly deferred: each analyzer package self-registering its own Typer sub-app, and automatic discovery of analyzer subpackages at startup, are not part of R1's scope. Revisit only if the analyzer count grows enough that shared-plumbing extraction (R1) stops being sufficient; not authorized for v0.2.
 
 ---
 
 ## 9. Next Immediate Actions
 
 Steps 2.3 through 2.6 and Step 3.1 are complete and approved. Slice G and Gate G
-were approved on 2026-09-06. No subsequent planning step has been started.
+were approved on 2026-09-06. R1 (Graham analyzer separation and shared CLI
+plumbing extraction) is complete and approved. Gate R1-C was approved on
+2026-09-06 after the final managed quality gate; see the R1 handoff for evidence.
+No later implementation is authorized by this approval.
 
 1. Preserve classified unavailability so later representative live validation
    can measure the useful-result ratio and identify whether a separately
    reviewed provider-mapping expansion is warranted.
-2. Create the approved Step 2.6 implementation checkpoint and complete its PR
-   workflow.
-3. Prepare the approved Step 3.1 changes for commit and PR review. Await separate
-   human authorization before beginning P2, Step 3.2, or any other subsequent
-   planning work, including a review of P2's placement.
+2. Step 2.6 and Step 3.1 implementation/PR workflows are complete (merged PRs
+   #27 and #28 respectively); no checkpoint or PR work remains for those steps.
+3. Gates R2-A through R2-D are approved; R2-E documentation reconciliation is verified.
+   Review the final documentation diff, reference dispositions, and managed gate
+   at Gate R2-E before marking R2 complete.
+4. After R2 completion and separate authorization, reconcile Step 3.2 scope
+   with Step 3.1, complete remaining repository work, then proceed through 3.3,
+   P2-Profiles, 3.4, and 3.5 under their own planning/review gates.
+5. Reconsider P2-ETF only after 3.5 when prioritized; retain its independent
+   provider-evidence and product-policy checkpoint.

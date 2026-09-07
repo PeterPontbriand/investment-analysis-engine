@@ -135,7 +135,7 @@ before Act mode. After editing it must reread every changed file, run the named
 checks, show `git status --short`, and report command output accurately.
 
 No slice may commit, push, install packages, weaken tests, edit unrelated files,
-or begin the next slice. A claimed success is not evidence: the human/reviewer
+or begin the next slice. A claimed success is not evidence: the project owner or reviewer
 inspects the diff and independently reruns the gate. If a slice needs a public
 contract change not stated here, it stops and reports the mismatch.
 
@@ -147,7 +147,7 @@ creating abstractions in anticipation of later steps.
 
 ### Slice D0 — contract and schema mapping freeze
 
-**Status:** Complete and approved on 2026-09-05. The human approved the mapping
+**Status:** Complete and approved on 2026-09-05. The project owner approved the mapping
 and exact five-table first migration, and separately authorized Slice A with
 permission to edit `pyproject.toml` and `uv.lock`. Migration creation remains a
 later slice.
@@ -184,7 +184,7 @@ rules, historical snapshot policy, and accepted contract-gap dispositions.
 **Authorization:** Explicit human permission granted on 2026-09-05 to implement
 Slice A and edit `pyproject.toml` / `uv.lock`. No later slice is authorized.
 
-**Verification / review status:** Slice A approved by the human on 2026-09-05,
+**Verification / review status:** Slice A approved by the project owner on 2026-09-05,
 with explicit authorization to proceed to B1. The complete managed wrapper passed: Ruff check and format,
 strict mypy, and 1,360 tests (including 30 configuration cases), 88% coverage.
 Artifacts: `.tmp/quality-runs/20260905083439184-19068-0fdc40eafed44e50bdd708f1e819aa76/`.
@@ -262,7 +262,7 @@ Tests prove fresh-connection pragmas, FK enforcement, durable commit, DML/DDL
 rollback, snapshot reads during a committed write, rejected read-scope writes,
 writer contention, lifecycle guards, sequential memory reuse, lazy construction,
 and Windows file-handle release. Initial lint/format and typed Row comparison
-findings were corrected before this green run. The human approved B1 on
+findings were corrected before this green run. The project owner approved B1 on
 2026-09-05 and explicitly authorized B2. No commit, migration, or dependency
 change was made in B1.
 
@@ -327,7 +327,7 @@ environment/programmatic/CLI URL selection, percent-bearing paths and independen
 cwd, preserved logging, effective migration pragmas, rollback on failure, resource
 release, and offline-mode rejection. All databases are disposable test files.
 
-**Review status:** The human approved B2 on 2026-09-05 and explicitly authorized
+**Review status:** The project owner approved B2 on 2026-09-05 and explicitly authorized
 B3. At the B2 checkpoint there were no revision scripts or application tables;
 `head` equaled `base`. The bootstrap created only an empty Alembic revision
 table. Actual schema upgrade/downgrade belongs to B3 evidence. No commit or
@@ -374,7 +374,7 @@ is covered, along with invalid-row rejection, duplicate identities, current
 versus historical cache identities, snapshot isolation/cascade, exact integer
 volume binding, and full rollback of a failed initial revision.
 
-**Review status:** The human approved Slice B3 and Gate B on 2026-09-05,
+**Review status:** The project owner approved Slice B3 and Gate B on 2026-09-05,
 closing the review of the D0 mapping, Core metadata, and frozen revision.
 C1 has not started and may begin once the checkpoint commit is pushed.
 No commit, dependency edit, or migration against user data was performed in B3.
@@ -424,7 +424,7 @@ checkpoint before starting C1; Step 3.1 remains in progress.
 
 ### Slice C1 — SQLite trajectory writes
 
-**Authorization / baseline:** The human authorized C1 on 2026-09-05 after
+**Authorization / baseline:** The project owner authorized C1 on 2026-09-05 after
 checkpoint `1a59399` and comment cleanup `1117054` were committed and pushed.
 The working tree was clean. The complete baseline passed with 1,406 tests,
 88% coverage, Ruff/format, and strict mypy. Managed interpreter access required
@@ -447,7 +447,7 @@ conflicts, concurrent retries, invalid values, lifecycle/ownership, missing
 schema failures, and recorder redaction/hash preservation and fail-open handling.
 Artifacts: `.tmp/quality-runs/20260905142157175-30008-613046c86e334af6b7e6ec0884a72b2b/`.
 
-**Review status:** The human approved C1 on 2026-09-05 and explicitly authorized
+**Review status:** The project owner approved C1 on 2026-09-05 and explicitly authorized
 C2. No runtime selection, read/query API, dependency change, commit, push, or
 migration against user data was performed in C1.
 
@@ -468,7 +468,7 @@ migration against user data was performed in C1.
 
 ### Slice C2 — trajectory reconstruction and runtime selection
 
-**Authorization / baseline:** The human approved C1 and authorized C2 on
+**Authorization / baseline:** The project owner approved C1 and authorized C2 on
 2026-09-05. Approved uncommitted C1 work was preserved. The complete managed
 baseline passed with 1,420 tests, 88% coverage, Ruff/format, and strict mypy.
 
@@ -494,7 +494,7 @@ ownership, and lazy/OFF behavior. A real SQLite write lock proves fail-open
 recording and successful subsequent persistence without renumbering the gap.
 Artifacts: `.tmp/quality-runs/20260905143102609-39412-fe3ac32e266441878060a9764b65ab29/`.
 
-**Review status:** The human approved C2 and explicitly authorized D1 on
+**Review status:** The project owner approved C2 and explicitly authorized D1 on
 2026-09-05, closing Gate C with the equivalence evidence and retained JSONL
 default. No dependency edits, commit, push, or migration against user data was
 performed in C2.
@@ -517,7 +517,7 @@ composition/settings wiring, and focused integration tests.
 
 ### Slice D1 — scalar resolved-input cache
 
-**Authorization / baseline:** The human approved C2 and authorized D1 on
+**Authorization / baseline:** The project owner approved C2 and authorized D1 on
 2026-09-05. Approved uncommitted C1/C2 work was preserved. The complete managed
 baseline passed with 1,436 tests, 88% coverage, Ruff/format, and strict mypy.
 
@@ -543,7 +543,7 @@ and incoherent inputs, invalid clocks and non-finite values, corrupt storage,
 encoding-version rejection, and rollback after a failing update trigger.
 Artifacts: `.tmp/quality-runs/20260905145606922-39584-22cba3ff33144706a51a5b4b672514c6/`.
 
-**Review status:** The human approved D1 and authorized D2 on 2026-09-05.
+**Review status:** The project owner approved D1 and authorized D2 on 2026-09-05.
 No series query, resolver/CLI composition, dependency change, commit, push,
 or migration against user data was performed in D1.
 
@@ -565,7 +565,7 @@ one focused repository test file.
 
 ### Slice D2 — period-series cache queries
 
-**Authorization / baseline:** The human approved D1 and authorized D2 on
+**Authorization / baseline:** The project owner approved D1 and authorized D2 on
 2026-09-05. Approved uncommitted C1/C2/D1 work was preserved. The complete
 managed baseline passed with 1,478 tests, 88% coverage, Ruff/format, and strict
 mypy before the cache extension.
@@ -590,7 +590,7 @@ caches refresh all required fields. Two SQLite-specific tests reject corrupt
 series rows and unsupported encoding versions without partial results.
 Artifacts: `.tmp/quality-runs/20260905221445472-31604-b008f276cdf544d088c4d43e49a5697f/`.
 
-**Review status:** The human completed Gate D review, approved D2, and authorized
+**Review status:** The project owner completed Gate D review, approved D2, and authorized
 E1 on 2026-09-05. No production resolver/CLI composition, dependency change,
 commit, push, or migration against user data was performed in D2.
 
@@ -610,7 +610,7 @@ scalar behavior.
 
 ### Slice E1 — historical-series schema adapter
 
-**Authorization / baseline:** The human completed Gate D review, approved D2,
+**Authorization / baseline:** The project owner completed Gate D review, approved D2,
 and authorized E1 on 2026-09-05. Approved uncommitted C1/C2/D1/D2 work was
 preserved. The complete managed baseline passed with 1,528 tests, 88% coverage,
 Ruff/format, and strict mypy before implementation.
@@ -642,7 +642,7 @@ and rollback after a child insert fails. A deterministic concurrent replacement
 between parent and child reads proves snapshot consistency.
 Artifacts: `.tmp/quality-runs/20260905224451744-40724-ccabc0246a16416ea51e40ebe77e6480/`.
 
-**Review status:** The human completed the E1 review, described as Gate E review,
+**Review status:** The project owner completed the E1 review, described as Gate E review,
 approved E1, and authorized E2 on 2026-09-05. E2 acceptance evidence is recorded
 below for review before F1.
 
@@ -690,7 +690,7 @@ empty/missing/non-finite/nonnumeric rejection, diagnostic bypasses, independent
 quotes with closed storage, and invalid TTL/clock rejection.
 Artifacts: `.tmp/quality-runs/20260905230656847-35944-15fa5ebb82c645e592d6d4af952f85a2/`.
 
-**Review status:** The human reviewed and approved E2 on 2026-09-06, closing
+**Review status:** The project owner reviewed and approved E2 on 2026-09-06, closing
 Gate E, and authorized F1. No dependency
 change, live provider call, commit, push, or migration against user data.
 
@@ -736,7 +736,7 @@ lookup is stubbed independently; fact-cache reuse does not claim that live
 profile enrichment is cached.
 Artifacts: `.tmp/quality-runs/20260906071108663-24392-7b30314dd06e47cdb9f7239fd2c2815a/`.
 
-**Review status:** The human reviewed and approved F1 on 2026-09-06 and
+**Review status:** The project owner reviewed and approved F1 on 2026-09-06 and
 authorized F2. No dependency changes, live provider calls, commit, push, or
 migrations against user data were performed.
 
@@ -754,7 +754,7 @@ without changing resolver rules.
 
 ### Slice F2 — production historical-cache composition
 
-**Authorization and baseline:** The human approved F1 and authorized F2 on
+**Authorization and baseline:** The project owner approved F1 and authorized F2 on
 2026-09-06. The complete baseline passed: 1,605 tests, 88% coverage,
 Ruff/format, and strict mypy. Approved uncommitted work was preserved.
 Baseline artifacts: `.tmp/quality-runs/20260906071818161-41780-a5d70acc0f8e41b4976c000e8535d779/`.
@@ -775,7 +775,7 @@ storage closes, exception cleanup, and unchanged custom-client injection.
 
 Artifacts: `.tmp/quality-runs/20260906072116390-7072-dd7bccc7110a44cd98492b1312468e2e/`.
 
-**Review status:** The human approved F2 and authorized G on 2026-09-06.
+**Review status:** The project owner approved F2 and authorized G on 2026-09-06.
 No dependency changes, live provider calls, commit, push, or migrations against
 user data were performed.
 
@@ -819,7 +819,7 @@ fixtures and mocks. Git's tracked-file audit found no databases, SQLite sidecars
 JSONL logs, or environment files. Representative database/sidecar/log paths are
 ignored. Documentation and patch whitespace were inspected.
 
-**Review status:** The human approved Slice G on 2026-09-06, closing Gate G
+**Review status:** The project owner approved Slice G on 2026-09-06, closing Gate G
 and completing Step 3.1. The subsequent shared-documentation generalization is
 included in the closeout. P2, Step 3.2, and all other subsequent planning work
 remain unstarted; this approval does not authorize starting them. No dependencies
@@ -1035,7 +1035,7 @@ same model must pass the Cline preflight below in a fresh task:
 6. Stop without changing any tracked file, installing anything, committing, or
    beginning a Step 3.1 slice.
 
-The human confirmed on 2026-09-03 that the Cline preflight passed: the ignored
+The project owner confirmed on 2026-09-03 that the Cline preflight passed: the ignored
 artifact was created and read back, tracked-file status remained accurate, and
 the intentionally failing Git command was reported truthfully. This permits D0
 planning only; it does not yet promote the model or authorize production code.

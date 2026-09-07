@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from src.analysis.fcf_earnings_growth.calculators import classify_fcf_earnings_growth
-from src.analysis.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.analysis.fcf_earnings_growth.models import (
+from src.analysis.shared.financial_resolution import is_known_etf, validate_profile_ticker
+from src.analysis.strategy.fcf_earnings_growth.calculators import classify_fcf_earnings_growth
+from src.analysis.strategy.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.analysis.strategy.fcf_earnings_growth.models import (
     Classification,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
@@ -19,7 +20,7 @@ from src.analysis.fcf_earnings_growth.models import (
 )
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput
-from src.data.instrument_profile import InstrumentKind, InstrumentProfile
+from src.data.instrument_profile import InstrumentProfile
 
 
 def _unavailable_metric(reason_code: ReasonCode, reason: str) -> MetricResult:
@@ -80,13 +81,13 @@ class FCFEarningsGrowthAnalyzer:
         """Run one deterministic analysis without optional unapproved data substitutions."""
         boundary = effective_as_of or as_of or datetime.now(UTC)
         normalized_ticker = ticker.strip().upper()
-        if instrument_profile is not None and instrument_profile.ticker != normalized_ticker:
-            raise ValueError("Instrument profile ticker does not match the FCF & Earnings Growth analysis ticker.")
-        if (
-            instrument_profile is not None
-            and instrument_profile.kind_evidence is not None
-            and instrument_profile.kind_evidence.kind is InstrumentKind.ETF
-        ):
+        validate_profile_ticker(
+            ticker,
+            instrument_profile,
+            mismatch_message="Instrument profile ticker does not match the FCF & Earnings Growth analysis ticker.",
+        )
+        if is_known_etf(instrument_profile):
+            assert instrument_profile is not None
             return _etf_not_applicable_result(
                 ticker=normalized_ticker,
                 policy=policy,

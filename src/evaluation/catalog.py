@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Final
 
-from src.analysis.fcf_earnings_growth import HistoricalHorizon
+from src.analysis.strategy.fcf_earnings_growth import HistoricalHorizon
 from src.core.telemetry import TrajectoryRecorder
 from src.evaluation.cases import (
     FCF_01,

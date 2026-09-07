@@ -408,7 +408,7 @@ SQLite mode allowing readers to continue while writes are serialized appropriate
 A defined way for software components or services to exchange requests and responses. A provider API may supply quotes, financial facts, or macro data.
 
 ### CLI (Command-Line Interface)
-The text-based commands used to run the project, such as `financial-agents graham TICKER`.
+The text-based commands used to run the project, such as `financial-agents graham-number TICKER`.
 
 ### CI (Continuous Integration)
 Automated checks run when changes are proposed, including formatting, linting, type checking, and tests.

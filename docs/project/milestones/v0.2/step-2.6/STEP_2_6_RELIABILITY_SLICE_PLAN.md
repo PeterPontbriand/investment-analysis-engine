@@ -168,7 +168,7 @@ exception. External cancellation (`CancelledError`), interpreter shutdown, and
 programmer defects remain distinct from a circuit trip and must not be falsely
 reported as one.
 
-The human diagnostic begins with the trip reason and `run_id`, then reports the
+The user-facing diagnostic begins with the trip reason and `run_id`, then reports the
 limit and recent sanitized events. If telemetry is disabled or unavailable, an
 empty recent-event collection is valid and the reliability outcome still works.
 
@@ -240,7 +240,7 @@ place. The focused reliability/orchestrator/configuration suite passed 57 tests.
 The final complete repository gate passed Ruff, formatting, strict mypy, and
 1,315 tests at 88% reported coverage. Slice B had not started at Gate A.
 
-**Gate A approval:** The human approved Slice A on 2026-09-02 and authorized
+**Gate A approval:** The project owner approved Slice A on 2026-09-02 and authorized
 Slice B. The approved contracts and defaults are now fixed for enforcement.
 
 ### Slice B — enforcement and telemetry
@@ -281,7 +281,7 @@ reliability/orchestrator/telemetry suite passed 78 tests. The complete repositor
 gate passed Ruff, formatting, strict mypy, and 1,329 tests at 88% reported
 coverage.
 
-**Gate B approval:** The human approved Slice B on 2026-09-03 and authorized
+**Gate B approval:** The project owner approved Slice B on 2026-09-03 and authorized
 Slice C. The enforcement and telemetry behavior above is fixed for closeout.
 
 ### Slice C — terminal presentation and closeout
@@ -337,7 +337,7 @@ passed 37 tests. The complete repository wrapper passed Ruff, formatting,
 strict mypy over 191 source files, and 1,332 tests at 88% reported coverage. The
 operator was then asked to repeat Appendix A before final Gate C review.
 
-**Final Gate C approval:** The human approved the complete Step 2.6
+**Final Gate C approval:** The project owner approved the complete Step 2.6
 implementation, native Ollama remediation, deterministic verification, and
 optional LAN smoke evidence on 2026-09-03. Step 2.6 is complete. This approval
 permits the implementation checkpoint and PR workflow but does not itself begin

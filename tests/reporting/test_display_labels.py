@@ -14,9 +14,8 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
-from src.analysis.graham_value.input_resolver import GrahamNumberInputAssembly
-from src.analysis.graham_value.models import GrahamNumberResult
-from src.analysis.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import TrendStatus
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind

@@ -113,3 +113,12 @@ The first two repair commands intentionally mutate files. Review their diff befo
 - Human-readable terminology must not be mechanically derived from internal machine identifiers when explicit display wording is required.
 - Use the word **path** when it literally means a filesystem path, URL path, or another technically precise path. Avoid using it as vague shorthand for a data source, provider configuration, workflow, operating mode, or implementation choice.
 - Intentional Markdown hard line breaks in changed material use `<br/>` rather than trailing spaces.
+
+## Next implementation handoff
+
+[R1 Contract and Implementation Handoff](milestones/v0.2/r1/R1_CONTRACT_AND_SLICE_PLAN.md)
+was approved on 2026-09-06. Approval closes the planning gate and authorizes R1-B
+after the requested documentation checkpoint commit;
+implementation has not started. The active plan sequences profile persistence
+before the research workspace and defers ETF aggregation until after Light Mode
+validation, subject to separate prioritization and approval.

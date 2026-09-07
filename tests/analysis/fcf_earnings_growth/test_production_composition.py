@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from src.analysis.fcf_earnings_growth import (
+from src.analysis.strategy.fcf_earnings_growth import (
     FCFEarningsGrowthPolicy,
     ProductionAnnualGrowthSeriesResolver,
 )

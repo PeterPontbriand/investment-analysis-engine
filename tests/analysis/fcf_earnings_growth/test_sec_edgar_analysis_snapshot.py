@@ -12,8 +12,8 @@ from typing import Any
 
 import pytest
 
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
-from src.analysis.graham_value.service import run_graham_number_analysis
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
+from src.analysis.strategy.graham_number.service import run_graham_number_analysis
 from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
 from src.data.financial.provenance import FinancialSubjectKind
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
@@ -216,7 +216,7 @@ class _ScopeSpyProvider:
 
 def test_graham_analysis_enters_the_same_optional_snapshot_boundary() -> None:
     provider = _ScopeSpyProvider()
-    resolver = GrahamInputResolver(provider)
+    resolver = GrahamNumberInputResolver(provider)
 
     analysis = run_graham_number_analysis(
         resolver=resolver,

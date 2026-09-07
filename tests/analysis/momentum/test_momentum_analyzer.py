@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
 from src.core.constants import TrendStatus
 from src.data.base_client import DataFetchError
 from src.data.market_data import HistoricalMarketData, MarketDataContext

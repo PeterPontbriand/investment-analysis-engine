@@ -6,8 +6,8 @@ from collections.abc import Mapping
 from datetime import UTC, date, datetime
 from typing import Any
 
-from src.analysis.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.analysis.fcf_earnings_growth.models import FCFEarningsGrowthPolicy, ReasonCode
+from src.analysis.strategy.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthPolicy, ReasonCode
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter

@@ -10,7 +10,7 @@ from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from src.analysis.fcf_earnings_growth import (
+from src.analysis.strategy.fcf_earnings_growth import (
     FCFClassificationBasis,
     FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthPolicy,
@@ -18,15 +18,16 @@ from src.analysis.fcf_earnings_growth import (
     ForwardPolicy,
     HistoricalHorizon,
 )
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
-from src.analysis.graham_value.service import (
-    GrahamGrowthAnalysis,
-    GrahamGrowthCalculationPolicy,
-    GrahamNumberAnalysis,
-    run_graham_growth_analysis,
-    run_graham_number_analysis,
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis, run_graham_growth_analysis
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
+from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
+from src.analysis.strategy.momentum.momentum_analyzer import (
+    MomentumAnalyzer,
+    MomentumConfig,
+    MomentumPolicy,
+    MomentumRun,
 )
-from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig, MomentumPolicy, MomentumRun
 from src.data.instrument_profile import InstrumentProfile
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 
@@ -139,7 +140,8 @@ class AnalysisToolDependencies:
     """Injected production analysis dependencies and provider selections."""
 
     momentum_analyzer: MomentumAnalyzer
-    graham_resolver: GrahamInputResolver
+    graham_number_resolver: GrahamNumberInputResolver
+    graham_growth_resolver: GrahamGrowthInputResolver
     graham_security_provider_id: str
     graham_quote_provider_id: str
     graham_growth_policy: GrahamGrowthCalculationPolicy
@@ -187,7 +189,7 @@ class AnalysisToolHandlers:
         arguments = GrahamNumberToolArguments.model_validate(raw_arguments)
         profile = self._resolve_profile(arguments.ticker)
         return run_graham_number_analysis(
-            resolver=self._dependencies.graham_resolver,
+            resolver=self._dependencies.graham_number_resolver,
             ticker=arguments.ticker,
             security_provider_id=self._dependencies.graham_security_provider_id,
             quote_provider_id=self._dependencies.graham_quote_provider_id,
@@ -205,7 +207,7 @@ class AnalysisToolHandlers:
         arguments = GrahamGrowthValueToolArguments.model_validate(raw_arguments)
         profile = self._resolve_profile(arguments.ticker)
         return run_graham_growth_analysis(
-            resolver=self._dependencies.graham_resolver,
+            resolver=self._dependencies.graham_growth_resolver,
             ticker=arguments.ticker,
             security_provider_id=self._dependencies.graham_security_provider_id,
             quote_provider_id=self._dependencies.graham_quote_provider_id,

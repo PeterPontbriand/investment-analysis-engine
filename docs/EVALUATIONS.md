@@ -34,7 +34,7 @@ P1 does not add persistence or another strategy. P2 — durable instrument profi
 
 Slice I added the optional empirical runner. It uses the production orchestration and tool-dispatch path with deterministic Golden fixtures, preserves every repetition independently, records observable model/runtime configuration, and suppresses raw model-response and prompt-message bodies from trajectory persistence. Normal tests mock the model client and never contact Ollama.
 
-Slice J exposes both runners through `financial-agents evaluate`, adds explicit report-file handling and process-status semantics, and completes this operator guide. Slice K ran the full repository gate, recorded the final deterministic result and explicit absence of an optional empirical run separately, and reconciled every acceptance criterion in the [Closeout Verification Record](project/milestones/v0.2/step-2.5/STEP_2_5_CLOSEOUT_RECORD.md). The human approved the closeout on 2026-08-31. Step 2.5A D0 is the next implementation-planning handoff.
+Slice J exposes both runners through `financial-agents evaluate`, adds explicit report-file handling and process-status semantics, and completes this operator guide. Slice K ran the full repository gate, recorded the final deterministic result and explicit absence of an optional empirical run separately, and reconciled every acceptance criterion in the [Closeout Verification Record](project/milestones/v0.2/step-2.5/STEP_2_5_CLOSEOUT_RECORD.md). The project owner approved the closeout on 2026-08-31. Step 2.5A D0 is the next implementation-planning handoff.
 
 ## 3. Execution modes
 

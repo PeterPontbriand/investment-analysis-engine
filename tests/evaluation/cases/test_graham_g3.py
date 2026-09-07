@@ -7,8 +7,9 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
-from src.analysis.graham_value.service import GrahamGrowthAnalysis, GrahamNumberAnalysis, run_graham_number_analysis
+from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
+from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
 from src.core.analysis_status import CalculationStatus
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
@@ -78,7 +79,7 @@ def _component(result: CaseEvaluationResult, kind: ComponentKind) -> ComponentRe
     return next(component for component in result.components if component.kind is kind)
 
 
-def _seeded_precedence_resolver() -> GrahamInputResolver:
+def _seeded_precedence_resolver() -> GrahamNumberInputResolver:
     """Build the reviewed test-local cache evidence for GRN-04."""
     cache = InMemoryResolvedInputCache(clock=lambda: NOW)
     cached_bvps = ResolvedInput(
@@ -106,7 +107,7 @@ def _seeded_precedence_resolver() -> GrahamInputResolver:
         ),
         cached_bvps,
     )
-    return GrahamInputResolver(provider=FixtureFinancialFactsProvider(), cache=cache, clock=lambda: NOW)
+    return GrahamNumberInputResolver(provider=FixtureFinancialFactsProvider(), cache=cache, clock=lambda: NOW)
 
 
 @pytest.mark.parametrize(

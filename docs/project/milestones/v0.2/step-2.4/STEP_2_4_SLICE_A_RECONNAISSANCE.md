@@ -122,7 +122,7 @@ The complete prescribed quality gate remains mandatory before Step 2.4 completio
 
 ## 9. Slice A review gate
 
-Slice A is complete when the human confirms that:
+Slice A is complete when the project owner confirms that:
 
 - the approved product policy is accurately reflected in the implementation plan;
 - the reuse/extension boundaries above are acceptable;

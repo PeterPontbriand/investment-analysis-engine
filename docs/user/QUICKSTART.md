@@ -41,7 +41,7 @@ MASSIVE_API_KEY="your-massive-api-key"
 
 ```bash
 uv run financial-agents --help
-uv run financial-agents graham KO
+uv run financial-agents graham-number KO
 uv run financial-agents momentum AAPL
 uv run financial-agents fcf-growth MSFT
 ```

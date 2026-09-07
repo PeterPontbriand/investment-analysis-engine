@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.facts import (
     FinancialFactRequest,
@@ -385,7 +385,7 @@ def test_sec_component_ambiguous_latest_share_class_values_are_unavailable() -> 
 def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
     adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
-    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=adapter, clock=lambda: NOW)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
@@ -410,7 +410,7 @@ def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -
 def test_resolver_historical_bvps_uses_components_known_at_as_of() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
     adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
-    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=adapter, clock=lambda: NOW)
     as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
@@ -436,7 +436,7 @@ def test_resolver_bvps_missing_or_nonzero_preferred_share_guard_is_unavailable(
 ) -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components(preferred_shares=preferred_shares))
     adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
-    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=adapter, clock=lambda: NOW)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
@@ -476,7 +476,7 @@ def test_wfc_negative_control_material_preferred_stock_blocks_bvps_derivation() 
         }
     )
     adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
-    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=adapter, clock=lambda: NOW)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="WFC",
@@ -728,7 +728,7 @@ def test_graham_number_assembly_can_use_sec_eps_and_massive_quote() -> None:
     )
     massive = StaticProvider((_massive_quote_fact(),))
     provider = ProductionFinancialFactsProvider(sec_edgar=sec, massive=massive)
-    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
 
     result = resolver.assemble_graham_number(
         security_subject_id="AAPL",

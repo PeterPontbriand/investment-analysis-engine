@@ -5,14 +5,17 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 
-from src.analysis.fcf_earnings_growth import (
+import pytest
+
+from src.analysis.strategy.fcf_earnings_growth import (
     FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthPolicy,
     ForwardPolicy,
     ProductionAnnualGrowthSeriesResolver,
 )
-from src.analysis.fcf_earnings_growth.models import Classification, MetricStatus, ReasonCode
+from src.analysis.strategy.fcf_earnings_growth.models import Classification, MetricStatus, ReasonCode
 from src.data.financial.production import ProductionFinancialFactsProvider
+from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
@@ -109,3 +112,42 @@ def test_presenter_modes_share_result_and_json_has_null_not_nan() -> None:
     assert payload["fcf_yield"]["value"] is None
     assert payload["fcf_per_share_cagr"]["status"] == "ok"
     assert "NaN" not in document
+
+
+@pytest.mark.parametrize("kind_value", [None, "EQUITY", "MUTUALFUND"])
+def test_matching_or_unknown_profile_preserves_complete_fcf_result(kind_value: str | None) -> None:
+    evidence = (
+        InstrumentKindEvidence(
+            ticker="ACME",
+            kind=InstrumentKind.EQUITY if kind_value == "EQUITY" else None,
+            provider_value=kind_value,
+            provider_id="yfinance",
+            resolved_at=NOW,
+        )
+        if kind_value is not None
+        else None
+    )
+    profile = InstrumentProfile("ACME", None, evidence, ())
+    analyzer = _analyzer()
+    policy = FCFEarningsGrowthPolicy()
+    baseline = analyzer.run_analysis(
+        ticker=" acme ",
+        policy=policy,
+        currency="USD",
+        as_of=NOW,
+        provider_id=SEC_PROVIDER_ID,
+        effective_as_of=NOW,
+    )
+    result = analyzer.run_analysis(
+        ticker=" acme ",
+        policy=policy,
+        currency="USD",
+        as_of=NOW,
+        provider_id=SEC_PROVIDER_ID,
+        effective_as_of=NOW,
+        instrument_profile=profile,
+    )
+    assert result == replace(baseline, instrument_profile=profile)
+    assert result.diagnostics == baseline.diagnostics
+    assert result.instrument_profile is profile
+    assert result.requested_as_of == result.effective_as_of == NOW

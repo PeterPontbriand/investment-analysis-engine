@@ -194,7 +194,7 @@ CLI / bounded orchestrator
       → data boundaries
         ├─ BaseDataClient → historical prices
         └─ FinancialFactsProvider → quote/fundamentals/macro contract
-             → GrahamInputResolver ← override/cache
+             → GrahamNumberInputResolver or GrahamGrowthInputResolver ← override/cache
              → SEC / Massive / Yahoo financial-facts adapters
       → deterministic result
   → investor presentation
@@ -222,10 +222,13 @@ src/
 │   ├── yfinance/
 │   └── repositories/        # Step 3 target
 ├── analysis/
-│   ├── base.py
-│   ├── fcf_earnings_growth/
-│   ├── momentum/
-│   └── graham_value/
+│   ├── base_analyzer.py
+│   ├── shared/
+│   └── strategy/
+│       ├── fcf_earnings_growth/
+│       ├── momentum/
+│       ├── graham_number/
+│       └── graham_growth/
 ├── reporting/
 └── utils/
 ```
@@ -485,7 +488,7 @@ Finance remains primary. Core layers remain modular enough for possible later re
 - **BaseDataClient** — Historical-price provider boundary.
 - **FinancialFactsProvider** — Step 2.3 provider-neutral boundary for the minimum quote, fundamentals, and macro-observation contracts required by Graham analysis.
 - **Instrument Profile** — Time-aware provider-backed security identity plus normalized/raw instrument-kind evidence and provenance. Missing kind remains unknown; affirmative kind may establish strategy applicability.
-- **GrahamInputResolver** — Field-level override/cache/provider/unavailable resolution with typed provenance and time boundaries.
+- **GrahamNumberInputResolver / GrahamGrowthInputResolver** — Method-specific input assembly under the corresponding strategy package, inheriting field-level override/cache/provider/unavailable resolution, typed provenance, and time boundaries from `InputResolver`. Provider, cache, and clock dependencies are borrowed from composition.
 - **Analysis Run** — Durable investor-domain record of one requested analysis, distinct from trajectory telemetry; contains configuration, status, typed result, provenance, warnings, timestamps, and version identifiers.
 - **Watchlist** — Named local set of tickers plus supported requested analysis configuration used by Step 3.4 user-initiated refresh.
 - **Result View / Report** — Rendering of an Analysis Run in concise terminal, detailed, diagnostic, JSON, or later document form; not a competing canonical calculation record.

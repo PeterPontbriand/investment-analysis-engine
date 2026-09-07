@@ -1,7 +1,7 @@
 """Step 2.3 Slice D: Fixture-backed provider, resolver, and assembly tests.
 
 These tests exercise the ``FinancialFactsProvider`` protocol implementation
-(``FixtureFinancialFactsProvider``), the ``GrahamInputResolver`` (single-fact and
+(``FixtureFinancialFactsProvider``), the ``GrahamNumberInputResolver`` (single-fact and
 three-year-average EPS paths), and the C2D method-level assembly
 (``assemble_graham_number`` / ``assemble_growth_value``) using only
 deterministic fixture data.
@@ -18,7 +18,8 @@ from typing import Any
 
 import pytest
 
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import (
@@ -248,7 +249,7 @@ class TestResolverSingleFact:
     def test_resolve_happy_path(self) -> None:
         """BVPS resolves to a PROVIDER-sourced ResolvedInput."""
         provider = FixtureFinancialFactsProvider()
-        resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+        resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
         request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
@@ -264,7 +265,7 @@ class TestResolverSingleFact:
     def test_resolve_missing(self) -> None:
         """MISSING subject yields INPUT_UNAVAILABLE."""
         provider = FixtureFinancialFactsProvider()
-        resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+        resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
         request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_MISSING,
@@ -277,7 +278,7 @@ class TestResolverSingleFact:
     def test_resolve_error(self) -> None:
         """ERROR subject yields PROVIDER_ERROR."""
         provider = FixtureFinancialFactsProvider()
-        resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+        resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
         request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_ERROR,
@@ -290,7 +291,7 @@ class TestResolverSingleFact:
     def test_resolve_incompatible_basis(self) -> None:
         """INCOMPATIBLE subject (mismatched basis) yields PROVIDER_ERROR."""
         provider = FixtureFinancialFactsProvider()
-        resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+        resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
         request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_INCOMPATIBLE,
@@ -327,7 +328,7 @@ class TestNetworkGuard:
 
         provider = FixtureFinancialFactsProvider()
         cache = InMemoryResolvedInputCache(clock=lambda: NOW)
-        resolver = GrahamInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
+        resolver = GrahamNumberInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
 
         # Resolve a single fact (BVPS) — must succeed without network.
         request = FinancialFactRequest(
@@ -346,7 +347,7 @@ class TestNetworkGuard:
         self._block_network(monkeypatch)
 
         provider = FixtureFinancialFactsProvider()
-        resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+        resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
 
         request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.SECURITY,
@@ -375,7 +376,7 @@ class TestCacheStaleness:
         """A cache entry older than TTL is treated as a miss; provider is used."""
         provider = FixtureFinancialFactsProvider()
         cache = InMemoryResolvedInputCache(clock=lambda: NOW, ttl=timedelta(hours=1))
-        resolver = GrahamInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
+        resolver = GrahamNumberInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
 
         # First resolve populates the cache.
         request = FinancialFactRequest(
@@ -391,7 +392,7 @@ class TestCacheStaleness:
         # Use a mutable clock to advance time.
         mutable_clock = MutableClock(NOW)
         cache2 = InMemoryResolvedInputCache(clock=mutable_clock, ttl=timedelta(hours=1))
-        resolver2 = GrahamInputResolver(provider=provider, cache=cache2, clock=mutable_clock)
+        resolver2 = GrahamNumberInputResolver(provider=provider, cache=cache2, clock=mutable_clock)
 
         # Populate cache with entry at NOW.
         result2a = resolver2.resolve(request)
@@ -411,7 +412,7 @@ class TestCacheStaleness:
         provider = FixtureFinancialFactsProvider()
         mutable_clock = MutableClock(NOW)
         cache = InMemoryResolvedInputCache(clock=mutable_clock, ttl=timedelta(hours=24))
-        resolver = GrahamInputResolver(provider=provider, cache=cache, clock=mutable_clock)
+        resolver = GrahamNumberInputResolver(provider=provider, cache=cache, clock=mutable_clock)
 
         request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.SECURITY,
@@ -436,7 +437,7 @@ class TestCacheStaleness:
     def test_future_published_facts_rejected_with_as_of(self) -> None:
         """A fact with available_at after as_of is rejected (future publication)."""
         provider = FixtureFinancialFactsProvider()
-        resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+        resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
 
         # Use a historical as_of boundary that is before FUTURE_AVAIL (2025-08-01).
         historical_as_of = datetime(2025, 7, 1, 12, 0, tzinfo=UTC)
@@ -463,7 +464,7 @@ class TestThreeYearEPSProvenance:
     def _resolve_3yr(self) -> ResolvedInput:
         """Helper: resolve 3-year average EPS and return the ResolvedInput."""
         provider = FixtureFinancialFactsProvider()
-        resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+        resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
         request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
@@ -523,7 +524,7 @@ class TestOverrideCachePrecedence:
     def test_override_short_circuits_error_provider(self) -> None:
         """Override succeeds even when the provider would raise."""
         error_provider = ErrorProvider()
-        resolver = GrahamInputResolver(provider=error_provider, clock=lambda: NOW)
+        resolver = GrahamNumberInputResolver(provider=error_provider, clock=lambda: NOW)
 
         request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.SECURITY,
@@ -544,7 +545,7 @@ class TestOverrideCachePrecedence:
         fixture_provider = FixtureFinancialFactsProvider()
         mutable_clock = MutableClock(NOW)
         cache = InMemoryResolvedInputCache(clock=mutable_clock, ttl=timedelta(hours=24))
-        fixture_resolver = GrahamInputResolver(provider=fixture_provider, cache=cache, clock=mutable_clock)
+        fixture_resolver = GrahamNumberInputResolver(provider=fixture_provider, cache=cache, clock=mutable_clock)
 
         request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.SECURITY,
@@ -558,7 +559,7 @@ class TestOverrideCachePrecedence:
 
         # Now use the error provider with the same cache — must hit cache.
         error_provider = ErrorProvider()
-        error_resolver = GrahamInputResolver(provider=error_provider, cache=cache, clock=mutable_clock)
+        error_resolver = GrahamNumberInputResolver(provider=error_provider, cache=cache, clock=mutable_clock)
         result = error_resolver.resolve(request)
         assert result.status is CalculationStatus.OK
         assert result.resolved_input is not None
@@ -568,7 +569,7 @@ class TestOverrideCachePrecedence:
     def test_provider_error_when_no_override_or_cache(self) -> None:
         """Without override or cache, the error provider causes PROVIDER_ERROR."""
         error_provider = ErrorProvider()
-        resolver = GrahamInputResolver(provider=error_provider, clock=lambda: NOW)
+        resolver = GrahamNumberInputResolver(provider=error_provider, clock=lambda: NOW)
 
         request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.SECURITY,
@@ -592,7 +593,7 @@ class TestC2DAssembly:
     def test_graham_number_assembly_three_year_avg(self) -> None:
         """assemble_graham_number() succeeds via fixture-backed three-year-average EPS."""
         provider = FixtureFinancialFactsProvider()
-        resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+        resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
 
         result = resolver.assemble_graham_number(
             security_subject_id=SECURITY_ID,
@@ -623,7 +624,7 @@ class TestC2DAssembly:
     def test_growth_value_assembly_ttm_eps(self) -> None:
         """assemble_growth_value() succeeds via fixture-backed TTM EPS and AAA yield."""
         provider = FixtureFinancialFactsProvider()
-        resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+        resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
 
         expected_growth = 12.0  # explicit override-only
         result = resolver.assemble_growth_value(

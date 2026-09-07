@@ -10,7 +10,7 @@ You are an expert Python developer specializing in financial data analysis, pand
 
 When instructions differ, use this precedence:
 
-1. explicit human request for the current task;
+1. explicit user request for the current task;
 2. current active milestone implementation plan;
 3. `docs/project/MASTER_PLAN.md`;
 4. `docs/project/ARCHITECTURE.md` and `docs/project/DISCOVERY_WORKBOOK.md`;
@@ -20,6 +20,16 @@ When instructions differ, use this precedence:
 Do not blend contradictory instructions. Surface the conflict and follow the more specific/current source.
 
 For Milestone v0.2, `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` owns implementation sequencing, review gates, scope, and acceptance criteria.
+
+### Stakeholder terminology
+
+Avoid using "human" to refer to users, reviewers, or project stakeholders.
+Prefer approval-focused wording such as "approval was granted" when the actor
+is unnecessary. Where a role matters, use "user", "project owner", "reviewer",
+or the specific stakeholder role. Use terms such as "user approval" and
+"stakeholder review" for approval gates. Retain "human" only when a technical
+or scientific distinction genuinely requires it, or in an exact quotation
+that must be preserved.
 
 ## 3. Absolute forbidden actions
 
@@ -216,7 +226,7 @@ If a command unexpectedly enters a pager or other interactive state:
 A tool appearing to hang after producing output should be treated as a possible
 pager/interactive-state problem before assuming the underlying command failed.
 
-## 11. Human-in-the-loop gates
+## 11. User approval gates
 
 Require explicit user confirmation before:
 - destructive file deletion;

@@ -8,18 +8,16 @@ from datetime import UTC, datetime
 import pandas as pd
 import pytest
 
-from src.analysis.fcf_earnings_growth import (
+from src.analysis.strategy.fcf_earnings_growth import (
     FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthResult,
     ProductionAnnualGrowthSeriesResolver,
 )
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
-from src.analysis.graham_value.service import (
-    GrahamGrowthAnalysis,
-    GrahamGrowthCalculationPolicy,
-    GrahamNumberAnalysis,
-)
-from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumRun
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
+from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumRun
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
@@ -67,17 +65,21 @@ def _dependencies(*, clock: datetime = EXECUTION_TIME) -> AnalysisToolDependenci
         default_ticker="MOM",
         market_data_provider=FixtureMarketDataProvider(momentum_frame),
     )
-    graham = GrahamInputResolver(
-        provider=FixtureFinancialFactsProvider(),
-        clock=lambda: GRAHAM_NOW,
-    )
+    graham_provider = FixtureFinancialFactsProvider()
+
+    def graham_clock() -> datetime:
+        return GRAHAM_NOW
+
+    graham = GrahamNumberInputResolver(provider=graham_provider, clock=graham_clock)
+    graham_growth = GrahamGrowthInputResolver(provider=graham_provider, clock=graham_clock)
 
     annual_facts = tuple(replace(fact, provider_id=SEC_PROVIDER_ID) for fact in annual_series(range(2020, 2026)))
     annual_provider = ProductionFinancialFactsProvider(sec_edgar=FixtureAnnualFinancialFactsProvider(annual_facts))
     fcf = FCFEarningsGrowthAnalyzer(ProductionAnnualGrowthSeriesResolver(annual_provider, clock=lambda: clock))
     return AnalysisToolDependencies(
         momentum_analyzer=momentum,
-        graham_resolver=graham,
+        graham_number_resolver=graham,
+        graham_growth_resolver=graham_growth,
         graham_security_provider_id=GRAHAM_PROVIDER_ID,
         graham_quote_provider_id=GRAHAM_PROVIDER_ID,
         graham_growth_policy=GrahamGrowthCalculationPolicy(

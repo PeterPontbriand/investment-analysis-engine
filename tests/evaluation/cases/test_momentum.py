@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.momentum.momentum_analyzer import MomentumRun
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
 from src.core.constants import TrendStatus
 from src.core.metric_result import MetricStatus, ReasonCode
 from src.core.telemetry import RunContext, TrajectoryRecorder

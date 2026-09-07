@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterator
-from contextlib import contextmanager
 from dataclasses import replace
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from src.analysis.fcf_earnings_growth import (
+from src.analysis.strategy.fcf_earnings_growth import (
     FCFClassificationBasis,
     FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthPolicy,
@@ -21,28 +19,35 @@ from src.analysis.fcf_earnings_growth import (
     HistoricalHorizon,
     ProductionAnnualGrowthSeriesResolver,
 )
-from src.analysis.graham_value.input_resolver import (
-    GrahamInputResolver,
-    GrahamNumberInputAssembly,
+from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
+from src.analysis.strategy.graham_growth.calculation import (
+    GrahamGrowthCalculationPolicy,
+    GrahamGrowthInputResolver,
     GrowthValueInputAssembly,
 )
-from src.analysis.graham_value.service import (
-    GrahamGrowthCalculationPolicy,
-    run_graham_growth_analysis,
-    run_graham_number_analysis,
+from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
+from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
+from src.analysis.strategy.graham_number.config import GrahamNumberConfig
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
+from src.cli_support import (
+    _canonical_provider_id,
+    _parse_as_of,
+    _presentation_mode,
+    _production_financial_cache,
+    _production_historical_client,
+    _resolve_ticker,
+    config_usage_errors,
+    execution_errors,
 )
-from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
 from src.config import settings
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import ConfigKeys
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.run_context import get_current_run_context, set_current_run_context
-from src.data.base_client import DataFetchError
-from src.data.cached_client import CachedHistoricalDataClient
 from src.data.financial.cache import (
     InMemoryResolvedInputCache,
     ResolvedInputCacheProtocol,
-    ResolvedInputSeriesCacheProtocol,
 )
 from src.data.financial.facts import FinancialFactsProvider
 from src.data.financial.providers import (
@@ -59,10 +64,8 @@ from src.data.instrument_profile import (
     compose_instrument_profile,
     profile_identity_resolution,
 )
-from src.data.repositories import SQLiteDatabase, SQLiteMarketDataRepository, SQLiteResolvedInputCache
 from src.data.security_identity import SecurityIdentityResolution
 from src.data.yfinance import YFinanceClient
-from src.data.yfinance.client import YFINANCE_HISTORICAL_INTERVAL, YFINANCE_PRICE_ADJUSTMENT
 from src.evaluation.catalog import (
     DETERMINISTIC_FIXTURE_SET_VERSION,
     DETERMINISTIC_SUITE_ID,
@@ -90,13 +93,6 @@ from src.reporting.presentation import PresentationMode
 app = typer.Typer(help="Financial Data Agents Command Line Interface")
 
 _MOMENTUM_CLI_DEFAULTS = MomentumConfig()
-
-
-class GrahamCliMethod(StrEnum):
-    """User-facing method choices for direct Graham analysis."""
-
-    NUMBER = "number"
-    GROWTH = "growth"
 
 
 class EvaluationCliMode(StrEnum):
@@ -156,11 +152,20 @@ def momentum(  # noqa: PLR0913
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
 ) -> None:
     """Execute SMA crossover momentum analysis over daily historical market prices."""
-    target_ticker = _resolve_ticker(ticker, ticker_option, required=False)
+    target_ticker = _resolve_ticker(ticker, ticker_option, required=False, command="momentum")
     mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
     _validate_momentum_windows(short_window, long_window, rsi_period)
 
-    try:
+    label = target_ticker or "the configured default ticker"
+    with execution_errors(
+        data_error=lambda _exc: (
+            f"Unable to analyze {label}: the configured market-data provider returned no usable price history."
+        ),
+        invalid=lambda _exc: (
+            f"Unable to complete momentum analysis for {label}: the returned price history could not be analyzed."
+        ),
+        unexpected=lambda _exc: f"Momentum analysis failed unexpectedly for {label}.",
+    ):
         data_client = YFinanceClient()
         with _production_historical_client(data_client) as historical_client:
             analyzer = MomentumAnalyzer(default_ticker=target_ticker, data_client=historical_client)
@@ -179,28 +184,10 @@ def momentum(  # noqa: PLR0913
             instrument_profile=profile,
         )
         typer.echo(render_momentum(presentation, mode))
-    except DataFetchError as err:
-        label = target_ticker or "the configured default ticker"
-        typer.echo(
-            f"Unable to analyze {label}: the configured market-data provider returned no usable price history.",
-            err=True,
-        )
-        raise typer.Exit(code=1) from err
-    except ValueError as err:
-        label = target_ticker or "the configured default ticker"
-        typer.echo(
-            f"Unable to complete momentum analysis for {label}: the returned price history could not be analyzed.",
-            err=True,
-        )
-        raise typer.Exit(code=1) from err
-    except Exception as err:
-        label = target_ticker or "the configured default ticker"
-        typer.echo(f"Momentum analysis failed unexpectedly for {label}.", err=True)
-        raise typer.Exit(code=1) from err
 
 
-@app.command(name="graham")
-def graham(  # noqa: PLR0913
+@app.command(name="graham-number")
+def graham_number(  # noqa: PLR0913
     ticker: str | None = typer.Argument(None, help="Target stock ticker symbol (e.g., AAPL, KO)"),
     *,
     ticker_option: str | None = typer.Option(
@@ -209,14 +196,6 @@ def graham(  # noqa: PLR0913
         "-t",
         help="Legacy ticker option; prefer the positional TICKER argument",
     ),
-    method: Annotated[
-        GrahamCliMethod,
-        typer.Option(
-            "--method",
-            "-m",
-            help="Graham method: 'number' (default) or 'growth'",
-        ),
-    ] = GrahamCliMethod.NUMBER,
     as_of: str | None = typer.Option(
         None,
         "--as-of",
@@ -240,15 +219,96 @@ def graham(  # noqa: PLR0913
     bvps: float | None = typer.Option(
         None, "--bvps", help="Explicit book value per common share override (Number only)"
     ),
-    expected_growth: float | None = typer.Option(
+    current_price: float | None = typer.Option(
         None,
+        "--current-price",
+        "-p",
+        help="Optional explicit current-price override",
+    ),
+    details: bool = typer.Option(False, "--details", help="Show resolved inputs and financial provenance"),
+    diagnostics: bool = typer.Option(False, "--diagnostics", help="Show resolver execution trace"),
+    json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
+) -> None:
+    """Execute the Graham Number earnings-and-book-value screen."""
+    target_ticker = _resolve_ticker(ticker, ticker_option, required=True, command="graham-number")
+    assert target_ticker is not None
+    mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+    boundary = _parse_as_of(as_of)
+    provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
+    with config_usage_errors():
+        config = GrahamNumberConfig.model_validate(
+            {
+                "security_provider_id": provider_id,
+                "eps_basis": eps_basis,
+                "eps_override": eps,
+                "quote_override": current_price,
+                "as_of": boundary,
+                "use_cache": not no_cache,
+                "bvps_override": bvps,
+            }
+        )
+    with (
+        execution_errors(unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}."),
+        _production_financial_cache(enabled=config.use_cache) as cache,
+    ):
+        with execution_errors(
+            invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
+            unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
+        ):
+            resolver = _build_graham_resolver(
+                resolver_type=GrahamNumberInputResolver, data_provider=config.security_provider_id, cache=cache
+            )
+        output, exit_code = _run_graham_number(
+            resolver=resolver,
+            ticker=target_ticker,
+            config=config,
+            mode=mode,
+            profile_provider=YFinanceClient(),
+        )
+    typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
+    if exit_code:
+        raise typer.Exit(code=exit_code)
+
+
+@app.command(name="graham-growth")
+def graham_growth(  # noqa: PLR0913
+    ticker: str | None = typer.Argument(None, help="Target stock ticker symbol (e.g., AAPL, KO)"),
+    *,
+    ticker_option: str | None = typer.Option(
+        None,
+        "--ticker",
+        "-t",
+        help="Legacy ticker option; prefer the positional TICKER argument",
+    ),
+    as_of: str | None = typer.Option(
+        None,
+        "--as-of",
+        help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp",
+    ),
+    data_provider: str | None = typer.Option(
+        None,
+        "--data-provider",
+        help="Security-fact provider override; defaults to SEC EDGAR",
+    ),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass resolved-input cache reads and writes"),
+    eps: float | None = typer.Option(None, "--eps", "-e", help="Explicit EPS override"),
+    eps_basis: str | None = typer.Option(
+        None,
+        "--eps-basis",
+        help=(
+            "EPS basis; Number defaults to three_year_average; Growth defaults to "
+            "three_year_average with SEC EDGAR and ttm with Massive"
+        ),
+    ),
+    expected_growth: float = typer.Option(
+        ...,
         "--expected-growth",
         "--expected-growth-rate",
         "-g",
         help="Expected annual growth in percentage points (growth method; explicit user assumption)",
     ),
-    aaa_yield: float | None = typer.Option(
-        None,
+    aaa_yield: float = typer.Option(
+        ...,
         "--aaa-yield",
         "--current-aaa-yield",
         "-y",
@@ -264,70 +324,45 @@ def graham(  # noqa: PLR0913
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show resolver execution trace"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
 ) -> None:
-    """Execute direct Benjamin Graham analysis for one ticker."""
-    target_ticker = _resolve_ticker(ticker, ticker_option, required=True)
+    """Execute Graham Growth Value with explicit growth and AAA-yield assumptions."""
+    target_ticker = _resolve_ticker(ticker, ticker_option, required=True, command="graham-growth")
     assert target_ticker is not None
     mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
-    analysis_as_of = _parse_as_of(as_of)
-    requested_provider_id = _canonical_provider_id(data_provider)
-    provider_id = _effective_graham_provider_id(method, requested_provider_id)
-    selected_eps_basis = _validate_graham_options(
-        method=method,
-        provider_id=provider_id,
-        eps_basis=eps_basis,
-        bvps=bvps,
-        expected_growth=expected_growth,
-        aaa_yield=aaa_yield,
-    )
-
-    with _production_financial_cache(enabled=not no_cache) as cache:
-        try:
-            resolver = _build_graham_resolver(method=method, data_provider=provider_id, cache=cache)
-        except ValueError as err:
-            typer.echo(f"Unable to start Graham analysis: {err}", err=True)
-            raise typer.Exit(code=1) from err
-
-        try:
-            profile_provider = YFinanceClient()
-            if method is GrahamCliMethod.NUMBER:
-                output, exit_code = _run_graham_number(
-                    resolver=resolver,
-                    ticker=target_ticker,
-                    security_provider_id=provider_id,
-                    quote_provider_id=_quote_provider_id(GrahamCliMethod.NUMBER, provider_id),
-                    eps_basis=selected_eps_basis,
-                    eps_override=eps,
-                    bvps_override=bvps,
-                    quote_override=current_price,
-                    as_of=analysis_as_of,
-                    use_cache=not no_cache,
-                    mode=mode,
-                    profile_provider=profile_provider,
-                )
-            else:
-                assert expected_growth is not None
-                assert aaa_yield is not None
-                output, exit_code = _run_graham_growth(
-                    resolver=resolver,
-                    ticker=target_ticker,
-                    security_provider_id=provider_id,
-                    quote_provider_id=_quote_provider_id(GrahamCliMethod.GROWTH, provider_id),
-                    eps_basis=selected_eps_basis,
-                    eps_override=eps,
-                    expected_growth=expected_growth,
-                    aaa_yield_override=aaa_yield,
-                    quote_override=current_price,
-                    as_of=analysis_as_of,
-                    use_cache=not no_cache,
-                    mode=mode,
-                    profile_provider=profile_provider,
-                )
-        except Exception as err:
-            typer.echo(f"Graham analysis failed unexpectedly for {target_ticker}.", err=True)
-            raise typer.Exit(code=1) from err
-
+    boundary = _parse_as_of(as_of)
+    provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
+    with config_usage_errors():
+        config = GrahamGrowthConfig.model_validate(
+            {
+                "security_provider_id": provider_id,
+                "eps_basis": eps_basis,
+                "eps_override": eps,
+                "quote_override": current_price,
+                "as_of": boundary,
+                "use_cache": not no_cache,
+                "expected_growth": expected_growth,
+                "aaa_yield_override": aaa_yield,
+            }
+        )
+    with (
+        execution_errors(unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}."),
+        _production_financial_cache(enabled=config.use_cache) as cache,
+    ):
+        with execution_errors(
+            invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
+            unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
+        ):
+            resolver = _build_graham_resolver(
+                resolver_type=GrahamGrowthInputResolver, data_provider=config.security_provider_id, cache=cache
+            )
+        output, exit_code = _run_graham_growth(
+            resolver=resolver,
+            ticker=target_ticker,
+            config=config,
+            mode=mode,
+            profile_provider=YFinanceClient(),
+        )
     typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
-    if exit_code != 0:
+    if exit_code:
         raise typer.Exit(code=exit_code)
 
 
@@ -361,7 +396,7 @@ def fcf_growth(  # noqa: PLR0913
     json_output: bool = typer.Option(False, "--json", help="Emit the complete versioned typed result"),
 ) -> None:
     """Execute the historical free-cash-flow and diluted-EPS growth screen."""
-    target_ticker = _resolve_ticker(ticker, None, required=True)
+    target_ticker = _resolve_ticker(ticker, None, required=True, command="fcf-growth")
     assert target_ticker is not None
     mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
     horizon = _historical_horizon(growth_years)
@@ -377,37 +412,36 @@ def fcf_growth(  # noqa: PLR0913
     )
     boundary = analysis_as_of or datetime.now(UTC)
 
-    try:
-        with _production_financial_cache(enabled=not no_cache) as cache:
-            provider = _build_sec_production_provider()
-            profile = _compose_analysis_profile(
-                target_ticker,
-                primary_provider=provider,
-                primary_provider_id=provider_id,
-                yahoo_provider=provider,
-            )
-            resolver = ProductionAnnualGrowthSeriesResolver(
-                provider,
-                cache=cache,
-                clock=lambda: boundary,
-            )
-            result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
-                ticker=target_ticker,
-                policy=policy,
-                currency=normalized_currency,
-                as_of=analysis_as_of,
-                provider_id=provider_id,
-                use_cache=not no_cache,
-                effective_as_of=boundary,
-                instrument_profile=profile,
-            )
-            identity_resolution = profile_identity_resolution(profile)
-    except ValueError as err:
-        typer.echo(f"Unable to start FCF & earnings-growth analysis: {err}", err=True)
-        raise typer.Exit(code=1) from err
-    except Exception as err:
-        typer.echo(f"FCF & earnings-growth analysis failed unexpectedly for {target_ticker}.", err=True)
-        raise typer.Exit(code=1) from err
+    with (
+        execution_errors(
+            invalid=lambda exc: f"Unable to start FCF & earnings-growth analysis: {exc}",
+            unexpected=lambda _exc: f"FCF & earnings-growth analysis failed unexpectedly for {target_ticker}.",
+        ),
+        _production_financial_cache(enabled=not no_cache) as cache,
+    ):
+        provider = _build_sec_production_provider()
+        profile = _compose_analysis_profile(
+            target_ticker,
+            primary_provider=provider,
+            primary_provider_id=provider_id,
+            yahoo_provider=provider,
+        )
+        resolver = ProductionAnnualGrowthSeriesResolver(
+            provider,
+            cache=cache,
+            clock=lambda: boundary,
+        )
+        result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
+            ticker=target_ticker,
+            policy=policy,
+            currency=normalized_currency,
+            as_of=analysis_as_of,
+            provider_id=provider_id,
+            use_cache=not no_cache,
+            effective_as_of=boundary,
+            instrument_profile=profile,
+        )
+        identity_resolution = profile_identity_resolution(profile)
 
     output = render_fcf_earnings_growth(result, mode, identity_resolution, profile)
     exit_code = 0 if result.execution_status in (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE) else 1
@@ -666,46 +700,9 @@ def _compose_analysis_profile(
     )
 
 
-@contextmanager
-def _production_historical_client(provider: YFinanceClient) -> Iterator[CachedHistoricalDataClient]:
-    """Borrow the Yahoo client and own historical storage for one analysis.
-
-    Daily adjusted request identity matches the provider's download configuration.
-    Reuse age comes from settings; table migrations remain an operator action.
-    """
-    database = SQLiteDatabase(settings)
-    try:
-        seconds = settings.historical_cache_ttl_seconds
-        yield CachedHistoricalDataClient(
-            provider,
-            SQLiteMarketDataRepository(database),
-            request_variant=f"{YFINANCE_HISTORICAL_INTERVAL}:{YFINANCE_PRICE_ADJUSTMENT}",
-            ttl=None if seconds is None else timedelta(seconds=seconds),
-        )
-    finally:
-        database.close()
-
-
-@contextmanager
-def _production_financial_cache(*, enabled: bool) -> Iterator[ResolvedInputSeriesCacheProtocol]:
-    """Own one invocation's durable cache; schema upgrades remain explicit.
-
-    Financial facts retain the existing no-TTL policy and resolver temporal
-    checks. Disabling caching avoids opening SQLite altogether.
-    """
-    if not enabled:
-        yield InMemoryResolvedInputCache()
-        return
-    database = SQLiteDatabase(settings)
-    try:
-        yield SQLiteResolvedInputCache(database)
-    finally:
-        database.close()
-
-
-def _build_graham_resolver(
-    *, method: GrahamCliMethod, data_provider: str | None, cache: ResolvedInputCacheProtocol | None = None
-) -> GrahamInputResolver:
+def _build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInputResolver)](
+    *, resolver_type: type[ResolverT], data_provider: str | None, cache: ResolvedInputCacheProtocol | None = None
+) -> ResolverT:
     """Build only the production provider capabilities needed by this invocation."""
     provider: FinancialFactsProvider
     if data_provider == MASSIVE_PROVIDER_ID:
@@ -717,46 +714,17 @@ def _build_graham_resolver(
             f"Unsupported valuation data provider {data_provider!r}; "
             f"supported providers are {SEC_PROVIDER_ID!r} and {MASSIVE_PROVIDER_ID!r}."
         )
-    elif method in (GrahamCliMethod.NUMBER, GrahamCliMethod.GROWTH):
-        provider = _build_sec_production_provider()
     else:
-        raise AssertionError(f"Unhandled Graham method: {method!r}")
+        provider = _build_sec_production_provider()
 
-    return GrahamInputResolver(provider, cache=cache if cache is not None else InMemoryResolvedInputCache())
-
-
-def _effective_graham_provider_id(method: GrahamCliMethod, data_provider: str | None) -> str:
-    """Select the investor-facing default security-fact provider."""
-    if data_provider is not None:
-        return data_provider
-    if method in (GrahamCliMethod.NUMBER, GrahamCliMethod.GROWTH):
-        return SEC_PROVIDER_ID
-    raise AssertionError(f"Unhandled Graham method: {method!r}")
-
-
-def _quote_provider_id(method: GrahamCliMethod, data_provider: str | None) -> str:
-    """Select the approved quote source for the effective security-fact provider."""
-    if data_provider is not None and data_provider not in (SEC_PROVIDER_ID, MASSIVE_PROVIDER_ID):
-        return data_provider
-    if data_provider == MASSIVE_PROVIDER_ID:
-        return MASSIVE_PROVIDER_ID
-    if method in (GrahamCliMethod.NUMBER, GrahamCliMethod.GROWTH):
-        return YFINANCE_PROVIDER_ID
-    raise AssertionError(f"Unhandled Graham method: {method!r}")
+    return resolver_type(provider, cache=cache if cache is not None else InMemoryResolvedInputCache())
 
 
 def _run_graham_number(  # noqa: PLR0913
     *,
-    resolver: GrahamInputResolver,
+    resolver: GrahamNumberInputResolver,
     ticker: str,
-    security_provider_id: str,
-    quote_provider_id: str,
-    eps_basis: str,
-    eps_override: float | None,
-    bvps_override: float | None,
-    quote_override: float | None,
-    as_of: datetime | None,
-    use_cache: bool,
+    config: GrahamNumberConfig,
     mode: PresentationMode,
     profile_provider: object,
 ) -> tuple[str, int]:
@@ -764,22 +732,11 @@ def _run_graham_number(  # noqa: PLR0913
     profile = _compose_analysis_profile(
         ticker,
         primary_provider=resolver.provider,
-        primary_provider_id=security_provider_id,
+        primary_provider_id=config.security_provider_id,
         yahoo_provider=profile_provider,
     )
-    analysis = run_graham_number_analysis(
-        resolver=resolver,
-        ticker=ticker,
-        security_provider_id=security_provider_id,
-        quote_provider_id=quote_provider_id,
-        eps_basis=eps_basis,
-        eps_override=eps_override,
-        bvps_override=bvps_override,
-        quote_override=quote_override,
-        as_of=as_of,
-        use_cache=use_cache,
-        instrument_profile=profile,
-    )
+    analysis = GrahamNumberAnalyzer(resolver, instrument_profile=profile).run_analysis(config, ticker=ticker)
+    as_of = config.as_of
     assembly = analysis.assembly
     identity_resolution = profile_identity_resolution(profile)
 
@@ -819,17 +776,9 @@ def _run_graham_number(  # noqa: PLR0913
 
 def _run_graham_growth(  # noqa: PLR0913
     *,
-    resolver: GrahamInputResolver,
+    resolver: GrahamGrowthInputResolver,
     ticker: str,
-    security_provider_id: str,
-    quote_provider_id: str,
-    eps_basis: str,
-    eps_override: float | None,
-    expected_growth: float,
-    aaa_yield_override: float,
-    quote_override: float | None,
-    as_of: datetime | None,
-    use_cache: bool,
+    config: GrahamGrowthConfig,
     mode: PresentationMode,
     profile_provider: object,
 ) -> tuple[str, int]:
@@ -838,24 +787,13 @@ def _run_graham_growth(  # noqa: PLR0913
     profile = _compose_analysis_profile(
         ticker,
         primary_provider=resolver.provider,
-        primary_provider_id=security_provider_id,
+        primary_provider_id=config.security_provider_id,
         yahoo_provider=profile_provider,
     )
-    analysis = run_graham_growth_analysis(
-        resolver=resolver,
-        ticker=ticker,
-        security_provider_id=security_provider_id,
-        quote_provider_id=quote_provider_id,
-        eps_basis=eps_basis,
-        eps_override=eps_override,
-        expected_growth=expected_growth,
-        aaa_yield_override=aaa_yield_override,
-        quote_override=quote_override,
-        as_of=as_of,
-        use_cache=use_cache,
-        policy=policy,
-        instrument_profile=profile,
+    analysis = GrahamGrowthAnalyzer(resolver, instrument_profile=profile, policy=policy).run_analysis(
+        config, ticker=ticker
     )
+    as_of = config.as_of
     assembly = analysis.assembly
     identity_resolution = profile_identity_resolution(profile)
 
@@ -993,70 +931,6 @@ def _growth_assumptions() -> GrahamGrowthCalculationPolicy:
     )
 
 
-def _validate_graham_options(  # noqa: PLR0912, PLR0913
-    *,
-    method: GrahamCliMethod,
-    provider_id: str,
-    eps_basis: str | None,
-    bvps: float | None,
-    expected_growth: float | None,
-    aaa_yield: float | None,
-) -> str:
-    """Validate method/provider CLI combinations and select the EPS basis."""
-    normalized_basis = eps_basis.strip().lower() if eps_basis is not None else None
-    if normalized_basis == "":
-        raise typer.BadParameter("--eps-basis must be non-empty when supplied.")
-
-    if method is GrahamCliMethod.NUMBER:
-        if expected_growth is not None:
-            raise typer.BadParameter("--expected-growth is valid only with --method growth.")
-        if aaa_yield is not None:
-            raise typer.BadParameter("--aaa-yield is valid only with --method growth.")
-        selected = normalized_basis or "three_year_average"
-        if selected not in ("three_year_average", "ttm"):
-            raise typer.BadParameter("Number EPS basis must be 'three_year_average' or 'ttm'.")
-        if provider_id == MASSIVE_PROVIDER_ID and (selected != "ttm" or bvps is None):
-            raise typer.BadParameter("Massive Graham Number requires --eps-basis ttm and an explicit --bvps override.")
-        if provider_id == SEC_PROVIDER_ID and selected != "three_year_average":
-            raise typer.BadParameter(
-                "SEC EDGAR Graham Number supports --eps-basis three_year_average only; "
-                "use --data-provider massive with --bvps for TTM EPS."
-            )
-        return selected
-
-    if bvps is not None:
-        raise typer.BadParameter("--bvps is valid only with --method number.")
-    if expected_growth is None:
-        raise typer.BadParameter("--expected-growth is required with --method growth.")
-    if aaa_yield is None:
-        raise typer.BadParameter(
-            "--aaa-yield is required with --method growth because no production AAA-yield series is approved yet."
-        )
-
-    if provider_id == SEC_PROVIDER_ID:
-        selected = normalized_basis or "three_year_average"
-        if selected != "three_year_average":
-            raise typer.BadParameter(
-                "SEC EDGAR Growth analysis supports --eps-basis three_year_average only; "
-                "use --data-provider massive for TTM EPS."
-            )
-        return selected
-
-    if provider_id == MASSIVE_PROVIDER_ID:
-        selected = normalized_basis or "ttm"
-        if selected != "ttm":
-            raise typer.BadParameter(
-                "Massive Growth analysis supports --eps-basis ttm only; "
-                "use --data-provider sec_edgar for three-year-average EPS."
-            )
-        return selected
-
-    selected = normalized_basis or "ttm"
-    if selected not in ("ttm", "three_year_average"):
-        raise typer.BadParameter("Growth EPS basis must be 'ttm' or 'three_year_average'.")
-    return selected
-
-
 def _validate_momentum_windows(short_window: int, long_window: int, rsi_period: int) -> None:
     """Reject invalid SMA/RSI periods with investor-readable domain language."""
     if short_window <= 0:
@@ -1108,68 +982,6 @@ def _fcf_classification_basis(value: str) -> FCFClassificationBasis:
         return FCFClassificationBasis(normalized)
     except ValueError as exc:
         raise typer.BadParameter("--classification-basis must be total-fcf or fcf-per-share.") from exc
-
-
-def _presentation_mode(*, details: bool, diagnostics: bool, json_output: bool) -> PresentationMode:
-    """Resolve the mutually exclusive progressive-disclosure flags."""
-    selected_count = sum((details, diagnostics, json_output))
-    if selected_count > 1:
-        raise typer.BadParameter("Choose only one of --details, --diagnostics, or --json.")
-    if json_output:
-        return PresentationMode.JSON
-    if diagnostics:
-        return PresentationMode.DIAGNOSTICS
-    if details:
-        return PresentationMode.DETAILS
-    return PresentationMode.CONCISE
-
-
-def _resolve_ticker(positional: str | None, option: str | None, *, required: bool) -> str | None:
-    """Resolve positional ticker with a transitional --ticker compatibility alias."""
-    if positional is not None and option is not None and positional.strip().upper() != option.strip().upper():
-        raise typer.BadParameter("Positional TICKER and --ticker refer to different symbols.")
-    selected = positional if positional is not None else option
-    if selected is None:
-        if required:
-            raise typer.BadParameter("TICKER is required. Use 'financial-agents graham TICKER'.")
-        return None
-    normalized = selected.strip().upper()
-    if not normalized:
-        raise typer.BadParameter("Ticker must be a non-empty symbol.")
-    return normalized
-
-
-def _canonical_provider_id(value: str | None) -> str | None:
-    """Normalize an optional provider identifier."""
-    if value is None:
-        return None
-    normalized = value.strip().lower()
-    if not normalized:
-        raise typer.BadParameter("--data-provider must be non-empty when supplied.")
-    return normalized
-
-
-def _parse_as_of(value: str | None) -> datetime | None:
-    """Parse a CLI as-of boundary without silently assuming a timestamp timezone."""
-    if value is None:
-        return None
-    text = value.strip()
-    if not text:
-        raise typer.BadParameter("--as-of must be non-empty when supplied.")
-
-    try:
-        if len(text) == 10:
-            parsed_date = date.fromisoformat(text)
-            return datetime.combine(parsed_date, time.max, tzinfo=UTC)
-
-        normalized = f"{text[:-1]}+00:00" if text.endswith(("Z", "z")) else text
-        parsed = datetime.fromisoformat(normalized)
-    except ValueError as exc:
-        raise typer.BadParameter("--as-of must be YYYY-MM-DD or a valid timezone-aware ISO-8601 timestamp.") from exc
-
-    if parsed.tzinfo is None or parsed.tzinfo.utcoffset(parsed) is None:
-        raise typer.BadParameter("Timestamp --as-of values must include an explicit timezone offset.")
-    return parsed
 
 
 if __name__ == "__main__":

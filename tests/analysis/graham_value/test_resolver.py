@@ -8,8 +8,9 @@ from typing import Any
 
 import pytest
 
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
-from src.analysis.graham_value.models import GrahamMethod
+from src.analysis.shared.graham_contracts import GrahamMethod
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.cache import (
     InMemoryResolvedInputCache,
@@ -219,8 +220,8 @@ def _make_resolver(
     cache: Any = None,
     clock: Any = None,
     schema_version: int = 1,
-) -> GrahamInputResolver:
-    return GrahamInputResolver(
+) -> GrahamNumberInputResolver:
+    return GrahamNumberInputResolver(
         provider=provider or FakeProvider(),
         cache=cache,
         clock=clock or _fixed_clock(),
@@ -1825,7 +1826,7 @@ def test_c2d_graham_number_three_year_avg_success() -> None:
             FinancialField.CURRENT_PRICE: (_price_fact(),),
         }
     )
-    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -1858,7 +1859,7 @@ def test_c2d_graham_number_ttm_override_bypasses_eps_provider() -> None:
             FinancialField.CURRENT_PRICE: (_price_fact(),),
         }
     )
-    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -1888,7 +1889,7 @@ def test_c2d_graham_number_bvps_failure_prevents_quote() -> None:
             # No CURRENT_PRICE handler: would return empty if called.
         }
     )
-    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -1915,7 +1916,7 @@ def test_c2d_growth_value_success() -> None:
             FinancialField.CURRENT_PRICE: (_price_fact(),),
         }
     )
-    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -1959,7 +1960,7 @@ def test_c2d_growth_value_missing_growth() -> None:
             # No AAA or quote handlers
         }
     )
-    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -1989,7 +1990,7 @@ def test_c2d_growth_value_non_finite_growth() -> None:
             FinancialField.EPS: (_ttm_eps_fact(),),
         }
     )
-    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -2018,7 +2019,7 @@ def test_c2d_graham_number_quote_unavailable_still_ok() -> None:
             FinancialField.CURRENT_PRICE: (),  # empty → INPUT_UNAVAILABLE
         }
     )
-    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -2247,7 +2248,7 @@ def test_c2d_graham_number_quote_provider_error_non_fatal() -> None:
         },
         error_fields={FinancialField.CURRENT_PRICE},
     )
-    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -2274,7 +2275,7 @@ def test_c2d_graham_number_quote_override_invalid() -> None:
             FinancialField.BVPS: (_bvps_fact(),),
         }
     )
-    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -2302,7 +2303,7 @@ def test_c2d_growth_value_aaa_yield_override() -> None:
             # No AAA handler — would return empty if called.
         }
     )
-    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
@@ -2385,7 +2386,7 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
         }
     )
     cache = SpyCache()
-    resolver = GrahamInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
+    resolver = GrahamGrowthInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
 
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
@@ -2426,3 +2427,17 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
     assert result.expected_growth.value == 12.0
     assert result.expected_growth.units == "percentage_points"
     assert result.expected_growth.resolved_at == NOW
+
+
+def _make_growth_resolver(
+    provider: FakeProvider | None = None,
+    cache: Any = None,
+    clock: Any = None,
+    schema_version: int = 1,
+) -> GrahamGrowthInputResolver:
+    return GrahamGrowthInputResolver(
+        provider=provider or FakeProvider(),
+        cache=cache,
+        clock=clock or _fixed_clock(),
+        cache_schema_version=schema_version,
+    )

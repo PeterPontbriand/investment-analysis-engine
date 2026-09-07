@@ -12,7 +12,9 @@ from alembic.config import Config
 from typer.testing import CliRunner
 
 from alembic import command
-from src.cli import GrahamCliMethod, _build_graham_resolver, _production_financial_cache, app
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
+from src.cli import _build_graham_resolver, app
+from src.cli_support import _production_financial_cache
 from src.config import ProjectSettings
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
@@ -48,7 +50,7 @@ def configured_database(tmp_path: Path) -> Iterator[Path]:
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
     command.upgrade(config, "head")
-    with patch("src.cli.settings", settings):
+    with patch("src.cli_support.settings", settings):
         yield path
 
 
@@ -63,16 +65,18 @@ def _nodes(value: Any) -> Iterator[dict[str, Any]]:
             yield from _nodes(item)
 
 
-@pytest.mark.parametrize("strategy", ["graham", "fcf-growth"])
+@pytest.mark.parametrize("strategy", ["graham-number", "graham-growth", "fcf-growth"])
 def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: str) -> None:
     assert configured_database.exists()
     graham = GrahamProvider()
     annual = FixtureAnnualFinancialFactsProvider(
         tuple(replace(fact, provider_id=SEC_PROVIDER_ID) for fact in annual_series(range(2020, 2026)))
     )
-    provider = graham if strategy == "graham" else ProductionFinancialFactsProvider(sec_edgar=annual)
-    ticker = "SYNTH" if strategy == "graham" else "ACME"
+    provider = graham if strategy.startswith("graham-") else ProductionFinancialFactsProvider(sec_edgar=annual)
+    ticker = "SYNTH" if strategy.startswith("graham-") else "ACME"
     arguments = [strategy, ticker, "--json"]
+    if strategy == "graham-growth":
+        arguments += ["--expected-growth", "5", "--aaa-yield", "4.5"]
     profile = InstrumentProfile(ticker=ticker, identity=None, kind_evidence=None, diagnostics=())
     databases: list[SQLiteDatabase] = []
 
@@ -84,11 +88,11 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
     with (
         patch("src.cli._build_sec_production_provider", return_value=provider),
         patch("src.cli._compose_analysis_profile", return_value=profile),
-        patch("src.cli.SQLiteDatabase", side_effect=database),
+        patch("src.cli_support.SQLiteDatabase", side_effect=database),
     ):
         first = CliRunner().invoke(app, arguments)
         assert first.exit_code == 0, first.output
-        calls = graham.calls if strategy == "graham" else len(annual.requests)
+        calls = graham.calls if strategy.startswith("graham-") else len(annual.requests)
         assert calls > 0
         graham.fail = True
         with patch.object(annual, "fetch_facts", side_effect=AssertionError("Unexpected provider access")):
@@ -104,7 +108,7 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
     assert cached
     for fact in cached:
         assert fact["origin_source_kind"] in ("provider", "derived")
-        assert fact["cache_schema_version"] == (1 if strategy == "graham" else 2)
+        assert fact["cache_schema_version"] == (1 if strategy.startswith("graham-") else 2)
         original = next(
             node
             for node in first_nodes
@@ -128,22 +132,27 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
     assert not any(node.get("stage") == "provider" and node.get("outcome") == "attempted" for node in second_nodes)
 
 
-@pytest.mark.parametrize("strategy", ["graham", "fcf-growth"])
+@pytest.mark.parametrize("strategy", ["graham-number", "graham-growth", "fcf-growth"])
 def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
     path = tmp_path / "absent.sqlite3"
     annual = FixtureAnnualFinancialFactsProvider(
         tuple(replace(fact, provider_id=SEC_PROVIDER_ID) for fact in annual_series(range(2020, 2026)))
     )
-    provider = GrahamProvider() if strategy == "graham" else ProductionFinancialFactsProvider(sec_edgar=annual)
-    ticker = "SYNTH" if strategy == "graham" else "ACME"
+    provider = (
+        GrahamProvider() if strategy.startswith("graham-") else ProductionFinancialFactsProvider(sec_edgar=annual)
+    )
+    ticker = "SYNTH" if strategy.startswith("graham-") else "ACME"
+    arguments = [strategy, ticker, "--no-cache", "--json"]
+    if strategy == "graham-growth":
+        arguments += ["--expected-growth", "5", "--aaa-yield", "4.5"]
     profile = InstrumentProfile(ticker=ticker, identity=None, kind_evidence=None, diagnostics=())
     with (
-        patch("src.cli.settings", ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")),
+        patch("src.cli_support.settings", ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")),
         patch("src.cli._build_sec_production_provider", return_value=provider),
         patch("src.cli._compose_analysis_profile", return_value=profile),
-        patch("src.cli.SQLiteDatabase", side_effect=AssertionError("Database must not open")),
+        patch("src.cli_support.SQLiteDatabase", side_effect=AssertionError("Database must not open")),
     ):
-        result = CliRunner().invoke(app, [strategy, ticker, "--no-cache", "--json"])
+        result = CliRunner().invoke(app, arguments)
     assert result.exit_code == 0, result.output
     assert not path.exists()
     nodes = list(_nodes(json.loads(result.output)))
@@ -154,7 +163,7 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
 def test_cache_scope_closes_on_error(configured_database: Path) -> None:
     database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{configured_database.as_posix()}"))
     with (
-        patch("src.cli.SQLiteDatabase", return_value=database),
+        patch("src.cli_support.SQLiteDatabase", return_value=database),
         pytest.raises(ValueError, match="analysis failed"),
         _production_financial_cache(enabled=True),
     ):
@@ -166,5 +175,5 @@ def test_cache_scope_closes_on_error(configured_database: Path) -> None:
 def test_explicit_memory_cache_is_retained() -> None:
     cache = InMemoryResolvedInputCache()
     with patch("src.cli._build_sec_production_provider", return_value=GrahamProvider()):
-        resolver = _build_graham_resolver(method=GrahamCliMethod.NUMBER, data_provider=None, cache=cache)
+        resolver = _build_graham_resolver(resolver_type=GrahamNumberInputResolver, data_provider=None, cache=cache)
     assert resolver._cache is cache

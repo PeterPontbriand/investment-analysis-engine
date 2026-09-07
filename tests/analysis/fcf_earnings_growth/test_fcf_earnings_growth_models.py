@@ -8,8 +8,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.analysis.fcf_earnings_growth import models as models_module
-from src.analysis.fcf_earnings_growth.models import (
+from src.analysis.strategy.fcf_earnings_growth import models as models_module
+from src.analysis.strategy.fcf_earnings_growth.models import (
     AnnualGrowthObservation,
     Classification,
     ClassificationDecision,

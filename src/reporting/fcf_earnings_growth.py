@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from src.analysis.fcf_earnings_growth.models import (
+from src.analysis.strategy.fcf_earnings_growth.models import (
     FCFClassificationBasis,
     FCFEarningsGrowthResult,
     ForwardEvidenceStatus,

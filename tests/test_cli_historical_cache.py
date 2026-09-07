@@ -11,8 +11,9 @@ from alembic.config import Config
 from typer.testing import CliRunner
 
 from alembic import command
-from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
-from src.cli import _production_historical_client, app
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
+from src.cli import app
+from src.cli_support import _production_historical_client
 from src.config import ProjectSettings
 from src.data.base_client import DataFetchError
 from src.data.instrument_profile import InstrumentProfile
@@ -30,7 +31,7 @@ def configured_settings(tmp_path: Path) -> Iterator[ProjectSettings]:
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
     command.upgrade(config, "head")
-    with patch("src.cli.settings", settings):
+    with patch("src.cli_support.settings", settings):
         yield settings
 
 
@@ -72,7 +73,7 @@ def test_momentum_cli_reuses_history_and_preserves_profile_provider(
         ) as fetch,
         patch.object(provider, "fetch_current_price", side_effect=AssertionError("Historical analysis needs no quote")),
         patch("src.cli.compose_instrument_profile", return_value=profile) as compose,
-        patch("src.cli.SQLiteDatabase", side_effect=database),
+        patch("src.cli_support.SQLiteDatabase", side_effect=database),
     ):
         first = CliRunner().invoke(app, args)
         second = CliRunner().invoke(app, args)
@@ -107,7 +108,7 @@ def test_settings_control_reuse_age(
     with (
         patch("src.data.cached_client.datetime", wraps=datetime) as clock,
         patch(
-            "src.cli.SQLiteMarketDataRepository",
+            "src.cli_support.SQLiteMarketDataRepository",
             side_effect=lambda db: SQLiteMarketDataRepository(db, clock=lambda: NOW),
         ),
         patch.object(provider, "fetch_historical_data", return_value=history) as fetch,
@@ -135,7 +136,7 @@ def test_storage_closes_after_provider_error(configured_settings: ProjectSetting
     database = SQLiteDatabase(configured_settings)
     provider = YFinanceClient()
     with (
-        patch("src.cli.SQLiteDatabase", return_value=database),
+        patch("src.cli_support.SQLiteDatabase", return_value=database),
         patch.object(provider, "fetch_historical_data", side_effect=DataFetchError("offline")),
         pytest.raises(DataFetchError, match="offline"),
         _production_historical_client(provider) as client,
@@ -148,7 +149,9 @@ def test_storage_closes_after_provider_error(configured_settings: ProjectSetting
 def test_custom_analyzer_client_remains_direct(history: HistoricalMarketData) -> None:
     custom = FixtureDataClient()
     with (
-        patch("src.cli.SQLiteDatabase", side_effect=AssertionError("Custom clients do not use production storage")),
+        patch(
+            "src.cli_support.SQLiteDatabase", side_effect=AssertionError("Custom clients do not use production storage")
+        ),
         patch.object(custom, "fetch_data_with_context", return_value=history),
     ):
         analyzer = MomentumAnalyzer(default_ticker="ACME", data_client=custom)

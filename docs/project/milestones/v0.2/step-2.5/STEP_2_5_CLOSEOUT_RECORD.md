@@ -124,7 +124,7 @@ optional network/model dependency mandatory CI.
 
 ## 6. Final approval
 
-The human reviewed and approved Slice K on 2026-08-31. Step 2.5 is complete and
+The project owner reviewed and approved Slice K on 2026-08-31. Step 2.5 is complete and
 approved. This decision:
 
 - accepts the complete-gate and deterministic-report evidence above;

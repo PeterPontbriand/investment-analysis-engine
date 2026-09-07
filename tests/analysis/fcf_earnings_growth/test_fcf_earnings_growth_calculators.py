@@ -6,14 +6,14 @@ import math
 
 import pytest
 
-from src.analysis.fcf_earnings_growth.calculators import (
+from src.analysis.strategy.fcf_earnings_growth.calculators import (
     compute_cagr,
     compute_fcf_per_diluted_share,
     compute_fcf_yield,
     compute_free_cash_flow,
     compute_growth_percent,
 )
-from src.analysis.fcf_earnings_growth.models import MetricResult, MetricStatus, ReasonCode
+from src.analysis.strategy.fcf_earnings_growth.models import MetricResult, MetricStatus, ReasonCode
 
 
 def _assert_ok(result: MetricResult, expected: float, *, abs_tol: float | None = None) -> None:

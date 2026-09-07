@@ -7,10 +7,10 @@ from dataclasses import replace
 from datetime import datetime
 from typing import Final
 
-from src.analysis.fcf_earnings_growth import FCFEarningsGrowthAnalyzer, ProductionAnnualGrowthSeriesResolver
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
-from src.analysis.graham_value.service import GrahamGrowthCalculationPolicy
-from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer
+from src.analysis.strategy.fcf_earnings_growth import FCFEarningsGrowthAnalyzer, ProductionAnnualGrowthSeriesResolver
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
 from src.data.instrument_profile import InstrumentProfile
 from src.data.sec_edgar import SEC_PROVIDER_ID
@@ -162,7 +162,12 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
         else _UnavailableFinancialFactsProvider()
     )
     graham_cache = precedence_bvps_cache() if GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID in fixture_ids else None
-    graham_resolver = GrahamInputResolver(provider=graham_provider, cache=graham_cache, clock=lambda: clock_at)
+
+    def graham_clock() -> datetime:
+        return clock_at
+
+    graham_number_resolver = GrahamNumberInputResolver(provider=graham_provider, cache=graham_cache, clock=graham_clock)
+    graham_growth_resolver = GrahamGrowthInputResolver(provider=graham_provider, cache=graham_cache, clock=graham_clock)
 
     annual_facts = _annual_facts(fcf_fixture_id)
     annual_provider = sec_fpi_provider or FixtureAnnualFinancialFactsProvider(
@@ -175,7 +180,8 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
     profile_resolver = _profile_resolver(fixture_ids, clock_at=clock_at)
     return AnalysisToolDependencies(
         momentum_analyzer=momentum_analyzer,
-        graham_resolver=graham_resolver,
+        graham_number_resolver=graham_number_resolver,
+        graham_growth_resolver=graham_growth_resolver,
         graham_security_provider_id=SEC_PROVIDER_ID if sec_fpi_provider is not None else GRAHAM_PROVIDER_ID,
         graham_quote_provider_id=SEC_PROVIDER_ID if sec_fpi_provider is not None else GRAHAM_PROVIDER_ID,
         graham_growth_policy=GrahamGrowthCalculationPolicy(

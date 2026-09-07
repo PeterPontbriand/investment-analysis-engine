@@ -8,7 +8,7 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.graham_value.service import GrahamNumberAnalysis
+from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.core.analysis_status import CalculationStatus
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent

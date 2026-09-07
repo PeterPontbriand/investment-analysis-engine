@@ -48,31 +48,31 @@ Provider data changes over time, so exact values are not prescribed. For each co
 6. Run the default SEC-backed Graham Number path, including optional quote comparison:
 
    ```powershell
-   uv run financial-agents graham KO
+   uv run financial-agents graham-number KO
    ```
 
 7. Inspect the Graham Number's resolved inputs and derivation provenance:
 
    ```powershell
-   uv run financial-agents graham AAPL --details
+   uv run financial-agents graham-number AAPL --details
    ```
 
 8. Exercise a historical Graham boundary and its resolver diagnostics:
 
    ```powershell
-   uv run financial-agents graham MSFT --as-of 2025-12-31 --diagnostics
+   uv run financial-agents graham-number MSFT --as-of 2025-12-31 --diagnostics
    ```
 
 9. Run the separate forecast-dependent Graham Growth Value method with explicit assumptions:
 
    ```powershell
-   uv run financial-agents graham KO --method growth --expected-growth 5 --aaa-yield 4.5 --details
+   uv run financial-agents graham-growth KO --expected-growth 5 --aaa-yield 4.5 --details
    ```
 
 10. If Massive access is configured, exercise the deliberately supported Massive Graham Number route—TTM EPS plus an explicit BVPS override and Massive quote:
 
     ```powershell
-    uv run financial-agents graham AAPL --data-provider massive --eps-basis ttm --bvps 4.50 --details
+    uv run financial-agents graham-number AAPL --data-provider massive --eps-basis ttm --bvps 4.50 --details
     ```
 
 11. Run the default historical Free Cash Flow & Earnings Growth screen:

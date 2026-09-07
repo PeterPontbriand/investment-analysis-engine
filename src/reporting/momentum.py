@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from src.analysis.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
 from src.core.metric_result import MetricResult
 from src.data.instrument_profile import InstrumentProfile, instrument_kind_evidence_payload, profile_identity_resolution
 from src.data.market_data import MarketDataContext

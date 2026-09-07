@@ -156,7 +156,7 @@ uv run financial-agents --help
 If you configured `SEC_USER_AGENT`, a simple Graham analysis is a useful live-data check:
 
 ```bash
-uv run financial-agents graham KO
+uv run financial-agents graham-number KO
 ```
 
 You can also verify the annual-fundamentals growth strategy:

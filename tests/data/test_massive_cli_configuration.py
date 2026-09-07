@@ -27,10 +27,8 @@ def test_cli_explicit_massive_missing_api_key_is_clean_configuration_error(monke
     result = runner.invoke(
         app,
         [
-            "graham",
+            "graham-growth",
             "KO",
-            "--method",
-            "growth",
             "--data-provider",
             "massive",
             "--expected-growth",

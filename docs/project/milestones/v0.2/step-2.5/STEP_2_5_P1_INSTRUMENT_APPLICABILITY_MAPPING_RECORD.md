@@ -8,7 +8,7 @@
 
 ## 1. Approval and current decision
 
-The human approved the provider mapping and contract shape on 2026-08-30, then approved the focused P1-B contracts and authorized P1-C. The current decision is whether to approve the completed P1-C strategy, presentation, CLI/handler, schema, and regression work summarized in Section 13 before Golden Case model implementation begins.
+The project owner approved the provider mapping and contract shape on 2026-08-30, then approved the focused P1-B contracts and authorized P1-C. The current decision is whether to approve the completed P1-C strategy, presentation, CLI/handler, schema, and regression work summarized in Section 13 before Golden Case model implementation begins.
 
 The proposal deliberately separates three questions:
 
@@ -209,7 +209,7 @@ Human approval should confirm or amend:
 5. native result, exit-code, and investor-message behavior in Section 7; and
 6. the presentation schema-version proposal in Section 8.
 
-**Decision:** Approved by the human on 2026-08-30 without amendment. P1-B was authorized; the expanded mappings and P2 concerns remain excluded.
+**Decision:** Approved by the project owner on 2026-08-30 without amendment. P1-B was authorized; the expanded mappings and P2 concerns remain excluded.
 
 ## 12. P1-B focused contract review
 
@@ -225,7 +225,7 @@ Deterministic focused tests cover exact and unknown mappings, absent/malformed e
 
 P1-B deliberately does **not** wire the profile into Graham, FCF Growth, Momentum, CLI, tool handlers, typed results, report presenters, JSON schema versions, or exit-status behavior. Those changes and the complete repository quality gate remain P1-C work after explicit P1-B approval.
 
-**Decision:** Approved by the human on 2026-08-30. P1-C strategy, presentation, CLI/handler, and full-gate work was authorized.
+**Decision:** Approved by the project owner on 2026-08-30. P1-C strategy, presentation, CLI/handler, and full-gate work was authorized.
 
 ## 13. P1-C implementation and final review
 

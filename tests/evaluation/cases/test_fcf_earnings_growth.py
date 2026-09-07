@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.fcf_earnings_growth.models import (
+from src.analysis.strategy.fcf_earnings_growth.models import (
     Classification,
     FCFEarningsGrowthResult,
     HistoricalHorizon,

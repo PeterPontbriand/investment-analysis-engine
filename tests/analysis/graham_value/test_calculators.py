@@ -23,11 +23,9 @@ import sys
 
 import pytest
 
-from src.analysis.graham_value.calculators import (
-    compute_graham_growth_value,
-    compute_graham_number,
-)
-from src.analysis.graham_value.models import GrahamGrowthValueResult, GrahamMethod, GrahamNumberResult
+from src.analysis.shared.graham_contracts import GrahamMethod
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, compute_graham_growth_value
+from src.analysis.strategy.graham_number.calculation import GrahamNumberResult, compute_graham_number
 from src.core.analysis_status import CalculationStatus
 
 # ─────────────────────────────────────────────────────────────────────────────

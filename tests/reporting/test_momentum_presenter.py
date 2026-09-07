@@ -6,7 +6,7 @@ import json
 import re
 from datetime import UTC, date, datetime
 
-from src.analysis.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
 from src.core.constants import TrendStatus
 from src.data.market_data import MarketDataContext
 from src.reporting.momentum import MomentumPresentation, render_momentum

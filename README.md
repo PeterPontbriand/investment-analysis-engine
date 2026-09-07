@@ -17,7 +17,7 @@ The [Analysis Strategy Guides](docs/user/strategies/README.md) describe availabl
 A default [Graham Number](docs/user/GLOSSARY.md#graham-number) analysis resolves [EPS](docs/user/GLOSSARY.md#eps-earnings-per-share) and [BVPS](docs/user/GLOSSARY.md#bvps-book-value-per-share) from available financial evidence and can compare the resulting [maximum indicated price / screening ceiling](docs/user/GLOSSARY.md#maximum-indicated-price--screening-ceiling) with a [current market price](docs/user/GLOSSARY.md#current-quote--current-market-price), expressed as a [price relationship](docs/user/GLOSSARY.md#price-relationship):
 
 ```bash
-uv run financial-agents graham KO
+uv run financial-agents graham-number KO
 ```
 
 A representative result looks like this:
@@ -39,9 +39,9 @@ Live prices and newly published filings change, so the numbers above are illustr
 Want to inspect more?
 
 ```bash
-uv run financial-agents graham KO --details
-uv run financial-agents graham KO --diagnostics
-uv run financial-agents graham KO --json
+uv run financial-agents graham-number KO --details
+uv run financial-agents graham-number KO --diagnostics
+uv run financial-agents graham-number KO --json
 ```
 
 `--json` produces [machine-readable output](docs/user/GLOSSARY.md#machine-readable-output) in [JSON](docs/user/GLOSSARY.md#json-javascript-object-notation), intended for another program rather than primarily for a person.

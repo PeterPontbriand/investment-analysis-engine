@@ -8,7 +8,7 @@ from typing import Any, cast
 
 import pytest
 
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind
@@ -112,7 +112,7 @@ def _component_request(ticker: str, field: FinancialField) -> FinancialFactReque
 
 def _resolve_bvps(ticker: str, payload: object) -> InputResolutionResult:
     adapter = _adapter(ticker, payload)
-    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=adapter, clock=lambda: NOW)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=ticker,
@@ -283,7 +283,7 @@ def test_future_preferred_equity_fact_does_not_create_historical_lookahead() -> 
     )
     _us_gaap(payload)["PreferredStockValue"] = {"units": {"USD": [future]}}
     adapter = _adapter("KOH", payload)
-    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=adapter, clock=lambda: NOW)
     as_of = datetime(2026, 3, 1, tzinfo=UTC)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
@@ -405,7 +405,7 @@ def test_unrelated_concept_with_preferred_in_description_does_not_block_inferenc
     assert preferred[0].provider_field == "inferred:sec-company-facts:no-issued-preferred-equity"
 
     # BVPS still resolves successfully end-to-end
-    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(provider=adapter, clock=lambda: NOW)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="KO",

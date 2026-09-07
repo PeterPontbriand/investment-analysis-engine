@@ -6,12 +6,12 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from src.analysis.fcf_earnings_growth.calculators import (
+from src.analysis.strategy.fcf_earnings_growth.calculators import (
     compute_cagr,
     compute_fcf_per_diluted_share,
     compute_free_cash_flow,
 )
-from src.analysis.fcf_earnings_growth.models import (
+from src.analysis.strategy.fcf_earnings_growth.models import (
     AnnualGrowthObservation,
     FCFClassificationBasis,
     FCFEarningsGrowthPolicy,

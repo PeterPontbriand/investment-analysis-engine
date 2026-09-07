@@ -21,7 +21,8 @@ uv run financial-agents --help
 See help for a strategy:
 
 ```bash
-uv run financial-agents graham --help
+uv run financial-agents graham-number --help
+uv run financial-agents graham-growth --help
 uv run financial-agents momentum --help
 uv run financial-agents fcf-growth --help
 ```
@@ -67,22 +68,40 @@ Browse the [Analysis Strategy Guides](strategies/README.md) for available strate
 
 ## Graham analysis
 
-The default Graham method is the Graham Number:
+Run the Graham Number earnings-and-book-value screen:
 
 ```bash
-uv run financial-agents graham KO
+uv run financial-agents graham-number KO
 ```
 
 Select the separate Graham Growth Value method explicitly:
 
 ```bash
-uv run financial-agents graham KO \
-    --method growth \
+uv run financial-agents graham-growth KO \
     --expected-growth 5 \
     --aaa-yield 4.5
 ```
 
 The two methods use different values and have different interpretations. See the [Graham Analysis Strategy Guide](strategies/GRAHAM.md).
+
+### Migrating existing Graham commands
+
+The combined `graham` command and its `--method` / `-m` selector have been removed.
+Use the method-specific command; removed invocations return a usage error.
+
+| Previous invocation | Replacement |
+| :--- | :--- |
+| `financial-agents graham KO` | `financial-agents graham-number KO` |
+| `financial-agents graham KO --method number --bvps 20` | `financial-agents graham-number KO --bvps 20` |
+| `financial-agents graham KO --method growth --expected-growth 5 --aaa-yield 4.5` | `financial-agents graham-growth KO --expected-growth 5 --aaa-yield 4.5` |
+
+Both commands accept positional `TICKER` or `--ticker` / `-t`, `--as-of`,
+`--data-provider`, `--no-cache`, `--eps` / `-e`, `--eps-basis`,
+`--current-price` / `-p`, and one of `--details`, `--diagnostics`, or `--json`.
+Only `graham-number` accepts `--bvps`. `graham-growth` requires both
+`--expected-growth` (aliases `--expected-growth-rate` / `-g`) and
+`--aaa-yield` (aliases `--current-aaa-yield` / `-y`). Other applicable flags
+and their financial meanings are unchanged.
 
 ## Momentum analysis
 
@@ -134,7 +153,7 @@ The strategies use a common progressive-disclosure convention.
 Omit presentation switches:
 
 ```bash
-uv run financial-agents graham KO
+uv run financial-agents graham-number KO
 ```
 
 The default view emphasizes the result, its meaning, key source/freshness information, warnings, and limitations.
@@ -142,7 +161,7 @@ The default view emphasizes the result, its meaning, key source/freshness inform
 ### `--details` — inspect the financial evidence
 
 ```bash
-uv run financial-agents graham KO --details
+uv run financial-agents graham-number KO --details
 ```
 
 Use this when you want values, dates, measurement bases, data sources, and derivations.
@@ -150,7 +169,7 @@ Use this when you want values, dates, measurement bases, data sources, and deriv
 ### `--diagnostics` — inspect software resolution behavior
 
 ```bash
-uv run financial-agents graham KO --diagnostics
+uv run financial-agents graham-number KO --diagnostics
 ```
 
 Diagnostics are intentionally more technical. They can show how overrides, cache lookup, providers, and derivations were attempted.
@@ -158,7 +177,7 @@ Diagnostics are intentionally more technical. They can show how overrides, cache
 ### `--json` — machine-readable output
 
 ```bash
-uv run financial-agents graham KO --json
+uv run financial-agents graham-number KO --json
 ```
 
 [Machine-readable output](GLOSSARY.md#machine-readable-output) is structured for another program to consume reliably rather than primarily for a person to read. Financial Data Agents currently uses [JSON](GLOSSARY.md#json-javascript-object-notation) for this mode.
@@ -170,7 +189,7 @@ JSON intentionally retains stable machine identifiers such as snake_case field n
 Where supported:
 
 ```bash
-uv run financial-agents graham KO --as-of 2025-12-31
+uv run financial-agents graham-number KO --as-of 2025-12-31
 uv run financial-agents fcf-growth MSFT --as-of 2025-12-31
 ```
 
@@ -185,8 +204,8 @@ An [override](GLOSSARY.md#override) explicitly supplies a value instead of accep
 Examples:
 
 ```bash
-uv run financial-agents graham KO --eps 3.25 --bvps 8.10
-uv run financial-agents graham KO --current-price 75
+uv run financial-agents graham-number KO --eps 3.25 --bvps 8.10
+uv run financial-agents graham-number KO --current-price 75
 ```
 
 Overrides are recorded as overrides rather than being presented as provider-verified evidence. See the strategy guide before overriding a value whose measurement basis matters.
@@ -196,8 +215,7 @@ Overrides are recorded as overrides rather than being presented as provider-veri
 Some methods allow explicit data-source selection. For example, users with configured [Massive](GLOSSARY.md#massive) access can select it where the Graham Growth Value method supports its data:
 
 ```bash
-uv run financial-agents graham KO \
-    --method growth \
+uv run financial-agents graham-growth KO \
     --data-provider massive \
     --expected-growth 5 \
     --aaa-yield 4.5

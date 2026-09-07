@@ -23,14 +23,13 @@ The exact formulas are documented in [Financial Math](../FINANCE_MATH.md#graham-
 Graham Number:
 
 ```bash
-uv run financial-agents graham KO
+uv run financial-agents graham-number KO
 ```
 
 Graham Growth Value:
 
 ```bash
-uv run financial-agents graham KO \
-    --method growth \
+uv run financial-agents graham-growth KO \
     --expected-growth 5 \
     --aaa-yield 4.5
 ```
@@ -140,8 +139,8 @@ The direct command supports explicit [overrides](../GLOSSARY.md#override) for va
 Examples:
 
 ```bash
-uv run financial-agents graham KO --eps 3.25 --bvps 8.10
-uv run financial-agents graham KO --current-price 75
+uv run financial-agents graham-number KO --eps 3.25 --bvps 8.10
+uv run financial-agents graham-number KO --current-price 75
 ```
 
 An override is recorded as an override rather than being presented as provider-verified evidence.
@@ -177,8 +176,7 @@ For market-price comparison, Financial Data Agents obtains current quote data fr
 For Graham Growth Value, users with a configured Massive API key can explicitly select Massive:
 
 ```bash
-uv run financial-agents graham KO \
-    --method growth \
+uv run financial-agents graham-growth KO \
     --data-provider massive \
     --expected-growth 5 \
     --aaa-yield 4.5
@@ -198,7 +196,7 @@ See [Installation & Configuration — Massive](../INSTALLATION.md#optional-massi
 `--as-of` creates an information boundary:
 
 ```bash
-uv run financial-agents graham KO --as-of 2025-12-31
+uv run financial-agents graham-number KO --as-of 2025-12-31
 ```
 
 A fiscal period ending before that date is not automatically eligible. The supporting filing must also have been available by the requested boundary.

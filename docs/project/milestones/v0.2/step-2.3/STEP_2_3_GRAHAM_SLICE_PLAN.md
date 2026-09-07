@@ -46,7 +46,7 @@ At the end of each slice:
 2. Generate a full tracked-and-untracked diff with the local `all_changes.diff.sh` convenience script.
 3. Confirm that no unauthorized files or concepts were introduced.
 4. Resolve only review findings within that slice before proceeding.
-5. If the human designates the state as a checkpoint, rerun the agreed gate and obtain explicit commit/push authorization; a checkpoint does not complete the parent step.
+5. If the project owner designates the state as a checkpoint, rerun the agreed gate and obtain explicit commit/push authorization; a checkpoint does not complete the parent step.
 6. Begin the next slice in a fresh Cline task.
 
 ## 4. Slice status and scope
@@ -333,6 +333,6 @@ The following are not part of Step 2.3:
 
 ## 7. Final completion condition
 
-Step 2.3 is complete only when every slice through G has passed review, the standard production Graham Number configuration is genuinely usable for representative supported securities (or the supported promise has been explicitly narrowed), Momentum and Graham share the approved investor-facing presentation grammar, implementation/documentation agree, required inputs retain provenance/temporal semantics, the complete quality gate is clean, and the human explicitly approves Step 2.3 completion. Intermediate checkpoint commits do not satisfy this condition by themselves.
+Step 2.3 is complete only when every slice through G has passed review, the standard production Graham Number configuration is genuinely usable for representative supported securities (or the supported promise has been explicitly narrowed), Momentum and Graham share the approved investor-facing presentation grammar, implementation/documentation agree, required inputs retain provenance/temporal semantics, the complete quality gate is clean, and the project owner explicitly approves Step 2.3 completion. Intermediate checkpoint commits do not satisfy this condition by themselves.
 
 This completion condition was satisfied on 2026-08-25; Step 2.3 is complete and approved. No Step 2.4 implementation was begun as part of Step 2.3.

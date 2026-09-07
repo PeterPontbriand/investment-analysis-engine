@@ -10,12 +10,12 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from src.analysis.fcf_earnings_growth.input_resolver import (
+from src.analysis.strategy.fcf_earnings_growth.input_resolver import (
     AnnualGrowthSeriesAssembly,
     FinancialFieldProvider,
     resolve_annual_growth_series,
 )
-from src.analysis.fcf_earnings_growth.models import FCFEarningsGrowthPolicy, HistoricalHorizon
+from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthPolicy, HistoricalHorizon
 from src.config import ProjectSettings
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.cache import (

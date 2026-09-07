@@ -6,9 +6,10 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.analysis.fcf_earnings_growth import FCFEarningsGrowthResult
-from src.analysis.graham_value.service import GrahamGrowthAnalysis, GrahamNumberAnalysis
-from src.analysis.momentum.momentum_analyzer import MomentumRun
+from src.analysis.strategy.fcf_earnings_growth import FCFEarningsGrowthResult
+from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
+from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
 from src.core.analysis_status import CalculationStatus
 from src.evaluation.composition import (
     FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,

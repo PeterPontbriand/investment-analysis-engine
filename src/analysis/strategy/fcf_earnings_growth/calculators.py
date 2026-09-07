@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import math
 
-from src.analysis.fcf_earnings_growth.models import (
+from src.analysis.strategy.fcf_earnings_growth.models import (
     Classification,
     ClassificationDecision,
     FCFClassificationBasis,

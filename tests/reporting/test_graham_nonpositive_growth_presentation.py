@@ -7,8 +7,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.analysis.graham_value.input_resolver import GrowthValueInputAssembly
-from src.analysis.graham_value.models import GrahamGrowthValueResult
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.reporting.graham import GrahamGrowthPresentation, render_graham_growth

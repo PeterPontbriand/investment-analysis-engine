@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
 from src.cli import app
 from src.evaluation.fixtures.graham import (
     NOW,
@@ -17,16 +17,14 @@ runner = CliRunner()
 
 
 def test_cli_growth_non_positive_value_explains_omitted_price_comparison() -> None:
-    resolver = GrahamInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
+    resolver = GrahamGrowthInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
 
     with patch("src.cli._build_graham_resolver", return_value=resolver):
         result = runner.invoke(
             app,
             [
-                "graham",
+                "graham-growth",
                 SECURITY_ID,
-                "--method",
-                "growth",
                 "--data-provider",
                 PROVIDER_ID,
                 "--eps",

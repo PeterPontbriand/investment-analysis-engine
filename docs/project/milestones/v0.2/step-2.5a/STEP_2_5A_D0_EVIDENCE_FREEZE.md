@@ -246,7 +246,7 @@ coverage remains governed by the complete quality wrapper at later gates.
 
 ## 9. Gate A decision
 
-The human approved Gate A on 2026-08-31. The approval accepts:
+The project owner approved Gate A on 2026-08-31. The approval accepts:
 
 1. the frozen fixture scope and exact deterministic test matrix;
 2. insertion of bounded A0 before A1, preserving exact ticker-to-CIK

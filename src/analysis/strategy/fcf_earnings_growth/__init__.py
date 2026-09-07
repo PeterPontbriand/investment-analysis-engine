@@ -25,8 +25,8 @@ Public exports for calculation and input-resolution layers:
 - ``classify_fcf_earnings_growth`` — pure classification function.
 """
 
-from src.analysis.fcf_earnings_growth.analyzer import FCFEarningsGrowthAnalyzer
-from src.analysis.fcf_earnings_growth.calculators import (
+from src.analysis.strategy.fcf_earnings_growth.analyzer import FCFEarningsGrowthAnalyzer
+from src.analysis.strategy.fcf_earnings_growth.calculators import (
     classify_fcf_earnings_growth,
     compute_cagr,
     compute_fcf_per_diluted_share,
@@ -34,14 +34,14 @@ from src.analysis.fcf_earnings_growth.calculators import (
     compute_free_cash_flow,
     compute_growth_percent,
 )
-from src.analysis.fcf_earnings_growth.input_resolver import (
+from src.analysis.strategy.fcf_earnings_growth.input_resolver import (
     AnnualGrowthSeriesAssembly,
     FinancialFieldProvider,
     ProductionAnnualGrowthSeriesResolver,
     SeriesSelection,
     resolve_annual_growth_series,
 )
-from src.analysis.fcf_earnings_growth.models import (
+from src.analysis.strategy.fcf_earnings_growth.models import (
     AnnualGrowthObservation,
     Classification,
     ClassificationDecision,
