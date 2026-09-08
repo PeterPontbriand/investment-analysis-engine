@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
+
+import pytest
 
 from src.core.telemetry import (
     RunContext,
@@ -209,3 +212,73 @@ def test_jsonl_retention_limits_file_count(tmp_path: Path) -> None:
 
     files = list((tmp_path / "trajectories").glob("*.jsonl"))
     assert len(files) == 2
+
+
+@pytest.mark.parametrize(
+    ("payload", "canonical"),
+    [({}, b"{}"), ([], b"[]"), (False, b"false"), (0, b"0"), ("", b'""'), ({"value": 7}, b'{"value":7}')],
+)
+def test_retained_payload_hash_includes_empty_values(payload: object, canonical: bytes) -> None:
+    """Every retained value, including falsy values, hashes its canonical bytes."""
+    recorder = TrajectoryRecorder(RunContext.new(), RecordingSink())
+
+    event = recorder.record(
+        TrajectoryRecord(event_type=TrajectoryEventType.RUN_START, component="test", payload=payload)
+    )
+
+    assert event is not None
+    assert event.payload == payload
+    assert event.payload_hash == hashlib.sha256(canonical).hexdigest()
+
+
+def test_omitted_and_null_payloads_have_no_hash() -> None:
+    """An omitted payload and an explicit null both remain unhashed."""
+    sink = RecordingSink()
+    recorder = TrajectoryRecorder(RunContext.new(), sink)
+    recorder.record(TrajectoryRecord(event_type=TrajectoryEventType.RUN_START, component="test"))
+    recorder.record(TrajectoryRecord(event_type=TrajectoryEventType.RUN_END, component="test", payload=None))
+
+    assert len(sink.events) == 2
+    assert all(event.payload is None and event.payload_hash is None for event in sink.events)
+
+
+def test_payload_hash_is_stable_across_nested_mapping_order() -> None:
+    """Equivalent payloads have stable hashes while changed safe values differ."""
+    sink = RecordingSink()
+    recorder = TrajectoryRecorder(RunContext.new(), sink)
+    original = {"z": "café", "a": {"y": 2, "x": 1}}
+    reordered = {"a": {"x": 1, "y": 2}, "z": "café"}
+    changed = {"a": {"x": 1, "y": 3}, "z": "café"}
+    for payload in (original, original, reordered, changed):
+        recorder.record(TrajectoryRecord(event_type=TrajectoryEventType.RUN_START, component="test", payload=payload))
+
+    canonical = b'{"a":{"x":1,"y":2},"z":"caf\\u00e9"}'
+    expected = hashlib.sha256(canonical).hexdigest()
+    assert [event.payload_hash for event in sink.events[:3]] == [expected] * 3
+    assert sink.events[3].payload_hash is not None
+    assert sink.events[3].payload_hash != expected
+
+
+def test_persisted_payload_hash_uses_only_redacted_material(tmp_path: Path) -> None:
+    """Secrets differing before redaction have identical retained payload hashes."""
+    recorder = TrajectoryRecorder(RunContext.new(), JSONLTrajectorySink(tmp_path))
+    for secret in ("synthetic-first-secret", "synthetic-second-secret"):
+        recorder.record(
+            TrajectoryRecord(
+                event_type=TrajectoryEventType.RUN_START,
+                component="test",
+                payload={"api_key": secret, "nested": {"password": secret}, "safe": 7},
+            )
+        )
+    recorder.close()
+
+    text = (tmp_path / "trajectories" / f"{recorder.run_id}.jsonl").read_text(encoding="utf-8")
+    events = [TrajectoryEvent.model_validate_json(line) for line in text.splitlines()]
+    canonical = b'{"api_key":"[REDACTED]","nested":{"password":"[REDACTED]"},"safe":7}'
+    assert len(events) == 2
+    assert "synthetic-first-secret" not in text
+    assert "synthetic-second-secret" not in text
+    assert all(
+        event.payload == {"api_key": "[REDACTED]", "nested": {"password": "[REDACTED]"}, "safe": 7} for event in events
+    )
+    assert [event.payload_hash for event in events] == [hashlib.sha256(canonical).hexdigest()] * 2

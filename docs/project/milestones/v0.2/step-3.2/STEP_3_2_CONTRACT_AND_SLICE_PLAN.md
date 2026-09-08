@@ -1,6 +1,6 @@
 # Step 3.2 Contract and Slice Plan — DAO & Repository Layer
 
-**Status:** Step 3.2 complete and approved on 2026-09-07. All Gates 3.2-A/B/C/D are closed; implementation commit/PR workflow remains outstanding.
+**Status:** Step 3.2 complete and approved on 2026-09-07. All Gates 3.2-A/B/C/D are closed. [PR #30](https://github.com/PeterPontbriand/financial-data-agents/pull/30) merged implementation head `d07a709` as `f3ef25701cac3fbee3a2caa295f102f4d389d51b` on 2026-09-08 at 00:11 UTC (2026-09-07 in America/Toronto), closing the implementation commit/PR workflow. Earlier workflow statements below remain the historical gate record.
 
 **Authority:** [Implementation Plan, Step 3.2](../IMPLEMENTATION_PLAN.md#48-step-32--dao--repository-layer) owns scope, sequencing, and acceptance criteria. This companion supplies the concrete handoff. If they conflict, amend this handoff to match the Implementation Plan before execution.
 
