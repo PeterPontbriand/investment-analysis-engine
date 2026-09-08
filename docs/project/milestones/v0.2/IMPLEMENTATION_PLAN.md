@@ -7,7 +7,8 @@
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
 **Revised:** 2026-09-06 — Recorded Step 3.1 and R1 completion, the pushed R1 checkpoint, and the revised R2 proposal with independent slice gates before Step 3.2. R2 documentation review does not authorize production implementation.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07
+**Revised:** 2026-09-07 — Recorded merged PR #29 closing R1/R2. Prepared Step 3.2 source reconciliation, gap matrix, bounded implementation contract, and fresh baseline; Gates 3.2-A/B/C approved on 2026-09-07; implementation and acceptance verification passed; final Gate 3.2-D approved; Step 3.2 complete on 2026-09-07.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -21,6 +22,7 @@ This plan turns the high-level Master Plan steps for Milestone v0.2 into an acti
 - Step 3 – Relational Data Persistence, Data Quality & Local Research Workspace (3.1 → 3.4)
 - R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (before Step 3.4)
 - R2 – Analysis Strategy Package Split (accepted plan after R1; complete and approved on 2026-09-07; before Step 3.2)
+- Step 3.2 – DAO & Repository Layer (started 2026-09-07 after R2 completion; before Step 3.3)
 - Step 3.5 – Light Mode Support (required before the v0.2.5 checkpoint)
 
 **Out of scope (explicit)**
@@ -1348,8 +1350,8 @@ Gate D review on 2026-09-05. The project owner approved E1 and authorized E2 on
 F1. The project owner approved F1 and F2, then authorized G on 2026-09-06. Operator
 workflow and integrated persistence closeout passed the complete gate (1,615
 tests, 88% coverage). The project owner approved Slice G on 2026-09-06, closing Gate G
-and completing Step 3.1. JSONL remains the default. P2, Step 3.2, and all other
-subsequent planning work remain unstarted pending separate authorization.
+and completing Step 3.1. JSONL remains the default. Later work follows the
+selected sequence and current Step 3.2 status below.
 The authoritative slice sequence,
 schema decisions, local-model execution protocol, review gates, and environment preparation are in
 [`step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md`](step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md).
@@ -1494,6 +1496,8 @@ planning-only step is required. R1-C still requires Gate R1-B approval.
 
 **Status:** Plan accepted on 2026-09-06, including the separate-resolver design and explicit retirement approval. R2-A evidence completed on 2026-09-07: reconciled R1 scope, exact migration inventory, and fresh managed gate (1,809 tests, 89% reported coverage, Ruff, formatting, strict mypy). Gate R2-A approved on 2026-09-07; R2-B verified with 1,765 tests, 89% coverage, and the complete managed gate. Gate R2-B approved and R2-C implemented/verified on 2026-09-07: 1,811 tests, 89% coverage, Ruff, formatting, strict mypy. Gate R2-C was approved; R2-D was authorized and verified on 2026-09-07 (1,811 tests, 89% coverage, complete managed gate). Gate R2-D was approved. R2-E documentation reconciliation and final managed verification passed (1,811 tests, 89% reported coverage); Gate R2-E and final R2 approval were granted on 2026-09-07. R1 is complete and approved, as confirmed by the project owner on 2026-09-06.
 
+**Merge closeout:** R1/R2 were merged in [PR #29](https://github.com/PeterPontbriand/financial-data-agents/pull/29) on 2026-09-07. All predecessor gates and implementation/PR workflows are closed. The slice instructions below preserve the completed execution sequence, not outstanding work.
+
 **Contract:** [R2 Contract and Implementation Handoff](r2/R2_CONTRACT_AND_SLICE_PLAN.md) defines the proposed symbol destinations, dependency migration, file boundaries, verification, and approval record. Sections 9.1/9.2 are accepted; section 9.3 evidence is complete in the [R2 migration inventory](r2/R2_MIGRATION_INVENTORY.md), accepted at Gate R2-A; R2-B through R2-E evidence is recorded in handoff sections 10–13. Historical R1 preservation requirements remain the record of R1's approved scope; only explicit R2 authorization supersedes the specific interfaces named for removal.
 
 **Selected ordering:** R1 → R2 → Step 3.2 → Step 3.3 → P2-Profiles → Step 3.4 → Step 3.5. R2's placement is a scheduling choice, not a technical prerequisite. P2-ETF remains separately deferred beyond Step 3.5.
@@ -1519,19 +1523,23 @@ The existing-strategy review in R2's contract found two equivalent FCF helper co
 
 ### 4.8 Step 3.2 – DAO & Repository Layer
 
+**Status:** Planning started on 2026-09-07 following merged PR #29. The project owner approved Slice 3.2-A source reconciliation, gap matrix, concrete implementation contract, and fresh managed baseline on 2026-09-07, closing Gate 3.2-A and explicitly authorizing 3.2-B. The documents-only checkpoint was pushed before B implementation. B and C subsequently passed review; Gates 3.2-B/C are approved on 2026-09-07. Slice D documentation reconciliation and final managed verification passed (1,853 tests, 89% reported coverage); final Gate 3.2-D approval was granted on 2026-09-07, completing Step 3.2.
+
+**Contract:** [Step 3.2 Contract and Slice Plan](step-3.2/STEP_3_2_CONTRACT_AND_SLICE_PLAN.md) defines the slice sequence, the gap-matrix deliverable, and the approval gates between reconciliation, implementation, verification, and documentation.
+
 **Goal**<br/>
 Strongly-typed Python data-access objects for cache inspection, audit logging, and later analytics.
 
 **Implementation outline**
 1. Reconcile these requirements with the completed Step 3.1 repositories, cache interfaces, and connection policy. Review a gap matrix identifying satisfied requirements, missing capabilities, and the smallest remaining scope before implementation; do not recreate completed infrastructure.
 2. Add only demonstrated missing typed interfaces/SQLite implementations under `src/data/repositories/`. Preserve approved dataclass, Pydantic, and DataFrame contracts where appropriate; do not rewrite them solely to enforce a Pydantic-only representation.
-3. Keep all SQL inside the repository layer; no raw SQL in the orchestrator or tools.
-4. Unit tests with an in-memory or temporary-file SQLite DB.
+3. Keep application persistence SQL inside the repository layer; no raw SQL in the orchestrator or tools. Move the existing trajectory adapter SQL behind that boundary while preserving its public sink/readback interfaces. Migration DDL and test setup/assertion SQL retain their existing owners.
+4. Add focused unit tests with each implementation change using an in-memory or temporary-file SQLite DB; use file-backed databases for WAL/concurrency checks. Follow with integration/acceptance verification and final documentation reconciliation under the companion slice gates.
 
 **Acceptance criteria**
-- [ ] Public repository methods are fully typed and mypy-clean.
-- [ ] Round-trip tests pass for core entities.
-- [ ] Connection management is consistent with WAL / single-writer guidance.
+- [x] Public repository methods are fully typed and mypy-clean.
+- [x] Round-trip tests pass for core entities.
+- [x] Connection management is consistent with WAL / single-writer guidance.
 
 ---
 
@@ -1676,8 +1684,8 @@ Phase G — Step 3 production persistence/data quality
   ├─ R1 Graham analyzer split + shared CLI plumbing extraction
   │    (chosen sequencing before Phase H; no recognized technical dependency)
   ├─ R2 analysis strategy package split (accepted; complete and approved on 2026-09-07)
-  │    (independent slice gates; no production implementation authorized)
-  ├─ 3.2 scope reconciliation + remaining typed repository work
+  │    (all gates closed; R1/R2 merged in PR #29)
+  ├─ 3.2 scope reconciliation + remaining typed repository work (started 2026-09-07; Gates 3.2-A/B/C approved; Gate 3.2-D approved; complete on 2026-09-07)
   ├─ 3.3 data quality / invalidation
   └─ P2-Profiles durable instrument profiles (no ETF aggregation)
         │
@@ -1763,6 +1771,8 @@ All of the following must be true before declaring the milestone complete and op
 
 38. **R1-A handoff approval** — The project owner approved the R1 Contract and Implementation Handoff on 2026-09-06 and authorized R1-B. A subsequent instruction requires a checkpoint commit of all pending planning documentation before implementation edits. R1-C remains subject to Gate R1-B approval.
 
+39. **R1/R2 merge and Step 3.2 handoff** — PR #29 merged R1/R2 on 2026-09-07, closing their implementation/PR workflows. The project owner requested completion of Step 3.2 planning for a documents-only checkpoint. Source reconciliation confirms that typed cache storage, round trips, and connection policy already exist. The approved remaining scope is bounded cache inspection plus extraction of existing trajectory SQL behind a repository, preserving public telemetry behavior. The companion contract includes the gap matrix, concrete interfaces, file scope, and a fresh green baseline. The project owner approved the reviewed documents and explicitly authorized 3.2-B on 2026-09-07, closing Gate 3.2-A. The documents-only checkpoint was pushed before implementation. Gates 3.2-B/C were subsequently approved, with explicit authorization for D. Implementation and acceptance evidence are recorded in the companion handoff. The project owner granted final Gate 3.2-D approval on 2026-09-07, completing Step 3.2; later implementation remains separately authorized.
+
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
 2. **Provider/analyst consensus-growth policy** — Do not ingest a provider forecast until its field meaning, time horizon, provenance, update behavior, and licensing are verified.
@@ -1776,22 +1786,13 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 through 2.6 and Step 3.1 are complete and approved. Slice G and Gate G
-were approved on 2026-09-06. R1 (Graham analyzer separation and shared CLI
-plumbing extraction) is complete and approved. Gate R1-C was approved on
-2026-09-06 after the final managed quality gate; see the R1 handoff for evidence.
-No later implementation is authorized by this approval.
+Steps 2.3 through 2.6, Step 3.1, R1, and R2 are complete and approved.
+Step 2.6 and Step 3.1 were merged in PRs #27 and #28; R1/R2 were merged in
+[PR #29](https://github.com/PeterPontbriand/financial-data-agents/pull/29)
+on 2026-09-07. Their checkpoint/PR workflows are closed.
 
-1. Preserve classified unavailability so later representative live validation
-   can measure the useful-result ratio and identify whether a separately
-   reviewed provider-mapping expansion is warranted.
-2. Step 2.6 and Step 3.1 implementation/PR workflows are complete (merged PRs
-   #27 and #28 respectively); no checkpoint or PR work remains for those steps.
-3. Gates R2-A through R2-D are approved; R2-E documentation reconciliation is verified.
-   Review the final documentation diff, reference dispositions, and managed gate
-   at Gate R2-E before marking R2 complete.
-4. After R2 completion and separate authorization, reconcile Step 3.2 scope
-   with Step 3.1, complete remaining repository work, then proceed through 3.3,
-   P2-Profiles, 3.4, and 3.5 under their own planning/review gates.
-5. Reconsider P2-ETF only after 3.5 when prioritized; retain its independent
-   provider-evidence and product-policy checkpoint.
+1. Step 3.2 is complete and approved on 2026-09-07; all A–D gates are closed. The [Step 3.2 Contract and Slice Plan](step-3.2/STEP_3_2_CONTRACT_AND_SLICE_PLAN.md) records the accepted final gate: 1,853 tests, 89% reported coverage, and clean Ruff, formatting, and strict mypy.
+2. Prepare the implementation checkpoint and PR from the approved Step 3.2 changes. Drafting is requested; commit, push, PR creation, and posting comments require explicit authorization.
+3. Record the implementation commit/PR outcome when it occurs. No implementation commit, push, or PR has been performed by the agent; completion approval does not mean the changes are merged.
+4. Proceed through Step 3.3, P2-Profiles, Step 3.4, and Step 3.5 only under their own planning/review gates. Reconsider P2-ETF after 3.5 only when separately prioritized and its provider/product-policy gate is met.
+5. Preserve classified unavailability for later representative live validation of the useful-result ratio and any separately reviewed provider-mapping expansion.

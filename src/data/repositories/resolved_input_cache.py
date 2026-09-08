@@ -184,6 +184,57 @@ class SQLiteResolvedInputCache:
 
     def get(self, key: ResolvedInputCacheKey) -> ResolvedInputCacheEntry | None:
         """Return the original eligible entry, or None for an absent/stale key."""
+        entry = self.inspect(key)
+        return entry if entry is not None and self._is_eligible(entry) else None
+
+    def list_keys(self, *, limit: int, offset: int = 0) -> tuple[ResolvedInputCacheKey, ...]:
+        """Inspect a bounded page of stored keys in canonical identity order.
+
+        Includes ineligible entries without consulting the clock or loading
+        fact payloads. Each call uses one snapshot; pages across writes are not
+        a frozen view. Invalid bounds, keys, or encodings raise explicit errors.
+
+        Args:
+            limit: Positive integer page size; booleans are rejected.
+            offset: Nonnegative integer row offset; booleans are rejected.
+
+        Returns:
+            Stored fact keys, or an empty tuple for an empty page.
+        """
+        if type(limit) is not int or limit <= 0:
+            raise ValueError("limit must be a positive integer.")
+        if type(offset) is not int or offset < 0:
+            raise ValueError("offset must be a nonnegative integer.")
+        statement = (
+            select(resolved_input_cache.c.cache_key, *(resolved_input_cache.c[name] for name in _KEY_COLUMNS.values()))
+            .order_by(resolved_input_cache.c.cache_key)
+            .limit(limit)
+            .offset(offset)
+        )
+        with self._database.read() as connection:
+            _check_encoding(connection)
+            keys: list[ResolvedInputCacheKey] = []
+            for row in connection.execute(statement).mappings():
+                key = _KEY_ADAPTER.validate_python({name: row[column] for name, column in _KEY_COLUMNS.items()})
+                if _key_row(key) != dict(row):
+                    raise ValueError("Malformed or inconsistent resolved-input cache key encoding.")
+                keys.append(key)
+        return tuple(keys)
+
+    def inspect(self, key: ResolvedInputCacheKey) -> ResolvedInputCacheEntry | None:
+        """Return the validated stored entry, even if stale or ineligible.
+
+        This administrative read preserves provenance and timestamps without
+        consulting the clock, refreshing, deleting, or applying eligibility.
+        Normal resolution must continue to use get/get_series.
+
+        Args:
+            key: Exact stored fact identity, validated before database access.
+
+        Returns:
+            The original entry, or None only for an absent key. Malformed input,
+            corrupt storage, and unsupported encodings raise explicit errors.
+        """
         key = _KEY_ADAPTER.validate_python(asdict(key))
         with self._database.read() as connection:
             _check_encoding(connection)
@@ -196,8 +247,7 @@ class SQLiteResolvedInputCache:
             )
             if row is None:
                 return None
-            entry = _decode(dict(row))
-        return entry if self._is_eligible(entry) else None
+            return _decode(dict(row))
 
     def get_series(self, query: ResolvedInputSeriesCacheQuery) -> tuple[ResolvedInputCacheEntry, ...]:
         """Return eligible period-scoped facts ordered by end, start, and fact ID.

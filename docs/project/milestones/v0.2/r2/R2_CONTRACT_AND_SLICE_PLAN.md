@@ -286,3 +286,17 @@ Final diff/whitespace and old-reference checks passed. No production, test, depe
 ## 14. Final approval and R2 completion
 
 On 2026-09-07 the project owner granted final approval for R2. Gate R2-E is approved and R2 is complete. The reviewed documentation reconciliation, reference dispositions, and final managed gate in section 13 are accepted: 1,811 passing tests, Ruff, formatting, strict mypy, and 89% reported coverage. Earlier pending-gate entries remain historical snapshots superseded by this approval. Commit SHAs remain in slice evidence; master and milestone plans retain status and evidence links without SHAs. Later milestone work requires separate authorization.
+
+## Merged implementation checkpoint — 2026-09-07
+
+[PR #29](https://github.com/PeterPontbriand/financial-data-agents/pull/29) merged
+R1 and R2 into `main` on 2026-09-07 at 17:55:41 UTC. Merge commit:
+`ca914b73281aaf5e618684098bb4f115c90972c5`; reviewed PR head:
+`c4316425c52488c6574c93027235b9ac980e0803`. Their tracked trees are identical.
+This closes the implementation/PR workflow; prior no-PR and pending-review
+statements remain historical execution snapshots, superseded by final approval
+and this merge record. No predecessor checkpoint or review gate remains open.
+
+The [Step 3.2 handoff](../step-3.2/STEP_3_2_CONTRACT_AND_SLICE_PLAN.md) now owns
+current planning. Its preparation is authorized by the subsequent project-owner
+request; the R1/R2 merge itself does not authorize later implementation.

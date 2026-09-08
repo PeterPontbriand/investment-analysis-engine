@@ -22,6 +22,73 @@ from src.core.telemetry.run_context import RunContext
 from src.core.telemetry.sinks import JSONLTrajectorySink, SQLiteTrajectorySink, TrajectorySink, read_trajectory
 from src.data.repositories.schema import schema_metadata, trajectory_events
 from src.data.repositories.sqlite import SQLiteDatabase
+from src.data.repositories.trajectory import SQLiteTrajectoryRepository
+
+
+def test_repository_and_sink_share_immutable_storage(
+    database: SQLiteDatabase, event: TrajectoryEvent, tmp_path: Path
+) -> None:
+    repository = SQLiteTrajectoryRepository(database)
+    assert repository.read_trajectory(event.run_id) == []
+    repository.record(event)
+    sink = SQLiteTrajectorySink(database)
+    sink.record(event)
+    later = event.model_copy(update={"event_id": uuid4(), "sequence": 3})
+    sink.record(later)
+    sink.close()
+    assert repository.read_trajectory(event.run_id) == [event, later]
+    assert read_trajectory(database, event.run_id) == [event, later]
+    with pytest.raises(ValueError, match="Conflicting"):
+        repository.record(event.model_copy(update={"payload_hash": "different"}))
+    with pytest.raises(IntegrityError):
+        repository.record(event.model_copy(update={"event_id": uuid4()}))
+    assert repository.read_trajectory(event.run_id) == [event, later]
+    database.close()
+    reopened = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'telemetry.sqlite3').as_posix()}"))
+    try:
+        assert SQLiteTrajectoryRepository(reopened).read_trajectory(event.run_id) == [event, later]
+    finally:
+        reopened.close()
+
+
+def test_repository_concurrent_retry_is_idempotent(database: SQLiteDatabase, event: TrajectoryEvent) -> None:
+    repository = SQLiteTrajectoryRepository(database)
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(repository.record, event) for _ in range(4)]
+        for future in futures:
+            future.result()
+    assert repository.read_trajectory(event.run_id) == [event]
+
+
+def test_repository_does_not_create_schema(tmp_path: Path, event: TrajectoryEvent) -> None:
+    path = tmp_path / "unmigrated.sqlite3"
+    database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+    repository = SQLiteTrajectoryRepository(database)
+    assert not path.exists()
+    try:
+        with pytest.raises(OperationalError):
+            repository.record(event)
+        with pytest.raises(OperationalError):
+            repository.read_trajectory(event.run_id)
+    finally:
+        database.close()
+
+
+@pytest.mark.parametrize("version", [None, 2])
+def test_repository_preserves_write_and_read_encoding_policy(
+    database: SQLiteDatabase, event: TrajectoryEvent, version: int | None
+) -> None:
+    with database.transaction() as connection:
+        if version is None:
+            connection.execute(delete(schema_metadata))
+        else:
+            connection.execute(update(schema_metadata).values(metadata_value=version))
+    repository = SQLiteTrajectoryRepository(database)
+    # Existing writes do not check the readback encoding marker.
+    repository.record(event)
+    repository.record(event)
+    with pytest.raises(ValueError, match="encoding version"):
+        repository.read_trajectory(event.run_id)
 
 
 @pytest.fixture

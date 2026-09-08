@@ -323,6 +323,41 @@ class SQLiteMarketDataRepository:
                 market_price_observations.insert().values(volume=bindparam("volume", type_=volume_type)), rows
             )
 
+    def list_keys(self, *, limit: int, offset: int = 0) -> tuple[MarketDataCacheKey, ...]:
+        """Inspect a bounded page of stored keys in canonical identity order.
+
+        Only key columns are loaded and validated, never frame payloads. Each
+        call uses one read snapshot; pages across writes are not a frozen view.
+        Invalid bounds, malformed keys, and unsupported encodings raise errors.
+
+        Args:
+            limit: Positive integer page size; booleans are rejected.
+            offset: Nonnegative integer row offset; booleans are rejected.
+
+        Returns:
+            Stored request keys, or an empty tuple for an empty page.
+        """
+        if type(limit) is not int or limit <= 0:
+            raise ValueError("limit must be a positive integer.")
+        if type(offset) is not int or offset < 0:
+            raise ValueError("offset must be a nonnegative integer.")
+        names = tuple(MarketDataCacheKey.__dataclass_fields__)
+        statement = (
+            select(market_data_cache_entries.c.entry_key, *(market_data_cache_entries.c[name] for name in names))
+            .order_by(market_data_cache_entries.c.entry_key)
+            .limit(limit)
+            .offset(offset)
+        )
+        with self._database.read() as connection:
+            _check_encoding(connection)
+            keys: list[MarketDataCacheKey] = []
+            for row in connection.execute(statement).mappings():
+                key = _KEY_ADAPTER.validate_python({name: row[name] for name in names})
+                if _key_row(key) != dict(row):
+                    raise ValueError("Malformed or inconsistent historical cache key encoding.")
+                keys.append(key)
+        return tuple(keys)
+
     def get(self, key: MarketDataCacheKey) -> MarketDataCacheEntry | None:
         """Return a fully validated snapshot or None for an exact-key miss."""
         key = _KEY_ADAPTER.validate_python(asdict(key))

@@ -30,6 +30,84 @@ from src.data.repositories.schema import market_data_cache_entries, market_price
 NOW = datetime(2026, 9, 5, 12, 0, 0, 123456, tzinfo=UTC)
 
 
+def test_list_keys_pages_preserve_full_identity(
+    database: SQLiteDatabase, key: MarketDataCacheKey, data: HistoricalMarketData
+) -> None:
+    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    assert repository.list_keys(limit=2) == ()
+    keys = (
+        replace(key, ticker="AAA", request_end=date(2025, 3, 10)),
+        replace(key, ticker="AAA", request_variant="1wk", schema_version=2),
+        replace(key, ticker="ZZZ", request_provider_id="other"),
+    )
+    for item in reversed(keys):
+        repository.put(item, data)
+    # Canonical ordering puts the quoted bounded date before JSON null.
+    assert repository.list_keys(limit=2) == keys[:2]
+    assert repository.list_keys(limit=2, offset=2) == keys[2:]
+    assert repository.list_keys(limit=2, offset=3) == ()
+    assert repository.list_keys(limit=1, offset=1) == keys[1:2]
+    for item in keys:
+        stored = repository.get(item)
+        assert stored is not None
+        assert stored.cached_at == NOW
+        assert_frame_equal(stored.data.frame, data.frame)
+
+
+@pytest.mark.parametrize(
+    ("limit", "offset"), [(0, 0), (-1, 0), (True, 0), (1.5, 0), (None, 0), (1, -1), (1, False), (1, 0.5)]
+)
+def test_list_keys_rejects_invalid_bounds_before_io(tmp_path: Path, limit: Any, offset: Any) -> None:
+    path = tmp_path / "not-created.sqlite3"
+    database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+    try:
+        with pytest.raises(ValueError, match="limit|offset"):
+            SQLiteMarketDataRepository(database).list_keys(limit=limit, offset=offset)
+        assert not path.exists()
+    finally:
+        database.close()
+
+
+@pytest.mark.parametrize("version", [None, 2])
+def test_list_keys_requires_encoding(database: SQLiteDatabase, version: int | None) -> None:
+    with database.transaction() as connection:
+        if version is None:
+            connection.execute(delete(schema_metadata))
+        else:
+            connection.execute(update(schema_metadata).values(metadata_value=version))
+    with pytest.raises(ValueError, match="encoding version"):
+        SQLiteMarketDataRepository(database).list_keys(limit=1)
+
+
+@pytest.mark.parametrize(("column", "value"), [("ticker", "other"), ("request_start", "not-a-date")])
+def test_list_keys_rejects_malformed_selected_keys(
+    database: SQLiteDatabase, key: MarketDataCacheKey, data: HistoricalMarketData, column: str, value: str
+) -> None:
+    repository = SQLiteMarketDataRepository(database)
+    repository.put(key, data)
+    with database.transaction() as connection:
+        connection.exec_driver_sql("PRAGMA ignore_check_constraints = ON")
+        connection.execute(update(market_data_cache_entries).values(**{column: value}))
+    with pytest.raises(ValueError, match="Malformed|validation error"):
+        repository.list_keys(limit=1)
+
+
+def test_list_keys_does_not_decode_or_modify_frame_payload(
+    database: SQLiteDatabase, key: MarketDataCacheKey, data: HistoricalMarketData
+) -> None:
+    repository = SQLiteMarketDataRepository(database)
+    repository.put(key, data)
+    with database.transaction() as connection:
+        connection.execute(update(market_data_cache_entries).values(frame_metadata_json="{}"))
+    with database.read() as connection:
+        before = connection.execute(select(market_data_cache_entries)).all()
+    assert repository.list_keys(limit=1) == (key,)
+    with pytest.raises(ValueError, match="Malformed|validation error"):
+        repository.get(key)
+    with database.read() as connection:
+        assert connection.execute(select(market_data_cache_entries)).all() == before
+
+
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'market.sqlite3').as_posix()}"

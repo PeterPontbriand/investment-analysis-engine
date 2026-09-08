@@ -182,7 +182,7 @@ The investor-report boundary is a deterministic, versioned projection. Given the
 Named watchlists hold tickers and supported requested analyses. A user-initiated refresh may execute independent ticker/analysis jobs concurrently and persist each outcome as it finishes. No daemon, scheduler, proactive monitoring, or notification service is implied.
 
 ### `TrajectoryEvent` / `TrajectoryRecorder` / `TrajectorySink`
-Step 2.1 structured telemetry components. JSONL is the initial sink; SQLite is added in Step 3.1.
+Structured telemetry supports JSONL (the default) and SQLite sinks. `SQLiteTrajectorySink` delegates event persistence to `SQLiteTrajectoryRepository`, retaining synchronous locking and database ownership. The recorder owns sanitization and fail-open handling.
 
 Telemetry records observable execution evidence and does not provide benchmark ground truth.
 
@@ -238,6 +238,13 @@ src/
 │   └── telemetry/
 ├── data/
 │   ├── base_client.py
+│   ├── repositories/
+│   │   ├── sqlite.py
+│   │   ├── schema.py
+│   │   ├── migrations.py
+│   │   ├── market_data.py
+│   │   ├── resolved_input_cache.py
+│   │   └── trajectory.py
 │   ├── massive/
 │   │   └── valuation.py
 │   ├── sec_edgar/
@@ -262,9 +269,47 @@ src/
 └── utils/
 ```
 
-The valuation-provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. Step 3 persistence/repositories remain planned under `src/data/repositories/`.
+The provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. Production SQLite persistence is implemented under `src/data/repositories/`; callers consume typed domain objects rather than SQL rows.
 
 ---
+
+### Typed SQLite repositories and administrative inspection
+
+`SQLiteDatabase` owns lazy connection scopes and explicit transactions. File-backed
+connections verify WAL mode, foreign keys, and the configured busy timeout;
+SQLite serializes competing writers. `read()` provides a query-only snapshot.
+In-memory databases support sequential scopes only. Repositories borrow an
+already-migrated database and do not migrate or close it implicitly.
+
+| Repository | Public access | Semantics |
+| :--- | :--- | :--- |
+| `SQLiteMarketDataRepository` | `put`, `get`, `list_keys` | Exact historical request snapshots preserve frame structure/precision, context, and cache/retrieval timestamps. `get` returns the validated stored snapshot or `None` for a miss. |
+| `SQLiteResolvedInputCache` | `put`, `get`, `get_series`, `list_keys`, `inspect`, `ttl` | Normal retrieval applies existing TTL and historical availability rules. `inspect` returns the validated stored entry irrespective of eligibility, preserving original provenance and timestamps; only an absent key returns `None`. |
+| `SQLiteTrajectoryRepository` | `record`, `read_trajectory` | Immutable atomic events; identical event-ID retries are no-ops, conflicts raise, and readback returns typed events in sequence order with gaps preserved. A missing run returns an empty list. |
+
+Both `list_keys` methods require an explicit positive integer `limit` and accept
+a nonnegative integer `offset` (default zero); booleans are rejected. They select
+only key columns, validate stored keys and encoding versions, and return typed
+tuples ordered by canonical stored identity. Each page uses one snapshot;
+separate pages across concurrent writes do not form a frozen database view.
+Empty pages return empty tuples. Malformed selected data raises explicitly.
+
+Inspection is read-only administrative access: it performs no provider calls,
+refresh, deletion, financial recalculation, or freshness-policy change. Normal
+financial input resolution continues through `get` / `get_series`; the existing
+cache protocols do not acquire these SQLite-specific inspection methods.
+
+`SQLiteTrajectorySink` and the public `read_trajectory(database, run_id)` function
+retain their existing signatures and import paths as repository delegates.
+The sink retains flush/close synchronization and optional database disposal;
+by default, closing it leaves the borrowed database open. Repository errors
+propagate; the recorder retains fail-open handling. Event encoding and readback
+validation preserve the existing contract, including the readback encoding
+check without adding a new write-time encoding policy.
+
+This storage layer does not introduce watchlists, investor Analysis Runs, new
+cache invalidation rules, or a second audit log. Those remain distinct product
+and policy concerns.
 
 ## 6. Data flow and persistence boundaries
 
@@ -457,5 +502,5 @@ Private model reasoning is never reconstructed.
 - Do not force heterogeneous strategies into one generic result object merely for presentation.
 - Do not pull Step 3.4 watchlists/Analysis Run persistence into Step 2.3.
 - Do not build a daemon, scheduler, proactive-monitoring service, notification system, full-screen TUI, or executive-report generator before the roadmap step that owns it.
-- Use `src/data/repositories/` for the planned repository layer.
+- Keep application persistence SQL in `src/data/repositories/`; migration DDL and test setup/assertion SQL retain their established owners.
 - Run Ruff, `mypy --strict`, and pytest according to the active milestone plan.

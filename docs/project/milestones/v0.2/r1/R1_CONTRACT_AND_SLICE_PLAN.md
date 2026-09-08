@@ -292,3 +292,17 @@ verification evidence in section 10 remains authoritative: 1,809 passing tests,
 The approval supersedes the historical pending-review status above. This update
 records completion only; no commit, push, PR, or subsequent implementation is
 authorized or performed by this record.
+
+## Merged implementation checkpoint — 2026-09-07
+
+[PR #29](https://github.com/PeterPontbriand/financial-data-agents/pull/29) merged
+R1 and R2 into `main` on 2026-09-07 at 17:55:41 UTC. Merge commit:
+`ca914b73281aaf5e618684098bb4f115c90972c5`; reviewed PR head:
+`c4316425c52488c6574c93027235b9ac980e0803`. Their tracked trees are identical.
+This closes the implementation/PR workflow; prior no-PR and pending-review
+statements remain historical execution snapshots, superseded by final approval
+and this merge record. No predecessor checkpoint or review gate remains open.
+
+The [Step 3.2 handoff](../step-3.2/STEP_3_2_CONTRACT_AND_SLICE_PLAN.md) now owns
+current planning. Its preparation is authorized by the subsequent project-owner
+request; the R1/R2 merge itself does not authorize later implementation.

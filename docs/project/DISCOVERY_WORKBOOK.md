@@ -220,7 +220,7 @@ src/
 │   ├── financial/
 │   ├── security_identity.py
 │   ├── yfinance/
-│   └── repositories/        # Step 3 target
+│   └── repositories/        # Typed SQLite storage and inspection
 ├── analysis/
 │   ├── base_analyzer.py
 │   ├── shared/
@@ -233,7 +233,7 @@ src/
 └── utils/
 ```
 
-Repositories belong under `src/data/repositories/` when Step 3 introduces them.
+Typed SQLite repositories live under `src/data/repositories/` for historical snapshots, resolved financial inputs, and trajectory events. Cache-key enumeration and stored-input inspection are administrative reads; normal resolution retains its eligibility policy. The telemetry sink delegates storage while retaining lifecycle handling. See [the repository contracts](ARCHITECTURE.md#typed-sqlite-repositories-and-administrative-inspection) for access, ownership, and error semantics.
 
 ---
 

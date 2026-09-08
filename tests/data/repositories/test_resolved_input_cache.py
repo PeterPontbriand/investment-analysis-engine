@@ -38,6 +38,143 @@ START = datetime(2025, 1, 1, tzinfo=UTC)
 END = datetime(2025, 12, 31, tzinfo=UTC)
 
 
+def test_list_keys_pages_preserve_full_identity(
+    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+) -> None:
+    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    assert cache.list_keys(limit=2) == ()
+    keys = (
+        replace(key, subject_kind=FinancialSubjectKind.MACRO, subject_id="macroCase", basis=None),
+        replace(key, analysis_as_of=NOW, observation_period_start=START, observation_period_end=END),
+        key,
+    )
+    for item in reversed(keys):
+        cache.put(item, replace(fact, as_of=item.analysis_as_of, basis=item.basis))
+    assert cache.list_keys(limit=2) == keys[:2]
+    assert cache.list_keys(limit=2, offset=2) == keys[2:]
+    assert cache.list_keys(limit=1, offset=1) == keys[1:2]
+    assert cache.list_keys(limit=2, offset=3) == ()
+
+
+@pytest.mark.parametrize(
+    ("limit", "offset"), [(0, 0), (-1, 0), (True, 0), (1.5, 0), (None, 0), (1, -1), (1, False), (1, 0.5)]
+)
+def test_list_keys_rejects_invalid_bounds_before_io(tmp_path: Path, limit: Any, offset: Any) -> None:
+    path = tmp_path / "not-created.sqlite3"
+    database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+    try:
+        with pytest.raises(ValueError, match="limit|offset"):
+            SQLiteResolvedInputCache(database).list_keys(limit=limit, offset=offset)
+        assert not path.exists()
+    finally:
+        database.close()
+
+
+@pytest.mark.parametrize("version", [None, 2])
+def test_inspection_requires_encoding(
+    database: SQLiteDatabase, key: ResolvedInputCacheKey, version: int | None
+) -> None:
+    with database.transaction() as connection:
+        if version is None:
+            connection.execute(delete(schema_metadata))
+        else:
+            connection.execute(update(schema_metadata).values(metadata_value=version))
+    cache = SQLiteResolvedInputCache(database)
+    with pytest.raises(ValueError, match="encoding version"):
+        cache.list_keys(limit=1)
+    with pytest.raises(ValueError, match="encoding version"):
+        cache.inspect(key)
+
+
+@pytest.mark.parametrize(("column", "value"), [("subject_id", "other"), ("analysis_as_of", "not-a-date")])
+def test_list_keys_rejects_malformed_selected_keys(
+    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, column: str, value: str
+) -> None:
+    cache = SQLiteResolvedInputCache(database)
+    cache.put(key, fact)
+    with database.transaction() as connection:
+        connection.exec_driver_sql("PRAGMA ignore_check_constraints = ON")
+        connection.execute(update(resolved_input_cache).values(**{column: value}))
+    with pytest.raises(ValueError, match="Malformed|validation error"):
+        cache.list_keys(limit=1)
+
+
+@pytest.mark.parametrize(("column", "value"), [("notes_json", "{}"), ("value", float("inf")), ("subject_id", "OTHER")])
+def test_inspect_rejects_corrupt_storage(
+    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, column: str, value: object
+) -> None:
+    cache = SQLiteResolvedInputCache(database)
+    cache.put(key, fact)
+    with database.transaction() as connection:
+        connection.execute(update(resolved_input_cache).values(**{column: value}))
+    with pytest.raises(ValueError, match="Malformed|validation error"):
+        cache.inspect(key)
+
+
+def test_inspection_preserves_ineligible_entries_and_never_uses_clock(
+    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+) -> None:
+    historical = replace(key, analysis_as_of=NOW, observation_period_start=START, observation_period_end=END)
+    late_fact = replace(fact, as_of=NOW, available_at=NOW + timedelta(days=1))
+    writer = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    writer.put(key, fact)
+    writer.put(historical, late_fact)
+    stale = SQLiteResolvedInputCache(database, clock=lambda: NOW + timedelta(days=1), ttl=timedelta(seconds=1))
+    assert stale.get(key) is None
+    assert stale.get(historical) is None
+    assert (
+        stale.get_series(
+            ResolvedInputSeriesCacheQuery(
+                historical.subject_kind,
+                historical.subject_id,
+                historical.field_name,
+                historical.basis,
+                historical.analysis_as_of,
+                historical.schema_version,
+                historical.provider_id,
+            )
+        )
+        == ()
+    )
+
+    def forbidden_clock() -> datetime:
+        pytest.fail("Inspection must not consult freshness or write timestamps")
+
+    inspector = SQLiteResolvedInputCache(database, clock=forbidden_clock, ttl=timedelta(0))
+    with database.read() as connection:
+        before = connection.execute(select(resolved_input_cache)).all()
+    assert inspector.list_keys(limit=10) == (historical, key)
+    assert inspector.inspect(key) == ResolvedInputCacheEntry(key, fact, NOW)
+    assert inspector.inspect(historical) == ResolvedInputCacheEntry(historical, late_fact, NOW)
+    assert inspector.inspect(replace(key, subject_id="MISSING")) is None
+    with database.read() as connection:
+        assert connection.execute(select(resolved_input_cache)).all() == before
+
+
+def test_list_keys_does_not_decode_payload(
+    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+) -> None:
+    cache = SQLiteResolvedInputCache(database)
+    cache.put(key, fact)
+    with database.transaction() as connection:
+        connection.execute(update(resolved_input_cache).values(notes_json="{}"))
+    assert cache.list_keys(limit=1) == (key,)
+    with pytest.raises(ValueError, match="Malformed|validation error"):
+        cache.inspect(key)
+
+
+def test_inspect_revalidates_key_before_io(tmp_path: Path, key: ResolvedInputCacheKey) -> None:
+    object.__setattr__(key, "analysis_as_of", NOW.replace(tzinfo=None))
+    path = tmp_path / "not-created.sqlite3"
+    database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+    try:
+        with pytest.raises(ValueError, match="timezone-aware"):
+            SQLiteResolvedInputCache(database).inspect(key)
+        assert not path.exists()
+    finally:
+        database.close()
+
+
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'cache.sqlite3').as_posix()}"
