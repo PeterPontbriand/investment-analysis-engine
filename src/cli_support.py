@@ -9,9 +9,11 @@ from pydantic import ValidationError
 from typer._click.exceptions import UsageError
 
 from src.config import settings
+from src.core.telemetry.quality import record_cli_quality
 from src.data.base_client import DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputSeriesCacheProtocol
+from src.data.quality import HistoricalQualityPolicy
 from src.data.repositories import SQLiteDatabase, SQLiteMarketDataRepository, SQLiteResolvedInputCache
 from src.data.yfinance import YFinanceClient
 from src.data.yfinance.client import YFINANCE_HISTORICAL_INTERVAL, YFINANCE_PRICE_ADJUSTMENT
@@ -33,6 +35,7 @@ def _production_historical_client(provider: YFinanceClient) -> Iterator[CachedHi
             SQLiteMarketDataRepository(database),
             request_variant=f"{YFINANCE_HISTORICAL_INTERVAL}:{YFINANCE_PRICE_ADJUSTMENT}",
             ttl=None if seconds is None else timedelta(seconds=seconds),
+            quality_policy=HistoricalQualityPolicy(expected_adjustment=YFINANCE_PRICE_ADJUSTMENT),
         )
     finally:
         database.close()
@@ -42,15 +45,16 @@ def _production_historical_client(provider: YFinanceClient) -> Iterator[CachedHi
 def _production_financial_cache(*, enabled: bool) -> Iterator[ResolvedInputSeriesCacheProtocol]:
     """Own one invocation's durable cache; schema upgrades remain explicit.
 
-    Financial facts retain the existing no-TTL policy and resolver temporal
-    checks. Disabling caching avoids opening SQLite altogether.
+    Financial facts use configured residence age (unlimited by default) and
+    temporal quality checks. Disabling caching avoids opening SQLite altogether.
     """
     if not enabled:
         yield InMemoryResolvedInputCache()
         return
     database = SQLiteDatabase(settings)
     try:
-        yield SQLiteResolvedInputCache(database)
+        seconds = settings.financial_cache_ttl_seconds
+        yield SQLiteResolvedInputCache(database, ttl=None if seconds is None else timedelta(seconds=seconds))
     finally:
         database.close()
 
@@ -126,7 +130,8 @@ def execution_errors(
 ) -> Iterator[None]:
     """Translate execution failures while preserving deliberate CLI exits."""
     try:
-        yield
+        with record_cli_quality():
+            yield
     except (typer.Exit, UsageError):
         raise
     except Exception as exc:

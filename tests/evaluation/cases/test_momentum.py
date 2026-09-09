@@ -19,7 +19,13 @@ from src.evaluation.cases.momentum import (
     MOMENTUM_SUCCESS_CASE,
 )
 from src.evaluation.composition import dispatch_fixture_case
-from src.evaluation.fixtures.market_data import MOMENTUM_LONG_WINDOW, MOMENTUM_RSI_PERIOD, MOMENTUM_SHORT_WINDOW
+from src.evaluation.fixtures.market_data import (
+    MOMENTUM_LONG_WINDOW,
+    MOMENTUM_RSI_PERIOD,
+    MOMENTUM_SHORT_WINDOW,
+    FixtureMarketDataProvider,
+    momentum_boundary_frame,
+)
 from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult, ToolName
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
@@ -28,6 +34,13 @@ from src.orchestrator.analysis_tools import MomentumToolArguments
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("30000000-0000-0000-0000-000000000003")
 SESSION_ID = UUID("40000000-0000-0000-0000-000000000004")
+
+
+def test_boundary_fixture_metadata_matches_its_actual_observations() -> None:
+    frame = momentum_boundary_frame()
+    data = FixtureMarketDataProvider(frame).fetch_historical_data("MOM", "2026-01-01")
+    assert data.context.data_as_of == frame.index[-1].date()
+    assert data.context.observation_count == len(frame)
 
 
 class RecordingSink:

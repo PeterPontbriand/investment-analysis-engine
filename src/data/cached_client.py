@@ -4,11 +4,19 @@ import logging
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 
-import numpy as np
 import pandas as pd
 
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.market_data import HistoricalMarketData
+from src.data.quality import (
+    FreshnessPolicy,
+    HistoricalQualityPolicy,
+    QualityContext,
+    QualityOutcome,
+    evaluate_freshness,
+    evaluate_historical_quality,
+)
+from src.data.quality_reporting import publish_quality
 from src.data.repositories.market_data import (
     MarketDataCacheKey,
     SQLiteMarketDataRepository,
@@ -16,22 +24,6 @@ from src.data.repositories.market_data import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _validate_data(data: HistoricalMarketData) -> None:
-    """Reject missing or non-finite observations even when storage is bypassed."""
-    frame = data.frame
-    if frame.empty or "Close" not in frame.columns:
-        raise DataFetchError("Historical data must be non-empty and contain Close.")
-    for column in ("Open", "High", "Low", "Close", "Adj Close", "Volume"):
-        if column not in frame.columns:
-            continue
-        try:
-            values = frame[column].to_numpy(dtype=float)
-        except (TypeError, ValueError) as exc:
-            raise DataFetchError("Historical observations must be numeric and finite.") from exc
-        if not np.isfinite(values).all():
-            raise DataFetchError("Historical observations must be numeric and finite.")
 
 
 class CachedHistoricalDataClient(BaseDataClient):
@@ -44,7 +36,7 @@ class CachedHistoricalDataClient(BaseDataClient):
     Production composition owns resource lifetime and selection of TTL defaults.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         provider: BaseDataClient,
         repository: SQLiteMarketDataRepository,
@@ -52,6 +44,7 @@ class CachedHistoricalDataClient(BaseDataClient):
         request_variant: str | None,
         ttl: timedelta | None,
         clock: Callable[[], datetime] | None = None,
+        quality_policy: HistoricalQualityPolicy | None = None,
     ) -> None:
         """Inject historical storage, explicit reuse policy, and an aware clock."""
         if ttl is not None and ttl < timedelta(0):
@@ -61,6 +54,20 @@ class CachedHistoricalDataClient(BaseDataClient):
         self._variant = request_variant
         self._ttl = ttl
         self._clock = clock or (lambda: datetime.now(UTC))
+        self._quality_policy = quality_policy or HistoricalQualityPolicy()
+
+    def _quality_error(
+        self, data: HistoricalMarketData, input_id: str, *, cached_at: datetime | None = None
+    ) -> str | None:
+        context = QualityContext(input_id, self._now())
+        decisions = evaluate_historical_quality(data, context=context, policy=self._quality_policy)
+        # Historical series have date labels, not publication timestamps. Only
+        # cache residence age is evaluated here; fact availability is separate.
+        decisions += evaluate_freshness(
+            context=context, policy=FreshnessPolicy(cache_ttl=self._ttl), cached_at=cached_at
+        )
+        publish_quality(decisions)
+        return next((item.reason for item in decisions if item.outcome is QualityOutcome.FAIL), None)
 
     @property
     def provider_id(self) -> str | None:
@@ -82,10 +89,13 @@ class CachedHistoricalDataClient(BaseDataClient):
     ) -> HistoricalMarketData:
         """Reuse an eligible exact snapshot or fetch and validate a full request."""
         provider_id = self.provider_id
+        input_id = f"{ticker}:{provider_id}:{start_date}:{end_date}:{self._variant}"
         if not provider_id or not provider_id.strip() or not self._variant or not self._variant.strip():
             logger.debug("Historical cache bypassed: provider or request variant is unavailable.")
             data = self._provider.fetch_historical_data(ticker, start_date, end_date)
-            _validate_data(data)
+            error = self._quality_error(data, input_id)
+            if error is not None:
+                raise DataFetchError(error)
             return data
         key = MarketDataCacheKey(
             ticker,
@@ -94,13 +104,14 @@ class CachedHistoricalDataClient(BaseDataClient):
             None if end_date is None else date.fromisoformat(end_date),
             self._variant,
         )
-        now = self._now()
         entry = self._repository.get(key)
-        if entry is not None and (self._ttl is None or now - entry.cached_at <= self._ttl):
+        if entry is not None and self._quality_error(entry.data, input_id, cached_at=entry.cached_at) is None:
             return entry.data
         data = self._provider.fetch_historical_data(ticker, start_date, end_date)
         completed_at = self._now()
-        _validate_data(data)
+        error = self._quality_error(data, input_id)
+        if error is not None:
+            raise DataFetchError(error)
         try:
             self._repository.put(key, data, fetch_completed_at=completed_at)
         except UnsupportedHistoricalDataError:

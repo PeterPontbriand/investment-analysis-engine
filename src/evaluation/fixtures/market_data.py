@@ -4,13 +4,12 @@ Implements the full `BaseDataClient` contract with synthetic data so
 Golden evaluation and analyzer tests never touch external market-data providers.
 """
 
-from datetime import date
 from typing import Final
 
 import pandas as pd
 
 from src.data.base_client import BaseDataClient, DataFetchError
-from src.data.market_data import HistoricalMarketData, MarketDataContext
+from src.data.market_data import HistoricalMarketData, MarketDataContext, latest_observation_date
 
 MOMENTUM_SHORT_WINDOW: Final = 2
 MOMENTUM_LONG_WINDOW: Final = 3
@@ -52,7 +51,7 @@ class FixtureMarketDataProvider:
             context=MarketDataContext(
                 provider_id=self.provider_id,
                 observation_interval="1d",
-                data_as_of=date(2026, 1, 6),
+                data_as_of=latest_observation_date(self._frame),
                 currency="USD",
                 observation_count=len(self._frame),
                 price_adjustment="adjusted",

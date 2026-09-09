@@ -19,6 +19,8 @@ from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.data.instrument_profile import InstrumentProfile
 from src.data.market_data import HistoricalMarketData, MarketDataContext, MarketDataProvider
+from src.data.quality import QualityContext, QualityOutcome, evaluate_historical_quality
+from src.data.quality_reporting import publish_quality
 from src.data.yfinance import YFinanceClient
 from src.utils.logger_util import setup_logger
 
@@ -183,6 +185,14 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
 
         if df is None:
             df = self.data_client.fetch_data(target_ticker, self._start_date)
+            decisions = evaluate_historical_quality(
+                HistoricalMarketData(df, MarketDataContext()),
+                context=QualityContext(f"{target_ticker}:historical_close", datetime.now(UTC)),
+            )
+            publish_quality(decisions)
+            failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)
+            if failure is not None:
+                raise ValueError(failure.reason)
 
         with setup_logger(__name__) as logger:
             logger.debug(f"Executing vectorized metrics matrix: SMA({s_win}), SMA({l_win}) on {target_ticker}")
@@ -302,6 +312,13 @@ class MomentumInputResolver:
             )
         )
         data = self._provider.fetch_historical_data(ticker, start_date)
+        decisions = evaluate_historical_quality(
+            data, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=as_of)
+        )
+        publish_quality(decisions)
+        failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)
+        if failure is not None:
+            raise ValueError(failure.reason)
         frame = data.frame
         if as_of is not None:
             if as_of.tzinfo is None or as_of.tzinfo.utcoffset(as_of) is None:

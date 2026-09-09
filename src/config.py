@@ -80,6 +80,12 @@ class ProjectSettings(BaseSettings):
         allow_inf_nan=False,
         description="Historical cache reuse age: one hour by default; None disables TTL, zero allows no positive age.",
     )
+    financial_cache_ttl_seconds: float | None = Field(
+        default=None,
+        ge=0,
+        allow_inf_nan=False,
+        description="Financial cache residence age; None preserves unlimited reuse subject to temporal quality checks.",
+    )
 
     # API Settings
     api_host: str = "0.0.0.0"

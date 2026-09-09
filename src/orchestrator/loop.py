@@ -21,6 +21,7 @@ from src.core.telemetry import (
     TrajectoryRecord,
     TrajectoryRecorder,
 )
+from src.core.telemetry.quality import record_quality
 from src.core.telemetry.run_context import get_current_run_context
 from src.llm.client import LLMClient
 from src.orchestrator.context import MessageContext
@@ -826,7 +827,8 @@ class AgentOrchestrator:
             budget = circuit.timeout_budget(ReliabilityTripReason.TOOL_TIMEOUT)
             try:
                 async with asyncio.timeout(budget.seconds):
-                    response = await self.dispatcher.dispatch(request)
+                    with record_quality(self.recorder, span_id=tool_span_id, parent_span_id=step_span_id):
+                        response = await self.dispatcher.dispatch(request)
             except TimeoutError:
                 circuit.trip_timeout(
                     budget,

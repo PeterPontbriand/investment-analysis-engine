@@ -44,12 +44,15 @@ from src.data.financial.provenance import (
     ResolvedInput,
     SourceKind,
 )
+from src.data.financial.quality import financial_quality_error
 from src.data.financial.resolution_trace import (
     ResolutionEvent,
     ResolutionOutcome,
     ResolutionStage,
     ResolutionTrace,
 )
+from src.data.quality import QualityContext, QualityDecision, QualityOutcome
+from src.data.quality_reporting import publish_quality
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 
 CACHE_SCHEMA_VERSION = 2
@@ -220,6 +223,17 @@ class _FieldResolution:
 
 
 def _event(field: str, stage: ResolutionStage, outcome: ResolutionOutcome, message: str) -> ResolutionEvent:
+    if outcome in (ResolutionOutcome.REJECTED, ResolutionOutcome.INVALID, ResolutionOutcome.UNAVAILABLE):
+        publish_quality(
+            (
+                QualityDecision(
+                    f"financial.{stage.value}",
+                    QualityOutcome.FAIL,
+                    message,
+                    QualityContext(field, datetime.now(UTC)),
+                ),
+            )
+        )
     return ResolutionEvent(field_name=field, stage=stage, outcome=outcome, message=message)
 
 
@@ -290,6 +304,8 @@ def _fact_rejection(  # noqa: PLR0911
         return ReasonCode.AMBIGUOUS_FACT, "The annual fact lacks a stable provider_fact_id."
     if fact.available_at is None or fact.available_at > as_of:
         return ReasonCode.NOT_AVAILABLE_AS_OF, "The annual fact was not publicly available at the analysis boundary."
+    if financial_quality_error(fact, input_id=f"{subject_id}:{field.value}", now=as_of, as_of=as_of):
+        return ReasonCode.NOT_AVAILABLE_AS_OF, "The annual observation is later than the analysis boundary."
     expected_units = (
         FinancialUnit.CURRENCY_PER_SHARE
         if field is FinancialField.EPS
@@ -480,6 +496,54 @@ def _periods_are_contiguous(previous_end: datetime | None, following_start: date
     return previous_end == following_start or previous_end.date() + timedelta(days=1) == following_start.date()
 
 
+def _cached_field_valid(
+    value: ResolvedInput, field: FinancialField, subject_id: str, currency: str, as_of: datetime
+) -> bool:
+    """Apply provider-equivalent compatibility checks without renormalizing values."""
+    try:
+        if value.provider_id is None or value.provider_field is None or value.units is None:
+            raise ValueError("Cached annual fact has no provider identity.")
+        fact = ProviderFact(
+            subject_kind=FinancialSubjectKind.SECURITY,
+            subject_id=subject_id,
+            field_name=FinancialField(value.field_name),
+            value=value.value,
+            units=FinancialUnit(value.units),
+            provider_id=value.provider_id,
+            provider_field=value.provider_field,
+            retrieved_at=value.retrieved_at or value.resolved_at,
+            basis=value.basis,
+            currency=value.currency,
+            observation_period_start=value.observation_period_start,
+            observation_period_end=value.observation_period_end,
+            observed_at=value.observed_at,
+            available_at=value.available_at,
+            notes=value.notes,
+            fiscal_year=value.fiscal_year,
+            period_kind=value.period_kind,
+            accounting_scope=value.accounting_scope,
+            capital_expenditure_sign=value.capital_expenditure_sign,
+            provider_fact_id=value.provider_fact_id,
+        )
+        rejection = _fact_rejection(fact, field, subject_id, currency, as_of)
+        reason = rejection[1] if rejection is not None else None
+    except ValueError:
+        reason = "Cached annual fact does not satisfy the financial fact contract."
+    if reason is not None:
+        publish_quality(
+            (
+                QualityDecision(
+                    "financial.cached_series",
+                    QualityOutcome.FAIL,
+                    reason,
+                    QualityContext(f"{subject_id}:{field.value}", as_of, retrieved_at=value.retrieved_at),
+                ),
+            )
+        )
+        return False
+    return True
+
+
 def _resolve_field(  # noqa: PLR0913
     *,
     field: FinancialField,
@@ -505,7 +569,11 @@ def _resolve_field(  # noqa: PLR0913
             schema_version=CACHE_SCHEMA_VERSION,
         )
         entries = cache.get_series(query)
-        cached = tuple(_to_cache_input(entry.resolved_input, resolved_at) for entry in entries)
+        cached = tuple(
+            _to_cache_input(entry.resolved_input, resolved_at)
+            for entry in entries
+            if _cached_field_valid(entry.resolved_input, field, subject_id, currency, effective_as_of)
+        )
         if len(cached) >= required_count and _longest_contiguous_count(cached) >= required_count:
             return _FieldResolution(inputs=cached), trace.append(
                 _event(

@@ -22,12 +22,15 @@ from src.data.financial.provenance import (
     ResolvedInput,
     SourceKind,
 )
+from src.data.financial.quality import financial_quality_error
 from src.data.financial.resolution_trace import (
     ResolutionEvent,
     ResolutionOutcome,
     ResolutionStage,
     ResolutionTrace,
 )
+from src.data.quality import QualityContext, QualityDecision, QualityOutcome
+from src.data.quality_reporting import publish_quality
 
 # ---------------------------------------------------------------------------
 # InputResolutionResult
@@ -759,6 +762,8 @@ class InputResolver:
         """
         if stored.source_kind is not SourceKind.DERIVED:
             return None
+        if financial_quality_error(stored, input_id=str(key), now=self._clock(), as_of=key.analysis_as_of):
+            return None
         if stored.available_at is not None and stored.available_at > self._clock():
             return None
 
@@ -819,6 +824,10 @@ class InputResolver:
         """Check temporal eligibility of a single candidate."""
         period_end = fact.observation_period_end
         assert period_end is not None  # guaranteed by prior validation
+        if financial_quality_error(
+            fact, input_id=f"{request.subject_id}:{request.field_name.value}", now=resolver_now, as_of=request.as_of
+        ):
+            return False
 
         if request.as_of is not None:
             # Historical: period_end <= as_of, available_at present and <= as_of
@@ -921,6 +930,8 @@ class InputResolver:
 
         Returns ``None`` if the entry is temporally unusable for the request.
         """
+        if financial_quality_error(stored, input_id=str(key), now=self._clock(), as_of=request.as_of):
+            return None
         # Current-request temporal check: available_at must not be in the future.
         if request.as_of is None and stored.available_at is not None and stored.available_at > self._clock():
             return None
@@ -1089,6 +1100,17 @@ def _event(
     message: str,
 ) -> ResolutionEvent:
     """Construct one resolver trace event."""
+    if outcome in (ResolutionOutcome.REJECTED, ResolutionOutcome.INVALID, ResolutionOutcome.UNAVAILABLE):
+        publish_quality(
+            (
+                QualityDecision(
+                    f"financial.{stage.value}",
+                    QualityOutcome.FAIL,
+                    message,
+                    QualityContext(field_name, datetime.now(UTC)),
+                ),
+            )
+        )
     return ResolutionEvent(
         field_name=field_name,
         stage=stage,
@@ -1283,7 +1305,13 @@ def _validate_provider_response(
             CalculationStatus.INPUT_UNAVAILABLE,
             f"Fact available_at ({fact.available_at.isoformat()}) is later than current time ({now.isoformat()}).",
         )
-    return None
+    error = financial_quality_error(
+        fact,
+        input_id=f"{request.subject_id}:{request.field_name.value}:{request.provider_id}",
+        now=now,
+        as_of=request.as_of,
+    )
+    return (CalculationStatus.INPUT_UNAVAILABLE, error) if error is not None else None
 
 
 def _earnings_compatibility_reason(facts: list[ProviderFact]) -> str | None:

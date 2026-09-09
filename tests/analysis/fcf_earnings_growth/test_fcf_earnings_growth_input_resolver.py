@@ -21,9 +21,9 @@ from src.analysis.strategy.fcf_earnings_growth.models import (
     ReasonCode,
 )
 from src.core.analysis_status import CalculationStatus
-from src.data.financial.cache import InMemoryResolvedInputCache
+from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputSeriesCacheQuery
 from src.data.financial.facts import FinancialField
-from src.data.financial.provenance import AccountingScope, CapitalExpenditureSign
+from src.data.financial.provenance import AccountingScope, CapitalExpenditureSign, FinancialSubjectKind
 from src.evaluation.fixtures.fcf_earnings_growth import (
     PROVIDER_ID,
     FixtureAnnualFinancialFactsProvider,
@@ -32,6 +32,32 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
 )
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
+
+
+@pytest.mark.parametrize("provider_fails", [False, True])
+def test_incompatible_cached_series_refreshes_complete_field_without_stale_fallback(provider_fails: bool) -> None:
+    cache = InMemoryResolvedInputCache(clock=lambda: NOW)
+    provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    assert _resolve(provider, cache=cache).status is CalculationStatus.OK
+    query = ResolvedInputSeriesCacheQuery(
+        subject_kind=FinancialSubjectKind.SECURITY,
+        subject_id="ACME",
+        field_name="operating_cash_flow",
+        basis="fiscal_year",
+        provider_id=PROVIDER_ID,
+        analysis_as_of=None,
+        schema_version=CACHE_SCHEMA_VERSION,
+    )
+    entry = cache.get_series(query)[0]
+    cache.put(entry.key, replace(entry.resolved_input, currency="CAD"))
+    provider.requests.clear()
+    provider.error_field = FinancialField.OPERATING_CASH_FLOW if provider_fails else None
+    result = _resolve(provider, cache=cache)
+    assert [request.field_name for request in provider.requests] == [FinancialField.OPERATING_CASH_FLOW]
+    assert (result.status is CalculationStatus.OK) is not provider_fails
+    stored = cache.get(entry.key)
+    assert stored is not None
+    assert stored.resolved_input.currency == ("CAD" if provider_fails else "USD")
 
 
 def _bindings(provider: FixtureAnnualFinancialFactsProvider) -> dict[FinancialField, FinancialFieldProvider]:

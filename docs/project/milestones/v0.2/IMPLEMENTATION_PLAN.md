@@ -9,7 +9,7 @@
 **Revised:** 2026-09-06 — Recorded Step 3.1 and R1 completion, the pushed R1 checkpoint, and the revised R2 proposal with independent slice gates before Step 3.2. R2 documentation review does not authorize production implementation.<br/>
 **Revised:** 2026-09-07 — Recorded merged PR #29 closing R1/R2. Prepared Step 3.2 source reconciliation, gap matrix, bounded implementation contract, and fresh baseline; Gates 3.2-A/B/C approved on 2026-09-07; implementation and acceptance verification passed; final Gate 3.2-D approved; Step 3.2 complete on 2026-09-07.<br/>
 **Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07
-**Next work item:** Step 3.3 is authorized to begin on 2026-09-07. Issue #17 is complete and approved; its [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
+**Next work item:** Step 3.3 companion plan approved and implementation authorized on 2026-09-07 on `feat/step-3.3-data-quality`. A reconciliation is complete; review B rules and tests in the [companion plan](step-3.3/STEP_3_3_CONTRACT_AND_SLICE_PLAN.md) before C integration. Issue #17 is complete and approved; its [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1551,7 +1551,7 @@ Strongly-typed Python data-access objects for cache inspection, audit logging, a
 
 ### 4.9 Step 3.3 – Data Quality & Cache Invalidation Pipeline
 
-**Status:** Authorized to begin on 2026-09-07 following final Issue #17 approval. The project owner explicitly clarified “Authorize Step 3.3 next.” Work has not begun in the telemetry closeout task. This authorization applies to the existing Step 3.3 scope and review gates; it does not reopen completed Step 2.4 or authorize later work packages.
+**Status:** Step 3.3 is complete on `feat/step-3.3-data-quality` after approved checkpoint `a8f3297`. A reconciliation and a fresh green baseline are complete; B pure rules and focused tests are implemented; C cache/refresh and trajectory integration is implemented and wired into the audited fetch/cache and resolver paths. See the [Step 3.3 Contract and Slice Plan](step-3.3/STEP_3_3_CONTRACT_AND_SLICE_PLAN.md) for the contract, verification and gate review evidence. The full managed quality gate passed on 2026-09-08 (clean Ruff check/format, strict mypy, 1,944 tests, 89% coverage); Step 3.3 final acceptance is recorded in the acceptance criteria below.
 
 **Goal**<br/>
 Validate incoming financial data (FX adjustments, corporate actions, staleness) and invalidate or refresh cache entries when quality rules fail.
@@ -1564,9 +1564,11 @@ Validate incoming financial data (FX adjustments, corporate actions, staleness) 
 5. Unit tests with synthetic valid and invalid data series/facts.
 
 **Acceptance criteria**
-- [ ] Documented quality rules with clear pass/fail behaviour.
-- [ ] Stale or invalid data cannot silently become the source of truth for downstream analytics.
-- [ ] Quality failures appear transparently in the trajectory log.
+- [x] Documented quality rules with clear pass/fail behaviour.
+- [x] Stale or invalid data cannot silently become the source of truth for downstream analytics.
+- [x] Quality failures appear transparently in the trajectory log.
+
+**Sign-off:** Step 3.3 acceptance criteria are satisfied and the full managed quality gate is green for [PR #32](https://github.com/PeterPontbriand/financial-data-agents/pull/32); Step 3.3 completed on 2026-09-08.
 
 ---
 
@@ -1803,5 +1805,5 @@ on 2026-09-07. Their checkpoint/PR workflows are closed.
 1. Step 3.2 is complete and approved on 2026-09-07; all A–D gates are closed. The [Step 3.2 Contract and Slice Plan](step-3.2/STEP_3_2_CONTRACT_AND_SLICE_PLAN.md) records the accepted final gate: 1,853 tests, 89% reported coverage, and clean Ruff, formatting, and strict mypy.
 2. **Issue #17 is complete and approved.** Final review on 2026-09-07 accepted the [Telemetry Closeout Plan and evidence](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md). Publish the accepted test/documentation change through the separately authorized commit/PR workflow; publication and GitHub issue closure remain outstanding. The companion supplies recommended commit/PR particulars and an optional approval comment.
 3. Step 3.2 publication is complete: [PR #30](https://github.com/PeterPontbriand/financial-data-agents/pull/30) merged as `f3ef25701cac3fbee3a2caa295f102f4d389d51b` on 2026-09-08 at 00:11 UTC (2026-09-07 in America/Toronto). The local checkout remains at its original head `d07a709`; base the separate Issue #17 PR on updated `main` while preserving its pending changes.
-4. **Step 3.3 is authorized to begin.** The project owner confirmed the corrected step number on 2026-09-07. Proceed within its existing scope and gates; no Step 3.3 implementation has been performed by this closeout task. P2-Profiles, Step 3.4, and Step 3.5 retain their separate planning/review gates. Reconsider P2-ETF after 3.5 only when separately prioritized and its provider/product-policy gate is met.
+4. **Step 3.3 companion plan approved and implementation authorized on 2026-09-07 on `feat/step-3.3-data-quality`.** The [companion plan](step-3.3/STEP_3_3_CONTRACT_AND_SLICE_PLAN.md) supplies the approved contract, completed A reconciliation and verified B evidence; Gate B review is next before C integration. The project owner confirmed the corrected step number on 2026-09-07. Proceed within its existing scope and gates; no Step 3.3 implementation has been performed by this closeout task. P2-Profiles, Step 3.4, and Step 3.5 retain their separate planning/review gates. Reconsider P2-ETF after 3.5 only when separately prioritized and its provider/product-policy gate is met.
 5. Preserve classified unavailability for later representative live validation of the useful-result ratio and any separately reviewed provider-mapping expansion.

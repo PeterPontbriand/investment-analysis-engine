@@ -13,6 +13,7 @@ from sqlalchemy.engine import Connection
 
 from src.data.financial.cache import ResolvedInputCacheEntry, ResolvedInputCacheKey, ResolvedInputSeriesCacheQuery
 from src.data.financial.provenance import ComponentLineage, ResolvedInput
+from src.data.financial.quality import financial_cache_eligible
 from src.data.repositories.schema import resolved_input_cache, schema_metadata
 from src.data.repositories.sqlite import SQLiteDatabase
 
@@ -277,14 +278,11 @@ class SQLiteResolvedInputCache:
 
     def _is_eligible(self, entry: ResolvedInputCacheEntry) -> bool:
         """Apply the same historical and TTL policy for scalar and series reads."""
-        if entry.key.analysis_as_of is not None:
-            available_at = entry.resolved_input.available_at
-            if available_at is None or available_at > entry.key.analysis_as_of:
-                return False
-        if self._ttl is not None:
-            now = self._clock()
-            if now.utcoffset() is None:
-                raise ValueError("Cache clock must be timezone-aware.")
-            if now - entry.cached_at > self._ttl:
-                return False
-        return True
+        return financial_cache_eligible(
+            entry.resolved_input,
+            input_id=str(entry.key),
+            now=self._clock() if self._ttl is not None else datetime.now(UTC),
+            as_of=entry.key.analysis_as_of,
+            cached_at=entry.cached_at,
+            ttl=self._ttl,
+        )

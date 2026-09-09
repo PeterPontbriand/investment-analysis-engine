@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from math import inf, nan
 from typing import Any
@@ -33,7 +34,7 @@ from src.data.financial.provenance import (
     ResolvedInput,
     SourceKind,
 )
-from src.data.financial.resolver import InputResolutionResult
+from src.data.financial.resolver import InputResolutionResult, InputResolver
 
 # ---------------------------------------------------------------------------
 # Fixed datetimes
@@ -110,6 +111,25 @@ class SpyCache:
 
 def _fixed_clock() -> Any:
     return lambda: NOW  # noqa: E731
+
+
+def test_future_observation_refreshes_cache_but_rejects_invalid_provider_replacement() -> None:
+    cache = InMemoryResolvedInputCache(clock=lambda: NOW)
+    request = _make_request()
+    key = ResolvedInputCacheKey(FinancialSubjectKind.SECURITY, SUBJECT_ID, "eps", None, PROVIDER_ID, None, 1)
+    bad = replace(_make_provider_input(), observed_at=NOW + timedelta(days=1))
+    cache.put(key, bad)
+    provider = FakeProvider((_make_fact(observed_at=NOW + timedelta(days=1)),))
+    resolver = InputResolver(provider, cache=cache, clock=lambda: NOW)
+    result = resolver.resolve(request)
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert provider.call_count == 1
+    stored = cache.get(key)
+    assert stored is not None
+    assert stored.resolved_input == bad
+    provider._facts = (_make_fact(observed_at=NOW),)
+    assert resolver.resolve(request).status is CalculationStatus.OK
+    assert provider.call_count == 2
 
 
 def _make_request(  # noqa: PLR0913, PLR0917

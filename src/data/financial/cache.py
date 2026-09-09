@@ -24,6 +24,7 @@ from src.data.financial.provenance import (
     ResolvedInput,
     SourceKind,
 )
+from src.data.financial.quality import financial_cache_eligible
 
 
 def _validate_optional_period_bounds(start: datetime | None, end: datetime | None) -> None:
@@ -458,21 +459,14 @@ class InMemoryResolvedInputCache:
         Raises:
             ValueError: If the clock returns a naive datetime while TTL is set.
         """
-        if key.analysis_as_of is not None:
-            available_at = entry.resolved_input.available_at
-            if available_at is None:
-                return False
-            if available_at > key.analysis_as_of:
-                return False
-        if self._ttl is not None:
-            now = self._clock()
-            if now.tzinfo is None or now.utcoffset() is None:
-                msg = "Clock returned a naive datetime."
-                raise ValueError(msg)
-            age = now - entry.cached_at
-            if age > self._ttl:
-                return False
-        return True
+        return financial_cache_eligible(
+            entry.resolved_input,
+            input_id=str(key),
+            now=self._clock() if self._ttl is not None else datetime.now(UTC),
+            as_of=key.analysis_as_of,
+            cached_at=entry.cached_at,
+            ttl=self._ttl,
+        )
 
     @staticmethod
     def _key_matches_query(key: ResolvedInputCacheKey, query: ResolvedInputSeriesCacheQuery) -> bool:

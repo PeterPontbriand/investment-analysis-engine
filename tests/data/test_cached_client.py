@@ -1,6 +1,7 @@
 """Exercise durable historical reuse with deterministic providers and clocks."""
 
 from collections.abc import Iterator
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -14,10 +15,93 @@ from src.config import ProjectSettings
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.market_data import HistoricalMarketData, MarketDataContext
+from src.data.quality import HistoricalQualityPolicy, QualityDecision
+from src.data.quality_reporting import quality_observer
 from src.data.repositories import MarketDataCacheKey, SQLiteDatabase, SQLiteMarketDataRepository
 
 NOW = datetime(2026, 9, 5, tzinfo=UTC)
 START = "2025-01-01"
+
+
+def test_rejected_cache_refreshes_once_and_preserves_snapshot_on_failure(
+    database: SQLiteDatabase, tmp_path: Path
+) -> None:
+    provider = FakeProvider()
+    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    key = MarketDataCacheKey("ABC", "Fixture", date(2025, 1, 1), None, "daily")
+    bad = replace(provider.data, context=replace(provider.data.context, currency="USD"))
+    repository.put(key, bad, fetch_completed_at=NOW)
+    client = CachedHistoricalDataClient(
+        provider,
+        repository,
+        request_variant="daily",
+        ttl=None,
+        clock=lambda: NOW,
+        quality_policy=HistoricalQualityPolicy(expected_currency="CAD"),
+    )
+    decisions: list[QualityDecision] = []
+    provider.error = DataFetchError("offline")
+    with quality_observer(decisions.append), pytest.raises(DataFetchError, match="offline"):
+        client.fetch_data("ABC", START)
+    assert len(provider.calls) == 1
+    assert decisions[0].rule_id == "historical.currency"
+    stored = repository.get(key)
+    assert stored is not None
+    assert stored.data.context.currency == "USD"
+    database.close()
+    reopened = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'history.sqlite3').as_posix()}"))
+    repository = SQLiteMarketDataRepository(reopened)
+    provider.error = None
+    second = CachedHistoricalDataClient(
+        provider,
+        repository,
+        request_variant="daily",
+        ttl=None,
+        clock=lambda: NOW,
+        quality_policy=HistoricalQualityPolicy(expected_currency="CAD"),
+    )
+    try:
+        assert_frame_equal(second.fetch_data("ABC", START), provider.data.frame)
+        assert len(provider.calls) == 2
+        stored = repository.get(key)
+        assert stored is not None
+        assert stored.data.context.currency == "CAD"
+    finally:
+        reopened.close()
+
+
+def test_bypass_enforces_quality_even_with_broken_observer(database: SQLiteDatabase) -> None:
+    provider = FakeProvider()
+    provider.data.frame.index = provider.data.frame.index[::-1]
+    client = CachedHistoricalDataClient(provider, SQLiteMarketDataRepository(database), request_variant=None, ttl=None)
+
+    def broken(_decision: QualityDecision) -> None:
+        raise RuntimeError("observer unavailable")
+
+    with quality_observer(broken), pytest.raises(DataFetchError, match="dates"):
+        client.fetch_data("ABC", START)
+    assert len(provider.calls) == 1
+
+
+def test_failed_quality_refresh_never_replaces_stored_snapshot(database: SQLiteDatabase) -> None:
+    provider = FakeProvider()
+    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    key = MarketDataCacheKey("ABC", "Fixture", date(2025, 1, 1), None, "daily")
+    repository.put(key, provider.data, fetch_completed_at=NOW)
+    provider.data = replace(provider.data, context=replace(provider.data.context, price_adjustment="unadjusted"))
+    client = CachedHistoricalDataClient(
+        provider,
+        repository,
+        request_variant="daily",
+        ttl=timedelta(0),
+        clock=lambda: NOW + timedelta(seconds=1),
+        quality_policy=HistoricalQualityPolicy(expected_adjustment="adjusted"),
+    )
+    with pytest.raises(DataFetchError, match="conflicts"):
+        client.fetch_data("ABC", START)
+    stored = repository.get(key)
+    assert stored is not None
+    assert stored.data.context.price_adjustment == "adjusted"
 
 
 class FakeProvider(BaseDataClient):
