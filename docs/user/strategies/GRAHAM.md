@@ -20,6 +20,10 @@ The exact formulas are documented in [Financial Math](../FINANCE_MATH.md#graham-
 
 ## Quick start
 
+Quote responses are reused for at most five minutes by default, independently of annual-fact age. Reports retain retrieval time and distinguish it from market observation time, which the current Yahoo adapter does not supply. An expired quote is refreshed automatically; a failed refresh cannot produce a stale price relationship. `--no-cache` bypasses financial cache reads and writes.
+
+Detailed provenance distinguishes guarded inferred zeroes from reported zeroes and includes nested derivations. A verified filing listing venue is shown with its filing date, separately from current identity metadata; it is not silently treated as current registration evidence.
+
 Graham Number:
 
 ```bash
@@ -76,6 +80,47 @@ A current quote is optional to the Graham Number itself. When a compatible curre
 
 If the quote is unavailable, the Graham Number can still remain valid.
 
+Both Graham commands automatically verify share-unit compatibility for a narrow
+set of current SEC US-GAAP domestic `10-K` inputs and Yahoo Finance quotes. The
+verification matches the original financial source filings and current eligible
+annual filing to a single registered ordinary common-stock class, with matching
+issuer, ticker, currency, periods, and source values. The 1:1 relationship is a
+documented inference from that evidence, not an upstream ratio field. It does
+not establish exhaustive coverage of intervening corporate actions.
+
+Unsupported classes (including ADR/ADS and multiple common classes), ambiguous
+filings, provider failures, and explicit historical requests leave the comparison
+unavailable with a reason. They do not invalidate otherwise valid Graham values.
+`--details` and `--diagnostics` show the comparison decision and filing provenance.
+
+Older cached inputs may lack the source lineage needed for verification. If the
+output identifies missing share-unit evidence, retry with `--no-cache` to resolve
+fresh inputs; this bypass does not rewrite existing cache entries. Unsupported
+or inaccessible evidence can still prevent comparison after a refresh.
+
+To replace older cached inputs as well as bypass them, temporarily set the
+existing financial-cache TTL to zero for a normal run. Only entries requested
+by that command are refreshed through the normal provider/cache path. For
+example, in PowerShell:
+
+```powershell
+$previousTtl = $env:financial_cache_ttl_seconds
+try {
+    $env:financial_cache_ttl_seconds = "0"
+    uv run financial-agents graham-number KO
+} finally {
+    $env:financial_cache_ttl_seconds = $previousTtl
+}
+```
+
+Then rerun the ordinary command. Zero-TTL refreshes can emit cache-age rejection
+notes; those indicate the old entries were bypassed. No database deletion or
+schema migration is needed.
+
+Verification reads at most four filings, each limited to 8 MiB and a 20-second
+transport timeout, without redirects or automatic retries. Filing evidence is
+verified again on each invocation, including when financial inputs are cached.
+
 ### Graham Growth Value (secondary method)
 
 The implemented convention is:
@@ -122,11 +167,11 @@ When supported provider evidence supplies an instrument name, the heading shows 
 
 ### `--details`
 
-Shows resolved financial values, dates, bases, data sources, and derivations.
+Shows compact financial inputs, reporting dates, bases, sources, calculation formulas and material assumptions. Repeated source components appear once. Inferred preferred-share zero is explicitly qualified. Where retained, the filing link and its historical exchange evidence are shown separately from current listing verification. Display rounding does not change the calculation.
 
 ### `--diagnostics`
 
-Shows software resolution behavior such as override/cache/provider selection and failures. This view is intentionally more technical than the ordinary investor report.
+Retains the full technical input evidence and software resolution behavior: provider fields, recursive lineage, notes, retrieval timestamps, share contexts, and override/cache/provider selection or failures. JSON also retains this evidence.
 
 ### `--json`
 

@@ -83,6 +83,15 @@ def test_momentum_cli_reuses_history_and_preserves_profile_provider(
     left, right = json.loads(first.output), json.loads(second.output)
     left.pop("analysis_timestamp")
     right.pop("analysis_timestamp")
+    provider_resolution = left.pop("data_resolution")
+    cache_resolution = right.pop("data_resolution")
+    assert provider_resolution["source_kind"] == "provider"
+    assert cache_resolution["source_kind"] == "cache"
+    assert provider_resolution["retrieved_at"] == cache_resolution["retrieved_at"]
+    provider_trace = left.pop("diagnostics")
+    cache_trace = right.pop("diagnostics")
+    assert any(item.get("stage") == "provider" for item in provider_trace)
+    assert any(item.get("stage") == "cache" for item in cache_trace)
     assert left == right
     assert len(databases) == 2
     for instance in databases:

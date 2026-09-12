@@ -41,6 +41,10 @@ SMA_t(n) = mean(P[t-n+1 : t])
 
 The strategy calculates a short moving average and a long moving average over the historical `Close` series, then evaluates their relationship and whether that relationship changed on the latest observation.
 
+A crossover needs two consecutive valid SMA pairs. Having exactly enough prices for the long SMA establishes today's relationship but not a prior relationship; crossover is unavailable in that case. The RSI uses simple trailing averages of gains/losses, as specified in [Financial Math](../FINANCE_MATH.md#momentum-analysis-strategy).
+
+Diagnostics and JSON retain original provider retrieval time and cache origin. Historical daily labels are not verified exchange-close timestamps, and the provider's past adjusted-price vintages are not retained. Observation-date filtering alone is not a guarantee of historical knowability. Missing or nonfinite prices cause a failure with the affected field/date when known; the application does not silently remove bad rows or substitute an older close.
+
 In investor terms:
 
 - short SMA above long SMA → bullish price-momentum state;
@@ -66,7 +70,7 @@ Shows the current moving averages, their relationship, recent crossover informat
 uv run financial-agents momentum AAPL --details
 ```
 
-Shows additional data context and configuration.
+Explains the SMA windows, crossover requirement, simple-average RSI convention, price basis and observation coverage. It separates trend from a new crossover event and states the limits of historical date labels.
 
 ### `--diagnostics`
 
@@ -74,7 +78,7 @@ Shows additional data context and configuration.
 uv run financial-agents momentum AAPL --diagnostics
 ```
 
-Shows more technical execution/diagnostic information.
+Retains technical execution traces, original retrieval/cache evidence and identity/classification metadata. JSON retains the corresponding typed evidence.
 
 ### `--json`
 

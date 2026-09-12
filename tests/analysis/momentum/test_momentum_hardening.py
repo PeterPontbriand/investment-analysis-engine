@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 import pandas as pd
+import pytest
 
 from src.analysis.strategy.fcf_earnings_growth.models import MetricStatus, ReasonCode
 from src.analysis.strategy.momentum.momentum_analyzer import (
@@ -59,3 +60,26 @@ def test_momentum_policy_validates_all_periods() -> None:
     """The typed policy owns and validates SMA/RSI periods."""
     policy = MomentumPolicy(short_window=20, long_window=50, rsi_period=10)
     assert (policy.short_window, policy.long_window, policy.rsi_period) == (20, 50, 10)
+
+
+def test_first_valid_long_window_does_not_invent_a_crossover() -> None:
+    """An event needs a prior valid pair even when today's trend is known."""
+    metrics = MomentumAnalyzer().run_analysis(
+        MomentumConfig(short_window=2, long_window=3, rsi_period=2),
+        ticker="ACME",
+        df=pd.DataFrame({"Close": [1.0, 2.0, 3.0]}),
+    )
+    assert metrics.short_sma_val == 2.5
+    assert metrics.long_sma_val == 2.0
+    assert metrics.crossover_signal is None
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf")])
+def test_supplied_frame_rejects_invalid_values_outside_latest_windows(invalid: float) -> None:
+    """Rolling-window arithmetic must not conceal invalid earlier observations."""
+    with pytest.raises(ValueError, match="finite"):
+        MomentumAnalyzer().run_analysis(
+            MomentumConfig(short_window=2, long_window=3, rsi_period=2),
+            ticker="ACME",
+            df=pd.DataFrame({"Close": [invalid, 2.0, 3.0, 4.0]}),
+        )

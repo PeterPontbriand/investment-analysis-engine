@@ -203,7 +203,7 @@ CLI / bounded orchestrator
 
 The initial Momentum and Graham pair is deliberately heterogeneous. Their coexistence tests whether the architecture is genuinely general rather than Momentum-specific.
 
-Steps 2.3 and 2.4 are complete and approved. Step 2.5 consumes their stable strategy contracts and is current, but its 2026-08-31 Gate M review did not approve the checkpoint. The Golden runner must distinguish expected native domain outcomes from fixture/execution failures, expose one canonical full-suite report boundary, complete the cross-strategy ETF scenario, and pass strict typing before Gate M is reconsidered. The approved SEC foreign-private-issuer/IFRS work follows as Step 2.5A only after Step 2.5 closes.
+Steps 2.3 and 2.4 are complete and approved. Step 2.5 consumes their stable strategy contracts. Step 3.5 later adds the deterministic quantitative screening suite (Piotroski, Altman Z, Beneish M, valuation multiples, Magic Formula). Step 3.6 validates the complete Light Mode investor workflow that now includes those screens.
 
 ### Current package intent
 
@@ -251,7 +251,7 @@ The deterministic/no-LLM mode cannot measure actual LLM strategy selection.
 Step 2.1 established structured trajectory telemetry separately from operational logging. JSONL is the initial sink; SQLite is added in Step 3.1.
 
 ### Structured output
-Step 2.2 prefers native schema constraints when supported, retains Pydantic validation, and uses configured fallbacks. Empirical Light Mode model/schema compatibility remains a non-blocking validation item before Step 3.5 exit.
+Step 2.2 prefers native schema constraints when supported, retains Pydantic validation, and uses configured fallbacks. Empirical Light Mode model/schema compatibility remains a non-blocking validation item before Step 3.6 exit.
 
 ---
 
@@ -347,7 +347,7 @@ Report projection is separately versioned because presentation contracts can evo
 ### Agentic feel before autonomy
 Step 3.4 should let a user maintain ticker/analysis lists, start a refresh, and inspect already-completed runs while the user-started process handles other independent jobs concurrently. This delivers useful “do the legwork for me” behavior without pretending a daemon or proactive autonomous analyst already exists.
 
-Step 3.5 may add bounded local-model synthesis over completed deterministic results. The LLM may explain and compare evidence or suggest what to inspect next; it never invents financial facts, performs the deterministic calculation, or supplies an unrequested growth assumption.
+Step 3.6 may add bounded local-model synthesis over completed deterministic results. The LLM may explain and compare evidence or suggest what to inspect next; it never invents financial facts, performs the deterministic calculation, or supplies an unrequested growth assumption.
 
 ### Real-user validation priority
 Rich terminal presentation and the workspace/run-history workflow are intentionally pulled forward because v0.2.5 must test whether the tool is useful, not merely whether testers can execute a developer-oriented command. Graphical UI, full-screen TUI, high-fidelity charts, and executive report generation remain deferred until validation provides evidence.
@@ -412,7 +412,7 @@ Product documentation records aggregate stakeholder needs, evidence, and resulti
 # 18. Release Strategy
 
 - **v0.1** — Core orchestration engine.
-- **v0.2** — Reliability/observability + Graham/data/presentation foundation + heterogeneous Golden evaluation + circuit breakers + SQLite/data quality + local watchlists/Analysis Run history + Light Mode investor-workflow completion.
+- **v0.2** — Reliability/observability + Graham/data/presentation foundation + heterogeneous Golden evaluation + circuit breakers + SQLite/data quality + local watchlists/Analysis Run history + deterministic quantitative screening suite (Step 3.5) + Light Mode investor-workflow completion (Step 3.6).
 - **v0.2.5** — Real-user Light Mode validation.
 - **v0.3** — Analytics expansion beyond the initial Momentum/Graham pair plus localization subject to user feedback.
 - **v1.0** — Hardened unattended/multi-step autonomy, proactive monitoring/notifications where justified, visualization, and executive reporting.
@@ -566,6 +566,7 @@ Finance remains primary. Core layers remain modular enough for possible later re
 | D38 | 2026-08-30 | Split ETF identity/applicability work into P1 before the Golden Suite and P2 after Step 3.1 | FLSW proved that missing company facts, ticker validity, instrument identity, and strategy applicability were conflated. P1 adds only provider-backed kind evidence, request-scoped fallback, native `not_applicable` behavior, and presentation/error corrections so Golden cases freeze deliberate production behavior. P2 later adds durable instrument profiles and a separate holdings-based ETF aggregate FCF-growth strategy after persistence, without redefining or silently substituting the company-level strategy. | Accepted |
 | D39 | 2026-08-31 | Reject Step 2.5 Gate M approval and require a bounded Slice H correction | Passing pytest was insufficient because the mandatory strict-mypy gate failed, expected historical-boundary and applicability outcomes were not consistently enforced by aggregate evaluation, no canonical operation produced one full minimum-suite report, and the Golden catalog lacked three routes in the cross-strategy ETF scenario. Slice H corrects only those demonstrated defects and returns to Gate M. | Accepted |
 | D40 | 2026-08-31 | Place a corrected SEC FPI/IFRS capability package in Step 2.5A after Golden closeout | Foreign annual-form support is valuable but must not destabilize the open benchmark gate. A1 expands existing US-GAAP duration facts only; B1 maps four exact IFRS duration concepts behind one analysis-scoped SEC snapshot, latest-eligible-accession taxonomy selection, and affirmative security-unit compatibility. IFRS BVPS, missing-preferred-equals-zero inference, ADR/ADS conversion, and broad concept fallback are deferred because current Company Facts evidence cannot prove them safely. | Accepted |
+| D41 | 2026-09-08 | Insert a bounded deterministic quantitative screening suite (Piotroski F-Score, Altman Z-Score, Beneish M-Score, EV/EBITDA + FCF Yield, Greenblatt Magic Formula) as new Step 3.5; renumber former Light Mode Support to Step 3.6 | Real-user validation (v0.2.5) requires the expanded strategy surface; the five chosen models are classic, complementary, data-feasible with existing SEC/yfinance boundaries, and preserve every core principle (determinism, provenance, fail-closed, heterogeneous typing). Placement after the workspace foundations and before Light Mode keeps numerical order and ensures testers exercise the new screens. | Accepted |
 
 ---
 
@@ -574,3 +575,69 @@ Finance remains primary. Core layers remain modular enough for possible later re
 The Master Plan and Discovery Workbook are versioned through Git. Embedded document version numbers are intentionally avoided.
 
 *End of Discovery Workbook*
+
+## Fresh database readiness decision — 2026-09-09
+
+A reported first-use Graham failure exposed an onboarding gap: an empty local
+SQLite file caused a missing-table exception that the CLI reduced to a generic
+message, including with analysis diagnostics selected. The supplied investigation
+reported successful analysis after an explicit operator migration; this planning
+change did not independently reproduce or migrate the operational database.
+
+Plan automatic initialization of verified fresh storage, with explicit upgrades
+for existing schemas. This removes an avoidable first-use prerequisite while
+protecting future watchlists and Analysis Runs. Alembic remains the sole schema
+authority; generic missing-table errors are insufficient evidence of freshness.
+Reject automatic upgrades on every launch, parallel create-all schemas, and
+silent cache fallback because they weaken schema/data ownership or obscure failure.
+
+The [bounded contract](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
+requires typed readiness errors, cross-process coordination, transactional recovery,
+consistent user documentation, and deterministic tests. Planning was requested;
+production implementation awaits contract approval. Complete this prerequisite
+before designing/implementing Step 3.4, retaining its earlier start authorization.
+The active milestone governs subsequent sequencing and supersedes older ordering.
+
+## Immediate Graham comparison repair — 2026-09-09
+
+The project owner identified a significant default-workflow defect: Graham Number
+and current price are present, but their comparison is unavailable without a reason.
+Local inspection shows profile composition leaves security-unit evidence unset,
+both Graham services require it when profiles exist, and the compatibility failure
+is reduced to a nullable percentage. The safeguard is valid; the missing production
+evidence integration and lost explanation require repair.
+
+Prioritize the [bounded repair](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)
+before database readiness, rather than defer it to a backlog issue. Restore supported
+comparisons with validated provider evidence and preserve specific reasons when
+compatibility cannot be established. Do not remove the guard, fabricate ordinary-share
+ratios, or expand this into profile persistence. Planning was accepted with caveats on 2026-09-09;
+provider mapping and implementation approval remain explicit gates. The small README correction from the CLI audit belongs in the same repair review, because it exposed the defect; it must not redefine the defect as intended behavior. Use `fix/graham-price-comparison` and keep database-readiness implementation separate.
+
+## Existing-strategy correctness takes priority over readiness
+
+After the Graham comparison repair, review of a detailed KO result exposed
+additional defects: a cached quote labelled current without a quote-specific
+freshness bound, missing venue enrichment despite available filing evidence,
+ambiguous unavailable/n/a/unspecified labels, and insufficiently explicit
+inferred-zero provenance. The earlier passing synthetic suite also missed a real
+filing shape, demonstrating the need for independent source-to-output verification.
+
+The project owner accepted a systematic audit and repair of Graham Number,
+Graham Growth, Momentum, and FCF/Earnings Growth before database readiness
+continues, and approved expansion of the planning documents. The renamed branch
+is `fix/existing-strategy-correctness`; the Graham repair/README checkpoint
+`e8f4a95` is preserved. Its final acceptance is reopened within the broader audit.
+
+The [correctness plan](milestones/v0.2/existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md)
+requires a coverage matrix and defect ledger, realistic provider-shaped tests,
+independent calculations, dated live evidence and no unresolved known
+correctness defects. ESC-C final acceptance releases database-readiness work at
+its existing gates. Readiness, workspace and profile changes must retain the
+four-analysis regressions; ESC-D renews acceptance immediately before Step 3.5.
+This is a binding prerequisite to new strategy development, not an issue backlog.
+
+One implementation owner avoids concurrent-edit overhead. A bounded read-only
+Cline review may provide independent scrutiny without becoming a required tool
+or sharing implementation ownership. Planning approval does not claim audit
+completion or authorize unreviewed financial-policy changes.

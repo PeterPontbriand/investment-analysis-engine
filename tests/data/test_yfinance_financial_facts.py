@@ -44,8 +44,10 @@ def test_current_quote_becomes_currency_safe_provider_fact() -> None:
     assert fact.currency == "USD"
     assert fact.provider_id == YFINANCE_PROVIDER_ID
     assert fact.provider_field == YFINANCE_CURRENT_PRICE_FIELD
-    assert fact.observed_at == NOW
-    assert fact.available_at == NOW
+    assert fact.observed_at is None
+    assert fact.available_at is None
+    assert fact.retrieved_at == NOW
+    assert fact.basis == "latest_provider_quote"
     client.fetch_current_quote.assert_called_once_with("KO")
 
 

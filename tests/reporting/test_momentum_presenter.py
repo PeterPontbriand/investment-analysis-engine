@@ -4,16 +4,30 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import replace
 from datetime import UTC, date, datetime
 
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
 from src.core.constants import TrendStatus
+from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.data.market_data import MarketDataContext
 from src.reporting.momentum import MomentumPresentation, render_momentum
-from src.reporting.presentation import PresentationMode
+from src.reporting.presentation import PresentationMode, ResolutionDiagnostic
 
 NOW = datetime(2026, 8, 22, 4, 0, tzinfo=UTC)
 DATA_AS_OF = date(2026, 8, 21)
+
+
+def test_legacy_and_typed_resolution_diagnostics_are_not_duplicated() -> None:
+    event = ResolutionEvent("close", ResolutionStage.CACHE, ResolutionOutcome.HIT, "Retained cached history.")
+    presentation = replace(
+        _presentation(),
+        resolution_trace=ResolutionTrace((event,)),
+        diagnostics=(ResolutionDiagnostic("close", "cache", "hit", event.message),),
+    )
+    assert render_momentum(presentation, PresentationMode.DIAGNOSTICS).count(event.message) == 1
+    payload = json.loads(render_momentum(presentation, PresentationMode.JSON))
+    assert len(payload["diagnostics"]) == 1
 
 
 def _presentation() -> MomentumPresentation:
@@ -83,7 +97,7 @@ def test_momentum_diagnostics_expose_retained_raw_and_market_context() -> None:
 def test_momentum_json_adds_semantic_fields_with_identity_schema_version() -> None:
     payload = json.loads(render_momentum(_presentation(), PresentationMode.JSON))
 
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 4
     assert payload["security_identity"]["instrument_name"] is None
     assert payload["analysis"] == "momentum"
     assert payload["method"] == "sma_crossover"

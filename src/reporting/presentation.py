@@ -155,7 +155,32 @@ def format_money(value: float, currency: str | None) -> str:
 
 def json_document(payload: dict[str, Any]) -> str:
     """Serialize a stable human-readable JSON document."""
-    return json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False)
+    return json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False, allow_nan=False)
+
+
+def analysis_failure_document(  # noqa: PLR0913
+    *,
+    analysis: str,
+    method: str,
+    ticker: str | None,
+    reason_code: str,
+    reason: str,
+    diagnostics: list[dict[str, str]],
+) -> str:
+    """Render sanitized execution failures using the analysis presentation version."""
+    return json_document(
+        {
+            "schema_version": 4 if analysis == "momentum" else 5,
+            "analysis": analysis,
+            "method": method,
+            "ticker": ticker,
+            "status": "input_unavailable" if reason_code in ("historical_quality", "provider_error") else "error",
+            "reason_code": reason_code,
+            "reason": reason,
+            "result": None,
+            "diagnostics": diagnostics,
+        }
+    )
 
 
 def diagnostic_payload(diagnostic: ResolutionDiagnostic) -> dict[str, str]:

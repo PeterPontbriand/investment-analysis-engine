@@ -4,6 +4,8 @@ The Free Cash Flow & Earnings Growth strategy is a deterministic historical scre
 
 The result is a `PASS`, `FAIL`, or `INDETERMINATE` screen—not a valuation, moat rating, forecast, or investment recommendation.
 
+Explanations follow the selected classification basis: total-company FCF or FCF per diluted share. Those measures can move in opposite directions when share counts change. Details retain component currency, source/cache origin, derivation notes and reasons for unavailable optional metrics. The effective analysis time controls input eligibility as well as the reported execution time; a later resolver clock cannot admit later filings into an earlier execution boundary.
+
 ## Quick start
 
 ```bash
@@ -36,7 +38,7 @@ uv run financial-agents fcf-growth MSFT --json
 | `--data-provider sec-edgar` | Select the current production annual-facts provider. |
 | `--currency USD` | Require a compatible three-letter ISO 4217 reporting currency for annual facts. |
 | `--no-cache` | Bypass resolved-input cache reads and writes for this run. |
-| `--details` | Show annual facts, provenance, and derivation lineage. |
+| `--details` | Explain annual inputs, calculation formulas and selected classification basis. |
 | `--diagnostics` | Show the resolver execution trace. |
 | `--json` | Emit the complete versioned typed result. |
 
@@ -134,8 +136,8 @@ uv run financial-agents fcf-growth MSFT --as-of 2025-12-31
 ## Presentation modes
 
 - The default view shows the classification, basis, period, principal metrics, source summary, warnings, and limitation.
-- `--details` adds the annual components, dates, provider fields, derivations, and lineage.
-- `--diagnostics` adds provider attempts, candidate selection/rejection, cache behavior, and execution trace information.
+- `--details` adds a compact annual input table, calculation formulas, share counts and optional-metric reasons, using readable monetary magnitudes.
+- `--diagnostics` retains full annual provider fields, dates, notes, recursive lineage, provider attempts, candidate selection/rejection, cache behavior, and execution trace information.
 - `--json` returns the complete versioned typed result for software integration.
 
 The presentation modes render the same result. They do not recalculate or reclassify it. `--details`, `--diagnostics`, and `--json` are mutually exclusive.

@@ -3,13 +3,71 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from datetime import datetime
 
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from src.data.financial.quote_freshness import QuoteFreshnessEvidence
 from src.data.financial.resolver import InputResolutionResult, InputResolver
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
-from src.data.security_unit import SecurityUnitEvidence, evaluate_security_unit_compatibility
+from src.data.security_unit import SecurityUnitEvidence, SecurityUnitResolution, evaluate_security_unit_compatibility
+
+
+@dataclass(frozen=True)
+class PriceComparison:
+    """Calculated price relationship with a stable reason for every absence."""
+
+    status: str
+    reason: str
+    percent: float | None = None
+    security_unit_resolution: SecurityUnitResolution | None = None
+    quote_freshness: QuoteFreshnessEvidence | None = None
+
+    def __post_init__(self) -> None:
+        """Keep percentage and status consistent and finite."""
+        if self.status not in ("available", "unavailable"):
+            raise ValueError("Unknown price comparison status.")
+        if (self.status == "available") != (self.percent is not None):
+            raise ValueError("Price comparison status contradicts its percentage.")
+        if self.percent is not None and not math.isfinite(self.percent):
+            raise ValueError("Price comparison must be finite.")
+
+
+def evaluate_price_comparison(  # noqa: PLR0911, PLR0913
+    reference_value: float | None,
+    current_price: ResolvedInput | None,
+    *,
+    valuation_currency: str | None = None,
+    security_unit_evidence: SecurityUnitEvidence | None = None,
+    require_security_unit_evidence: bool = False,
+    security_unit_resolution: SecurityUnitResolution | None = None,
+) -> PriceComparison:
+    """Preserve calculation/quote/currency precedence and typed unit failures."""
+
+    def unavailable(reason: str) -> PriceComparison:
+        return PriceComparison("unavailable", reason, security_unit_resolution=security_unit_resolution)
+
+    if reference_value is None:
+        return unavailable("calculation_unavailable")
+    if current_price is None:
+        return unavailable("missing_quote")
+    if reference_value <= 0:
+        return unavailable("nonpositive_reference")
+    if valuation_currency and current_price.currency and valuation_currency != current_price.currency:
+        return unavailable("currency_mismatch")
+    if require_security_unit_evidence:
+        if security_unit_resolution is not None and security_unit_resolution.evidence is None:
+            return unavailable(security_unit_resolution.reason.value)
+        compatibility = evaluate_security_unit_compatibility(
+            security_unit_evidence, filing_currency=valuation_currency, quote_currency=current_price.currency
+        )
+        if not compatibility.is_compatible:
+            return unavailable(compatibility.reason.value)
+    margin = ((reference_value - current_price.value) / reference_value) * 100.0
+    if not math.isfinite(margin):
+        return unavailable("nonfinite_comparison")
+    return PriceComparison("available", "compatible", margin, security_unit_resolution)
 
 
 def resolve_normalized_eps(  # noqa: PLR0913
@@ -111,26 +169,14 @@ def margin_of_safety(
     security_unit_evidence: SecurityUnitEvidence | None = None,
     require_security_unit_evidence: bool = False,
 ) -> float | None:
-    """Compute comparison only when value, quote, and known currencies are compatible."""
-    if reference_value is None or current_price is None or reference_value <= 0:
-        return None
-    if (
-        require_security_unit_evidence
-        and not evaluate_security_unit_compatibility(
-            security_unit_evidence,
-            filing_currency=valuation_currency,
-            quote_currency=current_price.currency,
-        ).is_compatible
-    ):
-        return None
-    if (
-        valuation_currency is not None
-        and current_price.currency is not None
-        and valuation_currency != current_price.currency
-    ):
-        return None
-    margin = ((reference_value - current_price.value) / reference_value) * 100.0
-    return margin if math.isfinite(margin) else None
+    """Return the legacy nullable percentage from the shared comparison decision."""
+    return evaluate_price_comparison(
+        reference_value,
+        current_price,
+        valuation_currency=valuation_currency,
+        security_unit_evidence=security_unit_evidence,
+        require_security_unit_evidence=require_security_unit_evidence,
+    ).percent
 
 
 def common_currency(*inputs: ResolvedInput | None) -> str | None:

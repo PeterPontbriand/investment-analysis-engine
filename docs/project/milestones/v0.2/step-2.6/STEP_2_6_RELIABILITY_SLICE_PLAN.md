@@ -379,7 +379,7 @@ hardware and load and cannot establish correct deadline or retry semantics.
 An optional manual smoke run may be recorded after Slice C, but it cannot replace
 the deterministic tests or block Step 2.6 closeout. Empirical native-schema
 compatibility for the supported Light Mode model remains owned by the existing
-Step 2.2 follow-up and Step 3.5 exit criterion.
+Step 2.2 follow-up and Step 3.6 exit criterion.
 
 ## 8. Step acceptance criteria
 

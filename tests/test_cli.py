@@ -35,6 +35,27 @@ from tests._cli_helpers import normalize_cli_output
 runner = CliRunner()
 
 
+def test_root_help_exposes_analysis_commands_without_shell_setup() -> None:
+    """Keep shell script generation out of the public investor interface."""
+    result = runner.invoke(app, ["--help"])
+    assert result.exit_code == 0
+    output = normalize_cli_output(result.output)
+    for command in ("momentum", "graham-number", "graham-growth", "fcf-growth", "evaluate"):
+        assert command in output
+    assert "--help" in output
+    assert "--install-completion" not in output
+    assert "--show-completion" not in output
+
+
+@pytest.mark.parametrize("option", ["--show-completion", "--install-completion"])
+def test_shell_setup_options_are_not_public_commands(option: str) -> None:
+    """Unsupported shell setup cannot emit scripts or install profile changes."""
+    result = runner.invoke(app, [option])
+    assert result.exit_code == 2
+    assert "No such option" in normalize_cli_output(result.output)
+    assert "Register-ArgumentCompleter" not in result.output
+
+
 @pytest.fixture(autouse=True)
 def disable_live_yfinance_identity_resolution() -> Iterator[None]:
     """Keep CLI tests deterministic by stubbing optional Yahoo identity metadata."""
@@ -264,7 +285,7 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
     assert result.exit_code == 0
     assert "NaN" not in result.output
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 4
     assert payload["result"]["short_sma"] is None
     assert payload["result"]["long_sma"] is None
     assert payload["result"]["crossover_signal"] is None
@@ -403,7 +424,7 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 5
     assert payload["analysis"] == "graham"
     assert payload["method"] == "graham_number"
     assert payload["ticker"] == SECURITY_ID
@@ -606,7 +627,7 @@ def test_cli_graham_invalid_or_unavailable_ticker_has_one_clean_failure(
     lines = [line for line in result.output.splitlines() if line.strip()]
     assert lines[0] == f"{SUBJECT_MISSING} — Graham Number"
     assert "Status: input unavailable" in lines
-    assert any("required financial data is unavailable for the requested method" in line for line in lines)
+    assert any("Eligible earnings per share could not be resolved" in line for line in lines)
     assert "verify ticker" not in result.output.lower()
     assert "Traceback" not in result.output
     assert "pydantic.dev" not in result.output
@@ -634,9 +655,10 @@ def test_cli_graham_details_shows_financial_provenance(fixture_resolver: GrahamN
 
     assert result.exit_code == 0
     assert "Details" in result.output
-    assert "basis: 3-year average" in result.output
-    assert "provider:" in result.output
-    assert "derivation: arithmetic_mean" in result.output
+    assert "3-year average" in result.output
+    assert "Source:" in result.output
+    assert "sqrt(22.5" in result.output
+    assert "derivation: arithmetic_mean" not in result.output
 
 
 def test_cli_graham_conflicting_positional_and_option_tickers_are_usage_error() -> None:

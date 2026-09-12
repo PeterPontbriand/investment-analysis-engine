@@ -100,11 +100,15 @@ def test_presenter_modes_share_result_and_json_has_null_not_nan() -> None:
     assert "Diluted EPS CAGR:" in concise
     assert "Limitation:" in concise
     assert "Details" in details
-    assert "derivation: operating_cash_flow - normalized_capital_expenditures" in details
-    assert "derivation: free_cash_flow / weighted_average_diluted_shares" in details
+    assert "Free cash flow = operating cash flow" in details
+    assert "FCF per diluted share = free cash flow / weighted-average diluted shares" in details
+    assert "provider field:" not in details
+    assert len(details.splitlines()) < 60
+    assert "derivation: operating_cash_flow - normalized_capital_expenditures" in diagnostics
+    assert "derivation: free_cash_flow / weighted_average_diluted_shares" in diagnostics
     assert "Diagnostics" in diagnostics
     assert "provider/success" in diagnostics
-    assert payload["schema_version"] == 4
+    assert payload["schema_version"] == 5
     assert payload["result_schema_version"] == 3
     assert payload["security_identity"]["instrument_name"] is None
     assert payload["strategy_id"] == "fcf_earnings_growth"

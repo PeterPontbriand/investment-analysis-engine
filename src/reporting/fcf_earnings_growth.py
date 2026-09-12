@@ -27,12 +27,12 @@ from src.data.security_identity import (
     security_display_label,
     security_identity_payload,
 )
+from src.reporting.input_provenance import input_detail_lines, investor_value
 from src.reporting.presentation import (
     PresentationMode,
     format_date,
     format_datetime,
     format_money,
-    format_number,
     json_document,
     provider_display_name,
 )
@@ -42,9 +42,8 @@ _LIMITATION = (
     "or an investment recommendation."
 )
 
-# The calculation result remains schema v2.  Adding the run-time identity
-# snapshot changes only this machine-readable presentation contract.
-_PRESENTATION_SCHEMA_VERSION = 4
+# Presentation versions are independent from canonical result schema 3 / method 2.
+_PRESENTATION_SCHEMA_VERSION = 5
 
 _TREND_LABELS = {
     TrendClassification.BOTH_GROWING: "Both free cash flow and diluted EPS increased over the measured period.",
@@ -148,7 +147,7 @@ def _concise(
             f"Free cash flow CAGR: {_metric(result.fcf_cagr)}",
             f"FCF per diluted share CAGR: {_metric(result.fcf_per_share_cagr)}",
             f"Diluted EPS CAGR: {_metric(result.eps_cagr)}",
-            f"Trend: {_TREND_LABELS[result.trend_classification]}",
+            f"Trend: {_trend_label(result)}",
         )
     )
     if result.policy.include_fcf_yield and result.fcf_yield.status is MetricStatus.OK:
@@ -168,21 +167,26 @@ def _concise(
 
 
 def _input_details(label: str, value: ResolvedInput) -> list[str]:
-    return [
-        f"  {label}: {format_number(value.value)} {value.units or ''}".rstrip(),
-        f"    provider: {provider_display_name(value.provider_id)}",
-        f"    provider field: {value.provider_field or 'unavailable'}",
-        f"    available: {format_datetime(value.available_at)}",
-        f"    retrieved: {format_datetime(value.retrieved_at)}",
-    ]
+    return [f"  {line}" for line in input_detail_lines(label, value)]
 
 
-def _details(
+def _trend_label(result: FCFEarningsGrowthResult) -> str:
+    label = _TREND_LABELS[result.trend_classification]
+    if result.policy.classification_basis is FCFClassificationBasis.FCF_PER_SHARE:
+        return label.replace("free cash flow", "free cash flow per diluted share").replace(
+            "Free cash flow", "Free cash flow per diluted share"
+        )
+    return label
+
+
+def _technical_details(
     result: FCFEarningsGrowthResult,
     identity_resolution: SecurityIdentityResolution | None,
     instrument_profile: InstrumentProfile | None,
 ) -> list[str]:
     lines = [*_concise(result, identity_resolution), "", "Details"]
+    lines.append(f"FCF yield: {_metric(result.fcf_yield)}")
+    lines.append(f"Forward EPS: {_metric(result.forward_evidence.actual_to_fy1_growth)}")
     lines.extend(_identity_detail_lines(identity_resolution))
     lines.extend(_kind_detail_lines(instrument_profile))
     for observation in result.annual_observations:
@@ -209,13 +213,59 @@ def _details(
     return lines
 
 
-def _diagnostics(
+def _details(
     result: FCFEarningsGrowthResult,
     identity_resolution: SecurityIdentityResolution | None,
     instrument_profile: InstrumentProfile | None,
 ) -> list[str]:
     lines = [
         *_concise(result, identity_resolution),
+        "",
+        "Details — annual calculation inputs",
+        "-----------------------------------",
+    ]
+    lines.append("Fiscal year | Operating cash flow | Capital expenditures | Free cash flow | Diluted EPS | FCF/share")
+    for item in result.annual_observations:
+        values = [
+            investor_value(value)
+            for value in (
+                item.operating_cash_flow,
+                item.normalized_capital_expenditures,
+                item.free_cash_flow,
+                item.diluted_eps,
+            )
+        ]
+        per_share = (
+            investor_value(item.free_cash_flow_per_diluted_share)
+            if item.free_cash_flow_per_diluted_share
+            else "unavailable"
+        )
+        lines.append(f"{item.fiscal_year} | {' | '.join(values)} | {per_share}")
+        if item.weighted_average_diluted_shares is not None:
+            lines.append(f"  Weighted-average diluted shares: {investor_value(item.weighted_average_diluted_shares)}")
+    lines.extend(
+        [
+            "Free cash flow = operating cash flow − normalized capital expenditures.",
+            "FCF per diluted share = free cash flow / weighted-average diluted shares.",
+            "CAGR = (ending value / starting value) raised to 1 / elapsed years, minus 1.",
+            "Growth rates use unrounded inputs. Nonpositive or missing bases retain explicit unavailable reasons.",
+            f"FCF yield: {_metric(result.fcf_yield)}",
+            f"Forward EPS: {_metric(result.forward_evidence.actual_to_fy1_growth)}",
+            "Full annual source fields, derivations and retrieval history: --diagnostics or --json.",
+        ]
+    )
+    if instrument_profile and instrument_profile.kind_evidence:
+        lines.append(_kind_detail_lines(instrument_profile)[0])
+    return lines
+
+
+def _diagnostics(
+    result: FCFEarningsGrowthResult,
+    identity_resolution: SecurityIdentityResolution | None,
+    instrument_profile: InstrumentProfile | None,
+) -> list[str]:
+    lines = [
+        *_technical_details(result, identity_resolution, instrument_profile),
         "",
         "Diagnostics",
         f"Execution status: {result.execution_status.value}",
@@ -246,7 +296,7 @@ def _identity_detail_lines(resolution: SecurityIdentityResolution | None) -> lis
     identity = resolution.identity
     return [
         f"Instrument name: {identity.instrument_name or 'unavailable'}",
-        f"Listing venue: {identity.listing_venue or 'unavailable'}",
+        f"Current listing venue: {identity.listing_venue or 'not supplied by selected identity provider'}",
         f"Identity provider: {provider_display_name(identity.provider_id)}",
         f"Identity resolved: {format_datetime(identity.resolved_at)} (current descriptive metadata)",
     ]

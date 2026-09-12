@@ -5,7 +5,7 @@ approved human-readable labels rather than leaking raw snake_case values
 into concise or details prose.
 
 Note: exact technical provenance identifiers (e.g. ``us-gaap:EarningsPerShareDiluted``)
-may intentionally remain in Details mode for auditability; diagnostics retains
+remain in diagnostics for auditability; diagnostics retains
 raw resolver tokens by design.
 """
 
@@ -230,16 +230,16 @@ def test_details_graham_renders_provider_through_explicit_label() -> None:
     assert "sec_edgar" not in rendered
 
 
-def test_details_graham_preserves_exact_provider_field() -> None:
-    """Details mode must retain the exact technical provider field for auditability."""
-    rendered = render_graham_number(_graham_number_presentation(), PresentationMode.DETAILS)
+def test_diagnostics_graham_preserves_exact_provider_field() -> None:
+    """Diagnostics must retain the exact technical provider field for auditability."""
+    rendered = render_graham_number(_graham_number_presentation(), PresentationMode.DIAGNOSTICS)
     assert "us-gaap:EarningsPerShareDiluted" in rendered
 
 
 def test_details_graham_renders_units_through_explicit_label() -> None:
     """Details mode must render units through explicit label."""
     rendered = render_graham_number(_graham_number_presentation(), PresentationMode.DETAILS)
-    assert "currency per share" in rendered
+    assert "USD" in rendered
     assert "currency_per_share" not in rendered
 
 

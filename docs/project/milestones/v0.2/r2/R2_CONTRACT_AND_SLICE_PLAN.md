@@ -7,7 +7,7 @@
 
 ## 1. Scope and ordering
 
-R2 follows R1 and is scheduled before Step 3.2 scope reconciliation, Step 3.3, P2-Profiles, and Step 3.4. This is a sequencing choice, not a technical dependency. P2-ETF retains its independent deferral beyond Step 3.5.
+R2 follows R1 and is scheduled before Step 3.2 scope reconciliation, Step 3.3, P2-Profiles, and Step 3.4. This is a sequencing choice, not a technical dependency. P2-ETF retains its independent deferral beyond Step 3.6.
 
 1. **R2-A:** freeze the contracts, migration inventory, baseline, and approvals in documentation.
 2. **R2-B:** retire the unused legacy Graham analyzer and its dedicated tests.

@@ -20,12 +20,15 @@ A default [Graham Number](docs/user/GLOSSARY.md#graham-number) analysis resolves
 uv run financial-agents graham-number KO
 ```
 
-A representative result looks like this:
+A representative result captured on 2026-09-11 at 11:18 UTC looks like this:
 
 ```text
-KO — Graham Number (maximum indicated price): 21.14 USD
-Current price: 91.86 USD
-Price relationship: 334.47% above the Graham Number
+COCA COLA CO (KO) — Graham Number (maximum indicated price): 21.14 USD
+Latest available quote: 87.83 USD
+Quote retrieved: 2026-09-11 11:18 UTC
+Quote response age: 0 seconds
+Market observation time not supplied.
+Price relationship: 315.43% above the Graham Number
 
 Basis: 3-year average diluted EPS + latest eligible fiscal-year-end BVPS
 EPS (3-year average): 2.66 USD
@@ -35,6 +38,8 @@ Limitation: The Graham Number is a maximum indicated price / screening ceiling, 
 ```
 
 Live prices and newly published filings change, so the numbers above are illustrative. When supported provider evidence supplies an instrument name, the heading uses `Instrument Name (TICKER)`; otherwise it safely falls back to the ticker alone. The important part is the shape of the answer: the result names the method, shows the market comparison, identifies the financial basis, summarizes data sources/freshness, and states the method limitation.
+
+Quote responses are reused for at most five minutes by default. This bounds retrieval age, not exchange-trade age: Yahoo's market observation timestamp is not supplied by the current adapter. An expired quote is refreshed automatically; a failed refresh leaves the valuation available but does not substitute the stale quote. `--no-cache` bypasses financial cache reads and writes.
 
 Want to inspect more?
 

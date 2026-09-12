@@ -34,6 +34,7 @@ POLICY = GrahamGrowthCalculationPolicy(base_pe=8.5, growth_multiplier=2.0, basel
 class OwnedProvider(FixtureFinancialFactsProvider):
     def __init__(self) -> None:
         """Initialize observable provider ownership."""
+        super().__init__()
         self.calls = 0
         self.closed = False
 
@@ -141,7 +142,12 @@ def test_profile_retention_and_mismatch(growth: bool, etf: bool) -> None:
     resolver_type = GrahamGrowthInputResolver if growth else GrahamNumberInputResolver
     analyzer = _analyzer(growth, resolver_type(provider, clock=lambda: NOW), instrument_profile=profile)
     result = analyzer.run_analysis(_config(growth), SECURITY_ID)
-    assert result.instrument_profile is profile
+    assert result.instrument_profile is not None
+    assert result.instrument_profile.identity is profile.identity
+    assert result.instrument_profile.kind_evidence is profile.kind_evidence
+    if not etf:
+        assert result.instrument_profile.security_unit_resolution is not None
+        assert result.instrument_profile.security_unit_resolution.reason.value == "unsupported_temporal_evidence"
     if etf:
         assert result.result.status is CalculationStatus.NOT_APPLICABLE
         assert provider.calls == 0

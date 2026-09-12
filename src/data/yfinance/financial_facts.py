@@ -52,6 +52,7 @@ class YFinanceFinancialFactsAdapter:
 
         if quote.currency is None:
             return ()
+        retrieved_at = self._clock()
 
         return (
             ProviderFact(
@@ -64,12 +65,11 @@ class YFinanceFinancialFactsAdapter:
                 provider_field=YFINANCE_CURRENT_PRICE_FIELD,
                 retrieved_at=retrieved_at,
                 currency=quote.currency,
-                observed_at=retrieved_at,
-                available_at=retrieved_at,
+                basis="latest_provider_quote",
                 notes=(
                     "Yahoo fast_info current quote",
-                    "observed_at and available_at conservatively use retrieval time; "
-                    "upstream exchange timestamp is not retained",
+                    "Market observation time and publication time are not supplied; "
+                    "retrieval time is retained separately.",
                 ),
             ),
         )

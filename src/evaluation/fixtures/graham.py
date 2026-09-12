@@ -175,6 +175,10 @@ class FixtureFinancialFactsProvider:
     wall-clock dependency.
     """
 
+    def __init__(self, *, quote_retrieved_at: datetime = NOW) -> None:
+        """Anchor synthetic current-quote responses to the injected evaluation clock."""
+        self._quote_retrieved_at = quote_retrieved_at
+
     def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Return provider observations for *request*.
 
@@ -347,7 +351,7 @@ class FixtureFinancialFactsProvider:
             units=FinancialUnit.CURRENCY_PER_SHARE,
             provider_id=PROVIDER_ID,
             provider_field=FIELD_QUOTE,
-            retrieved_at=RETRIEVED_AT,
+            retrieved_at=self._quote_retrieved_at,
             currency=CURRENCY,
             observed_at=QUOTE_OBSERVED,
             available_at=QUOTE_AVAIL,

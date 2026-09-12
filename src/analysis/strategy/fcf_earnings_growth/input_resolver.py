@@ -95,6 +95,7 @@ class ProductionAnnualGrowthSeriesResolver:
         as_of: datetime | None,
         provider_id: str = SEC_PROVIDER_ID,
         use_cache: bool = True,
+        effective_as_of: datetime | None = None,
     ) -> AnnualGrowthSeriesAssembly:
         """Resolve the strategy inputs, preserving typed unsupported-provider outcomes."""
         normalized_provider_id = provider_id.strip().lower()
@@ -132,7 +133,7 @@ class ProductionAnnualGrowthSeriesResolver:
                 providers=providers,
                 cache=self._cache,
                 use_cache=use_cache,
-                clock=self._clock,
+                clock=(lambda: effective_as_of) if effective_as_of is not None else self._clock,
             )
 
 

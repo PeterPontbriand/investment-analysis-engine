@@ -2,14 +2,17 @@
 
 import logging
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
 import pandas as pd
 
 from src.data.base_client import BaseDataClient, DataFetchError
-from src.data.market_data import HistoricalMarketData
+from src.data.financial.provenance import SourceKind
+from src.data.market_data import HistoricalDataResolution, HistoricalMarketData
 from src.data.quality import (
     FreshnessPolicy,
+    HistoricalDataQualityError,
     HistoricalQualityPolicy,
     QualityContext,
     QualityOutcome,
@@ -67,6 +70,8 @@ class CachedHistoricalDataClient(BaseDataClient):
             context=context, policy=FreshnessPolicy(cache_ttl=self._ttl), cached_at=cached_at
         )
         publish_quality(decisions)
+        if cached_at is None and any(item.outcome is QualityOutcome.FAIL for item in decisions):
+            raise HistoricalDataQualityError(decisions, data.frame)
         return next((item.reason for item in decisions if item.outcome is QualityOutcome.FAIL), None)
 
     @property
@@ -96,7 +101,7 @@ class CachedHistoricalDataClient(BaseDataClient):
             error = self._quality_error(data, input_id)
             if error is not None:
                 raise DataFetchError(error)
-            return data
+            return self._provider_resolution(data)
         key = MarketDataCacheKey(
             ticker,
             provider_id,
@@ -106,17 +111,38 @@ class CachedHistoricalDataClient(BaseDataClient):
         )
         entry = self._repository.get(key)
         if entry is not None and self._quality_error(entry.data, input_id, cached_at=entry.cached_at) is None:
-            return entry.data
+            return replace(
+                entry.data,
+                resolution=HistoricalDataResolution(
+                    SourceKind.CACHE, entry.fetch_completed_at, entry.cached_at, self._now(), key.schema_version
+                ),
+            )
         data = self._provider.fetch_historical_data(ticker, start_date, end_date)
         completed_at = self._now()
         error = self._quality_error(data, input_id)
         if error is not None:
             raise DataFetchError(error)
         try:
-            self._repository.put(key, data, fetch_completed_at=completed_at)
+            original_retrieval = data.resolution.retrieved_at if data.resolution is not None else completed_at
+            self._repository.put(key, data, fetch_completed_at=original_retrieval)
         except UnsupportedHistoricalDataError:
             logger.debug("Historical cache bypassed: frame representation is unsupported.")
-        return data
+        return self._provider_resolution(data, completed_at)
+
+    def _provider_resolution(
+        self, data: HistoricalMarketData, completed_at: datetime | None = None
+    ) -> HistoricalMarketData:
+        """Retain actual fetch completion without replacing original provider timing."""
+        completed = completed_at or self._now()
+        return replace(
+            data,
+            resolution=HistoricalDataResolution(
+                SourceKind.PROVIDER,
+                data.resolution.retrieved_at if data.resolution is not None else completed,
+                None,
+                completed,
+            ),
+        )
 
     def fetch_current_price(self, ticker: str) -> float:
         """Delegate every current quote to the provider's real quote boundary."""

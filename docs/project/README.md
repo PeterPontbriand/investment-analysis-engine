@@ -7,9 +7,11 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 ## Current work — single source of truth
 
 **Active milestone:** v0.2<br/>
-**Completed step:** Step 2.6 — Circuit Breakers & Timeout Limits — complete and approved on 2026-09-03<br/>
-**Active step:** Step 3.1 — SQLite DB & Migration Infrastructure — D0 contract/schema mapping in progress; production code not started<br/>
-**Last recorded checkpoint:** `07c73e5`; the approved Step 2.6 implementation remains in the working tree pending commit<br/>
+**Completed step:** Step 3.3 — Data Quality & Cache Invalidation — complete and approved on 2026-09-08<br/>
+**Active work:** Existing Strategy Correctness Audit and Repair — ESC-A evidence and concrete repair contracts prepared for review; expanded production edits await approval<br/>
+**Active companion:** [Audit, Repair, and Acceptance Plan](milestones/v0.2/existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md)<br/>
+**Deferred next step:** Step 3.3A resumes only after ESC-C acceptance; Step 3.4 follows readiness acceptance; ESC-D renewal blocks Step 3.5 until all known existing-analysis defects are resolved<br/>
+**Inspected checkpoint:** `e8f4a95` on `fix/existing-strategy-correctness`; prior Graham evidence is retained, not acceptance of the broader audit<br/>
 **Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
 **Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md)<br/>
 **Active milestone implementation plan:** [Milestone v0.2 Implementation Plan](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>
@@ -116,9 +118,13 @@ The first two repair commands intentionally mutate files. Review their diff befo
 
 ## Next implementation handoff
 
-[R1 Contract and Implementation Handoff](milestones/v0.2/r1/R1_CONTRACT_AND_SLICE_PLAN.md)
-was approved on 2026-09-06. Approval closes the planning gate and authorizes R1-B
-after the requested documentation checkpoint commit;
-implementation has not started. The active plan sequences profile persistence
-before the research workspace and defers ETF aggregation until after Light Mode
-validation, subject to separate prioritization and approval.
+The [Existing Strategy Correctness Plan](milestones/v0.2/existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md)
+expands the Graham repair into a systematic audit of all four existing analyses.
+Review the [ESC-A evidence and concrete contracts](milestones/v0.2/existing-strategy-correctness/ESC_A_EVIDENCE_AND_REPAIR_CONTRACT.md), including the linked twelve-entry ledger and coverage matrix, before
+expanded production edits. Complete approved repairs and obtain one final ESC-C review
+before database readiness resumes. Preserve the existing Graham/README checkpoint
+on `fix/existing-strategy-correctness`; keep readiness implementation separate.
+
+After Step 3.3A, Step 3.4 and P2-Profiles, renew the existing-analysis acceptance
+at ESC-D on the actual Step 3.5 starting revision. Newly discovered correctness
+defects block further strategy development until repaired and reviewed.

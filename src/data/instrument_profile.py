@@ -7,7 +7,7 @@ metadata failures into analysis control flow.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
@@ -20,7 +20,13 @@ from src.data.security_identity import (
     SecurityIdentityResolution,
     _normalized_required,
 )
-from src.data.security_unit import SecurityUnitEvidence
+from src.data.security_unit import (
+    SecurityUnitEvidence,
+    SecurityUnitProvider,
+    SecurityUnitRequest,
+    SecurityUnitResolution,
+    SecurityUnitResolutionReason,
+)
 
 _YFINANCE_PROVIDER_ID = "yfinance"
 _YFINANCE_KIND_MAPPING = {
@@ -117,6 +123,7 @@ class InstrumentProfileCapability(StrEnum):
 
     SECURITY_IDENTITY = "security_identity"
     INSTRUMENT_KIND = "instrument_kind"
+    SECURITY_UNIT = "security_unit"
 
 
 class InstrumentProfileResolutionStatus(StrEnum):
@@ -152,6 +159,7 @@ class InstrumentProfile:
     kind_evidence: InstrumentKindEvidence | None
     diagnostics: tuple[InstrumentProfileDiagnostic, ...]
     security_unit_evidence: SecurityUnitEvidence | None = None
+    security_unit_resolution: SecurityUnitResolution | None = None
 
     def __post_init__(self) -> None:
         """Normalize the ticker and reject evidence for another instrument."""
@@ -163,6 +171,54 @@ class InstrumentProfile:
             raise ValueError("Instrument-kind ticker does not match the instrument profile ticker.")
         if self.security_unit_evidence is not None and self.security_unit_evidence.ticker != normalized_ticker:
             raise ValueError("Security-unit ticker does not match the instrument profile ticker.")
+        if (
+            self.security_unit_resolution is not None
+            and self.security_unit_resolution.evidence != self.security_unit_evidence
+        ):
+            raise ValueError("Security-unit resolution contradicts the profile evidence.")
+
+
+def complete_security_unit_profile(
+    profile: InstrumentProfile, provider: object, request: SecurityUnitRequest
+) -> InstrumentProfile:
+    """Complete evidence after input resolution, without changing identity or math."""
+    if profile.ticker != request.ticker:
+        raise ValueError("Security-unit request does not match the profile ticker.")
+    if profile.security_unit_evidence is not None:
+        return profile
+    resolution = SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_UNSUPPORTED)
+    if request.as_of is not None:
+        resolution = SecurityUnitResolution(SecurityUnitResolutionReason.UNSUPPORTED_TEMPORAL_EVIDENCE)
+    elif isinstance(provider, SecurityUnitProvider):
+        try:
+            resolution = provider.resolve_security_unit(request)
+        except Exception:
+            resolution = SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_ERROR)
+    evidence = resolution.evidence
+    if evidence is not None and (evidence.ticker != request.ticker or evidence.provider_id != request.provider_id):
+        resolution = SecurityUnitResolution(SecurityUnitResolutionReason.SOURCE_MISMATCH)
+    identity = profile.identity
+    if (
+        resolution.provenance is not None
+        and identity is not None
+        and identity.issuer_identifier is not None
+        and identity.issuer_identifier.lstrip("0") != resolution.provenance.cik.lstrip("0")
+    ):
+        resolution = SecurityUnitResolution(SecurityUnitResolutionReason.SOURCE_MISMATCH)
+    diagnostic = InstrumentProfileDiagnostic(
+        InstrumentProfileCapability.SECURITY_UNIT,
+        request.provider_id,
+        InstrumentProfileResolutionStatus.RESOLVED
+        if resolution.evidence is not None
+        else InstrumentProfileResolutionStatus.UNAVAILABLE,
+        f"Share-unit evidence: {resolution.reason.value}.",
+    )
+    return replace(
+        profile,
+        security_unit_evidence=resolution.evidence,
+        security_unit_resolution=resolution,
+        diagnostics=(*profile.diagnostics, diagnostic),
+    )
 
 
 def profile_identity_resolution(profile: InstrumentProfile) -> SecurityIdentityResolution:

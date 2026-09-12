@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
 from src.core.metric_result import MetricResult
+from src.data.financial.resolution_trace import ResolutionTrace
 from src.data.instrument_profile import InstrumentProfile, instrument_kind_evidence_payload, profile_identity_resolution
-from src.data.market_data import MarketDataContext
+from src.data.market_data import HistoricalDataResolution, MarketDataContext
 from src.data.security_identity import (
     IdentityResolutionStatus,
     SecurityIdentityResolution,
@@ -26,7 +27,7 @@ from src.reporting.presentation import (
     provider_display_name,
 )
 
-_SCHEMA_VERSION = 3
+_SCHEMA_VERSION = 4
 _LIMITATION = (
     "SMA momentum describes recent price trend; it is not a valuation, "
     "fundamental-quality conclusion, or investment recommendation."
@@ -44,6 +45,8 @@ class MomentumPresentation:
     diagnostics: tuple[ResolutionDiagnostic, ...] = ()
     identity_resolution: SecurityIdentityResolution | None = None
     instrument_profile: InstrumentProfile | None = None
+    resolution_trace: ResolutionTrace = ResolutionTrace()
+    data_resolution: HistoricalDataResolution | None = None
 
     def __post_init__(self) -> None:
         """Project composed identity evidence when no legacy resolution was supplied."""
@@ -95,6 +98,8 @@ def _concise_lines(p: MomentumPresentation) -> list[str]:
     crossover = _crossover_interpretation(metrics.crossover_signal)
     if crossover is not None:
         lines.append(f"Latest crossover: {crossover}")
+    elif metrics.crossover_result is not None and metrics.crossover_result.reason:
+        lines.append(f"Latest crossover: unavailable — {metrics.crossover_result.reason}")
 
     lines.append(f"Data: {_data_summary(p.market_data)}")
     lines.extend(f"Warning: {warning}" for warning in _warnings(p))
@@ -102,7 +107,7 @@ def _concise_lines(p: MomentumPresentation) -> list[str]:
     return lines
 
 
-def _detail_lines(p: MomentumPresentation) -> list[str]:
+def _technical_detail_lines(p: MomentumPresentation) -> list[str]:
     context = p.market_data
     interval = context.observation_interval if context is not None else None
     observation_count = context.observation_count if context is not None else None
@@ -124,15 +129,59 @@ def _detail_lines(p: MomentumPresentation) -> list[str]:
         f"Latest data observation: {data_as_of.isoformat() if data_as_of is not None else 'unavailable'}",
         f"Observations returned: {observation_count if observation_count is not None else 'unavailable'}",
         f"Currency: {currency or 'unavailable'}",
+        f"Retrieval source: {p.data_resolution.source_kind.value if p.data_resolution else 'not retained'}",
+        "Originally retrieved: "
+        f"{format_datetime(p.data_resolution.retrieved_at) if p.data_resolution else 'not retained'}",
+        "Historical timing: daily labels are not verified exchange-close timestamps; "
+        "adjusted-price vintages are not retained.",
         *_identity_detail_lines(p.identity_resolution),
         *_kind_detail_lines(p.instrument_profile),
     ]
+
+
+def _detail_lines(p: MomentumPresentation) -> list[str]:
+    context = p.market_data
+    lines = [
+        "",
+        "Calculation and evidence",
+        "------------------------",
+        "Method: simple moving-average crossover",
+        f"Configured windows: {p.config.short_window} / {p.config.long_window} {_window_basis(context)}",
+        "Each SMA is the arithmetic mean of closing prices over its observation window.",
+        "A crossover requires two consecutive valid SMA pairs; an existing trend alone is not a new crossover.",
+        f"RSI uses simple average gains and losses over {p.config.rsi_period} price changes (not Wilder smoothing).",
+        "RSI is 50 for a flat window, 100 for gains only and 0 for losses only.",
+        f"Price basis: {_price_basis_detail(context)}",
+        f"Data provider: {provider_display_name(context.provider_id if context else None)}",
+        f"Data interval: {_interval_detail(context.observation_interval if context else None)}",
+        f"Currency: {context.currency if context and context.currency else 'unavailable'}",
+        "Latest data observation: "
+        f"{context.data_as_of.isoformat() if context and context.data_as_of else 'unavailable'}",
+        f"Observations returned: {context.observation_count if context else 'unavailable'}",
+        "Daily dates do not establish exchange-close timestamps or historical adjustment availability.",
+        "Full retrieval, cache and provider evidence: --diagnostics or --json.",
+    ]
+    if p.instrument_profile and p.instrument_profile.kind_evidence:
+        lines.append(_kind_detail_lines(p.instrument_profile)[0])
+    return lines
+
+
+def _resolution_diagnostics(p: MomentumPresentation) -> tuple[ResolutionDiagnostic, ...]:
+    items = (
+        *(
+            ResolutionDiagnostic(item.field_name, item.stage.value, item.outcome.value, item.message)
+            for item in p.resolution_trace.events
+        ),
+        *p.diagnostics,
+    )
+    return tuple(dict.fromkeys(items))
 
 
 def _diagnostic_lines(p: MomentumPresentation) -> list[str]:
     metrics = p.metrics
     context = p.market_data
     lines = [
+        *_technical_detail_lines(p),
         "",
         "Diagnostics",
         "-----------",
@@ -140,7 +189,7 @@ def _diagnostic_lines(p: MomentumPresentation) -> list[str]:
         f"Trend relationship: {_trend_relationship(metrics) or 'unavailable'}",
         f"Market-data context: {_diagnostic_market_data(context)}",
     ]
-    for item in p.diagnostics:
+    for item in _resolution_diagnostics(p):
         lines.append(f"{item.field_name}: {item.stage} -> {item.outcome} — {item.message}")
     if p.instrument_profile is not None:
         lines.extend(
@@ -161,7 +210,7 @@ def _identity_detail_lines(resolution: SecurityIdentityResolution | None) -> lis
     identity = resolution.identity
     return [
         f"Instrument name: {identity.instrument_name or 'unavailable'}",
-        f"Listing venue: {identity.listing_venue or 'unavailable'}",
+        f"Current listing venue: {identity.listing_venue or 'not supplied by selected identity provider'}",
         f"Identity provider: {provider_display_name(identity.provider_id)}",
         f"Identity resolved: {format_datetime(identity.resolved_at)} (current descriptive metadata)",
     ]
@@ -392,6 +441,7 @@ def _payload(p: MomentumPresentation) -> dict[str, Any]:
             "sma_spread_percent": spread_percent,
             "trend_relationship": _trend_relationship(metrics),
             "crossover_signal": metrics.crossover_signal,
+            "crossover_result": asdict(metrics.crossover_result) if metrics.crossover_result is not None else None,
             "crossover_state": _crossover_state(metrics.crossover_signal),
             "rsi": {
                 "status": metrics.rsi_14.status.value,
@@ -414,9 +464,18 @@ def _payload(p: MomentumPresentation) -> dict[str, Any]:
             "price_adjustment": context.price_adjustment if context is not None else None,
         },
         "warnings": _warnings(p),
+        "data_resolution": None
+        if p.data_resolution is None
+        else {
+            "source_kind": p.data_resolution.source_kind.value,
+            "retrieved_at": p.data_resolution.retrieved_at.isoformat() if p.data_resolution.retrieved_at else None,
+            "cached_at": p.data_resolution.cached_at.isoformat() if p.data_resolution.cached_at else None,
+            "resolved_at": p.data_resolution.resolved_at.isoformat(),
+            "cache_schema_version": p.data_resolution.cache_schema_version,
+        },
         "limitations": [_LIMITATION],
         "diagnostics": [
-            *[diagnostic_payload(item) for item in p.diagnostics],
+            *[diagnostic_payload(item) for item in _resolution_diagnostics(p)],
             *(
                 [
                     {

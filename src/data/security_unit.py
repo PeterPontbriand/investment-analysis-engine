@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
+from typing import Protocol, runtime_checkable
 
+from src.data.financial.provenance import ResolvedInput
 from src.data.security_identity import _normalized_required
 
 
@@ -39,6 +42,89 @@ class SecurityUnitCompatibilityReason(StrEnum):
     UNKNOWN_RATIO = "unknown_ratio"
     UNSUPPORTED_UNIT_KIND = "unsupported_unit_kind"
     NON_UNIT_RATIO = "non_unit_ratio"
+
+
+class SecurityUnitResolutionReason(StrEnum):
+    """Stable acquisition outcomes, distinct from numeric compatibility."""
+
+    RESOLVED = "resolved"
+    MISSING_EVIDENCE = "missing_evidence"
+    PROVIDER_UNSUPPORTED = "provider_unsupported"
+    PROVIDER_ERROR = "provider_error"
+    UNSUPPORTED_TEMPORAL_EVIDENCE = "unsupported_temporal_evidence"
+    SOURCE_MISMATCH = "source_mismatch"
+    AMBIGUOUS_CLASS = "ambiguous_class"
+    UNSUPPORTED_EVIDENCE = "unsupported_evidence"
+
+
+@dataclass(frozen=True)
+class SecurityUnitRequest:
+    """Borrow resolved inputs for one ticker's share-unit verification."""
+
+    ticker: str
+    provider_id: str
+    as_of: datetime | None
+    inputs: tuple[ResolvedInput, ...]
+    quote: ResolvedInput
+
+    def __post_init__(self) -> None:
+        """Normalize identity and validate the explicit temporal boundary."""
+        object.__setattr__(self, "ticker", _normalized_required(self.ticker, "ticker", uppercase=True))
+        object.__setattr__(self, "provider_id", _normalized_required(self.provider_id, "provider_id"))
+        if self.as_of is not None and self.as_of.utcoffset() is None:
+            raise ValueError("as_of must be timezone-aware.")
+
+
+@dataclass(frozen=True)
+class SecurityUnitDocument:
+    """Immutable provenance for a verified filing document."""
+
+    accession: str
+    url: str
+    context_ids: tuple[str, ...]
+    available_at: datetime
+    retrieved_at: datetime
+    listing_venue: str | None = None
+
+
+@dataclass(frozen=True)
+class SecurityUnitProvenance:
+    """Evidence scope for the reviewed single-common-class inference."""
+
+    mapping_id: str
+    cik: str
+    class_title: str
+    documents: tuple[SecurityUnitDocument, ...]
+
+
+@dataclass(frozen=True)
+class SecurityUnitResolution:
+    """Retain acquisition failures without discarding financial results."""
+
+    reason: SecurityUnitResolutionReason
+    evidence: SecurityUnitEvidence | None = None
+    provenance: SecurityUnitProvenance | None = None
+
+    def __post_init__(self) -> None:
+        """Require evidence exactly when acquisition succeeds."""
+        if (self.reason is SecurityUnitResolutionReason.RESOLVED) != (self.evidence is not None):
+            raise ValueError("Resolved unit evidence must agree with its acquisition reason.")
+        if self.provenance is not None and self.evidence is None:
+            raise ValueError("Unit provenance requires resolved evidence.")
+
+    @property
+    def status(self) -> str:
+        """Return the stable acquisition status."""
+        return "resolved" if self.evidence is not None else "unavailable"
+
+
+@runtime_checkable
+class SecurityUnitProvider(Protocol):
+    """Optional request-scoped provider capability, independent of quotes."""
+
+    def resolve_security_unit(self, request: SecurityUnitRequest) -> SecurityUnitResolution:
+        """Return reviewed unit evidence or a classified absence."""
+        ...
 
 
 @dataclass(frozen=True)

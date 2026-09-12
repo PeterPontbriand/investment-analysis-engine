@@ -197,7 +197,7 @@ Step 2.2 establishes structured-output enforcement with layered defenses:
 3. use the configured prompt-based schema fallback when native capability is unavailable or unknown;
 4. retain legacy compatibility parsing only as the final fallback where required.
 
-Empirical model-by-model validation of native-schema behavior for the supported Light Mode configuration remains a non-blocking validation item before Step 3.5 completion.
+Empirical model-by-model validation of native-schema behavior for the supported Light Mode configuration remains a non-blocking validation item before Step 3.6 completion.
 
 Do not rewrite the runtime around a model-specific assumption merely to make one model pass.
 
@@ -434,6 +434,17 @@ The implemented predicate accepts only affirmative ordinary-share / 1:1 quoted-
 unit evidence; unknown and ADR/ADS shapes make quote-dependent comparisons
 unavailable without erasing independently supported issuer-level facts.
 
+The Graham services complete missing unit evidence after financial input
+resolution, inside the existing request-scoped SEC snapshot. The optional SEC
+capability verifies original source accessions and current annual filing class
+evidence through a bounded Inline XBRL reader. It supports the reviewed domestic
+US-GAAP single-common-class mapping for current requests; unsupported evidence
+produces a structured absence. Derived shares and inferred preferred-share
+guards retain typed source lineage through the existing financial cache format.
+No durable evidence cache or database migration is introduced. Shared comparison
+evaluation supplies both the legacy percentage and structured status/reason;
+Graham presentation schema 4 exposes sanitized evidence and provenance.
+
 IFRS BVPS is not in this seam. Company Facts does not preserve the
 dimensional ordinary/preference share-class evidence needed to infer common
 equity and denominator safely; missing preferred-share evidence is never zero.
@@ -486,6 +497,32 @@ Private model reasoning is never reconstructed.
 - Telemetry sink failures fail open.
 
 ---
+
+### Planned Graham comparison evidence repair
+
+The [immediate repair plan](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)
+has planning acceptance with branch-naming and combined README-review caveats. Current profile composition does not supply the share-unit
+evidence required by the Graham services, and nullable comparison output loses
+the compatibility reason. The repair must supply defensible provider-backed,
+request-scoped evidence and propagate typed decisions through services and reporting.
+Matching currencies and an equity classification alone do not establish a 1:1
+filing-share/quoted-unit relationship. Preserve the fail-closed guard and valid
+standalone financial results; unsupported comparisons need explicit reasons.
+This target introduces neither durable profile storage nor ADR/FX conversion and
+is not a claim that production behavior has already changed.
+
+### Planned database readiness boundary
+
+The [fresh database readiness contract](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
+is a proposed target, not current runtime behavior. Application composition will
+check required persistence before use and initialize only verified empty storage
+through bundled Alembic migrations. Existing schemas require explicit operator
+upgrades. The shared repository boundary owns classification and coordinated
+initialization; analyzers remain free of schema management. Cross-process locking,
+post-lock recheck, transactional DDL, and typed sanitized errors are required.
+Optional telemetry must neither trigger initialization nor control business
+execution. Current explicit-migration behavior remains in force until implementation
+and acceptance; no runtime change is claimed by this planning document.
 
 ## 10. Development guardrails
 

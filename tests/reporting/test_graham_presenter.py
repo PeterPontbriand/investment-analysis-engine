@@ -153,7 +153,7 @@ def test_number_concise_uses_screening_ceiling_language_and_not_intrinsic_value(
     assert "quote unavailable" in rendered.lower()
 
 
-def test_number_details_expose_provider_fields_and_derivation_lineage() -> None:
+def test_number_diagnostics_expose_provider_fields_and_derivation_lineage() -> None:
     assembly = GrahamNumberInputAssembly(
         status=CalculationStatus.OK,
         eps=_eps(),
@@ -168,11 +168,28 @@ def test_number_details_expose_provider_fields_and_derivation_lineage() -> None:
         ),
     )
 
-    rendered = render_graham_number(presentation, PresentationMode.DETAILS)
+    rendered = render_graham_number(presentation, PresentationMode.DIAGNOSTICS)
 
     assert "provider field: us-gaap:StockholdersEquity" in rendered
     assert "preferred_shares_outstanding == 0 guard" in rendered
     assert "available at:" in rendered
+
+
+def test_details_explain_calculation_and_diagnostics_retain_raw_evidence() -> None:
+    presentation = GrahamNumberPresentation(
+        ticker="NDAQ",
+        assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=_eps(), bvps=_derived_bvps()),
+        result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=33.8),
+    )
+    details = render_graham_number(presentation, PresentationMode.DETAILS)
+    diagnostics = render_graham_number(presentation, PresentationMode.DIAGNOSTICS)
+    assert "sqrt(22.5" in details
+    assert "fiscal-year-end" in details
+    assert "basis not retained" not in details
+    assert "provider field:" not in details
+    assert "us-gaap:" not in details
+    assert "provider field: us-gaap:StockholdersEquity" in diagnostics
+    assert len(details.splitlines()) < 50
 
 
 def test_number_json_preserves_typed_provenance() -> None:
@@ -192,7 +209,7 @@ def test_number_json_preserves_typed_provenance() -> None:
 
     payload = json.loads(render_graham_number(presentation, PresentationMode.JSON))
 
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 5
     assert payload["security_identity"]["instrument_name"] is None
     assert payload["method"] == "graham_number"
     assert payload["result"]["maximum_indicated_price"] == pytest.approx(33.8004677786747)
@@ -315,6 +332,65 @@ def test_diagnostics_render_recorded_resolver_trace_without_reconstruction() -> 
     assert "bvps: derivation -> success" in rendered
 
 
+@pytest.mark.parametrize("mode", [PresentationMode.CONCISE, PresentationMode.DETAILS, PresentationMode.DIAGNOSTICS])
+@pytest.mark.parametrize(
+    ("component", "label"),
+    [
+        ("preferred_shares_outstanding", "preferred-share evidence"),
+        ("stockholders_equity", "stockholders' equity"),
+        ("common_shares_outstanding", "period-end common shares outstanding"),
+    ],
+)
+def test_number_missing_component_explains_failure_before_diagnostics(
+    mode: PresentationMode, component: str, label: str
+) -> None:
+    """A sanitized assembly still exposes its specific blocker through typed trace evidence."""
+    assembly = GrahamNumberInputAssembly(
+        status=CalculationStatus.INPUT_UNAVAILABLE,
+        eps=_eps(),
+        reason="Unable to analyze MSFT: required financial data is unavailable for the requested method.",
+        resolution_trace=ResolutionTrace(
+            events=(
+                ResolutionEvent(
+                    component, ResolutionStage.PROVIDER, ResolutionOutcome.UNAVAILABLE, "Raw provider detail"
+                ),
+                ResolutionEvent(
+                    "bvps", ResolutionStage.DERIVATION, ResolutionOutcome.UNAVAILABLE, "Raw derivation detail"
+                ),
+            )
+        ),
+    )
+    rendered = render_graham_number(GrahamNumberPresentation(ticker="MSFT", assembly=assembly, result=None), mode)
+    opening = rendered.split("Details")[0]
+    assert "Graham Number could not be calculated." in opening
+    assert f"eligible {label} could not be resolved" in opening
+    assert "Price comparison was not performed" in opening
+    assert "Current price: not requested" in opening
+    assert "Current price: unavailable" not in rendered
+    assert "Raw provider detail" not in opening
+    assert ("Missing preferred-share data is not assumed to be zero." in opening) == (
+        component == "preferred_shares_outstanding"
+    )
+    if mode is PresentationMode.DIAGNOSTICS:
+        assert "Raw provider detail" in rendered
+
+
+def test_number_failure_does_not_relabel_attempted_quote_as_not_requested() -> None:
+    """Retained quote failures must remain distinct from early input failure."""
+    assembly = GrahamNumberInputAssembly(
+        status=CalculationStatus.INPUT_UNAVAILABLE,
+        eps=_eps(),
+        reason="Missing BVPS",
+        quote_status=CalculationStatus.PROVIDER_ERROR,
+        quote_reason="Quote request failed",
+    )
+    rendered = render_graham_number(
+        GrahamNumberPresentation(ticker="MSFT", assembly=assembly, result=None), PresentationMode.DIAGNOSTICS
+    )
+    assert "Current price: not requested" not in rendered
+    assert "Current price: unavailable" in rendered
+
+
 def test_number_presentation_rejects_as_of_mismatch_with_resolved_input() -> None:
     historical_as_of = datetime(2025, 12, 31, tzinfo=UTC)
     eps = ResolvedInput(
@@ -433,17 +509,17 @@ def test_number_not_applicable_is_humanized_and_suppresses_quote_noise() -> None
     assert "Current quote unavailable" not in rendered
 
 
-def test_number_details_use_human_dates_and_omit_operational_timestamps() -> None:
+def test_number_diagnostics_keep_financial_dates_and_original_retrieval_time() -> None:
     presentation = GrahamNumberPresentation(
         ticker="NDAQ",
         assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=_eps(), bvps=_derived_bvps()),
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=33.8),
     )
-    rendered = render_graham_number(presentation, PresentationMode.DETAILS)
+    rendered = render_graham_number(presentation, PresentationMode.DIAGNOSTICS)
     assert "basis: fiscal-year-end" in rendered
     assert "period end: 2025-12-31" in rendered
     assert "available at: 2026-02-12 21:29 UTC" in rendered
-    assert "retrieved at:" not in rendered
+    assert "retrieved at: 2026-08-22 04:00 UTC" in rendered
     assert "resolved at:" not in rendered
     assert "T23:59:59" not in rendered
     assert ".999999" not in rendered
@@ -482,7 +558,7 @@ def test_provider_side_inference_and_derivation_have_explicit_source_labels() ->
         assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=_eps(), bvps=bvps),
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=21.14),
     )
-    rendered = render_graham_number(presentation, PresentationMode.DETAILS)
+    rendered = render_graham_number(presentation, PresentationMode.DIAGNOSTICS)
     assert "source: inferred (SEC EDGAR)" in rendered
     assert "source: provider-derived (SEC EDGAR)" in rendered
 
@@ -524,7 +600,7 @@ def test_cross_currency_quote_is_shown_without_price_relationship() -> None:
         margin_of_safety_percent=None,
     )
     rendered = render_graham_number(presentation)
-    assert "Current price: 50.00 CAD" in rendered
+    assert "Latest available quote: 50.00 CAD" in rendered
     assert "Price comparison: unavailable (valuation and quote currencies differ)" in rendered
     assert "Price relationship:" not in rendered
 

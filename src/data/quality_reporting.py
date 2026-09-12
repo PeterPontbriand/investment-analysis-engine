@@ -23,12 +23,17 @@ def quality_observer(observer: QualityObserver) -> Iterator[None]:
 
 
 def publish_quality(decisions: tuple[QualityDecision, ...]) -> None:
-    """Report failures without allowing observer errors to affect decisions."""
+    """Retain candidate rejection evidence without presenting it as a run failure.
+
+    A rejected cache entry or provider candidate may be replaced successfully.
+    Execution boundaries report unrecovered failures to users; observers and
+    debug logs retain individual decisions independently of the final outcome.
+    """
     observer = _observer.get()
     for decision in decisions:
         if decision.outcome is not QualityOutcome.FAIL:
             continue
-        logger.warning("Data quality rejected an input (%s).", decision.rule_id)
+        logger.debug("Data quality rejected an input (%s).", decision.rule_id)
         if observer is not None:
             try:
                 observer(decision)

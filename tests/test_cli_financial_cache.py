@@ -19,11 +19,12 @@ from src.config import ProjectSettings
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
 from src.data.financial.production import ProductionFinancialFactsProvider
+from src.data.financial.resolver import InputResolver
 from src.data.instrument_profile import InstrumentProfile
 from src.data.repositories import SQLiteDatabase
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.evaluation.fixtures.graham import PROVIDER_ID, FixtureFinancialFactsProvider
+from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, FixtureFinancialFactsProvider
 
 
 class GrahamProvider:
@@ -89,6 +90,7 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
         patch("src.cli._build_sec_production_provider", return_value=provider),
         patch("src.cli._compose_analysis_profile", return_value=profile),
         patch("src.cli_support.SQLiteDatabase", side_effect=database),
+        patch.object(InputResolver, "_DEFAULT_CLOCK", staticmethod(lambda: NOW)),
     ):
         first = CliRunner().invoke(app, arguments)
         assert first.exit_code == 0, first.output

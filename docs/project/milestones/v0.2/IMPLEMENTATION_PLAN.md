@@ -8,8 +8,12 @@
 **Prepared:** 2026-08-15<br/>
 **Revised:** 2026-09-06 — Recorded Step 3.1 and R1 completion, the pushed R1 checkpoint, and the revised R2 proposal with independent slice gates before Step 3.2. R2 documentation review does not authorize production implementation.<br/>
 **Revised:** 2026-09-07 — Recorded merged PR #29 closing R1/R2. Prepared Step 3.2 source reconciliation, gap matrix, bounded implementation contract, and fresh baseline; Gates 3.2-A/B/C approved on 2026-09-07; implementation and acceptance verification passed; final Gate 3.2-D approved; Step 3.2 complete on 2026-09-07.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07
-**Next work item:** Step 3.3 companion plan approved and implementation authorized on 2026-09-07 on `feat/step-3.3-data-quality`. A reconciliation is complete; review B rules and tests in the [companion plan](step-3.3/STEP_3_3_CONTRACT_AND_SLICE_PLAN.md) before C integration. Issue #17 is complete and approved; its [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
+**Revised:** 2026-09-08 — Recorded the accepted Step 3.5 (Deterministic Quantitative Screening Strategies) plan and the Light Mode renumber to Step 3.6. The project owner has explicitly approved the start of Step 3.4 (Local Research Workspace & Analysis Run Library) on 2026-09-08; implementation is authorized on `feat/step-3.4-research-workspace`.<br/>
+**Revised:** 2026-09-09 — Added Step 3.3A fresh-database initialization/readiness planning before Step 3.4. Step 3.4 start authorization is retained but deferred pending 3.3A final acceptance; production implementation of 3.3A requires Gate A approval.<br/>
+**Revised:** 2026-09-09 — Prioritized the immediate Graham price-comparison repair ahead of Step 3.3A. Planning was accepted with caveats on 2026-09-09; production changes are not authorized. Both Graham methods must receive validated share-unit evidence and report structured comparison-unavailability reasons.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07; Step 3.3 → complete and approved on 2026-09-08; Step 3.3A → planning in progress, implementation not authorized; Step 3.4 → start approved on 2026-09-08, deferred until 3.3A acceptance.
+**Current amendment:** ESC-B reviewed and approved on 2026-09-11 (Toronto), including the historical MSFT follow-up. The [ESC-C acceptance packet](existing-strategy-correctness/ESC_C_FINAL_ACCEPTANCE.md) reconciles seventeen repaired findings and the final 2,054-test / 89% gate. Graham-only final acceptance is incorporated into ESC-C; ESC-C final acceptance was granted on 2026-09-11 (Toronto), releasing readiness contract planning at its existing gates. ESC-D still blocks Step 3.5 implementation.<br/>
+**Next work item:** [Existing Strategy Correctness Audit and Repair](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md) (ESC-C accepted on 2026-09-11; ready for publication handoff) → [Step 3.3A Fresh Database Initialization & Schema Readiness](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) → Step 3.4 (Local Research Workspace & Analysis Run Library) → P2-Profiles → ESC-D renewed acceptance → **Step 3.5 Deterministic Quantitative Screening Strategies** → Step 3.6 Light Mode Support. [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -20,12 +24,15 @@ This plan turns the high-level Master Plan steps for Milestone v0.2 into an acti
 
 **In scope**
 - Step 2 – Agent Reliability, Strategy Generalization, Evaluation & Observability Foundation (2.1 → 2.6)
+- Existing-strategy correctness audit and repair — all four public analyses, including the Graham repair; ESC-C before Step 3.3A and renewed ESC-D acceptance before Step 3.5.
+- Step 3.3A – Fresh database initialization, typed readiness errors, user documentation, and deterministic lifecycle verification (before Step 3.4).
 - Step 3 – Relational Data Persistence, Data Quality & Local Research Workspace (3.1 → 3.4)
 - R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (before Step 3.4)
 - R2 – Analysis Strategy Package Split (accepted plan after R1; complete and approved on 2026-09-07; before Step 3.2)
 - Step 3.2 – DAO & Repository Layer (started 2026-09-07 after R2 completion; before Step 3.3)
-- Step 3.5 – Light Mode Support (required before the v0.2.5 checkpoint)
-
+- Step 3.4 – Local Research Workspace & Analysis Run Library
+- **Step 3.5 – Deterministic Quantitative Screening Strategies**
+- Step 3.6 – Light Mode Support (required before the v0.2.5 checkpoint)
 **Out of scope (explicit)**
 - Milestone v0.2.5 real-user validation activities (recruitment, feedback sessions)
 - Milestone v0.3 analytics expansion or localization
@@ -39,8 +46,8 @@ A clean, Light-Mode-capable analysis workflow exists that:
 3. Passes a golden-test suite at the ≥ 90 % target.
 4. Has hard circuit-breaker and timeout limits.
 5. Persists data, execution logs, and later investor-facing Analysis Run history in SQLite (WAL) with typed repositories and basic data-quality checks.
-6. Presents Momentum, Graham, and Free Cash Flow & Earnings Growth analysis through a coherent terminal experience with concise defaults, detailed provenance, explicit overrides/warnings or assumptions, resolution diagnostics, and machine-readable output.
-7. Can be used end-to-end by a new user following only Light Mode instructions to analyze or add a ticker, refresh supported analyses, revisit completed runs, and inspect the evidence behind a result.
+6. Presents Momentum, Graham, Free Cash Flow & Earnings Growth, **and the Step 3.5 quantitative screening suite** through a coherent terminal experience with concise defaults, detailed provenance, explicit overrides/warnings or assumptions, resolution diagnostics, and machine-readable output.
+7. Can be used end-to-end by a new user following only Light Mode instructions to analyze or add a ticker, refresh supported analyses (including the Step 3.5 screens), revisit completed runs, and inspect the evidence behind a result.
 
 ---
 
@@ -90,8 +97,11 @@ Use **fine-grained branches aligned with coherent implementation units within a 
 | Step 3.2 repositories | `feat/step-3.2-repositories` | Typed DAO/repository layer |
 | Issue #17 telemetry closeout | `codex/issue-17-telemetry-closeout` | Focused hash and recovery regression coverage after Step 3.2, before Step 3.3 |
 | Step 3.3 data quality | `feat/step-3.3-data-quality` | Validation, staleness, invalidation |
+| Immediate Graham comparison repair | `fix/graham-price-comparison` | Separate repair after planning/evidence review; before database readiness |
+| Step 3.3A database readiness | `codex/step-3.3a-database-readiness` | Bounded fresh initialization and readiness prerequisite; planning first |
 | Step 3.4 research workspace | `feat/step-3.4-research-workspace` | Watchlists, user-initiated concurrent refresh, durable Analysis Runs, run browsing |
-| Step 3.5 Light Mode | `feat/step-3.5-light-mode` | Adoption workflow and smoke validation |
+| **Step 3.5 quantitative screens** | `feat/step-3.5-quantitative-screens` | Piotroski, Altman Z, Beneish M, valuation multiples, Magic Formula |
+| Step 3.6 Light Mode | `feat/step-3.6-light-mode` | Adoption workflow and smoke validation |
 
 **Working agreement**
 - Prefer small, reviewable PRs that each leave `main` green.
@@ -189,7 +199,8 @@ The telemetry recorder will capture and store observable data explicitly exposed
 - **Verification:** The accepted closeout passed 35 focused tests and the complete
   managed gate (1,870 tests, 89% reported coverage, clean Ruff/format and strict
   mypy) on 2026-09-07. No production changes were needed; final acceptance was approved on 2026-09-07.
-- **Next work item:** Complete the bounded [Issue #17 Telemetry Closeout
+- **Current amendment:** ESC-C final existing-analysis acceptance approved on 2026-09-11 (Toronto), including the Graham repair. Step 3.3A contract planning may resume at its existing gates; ESC-D still blocks Step 3.5 implementation.<br/>
+**Next work item:** Complete the bounded [Issue #17 Telemetry Closeout
   Plan](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) after Step 3.2 and before
   Step 3.3. Contract and final acceptance were approved on 2026-09-07; the closeout
   is complete and Step 3.3 is authorized to begin. Publication remains outstanding.
@@ -1572,7 +1583,35 @@ Validate incoming financial data (FX adjustments, corporate actions, staleness) 
 
 ---
 
+### 4.9R Existing Strategy Correctness Audit and Repair
+
+**Status:** ESC-B reviewed and approved on 2026-09-11 (Toronto). The [ESC-C acceptance packet](existing-strategy-correctness/ESC_C_FINAL_ACCEPTANCE.md) reconciles seventeen repaired findings, all-four live successes, independent arithmetic, the historical MSFT refusal and the final 2,054-test / 89% gate. Changes remain uncommitted on `fix/existing-strategy-correctness`, based on approved `cb1e9ef`. ESC-C final acceptance was granted on 2026-09-11 (Toronto), incorporating Graham R2/R3 acceptance. The seventeen findings and documented limits are accepted; publication remains separate.
+
+**Contract:** [Existing Strategy Correctness Plan](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md) governs the evidence matrix, defect ledger, repair contracts and acceptance gates for Graham Number, Graham Growth, Momentum, and FCF/Earnings Growth. Trace provider evidence, cache lifecycle, calculations, classification and all output modes. No known output-correctness defect may be left unresolved in a backlog before further strategy development.
+
+**Gates:** ESC-A establishes fresh evidence/baseline and concrete policy/file contracts for approval before expanded production edits. ESC-B executes approved repairs toward one final ESC-C review. Explicit ESC-C acceptance is required before database-readiness design/implementation continuation. ESC-D renews acceptance on the actual starting revision immediately before Step 3.5, after readiness/workspace/profile changes. A green test count alone does not establish correctness; independent arithmetic, realistic composition fixtures and dated live evidence are required.
+
+**Preservation:** Retain the Graham repair and README correction as predecessor evidence. Keep readiness implementation separate. Preserve existing financial assumptions unless a diagnosed defect justifies an explicitly reviewed change. This checkpoint changes planning only.
+
+---
+
+### 4.9A Step 3.3A – Fresh Database Initialization & Schema Readiness
+
+**Status:** Planning requested on 2026-09-09; the ESC-C deferral was released by final acceptance on 2026-09-11 (Toronto). Contract planning may resume; production implementation remains subject to its own approval gates. [Contract and Slice Plan](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) owns the bounded behavior, verification matrix, and A–D review gates.
+
+**Goal:** Make the first persistence-backed analysis initialize verified empty SQLite storage through bundled Alembic migrations, while preserving explicit upgrades of existing databases and reporting actionable typed readiness errors.
+
+**Scope:** Shared application readiness boundary; strict fresh/current/older/incompatible/unavailable classification; bounded cross-process initialization with recheck and atomic migration; sanitized CLI/operational errors; durable user documentation; deterministic lifecycle, concurrency, rollback, and CLI tests. No existing-data auto-upgrades, schema repair, new business tables, dependencies, or workspace functionality.
+
+**Sequencing:** Complete and accept 3.3A before Step 3.4 contract preparation and implementation. The 2026-09-08 Step 3.4 authorization is retained, not revoked; its start is deferred. Preserve the subsequent sequence: Step 3.4 → P2-Profiles → ESC-D renewed acceptance → Step 3.5 → Step 3.6. This supersedes older P2-before-workspace sequencing statements.
+
+**Acceptance:** The companion matrix and full managed quality gate must pass. Gate A requires explicit contract/implementation approval; B and C require review before proceeding; Gate D requires explicit final acceptance. This documentation checkpoint does not assert implementation or a fresh test baseline.
+
+---
+
 ### 4.10 Step 3.4 – Local Research Workspace & Analysis Run Library
+
+**Scheduling:** Start authorization from 2026-09-08 is retained. Contract design and implementation are deferred until Step 3.3A final acceptance; no Step 3.4 companion contract exists yet.
 
 **Goal**
 Turn the command-line program into a small local research workbench before real-user validation: users maintain ticker/analysis lists, initiate a refresh, and revisit durable completed results without requiring a GUI or unattended service.
@@ -1631,7 +1670,29 @@ no speculative plugin framework or ETF schema is authorized here.
 - [ ] Analysis Run identity is distinct from, but linkable to, execution telemetry identity.
 - [ ] No daemon, unattended scheduler, proactive monitoring, notifications, full-screen TUI, or executive report generator is introduced.
 
-### 4.11 Step 3.5 – Light Mode Support
+### 4.11 Step 3.5 – Deterministic Quantitative Screening Strategies
+
+**Mandatory entry gate:** Explicit ESC-D renewed acceptance from the [correctness plan](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md) is required on the actual starting revision. No new strategy implementation may begin with an unresolved known defect in any of the four existing analyses. Prior Step 3.5 plan approval does not waive this gate.
+
+**Goal**  
+Implement the five independently typed deterministic screening strategies defined in the companion Step 3.5 plan (Piotroski F-Score, Altman Z-Score, Beneish M-Score, Unlevered Valuation Multiples, Greenblatt Magic Formula Ranking). All work reuses existing financial-fact, InputResolver, provenance, Analysis Run, and progressive-disclosure contracts. No paid data sources and no LLM arithmetic.
+
+**Implementation outline**
+1. Extend the SEC EDGAR concept dictionary and yfinance fallback mappings for the required line items; add sector-applicability helpers.
+2. Implement each strategy as a first-class `BaseAnalyzer` under `src/analysis/strategy/` with full Pydantic result models and component-level provenance.
+3. Wire CLI commands, presenters, and Analysis Run persistence following established patterns.
+4. Extend the Golden Suite; add focused unit/integration tests for the documented edge cases.
+5. Author the five user-facing strategy guides plus Finance Math / Glossary updates.
+6. Pass the full repository quality gate.
+
+**Acceptance criteria**
+- [ ] All five strategies produce reproducible, provenance-tagged results (and correct inapplicability signals where required).
+- [ ] Each strategy has a complete user-facing guide.
+- [ ] Golden-Suite extension and unit tests are green; coverage meets project policy.
+- [ ] Strategies are selectable on watchlists and appear in the Light Mode workflow.
+- [ ] Quality gates (ruff, mypy --strict, pytest) pass.
+
+### 4.12 Step 3.6 – Light Mode Support
 
 **Goal**
 The complete investor workflow—data fetch/cache → deterministic analytics → durable Analysis Run → concise/detailed inspection → bounded local-model synthesis—runs cleanly under Light Mode with a 14B-class (or smaller) model.
@@ -1648,7 +1709,7 @@ The complete investor workflow—data fetch/cache → deterministic analytics �
 **Synthesis boundary**
 The model may summarize, compare, flag tensions, and suggest what the investor may wish to inspect next. It may not invent financial facts, perform the deterministic arithmetic, silently select a growth assumption, or turn a screening result into an investment recommendation.
 
-**Acceptance criteria (exit criterion for Step 3.5)**
+**Acceptance criteria (exit criterion for Step 3.6)**
 - [ ] A new user following only Light Mode instructions can analyze/add a real ticker, refresh supported analyses, and revisit stored results.
 - [ ] The user can see a concise result and inspect detailed provenance without developer assistance.
 - [ ] Bounded local-model synthesis works on the supported Light Mode configuration and is clearly downstream of deterministic results.
@@ -1698,18 +1759,24 @@ Phase G — Step 3 production persistence/data quality
   ├─ 3.2 scope reconciliation + remaining typed repository work (started 2026-09-07; Gates 3.2-A/B/C approved; Gate 3.2-D approved; complete on 2026-09-07)
   ├─ Issue #17 telemetry closeout (complete and approved; publication pending)
   ├─ 3.3 data quality / invalidation (authorized to begin on 2026-09-07)
-  └─ P2-Profiles durable instrument profiles (no ETF aggregation)
+  ├─ Existing-strategy correctness audit/repair (ESC-C accepted 2026-09-11)
+  └─ 3.3A fresh initialization / schema readiness (planning; acceptance before Phase H)
         │
         ▼
 Phase H — Step 3.4 local research workspace
-  └─ watchlists + user-initiated concurrent refresh + Analysis Run library
+  ├─ watchlists + user-initiated concurrent refresh + Analysis Run library
+  └─ P2-Profiles durable instrument profiles (after Step 3.4; no ETF aggregation)
         │
         ▼
-Phase I — Step 3.5 adoption gate
-  └─ Light Mode workflow + bounded typed-result synthesis
+Phase I — ESC-D renewed acceptance, then Step 3.5 deterministic quantitative screening strategies
+  └─ Piotroski, Altman Z, Beneish M, valuation multiples, Magic Formula
+        │
+        ▼
+Phase J — Step 3.6 adoption gate
+  └─ Light Mode workflow (including Step 3.5 screens) + bounded typed-result synthesis
        → unlocks Milestone v0.2.5 real-user validation
-
-Deferred beyond Step 3.5 — P2-ETF aggregation strategy
+	   
+Deferred beyond Step 3.6 — P2-ETF aggregation strategy
   └─ separate prioritization + provider/product-policy approval; not automatic
 ```
 
@@ -1730,9 +1797,9 @@ The following quality checks must pass on every pull request within this milesto
 
 All of the following must be true before declaring the milestone complete and opening the v0.2.5 validation window:
 
-1. Steps 2.1–2.6 and 3.1–3.5, including the new Step 3.4 research workspace, are fully implemented and merged.
+1. Steps 2.1–2.6 and 3.1–3.6, including the Step 3.4 research workspace and the Step 3.5 quantitative screening suite, are fully implemented and merged.
 2. Step 2.5 Golden-test suite exists, runs headlessly, exercises Momentum, both Graham methods, and Free Cash Flow & Earnings Growth, and reports strategy-selection, Graham method-selection, numerical-correctness, and overall pass rates against the ≥ 90 % target.
-3. A fresh repository clone running Light Mode setup instructions completes the investor workflow: direct/watchlist analysis, refresh, persisted Analysis Run, concise view, detailed provenance, and bounded synthesis.
+3. A fresh repository clone running Light Mode setup instructions completes the investor workflow: direct/watchlist analysis (including selected Step 3.5 screens), refresh, persisted Analysis Run, concise view, detailed provenance, and bounded synthesis.
 4. CI pipeline is green on `main`.
 5. Master Plan and Discovery Workbook cross-references remain consistent.
 6. Temporary scaffolding and blocking TODOs are cleaned up or documented.
@@ -1790,20 +1857,15 @@ All of the following must be true before declaring the milestone complete and op
 3. **Tangible-book and sector-specific variants** — Defer these until the base Graham methods and their limitations are validated.
 4. **Step 2.4 product refinements** — P/FCF thresholds, alternate FCF definitions, smoothing, horizons outside the approved three/four/five-year set, peer comparisons, cash conversion, and user-defined composite thresholds remain deferred. FCF yield and FY1/FY2 consensus EPS are in scope only as documented optional context and only after their provider evidence gates are satisfied. FCF/share growth is approved current scope under the versioned E1–E3 extension, not a deferred composite feature.
 5. **Ollama Modelfile consolidation (resolved 2026-08-30)** — `docs/project/deploy/ollama/` is the canonical location. The identical root `Modelfile.agents` duplicate was removed, the application artifact was retained there, and the Step 2.5 Cline implementation model received a separately named Modelfile and documented alias so development-agent configuration cannot be confused with application or Golden model-under-evaluation configuration.
-6. **P2 split scheduling and ETF aggregation policy** — P2-Profiles follows 3.2/3.3 and precedes 3.4. P2-ETF is deferred until after 3.5 and requires separate prioritization plus provider/licensing/holdings/aggregation policy approval. It does not block Step 3.4, Step 3.5, or the v0.2.5 validation checkpoint. Neither deliverable has started.
+6. **P2 split scheduling and ETF aggregation policy** — P2-Profiles follows Step 3.4 under the latest selected sequence; Step 3.3A now precedes Step 3.4. P2-ETF is deferred until after 3.6 and requires separate prioritization plus provider/licensing/holdings/aggregation policy approval. It does not block Step 3.4, Step 3.5, or the v0.2.5 validation checkpoint. Neither deliverable has started.
 7. **Full package-per-command CLI ownership and `src/analysis/` auto-discovery** — Considered alongside R1 and explicitly deferred: each analyzer package self-registering its own Typer sub-app, and automatic discovery of analyzer subpackages at startup, are not part of R1's scope. Revisit only if the analyzer count grows enough that shared-plumbing extraction (R1) stops being sufficient; not authorized for v0.2.
 
 ---
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 through 2.6, Step 3.1, R1, and R2 are complete and approved.
-Step 2.6 and Step 3.1 were merged in PRs #27 and #28; R1/R2 were merged in
-[PR #29](https://github.com/PeterPontbriand/financial-data-agents/pull/29)
-on 2026-09-07. Their checkpoint/PR workflows are closed.
-
-1. Step 3.2 is complete and approved on 2026-09-07; all A–D gates are closed. The [Step 3.2 Contract and Slice Plan](step-3.2/STEP_3_2_CONTRACT_AND_SLICE_PLAN.md) records the accepted final gate: 1,853 tests, 89% reported coverage, and clean Ruff, formatting, and strict mypy.
-2. **Issue #17 is complete and approved.** Final review on 2026-09-07 accepted the [Telemetry Closeout Plan and evidence](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md). Publish the accepted test/documentation change through the separately authorized commit/PR workflow; publication and GitHub issue closure remain outstanding. The companion supplies recommended commit/PR particulars and an optional approval comment.
-3. Step 3.2 publication is complete: [PR #30](https://github.com/PeterPontbriand/financial-data-agents/pull/30) merged as `f3ef25701cac3fbee3a2caa295f102f4d389d51b` on 2026-09-08 at 00:11 UTC (2026-09-07 in America/Toronto). The local checkout remains at its original head `d07a709`; base the separate Issue #17 PR on updated `main` while preserving its pending changes.
-4. **Step 3.3 companion plan approved and implementation authorized on 2026-09-07 on `feat/step-3.3-data-quality`.** The [companion plan](step-3.3/STEP_3_3_CONTRACT_AND_SLICE_PLAN.md) supplies the approved contract, completed A reconciliation and verified B evidence; Gate B review is next before C integration. The project owner confirmed the corrected step number on 2026-09-07. Proceed within its existing scope and gates; no Step 3.3 implementation has been performed by this closeout task. P2-Profiles, Step 3.4, and Step 3.5 retain their separate planning/review gates. Reconsider P2-ETF after 3.5 only when separately prioritized and its provider/product-policy gate is met.
-5. Preserve classified unavailability for later representative live validation of the useful-result ratio and any separately reviewed provider-mapping expansion.
+1. ESC-B and [ESC-C final acceptance](existing-strategy-correctness/ESC_C_FINAL_ACCEPTANCE.md) are approved. Prepare the requested publication drafts for the reviewed changes on `fix/existing-strategy-correctness`. Then resume Step 3.3A at its existing contract/planning gates. Production readiness implementation and later strategy work remain separately gated; ESC-D renewal is still mandatory.
+2. Preserve Step 3.4's prior start authorization while deferring its contract preparation and implementation until 3.3A final acceptance. Then prepare its companion contract before implementing workspace functionality.
+3. Retain the subsequent order: Step 3.4 → P2-Profiles → ESC-D renewed acceptance → Step 3.5 → Step 3.6. Rerun the four-analysis regressions after readiness and workspace/profile changes; newly found defects block strategy development until repaired and reviewed. P2-ETF remains deferred beyond Step 3.6 with separate prioritization and policy approval.
+4. Steps 3.2 and 3.3 are complete and approved. Local history records telemetry closeout in PR #31 and Step 3.3 in PR #32; older publication-pending notes are historical and do not schedule repeat implementation/publication. GitHub issue closure has not been verified by this planning task.
+5. Preserve classified financial-data unavailability and the separate empirical Light Mode validation follow-up. No live provider validation or user-database migration is part of this documentation checkpoint.

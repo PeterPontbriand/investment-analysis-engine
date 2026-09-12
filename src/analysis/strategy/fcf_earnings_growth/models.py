@@ -25,7 +25,7 @@ from src.data.instrument_profile import InstrumentProfile
 __all__ = ["MetricResult", "MetricStatus", "ReasonCode"]
 
 # ---------------------------------------------------------------------------
-# Fixed identifiers (method_version = 1 / schema_version = 1)
+# Fixed identifiers (method_version = 2 / schema_version = 3)
 # ---------------------------------------------------------------------------
 
 STRATEGY_ID = "fcf_earnings_growth"

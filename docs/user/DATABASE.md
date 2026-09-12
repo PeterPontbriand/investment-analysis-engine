@@ -7,6 +7,8 @@ commands do not create tables or run migrations automatically.
 
 ## Prepare or update an installation
 
+Current financial quotes use `quote_cache_ttl_seconds` (default 300 seconds), measured from the original provider response retrieval. Zero disables quote reuse. Unknown, future or expired response timing triggers refresh without stale fallback. This policy is separate from annual financial-input and historical-snapshot cache settings. Legacy quote keys refresh automatically without a schema migration; retrieval time does not establish an exchange trade timestamp.
+
 Run these commands from the installation folder, after stopping application
 processes. Back up an existing database before upgrading it.
 

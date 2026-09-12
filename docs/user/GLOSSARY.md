@@ -85,6 +85,8 @@ A time-indexed series of observations used for time-series calculations such as 
 ### Current Quote / Current Market Price
 A point-in-time market price used for current valuation comparison. For an analysis with an explicit historical `as_of`, a quote is usable only if the selected provider can establish an eligible observation at or before that boundary. A current-only quote adapter therefore returns unavailable for historical financial-fact requests rather than substituting today's price.
 
+The report calls this the latest available quote. Retrieval time records when the provider response was obtained; market observation time records when the market price was observed, if actually supplied. A five-minute response-reuse bound does not prove that the underlying trade is five minutes old. The current Yahoo adapter retains retrieval time and explicitly reports unknown market observation time.
+
 ### Security Identity
 Best-effort descriptive metadata that associates a ticker with an instrument name and, when available, listing venue and issuer/instrument identifiers at a recorded resolution time. A ticker is not permanent identity and may be reused. Missing identity metadata never changes a financial result, and historical Analysis Runs retain their original identity snapshot rather than silently re-resolving the ticker later.
 
@@ -143,11 +145,13 @@ The two configured SMA windows. The current Momentum configuration requires `sho
 ### Crossover
 A transition in the relation between short and long SMAs. The current implementation derives a binary `short_sma > long_sma` signal and differences it to identify transitions.
 
+Both averages must exist at two consecutive observations. The first valid pair can establish trend but cannot establish a crossover. A zero crossover is a verified absence of transition, distinct from unavailable history.
+
 ### Bullish / Bearish / Unknown
 Momentum result states. `UNKNOWN` is used when the final rolling values are not available, such as insufficient history.
 
 ### RSI (Relative Strength Index)
-A bounded momentum indicator commonly used to compare the magnitude of recent gains and losses. Its presence in this glossary does not mean it is currently implemented by `MomentumAnalyzer`.
+A bounded momentum indicator comparing recent gains and losses. `MomentumAnalyzer` implements simple trailing-average RSI, with a default period of 14 price changes; it does not use Wilder smoothing. See [Financial Math](FINANCE_MATH.md#momentum-analysis-strategy) for the formula and zero-loss/flat-window conventions.
 
 ### EMA (Exponential Moving Average)
 A moving average that gives more weight to recent observations. It differs from an SMA's equal weighting and is not currently part of the implemented Momentum calculation.

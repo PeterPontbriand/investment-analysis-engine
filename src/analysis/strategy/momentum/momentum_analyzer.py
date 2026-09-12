@@ -18,8 +18,8 @@ from src.data.base_client import BaseDataClient
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.data.instrument_profile import InstrumentProfile
-from src.data.market_data import HistoricalMarketData, MarketDataContext, MarketDataProvider
-from src.data.quality import QualityContext, QualityOutcome, evaluate_historical_quality
+from src.data.market_data import HistoricalDataResolution, HistoricalMarketData, MarketDataContext, MarketDataProvider
+from src.data.quality import HistoricalDataQualityError, QualityContext, QualityOutcome, evaluate_historical_quality
 from src.data.quality_reporting import publish_quality
 from src.data.yfinance import YFinanceClient
 from src.utils.logger_util import setup_logger
@@ -42,6 +42,7 @@ class MomentumMetrics:
     crossover_signal: float | None
     timestamp: datetime
     rsi_result: MetricResult | None = None
+    crossover_result: MetricResult | None = None
 
     @property
     def sma_50(self) -> MetricResult:
@@ -70,6 +71,7 @@ class MomentumRun:
     price_inputs: tuple[ResolvedInput, ...] = ()
     resolution_trace: ResolutionTrace = ResolutionTrace()
     instrument_profile: InstrumentProfile | None = None
+    data_resolution: HistoricalDataResolution | None = None
 
 
 def _get_default_short_window() -> int:
@@ -166,6 +168,7 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
             market_data=resolved.market_data.context,
             price_inputs=resolved.price_inputs,
             resolution_trace=trace,
+            data_resolution=resolved.market_data.resolution,
         )
 
     def run_analysis(
@@ -185,14 +188,14 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
 
         if df is None:
             df = self.data_client.fetch_data(target_ticker, self._start_date)
-            decisions = evaluate_historical_quality(
-                HistoricalMarketData(df, MarketDataContext()),
-                context=QualityContext(f"{target_ticker}:historical_close", datetime.now(UTC)),
-            )
-            publish_quality(decisions)
-            failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)
-            if failure is not None:
-                raise ValueError(failure.reason)
+        decisions = evaluate_historical_quality(
+            HistoricalMarketData(df, MarketDataContext()),
+            context=QualityContext(f"{target_ticker}:historical_close", datetime.now(UTC)),
+        )
+        publish_quality(decisions)
+        failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)
+        if failure is not None:
+            raise HistoricalDataQualityError(decisions, df)
 
         with setup_logger(__name__) as logger:
             logger.debug(f"Executing vectorized metrics matrix: SMA({s_win}), SMA({l_win}) on {target_ticker}")
@@ -230,7 +233,15 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
             )
         else:
             status = TrendStatus.BULLISH if short_sma_val.value > long_sma_val.value else TrendStatus.BEARISH
-            crossover_signal = MetricResult.ok(raw_crossover)
+            crossover_signal = (
+                MetricResult.ok(raw_crossover)
+                if len(close_series) > l_win
+                else MetricResult.failure(
+                    MetricStatus.UNAVAILABLE,
+                    ReasonCode.INSUFFICIENT_HISTORY,
+                    "A crossover requires both moving averages at two consecutive observations.",
+                )
+            )
 
         return MomentumMetrics(
             ticker=target_ticker,
@@ -241,6 +252,7 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
             crossover_signal=crossover_signal.value,
             timestamp=datetime.now(UTC),
             rsi_result=rsi,
+            crossover_result=crossover_signal,
         )
 
 
@@ -318,7 +330,7 @@ class MomentumInputResolver:
         publish_quality(decisions)
         failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)
         if failure is not None:
-            raise ValueError(failure.reason)
+            raise HistoricalDataQualityError(decisions, data.frame)
         frame = data.frame
         if as_of is not None:
             if as_of.tzinfo is None or as_of.tzinfo.utcoffset(as_of) is None:
@@ -329,6 +341,7 @@ class MomentumInputResolver:
             raise ValueError("No historical observations are eligible at the requested as_of boundary.")
 
         retrieved_at = self._clock()
+        resolution = data.resolution
         provider_id = data.context.provider_id or self._provider.provider_id
         if provider_id is None:
             raise ValueError("Momentum market-data provider identity is required.")
@@ -337,7 +350,11 @@ class MomentumInputResolver:
             ResolvedInput(
                 field_name="historical_close",
                 value=float(value),
-                source_kind=SourceKind.PROVIDER,
+                source_kind=resolution.source_kind if resolution is not None else SourceKind.PROVIDER,
+                origin_source_kind=SourceKind.PROVIDER
+                if resolution is not None and resolution.source_kind is SourceKind.CACHE
+                else None,
+                cache_schema_version=resolution.cache_schema_version if resolution is not None else None,
                 resolved_at=retrieved_at,
                 units="currency_per_share",
                 currency=data.context.currency,
@@ -345,7 +362,7 @@ class MomentumInputResolver:
                 provider_field="Close",
                 observed_at=timestamp.to_pydatetime(),
                 as_of=as_of,
-                retrieved_at=retrieved_at,
+                retrieved_at=resolution.retrieved_at if resolution is not None else None,
             )
             for timestamp, value in zip(timestamps, frame.loc[:, DataColumns.CLOSE], strict=True)
         )
@@ -360,9 +377,11 @@ class MomentumInputResolver:
         trace = trace.append(
             ResolutionEvent(
                 "historical_close",
-                ResolutionStage.PROVIDER,
+                ResolutionStage.CACHE
+                if resolution is not None and resolution.source_kind is SourceKind.CACHE
+                else ResolutionStage.PROVIDER,
                 ResolutionOutcome.SUCCESS,
-                f"Resolved {len(frame)} historical observations with provider provenance.",
+                f"Resolved {len(frame)} historical observations with retained source provenance.",
             )
         ).append(
             ResolutionEvent(
@@ -373,7 +392,7 @@ class MomentumInputResolver:
             )
         )
         return MomentumResolution(
-            market_data=HistoricalMarketData(frame=frame, context=context),
+            market_data=HistoricalMarketData(frame=frame, context=context, resolution=resolution),
             price_inputs=prices,
             resolution_trace=trace,
         )

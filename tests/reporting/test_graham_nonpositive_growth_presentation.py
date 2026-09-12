@@ -82,7 +82,7 @@ def test_non_positive_growth_value_explains_omitted_price_comparison() -> None:
     rendered = render_graham_growth(_presentation())
 
     assert "HURA — Graham Growth Value: -31.47 USD" in rendered
-    assert "Current price: 2.15 USD" in rendered
+    assert "Latest available quote: 2.15 USD" in rendered
     assert "Price comparison: unavailable (Graham growth value is non-positive)" in rendered
     assert f"Warning: {WARNING}" in rendered
 
@@ -90,7 +90,7 @@ def test_non_positive_growth_value_explains_omitted_price_comparison() -> None:
 def test_non_positive_growth_value_warning_is_preserved_in_json() -> None:
     payload = json.loads(render_graham_growth(_presentation(), PresentationMode.JSON))
 
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 5
     assert payload["status"] == "ok"
     assert payload["result"]["growth_value"] == pytest.approx(-31.465775136206044)
     assert payload["result"]["margin_of_safety_percent"] is None

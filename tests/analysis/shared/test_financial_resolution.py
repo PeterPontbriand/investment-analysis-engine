@@ -120,7 +120,7 @@ def test_eps_provider_cache_and_bypass_preserve_basis_and_provenance(basis: str)
     ],
 )
 def test_optional_quote_preserves_resolution_outcomes(mode: str, expected: CalculationStatus) -> None:
-    facts = (_make_fact(field=FinancialField.CURRENT_PRICE, basis=None, observed_at=NOW),)
+    facts = (replace(_make_fact(field=FinancialField.CURRENT_PRICE, basis=None, observed_at=NOW), retrieved_at=NOW),)
     provider = FakeProvider(
         FinancialProviderError("fixture quote failure") if mode == "error" else facts if mode == "valid" else ()
     )

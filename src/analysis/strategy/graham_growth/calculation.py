@@ -11,6 +11,7 @@ from src.analysis.shared.graham_contracts import GrahamMethod, _trace_event
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from src.data.financial.quote_freshness import QuoteFreshnessEvidence
 from src.data.financial.resolution_trace import ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.data.financial.resolver import InputResolutionResult, InputResolver
 
@@ -52,6 +53,7 @@ class GrowthValueInputAssembly:
     current_price: ResolvedInput | None = None
     quote_status: CalculationStatus | None = None
     quote_reason: str | None = None
+    quote_freshness: QuoteFreshnessEvidence | None = None
     reason: str | None = None
     resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
     method: GrahamMethod = field(init=False, default=GrahamMethod.GROWTH_VALUE)
@@ -336,6 +338,7 @@ class GrahamGrowthInputResolver(InputResolver):
                 current_price=None,
                 quote_status=quote_result.status,
                 quote_reason=quote_result.reason,
+                quote_freshness=quote_result.quote_freshness,
                 resolution_trace=trace,
             )
         return GrowthValueInputAssembly(
@@ -344,6 +347,7 @@ class GrahamGrowthInputResolver(InputResolver):
             expected_growth=growth_input,
             current_aaa_yield=aaa_input,
             current_price=quote_result.resolved_input,
+            quote_freshness=quote_result.quote_freshness,
             resolution_trace=trace,
         )
 

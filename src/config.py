@@ -86,6 +86,12 @@ class ProjectSettings(BaseSettings):
         allow_inf_nan=False,
         description="Financial cache residence age; None preserves unlimited reuse subject to temporal quality checks.",
     )
+    quote_cache_ttl_seconds: float = Field(
+        default=300,
+        ge=0,
+        allow_inf_nan=False,
+        description="Maximum quote-response reuse age; zero disables quote cache reuse.",
+    )
 
     # API Settings
     api_host: str = "0.0.0.0"

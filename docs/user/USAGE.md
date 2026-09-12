@@ -164,7 +164,7 @@ The default view emphasizes the result, its meaning, key source/freshness inform
 uv run financial-agents graham-number KO --details
 ```
 
-Use this when you want values, dates, measurement bases, data sources, and derivations.
+Use this for an investor-readable explanation of inputs, measurement bases, calculations and material assumptions. Graham reports show compact input evidence and formulas; Momentum explains its observation windows and signals; FCF shows an annual calculation table. Displayed values are rounded while calculations retain full precision. Inferred values remain identified as assumptions, not reported facts.
 
 ### `--diagnostics` — inspect software resolution behavior
 
@@ -172,13 +172,28 @@ Use this when you want values, dates, measurement bases, data sources, and deriv
 uv run financial-agents graham-number KO --diagnostics
 ```
 
-Diagnostics are intentionally more technical. They can show how overrides, cache lookup, providers, and derivations were attempted.
+Diagnostics retain complete technical provenance as well as resolution behavior: original provider fields, recursive component lineage, notes, retrieval/cache timing, identity metadata and share-context identifiers. Use this view or JSON to audit the evidence behind the shorter details report.
 
 ### `--json` — machine-readable output
 
 ```bash
 uv run financial-agents graham-number KO --json
 ```
+
+Graham JSON uses presentation schema version **5**. The additive top-level
+`price_comparison` object contains `status`, `reason`, `percent`,
+`security_unit_evidence`, `provenance`, and `quote_freshness`. Its percentage matches the retained
+`result.margin_of_safety_percent` field; unavailable comparisons use null.
+Consumers pinned to earlier versions must accept version 5 explicitly. Existing
+programmatic presentations without a structured comparison emit a null object.
+Momentum uses presentation version **4** and FCF/Earnings Growth version **5**.
+FCF's canonical result schema remains **3** and method version **2**.
+
+Quote timing distinguishes original retrieval from market observation. Filing venue evidence is separate from current identity. Momentum retains cache/provider resolution evidence and a typed crossover result. Missing numeric values remain `null`, never zero or non-standard `NaN`.
+
+Post-parse execution failures also produce one JSON document with a null result, a reason code and sanitized diagnostics; the process exits with code 1. Parser/usage errors retain exit code 2. A successfully calculated FCF screen `FAIL` is not an execution failure.
+
+Financial cache bypass is available through `--no-cache` on both Graham commands and `fcf-growth`. Quote responses expire independently after 300 seconds by default, even when annual-fact cache reuse is unlimited. Set the `quote_cache_ttl_seconds` environment setting to a finite nonnegative value; zero disables quote reuse. An expired quote is refreshed once without substituting a stale value on failure. Old quotes with an unspecified cache basis are refreshed under the descriptive quote basis; annual caches and database schema are unchanged.
 
 [Machine-readable output](GLOSSARY.md#machine-readable-output) is structured for another program to consume reliably rather than primarily for a person to read. Financial Data Agents currently uses [JSON](GLOSSARY.md#json-javascript-object-notation) for this mode.
 

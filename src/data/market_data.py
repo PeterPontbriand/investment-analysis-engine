@@ -8,6 +8,29 @@ from typing import Protocol, runtime_checkable
 
 import pandas as pd
 
+from src.data.financial.provenance import SourceKind
+
+
+@dataclass(frozen=True)
+class HistoricalDataResolution:
+    """Transient retrieval evidence reconstructed from the source or cache entry."""
+
+    source_kind: SourceKind
+    retrieved_at: datetime | None
+    cached_at: datetime | None
+    resolved_at: datetime
+    cache_schema_version: int | None = None
+
+    def __post_init__(self) -> None:
+        """Reject ambiguous source and timestamp evidence."""
+        if self.source_kind not in (SourceKind.PROVIDER, SourceKind.CACHE):
+            raise ValueError("Historical resolution requires provider or cache origin.")
+        for stamp in (self.retrieved_at, self.cached_at, self.resolved_at):
+            if stamp is not None and stamp.utcoffset() is None:
+                raise ValueError("Historical resolution timestamps must be timezone-aware.")
+        if self.source_kind is SourceKind.CACHE and self.cache_schema_version is None:
+            raise ValueError("Cached historical resolution requires a schema version.")
+
 
 @runtime_checkable
 class MarketDataProvider(Protocol):
@@ -70,6 +93,7 @@ class HistoricalMarketData:
 
     frame: pd.DataFrame
     context: MarketDataContext
+    resolution: HistoricalDataResolution | None = None
 
 
 def latest_observation_date(frame: pd.DataFrame) -> date | None:

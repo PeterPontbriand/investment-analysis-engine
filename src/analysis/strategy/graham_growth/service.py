@@ -6,9 +6,10 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 
 from src.analysis.shared.financial_resolution import (
+    PriceComparison,
+    evaluate_price_comparison,
     has_provider_backed_evidence,
     is_known_etf,
-    margin_of_safety,
     validate_profile_ticker,
 )
 from src.analysis.strategy.graham_growth.calculation import (
@@ -20,7 +21,8 @@ from src.analysis.strategy.graham_growth.calculation import (
 )
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.facts import financial_facts_analysis_scope
-from src.data.instrument_profile import InstrumentProfile
+from src.data.instrument_profile import InstrumentProfile, complete_security_unit_profile
+from src.data.security_unit import SecurityUnitRequest
 
 
 @dataclass(frozen=True)
@@ -34,6 +36,7 @@ class GrahamGrowthAnalysis:
     policy: GrahamGrowthCalculationPolicy
     margin_of_safety_percent: float | None
     instrument_profile: InstrumentProfile | None = None
+    price_comparison: PriceComparison | None = None
 
 
 def run_graham_growth_analysis(  # noqa: PLR0913
@@ -84,6 +87,22 @@ def run_graham_growth_analysis(  # noqa: PLR0913
                 as_of=as_of,
                 use_cache=use_cache,
             )
+            if (
+                instrument_profile is not None
+                and assembly.status is CalculationStatus.OK
+                and assembly.current_price is not None
+            ):
+                instrument_profile = complete_security_unit_profile(
+                    instrument_profile,
+                    resolver.provider,
+                    SecurityUnitRequest(
+                        ticker,
+                        security_provider_id,
+                        as_of,
+                        tuple(value for value in (assembly.eps,) if value is not None),
+                        assembly.current_price,
+                    ),
+                )
     if assembly.status is CalculationStatus.OK and not has_provider_backed_evidence(
         assembly.eps, assembly.current_price
     ):
@@ -98,7 +117,7 @@ def run_graham_growth_analysis(  # noqa: PLR0913
             status=assembly.status,
             reason=assembly.reason or "Required Graham growth-value inputs are unavailable.",
         )
-        margin = None
+        comparison = evaluate_price_comparison(None, assembly.current_price)
     else:
         assert assembly.eps is not None
         assert assembly.expected_growth is not None
@@ -111,7 +130,7 @@ def run_graham_growth_analysis(  # noqa: PLR0913
             growth_multiplier=policy.growth_multiplier,
             baseline_aaa_yield=policy.baseline_aaa_yield,
         )
-        margin = margin_of_safety(
+        comparison = evaluate_price_comparison(
             result.growth_value,
             assembly.current_price,
             valuation_currency=assembly.eps.currency,
@@ -119,7 +138,10 @@ def run_graham_growth_analysis(  # noqa: PLR0913
                 instrument_profile.security_unit_evidence if instrument_profile is not None else None
             ),
             require_security_unit_evidence=instrument_profile is not None,
+            security_unit_resolution=(instrument_profile.security_unit_resolution if instrument_profile else None),
         )
+
+    comparison = replace(comparison, quote_freshness=assembly.quote_freshness)
 
     return GrahamGrowthAnalysis(
         ticker=ticker,
@@ -127,7 +149,8 @@ def run_graham_growth_analysis(  # noqa: PLR0913
         assembly=assembly,
         result=result,
         policy=policy,
-        margin_of_safety_percent=margin,
+        margin_of_safety_percent=comparison.percent,
+        price_comparison=comparison,
         instrument_profile=instrument_profile,
     )
 

@@ -164,7 +164,7 @@ def test_hit_all_boundaries_and_reopen(database: SQLiteDatabase, tmp_path: Path)
     client = CachedHistoricalDataClient(
         provider, repository, request_variant="1d:adjusted", ttl=None, clock=lambda: NOW
     )
-    assert client.fetch_historical_data("ABC", START) is provider.data
+    assert client.fetch_historical_data("ABC", START).frame is provider.data.frame
     assert_frame_equal(client.fetch_data(" abc ", START), provider.data.frame)
     assert client.fetch_data_with_context("ABC", START).context == provider.data.context
     assert client.provider_id == "Fixture"
@@ -266,8 +266,8 @@ def test_valid_bypass(database: SQLiteDatabase, reason: str, caplog: pytest.LogC
         provider, SQLiteMarketDataRepository(database), request_variant=variant, ttl=None
     )
     with caplog.at_level("DEBUG", logger="src.data.cached_client"):
-        assert client.fetch_historical_data("ABC", START) is provider.data
-        assert client.fetch_historical_data("ABC", START) is provider.data
+        assert client.fetch_historical_data("ABC", START).frame is provider.data.frame
+        assert client.fetch_historical_data("ABC", START).frame is provider.data.frame
     assert len(provider.calls) == 2
     assert "cache bypassed" in caplog.text
 

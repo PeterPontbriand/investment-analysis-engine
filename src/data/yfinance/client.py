@@ -13,12 +13,18 @@ import pandas as pd
 import yfinance as yf
 
 from src.data.base_client import BaseDataClient, DataFetchError
+from src.data.financial.provenance import SourceKind
 from src.data.instrument_profile import (
     InstrumentKindEvidence,
     InstrumentKindRequest,
     reviewed_instrument_kind,
 )
-from src.data.market_data import HistoricalMarketData, MarketDataContext, latest_observation_date
+from src.data.market_data import (
+    HistoricalDataResolution,
+    HistoricalMarketData,
+    MarketDataContext,
+    latest_observation_date,
+)
 from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 
 logger = logging.getLogger(__name__)
@@ -107,7 +113,12 @@ class YFinanceClient(BaseDataClient):
             observation_count=len(frame),
             price_adjustment=YFINANCE_PRICE_ADJUSTMENT,
         )
-        return HistoricalMarketData(frame=frame, context=context)
+        retrieved = datetime.now(UTC)
+        return HistoricalMarketData(
+            frame=frame,
+            context=context,
+            resolution=HistoricalDataResolution(SourceKind.PROVIDER, retrieved, None, retrieved),
+        )
 
     def fetch_current_quote(self, ticker: str) -> YFinanceQuote:
         """Resolve the latest tradable quote and best-effort currency via ``fast_info``."""

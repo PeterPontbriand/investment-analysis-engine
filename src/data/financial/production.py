@@ -17,6 +17,12 @@ from src.data.massive.constants import MASSIVE_PROVIDER_ID
 from src.data.massive.financial_facts import MassiveFinancialFactsAdapter
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 from src.data.security_identity import SecurityIdentity, SecurityIdentityProvider, SecurityIdentityRequest
+from src.data.security_unit import (
+    SecurityUnitProvider,
+    SecurityUnitRequest,
+    SecurityUnitResolution,
+    SecurityUnitResolutionReason,
+)
 from src.data.yfinance import YFINANCE_PROVIDER_ID, YFinanceFinancialFactsAdapter
 
 
@@ -47,6 +53,13 @@ class ProductionFinancialFactsProvider:
         if provider is None:
             return ()
         return provider.fetch_facts(request)
+
+    def resolve_security_unit(self, request: SecurityUnitRequest) -> SecurityUnitResolution:
+        """Delegate optional source verification without rewriting its evidence."""
+        provider = self._providers.get(request.provider_id)
+        if not isinstance(provider, SecurityUnitProvider):
+            return SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_UNSUPPORTED)
+        return provider.resolve_security_unit(request)
 
     def analysis_scope(
         self,

@@ -157,7 +157,7 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
     graham_provider = (
         sec_fpi_provider
         if sec_fpi_provider is not None
-        else FixtureFinancialFactsProvider()
+        else FixtureFinancialFactsProvider(quote_retrieved_at=clock_at)
         if GRAHAM_FACTS_FIXTURE_ID in fixture_ids
         else _UnavailableFinancialFactsProvider()
     )

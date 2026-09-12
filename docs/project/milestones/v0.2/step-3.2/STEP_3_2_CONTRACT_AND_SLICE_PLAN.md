@@ -10,7 +10,7 @@
 
 ## 1. Scope and preservation
 
-Complete only demonstrated gaps in typed access for cache inspection, audit logging, and later analytics. The existing storage and public financial representations remain authoritative. Step 3.2 precedes Step 3.3, P2-Profiles, Step 3.4, and Step 3.5 in the selected sequence.
+Complete only demonstrated gaps in typed access for cache inspection, audit logging, and later analytics. The existing storage and public financial representations remain authoritative. Step 3.2 precedes Step 3.3, P2-Profiles, Step 3.4, and Step 3.6 in the selected sequence.
 
 - Preserve dataclasses, Pydantic models, DataFrames, all cache identities, timestamps, provenance, temporal eligibility, TTL behavior, and existing public methods/imports.
 - Keep application persistence SQL in `src/data/repositories/`; the existing telemetry adapter's SQL is a demonstrated gap to move behind that boundary. Migration DDL and test setup/assertion SQL retain their existing owners. No raw SQL belongs in orchestrators, tools, or CLI code.

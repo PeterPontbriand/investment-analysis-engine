@@ -315,6 +315,10 @@ def classify_fcf_earnings_growth(
 
     if fcf_value <= 0 or eps_value <= 0:
         reason_code, reason = _failed_gate(fcf_value, eps_value)
+        if policy.classification_basis is FCFClassificationBasis.FCF_PER_SHARE:
+            reason = reason.replace("Free-cash-flow", "Free-cash-flow per diluted share").replace(
+                "free-cash-flow", "free-cash-flow per diluted share"
+            )
         return ClassificationDecision(
             classification=Classification.FAIL,
             trend_classification=trend,

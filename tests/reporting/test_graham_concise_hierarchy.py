@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
@@ -17,6 +18,18 @@ from src.reporting.graham import (
 
 NOW = datetime(2026, 8, 24, 4, 30, tzinfo=UTC)
 HISTORICAL = datetime(2025, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)
+
+
+def test_legacy_presentation_preserves_known_market_observation() -> None:
+    presentation = _number_presentation()
+    price = presentation.assembly.current_price
+    assert price is not None
+    presentation = replace(
+        presentation, assembly=replace(presentation.assembly, current_price=replace(price, observed_at=NOW))
+    )
+    rendered = render_graham_number(presentation)
+    assert "Market observation: 2026-08-24 04:30 UTC" in rendered
+    assert "Market observation time not supplied" not in rendered
 
 
 def _provider_input(  # noqa: PLR0913
@@ -113,8 +126,9 @@ def test_number_success_leads_with_result_and_omits_success_metadata() -> None:
     lines = rendered.splitlines()
 
     assert lines[0] == "KO — Graham Number (maximum indicated price): 21.14 USD"
-    assert lines[1] == "Current price: 91.10 USD"
-    assert lines[2] == "Price relationship: 330.90% above the Graham Number"
+    assert lines[1] == "Latest available quote: 91.10 USD"
+    assert "Price relationship: 330.90% above the Graham Number" in lines
+    assert "Market observation time not supplied." in lines
     assert "Status: ok" not in rendered
     assert "As of: current" not in rendered
     assert "Basis: 3-year average diluted EPS + latest eligible fiscal-year-end BVPS" in rendered
@@ -206,8 +220,8 @@ def test_growth_success_leads_with_value_then_forecast_assumption() -> None:
 
     assert lines[0] == "KO — Graham Growth Value: 48.06 USD"
     assert lines[1] == "Expected growth assumption: 5.00 percentage points"
-    assert lines[2] == "Current price: 91.10 USD"
-    assert lines[3] == "Price relationship: 89.55% above the Graham growth value"
+    assert lines[2] == "Latest available quote: 91.10 USD"
+    assert "Price relationship: 89.55% above the Graham growth value" in lines
     assert "Status: ok" not in rendered
     assert "As of: current" not in rendered
     assert "Warning: AAA yield is user-supplied rather than provider-verified." in rendered

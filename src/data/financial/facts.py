@@ -251,6 +251,30 @@ class FinancialFactRequest:
 
 
 @dataclass(frozen=True)
+class ProviderShareSource:
+    """Raw share-count evidence, distinct from positive shares outstanding."""
+
+    subject_id: str
+    provider_id: str
+    provider_field: str
+    value: float
+    retrieved_at: datetime
+    observation_period_end: datetime
+    available_at: datetime
+    provider_fact_id: str
+
+    def __post_init__(self) -> None:
+        """Allow zero raw shares while retaining finite, dated source evidence."""
+        for value in (self.subject_id, self.provider_id, self.provider_field, self.provider_fact_id):
+            _require_non_empty(value, field_name="share source identifier")
+        _require_finite(self.value, field_name="share source value")
+        if self.value < 0:
+            raise ValueError("Raw share counts must be nonnegative.")
+        for timestamp in (self.retrieved_at, self.observation_period_end, self.available_at):
+            _require_timezone_aware(timestamp, field_name="share source timestamp")
+
+
+@dataclass(frozen=True)
 class ProviderFact:
     """A frozen provider-origin financial fact payload.
 
@@ -312,12 +336,16 @@ class ProviderFact:
     accounting_scope: AccountingScope | None = None
     capital_expenditure_sign: CapitalExpenditureSign | None = None
     provider_fact_id: str | None = None
+    source_facts: tuple[ProviderFact | ProviderShareSource, ...] = ()
+    source_transformation: str | None = None
 
     def __post_init__(self) -> None:
         """Normalize identifiers and validate all provider-fact invariants."""
         normalized_subject = _normalize_subject_id(self.subject_kind, self.subject_id)
         canonical_provider = _canonicalize_provider_id(self.provider_id)
         normalized_basis = _normalize_optional_basis(self.basis)
+
+        _validate_provider_sources(self, normalized_subject, canonical_provider)
 
         _require_non_empty(self.provider_field, field_name="provider_field")
         _require_finite(self.value, field_name="value")
@@ -456,3 +484,13 @@ def financial_facts_analysis_scope(
     if isinstance(provider, AnalysisScopedFinancialFactsProvider):
         return provider.analysis_scope(subject_id=subject_id, provider_id=provider_id, as_of=as_of)
     return nullcontext()
+
+
+def _validate_provider_sources(fact: ProviderFact, subject: str, provider: str) -> None:
+    """Reject incomplete or cross-subject adapter derivation provenance."""
+    if bool(fact.source_facts) != bool(fact.source_transformation):
+        raise ValueError("Provider source facts require a named transformation.")
+    if fact.source_transformation is not None and not fact.source_transformation.strip():
+        raise ValueError("Provider transformation must be non-empty.")
+    if any(source.subject_id != subject or source.provider_id != provider for source in fact.source_facts):
+        raise ValueError("Provider lineage must retain the same subject and provider.")

@@ -13,11 +13,15 @@ from src.core.telemetry.quality import record_cli_quality
 from src.data.base_client import DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputSeriesCacheProtocol
-from src.data.quality import HistoricalQualityPolicy
+from src.data.quality import HistoricalDataQualityError, HistoricalQualityPolicy, QualityOutcome
 from src.data.repositories import SQLiteDatabase, SQLiteMarketDataRepository, SQLiteResolvedInputCache
 from src.data.yfinance import YFinanceClient
 from src.data.yfinance.client import YFINANCE_HISTORICAL_INTERVAL, YFINANCE_PRICE_ADJUSTMENT
-from src.reporting.presentation import PresentationMode
+from src.reporting.presentation import PresentationMode, analysis_failure_document
+
+
+class AnalysisConfigurationError(ValueError):
+    """Safe operator-facing configuration guidance authored by the application."""
 
 
 @contextmanager
@@ -122,11 +126,15 @@ def _parse_as_of(value: str | None) -> datetime | None:
 
 
 @contextmanager
-def execution_errors(
+def execution_errors(  # noqa: PLR0913
     *,
     unexpected: Callable[[Exception], str],
     invalid: Callable[[ValueError], str] | None = None,
     data_error: Callable[[DataFetchError], str] | None = None,
+    mode: PresentationMode | None = None,
+    analysis: str = "unknown",
+    method: str = "unknown",
+    ticker: str | None = None,
 ) -> Iterator[None]:
     """Translate execution failures while preserving deliberate CLI exits."""
     try:
@@ -135,13 +143,45 @@ def execution_errors(
     except (typer.Exit, UsageError):
         raise
     except Exception as exc:
-        if isinstance(exc, DataFetchError) and data_error is not None:
+        diagnostics: list[dict[str, str]] = []
+        code = "execution_error"
+        if isinstance(exc, HistoricalDataQualityError):
+            message = str(exc)
+            code = "historical_quality"
+            diagnostics = [
+                {"rule": item.rule_id, "reason": item.reason}
+                for item in exc.decisions
+                if item.outcome is QualityOutcome.FAIL
+            ]
+        elif isinstance(exc, DataFetchError) and data_error is not None:
             message = data_error(exc)
+            code = "provider_error"
+        elif isinstance(exc, AnalysisConfigurationError):
+            message = invalid(exc) if invalid is not None else str(exc)
+            code = "configuration_error"
         elif isinstance(exc, ValueError) and invalid is not None:
-            message = invalid(exc)
+            message = (
+                invalid(exc) if mode is None or analysis == "momentum" else "Invalid analysis inputs or provider data."
+            )
+            code = "invalid_input"
         else:
             message = unexpected(exc)
-        typer.echo(message, err=True)
+        if mode is PresentationMode.JSON:
+            typer.echo(
+                analysis_failure_document(
+                    analysis=analysis,
+                    method=method,
+                    ticker=ticker,
+                    reason_code=code,
+                    reason=message,
+                    diagnostics=diagnostics,
+                )
+            )
+        else:
+            typer.echo(message, err=True)
+            if mode is PresentationMode.DIAGNOSTICS:
+                for diagnostic in diagnostics:
+                    typer.echo(f"{diagnostic['rule']}: {diagnostic['reason']}", err=True)
         raise typer.Exit(code=1) from exc
 
 

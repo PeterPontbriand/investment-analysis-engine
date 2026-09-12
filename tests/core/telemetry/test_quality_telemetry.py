@@ -1,5 +1,6 @@
 """Quality failure causality, sanitization, persistence and fail-open behavior."""
 
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -25,6 +26,20 @@ def decision() -> QualityDecision:
         "Currency conflicts.",
         QualityContext("ABC:api_key=secret-value", datetime(2026, 9, 8, tzinfo=UTC)),
     )
+
+
+def test_candidate_rejection_is_diagnostic_without_console_warning(caplog: pytest.LogCaptureFixture) -> None:
+    """Rejected candidates can recover; observers retain evidence without alarming users."""
+    item = decision()
+    observed: list[QualityDecision] = []
+    with caplog.at_level(logging.DEBUG, logger="src.data.quality_reporting"), quality_observer(observed.append):
+        publish_quality((item,))
+    assert observed == [item]
+    records = [record for record in caplog.records if record.name == "src.data.quality_reporting"]
+    assert records
+    assert all(record.levelno == logging.DEBUG for record in records)
+    assert "historical.currency" in records[0].getMessage()
+    assert "secret-value" not in records[0].getMessage()
 
 
 def test_quality_failure_roundtrip_keeps_run_and_span_and_redacts(tmp_path: Path) -> None:

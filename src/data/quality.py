@@ -12,6 +12,7 @@ from enum import StrEnum
 import numpy as np
 import pandas as pd
 
+from src.data.base_client import DataFetchError
 from src.data.market_data import HistoricalMarketData
 
 
@@ -60,6 +61,37 @@ class QualityDecision:
         if not self.rule_id.strip() or not self.reason.strip():
             raise ValueError("Quality rule_id and reason must be non-empty.")
         _aware(self.evidence_at)
+
+
+class HistoricalDataQualityError(DataFetchError):
+    """Sanitized historical validation failure with bounded field/date evidence."""
+
+    def __init__(self, decisions: tuple[QualityDecision, ...], frame: pd.DataFrame) -> None:
+        """Retain rule decisions without exposing raw observations or provider payloads."""
+        self.decisions = decisions
+        self.invalid_observations: tuple[str, ...] = self._invalid_observations(frame)
+        reasons = [item.reason for item in decisions if item.outcome is QualityOutcome.FAIL]
+        detail = "; ".join(self.invalid_observations)
+        super().__init__("; ".join(reasons) + (f" Affected observations: {detail}." if detail else ""))
+
+    @staticmethod
+    def _invalid_observations(frame: pd.DataFrame) -> tuple[str, ...]:
+        invalid: list[str] = []
+        if not frame.columns.is_unique:
+            return ()
+        for column in ("Close", "Open", "High", "Low", "Adj Close", "Volume"):
+            if column not in frame.columns:
+                continue
+            try:
+                values = frame[column].to_numpy(dtype=float)
+            except (ValueError, TypeError, OverflowError):
+                invalid.append(f"{column}: invalid numeric type")
+                continue
+            for index in np.flatnonzero(~np.isfinite(values))[:5]:
+                stamp = frame.index[index]
+                label = stamp.isoformat() if isinstance(stamp, (date, datetime)) else f"row {index}"
+                invalid.append(f"{column} at {label}")
+        return tuple(invalid[:10])
 
 
 @dataclass(frozen=True)

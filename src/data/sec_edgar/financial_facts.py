@@ -9,7 +9,7 @@ import os
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, time
 from types import MappingProxyType
 from typing import cast
@@ -21,10 +21,28 @@ from src.data.financial.facts import (
     FinancialProviderError,
     FinancialUnit,
     ProviderFact,
+    ProviderShareSource,
 )
 from src.data.financial.provenance import AccountingScope, CapitalExpenditureSign, FinancialSubjectKind, PeriodKind
 from src.data.http_json import JsonFetcher, fetch_json
+from src.data.sec_edgar.filing_document import FilingFetcher, FilingReaderPolicy, fetch_filing, filing_url
+from src.data.sec_edgar.security_unit import (
+    MAPPING_ID,
+    UnitMappingError,
+    parse_unit_document,
+    source_accession,
+    source_leaves,
+)
 from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
+from src.data.security_unit import (
+    SecurityUnitDocument,
+    SecurityUnitEvidence,
+    SecurityUnitKind,
+    SecurityUnitProvenance,
+    SecurityUnitRequest,
+    SecurityUnitResolution,
+    SecurityUnitResolutionReason,
+)
 
 SEC_PROVIDER_ID = "sec_edgar"
 SEC_EPS_FIELD = "us-gaap:EarningsPerShareDiluted"
@@ -161,6 +179,9 @@ class SecEdgarAnalysisSnapshot:
     taxonomy: str | None
     company_facts_sha256: str
     submissions_sha256: str
+    primary_documents: Mapping[str, str] = field(default_factory=dict)
+    filing_forms: Mapping[str, str] = field(default_factory=dict)
+    current_tickers: tuple[str, ...] = ()
 
 
 _ACTIVE_SNAPSHOT: ContextVar[SecEdgarAnalysisSnapshot | None] = ContextVar("sec_edgar_analysis_snapshot", default=None)
@@ -189,6 +210,8 @@ class SecEdgarFinancialFactsAdapter:
         json_fetcher: JsonFetcher = fetch_json,
         clock: Callable[[], datetime] | None = None,
         user_agent: str | None = None,
+        filing_fetcher: FilingFetcher = fetch_filing,
+        filing_policy: FilingReaderPolicy | None = None,
     ) -> None:
         """Initialize the adapter with injectable transport, clock, and SEC identity.
 
@@ -198,6 +221,8 @@ class SecEdgarFinancialFactsAdapter:
         """
         resolved_user_agent = _resolve_sec_user_agent(user_agent)
         self._fetch_json = json_fetcher
+        self._filing_fetcher = filing_fetcher
+        self._filing_policy = filing_policy or FilingReaderPolicy()
         self._clock = clock or (lambda: datetime.now(UTC))
         self._headers = {"User-Agent": resolved_user_agent, "Accept": "application/json"}
         self._ticker_to_cik: dict[str, str] | None = None
@@ -251,6 +276,86 @@ class SecEdgarFinancialFactsAdapter:
             taxonomy=taxonomy,
             company_facts_sha256=_payload_sha256(company_facts_raw),
             submissions_sha256=_payload_sha256(submissions_raw),
+            primary_documents=MappingProxyType(_submission_strings(submissions_raw, "primaryDocument")),
+            filing_forms=MappingProxyType(_submission_strings(submissions_raw, "form")),
+            current_tickers=_submission_tickers(submissions_raw),
+        )
+
+    def resolve_security_unit(self, request: SecurityUnitRequest) -> SecurityUnitResolution:  # noqa: PLR0911
+        """Verify the exact source filings inside the current financial snapshot."""
+        if request.as_of is not None:
+            return SecurityUnitResolution(SecurityUnitResolutionReason.UNSUPPORTED_TEMPORAL_EVIDENCE)
+        snapshot = _ACTIVE_SNAPSHOT.get()
+        if request.provider_id != SEC_PROVIDER_ID or snapshot is None or snapshot.taxonomy != "us-gaap":
+            return SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_UNSUPPORTED)
+        if (
+            snapshot.subject_id != request.ticker
+            or snapshot.cik is None
+            or request.ticker not in snapshot.current_tickers
+        ):
+            return SecurityUnitResolution(SecurityUnitResolutionReason.SOURCE_MISMATCH)
+        if request.quote.provider_id != "yfinance" and request.quote.source_kind.value != "override":
+            return SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_UNSUPPORTED)
+        try:
+            return self._verify_security_unit(request, snapshot)
+        except UnitMappingError:
+            return SecurityUnitResolution(SecurityUnitResolutionReason.UNSUPPORTED_EVIDENCE)
+        except (OSError, ValueError):
+            return SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_ERROR)
+
+    def _verify_security_unit(  # noqa: PLR0911
+        self, request: SecurityUnitRequest, snapshot: SecEdgarAnalysisSnapshot
+    ) -> SecurityUnitResolution:
+        assert snapshot.cik is not None
+        leaves = source_leaves(request.inputs)
+        if any(not item.provider_fact_id for item in leaves):
+            return SecurityUnitResolution(SecurityUnitResolutionReason.MISSING_EVIDENCE)
+        by_accession = {source_accession(item) for item in leaves}
+        if snapshot.latest_annual_accession is None:
+            return SecurityUnitResolution(SecurityUnitResolutionReason.MISSING_EVIDENCE)
+        by_accession.add(snapshot.latest_annual_accession)
+        if len(by_accession) > self._filing_policy.max_documents:
+            return SecurityUnitResolution(SecurityUnitResolutionReason.UNSUPPORTED_EVIDENCE)
+        documents = []
+        titles = set()
+        for accession in sorted(by_accession):
+            accepted = snapshot.acceptance_by_accession.get(accession)
+            primary = snapshot.primary_documents.get(accession)
+            if (
+                accepted is None
+                or accepted > snapshot.as_of
+                or not primary
+                or snapshot.filing_forms.get(accession) != "10-K"
+            ):
+                return SecurityUnitResolution(SecurityUnitResolutionReason.UNSUPPORTED_EVIDENCE)
+            url = filing_url(snapshot.cik, accession, primary)
+            markup = self._filing_fetcher(url, headers=self._headers, policy=self._filing_policy)
+            if len(markup.encode("utf-8")) > self._filing_policy.max_document_bytes:
+                return SecurityUnitResolution(SecurityUnitResolutionReason.UNSUPPORTED_EVIDENCE)
+            parsed = parse_unit_document(markup, cik=snapshot.cik, ticker=request.ticker)
+            context_ids = set(parsed.class_contexts)
+            for leaf in leaves:
+                if source_accession(leaf) == accession:
+                    context_ids.update(parsed.verify(leaf))
+            titles.add(parsed.class_title)
+            documents.append(
+                SecurityUnitDocument(
+                    accession, url, tuple(sorted(context_ids)), accepted, self._clock(), parsed.listing_venue
+                )
+            )
+        if len(titles) != 1:
+            return SecurityUnitResolution(SecurityUnitResolutionReason.AMBIGUOUS_CLASS)
+        return SecurityUnitResolution(
+            SecurityUnitResolutionReason.RESOLVED,
+            SecurityUnitEvidence(
+                request.ticker,
+                SecurityUnitKind.ORDINARY_SHARE,
+                SecurityUnitKind.ORDINARY_SHARE,
+                1.0,
+                SEC_PROVIDER_ID,
+                MAPPING_ID,
+            ),
+            SecurityUnitProvenance(MAPPING_ID, snapshot.cik, titles.pop(), tuple(documents)),
         )
 
     @contextmanager
@@ -517,6 +622,32 @@ def _ticker_identity_map(payload: object, *, resolved_at: datetime) -> dict[str,
             resolved_at=resolved_at,
         )
     return result
+
+
+def _submission_strings(payload: object, field_name: str) -> dict[str, str]:
+    """Retain exact recent-filing fields without guessing historical filenames."""
+    if not isinstance(payload, Mapping):
+        return {}
+    filings = payload.get("filings")
+    if not isinstance(filings, Mapping):
+        return {}
+    recent = filings.get("recent")
+    if not isinstance(recent, Mapping):
+        return {}
+    accessions, values = recent.get("accessionNumber"), recent.get(field_name)
+    if not isinstance(accessions, (list, tuple)) or not isinstance(values, (list, tuple)):
+        return {}
+    return {
+        accession: value
+        for accession, value in zip(accessions, values, strict=False)
+        if isinstance(accession, str) and isinstance(value, str)
+    }
+
+
+def _submission_tickers(payload: object) -> tuple[str, ...]:
+    """Retain current issuer symbols for positive request identity confirmation."""
+    tickers = payload.get("tickers") if isinstance(payload, Mapping) else None
+    return tuple(value for value in tickers if isinstance(value, str)) if isinstance(tickers, (list, tuple)) else ()
 
 
 def _acceptance_times(payload: object) -> dict[str, datetime]:
@@ -1334,6 +1465,8 @@ def _common_shares_facts(
             basis="fiscal_year_end",
             observation_period_end=issued_fact.observation_period_end,
             available_at=max(issued_fact.available_at, treasury_fact.available_at),
+            source_facts=tuple(_share_source_fact(item, request) for item in (issued_fact, treasury_fact)),
+            source_transformation="common shares issued - treasury common shares",
             notes=(
                 "derivation=common shares outstanding = common shares issued - treasury common shares",
                 f"issued_source={issued_fact.provider_field}; accession={issued_fact.accession}; "
@@ -1343,6 +1476,20 @@ def _common_shares_facts(
                 "same-period source observations required; no cover-date DEI share substitution applied",
             ),
         ),
+    )
+
+
+def _share_source_fact(item: _SecShareObservation, request: FinancialFactRequest) -> ProviderShareSource:
+    """Preserve exact raw share observations behind the adapter derivation."""
+    return ProviderShareSource(
+        subject_id=request.subject_id,
+        value=item.value,
+        provider_id=SEC_PROVIDER_ID,
+        provider_field=item.provider_field,
+        retrieved_at=item.retrieved_at,
+        observation_period_end=item.observation_period_end,
+        available_at=item.available_at,
+        provider_fact_id=f"{item.accession}:{item.provider_field}:shares:{item.observation_period_end.date()}",
     )
 
 
@@ -1445,6 +1592,8 @@ def _preferred_shares_facts(  # noqa: PLR0911
             basis="fiscal_year_end",
             observation_period_end=anchor.observation_period_end,
             available_at=inferred_available_at,
+            source_facts=(anchor, common_fact),
+            source_transformation="zero preferred-share guard verified against SEC Company Facts",
             notes=(
                 "evidence=inferred zero preferred-share guard; not an explicit PreferredStockSharesOutstanding fact",
                 f"evidence_pattern={evidence_pattern}",
@@ -1604,6 +1753,7 @@ def _parse_balance_sheet_observation(  # noqa: PLR0911
         observation_period_end=period_end,
         available_at=available_at,
         notes=notes,
+        provider_fact_id=f"{accession_text}:{context.provider_field}:{context.currency or 'shares'}:{end_text}",
     )
 
 

@@ -4,7 +4,7 @@
 
 **Authority:** The [milestone implementation plan](../IMPLEMENTATION_PLAN.md) owns sequencing and scope. This companion defines the bounded implementation and acceptance contract for [Issue #17](https://github.com/PeterPontbriand/financial-data-agents/issues/17).
 
-**Sequencing:** The project owner requested that Issue #17 be addressed next, after completed Step 3.2 and before Step 3.3. This is a prioritization decision, not a new technical prerequisite for data quality. Step 3.3, P2-Profiles, Step 3.4, and Step 3.5 retain their existing review gates. This document does not reopen completed Steps 2.1, 2.6, or 3.2.
+**Sequencing:** The project owner requested that Issue #17 be addressed next, after completed Step 3.2 and before Step 3.3. This is a prioritization decision, not a new technical prerequisite for data quality. Step 3.3, P2-Profiles, Step 3.4, and Step 3.6 retain their existing review gates. This document does not reopen completed Steps 2.1, 2.6, or 3.2.
 
 **Authorization:** On 2026-09-07 the project owner stated, “Reviewed and accepted. Record and proceed.” This accepted the bounded contract, linked-error-context interpretation, file scope, and verification matrix and authorized implementation and verification without intermediate slice approvals. The subsequent instruction, “Final review complete and approved,” closes final acceptance. The project owner clarified the next-step authorization as “Authorize Step 3.3 next”; Step 3.3 is authorized to begin within its existing scope and gates. Step 2.4 remains complete and is not reopened. Commit, push, PR creation, issue comments, and issue closure require explicit authorization and are not implied by these approvals.
 

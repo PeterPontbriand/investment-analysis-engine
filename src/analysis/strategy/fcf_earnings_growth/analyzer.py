@@ -80,6 +80,8 @@ class FCFEarningsGrowthAnalyzer:
     ) -> FCFEarningsGrowthResult:
         """Run one deterministic analysis without optional unapproved data substitutions."""
         boundary = effective_as_of or as_of or datetime.now(UTC)
+        if boundary.utcoffset() is None:
+            raise ValueError("FCF effective execution time must be timezone-aware.")
         normalized_ticker = ticker.strip().upper()
         validate_profile_ticker(
             ticker,
@@ -102,6 +104,7 @@ class FCFEarningsGrowthAnalyzer:
             as_of=as_of,
             provider_id=provider_id,
             use_cache=use_cache,
+            effective_as_of=boundary,
         )
         latest_eps = assembly.observations[-1].diluted_eps if assembly.observations else None
         forward = _forward_evidence(latest_eps)

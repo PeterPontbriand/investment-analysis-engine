@@ -171,7 +171,7 @@ def test_non_finite_latest_price_is_rejected() -> None:
     df = pd.DataFrame({"Close": [10.0, 11.0, float("nan")]})
     analyzer = MomentumAnalyzer()
 
-    with pytest.raises(ValueError, match="latest close must be finite"):
+    with pytest.raises(ValueError, match="numeric and finite.*Close at row 2"):
         analyzer.run_analysis(
             ticker="BAD",
             config=MomentumConfig(short_window=2, long_window=3),
