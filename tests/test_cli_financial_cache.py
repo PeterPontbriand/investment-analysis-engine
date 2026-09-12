@@ -44,13 +44,14 @@ class GrahamProvider:
         return tuple(replace(fact, provider_id=request.provider_id) for fact in facts)
 
 
-@pytest.fixture
-def configured_database(tmp_path: Path) -> Iterator[Path]:
+@pytest.fixture(params=["ready", "missing"])
+def configured_database(tmp_path: Path, request: pytest.FixtureRequest) -> Iterator[Path]:
     path = tmp_path / "financial.sqlite3"
     settings = ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    if request.param == "ready":
+        command.upgrade(config, "head")
     with patch("src.cli_support.settings", settings):
         yield path
 
@@ -68,7 +69,6 @@ def _nodes(value: Any) -> Iterator[dict[str, Any]]:
 
 @pytest.mark.parametrize("strategy", ["graham-number", "graham-growth", "fcf-growth"])
 def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: str) -> None:
-    assert configured_database.exists()
     graham = GrahamProvider()
     annual = FixtureAnnualFinancialFactsProvider(
         tuple(replace(fact, provider_id=SEC_PROVIDER_ID) for fact in annual_series(range(2020, 2026)))
@@ -94,12 +94,21 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
     ):
         first = CliRunner().invoke(app, arguments)
         assert first.exit_code == 0, first.output
+        assert configured_database.exists()
         calls = graham.calls if strategy.startswith("graham-") else len(annual.requests)
         assert calls > 0
         graham.fail = True
-        with patch.object(annual, "fetch_facts", side_effect=AssertionError("Unexpected provider access")):
+        with (
+            patch.object(annual, "fetch_facts", side_effect=AssertionError("Unexpected provider access")),
+            patch(
+                "src.data.repositories.readiness.upgrade_fresh_database",
+                side_effect=AssertionError("Unexpected migration"),
+            ),
+        ):
             second = CliRunner().invoke(app, arguments)
         assert second.exit_code == 0, second.output
+    assert not first.stderr
+    assert not second.stderr
     assert len(databases) == 2
     for instance in databases:
         with pytest.raises(RuntimeError, match="closed"), instance.read():
@@ -157,6 +166,7 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
         result = CliRunner().invoke(app, arguments)
     assert result.exit_code == 0, result.output
     assert not path.exists()
+    assert not Path(str(path) + ".readiness.lock").exists()
     nodes = list(_nodes(json.loads(result.output)))
     assert not any(node.get("source_kind") == "cache" for node in nodes)
     assert provider.calls > 0 if isinstance(provider, GrahamProvider) else len(annual.requests) > 0

@@ -7,10 +7,11 @@ from pathlib import Path
 
 import pytest
 from alembic.config import Config
+from sqlalchemy import create_engine
 
 from alembic import command, context
 from src.config import ProjectSettings
-from src.data.repositories import SQLiteDatabase
+from src.data.repositories import SQLiteDatabase, migrations
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
@@ -133,3 +134,80 @@ def test_offline_mode_rejected_without_creating_database(tmp_path: Path) -> None
     with pytest.raises(ValueError, match="Offline migrations"):
         command.upgrade(migration_config(path), "head", sql=True)
     assert not path.exists()
+
+
+def test_borrowed_transaction_is_not_committed_or_closed(tmp_path: Path) -> None:
+    path = tmp_path / "borrowed.sqlite3"
+    database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+
+    def migrate_and_abort() -> None:
+        with database.transaction() as connection:
+            migrations.upgrade_fresh_database(connection)
+            assert not connection.closed
+            assert connection.in_transaction()
+            revision = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
+            assert revision == "0001_persistence"
+            raise RuntimeError("outer rollback")
+
+    try:
+        with pytest.raises(RuntimeError, match="outer rollback"):
+            migrate_and_abort()
+        with database.read() as connection:
+            assert connection.exec_driver_sql("SELECT name FROM sqlite_schema WHERE type='table'").all() == []
+    finally:
+        database.close()
+
+
+def test_borrowed_connection_rejects_url_override_without_touching_it(tmp_path: Path) -> None:
+    unused = tmp_path / "unused.sqlite3"
+    config = migration_config(unused)
+    database = SQLiteDatabase(ProjectSettings(database_url="sqlite:///:memory:"))
+    try:
+        with database.transaction() as connection:
+            config.attributes["connection"] = connection
+            with pytest.raises(ValueError, match="URL overrides"):
+                command.upgrade(config, "head")
+            assert not connection.closed
+        assert not unused.exists()
+    finally:
+        database.close()
+
+
+def test_invalid_borrowed_connection_rejected(tmp_path: Path) -> None:
+    config = migration_config(tmp_path / "unused.sqlite3")
+    config.attributes["connection"] = object()
+    with pytest.raises(ValueError, match="active SQLAlchemy"):
+        command.upgrade(config, "head")
+    assert not (tmp_path / "unused.sqlite3").exists()
+
+
+def test_fresh_upgrade_requires_active_transaction() -> None:
+    engine = create_engine("sqlite://")
+    try:
+        with engine.connect() as connection, pytest.raises(ValueError, match="active transaction"):
+            migrations.upgrade_fresh_database(connection)
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.parametrize("shape", ["missing", "empty", "two_heads", "ancestor"])
+def test_resource_discovery_checks_actual_synthetic_graph(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shape: str
+) -> None:
+    fake_module = tmp_path / "src" / "data" / "repositories" / "migrations.py"
+    monkeypatch.setattr(migrations, "__file__", str(fake_module))
+    scripts = tmp_path / "alembic"
+    if shape != "missing":
+        (scripts / "versions").mkdir(parents=True)
+        (scripts / "env.py").write_text('"""Synthetic migration environment."""\n', encoding="utf-8")
+    if shape in ("two_heads", "ancestor"):
+        (scripts / "versions" / "a.py").write_text("revision = 'a'\ndown_revision = None\n", encoding="utf-8")
+        parent = "'a'" if shape == "ancestor" else "None"
+        (scripts / "versions" / "b.py").write_text(f"revision = 'b'\ndown_revision = {parent}\n", encoding="utf-8")
+    if shape == "ancestor":
+        resources = migrations.migration_resources()
+        assert resources.head == "b"
+        assert resources.ancestors == frozenset({"a"})
+    else:
+        with pytest.raises(ValueError, match="missing|exactly one head"):
+            migrations.migration_resources()

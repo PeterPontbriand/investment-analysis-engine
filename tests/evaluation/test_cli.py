@@ -80,8 +80,18 @@ def test_evaluate_cli_runs_full_deterministic_suite_and_writes_report(tmp_path: 
     """The default command executes all reviewed cases without a model or live provider."""
     target = tmp_path / "reports" / "golden.json"
 
-    with patch("src.cli.TrajectoryRecorder.from_settings", side_effect=lambda *_args, **_kwargs: _recorder()):
+    with (
+        patch("src.cli.TrajectoryRecorder.from_settings", side_effect=lambda *_args, **_kwargs: _recorder()),
+        patch(
+            "src.cli_support.ensure_database_ready", side_effect=AssertionError("Evaluation must not migrate")
+        ) as ready,
+        patch(
+            "src.cli_support.SQLiteDatabase", side_effect=AssertionError("Evaluation must not open storage")
+        ) as storage,
+    ):
         result = runner.invoke(app, ["evaluate", "--report", str(target)])
+    ready.assert_not_called()
+    storage.assert_not_called()
 
     assert result.exit_code == 0
     payload = json.loads(target.read_text(encoding="utf-8"))

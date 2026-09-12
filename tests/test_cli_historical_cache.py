@@ -25,12 +25,13 @@ from src.evaluation.fixtures.market_data import FixtureDataClient, momentum_succ
 NOW = datetime(2026, 9, 6, tzinfo=UTC)
 
 
-@pytest.fixture
-def configured_settings(tmp_path: Path) -> Iterator[ProjectSettings]:
+@pytest.fixture(params=["ready", "missing"])
+def configured_settings(tmp_path: Path, request: pytest.FixtureRequest) -> Iterator[ProjectSettings]:
     settings = ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'history.sqlite3').as_posix()}")
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    if request.param == "ready":
+        command.upgrade(config, "head")
     with patch("src.cli_support.settings", settings):
         yield settings
 
@@ -76,7 +77,10 @@ def test_momentum_cli_reuses_history_and_preserves_profile_provider(
         patch("src.cli_support.SQLiteDatabase", side_effect=database),
     ):
         first = CliRunner().invoke(app, args)
-        second = CliRunner().invoke(app, args)
+        with patch(
+            "src.data.repositories.readiness.upgrade_fresh_database", side_effect=AssertionError("Unexpected migration")
+        ):
+            second = CliRunner().invoke(app, args)
     assert first.exit_code == 0, first.output
     assert second.exit_code == 0, second.output
     fetch.assert_called_once()
@@ -93,6 +97,8 @@ def test_momentum_cli_reuses_history_and_preserves_profile_provider(
     assert any(item.get("stage") == "provider" for item in provider_trace)
     assert any(item.get("stage") == "cache" for item in cache_trace)
     assert left == right
+    assert not first.stderr
+    assert not second.stderr
     assert len(databases) == 2
     for instance in databases:
         with pytest.raises(RuntimeError, match="closed"), instance.read():

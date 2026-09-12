@@ -15,6 +15,7 @@ from src.data.cached_client import CachedHistoricalDataClient
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputSeriesCacheProtocol
 from src.data.quality import HistoricalDataQualityError, HistoricalQualityPolicy, QualityOutcome
 from src.data.repositories import SQLiteDatabase, SQLiteMarketDataRepository, SQLiteResolvedInputCache
+from src.data.repositories.readiness import DatabaseReadinessError, ensure_database_ready
 from src.data.yfinance import YFinanceClient
 from src.data.yfinance.client import YFINANCE_HISTORICAL_INTERVAL, YFINANCE_PRICE_ADJUSTMENT
 from src.reporting.presentation import PresentationMode, analysis_failure_document
@@ -29,10 +30,11 @@ def _production_historical_client(provider: YFinanceClient) -> Iterator[CachedHi
     """Borrow the Yahoo client and own historical storage for one analysis.
 
     Daily adjusted request identity matches the provider's download configuration.
-    Reuse age comes from settings; table migrations remain an operator action.
+    Reuse age comes from settings; fresh storage is initialized before fetching.
     """
     database = SQLiteDatabase(settings)
     try:
+        ensure_database_ready(database)
         seconds = settings.historical_cache_ttl_seconds
         yield CachedHistoricalDataClient(
             provider,
@@ -57,6 +59,7 @@ def _production_financial_cache(*, enabled: bool) -> Iterator[ResolvedInputSerie
         return
     database = SQLiteDatabase(settings)
     try:
+        ensure_database_ready(database)
         seconds = settings.financial_cache_ttl_seconds
         yield SQLiteResolvedInputCache(database, ttl=None if seconds is None else timedelta(seconds=seconds))
     finally:
@@ -145,7 +148,10 @@ def execution_errors(  # noqa: PLR0913
     except Exception as exc:
         diagnostics: list[dict[str, str]] = []
         code = "execution_error"
-        if isinstance(exc, HistoricalDataQualityError):
+        if isinstance(exc, DatabaseReadinessError):
+            message = str(exc)
+            code = exc.reason.value
+        elif isinstance(exc, HistoricalDataQualityError):
             message = str(exc)
             code = "historical_quality"
             diagnostics = [

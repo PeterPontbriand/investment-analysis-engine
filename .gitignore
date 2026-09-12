@@ -84,6 +84,7 @@ __pycache__/
 local/
 dev_db/
 database_backups/
+*.readiness.lock
 
 # --- Python Runtime Objects ---
 __pycache__/

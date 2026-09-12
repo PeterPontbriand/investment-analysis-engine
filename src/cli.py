@@ -31,6 +31,7 @@ from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
+from src.cli_database import app as database_app
 from src.cli_support import (
     AnalysisConfigurationError,
     _canonical_provider_id,
@@ -96,6 +97,7 @@ from src.reporting.presentation import PresentationMode
 app = typer.Typer(
     help="Analyze financial data with transparent calculations and supporting evidence.", add_completion=False
 )
+app.add_typer(database_app, name="db", hidden=True)
 
 _MOMENTUM_CLI_DEFAULTS = MomentumConfig()
 

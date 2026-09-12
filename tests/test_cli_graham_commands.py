@@ -119,6 +119,7 @@ def test_command_exception_closes_cache_and_preserves_exit(command: str, error: 
     database = MagicMock()
     with (
         patch("src.cli_support.SQLiteDatabase", return_value=database),
+        patch("src.cli_support.ensure_database_ready"),
         patch("src.cli._build_graham_resolver", side_effect=error),
     ):
         result = CliRunner().invoke(app, _arguments(command))

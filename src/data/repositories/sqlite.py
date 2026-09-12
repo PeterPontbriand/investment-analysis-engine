@@ -33,6 +33,16 @@ class SQLiteDatabase:
         self._closed = False
         self._engine = create_engine(url, creator=self._connect, poolclass=StaticPool if self._memory else NullPool)
 
+    @property
+    def database_path(self) -> Path | None:
+        """Return the resolved file target, or None for this instance's memory store."""
+        return None if self._memory else Path(self._database)
+
+    @property
+    def busy_timeout_ms(self) -> int:
+        """Return the configured bounded storage wait in milliseconds."""
+        return self._timeout_ms
+
     def _connect(self) -> sqlite3.Connection:
         if not self._memory:
             Path(self._database).parent.mkdir(parents=True, exist_ok=True)
