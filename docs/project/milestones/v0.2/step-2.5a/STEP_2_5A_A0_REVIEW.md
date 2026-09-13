@@ -1,11 +1,10 @@
 # Step 2.5A A0 Identity/Security-Unit Boundary Review
 
-**Base checkpoint:** `a4001580838795a30d72f399fb4eedcb65dee9f3`<br/>
-**Implementation date:** 2026-08-31 (America/Toronto)<br/>
-**Status:** Implemented, verified, and approved on 2026-09-01<br/>
-**Authorization:** Gate A approval recorded in the
-[D0 evidence handoff](STEP_2_5A_D0_EVIDENCE_FREEZE.md)<br/>
-**Execution plan:** [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)
+Documents the identity/security-unit correction and its deterministic proof.
+
+Local sequence and status: [companion plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md#sequence-and-status).
+
+Evidence baseline: `a4001580838795a30d72f399fb4eedcb65dee9f3`.
 
 ## 1. Outcome
 
@@ -72,18 +71,3 @@ five preservation cases. After the bounded adapter correction:
   87% reported coverage.
 
 No verification test made a live SEC, market-data, or LLM call.
-
-## 4. Review decision required
-
-Reviewers should confirm that:
-
-- exact ticker-to-CIK and Company Facts CIK validation are unchanged;
-- OCF and CapEx are correctly treated as issuer-level at this boundary;
-- EPS and diluted weighted-average shares still fail closed for a multi-ticker
-  CIK until affirmative unit evidence exists;
-- the in-memory legacy-form mutation keeps A0 independent of A1; and
-- resolver-spanning snapshot ownership remains documented for B1-A rather than
-  being pulled into this slice.
-
-A0 received explicit human approval on 2026-09-01. The mandatory review gate
-is closed and A1 is authorized under the slice plan.

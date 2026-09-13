@@ -1,14 +1,15 @@
 # Existing Strategy Correctness — Audit, Repair, and Acceptance
 
-**Status:** ESC-B reviewed and approved by the project owner on 2026-09-11 (Toronto), including the historical MSFT explanation follow-up. Implementation remains in the working tree based on pushed `cb1e9ef`. The [ESC-C acceptance packet](ESC_C_FINAL_ACCEPTANCE.md), [implementation record](ESC_B_IMPLEMENTATION_AND_REVIEW.md), [defect ledger](ESC_A_DEFECT_LEDGER.md) and [coverage matrix](ESC_A_COVERAGE_MATRIX.md) reconcile 2,054 passing tests / 89% coverage, all-four live checks, and the historical MSFT case. ESC-C final acceptance is approved on 2026-09-11 (Toronto); ESC-D renewal remains pending.
+Defines the audit coverage, repair boundaries and acceptance requirements for existing analyses.
 
-**Approval record:** Following review of the expanded planning documents, the project owner instructed: “Record approval and propose a docs-only checkpoint commit description.” Approval covers the four-analysis scope, defect accounting, execution/review structure, readiness deferral, and renewed acceptance before Step 3.5. After pushing checkpoint `8d7fba0`, the project owner authorized ESC-A. After reviewing C1–C6 and pushing `cb1e9ef50bcef5f549cdabba91c853629da78eed`, the project owner explicitly authorized ESC-B. The project owner subsequently approved ESC-C final existing-analysis acceptance on 2026-09-11 (Toronto), closing the current correctness acceptance gate. ESC-D renewal remains pending.
+Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
-**Authority:** [Active milestone](../IMPLEMENTATION_PLAN.md). This work supersedes the Graham-only acceptance boundary. Complete it before resuming database readiness; no further strategy development may start while known correctness defects remain unresolved.
+## Sequence and status
 
-**ESC-B approval and continuation:** The project owner instructed, “ESC-B is now reviewed and approved. Proceed.” This closes ESC-B and authorizes ESC-C reconciliation and preparation of its final acceptance packet. ESC-C was subsequently explicitly approved; see the acceptance packet. Publication remains separate, and Step 3.3A may resume only at its existing planning gates. ESC-D approval is not implied.
-
-**Branch:** `fix/existing-strategy-correctness`, renamed by the project owner. The prior Graham repair and README correction are checkpointed in `e8f4a95`. Preserve that history. Use focused commits by diagnosed defect, separate from planning commits and database-readiness implementation. No commit, push, PR, dependency change, migration against user data, or destructive operation is authorized by this documentation checkpoint.
+| Order | Scope | Local gate |
+| :--- | :--- | :--- |
+| ESC-A → ESC-B → ESC-C | Evidence/contracts; repairs; initial acceptance | Accepted |
+| ESC-D | Refresh lifecycle/output evidence and full gate on proposed starting revision | Pending explicit renewed acceptance; cross-package placement is in the milestone table |
 
 ## 1. Scope and outcomes
 
@@ -59,31 +60,23 @@ Analysis-specific coverage must include:
 
 Audit all uses of unavailable, N/A, unspecified, unknown, null, zero and inferred values. A text search is an inventory aid; source-to-output tracing is the proof. Retained filing dates can legitimately be identical across prior-year comparative observations; precision and dates must be explained, not guessed.
 
-## 4. Execution and review gates
+## 4. Verification and review requirements
 
-| Stage | Deliverables and gate |
-| :--- | :--- |
-| ESC-A — Evidence and concrete repair contracts | Inventory the actual four pipelines and consumers; reproduce findings; establish a fresh managed baseline; populate the matrix/ledger; propose exact policy, interfaces, files and schema changes. Review the concrete contract before expanded production edits. This document alone does not select quote TTLs or approve changed financial assumptions. |
-| ESC-B — Repairs and regressions | After contract approval, implement focused repairs and realistic regressions. Continue authorized work toward one final review; do not require a new approval for each routine file/test change. Surface material scope or policy changes before dependent implementation. Preserve unrelated behavior and record regressions caught during repair. |
-| ESC-C — Final existing-analysis acceptance | Reconcile every matrix cell and ledger entry; perform independent arithmetic checks and dated representative live smoke checks; pass the full managed gate with at least 85% overall coverage. Present one review packet covering all four analyses. Explicit stakeholder acceptance is required; no unresolved known output-correctness defect or unverified required cell may be left to a backlog. |
-| ESC-D — Pre-Step-3.5 renewal | After Step 3.3A, Step 3.4 and P2-Profiles, rerun affected lifecycle/composition checks and the complete managed gate on the actual proposed Step 3.5 starting revision. Review accumulated changes, new defects, output examples and freshness evidence. Explicit renewed acceptance is required before any Step 3.5 strategy implementation. |
+Use a coverage matrix and defect ledger spanning every supported consumer and
+presentation mode. Repair contracts must define the exact policy, interfaces,
+files and schema effects before production changes. Material scope or financial
+policy changes need review.
 
-The same complete non-mutating gate applies at baseline and acceptance:
+Acceptance evidence includes independent arithmetic, realistic regressions,
+dated representative live checks, and the complete managed gate with at least
+85% coverage. Every required cell and known correctness defect must have a
+verified disposition. Renewal reviews accumulated changes, lifecycle behavior,
+output examples and freshness on the actual proposed starting revision.
 
 ```powershell
 & (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gates.ps1')
 ```
 
-Record revision, date, commands, totals, coverage and isolated artifact paths. Use synthetic reduced fixtures that preserve observed structural complexity, including negative cases. Live checks supplement deterministic proof: document provider configuration without secrets, timing, command, result and limitations. If a required check is blocked, record the blocker and keep acceptance open; do not assert success or bypass a safeguard. Use isolated migrated test storage for lifecycle tests; existing-data migrations require separate approval.
-
-One implementation owner maintains coherent changes. An optional independent Cline review should be bounded and read-only: inspect the contract, outputs, tests and source; report discrepancies without editing the checkout. It is useful additional scrutiny, not a substitute for acceptance, and is not automatically dispatched or a mandatory tool dependency.
-
-## 5. Sequencing and preservation
-
-**Existing-strategy audit/repair → ESC-C acceptance → Step 3.3A at its existing gates → Step 3.4 at its existing gates → P2-Profiles → ESC-D renewed acceptance → Step 3.5 → Step 3.6.**
-
-ESC-C acceptance releases the database-readiness deferral; resume Step 3.3A contract planning at its existing gates, with production implementation still separately gated. Step 3.4's prior start authorization is retained with the revised deferral; it does not bypass the prerequisites. Step 3.5's existing plan approval does not waive ESC-D.
-
-After readiness changes, rerun all four analysis regressions plus relevant cold-database/cache lifecycle tests. Carry the same regression obligation through workspace/profile changes. Newly discovered correctness defects in any existing analysis block further strategy development until repaired and reviewed, including defects discovered after ESC-C. Shared cache/profile/presentation changes must not invalidate the earlier acceptance silently.
-
-Before closing ESC-C, publish the completed matrix/ledger, changed-contract and compatibility notes, fresh test/live evidence, remaining documented limitations, and a concise reviewer checklist. The policy and architecture references should change only when actual behavior/policies are approved and implemented; this checkpoint does not rewrite user-facing behavior as though repairs already exist.
+Record revision, commands, results and isolated artifact paths. Synthetic tests
+remain offline; live checks supplement them without secrets. Use disposable
+storage for lifecycle tests. An independent read-only review is optional.

@@ -2,10 +2,65 @@
 
 The CLI stores historical market-data snapshots and resolved financial inputs
 in SQLite through shared persistence interfaces. Trajectory telemetry defaults to JSONL; SQLite telemetry is
-optional. Database schemas are prepared explicitly with Alembic. Analysis
-commands do not create tables or run migrations automatically.
+optional. When required persistence is first used, the application initializes
+a missing or verified empty database through bundled Alembic migrations. Ready
+storage is reused without migration. Existing schemas are never upgraded
+automatically; incompatible or incomplete storage is preserved and rejected.
 
-## Prepare or update an installation
+## First use and explicit upgrades
+
+No database preparation command is required for a fresh installation. Configure
+the location before the first analysis. Freshness is checked from schema objects,
+not file size: an empty revision table, partial schema or unrelated tables/views
+are not fresh. A revision stamp alone does not prove readiness.
+
+Maintenance commands are hidden from top-level help but available explicitly:
+
+```powershell
+uv run --no-sync financial-agents db --help
+uv run --no-sync financial-agents db status
+uv run --no-sync financial-agents db status --json
+```
+
+`db status` inspects without initializing, upgrading, enabling WAL or creating
+the target, parent directory or readiness lock. It reports `missing`, `fresh`,
+`ready`, `upgrade_required` or `incompatible`. Inspection is a consistent snapshot,
+not a reservation; SQLite may still need normal journal/shared-memory access.
+
+To initialize in advance or explicitly upgrade supported existing storage, stop
+application processes and back up existing data, then run:
+
+```powershell
+uv run --no-sync financial-agents db upgrade
+```
+
+The command initializes fresh storage, upgrades a structurally valid recognized
+ancestor, or succeeds without changes when already ready. It does not prompt for
+confirmation. Unknown/newer revisions, unversioned nonempty storage and schema
+drift require inspection with matching application code, not a blind upgrade.
+The current bundle contains only `0001_persistence`; older-production-revision
+upgrades are not presently available. Upgrade behavior is tested with synthetic
+migration history.
+
+Both maintenance commands accept `--database-url` and `--json`. An override is
+for that invocation only; it does not redirect later analyses:
+
+```powershell
+uv run --no-sync financial-agents db status --database-url "sqlite:///E:/FinancialData/trial.sqlite3" --json
+uv run --no-sync financial-agents db upgrade --database-url "sqlite:///E:/FinancialData/trial.sqlite3"
+```
+
+Exit 0 means ready or successfully initialized/upgraded; exit 1 means not ready
+or an operational failure; exit 2 means invalid usage/configuration. A completed
+inspection of non-ready storage has report `status=success` but exit 1. JSON
+reports have `schema_version=1`, `command`, `status`, `database_path`, `state`,
+`current_revision`, `expected_revision`, `reason` and `message`; unavailable fields
+are null. Upgrade success states are `initialized`, `upgraded` and `ready`.
+Untrusted revision strings are not exposed. JSON operational reports use stdout
+only, without migration chatter. Text reports use stdout, operational failures
+stderr; parser-level usage errors retain normal CLI behavior.
+
+Direct Alembic commands remain available for explicit operator maintenance.
 
 Current financial quotes use `quote_cache_ttl_seconds` (default 300 seconds), measured from the original provider response retrieval. Zero disables quote reuse. Unknown, future or expired response timing triggers refresh without stale fallback. This policy is separate from annual financial-input and historical-snapshot cache settings. Legacy quote keys refresh automatically without a schema migration; retrieval time does not establish an exchange trade timestamp.
 
@@ -83,11 +138,50 @@ Migration URL precedence is `-x database_url`, an explicit Alembic
 - `TELEMETRY_SINK=sqlite` selects SQLite trajectory storage where the runtime
   creates a recorder. `TELEMETRY_SINK=jsonl` is the default;
   `TELEMETRY_LEVEL=OFF` disables recording. Telemetry failures remain fail-open;
-  they do not make a missing database schema acceptable for financial caches.
+  they do not initialize storage or control analysis readiness. If SQLite is used
+  only for telemetry, explicitly prepare its target with `db upgrade` first.
 
 `DATABASE_BUSY_TIMEOUT_MS` defaults to 5000. Connections enable foreign keys and
 WAL journaling. Transactions keep related rows atomic; caches do not import
 benchmark fixtures as production data.
+
+Help, imports and storage-free operations do not initialize the database.
+Financial `--no-cache` bypasses that cache only, not unrelated persistence.
+Concurrent initialization and maintenance coordinate through the persistent
+`<database>.readiness.lock` sidecar, recheck storage after ownership, and verify
+revision and structure before committing. Closing the handle or terminating the
+owner releases its operating-system lock. **Do not delete the sidecar as stale**;
+its stable pathname is part of coordination. Keep it out of Git.
+
+## Readiness errors and recovery
+
+Analysis readiness failures exit 1 with an actionable sanitized target and reason,
+including in ordinary output; `--diagnostics` remains analysis-focused. JSON
+analysis failures retain their versioned analysis envelope with `status=error`,
+`result=null` and a stable reason code, without initialization chatter.
+
+| Reason | Next action |
+| :--- | :--- |
+| `database_upgrade_required` | Stop processes, back up, and explicitly upgrade the same configured target. |
+| `database_incompatible_schema` | Preserve contents and inspect with matching application code; do not stamp or blindly upgrade. |
+| `database_busy` | Close competing database operations and retry after the bounded wait. Do not delete lock or WAL sidecars. |
+| `database_permission_denied` | Check file and parent-directory permissions. |
+| `database_invalid_file` | Preserve the unreadable/corrupt file; inspect or restore a consistent backup. |
+| `database_io_error` | Check the path, free space and filesystem health. |
+| `database_resources_unavailable` | Use a complete matching source installation with bundled migrations. |
+| `database_initialization_failed` | Preserve the file and inspect diagnostics; no partial schema was accepted. |
+| `database_migration_failed` | Preserve the database and inspect diagnostics; the migration transaction was rolled back. |
+
+There is no fallback database, automatic repair, downgrade, deletion or existing-data
+upgrade. Retry interrupted initialization only after resolving the cause; the next
+inspection must prove fresh or ready storage before analysis can proceed.
+
+Maintenance requires file-backed storage and rejects private in-memory URLs.
+Programmatic readiness supports memory only on the same `SQLiteDatabase` instance.
+Source-checkout/editable installations with bundled migration resources are the
+verified installation boundary; standalone wheel migration packaging is not
+provided. Local verification covers Windows locking, not POSIX execution,
+network filesystems, hard-link aliases or external file replacement.
 
 ## Back up and restore
 
@@ -134,8 +228,7 @@ permissions, free space, the selected URL, and `alembic current`. Correct the
 cause and rerun the same upgrade. Do not use `alembic stamp head` to conceal a
 failure or manually edit the revision table. If the database's integrity is in
 doubt, retain it for diagnosis and restore a consistent backup into a separate
-location before retrying. An unexpected analysis failure after an update may
-indicate an unmigrated database; compare its revision with `alembic history`.
+location before retrying. Use `db status` to inspect readiness after an update.
 
 ## Offline persistence verification
 
@@ -160,5 +253,5 @@ bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"
 
 Each invocation writes isolated ignored artifacts below `.tmp/quality-runs/`.
 The suite reports its test count, coverage, and artifact path. Live-provider
-checks in [Smoke Testing Commands](SMOKE_TESTING.md) are separate human-run
+checks in [Smoke Testing Commands](SMOKE_TESTING.md) are separate user-run
 checks and are not part of this offline verification.

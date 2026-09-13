@@ -15,10 +15,18 @@ This is the terse installation/configuration version. If any step is unfamiliar,
 git clone https://github.com/PeterPontbriand/financial-data-agents.git
 cd financial-data-agents
 uv sync
-uv run --no-sync alembic upgrade head
 ```
 
-Set `DATABASE_URL` before migration if using a nondefault location. See
+Fresh storage initializes automatically on first persistence use. Set
+`DATABASE_URL` before the first analysis if using a nondefault location. Existing
+schemas require explicit upgrades after stopping processes and backing up data:
+
+```bash
+uv run --no-sync financial-agents db status
+uv run --no-sync financial-agents db upgrade
+```
+
+The maintenance group is hidden from top-level help; use `db --help`. See
 [Local Database Operations](DATABASE.md) for upgrades, backups, and recovery.
 
 ## Configure SEC EDGAR

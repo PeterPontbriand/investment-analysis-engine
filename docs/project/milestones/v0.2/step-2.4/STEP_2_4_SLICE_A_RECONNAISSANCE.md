@@ -1,15 +1,14 @@
 # Step 2.4 Slice A Reconnaissance
 
-**Status:** Complete and approved; Slice B authorized<br/>
-**Governing design:** `docs/project/milestones/v0.2/step-2.4/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`<br/>
-**Scope:** Milestone v0.2, Step 2.4 Slice A only<br/>
-**Prepared:** 2026-08-26
+Identifies reusable interfaces and the bounded extensions needed for FCF growth analysis.
+
+Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
 ## 1. Outcome
 
 The approved Free Cash Flow & Earnings Growth design can be implemented by extending the Step 2.3 valuation-fact, provenance, cache, resolver, production-provider, CLI, and presentation seams. No parallel provider framework, provenance model, cache hierarchy, orchestration framework, or generic strategy registry is justified.
 
-Slice A made no production-code or test changes. It reconciled the stale implementation-plan baseline with the reviewed design and identified the concrete work boundaries below. Slice B must not begin until this record and the accompanying implementation-plan reconciliation receive human approval.
+Slice A made no production-code or test changes. It reconciled the stale implementation-plan baseline with the reviewed design and identified the concrete work boundaries below.
 
 ## 2. Product-policy lock
 
@@ -74,17 +73,6 @@ Market capitalization and FY1/FY2 consensus EPS require separate provider capabi
 
 Stop for review rather than implement a mapping if multiple plausible CapEx concepts cannot be resolved conservatively, availability cannot be established, periods or currencies cannot be paired, dimensional facts are ambiguous, or forecast horizon/consensus meaning is undocumented.
 
-## 6. Recommended implementation boundaries
-
-The implementation-plan slices remain sufficient. Reconnaissance refines them as follows:
-
-- **Slice B:** strategy-local enums, policy, metric/result invariants, pure FCF/growth/yield/classification functions, and hand-calculated tests only.
-- **Slice C:** minimally extend provider-neutral facts, annual-series resolution, compatibility/selection, FCF lineage, cache identity, traces, and six-year deterministic fixtures. Split C into contract/resolution and fixture sub-slices if the cache-period decision makes the diff too large for one review.
-- **Slice D:** prepare and approve the provider mapping record, then implement only approved production capabilities with recorded/mocked payload tests. Required historical SEC support should be reviewed separately from optional market-capitalization or consensus providers.
-- **Slice E:** add the direct CLI, runtime-tool entry point, and one strategy-specific presenter for concise/details/diagnostics/JSON. Treat charting as optional and do not let it delay the required presentation contract.
-- **Slice F:** execute the already-defined Graham/shared-contract hardening and Momentum modernization as a separate focused correction work unit, then stop for review.
-- **Slice G:** synchronize documentation, run the complete gate, review the full diff, and obtain explicit approval before Step 2.5.
-
 ## 7. Likely file inventory
 
 Expected new files or packages after Slice A—not authorized by this reconnaissance record itself—are:
@@ -119,15 +107,3 @@ The documentation-only Slice A baseline was rerun successfully on 2026-08-26 thr
 The wrapper resolved the earlier managed-environment failures by isolating pytest temporary files, coverage output, mypy cache, and UV cache, and by using `uv run --no-sync` against the already-synchronized project environment. It required no dependency, lockfile, user-profile cache, or production-code change. The companion `scripts/run-quality-gates.sh` applies the same behavior for Cline's Git Bash shell; this host exposes only the restricted Windows WSL launcher as `bash`, so Git Bash execution remains for the planned Cline verification.
 
 The complete prescribed quality gate remains mandatory before Step 2.4 completion. The current 84% aggregate coverage is below the project-wide ≥85% target and should be monitored as Step 2.4 tests are added; it did not fail the currently configured gate.
-
-## 9. Slice A review gate
-
-Slice A is complete when the project owner confirms that:
-
-- the approved product policy is accurately reflected in the implementation plan;
-- the reuse/extension boundaries above are acceptable;
-- production mappings remain blocked on the evidence record;
-- optional yield/forward capabilities may remain unavailable without blocking the historical strategy, except under explicit `hard_gate`; and
-- Slice B may begin with pure typed semantics and calculations only.
-
-No later slice is authorized by the existence of this record alone.

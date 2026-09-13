@@ -1,11 +1,9 @@
 # Evaluations & Golden Suite
 
-**Status:** Milestone v0.2 Step 2.5 is complete and approved as of 2026-08-31<br/>
-**Governing sequence and acceptance criteria:** [Milestone v0.2 Implementation Plan](project/milestones/v0.2/IMPLEMENTATION_PLAN.md#4518-implementation-sequence)<br/>
-**Formal implementation slices:** [Step 2.5 Golden Suite Slice Plan](project/milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md)<br/>
-**Current gate decision:** [Step 2.5 Gate M Review](project/milestones/v0.2/step-2.5/STEP_2_5_GATE_M_REVIEW.md)<br/>
-**Closeout evidence:** [Step 2.5 Closeout Verification Record](project/milestones/v0.2/step-2.5/STEP_2_5_CLOSEOUT_RECORD.md)<br/>
-**Architecture:** [Financial Data Agents Architecture](project/ARCHITECTURE.md#7-golden-suite-architecture-step-25)
+This guide explains the reproducible benchmark, its execution modes, scoring
+and fixture-maintenance rules.
+
+Implementation sequence and status live in the [slice plan](project/milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md#sequence-and-status).
 
 ## 1. Purpose
 
@@ -20,7 +18,7 @@ It evaluates deterministic financial behavior separately from local-model strate
 
 Step 2.5 implementation lives under `src/evaluation/`. The package consumes the existing strategy, market-data, financial-fact, provenance, resolution, tool-dispatch, and telemetry boundaries. It must not create a parallel strategy framework or force heterogeneous strategy results into one production result model.
 
-## 2. Current implementation status
+## 2. Implementation boundaries
 
 The tracked `src/evaluation/` package now contains typed Golden cases and expectation models, independently reviewed expected-value evidence, numerical and method/tool evaluators, aggregate result/report models, deterministic fixture composition, an evaluator self-test, and a deterministic runner. Existing deterministic market-data, Graham financial-fact, and annual FCF financial-fact providers live in `src/evaluation/fixtures/` without becoming production cache data.
 
@@ -28,13 +26,13 @@ Production strategy handlers are registered outside the evaluation and test pack
 
 The current versioned deterministic suite contains nineteen stable case IDs across Momentum, both Graham methods, Graham resolution, FCF/Earnings Growth, and the reviewed SEC FPI/IFRS boundaries. The approved fifteen-case `h1-v2` suite remains historical benchmark evidence; Step 2.5A Slice D deliberately advanced the suite and fixture set to `h1-v3` by adding four cases without rewriting earlier case IDs or fixtures.
 
-P1 hardening is complete and approved. Its evidence, mappings, implementation decisions, and review record are in the [P1 Instrument Applicability Mapping Record](project/milestones/v0.2/step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md). A known ETF remains applicable to Momentum but is `not_applicable` to both Graham methods and the existing company-level FCF Growth strategy. Unknown kind remains fail-open; it is never guessed from missing facts, a ticker, or a name.
+Its evidence, mappings, implementation decisions, and review record are in the [P1 Instrument Applicability Mapping Record](project/milestones/v0.2/step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md). A known ETF remains applicable to Momentum but is `not_applicable` to both Graham methods and the existing company-level FCF Growth strategy. Unknown kind remains fail-open; it is never guessed from missing facts, a ticker, or a name.
 
-P1 does not add persistence or another strategy. P2 — durable instrument profiles and a distinct ETF aggregate FCF-growth strategy — is planned only after Step 3.1. P2 may later extend the reviewed suite through the normal human-directed case-expansion process; it must not change existing case definitions, silently substitute for company-level FCF Growth, or turn production cache data into Golden fixtures.
+P1 does not add persistence or another strategy. Durable profiles and ETF aggregation are separate production capabilities; benchmark extensions must preserve existing case definitions and fixture independence.
 
 Slice I added the optional empirical runner. It uses the production orchestration and tool-dispatch path with deterministic Golden fixtures, preserves every repetition independently, records observable model/runtime configuration, and suppresses raw model-response and prompt-message bodies from trajectory persistence. Normal tests mock the model client and never contact Ollama.
 
-Slice J exposes both runners through `financial-agents evaluate`, adds explicit report-file handling and process-status semantics, and completes this operator guide. Slice K ran the full repository gate, recorded the final deterministic result and explicit absence of an optional empirical run separately, and reconciled every acceptance criterion in the [Closeout Verification Record](project/milestones/v0.2/step-2.5/STEP_2_5_CLOSEOUT_RECORD.md). The project owner approved the closeout on 2026-08-31. Step 2.5A D0 is the next implementation-planning handoff.
+The CLI exposes deterministic and empirical runners through `financial-agents evaluate`, with explicit report-file handling and exit semantics. [Verification evidence](project/milestones/v0.2/step-2.5/STEP_2_5_CLOSEOUT_RECORD.md) records deterministic results and the absence of optional empirical runs.
 
 ## 3. Execution modes
 
@@ -194,7 +192,7 @@ Read the case's `failure_reasons` together with its component results:
 - Do not silently refresh fixture evidence or replace historical values with current provider data.
 - Do not remove a useful failing case merely to improve a reported score.
 - Keep deterministic and empirical local-model results clearly separated.
-- Run the complete repository quality gate before Step 2.5 completion review.
+- Run the complete repository quality gate when changing benchmark behavior.
 
 When a case or fixture genuinely needs maintenance:
 

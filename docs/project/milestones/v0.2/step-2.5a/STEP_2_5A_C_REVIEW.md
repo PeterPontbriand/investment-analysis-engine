@@ -1,7 +1,8 @@
 # Step 2.5A Slice C — Gate E Review Record
 
-**Date:** 2026-09-01  
-**Status:** approved at mandatory Gate E
+Documents security-unit compatibility enforcement and regression evidence.
+
+Local sequence and status: [companion plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md#sequence-and-status).
 
 ## Outcome
 
@@ -65,11 +66,9 @@ Isolated artifacts:
 
 ## Gate E review checklist
 
-- [x] Approve the evidence fields and exact ordinary-share 1:1 predicate.
-- [x] Approve fail-closed precedence for the NVO currency mismatch.
-- [x] Confirm ADR/ADS and currency conversion remain deferred.
-- [x] Confirm issuer-level financial facts remain independent of quote-unit
+- Approve the evidence fields and exact ordinary-share 1:1 predicate.
+- Approve fail-closed precedence for the NVO currency mismatch.
+- Confirm ADR/ADS and currency conversion remain deferred.
+- Confirm issuer-level financial facts remain independent of quote-unit
   compatibility.
-- [x] Authorize Slice D only after this review is complete.
-
-Gate E received explicit human approval on 2026-09-01.
+- Authorize Slice D only after this review is complete.

@@ -1,8 +1,8 @@
 # Step 3.3A — Slice C Hidden Database Maintenance Amendment
 
-**Status:** Authorized on 2026-09-12 (Toronto). The project owner requested this amendment, approved Slice B and authorized Slice C: “Proceed with recording your recommended small contract amendment. As well, record my approval of Slice B and my authorization to proceed with Slice C.” The [Slice C review record](SLICE_C_COMPOSITION_REVIEW.md) now records implementation and completed verification. Slice C approval remains pending; do not begin D yet.
+Defines hidden database inspection and explicit upgrade commands.
 
-**Authority:** This amendment extends the [concrete contract](SLICE_A_CONTRACT_AND_VERIFICATION.md) for Slice C only. It supplements the existing composition/error work and preserves the [remaining C/D review gates](STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md#6-slices-and-review-gates). The [Slice B review record](SLICE_B_READINESS_REVIEW.md) remains the accepted implementation evidence.
+Local sequence and status: [companion plan](STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status).
 
 ## Commands and visibility
 

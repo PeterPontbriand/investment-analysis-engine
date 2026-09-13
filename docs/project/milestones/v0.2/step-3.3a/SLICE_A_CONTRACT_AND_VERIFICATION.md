@@ -1,8 +1,8 @@
 # Step 3.3A Slice A — Concrete readiness contract and verification
 
-**Status:** Gate A approved and Slice B implementation explicitly authorized by the project owner on 2026-09-12: “Gate A is approved and Slice B implementation is authorized. Proceed.” The approved contract was checkpointed at `d912d4d`. Implementation proceeds on `codex/step-3.3a-readiness`; Slice B was approved and Slice C authorized on 2026-09-12, including the [hidden maintenance amendment](SLICE_C_MAINTENANCE_AMENDMENT.md). No production source, permanent tests, dependencies or migration revisions changed during Slice A.
+Defines the concrete readiness interfaces, locking, schema checks and error contract.
 
-**Authority:** [Step 3.3A contract and gates](STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md). ESC-C is accepted. The project owner created `docs/step-3.3a-contract-planning` and explicitly authorized Slice A planning and verification. Source examined: `634164b` (merged PR #34), with a clean initial working tree. This document freezes the proposed implementation choices for review; it does not approve itself.
+Local sequence and status: [companion plan](STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status).
 
 ## 1. Source reconciliation and caller inventory
 
@@ -177,7 +177,3 @@ Disposable offline experiments used `.tmp/readiness_contract_probe.py` and recor
 4. Schema inspection confirmed the six expected tables after migration. Existing schema tests separately verify constraints, indexes and the encoding seed.
 
 Only disposable local databases were used. No operational database was read or migrated, no live provider/LLM was called, and no dependencies were installed. The temporary probes are not permanent acceptance tests; B/C must implement the matrix above. POSIX locks, full startup races, interrupted migration processes, schema-drift classification and final CLI wording remain implementation acceptance work, not completed claims.
-
-## 9. Gate A decision
-
-Gate A approval and Slice B authorization were granted on 2026-09-12 for the ownership sidecar, state/signature rules, same-instance memory support, Alembic injection, source-installation resource boundary, typed failures and exact file scope. Slice B subsequently passed its full gate and was explicitly approved on 2026-09-12; Slice C is authorized with the linked amendment. After C, stop for review before D documentation/acceptance. No commit, push, PR, dependency change or migration against user data is authorized by this handoff.

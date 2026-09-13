@@ -1,11 +1,8 @@
 # SEC EDGAR FPI / IFRS D0 Mapping Record
 
-**Decision date:** 2026-08-31<br/>
-**Status:** D0/Gate A complete; A0 implemented and verified, awaiting review<br/>
-**Placement:** Step 2.5A, after Step 2.5 completion and before Step 2.6<br/>
-**Execution plan:** [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)
-**D0 evidence:** [Step 2.5A D0 Evidence Freeze and Implementation Handoff](STEP_2_5A_D0_EVIDENCE_FREEZE.md)<br/>
-**A0 review:** [Step 2.5A A0 Identity/Security-Unit Boundary Review](STEP_2_5A_A0_REVIEW.md)
+Defines supported foreign annual forms, IFRS concepts and security-unit restrictions.
+
+Local sequence and status: [companion plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md#sequence-and-status).
 
 ## 1. Decision summary
 
@@ -218,13 +215,3 @@ Step 2.5 closeout establish a stable benchmark-extension workflow.
 | Substitute or sum broader IFRS CapEx concepts | Rejected | Changes the project FCF definition and can mix physical PP&E with intangibles or other assets. |
 | Fetch Company Facts independently for every field | Rejected | Can mix payload versions and weakens analysis-level reproducibility. |
 | Assume ticker quote and filing per-share units are identical | Rejected | Foreign listings and ADR/ADS ratios make that assumption unsafe. |
-
-## 9. Approval boundary
-
-This record approves the corrected design and its placement in the plan. D0 is
-complete, and Gate A approved the fixture scope, exact test matrix, bounded A0
-insertion, and resolver-spanning B1-A ownership on 2026-08-31. A0 may proceed;
-A1 remains unauthorized until the A0 review gate. Current production support
-claims do not change. The Step 2.4 mapping continues to report `20-F`/`40-F` and
-IFRS shapes as unavailable until the corresponding Step 2.5A slice is
-implemented, verified, reviewed, and approved.

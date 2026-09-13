@@ -286,8 +286,6 @@ Deterministic unit and integration tests enforce:
 
 # Pre-Golden Modernization Record
 
-Step 2.4 Slice F completed and approved the bounded Momentum modernization before Golden fixtures freeze its public behavior:
-
 - the resolver enforces `bar_timestamp <= effective_as_of` before calculation;
 - `sma_50`, `sma_200`, and `rsi_14` expose standard `MetricResult` status/reason semantics for unavailable evidence;
 - market data resolves through `MarketDataProvider` with retained `ResolvedInput` provenance and market context;

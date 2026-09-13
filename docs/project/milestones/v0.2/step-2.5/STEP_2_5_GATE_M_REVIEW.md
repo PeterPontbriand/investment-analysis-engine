@@ -1,15 +1,12 @@
 # Step 2.5 Gate M Review
 
-**Review date:** 2026-08-31<br/>
-**Checkpoint:** `4d08b1273fe3e226f69b3a47e9680e9e70d001eb` on `feat/step-2.5-golden-suite`<br/>
-**Repository state at review start:** clean; checkpoint already pushed<br/>
-**Original decision:** **Gate M not approved; mandatory bounded Slice H correction required**<br/>
-**Re-entry decision:** The corrected Gate M result was subsequently accepted; Slices I–J were also explicitly reviewed and accepted<br/>
-**Current status:** Historical Gate M record; current work is at the final approval gate documented in the [Step 2.5 Closeout Verification Record](STEP_2_5_CLOSEOUT_RECORD.md)
+Explains the minimum-suite defects and the evidence verifying their corrections.
+
+Local sequence and status: [companion plan](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md#sequence-and-status).
 
 ## 1. Purpose and review boundary
 
-Gate M is the mandatory stop after the minimum deterministic Golden Suite. This
+ This
 review inspected the checkpoint rather than accepting implementation summaries
 at face value. It covered:
 
@@ -138,20 +135,7 @@ Together with `GRA-ETF-01`, these cases form one cross-strategy scenario without
 creating a multi-tool generic case shape. Fifteen cases remain within the
 approved 10–18 initial range.
 
-### GM-5 — Current planning and evaluation documentation is stale
-
-Severity: blocking for a trustworthy handoff.
-
-The evaluation guide still describes typed models, evaluators, reports, runners,
-and cases as unimplemented. The slice plan still stops before A1 and records
-A1–G4 as pending. The implementation plan says to expand automatically after
-Gate M even though its detailed slice plan correctly requires review-directed
-changes. These discrepancies could send the next implementer to the wrong work.
-
 ## 5. Approved Slice H corrective scope
-
-Slice H is now mandatory and limited to the following work after the current
-documentation-only checkpoint is reviewed:
 
 1. Correct the 76 strict-mypy failures without changing benchmark criteria or
    production calculations.
@@ -195,13 +179,9 @@ Gate M may be reconsidered only when all of the following evidence is available:
 - aggregate and component denominators are explicit and honest; and
 - no live provider or LLM call occurred.
 
-The next decision is another human Gate M review. Gate M approval would authorize
-the next selected slice; it would not by itself mark Step 2.5 complete.
-
 ## 7. Slice H re-entry evidence
 
-Slice H was explicitly authorized after the documentation checkpoint was
-accepted. The correction stayed within the approved boundary: no production
+ The correction stayed within the approved boundary: no production
 financial formulas, public CLI, real-local-Ollama path, live-provider behavior,
 or dependency metadata changed.
 
@@ -227,4 +207,4 @@ null from a missing nested field below a null parent; an integration regression
 prevents those two outcomes from collapsing into the same observation.
 
 The re-entry evidence closes the demonstrated Slice H defects, but it is not a
-self-approval. Work remains stopped at Gate M pending human review.
+self-approval.

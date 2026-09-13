@@ -1,8 +1,8 @@
 # ESC-B — Implementation and final review
 
-**Status:** ESC-B reviewed and approved by the project owner on 2026-09-11 (Toronto), including the historical MSFT follow-up. The [ESC-C acceptance packet](ESC_C_FINAL_ACCEPTANCE.md) reconciles the final evidence; ESC-C stakeholder acceptance was granted on 2026-09-11 (Toronto). Work is uncommitted on `fix/existing-strategy-correctness`, based on approved, pushed `cb1e9ef50bcef5f549cdabba91c853629da78eed`. No database-readiness implementation, dependency change, operational database migration, commit or publication is included.
+Explains the correctness repairs and the deterministic and live evidence used to verify them.
 
-**Authority:** [Correctness plan](EXISTING_STRATEGY_CORRECTNESS_PLAN.md). Review with the [defect ledger](ESC_A_DEFECT_LEDGER.md) and [coverage reconciliation](ESC_A_COVERAGE_MATRIX.md). The original ESC-A evidence remains a historical baseline, not a description of current output.
+Local sequence and status: [companion plan](EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status).
 
 ## Result and contract changes
 
@@ -66,11 +66,11 @@ The heading-first follow-up (ESC-16) removes warning-level console output for in
 
 ### Investor-report follow-up
 
-Following stakeholder review of live KO details, ESC-15 was explicitly authorized: make details an investor explanation across all four analyses, while retaining complete technical provenance in diagnostics and JSON. The report now explains calculations and assumptions with compact input rows and readable magnitudes; raw taxonomy/context identifiers, recursive lineage, retrieval records and identity diagnostics remain available in technical modes. Graham's BVPS basis is consistent across views. JSON versions and financial calculations are unchanged.
+The report now explains calculations and assumptions with compact input rows and readable magnitudes; raw taxonomy/context identifiers, recursive lineage, retrieval records and identity diagnostics remain available in technical modes. Graham's BVPS basis is consistent across views. JSON versions and financial calculations are unchanged.
 
 The first follow-up live run exposed repeated displayed share rows whose underlying provenance differed. Deduplicating only identical displayed rows fixes the investor view without discarding source records. A permanent regression now uses differing retained notes for the same displayed component. Subsequent isolated live checks verify the final reports; paths and gate totals below supersede earlier verification for this presentation follow-up.
 
-The source documents and smoke expectations were updated to match the new mode boundary. Earlier statements in the original ESC-A contract about recursive evidence in details are superseded by this explicit stakeholder-approved follow-up; evidence remains available in diagnostics and JSON.
+The source documents and smoke expectations were updated to match the new mode boundary.
 
 Final follow-up gate: **2,044 passed / 89% coverage**, clean Ruff and strict mypy; `.tmp/quality-runs/20260911191102273-35632-45cd5ad063a8421d8d4896fe04e29f37/`. All four details and JSON commands again exited 0 in isolated live checks on **2026-09-11, 22:50 UTC**, recorded under `.tmp/esc-a-evidence/live-20260911T225023Z/`. The KO Number details now show the calculation, consistent BVPS basis, qualified preferred-zero inference, unique displayed share rows and filing link. Current provider data differs from the earlier 11:18 snapshot; the same annual valuation inputs still produce 21.14 USD. No operational database was migrated or replaced.
 
@@ -78,7 +78,7 @@ The schema/compatibility changes, ledger dispositions, representative live resul
 
 ### Historical Graham failure explanation follow-up
 
-Stakeholder review of smoke command 8 explicitly authorized investigation and repair of the investor-facing failure explanation. A read-only SEC Company Facts check on 2026-09-12 confirmed the MSFT evidence shape for the requested 2025-12-31 boundary: the 2025-07-30 annual filing reports fiscal-year-end stockholders' equity and direct common shares outstanding, but the payload supplies no preferred/preference concepts and no same-period issued-minus-treasury share components. This does not meet either supported preferred-zero inference pattern. The existing `test_generic_missing_preferred_tag_with_direct_common_shares_remains_unavailable` regression protects this refusal. No new inference or financial assumption was introduced.
+A read-only SEC Company Facts check on 2026-09-12 confirmed the MSFT evidence shape for the requested 2025-12-31 boundary: the 2025-07-30 annual filing reports fiscal-year-end stockholders' equity and direct common shares outstanding, but the payload supplies no preferred/preference concepts and no same-period issued-minus-treasury share components. This does not meet either supported preferred-zero inference pattern. The existing `test_generic_missing_preferred_tag_with_direct_common_shares_remains_unavailable` regression protects this refusal. No new inference or financial assumption was introduced.
 
 The Number presenter now explains the unresolved component from retained typed resolver events in the opening, qualifies missing preferred-share data, and distinguishes an unrequested quote after input failure from an attempted quote failure. Details retain that opening, omit an inapplicable share-unit comparison explanation, and describe formula precision without claiming a failed calculation completed. Raw resolver messages remain in diagnostics/JSON; schemas, exit codes, and calculation behavior are unchanged. The smoke guide now states these historical failure expectations.
 

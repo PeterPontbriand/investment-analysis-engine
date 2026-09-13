@@ -1,8 +1,8 @@
 # R2 migration inventory and R2-A checkpoint evidence
 
-**Prepared:** 2026-09-07. **Source revision:** `fb1821965a846b61417bb22e905385aae9ca64c9` (clean working tree before this documentation work).
-**Current status:** R2 complete and approved on 2026-09-07, including final Gate R2-E. Earlier sections preserve chronological evidence; final approval in handoff section 14 supersedes pending-gate snapshots.
-**Contract:** [R2 handoff](R2_CONTRACT_AND_SLICE_PLAN.md). Inventory entries authorize no execution independently of its slice gates. Refresh the audit against the actual starting revision before each slice; reconcile new necessary files before editing.
+Maps package moves, consumer updates and intentional retirements to verification evidence.
+
+Local sequence and status: [companion plan](R2_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status).
 
 ## 1. Discovery and scope
 
@@ -220,29 +220,29 @@ Managed gate passed on 2026-09-07 against `fb1821965a846b61417bb22e905385aae9ca6
 
 Command: `& (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gates.ps1')`. The initial sandbox attempt failed before checks with Python interpreter access denied (artifact directory `.tmp/quality-runs/20260907085029922-9404-2e8b55d86f23411ebe06019e7de6ecf7/`). The same unchanged wrapper then passed with approved escalated interpreter access. Both attempts kept temp/cache/coverage paths under the repository; no dependency synchronization or installation occurred.
 
-Section 9.3 evidence is complete. No new financial or resolver-design decision is required. This audit refines the already permitted private-consumer adaptation and exact file allowlists; it does not implement them. Gate R2-A stakeholder review remains pending; no R2-B execution, commit, push, or PR has occurred.
+Section 9.3 evidence is complete. No new financial or resolver-design decision is required. This audit refines the already permitted private-consumer adaptation and exact file allowlists; it does not implement them.
 
 ## 9. R2-B disposition (2026-09-07)
 
-Gate R2-A review completed and R2-B execution was explicitly authorized. The two section 3 files are now deleted; all 44 itemized cases are retired, with no other production/test edits. A fresh pre-deletion baseline passed 1,809 tests; the post-deletion full gate passed 1,765 tests at 89% reported coverage. Retained statement coverage is unchanged on a per-file basis. See [handoff section 10](R2_CONTRACT_AND_SLICE_PLAN.md#10-gate-r2-a-approval-and-r2-b-execution-record) for both artifact directories and detailed coverage accounting. Executable references are absent; historical exceptions remain. Gate R2-B review is pending; no later slice has started.
+ The two section 3 files are now deleted; all 44 itemized cases are retired, with no other production/test edits. A fresh pre-deletion baseline passed 1,809 tests; the post-deletion full gate passed 1,765 tests at 89% reported coverage. Retained statement coverage is unchanged on a per-file basis. See [handoff section 10](R2_CONTRACT_AND_SLICE_PLAN.md#10-gate-r2-a-approval-and-r2-b-execution-record) for both artifact directories and detailed coverage accounting. Executable references are absent; historical exceptions remain.
 
 ## 10. R2-C disposition (2026-09-07)
 
-Gate R2-B was approved and R2-C explicitly authorized. Every section 4 production/test edit is implemented, including the direct margin-helper import/name migration. No other production/test file was edited by this slice. The 46 new cases and pre/post managed gate evidence are recorded in [handoff section 11](R2_CONTRACT_AND_SLICE_PLAN.md#11-gate-r2-b-approval-and-r2-c-implementation-evidence). Final gate: 1,811 tests, 89% reported coverage, all shared-module statements/branches covered, Ruff/formatting/strict mypy passed. Gate R2-C review remains pending; section 5 package relocation has not started.
+ Every section 4 production/test edit is implemented, including the direct margin-helper import/name migration. No other production/test file was edited by this slice. The 46 new cases and pre/post managed gate evidence are recorded in [handoff section 11](R2_CONTRACT_AND_SLICE_PLAN.md#11-gate-r2-b-approval-and-r2-c-implementation-evidence). Final gate: 1,811 tests, 89% reported coverage, all shared-module statements/branches covered, Ruff/formatting/strict mypy passed.
 
 ## 11. R2-D refreshed inventory (2026-09-07)
 
-The clean pushed checkpoint is `fa6c2c9addbda4c36c1dd133f1b404eb00f4e9b6`. R2-D execution is explicitly authorized. The source/test consumer list remains applicable after R2-C. CLI `_build_graham_resolver` must accept the requested resolver type, so both command call sites and the existing builder tests migrate together. Mixed-method fixtures select the corresponding concrete resolver without retaining a combined class. Existing test paths stay fixed. No new production file outside the approved packages/consumer list is needed. The fresh full baseline passed 1,811 tests at 89% reported coverage; artifacts: `.tmp/quality-runs/20260907093925994-28964-9e4c6bff4eb747b59b1106ad32d6e35c/`.
+The clean pushed checkpoint is `fa6c2c9addbda4c36c1dd133f1b404eb00f4e9b6`.  The source/test consumer list remains applicable after R2-C. CLI `_build_graham_resolver` must accept the requested resolver type, so both command call sites and the existing builder tests migrate together. Mixed-method fixtures select the corresponding concrete resolver without retaining a combined class. Existing test paths stay fixed. No new production file outside the approved packages/consumer list is needed. The fresh full baseline passed 1,811 tests at 89% reported coverage; artifacts: `.tmp/quality-runs/20260907093925994-28964-9e4c6bff4eb747b59b1106ad32d6e35c/`.
 
 ## 12. R2-D disposition (2026-09-07)
 
 All section 5 production package/consumer migrations are complete within the refreshed scope. The old Graham, Momentum, and FCF source directories are removed; every new strategy package is importable. Existing test locations and fixture namespaces remain unchanged. `tests/analysis/graham_value/test_security_unit_compatibility.py` needed no further edit because R2-C already migrated its only affected import; all other inventoried affected test consumers were updated. No executable documentation/configuration consumer was discovered. Section 6 active architecture/discovery tree updates remain pending R2-E.
 
-The complete managed gate passed 1,811 tests, Ruff/formatting, and strict mypy at 89% reported coverage. See [handoff section 12](R2_CONTRACT_AND_SLICE_PLAN.md#12-gate-r2-c-approval-and-r2-d-implementation-evidence) for final artifact paths, retained-case audit, exact coverage reconciliation, and scope review. Gates R2-A/R2-B/R2-C are approved; R2-D implementation is verified and awaits Gate R2-D review. R2-E is not authorized.
+The complete managed gate passed 1,811 tests, Ruff/formatting, and strict mypy at 89% reported coverage. See [handoff section 12](R2_CONTRACT_AND_SLICE_PLAN.md#12-gate-r2-c-approval-and-r2-d-implementation-evidence) for final artifact paths, retained-case audit, exact coverage reconciliation, and scope review.
 
 ## 13. R2-E refreshed scope (2026-09-07)
 
-Gate R2-D is approved and R2-E is explicitly authorized from clean pushed checkpoint `9e42867d1fb1dc4ebdbc8daa4559640c5cdda6f3`. Refreshing section 6 found additional obsolete active references within its already inventoried documents: ARCHITECTURE section 3 input-resolution heading and section 6 data-flow diagram, plus DISCOVERY_WORKBOOK section 8 flow diagram and section 24 glossary entry. These need the two method-resolver names in addition to the directory-tree updates. This documentation scope reconciliation precedes those edits; no executable consumer was discovered.
+ Refreshing section 6 found additional obsolete active references within its already inventoried documents: ARCHITECTURE section 3 input-resolution heading and section 6 data-flow diagram, plus DISCOVERY_WORKBOOK section 8 flow diagram and section 24 glossary entry. These need the two method-resolver names in addition to the directory-tree updates. This documentation scope reconciliation precedes those edits; no executable consumer was discovered.
 
 Additional retained historical reference: `docs/project/milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`, section 9.2, records the original combined resolver design. Retain its original wording as historical implementation evidence, like the other completed milestone designs in section 7; current resolver ownership is defined by the active architecture and R2 handoff. No new file outside the six inventoried active/planning documents requires editing.
 
@@ -252,8 +252,4 @@ All active documentation entries in section 6 and the section 13 additions are r
 
 Remaining old-name references occur only in the eight historical/migration files classified in section 7 and the original Graham design added in section 13. These are retained as historical evidence or explicit migration instructions, not active import guidance. Existing `tests.analysis.graham_value` fixture imports and stable serialized strategy/tool identifiers are preserved. Historical gate snapshots in this record remain chronological evidence; the current-status header and final disposition supersede their pending-gate wording.
 
-Only six files changed in R2-E: ARCHITECTURE, DISCOVERY_WORKBOOK, MASTER_PLAN, the v0.2 IMPLEMENTATION_PLAN, this inventory, and the R2 handoff. The full baseline and final managed gates passed with unchanged test counts and coverage. See handoff section 13 for exact artifacts and reconciliation. Gate R2-E review remains pending; R2 is not yet marked complete.
-
-## 15. Final approval
-
-Final R2 approval was granted on 2026-09-07. All reference dispositions and verification evidence are accepted; Gate R2-E is closed and R2 is complete. See [handoff section 14](R2_CONTRACT_AND_SLICE_PLAN.md#14-final-approval-and-r2-completion).
+Only six files changed in R2-E: ARCHITECTURE, DISCOVERY_WORKBOOK, MASTER_PLAN, the v0.2 IMPLEMENTATION_PLAN, this inventory, and the R2 handoff. The full baseline and final managed gates passed with unchanged test counts and coverage. See handoff section 13 for exact artifacts and reconciliation.

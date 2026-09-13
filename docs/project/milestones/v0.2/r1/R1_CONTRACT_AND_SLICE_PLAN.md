@@ -1,19 +1,22 @@
 # R1 Contract and Implementation Handoff
 
-**Status:** Gates R1-A and R1-B approved on 2026-09-06; documentation checkpoint b7625fd preceded R1-B checkpoint 36b8dbf. Gate R1-C approved on 2026-09-06; R1 complete and approved.
-**Authority:** [Implementation Plan, R1](../IMPLEMENTATION_PLAN.md).
-**Approval effect:** Approval of this record and the amended implementation plan
-closed Gate R1-A and authorized R1-B. Subsequent Gate R1-B approval authorized
-R1-C. Gate R1-C approval on 2026-09-06 closes R1; no later work is authorized.
+Defines the method-specific Graham analyzer and shared CLI support boundaries.
 
-## 1. Scope and ordering
+Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
+
+## Sequence and status
+
+| Order | Scope | Local gate |
+| :--- | :--- | :--- |
+| A → B → C | Contract; analyzer/config wrappers; CLI/support migration | Accepted |
+
+## 1. Scope
 
 R1-B adds method-specific configuration/analyzer wrappers over existing Graham
 execution services. R1-C replaces the combined command and extracts applicable
 CLI support. Preserve legacy public analyzer/config interfaces, orchestration
 handlers/tool identities, service functions, resolver rules, numerical behavior,
-provenance, applicability, and result schemas. R1 precedes Step 3.4 by scheduling
-choice, not a technical prerequisite. No other strategy must adopt BaseAnalyzer.
+provenance, applicability, and result schemas.  No other strategy must adopt BaseAnalyzer.
 
 ## 2. Configuration contract
 
@@ -171,18 +174,6 @@ Gate R1-B before authorizing R1-C, and at Gate R1-C before completing R1. No
 subsequent work begins automatically. No dependency change or database migration
 is included in this authorization.
 
-## 7. Approval record
-
-On 2026-09-06, the project owner approved this handoff and authorized R1-B.
-The subsequent instruction requires a checkpoint commit of all pending planning
-documentation changes before any R1-B implementation edits. At that time R1-C
-remained unauthorized pending Gate R1-B; the subsequent approval is recorded below.
-
-Pre-implementation checkpoint verification passed on 2026-09-06: Ruff,
-formatting, strict mypy, and the full deterministic pytest/coverage suite.
-Artifacts: .tmp/quality-runs/20260906133144108-40088-8eda8918aa094309954f6509d9b88164/.
-No production or test files were changed before this checkpoint.
-
 ## 8. R1-B implementation evidence
 
 The documentation-only checkpoint was committed as `b7625fd` on
@@ -210,15 +201,7 @@ with 1,750 passing tests (135 new) and 89% reported coverage on 2026-09-06. The 
 were reviewed. Final artifacts:
 `.tmp/quality-runs/20260906133939615-1760-6e282d99d4eb4b6dab6ba06dc6567dc0/`.
 
-**Review status:** Ready for Gate R1-B stakeholder review. No R1-C work,
-implementation commit, push, or PR was performed. R1 completion and later work
-remain separately gated.
-
-
 ## 9. R1-C authorization and affected-file inventory
-
-The project owner approved Gate R1-B and authorized R1-C on 2026-09-06.
-A checkpoint commit containing the approved R1-B changes has been created and pushed.
 
 Production edits: src/cli.py and new src/cli_support.py only.
 Affected existing tests identified from imports, patch targets, and invocations:
@@ -243,8 +226,7 @@ Historical milestone command evidence remains unchanged.
 
 ## 10. R1-C implementation evidence
 
-On 2026-09-06 the project owner authorized Codex to replace the unfinished
-Cline implementation and approved a targeted rollback. Before rollback, the
+Before rollback, the
 affected CLI and scratch files were copied to
 `.tmp/r1-c-recovery-20260906194623/`. The approved CLI baseline was restored
 from `36b8dbf`; R1-B analyzer/config code and unrelated R2 planning were preserved.
@@ -270,7 +252,7 @@ Growth. Non-finite explicit quotes retain the existing `invalid_input` result;
 unavailable provider quotes retain their existing optional-quote behavior.
 
 Planning evidence also updates `../IMPLEMENTATION_PLAN.md` to reflect Gate R1-B
-approval and the pending Gate R1-C review. This is status synchronization only.
+approval and the pending Gate R1-C review.
 
 Final managed gate passed on 2026-09-06: Ruff, formatting, strict mypy, and
 1,809 deterministic tests (59 more than the restored baseline), with 89%
@@ -278,31 +260,3 @@ reported coverage. Artifacts:
 `.tmp/quality-runs/20260906195900845-46700-7d90a4b6397e4f00abc9c6a5ea5f5b15/`.
 The final diff and active command references were reviewed; `git diff --check`
 passed. No live provider/model calls, commit, push, or PR were performed.
-Ready for Gate R1-C stakeholder review; R1 is not marked complete and no later
-implementation has been started by this work.
-
-## 11. Final approval and R1 completion
-
-On 2026-09-06, the project owner reviewed and explicitly approved the R1-C
-implementation. This closes Gate R1-C and completes R1, including all three
-review gates and the acceptance criteria in the implementation plan. The final
-verification evidence in section 10 remains authoritative: 1,809 passing tests,
-89% reported coverage, Ruff, formatting, and strict mypy.
-
-The approval supersedes the historical pending-review status above. This update
-records completion only; no commit, push, PR, or subsequent implementation is
-authorized or performed by this record.
-
-## Merged implementation checkpoint — 2026-09-07
-
-[PR #29](https://github.com/PeterPontbriand/financial-data-agents/pull/29) merged
-R1 and R2 into `main` on 2026-09-07 at 17:55:41 UTC. Merge commit:
-`ca914b73281aaf5e618684098bb4f115c90972c5`; reviewed PR head:
-`c4316425c52488c6574c93027235b9ac980e0803`. Their tracked trees are identical.
-This closes the implementation/PR workflow; prior no-PR and pending-review
-statements remain historical execution snapshots, superseded by final approval
-and this merge record. No predecessor checkpoint or review gate remains open.
-
-The [Step 3.2 handoff](../step-3.2/STEP_3_2_CONTRACT_AND_SLICE_PLAN.md) now owns
-current planning. Its preparation is authorized by the subsequent project-owner
-request; the R1/R2 merge itself does not authorize later implementation.

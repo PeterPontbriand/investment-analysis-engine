@@ -1,16 +1,12 @@
 # Step 2.5A B1-B Exact IFRS Duration-Fact Review
 
-**Base checkpoint:** `6e9019e40df13277fac9353e53446da44d1b26c3`<br/>
-**Implementation date:** 2026-09-01 (America/Toronto)<br/>
-**Status:** Implemented and verified; stopped at Gate D for human review<br/>
-**Authorization:** Gate C approval recorded in the
-[B1-A review](STEP_2_5A_B1_A_REVIEW.md)<br/>
-**Execution plan:** [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)
+Documents exact IFRS duration mappings, lineage and verification.
+
+Local sequence and status: [companion plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md#sequence-and-status).
+
+Evidence baseline: `6e9019e40df13277fac9353e53446da44d1b26c3`.
 
 ## 1. Outcome
-
-B1-B maps exactly four approved `ifrs-full` completed-annual duration concepts
-through the existing SEC adapter:
 
 | Project field | Accepted provider field |
 | :--- | :--- |
@@ -61,13 +57,3 @@ No verification test makes a live SEC, quote-provider, or LLM call.
   `.tmp/quality-runs/20260901222208858-20088-5c11e6a5010d42d2a457d53e48b65e0f/`.
 
 Dependencies and lock files were not changed.
-
-## 4. Review decision required
-
-Reviewers should confirm every accepted raw-to-normalized lineage, the exact
-concept-only boundary, positive-expenditure behavior, preservation of existing
-annual reconciliation semantics, and continued exclusion of IFRS instant/BVPS
-and C security-unit work.
-
-B1-B is stopped at Gate D. Do not begin C until this implementation and review
-record receive explicit human approval.

@@ -1,23 +1,8 @@
 # Graham Comparison Repair — R2 implementation and verification
 
-**Acceptance update:** The verified Graham repair is checkpointed in `e8f4a95` on the renamed `fix/existing-strategy-correctness` branch. Its final acceptance is reopened and incorporated into ESC-C of the [expanded four-analysis audit](../existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md). Preserve the following evidence as history, not approval of the expanded scope or permission to resume readiness.
+Explains the Graham comparison implementation, regression evidence and support limits.
 
-**Status:** Implementation and deterministic verification complete on 2026-09-10;
-paused for R2/R3 stakeholder review. Final acceptance has not been granted.
-
-## Authorization and branch
-
-R1 was accepted and R2 explicitly authorized. The user subsequently approved
-typed source lineage for derived common shares and the inferred zero-preferred
-guard. After the concurrent S0–S6 distribution amendment was surfaced, the user
-instructed continuation toward final review. Intermediate slice approvals are
-not claimed; the repair plan records that execution clarification.
-
-Work is on `fix/graham-price-comparison`, with HEAD `fba79c5` plus the working
-tree changes. That shared-checkout commit already includes the README audit
-correction and part of the production repair. Review the combined branch and
-working-tree changes, not only the unstaged diff. This completion made no commit,
-push, or PR. Database-readiness implementation remains separate and unauthorized.
+Local sequence and status: [companion plan](GRAHAM_COMPARISON_REPAIR_PLAN.md#sequence-and-status).
 
 ## Implemented contract
 
@@ -84,9 +69,7 @@ filing supplements rather than replaces deterministic evidence.
 
 ## Follow-up: reported live KO failure
 
-The original completion claim was premature. The user subsequently demonstrated
-that `graham-number KO --no-cache` still returned `unsupported_evidence`.
-The retained KO filing parsed successfully, but verifying its stockholders'
+The original completion claim was premature.  The retained KO filing parsed successfully, but verifying its stockholders'
 equity source failed: the verifier rejected every dimensioned occurrence of
 that concept, including ordinary equity-component and investee disclosures.
 Those disclosures coexist with the correct entity-wide total. The original
@@ -113,8 +96,7 @@ writes; the setting was restored afterward. A subsequent unmodified
 `graham-number KO` returned the same relationship with cached EPS and BVPS.
 The observed Graham Number was 21.14 USD and quote 87.55 USD. These are dated
 smoke-test observations, not promised future output. No schema migration or
-cache deletion was performed. The user guide now documents this existing
-refresh mechanism and distinguishes it from `--no-cache`.
+cache deletion was performed.
 
 Follow-up managed gate: **2,004 tests passed**, **89% reported coverage**,
 Ruff/format and strict mypy clean. Artifacts:
@@ -134,5 +116,4 @@ entries. No automatic cache purge, schema change, migration, or durable filing
 cache is part of this repair. JSON consumers pinned to version 3 must explicitly
 accept version 4.
 
-Review and accept R2/R3 before resuming Step 3.3A at its existing planning gate.
-Step 3.4 remains deferred. Publication requires its own explicit authorization.
+Review and accept R2/R3 before resuming Step 3.3A at its existing planning gate. Publication requires its own explicit authorization.

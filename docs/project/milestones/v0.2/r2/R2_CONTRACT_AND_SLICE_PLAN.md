@@ -1,19 +1,20 @@
 # R2 Contract and Implementation Handoff — Analysis Strategy Package Split
 
-**Status:** R2 complete and approved on 2026-09-07. All gates, including final Gate R2-E, are approved.
-**Authority:** [Implementation Plan, R2](../IMPLEMENTATION_PLAN.md#47b-r2--analysis-strategy-package-split). This accepted record owns R2's detailed contracts and gates.
-**Baseline:** R1 is complete and approved. The project owner reports commit `685221d832e431f3b310e9eccbc26982761f9960` created and pushed. [R1 final approval](../r1/R1_CONTRACT_AND_SLICE_PLAN.md#11-final-approval-and-r1-completion) records 1,809 passing tests, 89% reported coverage, Ruff, formatting, and strict mypy. This is recorded evidence, not a fresh R2 verification run; a merge is not an additional prerequisite.
-**Approval effect:** Final approval closes R2. Commit and PR text are requested as drafts; no commit, push, PR creation, or later milestone implementation is authorized by this closeout.
+Defines the analysis-package split, shared-helper scope and compatibility requirements.
 
-## 1. Scope and ordering
+Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
-R2 follows R1 and is scheduled before Step 3.2 scope reconciliation, Step 3.3, P2-Profiles, and Step 3.4. This is a sequencing choice, not a technical dependency. P2-ETF retains its independent deferral beyond Step 3.6.
+## Sequence and status
 
-1. **R2-A:** freeze the contracts, migration inventory, baseline, and approvals in documentation.
-2. **R2-B:** retire the unused legacy Graham analyzer and its dedicated tests.
-3. **R2-C:** extract shared financial-resolution helpers and adopt the identical profile-validation/ETF predicates in FCF Growth, without relocating existing files.
-4. **R2-D:** decompose Graham into method packages and relocate Momentum/FCF, updating all executable consumers atomically. Graham decomposition includes an explicitly reviewed resolver-interface change; it is not described as a pure relocation.
-5. **R2-E:** synchronize remaining active documentation, reconcile the reference inventory, and review final verification evidence.
+| Order | Scope | Local gate |
+| :--- | :--- | :--- |
+| A → B → C | Contract; legacy retirement; shared helpers | Accepted |
+| D → E | Atomic package/consumer migration; documentation | Accepted |
+
+## 1. Scope
+
+ This is a sequencing choice, not a technical dependency. P2-ETF retains its independent deferral beyond Step 3.6.
+
 
 Momentum and FCF retain their internal behavior and heterogeneous interfaces. `base_analyzer.py` stays at its existing path; no new strategy must subclass it. No discovery/registry framework, self-registering CLI commands, new financial algorithms, dependency changes, persistence migration, or provider/model calls are included.
 
@@ -38,20 +39,20 @@ Thus R2 includes two demonstrated FCF shared-helper adoptions and Momentum reloc
 **Prerequisites and deliverables**
 
 - Verify the R1 commit exists locally and reconcile its affected-file inventory against its diff. Use the recorded R1 gate evidence and establish a fresh managed baseline before production refactoring.
-- Resolve the decisions in section 9, freeze section 5's symbol/dependency map, and record explicit acceptance of intentional interface removals.
+- Freeze section 5's symbol/dependency map and identify intentional interface removals.
 - Enumerate exact production, test, configuration, script, and active documentation consumers before authorizing their edits. Search dotted imports, slash/backslash paths, patch targets, exported symbols, and dynamic module strings. Include tracked hidden configuration such as `.github/` and `.claude/`; exclude `.git/`, virtual environments, caches, and generated artifacts.
 - Record the inventory in a companion `R2_MIGRATION_INVENTORY.md` in this directory, separating executable consumers, active guidance, approved historical references, and planned deleted tests. Record source revision and discovery commands. The inventory is a required R2-A deliverable, not an assumed completed audit.
-- Synchronize the milestone plan and Master Plan scheduling references. Preserve historical R1 approval evidence.
+- Update only the owning status table.
 - Prepare a reviewable documentation checkpoint; commit/push only when authorized.
 
 **Acceptance and Gate R2-A**
 
-- [x] R1 checkpoint and gate evidence reconciled; fresh managed baseline recorded in the [migration inventory](R2_MIGRATION_INVENTORY.md).
-- [x] Exact consumer/deletion inventory complete, including exports and configuration.
-- [x] Section 9.1/9.2 decisions resolved; separate-resolver design and named retirements accepted on 2026-09-06.
-- [x] Planning references agree and documentation evidence is prepared and checked.
-- [x] Gate R2-A stakeholder review of the documentation checkpoint and evidence is complete; R2-B execution authorized on 2026-09-07.
-- [x] Explicit approval covers R2-B's two named deletions and supersedes R1's legacy-preservation constraint for those interfaces only; execution awaits review of the completed R2-A evidence.
+- R1 checkpoint and gate evidence reconciled; fresh managed baseline recorded in the [migration inventory](R2_MIGRATION_INVENTORY.md).
+- Exact consumer/deletion inventory complete, including exports and configuration.
+- Section 9.1/9.2 decisions resolved; separate-resolver design and named retirements accepted on 2026-09-06.
+- Planning references agree and documentation evidence is prepared and checked.
+- Gate R2-A stakeholder review of the documentation checkpoint and evidence is complete; R2-B execution authorized on 2026-09-07.
+- Explicit approval covers R2-B's two named deletions and supersedes R1's legacy-preservation constraint for those interfaces only; execution awaits review of the completed R2-A evidence.
 
 ## 3. R2-B — Retire the legacy Graham analyzer
 
@@ -67,13 +68,6 @@ The legacy wrapper uses a different data boundary and lacks the production path'
 No other production file changes are permitted. Unexpected callers or required active documentation changes must be reconciled into the approved inventory before deletion.
 
 **Acceptance and Gate R2-B**
-
-- [x] Named files removed after explicit deletion authorization.
-- [x] No executable consumer or obsolete active guidance references the removed interfaces.
-- [x] Historical approval records and explicit migration explanations remain, classified in the reference inventory.
-- [x] Deleted test cases are itemized; retained tests and behavior are unchanged.
-- [x] Full managed gate passes and actual delete-only diff is checked.
-- [x] Gate R2-B stakeholder review complete and R2-C separately authorized on 2026-09-07.
 
 ## 4. R2-C — Shared financial-resolution helpers
 
@@ -102,16 +96,14 @@ Also update `src/analysis/fcf_earnings_growth/analyzer.py` at its existing path:
 
 **Acceptance and Gate R2-C**
 
-- [x] Shared helpers and direct tests in `tests/analysis/shared/test_financial_resolution.py` exist.
-- [x] Resolver and service delegate without duplicated private implementations.
-- [x] Shared helpers contain no strategy-specific message templates or defaults. Direct tests prove caller-supplied diagnostic text is passed through unchanged, while strategy-level regressions preserve exact existing public messages.
-- [x] FCF uses the two shared checks with its own exact mismatch text and native ETF result. Deterministic tests cover absent profile, matching/mismatched normalized ticker, confirmed ETF, equity, and absent/unknown kind evidence; mismatch still raises before resolver access and confirmed ETFs still skip annual resolution. Retained profiles, effective/requested boundaries, all result statuses/reasons, and optional-context fields are unchanged.
-- [x] Existing Graham assertions remain unchanged; necessary private patch-target adaptations are inventoried and preserve the same fault injection.
-- [x] The inventoried direct private-helper consumer in `tests/analysis/graham_value/test_security_unit_compatibility.py` imports/calls shared `margin_of_safety` instead of service `_margin_of_safety`, with every argument and assertion preserved.
-- [x] Fixed-clock regression evidence satisfies section 7, including explicit trace comparisons.
-- [x] No existing file is relocated; only the three named production consumers (Graham resolver/service and FCF analyzer), shared package, approved tests, and planning evidence change. Momentum production code is untouched.
-- [x] Full managed gate passes and actual implementation diff is checked.
-- [x] Gate R2-C stakeholder review completed on 2026-09-07; R2-D is to be separately authorized.
+- Shared helpers and direct tests in `tests/analysis/shared/test_financial_resolution.py` exist.
+- Resolver and service delegate without duplicated private implementations.
+- Shared helpers contain no strategy-specific message templates or defaults. Direct tests prove caller-supplied diagnostic text is passed through unchanged, while strategy-level regressions preserve exact existing public messages.
+- FCF uses the two shared checks with its own exact mismatch text and native ETF result. Deterministic tests cover absent profile, matching/mismatched normalized ticker, confirmed ETF, equity, and absent/unknown kind evidence; mismatch still raises before resolver access and confirmed ETFs still skip annual resolution. Retained profiles, effective/requested boundaries, all result statuses/reasons, and optional-context fields are unchanged.
+- Existing Graham assertions remain unchanged; necessary private patch-target adaptations are inventoried and preserve the same fault injection.
+- The inventoried direct private-helper consumer in `tests/analysis/graham_value/test_security_unit_compatibility.py` imports/calls shared `margin_of_safety` instead of service `_margin_of_safety`, with every argument and assertion preserved.
+- Fixed-clock regression evidence satisfies section 7, including explicit trace comparisons.
+- No existing file is relocated; only the three named production consumers (Graham resolver/service and FCF analyzer), shared package, approved tests, and planning evidence change.
 
 ## 5. R2-D — Strategy decomposition and atomic consumer migration
 
@@ -159,7 +151,7 @@ This explicitly replaces the combined public `GrahamInputResolver`; the old cons
 
 In `AnalysisToolDependencies`, replace `graham_resolver` with two required fields, `graham_number_resolver: GrahamNumberInputResolver` and `graham_growth_resolver: GrahamGrowthInputResolver`. Each handler passes its matching dependency to the unchanged method-specific tool operation. Update evaluation composition and every dependency fixture atomically. This Python dependency-container interface change is part of the proposed R2-D authorization; the LLM-facing tool argument models, names, routing, and outputs remain unchanged.
 
-No shims are retained for any relocated package, including Momentum and FCF. This compatibility policy was explicitly accepted under section 9.2; no repeat approval is required. Serialized method identifiers, tool names, config/result fields, CLI commands/options/output, and persisted data contracts remain unchanged.
+No shims are retained for any relocated package, including Momentum and FCF.  Serialized method identifiers, tool names, config/result fields, CLI commands/options/output, and persisted data contracts remain unchanged.
 
 ### Atomic migration and acceptance
 
@@ -167,12 +159,12 @@ Relocate Momentum/FCF with `git mv` when implementation is authorized. Decompose
 
 The [completed migration inventory](R2_MIGRATION_INVENTORY.md) enumerates the exact production/test consumers, including CLI, orchestration, evaluation, and reporting. Inspection found no moved imports in `src/cli_support.py`; do not edit it without an actual affected reference. Refresh the inventory before implementation edits and reconcile newly demonstrated consumers first.
 
-- [x] All symbols have reviewed destinations; old strategy directories are removed.
-- [x] All executable imports, patches, resolver construction sites, and exports migrate together within the approved inventory.
-- [x] Consumer edits are restricted to imports, method-resolver selection/construction, and corresponding typing; financial, presentation, routing, and resource behavior is preserved.
-- [x] Tests retain every surviving behavioral case. Resolver fixture construction may change as specified; assertions cannot be weakened to accommodate regressions.
-- [x] Full managed gate passes with all consumers working, including CLI, reporting, orchestration, evaluation/Golden cases, and cache/composition tests.
-- [x] Actual diff and section 7 evidence reviewed and approved on 2026-09-07. R2-E is authorized pending checkpoint commit.
+- All symbols have reviewed destinations; old strategy directories are removed.
+- All executable imports, patches, resolver construction sites, and exports migrate together within the approved inventory.
+- Consumer edits are restricted to imports, method-resolver selection/construction, and corresponding typing; financial, presentation, routing, and resource behavior is preserved.
+- Tests retain every surviving behavioral case. Resolver fixture construction may change as specified; assertions cannot be weakened to accommodate regressions.
+- Full managed gate passes with all consumers working, including CLI, reporting, orchestration, evaluation/Golden cases, and cache/composition tests.
+- Actual diff and section 7 evidence reviewed and approved on 2026-09-07.
 
 ## 6. R2-E — Documentation reconciliation and final sweep
 
@@ -180,11 +172,10 @@ Update remaining active architecture/user/developer guidance from the approved i
 
 Require zero executable references and zero obsolete active guidance to old dotted or filesystem paths and removed symbols. Allow historical approvals, archived implementation evidence, and explicit old-to-new migration explanations; record exact retained files/reasons in the inventory. This document itself necessarily contains old names. A repository-wide zero-hit rule is not an acceptance criterion.
 
-- [x] Active guidance, examples, exports, and the destination map agree.
-- [x] Every reference-inventory entry is migrated, removed under approval, or explicitly retained with a reason.
-- [x] Any newly discovered executable consumer is remediated under a reviewed R2-D scope amendment, not hidden in a documentation-only slice.
-- [x] Final managed gate passes; test and coverage changes are reconciled under section 7.
-- [x] Final actual diff and evidence receive Gate R2-E approval before R2 is marked complete. Later milestone work remains separately authorized.
+- Active guidance, examples, exports, and the destination map agree.
+- Every reference-inventory entry is migrated, removed under approval, or explicitly retained with a reason.
+- Any newly discovered executable consumer is remediated under a reviewed R2-D scope amendment, not hidden in a documentation-only slice.
+- Final managed gate passes; test and coverage changes are reconciled under section 7.
 
 ## 7. Write boundaries and verification
 
@@ -217,25 +208,9 @@ The wrapper runs non-mutating Ruff/formatting, strict mypy, and deterministic py
 
 Retain existing cases and add focused tests for extracted helpers and new dependency wiring. Itemize R2-B's removed test node IDs; map moved/split test IDs to their retained behavioral cases. New tests cannot compensate for unexplained loss of old cases. Compare totals after accounting for authorized deletions and parameterization changes, rather than requiring raw pre-R2 test-count equality. Report coverage percentage and covered/missing lines: deletion changes the denominator. Preserve coverage of retained behavior, meet the project >=85% overall target, and investigate unexplained losses instead of masking them with newly covered helper lines.
 
-## 8. Approval and evidence record
-
-On 2026-09-06 the project owner confirmed R1 completion and pushed checkpoint `685221d832e431f3b310e9eccbc26982761f9960`, and requested revision/inclusion of this proposal in milestone planning. This authorizes documentation work only. R2-A review is in progress; no R2 gate is closed and R2-B through R2-E remain unstarted.
-
-On 2026-09-06 the project owner accepted the R2 plan and section 9.1 resolver design and explicitly approved section 9.2 retirements. These decisions supersede the earlier proposal-review status. Section 9.3 evidence remains outstanding; Gate R2-A is not yet closed and no implementation has been performed.
-
-Append each gate's actual date, decision, reviewed revision/diff, verification evidence, and exact next-slice authorization when granted. Do not infer approval from successful tests or this document's presence in the milestone plan.
-
-On 2026-09-07, section 9.3 evidence preparation completed against planning checkpoint `fb1821965a846b61417bb22e905385aae9ca64c9`. The R1 file-scope reconciliation found no unexplained changes. The exact migration inventory includes 44 collected legacy test cases. The fresh managed gate passed Ruff, formatting, strict mypy, and 1,809 tests with 89% reported coverage. Full artifact and coverage details are recorded in [R2_MIGRATION_INVENTORY.md](R2_MIGRATION_INVENTORY.md). Gate R2-A is ready for stakeholder review, not yet closed. No production/test edits, deletions, commit, push, or PR were performed.
-
-## 9. Decisions and evidence still required before Gate R2-A
-
-1. **Resolver design — accepted 2026-09-06:** two method-specific `InputResolver` subclasses housed in their respective `calculation.py` modules, the analyzer/service dependency-type change, and the two-field `AnalysisToolDependencies` migration. The project owner explicitly confirmed that no combined resolver need be retained.
-2. **Compatibility/removal — explicitly approved 2026-09-06:** retirement of the named legacy module/tests and removal of the combined resolver and old import paths for all three relocated strategy families. This approval accepts the compatibility policy; do not request it again or misrepresent repository search as proof about external consumers.
-3. **Checkpoint evidence — complete 2026-09-07:** the [exact migration inventory, R1 reconciliation, and fresh managed baseline](R2_MIGRATION_INVENTORY.md) are recorded. No new financial or resolver-design decision was needed. Present this evidence for Gate R2-A review before R2-B execution; retirement approval remains in force and need not be requested again.
-
 ## 10. Gate R2-A approval and R2-B execution record
 
-On 2026-09-07 the project owner completed Gate R2-A review and explicitly authorized R2-B execution. The reviewed section 9.3 evidence and exact migration inventory are accepted. This approval does not authorize R2-C or a commit/push/PR.
+The reviewed section 9.3 evidence and exact migration inventory are accepted.
 
 Before deletion, the full managed baseline passed on `fb1821965a846b61417bb22e905385aae9ca64c9` with only the pending R2 planning evidence in the working tree: Ruff, formatting, strict mypy, and 1,809 tests in 30.97 seconds, with 89% reported coverage (9,398 statements, 793 missing). Artifacts: `.tmp/quality-runs/20260907091113599-35368-9bc6aceb6d46487da66be740a194b65d/`. The refreshed caller audit again found executable legacy references only in the two approved retirement files.
 
@@ -245,11 +220,11 @@ The post-retirement managed gate passed Ruff, formatting (274 files), strict myp
 
 Per-file coverage reconciliation shows the retired module accounts for all 90 removed statements and all 16 fewer missing statements. Every retained module has the same covered/missing statement count. All retained financial-analysis branch counts are unchanged. One additional unexercised branch is reported in the unchanged logging adapter (`src/utils/logger_util.py`, the optional context condition at line 396); this is ancillary logging coverage, not a financial regression or a removed retained test. No logging refactor is included.
 
-Final scope/whitespace and executable-reference checks passed. R2-B is implemented and ready for Gate R2-B review. R2-C remains unauthorized and unstarted. No commit, push, PR, dependencies, or database changes were made.
+Final scope/whitespace and executable-reference checks passed.
 
 ## 11. Gate R2-B approval and R2-C implementation evidence
 
-On 2026-09-07 the project owner completed Gate R2-B review and explicitly authorized R2-C. The fresh pre-refactor managed baseline passed Ruff, formatting, strict mypy, and 1,765 tests in 28.03 seconds with 89% reported coverage. Artifacts: `.tmp/quality-runs/20260907091845275-5796-7266e8f7f742480390eb9c9f42de7d56/`. The base revision remained `fb1821965a846b61417bb22e905385aae9ca64c9`, plus the approved R2-B deletions and pending planning evidence; no intervening source changes were present.
+The fresh pre-refactor managed baseline passed Ruff, formatting, strict mypy, and 1,765 tests in 28.03 seconds with 89% reported coverage. Artifacts: `.tmp/quality-runs/20260907091845275-5796-7266e8f7f742480390eb9c9f42de7d56/`. The base revision remained `fb1821965a846b61417bb22e905385aae9ca64c9`, plus the approved R2-B deletions and pending planning evidence; no intervening source changes were present.
 
 Created `src/analysis/shared/__init__.py` and `financial_resolution.py`. Extracted EPS/optional-quote request construction and profile/evidence/comparison helpers, preserving existing data-layer precedence and ownership. Graham resolver/services delegate without retaining duplicate private implementations. Graham keeps applicability and unverified-ticker messages locally and supplies its full profile-mismatch message. FCF adopts only the equivalent profile/ETF checks, supplies its complete mismatch message, and retains its native result/message construction. No existing file moved; Momentum, base/data resolvers, configs, calculators, service entry points, orchestration, CLI, and dependencies remain unchanged.
 
@@ -259,11 +234,11 @@ The 46 added cases comprise 39 direct shared-helper cases, 3 complete-result FCF
 
 Final complete managed gate passed on 2026-09-07: Ruff; formatting (277 files); strict mypy (217 source files); and 1,811 tests in 28.99 seconds. Coverage remains 89% reported: 9,317 statements, 775 missing, 8,542 covered (approximately 91.7% statement coverage), 2,964 branches, 497 partial branches. The new shared module has all 39 statements and all branches covered. No other retained module gained missing statements/branches; FCF analyzer and Graham service each improved by one missing statement and one missing branch. Artifact directory: `.tmp/quality-runs/20260907093014278-31416-5509ab07c8b04649b7681d441668cc65/`.
 
-Final scope and whitespace checks passed. Shared production code has no Graham/FCF/Momentum-specific text or imports; removed private implementations are absent. The working-tree R2-B deletions predate this slice; R2-C adds only its inventoried shared module/tests and edits the three authorized production consumers and three authorized existing test files. No commit, push, PR, live provider/model call, or R2-D work occurred. Ready for Gate R2-C stakeholder review; R2-D remains unauthorized.
+Final scope and whitespace checks passed. Shared production code has no Graham/FCF/Momentum-specific text or imports; removed private implementations are absent. The working-tree R2-B deletions predate this slice; R2-C adds only its inventoried shared module/tests and edits the three authorized production consumers and three authorized existing test files.
 
 ## 12. Gate R2-C approval and R2-D implementation evidence
 
-On 2026-09-07 the project owner approved Gate R2-C, pushed checkpoint `fa6c2c9addbda4c36c1dd133f1b404eb00f4e9b6`, and explicitly authorized R2-D. The refreshed inventory and fresh full baseline are recorded in inventory section 11. Baseline: 1,811 tests in 27.54 seconds; 89% combined coverage; 9,317 statements, 775 missing (8,542 covered), 2,964 branches, 497 partial branches.
+The refreshed inventory and fresh full baseline are recorded in inventory section 11. Baseline: 1,811 tests in 27.54 seconds; 89% combined coverage; 9,317 statements, 775 missing (8,542 covered), 2,964 branches, 497 partial branches.
 
 Implemented the approved Number/Growth packages with separate inherited-constructor resolvers and shared Graham contracts. Relocated all Momentum/FCF source with Git moves, retaining their filenames and behavior. Removed all three old source directories without shims. Migrated the inventoried CLI, reporting, orchestration, evaluation, and test consumers atomically. CLI construction selects the concrete resolver type; evaluation shares provider/cache/clock dependencies across the two wrappers. Strategy services continue owning their public messages; shared trace helpers accept caller-supplied text. `base_analyzer.py` and the R2-C financial-resolution helper implementation are unchanged.
 
@@ -271,32 +246,14 @@ The final managed gate passed Ruff, formatting (282 files), strict mypy (222 sou
 
 All existing test functions and the 1,811-case total are retained; no test files or behavioral cases were removed. Existing resolver, analyzer, CLI builder/provider-routing, and dependency fixtures now exercise the method-specific wiring. Source AST comparison confirms both pure Graham calculators and all Momentum/FCF non-import code are unchanged. The first post-migration gate exposed two stale CLI builder mock expectations; they now require the Growth resolver explicitly, preserving all provider assertions. A subsequent formatting check caught mixed line endings in that test edit; normalization and the final full gate resolved it.
 
-The executable source/test reference audit has zero old package paths or `GrahamInputResolver` references. Test fixture namespaces remain intentionally unchanged. Diff scope and whitespace checks passed. Active architecture/discovery directory-tree reconciliation remains R2-E work. R2-D is ready for stakeholder review; Gate R2-D is not yet approved and R2-E remains unauthorized/unstarted. No commit, push, PR, dependency change, live provider/model call, or user-data migration was performed.
+The executable source/test reference audit has zero old package paths or `GrahamInputResolver` references. Test fixture namespaces remain intentionally unchanged. Diff scope and whitespace checks passed. Active architecture/discovery directory-tree reconciliation remains R2-E work.
 
 ## 13. Gate R2-D approval and R2-E final reconciliation
 
-The project owner approved Gate R2-D, pushed checkpoint `9e42867d1fb1dc4ebdbc8daa4559640c5cdda6f3`, and explicitly authorized R2-E. Execution started from that clean revision on 2026-09-07. Updated the six inventoried documentation/planning files, including the additional active resolver references reconciled before edits in inventory section 13. Final reference dispositions are recorded in inventory section 14. Active package trees, resolver terminology, dependency ownership, exports, and shared caller-message policy agree with the implementation. Historical design/approval evidence remains intact.
+Execution started from that clean revision on 2026-09-07. Updated the six inventoried documentation/planning files, including the additional active resolver references reconciled before edits in inventory section 13. Final reference dispositions are recorded in inventory section 14. Active package trees, resolver terminology, dependency ownership, exports, and shared caller-message policy agree with the implementation. Historical design/approval evidence remains intact.
 
 Fresh baseline: Ruff, formatting (282 files), strict mypy (222 source files), and 1,811 tests passed in 27.90 seconds. Artifacts: `.tmp/quality-runs/20260907111845372-25472-5e96817a79544456851e744b5811db07/`.
 
 Final managed gate: Ruff, formatting (282 files), strict mypy (222 source files), and 1,811 tests passed in 26.14 seconds. Artifacts: `.tmp/quality-runs/20260907112056976-33320-b8dad7a8f5754c63b8ef2449f6e2f866/`. Both runs report 89% combined coverage: 9,376 statements, 776 missing, 8,600 covered (approximately 91.7% statement coverage), 2,964 branches, 497 partial branches. R2-E changes no source/tests, so its test count and coverage are unchanged. Across R2, the initial 1,809 cases minus 44 explicitly retired cases plus 46 shared-helper/applicability cases equals the final 1,811. R2-B/C/D sections preserve the per-slice denominator and retained-coverage reconciliation; no behavioral case loss is unexplained.
 
-Final diff/whitespace and old-reference checks passed. No production, test, dependency, persisted-data, or runtime-contract changes are included in R2-E. No commit, push, PR, live provider/model call, or later milestone execution occurred. R2-E is ready for stakeholder review; final Gate R2-E approval is still required before R2 is marked complete. Later milestone work remains separately authorized.
-
-## 14. Final approval and R2 completion
-
-On 2026-09-07 the project owner granted final approval for R2. Gate R2-E is approved and R2 is complete. The reviewed documentation reconciliation, reference dispositions, and final managed gate in section 13 are accepted: 1,811 passing tests, Ruff, formatting, strict mypy, and 89% reported coverage. Earlier pending-gate entries remain historical snapshots superseded by this approval. Commit SHAs remain in slice evidence; master and milestone plans retain status and evidence links without SHAs. Later milestone work requires separate authorization.
-
-## Merged implementation checkpoint — 2026-09-07
-
-[PR #29](https://github.com/PeterPontbriand/financial-data-agents/pull/29) merged
-R1 and R2 into `main` on 2026-09-07 at 17:55:41 UTC. Merge commit:
-`ca914b73281aaf5e618684098bb4f115c90972c5`; reviewed PR head:
-`c4316425c52488c6574c93027235b9ac980e0803`. Their tracked trees are identical.
-This closes the implementation/PR workflow; prior no-PR and pending-review
-statements remain historical execution snapshots, superseded by final approval
-and this merge record. No predecessor checkpoint or review gate remains open.
-
-The [Step 3.2 handoff](../step-3.2/STEP_3_2_CONTRACT_AND_SLICE_PLAN.md) now owns
-current planning. Its preparation is authorized by the subsequent project-owner
-request; the R1/R2 merge itself does not authorize later implementation.
+Final diff/whitespace and old-reference checks passed. No production, test, dependency, persisted-data, or runtime-contract changes are included in R2-E. Later milestone work remains separately authorized.

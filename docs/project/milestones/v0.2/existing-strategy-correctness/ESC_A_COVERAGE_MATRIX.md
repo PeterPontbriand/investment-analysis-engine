@@ -1,8 +1,8 @@
 # ESC-A — Coverage and acceptance matrix
 
-**Status:** ESC-B approved on 2026-09-11 (Toronto); reconciliation complete for [ESC-C final acceptance](ESC_C_FINAL_ACCEPTANCE.md), approved on 2026-09-11 (Toronto). The original investigation matrix below records requirements at `8d7fba0`; the closing reconciliation records evidence on the repaired working tree based on `cb1e9ef` (2,054 tests / 89% coverage). [Implementation record](ESC_B_IMPLEMENTATION_AND_REVIEW.md), [evidence and contracts](ESC_A_EVIDENCE_AND_REPAIR_CONTRACT.md), [ledger](ESC_A_DEFECT_LEDGER.md), [authority](EXISTING_STRATEGY_CORRECTNESS_PLAN.md).
+Maps the analysis pipelines and output modes to their regression evidence and coverage limits.
 
-“Existing” below means relevant tests/source were identified and the complete suite passed; it does not claim those tests exhaust the listed dimension. “Required” identifies explicit ESC-B/C proof still owed. All applicable cells must be reconciled before ESC-C. A missing CLI capability is marked non-applicable only at the CLI boundary, not silently excluded from service/tool tests.
+Local sequence and status: [companion plan](EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status).
 
 ## Per-analysis coverage
 
@@ -41,17 +41,6 @@ Paths are repository-relative. These are concrete starting points for extension;
 | FCF | Period/horizon absent, zero observation count, unavailable/nonmeaningful CAGR, missing diluted shares, consensus/yield nulls | Retain exact reason and selected basis. Counts can legitimately be zero on input failure. No unapproved forward or market-cap substitution. |
 | JSON | Null metadata/metrics, zero numbers, empty diagnostics, schema versions | Nulls remain numeric absence; no NaN/Inf. Available evidence must not be lost during composition. Error output is a parseable versioned document under C6. |
 
-## Outstanding acceptance work and closure rules
-
-This is the original ESC-A checklist. Implementation evidence and dispositions are recorded in the reconciliation below; explicit ESC-C acceptance was subsequently granted on 2026-09-11 (Toronto).
-
-1. Add permanent realistic regression fixtures for all twelve ledger entries, including the reduced KO last-row data failure; execute the repair contracts only after approval.
-2. Complete each applicable matrix cell with a concrete test, source proof or dated live observation. Investigate current open audit questions about future cache times, historical daily boundary semantics, FCF effective-as-of propagation and corrupt-entry presentation. A discovered additional defect enters the ledger before closure; this list is not an approved waiver.
-3. Obtain successful representative live output for all four analyses, plus documented unavailable/error cases. Current Momentum live failure is explained but does not satisfy its success cell. Live provider recovery is not assumed.
-4. Reconcile supported provider/basis combinations and public interfaces against the implemented behavior; update dated user examples only after their outputs are verified.
-5. Run the full managed gate and record current revision, exact totals/coverage and unique artifact directory. Require ≥85% overall coverage and meaningful branch evidence, not only a test-count increase.
-6. Present one ESC-C review with no unresolved known defects or unexplained required cells. Preserve the ESC-D revalidation requirement on the actual Step 3.5 starting revision after readiness/workspace/profile work.
-
 ## ESC-B reconciliation
 
 The anchors in this section supplement the per-analysis regression directories above. All ran in the final complete gate; a source-shaped annual-fact fixture and a transport-level SEC parser fixture are different evidence, and neither is described as the other. The gate covers both existing contracts and newly added regressions.
@@ -75,6 +64,6 @@ No new market calendar, historical-vintage certification, provider mapping, or g
 
 **Acceptance disposition:** implementation evidence reconciled and accepted at ESC-C on 2026-09-11 (Toronto); ESC-D must renew this evidence after readiness/workspace/profile changes on the actual pre-Step-3.5 revision.
 
-**Stakeholder-approved presentation follow-up:** ESC-15 moves complete technical provenance to diagnostics/JSON and makes details an investor explanation across all four analyses. This supersedes earlier detail-mode expectations for raw field/context identifiers and recursive notes. Tests preserve technical-evidence assertions in diagnostics, add compact-report and inference/deduplication assertions, and verify the shared BVPS basis. The final 2,044-test gate and renewed all-four live checks are recorded in the review packet. Presentation JSON versions and calculations remain unchanged.
+This supersedes earlier detail-mode expectations for raw field/context identifiers and recursive notes. Tests preserve technical-evidence assertions in diagnostics, add compact-report and inference/deduplication assertions, and verify the shared BVPS basis. The final 2,044-test gate and renewed all-four live checks are recorded in the review packet. Presentation JSON versions and calculations remain unchanged.
 
 **Historical failure reconciliation (ESC-17):** The later 2,054-test gate supersedes that total. Graham's modes/statuses, missing-input, historical and absence cells additionally include `test_number_missing_component_explains_failure_before_diagnostics`, `test_number_failure_does_not_relabel_attempted_quote_as_not_requested`, the CLI missing-input regression and the existing SEC missing-preferred/direct-common regression. The dated MSFT live case verifies unavailable BVPS, retained eligible EPS and cache provenance, an unrequested quote, nonzero exit and parseable JSON. It is an explicitly supported refusal, not an unresolved valuation defect. See the ledger and [ESC-C packet](ESC_C_FINAL_ACCEPTANCE.md).

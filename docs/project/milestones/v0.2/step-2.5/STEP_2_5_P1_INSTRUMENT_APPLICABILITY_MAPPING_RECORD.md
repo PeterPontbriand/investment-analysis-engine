@@ -1,22 +1,8 @@
 # P1 Instrument Applicability Mapping Record
 
-**Status:** P1-A through P1-C complete and approved; consumed by the Step 2.5 Golden implementation<br/>
-**Prepared:** 2026-08-30  
-**Governing plan:** [Milestone v0.2 Implementation Plan](../IMPLEMENTATION_PLAN.md#450-p1--pre-golden-instrument-applicability-hardening)  
-**Slice plan:** [Step 2.5 Golden Suite Slice Plan](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md#5a-approved-prerequisite--p1-instrument-applicability-hardening)  
-**Predecessor identity contract:** [Step 2.4 provider mapping record](../step-2.4/STEP_2_4_PROVIDER_MAPPING_RECORD.md#31-security-identity)
+Defines provider-backed instrument classification and strategy applicability.
 
-## 1. Approval and current decision
-
-The project owner approved the provider mapping and contract shape on 2026-08-30, then approved the focused P1-B contracts and authorized P1-C. The current decision is whether to approve the completed P1-C strategy, presentation, CLI/handler, schema, and regression work summarized in Section 13 before Golden Case model implementation begins.
-
-The proposal deliberately separates three questions:
-
-1. **Security identity:** What current descriptive name, venue, and stable identifiers did a provider return?
-2. **Instrument kind:** What raw instrument classification did a provider return, and which normalized project kind—if any—does the reviewed mapping establish?
-3. **Strategy applicability:** Given affirmative normalized kind evidence, does one named analytical method apply?
-
-Missing facts, missing identity, unknown kind, provider failure, and an invalid ticker are not interchangeable states.
+Local sequence and status: [companion plan](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md#sequence-and-status).
 
 ## 2. Evidence base
 
@@ -116,9 +102,9 @@ Production composition for Graham and company-level FCF Growth uses explicit can
 3. call each capability/provider at most once during one analysis run; and
 4. ensure YFinance identity and kind access share one lazily fetched metadata dictionary for that client/ticker.
 
-P1 intentionally accepts one current Yahoo metadata retrieval per direct Graham/FCF run when the injected production classifier is enabled. That lookup establishes applicability before expensive company-fact resolution and prevents known ETFs from being processed as operating companies. It remains fail-open: when Yahoo is unavailable or returns no reviewed kind, the selected strategy follows its existing resolution path.
+ That lookup establishes applicability before expensive company-fact resolution and prevents known ETFs from being processed as operating companies. It remains fail-open: when Yahoo is unavailable or returns no reviewed kind, the selected strategy follows its existing resolution path.
 
-There is no cross-process or durable cache in P1. P2 after Step 3.1 owns persistent instrument profiles, freshness, invalidation, disagreement, and ticker-reuse policy behind the same provider-neutral profile seam.
+There is no cross-process or durable cache in P1.
 
 Deterministic fixture composition supplies profile evidence directly and never constructs the live YFinance provider.
 
@@ -196,24 +182,9 @@ P1 does not approve:
 - changes to Momentum, Graham, or FCF financial formulas; or
 - use of production provider responses as Golden fixture truth.
 
-Those persistence and aggregate-strategy concerns remain P2 after Step 3.1.
-
-## 11. P1-A approval gate
-
-Human approval should confirm or amend:
-
-1. the three-value normalized vocabulary and exact Yahoo mappings in Section 3;
-2. separate `SecurityIdentity`, `InstrumentKindEvidence`, and composed `InstrumentProfile` provenance;
-3. ordered SEC/Yahoo identity precedence and one request-scoped Yahoo metadata fetch;
-4. ETF-only applicability control flow in Section 6;
-5. native result, exit-code, and investor-message behavior in Section 7; and
-6. the presentation schema-version proposal in Section 8.
-
-**Decision:** Approved by the project owner on 2026-08-30 without amendment. P1-B was authorized; the expanded mappings and P2 concerns remain excluded.
+Persistence and aggregate-strategy behavior are outside this mapping.
 
 ## 12. P1-B focused contract review
-
-P1-B implements the approved provider-neutral seam without changing strategy, CLI, result, or presentation behavior:
 
 - `src/data/instrument_profile.py` adds the reviewed three-value `InstrumentKind`, separate immutable raw/normalized `InstrumentKindEvidence`, its narrow optional provider capability, stable nullable evidence serialization, an immutable composed `InstrumentProfile`, and ordered classified diagnostics;
 - `compose_instrument_profile(...)` accepts an explicit ordered identity-candidate tuple plus one optional kind candidate, rejects duplicate identity provider IDs, stops identity resolution at the first success, resolves kind independently, and converts unsupported, unavailable, mismatched, and failed optional evidence into diagnostics;
@@ -225,11 +196,7 @@ Deterministic focused tests cover exact and unknown mappings, absent/malformed e
 
 P1-B deliberately does **not** wire the profile into Graham, FCF Growth, Momentum, CLI, tool handlers, typed results, report presenters, JSON schema versions, or exit-status behavior. Those changes and the complete repository quality gate remain P1-C work after explicit P1-B approval.
 
-**Decision:** Approved by the project owner on 2026-08-30. P1-C strategy, presentation, CLI/handler, and full-gate work was authorized.
-
 ## 13. P1-C implementation and final review
-
-P1-C applies the approved profile seam without changing financial formulas:
 
 - direct CLI requests and dependency-injected production handlers resolve one request-scoped profile and pass it through each strategy's existing service/analyzer boundary;
 - affirmative ETF evidence short-circuits both Graham methods before company inputs or current quotes and short-circuits company-level FCF Growth before annual fact resolution;
@@ -242,4 +209,4 @@ P1-C applies the approved profile seam without changing financial formulas:
 
 The version decisions are FCF native result schema 3 with unchanged method version 2, Momentum/Graham presentation schema 3, and FCF presentation schema 4. Deterministic fixtures provide profile evidence directly; tests perform no live provider or LLM calls.
 
-Focused verification covers exact profile behavior, ETF short-circuiting, supported-equity/unknown/provider-error fail-open behavior, production-handler consistency, unchanged Momentum output, all affected presentation evidence, CLI status and headings, and absence of unsupported ticker-verification advice. The focused P1-C selection passed Ruff, formatting, strict mypy, and 89 deterministic tests. The complete repository gate then passed on 2026-08-30: repository-wide Ruff and format checks, strict mypy over 151 source/test files, and all 972 tests with 86% line coverage. Final P1 approval remains required before Slice A1.
+Focused verification covers exact profile behavior, ETF short-circuiting, supported-equity/unknown/provider-error fail-open behavior, production-handler consistency, unchanged Momentum output, all affected presentation evidence, CLI status and headings, and absence of unsupported ticker-verification advice. The focused P1-C selection passed Ruff, formatting, strict mypy, and 89 deterministic tests. The complete repository gate then passed on 2026-08-30: repository-wide Ruff and format checks, strict mypy over 151 source/test files, and all 972 tests with 86% line coverage.

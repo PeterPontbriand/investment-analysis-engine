@@ -1,12 +1,14 @@
 # Issue #17 — Telemetry Closeout Plan
 
-**Status:** Complete and approved on 2026-09-07. Contract and final acceptance reviews are closed; publication and GitHub issue closure remain outstanding.
+Defines and verifies recovery-event linkage and sanitized payload hashing.
 
-**Authority:** The [milestone implementation plan](../IMPLEMENTATION_PLAN.md) owns sequencing and scope. This companion defines the bounded implementation and acceptance contract for [Issue #17](https://github.com/PeterPontbriand/financial-data-agents/issues/17).
+Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
-**Sequencing:** The project owner requested that Issue #17 be addressed next, after completed Step 3.2 and before Step 3.3. This is a prioritization decision, not a new technical prerequisite for data quality. Step 3.3, P2-Profiles, Step 3.4, and Step 3.6 retain their existing review gates. This document does not reopen completed Steps 2.1, 2.6, or 3.2.
+## Sequence and status
 
-**Authorization:** On 2026-09-07 the project owner stated, “Reviewed and accepted. Record and proceed.” This accepted the bounded contract, linked-error-context interpretation, file scope, and verification matrix and authorized implementation and verification without intermediate slice approvals. The subsequent instruction, “Final review complete and approved,” closes final acceptance. The project owner clarified the next-step authorization as “Authorize Step 3.3 next”; Step 3.3 is authorized to begin within its existing scope and gates. Step 2.4 remains complete and is not reopened. Commit, push, PR creation, issue comments, and issue closure require explicit authorization and are not implied by these approvals.
+| Order | Scope | Local gate |
+| :--- | :--- | :--- |
+| Contract → regressions → verification | Recovery linkage and sanitized hashing | Accepted |
 
 ## 1. Source reconciliation and baseline
 
@@ -53,35 +55,12 @@ Prefer assertions at the recorder/orchestrator public behavior boundary. Reuse e
 - `tests/orchestrator/test_reliability_enforcement.py`: recovery behavior and failure isolation.
 - `tests/core/telemetry/test_orchestrator_telemetry.py`: ordered persisted trajectory evidence where existing fixtures are suitable.
 - `src/orchestrator/loop.py` and `src/core/telemetry/recorder.py`: only if bounded defects are demonstrated by tests.
-- This companion and `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`: acceptance evidence and tracking. `docs/project/MASTER_PLAN.md`: sequencing/status synchronization only.
 
-## 4. Execution and review gates
+## 4. Verification requirements
 
-1. **Contract review:** Approved on 2026-09-07, including the linked-error-context interpretation and file scope; implementation was then authorized.
-2. **Baseline and implementation:** Recheck the worktree and current commit; run the complete managed gate. Add focused regressions, observe meaningful failures where coverage exposes a defect, and make only required bounded corrections. Coverage-only tests may pass against already-correct behavior.
-3. **Acceptance verification:** Run the relevant focused suites and the complete non-mutating repository gate from the repository root:
-
-   ```powershell
-   & (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gates.ps1')
-   ```
-
-   Use the existing synchronized environment and unique ignored run directory supplied by the wrapper. Record Ruff, format, strict mypy, test counts, coverage, and any bounded corrections. Do not install dependencies or use real model/provider endpoints.
-4. **Documentation and final review:** Map H1–H3 and R1–R5 to concrete tests and results. Update the milestone follow-ups and draft the issue-resolution text locally. Present the diff and evidence for final acceptance; passing tests alone does not mark the closeout approved.
-5. **Publication:** Following explicit authorization, perform the agreed commit/PR and issue-update workflow. Do not close Issue #17 before the accepted changes are merged and its acceptance criteria are reconciled. Resume later milestone work only under its own gates.
-
-## 5. Completion record
-
-- Contract review: approved on 2026-09-07.
-- Implementation: completed on 2026-09-07; test changes only, with no demonstrated production defect.
-- Fresh complete baseline: passed on 2026-09-07, 1,853 tests in 34.97 seconds, 89% reported coverage, clean Ruff/format (286 files) and strict mypy (224 source files).
-- Final quality gate: passed on 2026-09-07, **1,870 tests in 37.72 seconds**, **89% reported coverage**, clean Ruff/format (286 files), and strict mypy (224 source files).
-- Acceptance matrix and final review: approved on 2026-09-07; Issue #17 implementation closeout is complete.
-- Next-step authorization: Step 3.3 authorized to begin on 2026-09-07; implementation has not begun in this closeout task. Later work retains its own scope and gates.
-- Commit/PR/merge and issue closure: not performed for this work item.
-
-Baseline artifacts: `.tmp/quality-runs/20260907203145990-32920-84f74dcec2974471ba135488ed779fdf/` (ignored). The managed wrapper used the existing Python interpreter without dependency synchronization.
-
-Final artifacts: `.tmp/quality-runs/20260907203619693-31712-80c3cec0daea4a4ca27c6413b78aaaac/` (ignored). Both complete runs used the section 4 wrapper. The source coverage denominator is unchanged at 9,422 statements and 2,980 branches; missing statements decreased from 776 to 775 and partial branches from 497 to 496. Reported combined coverage remains 89%. The 17 added cases account for the entire test-count increase. No raw trajectory or quality-run artifacts are included in the change.
+Run focused recovery/hash tests and the complete non-mutating repository quality
+wrapper. Use fixed clocks and synthetic records; mock all external transports.
+Record test totals, coverage and isolated artifact paths with the evidence.
 
 ## 6. Acceptance evidence
 
@@ -99,15 +78,3 @@ The implementation extends two existing test modules. It reuses the existing JSO
 | R5 | `test_recovery_sink_failure_preserves_execution` (transport, native schema, prompt schema): paired working/failing sinks preserve two LLM calls, one successful tool result, and the same configured terminal step-limit outcome; exactly one recovery write fails. |
 
 Focused verification: **35 passed in 1.19 seconds**, comprising the two modified modules and unchanged orchestrator telemetry integration module. This adds 17 collected cases over the 18-test review baseline; no tests were removed. Initial new-fixture failures were configuration conflicts, corrected to honor the existing `max_validation_retries = max_consecutive_schema_violations - 1` contract. These were not production defects. Formatting corrections were confined to the two modified test files.
-
-## 7. Draft issue-resolution text
-
-Local draft only; not posted. Use after final acceptance and merge, with the actual PR/merge reference supplied during the authorized publication workflow:
-
-> Recovery emission was implemented in Step 2.6 for transport retries and schema repairs. The follow-up regression coverage now verifies ordered recovery trajectories, step/span linkage, sanitized linked error context, retry boundaries, and fail-open recovery recording in transport and native/prompt schema paths. Recovery events retain category/attempt metadata; preceding span-linked ERROR events supply detailed sanitized context, as accepted in the closeout contract.
->
-> Payload-hash tests cover retained values including empty/falsy payloads, omitted/null payloads, stable canonical hashing across nested key order, changed safe values, and hashing only redacted retained material. JSONL readback confirms synthetic secrets are absent. Production behavior remains unchanged.
->
-> Verification: 35 focused tests and the complete managed gate passed, including 1,870 tests, 89% reported coverage, Ruff, formatting, and strict mypy.
-
-Final stakeholder review approved this closeout on 2026-09-07, including the linked-error-context interpretation and the full verification evidence. Step 3.3 is authorized to begin. Issue #17 should close when this accepted change merges; approval here does not assert that the PR is already merged.

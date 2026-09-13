@@ -1,9 +1,17 @@
 # Step 2.3 Graham Implementation Slice Plan
 
-**Status:** Step 2.3 complete and approved; Slices A–G complete<br/>
-**Governing design:** `docs/project/milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`<br/>
-**Scope:** Milestone v0.2, Step 2.3 only<br/>
-**Last updated:** 2026-08-25
+Organizes the Graham implementation scope and its local review gates.
+
+Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
+
+## Sequence and status
+
+| Order | Scope | Local gate |
+| :--- | :--- | :--- |
+| A → B | Reconnaissance; calculators/results | Accepted |
+| C1 → C2 → D | Provenance/cache; resolver contracts; fixtures | Accepted |
+| E1 → E2 → E3 | Provider evidence; adapters; standard configuration | Accepted |
+| F1 → F2 → G | Presentation; CLI; final verification | Accepted |
 
 ## 1. Purpose
 
@@ -25,46 +33,6 @@ The following rules applied to every slice:
 8. Production provider fields are not guessed. They must pass the provider evidence gate in the governing design.
 9. Expected growth remains an explicit user-supplied input for the growth-value method unless a separate growth-estimation policy is approved.
 10. Do not commit automatically at the end of an individual slice. A human may explicitly authorize a coherent reviewed checkpoint commit/push; Cline must otherwise leave the worktree untouched by Git write actions.
-
-## 3. Coding-model workflow
-
-Use one fresh Cline task per slice or tightly bounded correction. Every prompt should contain:
-
-- a short repository-state handoff;
-- the single slice objective;
-- exact authorized files or file areas;
-- explicit exclusions;
-- focused tests and quality gates;
-- a requirement to report actual files and symbols present on disk; and
-- an instruction not to commit.
-
-Paste the complete prompt before switching Cline to Act mode. Do not switch an existing task to Act mode while it still has pending instructions.
-
-At the end of each slice:
-
-1. Review Cline's report skeptically against the actual diff.
-2. Generate a full tracked-and-untracked diff with the local `all_changes.diff.sh` convenience script.
-3. Confirm that no unauthorized files or concepts were introduced.
-4. Resolve only review findings within that slice before proceeding.
-5. If the project owner designates the state as a checkpoint, rerun the agreed gate and obtain explicit commit/push authorization; a checkpoint does not complete the parent step.
-6. Begin the next slice in a fresh Cline task.
-
-## 4. Slice status and scope
-
-| Slice | Scope | Status |
-| :--- | :--- | :--- |
-| A | Repository reconnaissance only | Complete |
-| B | Pure calculators and typed method results | Complete and approved |
-| C1 | Provenance models and in-memory cache foundation | Complete and approved |
-| C2 | Provider-neutral fact contracts and field-level input resolution | Completed incrementally through C2D-2 and approved |
-| D | Deterministic valuation fixtures and fixture adapter | Complete and approved |
-| E1 | Production-provider evidence investigation | Complete and approved |
-| E2 | Evidence-approved production adapters | Complete and approved |
-| Checkpoint | Preserve coherent foundation through E2 | Human-approved commit/push permitted; Step 2.3 remained incomplete at this checkpoint |
-| E3 | User-viable standard Graham production data-source configuration (BVPS gap) | Complete and approved |
-| F1 | Investor-facing result presentation for Graham + Momentum | Complete and approved |
-| F2 | Unified direct-analysis CLI and CLI tests | Complete and approved |
-| G | Documentation synchronization, final cleanup, and full quality gate | Complete and approved |
 
 ## 5. Slice details
 
@@ -190,16 +158,6 @@ Status: complete and approved.
 
 Implemented only evidence-approved production capabilities. The current foundation includes a production valuation-provider façade, SEC EDGAR annual diluted EPS, and Massive current TTM diluted EPS/current price. Unsupported capabilities remain explicit unavailable; current snapshots do not masquerade as historical evidence. Tests use deterministic mocked/recorded payloads and no live network calls.
 
-### Human-approved checkpoint after E2
-
-The provider/resolver foundation through E2 is a coherent durability boundary. After the agreed Ruff/mypy/pytest gate and human review, it may be committed and pushed before Investor UX changes begin.
-
-Rules:
-- the commit message must identify it as a Step 2.3 checkpoint through E2;
-- do not describe Step 2.3 as complete;
-- do not begin later-step work; and
-- subsequent E3/F1/F2/G work proceeds from that preserved baseline.
-
 ### Slice E3 — user-viable standard Graham data configuration
 
 **Goal:** make an ordinary ticker-only Graham Number analysis genuinely useful with production data rather than merely prettier.
@@ -229,8 +187,6 @@ Status: complete and approved. The implemented production default uses SEC EDGAR
 ### Slice F1 — investor-facing result presentation
 
 **Goal:** separate financial result presentation from operational logging and make Momentum + Graham feel like one coherent product.
-
-**Status:** complete and approved.
 
 Locked implementation outcomes:
 - default/details/diagnostics/JSON rendering uses strategy-specific presenters with a shared terminal grammar rather than a generic strategy-result model;
@@ -263,8 +219,6 @@ Acceptance includes deterministic snapshot/semantic tests for both strategies, w
 
 ### Slice F2 — unified direct-analysis CLI
 
-**Status:** complete and approved after focused gates and live KO validation. The complete Step 2.3 repository gate subsequently passed during Slice G.
-
 Locked implementation outcomes:
 - `financial-agents graham TICKER` is a direct ticker analysis and defaults to the Graham Number;
 - the default production security-fact provider is SEC EDGAR, with three-year-average diluted EPS and the E3 BVPS support; current quote comparison uses the narrow Yahoo Finance quote adapter;
@@ -282,8 +236,6 @@ Locked implementation outcomes:
 Live validation on KO exercised both the default Graham Number and the Graham Growth using SEC EDGAR data with Yahoo quote comparison. Focused Ruff/format/mypy/pytest checks were green before Slice G; the complete repository gate and final review subsequently passed during Slice G.
 
 ### Slice G — documentation, final cleanup, and complete gate
-
-**Status:** complete and approved.
 
 Synchronize all user-facing and architectural documentation with the implementation that actually exists. Remove stale descriptions of the transitional CLI and clearly distinguish the Graham Number from the forecast-dependent growth-value method.
 
@@ -312,9 +264,7 @@ git diff --check
 git status --short --untracked-files=all
 ```
 
-Generate and review the remaining tracked-and-untracked diff since the last approved checkpoint. Stop for human review. Step 2.3 was not declared complete and no Step 2.4 implementation was begun until that review explicitly approved completion; after approval, the remaining Step 2.3 changes could be committed/pushed.
-
-Completion record (2026-08-25): documentation synchronization and final cleanup were completed; the complete Ruff, format, strict-mypy, pytest, diff, and status gates passed; representative live Momentum and Graham behavior was reviewed; the final non-positive Graham Growth Value presentation correction was validated in concise and JSON output; and human review explicitly approved Step 2.3 completion.
+Generate and review the remaining tracked-and-untracked diff since the last approved checkpoint.
 
 ## 6. Deferred and out-of-scope work
 
@@ -333,6 +283,6 @@ The following are not part of Step 2.3:
 
 ## 7. Final completion condition
 
-Step 2.3 is complete only when every slice through G has passed review, the standard production Graham Number configuration is genuinely usable for representative supported securities (or the supported promise has been explicitly narrowed), Momentum and Graham share the approved investor-facing presentation grammar, implementation/documentation agree, required inputs retain provenance/temporal semantics, the complete quality gate is clean, and the project owner explicitly approves Step 2.3 completion. Intermediate checkpoint commits do not satisfy this condition by themselves.
+ Intermediate checkpoint commits do not satisfy this condition by themselves.
 
-This completion condition was satisfied on 2026-08-25; Step 2.3 is complete and approved. No Step 2.4 implementation was begun as part of Step 2.3.
+No Step 2.4 implementation was begun as part of Step 2.3.

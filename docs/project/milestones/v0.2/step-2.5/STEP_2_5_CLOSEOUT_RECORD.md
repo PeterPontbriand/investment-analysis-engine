@@ -1,11 +1,10 @@
 # Step 2.5 Closeout Verification Record
 
-**Verification date:** 2026-08-31 (America/Toronto)<br/>
-**Tracked baseline:** `86f1bd6350b9a8bb2cc051a62a4d0f8ba0a5750f`<br/>
-**Decision status:** **Complete and approved on 2026-08-31**<br/>
-**Governing plan:** [Milestone v0.2 Implementation Plan](../IMPLEMENTATION_PLAN.md#45-step-25--golden-test-suite--strategy-evaluation)<br/>
-**Slice contract:** [Step 2.5 Golden Suite Slice Plan](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md#17-slice-k--step-25-closeout)<br/>
-**Operator contract:** [Evaluations & Golden Suite](../../../../EVALUATIONS.md)
+Records deterministic evaluation results, verification conditions and empirical limits.
+
+Local sequence and status: [companion plan](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md#sequence-and-status).
+
+Evidence baseline: `86f1bd6350b9a8bb2cc051a62a4d0f8ba0a5750f`.
 
 ## 1. Verification boundary
 
@@ -13,7 +12,7 @@ Slice K verified the accepted Gate M correction, accepted Slice I empirical mode
 and accepted Slice J CLI/documentation work together in the current working tree.
 It did not alter financial formulas, case expectations, fixtures, tolerances,
 production provider behavior, dependency metadata, or the accepted CLI/runtime
-implementation. No commit, push, PR, merge, or Step 2.5 completion claim was made.
+implementation.
 
 The generated deterministic JSON and trajectory files remain ignored local
 artifacts. This tracked record retains only the non-secret summary, stable
@@ -81,11 +80,7 @@ No direct or scripted dispatch was misreported as successful LLM selection.
 
 ## 4. Empirical result — recorded separately
 
-**Result:** Not run.
-
-Slice I makes empirical real-local-Ollama execution available, but Slice K did
-not receive explicit authorization for a real model call or a current approved
-benchmark model/runtime configuration. The Cline/Ollama profile retained in the
+ The Cline/Ollama profile retained in the
 slice plan is explicitly historical and is not the Golden empirical
 configuration. It was therefore not reused.
 
@@ -121,14 +116,3 @@ optional network/model dependency mandatory CI.
 | 21 | Step 3.1 persistence can replace production adapters without changing Golden cases | Provider-neutral contracts, injected handler/composition seams, and fixture/SQLite separation in Architecture Section 7 | Satisfied |
 | 22 | Complete quality gate passes | Wrapper results in Section 2 | Satisfied |
 | 23 | Measured results are recorded honestly | Section 3 deterministic result and Section 4 explicit empirical absence | Satisfied |
-
-## 6. Final approval
-
-The project owner reviewed and approved Slice K on 2026-08-31. Step 2.5 is complete and
-approved. This decision:
-
-- accepts the complete-gate and deterministic-report evidence above;
-- accepts the explicit absence of an optional empirical benchmark run;
-- unblocks Step 2.5A at its D0 evidence-freeze handoff;
-- does not skip Step 2.5A Gate A or authorize A1 production changes; and
-- does not itself create a commit or push the working tree.

@@ -50,14 +50,11 @@ uv sync
 
 This lets `uv` download and set up the supporting Python software that Financial Data Agents needs.
 
-Prepare the local database before running analyses:
-
-```bash
-uv run --no-sync alembic upgrade head
-```
+The first analysis that needs local storage initializes a missing or verified
+empty database automatically. Existing databases require explicit upgrades.
 
 For database location overrides, upgrades, backups, and recovery, see
-[Local Database Operations](DATABASE.md). Set any database override before running the migration.
+[Local Database Operations](DATABASE.md). Set any database override before the first analysis.
 
 Then check that the command is available:
 
@@ -65,7 +62,8 @@ Then check that the command is available:
 uv run financial-agents --help
 ```
 
-If you see the Financial Data Agents help text, the basic installation is working.
+If you see the Financial Data Agents help text, the command is available. Help
+does not open or verify the database.
 
 ---
 
@@ -170,6 +168,16 @@ Once installation is working, continue with the [Usage Guide](USAGE.md). The [Sm
 ---
 
 ## 4. Troubleshooting
+
+### A database readiness error appears
+
+The message identifies the selected database and a next action without requiring
+`--diagnostics`. Inspect it with `uv run --no-sync financial-agents db status`.
+For an upgrade-required error, stop application processes and back up existing
+data before `uv run --no-sync financial-agents db upgrade` against the same target.
+Preserve incompatible or corrupt storage for inspection; do not delete it or
+stamp its revision. See [Local Database Operations](DATABASE.md) for error codes,
+target overrides, locking and recovery.
 
 ### "SEC EDGAR access is not configured"
 

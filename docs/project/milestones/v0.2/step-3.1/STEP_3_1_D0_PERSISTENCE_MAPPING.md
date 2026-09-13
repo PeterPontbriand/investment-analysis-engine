@@ -1,14 +1,8 @@
 # Step 3.1 D0 — Field-level persistence mapping
 
-**Prepared:** 2026-09-05  
-**Status:** Gate D0 approved on 2026-09-05; Slice A authorized  
-**Owner:** [SQLite slice plan](STEP_3_1_SQLITE_SLICE_PLAN.md), Slice D0  
-**Scope:** Approved design record. Production work proceeds only through separately authorized slices.
+Maps typed market, financial and trajectory records to SQLite fields and constraints.
 
-The project owner approved this mapping and the exact five-table first-migration list
-on 2026-09-05 and explicitly authorized Slice A, including edits to
-`pyproject.toml` and `uv.lock`. This closes Gate D0 and accepts the proposed gap
-dispositions below; it does not authorize migration creation or later slices.
+Local sequence and status: [companion plan](STEP_3_1_SQLITE_SLICE_PLAN.md#sequence-and-status).
 
 ## 1. Contract evidence and proposed table list
 
@@ -331,8 +325,7 @@ not silently return stale data. Empty/invalid responses are not persisted.
 | G4 | Client boundary has no interval/adjustment request fields or historical-cache TTL contract; provider identity can be None. | Approve explicit adapter variant identity, exact-request/full-refetch behavior, and injected TTL. Freeze the production TTL/default and settings name in Slice A review; do not infer infinite freshness for open-ended requests. Unknown identity bypasses reusable caching. |
 | G5 | `.gitignore` ignores `*.db` and `*.sqlite`, but lacks general SQLite sidecar and `*.sqlite3` patterns. | Add appropriate database/sidecar patterns in authorized Slice A; D0 does not edit ignore rules. Verify representative overridden paths with `git check-ignore`. |
 
-Gate D0 approved the exact table list, serialization/key encodings, snapshot
-overlap policy, and G1–G4 dispositions on 2026-09-05. G5 is a scoped Slice A
+ G5 is a scoped Slice A
 handoff. Slice A supplies `historical_cache_ttl_seconds`, default 3,600 seconds,
 for review: bounded one-hour reuse, with zero and None retaining their documented
 meanings. No gap was repaired through a production edit in D0.

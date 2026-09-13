@@ -1,9 +1,14 @@
 # Step 2.6 Reliability Limits Slice Plan
 
-**Status:** Complete and approved at Gate C on 2026-09-03<br/>
-**Milestone owner:** [v0.2 Implementation Plan](../IMPLEMENTATION_PLAN.md)<br/>
-**Architecture:** [Financial Data Agents Architecture](../../../ARCHITECTURE.md#9-failure-and-reliability-boundary)<br/>
-**Master Plan:** [Financial Data Agents Master Plan](../../../MASTER_PLAN.md#6-failure-taxonomy--handling-strategy)
+Defines execution limits, failure precedence and deterministic verification.
+
+Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
+
+## Sequence and status
+
+| Order | Scope | Local gate |
+| :--- | :--- | :--- |
+| A → B → C | Contracts; enforcement/telemetry; terminal output | Accepted |
 
 ## 1. Purpose and authority
 
@@ -168,8 +173,7 @@ exception. External cancellation (`CancelledError`), interpreter shutdown, and
 programmer defects remain distinct from a circuit trip and must not be falsely
 reported as one.
 
-The user-facing diagnostic begins with the trip reason and `run_id`, then reports the
-limit and recent sanitized events. If telemetry is disabled or unavailable, an
+ If telemetry is disabled or unavailable, an
 empty recent-event collection is valid and the reliability outcome still works.
 
 ### 3.6 Telemetry contract
@@ -214,7 +218,7 @@ not expand into a second reliability implementation inside evaluation code. It
 must use the shared orchestrator boundary where applicable. Any evaluator-only
 batch timeout is a separate evaluation concern and requires explicit scope.
 
-## 5. Slice sequence and review gates
+## 5. Component contracts
 
 ### Slice A — contracts and configuration
 
@@ -230,18 +234,14 @@ changing runtime behavior.
 4. Add focused model/configuration tests for defaults, validation,
    serialization, override precedence, and conflicting legacy inputs.
 
-**Gate A:** focused Ruff, formatting, strict mypy, and tests. Stop for human
-review of public contracts and defaults before enforcement work.
-
-**Gate A result:** Slice A is implemented and work is stopped for review. The
+The
 typed policy, terminal-failure and circuit-state contracts, monotonic clock
 seam, settings integration, and bounded legacy-input normalization are in
 place. The focused reliability/orchestrator/configuration suite passed 57 tests.
 The final complete repository gate passed Ruff, formatting, strict mypy, and
 1,315 tests at 88% reported coverage. Slice B had not started at Gate A.
 
-**Gate A approval:** The project owner approved Slice A on 2026-09-02 and authorized
-Slice B. The approved contracts and defaults are now fixed for enforcement.
+The approved contracts and defaults are now fixed for enforcement.
 
 ### Slice B — enforcement and telemetry
 
@@ -266,11 +266,7 @@ contracts:
 - **B1:** deadlines, timeout enforcement, and cancellation cleanup;
 - **B2:** retries, schema threshold, recent-event diagnostics, and telemetry.
 
-**Gate B:** focused gates plus the complete repository quality wrapper. Stop for
-human review of enforcement and failure evidence before CLI closeout.
-
-**Gate B result:** Slice B was implemented as the planned B1/B2 contract without
-an intermediate scope change. The request-scoped circuit now enforces earliest
+The request-scoped circuit now enforces earliest
 overall/step/LLM/tool deadlines, cooperative async cancellation, explicit
 unconfirmed cancellation for thread-backed synchronous tools, exact retry and
 schema-violation caps, and no-work-after-trip behavior. Classified LLM transport
@@ -281,8 +277,7 @@ reliability/orchestrator/telemetry suite passed 78 tests. The complete repositor
 gate passed Ruff, formatting, strict mypy, and 1,329 tests at 88% reported
 coverage.
 
-**Gate B approval:** The project owner approved Slice B on 2026-09-03 and authorized
-Slice C. The enforcement and telemetry behavior above is fixed for closeout.
+The enforcement and telemetry behavior above is fixed for closeout.
 
 ### Slice C — terminal presentation and closeout
 
@@ -300,48 +295,33 @@ documentation.
 4. Run the complete quality wrapper and reconcile every Step 2.6 acceptance
    criterion.
 
-**Gate C:** stop for final human review. Do not mark Step 2.6 complete, commit,
+Do not mark Step 2.6 complete, commit,
 push, open/merge a PR, or begin Step 3.1 without the corresponding explicit
 human authorization.
 
-**Gate C result:** Slice C exposes `ReliabilityFailure` on the terminal
-`AgentStepResult`, and the empirical evaluation consumer uses that typed field
-without inspecting model prose. Failed command-line evaluations render concise
+Failed command-line evaluations render concise
 case diagnostics containing the stable reason and `run_id`, write their report,
 and exit nonzero. Deterministic integration coverage proves reliability trips
 remain terminal results, and a settings test proves the documented nested
 environment override. The focused Slice C/reliability/evaluation checks passed
 85 tests. The complete repository wrapper passed Ruff, formatting, strict mypy
 over 191 source files, and 1,331 tests at 88% reported coverage. No real API,
-provider, or LLM endpoint was called. Work is stopped at Gate C pending final
-human review.
+provider, or LLM endpoint was called.
 
-**Gate C remediation decision:** The optional LAN smoke run on 2026-09-03
-reached Ollama 0.33.2 but received HTTP 404 because `LLMClient` posted a
-non-native payload to `/generate`. Gate C is reopened before final approval.
-Correct the client to use Ollama's native non-streaming `/api/chat` contract for
+ Correct the client to use Ollama's native non-streaming `/api/chat` contract for
 message lists and `/api/generate` contract for plain prompts, update mocked wire
 tests so they no longer encode the invalid endpoint/payload, rerun the complete
 quality gate, and then ask the operator to repeat the optional smoke run. The
 observed report and exit status behaved correctly; the missing strategy/method
 results were downstream consequences of the transport failure.
 
-**Gate C remediation result:** `LLMClient` now sends message-list requests to
-native non-streaming `/api/chat` with `model`, `messages`, `options`, and
-`stream: false`; plain-string requests use `/api/generate` with `model`,
-`prompt`, `options`, and `stream: false`. Response extraction follows the
+Response extraction follows the
 matching native response shape, and the obsolete console `print()` error path
 was removed. Mock-transport tests now assert the exact native paths and payloads
 for both request forms. The focused transport/reliability/evaluation suite
 passed 37 tests. The complete repository wrapper passed Ruff, formatting,
 strict mypy over 191 source files, and 1,332 tests at 88% reported coverage. The
 operator was then asked to repeat Appendix A before final Gate C review.
-
-**Final Gate C approval:** The project owner approved the complete Step 2.6
-implementation, native Ollama remediation, deterministic verification, and
-optional LAN smoke evidence on 2026-09-03. Step 2.6 is complete. This approval
-permits the implementation checkpoint and PR workflow but does not itself begin
-Step 3.1 implementation.
 
 ## 6. Verification matrix
 
@@ -369,41 +349,23 @@ Tests should inject clocks/events rather than sleep against real time. Tiny
 event-loop yields may coordinate cancellation tests, but pass/fail behavior must
 not depend on machine speed.
 
-## 7. Local-model decision
-
-Real local-model execution is not required for Step 2.6 implementation or
-acceptance. Reliability logic is better proven with deterministic delayed,
-failing, malformed, and cancellation-aware fakes. Model speed varies with
-hardware and load and cannot establish correct deadline or retry semantics.
-
-An optional manual smoke run may be recorded after Slice C, but it cannot replace
-the deterministic tests or block Step 2.6 closeout. Empirical native-schema
-compatibility for the supported Light Mode model remains owned by the existing
-Step 2.2 follow-up and Step 3.6 exit criterion.
-
 ## 8. Step acceptance criteria
 
-- [x] The fixed defaults are implemented and documented through one effective
+- The fixed defaults are implemented and documented through one effective
   typed configuration path.
-- [x] Maximum steps, all four timeout scopes, transient retries, and consecutive
+- Maximum steps, all four timeout scopes, transient retries, and consecutive
   schema violations are bounded as specified.
-- [x] Every breach returns a typed terminal failure with a clear `run_id`-linked
+- Every breach returns a typed terminal failure with a clear `run_id`-linked
   diagnostic and never escapes as an unhandled reliability exception.
-- [x] Every actual retry emits sanitized `RECOVERY_ATTEMPTED` telemetry.
-- [x] Recent-event diagnostics remain bounded and telemetry failures remain
+- Every actual retry emits sanitized `RECOVERY_ATTEMPTED` telemetry.
+- Recent-event diagnostics remain bounded and telemetry failures remain
   fail-open.
-- [x] Deterministic tests cover the full verification matrix without live API or
+- Deterministic tests cover the full verification matrix without live API or
   LLM calls.
-- [x] Focused checks and the complete repository quality gate pass.
-- [x] Architecture, milestone, configuration, and user-facing documentation are
+- Focused checks and the complete repository quality gate pass.
+- Architecture, milestone, configuration, and user-facing documentation are
   synchronized to implemented behavior.
-- [x] The final diff receives explicit human approval before Step 3.1 begins.
-
-## 9. Immediate next action
-
-Create the approved Step 2.6 implementation checkpoint and proceed through the
-PR workflow. Plan Step 3.1 separately; this closeout does not itself begin its
-implementation.
+- The final diff receives explicit human approval before Step 3.1 begins.
 
 ## Appendix A — Optional post-Slice-C local-model smoke run
 

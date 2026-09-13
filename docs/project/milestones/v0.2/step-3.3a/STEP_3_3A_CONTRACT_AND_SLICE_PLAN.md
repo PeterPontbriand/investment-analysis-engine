@@ -1,24 +1,24 @@
 # Step 3.3A — Fresh Database Initialization and Schema Readiness
 
-**Status:** Gate A was approved and Slice B implementation authorized on 2026-09-12 (Toronto). Slice B is implemented on `codex/step-3.3a-readiness`, from the approved contract checkpoint `d912d4d`. The [Slice B review record](SLICE_B_READINESS_REVIEW.md) records implementation and verification evidence. Slice B was approved and Slice C authorized on 2026-09-12, including the [hidden maintenance amendment](SLICE_C_MAINTENANCE_AMENDMENT.md). Slice C implementation and acceptance evidence are complete in the [Slice C review record](SLICE_C_COMPOSITION_REVIEW.md); C approval and final readiness acceptance remain pending.
+Defines safe fresh-database initialization, explicit upgrades and readiness errors.
 
-**Authority:** [Milestone implementation plan](../IMPLEMENTATION_PLAN.md#49a-step-33a--fresh-database-initialization--schema-readiness). This bounded prerequisite precedes Step 3.4 contract design and implementation. Step 3.4's 2026-09-08 start authorization is retained but deferred until this work receives final acceptance; its own contract/review gates still apply. Subsequent sequence remains Step 3.4 → P2-Profiles → ESC-D renewed acceptance → Step 3.5 → Step 3.6, following the active milestone's latest ordering.
+Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
-**Branch history:** Renamed locally to `codex/step-3.3a-database-readiness` on 2026-09-09 for this planning/implementation work. The starting local branch was `feat/step-3.4-research-workspace`, at `b6a84e0`, with two documentation commits after Step 3.3 and no configured upstream. Renaming preserves those commits and working-tree content. No commit, push, or PR is authorized by this plan.
+## Sequence and status
 
-**Current branch and authorization:** PR #34 was merged and pulled onto `main`; Slice A was completed on `docs/step-3.3a-contract-planning` at `d912d4d`. The project owner then instructed: “Gate A is approved and Slice B implementation is authorized. Proceed.” Slice B approval and Slice C authorization were subsequently granted on 2026-09-12. The current local branch is `feat/step-3.3a-data-readiness`, at implementation commit `868f2f6a710027631328e52db3affb6f03e6023f`. The Slice C review record covers that commit plus authorized uncommitted acceptance tests and the owner's ignore-rule addition. This review has not staged, committed, pushed, or opened a PR; the owner has deferred pushing the implementation commit.
-
-**Current sequencing:** ESC-C, Gate A and Slice B are accepted. Slice C composition, error presentation, maintenance and acceptance evidence are ready for explicit C review; stop before D until approval. Slice D final acceptance still precedes Step 3.4 contract preparation. ESC-D renewal remains mandatory before Step 3.5.
+| Order | Scope | Local gate |
+| :--- | :--- | :--- |
+| A | Concrete interfaces, locking and verification contract | Accepted |
+| B | Readiness and fresh initialization | Accepted |
+| C | Composition, errors and hidden maintenance | Accepted |
+| D | Documentation and final evidence | Accepted |
 
 ## 1. Problem and decision
 
-The project owner reported that the README's `graham-number KO` example and its `--diagnostics` variant both returned only a generic unexpected-failure message. The supplied Cline diagnosis attributed this to an empty SQLite database with no applied Alembic revision; bypassing the financial cache succeeded, and an operator migration restored the default command. This is reported diagnostic evidence, not a live reproduction performed for this planning change.
-
-Source inspection confirms that `src/cli_support.py` explicitly leaves migrations to the operator, `execution_errors` hides unclassified exceptions behind a generic message, and the diagnostics flag selects analysis presentation. The current operational documentation is consistent with that implementation. The new target deliberately changes first-use policy while preserving explicit upgrades of existing schemas.
-
-Initialize verified fresh storage automatically when an application operation first needs persistence. Keep Alembic as the only schema authority. Detect incompatible or unavailable storage before provider work whenever composition permits, and report an actionable, sanitized failure. Do not treat a database containing saved user records as disposable cache storage.
-
-This work precedes the research workspace because watchlists and Analysis Runs will increase both persistence usage and the cost of misclassifying an existing database. It adds no workspace tables and does not renumber Step 3.4 or later steps.
+A missing-table failure on first use exposed an onboarding gap. Initialize only
+verified fresh storage when required persistence is used; preserve saved records
+and require explicit upgrades of existing schemas. Alembic remains the sole schema
+authority. Report actionable storage errors before provider work wherever composition permits.
 
 ## 2. Readiness contract
 
@@ -64,17 +64,6 @@ Documentation delivery belongs in README and `docs/user/INSTALLATION.md`, `QUICK
 
 Out of scope: existing-data auto-upgrades, automatic repair/downgrade/backup/restore, user-database migrations during agent verification, new schema/business tables, workspace design, financial math/provider changes, generic infrastructure frameworks, new dependencies, and changes to `pyproject.toml` or `uv.lock`. Explicit operator upgrades remain separately authorized actions.
 
-## 6. Slices and review gates
-
-| Slice | Work and evidence | Exit gate |
-| :--- | :--- | :--- |
-| 3.3A-A — Reconciliation and concrete design | Inventory callers/tests and schema invariants; freeze typed interfaces, exact file scope, locking/transaction strategy, Alembic resource discovery, error/JSON/logging contract, and in-memory behavior. Establish a fresh full managed baseline before refactoring. | Explicit contract approval and implementation authorization before B. Gate A approval was recorded on 2026-09-12. |
-| 3.3A-B — Readiness and initialization | Implement state classification, coordinated fresh initialization, manual migration compatibility, and focused lifecycle/concurrency/rollback tests. | Full managed gate passed; Slice B approved on 2026-09-12. |
-| 3.3A-C — Composition and errors | Wire required persistence callers, actionable typed CLI failures and sanitized evidence; prove bypass/help/telemetry behavior and mocked CLI success. Include hidden maintenance commands under the [Slice C amendment](SLICE_C_MAINTENANCE_AMENDMENT.md). | Full managed gate and explicit review before D. |
-| 3.3A-D — Documentation and acceptance | Update durable behavior docs, reconcile all acceptance evidence, and record limitations and final verification. | Explicit final acceptance closes this prerequisite; then resume Step 3.4 contract preparation under its retained start authorization. |
-
-Do not infer approval from elapsed time, a passing test suite, or this document's existence. Preserve unrelated work. Document any required scope expansion before implementation.
-
 ## 7. Deterministic acceptance matrix
 
 | Area | Required proof |
@@ -99,4 +88,6 @@ Use synthetic data and unique temporary databases only. Never read or migrate th
 bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"
 ```
 
-Record commit/revision, date, Ruff/format/strict-mypy results, pytest totals, coverage (at least 85% overall), and isolated artifact location. Existing predecessor test totals are historical evidence only. Slice A has now established its own fresh baseline and disposable offline feasibility evidence in the concrete contract. Validate links, sequencing, approval wording, and diff whitespace for this documentation checkpoint; Slice B evidence is recorded in the linked review record; Slice C evidence is recorded in the [Slice C review record](SLICE_C_COMPOSITION_REVIEW.md); C approval and D evidence remain outstanding.
+Record revision, verification date, Ruff/format/strict-mypy results, pytest totals,
+coverage (at least 85%) and isolated artifact location. The [final evidence record](SLICE_D_FINAL_ACCEPTANCE.md)
+links the lifecycle, composition and documentation verification.

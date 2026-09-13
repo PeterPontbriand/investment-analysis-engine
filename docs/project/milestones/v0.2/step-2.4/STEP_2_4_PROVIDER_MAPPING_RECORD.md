@@ -1,16 +1,12 @@
 # Free Cash Flow & Earnings Growth Provider Mapping Record
 
-**Status:** D0–D5 and E1–E3 complete and approved; P1 cross-strategy instrument-kind proposal recorded separately<br/>
-**Scope:** SEC EDGAR required annual actuals and E1 weighted-average diluted-share evidence<br/>
-**Prepared:** 2026-08-27; E1 amended 2026-08-29<br/>
-**Governing design:** `STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`  
-**Production changes:** D1-D4 implement the approved SEC mappings and production
-composition; D5 adds integration regressions and completes this reconciliation.
+Defines the SEC annual-fact mappings, eligibility rules and supporting provider evidence.
+
+Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
 ## 1. Decision summary
 
-This record defines the approved deliberately narrow mapping for D1-D5.
-Production support remains disabled until the applicable implementation slice
+ Production support remains disabled until the applicable implementation slice
 adds and verifies each capability.
 
 | Capability | D0 disposition | Exact SEC concept |
@@ -35,12 +31,12 @@ Authoritative sources reviewed on 2026-08-27:
    Company Facts as company-level, standard-taxonomy XBRL facts grouped by unit;
    facts can cover forms including 10-K, 10-Q, 20-F, and 40-F. The API updates
    after filing dissemination and does not make all filing shapes semantically
-   interchangeable.  
+   interchangeable.
    <https://www.sec.gov/search-filings/edgar-application-programming-interfaces>
 2. SEC, **EDGAR XBRL Guide, January 2026**. The guide identifies
    `NetCashProvidedByUsedInOperatingActivities` as the appropriate total for a
    disclosure of net cash provided by or used in operating activities and
-   distinguishes it from totals spanning more than operating activity.  
+   distinguishes it from totals spanning more than operating activity.
    <https://www.sec.gov/file/xbrl-guide-2026-01-16>
 3. SEC US-GAAP taxonomy definitions exposed in Company Facts:
    `NetCashProvidedByUsedInOperatingActivities` is cash inflow/outflow from
@@ -49,13 +45,13 @@ Authoritative sources reviewed on 2026-08-27:
    self-constructed assets; `EarningsPerShareDiluted` is income available per
    common share including dilutive potential shares.
 4. SEC, **Company Tickers** and **Company Tickers Exchange**, for the public
-   ticker-to-CIK identity files.  
-   <https://www.sec.gov/file/company-tickers>  
+   ticker-to-CIK identity files.
+   <https://www.sec.gov/file/company-tickers>
    <https://www.sec.gov/file/company-tickers-exchange>
 5. SEC, **Webmaster Frequently Asked Questions**, for EDGAR acceptance-date and
    acceptance-time meaning. The SEC states that acceptance time is assigned in
    Eastern time and also cautions that it does not publish a separate timestamp
-   for when filing content first became available on sec.gov.  
+   for when filing content first became available on sec.gov.
    <https://www.sec.gov/about/webmaster-frequently-asked-questions>
 
 Representative official JSON payloads reviewed on 2026-08-27:
@@ -297,12 +293,7 @@ precedes its availability.
 
 ### 7.1 Approved future extension; current support unchanged
 
-The 2026-08-31 [SEC EDGAR FPI / IFRS D0 Mapping
-Record](../step-2.5a/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md) approves a corrected Step 2.5A
-plan after Step 2.5 closes. That future work first adds `20-F`/`40-F` annual
-forms to the existing exact US-GAAP **duration** concepts without broadening
-balance-sheet forms, then adds exact IFRS duration mappings for diluted EPS,
-adjusted weighted-average shares, operating cash flow, and physical-PP&E CapEx.
+The [SEC FPI/IFRS mapping](../step-2.5a/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md) defines foreign annual-form and exact IFRS duration support separately from this original mapping.
 
 This future plan does not change the production truth in the table above. Until
 Step 2.5A is implemented, verified, and approved, all `20-F`/`40-F` and IFRS
@@ -339,7 +330,7 @@ unavailable under the rules in Section 7.
 **D1–D5 combined implementation review:** Approved<br/>
 **Approval date:** 2026-08-29<br/>
 
-This approval closes the D1–D5 implementation gate. It does not broaden the
+It does not broaden the
 approved provider mappings or alter the classified-unavailability policy.
 
 Minimum deterministic regressions include:
@@ -356,18 +347,6 @@ Minimum deterministic regressions include:
 10. currency and period mismatch;
 11. multi-ticker CIK rejection; and
 12. Apple-like pre-split/post-split EPS values that cannot be mixed.
-
-## 9. Approval gate
-
-**Human approval:** Approved  
-**Approval date:** 2026-08-27  
-**Resulting production tests:** Implemented in the focused SEC adapter, annual-
-series resolver, production-composition, and D5 integration regression suites.
-
-The approval explicitly includes the narrow PP&E definition, the one-ticker-CIK
-identity boundary, the availability fallback, and the EPS common-basis rule. D1
-is authorized next. Any requested change to those financial semantics returns
-this record to D0 review before the affected production implementation proceeds.
 
 ## 10. Adoption-risk follow-up
 
@@ -502,16 +481,6 @@ No FCF-yield gate, P/FCF threshold, alternate FCF definition, custom share
 concept, split adjustment, share-class allocation, or provider fallback is
 approved by E1.
 
-### 11.4 E1 approval gate
-
-**Human approval:** Approved<br/>
-**Approval date:** 2026-08-29<br/>
-**Production changes:** None in E1
-
-The approval explicitly includes the evidence, exact SEC mapping, joint
-common-basis compatibility rule, unsupported shapes, and frozen versioned
-contract. E2 is authorized next.
-
 ### 11.5 E2 implementation reconciliation
 
 E2 implements the approved contract without broadening the evidence mapping:
@@ -537,11 +506,6 @@ E2 implements the approved contract without broadening the evidence mapping:
 The complete repository gate passed on 2026-08-29: Ruff check and format,
 strict mypy, and 913 pytest tests at 85% total line coverage.
 
-**E2 human review:** Approved<br/>
-**E2 approval date:** 2026-08-29
-
-E3 is authorized next.
-
 ### 11.6 E3 CLI, presentation, and live-validation reconciliation
 
 E3 adds the explicit `--classification-basis total-fcf|fcf-per-share` CLI
@@ -564,9 +528,3 @@ FY2021-FY2026 using six annual observations. Total-company-FCF CAGR was 3.60%,
 FCF/share CAGR was 4.03%, diluted-EPS CAGR was 17.40%, and the latest derived
 FY2026 FCF/share was USD 8.99. The result preserved SEC provenance and the
 expected warnings for unsupported market capitalization/consensus context.
-
-**E3 human review:** Approved<br/>
-**E3 approval date:** 2026-08-29
-
-E3 approval authorized Slice F, which was subsequently implemented, reviewed,
-approved, and committed under the project's working agreement.

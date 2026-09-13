@@ -1,11 +1,10 @@
 # Step 2.5A D0 Evidence Freeze and Implementation Handoff
 
-**Base checkpoint:** `a4001580838795a30d72f399fb4eedcb65dee9f3`<br/>
-**Evidence review date:** 2026-08-31 (America/Toronto)<br/>
-**Status:** D0/Gate A complete; A0 implemented and verified, awaiting review<br/>
-**Governing design:** [SEC EDGAR FPI / IFRS D0 Mapping Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md)<br/>
-**Execution plan:** [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)<br/>
-**A0 review:** [Step 2.5A A0 Identity/Security-Unit Boundary Review](STEP_2_5A_A0_REVIEW.md)
+Records provider-source checksums, fixture evidence and implementation boundaries.
+
+Local sequence and status: [companion plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md#sequence-and-status).
+
+Evidence baseline: `a4001580838795a30d72f399fb4eedcb65dee9f3`.
 
 ## 1. Outcome
 
@@ -243,16 +242,3 @@ composition, SEC BVPS hardening and User-Agent behavior, production provider
 routing, and provider security identity. The focused run used `uv run --no-sync`
 and made no live calls. Focused coverage was diagnostic only; repository-wide
 coverage remains governed by the complete quality wrapper at later gates.
-
-## 9. Gate A decision
-
-The project owner approved Gate A on 2026-08-31. The approval accepts:
-
-1. the frozen fixture scope and exact deterministic test matrix;
-2. insertion of bounded A0 before A1, preserving exact ticker-to-CIK
-   resolution and fail-closed per-share behavior; and
-3. the documented resolver-spanning B1-A ownership.
-
-A0 may proceed. This approval does not authorize A1, B1, user-facing support
-claims, or a Step 2.5A completion status. Stop after A0 verification for its
-review gate.

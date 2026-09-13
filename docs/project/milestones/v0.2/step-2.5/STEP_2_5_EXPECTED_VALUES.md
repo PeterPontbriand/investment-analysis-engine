@@ -1,10 +1,8 @@
 # Step 2.5 Golden-Suite Expected Values
 
-**Status:** Slice B1 approved; Slice B2 FCF/Earnings Growth expectations pending human review  
-**Fixture schema:** `step-2.5-b2-v1`  
-**Authority:** [`IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md),
-[`STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md`](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md), and
-[`docs/user/FINANCE_MATH.md`](../../../../user/FINANCE_MATH.md)
+Derives independent expected values for the deterministic evaluation fixtures.
+
+Local sequence and status: [companion plan](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md#sequence-and-status).
 
 ## 1. Scope and derivation policy
 
@@ -334,12 +332,6 @@ Only two of the required three completed annual EPS observations are eligible. E
 `input_unavailable`; EPS, BVPS, screening ceiling, current-price comparison, and margin are absent. The case must not
 substitute zero, use the later publication, or advise that the ticker is invalid.
 
-## 8. Slice B1 approval record
-
-Slice B1's nine cases were reviewed and approved on 2026-08-31: two Momentum, five Graham Number/resolution, one
-Graham growth-value, and one cross-strategy ETF applicability case. GRG-01 supplies the required Graham-method
-discrimination signal. Slice B2 does not alter any approved Slice B1 fixture value, calculation, status, or tolerance.
-
 ## 9. FCF/Earnings Growth fixture inventory
 
 The common subject is synthetic security `ACME`, provider `annual-fixture`, in USD. All facts represent completed,
@@ -505,7 +497,7 @@ The complete proposed minimum dossier now contains twelve stable cases: nine app
 B2 FCF/Earnings Growth cases. No executable Golden case, evaluator, runner, or production calculation behavior is
 introduced by Slice B2.
 
-Before Slice C consumes the FCF expectations, review must confirm:
+The expectation review checks:
 
 1. the common annual values, units, sign convention, period bounds, and publication timestamps;
 2. the distinction between six observations and five elapsed years;
@@ -514,5 +506,5 @@ Before Slice C consumes the FCF expectations, review must confirm:
 5. exact-period intersection and FY2025 look-ahead rejection in FCF-03; and
 6. the strict-horizon `non_contiguous_history` outcome and rejection-sentinel CAGRs.
 
-Stop for human expectation review before Slice C. The approved Slice B1 values remain frozen unless a later explicit
+The approved Slice B1 values remain frozen unless a later explicit
 review record authorizes a change.

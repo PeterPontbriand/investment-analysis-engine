@@ -1,17 +1,12 @@
 # Step 2.5A A1 US-GAAP Foreign Annual-Form Review
 
-**Implementation date:** 2026-09-01 (America/Toronto)<br/>
-**Status:** Implemented, verified, and approved at Gate B on 2026-09-01<br/>
-**Authorization:** A0 approval recorded in the
-[A0 review](STEP_2_5A_A0_REVIEW.md)<br/>
-**Execution plan:** [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)
+Documents US-GAAP foreign annual-form support and its verification.
+
+Local sequence and status: [companion plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md#sequence-and-status).
 
 ## 1. Outcome
 
-A1 adds `20-F`, `20-F/A`, `40-F`, and `40-F/A` to the completed-annual
-duration-form eligibility already used by the exact US-GAAP operating cash
-flow, PP&E capital expenditure, diluted EPS, and diluted weighted-average share
-paths. Existing `10-K` and `10-K/A` eligibility is unchanged.
+ Existing `10-K` and `10-K/A` eligibility is unchanged.
 
 Balance-sheet/instant facts retain their separate `10-K`/`10-K/A` form set.
 A1 does not add IFRS concepts, snapshot/regime selection, security-unit
@@ -47,12 +42,3 @@ shell PATH and this checkout's `.venv` points to a missing
 gates were therefore run directly, using the working synchronized environment
 from the adjacent preserved checkout for Python-based commands. No dependency
 installation or lockfile change was made.
-
-## 4. Review decision required
-
-Reviewers should confirm that the shared completed-annual duration form set is
-the correct boundary, balance-sheet forms remain unchanged, negative scope
-tests are sufficient, and no B1 or C behavior entered A1.
-
-A1 received explicit human approval at Gate B on 2026-09-01. The review gate is
-closed and B1-A is authorized under the slice plan.

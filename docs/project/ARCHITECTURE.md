@@ -1,13 +1,13 @@
 # Financial Data Agents Architecture
 
+This document explains system boundaries, data ownership and explicitly labeled target designs.
+
 **Related roadmap:** `docs/project/MASTER_PLAN.md`<br/>
 **Active implementation detail:** `milestones/v0.2/IMPLEMENTATION_PLAN.md`<br/>
 **Step 2.3 implementation specification:** `milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Rationale:** `docs/project/DISCOVERY_WORKBOOK.md`<br/>
-**Last updated:** 2026-08-31<br/>
-**Current status:** Steps 2.2–2.5 are complete and approved. Step 2.5A D0 and Gate A are complete; bounded A0 is implemented and verified, with work stopped and A1 blocked until A0 review. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
 
-This document describes current boundaries and approved near-term target seams. Current Step 2.3 components are identified as implemented; later persistence/workspace/evaluation components remain explicitly labeled targets. It does not override the active milestone plan's sequencing or review gates.
+For work-package sequencing and status, see the [milestone table](milestones/v0.2/IMPLEMENTATION_PLAN.md#sequence-and-status).
 
 ---
 
@@ -121,7 +121,7 @@ Implemented production adapters are deliberately narrow:
 
 The Graham Number using its standard SEC financial facts uses SEC financial facts plus Yahoo current quote comparison. Its explicit Massive route is deliberately limited to Massive TTM EPS plus a BVPS override and may use a Massive quote. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote; explicitly selecting Massive uses its supported TTM EPS/current-price data. Unsupported provider/basis combinations are rejected before provider work.
 
-### Security identity and instrument applicability (Step 2.4 F-1 implemented; P1 approved)
+### Security identity and instrument applicability
 `SecurityIdentityProvider` is a narrow optional capability beside, not inside, numeric financial facts. F-1 returns an immutable current descriptive snapshot with normalized ticker, optional instrument name/listing venue/issuer and instrument identifiers, provider identity, and timezone-aware `resolved_at`. SEC retains current ticker-title/CIK evidence from its ticker mapping; Yahoo retains supported instrument metadata, including non-company names where available.
 
 Approved pre-Golden P1 preserves that one-provider snapshot and adds a separate immutable `InstrumentKindEvidence` value with normalized kind, retained raw provider classification, provider identity, and resolution time. A composed `InstrumentProfile` can therefore retain SEC identity/CIK and Yahoo kind evidence without pretending that one provider supplied both. Kind is provider-backed metadata: it is never inferred from a ticker, name, missing financial facts, or another strategy's success. The exact proposed mappings and schema consequences are recorded in the [P1 instrument applicability mapping record](milestones/v0.2/step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
@@ -143,11 +143,11 @@ Calculators receive resolved values and do not perform I/O. The resolver enforce
 ### Resolved-input cache seam (Step 2.3 implemented)
 A narrow in-memory/fixture-backed `get`/`put` seam proves precedence, temporal eligibility, and provenance. The resolver—not the cache—owns provider fallback. Durable SQLite-backed caching remains Step 3.1.
 
-### Durable instrument profiles and ETF aggregate FCF (P2 planned after Step 3.1)
+### Durable instrument profiles and ETF aggregate FCF
 
-P1 is request-scoped and intentionally adds no durable cache. After Step 3.1 is implemented and approved, P2 may add a repository-backed instrument-profile cache retaining normalized/raw kind, descriptive identity, stable identifiers where available, provider provenance, resolution/retrieval time, and explicit freshness metadata. Its exact dependency on the Step 3.2 repository layer and Step 3.3 invalidation policy is reviewed after Step 3.1 rather than assumed now.
+P1 is request-scoped and intentionally adds no durable cache. A durable profile extension may retain a repository-backed cache retaining normalized/raw kind, descriptive identity, stable identifiers where available, provider provenance, resolution/retrieval time, and explicit freshness metadata. The profile contract must define repository ownership and invalidation semantics.
 
-P2 also plans a separate look-through ETF FCF-growth strategy after a holdings-provider and product-policy checkpoint. The strategy owns its holdings-effective-date, weighting, cash/derivative, currency, missing/stale constituent, coverage, rebalancing, and `as_of` semantics plus native typed configuration/result/tool identity. It may reuse company-level calculations for constituents but does not add ETF branches to or redefine the existing company-level FCF Growth strategy. Company-level FCF requested for a known ETF remains explicitly `not_applicable`; orchestration cannot silently substitute the aggregate strategy.
+ The strategy owns its holdings-effective-date, weighting, cash/derivative, currency, missing/stale constituent, coverage, rebalancing, and `as_of` semantics plus native typed configuration/result/tool identity. It may reuse company-level calculations for constituents but does not add ETF branches to or redefine the existing company-level FCF Growth strategy. Company-level FCF requested for a known ETF remains explicitly `not_applicable`; orchestration cannot silently substitute the aggregate strategy.
 
 ### Resolved input and provenance models (Step 2.3 implemented)
 Typed records preserve value, units/currency, source kind, provider field/series, reporting/observation period, availability/filing date where supplied, analysis `as_of`, retrieval time, transformations/derived lineage, and override/cache state.
@@ -196,8 +196,6 @@ Step 2.2 establishes structured-output enforcement with layered defenses:
 2. retain Pydantic validation at the application boundary;
 3. use the configured prompt-based schema fallback when native capability is unavailable or unknown;
 4. retain legacy compatibility parsing only as the final fallback where required.
-
-Empirical model-by-model validation of native-schema behavior for the supported Light Mode configuration remains a non-blocking validation item before Step 3.6 completion.
 
 Do not rewrite the runtime around a model-specific assumption merely to make one model pass.
 
@@ -281,6 +279,11 @@ SQLite serializes competing writers. `read()` provides a query-only snapshot.
 In-memory databases support sequential scopes only. Repositories borrow an
 already-migrated database and do not migrate or close it implicitly.
 
+The first analysis that needs local storage automatically initializes a missing
+or verified empty SQLite database. Existing databases require explicit upgrades;
+readiness failures identify the target and next action. See
+[Local Database Operations](docs/user/DATABASE.md) for inspection, upgrades and recovery.
+
 | Repository | Public access | Semantics |
 | :--- | :--- | :--- |
 | `SQLiteMarketDataRepository` | `put`, `get`, `list_keys` | Exact historical request snapshots preserve frame structure/precision, context, and cache/retrieval timestamps. `get` returns the validated stored snapshot or `None` for a miss. |
@@ -360,8 +363,6 @@ evaluation result   ──► Golden evaluation artifact
 These stores/artifacts must not be collapsed merely because they can all be serialized. In particular, telemetry describes execution, while an Analysis Run is the durable investor-facing outcome of one requested analysis.
 
 ## 7. Golden-Suite architecture (Step 2.5)
-
-Step 2.5 consumes the stable Steps 2.3–2.4 contracts after approved P1 instrument-applicability hardening. The initial [Gate M Review](milestones/v0.2/step-2.5/STEP_2_5_GATE_M_REVIEW.md) required bounded Slice H corrections; the corrected result and later Slice I empirical runner are now accepted, and Slice J supplies the CLI/report boundary pending review.
 
 The production orchestration seam exposes four explicit handlers in `src/orchestrator/analysis_tools.py`: Momentum, Graham Number, Graham growth value, and Free Cash Flow & Earnings Growth. `register_analysis_tools(...)` registers them on the existing `AsyncToolDispatcher` using injected analyzers, resolvers, provider selections, calculation policy, and clock. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. Tool argument schemas are derived from the strict Pydantic models in `ANALYSIS_TOOL_ARGUMENT_MODELS`; successful calls retain each strategy's native typed execution result.
 
@@ -511,18 +512,27 @@ standalone financial results; unsupported comparisons need explicit reasons.
 This target introduces neither durable profile storage nor ADR/FX conversion and
 is not a claim that production behavior has already changed.
 
-### Planned database readiness boundary
+### Database readiness and explicit maintenance
 
 The [fresh database readiness contract](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
-is a proposed target, not current runtime behavior. Application composition will
-check required persistence before use and initialize only verified empty storage
-through bundled Alembic migrations. Existing schemas require explicit operator
-upgrades. The shared repository boundary owns classification and coordinated
-initialization; analyzers remain free of schema management. Cross-process locking,
-post-lock recheck, transactional DDL, and typed sanitized errors are required.
-Optional telemetry must neither trigger initialization nor control business
-execution. Current explicit-migration behavior remains in force until implementation
-and acceptance; no runtime change is claimed by this planning document.
+is implemented by `src/data/repositories/readiness.py`. CLI cache composition
+checks required persistence before use and initializes only missing or verified
+empty storage through bundled Alembic migrations. Existing schemas require
+explicit operator upgrades. Repositories remain lazy borrowers; analyzers own no
+schema management. `readiness_lock.py` coordinates automatic, explicit and manual
+migration owners through a persistent OS-locked sidecar, followed by an authoritative
+recheck, transactional DDL and revision/structure verification before commit.
+
+`inspect_database()` uses a read-only consistent snapshot without initialization;
+`upgrade_database()` explicitly migrates only fresh or supported compatible
+storage. The hidden `src/cli_database.py` maintenance group exposes these through
+`db status` and `db upgrade`, with target overrides and versioned JSON reports.
+Typed sanitized errors preserve stable reason categories and analysis envelopes.
+Optional telemetry neither initializes storage nor controls business execution;
+financial cache bypass and storage-free help/imports avoid opening that cache.
+The current migration bundle has only `0001_persistence`; older-schema support
+is verified with synthetic history. See [Local Database Operations](../user/DATABASE.md)
+for target selection, error recovery and installation/platform limits.
 
 ## 10. Development guardrails
 

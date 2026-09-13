@@ -1,10 +1,8 @@
 # ESC-C — Final existing-analysis acceptance
 
-**Status:** ESC-C final existing-analysis acceptance approved by the project owner on 2026-09-11 (Toronto), following ESC-B approval. The project owner explicitly instructed: “ESC-C final existing-analysis acceptance is approved. Record and provide draft commit message, PR Title, PR Description, and PR comment.” Approval accepts the reviewed four-analysis implementation, ESC-01–17 dispositions, evidence and documented limits. Database-readiness planning may resume at its existing gates; implementation and publication are not started by this record.
+Collects the final correctness evidence and limitations for the existing analysis methods.
 
-**Review target:** The uncommitted working tree on `fix/existing-strategy-correctness`, based on `cb1e9ef50bcef5f549cdabba91c853629da78eed`, including the approved historical MSFT follow-up. No production/test changes followed the final gate; this reconciliation updates planning records only. Publication remains separate.
-
-**Authority:** [Execution and review gates](EXISTING_STRATEGY_CORRECTNESS_PLAN.md#4-execution-and-review-gates). Supporting records: [implementation and verification](ESC_B_IMPLEMENTATION_AND_REVIEW.md), [defect ledger](ESC_A_DEFECT_LEDGER.md), and [coverage matrix](ESC_A_COVERAGE_MATRIX.md).
+Local sequence and status: [companion plan](EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status).
 
 ## Acceptance evidence
 
@@ -27,9 +25,3 @@
 - Optional FCF consensus and market-cap metrics lack approved production mappings. No new mapping, conversion or financial assumption is implied.
 
 These are documented evidence/capability limits, not deferred known repairs. Live checks do not certify universal upstream data accuracy or the absence of all future defects.
-
-## Decision and next handoff
-
-**Decision:** ESC-C accepted. The changed contracts, ESC-01–17 dispositions, matrix reconciliation, representative outputs and evidence limits are approved. The existing-analysis readiness deferral is released.
-
-The next authorized handoff is to resume [Step 3.3A](../step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) at its existing contract/planning gate; production implementation still requires that plan's approval. Then preserve Step 3.4 → P2-Profiles → ESC-D renewed acceptance → Step 3.5 → Step 3.6. Readiness/workspace/profile changes must retain the four-analysis regressions. This packet authorizes no commit, push, PR or migration against user data.

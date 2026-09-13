@@ -1,7 +1,8 @@
 # Step 2.5A Slice E — Closeout Verification Record
 
-**Date:** 2026-09-01  
-**Status:** complete and approved
+Collects the foreign-filing implementation evidence and unsupported cases.
+
+Local sequence and status: [companion plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md#sequence-and-status).
 
 ## Implemented surface
 
@@ -60,16 +61,10 @@ Isolated artifacts:
 
 ## Final approval checklist
 
-- [x] Provider support and user documentation match the verified surface.
-- [x] Required unsupported boundaries remain explicit.
-- [x] The canonical deterministic suite passes and records its versioned
+- Provider support and user documentation match the verified surface.
+- Required unsupported boundaries remain explicit.
+- The canonical deterministic suite passes and records its versioned
   denominator honestly.
-- [x] The complete repository quality gate passes.
-- [x] The final implementation/documentation diff receives explicit human
+- The complete repository quality gate passes.
+- The final implementation/documentation diff receives explicit human
   approval.
-
-Final human approval was received on 2026-09-01. Step 2.5A is complete; Step
-2.6 has not started.
-
-No commit, push, PR, merge, completion claim, or Step 2.6 start is implied by
-these automated results.

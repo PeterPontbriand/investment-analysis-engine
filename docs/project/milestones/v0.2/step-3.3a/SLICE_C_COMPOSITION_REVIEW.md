@@ -1,15 +1,15 @@
 # Step 3.3A — Slice C Composition and Maintenance Review
 
-**Status:** Acceptance evidence complete on 2026-09-12 (Toronto); Slice C approval is pending. Stop for explicit C review before Slice D. Authorization to add/revise acceptance tests and related changes was granted in the current review task. Authorization is granted for C acceptance, permission to push, and permission to begin D.
+Records CLI composition, maintenance behavior and acceptance-test evidence.
+
+Local sequence and status: [companion plan](STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status).
 
 ## Reviewed state and scope
 
-- Production implementation: `868f2f6a710027631328e52db3affb6f03e6023f` on local branch `feat/step-3.3a-data-readiness`, one commit ahead of its tracking branch at review time.
-- Final verification covers that commit plus the uncommitted acceptance-test changes listed below and the owner's `.gitignore` addition, `*.readiness.lock`. It is not a claim that the added tests belong to the existing commit.
-- No production source, schema revision, dependency, financial semantics, provider behavior or configuration default changed during acceptance completion. No staging, commit, push, PR, or operational-database migration was performed.
-- Tests use disposable temporary databases, fixture providers and mocked transports. No operational database contents were inspected or imported as fixtures. Process coordination uses spawned Windows processes and pipe handshakes, without timing sleeps in the test orchestration.
-
-Authority: [approved concrete contract](SLICE_A_CONTRACT_AND_VERIFICATION.md), [maintenance amendment](SLICE_C_MAINTENANCE_AMENDMENT.md), and [contract/slice plan](STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md).
+The original review tested implementation `868f2f6a710027631328e52db3affb6f03e6023f`
+plus the acceptance tests described below. Tests use disposable databases,
+fixture providers, mocked transports and spawned processes synchronized through
+pipe handshakes. No operational database or live provider/LLM is used.
 
 ## Acceptance evidence
 
@@ -43,10 +43,10 @@ Coverage exceeds the required 85% threshold. HTML reports and coverage data are 
 
 During test development, lint/format/strict-typing checks caught test-only issues, which were corrected before the final gate. The first expanded suite passed 2,337 tests and exposed the same unclosed SQLite connection warning seen in the baseline. The incompatible-storage maintenance test used `with sqlite3.connect(...)`, which commits/rolls back but does not close the connection. It now uses `closing(...)` with explicit autocommit. The final gate reports no warnings.
 
-## Local data hygiene and remaining gate
+## Local data hygiene and limits
 
-The owner added `*.readiness.lock`; `git check-ignore -v` confirms the readiness sidecar matches it. Existing `*.sqlite3`, `*-wal` and `*-shm` rules already protect the other observed artifacts. No `data/` files are tracked. The persistent lock must not be deleted as stale, because its stable pathname is part of process coordination. This was an immediate Git-hygiene follow-up, now resolved in the uncommitted working tree, rather than evidence of a Slice C database leak. Moving the configured database is not required to fix that issue.
+Database and sidecar files are ignored. The persistent readiness lock must not
+be deleted as stale: its stable pathname is part of process coordination.
 
-**Recommendation:** Slice D must deliver durable user-facing maintenance/initialization documentation and reconcile final readiness acceptance before Step 3.4 resumes.
-
-Retained boundaries: this evidence is for Windows/source-checkout installation. It does not newly verify POSIX locking, relocated wheels, network filesystems, hard-link aliases or external file replacement. No operational migration or live provider/LLM run was performed.
+Evidence covers Windows/source-checkout installation, not POSIX locking,
+relocated wheels, network filesystems, hard-link aliases or external file replacement.

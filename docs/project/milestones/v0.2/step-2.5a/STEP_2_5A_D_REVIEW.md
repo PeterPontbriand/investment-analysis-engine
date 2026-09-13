@@ -1,7 +1,8 @@
 # Step 2.5A Slice D — Gate F Review Record
 
-**Date:** 2026-09-01  
-**Status:** approved at mandatory Gate F
+Records the foreign-filing benchmark additions and their expected behavior.
+
+Local sequence and status: [companion plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md#sequence-and-status).
 
 ## Versioned benchmark delta
 
@@ -49,10 +50,8 @@ Isolated artifacts:
 
 ## Gate F checklist
 
-- [x] Approve the deliberate suite and fixture-set version increments.
-- [x] Approve the denominator change from 15 to 19 and the four case outcomes.
-- [x] Confirm no failure was removed, retuned, or hidden.
-- [x] Confirm strategy selection remains honestly `not_measured`.
-- [x] Authorize Slice E only after this review is complete.
-
-Gate F received explicit human approval on 2026-09-01.
+- Approve the deliberate suite and fixture-set version increments.
+- Approve the denominator change from 15 to 19 and the four case outcomes.
+- Confirm no failure was removed, retuned, or hidden.
+- Confirm strategy selection remains honestly `not_measured`.
+- Authorize Slice E only after this review is complete.

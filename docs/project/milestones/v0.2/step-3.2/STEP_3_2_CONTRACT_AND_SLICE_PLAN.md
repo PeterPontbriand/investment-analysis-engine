@@ -1,16 +1,18 @@
 # Step 3.2 Contract and Slice Plan — DAO & Repository Layer
 
-**Status:** Step 3.2 complete and approved on 2026-09-07. All Gates 3.2-A/B/C/D are closed. [PR #30](https://github.com/PeterPontbriand/financial-data-agents/pull/30) merged implementation head `d07a709` as `f3ef25701cac3fbee3a2caa295f102f4d389d51b` on 2026-09-08 at 00:11 UTC (2026-09-07 in America/Toronto), closing the implementation commit/PR workflow. Earlier workflow statements below remain the historical gate record.
+Defines repository inspection interfaces and the placement of trajectory SQL.
 
-**Authority:** [Implementation Plan, Step 3.2](../IMPLEMENTATION_PLAN.md#48-step-32--dao--repository-layer) owns scope, sequencing, and acceptance criteria. This companion supplies the concrete handoff. If they conflict, amend this handoff to match the Implementation Plan before execution.
+Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
-**Predecessors:** Step 3.1, R1, and R2 are complete and approved. [PR #29](https://github.com/PeterPontbriand/financial-data-agents/pull/29) merged R1/R2 into `main` on 2026-09-07 at 17:55:41 UTC, merge commit `ca914b73281aaf5e618684098bb4f115c90972c5`. Its tree is identical to reviewed R2 tip `c4316425c52488c6574c93027235b9ac980e0803`.
+## Sequence and status
 
-**Authorization:** On 2026-09-07 the project owner confirmed that the documents were reviewed and approved and explicitly authorized Slice 3.2-B. This closes Gate 3.2-A and accepts the inventory, gap dispositions, implementation contract, file scope, and verification requirements below. The requested documents-only checkpoint was committed and pushed as `ee4db024bb10c061b2b17ccad41e35544ccd94e3`; the project owner then instructed execution of B. No additional planning approval is required for B within this contract; C and D retain their separate review and authorization gates.
+| Order | Scope | Local gate |
+| :--- | :--- | :--- |
+| A → B → C → D | Reconciliation; repository gaps; integration; documentation | Accepted |
 
 ## 1. Scope and preservation
 
-Complete only demonstrated gaps in typed access for cache inspection, audit logging, and later analytics. The existing storage and public financial representations remain authoritative. Step 3.2 precedes Step 3.3, P2-Profiles, Step 3.4, and Step 3.6 in the selected sequence.
+Complete only demonstrated gaps in typed access for cache inspection, audit logging, and later analytics. The existing storage and public financial representations remain authoritative.
 
 - Preserve dataclasses, Pydantic models, DataFrames, all cache identities, timestamps, provenance, temporal eligibility, TTL behavior, and existing public methods/imports.
 - Keep application persistence SQL in `src/data/repositories/`; the existing telemetry adapter's SQL is a demonstrated gap to move behind that boundary. Migration DDL and test setup/assertion SQL retain their existing owners. No raw SQL belongs in orchestrators, tools, or CLI code.
@@ -48,11 +50,11 @@ The inventory below preserves the pre-implementation source snapshot reviewed at
 | G6 | Round trips for core entities | **Satisfied baseline; extend with changes.** Above suites plus `test_persistence_smoke.py`, `test_schema.py`, and `test_migrations.py` verify the persisted lifecycle. | Add focused tests alongside implementation; retain the existing suite and full managed gate. |
 | G7 | Support later analytics | **Satisfied foundation, later product work deferred.** Historical frames/context, financial facts/lineage, and ordered trajectory events are reconstructable through typed access. | No speculative analytics query language, joins, watchlists, or Analysis Run repository. Later requirements belong to their owning steps. |
 
-Gate 3.2-A approval on 2026-09-07 accepts G2 as the bounded cache-inspection scope specified in section 3. G3/G4 describe one extraction, not two implementations. No completely missing storage subsystem was found.
+ G3/G4 describe one extraction, not two implementations. No completely missing storage subsystem was found.
 
 ### Fresh baseline evidence
 
-On 2026-09-07 the managed wrapper passed Ruff, formatting (283 files), strict mypy (222 source files), and **1,811 tests in 26.87 seconds**. Coverage: **89% reported combined coverage**, 9,376 statements, 776 missing, 2,964 branches, 497 partial branches; statement coverage is approximately 91.7%.
+Coverage: **89% reported combined coverage**, 9,376 statements, 776 missing, 2,964 branches, 497 partial branches; statement coverage is approximately 91.7%.
 
 Command: `& (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gates.ps1')`.
 
@@ -62,11 +64,9 @@ The run started on `c4316425c52488c6574c93027235b9ac980e0803` with documentation
 
 ### Gate 3.2-A
 
-Approved by the project owner on 2026-09-07 following document review. Approval covers the inventory, G2 inspection interpretation, G3/G4 extraction, section 3's interface/behavior contract, file scope, and recorded green baseline. Slice 3.2-B was explicitly authorized in the same instruction. The documents-only checkpoint requirement was subsequently satisfied by pushed commit `ee4db024bb10c061b2b17ccad41e35544ccd94e3`; no second planning-only slice was needed.
+Approved by the project owner on 2026-09-07 following document review.  The documents-only checkpoint requirement was subsequently satisfied by pushed commit `ee4db024bb10c061b2b17ccad41e35544ccd94e3`; no second planning-only slice was needed.
 
 ## 3. Slice 3.2-B — Demonstrated gaps with focused tests
-
-**Status:** Implemented, verified, and approved at Gate 3.2-B on 2026-09-07. Evidence is recorded in section 7; approval and C execution are recorded in section 8.
 
 ### Bounded implementation contract
 
@@ -80,42 +80,23 @@ Approved by the project owner on 2026-09-07 following document review. Approval 
 
 **Tests belong in this slice:** Establish/confirm the baseline before refactoring. Add focused failing tests for new inspection behavior and direct repository access, then implement. Cover stable key ordering/pagination, empty pages, invalid bounds, stale/historically ineligible entries visible only to inspection, unchanged normal reads, corruption, unsupported encoding, and no write/provider side effects. Preserve full trajectory equivalence, conflict/rollback, lock/ownership, and recorder fail-open coverage. Use migrated temporary-file databases for durability and concurrency; memory databases only for sequential cases.
 
-**Gate 3.2-B:** Review the bounded diff, full typed API, focused regression evidence, preserved public behavior, and complete managed gate. No known failing or untested implementation is handed to 3.2-C. Record explicit authorization before C begins.
+No known failing or untested implementation is handed to 3.2-C. Record explicit authorization before C begins.
 
 ## 4. Slice 3.2-C — Integration and acceptance verification
-
-**Status:** Verified and approved at Gate 3.2-C on 2026-09-07. Acceptance evidence is recorded in section 8; the project owner explicitly authorized D.
 
 Verify the combined repository/sink/cache lifecycle against a fresh migrated temporary database and a reopened database. Extend integration tests only for demonstrated coverage gaps; do not duplicate B's tests. Demonstrate exact typed round trips, original provenance/timestamps, unchanged cache eligibility, and preserved telemetry failure handling. Audit production SQL placement, public imports, connection ownership, and the three Step 3.2 acceptance criteria. A defect receives a bounded fix and regression test within the approved contract; wider changes return to review.
 
 Run the complete managed gate and record count/coverage changes relative to A/B, explaining any removed test or changed denominator. Deterministic tests must not call real providers or LLMs. Real user databases and live-model smoke tests are not required.
 
-**Gate 3.2-C:** Review acceptance evidence and authorize D explicitly. Verification success does not mark Step 3.2 complete.
+Verification success does not mark Step 3.2 complete.
 
 ## 5. Slice 3.2-D — Documentation and closeout
 
-**Status:** Documentation reconciliation and final managed verification completed on 2026-09-07 after explicit authorization. Evidence is in section 9; final Gate 3.2-D approval was granted on 2026-09-07, as recorded in section 10.
-
-Synchronize this record, the Implementation Plan, Master Plan, and affected durable architecture guidance with actual implemented contracts. Reconcile Discovery Workbook references only where affected; preserve historical design and approval snapshots. Record the final full managed gate, whitespace/link checks, and documents/source scope review. Mark Step 3.2 complete only after explicit Gate 3.2-D approval. Step 3.3 and later work retain their own authorization and planning gates.
-
-## 6. Checkpoint and decision record
-
-| Item | Current state |
-| :--- | :--- |
-| R1/R2 approvals and merge | Complete; PR #29 merged on 2026-09-07. Historical pending entries in predecessor records are superseded by their final approvals and merge closeout. |
-| 3.2-A inventory, gap matrix, approved contract, baseline | Reviewed and approved on 2026-09-07. |
-| Gate 3.2-A / authorization for B | Explicitly approved / authorized by the project owner on 2026-09-07. |
-| Documents-only checkpoint | Committed and pushed as `ee4db024bb10c061b2b17ccad41e35544ccd94e3`; local HEAD and its remote-tracking ref matched at execution start. |
-| B / C / D | All approved on 2026-09-07; final Gate 3.2-D approval completes Step 3.2. |
-
-Gate 3.2-A approval, B authorization, and the pushed documentation checkpoint are recorded. B execution is complete and approved. The project owner subsequently approved C and explicitly authorized D. Final Gate 3.2-D approval was granted on 2026-09-07, completing Step 3.2.
+Update the owning status table and affected technical guidance. Reconcile Discovery Workbook references only where affected; preserve historical design and approval snapshots. Record the final full managed gate, whitespace/link checks, and documents/source scope review. Mark Step 3.2 complete only after explicit Gate 3.2-D approval.
 
 ## 7. Slice 3.2-B implementation and verification — 2026-09-07
 
-Execution started from clean pushed checkpoint
-`ee4db024bb10c061b2b17ccad41e35544ccd94e3` on
-`docs/step-3.2-repositories`, after the project owner explicitly instructed
-3.2-B implementation. The local HEAD and remote-tracking ref both matched that
+The local HEAD and remote-tracking ref both matched that
 checkpoint. No further planning decision or scope amendment was needed.
 
 ### Delivered scope
@@ -176,15 +157,9 @@ moving readback into a class; comparing the executable body confirmed that its
 logic is preserved. No production defect or widened contract resulted from
 these verification corrections.
 
-Gate 3.2-B is ready for stakeholder review, not yet approved. Step 3.2 remains
-in progress; C/D and later milestone implementation have not started. No commit,
-push, PR, dependency/schema change, real provider/model call, or user-data
-migration was performed during this implementation task.
-
 ## 8. Gate 3.2-B approval and Slice 3.2-C acceptance — 2026-09-07
 
-The project owner reviewed and approved the delivered B implementation and
-instructed proceeding. In the context of the pending Gate 3.2-B review, this
+In the context of the pending Gate 3.2-B review, this
 closes Gate 3.2-B and authorizes the next slice, 3.2-C. It does not declare the
 whole step complete or approve unreviewed D closeout work. Section 7's pending
 approval statement is retained as the historical pre-review snapshot.
@@ -237,17 +212,15 @@ Artifacts:
 The artifacts remain ignored. Final whitespace and scope review passed.
 No real provider/model calls, dependency changes, schema changes, or user-data
 migrations were needed; the lifecycle migration operates only on a temporary
-test database. No commit, push, or PR was performed.
+test database.
 
-Gate 3.2-C is ready for stakeholder review. D requires Gate 3.2-C approval and
+D requires Gate 3.2-C approval and
 explicit authorization; Step 3.2 is not yet marked complete. Final cross-document
 synchronization and closeout remain D work.
 
 ## 9. Gate 3.2-C approval and Slice 3.2-D closeout — 2026-09-07
 
-The project owner explicitly approved Gate 3.2-C and authorized Slice 3.2-D.
-This accepts section 8's integration/acceptance evidence and supersedes its
-historical pending-review status. D began from the approved B/C working tree
+ D began from the approved B/C working tree
 over pushed checkpoint `ee4db024bb10c061b2b17ccad41e35544ccd94e3`.
 No source or test change was made during D.
 
@@ -255,8 +228,6 @@ No source or test change was made during D.
 
 | Artifact / requirement | Final disposition |
 | :--- | :--- |
-| Master Plan | Records implemented repository scope and approved A/B/C gates; checkpoint prerequisite satisfied; final D approval remains pending and later work remains separately authorized. |
-| Implementation Plan | Synchronizes status, selected sequence, decision record, technical acceptance checklist, and immediate actions. The three technical criteria are satisfied; Step 3.2 is not declared complete before final review. |
 | Architecture | Documents current repository APIs, bounded key enumeration, stored-input inspection versus eligible cache reads, trajectory delegation, explicit errors, and borrowed connection ownership. Repository package layout and formerly planned persistence references now reflect implementation. |
 | Discovery Workbook | Updates the repository layout/ownership statements and links to the durable architecture contract; historical decisions and unrelated research remain intact. |
 | This handoff | Preserves the approved pre-implementation inventory as a labeled historical snapshot and records actual implementation, approval, verification, and gap dispositions. |
@@ -285,30 +256,9 @@ already-pushed checkpoint. Earlier milestone design and per-slice execution
 snapshots retain their original historical meaning.
 
 D changed only the five documentation files listed above. All source and test
-changes in the working tree belong to approved B/C. No commit, push, PR,
-dependency/schema change, live provider/model call, or user-data migration was
-performed in D.
+changes in the working tree belong to approved B/C.
 
-**Final review:** Gate 3.2-D is ready for stakeholder approval. That approval is
+That approval is
 required to mark Step 3.2 complete; no later milestone implementation is
 implicitly authorized. Implementation checkpoint/PR work remains subject to
 explicit authorization.
-
-## 10. Final approval and Step 3.2 completion — 2026-09-07
-
-The project owner granted final Gate 3.2-D approval and instructed recording
-Step 3.2 as complete. All A–D gates are closed. The repository implementation,
-integration acceptance evidence, and documentation reconciliation are accepted,
-including the final managed gate in section 9: 1,853 passing tests, 89% reported
-coverage, clean Ruff/formatting, and strict mypy.
-
-Earlier pending-review statements in sections 7–9 remain historical execution
-snapshots superseded by their subsequent approvals and this final decision.
-The Master Plan and Implementation Plan now record Step 3.2 as complete and
-approved. Step 3.3 and later implementation remain separately authorized.
-
-The project owner requested commit, PR, and PR-comment drafts. This record does
-not claim that the implementation has been committed, pushed, or merged, or
-that a PR/comment has been published. Those workflow actions remain outstanding.
-Approval recording changes documentation only; the accepted source/test state
-and verification evidence are unchanged.

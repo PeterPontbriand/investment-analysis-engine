@@ -1,9 +1,10 @@
 # Graham Comparison Repair — R1 Evidence and Concrete Contract
 
-**Date:** 2026-09-09.<br/>
-**Revision inspected:** `e20f6f7c818bce37c39dafceb80ea80bbceaf6d1` on `docs/database-readiness-planning`.<br/>
-**Status:** R1 accepted and R2 authorized. This document preserves the reviewed design and baseline; section 7 records the approved lineage extension. See [R2 implementation and verification](R2_IMPLEMENTATION_AND_VERIFICATION.md) for the completed implementation awaiting final review.<br/>
-**Authority:** [Accepted repair plan](GRAHAM_COMPARISON_REPAIR_PLAN.md). The pre-existing root README correction is preserved and belongs with this repair. Database-readiness implementation remains excluded.
+Records the provider evidence and concrete security-unit contract for Graham price comparison.
+
+Local sequence and status: [companion plan](GRAHAM_COMPARISON_REPAIR_PLAN.md#sequence-and-status).
+
+Evidence baseline: `e20f6f7c818bce37c39dafceb80ea80bbceaf6d1`.
 
 ## 1. Findings and verification
 
@@ -123,21 +124,12 @@ Required R2 proof:
 - Missing/invalid quote and non-positive Growth reference; supplied-profile/no-profile legacy callers; mathematical percentage from unrounded values; JSON 4 plus old field equality; all presentation modes retain identity/provenance.
 - Typed source contracts, focused regression checks and full managed gate. Existing 1,944-test baseline is not acceptance evidence for new implementation.
 
-## 7. Review decision requested
+## 7. Derived-fact lineage
 
-**Subsequent approval record:** The user accepted R1 and explicitly authorized
-R2. During implementation, source inspection established that derived common
-shares and inferred zero preferred shares did not retain verifiable source
-accessions. The user approved extending the repair to preserve typed lineage
-for those existing outputs without changing their calculations or assumptions.
-The production allowlist therefore also includes `src/data/financial/facts.py`
-and `src/data/financial/resolver.py`. Raw share-count sources use a separate
-type so zero treasury shares remain valid without weakening the positive
-shares-outstanding contract. Legacy cache entries without lineage remain
-comparison-unavailable; `--no-cache` resolves fresh inputs but does not rewrite
-those existing entries. The decision request below is retained as the original
-R1 review record, not a pending authorization gate.
-
-Approve the proposed narrow filing-document evidence acquisition, single-common-class policy inference, current-only automatic acquisition, bounded transport, additive service/profile contracts, and presentation schema 4. These are concrete changes beyond simply forwarding an existing field. Review should assess the deliberately limited security/provider coverage and evidence-timing limitation. If those boundaries are rejected, revise the mapping before R2; never bypass the guard to force the README example to pass.
-
-At the original R1 checkpoint, no production fix, branch switch, commit, push, or database operation had been performed. R2 subsequently proceeded on `fix/graham-price-comparison` with the small README audit correction and accepted planning context; database-readiness implementation remains separate.
+Derived common shares and inferred-zero preferred shares retain typed source
+lineage without changing calculations or assumptions. The file scope includes
+`src/data/financial/facts.py` and `src/data/financial/resolver.py`.
+Raw share-count sources use a separate type so zero treasury shares remain
+valid without weakening positive shares-outstanding constraints. Legacy cache
+entries without lineage remain comparison-unavailable; `--no-cache` resolves
+fresh inputs without rewriting existing entries.

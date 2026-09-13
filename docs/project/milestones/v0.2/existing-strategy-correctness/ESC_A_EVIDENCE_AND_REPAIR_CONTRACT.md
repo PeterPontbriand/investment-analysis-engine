@@ -1,10 +1,10 @@
 # ESC-A — Evidence and proposed repair contract
 
-**Status:** C1–C6 reviewed and approved by the project owner after pushing `cb1e9ef50bcef5f549cdabba91c853629da78eed`. ESC-B implementation and verification are recorded in the [final review packet](ESC_B_IMPLEMENTATION_AND_REVIEW.md). ESC-C final acceptance was granted on 2026-09-11 (Toronto); ESC-D remains a separate future renewal gate. The original evidence below is historical; the ledger and matrix contain current repair dispositions.
+Defines the quote, identity, provenance and failure-reporting repairs supported by the investigation.
 
-**Authority:** [Approved correctness plan](EXISTING_STRATEGY_CORRECTNESS_PLAN.md). Companion records: [defect ledger](ESC_A_DEFECT_LEDGER.md) and [coverage matrix](ESC_A_COVERAGE_MATRIX.md).
+Local sequence and status: [companion plan](EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status).
 
-**Revision examined:** `8d7fba0` on `fix/existing-strategy-correctness`, including the earlier Graham repair `e8f4a95`. Evidence collected 2026-09-11 UTC (evening of September 10 in Toronto). No production source, dependency, operational database, or existing test was changed during this investigation.
+Evidence baseline: `8d7fba0`.
 
 ## 1. Evidence and limits
 
@@ -152,6 +152,6 @@ Implement in focused groups: quote timing/comparison; provenance and metadata ex
 
 Before ESC-C, reconcile every ledger entry and matrix cell, independently recalculate all four analyses, run real composition fixtures and dated live cases (including a successful valid Momentum history), then the complete managed gate with at least 85% coverage. The current live KO history issue remains visible until valid evidence or an explicitly reviewed provider limitation is established. Do not declare the whole repair complete merely because the error becomes clearer.
 
-The final review must show repair commits or the reviewed uncommitted revision, regression names, live commands/times, compatibility changes, legitimate absences/zeros and all remaining limitations. No known defect is deferred to a backlog. ESC-C acceptance is required before database readiness resumes; ESC-D renewal still blocks Step 3.5.
+The final review must show repair commits or the reviewed uncommitted revision, regression names, live commands/times, compatibility changes, legitimate absences/zeros and all remaining limitations. No known defect is deferred to a backlog.
 
-**Requested review:** Approve or amend C1–C6, especially the five-minute retrieval-reuse bound, separately labelled filing venue, honest unknown market timestamp, first-valid-window crossover rule, strict rejection of invalid history and versioned failure JSON. Approval does not authorize commits, pushes, PRs or migrations against user data.
+**Requested review:** Approve or amend C1–C6, especially the five-minute retrieval-reuse bound, separately labelled filing venue, honest unknown market timestamp, first-valid-window crossover rule, strict rejection of invalid history and versioned failure JSON.

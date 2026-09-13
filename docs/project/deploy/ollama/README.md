@@ -26,6 +26,6 @@ ollama create financial-data-agents-step-2-5 -f docs/project/deploy/ollama/Model
 
 Section 19 and the audit record in the [Step 2.5 Golden Suite Slice Plan](../../milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md) explain the historical configuration and failure. Do not use that retired workflow to begin new implementation work.
 
-For Step 3.1, follow the bounded slices, independent verification, and current local-model advice in the [Step 3.1 SQLite Slice Plan](../../milestones/v0.2/step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md). The exact primary bakeoff model is the local Ollama tag `glm-4.7-flash`; configure that same model ID in Cline. It is not promoted to an approved implementation model, and no Step 3.1 alias is frozen, until it passes two consecutive independently verified micro-slices. A tool smoke test alone is insufficient.
+Choose and verify the implementation model for the current task; application-model configuration is a separate concern.
 
 This development alias is not the model-under-evaluation configuration for the optional real-local-Ollama Golden Suite mode. Record those empirical settings separately.

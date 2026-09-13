@@ -429,7 +429,7 @@ When `include_fcf_yield = false`, `fcf_yield` has `status = not_applicable` and 
 
 When several conditions apply, `classification_reason_code` identifies the first applicable category in this order: invalid request, required-provider error, incompatible or missing evidence required by the selected classification basis, insufficient or non-contiguous history, nonmeaningful controlling historical growth, unavailable required consensus, then failed growth gate. More specific details remain in the affected `MetricResult`, diagnostics, and warnings. Failed gates use `fcf_not_growing`, `eps_not_growing`, `fcf_and_eps_not_growing`, or `forward_growth_not_confirmed` as applicable; the result's policy identifies whether `fcf_not_growing` refers to total FCF or FCF/share.
 
-`CalculationStatus`, `ResolvedInput`, and `ResolutionTrace` reuse the established shared contracts. Slice C1 confirmed that the Step 2.3 `Valuation*` vocabulary is narrower than the shared boundary it now describes: operating cash flow and capital expenditures are general financial facts, and the cache stores resolved provider or derived inputs rather than valuation results. Before C2, the bounded C1R migration therefore renames provider-facing fact contracts to `Financial*` and cache-facing contracts to `ResolvedInputCache*`, without changing their behavior or invariants.
+`CalculationStatus`, `ResolvedInput`, and `ResolutionTrace` reuse the established shared contracts. Operating cash flow and capital expenditures use the shared `Financial*` contracts; caches use `ResolvedInputCache*`. The names reflect general financial evidence, not valuation-only results.
 
 In this vocabulary, a reporting-period observation is one period-identified occurrence of a financial fact; an annual series is an ordered collection of those facts. Numeric `value` fields continue to mean the fact's numeric payload, not a company valuation. Permanent compatibility aliases are added only if a concrete external consumer is identified during review.
 
@@ -538,22 +538,7 @@ Before a provider capability is enabled, its approved mapping must be added to t
 
 The implementation cannot enable a production mapping until this record and its deterministic tests exist. Unsupported capabilities remain explicitly unavailable.
 
-**Post-closeout P1 refinement:** Live FLSW behavior exposed a cross-strategy distinction that this financial-fact mapping did not own: provider-backed instrument kind and method applicability. The proposed normalized Yahoo mappings, separate kind evidence, composed profile provenance, and known-ETF `not_applicable` behavior are governed by [`STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md`](../step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md). P1 does not change the company-level FCF formula or any approved SEC concept in this design.
-
-### 9.1 Evidence-gated Slice D sequence
-
-Provider research and production implementation are deliberately separated:
-
-1. **D0 — provider evidence:** complete the mapping record from authoritative documentation and representative payloads. Decide exact concepts, meanings, signs, units, periods, availability, amendment/duplicate handling, and security identity. Make no production changes and stop for human approval.
-2. **D1 — operating cash flow:** implement only the approved operating-cash-flow mapping and its deterministic tests.
-3. **D2 — capital expenditures:** implement only the approved capital-expenditure mapping, sign transform, and deterministic tests.
-4. **D3 — diluted EPS:** implement only the approved annual diluted-EPS compatibility, selection, and reconciliation rules with deterministic tests.
-5. **D4 — composition:** connect the approved capabilities to the annual-series resolver while preserving typed unavailability and complete provenance.
-6. **D5 — closeout:** add bounded integration regressions, run the complete quality gate, and verify that this record describes production behavior exactly.
-
-The later approved FCF/share amendment follows the same evidence rule. Slice E1 adds and approves weighted-average diluted-share mappings before E2 enables them; D0–D5 are not retroactively rewritten to imply that they reviewed evidence outside their original scope.
-
-Implementation agents receive approved mappings as inputs; they do not decide provider accounting semantics while writing adapters. Each production-capability slice stops for review, and any shape not supported by the approved evidence remains explicitly unavailable.
+**Post-closeout P1 refinement:** Live FLSW behavior exposed a cross-strategy distinction that this financial-fact mapping did not own: provider-backed instrument kind and method applicability. The proposed normalized Yahoo mappings, separate kind evidence, composed profile provenance, and known-ETF `not_applicable` behavior are governed by [`STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md`](../step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
 
 ## 10. Deterministic calculation boundary
 

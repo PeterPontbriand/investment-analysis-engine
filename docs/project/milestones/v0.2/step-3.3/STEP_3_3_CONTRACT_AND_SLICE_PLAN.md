@@ -1,12 +1,14 @@
 # Step 3.3 — Data Quality & Cache Invalidation Contract and Slice Plan
 
-**Status:** Companion plan approved and Step 3.3 implementation explicitly authorized on 2026-09-07. A reconciliation and the baseline are complete. B pure quality rules and focused tests are implemented; verification and review evidence are recorded below. Gate B review passed on 2026-09-08; C cache/refresh and trajectory integration is implemented and verified. The full managed quality gate passed on 2026-09-08 (1,944 tests, 89% coverage); Step 3.3 final acceptance is recorded in [Implementation Plan §4.9](../IMPLEMENTATION_PLAN.md#49-step-33--data-quality--cache-invalidation-pipeline).
+Defines data-quality rules and controlled cache refresh behavior.
 
-**Branch:** `feat/step-3.3-data-quality`, verified active at local head `ef60a4b` with a clean working tree before this documentation change.
+Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
-**Authority:** [Implementation Plan, Step 3.3](../IMPLEMENTATION_PLAN.md#49-step-33--data-quality--cache-invalidation-pipeline). The [Master Plan](../../../MASTER_PLAN.md) supplies roadmap scope; [financial mathematics](../../../../user/FINANCE_MATH.md) remains authoritative for calculation semantics.
+## Sequence and status
 
-**Approval record:** On 2026-09-07 the project owner confirmed that the branch had been created and requested that approval to begin Step 3.3 be recorded and the necessary additional documentation prepared. This confirms the prior next-step authorization following Issue #17 acceptance. That initial request authorized documentation preparation. Subsequently, on 2026-09-07, the project owner stated, “Approved; Step 3.3 implementation authorized. Record & suggest checkpoint commit description.” This approves this companion plan and authorizes implementation within its scope. Complete outstanding A detail and baseline work before production edits; no repeat start/implementation authorization is required within the accepted scope. Implementation review gates and final acceptance remain applicable. This approval does not assert that unfinished reconciliation or implementation has passed verification, authorize later work packages, or request execution of a commit, push, or PR.
+| Order | Scope | Local gate |
+| :--- | :--- | :--- |
+| A → B → C → D | Reconciliation; pure rules; cache/telemetry integration; final verification | Accepted |
 
 ## 1. Scope and preservation
 
@@ -52,17 +54,6 @@ Every evaluated rule should produce a typed decision with rule identifier, outco
 5. Keep provider retries within existing timeout/circuit-breaker ownership. Do not add an unbounded quality-triggered re-fetch loop. Classify deterministic incompatibility separately from transient transport failure.
 6. Emit quality failures with run/span linkage through the existing sanitized recorder. Telemetry failure must not change the quality decision or business outcome. Direct calls without a recorder still enforce quality rules.
 
-## 4. Approved implementation slices and review gates
-
-The project owner approved this handoff and authorized Step 3.3 implementation on 2026-09-07. The current recording task prepares the documentation checkpoint; execution begins with outstanding A reconciliation and baseline work. Review gates for implemented slices and final acceptance remain in force.
-
-| Slice | Deliverable | Exit gate |
-| :--- | :--- | :--- |
-| 3.3-A — Reconciliation and contract | Complete fetch/read/write inventory, existing-test mapping, exact typed interfaces/file scope, policy defaults and all review details in section 3; fresh managed baseline before refactoring. | Plan accepted and implementation authorized on 2026-09-07. Finish and record concrete contract details and baseline evidence before B; material scope changes require review. |
-| 3.3-B — Rules and focused tests | Implement accepted deterministic rules/configuration and regression tests for boundary conditions; reuse existing checks. | Review bounded diff, focused tests and full managed gate before C. |
-| 3.3-C — Cache/refresh and trajectory integration | Apply rules to approved fetch/cache paths, controlled refresh and exclusion, transparent quality failures, and preserved fail-open telemetry. | Review lifecycle, reopen/rollback and reliability evidence plus full managed gate before D. |
-| 3.3-D — Acceptance and documentation | Reconcile acceptance evidence and durable behavioral documentation with implemented contracts; final managed gate. | Explicit final acceptance before marking Step 3.3 complete. Later packages remain separate. |
-
 ## 5. Verification and acceptance matrix
 
 Use synthetic data, injected clocks, mocked providers/LLMs, and migrated temporary SQLite databases. Never use real user databases, production cache fixtures, or live external calls in deterministic tests.
@@ -82,17 +73,9 @@ Complete non-mutating gate from the repository root:
 
 Record revision, date, Ruff/format/mypy results, pytest counts, coverage and ignored artifact location for each implementation gate. No fresh code baseline is claimed by this documentation-only handoff. The accepted predecessor record reports 1,870 tests and 89% coverage; that is historical evidence, not a new run.
 
-## 6. Approved pre-implementation handoff (historical snapshot)
-
-- Start approval and branch: recorded and verified on 2026-09-07.
-- Companion plan, rule matrix, slices and verification requirements: approved on 2026-09-07; Step 3.3 implementation authorized.
-- Exact interfaces, complete call-path audit, policy details and fresh baseline: outstanding in A under the granted implementation authorization.
-- Production code, tests, dependencies, database contents and public behavior: unchanged by this preparation.
-- Step 3.3 acceptance checkboxes remain open. Implementation review gates and final acceptance have not been completed.
-
 ## 7. A reconciliation and concrete B contract — 2026-09-07
 
-The project owner instructed execution after checkpoint `a8f3297`. The fresh managed baseline passed: Ruff, formatting (287 files), strict mypy (224 source files), and 1,870 tests in 34.69 seconds; reported combined coverage 89% (9,422 statements, 775 missing). Artifacts: `.tmp/quality-runs/20260907215128926-40504-411e86c57c2141c2a07dc8a7b43e55ef/`. The first sandboxed attempt could not query Python; the same non-mutating wrapper passed with approved interpreter access. Dependencies were not synchronized.
+The fresh managed baseline passed: Ruff, formatting (287 files), strict mypy (224 source files), and 1,870 tests in 34.69 seconds; reported combined coverage 89% (9,422 statements, 775 missing). Artifacts: `.tmp/quality-runs/20260907215128926-40504-411e86c57c2141c2a07dc8a7b43e55ef/`. The first sandboxed attempt could not query Python; the same non-mutating wrapper passed with approved interpreter access. Dependencies were not synchronized.
 
 ### Call paths and ownership
 
@@ -115,11 +98,9 @@ Add only `src/data/quality.py` and `tests/data/test_quality.py`, plus this plann
 - `FreshnessPolicy(cache_ttl=None, observation_max_age=None)` keeps residence-age and observation-age checks separate. `evaluate_freshness(*, context, policy, cached_at=None, observed_at=None, available_at=None)` evaluates TTL, observation time/age and availability. Thresholds are nonnegative timedeltas; equality passes. Disabled age limits or missing observations report insufficient evidence. Historical observation age uses requested `as_of`, not wall-clock age; historical availability is mandatory and must not exceed `as_of`. A future observation or availability fails. Future cache insertion time reports insufficient evidence (clock drift), retaining existing nonpositive-age cache semantics rather than converting it into silent verified freshness. Retrieval after historical `as_of` is allowed and never used as availability evidence.
 - Existing financial currency/unit/period and split checks remain with their strategy owners; B does not duplicate or generalize them. C consumes the shared temporal decisions alongside those checks on provider and cache paths. No assumed annual reporting deadline, FX rate, or corporate-action correction is added.
 
-These details complete A's bounded policy/interface reconciliation under the granted authorization. B may proceed. Gate B remains a review point before C runtime integration.
+These details complete A's bounded policy/interface reconciliation under the granted authorization. B may proceed.
 
 ## 8. B implementation and verification — 2026-09-08
-
-**Status:** Implemented and verified; Gate B review pending. C integration and D acceptance have not started. Work resumed after a usage-limit interruption; the A baseline and original authorization remain valid.
 
 `src/data/quality.py` implements the pure typed decision/context/policy contracts and historical/freshness rule functions specified above. Decisions preserve input identity and evaluation context; freshness decisions also retain the exact timestamp evaluated. Rules neither mutate frames nor call providers, repositories or telemetry. Existing financial period/currency/unit/split checks remain with their current strategy owners. No runtime behavior is changed until C connects these rules to the audited read/fetch/write paths.
 
@@ -131,13 +112,11 @@ The complete managed wrapper passed on `a8f3297` plus the uncommitted B changes 
 - **1,931 tests passed in 40.54 seconds**, an increase of 61 from the 1,870-test baseline; no existing tests removed.
 - **89% reported combined coverage**; 9,555 statements, 775 missing, 3,052 branches, 496 partial branches. The added module accounts for all 133 additional statements and 72 additional branches.
 - Ignored artifacts: `.tmp/quality-runs/20260908172132293-19096-b5486d5732ab4c3c98915a08fb84477b/`.
-- Whitespace and planning-link checks passed. Dependencies, schema, migrations, provider adapters, financial calculations and existing public interfaces are unchanged. No commit, push or PR was performed.
-
-**Review handoff:** Review this concrete B diff and verification evidence before C, as required by the approved slice table: “Review bounded diff, focused tests and full managed gate before C.” Runtime cache exclusion, refresh, provider/financial-series integration and quality-failure trajectory evidence remain C deliverables; these are not claimed complete by the pure-rule tests. Gate B approval and Step 3.3 final acceptance are not inferred from passing verification.
+- Whitespace and planning-link checks passed. Dependencies, schema, migrations, provider adapters, financial calculations and existing public interfaces are unchanged.
 
 ## 9. Gate B approval and C execution — 2026-09-08
 
-The project owner stated, “Gate B review passed. Slice 3.3-C authorized, proceed.” This closes Gate B and authorizes cache/refresh and trajectory integration. Gate C review and D closeout remain separate.
+  Gate C review and D closeout remain separate.
 
 C uses the green B baseline (1,931 tests) recorded above. The integration adds normal-read historical validation and controlled replacement, shared financial temporal checks in the scalar/derived and annual-series consumers, configurable financial cache residence age (unlimited by default), and request-scoped quality reporting through the existing recorder. It retains storage inspection, existing TTL equality/clock-drift semantics, public interfaces, financial calculations, schema and dependencies.
 

@@ -1,8 +1,10 @@
 # ESC-A — Defect ledger
 
-**Original source revision:** `8d7fba0`, including Graham implementation `e8f4a95`. **Current disposition:** ESC-01–17 implemented and verified in the working tree based on approved `cb1e9ef`; ESC-B reviewed and approved on 2026-09-11 (Toronto). [ESC-C acceptance](ESC_C_FINAL_ACCEPTANCE.md) was granted on 2026-09-11 (Toronto), accepting ESC-01–17 and their documented dispositions. **Repair commit:** not yet committed. The earlier Graham parser repair is retained under ESC-05, not relabelled as newly implemented work. Original reproductions below describe pre-repair behavior; the closure record is authoritative for current implementation status.
+Records reproduced correctness defects, their causes and the regression evidence for each repair.
 
-Severity means impact within this application: **high** for misleading financial/data claims or inconsistent validation, **medium** for missing/misleading explanations or failure contracts. These are not security severity ratings. Contract references and exact file groups are in the [repair contract](ESC_A_EVIDENCE_AND_REPAIR_CONTRACT.md). Every closure must add repair revision, permanent regression names, relevant live evidence and acceptance disposition here.
+Local sequence and status: [companion plan](EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status).
+
+Evidence baseline: `8d7fba0`.
 
 ## Confirmed findings
 
@@ -49,7 +51,7 @@ The ledger is not frozen against discovery. New discrepancies during implementat
 
 ## ESC-B closure evidence — accepted at ESC-C
 
-All entries share repair revision **uncommitted working tree based on `cb1e9ef`**, final gate **2,054 passed / 89%**, and the dated live checks in the [review packet](ESC_B_IMPLEMENTATION_AND_REVIEW.md). ESC-B and ESC-C final acceptance are approved. Paths below are repository-relative permanent regression anchors, not raw operational artifacts.
+All entries share repair revision **uncommitted working tree based on `cb1e9ef`**, final gate **2,054 passed / 89%**, and the dated live checks in the [review packet](ESC_B_IMPLEMENTATION_AND_REVIEW.md).  Paths below are repository-relative permanent regression anchors, not raw operational artifacts.
 
 | ID | Implemented repair and permanent regression evidence |
 | :--- | :--- |
@@ -81,11 +83,11 @@ Set `add_completion=False` and use a purpose-oriented help description. Preserve
 
 ### ESC-15 — Details overwhelmed investors and contradicted the BVPS basis
 
-**Scope/severity:** All four details reports; medium presentation defect. The stakeholder's live KO report exposed recursive repeated technical metadata, excessive precision and a BVPS detail basis of “not supplied by provider” despite a supported fiscal-year-end basis in the summary. The shared detail renderer used only the explicit basis while the summary recognized consistent retained BVPS component bases. The project owner explicitly approved investor-readable details with complete technical evidence retained in diagnostics/JSON.
+**Scope/severity:** All four details reports; medium presentation defect. The stakeholder's live KO report exposed recursive repeated technical metadata, excessive precision and a BVPS detail basis of “not supplied by provider” despite a supported fiscal-year-end basis in the summary. The shared detail renderer used only the explicit basis while the summary recognized consistent retained BVPS component bases.
 
 Graham details now explain the input values, formulas, material assumptions and filing evidence. A shared basis helper resolves the inconsistency without manufacturing missing evidence. Identical displayed component rows appear once, even when their retained provenance differs; full records remain in diagnostics/JSON. Momentum explains windows, crossover eligibility and the existing RSI convention. FCF uses a compact annual table with formulas and optional-metric reasons. Monetary magnitudes use readable precision; calculations and JSON schemas are unchanged.
 
-Permanent evidence: `test_details_explain_calculation_and_diagnostics_retain_raw_evidence`, shared investor-provenance tests (including differing-source duplicate rows, inferred versus reported zero, mixed-basis rejection, missing inputs and user assumptions), all-mode Graham CLI composition, Momentum presenter tests and FCF analyzer presentation parity. Earlier technical assertions now check diagnostics rather than being discarded. The revised smoke guide retains twelve primary commands and distinguishes top-level presentation schema from cache schema. The review packet records final gate and dated live evidence. Stakeholder acceptance was granted at ESC-C.
+Permanent evidence: `test_details_explain_calculation_and_diagnostics_retain_raw_evidence`, shared investor-provenance tests (including differing-source duplicate rows, inferred versus reported zero, mixed-basis rejection, missing inputs and user assumptions), all-mode Graham CLI composition, Momentum presenter tests and FCF analyzer presentation parity. Earlier technical assertions now check diagnostics rather than being discarded. The revised smoke guide retains twelve primary commands and distinguishes top-level presentation schema from cache schema. The review packet records final gate and dated live evidence.
 
 ### ESC-16 — Recoverable quality rejection printed before the report heading
 
@@ -99,4 +101,4 @@ Candidate rejections now log at DEBUG; quality observers and retained resolver t
 
 The presenter now identifies missing EPS/BVPS or the unresolved BVPS component using typed resolver evidence, states that missing preferred-share data is not assumed zero, and distinguishes an unrequested quote from an attempted failure. Details preserve the opening. Existing not-applicable result layout, financial calculations, JSON schema and exit codes remain intact. Permanent regressions: `tests/reporting/test_graham_presenter.py::test_number_missing_component_explains_failure_before_diagnostics` (three components across three text modes), `test_number_failure_does_not_relabel_attempted_quote_as_not_requested`, and the CLI missing-input assertion in `tests/test_cli.py`.
 
-Read-only SEC evidence on 2026-09-12 UTC confirmed direct common shares and equity for the eligible MSFT annual period, but no preferred/preference concepts or issued-minus-treasury components. This is a verified unsupported inference shape, not proof that the issuer has no preferred shares. `tests/analysis/graham_value/test_sec_bvps_hardening.py::test_generic_missing_preferred_tag_with_direct_common_shares_remains_unavailable` protects this boundary. Live isolated-storage diagnostics/details/JSON reproduced exit 1, EPS 11.71 USD, and the corrected text; evidence paths and final 2,054-test gate are in the implementation record. ESC-B and ESC-C acceptance approved.
+Read-only SEC evidence on 2026-09-12 UTC confirmed direct common shares and equity for the eligible MSFT annual period, but no preferred/preference concepts or issued-minus-treasury components. This is a verified unsupported inference shape, not proof that the issuer has no preferred shares. `tests/analysis/graham_value/test_sec_bvps_hardening.py::test_generic_missing_preferred_tag_with_direct_common_shares_remains_unavailable` protects this boundary. Live isolated-storage diagnostics/details/JSON reproduced exit 1, EPS 11.71 USD, and the corrected text; evidence paths and final 2,054-test gate are in the implementation record.

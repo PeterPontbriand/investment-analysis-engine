@@ -1,11 +1,10 @@
 # Step 2.5A B1-A SEC Snapshot and Regime-Lock Review
 
-**Base checkpoint:** `6e9019e40df13277fac9353e53446da44d1b26c3`<br/>
-**Implementation date:** 2026-09-01 (America/Toronto)<br/>
-**Status:** Implemented, verified, and approved at Gate C on 2026-09-01<br/>
-**Authorization:** Gate B approval recorded in the
-[A1 review](STEP_2_5A_A1_REVIEW.md)<br/>
-**Execution plan:** [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)
+Documents analysis-scoped SEC snapshot reuse and accounting-regime locking.
+
+Local sequence and status: [companion plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md#sequence-and-status).
+
+Evidence baseline: `6e9019e40df13277fac9353e53446da44d1b26c3`.
 
 ## 1. Outcome
 
@@ -59,15 +58,4 @@ The canonical PowerShell quality wrapper subsequently passed on 2026-09-01
 after using the installed `uv` executable and the rebuilt project `.venv`.
 It passed Ruff, format verification, strict mypy for 182 source files, and all
 1,270 tests at 88% reported coverage. Isolated artifacts were written beneath
-`.tmp/quality-runs/20260901220838424-33668-284faa19dcc64045b4aa6da258b07091/`.
-Dependencies and lock files were not changed.
-
-## 4. Review decision required
-
-Reviewers should confirm the optional provider capability is sufficiently
-narrow, both approved analysis families own the scope, snapshot evidence and
-immutability are adequate, historical regime selection fails closed, and no
-B1-B exact IFRS mapping or C security-unit behavior entered this slice.
-
-B1-A received explicit human approval at Gate C on 2026-09-01. The review gate
-is closed and B1-B is authorized under the slice plan.
+`.tmp/quality-runs/20260901220838424-33668-284faa19dcc64045b4aa6da258b07091/`. Dependencies and lock files were not changed.
