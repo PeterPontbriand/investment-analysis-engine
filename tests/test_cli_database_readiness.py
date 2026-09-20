@@ -44,7 +44,7 @@ def test_typed_readiness_failure_preserves_envelope_and_closes_storage(
     with (
         patch("src.cli_support.SQLiteDatabase", return_value=database),
         patch("src.cli_support.ensure_database_ready", side_effect=error),
-        patch("src.cli._build_sec_production_provider", side_effect=AssertionError("Provider must not run")) as facts,
+        patch("src.cli.build_sec_production_provider", side_effect=AssertionError("Provider must not run")) as facts,
         patch(
             "src.cli.YFinanceClient.fetch_historical_data", side_effect=AssertionError("Provider must not run")
         ) as history,
@@ -101,7 +101,7 @@ def test_real_rejected_storage_precedes_provider_calls(
     before = path.read_bytes()
     with (
         patch("src.cli_support.settings", selected),
-        patch("src.cli._build_sec_production_provider", side_effect=AssertionError("Provider must not run")) as facts,
+        patch("src.cli.build_sec_production_provider", side_effect=AssertionError("Provider must not run")) as facts,
         patch(
             "src.cli.YFinanceClient.fetch_historical_data", side_effect=AssertionError("Provider must not run")
         ) as history,
@@ -111,7 +111,7 @@ def test_real_rejected_storage_precedes_provider_calls(
     report = json.loads(result.stdout)
     assert report["reason_code"] == reason.value
     assert json.dumps(str(path)) in report["reason"]
-    assert ("alembic upgrade head" in report["reason"]) == (state == "older")
+    assert ("uv run financial-agents db upgrade" in report["reason"]) == (state == "older")
     assert not result.stderr
     assert path.read_bytes() == before
     facts.assert_not_called()
@@ -165,7 +165,7 @@ def test_optional_telemetry_failure_does_not_control_cache_readiness(tmp_path: P
 
 def test_fresh_process_cli_import_does_not_connect_or_create_storage(tmp_path: Path) -> None:
     path = tmp_path / "absent" / "import.sqlite3"
-    environment = dict(os.environ, DATABASE_URL=f"sqlite:///{path.as_posix()}", TELEMETRY_LEVEL="OFF")
+    environment = dict(os.environ, database_url=f"sqlite:///{path.as_posix()}", telemetry_level="OFF")
     script = (
         "from unittest.mock import patch\n"
         "with patch('sqlite3.connect', side_effect=AssertionError('Import must not connect')) as connect:\n"

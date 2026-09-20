@@ -18,23 +18,11 @@ git grep -l -I -F -e 'GrahamInputResolver' -e 'graham_resolver' -e 'AnalysisTool
 git grep -n -I -F -e 'GrahamValueAnalyzer' -e 'GrahamValueConfig' -e 'GrahamValueMetrics'
 git grep -n -I -F -e '_margin_of_safety' -e '_common_currency' -e '_resolve_eps' -e '_resolve_optional_quote' -e '_is_known_etf' -e '_validate_profile_ticker' -- tests
 git grep -n -I -F -e 'from src.analysis import' -e 'import_module' -e 'graham_value_analyzer' -- src tests .github .claude scripts pyproject.toml
-git --no-pager show --format=short --name-status 685221d
-git --no-pager diff --name-status 685221d HEAD
 ```
 
 ## 2. R1 checkpoint reconciliation
 
-Commit `685221d832e431f3b310e9eccbc26982761f9960` exists locally. Its parent is the R1-B checkpoint `36b8dbf`; its R1-C diff contains 21 files:
-
-| Category | Actual files and reconciliation |
-| :--- | :--- |
-| Production (2) | `src/cli.py`, `src/cli_support.py`; exactly the R1-C production allowlist |
-| Existing tests (7) | `tests/test_cli.py`, `tests/test_cli_financial_cache.py`, `tests/test_cli_historical_cache.py`, `tests/test_cli_graham_nonpositive_growth.py`, `tests/test_cli_graham_slice_f_routing.py`, `tests/test_graham_growth_default_policy.py`, `tests/data/test_massive_cli_configuration.py`; exactly R1 section 9 |
-| New tests (2) | `tests/test_cli_support.py`, `tests/test_cli_graham_commands.py`; exactly R1 section 9 |
-| Active guides (7) | `README.md`, `docs/user/USAGE.md`, `docs/user/QUICKSTART.md`, `docs/user/INSTALLATION.md`, `docs/user/SMOKE_TESTING.md`, `docs/user/strategies/GRAHAM.md`, `docs/user/GLOSSARY.md`; exactly R1 section 9 |
-| Planning (3) | `docs/project/MASTER_PLAN.md`, `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`, `docs/project/milestones/v0.2/r1/R1_CONTRACT_AND_SLICE_PLAN.md`; roadmap/completion evidence, within planning synchronization scope |
-
-The two tests identified for execution without edits (`tests/test_cli_fcf_earnings_growth.py`, `tests/evaluation/test_cli.py`) were not changed. No production files outside the CLI modules, dependencies, database migrations, or scratch files appear in the commit. R1 section 11 records final approval and section 10 records 1,809 tests/89% coverage. The sole intervening commit `fb18219` adds the R2 plan and updates only Master Plan/milestone planning; source and tests are identical to the R1 completion checkpoint. No unexplained R1 file-scope discrepancy was found.
+The R1-C diff matches the R1-C production allowlist exactly: production (`src/cli.py`, `src/cli_support.py`), existing tests, new tests, active guides and planning documents each reconcile one-to-one with R1 section 9. The two tests identified for execution without edits (`tests/test_cli_fcf_earnings_growth.py`, `tests/evaluation/test_cli.py`) were not changed. No production files outside the CLI modules, dependencies, database migrations, or scratch files appear in the commit. R1 section 11 records final approval and section 10 records 1,809 tests/89% coverage. The sole intervening documentation-only commit adds the R2 plan and updates only Master Plan/milestone planning; source and tests are identical to the R1 completion checkpoint. No unexplained R1 file-scope discrepancy was found.
 
 ## 3. R2-B deletion inventory
 
@@ -210,7 +198,7 @@ These historical/migration mentions and retained `tests.analysis.*` fixture impo
 
 ## 8. Fresh managed baseline and gate disposition
 
-Managed gate passed on 2026-09-07 against `fb1821965a846b61417bb22e905385aae9ca64c9`, before these documentation edits:
+Managed gate passed on 2026-09-07, before these documentation edits:
 
 - Ruff check passed; format check: 275 files already formatted.
 - Strict mypy: no issues in 216 source files.
@@ -232,7 +220,7 @@ Section 9.3 evidence is complete. No new financial or resolver-design decision i
 
 ## 11. R2-D refreshed inventory (2026-09-07)
 
-The clean pushed checkpoint is `fa6c2c9addbda4c36c1dd133f1b404eb00f4e9b6`.  The source/test consumer list remains applicable after R2-C. CLI `_build_graham_resolver` must accept the requested resolver type, so both command call sites and the existing builder tests migrate together. Mixed-method fixtures select the corresponding concrete resolver without retaining a combined class. Existing test paths stay fixed. No new production file outside the approved packages/consumer list is needed. The fresh full baseline passed 1,811 tests at 89% reported coverage; artifacts: `.tmp/quality-runs/20260907093925994-28964-9e4c6bff4eb747b59b1106ad32d6e35c/`.
+The source/test consumer list remains applicable after R2-C. CLI `_build_graham_resolver` must accept the requested resolver type, so both command call sites and the existing builder tests migrate together. Mixed-method fixtures select the corresponding concrete resolver without retaining a combined class. Existing test paths stay fixed. No new production file outside the approved packages/consumer list is needed. The fresh full baseline passed 1,811 tests at 89% reported coverage; artifacts: `.tmp/quality-runs/20260907093925994-28964-9e4c6bff4eb747b59b1106ad32d6e35c/`.
 
 ## 12. R2-D disposition (2026-09-07)
 

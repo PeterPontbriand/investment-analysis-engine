@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -14,26 +15,22 @@ import typer
 from src.analysis.shared.financial_resolution import PriceComparison
 from src.analysis.strategy.fcf_earnings_growth import (
     FCFClassificationBasis,
-    FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthPolicy,
     ForwardPolicy,
     HistoricalHorizon,
     ProductionAnnualGrowthSeriesResolver,
 )
-from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.analysis.strategy.graham_growth.calculation import (
-    GrahamGrowthCalculationPolicy,
     GrahamGrowthInputResolver,
     GrowthValueInputAssembly,
 )
 from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
-from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
+from src.cli_composition import build_graham_resolver, build_sec_production_provider, growth_assumptions
 from src.cli_database import app as database_app
 from src.cli_support import (
-    AnalysisConfigurationError,
     _canonical_provider_id,
     _parse_as_of,
     _presentation_mode,
@@ -43,31 +40,24 @@ from src.cli_support import (
     config_usage_errors,
     execution_errors,
 )
+from src.cli_workspace import register as register_workspace_commands
 from src.config import settings
 from src.core.analysis_status import CalculationStatus
-from src.core.constants import ConfigKeys
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.run_context import get_current_run_context, set_current_run_context
-from src.data.financial.cache import (
-    InMemoryResolvedInputCache,
-    ResolvedInputCacheProtocol,
-)
-from src.data.financial.facts import FinancialFactsProvider
 from src.data.financial.providers import (
-    MASSIVE_PROVIDER_ID,
     SEC_PROVIDER_ID,
     YFINANCE_PROVIDER_ID,
-    MassiveFinancialFactsAdapter,
-    ProductionFinancialFactsProvider,
-    SecEdgarFinancialFactsAdapter,
 )
-from src.data.financial.quote_freshness import QuoteFreshnessPolicy
 from src.data.instrument_profile import (
     InstrumentProfile,
     InstrumentProfileCandidate,
     compose_instrument_profile,
     profile_identity_resolution,
 )
+from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
+from src.data.repositories.readiness import ensure_database_ready
+from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.security_identity import SecurityIdentityResolution
 from src.data.yfinance import YFinanceClient
 from src.evaluation.catalog import (
@@ -88,16 +78,40 @@ from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.graham import (
     GrahamGrowthPresentation,
     GrahamNumberPresentation,
+    friendly_graham_failure,
+    growth_with_public_quote_reason,
+    number_with_public_quote_reason,
     render_graham_growth,
     render_graham_number,
 )
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
+from src.workspace.execution import (
+    ExecutionCapture,
+    execute,
+    from_fcf_growth_capture,
+    from_graham_growth_capture,
+    from_graham_number_capture,
+    from_momentum_capture,
+)
+from src.workspace.fcf_growth_execution import execute_fcf_growth
+from src.workspace.graham_growth_execution import execute_graham_growth
+from src.workspace.graham_number_execution import execute_graham_number
+from src.workspace.momentum_execution import capture_momentum, run_momentum
+from src.workspace.requests import (
+    AnalysisRequest,
+    FCFGrowthSelection,
+    FCFPolicySnapshot,
+    GrahamGrowthSelection,
+    GrahamNumberSelection,
+    MomentumSelection,
+)
 
 app = typer.Typer(
     help="Analyze financial data with transparent calculations and supporting evidence.", add_completion=False
 )
 app.add_typer(database_app, name="db", hidden=True)
+register_workspace_commands(app)
 
 _MOMENTUM_CLI_DEFAULTS = MomentumConfig()
 
@@ -125,6 +139,69 @@ def get_cli_run_context() -> RunContext:
     if context is None:
         raise RuntimeError("CLI RunContext has not been initialized.")
     return context
+
+
+def _maybe_save_run[RawCaptureT](
+    *,
+    save_run: bool,
+    request_factory: Callable[[], AnalysisRequest],
+    run_adapter: Callable[[], RawCaptureT],
+    normalize: Callable[[RawCaptureT], ExecutionCapture],
+) -> RawCaptureT:
+    """Run one method adapter once; when `--save-run` is set, also persist the terminal run.
+
+    When ``save_run`` is False this is a pure passthrough to ``run_adapter``:
+    the four direct commands' default behavior, including ``--no-cache``, is
+    completely unaffected — this is never called differently, and nothing
+    about the existing adapter call changes. ``request_factory`` is a
+    callable rather than a plain value specifically so it is never evaluated
+    at all on this path: building the workspace `AnalysisSelection` can fail
+    for inputs the existing, more permissive analyzer configs already accept
+    (for example a test-only synthetic provider id used only for dependency
+    injection), and constructing it eagerly would break the default command
+    even when nothing is being saved. When True, run-storage readiness is
+    checked before ``run_adapter`` (and therefore any provider call) runs,
+    per the contract's "preflight before provider work" requirement; the run
+    is inserted before anything is reported saved, and any storage failure
+    propagates uncaught for the caller's existing ``execution_errors``
+    boundary to translate into a sanitized nonzero exit — this function
+    never converts a storage exception into a fabricated stored record. The
+    saved run's ID is reported on stderr only, so existing JSON stdout
+    documents remain byte-identical.
+
+    Args:
+        save_run: Whether `--save-run` was requested.
+        request_factory: Builds the normalized ticker and validated method
+            selection to persist under, matching exactly what `run_adapter`
+            executes. Called at most once, and only when `save_run` is True.
+        run_adapter: Calls the existing D1-D4 adapter with its already-bound
+            dependencies, unchanged from the direct command's non-saving path.
+        normalize: One of `from_momentum_capture`/`from_graham_number_capture`/
+            `from_graham_growth_capture`/`from_fcf_growth_capture`.
+
+    Returns:
+        The adapter's own native capture, exactly as `run_adapter` produced
+        it, so the caller's existing presentation logic is unchanged.
+    """
+    if not save_run:
+        return run_adapter()
+    request = request_factory()
+    database = SQLiteDatabase(settings)
+    try:
+        ensure_database_ready(database)
+        repository = SQLiteAnalysisRunRepository(database)
+        holder: list[RawCaptureT] = []
+
+        def capture() -> ExecutionCapture:
+            raw = run_adapter()
+            holder.append(raw)
+            return normalize(raw)
+
+        run = execute(request, capture=capture, repository=repository)
+        typer.echo(f"Saved Analysis Run: {run.analysis_run_id}", err=True)
+        return holder[0]
+    finally:
+        database.close()
 
 
 @app.command(name="momentum")
@@ -157,11 +234,14 @@ def momentum(  # noqa: PLR0913
     details: bool = typer.Option(False, "--details", help="Show calculation and data-context details"),
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show retained execution diagnostics"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
+    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
 ) -> None:
     """Execute SMA crossover momentum analysis over daily historical market prices."""
     target_ticker = _resolve_ticker(ticker, ticker_option, required=False, command="momentum")
     mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
     _validate_momentum_windows(short_window, long_window, rsi_period)
+    if save_run and target_ticker is None:
+        raise typer.BadParameter("--save-run requires an explicit ticker; the configured default ticker is not saved.")
 
     label = target_ticker or "the configured default ticker"
     with execution_errors(
@@ -178,15 +258,45 @@ def momentum(  # noqa: PLR0913
         unexpected=lambda _exc: f"Momentum analysis failed unexpectedly for {label}.",
     ):
         data_client = YFinanceClient()
-        with _production_historical_client(data_client) as historical_client:
-            analyzer = MomentumAnalyzer(default_ticker=target_ticker, data_client=historical_client)
-            config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
-            run = analyzer.run_with_context(config=config, ticker=target_ticker)
-        profile = compose_instrument_profile(
-            run.metrics.ticker,
-            identity_candidates=(InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client),),
-            kind_candidate=InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client),
-        )
+        config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
+        selection = MomentumSelection(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
+
+        def _identity_candidate() -> InstrumentProfileCandidate:
+            return InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
+
+        if save_run:
+            # Momentum's profile is composed CLI-side (outside the D1 adapter), and its
+            # ticker may be None (a configured default) — already rejected above when
+            # saving. Readiness is checked before the historical-data provider call,
+            # matching every other command's "preflight before provider work" ordering.
+            assert target_ticker is not None
+            database = SQLiteDatabase(settings)
+            try:
+                ensure_database_ready(database)
+                with _production_historical_client(data_client) as historical_client:
+                    run = run_momentum(selection, target_ticker, historical_client)
+                profile = compose_instrument_profile(
+                    run.metrics.ticker,
+                    identity_candidates=(_identity_candidate(),),
+                    kind_candidate=_identity_candidate(),
+                )
+                momentum_capture = capture_momentum(run, profile)
+                saved = execute(
+                    AnalysisRequest(ticker=target_ticker, selection=selection),
+                    capture=lambda: from_momentum_capture(momentum_capture),
+                    repository=SQLiteAnalysisRunRepository(database),
+                )
+                typer.echo(f"Saved Analysis Run: {saved.analysis_run_id}", err=True)
+            finally:
+                database.close()
+        else:
+            with _production_historical_client(data_client) as historical_client:
+                run = run_momentum(selection, target_ticker, historical_client)
+            profile = compose_instrument_profile(
+                run.metrics.ticker,
+                identity_candidates=(_identity_candidate(),),
+                kind_candidate=_identity_candidate(),
+            )
         presentation = MomentumPresentation(
             metrics=run.metrics,
             config=config,
@@ -241,6 +351,7 @@ def graham_number(  # noqa: PLR0913
     details: bool = typer.Option(False, "--details", help="Show resolved inputs and financial provenance"),
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show resolver execution trace"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
+    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
 ) -> None:
     """Execute the Graham Number earnings-and-book-value screen."""
     target_ticker = _resolve_ticker(ticker, ticker_option, required=True, command="graham-number")
@@ -278,7 +389,7 @@ def graham_number(  # noqa: PLR0913
             invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ):
-            resolver = _build_graham_resolver(
+            resolver = build_graham_resolver(
                 resolver_type=GrahamNumberInputResolver, data_provider=config.security_provider_id, cache=cache
             )
         output, exit_code = _run_graham_number(
@@ -287,6 +398,7 @@ def graham_number(  # noqa: PLR0913
             config=config,
             mode=mode,
             profile_provider=YFinanceClient(),
+            save_run=save_run,
         )
     typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
     if exit_code:
@@ -346,6 +458,7 @@ def graham_growth(  # noqa: PLR0913
     details: bool = typer.Option(False, "--details", help="Show resolved inputs and financial provenance"),
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show resolver execution trace"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
+    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
 ) -> None:
     """Execute Graham Growth Value with explicit growth and AAA-yield assumptions."""
     target_ticker = _resolve_ticker(ticker, ticker_option, required=True, command="graham-growth")
@@ -384,7 +497,7 @@ def graham_growth(  # noqa: PLR0913
             invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ):
-            resolver = _build_graham_resolver(
+            resolver = build_graham_resolver(
                 resolver_type=GrahamGrowthInputResolver, data_provider=config.security_provider_id, cache=cache
             )
         output, exit_code = _run_graham_growth(
@@ -393,6 +506,7 @@ def graham_growth(  # noqa: PLR0913
             config=config,
             mode=mode,
             profile_provider=YFinanceClient(),
+            save_run=save_run,
         )
     typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
     if exit_code:
@@ -427,6 +541,7 @@ def fcf_growth(  # noqa: PLR0913
     details: bool = typer.Option(False, "--details", help="Show annual facts, provenance, and derivation lineage"),
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show resolver execution trace"),
     json_output: bool = typer.Option(False, "--json", help="Emit the complete versioned typed result"),
+    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
 ) -> None:
     """Execute the historical free-cash-flow and diluted-EPS growth screen."""
     target_ticker = _resolve_ticker(ticker, None, required=True, command="fcf-growth")
@@ -456,28 +571,42 @@ def fcf_growth(  # noqa: PLR0913
         ),
         _production_financial_cache(enabled=not no_cache) as cache,
     ):
-        provider = _build_sec_production_provider()
-        profile = _compose_analysis_profile(
-            target_ticker,
-            primary_provider=provider,
-            primary_provider_id=provider_id,
-            yahoo_provider=provider,
-        )
+        provider = build_sec_production_provider()
         resolver = ProductionAnnualGrowthSeriesResolver(
             provider,
             cache=cache,
             clock=lambda: boundary,
         )
-        result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
-            ticker=target_ticker,
-            policy=policy,
-            currency=normalized_currency,
-            as_of=analysis_as_of,
-            provider_id=provider_id,
-            use_cache=not no_cache,
-            effective_as_of=boundary,
-            instrument_profile=profile,
+        capture = _maybe_save_run(
+            save_run=save_run,
+            request_factory=lambda: AnalysisRequest(
+                ticker=target_ticker,
+                # The command always uses the SEC production provider regardless of
+                # --data-provider (see the adapter's own docstring); the selection
+                # reflects the provider actually used, not a possibly-mislabeled flag.
+                selection=FCFGrowthSelection(
+                    policy=FCFPolicySnapshot.model_validate(policy),
+                    currency=normalized_currency,
+                    provider_id="sec_edgar",
+                    as_of=analysis_as_of,
+                    use_cache=not no_cache,
+                ),
+            ),
+            run_adapter=lambda: execute_fcf_growth(
+                resolver,
+                target_ticker,
+                policy=policy,
+                currency=normalized_currency,
+                as_of=analysis_as_of,
+                provider_id=provider_id,
+                use_cache=not no_cache,
+                effective_as_of=boundary,
+                provider=provider,
+            ),
+            normalize=from_fcf_growth_capture,
         )
+        result = capture.result
+        profile = capture.profile
         identity_resolution = profile_identity_resolution(profile)
 
     output = render_fcf_earnings_growth(result, mode, identity_resolution, profile)
@@ -695,72 +824,6 @@ def _evaluation_failure_diagnostics(result: EvaluationCommandResult) -> tuple[st
     return tuple(diagnostics)
 
 
-def _build_sec_production_provider() -> ProductionFinancialFactsProvider:
-    """Build the SEC-backed production provider from declared application identity."""
-    user_agent = settings.sec_user_agent
-    if user_agent is None or not user_agent.strip():
-        raise AnalysisConfigurationError(
-            "SEC EDGAR access is not configured. "
-            "Set SEC_USER_AGENT to a declared identity such as "
-            '"Your Name your-email@example.com" and retry.'
-        )
-    sec_edgar = SecEdgarFinancialFactsAdapter(user_agent=user_agent)
-    return ProductionFinancialFactsProvider(sec_edgar=sec_edgar)
-
-
-def _build_massive_production_provider() -> MassiveFinancialFactsAdapter:
-    """Build Massive only when usable API credentials are configured."""
-    massive = MassiveFinancialFactsAdapter()
-    if not massive.is_configured:
-        raise AnalysisConfigurationError("Massive access is not configured. Set MASSIVE_API_KEY and retry.")
-    return massive
-
-
-def _compose_analysis_profile(
-    ticker: str,
-    *,
-    primary_provider: object,
-    primary_provider_id: str,
-    yahoo_provider: object,
-) -> InstrumentProfile:
-    """Compose current profile evidence with explicit production precedence."""
-    yahoo_candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, yahoo_provider)
-    identity_candidates: tuple[InstrumentProfileCandidate, ...] = (
-        InstrumentProfileCandidate(primary_provider_id, primary_provider),
-    )
-    if primary_provider_id != YFINANCE_PROVIDER_ID:
-        identity_candidates = (*identity_candidates, yahoo_candidate)
-    return compose_instrument_profile(
-        ticker,
-        identity_candidates=identity_candidates,
-        kind_candidate=yahoo_candidate,
-    )
-
-
-def _build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInputResolver)](
-    *, resolver_type: type[ResolverT], data_provider: str | None, cache: ResolvedInputCacheProtocol | None = None
-) -> ResolverT:
-    """Build only the production provider capabilities needed by this invocation."""
-    provider: FinancialFactsProvider
-    if data_provider == MASSIVE_PROVIDER_ID:
-        provider = _build_massive_production_provider()
-    elif data_provider == SEC_PROVIDER_ID:
-        provider = _build_sec_production_provider()
-    elif data_provider is not None:
-        raise AnalysisConfigurationError(
-            f"Unsupported valuation data provider {data_provider!r}; "
-            f"supported providers are {SEC_PROVIDER_ID!r} and {MASSIVE_PROVIDER_ID!r}."
-        )
-    else:
-        provider = _build_sec_production_provider()
-
-    return resolver_type(
-        provider,
-        cache=cache if cache is not None else InMemoryResolvedInputCache(),
-        quote_freshness_policy=QuoteFreshnessPolicy(timedelta(seconds=settings.quote_cache_ttl_seconds)),
-    )
-
-
 def _run_graham_number(  # noqa: PLR0913
     *,
     resolver: GrahamNumberInputResolver,
@@ -768,18 +831,31 @@ def _run_graham_number(  # noqa: PLR0913
     config: GrahamNumberConfig,
     mode: PresentationMode,
     profile_provider: object,
+    save_run: bool = False,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham Number analysis."""
-    profile = _compose_analysis_profile(
-        ticker,
-        primary_provider=resolver.provider,
-        primary_provider_id=config.security_provider_id,
-        yahoo_provider=profile_provider,
+    capture = _maybe_save_run(
+        save_run=save_run,
+        request_factory=lambda: AnalysisRequest(
+            ticker=ticker,
+            selection=GrahamNumberSelection(
+                security_provider_id=config.security_provider_id,
+                quote_provider_id=config.quote_provider_id,
+                eps_basis=config.eps_basis,
+                eps_override=config.eps_override,
+                bvps_override=config.bvps_override,
+                quote_override=config.quote_override,
+                as_of=config.as_of,
+                use_cache=config.use_cache,
+            ),
+        ),
+        run_adapter=lambda: execute_graham_number(resolver, ticker, config, profile_provider),
+        normalize=from_graham_number_capture,
     )
-    analysis = GrahamNumberAnalyzer(resolver, instrument_profile=profile).run_analysis(config, ticker=ticker)
+    analysis = capture.analysis
+    profile = capture.profile
     as_of = config.as_of
     assembly = analysis.assembly
-    profile = analysis.instrument_profile or profile
     identity_resolution = profile_identity_resolution(profile)
 
     if assembly.status is not CalculationStatus.OK:
@@ -804,7 +880,7 @@ def _run_graham_number(  # noqa: PLR0913
             price_comparison=analysis.price_comparison,
         )
 
-    presentation_assembly = _number_with_public_quote_reason(assembly)
+    presentation_assembly = number_with_public_quote_reason(assembly)
     presentation = GrahamNumberPresentation(
         ticker=ticker,
         assembly=presentation_assembly,
@@ -826,21 +902,33 @@ def _run_graham_growth(  # noqa: PLR0913
     config: GrahamGrowthConfig,
     mode: PresentationMode,
     profile_provider: object,
+    save_run: bool = False,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham growth-value analysis."""
-    policy = _growth_assumptions()
-    profile = _compose_analysis_profile(
-        ticker,
-        primary_provider=resolver.provider,
-        primary_provider_id=config.security_provider_id,
-        yahoo_provider=profile_provider,
+    policy = growth_assumptions()
+    capture = _maybe_save_run(
+        save_run=save_run,
+        request_factory=lambda: AnalysisRequest(
+            ticker=ticker,
+            selection=GrahamGrowthSelection(
+                security_provider_id=config.security_provider_id,
+                quote_provider_id=config.quote_provider_id,
+                eps_basis=config.eps_basis,
+                eps_override=config.eps_override,
+                quote_override=config.quote_override,
+                expected_growth=config.expected_growth,
+                aaa_yield_override=config.aaa_yield_override,
+                as_of=config.as_of,
+                use_cache=config.use_cache,
+            ),
+        ),
+        run_adapter=lambda: execute_graham_growth(resolver, ticker, config, policy, profile_provider),
+        normalize=from_graham_growth_capture,
     )
-    analysis = GrahamGrowthAnalyzer(resolver, instrument_profile=profile, policy=policy).run_analysis(
-        config, ticker=ticker
-    )
+    analysis = capture.analysis
+    profile = capture.profile
     as_of = config.as_of
     assembly = analysis.assembly
-    profile = analysis.instrument_profile or profile
     identity_resolution = profile_identity_resolution(profile)
 
     if assembly.status is not CalculationStatus.OK:
@@ -868,7 +956,7 @@ def _run_graham_growth(  # noqa: PLR0913
             price_comparison=analysis.price_comparison,
         )
 
-    presentation_assembly = _growth_with_public_quote_reason(assembly)
+    presentation_assembly = growth_with_public_quote_reason(assembly)
     presentation = GrahamGrowthPresentation(
         ticker=ticker,
         assembly=presentation_assembly,
@@ -897,8 +985,8 @@ def _number_failure_output(  # noqa: PLR0913
     price_comparison: PriceComparison | None = None,
 ) -> tuple[str, int]:
     """Render a failed Number analysis without leaking low-level details by default."""
-    reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
-    safe_assembly = _number_with_public_quote_reason(replace(assembly, reason=reason))
+    reason = friendly_graham_failure(ticker, assembly.status, assembly.reason)
+    safe_assembly = number_with_public_quote_reason(replace(assembly, reason=reason))
     presentation = GrahamNumberPresentation(
         ticker=ticker,
         assembly=safe_assembly,
@@ -922,9 +1010,9 @@ def _growth_failure_output(  # noqa: PLR0913
     price_comparison: PriceComparison | None = None,
 ) -> tuple[str, int]:
     """Render a failed growth analysis without leaking low-level details by default."""
-    reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
-    safe_assembly = _growth_with_public_quote_reason(replace(assembly, reason=reason))
-    policy = _growth_assumptions()
+    reason = friendly_graham_failure(ticker, assembly.status, assembly.reason)
+    safe_assembly = growth_with_public_quote_reason(replace(assembly, reason=reason))
+    policy = growth_assumptions()
     presentation = GrahamGrowthPresentation(
         ticker=ticker,
         assembly=safe_assembly,
@@ -938,50 +1026,6 @@ def _growth_failure_output(  # noqa: PLR0913
         instrument_profile=instrument_profile,
     )
     return render_graham_growth(presentation, mode), 1
-
-
-def _number_with_public_quote_reason(assembly: GrahamNumberInputAssembly) -> GrahamNumberInputAssembly:
-    """Classify optional quote failures while preserving raw resolver trace events."""
-    if assembly.quote_status is None:
-        return assembly
-    return replace(assembly, quote_reason=_public_quote_reason(assembly.quote_status))
-
-
-def _growth_with_public_quote_reason(assembly: GrowthValueInputAssembly) -> GrowthValueInputAssembly:
-    """Classify optional quote failures while preserving raw resolver trace events."""
-    if assembly.quote_status is None:
-        return assembly
-    return replace(assembly, quote_reason=_public_quote_reason(assembly.quote_status))
-
-
-def _public_quote_reason(status: CalculationStatus) -> str:
-    """Return a stable investor-facing explanation for optional quote failure."""
-    if status is CalculationStatus.PROVIDER_ERROR:
-        return "The configured quote provider could not complete the request."
-    if status is CalculationStatus.INPUT_UNAVAILABLE:
-        return "No eligible current quote was available from the configured quote source."
-    return "The current quote could not be used for price comparison."
-
-
-def _friendly_graham_failure(ticker: str, status: CalculationStatus, reason: str | None) -> str:
-    """Map resolver failure classes to concise investor-facing errors."""
-    if reason is not None and reason.startswith("Unable to analyze"):
-        return reason
-    if status is CalculationStatus.PROVIDER_ERROR:
-        return f"Unable to analyze {ticker}: the configured provider could not retrieve required security data."
-    if status is CalculationStatus.INPUT_UNAVAILABLE:
-        return f"Unable to analyze {ticker}: required financial data is unavailable for the requested method."
-    return f"Unable to analyze {ticker}: the requested Graham inputs are invalid. Review the method and overrides."
-
-
-def _growth_assumptions() -> GrahamGrowthCalculationPolicy:
-    """Read the configured constants for the growth-value method."""
-    values = settings.get_graham_value_analysis()[ConfigKeys.GRAHAM_VALUES]
-    return GrahamGrowthCalculationPolicy(
-        base_pe=float(values[ConfigKeys.BASE_PE]),
-        growth_multiplier=float(values[ConfigKeys.GROWTH_MULTIPLIER]),
-        baseline_aaa_yield=float(values[ConfigKeys.BASELINE_AAA_YIELD]),
-    )
 
 
 def _validate_momentum_windows(short_window: int, long_window: int, rsi_period: int) -> None:

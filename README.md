@@ -90,6 +90,8 @@ An [analysis strategy](docs/user/GLOSSARY.md#analysis-strategy) is a determinist
 
 Each strategy has its own guide under [Analysis Strategy Guides](docs/user/strategies).
 
+Want to save a result, track a group of tickers, or re-run several tickers at once instead of one-off commands? See [Local Research Workspace](docs/user/WORKSPACE.md).
+
 ---
 
 ## Understanding and trusting a result

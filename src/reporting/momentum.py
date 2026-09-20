@@ -36,7 +36,16 @@ _LIMITATION = (
 
 @dataclass(frozen=True)
 class MomentumPresentation:
-    """Presentation context for one Momentum analysis."""
+    """Presentation context for one Momentum analysis.
+
+    ``use_captured_spread`` defaults to False, so every existing direct-command
+    call site is unaffected: the SMA spread is computed from ``metrics`` as
+    before. Pure report replay (projection v1) sets it True and supplies
+    ``captured_sma_spread``/``captured_sma_spread_percent`` from the stored
+    run's own presentation inputs instead, so replay never recomputes a
+    financial value that a future formula change could silently alter for
+    historical records.
+    """
 
     metrics: MomentumMetrics
     config: MomentumConfig
@@ -47,6 +56,9 @@ class MomentumPresentation:
     instrument_profile: InstrumentProfile | None = None
     resolution_trace: ResolutionTrace = ResolutionTrace()
     data_resolution: HistoricalDataResolution | None = None
+    use_captured_spread: bool = False
+    captured_sma_spread: float | None = None
+    captured_sma_spread_percent: float | None = None
 
     def __post_init__(self) -> None:
         """Project composed identity evidence when no legacy resolution was supplied."""
@@ -70,13 +82,19 @@ def render_momentum(
     return "\n".join(lines)
 
 
+def _effective_spread(p: MomentumPresentation) -> tuple[float | None, float | None]:
+    """Return the SMA spread/percent to display: captured for replay, computed otherwise."""
+    if p.use_captured_spread:
+        return p.captured_sma_spread, p.captured_sma_spread_percent
+    return _sma_spread(p.metrics), _sma_spread_percent(p.metrics)
+
+
 def _concise_lines(p: MomentumPresentation) -> list[str]:
     metrics = p.metrics
     currency = _currency(p)
     short_label = _sma_label(p.config.short_window, p.market_data)
     long_label = _sma_label(p.config.long_window, p.market_data)
-    spread = _sma_spread(metrics)
-    spread_percent = _sma_spread_percent(metrics)
+    spread, spread_percent = _effective_spread(p)
 
     lines = [
         f"{security_display_label(metrics.ticker, p.identity_resolution)} — Momentum",
@@ -417,8 +435,7 @@ def _payload(p: MomentumPresentation) -> dict[str, Any]:
     metrics = p.metrics
     context = p.market_data
     data_as_of = context.data_as_of if context is not None else None
-    spread = _sma_spread(metrics)
-    spread_percent = _sma_spread_percent(metrics)
+    spread, spread_percent = _effective_spread(p)
 
     return {
         "schema_version": _SCHEMA_VERSION,

@@ -18,7 +18,7 @@ uv sync
 ```
 
 Fresh storage initializes automatically on first persistence use. Set
-`DATABASE_URL` before the first analysis if using a nondefault location. Existing
+`database_url` before the first analysis if using a nondefault location. Existing
 schemas require explicit upgrades after stopping processes and backing up data:
 
 ```bash

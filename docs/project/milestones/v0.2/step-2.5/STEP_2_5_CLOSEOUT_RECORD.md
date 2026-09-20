@@ -4,8 +4,6 @@ Records deterministic evaluation results, verification conditions and empirical 
 
 Local sequence and status: [companion plan](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md#sequence-and-status).
 
-Evidence baseline: `86f1bd6350b9a8bb2cc051a62a4d0f8ba0a5750f`.
-
 ## 1. Verification boundary
 
 Slice K verified the accepted Gate M correction, accepted Slice I empirical mode,

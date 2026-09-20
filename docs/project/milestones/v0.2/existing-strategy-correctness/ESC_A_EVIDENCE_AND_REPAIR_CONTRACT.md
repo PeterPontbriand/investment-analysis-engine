@@ -4,8 +4,6 @@ Defines the quote, identity, provenance and failure-reporting repairs supported 
 
 Local sequence and status: [companion plan](EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status).
 
-Evidence baseline: `8d7fba0`.
-
 ## 1. Evidence and limits
 
 The fresh managed baseline passed: **2,004 tests; 89% reported coverage; Ruff check, Ruff format check, and strict mypy passed**. Command:

@@ -12,7 +12,7 @@ Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequen
 
 ## 1. Source reconciliation and baseline
 
-The review examined local commit `d07a709` and the open issue, which has no comments and was last updated on 2026-08-25. Paths below are repository-relative.
+The review examined the open issue, which has no comments and was last updated on 2026-08-25. Paths below are repository-relative.
 
 | Requirement | Current evidence | Remaining work |
 | :--- | :--- | :--- |

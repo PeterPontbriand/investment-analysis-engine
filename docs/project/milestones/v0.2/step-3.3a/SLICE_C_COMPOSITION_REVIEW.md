@@ -6,8 +6,8 @@ Local sequence and status: [companion plan](STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md
 
 ## Reviewed state and scope
 
-The original review tested implementation `868f2f6a710027631328e52db3affb6f03e6023f`
-plus the acceptance tests described below. Tests use disposable databases,
+The original review tested the delivered implementation plus the acceptance
+tests described below. Tests use disposable databases,
 fixture providers, mocked transports and spawned processes synchronized through
 pipe handshakes. No operational database or live provider/LLM is used.
 

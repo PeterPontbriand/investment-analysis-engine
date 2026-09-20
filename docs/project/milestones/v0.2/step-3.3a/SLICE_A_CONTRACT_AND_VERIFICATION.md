@@ -161,7 +161,7 @@ Classify SQLite/SQLAlchemy wrapped errors using `sqlite_errorcode` (mask extende
 
 ## 8. Slice A evidence and limits
 
-Fresh complete baseline on `634164b`, 2026-09-11 (Toronto): **2,054 tests passed, 89% coverage**, Ruff check clean, 315 files formatted, strict mypy clean (240 source/test files). Command:
+Fresh complete baseline, 2026-09-11 (Toronto): **2,054 tests passed, 89% coverage**, Ruff check clean, 315 files formatted, strict mypy clean (240 source/test files). Command:
 
 ```powershell
 & (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gates.ps1')

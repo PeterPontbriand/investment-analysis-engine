@@ -176,7 +176,7 @@ is included in this authorization.
 
 ## 8. R1-B implementation evidence
 
-The documentation-only checkpoint was committed as `b7625fd` on
+The documentation-only checkpoint was committed on
 `docs/next-phase-planning` before any production/test changes. The complete
 pre-implementation baseline passed 1,615 tests with 89% reported coverage.
 
@@ -228,8 +228,8 @@ Historical milestone command evidence remains unchanged.
 
 Before rollback, the
 affected CLI and scratch files were copied to
-`.tmp/r1-c-recovery-20260906194623/`. The approved CLI baseline was restored
-from `36b8dbf`; R1-B analyzer/config code and unrelated R2 planning were preserved.
+`.tmp/r1-c-recovery-20260906194623/`. The approved CLI baseline was restored;
+R1-B analyzer/config code and unrelated R2 planning were preserved.
 No dependencies, database schema, services, or orchestration code changed.
 
 The restored full managed baseline passed 1,750 tests at 89% reported coverage:

@@ -4,12 +4,14 @@ import logging
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 from alembic.config import Config
 from sqlalchemy import create_engine
+from sqlalchemy.schema import SchemaItem, Table
 
-from alembic import command, context
+from alembic import command, context, op
 from src.config import ProjectSettings
 from src.data.repositories import SQLiteDatabase, migrations
 
@@ -51,14 +53,85 @@ def test_cli_schema_lifecycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
                         "resolved_input_cache",
                         "market_data_cache_entries",
                         "market_price_observations",
+                        "watchlists",
+                        "watchlist_entries",
+                        "analysis_runs",
                     }
                 )
                 assert set(tables) == expected
                 versions = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalars().all()
-                assert versions == ([] if operation == "downgrade" else ["0001_persistence"])
+                assert versions == ([] if operation == "downgrade" else ["0003_watchlist_entries"])
         finally:
             database.close()
     assert not unused.exists()
+
+
+def test_workspace_revision_downgrade_retains_predecessor_data(tmp_path: Path) -> None:
+    path = tmp_path / "workspace-downgrade.sqlite3"
+    config = migration_config(path)
+    command.upgrade(config, "head")
+    database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+    try:
+        with database.transaction() as connection:
+            connection.exec_driver_sql("INSERT INTO schema_metadata VALUES ('retained_test_value', 42)")
+            connection.exec_driver_sql(
+                "INSERT INTO watchlists VALUES ('watchlist-1','core','Core','2026-09-15T12:00:00.000000Z',NULL)"
+            )
+        command.downgrade(config, "0001_persistence")
+        with database.read() as connection:
+            tables = set(connection.exec_driver_sql("SELECT name FROM sqlite_schema WHERE type='table'").scalars())
+            assert not tables.intersection({"watchlists", "watchlist_entries", "analysis_runs"})
+            assert (
+                connection.exec_driver_sql(
+                    "SELECT metadata_value FROM schema_metadata WHERE metadata_key='retained_test_value'"
+                ).scalar_one()
+                == 42
+            )
+            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
+                "0001_persistence"
+            )
+        command.upgrade(config, "head")
+        with database.read() as connection:
+            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
+                "0003_watchlist_entries"
+            )
+    finally:
+        database.close()
+
+
+def test_workspace_upgrade_failure_rolls_back_to_predecessor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = tmp_path / "workspace-failure.sqlite3"
+    config = migration_config(path)
+    command.upgrade(config, "0001_persistence")
+    database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+    try:
+        with database.transaction() as connection:
+            connection.exec_driver_sql("INSERT INTO schema_metadata VALUES ('retained_test_value', 42)")
+        real_create_table = op.create_table
+
+        def fail_after_first_table(name: str, *columns: SchemaItem, **kwargs: Any) -> Table:
+            table = real_create_table(name, *columns, **kwargs)
+            if name == "watchlists":
+                raise RuntimeError("deliberate workspace migration failure")
+            return table
+
+        monkeypatch.setattr(op, "create_table", fail_after_first_table)
+        with pytest.raises(RuntimeError, match="deliberate workspace migration failure"):
+            command.upgrade(config, "head")
+        with database.read() as connection:
+            tables = set(connection.exec_driver_sql("SELECT name FROM sqlite_schema WHERE type='table'").scalars())
+            assert "watchlists" not in tables
+            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
+                "0001_persistence"
+            )
+            assert (
+                connection.exec_driver_sql(
+                    "SELECT metadata_value FROM schema_metadata WHERE metadata_key='retained_test_value'"
+                ).scalar_one()
+                == 42
+            )
+    finally:
+        database.close()
 
 
 def test_environment_url_and_logging_are_preserved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -146,7 +219,7 @@ def test_borrowed_transaction_is_not_committed_or_closed(tmp_path: Path) -> None
             assert not connection.closed
             assert connection.in_transaction()
             revision = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
-            assert revision == "0001_persistence"
+            assert revision == "0003_watchlist_entries"
             raise RuntimeError("outer rollback")
 
     try:

@@ -4,8 +4,6 @@ Documents the identity/security-unit correction and its deterministic proof.
 
 Local sequence and status: [companion plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md#sequence-and-status).
 
-Evidence baseline: `a4001580838795a30d72f399fb4eedcb65dee9f3`.
-
 ## 1. Outcome
 
 A0 corrects one internal SEC adapter boundary without expanding the supported

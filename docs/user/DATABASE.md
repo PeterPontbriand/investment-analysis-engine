@@ -86,14 +86,14 @@ existing data are separate operator actions.
 ## Choose the database location
 
 The default file is `data/financial-data-agents.sqlite3` under the installation
-folder (or the configured `DATA_DIR`). A relative `DATABASE_URL` resolves against
+folder (or the configured `DATA_DIR`). A relative `database_url` resolves against
 the configured application base directory, not the terminal's current folder.
 Set the same URL for migrations and subsequent analysis commands.
 
 PowerShell example:
 
 ```powershell
-$env:DATABASE_URL = "sqlite:///E:/FinancialData/financial-data-agents.sqlite3"
+$env:database_url = "sqlite:///E:/FinancialData/financial-data-agents.sqlite3"
 uv run --no-sync alembic upgrade head
 uv run --no-sync alembic current
 ```
@@ -101,11 +101,11 @@ uv run --no-sync alembic current
 Bash example:
 
 ```bash
-export DATABASE_URL="sqlite:////srv/financial-data/financial-data-agents.sqlite3"
+export database_url="sqlite:////srv/financial-data/financial-data-agents.sqlite3"
 uv run --no-sync alembic upgrade head
 ```
 
-The environment setting lasts for the terminal session. Add `DATABASE_URL` to
+The environment setting lasts for the terminal session. Add `database_url` to
 local `.env` configuration to retain it. The directory must be writable.
 Synchronous local SQLite URLs are supported; remote database URLs and SQLite
 URI query parameters are not.
@@ -135,9 +135,9 @@ Migration URL precedence is `-x database_url`, an explicit Alembic
   financial facts are required. Cache reuse preserves provider provenance and reports cache resolution.
 - Historical prices do not become live quotes. Quote requests and optional
   instrument-profile enrichment retain their provider boundaries.
-- `TELEMETRY_SINK=sqlite` selects SQLite trajectory storage where the runtime
-  creates a recorder. `TELEMETRY_SINK=jsonl` is the default;
-  `TELEMETRY_LEVEL=OFF` disables recording. Telemetry failures remain fail-open;
+- `telemetry_sink=sqlite` selects SQLite trajectory storage where the runtime
+  creates a recorder. `telemetry_sink=jsonl` is the default;
+  `telemetry_level=OFF` disables recording. Telemetry failures remain fail-open;
   they do not initialize storage or control analysis readiness. If SQLite is used
   only for telemetry, explicitly prepare its target with `db upgrade` first.
 
@@ -199,7 +199,7 @@ requires a SQLite-aware consistent backup mechanism, not sequential file copies.
 
 Restore only with all application processes stopped. Preserve the current file
 set first, then restore the matching backup set into a clean destination and
-point `DATABASE_URL` there. Do not mix sidecars from different backups. Check
+point `database_url` there. Do not mix sidecars from different backups. Check
 `alembic current`, review the needed migrations, and upgrade with compatible
 application code before resuming analysis. Database files and operational logs
 are local artifacts and must not be committed to Git.

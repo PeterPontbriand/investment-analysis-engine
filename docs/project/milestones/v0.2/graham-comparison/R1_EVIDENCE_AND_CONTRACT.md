@@ -4,8 +4,6 @@ Records the provider evidence and concrete security-unit contract for Graham pri
 
 Local sequence and status: [companion plan](GRAHAM_COMPARISON_REPAIR_PLAN.md#sequence-and-status).
 
-Evidence baseline: `e20f6f7c818bce37c39dafceb80ea80bbceaf6d1`.
-
 ## 1. Findings and verification
 
 The Step 2.5A [security-unit review](../step-2.5a/STEP_2_5A_C_REVIEW.md) deliberately required affirmative ordinary-share 1:1 evidence while deferring production composition. Current composition never fills `InstrumentProfile.security_unit_evidence`, but both Graham services require it whenever a profile exists. The shared helper returns `None`, and the renderer cannot distinguish missing unit evidence from other unavailable comparisons. Legacy callers without profiles retain the old numeric behavior.

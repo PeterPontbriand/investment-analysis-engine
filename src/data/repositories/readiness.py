@@ -55,8 +55,11 @@ _MESSAGES = {
         "the migration transaction was rolled back."
     ),
     ReadinessReason.UPGRADE_REQUIRED: (
-        "schema upgrade required. Stop application processes and back up this database, then run "
-        "uv run --no-sync alembic upgrade head from the installation folder with DATABASE_URL set to this target."
+        "schema upgrade required to revision {expected_revision}. This is a one-time upgrade of your "
+        "existing local database, not new setup — your data is not lost. Back up this database file, "
+        "then run:\n\n    uv run financial-agents db upgrade\n\nAdd --database-url to target a database "
+        "other than your configured default. Let any other financial-agents command using this same "
+        "file finish first."
     ),
     ReadinessReason.INCOMPATIBLE_SCHEMA: (
         "schema is incompatible or incomplete. Preserve this database and inspect it with the matching "
@@ -95,7 +98,10 @@ class DatabaseReadinessError(RuntimeError):
         self._database_path = database_path
         self._expected_revision = expected_revision
         target = "in-memory database" if database_path is None else json.dumps(str(database_path), ensure_ascii=True)
-        super().__init__(f"Database {target}: {_MESSAGES[reason]}")
+        detail = _MESSAGES[reason]
+        if reason is ReadinessReason.UPGRADE_REQUIRED:
+            detail = detail.format(expected_revision=expected_revision or "the required revision")
+        super().__init__(f"Database {target}: {detail}")
 
     @property
     def reason(self) -> ReadinessReason:

@@ -83,6 +83,47 @@ def test_momentum_details_add_context_without_repeating_raw_signal() -> None:
     assert "Raw crossover signal" not in rendered
 
 
+def test_default_call_sites_still_compute_spread_from_metrics() -> None:
+    """use_captured_spread defaults to False: every existing caller is unaffected."""
+    presentation = _presentation()
+    assert presentation.use_captured_spread is False
+    assert "SMA spread: 10.00 USD (4.76%)" in render_momentum(presentation)
+
+
+def test_use_captured_spread_overrides_the_computed_value() -> None:
+    """Replay consumes the stored spread instead of recomputing it from metrics.
+
+    The metrics here still imply a spread of 10.00 (220 - 210), but a
+    deliberately different captured value is supplied and must win — proving
+    this is a substitution, not a coincidental match.
+    """
+    presentation = replace(
+        _presentation(),
+        use_captured_spread=True,
+        captured_sma_spread=999.0,
+        captured_sma_spread_percent=111.0,
+    )
+    rendered = render_momentum(presentation)
+    assert "SMA spread: 999.00 USD (111.00%)" in rendered
+    assert "SMA spread: 10.00 USD" not in rendered
+
+    payload = json.loads(render_momentum(presentation, PresentationMode.JSON))
+    assert payload["result"]["sma_spread"] == 999.0
+    assert payload["result"]["sma_spread_percent"] == 111.0
+
+
+def test_use_captured_spread_preserves_a_captured_null() -> None:
+    """A captured 'unavailable' spread must not fall back to a live computation."""
+    presentation = replace(
+        _presentation(),
+        use_captured_spread=True,
+        captured_sma_spread=None,
+        captured_sma_spread_percent=None,
+    )
+    rendered = render_momentum(presentation)
+    assert "SMA spread:" not in rendered
+
+
 def test_momentum_diagnostics_expose_retained_raw_and_market_context() -> None:
     rendered = render_momentum(_presentation(), PresentationMode.DIAGNOSTICS)
 

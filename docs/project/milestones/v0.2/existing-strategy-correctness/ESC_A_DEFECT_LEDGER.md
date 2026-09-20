@@ -4,8 +4,6 @@ Records reproduced correctness defects, their causes and the regression evidence
 
 Local sequence and status: [companion plan](EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status).
 
-Evidence baseline: `8d7fba0`.
-
 ## Confirmed findings
 
 | ID | Scope/severity/impact | Evidence, actual behavior and root cause | Expected contract and closure evidence |
@@ -14,7 +12,7 @@ Evidence baseline: `8d7fba0`.
 | ESC-02 | Graham filing metadata, shared identity wording; **medium** | Live KO details report venue unavailable. SEC's share-unit parser verifies symbol/exchange but `ParsedUnitDocument` and `SecurityUnitDocument` discard exchange text. Selected SEC current identity lacks venue. | C2. Preserve verified filing venue with its own source/time; no unsupported current-identity merge. Tests for partial identity, document disagreement, unrelated exchange dimensions, unsupported mapping and multiple documents. Live KO must show filing venue separately. |
 | ESC-03 | All four analyses; details/concise/JSON absence semantics; **medium** | Live Number says quote basis unspecified and fiscal periods unavailable; derived EPS/BVPS provider field is n/a; Growth user AAA assumption has “freshness unavailable.” Generic helpers conflate point data, derivation, assumptions and missing metadata. | C3 plus C1. Field-by-field missing/inapplicable/user-supplied reasons, unchanged numeric nulls. Matrix covers identity, currency, dates, source fields and optional metrics; verify JSON/text agreement rather than deleting every “unavailable.” |
 | ESC-04 | Number BVPS lineage; details/cache presentation; **high** | Live preferred-share component is 0 with `provider_field=inferred:sec-company-facts:no-issued-preferred-equity` but source says derived. `_source_label` recognizes inferred prefixes only for PROVIDER while new typed lineage uses DERIVED. Child notes and issued-minus-treasury grandchildren are omitted from details. | C3. Recursive lineage with inference label/guard notes and component units. Cache/fresh parity; explicit-zero versus guarded-inference versus missing/contradictory preferred evidence. Financial assumptions and zero guard stay unchanged. |
-| ESC-05 | Graham parser and cross-analysis composition evidence; **high** | Earlier KO repair missed routine dimensioned equity disclosures. `e8f4a95` already excludes nonaggregate candidates without accepting unsupported share classes. Fresh Number/Growth now succeed, but this alone does not establish four-analysis acceptance. | Preserve parser negative/positive tests and extend C1–C6 realistic composition coverage. Each analysis needs source-shaped fixtures, independent arithmetic, failure cases and dated live checks. Close only after matrix reconciliation. |
+| ESC-05 | Graham parser and cross-analysis composition evidence; **high** | Earlier KO repair missed routine dimensioned equity disclosures. The earlier repair already excludes nonaggregate candidates without accepting unsupported share classes. Fresh Number/Growth now succeed, but this alone does not establish four-analysis acceptance. | Preserve parser negative/positive tests and extend C1–C6 realistic composition coverage. Each analysis needs source-shaped fixtures, independent arithmetic, failure cases and dated live checks. Close only after matrix reconciliation. |
 | ESC-06 | Momentum calculation/direct API/all modes; **high** | Close `[1,2,3]`, short=2, long=3 produces SMAs 2.5/2.0 and crossover +1. Previous long SMA is missing. `np.where(short > long, 1, 0)` treats undefined prior comparison as zero before differencing. Offline reproduction confirms. | C4. Trend may be bullish, but crossover must be unavailable until two valid SMA pairs exist. Test exactly long-window bars, one additional bar, true bullish/bearish transitions, equality and no-event zero. Preserve SMA/RSI formulas. |
 | ESC-07 | Momentum CLI diagnostics and JSON; **medium** | Offline real CLI/resolver/cache composition yields four retained run trace events but JSON `diagnostics=[]` with an empty profile. CLI constructs `MomentumPresentation` without passing `run.resolution_trace`. | C4. Retain actual resolver/cache/derivation events in CLI modes and direct/tool consumers. Test provenance events, empty/partial profile diagnostics and no duplicated trace. |
 | ESC-08 | Momentum cached input provenance; **high** | Three offline runs use one provider fetch. A cached run nevertheless labels every retained price input PROVIDER, with retrieval time taken from the later resolver clock. Cache client returns only `entry.data`, discarding stored retrieval/cache timing. | C4. Transient typed resolution metadata from existing entry timestamps, correct cache origin and original retrieval. Test separate clocks, legacy missing retrieval, cold/hit/expiry/bypass and persistence round trip without schema migration. |
@@ -51,7 +49,7 @@ The ledger is not frozen against discovery. New discrepancies during implementat
 
 ## ESC-B closure evidence — accepted at ESC-C
 
-All entries share repair revision **uncommitted working tree based on `cb1e9ef`**, final gate **2,054 passed / 89%**, and the dated live checks in the [review packet](ESC_B_IMPLEMENTATION_AND_REVIEW.md).  Paths below are repository-relative permanent regression anchors, not raw operational artifacts.
+All entries share final gate **2,054 passed / 89%** and the dated live checks in the [review packet](ESC_B_IMPLEMENTATION_AND_REVIEW.md).  Paths below are repository-relative permanent regression anchors, not raw operational artifacts.
 
 | ID | Implemented repair and permanent regression evidence |
 | :--- | :--- |
@@ -71,7 +69,7 @@ All entries share repair revision **uncommitted working tree based on `cb1e9ef`*
 
 ### ESC-13 — FCF execution boundary was only a result label
 
-**Scope/severity:** FCF direct and composed execution; high. **Source:** pre-repair working tree based on `cb1e9ef`. A request with effective execution January 15, 2024 and a resolver clock in September 2026 selected later annual evidence while labelling the result with the earlier execution time. The analyzer did not pass `effective_as_of` into the production annual resolver. This violates the existing availability boundary; it does not require a new financial policy.
+**Scope/severity:** FCF direct and composed execution; high. **Source:** the pre-repair working tree. A request with effective execution January 15, 2024 and a resolver clock in September 2026 selected later annual evidence while labelling the result with the earlier execution time. The analyzer did not pass `effective_as_of` into the production annual resolver. This violates the existing availability boundary; it does not require a new financial policy.
 
 The analyzer now forwards the aware effective boundary, and the resolver uses that boundary for eligibility rather than its later clock. The regression checks eligible fiscal periods as well as the reported time. Calculations, fiscal selection rules and cache request identities remain unchanged. Implemented, verified and accepted at ESC-C with the other entries.
 

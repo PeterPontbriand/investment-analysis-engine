@@ -175,6 +175,8 @@ persistent research records and a usable Light Mode workflow. The
 [implementation plan](milestones/v0.2/IMPLEMENTATION_PLAN.md) owns work-package
 scope, sequencing and status; its companion contracts supply technical detail.
 
+The [research-workspace contract](milestones/v0.2/step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) defines watchlist, Analysis Run, replay and refresh interfaces with bounded implementation slices.
+
 ### **Milestone v0.2.5: Real-User Validation Checkpoint**
 This milestone answers a question none of the technical quality gates can answer: does this help anyone besides the author?
 

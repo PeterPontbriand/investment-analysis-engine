@@ -30,7 +30,7 @@ No schema revision, dependencies, financial calculations, providers, CLI composi
 
 ## Verification evidence
 
-The full non-mutating managed wrapper passed on **2026-09-12 (Toronto)** against the uncommitted Slice B implementation based on `d912d4d`:
+The full non-mutating managed wrapper passed on **2026-09-12 (Toronto)** against the uncommitted Slice B implementation:
 
 ```powershell
 & (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gates.ps1')

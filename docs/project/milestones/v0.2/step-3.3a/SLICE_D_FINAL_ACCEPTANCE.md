@@ -6,8 +6,8 @@ Local sequence and status: [companion plan](STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md
 
 ## Reviewed baseline
 
-Verification used `ae62c985c049dd279dde0bc197d3b17c25bb8893` (PR #35)
-plus documentation edits. Source and tests were unchanged. The documentation
+Verification used the approved contract revision plus documentation edits.
+Source and tests were unchanged. The documentation
 reorganization changes where status is recorded, not the tested implementation.
 
 ## Documentation reconciliation

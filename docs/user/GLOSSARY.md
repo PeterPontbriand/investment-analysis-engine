@@ -51,6 +51,27 @@ The principle that materially different financial strategies may use different i
 
 ---
 
+## Local research workspace
+
+See the [Local Research Workspace guide](WORKSPACE.md) for command usage.
+
+### Analysis Run
+One durable, saved record of a single analysis attempt: the method, ticker, the exact configuration used, and the result (or the fact that it could not be produced). Saved either explicitly with `--save-run` on a direct command, or automatically by `refresh`. Showing a saved Analysis Run always replays its own captured evidence; it never re-fetches data or recalculates, so it keeps showing the same result even if a data provider or your configuration changes afterward.
+
+### Selection
+One analysis method and its own configuration — for example, "Graham Number with SEC EDGAR data" or "Graham Growth Value with a 6% expected-growth assumption." The same method may appear in more than one selection, for example to compare Graham Number computed from SEC EDGAR data against Massive data.
+
+### Entry
+One ticker paired with a [selection](GLOSSARY.md#selection) inside a watchlist. A watchlist is an ordered list of entries, not a separate list of tickers and a separate list of selections; the same method may appear more than once, whether for different tickers or for the same ticker with different configuration. An entry's position in the list is shown and addressed as a 1-based number (`watchlist show`'s index, and `remove-entry`'s `INDEX` argument); removing an entry renumbers the ones after it so the displayed numbers never skip.
+
+### Watchlist
+A named, ordered list of [entries](GLOSSARY.md#entry) that you want to run and revisit as a group.
+
+### Refresh
+Running every entry in one watchlist and saving each result as its own Analysis Run. A refresh is bounded to at most `--workers` tickers running at once (1-4, default 2); one ticker's failure never stops the rest of the watchlist.
+
+---
+
 ## Market data
 
 ### `BaseDataClient`
@@ -74,7 +95,7 @@ See the [Massive API documentation](https://massive.com/docs) for the service it
 
 
 ### Cache
-A stored copy of previously retrieved data. A cache hit may be used only when the entry satisfies the requested `as_of` and freshness policy; otherwise resolution proceeds to an allowed provider or reports the input unavailable.
+A stored copy of previously retrieved data. A cache hit may be used only when the entry satisfies the requested `as_of` and freshness policy; otherwise resolution proceeds to an allowed provider or reports the input unavailable. Caching is automatic and distinct from [saving an Analysis Run](WORKSPACE.md#saving-vs-caching-theyre-not-the-same-thing), which is optional and durable.
 
 ### Cache Hit / Cache Miss / Stale Cache Entry
 A **cache hit** finds a valid reusable observation. A **cache miss** finds none. A **stale cache entry** exists but is too old or otherwise outside the active policy and therefore cannot silently be treated as current.

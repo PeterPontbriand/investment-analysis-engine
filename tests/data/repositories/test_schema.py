@@ -35,6 +35,13 @@ EXPECTED_COLUMNS = {
         "currency observation_count price_adjustment"
     ),
     "market_price_observations": "entry_key row_position index_value open high low close adj_close volume",
+    "watchlists": "watchlist_id normalized_name display_name created_at updated_at",
+    "watchlist_entries": "watchlist_id position ticker method_id config_schema_version selection_json",
+    "analysis_runs": (
+        "analysis_run_id refresh_id batch_position ticker analysis_id method_id outcome completed_at "
+        "run_schema_version config_schema_version method_version result_schema_version evidence_codec_version "
+        "projection_version envelope_json"
+    ),
 }
 
 
@@ -133,6 +140,27 @@ def base_row(table: str) -> dict[str, object]:
             "row_count": 1,
             "frame_metadata_json": "{}",
         },
+        "watchlists": {
+            "watchlist_id": "watchlist-1",
+            "normalized_name": "core",
+            "display_name": "Core",
+            "created_at": STAMP,
+        },
+        "analysis_runs": {
+            "analysis_run_id": "run-1",
+            "ticker": "KO",
+            "analysis_id": "graham",
+            "method_id": "graham_number",
+            "outcome": "completed",
+            "completed_at": STAMP,
+            "run_schema_version": 1,
+            "config_schema_version": 1,
+            "method_version": 1,
+            "result_schema_version": 1,
+            "evidence_codec_version": 1,
+            "projection_version": 1,
+            "envelope_json": "{}",
+        },
     }
     return rows[table].copy()
 
@@ -163,6 +191,15 @@ def base_row(table: str) -> dict[str, object]:
         ("market_data_cache_entries", "observation_count", -1),
         ("market_data_cache_entries", "request_end", "2025-01-01"),
         ("market_data_cache_entries", "request_start", "not-a-date"),
+        ("watchlists", "normalized_name", " "),
+        ("watchlists", "created_at", "2026-09-05T12:00:00"),
+        ("watchlists", "updated_at", "2025-09-05T12:00:00.000000Z"),
+        ("analysis_runs", "outcome", "running"),
+        ("analysis_runs", "method_version", 0),
+        ("analysis_runs", "method_version", 1.5),
+        ("analysis_runs", "completed_at", "not-a-timestamp"),
+        ("analysis_runs", "envelope_json", "[]"),
+        ("analysis_runs", "refresh_id", "batch-without-position"),
     ],
 )
 def test_database_checks_reject_invalid_rows(
@@ -241,6 +278,62 @@ def test_observations_are_snapshot_scoped_with_cascade_and_integer_volume(databa
             "snapshot-2"
         ]
         assert connection.execute(observations.select()).mappings().one()["volume"] == 2**60 + 1
+
+
+def test_watchlist_entries_enforce_order_and_cascade(database: SQLiteDatabase) -> None:
+    watchlists = metadata.tables["watchlists"]
+    entries = metadata.tables["watchlist_entries"]
+    with database.transaction() as connection:
+        connection.execute(watchlists.insert(), base_row("watchlists"))
+        connection.execute(
+            entries.insert(),
+            {
+                "watchlist_id": "watchlist-1",
+                "position": 0,
+                "ticker": "KO",
+                "method_id": "graham_number",
+                "config_schema_version": 1,
+                "selection_json": "{}",
+            },
+        )
+    # A second entry at the same (watchlist_id, position) collides with the primary key,
+    # even with a different ticker/method — position uniqueness is the PK itself now.
+    with pytest.raises(IntegrityError), database.transaction() as connection:
+        connection.execute(
+            entries.insert(),
+            {
+                "watchlist_id": "watchlist-1",
+                "position": 0,
+                "ticker": "MSFT",
+                "method_id": "momentum",
+                "config_schema_version": 1,
+                "selection_json": "{}",
+            },
+        )
+    with database.transaction() as connection:
+        connection.execute(watchlists.delete())
+    with database.read() as connection:
+        assert connection.execute(entries.select()).all() == []
+
+
+def test_analysis_run_indexes_and_refresh_pair(database: SQLiteDatabase) -> None:
+    table = metadata.tables["analysis_runs"]
+    row = base_row("analysis_runs")
+    with database.transaction() as connection:
+        connection.execute(table.insert(), row)
+        connection.execute(
+            table.insert(),
+            {**row, "analysis_run_id": "run-2", "refresh_id": "refresh-1", "batch_position": 0},
+        )
+    with database.read() as connection:
+        indexes = {item["name"] for item in inspect(connection).get_indexes("analysis_runs")}
+        assert indexes == {
+            "ix_analysis_runs_completed",
+            "ix_analysis_runs_method_id",
+            "ix_analysis_runs_outcome",
+            "ix_analysis_runs_refresh",
+            "ix_analysis_runs_ticker",
+        }
 
 
 def test_failed_initial_revision_rolls_back_all_tables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -4,8 +4,6 @@ Records provider-source checksums, fixture evidence and implementation boundarie
 
 Local sequence and status: [companion plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md#sequence-and-status).
 
-Evidence baseline: `a4001580838795a30d72f399fb4eedcb65dee9f3`.
-
 ## 1. Outcome
 
 D0 froze minimal deterministic evidence for the reviewed NTR, SAP, NVO, and
@@ -229,8 +227,7 @@ or broad documentation claims.
 
 ## 8. Focused baseline
 
-The following baseline ran from clean checkpoint
-`a4001580838795a30d72f399fb4eedcb65dee9f3` before production changes:
+The following baseline ran from a clean checkpoint before production changes:
 
 ```text
 64 collected

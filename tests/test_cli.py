@@ -15,7 +15,8 @@ from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumMetrics, MomentumRun
-from src.cli import _build_graham_resolver, app
+from src.cli import app
+from src.cli_composition import build_graham_resolver
 from src.config import settings
 from src.core.constants import TrendStatus
 from src.data.base_client import DataFetchError
@@ -30,7 +31,7 @@ from src.evaluation.fixtures.graham import (
     FixtureFinancialFactsProvider,
 )
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from tests._cli_helpers import normalize_cli_output
+from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 
 runner = CliRunner()
 
@@ -138,7 +139,7 @@ def mock_momentum_run(mock_metrics: MomentumMetrics) -> MomentumRun:
     )
 
 
-@patch("src.cli.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
 def test_cli_momentum_success_uses_investor_presenter(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
 
@@ -157,7 +158,7 @@ def test_cli_momentum_success_uses_investor_presenter(mock_run: MagicMock, mock_
     assert "cli_runtime" not in result.output
 
 
-@patch("src.cli.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
 def test_cli_momentum_known_etf_remains_applicable_and_retains_kind(
     mock_run: MagicMock,
     mock_momentum_run: MomentumRun,
@@ -180,7 +181,7 @@ def test_cli_momentum_known_etf_remains_applicable_and_retains_kind(
     assert payload["instrument_kind"]["kind"] == "etf"
 
 
-@patch("src.cli.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
 def test_cli_momentum_legacy_ticker_option_still_routes(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
 
@@ -191,7 +192,7 @@ def test_cli_momentum_legacy_ticker_option_still_routes(mock_run: MagicMock, moc
     assert mock_run.call_args.kwargs["ticker"] == "BTC-USD"
 
 
-@patch("src.cli.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
 def test_cli_momentum_with_options(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
 
@@ -203,7 +204,7 @@ def test_cli_momentum_with_options(mock_run: MagicMock, mock_momentum_run: Momen
     assert config_passed.long_window == 30
 
 
-@patch("src.cli.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
 def test_cli_momentum_reports_identity_from_retained_market_context(
     mock_run: MagicMock,
     mock_metrics: MomentumMetrics,
@@ -227,7 +228,7 @@ def test_cli_momentum_reports_identity_from_retained_market_context(
     assert "Currency: CAD" in result.output
 
 
-@patch("src.cli.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
 def test_cli_momentum_insufficient_history_is_unknown_without_nan(mock_run: MagicMock) -> None:
     metrics = MomentumMetrics(
         ticker="SHORT",
@@ -258,7 +259,7 @@ def test_cli_momentum_insufficient_history_is_unknown_without_nan(mock_run: Magi
     assert re.search(r"\bnan\b", result.output, flags=re.IGNORECASE) is None
 
 
-@patch("src.cli.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
 def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicMock) -> None:
     metrics = MomentumMetrics(
         ticker="SHORT",
@@ -295,7 +296,7 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
     assert payload["source"]["observation_count"] == 3
 
 
-@patch("src.cli.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
 def test_cli_momentum_diagnostics_are_retained_and_useful(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
 
@@ -308,7 +309,7 @@ def test_cli_momentum_diagnostics_are_retained_and_useful(mock_run: MagicMock, m
     assert "No execution trace was retained" not in result.output
 
 
-@patch("src.cli.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
 def test_cli_momentum_data_fetch_failure_is_one_clean_message(mock_run: MagicMock) -> None:
     mock_run.side_effect = DataFetchError("provider-library key currentTradingPeriod leaked here")
 
@@ -322,7 +323,7 @@ def test_cli_momentum_data_fetch_failure_is_one_clean_message(mock_run: MagicMoc
     assert "Traceback" not in result.output
 
 
-@patch("src.cli.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
 def test_cli_momentum_analysis_failure_does_not_expose_internal_text(mock_run: MagicMock) -> None:
     mock_run.side_effect = ValueError("Validation error. See https://errors.pydantic.dev/2.0/v/value_error")
 
@@ -378,28 +379,28 @@ def test_cli_graham_missing_sec_user_agent_is_clean_configuration_error() -> Non
     assert "Traceback" not in result.output
 
 
-@patch("src.cli.SecEdgarFinancialFactsAdapter")
+@patch("src.cli_composition.SecEdgarFinancialFactsAdapter")
 def test_graham_resolver_passes_configured_sec_identity_explicitly(mock_sec_adapter: MagicMock) -> None:
     declared_identity = "financial-data-agents-test test@example.invalid"
 
     with patch.object(settings, "sec_user_agent", declared_identity):
-        _build_graham_resolver(resolver_type=GrahamNumberInputResolver, data_provider=None)
+        build_graham_resolver(resolver_type=GrahamNumberInputResolver, data_provider=None)
 
     mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
 
 
-@patch("src.cli.SecEdgarFinancialFactsAdapter")
+@patch("src.cli_composition.SecEdgarFinancialFactsAdapter")
 def test_graham_growth_default_uses_configured_sec_identity(mock_sec_adapter: MagicMock) -> None:
     declared_identity = "financial-data-agents-test test@example.invalid"
 
     with patch.object(settings, "sec_user_agent", declared_identity):
-        _build_graham_resolver(resolver_type=GrahamGrowthInputResolver, data_provider=None)
+        build_graham_resolver(resolver_type=GrahamGrowthInputResolver, data_provider=None)
 
     mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
 
 
 def test_cli_graham_number_is_default_ticker_analysis(fixture_resolver: GrahamNumberInputResolver) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID])
 
     assert result.exit_code == 0
@@ -411,7 +412,7 @@ def test_cli_graham_number_is_default_ticker_analysis(fixture_resolver: GrahamNu
 
 
 def test_cli_graham_legacy_ticker_option_still_routes(fixture_resolver: GrahamNumberInputResolver) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", "--ticker", SECURITY_ID, "--data-provider", PROVIDER_ID])
 
     assert result.exit_code == 0
@@ -419,7 +420,7 @@ def test_cli_graham_legacy_ticker_option_still_routes(fixture_resolver: GrahamNu
 
 
 def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: GrahamNumberInputResolver) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID, "--json"])
 
     assert result.exit_code == 0
@@ -458,10 +459,11 @@ def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resoluti
     )
     with (
         patch(
-            "src.cli._build_graham_resolver",
+            "src.cli.build_graham_resolver",
             return_value=growth_fixture_resolver if method_arguments else fixture_resolver,
         ),
-        patch("src.cli._compose_analysis_profile", return_value=profile),
+        patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=profile),
+        patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=profile),
         patch.object(
             fixture_resolver,
             "assemble_graham_number",
@@ -492,7 +494,7 @@ def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resoluti
 
 
 def test_cli_graham_number_eps_override_inherits_default_basis(fixture_resolver: GrahamNumberInputResolver) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(
             app,
             ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID, "--eps", "4.0", "--json"],
@@ -508,7 +510,7 @@ def test_cli_graham_number_eps_override_inherits_default_basis(fixture_resolver:
 def test_cli_graham_number_optional_quote_failure_preserves_value() -> None:
     resolver = GrahamNumberInputResolver(QuoteUnavailableProvider(), clock=lambda: NOW)
 
-    with patch("src.cli._build_graham_resolver", return_value=resolver):
+    with patch("src.cli.build_graham_resolver", return_value=resolver):
         result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID])
 
     assert result.exit_code == 0
@@ -562,7 +564,7 @@ def test_cli_graham_growth_rejects_bvps() -> None:
 def test_cli_graham_growth_override_heavy_analysis_is_conspicuous(
     growth_fixture_resolver: GrahamGrowthInputResolver,
 ) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=growth_fixture_resolver):
+    with patch("src.cli.build_graham_resolver", return_value=growth_fixture_resolver):
         result = runner.invoke(
             app,
             [
@@ -591,7 +593,7 @@ def test_cli_graham_growth_override_heavy_analysis_is_conspicuous(
 def test_cli_graham_fully_override_driven_unverified_ticker_is_rejected(
     growth_fixture_resolver: GrahamGrowthInputResolver,
 ) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=growth_fixture_resolver):
+    with patch("src.cli.build_graham_resolver", return_value=growth_fixture_resolver):
         result = runner.invoke(
             app,
             [
@@ -620,7 +622,7 @@ def test_cli_graham_fully_override_driven_unverified_ticker_is_rejected(
 def test_cli_graham_invalid_or_unavailable_ticker_has_one_clean_failure(
     fixture_resolver: GrahamNumberInputResolver,
 ) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", SUBJECT_MISSING, "--data-provider", PROVIDER_ID])
 
     assert result.exit_code == 1
@@ -634,7 +636,7 @@ def test_cli_graham_invalid_or_unavailable_ticker_has_one_clean_failure(
 
 
 def test_cli_graham_diagnostics_exposes_trace_only_when_requested(fixture_resolver: GrahamNumberInputResolver) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
         concise = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID])
         diagnostics = runner.invoke(
             app,
@@ -650,7 +652,7 @@ def test_cli_graham_diagnostics_exposes_trace_only_when_requested(fixture_resolv
 
 
 def test_cli_graham_details_shows_financial_provenance(fixture_resolver: GrahamNumberInputResolver) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID, "--details"])
 
     assert result.exit_code == 0
@@ -681,7 +683,7 @@ def test_cli_graham_unexpected_failure_does_not_leak_exception_text() -> None:
     resolver = MagicMock(spec=GrahamNumberInputResolver)
     resolver.assemble_graham_number.side_effect = RuntimeError("secret provider implementation detail")
 
-    with patch("src.cli._build_graham_resolver", return_value=resolver):
+    with patch("src.cli.build_graham_resolver", return_value=resolver):
         result = runner.invoke(app, ["graham-number", "AAPL"])
 
     assert result.exit_code == 1
@@ -693,7 +695,7 @@ def test_cli_graham_unexpected_failure_does_not_leak_exception_text() -> None:
 def test_cli_graham_transitional_growth_flag_aliases_remain_supported(
     growth_fixture_resolver: GrahamGrowthInputResolver,
 ) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=growth_fixture_resolver):
+    with patch("src.cli.build_graham_resolver", return_value=growth_fixture_resolver):
         result = runner.invoke(
             app,
             [
@@ -713,7 +715,7 @@ def test_cli_graham_transitional_growth_flag_aliases_remain_supported(
 
 
 def test_cli_graham_growth_eps_override_inherits_ttm_basis(growth_fixture_resolver: GrahamGrowthInputResolver) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=growth_fixture_resolver):
+    with patch("src.cli.build_graham_resolver", return_value=growth_fixture_resolver):
         result = runner.invoke(
             app,
             [

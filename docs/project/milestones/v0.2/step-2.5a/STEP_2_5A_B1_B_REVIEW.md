@@ -4,8 +4,6 @@ Documents exact IFRS duration mappings, lineage and verification.
 
 Local sequence and status: [companion plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md#sequence-and-status).
 
-Evidence baseline: `6e9019e40df13277fac9353e53446da44d1b26c3`.
-
 ## 1. Outcome
 
 | Project field | Accepted provider field |

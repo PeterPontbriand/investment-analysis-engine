@@ -45,7 +45,7 @@ def _synthetic_migration_resources(tmp_path: Path, *, failing: bool) -> migratio
     source = repository / "alembic"
     directory = tmp_path / "synthetic-alembic"
     shutil.copytree(source, directory, ignore=shutil.ignore_patterns("__pycache__"))
-    base_head = "0001_persistence"
+    base_head = migrations.migration_resources().head
     head = "zz99_synthetic_failing" if failing else "zz99_synthetic_no_op"
     preamble = "import sqlalchemy as sa\n\nfrom alembic import op\n\n" if failing else ""
     upgrade_body = (
@@ -257,9 +257,54 @@ def test_known_ancestor_requires_explicit_upgrade(tmp_path: Path, monkeypatch: p
         with pytest.raises(DatabaseReadinessError) as caught:
             ensure_database_ready(database)
         assert caught.value.reason is ReadinessReason.UPGRADE_REQUIRED
-        assert "DATABASE_URL" in str(caught.value)
+        assert "synthetic_next" in str(caught.value)
+        assert "uv run financial-agents db upgrade" in str(caught.value)
+        assert "--database-url" in str(caught.value)
         assert caught.value.database_path == path
         assert caught.value.expected_revision == "synthetic_next"
+    finally:
+        database.close()
+
+
+def test_real_predecessor_requires_explicit_upgrade_and_retains_existing_data(tmp_path: Path) -> None:
+    path = tmp_path / "predecessor.sqlite3"
+    database = database_for(path)
+    resources = migrations.migration_resources()
+    try:
+        with database.transaction() as connection:
+            migrations.upgrade_database_revision(connection, resources, "0001_persistence")
+            connection.exec_driver_sql("INSERT INTO schema_metadata VALUES ('retained_test_value', 42)")
+            connection.exec_driver_sql(
+                "INSERT INTO trajectory_events "
+                "(event_id,run_id,session_id,sequence,timestamp,event_type,component,schema_version,mode,span_id) "
+                "VALUES ('event-1','run-1','session-1',1,'2026-09-15T12:00:00.000000Z',"
+                "'run_start','test',1,'light','span-1')"
+            )
+            connection.exec_driver_sql(
+                "INSERT INTO resolved_input_cache "
+                "(cache_key,subject_kind,subject_id,field_name,provider_id,schema_version,cached_at,value,"
+                "source_kind,resolved_at,notes_json) VALUES "
+                "('key-1','security','KO','eps','fixture',1,'2026-09-15T12:00:00.000000Z',1.0,"
+                "'provider','2026-09-15T12:00:00.000000Z','[]')"
+            )
+        inspection = readiness.inspect_database(database)
+        assert inspection.state is readiness.DatabaseState.UPGRADE_REQUIRED
+        assert inspection.current_revision == "0001_persistence"
+        with pytest.raises(DatabaseReadinessError) as caught:
+            ensure_database_ready(database)
+        assert caught.value.reason is ReadinessReason.UPGRADE_REQUIRED
+
+        assert readiness.upgrade_database(database) == (ReadinessOutcome.UPGRADED, "0003_watchlist_entries")
+        assert ensure_database_ready(database) is ReadinessOutcome.READY
+        with database.read() as connection:
+            assert (
+                connection.exec_driver_sql(
+                    "SELECT metadata_value FROM schema_metadata WHERE metadata_key='retained_test_value'"
+                ).scalar_one()
+                == 42
+            )
+            assert connection.exec_driver_sql("SELECT event_id FROM trajectory_events").scalar_one() == "event-1"
+            assert connection.exec_driver_sql("SELECT cache_key FROM resolved_input_cache").scalar_one() == "key-1"
     finally:
         database.close()
 
@@ -302,7 +347,7 @@ def test_upgrade_database_synthetic_older_schema_rollback_on_failure(
             tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_schema WHERE type='table'")}
             assert "synthetic_partial" not in tables
             stamped = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-            assert stamped == "0001_persistence"
+            assert stamped == migrations.migration_resources().head
     finally:
         database.close()
     assert path.read_bytes() == before

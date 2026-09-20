@@ -13,7 +13,8 @@ from typer.testing import CliRunner
 
 from alembic import command
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.cli import _build_graham_resolver, app
+from src.cli import app
+from src.cli_composition import build_graham_resolver
 from src.cli_support import _production_financial_cache
 from src.config import ProjectSettings
 from src.data.financial.cache import InMemoryResolvedInputCache
@@ -87,8 +88,11 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
         return instance
 
     with (
-        patch("src.cli._build_sec_production_provider", return_value=provider),
-        patch("src.cli._compose_analysis_profile", return_value=profile),
+        patch("src.cli.build_sec_production_provider", return_value=provider),
+        patch("src.cli_composition.build_sec_production_provider", return_value=provider),
+        patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=profile),
+        patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=profile),
+        patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=profile),
         patch("src.cli_support.SQLiteDatabase", side_effect=database),
         patch.object(InputResolver, "_DEFAULT_CLOCK", staticmethod(lambda: NOW)),
     ):
@@ -159,8 +163,11 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
     profile = InstrumentProfile(ticker=ticker, identity=None, kind_evidence=None, diagnostics=())
     with (
         patch("src.cli_support.settings", ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")),
-        patch("src.cli._build_sec_production_provider", return_value=provider),
-        patch("src.cli._compose_analysis_profile", return_value=profile),
+        patch("src.cli.build_sec_production_provider", return_value=provider),
+        patch("src.cli_composition.build_sec_production_provider", return_value=provider),
+        patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=profile),
+        patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=profile),
+        patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=profile),
         patch("src.cli_support.SQLiteDatabase", side_effect=AssertionError("Database must not open")),
     ):
         result = CliRunner().invoke(app, arguments)
@@ -186,6 +193,6 @@ def test_cache_scope_closes_on_error(configured_database: Path) -> None:
 
 def test_explicit_memory_cache_is_retained() -> None:
     cache = InMemoryResolvedInputCache()
-    with patch("src.cli._build_sec_production_provider", return_value=GrahamProvider()):
-        resolver = _build_graham_resolver(resolver_type=GrahamNumberInputResolver, data_provider=None, cache=cache)
+    with patch("src.cli_composition.build_sec_production_provider", return_value=GrahamProvider()):
+        resolver = build_graham_resolver(resolver_type=GrahamNumberInputResolver, data_provider=None, cache=cache)
     assert resolver._cache is cache

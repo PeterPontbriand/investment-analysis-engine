@@ -60,11 +60,11 @@ Command: `& (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gate
 
 Artifacts: `.tmp/quality-runs/20260907143230324-6084-fb6f134eada84485bb6fbef5972eafe2/` (ignored; do not commit).
 
-The run started on `c4316425c52488c6574c93027235b9ac980e0803` with documentation-only changes. The fetched PR merge has the identical tracked tree; the handoff now resides on `docs/step-3.2-repositories` based on that merge. No source or test edits were made. The initial sandboxed attempt could not query the existing Python interpreter; the approved retry used the same non-mutating wrapper and existing environment without dependency synchronization.
+The run started with documentation-only changes. The fetched PR merge has the identical tracked tree; the handoff now resides on `docs/step-3.2-repositories` based on that merge. No source or test edits were made. The initial sandboxed attempt could not query the existing Python interpreter; the approved retry used the same non-mutating wrapper and existing environment without dependency synchronization.
 
 ### Gate 3.2-A
 
-Approved by the project owner on 2026-09-07 following document review.  The documents-only checkpoint requirement was subsequently satisfied by pushed commit `ee4db024bb10c061b2b17ccad41e35544ccd94e3`; no second planning-only slice was needed.
+Approved by the project owner on 2026-09-07 following document review. The documents-only checkpoint requirement was subsequently satisfied by a pushed commit; no second planning-only slice was needed.
 
 ## 3. Slice 3.2-B — Demonstrated gaps with focused tests
 
@@ -164,10 +164,10 @@ closes Gate 3.2-B and authorizes the next slice, 3.2-C. It does not declare the
 whole step complete or approve unreviewed D closeout work. Section 7's pending
 approval statement is retained as the historical pre-review snapshot.
 
-C started from the approved, uncommitted B working tree over checkpoint
-`ee4db024bb10c061b2b17ccad41e35544ccd94e3`. B's final managed gate is the accepted
-baseline: 1,853 passing tests and 89% reported coverage. No production refactor
-or defect correction was necessary in C.
+C started from the approved, uncommitted B working tree over the pushed
+checkpoint. B's final managed gate is the accepted baseline: 1,853 passing
+tests and 89% reported coverage. No production refactor or defect correction
+was necessary in C.
 
 ### Integration coverage and scope
 
@@ -220,8 +220,7 @@ synchronization and closeout remain D work.
 
 ## 9. Gate 3.2-C approval and Slice 3.2-D closeout — 2026-09-07
 
- D began from the approved B/C working tree
-over pushed checkpoint `ee4db024bb10c061b2b17ccad41e35544ccd94e3`.
+ D began from the approved B/C working tree over the pushed checkpoint.
 No source or test change was made during D.
 
 ### Documentation reconciliation and final dispositions

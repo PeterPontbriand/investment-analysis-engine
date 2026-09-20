@@ -17,12 +17,14 @@ retains earlier decisions and publication history.
 | 4 | Repositories, telemetry verification and data quality (3.2, Issue #17, 3.3) | Complete and accepted. |
 | 5 | Existing-analysis correctness | Initial audit/repair accepted; [renewal requirements](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status) remain applicable. |
 | 6 | [Database readiness (3.3A)](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete and accepted. |
-| 7 | Research workspace (3.4) | Start authorized; contract preparation is next. |
+| 7 | [Research workspace (3.4)](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) | Complete and accepted; final acceptance granted 2026-09-20 (Amendment A1's I3). |
 | 8 | Durable instrument profiles (P2-Profiles) | Not started; scope/contract review required. |
 | 9 | Existing-analysis renewal (ESC-D) | Required on the proposed screening starting revision; no unresolved correctness defects. |
 | 10 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Plan accepted; implementation waits for renewal acceptance. |
 | 11 | Light Mode (3.6) | Not started; includes empirical model/schema and end-to-end workflow validation. |
 | Deferred | ETF aggregation (P2-ETF) | Separate prioritization and provider/product-policy approval after 3.6; not a validation prerequisite. |
+| Deferred | [Structured error reporting for programmatic/agentic CLI consumers](DEFERRED_STRUCTURED_ERROR_REPORTING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
+| Deferred | [Prefix matching for Analysis Run/refresh IDs](DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
 
 ## 1. Purpose & Scope
 
@@ -200,6 +202,8 @@ See the [readiness contract](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) and
 
 ### 4.10 Step 3.4 – Local Research Workspace & Analysis Run Library
 
+The [approved contract and 25 Cline slices](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) define request/storage/replay/refresh interfaces, file scopes and focused verification. Gate A and Slice B1 were accepted on 2026-09-13, with [completion evidence](step-3.4/SLICE_B1_COMPLETION_EVIDENCE.md). Slices B2–B4 are also accepted; B4 acceptance and B5 implementation authorization were granted on 2026-09-15. B5 was accepted on 2026-09-15 against its [completion evidence](step-3.4/SLICE_B5_COMPLETION_EVIDENCE.md). B6 was accepted on 2026-09-15 against its [completion evidence](step-3.4/SLICE_B6_COMPLETION_EVIDENCE.md). C1 was accepted on 2026-09-16 against its [completion evidence](step-3.4/SLICE_C1_COMPLETION_EVIDENCE.md); C2 is the next slice and has not been started.
+
 **Goal**
 Turn the command-line program into a small local research workbench before real-user validation: users maintain ticker/analysis lists, initiate a refresh, and revisit durable completed results without requiring a GUI or unattended service.
 
@@ -225,8 +229,9 @@ Exact command spelling may be refined during implementation, but the user capabi
 **Extension boundary:** Use stable method identifiers and versioned configuration/result
 contracts independently of CLI spelling or inheritance. Retain heterogeneous
 result/provenance shapes and explicit watchlist analysis selections; adding a
-strategy must not silently change existing watchlists. Persist the exact profile
-snapshot supplied by P2-Profiles and replay it without mutable metadata reads.
+strategy must not silently change existing watchlists. Persist the exact request-scoped
+instrument-profile snapshot used during execution and replay it without mutable
+metadata reads. P2-Profiles follows this step.
 Unsupported requests retain explicit applicability outcomes. ETF holdings and
 aggregation are not required for this workspace and are deferred to P2-ETF;
 no speculative plugin framework or ETF schema is authorized here.

@@ -73,7 +73,7 @@ def test_structurally_older_schema_is_validated_then_migrated(tmp_path: Path, dr
     head = "synthetic_structural_head"
     (directory / "versions" / f"{head}.py").write_text(
         "from alembic import op\n"
-        f"revision = '{head}'\ndown_revision = '0001_persistence'\n"
+        f"revision = '{head}'\ndown_revision = '{resources.head}'\n"
         "def upgrade():\n    op.drop_table('legacy_probe')\n"
         "def downgrade():\n    pass\n",
         encoding="utf-8",

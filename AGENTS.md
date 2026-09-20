@@ -53,6 +53,7 @@ that must be preserved.
 
 ### Implementation preservation
 
+- Treat the active task's approved file scope as an edit boundary. Before changing a file outside that scope, request explicit user authorization and identify the file, proposed change, and why it is needed. This includes previously accepted implementation and test files, even for a correct, minimal compatibility or typing adjustment. A dependency on earlier work, passing checks, or recording the change afterward does not authorize a scope extension. Continue independent work within scope while awaiting approval. Files explicitly included in the active task's approved scope, such as shared dispatch files, remain authorized even if an earlier task also changed them.
 - Before refactoring, establish the relevant test baseline.
 - Preserve unrelated behavior and formatting.
 - A pre-existing rule violation in a legacy file is not permission to refactor unrelated code while touching that file.

@@ -12,6 +12,7 @@ This section is for people **using Financial Data Agents**. It deliberately avoi
 ## Use the application
 
 - [Usage Guide](USAGE.md) — common command structure, available analysis strategies, presentation modes, historical analysis, overrides, data-source selection, and the technical Golden Suite command.
+- [Local Research Workspace](WORKSPACE.md) — saving a result, named watchlists, refreshing many tickers at once, and browsing saved Analysis Runs.
 - [Smoke Testing Commands](SMOKE_TESTING.md) — twelve representative commands for a human to run after a deployment or update.
 - [Analysis Strategy Guides](strategies/README.md) — method-specific use, interpretation, assumptions, data sources, comparison points, and limitations.
 

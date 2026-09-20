@@ -7,6 +7,7 @@ from typer.testing import CliRunner
 
 from src.cli import app
 from src.data.massive.financial_facts import MassiveFinancialFactsAdapter
+from tests._cli_helpers import isolated_cli_database  # noqa: F401
 
 runner = CliRunner()
 

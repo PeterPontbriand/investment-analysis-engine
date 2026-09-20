@@ -12,6 +12,7 @@ from src.evaluation.fixtures.graham import (
     SECURITY_ID,
     FixtureFinancialFactsProvider,
 )
+from tests._cli_helpers import isolated_cli_database  # noqa: F401
 
 runner = CliRunner()
 
@@ -19,7 +20,7 @@ runner = CliRunner()
 def test_cli_growth_non_positive_value_explains_omitted_price_comparison() -> None:
     resolver = GrahamGrowthInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
 
-    with patch("src.cli._build_graham_resolver", return_value=resolver):
+    with patch("src.cli.build_graham_resolver", return_value=resolver):
         result = runner.invoke(
             app,
             [

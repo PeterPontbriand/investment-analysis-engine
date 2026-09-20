@@ -28,7 +28,7 @@ Paths below are repository-relative. This is an initial source inventory; A must
 | `src/data/financial/cache.py`, `src/data/repositories/resolved_input_cache.py` | Typed identity/period bounds, provenance, TTL and temporal eligibility already exist. Concrete inspection can expose stale/ineligible entries administratively. | Preserve normal read eligibility and distinguish administrative inspection from usable analytical inputs; decide bounded invalidation behavior. |
 | `src/data/financial/resolver.py` | Already validates temporal availability and compatibility for selected financial inputs, including currency, period, share-class and split metadata. | Reuse existing checks; audit scalar, derived, and series paths rather than impose one strategy's requirements on every fact. |
 | `src/data/financial/production.py` and production composition | Existing provider/cache composition is the integration seam. | Enumerate actual fetch/write paths, TTL configuration owners, bypass paths, and retry ownership before selecting changed files. |
-| Trajectory recorder and repository | Existing sanitized, fail-open event persistence; Issue #17 regression coverage is present in local merged commit `ef60a4b` (`#31`). | Select a compatible typed quality-decision payload/event path and prove trace linkage. Local Git history does not independently confirm remote issue closure. |
+| Trajectory recorder and repository | Existing sanitized, fail-open event persistence; Issue #17 regression coverage is present. | Select a compatible typed quality-decision payload/event path and prove trace linkage. Local Git history does not independently confirm remote issue closure. |
 
 Relevant existing regression suites include `tests/data/test_cached_client.py`, `tests/data/repositories/test_market_data.py`, `test_resolved_input_cache.py`, `test_series_cache.py`, and `test_persistence_smoke.py` in that repository-test directory. A must enumerate resolver/provider and telemetry tests needed for the selected paths.
 
@@ -106,7 +106,7 @@ These details complete A's bounded policy/interface reconciliation under the gra
 
 `tests/data/test_quality.py` adds 61 deterministic cases covering valid data, empty/missing/duplicate columns, NaN/Inf, nullable and mixed numeric types, unsupported/date indexes, ordering and missing dates, context contradictions, currency/adjustment conflicts, explicit daily session gaps, intraday limitations, exchange-local dates, TTL equality/zero/disabled limits, clock drift, historical observation/availability boundaries, invalid configuration and retained evidence. The initial test collection failed as expected before the new module existed. The focused suite subsequently passed; the new module has 100% line and branch coverage (133 statements, 72 branches).
 
-The complete managed wrapper passed on `a8f3297` plus the uncommitted B changes on 2026-09-08:
+The complete managed wrapper passed against the uncommitted B changes on 2026-09-08:
 
 - Ruff clean; formatting clean (289 files); strict mypy clean (226 source files).
 - **1,931 tests passed in 40.54 seconds**, an increase of 61 from the 1,870-test baseline; no existing tests removed.

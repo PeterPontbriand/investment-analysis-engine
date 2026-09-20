@@ -212,7 +212,7 @@ Retain existing cases and add focused tests for extracted helpers and new depend
 
 The reviewed section 9.3 evidence and exact migration inventory are accepted.
 
-Before deletion, the full managed baseline passed on `fb1821965a846b61417bb22e905385aae9ca64c9` with only the pending R2 planning evidence in the working tree: Ruff, formatting, strict mypy, and 1,809 tests in 30.97 seconds, with 89% reported coverage (9,398 statements, 793 missing). Artifacts: `.tmp/quality-runs/20260907091113599-35368-9bc6aceb6d46487da66be740a194b65d/`. The refreshed caller audit again found executable legacy references only in the two approved retirement files.
+Before deletion, the full managed baseline passed with only the pending R2 planning evidence in the working tree: Ruff, formatting, strict mypy, and 1,809 tests in 30.97 seconds, with 89% reported coverage (9,398 statements, 793 missing). Artifacts: `.tmp/quality-runs/20260907091113599-35368-9bc6aceb6d46487da66be740a194b65d/`. The refreshed caller audit again found executable legacy references only in the two approved retirement files.
 
 Deleted only `src/analysis/graham_value/graham_value_analyzer.py` (298 lines) and `tests/analysis/graham_value/test_graham_value_analyzer.py` (337 lines). All retained production/test files remain unchanged. The 44 retired test node IDs are preserved in the migration inventory. No executable reference to the three retired symbols or deleted module name remains; historical R1/R2 planning references are retained as classified.
 
@@ -224,7 +224,7 @@ Final scope/whitespace and executable-reference checks passed.
 
 ## 11. Gate R2-B approval and R2-C implementation evidence
 
-The fresh pre-refactor managed baseline passed Ruff, formatting, strict mypy, and 1,765 tests in 28.03 seconds with 89% reported coverage. Artifacts: `.tmp/quality-runs/20260907091845275-5796-7266e8f7f742480390eb9c9f42de7d56/`. The base revision remained `fb1821965a846b61417bb22e905385aae9ca64c9`, plus the approved R2-B deletions and pending planning evidence; no intervening source changes were present.
+The fresh pre-refactor managed baseline passed Ruff, formatting, strict mypy, and 1,765 tests in 28.03 seconds with 89% reported coverage. Artifacts: `.tmp/quality-runs/20260907091845275-5796-7266e8f7f742480390eb9c9f42de7d56/`. The base revision remained unchanged, plus the approved R2-B deletions and pending planning evidence; no intervening source changes were present.
 
 Created `src/analysis/shared/__init__.py` and `financial_resolution.py`. Extracted EPS/optional-quote request construction and profile/evidence/comparison helpers, preserving existing data-layer precedence and ownership. Graham resolver/services delegate without retaining duplicate private implementations. Graham keeps applicability and unverified-ticker messages locally and supplies its full profile-mismatch message. FCF adopts only the equivalent profile/ETF checks, supplies its complete mismatch message, and retains its native result/message construction. No existing file moved; Momentum, base/data resolvers, configs, calculators, service entry points, orchestration, CLI, and dependencies remain unchanged.
 
