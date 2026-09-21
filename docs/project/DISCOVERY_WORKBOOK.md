@@ -40,7 +40,7 @@ Git history is the authoritative revision history. When this workbook conflicts 
 # 1. Introduction
 
 ## Purpose
-`financial-data-agents` is a local-first investment-analysis project combining deterministic financial software with locally hosted LLM orchestration.
+`investment-analysis-engine` is a local-first investment-analysis project combining deterministic financial software with locally hosted LLM orchestration.
 
 ## Scope
 The project covers local Ollama orchestration, typed deterministic tools/analyzers, market-data access, SQLite/Alembic persistence, evaluation, Canadian localization, and report generation. Full GUI/frontend integration belongs to separate projects.
@@ -321,7 +321,7 @@ The pre-v0.2.5 product is a **terminal-first local investor research workbench**
 ### Default interaction
 An ordinary investor should be able to analyze a ticker directly or maintain a small watchlist, ask the system to perform the repetitive quantitative work, then revisit completed results without needing to understand provider APIs, cache keys, or Python internals.
 
-The implemented direct Graham workflow now embodies that principle: `financial-agents graham TICKER` is a ticker analysis with a default Graham Number rather than an override-first formula calculator.
+The implemented direct Graham workflow now embodies that principle: `ian graham TICKER` is a ticker analysis with a default Graham Number rather than an override-first formula calculator.
 
 ### Progressive disclosure
 A successful concise result leads with the financial conclusion and only then exposes supporting context. Graham Number leads with the maximum indicated price/screening ceiling; Growth leads with the Growth Value and immediately states the expected-growth assumption. Current price and the plain-language price relationship follow when a compatible quote exists.

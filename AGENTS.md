@@ -1,4 +1,4 @@
-# Financial Data Agents – Development LLM Guardrails
+# Investment Analysis Engine – Development LLM Guardrails
 
 These rules apply to agents that write, refactor, test, document, or maintain this codebase.
 

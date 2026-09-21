@@ -78,10 +78,7 @@ def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
                     if reason is not None
                     else "Database is ready."
                     if state is DatabaseState.READY
-                    else (
-                        "Database is not initialized. Run financial-agents db upgrade with "
-                        "this same target to initialize it."
-                    )
+                    else ("Database is not initialized. Run ian db upgrade with this same target to initialize it.")
                 )
                 report = DatabaseMaintenanceReport(
                     command,

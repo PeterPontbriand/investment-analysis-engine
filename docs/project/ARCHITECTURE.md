@@ -1,4 +1,4 @@
-# Financial Data Agents Architecture
+# Investment Analysis Engine Architecture
 
 This document explains system boundaries, data ownership and explicitly labeled target designs.
 
@@ -94,7 +94,7 @@ The Graham family has two method identifiers:
 - `graham_number` — default screening-ceiling method using three-year-average EPS by default plus BVPS;
 - `graham_growth_value` — explicit secondary method using EPS, user-supplied expected growth under the current policy, and an explicit current AAA-yield input until a production series is approved.
 
-The implemented direct command is `financial-agents graham TICKER [--method number|growth]`. Invalid cross-method combinations are rejected at the CLI boundary. Existing transitional flag aliases remain only where intentionally retained for compatibility.
+The implemented direct command is `ian graham TICKER [--method number|growth]`. Invalid cross-method combinations are rejected at the CLI boundary. Existing transitional flag aliases remain only where intentionally retained for compatibility.
 
 Graham is intentionally not required to return `TrendStatus` or consume a historical DataFrame merely to look like Momentum.
 
@@ -103,7 +103,7 @@ Graham is intentionally not required to return `TrendStatus` or consume a histor
 
 `ProductionAnnualGrowthSeriesResolver` selects compatible, contiguous annual evidence under the requested `as_of` boundary. The default horizon policy prefers 5 elapsed years, then 4, then 3; explicit horizons are strict. Total-company FCF controls classification by default, while an explicit policy can select FCF per diluted share. Optional FCF yield is informational only, and optional forward EPS evidence follows an explicit display-only, confirmation, or hard-gate policy.
 
-The direct command is `financial-agents fcf-growth TICKER`. The strategy retains its own policy, annual-observation, metric, classification, and forward-evidence types rather than being forced into either the Momentum or Graham result shape.
+The direct command is `ian fcf-growth TICKER`. The strategy retains its own policy, annual-observation, metric, classification, and forward-evidence types rather than being forced into either the Momentum or Graham result shape.
 
 ### `BaseDataClient`
 Existing provider boundary for historical market prices. Under the selected Step 2.3 Option A direction, it remains price-history focused rather than becoming the owner of fundamentals, valuation quotes, macro series, and cache policy.

@@ -4,12 +4,12 @@ This directory is the canonical repository location for Ollama Modelfiles. Do no
 
 ## Application model
 
-`Modelfile.agents` configures the optional Financial Data Agents application model. It is an application runtime artifact and is independent of the model used by Cline to implement the repository.
+`Modelfile.agents` configures the optional Investment Analysis Engine application model. It is an application runtime artifact and is independent of the model used by Cline to implement the repository.
 
 Create or refresh its local alias from the repository root with:
 
 ```powershell
-ollama create financial-data-agents -f docs/project/deploy/ollama/Modelfile.agents
+ollama create investment-analysis-engine -f docs/project/deploy/ollama/Modelfile.agents
 ```
 
 Changing this artifact affects application-model behavior and requires review against the applicable Ollama/schema evaluation requirements.

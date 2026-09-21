@@ -1,6 +1,6 @@
 # Technical Momentum Analysis Strategy
 
-This document defines the deterministic momentum analysis strategy in Financial Data Agents. The strategy evaluates a public security's short-term and long-term trend strength using simple moving averages, moving average crossover posture, and relative strength indicators derived from historical daily closing price series.
+This document defines the deterministic momentum analysis strategy in Investment Analysis Engine. The strategy evaluates a public security's short-term and long-term trend strength using simple moving averages, moving average crossover posture, and relative strength indicators derived from historical daily closing price series.
 
 The strategy supports direct execution from the command line and defines the typed analysis contract used by runtime agents. Calculations are strictly deterministic, handling missing or insufficient historical price data without using language models or non-deterministic fallbacks.
 
@@ -110,7 +110,7 @@ The strategy evaluates indicators in strict deterministic sequence to assign the
 ### 4.1 Command
 
 ```text
-financial-agents momentum TICKER [options]
+ian momentum TICKER [options]
 ```
 
 ```text

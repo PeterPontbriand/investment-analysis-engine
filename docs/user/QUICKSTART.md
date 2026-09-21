@@ -12,8 +12,8 @@ This is the terse installation/configuration version. If any step is unfamiliar,
 ## Install
 
 ```bash
-git clone https://github.com/PeterPontbriand/financial-data-agents.git
-cd financial-data-agents
+git clone https://github.com/PeterPontbriand/investment-analysis-engine.git
+cd investment-analysis-engine
 uv sync
 ```
 
@@ -22,8 +22,8 @@ Fresh storage initializes automatically on first persistence use. Set
 schemas require explicit upgrades after stopping processes and backing up data:
 
 ```bash
-uv run --no-sync financial-agents db status
-uv run --no-sync financial-agents db upgrade
+uv run --no-sync ian db status
+uv run --no-sync ian db upgrade
 ```
 
 The maintenance group is hidden from top-level help; use `db --help`. See
@@ -48,10 +48,10 @@ MASSIVE_API_KEY="your-massive-api-key"
 ## Smoke test
 
 ```bash
-uv run financial-agents --help
-uv run financial-agents graham-number KO
-uv run financial-agents momentum AAPL
-uv run financial-agents fcf-growth MSFT
+uv run ian --help
+uv run ian graham-number KO
+uv run ian momentum AAPL
+uv run ian fcf-growth MSFT
 ```
 
 Commands that access SEC EDGAR require `SEC_USER_AGENT`. For a broader human-executed check, use the [Smoke Testing Commands](SMOKE_TESTING.md).

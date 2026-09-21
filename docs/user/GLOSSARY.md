@@ -1,13 +1,13 @@
-# Financial Data Agents Glossary
+# Investment Analysis Engine Glossary
 
-This glossary defines terms used in Financial Data Agents. Formula details and authoritative calculation semantics live in [Financial Math & Data Conventions](FINANCE_MATH.md).
+This glossary defines terms used in Investment Analysis Engine. Formula details and authoritative calculation semantics live in [Financial Math & Data Conventions](FINANCE_MATH.md).
 
 ---
 
 ## Analysis architecture
 
 ### Analysis Strategy
-A deterministic analytical capability in Financial Data Agents. An analysis strategy owns the rules needed to calculate and interpret a particular kind of analysis. Examples currently include the Graham Analysis Strategy and Momentum Analysis Strategy.
+A deterministic analytical capability in Investment Analysis Engine. An analysis strategy owns the rules needed to calculate and interpret a particular kind of analysis. Examples currently include the Graham Analysis Strategy and Momentum Analysis Strategy.
 
 In the Python implementation, an analysis strategy may be represented by an *analyzer* class. User documentation standardizes on **analysis strategy** rather than using internal class terminology as the product concept.
 
@@ -75,13 +75,13 @@ Running every entry in one watchlist and saving each result as its own Analysis 
 ## Market data
 
 ### `BaseDataClient`
-The existing historical-price provider boundary used by deterministic analyzers and data consumers. Financial Data Agents supplements it with a separate financial-facts provider/resolution boundary for current quotes, company financial facts, macro observations, and valuation-cache semantics rather than enlarging `BaseDataClient` into a generic financial-data interface.
+The existing historical-price provider boundary used by deterministic analyzers and data consumers. Investment Analysis Engine supplements it with a separate financial-facts provider/resolution boundary for current quotes, company financial facts, macro observations, and valuation-cache semantics rather than enlarging `BaseDataClient` into a generic financial-data interface.
 
 ### Data Provider
 An external or local source that supplies market prices, company financial facts, or economic-series observations. Examples include a quote API, a financial-statements service, or a macroeconomic data service.
 
 ### SEC
-The [U.S. Securities and Exchange Commission](https://www.sec.gov/), the U.S. federal securities regulator. Financial Data Agents currently uses public SEC data as a source of company financial facts.
+The [U.S. Securities and Exchange Commission](https://www.sec.gov/), the U.S. federal securities regulator. Investment Analysis Engine currently uses public SEC data as a source of company financial facts.
 
 ### EDGAR
 The SEC's **Electronic Data Gathering, Analysis, and Retrieval** system, which provides public access to company filings and structured filing data. See the SEC's [EDGAR search resources](https://www.sec.gov/search-filings) and [Accessing EDGAR Data](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data).
@@ -89,9 +89,9 @@ The SEC's **Electronic Data Gathering, Analysis, and Retrieval** system, which p
 ### Massive
 [Massive](https://massive.com/) is a commercial financial-market-data service with an [API](#api-application-programming-interface) that software can use to request licensed market/fundamental data.
 
-A **Massive API key** is a credential issued by Massive that authorizes API requests according to the user's account/plan. Financial Data Agents can optionally use Massive for the supported current TTM diluted-EPS and current-price data used by the Graham Growth Value method. Massive is not required for the Graham Number or Momentum strategies.
+A **Massive API key** is a credential issued by Massive that authorizes API requests according to the user's account/plan. Investment Analysis Engine can optionally use Massive for the supported current TTM diluted-EPS and current-price data used by the Graham Growth Value method. Massive is not required for the Graham Number or Momentum strategies.
 
-See the [Massive API documentation](https://massive.com/docs) for the service itself and [Installation & Configuration](INSTALLATION.md#optional-massive-market-data-access) for Financial Data Agents configuration.
+See the [Massive API documentation](https://massive.com/docs) for the service itself and [Installation & Configuration](INSTALLATION.md#optional-massive-market-data-access) for Investment Analysis Engine configuration.
 
 
 ### Cache
@@ -197,7 +197,7 @@ Profit attributable to common shareholders expressed per common share. EPS may b
 The most recent continuous twelve-month period represented by available reports. TTM EPS is a current-looking accounting measure but is not the same as one completed fiscal year's EPS or Graham's three-year average. In the current application it is used when the Graham Growth Value method explicitly uses Massive data, not as the standard Graham Number basis.
 
 ### Three-Year-Average EPS
-The arithmetic mean of EPS from three completed fiscal years. Financial Data Agents uses this as the standard Graham Number earnings basis and when the Graham Growth Value method uses SEC EDGAR earnings data, reflecting Graham's defensive-investor emphasis on average earnings over the preceding three years.
+The arithmetic mean of EPS from three completed fiscal years. Investment Analysis Engine uses this as the standard Graham Number earnings basis and when the Graham Growth Value method uses SEC EDGAR earnings data, reflecting Graham's defensive-investor emphasis on average earnings over the preceding three years.
 
 ### Normalized EPS / Normal Earnings
 Earnings adjusted according to an explicit policy to reduce the effect of unusual or non-recurring items. “Normalized” is not self-defining: every adjustment and period must be documented. The growth calculator accepts an EPS value on the explicitly selected basis; the software does not invent discretionary normalization adjustments.
@@ -212,7 +212,7 @@ The span or date to which a financial fact applies, such as a fiscal year, quart
 A transformation that restates per-share values after the number of shares changes through a stock split or reverse split. EPS, BVPS, and price must use compatible share bases.
 
 ### BVPS (Book Value Per Share)
-Book value attributable to common shareholders divided by period-end common shares outstanding. BVPS is an accounting measure of net assets per common share, not a market price. When using SEC EDGAR data, Financial Data Agents derives it from eligible fiscal-year-end balance-sheet components rather than claiming a direct SEC BVPS field.
+Book value attributable to common shareholders divided by period-end common shares outstanding. BVPS is an accounting measure of net assets per common share, not a market price. When using SEC EDGAR data, Investment Analysis Engine derives it from eligible fiscal-year-end balance-sheet components rather than claiming a direct SEC BVPS field.
 
 ### Common Shareholders' Equity
 The portion of reported equity attributable to common shareholders after claims belonging to preferred shareholders or other senior equity interests are excluded where applicable.
@@ -251,7 +251,7 @@ The preferred description of the Graham Number result. It is the highest price i
 Graham's term for an investor seeking a relatively conservative, low-maintenance approach. His complete defensive-stock framework included additional size, financial-strength, earnings-stability, dividend, and growth criteria beyond the two ratios represented by the Graham Number.
 
 ### Applicability Status
-A structured indication of whether a method can be meaningfully calculated. Financial Data Agents uses machine-readable statuses including `ok`, `not_applicable`, `input_unavailable`, `invalid_input`, and `provider_error` instead of forcing every security into a numeric result.
+A structured indication of whether a method can be meaningfully calculated. Investment Analysis Engine uses machine-readable statuses including `ok`, `not_applicable`, `input_unavailable`, `invalid_input`, and `provider_error` instead of forcing every security into a numeric result.
 
 ### `not_applicable`
 A valid outcome meaning the method should not be used for the supplied facts—for example, when Graham Number EPS or BVPS is non-positive. It is not the same as a software failure or a zero valuation.
@@ -312,7 +312,7 @@ The no-growth earnings multiple used as a configurable constant in the selected 
 The configurable constant multiplying `g` inside the growth-value formula. The initial conventional value is `2.0`.
 
 ### Intrinsic Value
-An estimate of what an investment is economically worth based on a stated model and assumptions, rather than its current market price. Different models can produce different intrinsic-value estimates. Financial Data Agents avoids using this term without qualification for the Graham Number.
+An estimate of what an investment is economically worth based on a stated model and assumptions, rather than its current market price. Different models can produce different intrinsic-value estimates. Investment Analysis Engine avoids using this term without qualification for the Graham Number.
 
 ### Reference Value
 The method-specific value used for comparison with current price: `maximum_indicated_price` for the Graham Number or `growth_value` for the growth method.
@@ -346,7 +346,7 @@ A deterministic historical screen that asks whether both the selected free-cash-
 Net cash provided by operating activities for a completed fiscal year. It is the starting component in the project's free-cash-flow calculation.
 
 ### Capital Expenditures (CapEx)
-Cash spent to acquire or improve long-lived productive assets. Provider sign conventions differ, so Financial Data Agents normalizes CapEx to a positive expenditure amount and retains the transformation in provenance.
+Cash spent to acquire or improve long-lived productive assets. Provider sign conventions differ, so Investment Analysis Engine normalizes CapEx to a positive expenditure amount and retains the transformation in provenance.
 
 ### Free Cash Flow (FCF)
 For this strategy, completed annual operating cash flow minus normalized capital expenditures. FCF is a non-GAAP analytical measure, so another provider may use a different definition.
@@ -433,7 +433,7 @@ SQLite mode allowing readers to continue while writes are serialized appropriate
 A defined way for software components or services to exchange requests and responses. A provider API may supply quotes, financial facts, or macro data.
 
 ### CLI (Command-Line Interface)
-The text-based commands used to run the project, such as `financial-agents graham-number TICKER`.
+The text-based commands used to run the project, such as `ian graham-number TICKER`.
 
 ### CI (Continuous Integration)
 Automated checks run when changes are proposed, including formatting, linting, type checking, and tests.
@@ -445,15 +445,15 @@ A typed component that reads or writes persistent data while keeping database de
 Providing a component's dependencies from outside rather than constructing them internally. It allows an analyzer to use a live provider, cache, or deterministic fixture without changing its calculation code.
 
 ### Machine-Readable Output
-Structured output designed so another program can consume it reliably rather than being optimized primarily for a person to read. Financial Data Agents currently provides machine-readable analysis output using **JSON (JavaScript Object Notation)** through the `--json` presentation mode.
+Structured output designed so another program can consume it reliably rather than being optimized primarily for a person to read. Investment Analysis Engine currently provides machine-readable analysis output using **JSON (JavaScript Object Notation)** through the `--json` presentation mode.
 
 Machine-readable output may intentionally retain stable identifiers such as snake_case field names because those identifiers form part of a programmatic contract.
 
 ### JSON (JavaScript Object Notation)
-A widely used text format for structured data made from objects, arrays, names, strings, numbers, booleans, and null values. Financial Data Agents uses JSON for its `--json` machine-readable presentation mode and for other structured software interfaces.
+A widely used text format for structured data made from objects, arrays, names, strings, numbers, booleans, and null values. Investment Analysis Engine uses JSON for its `--json` machine-readable presentation mode and for other structured software interfaces.
 
 ### JSONL (JSON Lines)
-A text format containing one JSON object per line. Financial Data Agents uses JSONL for structured trajectory-telemetry records.
+A text format containing one JSON object per line. Investment Analysis Engine uses JSONL for structured trajectory-telemetry records.
 
 ### LLM (Large Language Model)
 The model used for planning, tool selection, and narrative synthesis. Project financial calculations remain deterministic Python operations rather than LLM arithmetic.

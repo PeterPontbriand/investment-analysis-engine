@@ -3,16 +3,16 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "financial-data-agents"
+name = "investment-analysis-engine"
 version = "0.1.0"
-description = "Autonomous Python agents for ETF momentum analysis using yfinance and local LLMs (Ollama)"
+description = "Deterministic, provenance-aware investment analysis engine, usable from a CLI and designed for consumption by AI agents"
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [
     {name = "Peter", email = "peter.pontbriand@gmail.com"}
 ]
-keywords = ["finance", "etf", "momentum", "yfinance", "agentic", "ollama"]
+keywords = ["finance", "investment-analysis", "quantitative-analysis", "graham-number", "provenance", "yfinance", "ollama"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.14",
@@ -38,7 +38,7 @@ dependencies = [
 ]
 
 [project.scripts]
-financial-agents = "src.main:main"
+ian = "src.main:main"
 
 [dependency-groups]
 dev = [

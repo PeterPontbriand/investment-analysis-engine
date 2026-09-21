@@ -1,6 +1,6 @@
 # Hardware & Local AI
 
-Financial Data Agents' direct deterministic analysis strategies do **not** require a GPU or a local AI model.
+Investment Analysis Engine' direct deterministic analysis strategies do **not** require a GPU or a local AI model.
 
 This guide matters only if you want to use the application's optional local-LLM features through Ollama.
 

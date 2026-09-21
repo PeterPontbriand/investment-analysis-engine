@@ -25,7 +25,7 @@ def isolate_persistence_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_project_settings_reads_sec_user_agent_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    declared_identity = "financial-data-agents-test test@example.invalid"
+    declared_identity = "investment-analysis-engine-test test@example.invalid"
     monkeypatch.setenv("SEC_USER_AGENT", declared_identity)
 
     configured = ProjectSettings()
@@ -48,7 +48,9 @@ def test_database_defaults_follow_configured_base(tmp_path: Path) -> None:
     configured = ProjectSettings(base_dir=tmp_path)
 
     assert configured.data_dir == tmp_path / "data"
-    assert make_url(configured.database_url).database == (tmp_path / "data/financial-data-agents.sqlite3").as_posix()
+    assert (
+        make_url(configured.database_url).database == (tmp_path / "data/investment-analysis-engine.sqlite3").as_posix()
+    )
     assert configured.database_busy_timeout_ms == 5_000
     assert configured.historical_cache_ttl_seconds == 3_600
     assert configured.telemetry_sink == "jsonl"
@@ -62,7 +64,7 @@ def test_database_default_follows_data_directory(tmp_path: Path, relative: bool)
 
     assert (
         make_url(configured.database_url).database
-        == (tmp_path / data_path / "financial-data-agents.sqlite3").as_posix()
+        == (tmp_path / data_path / "investment-analysis-engine.sqlite3").as_posix()
     )
 
 

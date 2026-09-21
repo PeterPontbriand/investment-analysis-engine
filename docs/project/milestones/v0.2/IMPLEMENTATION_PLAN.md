@@ -215,13 +215,13 @@ Turn the command-line program into a small local research workbench before real-
 
 **Initial CLI workflow**
 ```text
-financial-agents watchlist create core
-financial-agents watchlist add core KO MSFT CNR.TO
-financial-agents watchlist remove core MSFT
-financial-agents watchlist show core
-financial-agents refresh core
-financial-agents runs list
-financial-agents runs show ANALYSIS_RUN_ID [--details|--diagnostics|--json]
+ian watchlist create core
+ian watchlist add core KO MSFT CNR.TO
+ian watchlist remove core MSFT
+ian watchlist show core
+ian refresh core
+ian runs list
+ian runs show ANALYSIS_RUN_ID [--details|--diagnostics|--json]
 ```
 
 Exact command spelling may be refined during implementation, but the user capability must remain equivalent. The initial default watchlist profile uses analyses that require no invented forward-growth assumption: Momentum, Graham Number, and historical FCF/Earnings Growth. `graham_growth_value` may be enabled only when an explicit persisted/user-supplied growth configuration is attached and shown as an assumption.
@@ -280,7 +280,7 @@ The complete investor workflow—data fetch/cache → deterministic analytics �
 3. Add a minimal smoke test covering direct analysis or watchlist refresh, result persistence, concise rendering, and provenance inspection under Light Mode resource assumptions.
 4. Confirm dual-tier functionality remains available as opt-in features.
 5. Complete the Step 2.2 empirical schema/model compatibility check for the supported Light Mode configuration.
-6. Add or validate a simple `financial-agents analyze TICKER` entry point that can request the default deterministic analyses and optionally ask the local LLM to synthesize only their completed typed results.
+6. Add or validate a simple `ian analyze TICKER` entry point that can request the default deterministic analyses and optionally ask the local LLM to synthesize only their completed typed results.
 7. Ensure synthesis failure, timeout, or schema failure never discards valid deterministic Analysis Runs.
 
 **Synthesis boundary**

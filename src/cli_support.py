@@ -87,7 +87,7 @@ def _resolve_ticker(positional: str | None, option: str | None, *, required: boo
     selected = positional if positional is not None else option
     if selected is None:
         if required:
-            raise typer.BadParameter(f"TICKER is required. Use 'financial-agents {command} TICKER'.")
+            raise typer.BadParameter(f"TICKER is required. Use 'ian {command} TICKER'.")
         return None
     normalized = selected.strip().upper()
     if not normalized:

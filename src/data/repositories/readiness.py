@@ -57,8 +57,8 @@ _MESSAGES = {
     ReadinessReason.UPGRADE_REQUIRED: (
         "schema upgrade required to revision {expected_revision}. This is a one-time upgrade of your "
         "existing local database, not new setup — your data is not lost. Back up this database file, "
-        "then run:\n\n    uv run financial-agents db upgrade\n\nAdd --database-url to target a database "
-        "other than your configured default. Let any other financial-agents command using this same "
+        "then run:\n\n    uv run ian db upgrade\n\nAdd --database-url to target a database "
+        "other than your configured default. Let any other ian command using this same "
         "file finish first."
     ),
     ReadinessReason.INCOMPATIBLE_SCHEMA: (

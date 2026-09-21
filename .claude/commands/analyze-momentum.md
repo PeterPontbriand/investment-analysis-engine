@@ -16,5 +16,5 @@
 Example application invocation:
 
 ```bash
-uv run financial-agents momentum --ticker FCIM.TO
+uv run ian momentum --ticker FCIM.TO
 ```

@@ -1,6 +1,6 @@
 # Investor & User Documentation
 
-This section is for people **using Financial Data Agents**. It deliberately avoids project milestone, step, and slice bookkeeping.
+This section is for people **using Investment Analysis Engine**. It deliberately avoids project milestone, step, and slice bookkeeping.
 
 ## Get the application running
 

@@ -1,4 +1,4 @@
-# Financial Data Agents: Master Plan
+# Investment Analysis Engine: Master Plan
 
 This roadmap defines the product direction, release goals and engineering constraints.
 

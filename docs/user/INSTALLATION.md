@@ -1,11 +1,11 @@
 # Installation & Configuration
 
-This guide covers the current pre-v1.0 installation and configuration process for Financial Data Agents.
+This guide covers the current pre-v1.0 installation and configuration process for Investment Analysis Engine.
 
 Installing the application currently involves **three main things**:
 
 1. install the small set of required software tools;
-2. copy Financial Data Agents to an installation folder and let `uv` set up the supporting software it needs; and
+2. copy Investment Analysis Engine to an installation folder and let `uv` set up the supporting software it needs; and
 3. provide the identification or credentials required by any data sources you want to use.
 
 You do **not** need a GPU or a local AI model to run direct deterministic analysis.
@@ -22,23 +22,23 @@ Git is a widely used program for copying software projects from services such as
 
 You need:
 
-- [Git](https://git-scm.com/downloads/) — used here to download Financial Data Agents and later obtain updates.
-- [Python 3.12 or newer](https://www.python.org/downloads/) — the programming language Financial Data Agents uses.
-- [`uv`](https://docs.astral.sh/uv/getting-started/installation/) — sets up the supporting Python software Financial Data Agents needs and runs its commands.
+- [Git](https://git-scm.com/downloads/) — used here to download Investment Analysis Engine and later obtain updates.
+- [Python 3.12 or newer](https://www.python.org/downloads/) — the programming language Investment Analysis Engine uses.
+- [`uv`](https://docs.astral.sh/uv/getting-started/installation/) — sets up the supporting Python software Investment Analysis Engine needs and runs its commands.
 - Internet access when you want live market or filing data.
 
 **One more Git term you will see:** a Git *repository* is simply the project's collection of files plus a record of how those files have changed over time. You do not need to understand Git internals to install the application.
 
 ### Choose an installation folder
 
-Open a terminal (PowerShell, Windows Terminal, Git Bash, macOS Terminal, or a Linux shell), change to the folder where you want Financial Data Agents to live, and run:
+Open a terminal (PowerShell, Windows Terminal, Git Bash, macOS Terminal, or a Linux shell), change to the folder where you want Investment Analysis Engine to live, and run:
 
 ```bash
-git clone https://github.com/PeterPontbriand/financial-data-agents.git
-cd financial-data-agents
+git clone https://github.com/PeterPontbriand/investment-analysis-engine.git
+cd investment-analysis-engine
 ```
 
-The new `financial-data-agents` folder is referred to throughout the user documentation as the **installation folder**.
+The new `investment-analysis-engine` folder is referred to throughout the user documentation as the **installation folder**.
 
 ### Set up the application
 
@@ -48,7 +48,7 @@ From inside the installation folder, run:
 uv sync
 ```
 
-This lets `uv` download and set up the supporting Python software that Financial Data Agents needs.
+This lets `uv` download and set up the supporting Python software that Investment Analysis Engine needs.
 
 The first analysis that needs local storage initializes a missing or verified
 empty database automatically. Existing databases require explicit upgrades.
@@ -59,23 +59,23 @@ For database location overrides, upgrades, backups, and recovery, see
 Then check that the command is available:
 
 ```bash
-uv run financial-agents --help
+uv run ian --help
 ```
 
-If you see the Financial Data Agents help text, the command is available. Help
+If you see the Investment Analysis Engine help text, the command is available. Help
 does not open or verify the database.
 
 ---
 
 ## 2. Configuration
 
-Configuration tells Financial Data Agents how to identify itself to certain data services and, optionally, how to use services for which you have an account.
+Configuration tells Investment Analysis Engine how to identify itself to certain data services and, optionally, how to use services for which you have an account.
 
 ### SEC EDGAR identification
 
 Analysis strategies that use company filings can obtain public financial facts from the U.S. [SEC](GLOSSARY.md#sec) [EDGAR](GLOSSARY.md#edgar) system.
 
-The SEC asks automated software to identify itself in the HTTP `User-Agent` header. Financial Data Agents therefore requires `SEC_USER_AGENT` before requesting SEC data.
+The SEC asks automated software to identify itself in the HTTP `User-Agent` header. Investment Analysis Engine therefore requires `SEC_USER_AGENT` before requesting SEC data.
 
 Use a real, reachable identity such as:
 
@@ -89,7 +89,7 @@ See the SEC's [Accessing EDGAR Data](https://www.sec.gov/search-filings/edgar-se
 
 #### Recommended: create a `.env` configuration file
 
-In the Financial Data Agents installation folder, create a plain-text file named `.env` containing:
+In the Investment Analysis Engine installation folder, create a plain-text file named `.env` containing:
 
 ```dotenv
 SEC_USER_AGENT="Your Name your-email@example.com"
@@ -97,7 +97,7 @@ SEC_USER_AGENT="Your Name your-email@example.com"
 
 Replace `Your Name` and `your-email@example.com` with your actual name and a real email address that you can receive mail at. Do **not** leave the example identity unchanged.
 
-Financial Data Agents loads this file automatically. The project's Git configuration excludes `.env` and `.env*` so that local credentials are not accidentally committed.
+Investment Analysis Engine loads this file automatically. The project's Git configuration excludes `.env` and `.env*` so that local credentials are not accidentally committed.
 
 #### Temporary alternative: set it only for the current terminal
 
@@ -117,7 +117,7 @@ The temporary form disappears when that terminal session ends.
 
 ### Optional: Massive market-data access
 
-[Massive](GLOSSARY.md#massive) is a commercial financial-market-data service. Financial Data Agents can optionally use it for supported current market and fundamental data.
+[Massive](GLOSSARY.md#massive) is a commercial financial-market-data service. Investment Analysis Engine can optionally use it for supported current market and fundamental data.
 
 Massive credentials are needed only when selecting a data source that uses Massive. Consult the selected strategy's guide for supported providers and required credentials.
 
@@ -148,19 +148,19 @@ If you want to use optional local-AI orchestration/synthesis features, see [Hard
 First check the application itself:
 
 ```bash
-uv run financial-agents --help
+uv run ian --help
 ```
 
 If you configured `SEC_USER_AGENT`, a simple Graham analysis is a useful live-data check:
 
 ```bash
-uv run financial-agents graham-number KO
+uv run ian graham-number KO
 ```
 
 You can also verify the annual-fundamentals growth strategy:
 
 ```bash
-uv run financial-agents fcf-growth MSFT
+uv run ian fcf-growth MSFT
 ```
 
 Once installation is working, continue with the [Usage Guide](USAGE.md). The [Smoke Testing Commands](SMOKE_TESTING.md) provide a broader human-executed check.
@@ -172,20 +172,20 @@ Once installation is working, continue with the [Usage Guide](USAGE.md). The [Sm
 ### A database readiness error appears
 
 The message identifies the selected database and a next action without requiring
-`--diagnostics`. Inspect it with `uv run --no-sync financial-agents db status`.
+`--diagnostics`. Inspect it with `uv run --no-sync ian db status`.
 For an upgrade-required error, stop application processes and back up existing
-data before `uv run --no-sync financial-agents db upgrade` against the same target.
+data before `uv run --no-sync ian db upgrade` against the same target.
 Preserve incompatible or corrupt storage for inspection; do not delete it or
 stamp its revision. See [Local Database Operations](DATABASE.md) for error codes,
 target overrides, locking and recovery.
 
 ### "SEC EDGAR access is not configured"
 
-Check that `SEC_USER_AGENT` is present in the `.env` file in the Financial Data Agents installation folder, or set it in the current terminal as shown above.
+Check that `SEC_USER_AGENT` is present in the `.env` file in the Investment Analysis Engine installation folder, or set it in the current terminal as shown above.
 
 ### "Massive access is not configured"
 
-This matters only if you explicitly ask Financial Data Agents to use Massive. Set `MASSIVE_API_KEY` in `.env` or in the current terminal.
+This matters only if you explicitly ask Investment Analysis Engine to use Massive. Set `MASSIVE_API_KEY` in `.env` or in the current terminal.
 
 ### `git`, `python`, or `uv` is "not recognized" / "command not found"
 
@@ -195,7 +195,7 @@ The corresponding prerequisite is either not installed or its executable is not 
 
 Confirm that:
 
-- you are inside the `financial-data-agents` installation folder;
+- you are inside the `investment-analysis-engine` installation folder;
 - your Python version satisfies the project requirement; and
 - your Internet connection can reach the package sources used by `uv`.
 

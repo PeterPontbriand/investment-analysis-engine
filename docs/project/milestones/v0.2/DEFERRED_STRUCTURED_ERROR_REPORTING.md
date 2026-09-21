@@ -3,7 +3,7 @@
 **Status:** deferred; not started; scope/contract review required before implementation.
 **Discovered:** 2026-09-20 (America/Toronto), during Step 3.4 review of the
 `DatabaseReadinessError` message a human sees from
-`financial-agents graham-number ... --save-run` when the local database needs
+`ian graham-number ... --save-run` when the local database needs
 a schema upgrade.
 **Not a blocker:** this does not block Step 3.4 acceptance or any other
 active v0.2 work package. It is recorded here so it is not lost, not to
@@ -43,7 +43,7 @@ already has typed access to internally:
   stderr and exits 1, regardless of whether `--json` was requested. There is
   no structured error envelope here at all — strictly less than the direct
   commands provide.
-- **The existing good precedent**: `financial-agents db status --json`
+- **The existing good precedent**: `ian db status --json`
   (`src/cli_database.py`, `DatabaseMaintenanceReport`) already does this
   correctly — `state`, `current_revision`, `expected_revision`, and `reason`
   (a stable code) are separate typed fields from `message` (the free-text

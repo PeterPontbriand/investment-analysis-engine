@@ -263,7 +263,7 @@ def _sec_component_request(field: FinancialField, *, as_of: datetime | None = No
 
 
 def test_sec_adapter_sends_explicit_declared_user_agent_unchanged() -> None:
-    declared_identity = "financial-data-agents-test test@example.invalid"
+    declared_identity = "investment-analysis-engine-test test@example.invalid"
     fetcher = _sec_fetcher()
     adapter = SecEdgarFinancialFactsAdapter(
         json_fetcher=fetcher,

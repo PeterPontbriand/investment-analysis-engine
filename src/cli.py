@@ -1,4 +1,4 @@
-"""Command Line Interface routing for the Financial Data Agents execution suite."""
+"""Command Line Interface routing for the Investment Analysis Engine execution suite."""
 
 from __future__ import annotations
 

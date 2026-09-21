@@ -1,13 +1,13 @@
 # Usage Guide
 
-This guide covers the common ways to use Financial Data Agents after installation. Strategy-specific formulas, assumptions, and limitations live in the individual [Analysis Strategy Guides](strategies/README.md).
+This guide covers the common ways to use Investment Analysis Engine after installation. Strategy-specific formulas, assumptions, and limitations live in the individual [Analysis Strategy Guides](strategies/README.md).
 
 ## The basic command shape
 
-Commands are run from the Financial Data Agents installation folder:
+Commands are run from the Investment Analysis Engine installation folder:
 
 ```text
-uv run financial-agents ANALYSIS [arguments] [options]
+uv run ian ANALYSIS [arguments] [options]
 ```
 
 An [analysis strategy](GLOSSARY.md#analysis-strategy) is a deterministic analytical capability with its own inputs, methods, and result semantics. A [method](GLOSSARY.md#method) is a particular calculation within a strategy when that strategy offers more than one approach.
@@ -15,19 +15,19 @@ An [analysis strategy](GLOSSARY.md#analysis-strategy) is a deterministic analyti
 See all available commands:
 
 ```bash
-uv run financial-agents --help
+uv run ian --help
 ```
 
 See help for a strategy:
 
 ```bash
-uv run financial-agents graham-number --help
-uv run financial-agents graham-growth --help
-uv run financial-agents momentum --help
-uv run financial-agents fcf-growth --help
+uv run ian graham-number --help
+uv run ian graham-growth --help
+uv run ian momentum --help
+uv run ian fcf-growth --help
 ```
 
-Technical operators can also run the versioned Golden Suite with `uv run financial-agents evaluate --help`. See [Golden Suite evaluation](#golden-suite-evaluation).
+Technical operators can also run the versioned Golden Suite with `uv run ian evaluate --help`. See [Golden Suite evaluation](#golden-suite-evaluation).
 
 ## Orchestration reliability limits
 
@@ -64,20 +64,20 @@ for lower-level I/O timeouts and idempotent side effects.
 
 ## Available analysis strategies
 
-Browse the [Analysis Strategy Guides](strategies/README.md) for available strategies, methods, data sources, and limitations. Use `uv run financial-agents --help` for the commands installed in your version. The examples below illustrate common invocation patterns; they are not an exhaustive strategy inventory.
+Browse the [Analysis Strategy Guides](strategies/README.md) for available strategies, methods, data sources, and limitations. Use `uv run ian --help` for the commands installed in your version. The examples below illustrate common invocation patterns; they are not an exhaustive strategy inventory.
 
 ## Graham analysis
 
 Run the Graham Number earnings-and-book-value screen:
 
 ```bash
-uv run financial-agents graham-number KO
+uv run ian graham-number KO
 ```
 
 Select the separate Graham Growth Value method explicitly:
 
 ```bash
-uv run financial-agents graham-growth KO \
+uv run ian graham-growth KO \
     --expected-growth 5 \
     --aaa-yield 4.5
 ```
@@ -91,9 +91,9 @@ Use the method-specific command; removed invocations return a usage error.
 
 | Previous invocation | Replacement |
 | :--- | :--- |
-| `financial-agents graham KO` | `financial-agents graham-number KO` |
-| `financial-agents graham KO --method number --bvps 20` | `financial-agents graham-number KO --bvps 20` |
-| `financial-agents graham KO --method growth --expected-growth 5 --aaa-yield 4.5` | `financial-agents graham-growth KO --expected-growth 5 --aaa-yield 4.5` |
+| `ian graham KO` | `ian graham-number KO` |
+| `ian graham KO --method number --bvps 20` | `ian graham-number KO --bvps 20` |
+| `ian graham KO --method growth --expected-growth 5 --aaa-yield 4.5` | `ian graham-growth KO --expected-growth 5 --aaa-yield 4.5` |
 
 Both commands accept positional `TICKER` or `--ticker` / `-t`, `--as-of`,
 `--data-provider`, `--no-cache`, `--eps` / `-e`, `--eps-basis`,
@@ -106,13 +106,13 @@ and their financial meanings are unchanged.
 ## Momentum analysis
 
 ```bash
-uv run financial-agents momentum AAPL
+uv run ian momentum AAPL
 ```
 
 With custom moving-average windows:
 
 ```bash
-uv run financial-agents momentum AAPL \
+uv run ian momentum AAPL \
     --short-window 10 \
     --long-window 30
 ```
@@ -122,7 +122,7 @@ See the [Momentum Analysis Strategy Guide](strategies/MOMENTUM.md).
 ## Free Cash Flow & Earnings Growth analysis
 
 ```bash
-uv run financial-agents fcf-growth MSFT
+uv run ian fcf-growth MSFT
 ```
 
 The default command selects the longest usable contiguous span—5, 4, then 3 elapsed years—and classifies growth using total-company FCF and diluted EPS. Both total-company and per-diluted-share FCF growth remain visible.
@@ -130,16 +130,16 @@ The default command selects the longest usable contiguous span—5, 4, then 3 el
 Request an exact historical span or select the per-share classification basis:
 
 ```bash
-uv run financial-agents fcf-growth MSFT --growth-years 5
-uv run financial-agents fcf-growth MSFT --classification-basis fcf-per-share
+uv run ian fcf-growth MSFT --growth-years 5
+uv run ian fcf-growth MSFT --classification-basis fcf-per-share
 ```
 
 Control how optional forward EPS evidence is treated:
 
 ```bash
-uv run financial-agents fcf-growth MSFT --forward-policy display-only
-uv run financial-agents fcf-growth MSFT --forward-policy confirmation
-uv run financial-agents fcf-growth MSFT --forward-policy hard-gate
+uv run ian fcf-growth MSFT --forward-policy display-only
+uv run ian fcf-growth MSFT --forward-policy confirmation
+uv run ian fcf-growth MSFT --forward-policy hard-gate
 ```
 
 The current production SEC provider may not supply forward analyst-consensus evidence. A hard gate therefore returns `INDETERMINATE` when that required evidence is unavailable. See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_EARNINGS_GROWTH.md).
@@ -153,7 +153,7 @@ The strategies use a common progressive-disclosure convention.
 Omit presentation switches:
 
 ```bash
-uv run financial-agents graham-number KO
+uv run ian graham-number KO
 ```
 
 The default view emphasizes the result, its meaning, key source/freshness information, warnings, and limitations.
@@ -161,7 +161,7 @@ The default view emphasizes the result, its meaning, key source/freshness inform
 ### `--details` — inspect the financial evidence
 
 ```bash
-uv run financial-agents graham-number KO --details
+uv run ian graham-number KO --details
 ```
 
 Use this for an investor-readable explanation of inputs, measurement bases, calculations and material assumptions. Graham reports show compact input evidence and formulas; Momentum explains its observation windows and signals; FCF shows an annual calculation table. Displayed values are rounded while calculations retain full precision. Inferred values remain identified as assumptions, not reported facts.
@@ -169,7 +169,7 @@ Use this for an investor-readable explanation of inputs, measurement bases, calc
 ### `--diagnostics` — inspect software resolution behavior
 
 ```bash
-uv run financial-agents graham-number KO --diagnostics
+uv run ian graham-number KO --diagnostics
 ```
 
 Diagnostics retain complete technical provenance as well as resolution behavior: original provider fields, recursive component lineage, notes, retrieval/cache timing, identity metadata and share-context identifiers. Use this view or JSON to audit the evidence behind the shorter details report.
@@ -177,7 +177,7 @@ Diagnostics retain complete technical provenance as well as resolution behavior:
 ### `--json` — machine-readable output
 
 ```bash
-uv run financial-agents graham-number KO --json
+uv run ian graham-number KO --json
 ```
 
 Graham JSON uses presentation schema version **5**. The additive top-level
@@ -195,7 +195,7 @@ Post-parse execution failures also produce one JSON document with a null result,
 
 Financial cache bypass is available through `--no-cache` on both Graham commands and `fcf-growth`. Quote responses expire independently after 300 seconds by default, even when annual-fact cache reuse is unlimited. Set the `quote_cache_ttl_seconds` environment setting to a finite nonnegative value; zero disables quote reuse. An expired quote is refreshed once without substituting a stale value on failure. Old quotes with an unspecified cache basis are refreshed under the descriptive quote basis; annual caches and database schema are unchanged.
 
-[Machine-readable output](GLOSSARY.md#machine-readable-output) is structured for another program to consume reliably rather than primarily for a person to read. Financial Data Agents currently uses [JSON](GLOSSARY.md#json-javascript-object-notation) for this mode.
+[Machine-readable output](GLOSSARY.md#machine-readable-output) is structured for another program to consume reliably rather than primarily for a person to read. Investment Analysis Engine currently uses [JSON](GLOSSARY.md#json-javascript-object-notation) for this mode.
 
 JSON intentionally retains stable machine identifiers such as snake_case field names where those identifiers are part of the programmatic contract.
 
@@ -204,8 +204,8 @@ JSON intentionally retains stable machine identifiers such as snake_case field n
 Where supported:
 
 ```bash
-uv run financial-agents graham-number KO --as-of 2025-12-31
-uv run financial-agents fcf-growth MSFT --as-of 2025-12-31
+uv run ian graham-number KO --as-of 2025-12-31
+uv run ian fcf-growth MSFT --as-of 2025-12-31
 ```
 
 `--as-of` creates an information boundary. Financial facts that had not yet been published by that date cannot be used merely because their reporting period ended earlier. See [`as_of`](GLOSSARY.md#as_of), [publication date](GLOSSARY.md#available-at--filing-date--publication-date), and [look-ahead bias](GLOSSARY.md#look-ahead-bias).
@@ -219,8 +219,8 @@ An [override](GLOSSARY.md#override) explicitly supplies a value instead of accep
 Examples:
 
 ```bash
-uv run financial-agents graham-number KO --eps 3.25 --bvps 8.10
-uv run financial-agents graham-number KO --current-price 75
+uv run ian graham-number KO --eps 3.25 --bvps 8.10
+uv run ian graham-number KO --current-price 75
 ```
 
 Overrides are recorded as overrides rather than being presented as provider-verified evidence. See the strategy guide before overriding a value whose measurement basis matters.
@@ -230,13 +230,13 @@ Overrides are recorded as overrides rather than being presented as provider-veri
 Some methods allow explicit data-source selection. For example, users with configured [Massive](GLOSSARY.md#massive) access can select it where the Graham Growth Value method supports its data:
 
 ```bash
-uv run financial-agents graham-growth KO \
+uv run ian graham-growth KO \
     --data-provider massive \
     --expected-growth 5 \
     --aaa-yield 4.5
 ```
 
-Data sources are not interchangeable merely because they expose similarly named values. Financial Data Agents rejects unsupported combinations rather than silently substituting a different financial basis.
+Data sources are not interchangeable merely because they expose similarly named values. Investment Analysis Engine rejects unsupported combinations rather than silently substituting a different financial basis.
 
 ## When a command cannot produce a result
 
@@ -262,7 +262,7 @@ Local-AI orchestration/synthesis is an additional capability. The optional Golde
 The Golden Suite is a technical benchmark rather than an investor analysis strategy. Its default mode uses only tracked deterministic fixtures and does not contact Ollama or live financial-data providers:
 
 ```bash
-uv run financial-agents evaluate --report artifacts/evaluations/deterministic.json
+uv run ian evaluate --report artifacts/evaluations/deterministic.json
 ```
 
 Use `--case GRN-01` to run one stable case. The report path is required; add `--overwrite` only when you intentionally want to replace an existing report.
@@ -270,7 +270,7 @@ Use `--case GRN-01` to run one stable case. The report path is required; add `--
 Optional model-selection evaluation is explicitly opt-in and remains separate from deterministic financial verification:
 
 ```bash
-uv run financial-agents evaluate --mode ollama --model MODEL_TAG --ollama-endpoint http://127.0.0.1:11434 --report artifacts/evaluations/ollama.json
+uv run ian evaluate --mode ollama --model MODEL_TAG --ollama-endpoint http://127.0.0.1:11434 --report artifacts/evaluations/ollama.json
 ```
 
 The command returns a non-zero status when a requested benchmark case fails or is skipped. For report fields, failure interpretation, empirical repetitions, and fixture maintenance, see [Evaluations & Golden Suite](../EVALUATIONS.md).

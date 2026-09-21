@@ -1,6 +1,6 @@
 # Analysis Strategy Guides
 
-An [analysis strategy](../GLOSSARY.md#analysis-strategy) is a deterministic analytical capability in Financial Data Agents. A [method](../GLOSSARY.md#method) is a particular calculation within a strategy when the strategy offers more than one approach.
+An [analysis strategy](../GLOSSARY.md#analysis-strategy) is a deterministic analytical capability in Investment Analysis Engine. A [method](../GLOSSARY.md#method) is a particular calculation within a strategy when the strategy offers more than one approach.
 
 ## Available strategies
 

@@ -21,7 +21,7 @@ $cleanedBody = $prBody -replace $citationPattern, ''
 
 # Fetch dynamic branch context for GitHub URLs
 $currentBranch = (git branch --show-current).Trim()
-$repoUrl = "https://github.com/PeterPontbriand/financial-data-agents/blob/$currentBranch"
+$repoUrl = "https://github.com/PeterPontbriand/investment-analysis-engine/blob/$currentBranch"
 
 # Regex matches backticked paths (supporting /, \, top-level dotfiles, and trailing periods)
 $pattern = '`\\?/?((?:src|tests|docs|\.github|\.clinerules|\.gitignore|README\.md|pyproject\.toml)[^`\s]*?)\.?`'

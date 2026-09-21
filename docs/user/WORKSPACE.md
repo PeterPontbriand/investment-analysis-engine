@@ -9,13 +9,13 @@ All workspace commands read and write your local database (see [Local Database O
 Every direct analysis command accepts `--save-run` to persist that one attempt as a durable [Analysis Run](GLOSSARY.md#analysis-run), in addition to printing its normal output:
 
 ```bash
-uv run financial-agents graham-number AAPL --save-run
+uv run ian graham-number AAPL --save-run
 ```
 
 The saved run's ID is printed on a separate line so it never disturbs `--json` output:
 
 ```bash
-uv run financial-agents graham-number AAPL --save-run --json > result.json
+uv run ian graham-number AAPL --save-run --json > result.json
 ```
 
 `--save-run` saves exactly what you asked for, including a result the method could not calculate (missing data, a known ETF, and so on) — a "could not calculate" outcome is still a real, saved attempt, not a skipped one. `momentum --save-run` requires an explicit ticker; the configured default ticker is never saved implicitly.
@@ -27,25 +27,25 @@ Once a result is saved this way — or automatically by [refreshing a watchlist]
 A watchlist is a named, ordered list of [entries](GLOSSARY.md#entry) — each one a ticker paired with a [selection](GLOSSARY.md#selection) (an analysis method and its own configuration) — that you want to run and revisit as a group. There is no separate "list of tickers" and "list of methods": each entry stands on its own, so the same method can appear more than once, whether for different tickers or for the *same* ticker with different configuration (comparing Graham Number computed from SEC EDGAR data against Massive data, for example).
 
 ```bash
-uv run financial-agents watchlist create "Core Holdings"
+uv run ian watchlist create "Core Holdings"
 ```
 
 An empty watchlist like this one has nothing to refresh yet. The common case — one method across several tickers — is one command, using `--analysis` and that method's own flags:
 
 ```bash
-uv run financial-agents watchlist create "Core Holdings" --analysis momentum AAPL MSFT KO
+uv run ian watchlist create "Core Holdings" --analysis momentum AAPL MSFT KO
 ```
 
 `--analysis` accepts `momentum`, `graham-number`, `graham-growth`, or `fcf-growth` — the same names used everywhere else in this guide — and each one's flags are exactly its direct command's own flags (see the table below). A method that needs your own assumptions still needs them here: Graham Growth Value requires `--expected-growth`/`--aaa-yield` whether you run it directly or seed it into a watchlist, and omitting either is a usage error, not a silently-unselected method:
 
 ```bash
-uv run financial-agents watchlist create "Value Watch" --analysis graham-growth --expected-growth 6.0 --aaa-yield 4.4 AAPL
+uv run ian watchlist create "Value Watch" --analysis graham-growth --expected-growth 6.0 --aaa-yield 4.4 AAPL
 ```
 
 ### Showing a watchlist
 
 ```bash
-uv run financial-agents watchlist show "Core Holdings"
+uv run ian watchlist show "Core Holdings"
 ```
 
 ```text
@@ -65,13 +65,13 @@ Entries are grouped by ticker by default; `--group-by method` groups them by met
 Add `--json` to `watchlist show` for the complete, machine-readable document — a flat, ordered list of entries, each carrying that same 1-based `index`:
 
 ```bash
-uv run financial-agents watchlist show "Core Holdings" --json
+uv run ian watchlist show "Core Holdings" --json
 ```
 
 List every watchlist you have:
 
 ```bash
-uv run financial-agents watchlist list
+uv run ian watchlist list
 ```
 
 ### Adding, removing, and comparing entries
@@ -79,26 +79,26 @@ uv run financial-agents watchlist list
 Add one method across one or more tickers to an existing watchlist the same way — `add-selection` is `create`'s seeding form, minus the creation:
 
 ```bash
-uv run financial-agents watchlist add-selection "Core Holdings" AAPL MSFT --analysis graham-number
+uv run ian watchlist add-selection "Core Holdings" AAPL MSFT --analysis graham-number
 ```
 
 Adding the same method again for a ticker that already has it does not replace anything — it appends a second entry, so you can compare configurations side by side:
 
 ```bash
-uv run financial-agents watchlist add-selection "Core Holdings" AAPL --analysis graham-number --data-provider massive --bvps 12.5
+uv run ian watchlist add-selection "Core Holdings" AAPL --analysis graham-number --data-provider massive --bvps 12.5
 ```
 
 Remove one entry by the number `watchlist show` gives it:
 
 ```bash
-uv run financial-agents watchlist remove-entry "Core Holdings" 3
+uv run ian watchlist remove-entry "Core Holdings" 3
 ```
 
 Remove every entry for a ticker (across every method) or every entry for a method (across every ticker):
 
 ```bash
-uv run financial-agents watchlist remove "Core Holdings" KO
-uv run financial-agents watchlist disable "Core Holdings" --analysis graham-number
+uv run ian watchlist remove "Core Holdings" KO
+uv run ian watchlist disable "Core Holdings" --analysis graham-number
 ```
 
 ### Method-specific flags
@@ -117,7 +117,7 @@ These are the flags `watchlist create --analysis METHOD` and `watchlist add-sele
 `refresh` runs every entry in one watchlist and, by default, saves each result as its own Analysis Run — automatically, every time, unlike the direct commands in [Saving a single result](#saving-a-single-result), which need an explicit `--save-run`. A watchlist is something you built on purpose, so refresh treats persisting its results as the point, not an extra step:
 
 ```bash
-uv run financial-agents refresh "Core Holdings"
+uv run ian refresh "Core Holdings"
 ```
 
 ```text
@@ -132,7 +132,7 @@ Counts: completed=3, unavailable=1
 Add `--no-save` to preview current numbers across the watchlist without adding anything to its saved history — every entry still runs, but nothing is written to storage, so there is no Analysis Run ID to browse or replay afterward:
 
 ```bash
-uv run financial-agents refresh "Core Holdings" --no-save
+uv run ian refresh "Core Holdings" --no-save
 ```
 
 ```text
@@ -145,7 +145,7 @@ Counts: completed=2
 Nothing is printed until the whole refresh finishes (or is interrupted) — there is no per-ticker progress chatter to parse. `--json` emits one final document instead, with the refresh ID, every result in the same order, and the same counts:
 
 ```bash
-uv run financial-agents refresh "Core Holdings" --json
+uv run ian refresh "Core Holdings" --json
 ```
 
 One ticker's failure never stops the rest of the watchlist: a method that could not calculate (or a storage hiccup for that one attempt) is recorded as an error for that ticker only, and every other ticker in the watchlist still runs. The exit code reflects the whole batch:
@@ -162,7 +162,7 @@ One ticker's failure never stops the rest of the watchlist: a method that could 
 `--workers N` (1–4, default 2) controls how many tickers refresh concurrently. A higher number can finish a large watchlist faster, at the cost of a proportionally higher burst of calls to your configured data source(s) at once.
 
 ```bash
-uv run financial-agents refresh "Core Holdings" --workers 4
+uv run ian refresh "Core Holdings" --workers 4
 ```
 
 Pressing Ctrl+C during a refresh stops starting new work; any ticker already in progress is left to finish and is still saved normally. A ticker that never started does not appear anywhere in the output — there is no placeholder "cancelled" row for work that never ran. The command then exits `130`.
@@ -203,7 +203,7 @@ This matters most if you're paying for data access (a Massive subscription, for 
 ## Browsing saved runs
 
 ```bash
-uv run financial-agents runs list
+uv run ian runs list
 ```
 
 ```text
@@ -214,19 +214,19 @@ uv run financial-agents runs list
 Filter by ticker, method, outcome, or the refresh batch that produced a run:
 
 ```bash
-uv run financial-agents runs list --ticker AAPL --method graham_number
-uv run financial-agents runs list --status unavailable
-uv run financial-agents runs list --refresh-id 7c1a...
-uv run financial-agents runs list --json
+uv run ian runs list --ticker AAPL --method graham_number
+uv run ian runs list --status unavailable
+uv run ian runs list --refresh-id 7c1a...
+uv run ian runs list --json
 ```
 
 Show one saved run in full, exactly as it was originally captured — replaying a saved run never re-fetches data or recalculates anything, so it always shows the same result it showed the moment it was saved, even if your configuration or a data provider has since changed:
 
 ```bash
-uv run financial-agents runs show 3f9b...
-uv run financial-agents runs show 3f9b... --details
-uv run financial-agents runs show 3f9b... --diagnostics
-uv run financial-agents runs show 3f9b... --json
+uv run ian runs show 3f9b...
+uv run ian runs show 3f9b... --details
+uv run ian runs show 3f9b... --diagnostics
+uv run ian runs show 3f9b... --json
 ```
 
 `runs show` exits `0` even for a saved run whose own financial outcome was unavailable or failed — you asked to *see* a record, and it exists; the record's own status tells you what happened when it ran.

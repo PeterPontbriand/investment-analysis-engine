@@ -1,14 +1,14 @@
-# Financial Data Agents
+# Investment Analysis Engine
 
-> **Local-first investment analysis with deterministic calculations, traceable financial data, and optional AI-assisted research.**
+> **Deterministic investment analysis with provenance-aware financial data — built for agents, usable from the CLI.**
 
-Financial Data Agents is a terminal-first research tool for investors who want useful quantitative analysis **without treating an AI model as a calculator or an oracle**. Financial calculations are performed by deterministic Python [analysis strategies](docs/user/GLOSSARY.md#analysis-strategy); financial values retain [provenance](docs/user/GLOSSARY.md#provenance), measurement basis, and time boundaries so that a result can be inspected rather than merely accepted.
+Investment Analysis Engine performs quantitative investment research for investors and for the scripts and AI agents they use, **without treating an AI model as a calculator or an oracle**. Financial calculations are performed by deterministic Python [analysis strategies](docs/user/GLOSSARY.md#analysis-strategy); financial values retain [provenance](docs/user/GLOSSARY.md#provenance), measurement basis, and time boundaries so that a result can be inspected rather than merely accepted.
 
-The [Analysis Strategy Guides](docs/user/strategies/README.md) describe available analytical capabilities, their inputs, data sources, and limitations. Local [LLM](docs/user/GLOSSARY.md#llm-large-language-model) orchestration through Ollama is a separate capability: AI may help select, organize, or explain [typed evidence](docs/user/GLOSSARY.md#typed-evidence), but it does not perform financial arithmetic or silently invent missing values.
+The [Analysis Strategy Guides](docs/user/strategies/README.md) describe available analytical capabilities, their inputs, data sources, and limitations. Every result is typed and structured so it can be consumed by a script, an agent, or a person reading the terminal directly. Local [LLM](docs/user/GLOSSARY.md#llm-large-language-model) tool-calling through Ollama currently exists as an internal evaluation harness (see the `evaluate` command) rather than a general-purpose assistant workflow; where it is user-facing, AI may help select, organize, or explain [typed evidence](docs/user/GLOSSARY.md#typed-evidence), but it does not perform financial arithmetic or silently invent missing values.
 
 **Status:** Active development — pre-v1.0.
 
-> Financial Data Agents is research/educational software, not investment advice. See [Limitations & disclaimer](#limitations--disclaimer).
+> Investment Analysis Engine is research/educational software, not investment advice. See [Limitations & disclaimer](#limitations--disclaimer).
 
 ---
 
@@ -17,7 +17,7 @@ The [Analysis Strategy Guides](docs/user/strategies/README.md) describe availabl
 A default [Graham Number](docs/user/GLOSSARY.md#graham-number) analysis resolves [EPS](docs/user/GLOSSARY.md#eps-earnings-per-share) and [BVPS](docs/user/GLOSSARY.md#bvps-book-value-per-share) from available financial evidence and can compare the resulting [maximum indicated price / screening ceiling](docs/user/GLOSSARY.md#maximum-indicated-price--screening-ceiling) with a [current market price](docs/user/GLOSSARY.md#current-quote--current-market-price), expressed as a [price relationship](docs/user/GLOSSARY.md#price-relationship):
 
 ```bash
-uv run financial-agents graham-number KO
+uv run ian graham-number KO
 ```
 
 A representative result captured on 2026-09-11 at 11:18 UTC looks like this:
@@ -44,9 +44,9 @@ Quote responses are reused for at most five minutes by default. This bounds retr
 Want to inspect more?
 
 ```bash
-uv run financial-agents graham-number KO --details
-uv run financial-agents graham-number KO --diagnostics
-uv run financial-agents graham-number KO --json
+uv run ian graham-number KO --details
+uv run ian graham-number KO --diagnostics
+uv run ian graham-number KO --json
 ```
 
 `--json` produces [machine-readable output](docs/user/GLOSSARY.md#machine-readable-output) in [JSON](docs/user/GLOSSARY.md#json-javascript-object-notation), intended for another program rather than primarily for a person.
@@ -57,11 +57,12 @@ For ordinary usage, see the [Usage Guide](docs/user/USAGE.md). For the formula, 
 
 ## Who is this for?
 
-Financial Data Agents is being built for several overlapping audiences, with investors first:
+Investment Analysis Engine is being built for several overlapping audiences, with investors first:
 
 - **Experienced investors who already maintain spreadsheets, databases, screens, or scripts** and want calculations whose data and assumptions they can challenge, compare, override, and audit.
 - **Experienced investors who are not software specialists** and want a low-friction way to go from a ticker symbol to a useful, intelligible result. The project does not yet have a one-click installer, so the installation guide deliberately assumes very little prior software-development knowledge.
 - **Technically comfortable people learning investing** who want the running software and its documentation to reinforce one another.
+- **AI agents and other programs** that consume typed, provenance-aware results rather than free-form text.
 - **Software engineers, architects, AI practitioners, and prospective contributors** who want to review the project design, implementation plans, and reliability boundaries. See [Project & Technical Documentation](docs/project/README.md).
 
 When terms such as [TTM](docs/user/GLOSSARY.md#ttm-trailing-twelve-months), [SMA](docs/user/GLOSSARY.md#sma-simple-moving-average), [margin of safety](docs/user/GLOSSARY.md#margin-of-safety-mos), [look-ahead bias](docs/user/GLOSSARY.md#look-ahead-bias), or [override](docs/user/GLOSSARY.md#override) have a project-specific meaning, the documentation links to the project's definition rather than assuming that every reader uses the term identically.
@@ -82,9 +83,9 @@ Direct deterministic analysis does **not** require Ollama or a GPU. Local-AI fea
 
 ## What you can analyze today
 
-Browse the [Analysis Strategy Guides](docs/user/strategies/README.md) for available strategies and methods. Run `uv run financial-agents --help` to discover commands in your installed version, and use each command's `--help` for its supported options.
+Browse the [Analysis Strategy Guides](docs/user/strategies/README.md) for available strategies and methods. Run `uv run ian --help` to discover commands in your installed version, and use each command's `--help` for its supported options.
 
-[`yfinance`](https://ranaroussi.github.io/yfinance/) is an independent open-source library that Financial Data Agents uses to access Yahoo Finance data. It is not affiliated with, endorsed by, or vetted by Yahoo.
+[`yfinance`](https://ranaroussi.github.io/yfinance/) is an independent open-source library that Investment Analysis Engine uses to access Yahoo Finance data. It is not affiliated with, endorsed by, or vetted by Yahoo.
 
 An [analysis strategy](docs/user/GLOSSARY.md#analysis-strategy) is a deterministic analytical capability in the application. A [method](docs/user/GLOSSARY.md#method) is a particular calculation within a strategy when that strategy offers more than one approach. For example, the Graham Analysis Strategy currently offers the Graham Number and Graham Growth Value methods.
 
@@ -96,7 +97,7 @@ Want to save a result, track a group of tickers, or re-run several tickers at on
 
 ## Understanding and trusting a result
 
-Financial Data Agents uses **progressive disclosure** so an ordinary result can stay readable without hiding the evidence needed to inspect or audit it. A result can be expanded from a concise investor-oriented view into progressively deeper layers of information:
+Investment Analysis Engine uses **progressive disclosure** so an ordinary result can stay readable without hiding the evidence needed to inspect or audit it. A result can be expanded from a concise investor-oriented view into progressively deeper layers of information:
 
 - the calculation result, interpretation, important freshness/source context, warnings, and limitations;
 - the financial facts, measurement bases, dates, data sources, and derivations behind the calculation;
@@ -164,7 +165,7 @@ The [Project & Technical Documentation Index](docs/project/README.md) is the sin
 
 ## Limitations & disclaimer
 
-Financial Data Agents is not an investment recommendation engine. A deterministic formula can still be inappropriate for a particular company, and accurate provider data can still be incomplete, stale, restated, differently defined, or economically misleading without context.
+Investment Analysis Engine is not an investment recommendation engine. A deterministic formula can still be inappropriate for a particular company, and accurate provider data can still be incomplete, stale, restated, differently defined, or economically misleading without context.
 
 Each strategy answers a bounded analytical question. A historical screen does not establish future performance, and a formula-based estimate depends on its assumptions. Read the selected strategy's guide for the scope and limitations of its results.
 

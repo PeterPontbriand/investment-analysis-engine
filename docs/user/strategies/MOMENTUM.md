@@ -1,6 +1,6 @@
 # Momentum Analysis Strategy Guide
 
-This guide explains the Financial Data Agents **Momentum Analysis Strategy** from an investor/user perspective.
+This guide explains the Investment Analysis Engine **Momentum Analysis Strategy** from an investor/user perspective.
 
 ## What this strategy does
 
@@ -11,7 +11,7 @@ It is a price-series analysis. It does not determine business quality, intrinsic
 ## Quick start
 
 ```bash
-uv run financial-agents momentum AAPL
+uv run ian momentum AAPL
 ```
 
 The current defaults are:
@@ -24,7 +24,7 @@ long window = 200
 Choose different valid windows when useful:
 
 ```bash
-uv run financial-agents momentum AAPL \
+uv run ian momentum AAPL \
     --short-window 10 \
     --long-window 30
 ```
@@ -59,7 +59,7 @@ See [Financial Math](../FINANCE_MATH.md#momentum-analysis-strategy) for the exac
 ### Default
 
 ```bash
-uv run financial-agents momentum AAPL
+uv run ian momentum AAPL
 ```
 
 Shows the current moving averages, their relationship, recent crossover information when applicable, data-source/freshness information, and the strategy limitation. When provider metadata supplies an instrument name, the heading shows `Instrument Name (TICKER)`; otherwise it uses the ticker alone.
@@ -67,7 +67,7 @@ Shows the current moving averages, their relationship, recent crossover informat
 ### `--details`
 
 ```bash
-uv run financial-agents momentum AAPL --details
+uv run ian momentum AAPL --details
 ```
 
 Explains the SMA windows, crossover requirement, simple-average RSI convention, price basis and observation coverage. It separates trend from a new crossover event and states the limits of historical date labels.
@@ -75,7 +75,7 @@ Explains the SMA windows, crossover requirement, simple-average RSI convention, 
 ### `--diagnostics`
 
 ```bash
-uv run financial-agents momentum AAPL --diagnostics
+uv run ian momentum AAPL --diagnostics
 ```
 
 Retains technical execution traces, original retrieval/cache evidence and identity/classification metadata. JSON retains the corresponding typed evidence.
@@ -83,7 +83,7 @@ Retains technical execution traces, original retrieval/cache evidence and identi
 ### `--json`
 
 ```bash
-uv run financial-agents momentum AAPL --json
+uv run ian momentum AAPL --json
 ```
 
 Produces [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json-javascript-object-notation), including an explicit nullable security-identity snapshot.

@@ -178,4 +178,4 @@ def test_missing_ticker_names_the_invoking_command(command: str) -> None:
     arguments.remove(SECURITY_ID)
     result = CliRunner().invoke(app, arguments)
     assert result.exit_code == 2
-    assert f"financial-agents {command} TICKER" in normalize_cli_output(result.output)
+    assert f"ian {command} TICKER" in normalize_cli_output(result.output)

@@ -33,7 +33,7 @@ class ProjectSettings(BaseSettings):
     """Application configuration loaded from environment variables and config tables."""
 
     # ProjectSettings
-    project_name: str = "financial-data-agents"
+    project_name: str = "investment-analysis-engine"
     version: str = "0.1.0"
 
     # AI/Agent Settings
@@ -67,7 +67,7 @@ class ProjectSettings(BaseSettings):
     telemetry_max_total_size: int = 100 * 1024 * 1024
 
     # Database Configuration
-    database_url: str = "sqlite:///data/financial-data-agents.sqlite3"
+    database_url: str = "sqlite:///data/investment-analysis-engine.sqlite3"
     database_busy_timeout_ms: int = Field(
         default=5_000,
         gt=0,
@@ -131,7 +131,7 @@ class ProjectSettings(BaseSettings):
         self.data_dir = (self.base_dir / data_path).resolve()
         if "database_url" not in self.model_fields_set:
             self.database_url = URL.create(
-                "sqlite", database=(self.data_dir / "financial-data-agents.sqlite3").as_posix()
+                "sqlite", database=(self.data_dir / "investment-analysis-engine.sqlite3").as_posix()
             ).render_as_string()
         try:
             url = make_url(self.database_url)

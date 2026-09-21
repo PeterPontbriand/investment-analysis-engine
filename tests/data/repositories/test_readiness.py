@@ -258,7 +258,7 @@ def test_known_ancestor_requires_explicit_upgrade(tmp_path: Path, monkeypatch: p
             ensure_database_ready(database)
         assert caught.value.reason is ReadinessReason.UPGRADE_REQUIRED
         assert "synthetic_next" in str(caught.value)
-        assert "uv run financial-agents db upgrade" in str(caught.value)
+        assert "uv run ian db upgrade" in str(caught.value)
         assert "--database-url" in str(caught.value)
         assert caught.value.database_path == path
         assert caught.value.expected_revision == "synthetic_next"

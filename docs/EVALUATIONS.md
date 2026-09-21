@@ -32,7 +32,7 @@ P1 does not add persistence or another strategy. Durable profiles and ETF aggreg
 
 Slice I added the optional empirical runner. It uses the production orchestration and tool-dispatch path with deterministic Golden fixtures, preserves every repetition independently, records observable model/runtime configuration, and suppresses raw model-response and prompt-message bodies from trajectory persistence. Normal tests mock the model client and never contact Ollama.
 
-The CLI exposes deterministic and empirical runners through `financial-agents evaluate`, with explicit report-file handling and exit semantics. [Verification evidence](project/milestones/v0.2/step-2.5/STEP_2_5_CLOSEOUT_RECORD.md) records deterministic results and the absence of optional empirical runs.
+The CLI exposes deterministic and empirical runners through `ian evaluate`, with explicit report-file handling and exit semantics. [Verification evidence](project/milestones/v0.2/step-2.5/STEP_2_5_CLOSEOUT_RECORD.md) records deterministic results and the absence of optional empirical runs.
 
 ## 3. Execution modes
 
@@ -142,28 +142,28 @@ The evaluator includes a regression test proving that an intentionally incorrect
 Run the complete deterministic suite through the normal project workflow:
 
 ```bash
-uv run financial-agents evaluate --report artifacts/evaluations/deterministic.json
+uv run ian evaluate --report artifacts/evaluations/deterministic.json
 ```
 
 Run one named case by stable ID:
 
 ```bash
-uv run financial-agents evaluate --case GRN-01 --report artifacts/evaluations/grn-01.json
+uv run ian evaluate --case GRN-01 --report artifacts/evaluations/grn-01.json
 ```
 
 Case matching is case-insensitive, but reports always retain the canonical ID. The full reviewed catalog is used when `--case` is omitted. The report destination is mandatory. Parent directories are created as needed, and an existing report is protected unless replacement is explicit:
 
 ```bash
-uv run financial-agents evaluate --report artifacts/evaluations/deterministic.json --overwrite
+uv run ian evaluate --report artifacts/evaluations/deterministic.json --overwrite
 ```
 
 The optional empirical mode is activated only by `--mode ollama`:
 
 ```bash
-uv run financial-agents evaluate --mode ollama --model MODEL_TAG --ollama-endpoint http://127.0.0.1:11434 --repetitions 3 --report artifacts/evaluations/ollama.json
+uv run ian evaluate --mode ollama --model MODEL_TAG --ollama-endpoint http://127.0.0.1:11434 --repetitions 3 --report artifacts/evaluations/ollama.json
 ```
 
-`--model` and `--ollama-endpoint` fall back to the application configuration when omitted. `--temperature`, `--repetitions`, and `--max-steps` make the applied empirical configuration explicit. These options are rejected in deterministic mode so they cannot silently change benchmark semantics. Use `uv run financial-agents evaluate --help` for the complete option list.
+`--model` and `--ollama-endpoint` fall back to the application configuration when omitted. `--temperature`, `--repetitions`, and `--max-steps` make the applied empirical configuration explicit. These options are rejected in deterministic mode so they cannot silently change benchmark semantics. Use `uv run ian evaluate --help` for the complete option list.
 
 Process status has operator and CI meaning:
 

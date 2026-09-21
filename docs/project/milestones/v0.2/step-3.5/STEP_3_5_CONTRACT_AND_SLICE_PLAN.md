@@ -97,7 +97,7 @@ ROIC / incremental ROIC, P/E or PEG screens, interest-coverage ratios, gross-mar
 
 ### 4.3 CLI & Presentation
 - Individual commands following the established pattern:
-  `uv run financial-agents piotroski TICKER`, `altman-z`, `beneish-m`, `valuation-multiples`, `magic-formula`.
+  `uv run ian piotroski TICKER`, `altman-z`, `beneish-m`, `valuation-multiples`, `magic-formula`.
 - Optional multi-strategy and ranking-batch flags that write durable Analysis Runs.
 - Presenters that obey progressive disclosure and the coherent visual grammar already used by Graham and FCF-Growth.
 

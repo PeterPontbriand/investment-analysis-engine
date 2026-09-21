@@ -1,8 +1,8 @@
 # Graham Analysis Strategy Guide
 
-This guide explains how the Financial Data Agents **Graham Analysis Strategy** works, how to use its available [methods](../GLOSSARY.md#method), where its financial values come from, and how to interpret its results.
+This guide explains how the Investment Analysis Engine **Graham Analysis Strategy** works, how to use its available [methods](../GLOSSARY.md#method), where its financial values come from, and how to interpret its results.
 
-The Financial Data Agents Graham Analysis Strategy currently implements two distinct methods:
+The Investment Analysis Engine Graham Analysis Strategy currently implements two distinct methods:
 
 1. the **Graham Number** — the default earnings-and-book-value screen; and
 2. the **Graham Growth Value** — an explicitly selected, forecast-dependent calculation.
@@ -27,13 +27,13 @@ Detailed provenance distinguishes guarded inferred zeroes from reported zeroes a
 Graham Number:
 
 ```bash
-uv run financial-agents graham-number KO
+uv run ian graham-number KO
 ```
 
 Graham Growth Value:
 
 ```bash
-uv run financial-agents graham-growth KO \
+uv run ian graham-growth KO \
     --expected-growth 5 \
     --aaa-yield 4.5
 ```
@@ -50,7 +50,7 @@ maximum indicated price = sqrt(22.5 × EPS × BVPS)
 
 The factor `22.5` combines the conventional maximum P/E of 15 and maximum P/B of 1.5.
 
-Financial Data Agents describes the result as a **maximum indicated price** or **screening ceiling**. It does not present the Graham Number as an unquestionable intrinsic value or as proof that a stock satisfies Graham's complete defensive-investor framework.
+Investment Analysis Engine describes the result as a **maximum indicated price** or **screening ceiling**. It does not present the Graham Number as an unquestionable intrinsic value or as proof that a stock satisfies Graham's complete defensive-investor framework.
 
 #### Earnings basis
 
@@ -66,7 +66,7 @@ The implemented convention is:
 BVPS = common shareholders' equity / period-end common shares outstanding
 ```
 
-When using [SEC](../GLOSSARY.md#sec) [EDGAR](../GLOSSARY.md#edgar) data, Financial Data Agents derives BVPS conservatively from eligible fiscal-year-end accounting facts rather than pretending that EDGAR provides one universal BVPS field.
+When using [SEC](../GLOSSARY.md#sec) [EDGAR](../GLOSSARY.md#edgar) data, Investment Analysis Engine derives BVPS conservatively from eligible fiscal-year-end accounting facts rather than pretending that EDGAR provides one universal BVPS field.
 
 If the evidence required for a defensible calculation is unavailable, the result reports that limitation rather than guessing.
 
@@ -76,7 +76,7 @@ Positive EPS and BVPS are required. If either is non-positive, the method report
 
 #### Current-price comparison
 
-A current quote is optional to the Graham Number itself. When a compatible current price is available, Financial Data Agents shows how far the market price is above or below the Graham Number.
+A current quote is optional to the Graham Number itself. When a compatible current price is available, Investment Analysis Engine shows how far the market price is above or below the Graham Number.
 
 If the quote is unavailable, the Graham Number can still remain valid.
 
@@ -107,7 +107,7 @@ example, in PowerShell:
 $previousTtl = $env:financial_cache_ttl_seconds
 try {
     $env:financial_cache_ttl_seconds = "0"
-    uv run financial-agents graham-number KO
+    uv run ian graham-number KO
 } finally {
     $env:financial_cache_ttl_seconds = $previousTtl
 }
@@ -184,8 +184,8 @@ The direct command supports explicit [overrides](../GLOSSARY.md#override) for va
 Examples:
 
 ```bash
-uv run financial-agents graham-number KO --eps 3.25 --bvps 8.10
-uv run financial-agents graham-number KO --current-price 75
+uv run ian graham-number KO --eps 3.25 --bvps 8.10
+uv run ian graham-number KO --current-price 75
 ```
 
 An override is recorded as an override rather than being presented as provider-verified evidence.
@@ -198,7 +198,7 @@ Use `--details` to inspect what financial values were used and `--diagnostics` t
 
 [SEC](../GLOSSARY.md#sec) [EDGAR](../GLOSSARY.md#edgar) is the U.S. Securities and Exchange Commission's public filing system.
 
-Financial Data Agents currently uses eligible SEC filing facts for:
+Investment Analysis Engine currently uses eligible SEC filing facts for:
 
 - completed annual diluted EPS from reviewed `10-K`/`20-F`/`40-F` forms and
   exact US-GAAP or IFRS concepts; and
@@ -212,16 +212,16 @@ matching-currency ordinary-share 1:1 relationship. ADR/ADS and currency
 conversion are not performed; the valuation can remain available while its
 market-price comparison is unavailable.
 
-For market-price comparison, Financial Data Agents obtains current quote data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library when available. `yfinance` is not affiliated with or endorsed by Yahoo.
+For market-price comparison, Investment Analysis Engine obtains current quote data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library when available. `yfinance` is not affiliated with or endorsed by Yahoo.
 
 ### Massive (optional)
 
-[Massive](../GLOSSARY.md#massive) is a commercial financial-market-data service. A Massive API key is useful only if you have Massive access and want Financial Data Agents to obtain data that the current Massive integration supports.
+[Massive](../GLOSSARY.md#massive) is a commercial financial-market-data service. A Massive API key is useful only if you have Massive access and want Investment Analysis Engine to obtain data that the current Massive integration supports.
 
 For Graham Growth Value, users with a configured Massive API key can explicitly select Massive:
 
 ```bash
-uv run financial-agents graham-growth KO \
+uv run ian graham-growth KO \
     --data-provider massive \
     --expected-growth 5 \
     --aaa-yield 4.5
@@ -241,7 +241,7 @@ See [Installation & Configuration — Massive](../INSTALLATION.md#optional-massi
 `--as-of` creates an information boundary:
 
 ```bash
-uv run financial-agents graham-number KO --as-of 2025-12-31
+uv run ian graham-number KO --as-of 2025-12-31
 ```
 
 A fiscal period ending before that date is not automatically eligible. The supporting filing must also have been available by the requested boundary.
@@ -263,7 +263,7 @@ Ask:
 - were stock-split adjustments handled consistently?
 - which exact fiscal periods were used?
 
-Financial Data Agents uses three-year-average diluted EPS for the standard Graham Number calculation.
+Investment Analysis Engine uses three-year-average diluted EPS for the standard Graham Number calculation.
 
 ### BVPS definition
 
@@ -274,7 +274,7 @@ Ask:
 - period-end shares outstanding or another share count?
 - ordinary book value or tangible book value?
 
-Financial Data Agents uses a documented common-equity/period-end-share convention and does not silently substitute tangible book value.
+Investment Analysis Engine uses a documented common-equity/period-end-share convention and does not silently substitute tangible book value.
 
 ### Publication timing
 
@@ -292,7 +292,7 @@ The Graham Number and Graham Growth Value are different [methods](../GLOSSARY.md
 
 Provider corrections, accounting restatements, and intermediate rounding can create smaller differences.
 
-The goal is not to force every external calculator to match. It is to make Financial Data Agents' formula, evidence, dates, and assumptions inspectable enough that a difference can be explained.
+The goal is not to force every external calculator to match. It is to make Investment Analysis Engine's formula, evidence, dates, and assumptions inspectable enough that a difference can be explained.
 
 ## Important limitations
 

@@ -2,7 +2,7 @@
 
 This section is for implementation, architectural review, project planning, and engineering evaluation.
 
-If you want to install or use Financial Data Agents, start with the [Investor & User Documentation](../user/README.md).
+If you want to install or use Investment Analysis Engine, start with the [Investor & User Documentation](../user/README.md).
 
 ## Planning and status
 

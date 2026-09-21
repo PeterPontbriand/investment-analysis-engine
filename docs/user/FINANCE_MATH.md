@@ -1,6 +1,6 @@
 # Financial Math & Data Conventions
 
-This document defines the deterministic financial formulas and data conventions used by the analysis strategies that Financial Data Agents currently implements.
+This document defines the deterministic financial formulas and data conventions used by the analysis strategies that Investment Analysis Engine currently implements.
 
 It is not a catalogue of every financial indicator the project may someday support. Strategy-specific usage and interpretation live in the [Analysis Strategy Guides](strategies/README.md).
 
@@ -8,7 +8,7 @@ It is not a catalogue of every financial indicator the project may someday suppo
 
 ### Data sources are capabilities, not interchangeable labels
 
-Financial Data Agents uses different sources for different kinds of information:
+Investment Analysis Engine uses different sources for different kinds of information:
 
 - **SEC EDGAR** — completed annual company financial facts used by Graham and FCF/Earnings Growth. Reviewed US-GAAP duration concepts accept `10-K`/`20-F`/`40-F` annual forms; reviewed IFRS support is limited to exact diluted EPS, diluted weighted-average shares, operating cash flow, and physical-PP&E CapEx concepts.
 - **Yahoo Finance data via [`yfinance`](https://ranaroussi.github.io/yfinance/)** — historical market prices for Momentum and current quote comparison for Graham where applicable. `yfinance` is an independent open-source library and is not affiliated with, endorsed by, or vetted by Yahoo.
@@ -150,7 +150,7 @@ TTM EPS is a distinct modern variation where explicitly supported/selected; it n
 BVPS = common shareholders' equity / period-end common shares outstanding
 ```
 
-A provider-reported BVPS is usable only when its definition is understood. Financial Data Agents' SEC calculation derives fiscal-year-end BVPS from compatible accounting evidence when a safe direct value is unavailable.
+A provider-reported BVPS is usable only when its definition is understood. Investment Analysis Engine's SEC calculation derives fiscal-year-end BVPS from compatible accounting evidence when a safe direct value is unavailable.
 
 Tangible BVPS is a different measure and is not silently substituted.
 
@@ -248,7 +248,7 @@ A quote in a different currency is not used for a price relationship without an 
 
 NaN, infinity, and mathematically invalid configuration values are rejected deterministically.
 
-Financial Data Agents does not impose arbitrary financial-domain cutoffs merely because a number “looks unusual.” A non-mathematical bound requires an explicit rationale.
+Investment Analysis Engine does not impose arbitrary financial-domain cutoffs merely because a number “looks unusual.” A non-mathematical bound requires an explicit rationale.
 
 See the [Graham Analysis Strategy Guide](strategies/GRAHAM.md).
 
@@ -328,6 +328,6 @@ See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_EARNING
 
 - Benjamin Graham, *The Intelligent Investor*, Chapter 14: defensive-investor limits on price relative to average earnings and book value, including the combined product limit of 22.5.
 - Benjamin Graham, *The Intelligent Investor*, Chapter 11: simplified growth-stock formula and cautions about the reliability of projected growth.
-- Federal Reserve Bank of St. Louis FRED, [Moody's Seasoned Aaa Corporate Bond Yield (AAA)](https://fred.stlouisfed.org/series/AAA): useful background on a defined AAA corporate-bond-yield series; Financial Data Agents does not currently retrieve it automatically.
+- Federal Reserve Bank of St. Louis FRED, [Moody's Seasoned Aaa Corporate Bond Yield (AAA)](https://fred.stlouisfed.org/series/AAA): useful background on a defined AAA corporate-bond-yield series; Investment Analysis Engine does not currently retrieve it automatically.
 
 Secondary calculators or articles may illustrate common modern usage, but they do not override the formula, input, provenance, and naming conventions documented here.

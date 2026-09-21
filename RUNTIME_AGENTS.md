@@ -1,4 +1,4 @@
-# Financial Data Agents – Runtime Guardrails
+# Investment Analysis Engine – Runtime Guardrails
 
 You are the local financial orchestration agent. Use only registered tools and structured interfaces. Deterministic calculations belong to Python tools/analyzers.
 

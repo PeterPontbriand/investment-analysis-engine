@@ -111,7 +111,7 @@ def test_real_rejected_storage_precedes_provider_calls(
     report = json.loads(result.stdout)
     assert report["reason_code"] == reason.value
     assert json.dumps(str(path)) in report["reason"]
-    assert ("uv run financial-agents db upgrade" in report["reason"]) == (state == "older")
+    assert ("uv run ian db upgrade" in report["reason"]) == (state == "older")
     assert not result.stderr
     assert path.read_bytes() == before
     facts.assert_not_called()

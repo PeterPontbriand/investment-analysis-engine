@@ -1,6 +1,6 @@
 # Dual-Method Benjamin Graham Valuation Analysis Strategy
 
-This document defines the deterministic Benjamin Graham valuation analysis strategy in Financial Data Agents. The strategy contains two explicitly distinct methods: the Graham Number and the Graham growth-value formula. Investors run either method directly from the command line, and both methods return typed, auditable results derived from resolved financial inputs.
+This document defines the deterministic Benjamin Graham valuation analysis strategy in Investment Analysis Engine. The strategy contains two explicitly distinct methods: the Graham Number and the Graham growth-value formula. Investors run either method directly from the command line, and both methods return typed, auditable results derived from resolved financial inputs.
 
 The Graham Number is the default. It produces a screening ceiling from earnings per share and book value per share. The growth-value method is selected explicitly and produces a forecast-dependent estimate from normalized earnings per share, a user-supplied growth assumption, and a user-supplied AAA corporate-bond yield. Neither method constitutes a complete investment recommendation.
 
@@ -30,7 +30,7 @@ The Graham Number is the default. It produces a screening ceiling from earnings 
 The command-line interface exposes one Benjamin Graham valuation analysis strategy with two methods:
 
 ```text
-financial-agents graham TICKER [--method number|growth] [options]
+ian graham TICKER [--method number|growth] [options]
 ```
 
 `--method` defaults to `number`.
@@ -441,4 +441,4 @@ At the completion checkpoint, the implementation passed the repository's formatt
 
 This design excludes the Free Cash Flow & Earnings Growth analysis strategy; strategy evaluation; durable watchlists, Analysis Runs, batch refresh, cache storage and migrations; background or proactive operation; full-screen interfaces and executive reports; generated or unapproved third-party growth estimates; speculative generic strategy frameworks; complete defensive-investor qualification; and investment recommendations.
 
-A future unified `financial-agents analyze TICKER` command may combine default deterministic analyses with bounded language-model synthesis. Durable Analysis Runs may later preserve and render these typed results. Neither capability changes the contracts defined here.
+A future unified `ian analyze TICKER` command may combine default deterministic analyses with bounded language-model synthesis. Durable Analysis Runs may later preserve and render these typed results. Neither capability changes the contracts defined here.

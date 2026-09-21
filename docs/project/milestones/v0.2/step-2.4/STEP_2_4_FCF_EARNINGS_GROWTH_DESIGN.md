@@ -1,6 +1,6 @@
 # Free Cash Flow & Earnings Growth Analysis Strategy
 
-This document defines a deterministic analysis strategy for Financial Data Agents. The strategy examines a public company's historical total free cash flow, free cash flow per diluted share, and diluted earnings-per-share growth, optionally adds free-cash-flow yield and forward analyst-consensus context, and returns an explicit `PASS`, `FAIL`, or `INDETERMINATE` conclusion.
+This document defines a deterministic analysis strategy for Investment Analysis Engine. The strategy examines a public company's historical total free cash flow, free cash flow per diluted share, and diluted earnings-per-share growth, optionally adds free-cash-flow yield and forward analyst-consensus context, and returns an explicit `PASS`, `FAIL`, or `INDETERMINATE` conclusion.
 
 The strategy supports direct analysis from the command line and defines the typed analysis-tool contract used by runtime agents. Both entry points use the same deterministic calculations and return the same structured financial result. A language model never performs or alters the financial arithmetic.
 
@@ -158,7 +158,7 @@ These descriptions are evidence, not scores or recommendations.
 ### 4.1 Command
 
 ```text
-financial-agents fcf-growth TICKER [options]
+ian fcf-growth TICKER [options]
 ```
 
 ```text

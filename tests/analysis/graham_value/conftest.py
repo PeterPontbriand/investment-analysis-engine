@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-SEC_TEST_USER_AGENT = "financial-data-agents-tests/0.2 tests@example.invalid"
+SEC_TEST_USER_AGENT = "investment-analysis-engine-tests/0.2 tests@example.invalid"
 
 
 @pytest.fixture(autouse=True)

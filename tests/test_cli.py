@@ -381,7 +381,7 @@ def test_cli_graham_missing_sec_user_agent_is_clean_configuration_error() -> Non
 
 @patch("src.cli_composition.SecEdgarFinancialFactsAdapter")
 def test_graham_resolver_passes_configured_sec_identity_explicitly(mock_sec_adapter: MagicMock) -> None:
-    declared_identity = "financial-data-agents-test test@example.invalid"
+    declared_identity = "investment-analysis-engine-test test@example.invalid"
 
     with patch.object(settings, "sec_user_agent", declared_identity):
         build_graham_resolver(resolver_type=GrahamNumberInputResolver, data_provider=None)
@@ -391,7 +391,7 @@ def test_graham_resolver_passes_configured_sec_identity_explicitly(mock_sec_adap
 
 @patch("src.cli_composition.SecEdgarFinancialFactsAdapter")
 def test_graham_growth_default_uses_configured_sec_identity(mock_sec_adapter: MagicMock) -> None:
-    declared_identity = "financial-data-agents-test test@example.invalid"
+    declared_identity = "investment-analysis-engine-test test@example.invalid"
 
     with patch.object(settings, "sec_user_agent", declared_identity):
         build_graham_resolver(resolver_type=GrahamGrowthInputResolver, data_provider=None)

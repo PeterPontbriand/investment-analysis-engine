@@ -17,9 +17,9 @@ are not fresh. A revision stamp alone does not prove readiness.
 Maintenance commands are hidden from top-level help but available explicitly:
 
 ```powershell
-uv run --no-sync financial-agents db --help
-uv run --no-sync financial-agents db status
-uv run --no-sync financial-agents db status --json
+uv run --no-sync ian db --help
+uv run --no-sync ian db status
+uv run --no-sync ian db status --json
 ```
 
 `db status` inspects without initializing, upgrading, enabling WAL or creating
@@ -31,7 +31,7 @@ To initialize in advance or explicitly upgrade supported existing storage, stop
 application processes and back up existing data, then run:
 
 ```powershell
-uv run --no-sync financial-agents db upgrade
+uv run --no-sync ian db upgrade
 ```
 
 The command initializes fresh storage, upgrades a structurally valid recognized
@@ -46,8 +46,8 @@ Both maintenance commands accept `--database-url` and `--json`. An override is
 for that invocation only; it does not redirect later analyses:
 
 ```powershell
-uv run --no-sync financial-agents db status --database-url "sqlite:///E:/FinancialData/trial.sqlite3" --json
-uv run --no-sync financial-agents db upgrade --database-url "sqlite:///E:/FinancialData/trial.sqlite3"
+uv run --no-sync ian db status --database-url "sqlite:///E:/FinancialData/trial.sqlite3" --json
+uv run --no-sync ian db upgrade --database-url "sqlite:///E:/FinancialData/trial.sqlite3"
 ```
 
 Exit 0 means ready or successfully initialized/upgraded; exit 1 means not ready
@@ -85,7 +85,7 @@ existing data are separate operator actions.
 
 ## Choose the database location
 
-The default file is `data/financial-data-agents.sqlite3` under the installation
+The default file is `data/investment-analysis-engine.sqlite3` under the installation
 folder (or the configured `DATA_DIR`). A relative `database_url` resolves against
 the configured application base directory, not the terminal's current folder.
 Set the same URL for migrations and subsequent analysis commands.
@@ -93,7 +93,7 @@ Set the same URL for migrations and subsequent analysis commands.
 PowerShell example:
 
 ```powershell
-$env:database_url = "sqlite:///E:/FinancialData/financial-data-agents.sqlite3"
+$env:database_url = "sqlite:///E:/FinancialData/investment-analysis-engine.sqlite3"
 uv run --no-sync alembic upgrade head
 uv run --no-sync alembic current
 ```
@@ -101,7 +101,7 @@ uv run --no-sync alembic current
 Bash example:
 
 ```bash
-export database_url="sqlite:////srv/financial-data/financial-data-agents.sqlite3"
+export database_url="sqlite:////srv/financial-data/investment-analysis-engine.sqlite3"
 uv run --no-sync alembic upgrade head
 ```
 
