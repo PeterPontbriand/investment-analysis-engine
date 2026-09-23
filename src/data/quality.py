@@ -12,7 +12,6 @@ from enum import StrEnum
 import numpy as np
 import pandas as pd
 
-from src.data.base_client import DataFetchError
 from src.data.market_data import HistoricalMarketData
 
 
@@ -63,7 +62,18 @@ class QualityDecision:
         _aware(self.evidence_at)
 
 
-class HistoricalDataQualityError(DataFetchError):
+class DataQualityError(ValueError):
+    """Retrieved evidence was evaluated and rejected on data-quality grounds.
+
+    Distinct from :class:`~src.data.base_client.DataFetchError`, which means a
+    provider/network call itself could not produce a value: this means a
+    value WAS produced but failed an explicit quality/freshness rule, so an
+    orchestrator can distinguish "the provider is unreachable" from "the
+    provider answered, but the answer was rejected" (Issue #33).
+    """
+
+
+class HistoricalDataQualityError(DataQualityError):
     """Sanitized historical validation failure with bounded field/date evidence."""
 
     def __init__(self, decisions: tuple[QualityDecision, ...], frame: pd.DataFrame) -> None:

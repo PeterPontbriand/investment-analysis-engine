@@ -7,10 +7,11 @@ from datetime import UTC, date, datetime, timedelta
 
 import pandas as pd
 
-from src.data.base_client import BaseDataClient, DataFetchError
+from src.data.base_client import BaseDataClient
 from src.data.financial.provenance import SourceKind
 from src.data.market_data import HistoricalDataResolution, HistoricalMarketData
 from src.data.quality import (
+    DataQualityError,
     FreshnessPolicy,
     HistoricalDataQualityError,
     HistoricalQualityPolicy,
@@ -100,7 +101,7 @@ class CachedHistoricalDataClient(BaseDataClient):
             data = self._provider.fetch_historical_data(ticker, start_date, end_date)
             error = self._quality_error(data, input_id)
             if error is not None:
-                raise DataFetchError(error)
+                raise DataQualityError(error)
             return self._provider_resolution(data)
         key = MarketDataCacheKey(
             ticker,
@@ -121,7 +122,7 @@ class CachedHistoricalDataClient(BaseDataClient):
         completed_at = self._now()
         error = self._quality_error(data, input_id)
         if error is not None:
-            raise DataFetchError(error)
+            raise DataQualityError(error)
         try:
             original_retrieval = data.resolution.retrieved_at if data.resolution is not None else completed_at
             self._repository.put(key, data, fetch_completed_at=original_retrieval)

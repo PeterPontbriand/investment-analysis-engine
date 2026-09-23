@@ -124,6 +124,7 @@ class InstrumentProfileCapability(StrEnum):
     SECURITY_IDENTITY = "security_identity"
     INSTRUMENT_KIND = "instrument_kind"
     SECURITY_UNIT = "security_unit"
+    CACHE = "cache"
 
 
 class InstrumentProfileResolutionStatus(StrEnum):

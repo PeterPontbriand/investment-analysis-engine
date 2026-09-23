@@ -35,6 +35,7 @@ from src.analysis.strategy.fcf_earnings_growth.input_resolver import ProductionA
 from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthPolicy, FCFEarningsGrowthResult
 from src.core.analysis_status import CalculationStatus
 from src.data.instrument_profile import InstrumentProfile
+from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.workspace.graham_shared import compose_graham_profile
 from src.workspace.models import RunOutcome
 
@@ -77,6 +78,7 @@ def execute_fcf_growth(  # noqa: PLR0913
     use_cache: bool,
     effective_as_of: datetime,
     provider: object,
+    profile_cache: InstrumentProfileResolver | None = None,
 ) -> FCFGrowthCapture:
     """Compose the profile and run the existing FCF/Earnings Growth analyzer.
 
@@ -91,13 +93,19 @@ def execute_fcf_growth(  # noqa: PLR0913
         effective_as_of: The aware execution boundary actually applied.
         provider: The production provider, used as both the primary and
             Yahoo identity candidate, exactly as the CLI composes it today.
+        profile_cache: When supplied, resolves the profile through the
+            durable P2-Profiles cache instead of composing live every call.
 
     Returns:
         The captured native result, its associated profile, and the mapped
         terminal outcome.
     """
     profile = compose_graham_profile(
-        ticker, primary_provider=provider, primary_provider_id=provider_id, yahoo_provider=provider
+        ticker,
+        primary_provider=provider,
+        primary_provider_id=provider_id,
+        yahoo_provider=provider,
+        profile_cache=profile_cache,
     )
     result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
         ticker=ticker,

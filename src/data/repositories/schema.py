@@ -464,6 +464,68 @@ analysis_runs = sa.Table(
     ),
 )
 
+instrument_profiles = sa.Table(
+    "instrument_profiles",
+    metadata,
+    sa.Column("profile_id", sa.TEXT(), nullable=False),
+    sa.Column("ticker", sa.TEXT(), nullable=False),
+    sa.Column("identity_anchor", sa.TEXT(), nullable=False),
+    sa.Column("cached_at", sa.TEXT(), nullable=False),
+    sa.Column("refreshed_at", sa.TEXT(), nullable=False),
+    sa.Column("superseded_at", sa.TEXT(), nullable=True),
+    sa.Column("superseded_reason", sa.TEXT(), nullable=True),
+    sa.Column("schema_version", sa.INTEGER(), nullable=False),
+    sa.Column("evidence_json", sa.TEXT(), nullable=False),
+    sa.PrimaryKeyConstraint("profile_id", name="pk_instrument_profiles"),
+    sa.CheckConstraint("length(trim(profile_id)) > 0", name="ck_instrument_profiles_profile_id_nonempty"),
+    sa.CheckConstraint("length(trim(ticker)) > 0", name="ck_instrument_profiles_ticker_nonempty"),
+    sa.CheckConstraint("length(trim(identity_anchor)) > 0", name="ck_instrument_profiles_identity_anchor_nonempty"),
+    sa.CheckConstraint(
+        (
+            "length(cached_at) = 27 AND cached_at GLOB "
+            "'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-"
+            "9][0-9][0-9][0-9][0-9][0-9]Z' AND datetime(cached_at) IS NOT NULL"
+        ),
+        name="ck_instrument_profiles_cached_at_utc",
+    ),
+    sa.CheckConstraint(
+        (
+            "length(refreshed_at) = 27 AND refreshed_at GLOB "
+            "'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-"
+            "9][0-9][0-9][0-9][0-9][0-9]Z' AND datetime(refreshed_at) IS NOT NULL"
+        ),
+        name="ck_instrument_profiles_refreshed_at_utc",
+    ),
+    sa.CheckConstraint(
+        (
+            "superseded_at IS NULL OR (length(superseded_at) = 27 AND superseded_at GLOB "
+            "'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-"
+            "9][0-9][0-9][0-9][0-9][0-9]Z' AND datetime(superseded_at) IS NOT NULL)"
+        ),
+        name="ck_instrument_profiles_superseded_at_utc",
+    ),
+    sa.CheckConstraint("refreshed_at >= cached_at", name="ck_instrument_profiles_refreshed_after_cached"),
+    sa.CheckConstraint(
+        "superseded_at IS NULL OR superseded_at >= refreshed_at",
+        name="ck_instrument_profiles_superseded_after_refreshed",
+    ),
+    sa.CheckConstraint(
+        (
+            "(superseded_at IS NULL AND superseded_reason IS NULL) OR "
+            "(superseded_at IS NOT NULL AND length(trim(superseded_reason)) > 0)"
+        ),
+        name="ck_instrument_profiles_supersede_pair",
+    ),
+    sa.CheckConstraint(
+        "typeof(schema_version) = 'integer' AND schema_version >= 1",
+        name="ck_instrument_profiles_schema_version_range",
+    ),
+    sa.CheckConstraint(
+        "json_valid(evidence_json) AND json_type(evidence_json) = 'object'",
+        name="ck_instrument_profiles_evidence_json_object",
+    ),
+)
+
 sa.Index("ix_trajectory_events_1", trajectory_events.c.session_id, trajectory_events.c.timestamp)
 sa.Index(
     "ix_resolved_input_cache_1",
@@ -482,3 +544,4 @@ sa.Index("ix_analysis_runs_method_id", analysis_runs.c.method_id)
 sa.Index("ix_analysis_runs_outcome", analysis_runs.c.outcome)
 sa.Index("ix_analysis_runs_completed", analysis_runs.c.completed_at, analysis_runs.c.analysis_run_id)
 sa.Index("ix_analysis_runs_refresh", analysis_runs.c.refresh_id, analysis_runs.c.batch_position)
+sa.Index("ix_instrument_profiles_ticker", instrument_profiles.c.ticker)

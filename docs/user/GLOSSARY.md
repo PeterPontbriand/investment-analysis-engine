@@ -111,6 +111,9 @@ The report calls this the latest available quote. Retrieval time records when th
 ### Security Identity
 Best-effort descriptive metadata that associates a ticker with an instrument name and, when available, listing venue and issuer/instrument identifiers at a recorded resolution time. A ticker is not permanent identity and may be reused. Missing identity metadata never changes a financial result, and historical Analysis Runs retain their original identity snapshot rather than silently re-resolving the ticker later.
 
+### Instrument Profile
+The composed security identity plus a normalized instrument-kind classification (for example, equity or ETF) for one ticker, each with its own provenance. Investment Analysis Engine keeps a durable copy of an instrument profile so repeated analyses do not re-query providers for descriptive metadata that rarely changes; a stored profile expires after a configured freshness window and is refreshed live when it does. If a refresh finds a genuinely different entity behind the same ticker — a **ticker reuse**, such as a delisting followed by a new listing under the same symbol — the prior profile is retired rather than overwritten, and every Analysis Run that already used it keeps showing that original entity: reopening an old result never relabels it using the ticker's current meaning.
+
 ### Company Financial Facts / Fundamentals
 Reported accounting values such as earnings, common shareholders' equity, and shares outstanding. They come from financial statements and have reporting periods that usually differ from market-quote timestamps.
 

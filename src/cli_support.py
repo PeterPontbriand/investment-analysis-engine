@@ -13,8 +13,14 @@ from src.core.telemetry.quality import record_cli_quality
 from src.data.base_client import DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputSeriesCacheProtocol
+from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
 from src.data.quality import HistoricalDataQualityError, HistoricalQualityPolicy, QualityOutcome
-from src.data.repositories import SQLiteDatabase, SQLiteMarketDataRepository, SQLiteResolvedInputCache
+from src.data.repositories import (
+    SQLiteDatabase,
+    SQLiteInstrumentProfileRepository,
+    SQLiteMarketDataRepository,
+    SQLiteResolvedInputCache,
+)
 from src.data.repositories.readiness import DatabaseReadinessError, ensure_database_ready
 from src.data.yfinance import YFinanceClient
 from src.data.yfinance.client import YFINANCE_HISTORICAL_INTERVAL, YFINANCE_PRICE_ADJUSTMENT
@@ -64,6 +70,22 @@ def _production_financial_cache(*, enabled: bool) -> Iterator[ResolvedInputSerie
         yield SQLiteResolvedInputCache(database, ttl=None if seconds is None else timedelta(seconds=seconds))
     finally:
         database.close()
+
+
+def _production_instrument_profile_cache(database: SQLiteDatabase) -> CachedInstrumentProfileResolver:
+    """Build the durable instrument-profile cache over an already-open database.
+
+    Unlike the historical/financial cache helpers above, this does not own or
+    close ``database``: every caller already manages that lifecycle for its
+    own reason (Analysis Run persistence, watchlist storage), and durable
+    profiles are database-free lookups when the P2-Profiles contract calls
+    for staying live-only (no database is opened here or by any caller solely
+    to obtain one of these).
+    """
+    seconds = settings.instrument_profile_ttl_seconds
+    return CachedInstrumentProfileResolver(
+        SQLiteInstrumentProfileRepository(database), ttl=None if seconds is None else timedelta(seconds=seconds)
+    )
 
 
 def _presentation_mode(*, details: bool, diagnostics: bool, json_output: bool) -> PresentationMode:

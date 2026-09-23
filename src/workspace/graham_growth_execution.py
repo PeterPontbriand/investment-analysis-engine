@@ -27,6 +27,7 @@ from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
 from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.core.analysis_status import CalculationStatus
 from src.data.instrument_profile import InstrumentProfile
+from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.workspace.graham_shared import compose_graham_profile
 from src.workspace.models import RunOutcome
 
@@ -68,12 +69,14 @@ def classify_graham_growth_outcome(analysis: GrahamGrowthAnalysis) -> RunOutcome
     return RunOutcome.FAILED
 
 
-def execute_graham_growth(
+def execute_graham_growth(  # noqa: PLR0913
     resolver: GrahamGrowthInputResolver,
     ticker: str,
     config: GrahamGrowthConfig,
     policy: GrahamGrowthCalculationPolicy,
     profile_provider: object,
+    *,
+    profile_cache: InstrumentProfileResolver | None = None,
 ) -> GrahamGrowthCapture:
     """Compose the profile and run the existing Graham Growth analyzer.
 
@@ -85,6 +88,8 @@ def execute_graham_growth(
             caller exactly as the CLI does today.
         profile_provider: The Yahoo-identity candidate source, exactly as
             the CLI supplies it today.
+        profile_cache: When supplied, resolves the profile through the
+            durable P2-Profiles cache instead of composing live every call.
 
     Returns:
         The captured native analysis, its associated profile, and the
@@ -95,6 +100,7 @@ def execute_graham_growth(
         primary_provider=resolver.provider,
         primary_provider_id=config.security_provider_id,
         yahoo_provider=profile_provider,
+        profile_cache=profile_cache,
     )
     analysis = GrahamGrowthAnalyzer(resolver, instrument_profile=composed_profile, policy=policy).run_analysis(
         config, ticker=ticker

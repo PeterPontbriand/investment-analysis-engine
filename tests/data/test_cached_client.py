@@ -15,7 +15,7 @@ from src.config import ProjectSettings
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.market_data import HistoricalMarketData, MarketDataContext
-from src.data.quality import HistoricalQualityPolicy, QualityDecision
+from src.data.quality import HistoricalDataQualityError, HistoricalQualityPolicy, QualityDecision
 from src.data.quality_reporting import quality_observer
 from src.data.repositories import MarketDataCacheKey, SQLiteDatabase, SQLiteMarketDataRepository
 
@@ -78,7 +78,7 @@ def test_bypass_enforces_quality_even_with_broken_observer(database: SQLiteDatab
     def broken(_decision: QualityDecision) -> None:
         raise RuntimeError("observer unavailable")
 
-    with quality_observer(broken), pytest.raises(DataFetchError, match="dates"):
+    with quality_observer(broken), pytest.raises(HistoricalDataQualityError, match="dates"):
         client.fetch_data("ABC", START)
     assert len(provider.calls) == 1
 
@@ -97,7 +97,7 @@ def test_failed_quality_refresh_never_replaces_stored_snapshot(database: SQLiteD
         clock=lambda: NOW + timedelta(seconds=1),
         quality_policy=HistoricalQualityPolicy(expected_adjustment="adjusted"),
     )
-    with pytest.raises(DataFetchError, match="conflicts"):
+    with pytest.raises(HistoricalDataQualityError, match="conflicts"):
         client.fetch_data("ABC", START)
     stored = repository.get(key)
     assert stored is not None
@@ -234,17 +234,24 @@ def test_failed_refresh_preserves_prior_snapshot(database: SQLiteDatabase, failu
     )
     original = client.fetch_data("ABC", START).copy()
     now += timedelta(seconds=1)
+    # "provider" is a genuine fetch failure (DataFetchError); the rest are
+    # quality rejections of otherwise-successfully-fetched data
+    # (HistoricalDataQualityError) -- two distinct exception types (Issue #33).
+    expected_error: type[ValueError] = DataFetchError
     if failure == "provider":
         provider.error = DataFetchError("offline")
     elif failure == "empty":
         provider.data.frame.drop(provider.data.frame.index, inplace=True)
+        expected_error = HistoricalDataQualityError
     elif failure == "missing":
         provider.data.frame.rename(columns={"Close": "Other"}, inplace=True)
+        expected_error = HistoricalDataQualityError
     else:
         invalid_values: dict[str, float | str] = {"nan": float("nan"), "inf": float("inf"), "text": "bad"}
         provider.data.frame["Close"] = invalid_values[failure]
         provider.data.frame["Extra"] = 1  # Unsupported shape must not hide invalid values.
-    with pytest.raises(DataFetchError, match="offline|Historical"):
+        expected_error = HistoricalDataQualityError
+    with pytest.raises(expected_error, match="offline|Historical"):
         client.fetch_data("ABC", START)
     entry = repository.get(MarketDataCacheKey("ABC", "Fixture", date(2025, 1, 1), None, "daily"))
     assert entry is not None

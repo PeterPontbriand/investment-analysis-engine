@@ -143,11 +143,15 @@ Calculators receive resolved values and do not perform I/O. The resolver enforce
 ### Resolved-input cache seam (Step 2.3 implemented)
 A narrow in-memory/fixture-backed `get`/`put` seam proves precedence, temporal eligibility, and provenance. The resolver—not the cache—owns provider fallback. Durable SQLite-backed caching remains Step 3.1.
 
-### Durable instrument profiles and ETF aggregate FCF
+### Durable instrument profiles (P2-Profiles implemented) and ETF aggregate FCF (planned)
 
-P1 is request-scoped and intentionally adds no durable cache. A durable profile extension may retain a repository-backed cache retaining normalized/raw kind, descriptive identity, stable identifiers where available, provider provenance, resolution/retrieval time, and explicit freshness metadata. The profile contract must define repository ownership and invalidation semantics.
+`SQLiteInstrumentProfileRepository` persists composed identity/kind evidence keyed by a minted `profile_id`, not by ticker: only a resolution that yields a provider-verified identity anchor (`SecurityIdentity.issuer_identifier`) becomes durable, so a ticker that never earns an anchor keeps resolving live on every request, exactly as the request-scoped composer above does unwrapped. `CachedInstrumentProfileResolver` layers freshness/TTL/refresh over that repository: a fresh durable profile is reused without a provider call; a stale or missing one refreshes live. When a refresh's anchor disagrees with the stored one — a **ticker reuse**, such as delisting and relisting — the prior row is superseded (retained, never deleted or overwritten) and a new profile is minted; the resolver serializes this decision per ticker so concurrent callers (watchlist refresh's worker pool) cannot mint two competing profiles for the same ticker. Provider precedence and disagreement handling remain entirely owned by the request-scoped composer described above; the durable layer adds only persistence, freshness and the identity/ticker-reuse rule on top of it, matching the "Traceable, Time-Bounded Inputs" and "Decoupled Contracts" invariants (§1). See the [P2-Profiles contract](milestones/v0.2/p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md) for the full identity-key, precedence, freshness and historical-snapshot design.
 
- The strategy owns its holdings-effective-date, weighting, cash/derivative, currency, missing/stale constituent, coverage, rebalancing, and `as_of` semantics plus native typed configuration/result/tool identity. It may reuse company-level calculations for constituents but does not add ETF branches to or redefine the existing company-level FCF Growth strategy. Company-level FCF requested for a known ETF remains explicitly `not_applicable`; orchestration cannot silently substitute the aggregate strategy.
+Every production instrument-profile composition site (Momentum's direct/refresh paths, and the Graham Number/Growth/FCF Growth shared composition helper, covering both direct commands and watchlist refresh) resolves through this durable cache wherever a database is already open for another reason; a genuinely storage-free CLI invocation (no `--save-run`, no refresh) remains live-only rather than opening a database solely to populate the cache.
+
+An `AnalysisRun`'s persisted `instrument_profile` is the immutable value captured at execution time regardless of whether it came from a live call or the durable cache; a later ticker-reuse supersession never relabels an already-persisted run, since replay (§ `AnalysisRun` below) reads only that stored snapshot and never the durable cache's current state.
+
+ETF aggregate FCF remains planned (P2-ETF, deferred beyond Step 3.6). The strategy will own its holdings-effective-date, weighting, cash/derivative, currency, missing/stale constituent, coverage, rebalancing, and `as_of` semantics plus native typed configuration/result/tool identity. It may reuse company-level calculations for constituents but must not add ETF branches to or redefine the existing company-level FCF Growth strategy. Company-level FCF requested for a known ETF remains explicitly `not_applicable`; orchestration cannot silently substitute the aggregate strategy.
 
 ### Resolved input and provenance models (Step 2.3 implemented)
 Typed records preserve value, units/currency, source kind, provider field/series, reporting/observation period, availability/filing date where supplied, analysis `as_of`, retrieval time, transformations/derived lineage, and override/cache state.
@@ -236,12 +240,15 @@ src/
 │   └── telemetry/
 ├── data/
 │   ├── base_client.py
+│   ├── instrument_profile.py
+│   ├── instrument_profile_cache.py
 │   ├── repositories/
 │   │   ├── sqlite.py
 │   │   ├── schema.py
 │   │   ├── migrations.py
 │   │   ├── market_data.py
 │   │   ├── resolved_input_cache.py
+│   │   ├── instrument_profiles.py
 │   │   └── trajectory.py
 │   ├── massive/
 │   │   └── valuation.py
@@ -288,6 +295,7 @@ readiness failures identify the target and next action. See
 | :--- | :--- | :--- |
 | `SQLiteMarketDataRepository` | `put`, `get`, `list_keys` | Exact historical request snapshots preserve frame structure/precision, context, and cache/retrieval timestamps. `get` returns the validated stored snapshot or `None` for a miss. |
 | `SQLiteResolvedInputCache` | `put`, `get`, `get_series`, `list_keys`, `inspect`, `ttl` | Normal retrieval applies existing TTL and historical availability rules. `inspect` returns the validated stored entry irrespective of eligibility, preserving original provenance and timestamps; only an absent key returns `None`. |
+| `SQLiteInstrumentProfileRepository` | `get`, `get_by_id`, `put` | `put` mints, updates in place, or supersedes-and-mints a profile per the identity-anchor/ticker-reuse rule, atomically within one transaction. Only identity-anchored resolutions are ever written; a superseded row is retained, never deleted. |
 | `SQLiteTrajectoryRepository` | `record`, `read_trajectory` | Immutable atomic events; identical event-ID retries are no-ops, conflicts raise, and readback returns typed events in sequence order with gaps preserved. A missing run returns an empty list. |
 
 Both `list_keys` methods require an explicit positive integer `limit` and accept

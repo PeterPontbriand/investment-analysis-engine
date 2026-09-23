@@ -92,6 +92,15 @@ class ProjectSettings(BaseSettings):
         allow_inf_nan=False,
         description="Maximum quote-response reuse age; zero disables quote cache reuse.",
     )
+    instrument_profile_ttl_seconds: float | None = Field(
+        default=2_592_000,
+        ge=0,
+        allow_inf_nan=False,
+        description=(
+            "Durable instrument-profile reuse age: thirty days by default; None disables TTL "
+            "(always reuse the durable profile until an explicit refresh is requested)."
+        ),
+    )
 
     # API Settings
     api_host: str = "0.0.0.0"

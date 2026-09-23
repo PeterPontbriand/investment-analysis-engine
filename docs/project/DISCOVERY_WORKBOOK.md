@@ -537,6 +537,8 @@ Finance remains primary. Core layers remain modular enough for possible later re
 | Require provider-backed security evidence before authoritative direct Graham output | Prevents fully override-driven arithmetic from falsely validating an arbitrary ticker identity |
 | Use result-first concise success output and avoid redundant assumption/warning repetition | Prioritizes the investor's financial question while retaining progressive disclosure and material caveats |
 | Treat investor reports as deterministic, independently versioned projections of persisted Analysis Runs | Preserves one canonical financial record, makes historical rendering reproducible, and prevents current provider/LLM/cache/clock state from silently changing old reports |
+| Durable instrument profiles persist only identity-anchored resolutions, keyed by a minted `profile_id` rather than ticker; a ticker reuse supersedes rather than overwrites | Prevents treating a reused ticker's historical Analysis Runs as if they described today's entity, while avoiding cache/refresh bookkeeping for tickers that never earn a verified anchor |
+| Enforce durable-profile ticker-reuse serialization with an in-process per-ticker lock rather than a database-level partial unique index | The project's own readiness contract (Step 3.3A) rejects partial/expression indexes as unsupported schema signatures; discovered only once the cache was shared across watchlist refresh's concurrent workers |
 
 ---
 
@@ -569,3 +571,22 @@ explanations that synthetic tests had missed. A systematic audit therefore needs
 realistic source-to-output fixtures, independent arithmetic, dated live evidence
 and a defect ledger. Infrastructure changes must retain these regressions. See
 the [correctness contract](milestones/v0.2/existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md).
+
+## Durable instrument profiles
+
+Repeated live descriptive/classification lookups were replaced with a durable,
+time-aware cache, but only for tickers that resolve a provider-verified identity
+anchor; an unanchored ticker keeps resolving live rather than accumulating
+unreviewable cache state. A ticker reuse (the same symbol later meaning a
+different entity) supersedes the prior durable profile instead of overwriting
+it, so a previously persisted Analysis Run keeps rendering the entity it
+actually described. Two design corrections surfaced only once the primitive
+was wired into production: a sketched partial-unique-index approach for
+"current profile per ticker" turned out to be unsupported by the project's own
+readiness contract (Step 3.3A rejects partial/expression indexes), and sharing
+one cache instance across watchlist refresh's concurrent workers exposed a real
+mint-two-competing-profiles race that a per-ticker in-process lock closes.
+Neither was visible from the schema/repository design alone; both were found by
+actually wiring the primitive into a concurrent caller before declaring it
+complete. See the
+[P2-Profiles contract](milestones/v0.2/p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md).

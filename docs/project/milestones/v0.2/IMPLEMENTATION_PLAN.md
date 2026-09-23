@@ -7,7 +7,10 @@ financial analysis, local persistence and the investor research workspace.
 
 This table owns work-package order and status. Linked companion plans own local
 slice order and review gates; evidence records do not repeat either. Git history
-retains earlier decisions and publication history.
+retains earlier decisions and publication history. The `Order` column mixes
+numbered Steps/Slices with short lettered work-package codes (`R1`/`R2`,
+`P1`/`P2`, `ESC-A`...`ESC-D`); see the [Master Plan](../../MASTER_PLAN.md#milestone-v02-reliability-observability-strategy-generalization-data-persistence--investor-workflow)
+for what each stands for.
 
 | Order | Work | Status / next gate |
 | :--- | :--- | :--- |
@@ -18,13 +21,14 @@ retains earlier decisions and publication history.
 | 5 | Existing-analysis correctness | Initial audit/repair accepted; [renewal requirements](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status) remain applicable. |
 | 6 | [Database readiness (3.3A)](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete and accepted. |
 | 7 | [Research workspace (3.4)](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) | Complete and accepted; final acceptance granted 2026-09-20 (Amendment A1's I3). |
-| 8 | Durable instrument profiles (P2-Profiles) | Not started; scope/contract review required. |
-| 9 | Existing-analysis renewal (ESC-D) | Required on the proposed screening starting revision; no unresolved correctness defects. |
+| 8 | [Durable instrument profiles (P2-Profiles)](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete and accepted; final acceptance granted 2026-09-22 (see [final summary](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#153-milestone-summary)). |
+| 9 | Existing-analysis renewal (ESC-D) | Not started; next in sequence now that P2-Profiles is accepted. Required on the proposed screening starting revision; no unresolved correctness defects. |
 | 10 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Plan accepted; implementation waits for renewal acceptance. |
 | 11 | Light Mode (3.6) | Not started; includes empirical model/schema and end-to-end workflow validation. |
 | Deferred | ETF aggregation (P2-ETF) | Separate prioritization and provider/product-policy approval after 3.6; not a validation prerequisite. |
 | Deferred | [Structured error reporting for programmatic/agentic CLI consumers](DEFERRED_STRUCTURED_ERROR_REPORTING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
 | Deferred | [Prefix matching for Analysis Run/refresh IDs](DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
+| Deferred | [Deduplicate Momentum's instrument-profile composition sites](DEFERRED_MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) | Not started; discovered 2026-09-21 during P2-Profiles Slice D reconnaissance, raised again in PR #39 review. Scope/contract review required; not a validation prerequisite. |
 
 ## 1. Purpose & Scope
 
@@ -136,13 +140,17 @@ See the [SQLite plan](step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md) and [field-level m
 
 ### 4.7A P2 – Durable Instrument Profiles & ETF Aggregate FCF Growth
 
-**P2-Profiles — durable instrument profiles:** Owns items 1–2 below and the
-profile-specific fixtures in item 6. Before
+**P2-Profiles — durable instrument profiles:** Owns items 1–2, 8, and 9 below
+and the profile-specific fixtures in item 6. Before
 implementation, review the identity key, provider disagreement/precedence,
 freshness/invalidation, refresh, and historical-snapshot contract against the
 completed repository and data-quality boundaries. Acceptance requires migrated
 storage, deterministic reopen/reuse and ticker-reuse tests, truthful retained
-provenance, and an immutable execution snapshot suitable for Analysis Runs.
+provenance, an immutable execution snapshot suitable for Analysis Runs, the
+unified data-quality exception hierarchy in item 8, and every production
+instrument-profile composition site (item 9) actually resolving through the
+durable cache rather than the primitive existing unused — a cache no
+production code calls does not replace a live lookup.
 No ETF holdings ingestion or aggregation belongs to this deliverable.
 
 **P2-ETF — ETF aggregation strategy:** Owns items 3–5, holdings/aggregate fixtures
@@ -161,6 +169,8 @@ speculative ETF schemas or infrastructure while implementing P2-Profiles or 3.4.
 5. Keep selection explicit and auditable. A company-level FCF request for a known ETF remains `not_applicable`; it must not silently invoke the aggregate strategy. Any later convenience routing belongs at the orchestration layer and requires its own reviewed selection behavior.
 6. Add deterministic holdings/profile fixtures and independently verified aggregate expectations. Live providers and mutable caches remain excluded from deterministic tests and Golden fixture truth.
 7. Revisit Golden coverage only after the strategy's contracts and production behavior pass their own review gate. Add cases through the existing review-directed expansion process rather than changing the original benchmark retrospectively.
+8. Standardize data-quality validation failures under a single exception hierarchy (a `DataQualityError` base with focused subclasses) so `cached_client`, the Momentum analyzer, and financial-input resolvers raise consistent, orchestrator-catchable errors instead of the current mix of `DataFetchError` and bare `ValueError`. Carry the underlying quality-decision/failure reason on the exception and update the affected unit tests accordingly. Discovered during Step 3.3 review (Issue #33).
+9. Wire the durable instrument-profile cache into every production instrument-profile composition site (Momentum's CLI/refresh call sites and the shared Graham/FCF composition helper), not merely provide it as an unused capability. A genuinely storage-free CLI path is not forced to open a database solely for this cache; sites reviewed and classified as intentionally database-free remain live-only. Discovered during P2-Profiles Slice C review 2026-09-21; scoped in [P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md §13](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#13-slice-d--wire-the-durable-cache-into-production-instrument-profile-composition).
 
 **P2 non-goals:** treating an ETF as an operating company, deriving holdings from an instrument name, hiding incomplete constituent coverage, using an LLM for aggregation mathematics, silently substituting the ETF strategy, or coupling strategy calculators directly to SQLite.
 

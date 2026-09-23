@@ -294,7 +294,7 @@ def test_real_predecessor_requires_explicit_upgrade_and_retains_existing_data(tm
             ensure_database_ready(database)
         assert caught.value.reason is ReadinessReason.UPGRADE_REQUIRED
 
-        assert readiness.upgrade_database(database) == (ReadinessOutcome.UPGRADED, "0003_watchlist_entries")
+        assert readiness.upgrade_database(database) == (ReadinessOutcome.UPGRADED, "0004_instrument_profiles")
         assert ensure_database_ready(database) is ReadinessOutcome.READY
         with database.read() as connection:
             assert (

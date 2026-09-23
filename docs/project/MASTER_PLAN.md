@@ -175,6 +175,30 @@ persistent research records and a usable Light Mode workflow. The
 [implementation plan](milestones/v0.2/IMPLEMENTATION_PLAN.md) owns work-package
 scope, sequencing and status; its companion contracts supply technical detail.
 
+**Reading work-package identifiers.** The implementation plan's own sequence
+table interleaves two kinds of identifier in one ordered list. Most rows are a
+numbered Step or Slice in the roadmap's own decimal sequence (`2.3`, `3.3A`,
+`3.5`, ...). A smaller number of rows instead carry a short, project-specific
+letter code, used for work that does not fit neatly as a sub-number of one
+existing Step — typically because it cuts across several existing Steps (a
+refactor) or was identified mid-milestone rather than planned from the start.
+Current examples:
+
+- `R1` / `R2` — a refactor-work code: the Graham analyzer
+  separation and the analysis-package split, both pure refactors with no new
+  functionality.
+- `P1` / `P2` — short for "Profile": the instrument-identity/kind
+  applicability work, then the durable instrument-profile cache built on it.
+- `ESC-A` through `ESC-D` — an acronym of "Existing Strategy Correctness" (the
+  correctness audit/repair/renewal work package), which uses its own internal
+  `A`→`D` gate sequence rather than decimal sub-numbers.
+
+A bare `Issue #NN` reference is a GitHub issue folded into a work package's
+scope, not a code in this scheme. Within any one lettered or numbered work
+package, its own contract document may further divide implementation into
+slices (`Slice A`, `Slice B1`, ...) — a local convention scoped to that one
+document, not a project-wide identifier.
+
 The [research-workspace contract](milestones/v0.2/step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) defines watchlist, Analysis Run, replay and refresh interfaces with bounded implementation slices.
 
 ### **Milestone v0.2.5: Real-User Validation Checkpoint**

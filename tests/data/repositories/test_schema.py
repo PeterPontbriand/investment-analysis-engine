@@ -42,6 +42,10 @@ EXPECTED_COLUMNS = {
         "run_schema_version config_schema_version method_version result_schema_version evidence_codec_version "
         "projection_version envelope_json"
     ),
+    "instrument_profiles": (
+        "profile_id ticker identity_anchor cached_at refreshed_at superseded_at superseded_reason "
+        "schema_version evidence_json"
+    ),
 }
 
 
@@ -161,6 +165,15 @@ def base_row(table: str) -> dict[str, object]:
             "projection_version": 1,
             "envelope_json": "{}",
         },
+        "instrument_profiles": {
+            "profile_id": "profile-1",
+            "ticker": "KO",
+            "identity_anchor": "0000021344",
+            "cached_at": STAMP,
+            "refreshed_at": STAMP,
+            "schema_version": 1,
+            "evidence_json": "{}",
+        },
     }
     return rows[table].copy()
 
@@ -200,6 +213,14 @@ def base_row(table: str) -> dict[str, object]:
         ("analysis_runs", "completed_at", "not-a-timestamp"),
         ("analysis_runs", "envelope_json", "[]"),
         ("analysis_runs", "refresh_id", "batch-without-position"),
+        ("instrument_profiles", "ticker", " "),
+        ("instrument_profiles", "identity_anchor", " "),
+        ("instrument_profiles", "schema_version", 0),
+        ("instrument_profiles", "evidence_json", "[]"),
+        ("instrument_profiles", "cached_at", "2026-09-05T12:00:00"),
+        ("instrument_profiles", "refreshed_at", "2025-09-05T12:00:00.000000Z"),
+        ("instrument_profiles", "superseded_at", "not-a-timestamp"),
+        ("instrument_profiles", "superseded_reason", "orphaned-reason"),
     ],
 )
 def test_database_checks_reject_invalid_rows(
@@ -334,6 +355,31 @@ def test_analysis_run_indexes_and_refresh_pair(database: SQLiteDatabase) -> None
             "ix_analysis_runs_refresh",
             "ix_analysis_runs_ticker",
         }
+
+
+def test_instrument_profiles_supersede_pair_and_ticker_index(database: SQLiteDatabase) -> None:
+    table = metadata.tables["instrument_profiles"]
+    row = base_row("instrument_profiles")
+    with database.transaction() as connection:
+        connection.execute(table.insert(), row)
+    # A superseded row is a valid, distinct primary key sharing the same ticker
+    # as its successor; there is no partial/unique index rejecting this pair
+    # (Step 3.3A's readiness contract treats those as unsupported).
+    superseded = dict(
+        row,
+        profile_id="profile-0",
+        superseded_at=STAMP,
+        superseded_reason="Identity anchor changed.",
+    )
+    with database.transaction() as connection:
+        connection.execute(table.insert(), superseded)
+    with database.read() as connection:
+        indexes = {item["name"] for item in inspect(connection).get_indexes("instrument_profiles")}
+        assert indexes == {"ix_instrument_profiles_ticker"}
+        assert connection.execute(
+            text("SELECT profile_id FROM instrument_profiles WHERE ticker = :ticker ORDER BY profile_id"),
+            {"ticker": "KO"},
+        ).scalars().all() == ["profile-0", "profile-1"]
 
 
 def test_failed_initial_revision_rolls_back_all_tables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

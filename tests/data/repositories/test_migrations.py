@@ -56,11 +56,12 @@ def test_cli_schema_lifecycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
                         "watchlists",
                         "watchlist_entries",
                         "analysis_runs",
+                        "instrument_profiles",
                     }
                 )
                 assert set(tables) == expected
                 versions = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalars().all()
-                assert versions == ([] if operation == "downgrade" else ["0003_watchlist_entries"])
+                assert versions == ([] if operation == "downgrade" else ["0004_instrument_profiles"])
         finally:
             database.close()
     assert not unused.exists()
@@ -93,7 +94,7 @@ def test_workspace_revision_downgrade_retains_predecessor_data(tmp_path: Path) -
         command.upgrade(config, "head")
         with database.read() as connection:
             assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
-                "0003_watchlist_entries"
+                "0004_instrument_profiles"
             )
     finally:
         database.close()
@@ -219,7 +220,7 @@ def test_borrowed_transaction_is_not_committed_or_closed(tmp_path: Path) -> None
             assert not connection.closed
             assert connection.in_transaction()
             revision = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
-            assert revision == "0003_watchlist_entries"
+            assert revision == "0004_instrument_profiles"
             raise RuntimeError("outer rollback")
 
     try:

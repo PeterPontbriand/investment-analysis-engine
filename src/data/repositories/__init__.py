@@ -1,5 +1,9 @@
 """Typed data-access / repository layer (market data, trajectories, metadata)."""
 
+from src.data.repositories.instrument_profiles import (
+    InstrumentProfileRecord,
+    SQLiteInstrumentProfileRepository,
+)
 from src.data.repositories.market_data import (
     MarketDataCacheEntry,
     MarketDataCacheKey,
@@ -24,11 +28,13 @@ __all__ = [
     "DatabaseInspection",
     "DatabaseState",
     "DatabaseReadinessError",
+    "InstrumentProfileRecord",
     "MarketDataCacheEntry",
     "MarketDataCacheKey",
     "ReadinessOutcome",
     "ReadinessReason",
     "SQLiteDatabase",
+    "SQLiteInstrumentProfileRepository",
     "SQLiteMarketDataRepository",
     "SQLiteResolvedInputCache",
     "SQLiteTrajectoryRepository",

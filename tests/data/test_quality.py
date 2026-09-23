@@ -8,9 +8,12 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
+from src.data.base_client import DataFetchError
 from src.data.market_data import HistoricalMarketData, MarketDataContext
 from src.data.quality import (
+    DataQualityError,
     FreshnessPolicy,
+    HistoricalDataQualityError,
     HistoricalQualityPolicy,
     QualityContext,
     QualityDecision,
@@ -39,6 +42,22 @@ def history() -> HistoricalMarketData:
 def outcomes(decisions: tuple[QualityDecision, ...]) -> dict[str, QualityOutcome]:
     assert all(item.reason and item.context.input_id for item in decisions)
     return {item.rule_id: item.outcome for item in decisions}
+
+
+def test_data_quality_error_is_distinct_from_data_fetch_error() -> None:
+    """Issue #33: a rejected-but-retrieved value must not be catchable as a fetch failure.
+
+    ``DataFetchError`` means the provider/network call itself could not
+    produce a value; ``DataQualityError`` means a value was produced but
+    failed an explicit quality/freshness rule. The two must not share an
+    inheritance relationship in either direction, so an orchestrator that
+    only catches one is not silently handed the other.
+    """
+    assert issubclass(DataQualityError, ValueError)
+    assert issubclass(HistoricalDataQualityError, DataQualityError)
+    assert not issubclass(DataQualityError, DataFetchError)
+    assert not issubclass(HistoricalDataQualityError, DataFetchError)
+    assert not issubclass(DataFetchError, DataQualityError)
 
 
 def test_explicit_sessions_and_metadata_pass_without_mutation() -> None:

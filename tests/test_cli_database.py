@@ -75,7 +75,7 @@ def test_explicit_upgrade_and_repeated_status(target: Path) -> None:
         report = json.loads(result.stdout)
         assert report["state"] == "ready"
         assert report["database_path"] == str(target)
-        assert report["current_revision"] == report["expected_revision"] == "0003_watchlist_entries"
+        assert report["current_revision"] == report["expected_revision"] == "0004_instrument_profiles"
         assert not result.stderr
 
 
@@ -153,7 +153,7 @@ def test_db_upgrade_command_busy_lock(target: Path, monkeypatch: pytest.MonkeyPa
     assert report["reason"] == "database_busy"
     assert report["state"] is None
     assert report["database_path"] == str(target)
-    assert report["expected_revision"] == "0003_watchlist_entries"
+    assert report["expected_revision"] == "0004_instrument_profiles"
     assert "synthetic busy lock" not in result.output
 
 
@@ -172,7 +172,7 @@ def test_empty_status_is_fresh_and_does_not_create_sidecars(target: Path, json_o
         assert report["state"] == "fresh"
         assert report["status"] == "success"
         assert report["current_revision"] is None
-        assert report["expected_revision"] == "0003_watchlist_entries"
+        assert report["expected_revision"] == "0004_instrument_profiles"
         assert report["database_path"] == str(target)
         assert "db upgrade" in report["message"]
     else:

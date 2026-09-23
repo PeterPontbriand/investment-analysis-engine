@@ -22,6 +22,7 @@ from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.core.analysis_status import CalculationStatus
 from src.data.instrument_profile import InstrumentProfile
+from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.workspace.graham_shared import compose_graham_profile
 from src.workspace.models import RunOutcome
 
@@ -61,6 +62,8 @@ def execute_graham_number(
     ticker: str,
     config: GrahamNumberConfig,
     profile_provider: object,
+    *,
+    profile_cache: InstrumentProfileResolver | None = None,
 ) -> GrahamNumberCapture:
     """Compose the profile and run the existing Graham Number analyzer.
 
@@ -70,6 +73,8 @@ def execute_graham_number(
         config: The validated Graham Number configuration.
         profile_provider: The Yahoo-identity candidate source, exactly as
             the CLI supplies it today.
+        profile_cache: When supplied, resolves the profile through the
+            durable P2-Profiles cache instead of composing live every call.
 
     Returns:
         The captured native analysis, its associated profile, and the
@@ -80,6 +85,7 @@ def execute_graham_number(
         primary_provider=resolver.provider,
         primary_provider_id=config.security_provider_id,
         yahoo_provider=profile_provider,
+        profile_cache=profile_cache,
     )
     analysis = GrahamNumberAnalyzer(resolver, instrument_profile=composed_profile).run_analysis(config, ticker=ticker)
     profile = analysis.instrument_profile or composed_profile

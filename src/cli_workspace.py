@@ -37,11 +37,13 @@ from src.cli_support import (
     _parse_as_of,
     _production_financial_cache,
     _production_historical_client,
+    _production_instrument_profile_cache,
     config_usage_errors,
 )
 from src.config import settings
 from src.data.financial.providers import SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
 from src.data.instrument_profile import InstrumentProfileCandidate, compose_instrument_profile
+from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.readiness import DatabaseReadinessError, ensure_database_ready
 from src.data.repositories.sqlite import SQLiteDatabase
@@ -761,7 +763,9 @@ def _run_summary_line(summary: AnalysisRunSummary) -> str:
     )
 
 
-def _execute_momentum(ticker: str, selection: MomentumSelection) -> ExecutionCapture:
+def _execute_momentum(
+    ticker: str, selection: MomentumSelection, *, profile_cache: InstrumentProfileResolver | None
+) -> ExecutionCapture:
     data_client = YFinanceClient()
     with _production_historical_client(data_client) as historical_client:
         run = run_momentum(selection, ticker, historical_client)
@@ -769,34 +773,48 @@ def _execute_momentum(ticker: str, selection: MomentumSelection) -> ExecutionCap
     def _identity_candidate() -> InstrumentProfileCandidate:
         return InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
 
-    profile = compose_instrument_profile(
-        run.metrics.ticker, identity_candidates=(_identity_candidate(),), kind_candidate=_identity_candidate()
+    identity_candidates = (_identity_candidate(),)
+    kind_candidate = _identity_candidate()
+    profile = (
+        profile_cache.resolve(
+            run.metrics.ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate
+        )
+        if profile_cache is not None
+        else compose_instrument_profile(
+            run.metrics.ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate
+        )
     )
     return from_momentum_capture(capture_momentum(run, profile))
 
 
-def _execute_graham_number(ticker: str, selection: GrahamNumberSelection) -> ExecutionCapture:
+def _execute_graham_number(
+    ticker: str, selection: GrahamNumberSelection, *, profile_cache: InstrumentProfileResolver | None
+) -> ExecutionCapture:
     config = selection.to_graham_number_config()
     with _production_financial_cache(enabled=config.use_cache) as cache:
         resolver = build_graham_resolver(
             resolver_type=GrahamNumberInputResolver, data_provider=config.security_provider_id, cache=cache
         )
-        capture = execute_graham_number(resolver, ticker, config, YFinanceClient())
+        capture = execute_graham_number(resolver, ticker, config, YFinanceClient(), profile_cache=profile_cache)
     return from_graham_number_capture(capture)
 
 
-def _execute_graham_growth(ticker: str, selection: GrahamGrowthSelection) -> ExecutionCapture:
+def _execute_graham_growth(
+    ticker: str, selection: GrahamGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
+) -> ExecutionCapture:
     config = selection.to_graham_growth_config()
     policy = growth_assumptions()
     with _production_financial_cache(enabled=config.use_cache) as cache:
         resolver = build_graham_resolver(
             resolver_type=GrahamGrowthInputResolver, data_provider=config.security_provider_id, cache=cache
         )
-        capture = execute_graham_growth(resolver, ticker, config, policy, YFinanceClient())
+        capture = execute_graham_growth(resolver, ticker, config, policy, YFinanceClient(), profile_cache=profile_cache)
     return from_graham_growth_capture(capture)
 
 
-def _execute_fcf_growth(ticker: str, selection: FCFGrowthSelection) -> ExecutionCapture:
+def _execute_fcf_growth(
+    ticker: str, selection: FCFGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
+) -> ExecutionCapture:
     policy = selection.to_fcf_policy()
     boundary = selection.as_of or datetime.now(UTC)
     with _production_financial_cache(enabled=selection.use_cache) as cache:
@@ -812,26 +830,35 @@ def _execute_fcf_growth(ticker: str, selection: FCFGrowthSelection) -> Execution
             use_cache=selection.use_cache,
             effective_as_of=boundary,
             provider=provider,
+            profile_cache=profile_cache,
         )
     return from_fcf_growth_capture(capture)
 
 
-def _refresh_executor(ticker: str, selection: AnalysisSelection) -> ExecutionCapture:
+def _refresh_executor(
+    ticker: str, selection: AnalysisSelection, *, profile_cache: InstrumentProfileResolver
+) -> ExecutionCapture:
     """Dispatch one (ticker, selection) job to its method's production adapter.
 
     Each branch composes entirely fresh provider/resolver/cache dependencies
     per call — job-scoped, exactly as ``refresh_watchlist``'s own contract
     requires for safe concurrent use — mirroring precisely how each direct
     command in ``src.cli`` composes the same dependencies for one invocation.
+    The durable instrument-profile cache is the one exception: it is built
+    once per refresh (over the refresh command's own database) and shared
+    across concurrent jobs, exactly like the Analysis Run repository already
+    is. ``CachedInstrumentProfileResolver`` serializes its own per-ticker
+    critical section (P2-Profiles contract §13.6), so sharing it across
+    worker threads is safe by the resolver's own contract, not by accident.
     """
     if isinstance(selection, MomentumSelection):
-        return _execute_momentum(ticker, selection)
+        return _execute_momentum(ticker, selection, profile_cache=profile_cache)
     if isinstance(selection, GrahamNumberSelection):
-        return _execute_graham_number(ticker, selection)
+        return _execute_graham_number(ticker, selection, profile_cache=profile_cache)
     if isinstance(selection, GrahamGrowthSelection):
-        return _execute_graham_growth(ticker, selection)
+        return _execute_graham_growth(ticker, selection, profile_cache=profile_cache)
     if isinstance(selection, FCFGrowthSelection):
-        return _execute_fcf_growth(ticker, selection)
+        return _execute_fcf_growth(ticker, selection, profile_cache=profile_cache)
     raise AssertionError(f"Unhandled analysis selection type: {type(selection)!r}")  # pragma: no cover
 
 
@@ -924,11 +951,14 @@ def refresh(
     try:
         with _workspace_database() as database:
             try:
+                profile_cache = _production_instrument_profile_cache(database)
                 summary = refresh_watchlist(
                     name,
                     watchlists=SQLiteWatchlistRepository(database),
                     repository=SQLiteAnalysisRunRepository(database),
-                    executor=_refresh_executor,
+                    executor=lambda ticker, selection: _refresh_executor(
+                        ticker, selection, profile_cache=profile_cache
+                    ),
                     save=not no_save,
                     policy=policy,
                     cancellation=cancellation,
