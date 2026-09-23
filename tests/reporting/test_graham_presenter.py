@@ -375,6 +375,40 @@ def test_number_missing_component_explains_failure_before_diagnostics(
         assert "Raw provider detail" in rendered
 
 
+@pytest.mark.parametrize(
+    ("component", "label"),
+    [
+        ("preferred_shares_outstanding", "preferred-share evidence"),
+        ("stockholders_equity", "stockholders' equity"),
+        ("common_shares_outstanding", "period-end common shares outstanding"),
+    ],
+)
+def test_number_json_reason_matches_text_modes_specific_explanation(component: str, label: str) -> None:
+    """JSON's reason must carry the same specific blocker as text modes, not the generic fallback (ESC-19)."""
+    assembly = GrahamNumberInputAssembly(
+        status=CalculationStatus.INPUT_UNAVAILABLE,
+        eps=_eps(),
+        reason="Unable to analyze MSFT: required financial data is unavailable for the requested method.",
+        resolution_trace=ResolutionTrace(
+            events=(
+                ResolutionEvent(
+                    component, ResolutionStage.PROVIDER, ResolutionOutcome.UNAVAILABLE, "Raw provider detail"
+                ),
+                ResolutionEvent(
+                    "bvps", ResolutionStage.DERIVATION, ResolutionOutcome.UNAVAILABLE, "Raw derivation detail"
+                ),
+            )
+        ),
+    )
+    presentation = GrahamNumberPresentation(ticker="MSFT", assembly=assembly, result=None)
+    payload = json.loads(render_graham_number(presentation, PresentationMode.JSON))
+    assert f"eligible {label} could not be resolved" in payload["reason"]
+    assert "Raw provider detail" not in payload["reason"]
+    assert ("Missing preferred-share data is not assumed to be zero." in payload["reason"]) == (
+        component == "preferred_shares_outstanding"
+    )
+
+
 def test_number_failure_does_not_relabel_attempted_quote_as_not_requested() -> None:
     """Retained quote failures must remain distinct from early input failure."""
     assembly = GrahamNumberInputAssembly(

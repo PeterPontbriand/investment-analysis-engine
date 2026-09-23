@@ -1006,6 +1006,8 @@ def _resolved_input_payload(value: ResolvedInput | None) -> dict[str, Any] | Non
 
 def _number_payload(p: GrahamNumberPresentation) -> dict[str, Any]:
     status, reason = _effective_status_and_reason(p.assembly.status, p.assembly.reason, p.result)
+    if reason:
+        reason = _number_reason(p, status, reason)
     result_value = (
         p.result.maximum_indicated_price if p.result is not None and p.result.status is CalculationStatus.OK else None
     )

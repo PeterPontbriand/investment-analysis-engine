@@ -15,6 +15,7 @@ from src.cli_support import (
     execution_errors,
 )
 from src.data.base_client import DataFetchError
+from src.data.quality import DataQualityError
 from src.reporting.presentation import PresentationMode
 
 
@@ -34,7 +35,12 @@ def test_intentional_cli_errors_propagate_without_output(error: Exception) -> No
 
 @pytest.mark.parametrize(
     ("error", "message"),
-    [(DataFetchError("private"), "data"), (ValueError("private"), "invalid"), (RuntimeError("private"), "unexpected")],
+    [
+        (DataFetchError("private"), "data"),
+        (DataQualityError("private"), "data"),
+        (ValueError("private"), "invalid"),
+        (RuntimeError("private"), "unexpected"),
+    ],
 )
 def test_execution_errors_classify_without_exposing_exception(error: Exception, message: str) -> None:
     with (

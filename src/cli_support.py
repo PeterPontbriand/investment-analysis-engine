@@ -14,7 +14,7 @@ from src.data.base_client import DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputSeriesCacheProtocol
 from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
-from src.data.quality import HistoricalDataQualityError, HistoricalQualityPolicy, QualityOutcome
+from src.data.quality import DataQualityError, HistoricalDataQualityError, HistoricalQualityPolicy, QualityOutcome
 from src.data.repositories import (
     SQLiteDatabase,
     SQLiteInstrumentProfileRepository,
@@ -155,7 +155,7 @@ def execution_errors(  # noqa: PLR0913
     *,
     unexpected: Callable[[Exception], str],
     invalid: Callable[[ValueError], str] | None = None,
-    data_error: Callable[[DataFetchError], str] | None = None,
+    data_error: Callable[[DataFetchError | DataQualityError], str] | None = None,
     mode: PresentationMode | None = None,
     analysis: str = "unknown",
     method: str = "unknown",
@@ -181,7 +181,12 @@ def execution_errors(  # noqa: PLR0913
                 for item in exc.decisions
                 if item.outcome is QualityOutcome.FAIL
             ]
-        elif isinstance(exc, DataFetchError) and data_error is not None:
+        elif isinstance(exc, DataFetchError | DataQualityError) and data_error is not None:
+            # A non-historical DataQualityError (retrieved data failed a quality rule) is folded
+            # into the same CLI-facing "provider_error" classification as DataFetchError (provider
+            # unreachable): CLI presentation does not yet distinguish the two failure classes for
+            # users. HistoricalDataQualityError, handled above, is excluded from this branch and
+            # keeps its own dedicated code because it already exposes structured rule diagnostics.
             message = data_error(exc)
             code = "provider_error"
         elif isinstance(exc, AnalysisConfigurationError):

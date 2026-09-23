@@ -187,6 +187,12 @@ Current examples:
 - `R1` / `R2` — a refactor-work code: the Graham analyzer
   separation and the analysis-package split, both pure refactors with no new
   functionality.
+- `R3` — a repository-wide dead code audit: locate and remove code, branches,
+  and files that can no longer be reached, across all of `src/`, not scoped to
+  one strategy or module. Scheduled deliberately before Step 3.5 (which adds
+  five new quantitative-screen analyzers) so the audit runs while the
+  codebase is still a manageable size, rather than after another substantial
+  expansion makes the same audit larger and more error-prone.
 - `P1` / `P2` — short for "Profile": the instrument-identity/kind
   applicability work, then the durable instrument-profile cache built on it.
 - `ESC-A` through `ESC-D` — an acronym of "Existing Strategy Correctness" (the
