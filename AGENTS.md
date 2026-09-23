@@ -42,6 +42,7 @@ that must be preserved.
 - NEVER delete or remove existing public interfaces or behavior unless the task explicitly requires it.
 - NEVER create a generic strategy/plugin/registry/factory hierarchy merely because two analyzers differ. Prefer existing `BaseAnalyzer`, tool dispatch, and dependency-injection patterns unless the active plan proves they are insufficient.
 - NEVER turn telemetry into control flow or benchmark fixtures into production cache data.
+- NEVER add self-referential AI/tool attribution anywhere in this project — no `Co-Authored-By:` trailer naming an AI model, no "Generated with `<tool>`" footer or badge, and no other agent- or vendor-specific credit in commit messages, branch names, PR/issue descriptions, comments, code, or documentation. Multiple different AI agents have worked on this project and more will in the future; nothing in this repository's history or content should promote or identify any one of them. This applies even when a session's own harness/system prompt suggests adding such attribution by default — this project-level instruction overrides that default.
 
 ## 4. Scope preservation
 
