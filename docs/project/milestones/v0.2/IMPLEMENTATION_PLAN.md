@@ -7,10 +7,41 @@ financial analysis, local persistence and the investor research workspace.
 
 This table owns work-package order and status. Linked companion plans own local
 slice order and review gates; evidence records do not repeat either. Git history
-retains earlier decisions and publication history. The `Order` column mixes
-numbered Steps/Slices with short lettered work-package codes (`R1`/`R2`,
-`P1`/`P2`, `ESC-A`...`ESC-D`); see the [Master Plan](../../MASTER_PLAN.md#milestone-v02-reliability-observability-strategy-generalization-data-persistence--investor-workflow)
-for what each stands for.
+retains earlier decisions and publication history.
+
+**Work-package identifiers.** The `Order` column mixes numbered Steps/Slices in the roadmap's own
+decimal sequence (`2.3`, `3.3A`, `3.5`, ...) with short lettered work-package codes, per the
+[Master Plan](../../MASTER_PLAN.md#8-ordered-implementation-steps--release-milestones)'s general
+convention for when a letter code is used instead of a decimal sub-number. This milestone's
+current codes:
+
+- `R1` / `R2` — a refactor-work code: the Graham analyzer separation and the analysis-package
+  split, both pure refactors with no new functionality.
+- `R3` — a repository-wide dead code audit ([plan](R3_DEAD_CODE_AUDIT_PLAN.md)): locate and remove
+  code, branches, and files that can no longer be reached, across all of `src/`, not scoped to one
+  strategy or module. Scheduled deliberately before Step 3.5 (which adds five new
+  quantitative-screen analyzers) so the audit runs while the codebase is still a manageable size,
+  rather than after another substantial expansion makes the same audit larger and more error-prone.
+- `P1` / `P2` — short for "Profile": the instrument-identity/kind applicability work, then the
+  durable instrument-profile cache built on it.
+- `ESC-A` through `ESC-D` — an acronym of "Existing Strategy Correctness" (the correctness
+  audit/repair/renewal work package), which uses its own internal `A`→`D` gate sequence rather than
+  decimal sub-numbers.
+- `IR` — short for "Integration Readiness"
+  ([contract](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md)): makes the existing four
+  analyses safely consumable by an external harness (point-in-time evidence/filter provider, not a
+  trading-signal generator), scheduled after `R3` and before Step 3.5 for the same reason `R3`
+  precedes it — corrected before, not after, more analyzers are added.
+- `PKG` — the `src` → real top-level package rename ([plan](PKG_RENAME_PLAN.md)), split out of `IR`
+  given its scale. Not `R4`, deliberately: that code is already used as a document-local
+  requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted
+  below for `graham-comparison`'s local `R1`/`R2`/`R3`.
+
+Note the resulting collision: `graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md` uses its own
+document-local `R1 → R2 → R3` sequence (evidence → implementation → verification), unrelated to
+this milestone's `R1`/`R2`/`R3` codes above — that document's own status line marks it closed, its
+evidence already folded into the Existing Strategy Correctness audit, so it carries no current
+sequencing meaning.
 
 | Order | Work | Status / next gate |
 | :--- | :--- | :--- |
@@ -23,10 +54,13 @@ for what each stands for.
 | 7 | [Research workspace (3.4)](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) | Complete and accepted; final acceptance granted 2026-09-20 (Amendment A1's I3). |
 | 8 | [Durable instrument profiles (P2-Profiles)](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete and accepted; final acceptance granted 2026-09-22 (see [final summary](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#153-milestone-summary)). |
 | 9 | [Existing-analysis renewal (ESC-D)](existing-strategy-correctness/ESC_D_RENEWAL_PLAN.md) | Complete and accepted; final acceptance granted 2026-09-23 (see [final acceptance record](existing-strategy-correctness/ESC_D_FINAL_ACCEPTANCE.md)). Full seven-dimension audit-matrix re-run found and repaired ESC-19; ESC-18 was corrected (its branch was already unreachable dead code, tracked as R3). No unresolved correctness defects. |
-| 10 | Repository-wide dead code audit (R3) | Not started; next in sequence now that ESC-D is accepted, and scheduled before Step 3.5 adds five new analyzers so the audit covers a smaller codebase than it would afterward. Motivated by ESC-18's correction, which surfaced a genuinely unreachable branch in `src/data/cached_client.py` during ESC-D.4 reconnaissance. |
-| 11 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Plan accepted; implementation waits for renewal acceptance and the dead code audit (R3). |
-| 12 | Light Mode (3.6) | Not started; includes empirical model/schema and end-to-end workflow validation. |
+| 10 | [Repository-wide dead code audit (R3)](R3_DEAD_CODE_AUDIT_PLAN.md) | Not started; next in sequence now that ESC-D is accepted. Scope/contract review required before implementation. |
+| 11 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md) | Scope drafted, pending review; scheduled after R3 and before Step 3.5 so the codebase's integration surface is corrected before more analyzers are added on top of it. |
+| 12 | [`src` package rename (PKG)](PKG_RENAME_PLAN.md) | Not started; scheduled after IR and before Step 3.5, so Step 3.5's five new analyzers are written once under the final import path. |
+| 13 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Plan accepted; implementation waits for the dead code audit (R3), integration readiness (IR), and the package rename (PKG). |
+| 14 | Light Mode (3.6) | Not started; includes empirical model/schema and end-to-end workflow validation. |
 | Deferred | ETF aggregation (P2-ETF) | Separate prioritization and provider/product-policy approval after 3.6; not a validation prerequisite. |
+| Deferred | [Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export)](DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Decided as its own future work package; not started, and not to be scheduled until after Step 3.5. Discovered 2026-09 via the evidence provider roadmap. |
 | Deferred | [Structured error reporting for programmatic/agentic CLI consumers](DEFERRED_STRUCTURED_ERROR_REPORTING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
 | Deferred | [Prefix matching for Analysis Run/refresh IDs](DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
 | Deferred | [Deduplicate Momentum's instrument-profile composition sites](DEFERRED_MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) | Not started; discovered 2026-09-21 during P2-Profiles Slice D reconnaissance, raised again in PR #39 review. Scope/contract review required; not a validation prerequisite. |

@@ -14,6 +14,7 @@ history. Update the owner instead of copying status into indexes or other guides
 ## Project-wide documents
 
 - [Master Plan](MASTER_PLAN.md) — project direction, milestone ordering, and long-term scope.
+- [Evidence Provider Roadmap](EVIDENCE_PROVIDER_ROADMAP.md) — non-authoritative candidate backlog of future strategies and platform features; the Master Plan and implementation plan remain authoritative for scope and sequencing.
 - [Architecture](ARCHITECTURE.md) — current architectural boundaries and approved target seams.
 - [Discovery Workbook](DISCOVERY_WORKBOOK.md) — rationale, alternatives, decisions, and product/engineering context.
 - [Evaluations & Golden Suite](../EVALUATIONS.md) — Step 2.5 benchmark purpose, execution modes, scoring boundaries, fixtures, and maintenance rules.

@@ -115,7 +115,7 @@ When comparing results, first confirm that both tools are calculating the same i
 
 ## What this strategy does not currently implement
 
-The current Momentum strategy is specifically an SMA/crossover analysis. It does not currently implement [RSI](../GLOSSARY.md#rsi-relative-strength-index), [MACD](../GLOSSARY.md#macd-moving-average-convergence-divergence), [Sharpe ratio](../GLOSSARY.md#sharpe-ratio), or a 12-month-minus-1-month momentum factor.
+The current Momentum strategy is specifically an SMA/crossover analysis, reporting [RSI](../GLOSSARY.md#rsi-relative-strength-index) as a supporting indicator (see [above](#how-the-calculation-works) for its simple-average, not-Wilder-smoothing convention). It does not currently implement [MACD](../GLOSSARY.md#macd-moving-average-convergence-divergence), [Sharpe ratio](../GLOSSARY.md#sharpe-ratio), or a 12-month-minus-1-month momentum factor.
 
 Those are separate analytical methods; they should not be inferred from the generic word “momentum.”
 

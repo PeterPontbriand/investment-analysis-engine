@@ -161,6 +161,18 @@ System settings are managed through the project's centralized `ProjectSettings` 
 | 4 | v0.3 — analytical expansion and localization | Scope confirmed by validation findings. |
 | 5 | v1.0 — autonomy and reporting | Validation complete and at least one tester-confirmed useful output. |
 
+**Work-package identifiers.** Within an active milestone's own implementation plan, most
+work-package rows follow the roadmap's own decimal Step/Slice numbering (`2.3`, `3.3A`, ...).
+A smaller number of rows instead use a short, milestone-scoped letter code, reserved for work
+that does not fit neatly as a sub-number of one existing Step — typically because it cuts across
+several existing Steps (a refactor, an audit) or was identified mid-milestone rather than planned
+from the start. A bare `Issue #NN` reference is a GitHub issue folded into a work package's scope,
+not a code in this scheme. Within any one lettered or numbered work package, its own contract
+document may further divide implementation into slices (`Slice A`, `Slice B1`, ...) — a
+convention local to that one document, not a project-wide identifier. Each milestone's own
+implementation plan defines, lists, and links its current letter codes; consult that plan for what
+a specific code stands for, rather than expecting this document to enumerate them.
+
 ### **Milestone v0.1: Core Orchestration Engine**
 
 #### Step 1: Local Orchestration Engine & Structured Tool Dispatch
@@ -174,36 +186,6 @@ Deliver deterministic financial analyses with provenance, reliable local orchest
 persistent research records and a usable Light Mode workflow. The
 [implementation plan](milestones/v0.2/IMPLEMENTATION_PLAN.md) owns work-package
 scope, sequencing and status; its companion contracts supply technical detail.
-
-**Reading work-package identifiers.** The implementation plan's own sequence
-table interleaves two kinds of identifier in one ordered list. Most rows are a
-numbered Step or Slice in the roadmap's own decimal sequence (`2.3`, `3.3A`,
-`3.5`, ...). A smaller number of rows instead carry a short, project-specific
-letter code, used for work that does not fit neatly as a sub-number of one
-existing Step — typically because it cuts across several existing Steps (a
-refactor) or was identified mid-milestone rather than planned from the start.
-Current examples:
-
-- `R1` / `R2` — a refactor-work code: the Graham analyzer
-  separation and the analysis-package split, both pure refactors with no new
-  functionality.
-- `R3` — a repository-wide dead code audit: locate and remove code, branches,
-  and files that can no longer be reached, across all of `src/`, not scoped to
-  one strategy or module. Scheduled deliberately before Step 3.5 (which adds
-  five new quantitative-screen analyzers) so the audit runs while the
-  codebase is still a manageable size, rather than after another substantial
-  expansion makes the same audit larger and more error-prone.
-- `P1` / `P2` — short for "Profile": the instrument-identity/kind
-  applicability work, then the durable instrument-profile cache built on it.
-- `ESC-A` through `ESC-D` — an acronym of "Existing Strategy Correctness" (the
-  correctness audit/repair/renewal work package), which uses its own internal
-  `A`→`D` gate sequence rather than decimal sub-numbers.
-
-A bare `Issue #NN` reference is a GitHub issue folded into a work package's
-scope, not a code in this scheme. Within any one lettered or numbered work
-package, its own contract document may further divide implementation into
-slices (`Slice A`, `Slice B1`, ...) — a local convention scoped to that one
-document, not a project-wide identifier.
 
 The [research-workspace contract](milestones/v0.2/step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) defines watchlist, Analysis Run, replay and refresh interfaces with bounded implementation slices.
 
@@ -224,7 +206,7 @@ Momentum, Graham, Free Cash Flow & Earnings Growth, and the Step 3.5 quantitativ
 * **Step 4.1: Additional Fundamental Valuation Multiples & Screening Analyzers:** Add deterministic fundamental and relative-valuation screens using the existing typed analysis and financial-fact boundaries.
   * **Price-to-Cash-Flow and Price-to-Free-Cash-Flow Screens (`P/CF` & `P/FCF`):** Implement analyzers evaluating market capitalization against operating cash flow (`P/CF = Market Cap / Operating Cash Flow`) and free cash flow (`P/FCF = Market Cap / FCF`). These are valuation multiples/screens rather than intrinsic-value models.
   * **Free-Cash-Flow Reuse:** Reuse the Step 2.4 canonical FCF definition (`FCF = CFO - CapEx`), CapEx sign normalization, period-alignment rules, provenance, and edge-case semantics rather than defining a competing FCF calculation. Broader FCF variants or discounted-cash-flow models require separate explicit specification.
-  * **Candidate Independent Analyses:** Subject to separate product-policy approval and data evidence, consider independently typed deterministic analyses for cash-conversion quality; ROIC and incremental-ROIC/reinvestment opportunity; point-in-time estimate revisions; growth-adjusted cash-flow valuation; and leverage and earnings stability. FCF/share growth is owned by Step 2.4 and may be consumed independently by later aggregation. These candidates do not define a composite method.
+  * **Candidate Independent Analyses:** Subject to separate product-policy approval and data evidence, consider independently typed deterministic analyses for cash-conversion quality; ROIC and incremental-ROIC/reinvestment opportunity; point-in-time estimate revisions; growth-adjusted cash-flow valuation; and leverage and earnings stability. FCF/share growth is owned by Step 2.4 and may be consumed independently by later aggregation. These candidates do not define a composite method. See the [Evidence Provider Roadmap](EVIDENCE_PROVIDER_ROADMAP.md) for further, less-developed candidates beyond this list.
   * **Data & Resolution Seam:** Reuse and extend the financial-fact boundary established in Steps 2.3–2.4 rather than adding provider-specific retrieval logic to the analyzer.
 * **Step 4.2: Additional Technical Indicators:** Expand beyond the initial SMA/crossover Momentum implementation (for example RSI/EMA/MACD only when explicitly selected and specified).
 * **Step 4.3: Analytical Aggregator & Risk Metrics:** Combine independent deterministic strategy outputs (for example Graham ceilings, momentum signals, FCF/earnings-growth trends, and cash-flow valuation multiples) into unified typed models with basic risk measures such as maximum drawdown and volatility. Later product-policy work may define a composite screen, universe screening, or cross-sectional ranking over those outputs. Before implementation, any such method must explicitly define and validate its comparison universe; sector-relative versus absolute treatment; normalization and outlier handling; missing-data policy; formulas, thresholds, and weights; point-in-time data boundaries; evaluation/rebalancing frequency; empirical or backtest evidence; and versioned deterministic result semantics. The LLM may select, combine, and explain typed results, but it may not perform, improvise, or silently reweight the financial calculations.
@@ -360,6 +342,7 @@ Documentation lives in the repository and is updated with the code:
 - **`docs/user/GLOSSARY.md`:** Shared project terminology.
 - **`docs/user/HARDWARE.md`:** Light Mode vs Full Dual-Tier requirements and consumer hardware guidance.
 - **`docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`:** Operational implementation detail for the active v0.2 milestone.
+- **`docs/project/EVIDENCE_PROVIDER_ROADMAP.md`:** Non-authoritative candidate backlog of future strategies and platform features; this Master Plan and the implementation plan above remain authoritative for scope and sequencing.
 - **`docs/project/milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`:** Compact approved Step 2.3 method, resolution, provenance, CLI, fixture, and review record.
 - **`docs/project/milestones/v0.2/step-2.4/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`:** Initial Step 2.4 financial, data, CLI, presentation, and review design.
 - **`docs/EVALUATIONS.md`:** Step 2.5 Golden Suite status, usage target, scoring, fixtures, reporting, and extension policy.
