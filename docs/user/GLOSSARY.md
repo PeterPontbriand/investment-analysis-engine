@@ -32,7 +32,7 @@ The implemented forecast-dependent strategy using earnings, expected growth, and
 A stable field that tells the software which configuration, input requirements, calculation, and result model apply for a given strategy's own method(s).
 
 ### Discriminated Union
-A typed set of alternative models selected by a discriminator. It prevents invalid combinations such as supplying a growth rate to a Graham Number request or omitting growth-policy information from a growth-method result.
+A typed set of alternative models selected by a discriminator. It prevents invalid combinations such as supplying a growth rate to a Graham Number request or omitting growth-policy information from a Graham Growth Value result.
 
 ### Input-Resolution Layer
 The code between a CLI/tool request and a deterministic calculator. It obtains each required field from an explicit override, valid cache entry, configured provider, or deterministic fixture and returns typed resolved inputs.
@@ -194,7 +194,7 @@ Profit attributable to common shareholders expressed per common share. EPS may b
 **Basic EPS** uses the weighted-average common shares actually outstanding during the reporting period. **Diluted EPS** also reflects potentially dilutive securities such as options or convertible instruments. Values with different share bases must not be combined silently.
 
 ### TTM (Trailing Twelve Months)
-The most recent continuous twelve-month period represented by available reports. TTM EPS is a current-looking accounting measure but is not the same as one completed fiscal year's EPS or Graham's three-year average. In the current application it is used when the Graham Growth Value method explicitly uses Massive data, not as the standard Graham Number basis.
+The most recent continuous twelve-month period represented by available reports. TTM EPS is a current-looking accounting measure but is not the same as one completed fiscal year's EPS or Graham's three-year average. In the current application it is used when the Graham Growth Value strategy explicitly uses Massive data, not as the standard Graham Number basis.
 
 ### Three-Year-Average EPS
 The arithmetic mean of EPS from three completed fiscal years. Investment Analysis Engine uses this as the standard Graham Number earnings basis and when the Graham Growth Value strategy uses SEC EDGAR earnings data, reflecting Graham's defensive-investor emphasis on average earnings over the preceding three years.

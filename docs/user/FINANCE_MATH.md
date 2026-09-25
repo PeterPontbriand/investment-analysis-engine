@@ -101,11 +101,7 @@ Historical observations are truncated to `bar_timestamp <= as_of` before any met
 
 See the [Momentum Analysis Strategy Guide](strategies/MOMENTUM.md).
 
-## Graham Analysis Strategy
-
-The Graham Analysis Strategy contains two distinct [methods](GLOSSARY.md#method). They share optional market-price comparison but have different formulas, required values, purposes, and limitations.
-
-### Graham Number
+## Graham Number Strategy
 
 ```text
 maximum indicated price = sqrt(22.5 × EPS × BVPS)
@@ -129,7 +125,7 @@ solving the combined limit for price produces the square-root formula.
 
 The output is a **maximum indicated price / screening ceiling** based on earnings and book value. It is not a complete defensive-investor qualification and is not presented as an unquestionable intrinsic value.
 
-#### Earnings convention
+### Earnings convention
 
 The standard Graham Number basis is a three-year average of completed fiscal-year diluted EPS:
 
@@ -144,7 +140,7 @@ Compatibility requires the same provider concept, diluted/basic basis, currency,
 
 TTM EPS is a distinct modern variation where explicitly supported/selected; it never silently replaces the standard three-year average.
 
-#### Book value per common share
+### Book value per common share
 
 ```text
 BVPS = common shareholders' equity / period-end common shares outstanding
@@ -154,11 +150,17 @@ A provider-reported BVPS is usable only when its definition is understood. Inves
 
 Tangible BVPS is a different measure and is not silently substituted.
 
-#### Applicability
+### Applicability
 
 Positive EPS and BVPS are required for the Graham Number. Non-positive EPS or BVPS means the method is not applicable rather than producing a zero or complex-number valuation.
 
-### Graham Growth Value
+### Price comparison
+
+See [Reference-value price comparison](#reference-value-price-comparison) — the Graham Number is one such reference value.
+
+See the [Graham Number Strategy Guide](strategies/GRAHAM_NUMBER.md).
+
+## Graham Growth Value Strategy
 
 ```text
 growth value = normalized EPS
@@ -183,7 +185,7 @@ Where:
 
 This is a forecast-dependent growth-stock estimate. It is not the Graham Number.
 
-#### EPS basis
+### EPS basis
 
 - Graham Growth using SEC EDGAR data uses three-year-average diluted EPS by default. The production tool boundary also supports an explicit single completed fiscal-year EPS basis for reviewed workflows.
 - Graham Growth using explicitly selected Massive data uses current TTM diluted EPS.
@@ -195,11 +197,11 @@ per-share values are compared with quotes only when ordinary-share 1:1 unit
 evidence and matching currencies are affirmative. ADR/ADS and currency
 conversion are not performed.
 
-#### Expected growth
+### Expected growth
 
 The user supplies expected growth explicitly. The software and AI model do not invent, infer, clip, cap, floor, or silently annualize that forecast.
 
-#### AAA yield
+### AAA yield
 
 No automatic current AAA-yield data source is integrated at present. The user therefore supplies the current AAA corporate-bond yield explicitly.
 
@@ -207,7 +209,15 @@ Both baseline and current yields must be strictly positive.
 
 ### Price comparison
 
-For either Graham method, a compatible current market price is optional to the formula itself.
+See [Reference-value price comparison](#reference-value-price-comparison) — the Graham Growth Value estimate is one such reference value.
+
+See the [Graham Growth Value Strategy Guide](strategies/GRAHAM_GROWTH.md).
+
+## Reference-value price comparison
+
+This section applies to every strategy that compares a calculated reference value against a current market price — the Graham Number and Graham Growth Value today.
+
+A compatible current market price is optional to either formula itself.
 
 Automatic share-unit verification currently covers only a single positively
 identified ordinary common-stock class in SEC domestic US-GAAP `10-K` evidence
@@ -245,7 +255,7 @@ An invalid explicit quote override is instead a fatal input error. An override m
 
 A quote in a different currency is not used for a price relationship without an approved currency-conversion mechanism.
 
-### Mathematical validation
+## Mathematical validation
 
 NaN, infinity, and mathematically invalid configuration values are rejected deterministically.
 

@@ -77,12 +77,12 @@ from src.evaluation.ollama_runner import (
 from src.evaluation.reporting import EvaluationReport
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.llm.client import LLMClient
+from src.reporting.evidence_presentation import friendly_valuation_failure
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.graham_growth import GrahamGrowthPresentation, growth_with_public_quote_reason, render_graham_growth
 from src.reporting.graham_number import GrahamNumberPresentation, number_with_public_quote_reason, render_graham_number
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
-from src.reporting.valuation_presentation import friendly_valuation_failure
 from src.workspace.execution import (
     ExecutionCapture,
     execute,

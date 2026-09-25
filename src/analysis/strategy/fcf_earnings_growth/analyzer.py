@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
 from src.analysis.shared.financial_resolution import is_known_etf, validate_profile_ticker
 from src.analysis.strategy.fcf_earnings_growth.calculators import classify_fcf_earnings_growth
 from src.analysis.strategy.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
@@ -77,7 +77,7 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarning
             raise ValueError("FCF effective execution time must be timezone-aware.")
         policy = config.policy
         instrument_profile = context.instrument_profile
-        normalized_ticker = ticker.strip().upper()
+        normalized_ticker = require_ticker(ticker)
         validate_profile_ticker(
             ticker,
             instrument_profile,
@@ -139,7 +139,7 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarning
             warnings.append("Forward consensus policy was selected, but approved consensus evidence is unavailable.")
 
         return FCFEarningsGrowthResult(
-            ticker=ticker.strip().upper(),
+            ticker=normalized_ticker,
             requested_as_of=context.as_of,
             effective_as_of=boundary,
             policy=policy,

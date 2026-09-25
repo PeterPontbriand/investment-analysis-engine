@@ -8,7 +8,7 @@ Graham Growth Value is an explicitly selected, forecast-dependent calculation. I
 
 Graham Growth Value applies a forecast-dependent Graham-style formula using earnings, expected growth, and a current AAA corporate-bond yield, using a deterministic calculation based on explicitly defined financial values and conventions.
 
-The exact formula is documented in [Financial Math](../FINANCE_MATH.md#graham-analysis-strategy).
+The exact formula is documented in [Financial Math](../FINANCE_MATH.md#graham-growth-value-strategy).
 
 ## Quick start
 
@@ -104,30 +104,7 @@ Verification reads at most four filings, each limited to 8 MiB and a 20-second
 transport timeout, without redirects or automatic retries. Filing evidence is
 verified again on each invocation, including when financial inputs are cached.
 
-## Presentation modes
-
-### Default
-
-Designed to answer:
-
-- What is the result?
-- What does it mean?
-- What are the most important sources/assumptions?
-- Is there an important limitation or warning?
-
-When supported provider evidence supplies an instrument name, the heading shows `Instrument Name (TICKER)`; otherwise it uses the ticker alone. Identity metadata is descriptive and cannot change a Graham Growth Value calculation or its status.
-
-### `--details`
-
-Shows compact financial inputs, reporting dates, bases, sources, calculation formulas and material assumptions. Repeated source components appear once. Where retained, the filing link and its historical exchange evidence are shown separately from current listing verification. Display rounding does not change the calculation.
-
-### `--diagnostics`
-
-Retains the full technical input evidence and software resolution behavior: provider fields, recursive lineage, notes, retrieval timestamps, share contexts, and override/cache/provider selection or failures. JSON also retains this evidence.
-
-### `--json`
-
-Emits [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json-javascript-object-notation), including the stable result/provenance representation and an explicit nullable security-identity snapshot.
+Presentation modes (default, `--details`, `--diagnostics`, `--json`) are shared across both Graham strategies — see the [overview's Presentation modes section](GRAHAM.md#presentation-modes).
 
 ## Inputs, assumptions, and overrides
 
@@ -177,19 +154,7 @@ The current Massive integration supplies current [TTM](../GLOSSARY.md#ttm-traili
 
 See [Installation & Configuration — Massive](../INSTALLATION.md#optional-massive-market-data-access).
 
-## Point-in-time analysis
-
-`--as-of` creates an information boundary:
-
-```bash
-uv run ian graham-growth KO --expected-growth 5 --aaa-yield 4.5 --as-of 2025-12-31
-```
-
-A fiscal period ending before that date is not automatically eligible. The supporting filing must also have been available by the requested boundary.
-
-This distinction helps prevent [look-ahead bias](../GLOSSARY.md#look-ahead-bias).
-
-Current-only quote providers do not manufacture historical quotes. A historical Graham Growth Value calculation can therefore succeed while the market-price comparison is omitted.
+Point-in-time (`--as-of`) analysis is also shared across both Graham strategies — see the [overview's Point-in-time analysis section](GRAHAM.md#point-in-time-analysis).
 
 ## Why another Graham growth-value calculator may disagree
 
@@ -243,6 +208,6 @@ Nothing produced by this strategy is investment advice.
 
 - [Graham Number Strategy Guide](GRAHAM_NUMBER.md)
 - [Usage Guide](../USAGE.md)
-- [Financial Math — Graham Analysis Strategy](../FINANCE_MATH.md#graham-analysis-strategy)
+- [Financial Math — Graham Growth Value Strategy](../FINANCE_MATH.md#graham-growth-value-strategy)
 - [Glossary](../GLOSSARY.md)
 - [Installation & Configuration](../INSTALLATION.md)

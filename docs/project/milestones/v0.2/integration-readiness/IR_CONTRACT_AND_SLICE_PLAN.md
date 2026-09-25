@@ -117,7 +117,9 @@ In scope, each independently landable:
      twice, uninjectable, and its internal quality re-check ignores `as_of` and duplicates the check
      `MomentumInputResolver.resolve()` already performed. **Decided:** the resolver checks and
      publishes quality once, exactly as today; `run_analysis` performs its own independent,
-     `as_of`-aware re-check using `context.effective_as_of` as its clock (defense in depth) but does
+     `as_of`-aware re-check using `context.executed_at` as its clock (defense in depth; per §6.11's
+     corrected rule, `effective_as_of` is never wired as a clock — the resolver's own truncation to
+     `as_of` already happened before this re-check runs) but does
      **not** publish. The frame-based calculation is extracted into a pure module-level function,
      `compute_momentum_metrics(df, config, ticker, timestamp) -> MomentumMetrics`, with no quality
      check, telemetry, clock read, or logger of its own. Closes the point-in-time-integrity gap
@@ -200,6 +202,16 @@ diff is non-executable declarative metadata with no import-time or runtime effec
   *internal* config/context shapes and persisted evidence/config schemas that produce that output
   may, per `AGENTS.md` §0 — version fields bump accordingly, with no migration or compatibility
   code for stored data during this consolidation period.
+  **Accepted exception (IR.2.2, 2026-09-26):** `friendly_graham_failure`'s renaming to
+  `friendly_valuation_failure` (§6.13.5 — the function generalizes as it moves to the neutral
+  `evidence_presentation.py` module, ahead of NCAV/EPV/reverse-DCF strategies needing the same
+  failure-prose helper) changed its wording from "the requested Graham inputs are invalid" to "the
+  requested inputs are invalid." This is an investor-facing presentation-output wording change, not
+  a formula, classification, or exit-code change — the failure is still reported under the exact
+  same conditions, with the exact same status and exit code, just described without a now-inaccurate
+  strategy name once the function is no longer Graham-specific. Recorded here rather than silently
+  allowed, per this criterion's own "do not change" rule; every affected test assertion was updated
+  to match, not left passing by coincidence.
 - The complete managed gate (`scripts/run-quality-gates.ps1` / `.sh`), ≥85% coverage, after every
   slice that touches Python source, tests, or executable configuration. IR.1 is exempt per §3's
   sequencing note above.
@@ -303,19 +315,23 @@ commit this inventory was written against; they will drift normally during imple
    (`cli.py:216-217,247`), and `run_momentum` constructs `MomentumAnalyzer(default_ticker=ticker, ...)`
    relying on its internal `self._fallback_ticker = default_ticker or default_section[ConfigKeys.TICKER]`
    (`momentum_analyzer.py:137`).
-9. **Confirmed, and folded into IR.2 (decided 2026-09-24).** `src/cli_composition.py:64-84`'s
+9. **Confirmed, and folded into IR.2 (decided 2026-09-24; clock value corrected 2026-09-26 —
+   see §6.11).** `src/cli_composition.py:64-84`'s
    `build_graham_resolver` never passes `clock=` when constructing `GrahamNumberInputResolver`/
    `GrahamGrowthInputResolver`, so those resolvers fall back to their own un-injected default clock
    internally for quote-freshness evaluation (`QuoteFreshnessPolicy`). Per the project owner's
    direction — "the rule is one clock per run" — this is fixed, not escalated-and-left: every
-   composition root that calls `build_graham_resolver` computes `effective_as_of` once, early
-   (mirroring the pattern FCF's `cli.py:fcf_growth` command already uses:
-   `boundary = analysis_as_of or datetime.now(UTC)`), and passes it both as the resolver's injected
-   `clock=` *and* as `context.effective_as_of` — one value, two injection points, not two
-   independently-derived clocks. This closes the exception §6.3 previously carved out for Graham:
-   after this fix, all four analyzers' resolution paths read `context.effective_as_of` (Graham and
-   FCF via their resolvers' injected clock; Momentum directly). Full plan: §6.12 (IR.2.3, clock
-   unification, renumbered — §6.13 inserts Graham strategy separation as IR.2.2 ahead of it). Two
+   composition root that calls `build_graham_resolver` computes `executed_at` once, early
+   (mirroring the pattern FCF's `cli.py:fcf_growth` command already uses for its own resolver
+   clock), and passes it as the resolver's injected `clock=` — quote-freshness evaluation is a
+   real-elapsed-time decision, so it reads `executed_at`, never `effective_as_of` (§6.11's corrected
+   rule: `effective_as_of` is a cutoff passed as data, never wired through a `clock=` parameter).
+   `effective_as_of` is supplied to `context` separately, unchanged. This closes the exception §6.3
+   previously carved out for Graham: after this fix, all four analyzers' quote/freshness paths read
+   `context.executed_at` (Graham and FCF via their resolvers' injected clock; Momentum directly),
+   and every truncation/availability decision reads `context.effective_as_of` as data. Full plan:
+   §6.12 (IR.2.3, clock unification, renumbered — §6.13 inserts Graham strategy separation as
+   IR.2.2 ahead of it). Two
    more hardcoded `datetime.now(UTC)` calls surfaced while investigating this —
    `src/analysis/strategy/fcf_earnings_growth/input_resolver.py:234` and
    `src/data/financial/resolver.py:1236`, both inside shared quality-event-publishing helpers used
@@ -492,7 +508,7 @@ closed.
 | Field | Momentum today | Graham (Number/Growth) today | FCF today | Target (all four) |
 | :--- | :--- | :--- | :--- | :--- |
 | `as_of` | `run_with_context(as_of=...)` param; no persisted field (`MomentumSelection` has none) | `_GrahamConfig.as_of` field on the persisted selection *and* the analyzer config (same field, same object today) | `run_analysis(as_of=...)` kwarg; `FCFGrowthSelection.as_of` persisted separately | `context.as_of`, unchanged meaning. Persisted selections keep their `as_of` field; `GrahamNumberSelection`/`GrahamGrowthSelection`/`FCFGrowthSelection` unchanged. `MomentumSelection` **gains** a persisted `as_of` field it did not have (see note below) so its selection shape matches the other three, consistent with "one meaning, used by all four" rather than "Momentum accepts none" remaining a caller-visible special case; `config_schema_version` bumps. The analyzer-facing `GrahamNumberConfig`/`GrahamGrowthConfig` **lose** the field (moves into context). |
-| `executed_at` / `effective_as_of` | Does not exist | Does not exist; resolver's own clock (when injected at all — often not, §6.1 item 9) is separate from anything the analyzer sees | `run_analysis(effective_as_of=...)` kwarg, falls back internally to `as_of or datetime.now(UTC)` — the two concerns already collapsed into one value (§6.1 item 12) | `context.executed_at`, required, always caller-supplied — a single aware read of "now" taken once per run, the **sole clock** for freshness/TTL/result-timestamp concerns. `context.effective_as_of` (derived: `as_of or executed_at`) is the **sole point-in-time cutoff** every analyzer's resolution path reads for data truncation/availability. Momentum: quality re-check clock and result timestamp read `executed_at`; the resolver's `as_of`-bounded truncation reads `effective_as_of`. FCF: its internal fallback is deleted outright; the resolver's injected clock is fed `effective_as_of`, the same cutoff embedded in the result. Graham: `build_graham_resolver` (and every composition root that calls it) now requires a `clock=` argument, computed once per call the same way FCF's `boundary` already is, fed `effective_as_of` for the resolver and `executed_at` for `context` — closing the exception the first pass of this inventory left open (§6.1 item 9). |
+| `executed_at` / `effective_as_of` | Does not exist | Does not exist; resolver's own clock (when injected at all — often not, §6.1 item 9) is separate from anything the analyzer sees | `run_analysis(effective_as_of=...)` kwarg, falls back internally to `as_of or datetime.now(UTC)` — the two concerns already collapsed into one value (§6.1 item 12) | `context.executed_at`, required, always caller-supplied — a single aware read of "now" taken once per run, the **sole clock** for freshness/TTL/result-timestamp concerns. `context.effective_as_of` (derived: `as_of or executed_at`) is the **sole point-in-time cutoff** every analyzer's resolution path reads for data truncation/availability. Momentum: quality re-check clock and result timestamp read `executed_at`; the resolver's `as_of`-bounded truncation reads `effective_as_of` as data, not a clock. FCF: its internal fallback is deleted outright; the resolver's injected clock is fed `executed_at` (its own event-timestamp use), and the truncation boundary it resolves against is `effective_as_of`, passed separately as data — the same cutoff embedded in the result, never wired through the clock. Graham: `build_graham_resolver` (and every composition root that calls it) now requires a `clock=` argument, computed once per call the same way FCF's `executed_at` already is, fed `executed_at` for the resolver's own clock and separately supplying `effective_as_of` as data wherever the resolver needs the truncation boundary — closing the exception the first pass of this inventory left open (§6.1 item 9). |
 | `use_cache` | Does not exist anywhere (CLI, selection, resolver, or cache composition) | Two independent controls today, not one — see §6.1 item 10 | `run_analysis(use_cache=...)` kwarg | `context.use_cache`, the **single** control governing every cache read/write for the run, in all four analyzers. The durable cache is always wired at composition but opens storage lazily on first actual use (Graham/FCF's build-time `enabled` switch is removed — §6.1 item 10, revised to avoid a Step 3.3A readiness regression); the per-call flag alone decides read/write. Momentum gains this end-to-end, including a new `--no-cache` CLI flag and `MomentumSelection`/`MomentumToolArguments` fields — full plan in §6.9. |
 | `instrument_profile` | Orchestrator: attached post-hoc via `dataclasses.replace(run, instrument_profile=profile)`. Workspace: never attached to `MomentumRun` — stays `None`; the resolved profile travels only via `MomentumCapture.profile`. | Construction-time, single value per analyzer instance | Per-call kwarg, embedded in the returned result | `context.instrument_profile`, embedded in every result by every caller — "the identity evidence for this run," regardless of whether the calculation consulted it. Momentum's `run_analysis` now sets `MomentumRun.instrument_profile = context.instrument_profile` unconditionally on every path; the orchestrator's `replace()` is deleted (no longer needed — the profile arrives already embedded); the workspace's `MomentumCapture`/`ExecutionCapture.profile` is read **from the result** (`run.instrument_profile`) rather than carried as a second, separately-composed value. This changes the persisted native-evidence shape for Momentum going forward — `MomentumRun`'s `result_schema_version` bumps (§6.10). |
 | `security_provider_id` / `quote_provider_id` (Graham) | n/a | Orchestrator: fixed per deployment, no tool-argument field. Workspace: user-selected, persisted. | n/a | **Unchanged — stay on `GrahamNumberConfig`/`GrahamGrowthConfig`, per call**, per the project owner's direction (item 5). No tool-argument, CLI option, or persisted-selection schema change. |
@@ -735,7 +751,7 @@ is unaffected since `GrahamNumberAnalysis`/`GrahamGrowthAnalysis` gain no new po
 `FCFGrowthSelection` is unaffected (unchanged persisted shape); `FCFEarningsGrowthResult` is
 unaffected (its `instrument_profile` was already always populated).
 
-### 6.11 `datetime.now`/`datetime.utcnow`/`time.time` audit, classified by purpose, and the shared-clock helper (item 3, revised 2026-09-24)
+### 6.11 `datetime.now`/`datetime.utcnow`/`time.time` audit, classified by purpose, and the shared-clock helper (item 3, revised 2026-09-24; clock rule corrected 2026-09-26)
 
 **Revised per the project owner's explicit rejection of the narrowed-scope recommendation.** The
 Category-C "already injectable, defaults to the wall clock" pattern is not a safe exception — it is
@@ -743,29 +759,46 @@ exactly how the Graham resolver bug (§6.1 item 9) happened: an injectable clock
 composition root ever actually injected, silently falling back to `datetime.now`. The distinction
 that matters is not "injectable vs. hardcoded," it is **what the clock value is used for**:
 
-- **Decision clocks** — freshness/TTL evaluation, quality checks, `as_of`/availability comparisons —
-  become **required** injected parameters, no default, fed from `context.effective_as_of` by
-  whichever composition root is running (the same "one value, two injection points" pattern already
-  established for Graham's resolver, §6.1 item 9).
+**Corrected 2026-09-26 — every injected clock receives `context.executed_at`; `effective_as_of` is
+never a clock.** An earlier pass of this section fed every "decision clock" from
+`context.effective_as_of`, including cache/TTL freshness checks. That is wrong: TTL freshness answers
+"how much real time has elapsed since this was cached," which must be judged against the run's actual
+execution clock, not the requested historical boundary — feeding a historical `effective_as_of` into
+a TTL comparison would make a cache entry's judged age track the requested `--as-of` date instead of
+how long ago it was actually written, unrelated to whether the historical fact it holds is itself
+still eligible. `effective_as_of` is the point-in-time **cutoff** for data-truncation/availability
+decisions (was this fact knowable by the requested boundary); it is passed as an ordinary data
+argument wherever that specific decision is made, and never wired through a `clock: Callable[[],
+datetime]` constructor parameter.
+
+- **Decision clocks** — cache/TTL freshness evaluation, quality checks — become **required** injected
+  parameters, no default, fed from `context.executed_at` by whichever composition root is running
+  (the same "one value, two injection points" pattern already established for Graham's resolver,
+  §6.1 item 9, corrected here to the right value). Where the same class also needs the requested
+  point-in-time cutoff for an `as_of`-based availability/eligibility decision (SEC EDGAR's filing
+  eligibility, below), that cutoff is a separate, ordinary method/call argument fed
+  `context.effective_as_of` as data — never the injected clock.
 - **Event timestamps** — recording when something actually happened (a row was written, a provider
   response was received, a telemetry span was recorded, a log line was rotated) — may still use the
   real wall clock, but **only** through one shared helper, `src/core/clock.py`'s `utc_now() -> datetime`
-  (new module), never an inline `datetime.now(UTC)`/`datetime.utcnow()`/`time.time()` call.
+  (new module), never an inline `datetime.now(UTC)`/`datetime.utcnow()`/`time.time()` call. `utc_now()`
+  and `context.executed_at` read the same underlying clock; `utc_now()` is for call sites that read it
+  directly rather than through an injected `AnalysisContext`.
 
 Every call site under `src/` (excluding tests), reclassified on that basis. Files whose clock
 **feeds even one decision use** become required-no-default overall, even where the same clock also
 happens to stamp an event timestamp — a constructor parameter cannot be "sometimes required."
 
-**Decision clocks → required, no default, fed from `context.effective_as_of`:**
+**Decision clocks → required, no default, fed from `context.executed_at`:**
 
 | File / class | What it decides |
 | :--- | :--- |
-| `src/data/cached_client.py` (`CachedHistoricalDataClient`) | Historical-cache freshness/TTL and quality evaluation (`_quality_error`). |
-| `src/data/financial/cache.py` | Resolved-input cache freshness/TTL evaluation (line 465's conditional `datetime.now(UTC)` fallback is removed along with the default — the clock is always available once required). |
-| `src/data/financial/resolver.py` | Financial-fact quality/freshness/availability checks (`financial_quality_error`, `evaluate_quote_freshness`, `stored.available_at > self._clock()`); its class-level `_DEFAULT_CLOCK` is removed. The Category-B `_event` helper (§6.1 item 9's note, line 1236) is the same file, same fix. |
-| `src/data/instrument_profile_cache.py` (`CachedInstrumentProfileResolver`) | Instrument-profile cache freshness/TTL evaluation (`_is_fresh`). |
-| `src/data/repositories/resolved_input_cache.py` (`SQLiteResolvedInputCache`) | Same TTL freshness decision as `financial/cache.py`, at the repository layer (line 284's conditional fallback removed the same way). |
-| `src/data/sec_edgar/financial_facts.py` | `provider_now` (line 429) feeds `_eligible_annual_candidates(..., now=...)` — a point-in-time eligibility decision, not just a timestamp; this file's other three `self._clock()` calls (lines 235, 343, 532) are pure event uses but share the same constructor parameter, so the whole class's clock becomes required. |
+| `src/data/cached_client.py` (`CachedHistoricalDataClient`) | Historical-cache freshness/TTL and quality evaluation (`_quality_error`), judged against real elapsed time. |
+| `src/data/financial/cache.py` | Resolved-input cache freshness/TTL evaluation (line 465's conditional `datetime.now(UTC)` fallback is removed along with the default — the clock is always available once required), judged against real elapsed time. |
+| `src/data/financial/resolver.py` | Financial-fact quality/freshness checks (`financial_quality_error`, `evaluate_quote_freshness`, `stored.available_at > self._clock()`) judged against real elapsed time; its class-level `_DEFAULT_CLOCK` is removed. The Category-B `_event` helper (§6.1 item 9's note, line 1236) is the same file, same fix. |
+| `src/data/instrument_profile_cache.py` (`CachedInstrumentProfileResolver`) | Instrument-profile cache freshness/TTL evaluation (`_is_fresh`), judged against real elapsed time. |
+| `src/data/repositories/resolved_input_cache.py` (`SQLiteResolvedInputCache`) | Same TTL freshness decision as `financial/cache.py`, at the repository layer (line 284's conditional fallback removed the same way), judged against real elapsed time. |
+| `src/data/sec_edgar/financial_facts.py` | This file's `self._clock()` calls (lines 235, 343, 532) are pure event uses, now fed `executed_at`. `provider_now` (line 429) currently reuses the same injected clock to feed `_eligible_annual_candidates(..., now=...)` — a point-in-time *eligibility* decision (was this filing available by the requested boundary), which is an `effective_as_of` concern, not a clock. That call site changes to take the boundary as an explicit argument fed `context.effective_as_of`, separate from the class's own `executed_at`-fed clock; the constructor's clock parameter stays required (for the three event uses), but stops doubling as the eligibility boundary. |
 
 **Event timestamps → keep a default, routed through `utc_now()`:**
 
@@ -799,9 +832,11 @@ purpose to cover log rotation. Say if this should be included instead.
 `src/utils/logger_util.py` exemption above pending confirmation. Every decision-clock class's
 newly-required `clock` parameter is satisfied by every composition root
 (`cli.py`, `cli_workspace.py`, `cli_composition.py`, `src/evaluation/composition.py`) passing
-`lambda: effective_as_of` (or the resolved value directly, matching whatever shape each constructor
-already expects) — the same cutoff value the composition root derives once (`as_of or executed_at`)
-and that becomes `context.effective_as_of` for the analyzer call in the same invocation.
+`lambda: executed_at` (or the resolved value directly, matching whatever shape each constructor
+already expects) — the same single clock read the composition root takes once per run and that
+becomes `context.executed_at` for the analyzer call in the same invocation. Where a class also needs
+the truncation/eligibility boundary (SEC EDGAR's `_eligible_annual_candidates`, above), that boundary
+is passed as a separate, ordinary argument fed `context.effective_as_of` — not through this clock.
 
 **Slice placement (revised — see §6.12): this is materially larger than clock unification's
 original Graham-resolver-clock scope** — six classes made non-optional, nine files migrated to a new
@@ -840,8 +875,8 @@ not one to expose on `main`.
 | :--- | :--- | :--- | :--- |
 | **IR.2.1 — Envelope and single entry point** | `AnalysisContext`/`BaseAnalyzer[ConfigT, ResultT]` (§6.3); every analyzer's `run_analysis(ticker, config, context)` signature; `FCFEarningsGrowthAnalyzer` brought under `BaseAnalyzer` with the new `FCFEarningsGrowthConfig`; the orchestrator's Graham handlers unified onto the analyzer classes (removing the service-function bypass, §6.1 item 5); ticker required everywhere, Graham's `_resolve_ticker` fallback deleted (§6.1 item 8); the consolidated selection→`(config, context)` mapping used by both `cli.py` and `cli_workspace.py` (§6.8). Structural conformance tests land here (§6.6 items 1–4). At this slice's boundary, `context.effective_as_of`/`context.use_cache` exist and are threaded to wherever each analyzer already had an equivalent parameter, but Graham's resolver clock, the Graham strategy split, the broader data-layer clock consolidation, and Momentum's cache/quality-check/profile/dependency work are *not* yet done — those are 2.2–2.6. | — (foundational) | ...on one invocation shape, with `context` fully defined and consumed wherever an equivalent concept already existed. |
 | **IR.2.2 — Graham strategy separation** | Full plan: §6.13. `graham_contracts.py`, `_GrahamConfig`, `_GrahamSelection`, and its `GrahamMethod` tag are removed entirely; Graham Number and Graham Growth Value each own their complete config, selection, EPS-basis acceptance rule and defaults, result, and presentation, with zero shared Graham-specific code. Genuinely general behavior moves to neutral homes: provider EPS-basis capability to a new `src/data/financial/eps_basis.py` (also fixing §6.1 item 13 — one provider-driven default rule, `three_year_average` for SEC EDGAR, `ttm` for everything else including Massive, applied identically by both methods at every entry point); quote resolution and the price-relationship comparison stay in the already-neutral `financial_resolution.py`; a new `src/reporting/valuation_presentation.py` absorbs the reporting helpers shared today, ahead of NCAV/EPV/reverse-DCF needing the same presentation primitives; `reporting/graham.py` splits into `reporting/graham_number.py`/`reporting/graham_growth.py`. Each method gets its own `analysis_id` (`graham_number`, `graham_growth_value`, matching its existing `method_id`) with version-field bumps (§6.10 pattern); the Golden suite's separate `graham_method_selection` evaluation category folds into ordinary strategy-selection (§6.13.7). `GRAHAM.md` splits into `GRAHAM_NUMBER.md`/`GRAHAM_GROWTH.md` plus a short linking overview; the milestone exit criteria's "Graham method-selection" metric becomes ordinary tool selection. No formula, classification, or result changes — the Golden suite passes unchanged apart from identifiers. | IR.2.1 | ...with each Graham method a complete, independent, equally-good example of implementing a strategy — no shared Graham-specific base for anything downstream to build on by habit. |
-| **IR.2.3 — Clock unification (analyzer/resolver layer)** | Every consumer in `src/analysis/**` is wired to the field matching its own concern, per §6.1 item 12: freshness/TTL/result-timestamp reads use `context.executed_at`; data-truncation/availability reads use `context.effective_as_of` (the derived cutoff). Graham Number's and Graham Growth's now-independent resolvers each gain an injected clock from their own composition-root construction, fed `effective_as_of` for truncation (§6.1 item 9); FCF's internal fallback and `cli_workspace.py`'s duplicate are deleted, both replaced by the composition root's single `executed_at` read plus the derived `effective_as_of`; the two Category B hardcoded quality-event calls (§6.11) are fixed to read `executed_at`; Momentum's quality-check/clock restructuring lands (resolver checks-and-publishes once using `effective_as_of` for its `as_of`-aware truncation, `run_analysis` re-checks independently without publishing, `compute_momentum_metrics` extracted as a genuinely pure function, §2 item 4). Establishes the "compute `executed_at` once per run, derive `effective_as_of` from it, thread each to the consumer that needs it" composition-root pattern that IR.2.4 extends more broadly. | IR.2.1, IR.2.2 (touches two clean, independent Graham packages, not a shared base mid-transition) | ...every freshness/TTL/timestamp read sourced from `context.executed_at` and every truncation/availability read sourced from `context.effective_as_of`, nowhere else, in the analysis/resolver layer, with no remaining exception. |
-| **IR.2.4 — Data-layer clock consolidation** | New `src/core/clock.py` (`utc_now()`); six decision-clock classes (`CachedHistoricalDataClient`, `financial/cache.py`, `financial/resolver.py`, `CachedInstrumentProfileResolver`, `SQLiteResolvedInputCache`, SEC EDGAR's provider) become required-clock, no default, fed from `context.effective_as_of` by every composition root; nine event-timestamp files migrate their `datetime.now(UTC)`-defaulting pattern to `utc_now()` (§6.11's full table). The `datetime.now`/`utcnow`/`time.time` conformance check (§6.6 item 5) lands here, scanning all of `src/` with `src/core/clock.py` as the only exception, plus the named `logger_util.py` exemption pending confirmation (§6.11). | IR.2.3 (reuses its composition-root pattern; touches far more files, hence its own slice) | ...with every decision clock anywhere in the codebase sourced from the same `effective_as_of`, and every event timestamp sourced from one shared helper. |
+| **IR.2.3 — Clock unification (analyzer/resolver layer)** | Every consumer in `src/analysis/**` is wired to the field matching its own concern, per §6.1 item 12: freshness/TTL/result-timestamp reads use `context.executed_at`; data-truncation/availability reads use `context.effective_as_of` (the derived cutoff). Graham Number's and Graham Growth's now-independent resolvers each gain an injected clock from their own composition-root construction, fed `executed_at` (never `effective_as_of` — that stays a separate data argument wherever the resolver needs the truncation boundary, §6.1 item 9); FCF's internal fallback and `cli_workspace.py`'s duplicate are deleted, both replaced by the composition root's single `executed_at` read plus the derived `effective_as_of` passed as data; the two Category B hardcoded quality-event calls (§6.11) are fixed to read `executed_at`; Momentum's quality-check/clock restructuring lands (resolver checks-and-publishes once using `effective_as_of` as data for its `as_of`-aware truncation, `run_analysis` re-checks independently without publishing, `compute_momentum_metrics` extracted as a genuinely pure function, §2 item 4). Establishes the "compute `executed_at` once per run, derive `effective_as_of` from it, thread each to the consumer that needs it" composition-root pattern that IR.2.4 extends more broadly. | IR.2.1, IR.2.2 (touches two clean, independent Graham packages, not a shared base mid-transition) | ...every freshness/TTL/timestamp read sourced from `context.executed_at` and every truncation/availability read sourced from `context.effective_as_of`, nowhere else, in the analysis/resolver layer, with no remaining exception. |
+| **IR.2.4 — Data-layer clock consolidation** | New `src/core/clock.py` (`utc_now()`); six decision-clock classes (`CachedHistoricalDataClient`, `financial/cache.py`, `financial/resolver.py`, `CachedInstrumentProfileResolver`, `SQLiteResolvedInputCache`, SEC EDGAR's provider) become required-clock, no default, fed from `context.executed_at` by every composition root — TTL/freshness decisions are judged against real elapsed time, never the requested historical boundary; SEC EDGAR's filing-eligibility check stops reusing the injected clock for that purpose and instead takes the boundary as an explicit argument fed `context.effective_as_of` as data (§6.11); nine event-timestamp files migrate their `datetime.now(UTC)`-defaulting pattern to `utc_now()` (§6.11's full table). The `datetime.now`/`utcnow`/`time.time` conformance check (§6.6 item 5) lands here, scanning all of `src/` with `src/core/clock.py` as the only exception, plus the named `logger_util.py` exemption pending confirmation (§6.11). | IR.2.3 (reuses its composition-root pattern; touches far more files, hence its own slice) | ...with every decision clock anywhere in the codebase sourced from `context.executed_at`, every truncation/eligibility decision sourced from `context.effective_as_of` passed as data, and every event timestamp sourced from one shared helper. |
 | **IR.2.5 — Cache unification** | `context.use_cache` becomes the sole cache control for all four: `_production_financial_cache`'s `enabled` parameter removed; the durable cache is always wired at composition but opens storage lazily on first actual read/write, so `use_cache=False` never touches storage — matching today's behavior and avoiding a Step 3.3A readiness-check regression (§6.1 item 10, revised); Momentum's `BaseDataClient`/`MarketDataProvider`/`CachedHistoricalDataClient` gain a threaded `use_cache` parameter (§6.9's mechanism, steps 1–4), given the same lazy-open treatment for symmetry. This slice builds the *mechanism*; it does not yet add Momentum's `--no-cache` CLI surface — every composition root passes a fixed `use_cache=True` for Momentum until IR.2.6 wires a real toggle, which is a caller-surface gap, not an analyzer inconsistency (all four `run_analysis` bodies already consume `context.use_cache` identically at this point). | IR.2.1 (independent of 2.2/2.3/2.4 — either order works; listed after them to match the project owner's example ordering) | ...consuming `context.use_cache` identically, with the underlying data/cache-client layer able to honor it end-to-end without any storage-readiness regression. |
 | **IR.2.6 — Momentum parity** | Everything that makes Momentum's *caller-facing surface* match the other three, not just its internals: `instrument_profile` embedded unconditionally in `MomentumRun` (orchestrator's `replace()` deleted, workspace reads the profile from the result, §6.4); real `--as-of`/`--no-cache` CLI options, `MomentumSelection.as_of`/`use_cache` fields, and `MomentumToolArguments.use_cache` (it already inherits `as_of`, §2 item 4); `MomentumAnalyzer.__init__` loses its `YFinanceClient()` default and `settings` reads (injected/required dependencies, §6.5); the TOML ticker-default fallback moves to the CLI; `MomentumPolicy` is deleted in favor of `MomentumConfig` (§2 item 4). Version bumps (§6.10) land here, since this is the slice that actually changes `MomentumSelection`'s and `MomentumRun`'s persisted shape. `MOMENTUM.md`'s retroactive-price-revision note (§6.9) lands here too. | IR.2.1, IR.2.3 (needs `effective_as_of` for `--as-of` to mean anything), IR.2.5 (needs the cache mechanism for `--no-cache` to mean anything) | ...at full parity: every field of `AnalysisContext` genuinely exercisable through every analyzer's real caller-facing surface, no placeholders, no known gaps. |
 

@@ -71,7 +71,7 @@ def test_verified_comparison_reaches_cli_and_cache(command: str, mode: str, bypa
             assert result.exit_code == 0, result.output
             if mode == "--json":
                 payload = json.loads(result.stdout)
-                assert payload["schema_version"] == 5
+                assert payload["schema_version"] == 6
                 comparison = payload["price_comparison"]
                 assert comparison["status"] == "available", comparison
                 assert comparison["provenance"]["documents"][0]["accession"] == "0001628280-26-010047"

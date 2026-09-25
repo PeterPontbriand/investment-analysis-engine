@@ -13,39 +13,41 @@ from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import SourceKind
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from src.data.security_identity import SecurityIdentityResolution, security_identity_payload
-from src.reporting.input_provenance import investor_input_lines
-from src.reporting.presentation import PresentationMode, format_money, format_number, json_document
-from src.reporting.valuation_presentation import (
+from src.reporting.evidence_presentation import (
     analysis_heading,
     common_currency,
-    comparison_details,
-    comparison_lines,
-    comparison_payload,
     diagnostic_lines,
     effective_status_and_reason,
     identity_detail_lines,
     input_line,
     instrument_kind_payload,
-    investor_comparison_evidence,
     kind_detail_lines,
     override_warnings,
     profile_diagnostic_lines,
     profile_diagnostic_payloads,
-    public_quote_reason,
-    quote_payload,
-    quote_warnings,
     resolved_input_payload,
     result_heading,
     security_identity_diagnostic_entry,
     source_summary,
     status_label,
     trace_payload,
-    validate_margin,
     validate_presentation_as_of,
     validate_ticker,
 )
+from src.reporting.input_provenance import investor_input_lines
+from src.reporting.presentation import PresentationMode, format_money, format_number, json_document
+from src.reporting.valuation_presentation import (
+    comparison_details,
+    comparison_lines,
+    comparison_payload,
+    investor_comparison_evidence,
+    public_quote_reason,
+    quote_payload,
+    quote_warnings,
+    validate_margin,
+)
 
-_SCHEMA_VERSION = 5
+_SCHEMA_VERSION = 6
 _GROWTH_LIMITATION = (
     "The Graham growth value is forecast-dependent and sensitive to the "
     "user-supplied growth assumption; it is not an investment recommendation."

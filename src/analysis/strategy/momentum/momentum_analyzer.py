@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel, Field, model_validator
 
-from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
 from src.config import settings
 from src.core.constants import ConfigKeys, DataColumns, TrendStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
@@ -152,12 +152,13 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
 
     def run_analysis(self, ticker: str, config: MomentumConfig, context: AnalysisContext) -> MomentumRun:
         """Fetch market data once, calculate metrics, and retain retrieval context."""
+        normalized_ticker = require_ticker(ticker)
         resolved = MomentumInputResolver(self.market_data_provider).resolve(
-            ticker=ticker,
+            ticker=normalized_ticker,
             start_date=self._start_date,
             as_of=context.as_of,
         )
-        metrics = compute_momentum_metrics(df=resolved.market_data.frame, config=config, ticker=ticker)
+        metrics = compute_momentum_metrics(df=resolved.market_data.frame, config=config, ticker=normalized_ticker)
         trace = resolved.resolution_trace.append(
             ResolutionEvent(
                 "momentum",

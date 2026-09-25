@@ -10,8 +10,8 @@ Implementation sequence and status live in the [slice plan](project/milestones/v
 The Golden Suite is the project's reproducible benchmark for the approved v0.2 analytical strategies:
 
 - Momentum;
-- the Graham Number;
-- the Graham growth-value method; and
+- Graham Number;
+- Graham Growth Value; and
 - Free Cash Flow & Earnings Growth.
 
 It evaluates deterministic financial behavior separately from local-model strategy and tool selection. It is an evaluation system, not a production data store, production cache, trajectory-log archive, or investor-facing Analysis Run library.
@@ -24,7 +24,7 @@ The tracked `src/evaluation/` package now contains typed Golden cases and expect
 
 Production strategy handlers are registered outside the evaluation and test packages through `src/orchestrator/analysis_tools.py`. The explicit tool names are `analyze_momentum`, `analyze_graham_number`, `analyze_graham_growth_value`, and `analyze_fcf_earnings_growth`. Their Pydantic argument models are available through the read-only `ANALYSIS_TOOL_ARGUMENT_MODELS` mapping. `register_analysis_tools(...)` attaches dependency-injected handlers to the existing `AsyncToolDispatcher`; the same seam accepts production adapters or deterministic fixture-backed analyzers and resolvers. Each handler preserves its strategy's native typed result rather than introducing a generic strategy-result model.
 
-The current versioned deterministic suite contains nineteen stable case IDs across Momentum, the Graham Number and Graham Growth Value strategies, Graham resolution, FCF/Earnings Growth, and the reviewed SEC FPI/IFRS boundaries. The approved fifteen-case `h1-v2` suite remains historical benchmark evidence; Step 2.5A Slice D deliberately advanced the suite and fixture set to `h1-v3` by adding four cases without rewriting earlier case IDs or fixtures.
+The current versioned deterministic suite contains nineteen stable case IDs across Momentum, the Graham Number and Graham Growth Value strategies, Graham resolution, FCF/Earnings Growth, and the reviewed SEC FPI/IFRS boundaries. The approved fifteen-case `h1-v2` suite remains historical benchmark evidence; Step 2.5A Slice D deliberately advanced the suite and fixture set to `h1-v3` by adding four cases without rewriting earlier case IDs or fixtures. IR.2.2 advanced the suite version again, to `h1-v4`: removing the separate Graham-method-selection report category changed what a report contains, even though the nineteen case IDs and fixture set are unchanged — the fixture-set version stays `step-2.5-h1-v3`.
 
 Its evidence, mappings, implementation decisions, and review record are in the [P1 Instrument Applicability Mapping Record](project/milestones/v0.2/step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md). A known ETF remains applicable to Momentum but is `not_applicable` to both the Graham Number and Graham Growth Value strategies and the existing company-level FCF Growth strategy. Unknown kind remains fail-open; it is never guessed from missing facts, a ticker, or a name.
 
@@ -107,7 +107,7 @@ strategy.
 
 At least one case must materially discriminate the requested strategy from a plausible wrong strategy. A discriminating case may also satisfy another required minimum category when that overlap is explicit and useful.
 
-The current `h1-v3` suite contains nineteen cases. Its four Step 2.5A additions
+The current `h1-v4` suite contains nineteen cases (fixture set `step-2.5-h1-v3`, unchanged since Step 2.5A). Its four Step 2.5A additions
 cover a US-GAAP `20-F` success, an exact IFRS duration-fact success, an exact
 IFRS CapEx-concept negative, and a security-unit negative. Strategy selection
 remains `not_measured` in deterministic mode. Further expansion remains

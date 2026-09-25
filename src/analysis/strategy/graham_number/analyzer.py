@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
-from src.analysis.shared.financial_resolution import require_ticker
+from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
