@@ -314,8 +314,9 @@ commit this inventory was written against; they will drift normally during imple
    `clock=` *and* as `context.effective_as_of` — one value, two injection points, not two
    independently-derived clocks. This closes the exception §6.3 previously carved out for Graham:
    after this fix, all four analyzers' resolution paths read `context.effective_as_of` (Graham and
-   FCF via their resolvers' injected clock; Momentum directly). Full plan: §6.12 (IR.2.2, clock
-   unification). Two more hardcoded `datetime.now(UTC)` calls surfaced while investigating this —
+   FCF via their resolvers' injected clock; Momentum directly). Full plan: §6.12 (IR.2.3, clock
+   unification, renumbered — §6.13 inserts Graham strategy separation as IR.2.2 ahead of it). Two
+   more hardcoded `datetime.now(UTC)` calls surfaced while investigating this —
    `src/analysis/strategy/fcf_earnings_growth/input_resolver.py:234` and
    `src/data/financial/resolver.py:1236`, both inside shared quality-event-publishing helpers used
    by these same resolvers — fixed in the same slice by threading the same injected clock through
@@ -344,7 +345,7 @@ commit this inventory was written against; they will drift normally during imple
     `CachedHistoricalDataClient`/Momentum's historical cache gets the identical treatment for
     symmetry, even though its current behavior (always wired, no `enabled` switch at all) doesn't
     have this specific regression risk today. Six `_production_financial_cache` call sites simplify
-    to argument-less calls either way. Full plan: §6.12 (IR.2.4, cache unification, renumbered).
+    to argument-less calls either way. Full plan: §6.12 (IR.2.5, cache unification, renumbered).
 11. **Found and fixed during IR.2.1 implementation, not anticipated in this inventory.** Unifying
     the orchestrator's Graham Growth handler onto `GrahamGrowthAnalyzer` (removing its
     service-function bypass, §6.1 item 5) would have silently broken the Golden suite's SEC EDGAR
@@ -379,8 +380,9 @@ commit this inventory was written against; they will drift normally during imple
     §6 intro and §6.3/§6.4 above (revised 2026-09-25) — `AnalysisContext` now carries `executed_at`
     (the run's own single clock read) and derives `effective_as_of` (`as_of or executed_at`) as a
     read-only property, so freshness/TTL/timestamp consumers and data-truncation/availability
-    consumers can no longer be silently fed the wrong one. IR.2.2's row (§6.12) is updated to wire
-    each consumer to the field matching its concern.
+    consumers can no longer be silently fed the wrong one. IR.2.3's row (§6.12; clock unification,
+    renumbered by §6.13's insertion of Graham strategy separation as IR.2.2) is updated to wire each
+    consumer to the field matching its concern.
 13. **Found and fixed during the same review pass: the EPS-basis accept/default rule was
     implemented twice, with `frozenset({"fiscal_year"})` repeated as a literal in both
     `GrahamGrowthConfig.validate_method` and `GrahamGrowthSelection._resolve_configuration`.**
@@ -687,7 +689,7 @@ threaded through to `CachedHistoricalDataClient`, not just a choice of which obj
 `AGENTS.md` §0's consolidation-period rule; the composition-time-only alternative previously offered
 is withdrawn. This is the single largest piece of scope growth in this work package — it touches the
 data-client protocol layer, not just the analyzer envelope — which is exactly why it is its own
-gated sub-slice (IR.2.4, cache unification, renumbered — §6.12) rather than folded silently into the
+gated sub-slice (IR.2.5, cache unification, renumbered — §6.12) rather than folded silently into the
 envelope slice.
 
 **Momentum's `--as-of` CLI option (item 4) lands alongside this work**, since both are the same kind
@@ -801,39 +803,279 @@ newly-required `clock` parameter is satisfied by every composition root
 already expects) — the same cutoff value the composition root derives once (`as_of or executed_at`)
 and that becomes `context.effective_as_of` for the analyzer call in the same invocation.
 
-**Slice placement (revised — see §6.12): this is materially larger than IR.2.2's original
-Graham-resolver-clock scope** — six classes made non-optional, nine files migrated to a new shared
-helper, one new module, and every composition root touched to supply the now-mandatory decision
-clocks. Given the choice offered, this lands as its **own slice, IR.2.3, immediately after IR.2.2**
-(cache unification and Momentum parity renumber to IR.2.4/IR.2.5) — it depends on IR.2.2 having
-already established the "compute `executed_at` once per run, derive `effective_as_of` from it,
-thread each to the consumer that needs it" composition-root pattern for Graham, but touches enough
+**Slice placement (revised — see §6.12): this is materially larger than clock unification's
+original Graham-resolver-clock scope** — six classes made non-optional, nine files migrated to a new
+shared helper, one new module, and every composition root touched to supply the now-mandatory
+decision clocks. Given the choice offered, this lands as its **own slice, immediately after clock
+unification** (originally numbered IR.2.2/IR.2.3; both renumbered to IR.2.3/IR.2.4 once §6.13
+inserted Graham strategy separation as IR.2.2, cache unification and Momentum parity shifting to
+IR.2.5/IR.2.6 in turn) — it depends on clock unification having already established the "compute
+`executed_at` once per run, derive `effective_as_of` from it, thread each to the consumer that needs
+it" composition-root pattern for Graham, but touches enough
 additional files (`src/data/**` broadly) that folding it into
-IR.2.2 itself would make that slice unreviewable in one pass.
+clock unification itself would make that slice unreviewable in one pass.
 
-### 6.12 IR.2 slice list (item 8) — approved
+### 6.12 IR.2 slice list (item 8) — approved, revised 2026-09-25 (Graham separation inserted)
 
 Split by concern across all four analyzers, never analyzer-by-analyzer, per the project owner's
-explicit instruction; revised 2026-09-24 to five slices (a data-layer clock consolidation slice
-inserted after clock unification, per §6.11). Each slice below leaves all four analyzers mutually
-consistent with each other and passes the full managed gate before the next begins — the project's
-standard gated-slice convention (§3), applied one level deeper than usual because IR.2 itself is
-large enough to need it.
+explicit instruction; revised 2026-09-25 to six slices — **IR.2.2, Graham strategy separation
+(full plan: §6.13), is a new sub-slice inserted before clock unification**, per the project owner's
+explicit direction: Graham Number and Graham Growth Value answer different questions with different
+formulas (`MASTER_PLAN.md` principle 9 already treats them as separate methods), the shared
+`_GrahamConfig`/`_GrahamSelection`/`graham_contracts.py` base has caused repeated partial fixes
+(§6.1 items 11 and 13), and doing the split before clock unification means IR.2.3 (old IR.2.2)
+wires Graham's resolver clock into two clean, independent strategy packages rather than into a
+shared base mid-transition. Every slice below still leaves all four analyzers mutually consistent
+with each other and passes the full managed gate before the next begins — the project's standard
+gated-slice convention (§3), applied one level deeper than usual because IR.2 itself is large
+enough to need it.
 
-**Branching (item 3):** all five sub-slices land on one branch, each as its own reviewed commit with
-its own gate run. Nothing merges to `main` until IR.2.5 is done — the intermediate states between
+**Branching (item 3):** all six sub-slices land on one branch, each as its own reviewed commit with
+its own gate run. Nothing merges to `main` until IR.2.6 is done — the intermediate states between
 sub-slices have `AnalysisContext` fields some analyzers don't yet honor (e.g. after IR.2.1 but
-before IR.2.2, Graham's resolver still reads no clock), which is an acceptable mid-branch state but
+before IR.2.3, Graham's resolver still reads no clock), which is an acceptable mid-branch state but
 not one to expose on `main`.
 
 | Slice | Scope | Depends on | Leaves all four analyzers... |
 | :--- | :--- | :--- | :--- |
-| **IR.2.1 — Envelope and single entry point** | `AnalysisContext`/`BaseAnalyzer[ConfigT, ResultT]` (§6.3); every analyzer's `run_analysis(ticker, config, context)` signature; `FCFEarningsGrowthAnalyzer` brought under `BaseAnalyzer` with the new `FCFEarningsGrowthConfig`; the orchestrator's Graham handlers unified onto the analyzer classes (removing the service-function bypass, §6.1 item 5); ticker required everywhere, Graham's `_resolve_ticker` fallback deleted (§6.1 item 8); the consolidated selection→`(config, context)` mapping used by both `cli.py` and `cli_workspace.py` (§6.8). Structural conformance tests land here (§6.6 items 1–4). At this slice's boundary, `context.effective_as_of`/`context.use_cache` exist and are threaded to wherever each analyzer already had an equivalent parameter, but Graham's resolver clock, the broader data-layer clock consolidation, and Momentum's cache/quality-check/profile/dependency work are *not* yet done — those are 2.2–2.5. | — (foundational) | ...on one invocation shape, with `context` fully defined and consumed wherever an equivalent concept already existed. |
-| **IR.2.2 — Clock unification (analyzer/resolver layer)** | Every consumer in `src/analysis/**` is wired to the field matching its own concern, per §6.1 item 12: freshness/TTL/result-timestamp reads use `context.executed_at`; data-truncation/availability reads use `context.effective_as_of` (the derived cutoff). Graham's resolver gains an injected clock from `build_graham_resolver`/composition roots, fed `effective_as_of` for truncation (§6.1 item 9); FCF's internal fallback and `cli_workspace.py`'s duplicate are deleted, both replaced by the composition root's single `executed_at` read plus the derived `effective_as_of`; the two Category B hardcoded quality-event calls (§6.11) are fixed to read `executed_at`; Momentum's quality-check/clock restructuring lands (resolver checks-and-publishes once using `effective_as_of` for its `as_of`-aware truncation, `run_analysis` re-checks independently without publishing, `compute_momentum_metrics` extracted as a genuinely pure function, §2 item 4). Establishes the "compute `executed_at` once per run, derive `effective_as_of` from it, thread each to the consumer that needs it" composition-root pattern that IR.2.3 extends more broadly. | IR.2.1 | ...every freshness/TTL/timestamp read sourced from `context.executed_at` and every truncation/availability read sourced from `context.effective_as_of`, nowhere else, in the analysis/resolver layer, with no remaining exception. |
-| **IR.2.3 — Data-layer clock consolidation** | New `src/core/clock.py` (`utc_now()`); six decision-clock classes (`CachedHistoricalDataClient`, `financial/cache.py`, `financial/resolver.py`, `CachedInstrumentProfileResolver`, `SQLiteResolvedInputCache`, SEC EDGAR's provider) become required-clock, no default, fed from `context.effective_as_of` by every composition root; nine event-timestamp files migrate their `datetime.now(UTC)`-defaulting pattern to `utc_now()` (§6.11's full table). The `datetime.now`/`utcnow`/`time.time` conformance check (§6.6 item 5) lands here, scanning all of `src/` with `src/core/clock.py` as the only exception, plus the named `logger_util.py` exemption pending confirmation (§6.11). | IR.2.2 (reuses its composition-root pattern; touches far more files, hence its own slice) | ...with every decision clock anywhere in the codebase sourced from the same `effective_as_of`, and every event timestamp sourced from one shared helper. |
-| **IR.2.4 — Cache unification** | `context.use_cache` becomes the sole cache control for all four: `_production_financial_cache`'s `enabled` parameter removed; the durable cache is always wired at composition but opens storage lazily on first actual read/write, so `use_cache=False` never touches storage — matching today's behavior and avoiding a Step 3.3A readiness-check regression (§6.1 item 10, revised); Momentum's `BaseDataClient`/`MarketDataProvider`/`CachedHistoricalDataClient` gain a threaded `use_cache` parameter (§6.9's mechanism, steps 1–4), given the same lazy-open treatment for symmetry. This slice builds the *mechanism*; it does not yet add Momentum's `--no-cache` CLI surface — every composition root passes a fixed `use_cache=True` for Momentum until IR.2.5 wires a real toggle, which is a caller-surface gap, not an analyzer inconsistency (all four `run_analysis` bodies already consume `context.use_cache` identically at this point). | IR.2.1 (independent of 2.2/2.3 — either order works; listed after them to match the project owner's example ordering) | ...consuming `context.use_cache` identically, with the underlying data/cache-client layer able to honor it end-to-end without any storage-readiness regression. |
-| **IR.2.5 — Momentum parity** | Everything that makes Momentum's *caller-facing surface* match the other three, not just its internals: `instrument_profile` embedded unconditionally in `MomentumRun` (orchestrator's `replace()` deleted, workspace reads the profile from the result, §6.4); real `--as-of`/`--no-cache` CLI options, `MomentumSelection.as_of`/`use_cache` fields, and `MomentumToolArguments.use_cache` (it already inherits `as_of`, §2 item 4); `MomentumAnalyzer.__init__` loses its `YFinanceClient()` default and `settings` reads (injected/required dependencies, §6.5); the TOML ticker-default fallback moves to the CLI; `MomentumPolicy` is deleted in favor of `MomentumConfig` (§2 item 4). Version bumps (§6.10) land here, since this is the slice that actually changes `MomentumSelection`'s and `MomentumRun`'s persisted shape. `MOMENTUM.md`'s retroactive-price-revision note (§6.9) lands here too. | IR.2.1, IR.2.2 (needs `effective_as_of` for `--as-of` to mean anything), IR.2.4 (needs the cache mechanism for `--no-cache` to mean anything) | ...at full parity: every field of `AnalysisContext` genuinely exercisable through every analyzer's real caller-facing surface, no placeholders, no known gaps. |
+| **IR.2.1 — Envelope and single entry point** | `AnalysisContext`/`BaseAnalyzer[ConfigT, ResultT]` (§6.3); every analyzer's `run_analysis(ticker, config, context)` signature; `FCFEarningsGrowthAnalyzer` brought under `BaseAnalyzer` with the new `FCFEarningsGrowthConfig`; the orchestrator's Graham handlers unified onto the analyzer classes (removing the service-function bypass, §6.1 item 5); ticker required everywhere, Graham's `_resolve_ticker` fallback deleted (§6.1 item 8); the consolidated selection→`(config, context)` mapping used by both `cli.py` and `cli_workspace.py` (§6.8). Structural conformance tests land here (§6.6 items 1–4). At this slice's boundary, `context.effective_as_of`/`context.use_cache` exist and are threaded to wherever each analyzer already had an equivalent parameter, but Graham's resolver clock, the Graham strategy split, the broader data-layer clock consolidation, and Momentum's cache/quality-check/profile/dependency work are *not* yet done — those are 2.2–2.6. | — (foundational) | ...on one invocation shape, with `context` fully defined and consumed wherever an equivalent concept already existed. |
+| **IR.2.2 — Graham strategy separation** | Full plan: §6.13. `graham_contracts.py`, `_GrahamConfig`, `_GrahamSelection`, and its `GrahamMethod` tag are removed entirely; Graham Number and Graham Growth Value each own their complete config, selection, EPS-basis acceptance rule and defaults, result, and presentation, with zero shared Graham-specific code. Genuinely general behavior moves to neutral homes: provider EPS-basis capability to a new `src/data/financial/eps_basis.py` (also fixing §6.1 item 13 — one provider-driven default rule, `three_year_average` for SEC EDGAR, `ttm` for everything else including Massive, applied identically by both methods at every entry point); quote resolution and the price-relationship comparison stay in the already-neutral `financial_resolution.py`; a new `src/reporting/valuation_presentation.py` absorbs the reporting helpers shared today, ahead of NCAV/EPV/reverse-DCF needing the same presentation primitives; `reporting/graham.py` splits into `reporting/graham_number.py`/`reporting/graham_growth.py`. Each method gets its own `analysis_id` (`graham_number`, `graham_growth_value`, matching its existing `method_id`) with version-field bumps (§6.10 pattern); the Golden suite's separate `graham_method_selection` evaluation category folds into ordinary strategy-selection (§6.13.7). `GRAHAM.md` splits into `GRAHAM_NUMBER.md`/`GRAHAM_GROWTH.md` plus a short linking overview; the milestone exit criteria's "Graham method-selection" metric becomes ordinary tool selection. No formula, classification, or result changes — the Golden suite passes unchanged apart from identifiers. | IR.2.1 | ...with each Graham method a complete, independent, equally-good example of implementing a strategy — no shared Graham-specific base for anything downstream to build on by habit. |
+| **IR.2.3 — Clock unification (analyzer/resolver layer)** | Every consumer in `src/analysis/**` is wired to the field matching its own concern, per §6.1 item 12: freshness/TTL/result-timestamp reads use `context.executed_at`; data-truncation/availability reads use `context.effective_as_of` (the derived cutoff). Graham Number's and Graham Growth's now-independent resolvers each gain an injected clock from their own composition-root construction, fed `effective_as_of` for truncation (§6.1 item 9); FCF's internal fallback and `cli_workspace.py`'s duplicate are deleted, both replaced by the composition root's single `executed_at` read plus the derived `effective_as_of`; the two Category B hardcoded quality-event calls (§6.11) are fixed to read `executed_at`; Momentum's quality-check/clock restructuring lands (resolver checks-and-publishes once using `effective_as_of` for its `as_of`-aware truncation, `run_analysis` re-checks independently without publishing, `compute_momentum_metrics` extracted as a genuinely pure function, §2 item 4). Establishes the "compute `executed_at` once per run, derive `effective_as_of` from it, thread each to the consumer that needs it" composition-root pattern that IR.2.4 extends more broadly. | IR.2.1, IR.2.2 (touches two clean, independent Graham packages, not a shared base mid-transition) | ...every freshness/TTL/timestamp read sourced from `context.executed_at` and every truncation/availability read sourced from `context.effective_as_of`, nowhere else, in the analysis/resolver layer, with no remaining exception. |
+| **IR.2.4 — Data-layer clock consolidation** | New `src/core/clock.py` (`utc_now()`); six decision-clock classes (`CachedHistoricalDataClient`, `financial/cache.py`, `financial/resolver.py`, `CachedInstrumentProfileResolver`, `SQLiteResolvedInputCache`, SEC EDGAR's provider) become required-clock, no default, fed from `context.effective_as_of` by every composition root; nine event-timestamp files migrate their `datetime.now(UTC)`-defaulting pattern to `utc_now()` (§6.11's full table). The `datetime.now`/`utcnow`/`time.time` conformance check (§6.6 item 5) lands here, scanning all of `src/` with `src/core/clock.py` as the only exception, plus the named `logger_util.py` exemption pending confirmation (§6.11). | IR.2.3 (reuses its composition-root pattern; touches far more files, hence its own slice) | ...with every decision clock anywhere in the codebase sourced from the same `effective_as_of`, and every event timestamp sourced from one shared helper. |
+| **IR.2.5 — Cache unification** | `context.use_cache` becomes the sole cache control for all four: `_production_financial_cache`'s `enabled` parameter removed; the durable cache is always wired at composition but opens storage lazily on first actual read/write, so `use_cache=False` never touches storage — matching today's behavior and avoiding a Step 3.3A readiness-check regression (§6.1 item 10, revised); Momentum's `BaseDataClient`/`MarketDataProvider`/`CachedHistoricalDataClient` gain a threaded `use_cache` parameter (§6.9's mechanism, steps 1–4), given the same lazy-open treatment for symmetry. This slice builds the *mechanism*; it does not yet add Momentum's `--no-cache` CLI surface — every composition root passes a fixed `use_cache=True` for Momentum until IR.2.6 wires a real toggle, which is a caller-surface gap, not an analyzer inconsistency (all four `run_analysis` bodies already consume `context.use_cache` identically at this point). | IR.2.1 (independent of 2.2/2.3/2.4 — either order works; listed after them to match the project owner's example ordering) | ...consuming `context.use_cache` identically, with the underlying data/cache-client layer able to honor it end-to-end without any storage-readiness regression. |
+| **IR.2.6 — Momentum parity** | Everything that makes Momentum's *caller-facing surface* match the other three, not just its internals: `instrument_profile` embedded unconditionally in `MomentumRun` (orchestrator's `replace()` deleted, workspace reads the profile from the result, §6.4); real `--as-of`/`--no-cache` CLI options, `MomentumSelection.as_of`/`use_cache` fields, and `MomentumToolArguments.use_cache` (it already inherits `as_of`, §2 item 4); `MomentumAnalyzer.__init__` loses its `YFinanceClient()` default and `settings` reads (injected/required dependencies, §6.5); the TOML ticker-default fallback moves to the CLI; `MomentumPolicy` is deleted in favor of `MomentumConfig` (§2 item 4). Version bumps (§6.10) land here, since this is the slice that actually changes `MomentumSelection`'s and `MomentumRun`'s persisted shape. `MOMENTUM.md`'s retroactive-price-revision note (§6.9) lands here too. | IR.2.1, IR.2.3 (needs `effective_as_of` for `--as-of` to mean anything), IR.2.5 (needs the cache mechanism for `--no-cache` to mean anything) | ...at full parity: every field of `AnalysisContext` genuinely exercisable through every analyzer's real caller-facing surface, no placeholders, no known gaps. |
 
 Each slice ends with the full managed gate and its own regression tests, per §4. IR.2 as a whole is
-accepted only once all four sub-slices have landed and the conformance tests (§6.6) pass against the
+accepted only once all six sub-slices have landed and the conformance tests (§6.6) pass against the
 final state.
+
+### 6.13 IR.2.2 — Graham strategy separation (new sub-slice, project owner's direction 2026-09-25)
+
+#### 6.13.1 Rationale
+
+Graham Number and Graham Growth Value answer different questions with different formulas
+(`MASTER_PLAN.md` principle 9: "The Graham Number and forecast-dependent Graham growth value are
+separate methods"). They have shared a base (`_GrahamConfig`, `_GrahamSelection`,
+`graham_contracts.py`) since before IR.2, and that base has caused two repeated partial fixes
+already: §6.1 item 11 (Graham Growth's `fiscal_year` basis needed a method-specific carve-out the
+shared base didn't have) and item 13 (the EPS-basis default diverged between the Config and
+Selection entry points once both were forced through the same base method). The goal is not a
+one-off fix but two equally good, standalone examples of how to implement a strategy — every field,
+validator, and default a future strategy author copies from either package is that strategy's own,
+never "because Graham shares it."
+
+#### 6.13.2 File inventory — removed, new, and modified
+
+**Removed:**
+
+- `src/analysis/shared/graham_contracts.py` (`_GrahamConfig`, `_GrahamSelection`'s counterpart glue,
+  `GrahamMethod`, `resolve_graham_eps_basis`, `GRAHAM_GROWTH_EXTRA_SEC_EDGAR_BASES`, `_require_ticker`,
+  `_event`/`_trace_event`) — every symbol relocates per §6.13.3–6.13.4 or is duplicated locally
+  where it is genuinely method-specific (each method's own accepted-basis set, its own bvps rule).
+- `src/reporting/graham.py` — splits per §6.13.5.
+
+**New:**
+
+- `src/data/financial/eps_basis.py` — provider EPS-basis capability (§6.13.3).
+- `src/reporting/valuation_presentation.py` — shared presentation primitives (§6.13.5).
+- `src/reporting/graham_number.py`, `src/reporting/graham_growth.py` — method-specific presenters
+  (§6.13.5).
+- `docs/user/strategies/GRAHAM_NUMBER.md`, `docs/user/strategies/GRAHAM_GROWTH.md` (§6.13.8).
+
+**Modified — each Graham method's own package absorbs what it used to borrow:**
+
+| File | Change |
+| :--- | :--- |
+| `src/analysis/strategy/graham_number/config.py` | `GrahamNumberConfig` becomes a direct `BaseModel` subclass (drops `_GrahamConfig`), declaring `security_provider_id`/`quote_provider_id`/`eps_basis`/`eps_override`/`quote_override`/`bvps_override` itself, with its own `normalize_provider`/`normalize_basis` field validators (small, duplicated 1:1 from today's shared base — deliberate, not an oversight). `validate_method` calls the new `default_eps_basis_for_provider` (§6.13.3) and enforces Number's own accepted set (`{"three_year_average"}` for SEC EDGAR, `"ttm"` only for Massive — unchanged from today) plus the existing bvps-for-Massive rule. `GrahamNumberEPSBasis` stays defined here (already is). |
+| `src/analysis/strategy/graham_growth/config.py` | Same pattern; `GrahamGrowthConfig`'s own accepted SEC EDGAR set is `{"three_year_average", "fiscal_year"}` (unchanged). `GrahamGrowthEPSBasis` stays defined here. |
+| `src/analysis/strategy/graham_number/calculation.py` | `GrahamNumberInputAssembly`/`GrahamNumberResult`'s `method` field becomes `Literal["graham_number"]` (was `GrahamMethod.NUMBER`) — no enum, no shared type. `_trace_event` calls become the new neutral `single_event_trace` (§6.13.4). Its own defense-in-depth `eps_basis not in ("three_year_average", "ttm")` resolver-layer check is untouched (already Number-only, never shared with Growth). |
+| `src/analysis/strategy/graham_growth/calculation.py` | Same pattern; `method` becomes `Literal["graham_growth_value"]`. |
+| `src/analysis/strategy/graham_number/analyzer.py` | `_require_ticker` import repoints to the new neutral home (§6.13.4); everything else unchanged from IR.2.1. |
+| `src/analysis/strategy/graham_growth/analyzer.py` | Same. |
+| `src/workspace/requests.py` | `GrahamNumberSelection`/`GrahamGrowthSelection` each subclass `_FrozenSelection` directly (the already-neutral strictness mixin every selection type uses, including Momentum/FCF — not Graham-specific, stays). No more `_GrahamSelection` intermediate: each declares its own `security_provider_id`/`quote_provider_id`/`eps_basis`/`eps_override`/`quote_override`/`as_of`/`use_cache` fields and field validators. Each's `analysis_id` becomes its own value (§6.13.6) instead of the shared `"graham"`. Each `model_validator(mode="after")` **validates by constructing its own Config** (`self.to_graham_number_config()` / `self.to_graham_growth_config()`, called on the *raw*, not-yet-resolved field values, exactly the two methods already used to convert a finished Selection to a Config) and reads the resolved `eps_basis`/`quote_provider_id` back from the constructed Config, propagating a `ValueError` on rejection. This makes each `*Config`'s `validate_method` the single, sole implementation of that method's entire acceptance rule — Config's bvps-for-Massive check runs for free too, so `GrahamNumberSelection`'s separate `_require_massive_book_value` validator is deleted as redundant, closing the same two-entry-point-divergence risk found in item 13 for the bvps rule as well, not just EPS basis. This "validate by constructing its config" pattern only imports each strategy's `Config` *class* (already imported for `to_*_config()`), so it does not cross the strategy boundary with a plain-function import (§6.6 item 4 stays satisfied). |
+| `src/orchestrator/analysis_tools.py` | `GrahamNumberEPSBasis`/`GrahamGrowthEPSBasis` imports repoint to each strategy's own `config.py` instead of `graham_contracts.py`. No other change — the tool-argument classes were already fully separate (§6.13's file inventory found no other Graham-shared code here). |
+| `src/workspace/graham_number.py`, `src/workspace/graham_growth.py` | Codec `method` comparisons change from `GrahamMethod.NUMBER`/`GrahamMethod.GROWTH_VALUE` to the plain string literals `"graham_number"`/`"graham_growth_value"` (matching the JSON wire format they already compare against in `decode_*`). No `GrahamMethod` import. |
+| `src/cli.py` | Import paths only (`GrahamNumberEPSBasis`/`GrahamGrowthEPSBasis`, presenter functions from the two new reporting modules instead of `reporting.graham`); `execution_errors(analysis="graham", ...)` becomes `analysis="graham_number"`/`analysis="graham_growth_value"` per command (four call sites, §6.13.6). |
+
+#### 6.13.3 Provider EPS-basis capability (data layer) and the item 13 fix
+
+New `src/data/financial/eps_basis.py`:
+
+```python
+"""Provider EPS-basis capability, shared by every strategy that resolves normalized EPS."""
+
+from typing import Final
+
+from src.data.financial.providers import MASSIVE_PROVIDER_ID, SEC_PROVIDER_ID
+
+MASSIVE_ONLY_EPS_BASIS: Final = "ttm"
+
+
+def default_eps_basis_for_provider(provider_id: str) -> str:
+    """Return the provider-driven default EPS basis.
+
+    SEC EDGAR defaults to three-year-average; every other provider — including Massive,
+    which can structurally only ever supply TTM — defaults to TTM. Every strategy calls
+    this same function for its own default, so a provider's own default can never be
+    rejected by that same provider's own accept rule (the bug behind §6.1 item 13).
+    """
+    return "three_year_average" if provider_id == SEC_PROVIDER_ID else MASSIVE_ONLY_EPS_BASIS
+
+
+def is_massive_provider(provider_id: str) -> bool:
+    """Return whether *provider_id* is Massive, which supplies EPS as TTM only."""
+    return provider_id == MASSIVE_PROVIDER_ID
+```
+
+`SEC_PROVIDER_ID`/`MASSIVE_PROVIDER_ID` import from the already-existing neutral re-export point
+`src.data.financial.providers` (not the provider-specific submodules directly, which would create
+an import cycle back through `src/data/sec_edgar/financial_facts.py`, itself an importer of
+`src/data/financial/**`).
+
+**What stays strategy-owned, deliberately:** each method's *accepted* SEC EDGAR basis set is
+strategy policy, not a data-layer capability — SEC EDGAR can structurally supply more bases than
+either method today chooses to accept (neither accepts an explicit `"ttm"` with SEC EDGAR, matching
+current behavior exactly), so there is no "provider capability ∩ strategy policy" intersection to
+compute; `default_eps_basis_for_provider` is the only piece both methods share, and it is a data
+fact (which basis a provider's default query supplies), not a business rule. **This design changes
+no accept/reject outcome for any known provider — only the default computation, unifying it into
+one provider-driven rule applied by both methods at both of their entry points**, exactly satisfying
+the project owner's item 13 direction. `GrahamNumberConfig`/`GrahamGrowthConfig` each keep their own
+hardcoded accepted-set check (`{"three_year_average"}` / `{"three_year_average", "fiscal_year"}` for
+SEC EDGAR; `is_massive_provider(...)` + `MASSIVE_ONLY_EPS_BASIS` for Massive) — this is intentional,
+approved strategy-specific policy per `docs/user/GRAHAM_NUMBER.md`/`GRAHAM_GROWTH.md`, not
+duplication of the same rule.
+
+Permissiveness for injected/synthetic provider ids (dependency injection, test fixtures) is
+preserved exactly as today: the accepted-set checks only fire `if security_provider_id ==
+SEC_PROVIDER_ID` or `is_massive_provider(...)`; anything else — including every fixture provider id
+used across the existing test suite — is unrestricted, and `default_eps_basis_for_provider` still
+returns a concrete default (`"ttm"`, via the same `else` branch Massive uses) for any unrecognized
+id, matching the Selection-path behavior already exercised by
+`tests/workspace/test_requests.py::test_graham_snapshot_is_independent_of_caller_inputs` today
+(this also resolves that test's underlying finding from §6.1 item 13 — Graham Number's Config path
+now defaults the same way Selection already does, so the two entry points agree).
+
+#### 6.13.4 Neutral homes for genuinely general behavior
+
+- **Quote resolution and the price-relationship comparison already live in the neutral
+  `src/analysis/shared/financial_resolution.py`** (`resolve_optional_quote`,
+  `evaluate_price_comparison`/`PriceComparison`, `resolve_normalized_eps`, `margin_of_safety`,
+  `common_currency`, `validate_profile_ticker`, `is_known_etf`, `has_provider_backed_evidence`) —
+  confirmed by direct inspection; no move needed, and this module is the intended home for the same
+  primitives once NCAV/EPV/reverse-DCF need them, per the project owner's direction.
+- **`_event`/`_trace_event`** (construct a one-event `ResolutionTrace` from a message) move into
+  `src/data/financial/resolution_trace.py` as a public `single_event_trace(field_name, stage,
+  outcome, message) -> ResolutionTrace` module-level function — genuinely general resolution-trace
+  infrastructure, not Graham-specific, and it already sits next to `ResolutionEvent`/`ResolutionTrace`
+  themselves.
+- **`_require_ticker`** (strip/upper/require-nonblank) moves into `financial_resolution.py` as a
+  public `require_ticker(ticker: str) -> str` — it is fully generic today in everything but its
+  current location; FCF's analyzer already duplicates the identical `ticker.strip().upper()` logic
+  inline rather than importing it, which this move makes available to fix later, but adopting it in
+  FCF/Momentum is out of this sub-slice's scope (not requested, and not a Graham-shared-base
+  problem) and is left as-is.
+
+#### 6.13.5 Reporting split
+
+`src/reporting/graham.py` (1,224 lines) splits three ways. Functions already prefixed `_number_*`/
+`_growth_*`, both `*Presentation` dataclasses, and both `render_graham_*` functions move verbatim
+into `reporting/graham_number.py`/`reporting/graham_growth.py` respectively. The remaining
+functions — every one operating only on generic types (`PriceComparison`, `ResolvedInput`,
+`CalculationStatus`, `InstrumentProfile`, `SecurityIdentityResolution`, `ResolutionTrace`) with no
+Graham-specific parameter — move into new `reporting/valuation_presentation.py`:
+`public_quote_reason`, `friendly_graham_failure` (renamed `friendly_valuation_failure`, wording
+genericized from "the requested Graham inputs" to "the requested inputs" — a presentation-text
+change, not a calculation change), `_analysis_heading`, `_result_heading`, `_status_label`,
+`_effective_status_and_reason`, `_identity_detail_lines`, `_identity_diagnostic_lines`,
+`_kind_detail_lines`, `_profile_diagnostic_lines`, `_profile_diagnostic_payloads`,
+`_input_detail_lines`, `_diagnostic_lines`, `_investor_comparison_evidence`, `_comparison_reason`,
+`_comparison_payload`, `_comparison_details`, `_comparison_lines`, `_override_warnings`,
+`_quote_warnings`, `_source_summary`, `_display_basis`, `_freshness_label`, `_source_label`,
+`_resolved_input_payload`, `_eps_basis_label`, `_uses_diluted_eps` (both strategies present an EPS
+basis, so these two are genuinely shared, unlike `_bvps_basis_label`/`_number_basis_summary`, which
+stay Number-only), `_trace_payload`, `_quote_payload`, `_common_currency`,
+`_validate_presentation_as_of`, `_validate_ticker`, `_validate_margin`, `_json_datetime`,
+`basis_display_name`, `field_display_name`, `units_display_name` (the lookup *functions* are
+generic; each strategy's reporting module keeps its **own** complete `BASIS_DISPLAY_NAMES`/
+`FIELD_DISPLAY_NAMES`/`UNITS_DISPLAY_NAMES` dict rather than merging a shared partial one — a
+handful of display-label strings like `"TTM"` appearing in both dicts is inert duplication of a
+presentation label, not the validation-logic duplication risk items 11/13 were about, so it is not
+worth a merge mechanism).
+
+#### 6.13.6 Persistence, `analysis_id`, and version bumps
+
+Per the project owner's direction: each method gets its own `analysis_id` — `graham_number` and
+`graham_growth_value` — matching each one's existing, unchanged `method_id`. This is the expected
+shape for a single-method analysis family (compare Momentum's `analysis_id="momentum"`/
+`method_id="sma_crossover"` and FCF's `analysis_id="fcf_earnings_growth"`/
+`method_id="reported_fcf_eps_cagr"`, where the family and its one current method are still named
+distinctly because a future variant is plausible there too; Graham Number and Graham Growth Value
+are not variants of one calculation the way, e.g., Altman Z and Z′′ would be — they already are, and
+remain, two unrelated formulas, so collapsing analysis_id onto method_id here is the correct
+instance of "one analysis, one method," not a special case). Concretely: `GrahamNumberSelection.analysis_id:
+Literal["graham_number"] = "graham_number"`, `GrahamGrowthSelection.analysis_id:
+Literal["graham_growth_value"] = "graham_growth_value"`, `config_schema_version` bumped per
+`AGENTS.md` §0 (no migration; stored data has no compatibility value during this consolidation
+period, §6.10). Every literal `"analysis": "graham"` / `analysis_id="graham"` / `analysis="graham"`
+site found across production code (`reporting/graham.py`'s two JSON payload builders, `cli.py`'s
+four `execution_errors(analysis="graham", ...)` call sites) and tests (enumerated by direct
+inspection: `tests/data/repositories/test_schema.py`, `tests/reporting/test_analysis_run_replay.py`,
+`tests/test_cli.py`, `tests/workspace/test_requests.py`, `tests/workspace/test_runs.py`, plus
+`tests/workspace/test_fcf_growth_codec.py:298`'s `("strategy_id", "graham")` case, to be verified
+during implementation rather than assumed) is updated to the method-specific value. Orchestrator
+tool names (`analyze_graham_number`, `analyze_graham_growth_value`) are unrelated and unchanged —
+they were already method-specific.
+
+#### 6.13.7 Evaluation harness: `graham_method_selection` folds into ordinary strategy-selection
+
+`src/evaluation/models.py` defines its own, entirely separate `GrahamMethod` enum (tool-call
+constraint vocabulary: `GRAHAM_NUMBER`/`GRAHAM_GROWTH_VALUE`) and a distinct
+`EvaluationCategory.GRAHAM_METHOD_SELECTION` metric, evaluated by
+`evaluate_graham_method_selection()` in `evaluator.py` and consumed by both `runner.py` and
+`ollama_runner.py` — unrelated to the analysis-layer `GrahamMethod` being removed, and **not**
+itself part of this sub-slice's "no shared Graham code" scope (it is evaluation-harness
+infrastructure, not a shared analyzer base). It exists to check that the correct Graham *method* was
+selected as distinct from the correct *tool* — a distinction that stops mattering once Graham Number
+and Graham Growth Value are ordinary, independent tools like Momentum and FCF Growth, each already
+covered by ordinary strategy-/tool-selection evaluation. Per the project owner's direction ("update
+the milestone exit criteria's 'Graham method-selection' metric to ordinary tool selection"):
+`evaluate_graham_method_selection` and `EvaluationCategory.GRAHAM_METHOD_SELECTION` are removed:
+existing Golden cases that supplied `graham_method_constraints` express that same constraint through
+ordinary tool-selection expectations instead (the two are checking the same fact — which tool/method
+handled the request — once Graham Number and Graham Growth Value are separate tools). Touches
+`src/evaluation/models.py`, `src/evaluation/evaluator.py`, `src/evaluation/runner.py`,
+`src/evaluation/ollama_runner.py`, and their test files
+(`tests/evaluation/test_evaluator.py`, `tests/evaluation/test_models.py`), plus
+`docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md:368`'s exit-criteria sentence, which drops
+"Graham method-selection" from its own reported category alongside "strategy-selection."
+
+#### 6.13.8 Docs split
+
+`docs/user/strategies/GRAHAM.md` splits into `GRAHAM_NUMBER.md` and `GRAHAM_GROWTH.md`, each keeping
+its method's own sections (method mechanics, earnings basis, applicability, required inputs) plus
+the sections both need duplicated in full (presentation modes, data sources, point-in-time analysis,
+"why another Graham calculator may disagree," limitations) — full independence over a shared
+reference, matching the code split. `GRAHAM.md` itself becomes a short overview (what Graham
+valuation is, one paragraph each on Number vs Growth Value, links to both full guides) rather than
+being deleted, so existing inbound links keep resolving. `docs/project/ARCHITECTURE.md`'s Graham
+description (currently: "`shared/graham_contracts.py` holds common Graham configuration and method
+contracts") and its file-tree listing of `graham_contracts.py` are updated to describe two
+independent packages instead.
+
+#### 6.13.9 Test impact and the no-formula-change guarantee
+
+No formula, classification, or result change anywhere in this sub-slice — every `compute_graham_number`/
+`compute_graham_growth_value` calculation body is untouched, and every Golden-suite case must pass
+with the same numeric/classification outcome, checked and reported per case before this sub-slice is
+considered complete (matching the standard this project already applied to item 11's eps_basis fix
+and IR.2.1's ticker-normalization/CLI-permissiveness findings — verify, don't assume, and report any
+newly-affected case rather than retuning it to force a pass). Expected test-file touch points, beyond
+those already named in §6.13.6/6.13.7: `tests/analysis/graham_value/test_analyzer_config.py`,
+`test_method_analyzers.py` (import path updates to the two new config modules; `_config`/`_context`
+helpers unaffected in shape), `tests/workspace/test_requests.py` (removal of `_GrahamSelection`-level
+shared tests, replaced by each Selection's own), `tests/reporting/` Graham presentation tests split
+to match the new module boundaries, and `tests/analysis/test_base_analyzer_conformance.py` — item 4's
+AST-based strategy-boundary scan should be re-run explicitly as part of this sub-slice's gate, since
+it is the test most directly designed to catch exactly the kind of cross-boundary coupling this
+sub-slice removes.
