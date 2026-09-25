@@ -402,7 +402,10 @@ def graham_number(  # noqa: PLR0913
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ):
             resolver = build_graham_resolver(
-                resolver_type=GrahamNumberInputResolver, data_provider=config.security_provider_id, cache=cache
+                resolver_type=GrahamNumberInputResolver,
+                data_provider=config.security_provider_id,
+                cache=cache,
+                clock=lambda: executed_at,
             )
         output, exit_code = _run_graham_number(
             resolver=resolver,
@@ -515,7 +518,10 @@ def graham_growth(  # noqa: PLR0913
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ):
             resolver = build_graham_resolver(
-                resolver_type=GrahamGrowthInputResolver, data_provider=config.security_provider_id, cache=cache
+                resolver_type=GrahamGrowthInputResolver,
+                data_provider=config.security_provider_id,
+                cache=cache,
+                clock=lambda: executed_at,
             )
         output, exit_code = _run_graham_growth(
             resolver=resolver,
@@ -579,7 +585,6 @@ def fcf_growth(  # noqa: PLR0913
         forward_policy=_forward_policy(forward_policy),
     )
     executed_at = datetime.now(UTC)
-    boundary = analysis_as_of or executed_at
     # The command always uses the SEC production provider regardless of --data-provider
     # (see the adapter's own docstring); provider_id here only labels the requested
     # config/result, exactly as before this refactor — not the resolver actually used.
@@ -600,7 +605,7 @@ def fcf_growth(  # noqa: PLR0913
         resolver = ProductionAnnualGrowthSeriesResolver(
             provider,
             cache=cache,
-            clock=lambda: boundary,
+            clock=lambda: executed_at,
         )
         capture = _maybe_save_run(
             save_run=save_run,

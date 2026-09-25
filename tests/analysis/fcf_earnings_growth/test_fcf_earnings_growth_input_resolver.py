@@ -84,6 +84,7 @@ def _resolve(
         subject_id="ACME",
         currency="USD",
         as_of=None,
+        effective_as_of=NOW,
         providers=_bindings(provider),
         cache=cache,
         clock=lambda: NOW,
@@ -277,6 +278,7 @@ def test_stale_cache_refreshes_all_fields() -> None:
         subject_id="ACME",
         currency="USD",
         as_of=None,
+        effective_as_of=now[0],
         providers=_bindings(seed),
         cache=cache,
         clock=lambda: now[0],
@@ -289,6 +291,7 @@ def test_stale_cache_refreshes_all_fields() -> None:
         subject_id="ACME",
         currency="USD",
         as_of=None,
+        effective_as_of=now[0],
         providers=_bindings(refresh),
         cache=cache,
         clock=lambda: now[0],
@@ -315,6 +318,7 @@ def test_historical_boundary_excludes_later_restatement() -> None:
         subject_id="ACME",
         currency="USD",
         as_of=boundary,
+        effective_as_of=boundary,
         providers=_bindings(provider),
         clock=lambda: NOW,
     )
@@ -367,6 +371,7 @@ def test_selected_fcf_per_share_requires_share_evidence() -> None:
         subject_id="ACME",
         currency="USD",
         as_of=None,
+        effective_as_of=NOW,
         providers=_bindings(provider),
         clock=lambda: NOW,
     )
@@ -382,6 +387,7 @@ def test_invalid_request_is_typed(subject: str, currency: str) -> None:
         subject_id=subject,
         currency=currency,
         as_of=None,
+        effective_as_of=NOW,
         providers=_bindings(provider),
         clock=lambda: NOW,
     )

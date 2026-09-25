@@ -3,6 +3,7 @@
 import json
 from collections.abc import Iterator
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -20,12 +21,28 @@ from src.config import ProjectSettings
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
 from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.financial.resolver import InputResolver
 from src.data.instrument_profile import InstrumentProfile
 from src.data.repositories import SQLiteDatabase
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, FixtureFinancialFactsProvider
+
+
+class _FrozenDatetime(datetime):
+    """Pin every composition root's ``executed_at`` read to a fixed instant.
+
+    Each CLI command now computes its own real ``datetime.now(UTC)`` as the
+    injected resolver clock (closing the "clock never actually injected"
+    gap), so a test that wants a synthetic, deterministic quote-freshness
+    baseline must freeze that read directly rather than patching the
+    resolver's now-unused internal default.
+    """
+
+    @classmethod
+    def now(cls, tz: object = None) -> "_FrozenDatetime":
+        """Return the fixed instant regardless of the requested timezone."""
+        del tz
+        return cls.fromisoformat(NOW.isoformat())
 
 
 class GrahamProvider:
@@ -94,7 +111,7 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
         patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=profile),
         patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=profile),
         patch("src.cli_support.SQLiteDatabase", side_effect=database),
-        patch.object(InputResolver, "_DEFAULT_CLOCK", staticmethod(lambda: NOW)),
+        patch("src.cli.datetime", _FrozenDatetime),
     ):
         first = CliRunner().invoke(app, arguments)
         assert first.exit_code == 0, first.output
@@ -194,5 +211,7 @@ def test_cache_scope_closes_on_error(configured_database: Path) -> None:
 def test_explicit_memory_cache_is_retained() -> None:
     cache = InMemoryResolvedInputCache()
     with patch("src.cli_composition.build_sec_production_provider", return_value=GrahamProvider()):
-        resolver = build_graham_resolver(resolver_type=GrahamNumberInputResolver, data_provider=None, cache=cache)
+        resolver = build_graham_resolver(
+            resolver_type=GrahamNumberInputResolver, data_provider=None, cache=cache, clock=lambda: NOW
+        )
     assert resolver._cache is cache

@@ -795,7 +795,10 @@ def _execute_graham_number(
     executed_at = datetime.now(UTC)
     with _production_financial_cache(enabled=selection.use_cache) as cache:
         resolver = build_graham_resolver(
-            resolver_type=GrahamNumberInputResolver, data_provider=config.security_provider_id, cache=cache
+            resolver_type=GrahamNumberInputResolver,
+            data_provider=config.security_provider_id,
+            cache=cache,
+            clock=lambda: executed_at,
         )
         capture = execute_graham_number(
             resolver,
@@ -818,7 +821,10 @@ def _execute_graham_growth(
     executed_at = datetime.now(UTC)
     with _production_financial_cache(enabled=selection.use_cache) as cache:
         resolver = build_graham_resolver(
-            resolver_type=GrahamGrowthInputResolver, data_provider=config.security_provider_id, cache=cache
+            resolver_type=GrahamGrowthInputResolver,
+            data_provider=config.security_provider_id,
+            cache=cache,
+            clock=lambda: executed_at,
         )
         capture = execute_graham_growth(
             resolver,
@@ -839,10 +845,9 @@ def _execute_fcf_growth(
 ) -> ExecutionCapture:
     config = selection.to_fcf_config()
     executed_at = datetime.now(UTC)
-    boundary = selection.as_of or executed_at
     with _production_financial_cache(enabled=selection.use_cache) as cache:
         provider = build_sec_production_provider()
-        resolver = ProductionAnnualGrowthSeriesResolver(provider, cache=cache, clock=lambda: boundary)
+        resolver = ProductionAnnualGrowthSeriesResolver(provider, cache=cache, clock=lambda: executed_at)
         capture = execute_fcf_growth(
             resolver,
             ticker,

@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Final
 
 import numpy as np
@@ -24,7 +24,6 @@ from src.data.market_data import HistoricalDataResolution, HistoricalMarketData,
 from src.data.quality import HistoricalDataQualityError, QualityContext, QualityOutcome, evaluate_historical_quality
 from src.data.quality_reporting import publish_quality
 from src.data.yfinance import YFinanceClient
-from src.utils.logger_util import setup_logger
 
 
 @dataclass(frozen=True)
@@ -151,14 +150,35 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
         return ticker or self._fallback_ticker
 
     def run_analysis(self, ticker: str, config: MomentumConfig, context: AnalysisContext) -> MomentumRun:
-        """Fetch market data once, calculate metrics, and retain retrieval context."""
+        """Fetch market data once, calculate metrics, and retain retrieval context.
+
+        The resolver checks and publishes data quality once, against the raw
+        provider fetch. This method independently re-checks the same rules
+        against the (possibly ``as_of``-truncated) frame actually handed to
+        calculation, without publishing again — a fail-safe on the exact
+        input, not a second independent telemetry event.
+        """
         normalized_ticker = require_ticker(ticker)
-        resolved = MomentumInputResolver(self.market_data_provider).resolve(
+        resolver = MomentumInputResolver(self.market_data_provider, clock=lambda: context.executed_at)
+        resolved = resolver.resolve(
             ticker=normalized_ticker,
             start_date=self._start_date,
             as_of=context.as_of,
+            effective_as_of=context.effective_as_of,
         )
-        metrics = compute_momentum_metrics(df=resolved.market_data.frame, config=config, ticker=normalized_ticker)
+        df = resolved.market_data.frame
+        decisions = evaluate_historical_quality(
+            HistoricalMarketData(df, MarketDataContext()),
+            context=QualityContext(
+                f"{normalized_ticker}:historical_close", context.executed_at, context.effective_as_of
+            ),
+        )
+        failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)
+        if failure is not None:
+            raise HistoricalDataQualityError(decisions, df)
+        metrics = compute_momentum_metrics(
+            df=df, config=config, ticker=normalized_ticker, timestamp=context.effective_as_of
+        )
         trace = resolved.resolution_trace.append(
             ResolutionEvent(
                 "momentum",
@@ -176,25 +196,17 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
         )
 
 
-def compute_momentum_metrics(df: pd.DataFrame, config: MomentumConfig, ticker: str) -> MomentumMetrics:
+def compute_momentum_metrics(
+    df: pd.DataFrame, config: MomentumConfig, ticker: str, timestamp: datetime
+) -> MomentumMetrics:
     """Calculate Simple Moving Average crossover indicators for one price series.
 
-    Takes a pre-loaded frame, keeping the calculation layer stateless.
+    Genuinely pure: no quality check, no telemetry, no clock read, no
+    logger. Takes a pre-loaded frame and the caller-sourced point-in-time
+    ``timestamp`` this result describes.
     """
     s_win = config.short_window
     l_win = config.long_window
-
-    decisions = evaluate_historical_quality(
-        HistoricalMarketData(df, MarketDataContext()),
-        context=QualityContext(f"{ticker}:historical_close", datetime.now(UTC)),
-    )
-    publish_quality(decisions)
-    failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)
-    if failure is not None:
-        raise HistoricalDataQualityError(decisions, df)
-
-    with setup_logger(__name__) as logger:
-        logger.debug(f"Executing vectorized metrics matrix: SMA({s_win}), SMA({l_win}) on {ticker}")
 
     close_series = df.loc[:, DataColumns.CLOSE]
     sma_short = close_series.rolling(window=s_win).mean().astype(float)
@@ -244,7 +256,7 @@ def compute_momentum_metrics(df: pd.DataFrame, config: MomentumConfig, ticker: s
         short_sma_val=short_sma_val.value,
         long_sma_val=long_sma_val.value,
         crossover_signal=crossover_signal.value,
-        timestamp=datetime.now(UTC),
+        timestamp=timestamp,
         rsi_result=rsi,
         crossover_result=crossover_signal,
     )
@@ -302,12 +314,19 @@ class MomentumResolution:
 class MomentumInputResolver:
     """Resolve and strictly truncate historical prices before calculation."""
 
-    def __init__(self, provider: MarketDataProvider, *, clock: Callable[[], datetime] | None = None) -> None:
-        """Initialize with an injected provider and retrieval clock."""
-        self._provider = provider
-        self._clock = clock or (lambda: datetime.now(UTC))
+    def __init__(self, provider: MarketDataProvider, *, clock: Callable[[], datetime]) -> None:
+        """Initialize with an injected provider and retrieval clock.
 
-    def resolve(self, *, ticker: str, start_date: str, as_of: datetime | None = None) -> MomentumResolution:
+        ``clock`` must resolve to the caller's own ``executed_at`` — the
+        sole source for this resolver's retrieval timestamp and quality
+        check. It is never fed a point-in-time boundary.
+        """
+        self._provider = provider
+        self._clock = clock
+
+    def resolve(
+        self, *, ticker: str, start_date: str, effective_as_of: datetime, as_of: datetime | None = None
+    ) -> MomentumResolution:
         """Fetch prices and retain only observations at or before ``as_of``."""
         trace = ResolutionTrace().append(
             ResolutionEvent(
@@ -319,7 +338,7 @@ class MomentumInputResolver:
         )
         data = self._provider.fetch_historical_data(ticker, start_date)
         decisions = evaluate_historical_quality(
-            data, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=as_of)
+            data, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=effective_as_of)
         )
         publish_quality(decisions)
         failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)

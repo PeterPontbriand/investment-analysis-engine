@@ -250,6 +250,7 @@ class InputResolver:
                     ResolutionStage.VALIDATION,
                     ResolutionOutcome.INVALID,
                     reason,
+                    now=self._clock(),
                 ),
             )
 
@@ -262,6 +263,7 @@ class InputResolver:
             ResolutionStage.OVERRIDE,
             ResolutionOutcome.NOT_USED,
             "No explicit override was supplied.",
+            now=self._clock(),
         )
 
         # 2. Cache lookup.
@@ -272,6 +274,7 @@ class InputResolver:
                     ResolutionStage.CACHE,
                     ResolutionOutcome.NOT_USED,
                     "Cache use was disabled for this resolution.",
+                    now=self._clock(),
                 )
             )
         elif self._cache is None:
@@ -281,6 +284,7 @@ class InputResolver:
                     ResolutionStage.CACHE,
                     ResolutionOutcome.NOT_USED,
                     "No resolved-input cache is configured.",
+                    now=self._clock(),
                 )
             )
         else:
@@ -296,6 +300,7 @@ class InputResolver:
                             "Cache returned no usable entry; its get() contract does not "
                             "distinguish absent, stale, or temporally ineligible entries."
                         ),
+                        now=self._clock(),
                     )
                 )
             else:
@@ -310,6 +315,7 @@ class InputResolver:
                                 ResolutionStage.CACHE,
                                 ResolutionOutcome.HIT,
                                 "Cache entry passed resolver temporal checks and was accepted.",
+                                now=self._clock(),
                             )
                         ),
                     )
@@ -319,6 +325,7 @@ class InputResolver:
                         ResolutionStage.CACHE,
                         ResolutionOutcome.REJECTED,
                         "Cache returned an entry that failed resolver temporal eligibility.",
+                        now=self._clock(),
                     )
                 )
 
@@ -348,6 +355,7 @@ class InputResolver:
                     ResolutionStage.VALIDATION,
                     ResolutionOutcome.INVALID,
                     reason,
+                    now=self._clock(),
                 ),
             )
 
@@ -384,6 +392,7 @@ class InputResolver:
                     ResolutionStage.VALIDATION,
                     ResolutionOutcome.INVALID,
                     reason,
+                    now=self._clock(),
                 ),
             )
         if request.observation_count != 3:
@@ -398,6 +407,7 @@ class InputResolver:
                     ResolutionStage.VALIDATION,
                     ResolutionOutcome.INVALID,
                     reason,
+                    now=self._clock(),
                 ),
             )
         if request.basis != "fiscal_year":
@@ -410,6 +420,7 @@ class InputResolver:
                     ResolutionStage.VALIDATION,
                     ResolutionOutcome.INVALID,
                     reason,
+                    now=self._clock(),
                 ),
             )
 
@@ -418,6 +429,7 @@ class InputResolver:
             ResolutionStage.OVERRIDE,
             ResolutionOutcome.NOT_USED,
             "No explicit EPS override was supplied.",
+            now=self._clock(),
         )
 
         # --- 2. Derived cache lookup ---
@@ -428,6 +440,7 @@ class InputResolver:
                     ResolutionStage.CACHE,
                     ResolutionOutcome.NOT_USED,
                     "Cache use was disabled for the derived EPS resolution.",
+                    now=self._clock(),
                 )
             )
         elif self._cache is None:
@@ -437,6 +450,7 @@ class InputResolver:
                     ResolutionStage.CACHE,
                     ResolutionOutcome.NOT_USED,
                     "No resolved-input cache is configured.",
+                    now=self._clock(),
                 )
             )
         else:
@@ -453,6 +467,7 @@ class InputResolver:
                             "contract does not distinguish absent, stale, or "
                             "temporally ineligible entries."
                         ),
+                        now=self._clock(),
                     )
                 )
             else:
@@ -467,6 +482,7 @@ class InputResolver:
                                 ResolutionStage.CACHE,
                                 ResolutionOutcome.HIT,
                                 "Derived EPS cache entry passed eligibility checks and was accepted.",
+                                now=self._clock(),
                             )
                         ),
                     )
@@ -476,6 +492,7 @@ class InputResolver:
                         ResolutionStage.CACHE,
                         ResolutionOutcome.REJECTED,
                         "Derived EPS cache entry failed resolver eligibility checks.",
+                        now=self._clock(),
                     )
                 )
 
@@ -486,6 +503,7 @@ class InputResolver:
                 ResolutionStage.PROVIDER,
                 ResolutionOutcome.ATTEMPTED,
                 "Requested completed fiscal-year EPS observations from the configured provider.",
+                now=self._clock(),
             )
         )
         try:
@@ -501,6 +519,7 @@ class InputResolver:
                         ResolutionStage.PROVIDER,
                         ResolutionOutcome.ERROR,
                         reason,
+                        now=self._clock(),
                     )
                 ),
             )
@@ -511,6 +530,7 @@ class InputResolver:
                 ResolutionStage.PROVIDER,
                 ResolutionOutcome.SUCCESS,
                 f"Provider returned {len(facts)} fiscal-year EPS candidate(s).",
+                now=self._clock(),
             )
         )
 
@@ -527,6 +547,7 @@ class InputResolver:
                             ResolutionStage.PROVIDER,
                             ResolutionOutcome.REJECTED,
                             f"Rejected provider candidate before composition: {err}",
+                            now=self._clock(),
                         )
                     ),
                 )
@@ -544,6 +565,7 @@ class InputResolver:
                 ResolutionStage.DERIVATION,
                 ResolutionOutcome.ATTEMPTED,
                 "Selecting three compatible, temporally eligible fiscal-year EPS observations.",
+                now=self._clock(),
             )
         )
 
@@ -569,6 +591,7 @@ class InputResolver:
                         ResolutionStage.DERIVATION,
                         ResolutionOutcome.UNAVAILABLE,
                         reason,
+                        now=self._clock(),
                     )
                 ),
             )
@@ -590,6 +613,7 @@ class InputResolver:
                             ResolutionStage.DERIVATION,
                             ResolutionOutcome.ERROR,
                             reason,
+                            now=self._clock(),
                         )
                     ),
                 )
@@ -604,7 +628,7 @@ class InputResolver:
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
                 reason=compatibility_reason,
-                resolution_trace=_derivation_error_trace(trace, field_name, compatibility_reason),
+                resolution_trace=_derivation_error_trace(trace, field_name, compatibility_reason, now=resolver_now),
             )
 
         # --- 8. Composition ---
@@ -694,6 +718,7 @@ class InputResolver:
                     ResolutionStage.DERIVATION,
                     ResolutionOutcome.SUCCESS,
                     "Derived three-year-average EPS from three compatible fiscal-year observations.",
+                    now=self._clock(),
                 )
             ),
         )
@@ -704,11 +729,13 @@ class InputResolver:
         *,
         use_cache: bool,
     ) -> InputResolutionResult:
+        now = self._clock()
         trace = _trace_event(
             FinancialField.BVPS.value,
             ResolutionStage.DERIVATION,
             ResolutionOutcome.ATTEMPTED,
             "Direct BVPS was unavailable; attempting conservative component derivation.",
+            now=now,
         )
 
         equity_result = self.resolve(
@@ -717,7 +744,7 @@ class InputResolver:
         )
         trace = trace.extend(equity_result.resolution_trace)
         if equity_result.status is not CalculationStatus.OK:
-            return _bvps_component_failure("stockholders_equity", equity_result, trace)
+            return _bvps_component_failure("stockholders_equity", equity_result, trace, now=now)
         equity = equity_result.resolved_input
         assert equity is not None
 
@@ -727,7 +754,7 @@ class InputResolver:
         )
         trace = trace.extend(shares_result.resolution_trace)
         if shares_result.status is not CalculationStatus.OK:
-            return _bvps_component_failure("common_shares_outstanding", shares_result, trace)
+            return _bvps_component_failure("common_shares_outstanding", shares_result, trace, now=now)
         shares = shares_result.resolved_input
         assert shares is not None
 
@@ -737,7 +764,7 @@ class InputResolver:
         )
         trace = trace.extend(preferred_result.resolution_trace)
         if preferred_result.status is not CalculationStatus.OK:
-            return _bvps_component_failure("preferred_shares_outstanding", preferred_result, trace)
+            return _bvps_component_failure("preferred_shares_outstanding", preferred_result, trace, now=now)
         preferred = preferred_result.resolved_input
         assert preferred is not None
 
@@ -751,6 +778,7 @@ class InputResolver:
                     FinancialField.BVPS.value,
                     ResolutionOutcome.UNAVAILABLE,
                     alignment_error,
+                    now=now,
                 ),
             )
         if preferred.value > 0:
@@ -766,6 +794,7 @@ class InputResolver:
                     FinancialField.BVPS.value,
                     ResolutionOutcome.UNAVAILABLE,
                     reason,
+                    now=now,
                 ),
             )
 
@@ -780,6 +809,7 @@ class InputResolver:
                     FinancialField.BVPS.value,
                     ResolutionOutcome.ERROR,
                     reason,
+                    now=now,
                 ),
             )
 
@@ -788,7 +818,7 @@ class InputResolver:
         available_at = max(available_ats) if len(available_ats) == len(components) else None
         retrieved_ats = [component.retrieved_at for component in components if component.retrieved_at is not None]
         retrieved_at = max(retrieved_ats) if retrieved_ats else None
-        resolved_at = self._clock()
+        resolved_at = now
         lineage = ComponentLineage(
             transformation=("stockholders_equity / common_shares_outstanding; zero preferred-share evidence guard"),
             components=components,
@@ -826,6 +856,7 @@ class InputResolver:
                 FinancialField.BVPS.value,
                 ResolutionOutcome.SUCCESS,
                 "Derived BVPS from compatible same-period components with a zero preferred-share evidence guard.",
+                now=now,
             ),
         )
 
@@ -949,6 +980,7 @@ class InputResolver:
                     ResolutionStage.OVERRIDE,
                     ResolutionOutcome.INVALID,
                     reason,
+                    now=self._clock(),
                 ),
             )
 
@@ -962,6 +994,7 @@ class InputResolver:
                     ResolutionStage.OVERRIDE,
                     ResolutionOutcome.INVALID,
                     reason,
+                    now=self._clock(),
                 ),
             )
         if request.field_name is FinancialField.CURRENT_AAA_YIELD and override <= 0:
@@ -974,6 +1007,7 @@ class InputResolver:
                     ResolutionStage.OVERRIDE,
                     ResolutionOutcome.INVALID,
                     reason,
+                    now=self._clock(),
                 ),
             )
 
@@ -995,6 +1029,7 @@ class InputResolver:
                 ResolutionStage.OVERRIDE,
                 ResolutionOutcome.SUCCESS,
                 "Explicit override was accepted; cache and provider were bypassed.",
+                now=self._clock(),
             ),
         )
 
@@ -1078,6 +1113,7 @@ class InputResolver:
             ResolutionStage.PROVIDER,
             ResolutionOutcome.ATTEMPTED,
             f"Requested {field_name} from provider {request.provider_id!r}.",
+            now=self._clock(),
         )
         try:
             facts = self._provider.fetch_facts(request)
@@ -1092,6 +1128,7 @@ class InputResolver:
                         ResolutionStage.PROVIDER,
                         ResolutionOutcome.ERROR,
                         reason,
+                        now=self._clock(),
                     )
                 ),
             )
@@ -1107,6 +1144,7 @@ class InputResolver:
                         ResolutionStage.PROVIDER,
                         ResolutionOutcome.UNAVAILABLE,
                         reason,
+                        now=self._clock(),
                     )
                 ),
             )
@@ -1122,6 +1160,7 @@ class InputResolver:
                         ResolutionStage.PROVIDER,
                         ResolutionOutcome.ERROR,
                         reason,
+                        now=self._clock(),
                     )
                 ),
             )
@@ -1145,6 +1184,7 @@ class InputResolver:
                         ResolutionStage.PROVIDER,
                         outcome,
                         reason,
+                        now=self._clock(),
                     )
                 ),
             )
@@ -1193,6 +1233,7 @@ class InputResolver:
                             ResolutionStage.VALIDATION,
                             ResolutionOutcome.REJECTED,
                             f"Quote response timing is unusable: {timing.status}.",
+                            now=self._clock(),
                         )
                     ),
                 )
@@ -1209,6 +1250,7 @@ class InputResolver:
                     ResolutionStage.PROVIDER,
                     ResolutionOutcome.SUCCESS,
                     "Provider fact passed resolver validation and was accepted.",
+                    now=self._clock(),
                 )
             ),
         )
@@ -1224,8 +1266,15 @@ def _event(
     stage: ResolutionStage,
     outcome: ResolutionOutcome,
     message: str,
+    *,
+    now: datetime,
 ) -> ResolutionEvent:
-    """Construct one resolver trace event."""
+    """Construct one resolver trace event.
+
+    ``now`` must be the resolver's own injected ``executed_at``-fed clock
+    value, never a point-in-time boundary — it timestamps a quality event,
+    not a truncation decision.
+    """
     if outcome in (ResolutionOutcome.REJECTED, ResolutionOutcome.INVALID, ResolutionOutcome.UNAVAILABLE):
         publish_quality(
             (
@@ -1233,7 +1282,7 @@ def _event(
                     f"financial.{stage.value}",
                     QualityOutcome.FAIL,
                     message,
-                    QualityContext(field_name, datetime.now(UTC)),
+                    QualityContext(field_name, now),
                 ),
             )
         )
@@ -1250,9 +1299,11 @@ def _trace_event(
     stage: ResolutionStage,
     outcome: ResolutionOutcome,
     message: str,
+    *,
+    now: datetime,
 ) -> ResolutionTrace:
     """Construct a one-event resolver trace."""
-    return ResolutionTrace(events=(_event(field_name, stage, outcome, message),))
+    return ResolutionTrace(events=(_event(field_name, stage, outcome, message, now=now),))
 
 
 def _prepend_trace(
@@ -1270,6 +1321,8 @@ def _derivation_outcome_trace(
     field_name: str,
     outcome: ResolutionOutcome,
     message: str,
+    *,
+    now: datetime,
 ) -> ResolutionTrace:
     """Append one derivation outcome event."""
     return trace.append(
@@ -1278,6 +1331,7 @@ def _derivation_outcome_trace(
             ResolutionStage.DERIVATION,
             outcome,
             message,
+            now=now,
         )
     )
 
@@ -1286,6 +1340,8 @@ def _derivation_error_trace(
     trace: ResolutionTrace,
     field_name: str,
     message: str,
+    *,
+    now: datetime,
 ) -> ResolutionTrace:
     """Append one derivation error event."""
     return _derivation_outcome_trace(
@@ -1293,6 +1349,7 @@ def _derivation_error_trace(
         field_name,
         ResolutionOutcome.ERROR,
         message,
+        now=now,
     )
 
 
@@ -1327,6 +1384,8 @@ def _bvps_component_failure(
     name: str,
     result: InputResolutionResult,
     trace: ResolutionTrace,
+    *,
+    now: datetime,
 ) -> InputResolutionResult:
     """Wrap a component-resolution failure with BVPS derivation context."""
     reason = f"BVPS unavailable: required {name} component could not be resolved: {result.reason}"
@@ -1342,6 +1401,7 @@ def _bvps_component_failure(
             FinancialField.BVPS.value,
             outcome,
             reason,
+            now=now,
         ),
     )
 

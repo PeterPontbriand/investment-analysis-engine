@@ -21,7 +21,8 @@ database access stays isolated via ``src.cli_workspace.settings``, while
 provider/resolver composition here always reads the real settings singleton.
 """
 
-from datetime import timedelta
+from collections.abc import Callable
+from datetime import datetime, timedelta
 
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
@@ -62,9 +63,18 @@ def build_massive_production_provider() -> MassiveFinancialFactsAdapter:
 
 
 def build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInputResolver)](
-    *, resolver_type: type[ResolverT], data_provider: str | None, cache: ResolvedInputCacheProtocol | None = None
+    *,
+    resolver_type: type[ResolverT],
+    data_provider: str | None,
+    clock: Callable[[], datetime],
+    cache: ResolvedInputCacheProtocol | None = None,
 ) -> ResolverT:
-    """Build only the production provider capabilities needed by this invocation."""
+    """Build only the production provider capabilities needed by this invocation.
+
+    ``clock`` must resolve to the composition root's own ``executed_at`` —
+    the sole source for the resolver's quote-freshness evaluation. It is
+    never fed a point-in-time boundary.
+    """
     provider: FinancialFactsProvider
     if data_provider == MASSIVE_PROVIDER_ID:
         provider = build_massive_production_provider()
@@ -81,6 +91,7 @@ def build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInp
     return resolver_type(
         provider,
         cache=cache if cache is not None else InMemoryResolvedInputCache(),
+        clock=clock,
         quote_freshness_policy=QuoteFreshnessPolicy(timedelta(seconds=settings.quote_cache_ttl_seconds)),
     )
 

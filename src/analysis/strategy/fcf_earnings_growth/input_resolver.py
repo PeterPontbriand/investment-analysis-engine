@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from src.analysis.strategy.fcf_earnings_growth.calculators import (
     compute_cagr,
@@ -79,9 +79,14 @@ class ProductionAnnualGrowthSeriesResolver:
         provider: FinancialFactsProvider,
         *,
         cache: ResolvedInputSeriesCacheProtocol | None = None,
-        clock: Callable[[], datetime] | None = None,
+        clock: Callable[[], datetime],
     ) -> None:
-        """Initialize the resolver with a composed financial-facts provider."""
+        """Initialize the resolver with a composed financial-facts provider.
+
+        ``clock`` must resolve to the run's own ``executed_at`` — the sole
+        source for every resolved-input and quality-event timestamp this
+        resolver produces. It is never fed a point-in-time boundary.
+        """
         self._provider = provider
         self._cache = cache
         self._clock = clock
@@ -93,9 +98,9 @@ class ProductionAnnualGrowthSeriesResolver:
         subject_id: str,
         currency: str,
         as_of: datetime | None,
+        effective_as_of: datetime,
         provider_id: str = SEC_PROVIDER_ID,
         use_cache: bool = True,
-        effective_as_of: datetime | None = None,
     ) -> AnnualGrowthSeriesAssembly:
         """Resolve the strategy inputs, preserving typed unsupported-provider outcomes."""
         normalized_provider_id = provider_id.strip().lower()
@@ -105,7 +110,7 @@ class ProductionAnnualGrowthSeriesResolver:
                 "capital-expenditure, and diluted-EPS mappings."
             )
             trace = ResolutionTrace().append(
-                _event("annual_series", ResolutionStage.PROVIDER, ResolutionOutcome.REJECTED, reason)
+                _event("annual_series", ResolutionStage.PROVIDER, ResolutionOutcome.REJECTED, reason, now=self._clock())
             )
             return _failure_assembly(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
@@ -130,10 +135,11 @@ class ProductionAnnualGrowthSeriesResolver:
                 subject_id=subject_id,
                 currency=currency,
                 as_of=as_of,
+                effective_as_of=effective_as_of,
                 providers=providers,
                 cache=self._cache,
                 use_cache=use_cache,
-                clock=(lambda: effective_as_of) if effective_as_of is not None else self._clock,
+                clock=self._clock,
             )
 
 
@@ -223,7 +229,9 @@ class _FieldResolution:
     provider_error: bool = False
 
 
-def _event(field: str, stage: ResolutionStage, outcome: ResolutionOutcome, message: str) -> ResolutionEvent:
+def _event(
+    field: str, stage: ResolutionStage, outcome: ResolutionOutcome, message: str, *, now: datetime
+) -> ResolutionEvent:
     if outcome in (ResolutionOutcome.REJECTED, ResolutionOutcome.INVALID, ResolutionOutcome.UNAVAILABLE):
         publish_quality(
             (
@@ -231,7 +239,7 @@ def _event(field: str, stage: ResolutionStage, outcome: ResolutionOutcome, messa
                     f"financial.{stage.value}",
                     QualityOutcome.FAIL,
                     message,
-                    QualityContext(field, datetime.now(UTC)),
+                    QualityContext(field, now),
                 ),
             )
         )
@@ -582,6 +590,7 @@ def _resolve_field(  # noqa: PLR0913
                     ResolutionStage.CACHE,
                     ResolutionOutcome.HIT,
                     "Complete annual field series resolved from cache.",
+                    now=resolved_at,
                 )
             )
         trace = trace.append(
@@ -590,6 +599,7 @@ def _resolve_field(  # noqa: PLR0913
                 ResolutionStage.CACHE,
                 ResolutionOutcome.MISS,
                 "Annual field cache was absent, stale, or incomplete; refreshing the complete field.",
+                now=resolved_at,
             )
         )
     request = FinancialFactRequest(
@@ -607,7 +617,7 @@ def _resolve_field(  # noqa: PLR0913
         reason = f"{field.value} provider failed: {exc}"
         return _FieldResolution(
             reason_code=ReasonCode.PROVIDER_ERROR, reason=reason, provider_error=True
-        ), trace.append(_event(field.value, ResolutionStage.PROVIDER, ResolutionOutcome.ERROR, reason))
+        ), trace.append(_event(field.value, ResolutionStage.PROVIDER, ResolutionOutcome.ERROR, reason, now=resolved_at))
     resolution = _select_provider_facts(
         facts, field, subject_id, currency, effective_as_of, requested_as_of, resolved_at
     )
@@ -618,6 +628,7 @@ def _resolve_field(  # noqa: PLR0913
                 ResolutionStage.PROVIDER,
                 ResolutionOutcome.REJECTED,
                 resolution.reason or "Provider facts were rejected.",
+                now=resolved_at,
             )
         )
     if use_cache and cache is not None:
@@ -644,6 +655,7 @@ def _resolve_field(  # noqa: PLR0913
             ResolutionStage.PROVIDER,
             ResolutionOutcome.SUCCESS,
             "Annual field series resolved from provider.",
+            now=resolved_at,
         )
     )
 
@@ -766,13 +778,20 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
     subject_id: str,
     currency: str,
     as_of: datetime | None,
+    effective_as_of: datetime,
     providers: Mapping[FinancialField, FinancialFieldProvider],
     cache: ResolvedInputSeriesCacheProtocol | None = None,
     use_cache: bool = True,
-    clock: Callable[[], datetime] | None = None,
+    clock: Callable[[], datetime],
 ) -> AnnualGrowthSeriesAssembly:
-    """Resolve, align, derive, and select annual FCF/EPS history."""
-    now = (clock or (lambda: datetime.now(UTC)))()
+    """Resolve, align, derive, and select annual FCF/EPS history.
+
+    ``clock`` supplies the run's own execution time, the sole source for
+    every ``resolved_at``/retrieval timestamp. ``effective_as_of`` is the
+    truncation/availability boundary, passed as ordinary data rather than
+    wired through the clock — it is never used to timestamp a resolution.
+    """
+    now = clock()
     if now.tzinfo is None or now.utcoffset() is None:
         return _failure_assembly(
             status=CalculationStatus.INVALID_INPUT,
@@ -788,6 +807,16 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
             status=CalculationStatus.INVALID_INPUT,
             code=ReasonCode.INVALID_REQUEST,
             reason="as_of must be timezone-aware.",
+            policy=policy,
+            common_count=0,
+            longest_count=0,
+            trace=ResolutionTrace(),
+        )
+    if effective_as_of.tzinfo is None or effective_as_of.utcoffset() is None:
+        return _failure_assembly(
+            status=CalculationStatus.INVALID_INPUT,
+            code=ReasonCode.INVALID_REQUEST,
+            reason="effective_as_of must be timezone-aware.",
             policy=policy,
             common_count=0,
             longest_count=0,
@@ -815,7 +844,6 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
             longest_count=0,
             trace=ResolutionTrace(),
         )
-    effective_as_of = as_of or now
     candidates = _candidate_horizons(policy.historical_horizon)
     required_count = max(candidates) + 1
     trace = ResolutionTrace()
@@ -968,6 +996,7 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
                 ResolutionStage.DERIVATION,
                 ResolutionOutcome.SUCCESS,
                 "Aligned annual observations and calculated the selected-span growth metrics.",
+                now=now,
             )
         ),
     )

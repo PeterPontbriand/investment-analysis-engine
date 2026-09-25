@@ -100,7 +100,10 @@ def test_fetch_market_data_handles_multiindex_flattening(mock_download: MagicMoc
 
 def test_analyze_momentum_bullish(bullish_dataframe: pd.DataFrame) -> None:
     metrics = compute_momentum_metrics(
-        df=bullish_dataframe, config=MomentumConfig(short_window=2, long_window=5), ticker="BTC-USD"
+        df=bullish_dataframe,
+        config=MomentumConfig(short_window=2, long_window=5),
+        ticker="BTC-USD",
+        timestamp=datetime(2026, 1, 20, tzinfo=UTC),
     )
 
     assert metrics.ticker == "BTC-USD"
@@ -114,7 +117,10 @@ def test_analyze_momentum_bullish(bullish_dataframe: pd.DataFrame) -> None:
 
 def test_analyze_momentum_bearish(bearish_dataframe: pd.DataFrame) -> None:
     metrics = compute_momentum_metrics(
-        df=bearish_dataframe, config=MomentumConfig(short_window=2, long_window=5), ticker="BTC-USD"
+        df=bearish_dataframe,
+        config=MomentumConfig(short_window=2, long_window=5),
+        ticker="BTC-USD",
+        timestamp=datetime(2026, 1, 20, tzinfo=UTC),
     )
 
     assert metrics.status == TrendStatus.BEARISH
@@ -153,7 +159,12 @@ def test_run_analysis_retains_market_metadata(bullish_dataframe: pd.DataFrame) -
 def test_insufficient_window_history_returns_unknown_without_nan() -> None:
     df = pd.DataFrame({"Close": [10.0, 11.0, 12.0]})
 
-    metrics = compute_momentum_metrics(df=df, config=MomentumConfig(short_window=2, long_window=5), ticker="SHORT")
+    metrics = compute_momentum_metrics(
+        df=df,
+        config=MomentumConfig(short_window=2, long_window=5),
+        ticker="SHORT",
+        timestamp=datetime(2026, 1, 20, tzinfo=UTC),
+    )
 
     assert metrics.status is TrendStatus.UNKNOWN
     assert metrics.current_price == 12.0
@@ -165,13 +176,21 @@ def test_insufficient_window_history_returns_unknown_without_nan() -> None:
 def test_non_finite_latest_price_is_rejected() -> None:
     df = pd.DataFrame({"Close": [10.0, 11.0, float("nan")]})
 
-    with pytest.raises(ValueError, match="numeric and finite.*Close at row 2"):
-        compute_momentum_metrics(df=df, config=MomentumConfig(short_window=2, long_window=3), ticker="BAD")
+    with pytest.raises(ValueError, match="Momentum latest close must be finite"):
+        compute_momentum_metrics(
+            df=df,
+            config=MomentumConfig(short_window=2, long_window=3),
+            ticker="BAD",
+            timestamp=datetime(2026, 1, 20, tzinfo=UTC),
+        )
 
 
 def test_analyze_momentum_ticker_override_invariant(sample_ohlcv_data: pd.DataFrame) -> None:
     metrics = compute_momentum_metrics(
-        df=sample_ohlcv_data, config=MomentumConfig(short_window=3, long_window=7), ticker="ETH-USD"
+        df=sample_ohlcv_data,
+        config=MomentumConfig(short_window=3, long_window=7),
+        ticker="ETH-USD",
+        timestamp=datetime(2026, 1, 20, tzinfo=UTC),
     )
 
     assert metrics.ticker == "ETH-USD"

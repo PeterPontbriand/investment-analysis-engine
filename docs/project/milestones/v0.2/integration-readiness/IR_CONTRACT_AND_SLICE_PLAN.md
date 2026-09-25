@@ -202,7 +202,7 @@ diff is non-executable declarative metadata with no import-time or runtime effec
   *internal* config/context shapes and persisted evidence/config schemas that produce that output
   may, per `AGENTS.md` §0 — version fields bump accordingly, with no migration or compatibility
   code for stored data during this consolidation period.
-  **Accepted exception (IR.2.2, 2026-09-26):** `friendly_graham_failure`'s renaming to
+  **Accepted exception (IR.2.2, 2026-09-25):** `friendly_graham_failure`'s renaming to
   `friendly_valuation_failure` (§6.13.5 — the function generalizes as it moves to the neutral
   `evidence_presentation.py` module, ahead of NCAV/EPV/reverse-DCF strategies needing the same
   failure-prose helper) changed its wording from "the requested Graham inputs are invalid" to "the
@@ -315,7 +315,7 @@ commit this inventory was written against; they will drift normally during imple
    (`cli.py:216-217,247`), and `run_momentum` constructs `MomentumAnalyzer(default_ticker=ticker, ...)`
    relying on its internal `self._fallback_ticker = default_ticker or default_section[ConfigKeys.TICKER]`
    (`momentum_analyzer.py:137`).
-9. **Confirmed, and folded into IR.2 (decided 2026-09-24; clock value corrected 2026-09-26 —
+9. **Confirmed, and folded into IR.2 (decided 2026-09-24; clock value corrected 2026-09-25 —
    see §6.11).** `src/cli_composition.py:64-84`'s
    `build_graham_resolver` never passes `clock=` when constructing `GrahamNumberInputResolver`/
    `GrahamGrowthInputResolver`, so those resolvers fall back to their own un-injected default clock
@@ -751,7 +751,7 @@ is unaffected since `GrahamNumberAnalysis`/`GrahamGrowthAnalysis` gain no new po
 `FCFGrowthSelection` is unaffected (unchanged persisted shape); `FCFEarningsGrowthResult` is
 unaffected (its `instrument_profile` was already always populated).
 
-### 6.11 `datetime.now`/`datetime.utcnow`/`time.time` audit, classified by purpose, and the shared-clock helper (item 3, revised 2026-09-24; clock rule corrected 2026-09-26)
+### 6.11 `datetime.now`/`datetime.utcnow`/`time.time` audit, classified by purpose, and the shared-clock helper (item 3, revised 2026-09-24; clock rule corrected 2026-09-25)
 
 **Revised per the project owner's explicit rejection of the narrowed-scope recommendation.** The
 Category-C "already injectable, defaults to the wall clock" pattern is not a safe exception — it is
@@ -759,7 +759,7 @@ exactly how the Graham resolver bug (§6.1 item 9) happened: an injectable clock
 composition root ever actually injected, silently falling back to `datetime.now`. The distinction
 that matters is not "injectable vs. hardcoded," it is **what the clock value is used for**:
 
-**Corrected 2026-09-26 — every injected clock receives `context.executed_at`; `effective_as_of` is
+**Corrected 2026-09-25 — every injected clock receives `context.executed_at`; `effective_as_of` is
 never a clock.** An earlier pass of this section fed every "decision clock" from
 `context.effective_as_of`, including cache/TTL freshness checks. That is wrong: TTL freshness answers
 "how much real time has elapsed since this was cached," which must be judged against the run's actual

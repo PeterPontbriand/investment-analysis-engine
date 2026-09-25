@@ -384,7 +384,9 @@ def test_graham_resolver_passes_configured_sec_identity_explicitly(mock_sec_adap
     declared_identity = "investment-analysis-engine-test test@example.invalid"
 
     with patch.object(settings, "sec_user_agent", declared_identity):
-        build_graham_resolver(resolver_type=GrahamNumberInputResolver, data_provider=None)
+        build_graham_resolver(
+            resolver_type=GrahamNumberInputResolver, data_provider=None, clock=lambda: datetime.now(UTC)
+        )
 
     mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
 
@@ -394,7 +396,9 @@ def test_graham_growth_default_uses_configured_sec_identity(mock_sec_adapter: Ma
     declared_identity = "investment-analysis-engine-test test@example.invalid"
 
     with patch.object(settings, "sec_user_agent", declared_identity):
-        build_graham_resolver(resolver_type=GrahamGrowthInputResolver, data_provider=None)
+        build_graham_resolver(
+            resolver_type=GrahamGrowthInputResolver, data_provider=None, clock=lambda: datetime.now(UTC)
+        )
 
     mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
 

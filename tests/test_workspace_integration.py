@@ -47,8 +47,10 @@ class _SecLabeledGrahamProvider:
         return tuple(replace(fact, provider_id="sec_edgar") for fact in self._delegate.fetch_facts(request))
 
 
-def _resolver_side_effect(*, resolver_type: type, data_provider: str | None = None, cache: object = None) -> object:
-    del data_provider, cache
+def _resolver_side_effect(
+    *, resolver_type: type, data_provider: str | None = None, cache: object = None, clock: object = None
+) -> object:
+    del data_provider, cache, clock
     if resolver_type is GrahamNumberInputResolver:
         return GrahamNumberInputResolver(_SecLabeledGrahamProvider(), clock=lambda: NOW)
     return GrahamGrowthInputResolver(_SecLabeledGrahamProvider(), clock=lambda: NOW)

@@ -1,17 +1,21 @@
 """Slice F regression coverage for Momentum's shared contracts."""
 
 from datetime import UTC, datetime
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.fcf_earnings_growth.models import MetricStatus, ReasonCode
 from src.analysis.strategy.momentum.momentum_analyzer import (
+    MomentumAnalyzer,
     MomentumConfig,
     MomentumInputResolver,
     MomentumPolicy,
     compute_momentum_metrics,
 )
+from src.data.quality import HistoricalDataQualityError
 from src.evaluation.fixtures.market_data import FixtureMarketDataProvider
 
 
@@ -27,7 +31,7 @@ def test_resolver_truncates_future_bars_and_retains_provenance() -> None:
     )
     boundary = datetime(2026, 1, 3, 23, 59, tzinfo=UTC)
 
-    resolved = resolver.resolve(ticker="TEST", start_date="2026-01-01", as_of=boundary)
+    resolved = resolver.resolve(ticker="TEST", start_date="2026-01-01", as_of=boundary, effective_as_of=boundary)
 
     assert resolved.market_data.frame["Close"].tolist() == [10.0, 11.0, 12.0]
     assert len(resolved.price_inputs) == 3
@@ -47,6 +51,7 @@ def test_metric_results_classify_insufficient_history() -> None:
         df=pd.DataFrame({"Close": [10.0, 11.0, 12.0]}),
         config=MomentumConfig(short_window=2, long_window=5, rsi_period=4),
         ticker="SHORT",
+        timestamp=datetime(2026, 1, 20, tzinfo=UTC),
     )
 
     assert metrics.sma_50.status is MetricStatus.OK
@@ -68,6 +73,7 @@ def test_first_valid_long_window_does_not_invent_a_crossover() -> None:
         df=pd.DataFrame({"Close": [1.0, 2.0, 3.0]}),
         config=MomentumConfig(short_window=2, long_window=3, rsi_period=2),
         ticker="ACME",
+        timestamp=datetime(2026, 1, 20, tzinfo=UTC),
     )
     assert metrics.short_sma_val == 2.5
     assert metrics.long_sma_val == 2.0
@@ -75,11 +81,28 @@ def test_first_valid_long_window_does_not_invent_a_crossover() -> None:
 
 
 @pytest.mark.parametrize("invalid", [float("nan"), float("inf")])
-def test_supplied_frame_rejects_invalid_values_outside_latest_windows(invalid: float) -> None:
-    """Rolling-window arithmetic must not conceal invalid earlier observations."""
-    with pytest.raises(ValueError, match="finite"):
-        compute_momentum_metrics(
-            df=pd.DataFrame({"Close": [invalid, 2.0, 3.0, 4.0]}),
-            config=MomentumConfig(short_window=2, long_window=3, rsi_period=2),
-            ticker="ACME",
-        )
+def test_run_analysis_rejects_invalid_values_outside_latest_windows(invalid: float) -> None:
+    """run_analysis's re-check must still catch a concealed invalid observation.
+
+    compute_momentum_metrics is now pure and trusts its input; only run_analysis's
+    re-check protects against an invalid observation that rolling-window
+    arithmetic would otherwise conceal outside the latest windows.
+    """
+    frame = pd.DataFrame(
+        {"Close": [invalid, 2.0, 3.0, 4.0]},
+        index=pd.date_range("2026-01-01", periods=4, tz=UTC),
+    )
+    analysis_settings = {"default": {"default_ticker": "ACME", "data_start_date": "2026-01-01"}}
+    momentum_settings = {"window_sizes": {"short_window": 2, "long_window": 3}}
+    context = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 5, tzinfo=UTC), use_cache=True)
+    with (
+        patch("src.config.ProjectSettings.get_analysis_settings", return_value=analysis_settings),
+        patch("src.config.ProjectSettings.get_momentum_analysis", return_value=momentum_settings),
+    ):
+        analyzer = MomentumAnalyzer(market_data_provider=FixtureMarketDataProvider(frame))
+        with pytest.raises(HistoricalDataQualityError, match="finite"):
+            analyzer.run_analysis(
+                ticker="ACME",
+                config=MomentumConfig(short_window=2, long_window=3, rsi_period=2),
+                context=context,
+            )
