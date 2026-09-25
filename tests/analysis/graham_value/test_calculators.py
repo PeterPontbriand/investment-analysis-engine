@@ -23,7 +23,6 @@ import sys
 
 import pytest
 
-from src.analysis.shared.graham_contracts import GrahamMethod
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, compute_graham_growth_value
 from src.analysis.strategy.graham_number.calculation import GrahamNumberResult, compute_graham_number
 from src.core.analysis_status import CalculationStatus
@@ -100,12 +99,12 @@ class TestMethodDiscrimination:
     def test_graham_number_method_field(self) -> None:
         result = compute_graham_number(eps=1.0, bvps=1.0)
         assert isinstance(result, GrahamNumberResult)
-        assert result.method is GrahamMethod.NUMBER
+        assert result.method == "graham_number"
 
     def test_growth_value_method_field(self) -> None:
         result = compute_graham_growth_value(normalized_eps=1.0, expected_growth_rate=5.0, current_aaa_yield=4.0)
         assert isinstance(result, GrahamGrowthValueResult)
-        assert result.method is GrahamMethod.GROWTH_VALUE
+        assert result.method == "graham_growth_value"
 
     def test_number_result_has_max_price_not_growth_value(self) -> None:
         result = compute_graham_number(eps=2.0, bvps=3.0)
@@ -475,7 +474,7 @@ class TestMethodFixedDiscriminators:
             GrahamNumberResult(  # type: ignore[call-arg]
                 status=CalculationStatus.OK,
                 maximum_indicated_price=10.0,
-                method=GrahamMethod.GROWTH_VALUE,
+                method="graham_growth_value",
             )
 
     def test_graham_growth_value_result_cannot_set_method(self) -> None:
@@ -484,24 +483,24 @@ class TestMethodFixedDiscriminators:
             GrahamGrowthValueResult(  # type: ignore[call-arg]
                 status=CalculationStatus.OK,
                 growth_value=10.0,
-                method=GrahamMethod.NUMBER,
+                method="graham_number",
             )
 
     def test_graham_number_ok_result_has_number_method(self) -> None:
         result = compute_graham_number(eps=1.0, bvps=1.0)
-        assert result.method is GrahamMethod.NUMBER
+        assert result.method == "graham_number"
 
     def test_graham_number_error_result_has_number_method(self) -> None:
         result = compute_graham_number(eps=0.0, bvps=1.0)
-        assert result.method is GrahamMethod.NUMBER
+        assert result.method == "graham_number"
 
     def test_growth_value_ok_result_has_growth_method(self) -> None:
         result = compute_graham_growth_value(normalized_eps=1.0, expected_growth_rate=5.0, current_aaa_yield=4.0)
-        assert result.method is GrahamMethod.GROWTH_VALUE
+        assert result.method == "graham_growth_value"
 
     def test_growth_value_error_result_has_growth_method(self) -> None:
         result = compute_graham_growth_value(normalized_eps=1.0, expected_growth_rate=5.0, current_aaa_yield=0.0)
-        assert result.method is GrahamMethod.GROWTH_VALUE
+        assert result.method == "graham_growth_value"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

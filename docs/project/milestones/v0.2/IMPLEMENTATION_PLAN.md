@@ -365,7 +365,7 @@ The following quality checks must pass on every pull request within this milesto
 All of the following must be true before declaring the milestone complete and opening the v0.2.5 validation window:
 
 1. Steps 2.1–2.6 and 3.1–3.6, including the Step 3.4 research workspace and the Step 3.5 quantitative screening suite, are fully implemented and merged.
-2. Step 2.5 Golden-test suite exists, runs headlessly, exercises Momentum, both Graham methods, and Free Cash Flow & Earnings Growth, and reports strategy-selection, Graham method-selection, numerical-correctness, and overall pass rates against the ≥ 90 % target.
+2. Step 2.5 Golden-test suite exists, runs headlessly, exercises Momentum, Graham Number, Graham Growth Value, and Free Cash Flow & Earnings Growth as independent strategies, and reports strategy-selection, numerical-correctness, and overall pass rates against the ≥ 90 % target.
 3. A fresh repository clone running Light Mode setup instructions completes the investor workflow: direct/watchlist analysis (including selected Step 3.5 screens), refresh, persisted Analysis Run, concise view, detailed provenance, and bounded synthesis.
 4. CI pipeline is green on `main`.
 5. Master Plan and Discovery Workbook cross-references remain consistent.

@@ -33,12 +33,8 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
     annual_series,
 )
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
-from src.reporting.graham import (
-    GrahamGrowthPresentation,
-    GrahamNumberPresentation,
-    render_graham_growth,
-    render_graham_number,
-)
+from src.reporting.graham_growth import GrahamGrowthPresentation, render_graham_growth
+from src.reporting.graham_number import GrahamNumberPresentation, render_graham_number
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
 

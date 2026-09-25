@@ -28,7 +28,6 @@ from src.evaluation.composition import (
 from src.evaluation.evaluator import (
     evaluate_domain_outcomes,
     evaluate_fixture_status,
-    evaluate_graham_method_selection,
     evaluate_numerical_correctness,
     evaluate_tool_selection,
 )
@@ -267,7 +266,6 @@ async def _run_case(
     )
     components: tuple[ComponentResult, ...] = (
         evaluate_tool_selection(request.case.expectation.tool_constraints, observation),
-        evaluate_graham_method_selection(request.case.expectation.graham_method_constraints, observation),
         evaluate_numerical_correctness(
             request.case.expectation.numerical_expectations,
             observation,

@@ -11,7 +11,6 @@ from typing import Annotated, Final
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.shared.graham_contracts import GrahamGrowthEPSBasis, GrahamNumberEPSBasis
 from src.analysis.strategy.fcf_earnings_growth import (
     FCFClassificationBasis,
     FCFEarningsGrowthAnalyzer,
@@ -22,10 +21,10 @@ from src.analysis.strategy.fcf_earnings_growth import (
     HistoricalHorizon,
 )
 from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
-from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
+from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
 from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
-from src.analysis.strategy.graham_number.config import GrahamNumberConfig
+from src.analysis.strategy.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
 from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.analysis.strategy.momentum.momentum_analyzer import (
     MomentumAnalyzer,

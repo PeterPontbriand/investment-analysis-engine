@@ -62,8 +62,8 @@ def decode_evidence(
         (run.analysis_id, run.method_id)
         not in (
             ("momentum", "sma_crossover"),
-            ("graham", "graham_number"),
-            ("graham", "graham_growth_value"),
+            ("graham_number", "graham_number"),
+            ("graham_growth_value", "graham_growth_value"),
             ("fcf_earnings_growth", "reported_fcf_eps_cagr"),
         )
         or any(

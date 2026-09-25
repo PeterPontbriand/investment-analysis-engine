@@ -61,8 +61,8 @@ NativeEvidence = MomentumRun | GrahamNumberAnalysis | GrahamGrowthAnalysis | FCF
 
 _METHOD_VERSIONS: dict[tuple[str, str], tuple[int, int]] = {
     ("momentum", "sma_crossover"): (1, 1),
-    ("graham", "graham_number"): (1, 1),
-    ("graham", "graham_growth_value"): (1, 1),
+    ("graham_number", "graham_number"): (1, 1),
+    ("graham_growth_value", "graham_growth_value"): (1, 1),
     ("fcf_earnings_growth", "reported_fcf_eps_cagr"): (2, 3),
 }
 

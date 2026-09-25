@@ -27,17 +27,11 @@ from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
 from src.core.analysis_status import CalculationStatus
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
-from src.reporting.graham import (
-    GrahamGrowthPresentation,
-    GrahamNumberPresentation,
-    friendly_graham_failure,
-    growth_with_public_quote_reason,
-    number_with_public_quote_reason,
-    render_graham_growth,
-    render_graham_number,
-)
+from src.reporting.graham_growth import GrahamGrowthPresentation, growth_with_public_quote_reason, render_graham_growth
+from src.reporting.graham_number import GrahamNumberPresentation, number_with_public_quote_reason, render_graham_number
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
+from src.reporting.valuation_presentation import friendly_valuation_failure
 from src.workspace.codecs import decode_evidence
 from src.workspace.requests import MomentumSelection
 from src.workspace.runs import AnalysisRun
@@ -45,7 +39,7 @@ from src.workspace.runs import AnalysisRun
 # Statuses whose stored `assembly.reason`/`result.reason` is already investor-facing
 # (a successful calculation, or a method-level inapplicability message authored at
 # the source); every other non-OK status carries a raw resolver reason that the live
-# commands only ever show after `friendly_graham_failure` normalizes it.
+# commands only ever show after `friendly_valuation_failure` normalizes it.
 _GRAHAM_REASON_ALREADY_SAFE = (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE)
 
 _SUPPORTED_PROJECTION_VERSION = 1
@@ -91,9 +85,9 @@ def project_run(run: AnalysisRun, options: ReplayOptions | None = None) -> str:
         raise UnsupportedProjectionError(f"Unsupported projection version: {run.projection_version}.")
     if (run.analysis_id, run.method_id) == ("momentum", "sma_crossover"):
         return _project_momentum_v1(run, resolved_options)
-    if (run.analysis_id, run.method_id) == ("graham", "graham_number"):
+    if (run.analysis_id, run.method_id) == ("graham_number", "graham_number"):
         return _project_graham_number_v1(run, resolved_options)
-    if (run.analysis_id, run.method_id) == ("graham", "graham_growth_value"):
+    if (run.analysis_id, run.method_id) == ("graham_growth_value", "graham_growth_value"):
         return _project_graham_growth_v1(run, resolved_options)
     if (run.analysis_id, run.method_id) == ("fcf_earnings_growth", "reported_fcf_eps_cagr"):
         return _project_fcf_growth_v1(run, resolved_options)
@@ -223,11 +217,11 @@ def _friendly_graham_assembly[AssemblyT: (GrahamNumberInputAssembly, GrowthValue
     successful or NOT_APPLICABLE assembly's reason is already safe to show
     verbatim (or, for OK, is None); any other status carries a raw resolver
     reason at capture time that the live command only ever displays after
-    `friendly_graham_failure` normalizes it.
+    `friendly_valuation_failure` normalizes it.
     """
     if assembly.status in _GRAHAM_REASON_ALREADY_SAFE:
         return assembly
-    return replace(assembly, reason=friendly_graham_failure(ticker, assembly.status, assembly.reason))
+    return replace(assembly, reason=friendly_valuation_failure(ticker, assembly.status, assembly.reason))
 
 
 __all__ = [

@@ -7,8 +7,6 @@ from src.evaluation.models import (
     Case,
     DomainOutcomeExpectation,
     Expectation,
-    GrahamMethod,
-    GrahamMethodConstraints,
     NumericalExpectation,
     ToolConstraints,
     ToolName,
@@ -17,10 +15,6 @@ from src.evaluation.models import (
 _GRAHAM_NUMBER_TOOL_CONSTRAINTS: Final = ToolConstraints(
     permitted=(ToolName.ANALYZE_GRAHAM_NUMBER,),
     required=(ToolName.ANALYZE_GRAHAM_NUMBER,),
-)
-_GRAHAM_NUMBER_METHOD_CONSTRAINTS: Final = GrahamMethodConstraints(
-    permitted=(GrahamMethod.GRAHAM_NUMBER,),
-    required=(GrahamMethod.GRAHAM_NUMBER,),
 )
 
 
@@ -34,7 +28,6 @@ GRN_01: Final = Case(
     fixture_ids=(GRAHAM_FACTS_FIXTURE_ID,),
     expectation=Expectation(
         tool_constraints=_GRAHAM_NUMBER_TOOL_CONSTRAINTS,
-        graham_method_constraints=_GRAHAM_NUMBER_METHOD_CONSTRAINTS,
         numerical_expectations=(
             NumericalExpectation(
                 field_path="assembly.eps.value",
@@ -67,7 +60,6 @@ GRN_02: Final = Case(
     fixture_ids=(GRAHAM_FACTS_FIXTURE_ID,),
     expectation=Expectation(
         tool_constraints=_GRAHAM_NUMBER_TOOL_CONSTRAINTS,
-        graham_method_constraints=_GRAHAM_NUMBER_METHOD_CONSTRAINTS,
         numerical_expectations=(
             NumericalExpectation(
                 field_path="assembly.eps.value",
@@ -100,7 +92,6 @@ GRA_ETF_01: Final = Case(
     fixture_ids=(KNOWN_ETF_PROFILE_FIXTURE_ID,),
     expectation=Expectation(
         tool_constraints=_GRAHAM_NUMBER_TOOL_CONSTRAINTS,
-        graham_method_constraints=_GRAHAM_NUMBER_METHOD_CONSTRAINTS,
         domain_outcome_expectations=(
             DomainOutcomeExpectation(field_path="assembly.status", expected_value="not_applicable"),
             DomainOutcomeExpectation(field_path="margin_of_safety_percent", expected_value=None),
@@ -129,7 +120,6 @@ GRN_03: Final = Case(
     fixture_ids=(GRAHAM_FACTS_FIXTURE_ID,),
     expectation=Expectation(
         tool_constraints=_GRAHAM_NUMBER_TOOL_CONSTRAINTS,
-        graham_method_constraints=_GRAHAM_NUMBER_METHOD_CONSTRAINTS,
         numerical_expectations=(
             NumericalExpectation(
                 field_path="result.maximum_indicated_price",

@@ -166,7 +166,6 @@ async def test_deterministic_runner_connects_dispatch_evaluation_reporting_and_t
     assert report.case_results[0].outcome is CaseOutcome.PASS
     assert report.case_results[0].trajectory_id == str(RUN_ID)
     assert _component(report, ComponentKind.STRATEGY_SELECTION).outcome is ComponentOutcome.NOT_MEASURED
-    assert _component(report, ComponentKind.GRAHAM_METHOD_SELECTION).outcome is ComponentOutcome.NOT_APPLICABLE
     assert _component(report, ComponentKind.NUMERICAL_CORRECTNESS).outcome is ComponentOutcome.PASS
     assert _component(report, ComponentKind.FIXTURE_STATUS).outcome is ComponentOutcome.PASS
     assert _component(report, ComponentKind.EXECUTION_STATUS).outcome is ComponentOutcome.PASS

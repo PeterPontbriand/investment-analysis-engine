@@ -78,17 +78,11 @@ from src.evaluation.reporting import EvaluationReport
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.llm.client import LLMClient
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
-from src.reporting.graham import (
-    GrahamGrowthPresentation,
-    GrahamNumberPresentation,
-    friendly_graham_failure,
-    growth_with_public_quote_reason,
-    number_with_public_quote_reason,
-    render_graham_growth,
-    render_graham_number,
-)
+from src.reporting.graham_growth import GrahamGrowthPresentation, growth_with_public_quote_reason, render_graham_growth
+from src.reporting.graham_number import GrahamNumberPresentation, number_with_public_quote_reason, render_graham_number
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
+from src.reporting.valuation_presentation import friendly_valuation_failure
 from src.workspace.execution import (
     ExecutionCapture,
     execute,
@@ -392,7 +386,7 @@ def graham_number(  # noqa: PLR0913
     with (
         execution_errors(
             mode=mode,
-            analysis="graham",
+            analysis="graham_number",
             method="graham_number",
             ticker=target_ticker,
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
@@ -401,7 +395,7 @@ def graham_number(  # noqa: PLR0913
     ):
         with execution_errors(
             mode=mode,
-            analysis="graham",
+            analysis="graham_number",
             method="graham_number",
             ticker=target_ticker,
             invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
@@ -505,7 +499,7 @@ def graham_growth(  # noqa: PLR0913
     with (
         execution_errors(
             mode=mode,
-            analysis="graham",
+            analysis="graham_growth_value",
             method="graham_growth_value",
             ticker=target_ticker,
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
@@ -514,7 +508,7 @@ def graham_growth(  # noqa: PLR0913
     ):
         with execution_errors(
             mode=mode,
-            analysis="graham",
+            analysis="graham_growth_value",
             method="graham_growth_value",
             ticker=target_ticker,
             invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
@@ -1038,7 +1032,7 @@ def _number_failure_output(  # noqa: PLR0913
     price_comparison: PriceComparison | None = None,
 ) -> tuple[str, int]:
     """Render a failed Number analysis without leaking low-level details by default."""
-    reason = friendly_graham_failure(ticker, assembly.status, assembly.reason)
+    reason = friendly_valuation_failure(ticker, assembly.status, assembly.reason)
     safe_assembly = number_with_public_quote_reason(replace(assembly, reason=reason))
     presentation = GrahamNumberPresentation(
         ticker=ticker,
@@ -1063,7 +1057,7 @@ def _growth_failure_output(  # noqa: PLR0913
     price_comparison: PriceComparison | None = None,
 ) -> tuple[str, int]:
     """Render a failed growth analysis without leaking low-level details by default."""
-    reason = friendly_graham_failure(ticker, assembly.status, assembly.reason)
+    reason = friendly_valuation_failure(ticker, assembly.status, assembly.reason)
     safe_assembly = growth_with_public_quote_reason(replace(assembly, reason=reason))
     policy = growth_assumptions()
     presentation = GrahamGrowthPresentation(

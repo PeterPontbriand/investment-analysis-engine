@@ -143,6 +143,14 @@ def resolve_optional_quote(  # noqa: PLR0913
     return resolver.resolve(request, override=quote_override, use_cache=use_cache)
 
 
+def require_ticker(ticker: str) -> str:
+    """Normalize and require a nonblank ticker."""
+    normalized = ticker.strip().upper()
+    if not normalized:
+        raise ValueError("A nonblank ticker is required.")
+    return normalized
+
+
 def validate_profile_ticker(ticker: str, profile: InstrumentProfile | None, *, mismatch_message: str) -> None:
     """Reject accidental reuse of evidence for another requested instrument."""
     if profile is not None and profile.ticker != ticker.strip().upper():

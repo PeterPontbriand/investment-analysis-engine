@@ -5,14 +5,14 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Literal
 
 from src.analysis.shared.financial_resolution import resolve_normalized_eps, resolve_optional_quote
-from src.analysis.shared.graham_contracts import GrahamMethod, _trace_event
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from src.data.financial.quote_freshness import QuoteFreshnessEvidence
-from src.data.financial.resolution_trace import ResolutionOutcome, ResolutionStage, ResolutionTrace
+from src.data.financial.resolution_trace import ResolutionOutcome, ResolutionStage, ResolutionTrace, single_event_trace
 from src.data.financial.resolver import InputResolutionResult, InputResolver
 
 
@@ -43,7 +43,7 @@ class GrowthValueInputAssembly:
         quote_reason: Human-readable reason for a non-OK quote.
         reason: Explanation when assembly ``status`` is not OK.
         resolution_trace: Ordered resolver events across attempted method inputs.
-        method: Always ``GrahamMethod.GROWTH_VALUE``.
+        method: Always ``"graham_growth_value"``.
     """
 
     status: CalculationStatus
@@ -56,7 +56,7 @@ class GrowthValueInputAssembly:
     quote_freshness: QuoteFreshnessEvidence | None = None
     reason: str | None = None
     resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
-    method: GrahamMethod = field(init=False, default=GrahamMethod.GROWTH_VALUE)
+    method: Literal["graham_growth_value"] = field(init=False, default="graham_growth_value")
 
 
 @dataclass(frozen=True)
@@ -68,14 +68,14 @@ class GrahamGrowthValueResult:
         growth_value: The forecast-dependent growth estimate.  ``None`` when
             ``status`` is not ``OK``.
         reason: Human-readable explanation when ``status`` is not ``OK``.
-        method: Always ``GrahamMethod.GROWTH_VALUE`` (set automatically, not
+        method: Always ``"graham_growth_value"`` (set automatically, not
             caller-supplied).
     """
 
     status: CalculationStatus
     growth_value: float | None = None
     reason: str | None = None
-    method: GrahamMethod = field(init=False, default=GrahamMethod.GROWTH_VALUE)
+    method: Literal["graham_growth_value"] = field(init=False, default="graham_growth_value")
 
     def __post_init__(self) -> None:
         """Enforce result-state invariants."""
@@ -255,7 +255,7 @@ class GrahamGrowthInputResolver(InputResolver):
             return GrowthValueInputAssembly(
                 status=CalculationStatus.INVALID_INPUT,
                 reason=reason,
-                resolution_trace=_trace_event(
+                resolution_trace=single_event_trace(
                     "eps",
                     ResolutionStage.VALIDATION,
                     ResolutionOutcome.INVALID,
@@ -359,7 +359,7 @@ class GrahamGrowthInputResolver(InputResolver):
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
                 reason=reason,
-                resolution_trace=_trace_event(
+                resolution_trace=single_event_trace(
                     field_name,
                     ResolutionStage.OVERRIDE,
                     ResolutionOutcome.UNAVAILABLE,
@@ -371,7 +371,7 @@ class GrahamGrowthInputResolver(InputResolver):
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
                 reason=reason,
-                resolution_trace=_trace_event(
+                resolution_trace=single_event_trace(
                     field_name,
                     ResolutionStage.OVERRIDE,
                     ResolutionOutcome.INVALID,
@@ -389,7 +389,7 @@ class GrahamGrowthInputResolver(InputResolver):
         return InputResolutionResult(
             status=CalculationStatus.OK,
             resolved_input=ri,
-            resolution_trace=_trace_event(
+            resolution_trace=single_event_trace(
                 field_name,
                 ResolutionStage.OVERRIDE,
                 ResolutionOutcome.SUCCESS,

@@ -426,13 +426,13 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
     assert result.exit_code == 0
     payload = json.loads(result.output)
     assert payload["schema_version"] == 5
-    assert payload["analysis"] == "graham"
+    assert payload["analysis"] == "graham_number"
     assert payload["method"] == "graham_number"
     assert payload["ticker"] == SECURITY_ID
     assert payload["status"] == "ok"
     assert payload["result"]["maximum_indicated_price"] is not None
-    assert payload["inputs"]["eps"]["basis"] == "three_year_average"
-    assert payload["inputs"]["eps"]["source_kind"] == "derived"
+    assert payload["inputs"]["eps"]["basis"] == "ttm"
+    assert payload["inputs"]["eps"]["source_kind"] == "provider"
 
 
 @pytest.mark.parametrize(
@@ -503,7 +503,7 @@ def test_cli_graham_number_eps_override_inherits_default_basis(fixture_resolver:
     assert result.exit_code == 0
     payload = json.loads(result.output)
     assert payload["inputs"]["eps"]["source_kind"] == "override"
-    assert payload["inputs"]["eps"]["basis"] == "three_year_average"
+    assert payload["inputs"]["eps"]["basis"] == "ttm"
     assert any("EPS is a user override" in warning for warning in payload["warnings"])
 
 
@@ -657,7 +657,7 @@ def test_cli_graham_details_shows_financial_provenance(fixture_resolver: GrahamN
 
     assert result.exit_code == 0
     assert "Details" in result.output
-    assert "3-year average" in result.output
+    assert "TTM" in result.output
     assert "Source:" in result.output
     assert "sqrt(22.5" in result.output
     assert "derivation: arithmetic_mean" not in result.output

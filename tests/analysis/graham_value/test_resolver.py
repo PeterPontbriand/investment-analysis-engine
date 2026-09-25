@@ -9,7 +9,6 @@ from typing import Any
 
 import pytest
 
-from src.analysis.shared.graham_contracts import GrahamMethod
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.core.analysis_status import CalculationStatus
@@ -1852,7 +1851,7 @@ def test_c2d_graham_number_three_year_avg_success() -> None:
         security_provider_id=PROVIDER_ID,
     )
     assert result.status is CalculationStatus.OK
-    assert result.method is GrahamMethod.NUMBER
+    assert result.method == "graham_number"
     assert result.eps is not None
     assert result.eps.value == pytest.approx(3.0)  # mean of 2.0, 3.0, 4.0
     assert result.eps.basis == "three_year_average"
@@ -1946,7 +1945,7 @@ def test_c2d_growth_value_success() -> None:
         aaa_provider_id="provider-aaa",
     )
     assert result.status is CalculationStatus.OK
-    assert result.method is GrahamMethod.GROWTH_VALUE
+    assert result.method == "graham_growth_value"
     # EPS
     assert result.eps is not None
     assert result.eps.value == 8.0

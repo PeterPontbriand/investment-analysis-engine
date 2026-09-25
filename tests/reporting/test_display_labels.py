@@ -21,18 +21,17 @@ from src.core.constants import TrendStatus
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.data.market_data import MarketDataContext
-from src.reporting.graham import (
+from src.reporting.graham_number import GrahamNumberPresentation, render_graham_number
+from src.reporting.momentum import MomentumPresentation, render_momentum
+from src.reporting.presentation import PROVIDER_DISPLAY_NAMES, PresentationMode, provider_display_name
+from src.reporting.valuation_presentation import (
     BASIS_DISPLAY_NAMES,
     FIELD_DISPLAY_NAMES,
     UNITS_DISPLAY_NAMES,
-    GrahamNumberPresentation,
     basis_display_name,
     field_display_name,
-    render_graham_number,
     units_display_name,
 )
-from src.reporting.momentum import MomentumPresentation, render_momentum
-from src.reporting.presentation import PROVIDER_DISPLAY_NAMES, PresentationMode, provider_display_name
 
 NOW = datetime(2026, 8, 24, 4, 0, tzinfo=UTC)
 

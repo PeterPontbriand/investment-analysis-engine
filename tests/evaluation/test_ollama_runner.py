@@ -168,7 +168,6 @@ async def test_empirical_runner_uses_production_orchestration_and_suppresses_pri
     case = report.case_results[0]
     assert case.outcome is CaseOutcome.PASS
     assert _component(case, ComponentKind.STRATEGY_SELECTION).outcome is ComponentOutcome.PASS
-    assert _component(case, ComponentKind.GRAHAM_METHOD_SELECTION).outcome is ComponentOutcome.PASS
     assert _component(case, ComponentKind.NUMERICAL_CORRECTNESS).outcome is ComponentOutcome.NOT_MEASURED
     assert case.trajectory_id is not None
     assert report.run_id is None
@@ -261,7 +260,6 @@ async def test_empirical_runner_classifies_wrong_case_arguments_as_selection_fai
     assert selection.outcome is ComponentOutcome.FAIL
     assert selection.failure_reason is not None
     assert "eps_basis" in selection.failure_reason
-    assert _component(case, ComponentKind.GRAHAM_METHOD_SELECTION).outcome is ComponentOutcome.PASS
     assert _component(case, ComponentKind.EXECUTION_STATUS).outcome is ComponentOutcome.PASS
 
 

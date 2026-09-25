@@ -207,7 +207,7 @@ Do not rewrite the runtime around a model-specific assumption merely to make one
 
 ## 5. Module layout
 
-Strategy implementations live under `src/analysis/strategy/`. Shared financial-resolution helpers own strategy-neutral mechanics; callers supply strategy-specific messages. `shared/graham_contracts.py` holds common Graham configuration and method contracts. Each Graham package exports its own analyzer, configuration, calculation/resolver, and service contracts through `__init__.py`; Momentum and FCF Growth retain their distinct interfaces and internal layouts.
+Strategy implementations live under `src/analysis/strategy/`. Shared financial-resolution helpers (`shared/financial_resolution.py`) own strategy-neutral mechanics such as EPS/quote resolution, the price-relationship comparison, and ticker normalization; callers supply strategy-specific messages. Graham Number and Graham Growth Value are two fully independent strategies with no shared Graham-specific base — each owns its own config, selection, EPS-basis acceptance rule and defaults, calculation, and result type; the only Graham-adjacent code either strategy imports is the genuinely neutral, provider-facing `data/financial/eps_basis.py`. Each strategy package exports its own analyzer, configuration, calculation/resolver, and service contracts through `__init__.py`; Momentum and FCF Growth retain their distinct interfaces and internal layouts.
 
 Relevant current packages include:
 
@@ -216,8 +216,7 @@ src/
 ├── analysis/
 │   ├── base_analyzer.py
 │   ├── shared/
-│   │   ├── financial_resolution.py
-│   │   └── graham_contracts.py
+│   │   └── financial_resolution.py
 │   └── strategy/
 │       ├── momentum/
 │       │   └── momentum_analyzer.py
@@ -264,7 +263,9 @@ src/
 │       ├── client.py
 │       └── valuation.py
 ├── reporting/
-│   ├── graham.py
+│   ├── graham_number.py
+│   ├── graham_growth.py
+│   ├── valuation_presentation.py
 │   ├── fcf_earnings_growth.py
 │   ├── momentum.py
 │   └── presentation.py

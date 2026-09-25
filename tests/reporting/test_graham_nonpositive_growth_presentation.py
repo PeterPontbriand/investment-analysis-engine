@@ -10,7 +10,7 @@ import pytest
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.reporting.graham import GrahamGrowthPresentation, render_graham_growth
+from src.reporting.graham_growth import GrahamGrowthPresentation, render_graham_growth
 from src.reporting.presentation import PresentationMode
 
 NOW = datetime(2026, 8, 25, 3, 0, tzinfo=UTC)

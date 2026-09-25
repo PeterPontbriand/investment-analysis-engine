@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from src.analysis.shared.graham_contracts import GrahamMethod
 from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.calculation import (
     GrahamNumberInputAssembly,
@@ -16,7 +15,6 @@ from src.core.analysis_status import CalculationStatus
 
 __all__ = [
     "CalculationStatus",
-    "GrahamMethod",
     "GrahamNumberConfig",
     "GrahamNumberAnalyzer",
     "GrahamNumberInputAssembly",

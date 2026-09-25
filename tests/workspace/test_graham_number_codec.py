@@ -110,7 +110,7 @@ def _run(analysis: GrahamNumberAnalysis | None = None) -> AnalysisRun:
     return AnalysisRun(
         analysis_run_id=UUID("11111111-1111-4111-8111-111111111111"),
         ticker="KO",
-        analysis_id="graham",
+        analysis_id="graham_number",
         method_id="graham_number",
         config_schema_version=1,
         requested_config=GrahamNumberSelection(),

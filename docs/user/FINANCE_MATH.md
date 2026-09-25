@@ -216,7 +216,8 @@ replacing the financial inputs or changing the formula. Matching the sole
 registered common class to entity-wide common-share inputs supports the 1:1
 unit inference; an equity classification alone does not. Missing, contradictory,
 or unsupported evidence suppresses only the comparison with an explicit reason.
-See the [Graham guide](strategies/GRAHAM.md#current-price-comparison) for scope,
+See the [Graham Number guide](strategies/GRAHAM_NUMBER.md#current-price-comparison) or the
+[Graham Growth Value guide](strategies/GRAHAM_GROWTH.md#current-price-comparison) for scope,
 timing limitations, and legacy-cache handling.
 
 When both a reference value and current price are available:
@@ -250,7 +251,7 @@ NaN, infinity, and mathematically invalid configuration values are rejected dete
 
 Investment Analysis Engine does not impose arbitrary financial-domain cutoffs merely because a number “looks unusual.” A non-mathematical bound requires an explicit rationale.
 
-See the [Graham Analysis Strategy Guide](strategies/GRAHAM.md).
+See the [Graham Valuation Strategies overview](strategies/GRAHAM.md).
 
 ## Free Cash Flow & Earnings Growth Strategy
 

@@ -82,7 +82,7 @@ uv run ian graham-growth KO \
     --aaa-yield 4.5
 ```
 
-The two methods use different values and have different interpretations. See the [Graham Analysis Strategy Guide](strategies/GRAHAM.md).
+The two strategies use different values and have different interpretations. See the [Graham Number](strategies/GRAHAM_NUMBER.md) and [Graham Growth Value](strategies/GRAHAM_GROWTH.md) guides.
 
 ### Migrating existing Graham commands
 

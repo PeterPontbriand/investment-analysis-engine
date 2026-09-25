@@ -51,7 +51,7 @@ uv run ian graham-number KO --json
 
 `--json` produces [machine-readable output](docs/user/GLOSSARY.md#machine-readable-output) in [JSON](docs/user/GLOSSARY.md#json-javascript-object-notation), intended for another program rather than primarily for a person.
 
-For ordinary usage, see the [Usage Guide](docs/user/USAGE.md). For the formula, assumptions, data sources, and interpretation, see the [Graham Analysis Strategy Guide](docs/user/strategies/GRAHAM.md).
+For ordinary usage, see the [Usage Guide](docs/user/USAGE.md). For the formula, assumptions, data sources, and interpretation, see the [Graham Number Strategy Guide](docs/user/strategies/GRAHAM_NUMBER.md).
 
 ---
 
@@ -87,7 +87,7 @@ Browse the [Analysis Strategy Guides](docs/user/strategies/README.md) for availa
 
 [`yfinance`](https://ranaroussi.github.io/yfinance/) is an independent open-source library that Investment Analysis Engine uses to access Yahoo Finance data. It is not affiliated with, endorsed by, or vetted by Yahoo.
 
-An [analysis strategy](docs/user/GLOSSARY.md#analysis-strategy) is a deterministic analytical capability in the application. A [method](docs/user/GLOSSARY.md#method) is a particular calculation within a strategy when that strategy offers more than one approach. For example, the Graham Analysis Strategy currently offers the Graham Number and Graham Growth Value methods.
+An [analysis strategy](docs/user/GLOSSARY.md#analysis-strategy) is a deterministic analytical capability in the application. A [method](docs/user/GLOSSARY.md#method) is a particular calculation within a strategy when that strategy offers more than one approach; every strategy currently implemented has exactly one. Graham Number and Graham Growth Value, for example, are two independent strategies with different formulas, not two methods of one strategy.
 
 Each strategy has its own guide under [Analysis Strategy Guides](docs/user/strategies).
 

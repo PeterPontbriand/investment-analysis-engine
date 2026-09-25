@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from src.analysis.shared.graham_contracts import GrahamMethod
 from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.analysis.strategy.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
@@ -17,7 +16,6 @@ from src.core.analysis_status import CalculationStatus
 
 __all__ = [
     "CalculationStatus",
-    "GrahamMethod",
     "GrahamGrowthConfig",
     "GrahamGrowthAnalyzer",
     "GrowthValueInputAssembly",

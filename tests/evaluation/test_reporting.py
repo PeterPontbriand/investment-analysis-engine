@@ -57,7 +57,6 @@ def _deterministic_components(
     numerical_reason = "observed value exceeded tolerance" if numerical_outcome is ComponentOutcome.FAIL else None
     return (
         _component(ComponentKind.STRATEGY_SELECTION, ComponentOutcome.NOT_MEASURED),
-        _component(ComponentKind.GRAHAM_METHOD_SELECTION, ComponentOutcome.NOT_APPLICABLE),
         _component(ComponentKind.NUMERICAL_CORRECTNESS, numerical_outcome, reason=numerical_reason),
         _component(ComponentKind.FIXTURE_STATUS, ComponentOutcome.PASS),
         _component(ComponentKind.EXECUTION_STATUS, ComponentOutcome.PASS),
@@ -156,12 +155,10 @@ def test_mixed_report_uses_executed_case_denominator_and_preserves_skips() -> No
 def test_component_denominators_exclude_not_measured_and_not_applicable() -> None:
     report = _report((_case("pass"), _case("fail", ComponentOutcome.FAIL)))
     strategy = _metric(report, ComponentKind.STRATEGY_SELECTION)
-    graham = _metric(report, ComponentKind.GRAHAM_METHOD_SELECTION)
     numerical = _metric(report, ComponentKind.NUMERICAL_CORRECTNESS)
     fixture = _metric(report, ComponentKind.FIXTURE_STATUS)
 
     assert (strategy.not_measured, strategy.measured_applicable, strategy.pass_rate) == (2, 0, None)
-    assert (graham.not_applicable, graham.measured_applicable, graham.pass_rate) == (2, 0, None)
     assert (numerical.passed, numerical.failed, numerical.measured_applicable, numerical.pass_rate) == (1, 1, 2, 0.5)
     assert (fixture.passed, fixture.failed, fixture.pass_rate) == (2, 0, 1.0)
 
@@ -171,7 +168,6 @@ def test_fixture_and_execution_failures_remain_separate_categories() -> None:
         case_id="upstream-failures",
         components=(
             _component(ComponentKind.STRATEGY_SELECTION, ComponentOutcome.NOT_MEASURED),
-            _component(ComponentKind.GRAHAM_METHOD_SELECTION, ComponentOutcome.NOT_APPLICABLE),
             _component(ComponentKind.NUMERICAL_CORRECTNESS, ComponentOutcome.NOT_APPLICABLE),
             _component(
                 ComponentKind.FIXTURE_STATUS,

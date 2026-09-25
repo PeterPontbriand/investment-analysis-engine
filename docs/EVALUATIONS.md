@@ -24,9 +24,9 @@ The tracked `src/evaluation/` package now contains typed Golden cases and expect
 
 Production strategy handlers are registered outside the evaluation and test packages through `src/orchestrator/analysis_tools.py`. The explicit tool names are `analyze_momentum`, `analyze_graham_number`, `analyze_graham_growth_value`, and `analyze_fcf_earnings_growth`. Their Pydantic argument models are available through the read-only `ANALYSIS_TOOL_ARGUMENT_MODELS` mapping. `register_analysis_tools(...)` attaches dependency-injected handlers to the existing `AsyncToolDispatcher`; the same seam accepts production adapters or deterministic fixture-backed analyzers and resolvers. Each handler preserves its strategy's native typed result rather than introducing a generic strategy-result model.
 
-The current versioned deterministic suite contains nineteen stable case IDs across Momentum, both Graham methods, Graham resolution, FCF/Earnings Growth, and the reviewed SEC FPI/IFRS boundaries. The approved fifteen-case `h1-v2` suite remains historical benchmark evidence; Step 2.5A Slice D deliberately advanced the suite and fixture set to `h1-v3` by adding four cases without rewriting earlier case IDs or fixtures.
+The current versioned deterministic suite contains nineteen stable case IDs across Momentum, the Graham Number and Graham Growth Value strategies, Graham resolution, FCF/Earnings Growth, and the reviewed SEC FPI/IFRS boundaries. The approved fifteen-case `h1-v2` suite remains historical benchmark evidence; Step 2.5A Slice D deliberately advanced the suite and fixture set to `h1-v3` by adding four cases without rewriting earlier case IDs or fixtures.
 
-Its evidence, mappings, implementation decisions, and review record are in the [P1 Instrument Applicability Mapping Record](project/milestones/v0.2/step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md). A known ETF remains applicable to Momentum but is `not_applicable` to both Graham methods and the existing company-level FCF Growth strategy. Unknown kind remains fail-open; it is never guessed from missing facts, a ticker, or a name.
+Its evidence, mappings, implementation decisions, and review record are in the [P1 Instrument Applicability Mapping Record](project/milestones/v0.2/step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md). A known ETF remains applicable to Momentum but is `not_applicable` to both the Graham Number and Graham Growth Value strategies and the existing company-level FCF Growth strategy. Unknown kind remains fail-open; it is never guessed from missing facts, a ticker, or a name.
 
 P1 does not add persistence or another strategy. Durable profiles and ETF aggregation are separate production capabilities; benchmark extensions must preserve existing case definitions and fixture independence.
 
@@ -56,8 +56,7 @@ Each empirical repetition produces its own complete report. The runner does not 
 
 Reports distinguish at least:
 
-- strategy/tool-selection correctness;
-- Graham method-selection correctness where applicable;
+- strategy/tool-selection correctness (Graham Number and Graham Growth Value are each their own registered tool, so choosing between them is covered by this same category, not a separate one);
 - deterministic numerical correctness;
 - fixture/data failures;
 - other execution failures; and

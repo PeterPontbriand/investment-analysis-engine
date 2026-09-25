@@ -46,7 +46,7 @@ def test_fixed_identifiers_and_schema_version() -> None:
     assert (momentum.method_id, momentum.config_schema_version) == ("sma_crossover", 1)
 
     graham = GrahamNumberSelection()
-    assert graham.analysis_id == "graham"
+    assert graham.analysis_id == "graham_number"
     assert (graham.method_id, graham.config_schema_version) == ("graham_number", 1)
 
 
@@ -157,7 +157,7 @@ def test_graham_snapshot_is_independent_of_caller_inputs() -> None:
     [
         ({"security_provider_id": "sec_edgar", "eps_basis": "ttm"}, "three_year_average"),
         ({"security_provider_id": "massive", "eps_basis": "three_year_average"}, "ttm"),
-        ({"security_provider_id": "massive"}, "book value per share"),
+        ({"security_provider_id": "massive"}, "bvps_override"),
         ({"eps_basis": "annual"}, "literal_error"),
     ],
 )
@@ -465,8 +465,13 @@ def test_union_rejects_bad_identifiers_and_versions(all_selections: tuple[Analys
     ("alias", "body", "analysis", "method"),
     [
         ("momentum", "{}", "momentum", "sma_crossover"),
-        ("graham-number", "{}", "graham", "graham_number"),
-        ("graham-growth", '{"config":{"expected_growth":5,"aaa_yield_override":4.5}}', "graham", "graham_growth_value"),
+        ("graham-number", "{}", "graham_number", "graham_number"),
+        (
+            "graham-growth",
+            '{"config":{"expected_growth":5,"aaa_yield_override":4.5}}',
+            "graham_growth_value",
+            "graham_growth_value",
+        ),
         ("fcf-growth", "{}", "fcf_earnings_growth", "reported_fcf_eps_cagr"),
     ],
 )

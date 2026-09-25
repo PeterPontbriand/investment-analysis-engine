@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
-from src.analysis.shared.graham_contracts import _require_ticker
+from src.analysis.shared.financial_resolution import require_ticker
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
 from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
 from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis, run_graham_growth_analysis
@@ -23,7 +23,7 @@ class GrahamGrowthAnalyzer(BaseAnalyzer[GrahamGrowthConfig, GrahamGrowthAnalysis
         assert config.quote_provider_id is not None
         return run_graham_growth_analysis(
             resolver=self._resolver,
-            ticker=_require_ticker(ticker),
+            ticker=require_ticker(ticker),
             security_provider_id=config.security_provider_id,
             quote_provider_id=config.quote_provider_id,
             eps_basis=config.eps_basis,

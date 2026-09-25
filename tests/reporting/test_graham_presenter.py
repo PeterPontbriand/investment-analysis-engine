@@ -18,12 +18,8 @@ from src.data.financial.resolution_trace import (
     ResolutionStage,
     ResolutionTrace,
 )
-from src.reporting.graham import (
-    GrahamGrowthPresentation,
-    GrahamNumberPresentation,
-    render_graham_growth,
-    render_graham_number,
-)
+from src.reporting.graham_growth import GrahamGrowthPresentation, render_graham_growth
+from src.reporting.graham_number import GrahamNumberPresentation, render_graham_number
 from src.reporting.presentation import PresentationMode
 
 NOW = datetime(2026, 8, 22, 4, 0, tzinfo=UTC)

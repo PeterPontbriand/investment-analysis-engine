@@ -273,10 +273,7 @@ class EvaluationReport(BaseModel):
         if self.execution_mode is ExecutionMode.DETERMINISTIC_NO_LLM:
             if self.model_configuration is not None:
                 raise ValueError("deterministic_no_llm reports must not contain model_configuration")
-            selection_kinds = {
-                ComponentKind.STRATEGY_SELECTION,
-                ComponentKind.GRAHAM_METHOD_SELECTION,
-            }
+            selection_kinds = {ComponentKind.STRATEGY_SELECTION}
             if selection_kinds & set(self.required_component_kinds):
                 raise ValueError("deterministic_no_llm reports must not require unmeasured selection components")
         elif self.model_configuration is None:
@@ -311,7 +308,7 @@ class EvaluationReport(BaseModel):
                 continue
             by_kind = {component.kind: component for component in case.components}
             if self.execution_mode is ExecutionMode.DETERMINISTIC_NO_LLM:
-                for kind in (ComponentKind.STRATEGY_SELECTION, ComponentKind.GRAHAM_METHOD_SELECTION):
+                for kind in (ComponentKind.STRATEGY_SELECTION,):
                     selection = by_kind.get(kind)
                     if selection is not None and selection.outcome not in (
                         ComponentOutcome.NOT_APPLICABLE,

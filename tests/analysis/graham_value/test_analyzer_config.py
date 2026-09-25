@@ -22,7 +22,7 @@ def test_provider_basis_matrix(growth: bool, provider: str, basis: str | None, b
     else:
         config_type = GrahamNumberConfig
         values["bvps_override"] = bvps
-    effective = basis or ("ttm" if growth and provider != "sec_edgar" else "three_year_average")
+    effective = basis or ("three_year_average" if provider == "sec_edgar" else "ttm")
     invalid = (
         (provider == "sec_edgar" and effective != "three_year_average")
         or (provider == "massive" and effective != "ttm")

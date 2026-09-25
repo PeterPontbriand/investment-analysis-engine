@@ -7,12 +7,12 @@ This glossary defines terms used in Investment Analysis Engine. Formula details 
 ## Analysis architecture
 
 ### Analysis Strategy
-A deterministic analytical capability in Investment Analysis Engine. An analysis strategy owns the rules needed to calculate and interpret a particular kind of analysis. Examples currently include the Graham Analysis Strategy and Momentum Analysis Strategy.
+A deterministic analytical capability in Investment Analysis Engine. An analysis strategy owns the rules needed to calculate and interpret a particular kind of analysis. Examples currently include the Graham Number, Graham Growth Value, Momentum, and Free Cash Flow & Earnings Growth Analysis Strategies.
 
 In the Python implementation, an analysis strategy may be represented by an *analyzer* class. User documentation standardizes on **analysis strategy** rather than using internal class terminology as the product concept.
 
 ### Method
-A particular calculation or analytical approach within an analysis strategy. A strategy may have one method or several. For example, the Graham Analysis Strategy currently contains the Graham Number and Graham Growth Value methods.
+A particular calculation or analytical approach within an analysis strategy. A strategy may have one method or several; every strategy currently implemented has exactly one. Multiple methods within one strategy are reserved for true variants of the same underlying calculation — for example, a future Altman Z versus Z′′ strategy — not for strategies that merely address a related question with a different formula, the way Graham Number and Graham Growth Value do (each is its own strategy, not two methods of one).
 
 A method is an application concept; it does not imply that Benjamin Graham or another source used the word “method” in exactly this project-specific sense.
 
@@ -22,17 +22,14 @@ The existing common analysis abstraction. Supporting multiple analyzers does not
 ### Momentum Analyzer
 The existing deterministic technical-analysis strategy. The current implementation uses configurable short/long simple moving averages and crossover state.
 
-### Graham Analysis
-The deterministic fundamental-analysis strategy containing two explicitly named methods: the default Graham Number and the secondary Graham growth-value formula. “Graham analysis” does not mean that both methods are interchangeable or that either is a complete investment decision.
+### Graham Number Strategy (`graham_number`)
+The implemented earnings-and-book-value screening strategy. It combines positive earnings per share and book value per share to estimate a conservative maximum indicated price for screening. Independent of Graham Growth Value — a different strategy with a different formula, not an alternative method of the same one.
 
-### Graham Number Method (`graham_number`)
-The implemented default Graham method. It combines positive earnings per share and book value per share to estimate a conservative maximum indicated price for screening.
-
-### Graham Growth-Value Method (`graham_growth_value`)
-The separate implemented forecast-dependent Graham method using earnings, expected growth, and a current AAA corporate-bond yield input. It is retained as a secondary method and must be selected explicitly.
+### Graham Growth Value Strategy (`graham_growth_value`)
+The implemented forecast-dependent strategy using earnings, expected growth, and a current AAA corporate-bond yield input. Selected explicitly via its own command. Independent of the Graham Number — a different strategy with a different formula, not an alternative method of the same one.
 
 ### Method Discriminator
-A stable field such as `number` or `growth` that tells the software which Graham configuration, input requirements, calculation, and result model apply.
+A stable field that tells the software which configuration, input requirements, calculation, and result model apply for a given strategy's own method(s).
 
 ### Discriminated Union
 A typed set of alternative models selected by a discriminator. It prevents invalid combinations such as supplying a growth rate to a Graham Number request or omitting growth-policy information from a growth-method result.
@@ -89,7 +86,7 @@ The SEC's **Electronic Data Gathering, Analysis, and Retrieval** system, which p
 ### Massive
 [Massive](https://massive.com/) is a commercial financial-market-data service with an [API](#api-application-programming-interface) that software can use to request licensed market/fundamental data.
 
-A **Massive API key** is a credential issued by Massive that authorizes API requests according to the user's account/plan. Investment Analysis Engine can optionally use Massive for the supported current TTM diluted-EPS and current-price data used by the Graham Growth Value method. Massive is not required for the Graham Number or Momentum strategies.
+A **Massive API key** is a credential issued by Massive that authorizes API requests according to the user's account/plan. Investment Analysis Engine can optionally use Massive for the supported current TTM diluted-EPS and current-price data used by the Graham Growth Value strategy. Massive is not required for the Graham Number or Momentum strategies.
 
 See the [Massive API documentation](https://massive.com/docs) for the service itself and [Installation & Configuration](INSTALLATION.md#optional-massive-market-data-access) for Investment Analysis Engine configuration.
 
@@ -200,7 +197,7 @@ Profit attributable to common shareholders expressed per common share. EPS may b
 The most recent continuous twelve-month period represented by available reports. TTM EPS is a current-looking accounting measure but is not the same as one completed fiscal year's EPS or Graham's three-year average. In the current application it is used when the Graham Growth Value method explicitly uses Massive data, not as the standard Graham Number basis.
 
 ### Three-Year-Average EPS
-The arithmetic mean of EPS from three completed fiscal years. Investment Analysis Engine uses this as the standard Graham Number earnings basis and when the Graham Growth Value method uses SEC EDGAR earnings data, reflecting Graham's defensive-investor emphasis on average earnings over the preceding three years.
+The arithmetic mean of EPS from three completed fiscal years. Investment Analysis Engine uses this as the standard Graham Number earnings basis and when the Graham Growth Value strategy uses SEC EDGAR earnings data, reflecting Graham's defensive-investor emphasis on average earnings over the preceding three years.
 
 ### Normalized EPS / Normal Earnings
 Earnings adjusted according to an explicit policy to reduce the effect of unusual or non-recurring items. “Normalized” is not self-defining: every adjustment and period must be documented. The growth calculator accepts an EPS value on the explicitly selected basis; the software does not invent discretionary normalization adjustments.
@@ -318,7 +315,7 @@ The configurable constant multiplying `g` inside the growth-value formula. The i
 An estimate of what an investment is economically worth based on a stated model and assumptions, rather than its current market price. Different models can produce different intrinsic-value estimates. Investment Analysis Engine avoids using this term without qualification for the Graham Number.
 
 ### Reference Value
-The method-specific value used for comparison with current price: `maximum_indicated_price` for the Graham Number or `growth_value` for the growth method.
+The method-specific value used for comparison with current price: `maximum_indicated_price` for the Graham Number or `growth_value` for Graham Growth Value.
 
 ### Margin of Safety (MOS)
 In this project, the typed percentage difference between a method's reference value and current market price:
@@ -383,10 +380,7 @@ The rule controlling how optional FY1/FY2 analyst-consensus EPS evidence is trea
 The project's deterministic benchmark of typed cases, fixtures, expected behavior, and independently verified numerical results.
 
 ### Strategy/Tool-Selection Correctness
-Whether the runtime selected the appropriate registered deterministic capability and supplied valid case-appropriate arguments.
-
-### Method-Selection Correctness
-Whether the runtime selected the requested method within a strategy family—for example, Graham Number rather than Graham growth value. This is narrower than deciding between Momentum and Graham.
+Whether the runtime selected the appropriate registered deterministic capability and supplied valid case-appropriate arguments — for example, Graham Number rather than Graham Growth Value, or either rather than Momentum. Each strategy is its own registered capability, so this single category covers both distinctions; there is no separate, narrower category for choosing between strategies that happen to share a fundamentals-valuation family.
 
 ### Numerical Correctness
 Whether deterministic Python output matches independently verified expected values within case-specific tolerance.

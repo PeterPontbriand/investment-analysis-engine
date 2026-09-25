@@ -32,7 +32,6 @@ from src.evaluation.composition import AnalysisToolArguments, FixtureComposition
 from src.evaluation.evaluator import (
     evaluate_execution_status,
     evaluate_fixture_status,
-    evaluate_graham_method_selection,
     evaluate_tool_selection,
 )
 from src.evaluation.models import (
@@ -40,8 +39,6 @@ from src.evaluation.models import (
     ComponentOutcome,
     ComponentResult,
     ExecutionMode,
-    GrahamMethod,
-    GrahamMethodObservation,
     Observation,
     ToolCallObservation,
     ToolName,
@@ -75,7 +72,6 @@ FiniteFloat = Annotated[float, Field(allow_inf_nan=False)]
 
 OLLAMA_REQUIRED_COMPONENT_KINDS: Final = (
     ComponentKind.STRATEGY_SELECTION,
-    ComponentKind.GRAHAM_METHOD_SELECTION,
     ComponentKind.FIXTURE_STATUS,
     ComponentKind.EXECUTION_STATUS,
 )
@@ -352,13 +348,8 @@ async def _run_case(  # noqa: PLR0913
 
     observation = _selection_observation(tool_requests, observed_at=executed_at)
     selection = _evaluate_tool_and_argument_selection(request, tool_requests, observation)
-    method_selection = evaluate_graham_method_selection(
-        request.case.expectation.graham_method_constraints,
-        observation,
-    )
     components = (
         selection,
-        method_selection,
         ComponentResult(
             kind=ComponentKind.NUMERICAL_CORRECTNESS,
             outcome=ComponentOutcome.NOT_MEASURED,
@@ -388,16 +379,10 @@ def _selection_observation(
         for request in tool_requests
         if request.tool_name in ToolName._value2member_map_
     )
-    methods = tuple(
-        GrahamMethodObservation(method=method)
-        for request in tool_requests
-        if (method := _graham_method(request.tool_name)) is not None
-    )
     return Observation(
         execution_mode=ExecutionMode.REAL_LOCAL_OLLAMA,
         observed_at=observed_at,
         tool_calls=recognized,
-        graham_methods=methods,
     )
 
 
@@ -475,15 +460,6 @@ def _terminal_failure(steps: list[AgentStepResult]) -> str | None:
         return None
     failure = steps[-1].failure
     return None if failure is None else failure.message
-
-
-def _graham_method(tool_name: str) -> GrahamMethod | None:
-    """Map observable production-tool identity to a Graham method."""
-    if tool_name == ToolName.ANALYZE_GRAHAM_NUMBER.value:
-        return GrahamMethod.GRAHAM_NUMBER
-    if tool_name == ToolName.ANALYZE_GRAHAM_GROWTH_VALUE.value:
-        return GrahamMethod.GRAHAM_GROWTH_VALUE
-    return None
 
 
 def _tool_name(arguments: AnalysisToolArguments) -> ToolName:
