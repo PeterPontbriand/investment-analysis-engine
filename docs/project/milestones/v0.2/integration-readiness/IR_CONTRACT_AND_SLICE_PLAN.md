@@ -159,7 +159,9 @@ In scope, each independently landable:
    Scoped to Momentum only — Graham Number, Graham Growth, and FCF/Earnings Growth evaluate once
    per fiscal period, not once per bar, and a per-bar series API would be speculative generality
    for those three, not a real need. Renumbered from IR.4 to IR.3 now that the slice between it and
-   IR.2 (previously IR.3, Momentum purity) no longer exists as a separate slice — see §3.
+   IR.2 (previously IR.3, Momentum purity) no longer exists as a separate slice — see §3. The
+   freed "IR.4" label is reused below (item 7) for an unrelated slice; that is not this content
+   returning.
 6. **Removed from this work package's scope 2026-09-24, moved to SWC.** Typed JSON envelope models
    and generated JSON Schemas for `--json` payloads (previously item 7 / slice IR.5) are per-strategy
    wiring in the same shape as everything else `SWC`'s proposal (`../STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md`)
@@ -169,6 +171,20 @@ In scope, each independently landable:
    payload builders, not a snapshot generated once from whatever happens to exist, published to a
    checked-in `schemas/` directory — carries forward unchanged into `SWC`'s own eventual contract;
    only the work package that owns it changed.
+7. **New slice, found during IR.2.3 verification (project owner, 2026-09-25): `requires-python
+   = ">=3.12"` is not honored by a clean environment on two of its three declared versions.**
+   `src/data/repositories/market_data.py` lacks `from __future__ import annotations` and declares
+   `_index_storage(index: pd.Index[Any])` / `_restore_index(...) -> pd.Index[Any]`; on Python
+   3.12/3.13 (eager annotation evaluation) this raises `TypeError: type 'Index' is not
+   subscriptable` at import time, since `pandas.Index` is only generic through
+   `pandas-stubs`, not at runtime. This is the identical defect class IR.1 item 2a already found
+   and fixed once, in `momentum_analyzer.py` — but that fix's audit was scoped only to
+   `src/analysis/strategy/*/*.py` and missed this file. Compounding it: `.github/workflows/ci.yaml`
+   tests only Python 3.14 (`# Aligned with your local environment target`), so a genuine
+   `requires-python` violation has never been exercised by CI. **Labeled IR.4, reusing the number
+   freed when the old IR.4 (Momentum series API) was renumbered to IR.3 (§3) — an unrelated new
+   slice, not a revival of that content.** Full reproduction, audit, remedy, and acceptance
+   criteria: §7.
 
 Excluded: any new trading-signal, entry/exit, or order-generation capability; a
 `compute_series`-style API for the three fundamentals-based analyses; an actual MCP server,
@@ -191,7 +207,8 @@ diff is non-executable declarative metadata with no import-time or runtime effec
 | :--- | :--- |
 | IR.1 | License declaration fix (`pyproject.toml` → Apache-2.0, per the project owner's authorization above). `MOMENTUM.md`'s correction already landed ahead of this slice. |
 | IR.2 | Unify the analyzer invocation envelope across all four analyzers (§2 item 3) and bring Momentum to full parity with the other three (§2 item 4). Large enough, and cutting across enough files, that it is itself split into five gated sub-slices by concern — never analyzer-by-analyzer — so that every sub-slice leaves all four analyzers mutually consistent and passes the full gate on its own. All five land on one branch, each as its own reviewed commit; nothing merges to `main` until the last one is accepted (§6.12). Full sub-slice list, scope, order, and dependencies: §6.12. Verified, not merely revisited, once Step 3.5's Piotroski analyzer is built against it (§5 item 7). |
-| IR.3 | Momentum series API: pure vectorized series function beneath the existing snapshot API. Renumbered from IR.4 — the slice previously between it and IR.2 (Momentum quality-check/clock purity) is now part of IR.2 itself (§2 item 4), and IR.5 (JSON envelope models) moved to `SWC` (§2 item 6) — so this work package now has three slices, not five. |
+| IR.3 | Momentum series API: pure vectorized series function beneath the existing snapshot API. Renumbered from IR.4 — the slice previously between it and IR.2 (Momentum quality-check/clock purity) is now part of IR.2 itself (§2 item 4), and IR.5 (JSON envelope models) moved to `SWC` (§2 item 6) — so this work package had three slices, not five, until IR.4 below was added. |
+| IR.4 | Python-version reproducibility (§2 item 7): fix `market_data.py`'s eager-evaluated `pd.Index[Any]` annotations, and re-apply IR.1 item 2a's `momentum_analyzer.py` fix to `main` (present only on `feat/ir-integration-readiness` today — §7.3), so `requires-python = ">=3.12"` is genuinely honored on 3.12/3.13, not only on 3.14; repository-wide audit for the same defect class; widen `.github/workflows/ci.yaml`'s matrix to actually test the declared range; correct `[tool.mypy] python_version` to the declared floor. **Reuses the number freed by IR.3's renumbering above — an unrelated new slice found during IR.2.3 verification, not a revival of the old IR.4 (Momentum series API) content.** No dependency on IR.2's remaining sub-slices. **Branch: its own (`fix/ir4-python-version-reproducibility` off `main`, not `feat/ir-integration-readiness`), merged to `main` independently once accepted — decided, not left open.** IR.2's five sub-slices all land on one branch with nothing merging to `main` until the last is accepted (§6.12); binding IR.4 to that same rule would leave a verified-broken `requires-python` claim on `main` for as long as IR.2.4–IR.2.6 take, for a defect with no dependency on any of them. After IR.4 merges to `main`, `feat/ir-integration-readiness` merges `main` back in before IR.2.4 begins, so IR.2's remaining sub-slices are gated by a genuinely working 3.12/3.13 CI too, not developed against the same 3.14-only blind spot that hid this defect. Full plan: §7. |
 
 ## 4. Acceptance criteria
 
@@ -1114,3 +1131,277 @@ to match the new module boundaries, and `tests/analysis/test_base_analyzer_confo
 AST-based strategy-boundary scan should be re-run explicitly as part of this sub-slice's gate, since
 it is the test most directly designed to catch exactly the kind of cross-boundary coupling this
 sub-slice removes.
+
+## 7. IR.4 — Python-version reproducibility (found during IR.2.3 verification, 2026-09-25)
+
+Planning only: no code, dependency, or lockfile change lands as part of writing this section. It
+defines the slice's premise, required audit, chosen remedy, and acceptance criteria so the
+implementation turn does not have to rediscover any of it. **Branch: its own, off `main` — see §3's
+IR.4 row for the reasoning.**
+
+### 7.1 Reproduction (verbatim from the finding)
+
+> On a clean checkout of `ad244bd` running Python 3.13.13, `uv sync --frozen` installed
+> `pandas==3.0.5` (the version pinned in `uv.lock`), and `pytest` failed with 51 collection errors
+> covering most of `tests/`. The cause is `src/data/repositories/market_data.py:138`:
+> `def _index_storage(index: pd.Index[Any]) -> ...`. The module has no
+> `from __future__ import annotations`. On Python ≤3.13, that annotation is evaluated when the
+> function is defined. Runtime `pandas.Index` isn't subscriptable (only `pandas-stubs` makes it
+> generic for mypy), so the import raises `TypeError: type 'Index' is not subscriptable`.
+> `pandas==2.3.3` fails the same way, so this is not a pandas-3 regression. The line dates from
+> `b64669f` (2026-09-06), so IR.2.3 didn't cause it. With a runtime monkeypatch to get past
+> collection, the suite matched the reported gate: 3,129 tests and 91% coverage. The only failures
+> were 16 subprocess-based tests that didn't inherit the patch.
+
+### 7.2 Confirmed: which Python/pandas this project's own gate actually runs on
+
+Checked directly in the environment every IR.2.x gate in this document has been run from:
+
+```
+python3 --version        → Python 3.14.7
+uv run python --version  → Python 3.14.7
+uv run python -c "import pandas; print(pandas.__version__)"  → 3.0.5
+```
+
+Python 3.14 defers annotation evaluation by default (PEP 649), so
+`_index_storage`/`_restore_index`'s `pd.Index[Any]` parameter/return annotations import cleanly
+here without ever being evaluated — masking the defect in every gate this document has reported so
+far. The reproduction's Python 3.13.13 diagnosis is confirmed, not merely plausible.
+
+This is compounded, not caused, by CI: `.github/workflows/ci.yaml`'s matrix is
+`python-version: ["3.14"]  # Aligned with your local environment target` — three operating systems,
+one Python version. `pyproject.toml` declares `requires-python = ">=3.12"` and no `.python-version`
+file exists, so a fresh `uv sync` on any machine whose ambient/selected interpreter is 3.12 or 3.13
+reproduces the reported failure, and CI has never exercised either version to catch it. Both gaps
+are addressed below (§7.4).
+
+### 7.3 Annotation audit (baseline: `main`, not `ad244bd`; authoritative audit is implementation's job)
+
+**Audit baseline correction: IR.4 branches from `main` (§3), so the audit that matters is against
+`main`'s tree, not `ad244bd` (a `feat/ir-integration-readiness` commit).** The two trees differ for
+exactly this defect class: `main` does **not** have IR.1 item 2a's `momentum_analyzer.py` fix —
+verified directly (`git show main:src/analysis/strategy/momentum/momentum_analyzer.py` still shows
+`_calculate_rsi(close: pd.Series[float], ...)` at line 277 with no `from __future__ import
+annotations`). That fix exists only on `feat/ir-integration-readiness`. `market_data.py` is
+byte-for-byte identical between the two branches (`git diff main feat/ir-integration-readiness --
+src/data/repositories/market_data.py` is empty), so its part of the finding is unaffected.
+
+**The grep below is a quick first pass, not the audit.** It only catches one shape of one defect
+class — a stub-only pandas generic subscript, textually matched. Python 3.14's default lazy
+annotation evaluation (PEP 649) hides a strictly wider set of import-time failures on 3.12/3.13,
+including at least: unquoted `TYPE_CHECKING`-only names used in a runtime-evaluated annotation
+(e.g. an import guarded by `if TYPE_CHECKING:` but referenced unquoted in a signature outside one);
+a forward reference to a name defined later in the same module; other stub-only generics beyond
+`pandas` (any third-party type that is only generic through its `-stubs` package); and any
+3.13+/3.14-only syntax or stdlib API used anywhere reachable at import time, not only in an
+annotation. The grep also only searched `src/`, not `tests/`, which import `src` modules and could
+independently hit any of the same failure modes in their own annotations or module-scope code.
+
+Quick pass, run directly against `main`'s tree:
+
+```
+git show main:src/analysis/strategy/momentum/momentum_analyzer.py | grep -n 'pd\.\(Index\|Series\|DataFrame\)\['
+git show main:src/data/repositories/market_data.py | grep -n 'pd\.\(Index\|Series\|DataFrame\)\['
+# repeated across every src/ and tests/ file at implementation time, not just these two
+```
+
+On `main`, this quick pass surfaces two files, **both unsafe**:
+
+- `src/analysis/strategy/momentum/momentum_analyzer.py:277` — `_calculate_rsi(close:
+  pd.Series[float], ...)`. **Unsafe on `main`** (unlike on `feat/ir-integration-readiness`, where
+  IR.1 item 2a already added `from __future__ import annotations`). **In scope for IR.4**: apply
+  the identical one-line fix to `main`'s copy. Because it is textually identical to the fix already
+  present on `feat/ir-integration-readiness`, merging `main` back into the feature branch after
+  IR.4 lands (§3, §7.7) resolves this file as a clean no-op, not a conflict — the feature branch
+  already has the same line.
+- `src/data/repositories/market_data.py` — unsafe, two occurrences, both function signatures, no
+  `from __future__ import annotations`: line 138 (`def _index_storage(index: pd.Index[Any]) -> ...`)
+  and line 200 (`def _restore_index(...) -> pd.Index[Any]:`). A third occurrence, line 202 (`index:
+  pd.Index[Any]`, inside `_restore_index`'s body), is a bare local-variable annotation with no
+  assignment on that line; CPython does not evaluate a local variable's annotation expression at
+  runtime (verified directly: a bare `x: Bar[int]` inside a function body does not raise even when
+  `Bar.__class_getitem__` raises unconditionally), so it is not part of the defect.
+
+IR.1 item 2a's own audit for this defect class was scoped only to `src/analysis/strategy/*/*.py`,
+which is why `market_data.py` was missed the first time — a further reason not to trust a
+textually-scoped grep as the final word here.
+
+**Authoritative audit (required before this slice is accepted): on a Python 3.12 interpreter,
+against `main`'s tree (the branch IR.4 actually starts from):**
+
+```
+uv run --frozen --python 3.12 python -m compileall -q src tests
+uv run --frozen --python 3.12 python -c "import pkgutil, importlib, src; [importlib.import_module(m.name) for m in pkgutil.walk_packages(src.__path__, 'src.')]"
+uv run --frozen --python 3.12 pytest --collect-only -q
+```
+
+`compileall` catches any remaining syntax-level 3.13+/3.14-only construct across both `src/` and
+`tests/`; walking and importing every `src` submodule forces every module-scope annotation and
+top-level statement to actually execute, which a partial import graph (only whatever the test suite
+happens to reach) would not guarantee; a full `pytest --collect-only` forces collection of every
+test module, catching a `tests/`-side occurrence the grep never looked for. All three must pass
+clean (no `TypeError`, `NameError`, or `SyntaxError`) before §7.6's acceptance criteria are
+considered met. Treat this command sequence, not the grep, as the source of truth for "every
+occurrence is fixed"; apply §7.4's per-file remedy judgment to anything it finds beyond the two
+files already identified.
+
+### 7.4 Chosen remedy
+
+**Two files, one remedy: add `from __future__ import annotations` (a targeted, per-file future
+import) to both `main`'s `momentum_analyzer.py` and `market_data.py`.** Not quoted annotations on
+just the affected signatures, and not a `TYPE_CHECKING`-only alias — a plain file-wide future
+import is this project's existing, precedented remedy for this exact defect class (IR.1 item 2a),
+and using it for both files keeps one remedy style across the codebase.
+
+- **`momentum_analyzer.py`**: re-apply the exact one-line fix IR.1 item 2a already landed on
+  `feat/ir-integration-readiness` (§7.3) to `main`'s copy. No new runtime-annotation analysis is
+  needed beyond what item 2a already did — `main`'s version of this file has the same
+  `MomentumConfig(BaseModel)` plus plain `@dataclass(frozen=True)` classes as the feature branch's
+  copy (checked directly: `git show main:.../momentum_analyzer.py` shows the identical class shapes,
+  no `TypeAdapter`, no SQLAlchemy), so item 2a's already-gate-verified safety conclusion applies
+  unchanged. The one-line diff is textually identical to the feature branch's own fix.
+- **`market_data.py`** (unchanged from the original analysis — this file is identical between
+  `main` and `feat/ir-integration-readiness`, §7.3): explicit check against runtime-read
+  annotations, required by this slice, not assumed:
+  - `market_data.py` defines `@dataclass(frozen=True)` classes `MarketDataCacheKey` and
+    `MarketDataCacheEntry`, one of which (`MarketDataCacheKey`) is wrapped in
+    `_KEY_ADAPTER = TypeAdapter(MarketDataCacheKey)`, plus a Pydantic `_FrameMetadata(BaseModel)`.
+    All three read annotations at runtime — `TypeAdapter` explicitly, to build its validation
+    schema. Checked field-by-field: every field on all three (`ticker: str`, `request_start: date`,
+    `cached_at: datetime`, `schema_version: int`, `key: MarketDataCacheKey`, `data:
+    HistoricalMarketData`, `resolved_at`/`format_version`-style fields on `_FrameMetadata`, etc.) is
+    a plain, always-real-at-runtime type — none depends on eager evaluation, and none is a pandas
+    stub-only generic. A file-wide future import changes nothing about how any of these three
+    classes resolve their own annotations; `TypeAdapter`/Pydantic already resolve
+    `from __future__ import annotations`-deferred annotations correctly (standard PEP 563 support),
+    and `momentum_analyzer.py`'s own `MomentumConfig(BaseModel)` already proves a Pydantic
+    `BaseModel` coexists safely with this project's future-import convention.
+  - No Typer command signature lives in this module (Typer commands are in `src/cli.py`,
+    unaffected).
+  - SQLAlchemy usage here is Core-style (`Table`/`Column` objects imported from
+    `src.data.repositories.schema`), not declarative ORM classes with `Mapped[...]` annotations, so
+    the declarative-annotation-resolution risk item 2 warns about does not apply to this file.
+  - **Implementation must still add a regression test** that imports
+    `src.data.repositories.market_data` and exercises `_KEY_ADAPTER`/`_FrameMetadata` under
+    whichever Python version CI now tests (§7.5), not merely assume this analysis — matching this
+    project's "verify, don't assume" convention.
+
+**If §7.3's re-run at implementation time finds a new occurrence in a file with genuinely
+real-type-dependent runtime introspection where a file-wide future import is not obviously safe**,
+fall back to quoting just that occurrence's annotation (`index: "pd.Index[Any]"`) instead, and
+record the reason inline as a comment at that one call site — do not apply a blanket rule if a
+specific file's mix of constructs makes the file-wide import genuinely uncertain.
+
+### 7.5 Python policy
+
+**Decision: keep `requires-python = ">=3.12"` (matches `AGENTS.md` §5's "Target Python 3.12+" and
+IR.1 item 2a's already-recorded rejection of narrowing to `>=3.14`); fix the code so the declared
+range is genuinely true; enforce it so this cannot silently regress again.**
+
+1. **`pyproject.toml`**: no change — `requires-python = ">=3.12"` already states the intended
+   policy correctly. The defect was that the policy was never honored or tested, not that it was
+   wrong.
+2. **`.python-version`: add one, pinning `3.12`** (the lowest declared-supported version, not the
+   newest). A `uv sync` run without an explicit interpreter picks this file's version by default;
+   pinning to the *oldest* supported version means routine local development exercises the
+   strictest, most eager-evaluation-prone interpreter by default, so a regression of this exact
+   kind fails immediately for a developer instead of silently passing until someone happens to run
+   an older interpreter or a clean-checkout audit finds it again. (Pinning to 3.14 instead would
+   keep masking this defect class the same way the current absence of a pin already does.)
+3. **`.github/workflows/ci.yaml`: widen the matrix to `python-version: ["3.12", "3.13", "3.14"]`**,
+   removing the `# Aligned with your local environment target` comment (no longer accurate once the
+   matrix covers the declared range, not one developer's machine). This is the actual enforcement
+   mechanism — a `.python-version` pin only changes the *default* for an unqualified `uv sync`; only
+   a multi-version CI matrix proves every declared version keeps working.
+4. **`uv.lock` consistency**: confirm `uv lock` resolves one consistent, correct dependency set
+   across the full `>=3.12` range (not narrowly resolved against 3.14 only) — re-run `uv lock`
+   after the annotation fix and diff it; if `uv` reports environment-marker-conditioned resolution
+   differences between 3.12/3.13/3.14 for any package, record what they are and confirm each
+   resolved version is independently compatible with this project's runtime code, not only with
+   3.14's.
+5. **`[tool.mypy] python_version = "3.14"` (`pyproject.toml`) is wrong and must change to `"3.12"`
+   — corrected after review; the first draft of this item called it orthogonal, which is itself a
+   defect of the same class.** Targeting `3.14` means mypy assumes every 3.13+/3.14-only stdlib API
+   and typing feature is available and never flags one used on a code path that must also run on
+   3.12 — the exact same "looks fine under the newest interpreter, breaks on the oldest declared
+   one" failure mode as the eager-annotation defect this slice exists to fix, just surfaced through
+   type-checking instead of import-time evaluation. Set `python_version = "3.12"` so mypy checks
+   against the floor of the declared range, not its ceiling. **This may surface real type errors
+   that `python_version = "3.14"` was silently hiding; fix them within IR.4 — do not suppress a
+   newly-surfaced error with `# type: ignore` or a per-module mypy override**, since either would
+   just recreate this same "passes under one interpreter's assumptions, wrong under the declared
+   floor's" defect one layer up, inside the type-checking config itself.
+6. **Checked `[tool.ruff] target-version` (`pyproject.toml`): already `"py312"`.** No change
+   needed — recorded here because an above-floor `target-version` would let the formatter and
+   `UP` (pyupgrade) lint rules emit or accept newer-only syntax (e.g. a construct only valid on
+   3.13+), the same risk class as item 5, and this project's own convention (per this slice) is now
+   to check every Python-version-sensitive tool setting rather than assume one config axis implies
+   another.
+
+### 7.6 Acceptance criteria
+
+From a fresh clone, run each version **explicitly**, not by relying on whatever `.python-version`
+happens to default to — §7.5 pins that default to `3.12`, so a bare `uv sync`/`uv run` on all three
+"checks" would silently run 3.12 three times and prove nothing about 3.13/3.14. Pass both `--frozen`
+and `--python` on every command: `uv run` syncs before running and can rewrite `uv.lock` on its own,
+so `--frozen` belongs on the `uv run` invocation itself, not on a separate `uv sync` step that a
+plain `uv run` would silently redo anyway — a `uv sync --frozen` followed by an unqualified
+`uv run` never actually exercises the frozen sync.
+
+```
+# 3.12 (also the .python-version default; still pass --python explicitly to prove it, not assume it)
+uv run --frozen --python 3.12 python --version   # must print 3.12.x before proceeding
+uv run --frozen --python 3.12 pytest
+
+# 3.13
+uv run --frozen --python 3.13 python --version   # must print 3.13.x before proceeding
+uv run --frozen --python 3.13 pytest
+
+# 3.14
+uv run --frozen --python 3.14 python --version   # must print 3.14.x before proceeding
+uv run --frozen --python 3.14 pytest
+```
+
+Each `python --version` check is not decorative — it is what catches the silent-repeat failure
+mode above if `--python` is ever dropped or mistyped in a future run of this checklist.
+
+- All three command groups above pass with no manual steps, no monkeypatch, and no
+  environment-specific workaround, and each one's `python --version` line confirms the interpreter
+  it actually ran on.
+- The managed quality gate (`scripts/run-quality-gates.ps1` / `.sh`) output states the Python and
+  pandas version it ran on, so a future gate report is self-verifying instead of requiring someone
+  to separately ask "which interpreter produced this."
+- `.github/workflows/ci.yaml`'s matrix actually exercises all three declared versions (as distinct
+  matrix entries, each resolving to the version it claims) and is green on all of them.
+- §7.3's authoritative audit (`compileall` + full-package import + `pytest --collect-only`, on
+  Python 3.12) is run at implementation time and passes clean; the quick grep is not treated as
+  sufficient on its own.
+- Full managed gate passes (this slice touches Python source and CI configuration; it does not
+  qualify for IR.1's docs-only exemption).
+
+### 7.7 Plan location and branch mechanics
+
+This document — `IR_CONTRACT_AND_SLICE_PLAN.md`, including this entire §7 — and the
+`IMPLEMENTATION_PLAN.md` row-10 cross-link exist only on `feat/ir-integration-readiness`; `main`
+does not have them (IR itself has not merged to `main` yet). §3's IR.4 row branches
+`fix/ir4-python-version-reproducibility` from `main`, so that branch will not contain this plan.
+
+- **The IR.4 implementation reads its plan from `feat/ir-integration-readiness`**, i.e. from this
+  document as checked out on that branch, even though the code changes it makes land on a branch
+  cut from `main` that does not itself carry this file. There is exactly one authoritative copy of
+  this plan while IR is in flight; it does not get copied or re-derived onto the fix branch.
+- **The fix branch must not edit `IR_CONTRACT_AND_SLICE_PLAN.md` or `IMPLEMENTATION_PLAN.md`.**
+  Both files' `main` copies are stale with respect to all of IR's work so far, not just IR.4 — editing
+  either on the fix branch would start a second, divergent edit history for documents that already
+  have one on the feature branch, guaranteeing a conflict (or worse, a silent divergence) whenever
+  the two eventually reconcile. The fix branch's own commit(s) touch only the code/config named in
+  §7.4/§7.5 (the two annotation fixes, `.python-version`, `.github/workflows/ci.yaml`,
+  `[tool.mypy]`) plus whatever regression tests §7.4 requires.
+- **Record IR.4's completion/acceptance on the feature branch, after merging `main` back in — not
+  on the fix branch, and not before the merge-back.** Once `fix/ir4-python-version-reproducibility`
+  is accepted and merged to `main`, `feat/ir-integration-readiness` merges `main` back (§3), and
+  *that* merge commit (or the commit immediately after it) is where this document gets its
+  acceptance note — matching where every other slice's completion is recorded in this same plan.
+  Recording acceptance any earlier would describe a state (`main` fixed, feature branch not yet
+  synced) that is not actually the final, merged-back state this plan tracks.
+
