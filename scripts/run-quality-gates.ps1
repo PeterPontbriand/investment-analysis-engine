@@ -39,6 +39,13 @@ try {
     $env:UV_CACHE_DIR = $uvCache
     $env:COVERAGE_FILE = $coverageFile
 
+    $versionInfo = & uv run --no-sync python -c "import sys, pandas; print(f'{sys.version.split()[0]}|{pandas.__version__}')"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Quality command failed with exit code $LASTEXITCODE`: uv run --no-sync python -c <version check>"
+    }
+    $pythonVersion, $pandasVersion = ($versionInfo | Select-Object -Last 1) -split '\|'
+    Write-Host "Quality gate running on Python $pythonVersion, pandas $pandasVersion"
+
     Invoke-QualityCommand -Arguments @("run", "--no-sync", "ruff", "check", "--no-cache", ".")
     Invoke-QualityCommand -Arguments @("run", "--no-sync", "ruff", "format", "--check", ".")
     Invoke-QualityCommand -Arguments @(
@@ -75,4 +82,4 @@ finally {
     if ($null -eq $originalCoverageFile) { Remove-Item Env:COVERAGE_FILE -ErrorAction SilentlyContinue } else { $env:COVERAGE_FILE = $originalCoverageFile }
 }
 
-Write-Host "Quality gates passed. Isolated artifacts: $runRoot"
+Write-Host "Quality gates passed on Python $pythonVersion, pandas $pandasVersion. Isolated artifacts: $runRoot"

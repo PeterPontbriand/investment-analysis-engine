@@ -1,5 +1,7 @@
 """Atomic historical OHLCV snapshots with explicit frame representation."""
 
+from __future__ import annotations
+
 import json
 import math
 from collections.abc import Callable, Mapping
