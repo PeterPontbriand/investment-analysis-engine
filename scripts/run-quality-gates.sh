@@ -30,6 +30,11 @@ export TMP="$windows_run_root"
 export UV_CACHE_DIR="$windows_run_root/uv-cache"
 export COVERAGE_FILE="$windows_run_root/.coverage"
 
+version_info="$(uv run --no-sync python -c "import sys, pandas; print(f'{sys.version.split()[0]}|{pandas.__version__}')")"
+python_version="${version_info%%|*}"
+pandas_version="${version_info##*|}"
+printf 'Quality gate running on Python %s, pandas %s\n' "$python_version" "$pandas_version"
+
 uv run --no-sync ruff check --no-cache .
 uv run --no-sync ruff format --check .
 uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" src tests
@@ -42,4 +47,4 @@ uv run --no-sync pytest \
     --basetemp="$windows_pytest_root" \
     tests
 
-printf 'Quality gates passed. Isolated artifacts: %s\n' "$run_root"
+printf 'Quality gates passed on Python %s, pandas %s. Isolated artifacts: %s\n' "$python_version" "$pandas_version" "$run_root"

@@ -115,7 +115,7 @@ omit = [
 show_missing = true
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.12"
 mypy_path = "."  # Tells mypy to resolve namespace lookups directly from the repository root
 explicit_package_bases = true
 warn_return_any = true
