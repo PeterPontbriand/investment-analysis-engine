@@ -17,6 +17,9 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+
     steps:
       - name: Check out Repository Code
         uses: actions/checkout@v4
@@ -34,6 +37,10 @@ jobs:
 
       - name: Install Project and Dependencies
         run: uv sync --frozen
+
+      - name: Verify Python ${{ matrix.python-version }} is the interpreter under test
+        shell: bash
+        run: uv run python -c "import sys; want='${{ matrix.python-version }}'; got='%d.%d' % sys.version_info[:2]; print(sys.version); assert got == want, f'expected {want}, got {got}'"
 
       - name: Enforce Code Formatting (Ruff)
         run: uv run ruff format --check .
