@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 from alembic.config import Config
 from pandas.testing import assert_frame_equal
+from pydantic import ValidationError
 from sqlalchemy import delete, select, update
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -24,6 +25,7 @@ from src.data.repositories import (
     SQLiteDatabase,
     SQLiteMarketDataRepository,
     UnsupportedHistoricalDataError,
+    market_data,
 )
 from src.data.repositories.schema import market_data_cache_entries, market_price_observations, schema_metadata
 
@@ -460,3 +462,59 @@ def test_parent_and_children_share_one_snapshot(
     current = repository.get(key)
     assert current is not None
     assert_frame_equal(current.data.frame, replacement.frame)
+
+
+def test_key_adapter_resolves_postponed_field_types() -> None:
+    """`from __future__ import annotations` must not break `_KEY_ADAPTER`'s schema (IR.4)."""
+    valid = market_data._KEY_ADAPTER.validate_python(
+        {
+            "ticker": "AAA",
+            "request_provider_id": "fixture",
+            "request_start": date(2025, 3, 1),
+            "request_end": None,
+            "request_variant": "1d:adjusted",
+            "schema_version": 1,
+        }
+    )
+    assert valid == MarketDataCacheKey("AAA", "fixture", date(2025, 3, 1), None, "1d:adjusted")
+
+    with pytest.raises(ValidationError):
+        market_data._KEY_ADAPTER.validate_python(
+            {
+                "ticker": "AAA",
+                "request_provider_id": "fixture",
+                "request_start": "not-a-calendar-date",
+                "request_end": None,
+                "request_variant": "1d:adjusted",
+                "schema_version": 1,
+            }
+        )
+
+
+def test_frame_metadata_resolves_postponed_field_types() -> None:
+    """`from __future__ import annotations` must not break `_FrameMetadata`'s schema (IR.4)."""
+    metadata = market_data._FrameMetadata(
+        columns=["close"],
+        dtypes=["float64"],
+        columns_name=None,
+        index_kind="date",
+        index_name=None,
+        index_dtype="object",
+        index_timezone=None,
+        index_frequency=None,
+    )
+    assert metadata.index_kind == "date"
+
+    with pytest.raises(ValidationError):
+        market_data._FrameMetadata.model_validate(
+            {
+                "columns": ["close"],
+                "dtypes": ["float64"],
+                "columns_name": None,
+                "index_kind": "not-a-real-kind",
+                "index_name": None,
+                "index_dtype": "object",
+                "index_timezone": None,
+                "index_frequency": None,
+            }
+        )
