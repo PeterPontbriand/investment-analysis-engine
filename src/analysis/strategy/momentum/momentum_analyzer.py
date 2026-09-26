@@ -1,5 +1,7 @@
 """Module for tracking, calculating, and presenting market price momentum indicators."""
 
+from __future__ import annotations
+
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -111,7 +113,7 @@ class MomentumConfig(BaseModel):
     rsi_period: int = Field(default=14, gt=0)
 
     @model_validator(mode="after")
-    def validate_windows(self) -> "MomentumConfig":
+    def validate_windows(self) -> MomentumConfig:
         """Require a positive short window that is smaller than the long window."""
         if self.short_window >= self.long_window:
             raise ValueError(
