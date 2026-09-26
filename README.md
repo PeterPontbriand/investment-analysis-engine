@@ -10,6 +10,8 @@ The [Analysis Strategy Guides](docs/user/strategies/README.md) describe availabl
 
 > Investment Analysis Engine is research/educational software, not investment advice. See [Limitations & disclaimer](#limitations--disclaimer).
 
+**New to financial analysis?** You’re not alone. Start with the [plain-language beginner guide](docs/user/BEGINNER_GUIDE.md) to learn what this project measures, how its analyses fit together, and what its results can—and can’t—tell you.
+
 ---
 
 ## See what it does first
@@ -61,6 +63,7 @@ Investment Analysis Engine is being built for several overlapping audiences, wit
 
 - **Experienced investors who already maintain spreadsheets, databases, screens, or scripts** and want calculations whose data and assumptions they can challenge, compare, override, and audit.
 - **Experienced investors who are not software specialists** and want a low-friction way to go from a ticker symbol to a useful, intelligible result. The project does not yet have a one-click installer, so the installation guide deliberately assumes very little prior software-development knowledge.
+- **New to investing or financial analysis** and looking for an approachable explanation before trying the software? Start with the [Beginner’s Guide](docs/user/BEGINNER_GUIDE.md); no prior financial-analysis background is assumed.
 - **Technically comfortable people learning investing** who want the running software and its documentation to reinforce one another.
 - **AI agents and other programs** that consume typed, provenance-aware results rather than free-form text.
 - **Software engineers, architects, AI practitioners, and prospective contributors** who want to review the project design, implementation plans, and reliability boundaries. See [Project & Technical Documentation](docs/project/README.md).

@@ -18,6 +18,7 @@ This section is for people **using Investment Analysis Engine**. It deliberately
 
 ## Understand the terminology and calculations
 
+- [Beginner’s Guide to Investment Analysis](BEGINNER_GUIDE.md) — a guided introduction to the project’s financial concepts and how facts become metrics, methods, and strategy results.
 - [Glossary](GLOSSARY.md) — plain-language definitions of financial, data, and software terms used by the application.
 - [Financial Math & Data Conventions](FINANCE_MATH.md) — authoritative formulas and financial conventions used by implemented analysis strategies.
 
