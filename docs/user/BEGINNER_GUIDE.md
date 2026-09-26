@@ -10,6 +10,8 @@ Investment analysis means examining information about a business and the market 
 
 Numbers can help organize evidence and raise questions. Their meaning depends on definitions, dates, and business context, and a result is not by itself a recommendation.
 
+Publicly traded companies periodically publish financial reports and other information about their business for investors and regulators. This information can include revenue (money from sales), expenses (business costs), assets (what the company owns), liabilities (what it owes), cash flows (money coming in and going out), earnings (profit), and share information. In the U.S. regulatory system, companies file reports with the [Securities and Exchange Commission (SEC)](GLOSSARY.md#sec); the SEC’s [EDGAR](GLOSSARY.md#edgar) system provides public access to filings and related data. These reports are the original source of the company’s figures. The project selects and prepares relevant values as financial facts for a requested analysis; deterministic calculations then produce metrics from those inputs. A reporting period tells you what span of time a figure describes; a filing or availability date tells you when the information became public. Both dates matter when analyzing the past, as explained below.
+
 ## Facts, metrics, methods, and strategies
 
 These four terms describe different layers:
