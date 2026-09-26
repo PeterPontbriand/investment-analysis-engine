@@ -465,7 +465,13 @@ def test_parent_and_children_share_one_snapshot(
 
 
 def test_key_adapter_resolves_postponed_field_types() -> None:
-    """`from __future__ import annotations` must not break `_KEY_ADAPTER`'s schema (IR.4)."""
+    """Guard the remedy: postponed annotations must still resolve into a working schema.
+
+    `from __future__ import annotations` must not break `_KEY_ADAPTER`'s ability to build its
+    Pydantic validation schema from `MarketDataCacheKey`'s deferred field annotations. This does
+    not guard the original eager-annotation defect (IR.4) itself; the Python 3.12 and 3.13 entries
+    in the CI matrix are the regression guard for that.
+    """
     valid = market_data._KEY_ADAPTER.validate_python(
         {
             "ticker": "AAA",
@@ -492,7 +498,13 @@ def test_key_adapter_resolves_postponed_field_types() -> None:
 
 
 def test_frame_metadata_resolves_postponed_field_types() -> None:
-    """`from __future__ import annotations` must not break `_FrameMetadata`'s schema (IR.4)."""
+    """Guard the remedy: postponed annotations must still resolve into a working schema.
+
+    `from __future__ import annotations` must not break `_FrameMetadata`'s ability to build its
+    Pydantic model from its own deferred field annotations. This does not guard the original
+    eager-annotation defect (IR.4) itself; the Python 3.12 and 3.13 entries in the CI matrix are
+    the regression guard for that.
+    """
     metadata = market_data._FrameMetadata(
         columns=["close"],
         dtypes=["float64"],
