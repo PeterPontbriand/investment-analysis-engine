@@ -24,7 +24,7 @@ For work-package sequencing and status, see the [milestone table](milestones/v0.
 - **Evaluation is not persistence:** Golden fixtures, evaluation results, trajectory telemetry, and production market-data storage are separate concerns.
 - **Local-LLM boundary:** The LLM cannot directly execute shell/code or access the external network. Registered data tools may perform controlled provider access.
 - **Telemetry is observational:** Telemetry failures must not change business execution semantics.
-- **Light Mode first:** Core useful analysis must remain viable under the documented Light Mode workflow.
+- **Light Mode first:** Core useful analysis must remain viable under the documented [Light Mode](../user/GLOSSARY.md#light-mode) workflow.
 - **Method-explicit financial semantics:** Distinct analysis methods retain explicit names, inputs, typed results, and limitations.
 - **Time-bounded provenance:** Resolved inputs preserve source, reporting/observation and availability dates, transformations, cache/override state, and requested analysis `as_of`.
 - **Presentation without homogenization:** Analysis strategies use a coherent investor-facing visual grammar while retaining their own typed result models.
