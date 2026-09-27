@@ -57,7 +57,7 @@ For work-package sequencing and status, see the [milestone table](milestones/v0.
        ▼                      ▼                      ▼
  historical series     financial facts        quotes / macro data
        │                      │                      │
- BaseDataClient       FinancialFactsProvider / narrow providers
+ BaseDataClient / MarketDataProvider  FinancialFactsProvider / narrow providers
        └──────────────────────┬──────────────────────┘
                               ▼
                      typed strategy result
@@ -76,7 +76,7 @@ For work-package sequencing and status, see the [milestone table](milestones/v0.
 
 `BaseAnalyzer` remains the existing common analyzer abstraction where applicable. The diagram does **not** imply a new strategy registry, plugin system, factory hierarchy, or unified strategy-result model.
 
-The presentation boundary is intentionally downstream of deterministic calculation and provenance. Step 3.4 later persists Analysis Runs and renders them through the same presentation contract rather than recalculating merely to display historical results.
+The presentation boundary is intentionally downstream of deterministic calculation and provenance. Persisted Analysis Runs are rendered through the same presentation contract rather than recalculated merely to display historical results.
 
 ---
 
