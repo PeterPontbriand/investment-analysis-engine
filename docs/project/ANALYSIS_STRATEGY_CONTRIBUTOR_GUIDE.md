@@ -17,10 +17,12 @@ All current strategy analyzers inherit from `BaseAnalyzer` with their own config
 `AnalysisContext` is the frozen per-run value object for cross-cutting execution concerns:
 
 - `as_of` is the requested point-in-time boundary, or `None` when the caller did not request one. It is not replaced with a fabricated historical date.
-- `executed_at` is the timezone-aware execution clock captured once by the caller for the analysis run. For a historical analysis it remains distinct from `as_of`: point-in-time admissibility uses `effective_as_of`, while cache freshness is judged against when the run executed.
+- `executed_at` is the timezone-aware execution clock captured once by the caller for the analysis run.
 - `effective_as_of` is a derived property: the requested `as_of` when present, otherwise `executed_at`. Analysis-layer data must respect this cutoff.
 - `use_cache` is the run-wide permission governing cache reads and writes used by the analysis.
 - `instrument_profile` carries the run's identity evidence. It is retained in results even when the calculation does not consult it.
+
+For the full clock model — which instant each kind of check compares against, the decision-clock/event-clock distinction, `utc_now()`, and why frozen-clock skew is tolerated only for live runs — see ARCHITECTURE.md's [*Time and the analysis boundary*](ARCHITECTURE.md#3-time-and-the-analysis-boundary) rather than this guide; duplicating those rules here would let the two drift.
 
 The workspace selections expose `to_analysis_context(executed_at, instrument_profile)` alongside method-specific config conversion. Direct execution adapters and orchestrator handlers construct this context at their execution boundary. See [`AnalysisSelection` and its method-specific request models](../../src/workspace/requests.py) for the workspace request boundary. The [Architecture](ARCHITECTURE.md) documents broader boundaries and rationale.
 
@@ -32,104 +34,90 @@ The adapter connects a method to execution capture; it does not duplicate its fi
 
 ### Strategy integration architecture
 
-The diagram shows current FCF-growth wiring as a concrete path through the common analyzer contract. The strategy supplies its own config, resolver, calculations, and result; composition supplies the context and shared infrastructure.
+The diagram shows current FCF-growth wiring as a concrete path through the common analyzer contract. The strategy supplies its own config, resolver, calculations, and result; composition supplies the context and shared infrastructure. Persistence is conditional, not automatic: `_maybe_save_run` (`src/cli.py`) is the one place shared by all four direct commands that decides whether a run reaches `workspace.execute()` at all, based on `--save-run`; a watchlist refresh reaches the same `execute()` through its own composition in `src/workspace/refresh.py` instead.
 
-```plantuml
-@startuml
-left to right direction
-skinparam componentStyle rectangle
-
-component "CLI / workspace composition" as CLI
-component "FCF growth execution adapter" as Adapter
-component "BaseAnalyzer[ConfigT, ResultT]" as Contract
-component "AnalysisContext\nas_of · executed_at · use_cache · profile" as Context
-component "FCFEarningsGrowthAnalyzer" as Analyzer
-component "FCFEarningsGrowthConfig\n(policy · currency · provider)" as Config
-component "ProductionAnnualGrowthSeriesResolver" as Resolver
-component "FinancialFactsProvider" as Provider
-component "Resolved-input series cache\n(optional)" as Cache
-component "FCFEarningsGrowthResult\n+ ResolvedInput provenance" as Result
-component "Strategy presentation" as Presentation
-component "Capture normalization\nfrom_fcf_growth_capture()" as Normalize
-component "Common workspace.execute()" as Workspace
-database "AnalysisRun repository\n+ durable AnalysisRun" as Persistence
-
-CLI --> Adapter : compose dependencies / invoke
-Adapter --> Context : construct per-run context
-Adapter --> Analyzer : ticker, config, context
-Contract <|-- Analyzer
-Config --> Analyzer
-Context --> Analyzer
-Analyzer --> Resolver : resolve annual evidence
-Resolver --> Cache : read/write when enabled
-Resolver --> Provider : provider facts
-Resolver --> Analyzer : observations + trace
-Analyzer --> Result : deterministic calculation
-Result --> Presentation : direct command rendering
-Adapter --> Normalize : FCFGrowthCapture
-Normalize --> Workspace : ExecutionCapture
-Workspace --> Persistence : normalized, encoded run
-Result --> Workspace : native evidence in capture
-@enduml
+```mermaid
+flowchart LR
+    CLI["CLI / workspace composition"] -->|"compose dependencies / invoke"| Adapter["FCF growth execution adapter<br/>execute_fcf_growth()"]
+    Adapter -->|"construct per-run context"| Context["AnalysisContext<br/>as_of · executed_at · use_cache · profile"]
+    Adapter -->|"ticker, config, context"| Analyzer["FCFEarningsGrowthAnalyzer"]
+    Analyzer -.->|implements| Contract["BaseAnalyzer[ConfigT, ResultT]"]
+    Config["FCFEarningsGrowthConfig<br/>(policy · currency · provider)"] --> Analyzer
+    Context -->|"effective_as_of, use_cache, profile"| Analyzer
+    Analyzer -->|"resolve annual evidence<br/>(as_of + effective_as_of passed separately)"| Resolver["ProductionAnnualGrowthSeriesResolver"]
+    Resolver -->|"read/write when enabled"| Cache["Resolved-input series cache<br/>(optional)"]
+    Resolver -->|"provider facts"| Provider["FinancialFactsProvider"]
+    Resolver -->|"observations + trace"| Analyzer
+    Analyzer -->|"deterministic calculation"| Result["FCFEarningsGrowthResult<br/>+ ResolvedInput provenance"]
+    Result -->|"direct command rendering"| Presentation["Strategy presentation"]
+    Adapter -->|"FCFGrowthCapture"| SaveDecision{"_maybe_save_run<br/>--save-run?"}
+    SaveDecision -->|"no (default): stop here"| Presentation
+    SaveDecision -->|"yes"| Normalize["Capture normalization<br/>from_fcf_growth_capture()"]
+    Normalize -->|"ExecutionCapture"| Workspace["Common workspace.execute()"]
+    Workspace -->|"normalized, encoded run"| Persistence[("AnalysisRun repository<br/>+ durable AnalysisRun")]
+    Result -.->|"native evidence in capture"| Workspace
 ```
 
-**What the contributor owns:** strategy policy/configuration, required input semantics and resolution, deterministic calculations, typed result, tests, user-facing presentation where needed, and its execution-adapter integration. **What is shared:** provider/cache contracts, provenance values, workspace execution, run persistence, and shared financial conventions. Reuse the shared boundaries instead of rebuilding them inside a strategy.
+**What the contributor owns:** strategy policy/configuration, required input semantics and resolution, deterministic calculations, typed result, tests, user-facing presentation where needed, and its execution-adapter integration. **What is shared:** provider/cache contracts, provenance values, the `_maybe_save_run`/refresh persistence decision, workspace execution, run persistence, and shared financial conventions. Reuse the shared boundaries instead of rebuilding them inside a strategy.
 
 ### What happens during an FCF & Earnings Growth run
 
-At the composition boundary, the CLI or another caller may supply the capture callable. Common workspace execution invokes that callable through its interface and does not depend on the CLI implementation.
+`_maybe_save_run` (`src/cli.py`) is a pure passthrough to the adapter when `--save-run` is not given — the default direct-command path never touches `workspace.execute()`, opens no database, and builds no durable profile cache. Only when `--save-run` is set does it open a database, build the capture closure, and call `execute()`. A watchlist refresh never goes through `_maybe_save_run`; it reaches `workspace.execute()` through its own composition in `src/workspace/refresh.py`, following the same adapter/normalize contract.
 
-```plantuml
-@startuml
-actor User
-participant "CLI / composition" as CLI
-participant "Composed strategy capture" as Capture
-participant "FCF execution adapter" as Adapter
-participant "AnalysisContext" as Context
-participant "FCFEarningsGrowthAnalyzer" as Analyzer
-participant "ProductionAnnualGrowthSeriesResolver" as Resolver
-participant "Cache" as Cache
-participant "FinancialFactsProvider" as Provider
-participant "FCF presenter" as Presenter
-participant "workspace.execute()" as Workspace
-database "AnalysisRun repository" as Repo
+```mermaid
+sequenceDiagram
+    actor User
+    participant CLI as CLI / composition
+    participant SaveDecision as _maybe_save_run
+    participant Adapter as FCF execution adapter
+    participant Context as AnalysisContext
+    participant Analyzer as FCFEarningsGrowthAnalyzer
+    participant Resolver as ProductionAnnualGrowthSeriesResolver
+    participant Cache
+    participant Provider as FinancialFactsProvider
+    participant Presenter as FCF presenter
+    participant Workspace as workspace.execute()
+    participant Repo as AnalysisRun repository
 
-User -> CLI : invoke FCF growth
-CLI -> CLI : validate selection; capture executed_at; compose provider/cache/resolver
-alt direct analysis command
-  CLI -> Adapter : execute_fcf_growth(...)
-else workspace save/refresh
-  CLI -> Workspace : execute(request, supplied capture callable)
-  Workspace -> Capture : invoke supplied callable
-  Capture -> Adapter : execute_fcf_growth(...)
-end
-Adapter -> Context : construct(as_of, executed_at, use_cache, profile)
-Adapter -> Analyzer : run_analysis(ticker, config, context)
-Analyzer -> Context : read effective_as_of / use_cache / profile
-Analyzer -> Resolver : resolve annual input series
-Resolver -> Cache : lookup/store if enabled
-Resolver -> Provider : fetch required annual facts on cache miss
-Provider --> Resolver : provider facts
-Cache --> Resolver : cached series (when available)
-Resolver --> Analyzer : resolved observations + provenance trace
-Analyzer -> Analyzer : calculate growth metrics and classification
-Analyzer --> Adapter : FCFEarningsGrowthResult
-alt direct analysis command
-  Adapter --> CLI : capture(result, profile, execution outcome)
-  CLI -> Presenter : render concise/details/diagnostics/JSON
-  Presenter --> User : investor-facing result
-else workspace save/refresh
-  Adapter --> Capture : FCFGrowthCapture
-  Capture -> Capture : normalize with from_fcf_growth_capture()
-  Capture --> Workspace : normalized ExecutionCapture
-  Workspace -> Repo : insert AnalysisRun
-end
-@enduml
+    User->>CLI: invoke FCF growth
+    CLI->>CLI: validate selection; read executed_at once; compose provider/cache/resolver
+    CLI->>SaveDecision: run_adapter, request_factory, normalize
+    alt --save-run not set (default)
+        SaveDecision->>Adapter: execute_fcf_growth(...)
+    else --save-run set
+        SaveDecision->>SaveDecision: open database; build durable profile cache
+        SaveDecision->>Workspace: execute(request, capture)
+        Workspace->>SaveDecision: invoke capture() once
+        SaveDecision->>Adapter: execute_fcf_growth(..., profile_cache)
+    end
+    Adapter->>Context: construct(as_of, executed_at, use_cache, profile)
+    Adapter->>Analyzer: run_analysis(ticker, config, context)
+    Analyzer->>Context: read effective_as_of / use_cache / profile
+    Analyzer->>Resolver: resolve(as_of, effective_as_of, ...)
+    Resolver->>Cache: lookup/store if enabled
+    Resolver->>Provider: fetch required annual facts on cache miss
+    Provider-->>Resolver: provider facts
+    Cache-->>Resolver: cached series (when available)
+    Resolver-->>Analyzer: resolved observations + provenance trace
+    Analyzer->>Analyzer: calculate growth metrics and classification
+    Analyzer-->>Adapter: FCFEarningsGrowthResult
+    Adapter-->>SaveDecision: FCFGrowthCapture
+    alt --save-run not set (default)
+        SaveDecision-->>CLI: FCFGrowthCapture, unchanged
+    else --save-run set
+        SaveDecision->>SaveDecision: normalize with from_fcf_growth_capture()
+        SaveDecision-->>Workspace: ExecutionCapture
+        Workspace->>Repo: insert AnalysisRun
+        Workspace-->>SaveDecision: AnalysisRun
+        SaveDecision-->>CLI: FCFGrowthCapture, unchanged + saved run id on stderr
+    end
+    CLI->>Presenter: render concise/details/diagnostics/JSON
+    Presenter-->>User: investor-facing result
 ```
 
-`FCFEarningsGrowthAnalyzer` implements `BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarningsGrowthResult]`; the sequence shows the per-run interactions after composition.
+`FCFEarningsGrowthAnalyzer` implements `BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarningsGrowthResult]`; the sequence shows the per-run interactions after composition. Presentation always renders the adapter's own capture — `--save-run` changes only whether that capture is also persisted, never what the user sees.
 
-The direct command and workspace save/refresh paths reuse the method adapter, but the common persistence wrapper is only involved when an Analysis Run is being recorded. A financially negative screen can still have a completed execution outcome; the strategy's classification and software run status answer different questions.
+The direct command and watchlist-refresh paths reuse the same method adapter, but the common persistence wrapper (`workspace.execute()`) is only involved when an Analysis Run is being recorded. A financially negative screen can still have a completed execution outcome; the strategy's classification and software run status answer different questions.
 
 ## Where financial data comes from
 
