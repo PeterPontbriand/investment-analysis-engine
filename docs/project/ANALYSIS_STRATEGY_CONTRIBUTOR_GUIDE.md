@@ -77,10 +77,13 @@ Result --> Workspace : native evidence in capture
 
 ### What happens during an FCF & Earnings Growth run
 
+At the composition boundary, the CLI or another caller may supply the capture callable. Common workspace execution invokes that callable through its interface and does not depend on the CLI implementation.
+
 ```plantuml
 @startuml
 actor User
 participant "CLI / composition" as CLI
+participant "Composed strategy capture" as Capture
 participant "FCF execution adapter" as Adapter
 participant "AnalysisContext" as Context
 participant "FCFEarningsGrowthAnalyzer" as Analyzer
@@ -96,9 +99,9 @@ CLI -> CLI : validate selection; capture executed_at; compose provider/cache/res
 alt direct analysis command
   CLI -> Adapter : execute_fcf_growth(...)
 else workspace save/refresh
-  CLI -> Workspace : execute(request, capture callable)
-  Workspace -> CLI : invoke capture()
-  CLI -> Adapter : execute_fcf_growth(...)
+  CLI -> Workspace : execute(request, supplied capture callable)
+  Workspace -> Capture : invoke supplied callable
+  Capture -> Adapter : execute_fcf_growth(...)
 end
 Adapter -> Context : construct(as_of, executed_at, use_cache, profile)
 Adapter -> Analyzer : run_analysis(ticker, config, context)
@@ -116,9 +119,9 @@ alt direct analysis command
   CLI -> Presenter : render concise/details/diagnostics/JSON
   Presenter --> User : investor-facing result
 else workspace save/refresh
-  Adapter --> CLI : FCFGrowthCapture
-  CLI -> CLI : normalize with from_fcf_growth_capture()
-  CLI --> Workspace : normalized ExecutionCapture
+  Adapter --> Capture : FCFGrowthCapture
+  Capture -> Capture : normalize with from_fcf_growth_capture()
+  Capture --> Workspace : normalized ExecutionCapture
   Workspace -> Repo : insert AnalysisRun
 end
 @enduml

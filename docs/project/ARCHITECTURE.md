@@ -5,15 +5,16 @@ This document describes the system's current boundaries, data ownership, and exe
 ## Architectural invariants
 
 1. **Deterministic analysis:** Python performs calculations, validation, data processing, and persistence. The language model selects registered tools and synthesizes results.
-2. **Typed boundaries:** Requests, analyzer configurations, results, provider facts, and persisted records use explicit typed contracts.
-3. **Heterogeneous strategies:** Strategies keep their own inputs, configuration, policies, calculations, and result types.
-4. **Shared analyzer contract:** Current analyzers implement `BaseAnalyzer[ConfigT, ResultT]` and receive an `AnalysisContext`; this common invocation shape does not impose a common financial result model.
-5. **Narrow provider capabilities:** Historical prices, financial facts, quotes, identity evidence, and macro observations are distinct capabilities.
-6. **Time-bounded provenance:** Resolved inputs retain source, period, availability and retrieval times, transformations, cache/override state, and the requested analysis boundary where applicable.
-7. **Presentation without homogenization:** Strategy results retain their native types while sharing investor-facing presentation conventions.
-8. **Persistence has a product boundary:** `AnalysisRun` records an analysis outcome. It is separate from trajectory telemetry and market-data storage.
-9. **Telemetry is observational:** Telemetry failures do not change business execution semantics.
-10. **Historical reports are reproducible:** A stored result is rendered from its persisted evidence without provider access, financial recalculation, or LLM synthesis.
+2. **Controlled model boundary:** The language model invokes registered tools; it does not directly execute shell/code or access the external network.
+3. **Typed boundaries:** Requests, analyzer configurations, results, provider facts, and persisted records use explicit typed contracts.
+4. **Heterogeneous strategies:** Strategies keep their own inputs, configuration, policies, calculations, and result types.
+5. **Shared analyzer contract:** Current analyzers implement `BaseAnalyzer[ConfigT, ResultT]` and receive an `AnalysisContext`; this common invocation shape does not impose a common financial result model.
+6. **Narrow provider capabilities:** Historical prices, financial facts, quotes, identity evidence, and macro observations are distinct capabilities.
+7. **Time-bounded provenance:** Resolved inputs retain source, period, availability and retrieval times, transformations, cache/override state, and the requested analysis boundary where applicable.
+8. **Presentation without homogenization:** Strategy results retain their native types while sharing investor-facing presentation conventions.
+9. **Persistence has a product boundary:** `AnalysisRun` records an analysis outcome. It is separate from trajectory telemetry and market-data storage.
+10. **Telemetry is observational:** Telemetry failures do not change business execution semantics.
+11. **Historical reports are reproducible:** A stored result is rendered from its persisted evidence without provider access, financial recalculation, or LLM synthesis.
 
 ## System structure
 
@@ -105,6 +106,8 @@ Resolvers own precedence and provider fallback; caches store resolved evidence a
 
 `InstrumentProfile` composes descriptive identity and provider-backed instrument-kind evidence without implying that one provider supplied both. `CachedInstrumentProfileResolver` uses `SQLiteInstrumentProfileRepository` when persistence is composed. Identity-anchored records are keyed by profile identity; when a ticker is later associated with a different identity, the older profile remains available for historical records and a new profile is stored. Missing or unsupported metadata remains unknown and does not invalidate otherwise usable financial facts.
 
+Quote-dependent per-share comparisons require compatible filing-share and quoted-share unit evidence. When that compatibility cannot be established, the comparison remains unavailable while independently supported financial results remain usable; the system does not infer a conversion.
+
 ## Strategy calculations and presentation
 
 Each analyzer applies its own deterministic rules and returns its own typed result. For example, FCF & Earnings Growth derives free cash flow and free cash flow per diluted share, computes growth metrics, and classifies the historical evidence. Its `PASS`, `FAIL`, or `INDETERMINATE` classification is distinct from the software execution outcome.
@@ -112,6 +115,8 @@ Each analyzer applies its own deterministic rules and returns its own typed resu
 Direct commands render results through strategy-specific presenters. Shared helpers in [`src/reporting/presentation.py`](../../src/reporting/presentation.py) provide common labels and formatting, not a universal result schema. Investor output supports concise, details, diagnostics, and JSON views where the strategy exposes them.
 
 Saved-run reporting decodes the stored native evidence and invokes the corresponding presenter. It does not fetch current provider data, rerun calculations, or reinterpret a historical result using current configuration.
+
+The report projection has an explicit version independent of the strategy method and typed result schema. A breaking presentation-contract change requires a new projection version so persisted runs can retain reproducible report semantics.
 
 ## Execution capture and persistence
 
