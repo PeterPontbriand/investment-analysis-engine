@@ -46,6 +46,7 @@ try {
     $pythonVersion, $pandasVersion = ($versionInfo | Select-Object -Last 1) -split '\|'
     Write-Host "Quality gate running on Python $pythonVersion, pandas $pandasVersion"
 
+    Invoke-QualityCommand -Arguments @("run", "--no-sync", "python", "scripts/check_doc_links.py")
     Invoke-QualityCommand -Arguments @("run", "--no-sync", "ruff", "check", "--no-cache", ".")
     Invoke-QualityCommand -Arguments @("run", "--no-sync", "ruff", "format", "--check", ".")
     Invoke-QualityCommand -Arguments @(
@@ -56,7 +57,8 @@ try {
         "--cache-dir",
         $mypyCache,
         "src",
-        "tests"
+        "tests",
+        "scripts"
     )
     Invoke-QualityCommand -Arguments @(
         "run",
