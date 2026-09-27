@@ -16,6 +16,7 @@ from sqlalchemy import BigInteger, Float, bindparam, delete, select
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Connection
 
+from src.core.clock import utc_now
 from src.data.market_data import HistoricalMarketData, MarketDataContext
 from src.data.repositories.schema import market_data_cache_entries, market_price_observations, schema_metadata
 from src.data.repositories.sqlite import SQLiteDatabase
@@ -291,7 +292,7 @@ class SQLiteMarketDataRepository:
     def __init__(self, database: SQLiteDatabase, *, clock: Callable[[], datetime] | None = None) -> None:
         """Retain a caller-owned database without opening it or migrating."""
         self._database = database
-        self._clock = clock if clock is not None else lambda: datetime.now(UTC)
+        self._clock = clock if clock is not None else utc_now
 
     def put(
         self, key: MarketDataCacheKey, data: HistoricalMarketData, *, fetch_completed_at: datetime | None = None

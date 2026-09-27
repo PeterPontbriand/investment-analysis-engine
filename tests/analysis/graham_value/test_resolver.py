@@ -72,7 +72,12 @@ class FakeProvider:
         self.call_count = 0
         self.last_request: FinancialFactRequest | None = None
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         self.call_count += 1
         self.last_request = request
         if hasattr(self, "_error"):
@@ -1761,7 +1766,12 @@ class MultiFieldProvider:
         self.requests: list[FinancialFactRequest] = []
         self.call_count = 0
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         self.call_count += 1
         self.requests.append(request)
         return self._handlers.get(request.field_name, ())
@@ -2242,7 +2252,12 @@ class MultiFieldProviderWithError:
         self.requests: list[FinancialFactRequest] = []
         self.call_count = 0
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         self.call_count += 1
         self.requests.append(request)
         if request.field_name in self._error_fields:

@@ -61,7 +61,12 @@ class QuoteProvider:
         self.calls = 0
         self.fail = False
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Return a fresh response or one explicit transport failure."""
         self.calls += 1
         if self.fail:

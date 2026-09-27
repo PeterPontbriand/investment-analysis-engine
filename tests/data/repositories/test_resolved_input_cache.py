@@ -64,7 +64,7 @@ def test_list_keys_rejects_invalid_bounds_before_io(tmp_path: Path, limit: Any, 
     database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
     try:
         with pytest.raises(ValueError, match="limit|offset"):
-            SQLiteResolvedInputCache(database).list_keys(limit=limit, offset=offset)
+            SQLiteResolvedInputCache(database, clock=lambda: NOW).list_keys(limit=limit, offset=offset)
         assert not path.exists()
     finally:
         database.close()
@@ -79,7 +79,7 @@ def test_inspection_requires_encoding(
             connection.execute(delete(schema_metadata))
         else:
             connection.execute(update(schema_metadata).values(metadata_value=version))
-    cache = SQLiteResolvedInputCache(database)
+    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
     with pytest.raises(ValueError, match="encoding version"):
         cache.list_keys(limit=1)
     with pytest.raises(ValueError, match="encoding version"):
@@ -90,7 +90,7 @@ def test_inspection_requires_encoding(
 def test_list_keys_rejects_malformed_selected_keys(
     database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, column: str, value: str
 ) -> None:
-    cache = SQLiteResolvedInputCache(database)
+    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
     cache.put(key, fact)
     with database.transaction() as connection:
         connection.exec_driver_sql("PRAGMA ignore_check_constraints = ON")
@@ -103,7 +103,7 @@ def test_list_keys_rejects_malformed_selected_keys(
 def test_inspect_rejects_corrupt_storage(
     database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, column: str, value: object
 ) -> None:
-    cache = SQLiteResolvedInputCache(database)
+    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
     cache.put(key, fact)
     with database.transaction() as connection:
         connection.execute(update(resolved_input_cache).values(**{column: value}))
@@ -154,7 +154,7 @@ def test_inspection_preserves_ineligible_entries_and_never_uses_clock(
 def test_list_keys_does_not_decode_payload(
     database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
 ) -> None:
-    cache = SQLiteResolvedInputCache(database)
+    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
     cache.put(key, fact)
     with database.transaction() as connection:
         connection.execute(update(resolved_input_cache).values(notes_json="{}"))
@@ -169,7 +169,7 @@ def test_inspect_revalidates_key_before_io(tmp_path: Path, key: ResolvedInputCac
     database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
     try:
         with pytest.raises(ValueError, match="timezone-aware"):
-            SQLiteResolvedInputCache(database).inspect(key)
+            SQLiteResolvedInputCache(database, clock=lambda: NOW).inspect(key)
         assert not path.exists()
     finally:
         database.close()
@@ -231,7 +231,7 @@ def test_complete_provider_round_trip_and_reopen(
     database.close()
     reopened = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'cache.sqlite3').as_posix()}"))
     try:
-        assert SQLiteResolvedInputCache(reopened).get(key) == ResolvedInputCacheEntry(key, fact, NOW)
+        assert SQLiteResolvedInputCache(reopened, clock=lambda: NOW).get(key) == ResolvedInputCacheEntry(key, fact, NOW)
     finally:
         reopened.close()
 
@@ -396,7 +396,7 @@ def test_ttl_matches_memory_without_deleting(
     now += timedelta(seconds=age)
     assert cache.get(key) == memory.get(key)
     assert (cache.get(key) is not None) is hit
-    assert SQLiteResolvedInputCache(database).get(key) is not None
+    assert SQLiteResolvedInputCache(database, clock=lambda: now).get(key) is not None
 
 
 @pytest.mark.parametrize("available", [None, NOW - timedelta(seconds=1), NOW, NOW + timedelta(microseconds=1)])
@@ -453,7 +453,7 @@ def test_invalid_clock_and_negative_ttl(
     database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
 ) -> None:
     with pytest.raises(ValueError, match="non-negative"):
-        SQLiteResolvedInputCache(database, ttl=timedelta(seconds=-1))
+        SQLiteResolvedInputCache(database, clock=lambda: NOW, ttl=timedelta(seconds=-1))
     now = NOW
     cache = SQLiteResolvedInputCache(database, clock=lambda: now, ttl=timedelta(seconds=1))
     cache.put(key, fact)
@@ -462,7 +462,10 @@ def test_invalid_clock_and_negative_ttl(
         cache.put(key, fact)
     with pytest.raises(ValueError, match="timezone-aware"):
         cache.get(key)
-    assert SQLiteResolvedInputCache(database, clock=lambda: now).get(key) is not None
+    # A cache with no configured TTL still reads through its own required clock (IR.2.4 removes
+    # the prior "skip the clock entirely when ttl is None" special case), so this reopened,
+    # bare-ttl instance needs a valid clock, unlike the intentionally-naive one exercised above.
+    assert SQLiteResolvedInputCache(database, clock=lambda: NOW).get(key) is not None
 
 
 @pytest.mark.parametrize("nested", [False, True])
@@ -501,7 +504,7 @@ def test_encoding_version_is_required(
             connection.execute(delete(schema_metadata))
         else:
             connection.execute(update(schema_metadata).values(metadata_value=version))
-    cache = SQLiteResolvedInputCache(database)
+    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
     with pytest.raises(ValueError, match="encoding version"):
         cache.get(key)
     with pytest.raises(ValueError, match="encoding version"):
@@ -535,7 +538,7 @@ def test_corrupt_storage_raises(
 def test_construction_does_not_migrate(tmp_path: Path, key: ResolvedInputCacheKey, fact: ResolvedInput) -> None:
     path = tmp_path / "unmigrated.sqlite3"
     database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
-    cache = SQLiteResolvedInputCache(database)
+    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
     assert not path.exists()
     try:
         with pytest.raises(OperationalError):

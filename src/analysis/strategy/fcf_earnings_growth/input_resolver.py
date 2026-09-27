@@ -612,7 +612,7 @@ def _resolve_field(  # noqa: PLR0913
         observation_count=required_count,
     )
     try:
-        facts = binding.provider.fetch_facts(request)
+        facts = binding.provider.fetch_facts(request, effective_as_of=effective_as_of)
     except FinancialProviderError as exc:
         reason = f"{field.value} provider failed: {exc}"
         return _FieldResolution(

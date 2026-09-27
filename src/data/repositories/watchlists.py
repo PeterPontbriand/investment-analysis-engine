@@ -23,6 +23,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import IntegrityError
 
+from src.core.clock import utc_now
 from src.data.repositories.schema import watchlist_entries, watchlists
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.workspace.requests import AnalysisSelection
@@ -66,7 +67,7 @@ class SQLiteWatchlistRepository:
     ) -> None:
         """Retain a caller-owned database and injected clock/ID generator."""
         self._database = database
-        self._clock = clock if clock is not None else lambda: datetime.now(UTC)
+        self._clock = clock if clock is not None else utc_now
         self._id_factory = id_factory if id_factory is not None else uuid4
 
     def create(self, spec: WatchlistSpec) -> Watchlist:

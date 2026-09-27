@@ -125,8 +125,11 @@ class _SecLabeledGrahamProvider:
     def __init__(self) -> None:
         self._delegate = FixtureFinancialFactsProvider()
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
-        return tuple(replace(fact, provider_id="sec_edgar") for fact in self._delegate.fetch_facts(request))
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
+        return tuple(
+            replace(fact, provider_id="sec_edgar")
+            for fact in self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
+        )
 
 
 def _graham_resolver() -> GrahamNumberInputResolver:

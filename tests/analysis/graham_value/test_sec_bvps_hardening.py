@@ -175,7 +175,8 @@ def test_ko_direct_adapter_infers_zero_preferred_from_derived_common_shares() ->
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
-        )
+        ),
+        effective_as_of=NOW,
     )
     assert len(common) == 1
     assert common[0].value == 4_302_000_000
@@ -189,7 +190,8 @@ def test_ko_direct_adapter_infers_zero_preferred_from_derived_common_shares() ->
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
-        )
+        ),
+        effective_as_of=NOW,
     )
     assert len(preferred) == 1
     assert preferred[0].value == 0
@@ -218,7 +220,8 @@ def test_hlf_direct_adapter_infers_zero_preferred_from_authorized_par_only() -> 
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
-        )
+        ),
+        effective_as_of=NOW,
     )
     assert len(preferred) == 1
     assert preferred[0].value == 0
@@ -261,7 +264,9 @@ def test_issued_minus_treasury_common_share_fallback_accepts_zero_treasury() -> 
     _add_common_issued_treasury(payload, issued=15_000_000_000.0, treasury=0.0)
     adapter = _adapter("ZERO", payload)
 
-    facts = adapter.fetch_facts(_component_request("ZERO", FinancialField.COMMON_SHARES_OUTSTANDING))
+    facts = adapter.fetch_facts(
+        _component_request("ZERO", FinancialField.COMMON_SHARES_OUTSTANDING), effective_as_of=NOW
+    )
 
     assert len(facts) == 1
     assert facts[0].value == pytest.approx(15_000_000_000.0)
@@ -321,7 +326,8 @@ def test_inferred_preferred_available_at_reflects_latest_neutral_evidence() -> N
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
-        )
+        ),
+        effective_as_of=NOW,
     )
     assert len(preferred) == 1
     # The inferred fact's available_at must be >= the late neutral observation's filed date
@@ -349,7 +355,8 @@ def test_mismatched_equity_and_common_periods_cannot_infer_preferred() -> None:
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
-        )
+        ),
+        effective_as_of=NOW,
     )
     assert len(preferred) == 0
 
@@ -384,7 +391,8 @@ def test_unrelated_concept_with_preferred_in_description_does_not_block_inferenc
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
-        )
+        ),
+        effective_as_of=NOW,
     )
     assert len(common) == 1
     assert common[0].value == 4_302_000_000
@@ -398,7 +406,8 @@ def test_unrelated_concept_with_preferred_in_description_does_not_block_inferenc
             provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year_end",
             as_of=NOW,
-        )
+        ),
+        effective_as_of=NOW,
     )
     assert len(preferred) == 1
     assert preferred[0].value == 0

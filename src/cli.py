@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -45,6 +45,7 @@ from src.cli_support import (
 from src.cli_workspace import register as register_workspace_commands
 from src.config import settings
 from src.core.analysis_status import CalculationStatus
+from src.core.clock import utc_now
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.run_context import get_current_run_context, set_current_run_context
 from src.data.financial.providers import (
@@ -141,6 +142,7 @@ def get_cli_run_context() -> RunContext:
 def _maybe_save_run[RawCaptureT](
     *,
     save_run: bool,
+    executed_at: datetime,
     request_factory: Callable[[], AnalysisRequest],
     run_adapter: Callable[[InstrumentProfileResolver | None], RawCaptureT],
     normalize: Callable[[RawCaptureT], ExecutionCapture],
@@ -172,6 +174,7 @@ def _maybe_save_run[RawCaptureT](
 
     Args:
         save_run: Whether `--save-run` was requested.
+        executed_at: The run's own execution clock, read once by the caller.
         request_factory: Builds the normalized ticker and validated method
             selection to persist under, matching exactly what `run_adapter`
             executes. Called at most once, and only when `save_run` is True.
@@ -192,7 +195,7 @@ def _maybe_save_run[RawCaptureT](
     try:
         ensure_database_ready(database)
         repository = SQLiteAnalysisRunRepository(database)
-        profile_cache = _production_instrument_profile_cache(database)
+        profile_cache = _production_instrument_profile_cache(database, clock=lambda: executed_at)
         holder: list[RawCaptureT] = []
 
         def capture() -> ExecutionCapture:
@@ -264,7 +267,7 @@ def momentum(  # noqa: PLR0913
         config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
         selection = MomentumSelection(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
         # Momentum has no --as-of option yet; executed_at is the run's own execution clock.
-        executed_at = datetime.now(UTC)
+        executed_at = utc_now()
 
         def _identity_candidate() -> InstrumentProfileCandidate:
             return InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
@@ -278,8 +281,8 @@ def momentum(  # noqa: PLR0913
             database = SQLiteDatabase(settings)
             try:
                 ensure_database_ready(database)
-                profile_cache = _production_instrument_profile_cache(database)
-                with _production_historical_client(data_client) as historical_client:
+                profile_cache = _production_instrument_profile_cache(database, clock=lambda: executed_at)
+                with _production_historical_client(data_client, clock=lambda: executed_at) as historical_client:
                     run = run_momentum(selection, target_ticker, historical_client, executed_at=executed_at)
                 profile = profile_cache.resolve(
                     run.metrics.ticker,
@@ -296,7 +299,7 @@ def momentum(  # noqa: PLR0913
             finally:
                 database.close()
         else:
-            with _production_historical_client(data_client) as historical_client:
+            with _production_historical_client(data_client, clock=lambda: executed_at) as historical_client:
                 run = run_momentum(selection, target_ticker, historical_client, executed_at=executed_at)
             profile = compose_instrument_profile(
                 run.metrics.ticker,
@@ -367,7 +370,7 @@ def graham_number(  # noqa: PLR0913
     boundary = _parse_as_of(as_of)
     provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
     use_cache = not no_cache
-    executed_at = datetime.now(UTC)
+    executed_at = utc_now()
     # Permissive by design: this config accepts any injected provider id (a synthetic
     # test-only id included) exactly as the CLI's Graham configs always have. The
     # strict, CLI-supported-providers-only GrahamNumberSelection is built lazily,
@@ -391,7 +394,7 @@ def graham_number(  # noqa: PLR0913
             ticker=target_ticker,
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ),
-        _production_financial_cache(enabled=use_cache) as cache,
+        _production_financial_cache(enabled=use_cache, clock=lambda: executed_at) as cache,
     ):
         with execution_errors(
             mode=mode,
@@ -486,7 +489,7 @@ def graham_growth(  # noqa: PLR0913
     boundary = _parse_as_of(as_of)
     provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
     use_cache = not no_cache
-    executed_at = datetime.now(UTC)
+    executed_at = utc_now()
     # Permissive by design: see graham_number's identical comment above.
     with config_usage_errors():
         config = GrahamGrowthConfig.model_validate(
@@ -507,7 +510,7 @@ def graham_growth(  # noqa: PLR0913
             ticker=target_ticker,
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ),
-        _production_financial_cache(enabled=use_cache) as cache,
+        _production_financial_cache(enabled=use_cache, clock=lambda: executed_at) as cache,
     ):
         with execution_errors(
             mode=mode,
@@ -584,7 +587,7 @@ def fcf_growth(  # noqa: PLR0913
         classification_basis=_fcf_classification_basis(classification_basis),
         forward_policy=_forward_policy(forward_policy),
     )
-    executed_at = datetime.now(UTC)
+    executed_at = utc_now()
     # The command always uses the SEC production provider regardless of --data-provider
     # (see the adapter's own docstring); provider_id here only labels the requested
     # config/result, exactly as before this refactor — not the resolver actually used.
@@ -599,7 +602,7 @@ def fcf_growth(  # noqa: PLR0913
             invalid=lambda exc: f"Unable to start FCF & earnings-growth analysis: {exc}",
             unexpected=lambda _exc: f"FCF & earnings-growth analysis failed unexpectedly for {target_ticker}.",
         ),
-        _production_financial_cache(enabled=not no_cache) as cache,
+        _production_financial_cache(enabled=not no_cache, clock=lambda: executed_at) as cache,
     ):
         provider = build_sec_production_provider()
         resolver = ProductionAnnualGrowthSeriesResolver(
@@ -609,6 +612,7 @@ def fcf_growth(  # noqa: PLR0913
         )
         capture = _maybe_save_run(
             save_run=save_run,
+            executed_at=executed_at,
             request_factory=lambda: AnalysisRequest(
                 ticker=target_ticker,
                 # The command always uses the SEC production provider regardless of
@@ -703,7 +707,7 @@ def evaluate(  # noqa: PLR0913
             _run_evaluation_command(
                 requests,
                 mode=mode,
-                executed_at=datetime.now(UTC),
+                executed_at=utc_now(),
                 ollama_endpoint=ollama_endpoint,
                 model_id=model_id,
                 temperature=temperature,
@@ -868,6 +872,7 @@ def _run_graham_number(  # noqa: PLR0913
     """Resolve, calculate, and render one Graham Number analysis."""
     capture = _maybe_save_run(
         save_run=save_run,
+        executed_at=executed_at,
         request_factory=lambda: AnalysisRequest(
             ticker=ticker,
             selection=GrahamNumberSelection(
@@ -951,6 +956,7 @@ def _run_graham_growth(  # noqa: PLR0913
     policy = growth_assumptions()
     capture = _maybe_save_run(
         save_run=save_run,
+        executed_at=executed_at,
         request_factory=lambda: AnalysisRequest(
             ticker=ticker,
             selection=GrahamGrowthSelection(

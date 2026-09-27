@@ -47,12 +47,12 @@ class ProductionFinancialFactsProvider:
             YFINANCE_PROVIDER_ID: yfinance or YFinanceFinancialFactsAdapter(),
         }
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
         """Dispatch to the provider named by the request, or return unavailable."""
         provider = self._providers.get(request.provider_id)
         if provider is None:
             return ()
-        return provider.fetch_facts(request)
+        return provider.fetch_facts(request, effective_as_of=effective_as_of)
 
     def resolve_security_unit(self, request: SecurityUnitRequest) -> SecurityUnitResolution:
         """Delegate optional source verification without rewriting its evidence."""

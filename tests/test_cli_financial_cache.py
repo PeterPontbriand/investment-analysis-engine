@@ -28,23 +28,6 @@ from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFa
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, FixtureFinancialFactsProvider
 
 
-class _FrozenDatetime(datetime):
-    """Pin every composition root's ``executed_at`` read to a fixed instant.
-
-    Each CLI command now computes its own real ``datetime.now(UTC)`` as the
-    injected resolver clock (closing the "clock never actually injected"
-    gap), so a test that wants a synthetic, deterministic quote-freshness
-    baseline must freeze that read directly rather than patching the
-    resolver's now-unused internal default.
-    """
-
-    @classmethod
-    def now(cls, tz: object = None) -> "_FrozenDatetime":
-        """Return the fixed instant regardless of the requested timezone."""
-        del tz
-        return cls.fromisoformat(NOW.isoformat())
-
-
 class GrahamProvider:
     """Adapt synthetic facts to the selected provider identity without network calls."""
 
@@ -53,12 +36,14 @@ class GrahamProvider:
         self.calls = 0
         self.fail = False
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
         """Return original fixture provenance with the requested provider identity."""
         self.calls += 1
         if self.fail:
             raise AssertionError("Unexpected provider access")
-        facts = FixtureFinancialFactsProvider().fetch_facts(replace(request, provider_id=PROVIDER_ID))
+        facts = FixtureFinancialFactsProvider().fetch_facts(
+            replace(request, provider_id=PROVIDER_ID), effective_as_of=effective_as_of
+        )
         return tuple(replace(fact, provider_id=request.provider_id) for fact in facts)
 
 
@@ -111,7 +96,7 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
         patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=profile),
         patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=profile),
         patch("src.cli_support.SQLiteDatabase", side_effect=database),
-        patch("src.cli.datetime", _FrozenDatetime),
+        patch("src.cli.utc_now", return_value=NOW),
     ):
         first = CliRunner().invoke(app, arguments)
         assert first.exit_code == 0, first.output
@@ -201,7 +186,7 @@ def test_cache_scope_closes_on_error(configured_database: Path) -> None:
     with (
         patch("src.cli_support.SQLiteDatabase", return_value=database),
         pytest.raises(ValueError, match="analysis failed"),
-        _production_financial_cache(enabled=True),
+        _production_financial_cache(enabled=True, clock=lambda: NOW),
     ):
         raise ValueError("analysis failed")
     with pytest.raises(RuntimeError, match="closed"), database.read():
@@ -209,7 +194,7 @@ def test_cache_scope_closes_on_error(configured_database: Path) -> None:
 
 
 def test_explicit_memory_cache_is_retained() -> None:
-    cache = InMemoryResolvedInputCache()
+    cache = InMemoryResolvedInputCache(clock=lambda: NOW)
     with patch("src.cli_composition.build_sec_production_provider", return_value=GrahamProvider()):
         resolver = build_graham_resolver(
             resolver_type=GrahamNumberInputResolver, data_provider=None, cache=cache, clock=lambda: NOW

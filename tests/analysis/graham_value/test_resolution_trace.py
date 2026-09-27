@@ -36,7 +36,12 @@ class RecordingProvider:
         self.facts_by_field = facts_by_field
         self.calls: list[FinancialFactRequest] = []
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Record the request and return facts for its semantic field."""
         self.calls.append(request)
         return self.facts_by_field.get(request.field_name, ())
@@ -45,7 +50,12 @@ class RecordingProvider:
 class ErrorProvider:
     """Provider fake that always raises an operational provider error."""
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Raise a deterministic provider error."""
         raise FinancialProviderError(f"boom for {request.field_name.value}")
 

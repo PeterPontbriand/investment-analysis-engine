@@ -1,6 +1,7 @@
 """Deterministic service equivalence and resource ownership for Graham wrappers."""
 
 from dataclasses import asdict
+from datetime import datetime
 from typing import Any, Literal, overload
 from unittest.mock import patch
 
@@ -38,10 +39,10 @@ class OwnedProvider(FixtureFinancialFactsProvider):
         self.calls = 0
         self.closed = False
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
         assert not self.closed
         self.calls += 1
-        return super().fetch_facts(request)
+        return super().fetch_facts(request, effective_as_of=effective_as_of)
 
     def close(self) -> None:
         self.closed = True
@@ -50,7 +51,7 @@ class OwnedProvider(FixtureFinancialFactsProvider):
 class OwnedCache(InMemoryResolvedInputCache):
     def __init__(self) -> None:
         """Initialize observable cache ownership."""
-        super().__init__()
+        super().__init__(clock=lambda: NOW)
         self.closed = False
 
     def close(self) -> None:

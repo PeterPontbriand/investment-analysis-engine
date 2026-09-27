@@ -101,7 +101,12 @@ class FixtureCompositionError(ValueError):
 class _UnavailableFinancialFactsProvider:
     """Return explicit absence when a case did not select Graham facts."""
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Return no facts for every request without consulting another provider."""
         del request
         return ()

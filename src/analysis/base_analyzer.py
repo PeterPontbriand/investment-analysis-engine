@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TypeVar
 
+from src.core.clock import effective_as_of as _effective_as_of
 from src.data.instrument_profile import InstrumentProfile
 
 # Type variables for a strategy's own config shape and its typed result.
@@ -38,7 +39,7 @@ class AnalysisContext:
     @property
     def effective_as_of(self) -> datetime:
         """Return the point-in-time cutoff: the requested boundary, or the execution clock."""
-        return self.as_of or self.executed_at
+        return _effective_as_of(self.as_of, self.executed_at)
 
 
 def require_ticker(ticker: str) -> str:

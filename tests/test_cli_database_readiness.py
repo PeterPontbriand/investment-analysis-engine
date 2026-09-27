@@ -16,6 +16,7 @@ from typer.testing import CliRunner
 from src.cli import app
 from src.cli_support import _production_financial_cache
 from src.config import ProjectSettings
+from src.core.clock import utc_now
 from src.core.telemetry.models import TrajectoryEventType
 from src.core.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
 from src.core.telemetry.run_context import RunContext
@@ -150,11 +151,14 @@ def test_optional_telemetry_failure_does_not_control_cache_readiness(tmp_path: P
         assert not Path(str(telemetry_path) + ".readiness.lock").exists()
         with patch("src.cli_support.settings", selected):
             if incompatible:
-                with pytest.raises(DatabaseReadinessError) as caught, _production_financial_cache(enabled=True):
+                with (
+                    pytest.raises(DatabaseReadinessError) as caught,
+                    _production_financial_cache(enabled=True, clock=utc_now),
+                ):
                     pytest.fail("Invalid storage was accepted.")
                 assert caught.value.reason is ReadinessReason.INVALID_FILE
             else:
-                with _production_financial_cache(enabled=True):
+                with _production_financial_cache(enabled=True, clock=utc_now):
                     assert cache_path.exists()
         with telemetry_database.read() as connection:
             assert connection.exec_driver_sql("SELECT name FROM sqlite_schema WHERE type='table'").all() == []

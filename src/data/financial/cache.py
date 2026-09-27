@@ -16,7 +16,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Protocol, runtime_checkable
 
 from src.data.financial.provenance import (
@@ -329,24 +329,21 @@ class InMemoryResolvedInputCache:
     the stored ``ResolvedInput``.
 
     Args:
-        clock: Zero-argument callable returning a timezone-aware datetime.
+        clock: Required zero-argument callable returning a timezone-aware datetime.
             Used for ``cached_at`` and TTL age calculation.
         ttl: Optional time-to-live.  ``None`` disables staleness checking.
             Must be non-negative.
     """
 
-    _DEFAULT_CLOCK: Callable[[], datetime] = staticmethod(lambda: datetime.now(UTC))
-
     def __init__(
         self,
-        clock: Callable[[], datetime] | None = None,
+        clock: Callable[[], datetime],
         ttl: timedelta | None = None,
     ) -> None:
         """Create an in-memory resolved-input cache.
 
         Args:
-            clock: Clock callable returning timezone-aware datetime. Defaults to
-                ``datetime.now(UTC)``.
+            clock: Required clock callable returning a timezone-aware datetime.
             ttl: Optional time-to-live. If set, entries older than this are
                 treated as stale on read. ``None`` disables staleness.
         """
@@ -354,7 +351,7 @@ class InMemoryResolvedInputCache:
             msg = f"ttl must be non-negative (received {ttl!r})."
             raise ValueError(msg)
 
-        self._clock: Callable[[], datetime] = clock if clock is not None else self._DEFAULT_CLOCK
+        self._clock = clock
         self._ttl = ttl
         self._store: dict[ResolvedInputCacheKey, ResolvedInputCacheEntry] = {}
 
@@ -462,7 +459,7 @@ class InMemoryResolvedInputCache:
         return financial_cache_eligible(
             entry.resolved_input,
             input_id=str(key),
-            now=self._clock() if self._ttl is not None else datetime.now(UTC),
+            now=self._clock(),
             as_of=key.analysis_as_of,
             cached_at=entry.cached_at,
             ttl=self._ttl,

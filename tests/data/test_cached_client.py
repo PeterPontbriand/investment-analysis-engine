@@ -73,7 +73,9 @@ def test_rejected_cache_refreshes_once_and_preserves_snapshot_on_failure(
 def test_bypass_enforces_quality_even_with_broken_observer(database: SQLiteDatabase) -> None:
     provider = FakeProvider()
     provider.data.frame.index = provider.data.frame.index[::-1]
-    client = CachedHistoricalDataClient(provider, SQLiteMarketDataRepository(database), request_variant=None, ttl=None)
+    client = CachedHistoricalDataClient(
+        provider, SQLiteMarketDataRepository(database), request_variant=None, ttl=None, clock=lambda: NOW
+    )
 
     def broken(_decision: QualityDecision) -> None:
         raise RuntimeError("observer unavailable")
@@ -176,7 +178,7 @@ def test_hit_all_boundaries_and_reopen(database: SQLiteDatabase, tmp_path: Path)
     try:
         provider.error = DataFetchError("offline")
         second = CachedHistoricalDataClient(
-            provider, SQLiteMarketDataRepository(reopened), request_variant="1d:adjusted", ttl=None
+            provider, SQLiteMarketDataRepository(reopened), request_variant="1d:adjusted", ttl=None, clock=lambda: NOW
         )
         assert_frame_equal(second.fetch_data("ABC", START), provider.data.frame)
     finally:
@@ -217,7 +219,9 @@ def test_ranges_and_configuration_are_independent(database: SQLiteDatabase) -> N
     for variant in ("daily", "weekly"):
         for identity in ("first", "second"):
             provider.identity = identity
-            client = CachedHistoricalDataClient(provider, repository, request_variant=variant, ttl=None)
+            client = CachedHistoricalDataClient(
+                provider, repository, request_variant=variant, ttl=None, clock=lambda: NOW
+            )
             for start, end in ((START, None), (START, "2025-01-03"), ("2025-01-02", "2025-01-03")):
                 client.fetch_data("ABC", start, end)
                 client.fetch_data("ABC", start, end)
@@ -270,7 +274,7 @@ def test_valid_bypass(database: SQLiteDatabase, reason: str, caplog: pytest.LogC
     else:
         provider.data.frame.attrs["custom"] = "retained"
     client = CachedHistoricalDataClient(
-        provider, SQLiteMarketDataRepository(database), request_variant=variant, ttl=None
+        provider, SQLiteMarketDataRepository(database), request_variant=variant, ttl=None, clock=lambda: NOW
     )
     with caplog.at_level("DEBUG", logger="src.data.cached_client"):
         assert client.fetch_historical_data("ABC", START).frame is provider.data.frame
@@ -282,7 +286,7 @@ def test_valid_bypass(database: SQLiteDatabase, reason: str, caplog: pytest.LogC
 def test_quotes_never_touch_storage(database: SQLiteDatabase) -> None:
     provider = FakeProvider()
     client = CachedHistoricalDataClient(
-        provider, SQLiteMarketDataRepository(database), request_variant="daily", ttl=None
+        provider, SQLiteMarketDataRepository(database), request_variant="daily", ttl=None, clock=lambda: NOW
     )
     client.fetch_data("ABC", START)
     database.close()
@@ -297,7 +301,9 @@ def test_quotes_never_touch_storage(database: SQLiteDatabase) -> None:
 def test_invalid_policy_and_clock(database: SQLiteDatabase) -> None:
     repository = SQLiteMarketDataRepository(database)
     with pytest.raises(ValueError, match="non-negative"):
-        CachedHistoricalDataClient(FakeProvider(), repository, request_variant="daily", ttl=timedelta(seconds=-1))
+        CachedHistoricalDataClient(
+            FakeProvider(), repository, request_variant="daily", ttl=timedelta(seconds=-1), clock=lambda: NOW
+        )
     client = CachedHistoricalDataClient(
         FakeProvider(), repository, request_variant="daily", ttl=None, clock=lambda: datetime(2025, 1, 1)
     )

@@ -85,10 +85,10 @@ class QuoteUnavailableProvider:
         """Initialize the deterministic fixture delegate."""
         self._delegate = FixtureFinancialFactsProvider()
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
         if request.field_name is FinancialField.CURRENT_PRICE:
             return ()
-        return self._delegate.fetch_facts(request)
+        return self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
 
 
 @pytest.fixture

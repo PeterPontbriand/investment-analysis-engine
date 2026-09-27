@@ -99,7 +99,7 @@ def test_multi_ticker_cik_does_not_erase_issuer_level_facts(
     field: FinancialField,
     expected_value: float,
 ) -> None:
-    facts = _adapter(company_facts=_asml_payload_with_legacy_form()).fetch_facts(_request(field))
+    facts = _adapter(company_facts=_asml_payload_with_legacy_form()).fetch_facts(_request(field), effective_as_of=NOW)
 
     assert len(facts) == 1
     assert facts[0].value == pytest.approx(expected_value)
@@ -110,7 +110,7 @@ def test_multi_ticker_cik_does_not_erase_issuer_level_facts(
     [FinancialField.EPS, FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES],
 )
 def test_multi_ticker_cik_keeps_per_share_facts_fail_closed(field: FinancialField) -> None:
-    facts = _adapter(company_facts=_asml_payload_with_legacy_form()).fetch_facts(_request(field))
+    facts = _adapter(company_facts=_asml_payload_with_legacy_form()).fetch_facts(_request(field), effective_as_of=NOW)
 
     assert facts == ()
 
@@ -122,5 +122,8 @@ def test_unknown_ticker_and_company_facts_cik_mismatch_remain_unavailable(ticker
         payload["cik"] = 123456
 
     assert (
-        _adapter(company_facts=payload).fetch_facts(_request(FinancialField.OPERATING_CASH_FLOW, ticker=ticker)) == ()
+        _adapter(company_facts=payload).fetch_facts(
+            _request(FinancialField.OPERATING_CASH_FLOW, ticker=ticker), effective_as_of=NOW
+        )
+        == ()
     )

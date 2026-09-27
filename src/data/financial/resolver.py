@@ -5,9 +5,10 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime
+from datetime import datetime
 
 from src.core.analysis_status import CalculationStatus
+from src.core.clock import effective_as_of
 from src.data.financial.cache import ResolvedInputCacheKey, ResolvedInputCacheProtocol
 from src.data.financial.facts import (
     FinancialFactRequest,
@@ -160,20 +161,17 @@ class InputResolver:
     Args:
         provider: The configured ``FinancialFactsProvider``.
         cache: Optional resolved-input cache implementation.
-        clock: Zero-argument callable returning a timezone-aware datetime.
-            Defaults to ``datetime.now(UTC)``.
+        clock: Required zero-argument callable returning a timezone-aware datetime.
         cache_schema_version: Positive integer schema version for cache keys.
     """
-
-    _DEFAULT_CLOCK: Callable[[], datetime] = staticmethod(lambda: datetime.now(UTC))
 
     def __init__(
         self,
         provider: FinancialFactsProvider,
         cache: ResolvedInputCacheProtocol | None = None,
-        clock: Callable[[], datetime] | None = None,
         cache_schema_version: int = 1,
         *,
+        clock: Callable[[], datetime],
         quote_freshness_policy: QuoteFreshnessPolicy = DEFAULT_QUOTE_FRESHNESS_POLICY,
     ) -> None:
         """Create an ``InputResolver``.
@@ -182,7 +180,7 @@ class InputResolver:
             provider: The configured ``FinancialFactsProvider``.
             quote_freshness_policy: Independent maximum age for quote-response reuse.
             cache: Optional resolved-input cache.
-            clock: Clock callable returning a timezone-aware datetime.
+            clock: Required clock callable returning a timezone-aware datetime.
             cache_schema_version: Positive integer schema version for cache keys.
 
         Raises:
@@ -193,7 +191,7 @@ class InputResolver:
             raise ValueError(msg)
         self._provider = provider
         self._cache = cache
-        self._clock: Callable[[], datetime] = clock if clock is not None else self._DEFAULT_CLOCK
+        self._clock = clock
         self._schema_version = cache_schema_version
         self._quote_freshness_policy = quote_freshness_policy
 
@@ -507,7 +505,7 @@ class InputResolver:
             )
         )
         try:
-            facts = self._provider.fetch_facts(request)
+            facts = self._provider.fetch_facts(request, effective_as_of=effective_as_of(request.as_of, self._clock()))
         except FinancialProviderError as exc:
             reason = f"Provider error: {exc}"
             return InputResolutionResult(
@@ -1116,7 +1114,7 @@ class InputResolver:
             now=self._clock(),
         )
         try:
-            facts = self._provider.fetch_facts(request)
+            facts = self._provider.fetch_facts(request, effective_as_of=effective_as_of(request.as_of, self._clock()))
         except FinancialProviderError as exc:
             reason = f"Provider error: {exc}"
             return InputResolutionResult(

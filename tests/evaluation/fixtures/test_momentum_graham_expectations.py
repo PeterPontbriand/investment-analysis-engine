@@ -137,7 +137,7 @@ def test_historical_as_of_excludes_latest_annual_eps_publication() -> None:
         basis="fiscal_year",
         observation_count=3,
     )
-    facts = FixtureFinancialFactsProvider().fetch_facts(request)
+    facts = FixtureFinancialFactsProvider().fetch_facts(request, effective_as_of=GOLDEN_HISTORICAL_AS_OF)
     eligible = tuple(
         fact for fact in facts if fact.available_at is not None and fact.available_at <= GOLDEN_HISTORICAL_AS_OF
     )
@@ -156,7 +156,8 @@ def test_missing_quote_subject_retains_required_facts_but_omits_quote() -> None:
             provider_id=PROVIDER_ID,
             basis="fiscal_year",
             observation_count=3,
-        )
+        ),
+        effective_as_of=GOLDEN_HISTORICAL_AS_OF,
     )
     bvps = provider.fetch_facts(
         FinancialFactRequest(
@@ -164,7 +165,8 @@ def test_missing_quote_subject_retains_required_facts_but_omits_quote() -> None:
             subject_id=SUBJECT_MISSING_QUOTE,
             field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
-        )
+        ),
+        effective_as_of=GOLDEN_HISTORICAL_AS_OF,
     )
     quote = provider.fetch_facts(
         FinancialFactRequest(
@@ -172,7 +174,8 @@ def test_missing_quote_subject_retains_required_facts_but_omits_quote() -> None:
             subject_id=SUBJECT_MISSING_QUOTE,
             field_name=FinancialField.CURRENT_PRICE,
             provider_id=PROVIDER_ID,
-        )
+        ),
+        effective_as_of=GOLDEN_HISTORICAL_AS_OF,
     )
 
     assert tuple(fact.value for fact in annual_eps) == (EPS_FY2022, EPS_FY2023, EPS_FY2024)

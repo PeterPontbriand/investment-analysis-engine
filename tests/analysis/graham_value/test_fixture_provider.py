@@ -85,11 +85,17 @@ class ErrorProvider:
     If the provider is reached, the test will fail.
     """
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:  # noqa: ARG002
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,  # noqa: ARG002
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Always raises to prove the provider was reached.
 
         Args:
             request: Ignored; presence proves the provider was called.
+            effective_as_of: Ignored.
         """
         raise FinancialProviderError("Provider was reached; override/cache should have short-circuited.")
 
@@ -165,7 +171,7 @@ class TestFixtureProviderContract:
             field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
-        facts = provider.fetch_facts(request)
+        facts = provider.fetch_facts(request, effective_as_of=NOW)
         assert len(facts) == 1
         assert facts[0].value == BVPS_VALUE
 
@@ -178,7 +184,7 @@ class TestFixtureProviderContract:
             field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
-        facts = provider.fetch_facts(request)
+        facts = provider.fetch_facts(request, effective_as_of=NOW)
         assert facts == ()
 
     def test_error_subject_raises(self) -> None:
@@ -191,7 +197,7 @@ class TestFixtureProviderContract:
             provider_id=PROVIDER_ID,
         )
         with pytest.raises(FinancialProviderError):
-            provider.fetch_facts(request)
+            provider.fetch_facts(request, effective_as_of=NOW)
 
     def test_unsupported_eps_basis_returns_empty(self) -> None:
         """Unsupported EPS basis (not ttm, not observation_count=3) returns empty."""
@@ -203,7 +209,7 @@ class TestFixtureProviderContract:
             provider_id=PROVIDER_ID,
             basis="unsupported_basis",
         )
-        facts = provider.fetch_facts(request)
+        facts = provider.fetch_facts(request, effective_as_of=NOW)
         assert facts == ()
 
     def test_ttm_eps_returns_single_fact(self) -> None:
@@ -216,7 +222,7 @@ class TestFixtureProviderContract:
             provider_id=PROVIDER_ID,
             basis="ttm",
         )
-        facts = provider.fetch_facts(request)
+        facts = provider.fetch_facts(request, effective_as_of=NOW)
         assert len(facts) == 1
         assert facts[0].value == EPS_TTM
         assert facts[0].basis == "ttm"
@@ -232,7 +238,7 @@ class TestFixtureProviderContract:
             basis="fiscal_year",
             observation_count=3,
         )
-        facts = provider.fetch_facts(request)
+        facts = provider.fetch_facts(request, effective_as_of=NOW)
         assert len(facts) == 3
         values = sorted(f.value for f in facts)
         assert values == [EPS_FY2022, EPS_FY2023, EPS_FY2024]

@@ -70,7 +70,7 @@ def _facts(observations: list[dict[str, Any]], count: int) -> tuple[ProviderFact
         basis="fiscal_year",
         observation_count=count,
     )
-    return adapter.fetch_facts(request)
+    return adapter.fetch_facts(request, effective_as_of=NOW)
 
 
 def test_returns_exact_positive_share_fact() -> None:

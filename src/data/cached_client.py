@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 
@@ -47,17 +47,17 @@ class CachedHistoricalDataClient(BaseDataClient):
         *,
         request_variant: str | None,
         ttl: timedelta | None,
-        clock: Callable[[], datetime] | None = None,
+        clock: Callable[[], datetime],
         quality_policy: HistoricalQualityPolicy | None = None,
     ) -> None:
-        """Inject historical storage, explicit reuse policy, and an aware clock."""
+        """Inject historical storage, explicit reuse policy, and a required aware clock."""
         if ttl is not None and ttl < timedelta(0):
             raise ValueError("Historical cache TTL must be non-negative.")
         self._provider = provider
         self._repository = repository
         self._variant = request_variant
         self._ttl = ttl
-        self._clock = clock or (lambda: datetime.now(UTC))
+        self._clock = clock
         self._quality_policy = quality_policy or HistoricalQualityPolicy()
 
     def _quality_error(

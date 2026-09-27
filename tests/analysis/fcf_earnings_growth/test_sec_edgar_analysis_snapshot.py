@@ -106,8 +106,8 @@ def test_scope_reuses_one_immutable_payload_pair_across_fields() -> None:
     adapter, fetcher = _adapter()
 
     with adapter.analysis_scope(subject_id="ASML", provider_id=SEC_PROVIDER_ID, as_of=None):
-        operating_cash_flow = adapter.fetch_facts(_request(FinancialField.OPERATING_CASH_FLOW))
-        capital_expenditures = adapter.fetch_facts(_request(FinancialField.CAPITAL_EXPENDITURES))
+        operating_cash_flow = adapter.fetch_facts(_request(FinancialField.OPERATING_CASH_FLOW), effective_as_of=NOW)
+        capital_expenditures = adapter.fetch_facts(_request(FinancialField.CAPITAL_EXPENDITURES), effective_as_of=NOW)
 
     assert len(operating_cash_flow) == len(capital_expenditures) == 1
     assert sum("/companyfacts/" in call for call in fetcher.calls) == 1
@@ -149,7 +149,7 @@ def test_later_filing_does_not_leak_across_historical_as_of() -> None:
     as_of = datetime(2025, 12, 31, tzinfo=UTC)
 
     with adapter.analysis_scope(subject_id="ASML", provider_id=SEC_PROVIDER_ID, as_of=as_of):
-        facts = adapter.fetch_facts(_request(FinancialField.OPERATING_CASH_FLOW, as_of=as_of))
+        facts = adapter.fetch_facts(_request(FinancialField.OPERATING_CASH_FLOW, as_of=as_of), effective_as_of=as_of)
 
     assert facts == ()
 
@@ -167,7 +167,7 @@ def test_ambiguous_accession_taxonomy_fails_closed() -> None:
 
     assert snapshot.taxonomy is None
     with adapter.analysis_scope(subject_id="ASML", provider_id=SEC_PROVIDER_ID, as_of=None):
-        assert adapter.fetch_facts(_request(FinancialField.OPERATING_CASH_FLOW)) == ()
+        assert adapter.fetch_facts(_request(FinancialField.OPERATING_CASH_FLOW), effective_as_of=NOW) == ()
 
 
 def test_requested_span_crossing_unproved_regime_transition_is_unavailable() -> None:
@@ -175,7 +175,7 @@ def test_requested_span_crossing_unproved_regime_transition_is_unavailable() -> 
     adapter, _ = _adapter(company_facts=company_facts, submissions=submissions)
 
     with adapter.analysis_scope(subject_id="ASML", provider_id=SEC_PROVIDER_ID, as_of=None):
-        facts = adapter.fetch_facts(_request(FinancialField.OPERATING_CASH_FLOW, count=2))
+        facts = adapter.fetch_facts(_request(FinancialField.OPERATING_CASH_FLOW, count=2), effective_as_of=NOW)
 
     assert facts == ()
 
@@ -195,8 +195,8 @@ class _ScopeSpyProvider:
     def __init__(self) -> None:
         self.scope_entries = 0
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
-        _ = request
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
+        _ = request, effective_as_of
         return ()
 
     @contextmanager
@@ -216,7 +216,7 @@ class _ScopeSpyProvider:
 
 def test_graham_analysis_enters_the_same_optional_snapshot_boundary() -> None:
     provider = _ScopeSpyProvider()
-    resolver = GrahamNumberInputResolver(provider)
+    resolver = GrahamNumberInputResolver(provider, clock=lambda: NOW)
 
     analysis = run_graham_number_analysis(
         resolver=resolver,

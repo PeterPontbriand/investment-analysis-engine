@@ -90,7 +90,7 @@ def build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInp
 
     return resolver_type(
         provider,
-        cache=cache if cache is not None else InMemoryResolvedInputCache(),
+        cache=cache if cache is not None else InMemoryResolvedInputCache(clock=clock),
         clock=clock,
         quote_freshness_policy=QuoteFreshnessPolicy(timedelta(seconds=settings.quote_cache_ttl_seconds)),
     )

@@ -130,10 +130,10 @@ def test_settings_control_reuse_age(
         patch.object(provider, "fetch_historical_data", return_value=history) as fetch,
     ):
         clock.now.return_value = NOW
-        with _production_historical_client(provider) as client:
+        with _production_historical_client(provider, clock=clock.now) as client:
             client.fetch_historical_data("ACME", "2025-01-01")
         clock.now.return_value = NOW + timedelta(seconds=age)
-        with _production_historical_client(provider) as client:
+        with _production_historical_client(provider, clock=clock.now) as client:
             client.fetch_historical_data("ACME", "2025-01-01")
     assert fetch.call_count == calls
 
@@ -141,7 +141,7 @@ def test_settings_control_reuse_age(
 def test_quote_delegation_survives_closed_storage(configured_settings: ProjectSettings) -> None:
     assert configured_settings.database_url.startswith("sqlite:")
     provider = YFinanceClient()
-    with _production_historical_client(provider) as client:
+    with _production_historical_client(provider, clock=lambda: NOW) as client:
         pass
     with patch.object(provider, "fetch_current_price", return_value=87.5) as quote:
         assert client.fetch_current_price("ACME") == 87.5
@@ -155,7 +155,7 @@ def test_storage_closes_after_provider_error(configured_settings: ProjectSetting
         patch("src.cli_support.SQLiteDatabase", return_value=database),
         patch.object(provider, "fetch_historical_data", side_effect=DataFetchError("offline")),
         pytest.raises(DataFetchError, match="offline"),
-        _production_historical_client(provider) as client,
+        _production_historical_client(provider, clock=lambda: NOW) as client,
     ):
         client.fetch_data("ACME", "2025-01-01")
     with pytest.raises(RuntimeError, match="closed"), database.read():

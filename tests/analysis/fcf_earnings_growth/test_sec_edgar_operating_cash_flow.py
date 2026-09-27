@@ -189,7 +189,7 @@ def test_returns_signed_exact_concept_annual_facts_with_complete_metadata() -> N
         "0001-26": "2026-08-01T12:00:00-04:00",
     }
 
-    facts = _adapter(payload, acceptances=acceptances).fetch_facts(_request())
+    facts = _adapter(payload, acceptances=acceptances).fetch_facts(_request(), effective_as_of=NOW)
 
     assert [fact.value for fact in facts] == pytest.approx([87_582_000_000.0, 0.0, -2_500_000_000.0, 9_000_000_000.0])
     assert [fact.fiscal_year for fact in facts] == [2023, 2024, 2025, 2026]
@@ -240,8 +240,14 @@ def test_preserves_comparative_and_amended_candidates_until_c2_selection() -> No
     }
     adapter = _adapter(_company_facts({"USD": observations}), acceptances=acceptances)
 
-    before_amendment = adapter.fetch_facts(_request(as_of=datetime(2025, 2, 15, 23, 59, tzinfo=UTC)))
-    after_amendment = adapter.fetch_facts(_request(as_of=datetime(2025, 3, 2, 23, 59, tzinfo=UTC)))
+    before_amendment_boundary = datetime(2025, 2, 15, 23, 59, tzinfo=UTC)
+    after_amendment_boundary = datetime(2025, 3, 2, 23, 59, tzinfo=UTC)
+    before_amendment = adapter.fetch_facts(
+        _request(as_of=before_amendment_boundary), effective_as_of=before_amendment_boundary
+    )
+    after_amendment = adapter.fetch_facts(
+        _request(as_of=after_amendment_boundary), effective_as_of=after_amendment_boundary
+    )
 
     assert [fact.value for fact in before_amendment] == pytest.approx([10.0, 11.0])
     assert [fact.value for fact in after_amendment] == pytest.approx([10.0, 11.0, 12.0])
@@ -265,7 +271,9 @@ def test_preserves_conflicting_equal_rank_candidates_for_typed_resolver_ambiguit
         "conflict-b": "2025-02-10T17:00:00Z",
     }
 
-    facts = _adapter(_company_facts({"USD": observations}), acceptances=acceptances).fetch_facts(_request())
+    facts = _adapter(_company_facts({"USD": observations}), acceptances=acceptances).fetch_facts(
+        _request(), effective_as_of=NOW
+    )
 
     assert [fact.value for fact in facts] == pytest.approx([100.0, 101.0])
     assert len({fact.available_at for fact in facts}) == 1
@@ -304,7 +312,9 @@ def test_acceptance_and_filed_date_availability_follow_sec_eastern_rules() -> No
         "legacy-naive": "2024-02-01T16:30:00",
     }
 
-    facts = _adapter(_company_facts({"USD": observations}), acceptances=acceptances).fetch_facts(_request())
+    facts = _adapter(_company_facts({"USD": observations}), acceptances=acceptances).fetch_facts(
+        _request(), effective_as_of=NOW
+    )
 
     assert [fact.available_at for fact in facts] == [
         datetime(2023, 2, 1, 21, 30, tzinfo=UTC),
@@ -353,7 +363,7 @@ def test_rejects_nonannual_malformed_and_unsupported_unit_shapes() -> None:
     ]
     payload = _company_facts({"USD": [valid, *invalid], "USD millions": [valid], "pure": [valid]})
 
-    facts = _adapter(payload).fetch_facts(_request())
+    facts = _adapter(payload).fetch_facts(_request(), effective_as_of=NOW)
 
     assert len(facts) == 1
     assert facts[0].value == pytest.approx(50.0)
@@ -376,7 +386,7 @@ def test_rejects_company_facts_cik_mismatch() -> None:
         cik=123456,
     )
 
-    assert _adapter(payload).fetch_facts(_request()) == ()
+    assert _adapter(payload).fetch_facts(_request(), effective_as_of=NOW) == ()
 
 
 def test_unsupported_request_shape_returns_empty_without_fetching() -> None:
@@ -395,5 +405,5 @@ def test_unsupported_request_shape_returns_empty_without_fetching() -> None:
         basis="fiscal_year_end",
     )
 
-    assert adapter.fetch_facts(request) == ()
+    assert adapter.fetch_facts(request, effective_as_of=NOW) == ()
     assert fetcher.calls == []

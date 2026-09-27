@@ -15,7 +15,6 @@ import signal
 import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
 from typing import Annotated, NoReturn
 from uuid import UUID
 
@@ -41,6 +40,7 @@ from src.cli_support import (
     config_usage_errors,
 )
 from src.config import settings
+from src.core.clock import utc_now
 from src.data.financial.providers import SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
 from src.data.instrument_profile import InstrumentProfileCandidate, compose_instrument_profile
 from src.data.instrument_profile_cache import InstrumentProfileResolver
@@ -767,8 +767,8 @@ def _execute_momentum(
     ticker: str, selection: MomentumSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
     data_client = YFinanceClient()
-    executed_at = datetime.now(UTC)
-    with _production_historical_client(data_client) as historical_client:
+    executed_at = utc_now()
+    with _production_historical_client(data_client, clock=lambda: executed_at) as historical_client:
         run = run_momentum(selection, ticker, historical_client, executed_at=executed_at)
 
     def _identity_candidate() -> InstrumentProfileCandidate:
@@ -792,8 +792,8 @@ def _execute_graham_number(
     ticker: str, selection: GrahamNumberSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
     config = selection.to_graham_number_config()
-    executed_at = datetime.now(UTC)
-    with _production_financial_cache(enabled=selection.use_cache) as cache:
+    executed_at = utc_now()
+    with _production_financial_cache(enabled=selection.use_cache, clock=lambda: executed_at) as cache:
         resolver = build_graham_resolver(
             resolver_type=GrahamNumberInputResolver,
             data_provider=config.security_provider_id,
@@ -818,8 +818,8 @@ def _execute_graham_growth(
 ) -> ExecutionCapture:
     config = selection.to_graham_growth_config()
     policy = growth_assumptions()
-    executed_at = datetime.now(UTC)
-    with _production_financial_cache(enabled=selection.use_cache) as cache:
+    executed_at = utc_now()
+    with _production_financial_cache(enabled=selection.use_cache, clock=lambda: executed_at) as cache:
         resolver = build_graham_resolver(
             resolver_type=GrahamGrowthInputResolver,
             data_provider=config.security_provider_id,
@@ -844,8 +844,8 @@ def _execute_fcf_growth(
     ticker: str, selection: FCFGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
     config = selection.to_fcf_config()
-    executed_at = datetime.now(UTC)
-    with _production_financial_cache(enabled=selection.use_cache) as cache:
+    executed_at = utc_now()
+    with _production_financial_cache(enabled=selection.use_cache, clock=lambda: executed_at) as cache:
         provider = build_sec_production_provider()
         resolver = ProductionAnnualGrowthSeriesResolver(provider, cache=cache, clock=lambda: executed_at)
         capture = execute_fcf_growth(
@@ -977,7 +977,7 @@ def refresh(
     try:
         with _workspace_database() as database:
             try:
-                profile_cache = _production_instrument_profile_cache(database)
+                profile_cache = _production_instrument_profile_cache(database, clock=utc_now)
                 summary = refresh_watchlist(
                     name,
                     watchlists=SQLiteWatchlistRepository(database),

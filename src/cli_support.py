@@ -32,7 +32,9 @@ class AnalysisConfigurationError(ValueError):
 
 
 @contextmanager
-def _production_historical_client(provider: YFinanceClient) -> Iterator[CachedHistoricalDataClient]:
+def _production_historical_client(
+    provider: YFinanceClient, *, clock: Callable[[], datetime]
+) -> Iterator[CachedHistoricalDataClient]:
     """Borrow the Yahoo client and own historical storage for one analysis.
 
     Daily adjusted request identity matches the provider's download configuration.
@@ -47,6 +49,7 @@ def _production_historical_client(provider: YFinanceClient) -> Iterator[CachedHi
             SQLiteMarketDataRepository(database),
             request_variant=f"{YFINANCE_HISTORICAL_INTERVAL}:{YFINANCE_PRICE_ADJUSTMENT}",
             ttl=None if seconds is None else timedelta(seconds=seconds),
+            clock=clock,
             quality_policy=HistoricalQualityPolicy(expected_adjustment=YFINANCE_PRICE_ADJUSTMENT),
         )
     finally:
@@ -54,25 +57,31 @@ def _production_historical_client(provider: YFinanceClient) -> Iterator[CachedHi
 
 
 @contextmanager
-def _production_financial_cache(*, enabled: bool) -> Iterator[ResolvedInputSeriesCacheProtocol]:
+def _production_financial_cache(
+    *, enabled: bool, clock: Callable[[], datetime]
+) -> Iterator[ResolvedInputSeriesCacheProtocol]:
     """Own one invocation's durable cache; schema upgrades remain explicit.
 
     Financial facts use configured residence age (unlimited by default) and
     temporal quality checks. Disabling caching avoids opening SQLite altogether.
     """
     if not enabled:
-        yield InMemoryResolvedInputCache()
+        yield InMemoryResolvedInputCache(clock=clock)
         return
     database = SQLiteDatabase(settings)
     try:
         ensure_database_ready(database)
         seconds = settings.financial_cache_ttl_seconds
-        yield SQLiteResolvedInputCache(database, ttl=None if seconds is None else timedelta(seconds=seconds))
+        yield SQLiteResolvedInputCache(
+            database, ttl=None if seconds is None else timedelta(seconds=seconds), clock=clock
+        )
     finally:
         database.close()
 
 
-def _production_instrument_profile_cache(database: SQLiteDatabase) -> CachedInstrumentProfileResolver:
+def _production_instrument_profile_cache(
+    database: SQLiteDatabase, *, clock: Callable[[], datetime]
+) -> CachedInstrumentProfileResolver:
     """Build the durable instrument-profile cache over an already-open database.
 
     Unlike the historical/financial cache helpers above, this does not own or
@@ -84,7 +93,9 @@ def _production_instrument_profile_cache(database: SQLiteDatabase) -> CachedInst
     """
     seconds = settings.instrument_profile_ttl_seconds
     return CachedInstrumentProfileResolver(
-        SQLiteInstrumentProfileRepository(database), ttl=None if seconds is None else timedelta(seconds=seconds)
+        SQLiteInstrumentProfileRepository(database),
+        ttl=None if seconds is None else timedelta(seconds=seconds),
+        clock=clock,
     )
 
 
