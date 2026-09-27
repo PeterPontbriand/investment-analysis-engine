@@ -4,7 +4,9 @@ Documentation-only slice bringing `docs/project/ARCHITECTURE.md` back into agree
 current codebase and reorganizing it for a first-time contributor. Numbered and approved for
 implementation by the project owner. **Implemented and complete** on `fix/ir7-architecture-doc-pass`,
 branched from `feat/ir-integration-readiness` (not `main` — see §8). See the completion record at
-the end for what actually happened, commit by commit, and the final §5 outcome table.
+the end for what actually happened, commit by commit, and the final §5 outcome table — including
+"Read-through corrections", where a stakeholder read-through of the first submission found
+acceptance criterion 2 was not fully met and eleven further commits fixed it.
 
 ## 1. Problem
 
@@ -300,3 +302,75 @@ called out in commit `14c13cb`'s own message.
 - Full managed quality gate passed after every commit that touched Python source; doc-only commits
   were verified with the checker plus a final full-gate run after the last Python change, per
   `AGENTS.md` §7's boundary (3188 tests, 91% coverage).
+
+## Read-through corrections
+
+**Acceptance criterion 2 — "every statement about implementation status or a file path is backed
+by evidence recorded in the completion record below" — was not met at first submission.** A
+stakeholder read-through of the version recorded above, verifying each factual claim against the
+code rather than against this record, found eight false-or-contradictory statements and eight
+clarity/staleness issues the original pass missed. All sixteen are fixed in eleven further
+content-only commits on `fix/ir7-architecture-doc-pass`, each independently verified against the
+code cited in its own commit message:
+
+1. `64943d5` — added the missing "## 1. Purpose and how to read this document" heading over the
+   intro paragraph (§9's outline calls for it; the reorder in `14c13cb` had left it out), and
+   converted the header block's four backtick paths to real relative links the D3 checker can
+   verify, dropping the "Step 2.3 implementation specification" entry (a single completed slice
+   pinned in a document header meant to survive many slices).
+2. `7a71f01` — §3's diagram named only `BaseDataClient` in the historical-series box though §7
+   documents `MarketDataProvider` as the boundary Momentum's resolver actually consumes; added it.
+   Rewrote "Step 3.4 later persists Analysis Runs..." in the present tense — Step 3.4 is complete
+   and §8 already documents the persisted-run behavior as implemented.
+3. `c5a97fe` — §4 listed `src/workspace/refresh.py` as a composition root performing "one
+   composition per job." Verified against the code: per-job composition and the `executed_at` read
+   happen in `cli_workspace.py`'s `_execute_*` functions; `refresh.py`'s own clock only timestamps
+   each job's persisted `AnalysisRun` capture. Corrected, and named `cli_composition.py` /
+   `cli_support.py` as the factory-helper modules the two real composition roots draw on.
+4. `074c826` — §6 listed the shared `MetricResult` outcome type as something "every strategy
+   shares." Grepped every strategy package: Momentum and FCF & Earnings Growth use it; neither
+   Graham strategy does. Corrected to name it as a convention two strategies share, not a
+   universal contract. Narrowed "invoked identically" to the shared `run_analysis` signature and
+   noted execution adapters differ per strategy, per the Contributor Guide. Reworded an unclear
+   sentence about extending a strategy's own layer.
+5. `b259959` — three fixes: (a) §7's diagram had drifted out of column alignment in the
+   instrument-profile-cache branch after earlier edits touched neighboring boxes; rebuilt with a
+   small script that asserts column consistency rather than by eye. (b) `FinancialFactsProvider`
+   was described as serving only the two Graham methods; FCF & Earnings Growth's input resolver
+   (`src/analysis/strategy/fcf_earnings_growth/input_resolver.py`) consumes it too. (c) "Method-
+   specific Graham input resolution" named the override/cache/provider/unavailable chain as if
+   Graham-specific; it is a general pattern implemented once in the shared `InputResolver`
+   (`src/data/financial/resolver.py`). Retitled to "Input resolution: override, cache, provider,
+   unavailable" with the general pattern first and the Graham-specific inheritance detail as a
+   sentence beneath it.
+6. `65be04b` — deleted §8's "This storage layer does not introduce watchlists, investor Analysis
+   Runs, new cache invalidation rules, or a second audit log" — directly contradicted by the
+   `AnalysisRun` and watchlist/refresh subsections a few paragraphs later in the same section,
+   which describe exactly those things as implemented.
+7. `f9ebc57` — §9's "in the previous section" pointed at §7's identity subsection, but the reorder
+   in `14c13cb` had already moved §9 two sections past it; removed the stale phrase, kept the link.
+   §9's schema-version change log ("increment from 1 to 2 / 2 to 3") and §7's "Graham presentation
+   schema 4" were both stale against `src/reporting/` (Momentum=4, Graham Number/Growth=6, FCF=5 at
+   time of check) and did not reconcile with each other; replaced both with the underlying rule
+   (identity is presentation metadata, versioned in each strategy's own presentation
+   `schema_version`, independent of `result_schema_version`) instead of point-in-time numbers.
+   Replaced the two remaining plain-text section references, `(§2)` and `` (§ `AnalysisRun` below) ``,
+   with links to the section titles.
+8. `368f966` — removed "(Step 2.1)" / "(Step 3.1)" from §11's telemetry-sink diagram (both shipped
+   several slices ago) and rewrote "Step 2.6 owns hard execution/time/error caps..." in the
+   present tense.
+9. `3e67e5a` — rewrote the remaining step/milestone jargon in body prose to the present tense:
+   "F-1 returns", "Approved pre-Golden P1 preserves", "Introduced minimally in Step 2.3", "Step 2.4
+   reuses", "Step 2.2 establishes", and "in v0.2". Kept the one step-labeled link that points at an
+   actual record (the P1 instrument applicability mapping record), dropping "proposed" from its
+   surrounding sentence now that the mappings are implemented rather than proposed.
+10. `6caf8e2` — replaced §10's by-name list of the four orchestration-tool handlers with a pointer
+    to §6, and deleted §13's opening paragraph, which restated §6's "no shared strategy-specific
+    base beyond `BaseAnalyzer`" claim with Graham-specific detail layered on top. Preserved the one
+    non-duplicative fact it carried — the location of `shared/financial_resolution.py` — by folding
+    it into the `src/analysis/` bullet in §13's package map.
+11. `ebf7be6` — linked "Light Mode" in §2's invariants list to its definition in
+    `docs/user/GLOSSARY.md#light-mode`; the term was previously used undefined and unlinked.
+
+The full managed quality gate, including the D3 link/anchor checker, passed after the last of
+these commits (3188 tests, 91% coverage, `check_doc_links` reporting zero breaks).
