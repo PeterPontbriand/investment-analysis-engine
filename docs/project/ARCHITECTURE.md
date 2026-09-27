@@ -171,7 +171,7 @@ Every current analyzer implements `BaseAnalyzer[ConfigT, ResultT]` and shares th
 - its own deterministic calculation;
 - its own typed result and metrics.
 
-What every strategy shares instead of rebuilding: `BaseAnalyzer` and `AnalysisContext`, the provider/cache contracts and `ResolvedInput`/`ResolutionTrace` provenance model, workspace execution and Analysis Run persistence, and the concise/details/diagnostics/JSON presentation grammar. `MetricResult` is a per-metric outcome convention Momentum and FCF & Earnings Growth both use, not a type every strategy is required to return. When a strategy needs something none of these shared layers cover, it extends its own layer first; nothing here is a reason to build a second, strategy-specific version of shared infrastructure.
+What every strategy shares instead of rebuilding: `BaseAnalyzer` and `AnalysisContext`, the provider/cache contracts and `ResolvedInput`/`ResolutionTrace` provenance model, workspace execution and Analysis Run persistence, and the concise/details/diagnostics/JSON presentation grammar. `MetricResult` is a per-metric outcome convention some strategies use, not a type every strategy is required to return. When a strategy needs something none of these shared layers cover, it extends its own layer first; nothing here is a reason to build a second, strategy-specific version of shared infrastructure.
 
 No two strategies share a strategy-specific base beyond `BaseAnalyzer` itself: each owns its config, resolver, calculation, and result type independently, and a resolver pattern used by one strategy — such as evidence truncated to `effective_as_of` and recorded as a `ResolutionTrace` — is a convention other strategies may follow, not a shared class they inherit.
 
