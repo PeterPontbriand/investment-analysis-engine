@@ -509,8 +509,8 @@ Agent Runtime
    ├── operational logging ───► human-readable execution diagnostics
    │
    └── trajectory telemetry ──► machine-readable execution evidence
-                                ├── JSONL (Step 2.1)
-                                └── SQLite (Step 3.1)
+                                ├── JSONL
+                                └── SQLite
 ```
 
 Telemetry may capture observable provider/model metadata, prompts/completions, tool arguments/results, latency, and exposed token metrics subject to retention/redaction policy.
@@ -521,7 +521,7 @@ Private model reasoning is never reconstructed.
 
 - Recoverable failures may enter a bounded retry/repair flow.
 - Non-recoverable failures halt with structured diagnostics.
-- Step 2.6 owns hard execution/time/error caps through one immutable
+- Hard execution/time/error caps are enforced through one immutable
   `ReliabilityLimits` value per orchestration run. The default caps are 10
   planning steps, 3 transient retries, 4 consecutive schema violations, 300
   seconds overall, 180 seconds per step, 120 seconds per LLM call, and 60
