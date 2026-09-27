@@ -152,29 +152,20 @@ tolerance cannot hide that kind of defect.
 
 ## 4. Core entities and boundaries
 
-### `BaseAnalyzer`
-Existing abstract analysis boundary. A strategy owns:
-- its configuration model;
-- deterministic calculation;
-- typed result/metrics;
-- only the data capabilities it actually requires.
+### Analysis strategies: the boundary
 
-### `MomentumAnalyzer`
-Deterministic SMA/crossover/RSI analyzer. `MomentumInputResolver` consumes the provider-neutral `MarketDataProvider` boundary, applies strict `bar_timestamp <= effective_as_of` truncation before calculation, wraps retained closes in `ResolvedInput` provenance, and records a `ResolutionTrace`. `MomentumPolicy` owns the short/long/RSI defaults. SMA and RSI availability is exposed through standard `MetricResult` values with `insufficient_history` reason codes while compatibility views preserve the existing optional numeric fields.
+Every current analyzer implements `BaseAnalyzer[ConfigT, ResultT]` and is invoked identically — `run_analysis(ticker, config, context)` — but that is the full extent of what strategies share by contract. What a strategy owns:
 
-### Graham analysis
-The Graham family has two method identifiers, `graham_number` and `graham_growth_value`, each a complete independent strategy with its own policy, inputs, and calculation — see the [user strategy guides](../user/strategies/README.md) for what each one computes and why.
+- its own configuration/policy model;
+- its own input resolution (which provider capabilities it needs, and how it resolves them);
+- its own deterministic calculation;
+- its own typed result and metrics.
 
-The implemented direct command is `ian graham TICKER [--method number|growth]`. Invalid cross-method combinations are rejected at the CLI boundary. Existing transitional flag aliases remain only where intentionally retained for compatibility.
+What every strategy shares instead of rebuilding: `BaseAnalyzer` and `AnalysisContext`, the provider/cache contracts and `ResolvedInput`/`ResolutionTrace` provenance model, the shared `MetricResult` outcome type, workspace execution and Analysis Run persistence, and the concise/details/diagnostics/JSON presentation grammar. A strategy that needs a concern one of these doesn't cover extends its own layer first; nothing here is a reason to build a second, strategy-specific version of shared infrastructure.
 
-Graham is intentionally not required to return `TrendStatus` or consume a historical DataFrame merely to look like Momentum.
+No two strategies share a strategy-specific base beyond `BaseAnalyzer` itself: each owns its config, resolver, calculation, and result type independently, and a resolver pattern used by one strategy — such as evidence truncated to `effective_as_of` and recorded as a `ResolutionTrace` — is a convention other strategies may follow, not a shared class they inherit.
 
-### Free Cash Flow & Earnings Growth analysis
-`FCFEarningsGrowthAnalyzer` deterministically derives completed annual total-company FCF and FCF per diluted share, computes their CAGRs alongside diluted-EPS CAGR, and returns a versioned `FCFEarningsGrowthResult`. Its classification is `PASS`, `FAIL`, or `INDETERMINATE`, separate from software execution status — see the [FCF & Earnings Growth guide](../user/strategies/FCF_EARNINGS_GROWTH.md) for its horizon policy, classification basis, and forward-evidence handling.
-
-`ProductionAnnualGrowthSeriesResolver` selects compatible, contiguous annual evidence under the requested `as_of` boundary.
-
-The direct command is `ian fcf-growth TICKER`. The strategy retains its own policy, annual-observation, metric, classification, and forward-evidence types rather than being forced into either the Momentum or Graham result shape.
+For which strategies exist today and what each one computes, see the [user strategy guides](../user/strategies/README.md). For how to add a new one, trace an existing strategy end to end in the [Analysis Strategy Contributor Guide](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md) rather than here.
 
 ### `BaseDataClient` and `MarketDataProvider`
 `BaseDataClient` is the original concrete provider boundary for historical market prices; it remains price-history focused rather than becoming the owner of fundamentals, valuation quotes, macro series, and cache policy. `MarketDataProvider` (`src/data/market_data.py`) is a narrower structural protocol — `provider_id` plus `fetch_historical_data` — and is the boundary Momentum's resolver actually consumes. `MomentumAnalyzer` accepts either a `BaseDataClient` or a `MarketDataProvider` directly; when only the former is supplied, a private `_ClientProviderAdapter` wraps it so existing `BaseDataClient` callers keep working without duplicating the historical-price contract.
@@ -260,6 +251,16 @@ Named watchlists hold tickers and supported requested analyses. A user-initiated
 Structured telemetry supports JSONL (the default) and SQLite sinks. `SQLiteTrajectorySink` delegates event persistence to `SQLiteTrajectoryRepository`, retaining synchronous locking and database ownership. The recorder owns sanitization and fail-open handling.
 
 Telemetry records observable execution evidence and does not provide benchmark ground truth.
+
+---
+
+## Composition roots and dependency wiring
+
+A composition root is where a run's concrete dependencies — provider, cache, resolver, clock, and (when persisting) the durable instrument-profile cache and Analysis Run repository — are constructed and wired together before an analyzer ever runs. The current composition roots are `src/cli.py` (direct commands), `src/cli_workspace.py` (workspace/watchlist commands), and `src/workspace/refresh.py` (one composition per job in a concurrent watchlist refresh). Composition is not a strategy's own concern: an analyzer and its resolver receive already-composed dependencies through their constructors and never construct or close them.
+
+Every composition root reads `executed_at` exactly once, via `utc_now()`, and threads that single reading through everything the run touches — see [*Time and the analysis boundary*](#3-time-and-the-analysis-boundary) for the resulting clock model. `_maybe_save_run` (`src/cli.py`) is the one place shared by all four direct commands that decides, from `--save-run`, whether a run's capture ever reaches persistence.
+
+For the concrete sequence a request follows from composition through to a rendered or saved result, see the [Analysis Strategy Contributor Guide](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md)'s execution trace rather than a second copy of it here.
 
 ---
 
