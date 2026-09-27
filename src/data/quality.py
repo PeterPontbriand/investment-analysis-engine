@@ -12,6 +12,7 @@ from enum import StrEnum
 import numpy as np
 import pandas as pd
 
+from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
 from src.data.market_data import HistoricalMarketData
 
 
@@ -257,7 +258,12 @@ def evaluate_historical_quality(
 
 
 def _age_result(
-    timestamp: datetime | None, boundary: datetime, limit: timedelta | None, *, cache: bool
+    timestamp: datetime | None,
+    boundary: datetime,
+    limit: timedelta | None,
+    *,
+    cache: bool,
+    skew_tolerance: timedelta = timedelta(0),
 ) -> tuple[QualityOutcome, str]:
     if timestamp is None:
         return QualityOutcome.INSUFFICIENT_EVIDENCE, "Age evidence is unavailable."
@@ -265,7 +271,9 @@ def _age_result(
     if age < timedelta(0):
         if cache:
             return QualityOutcome.INSUFFICIENT_EVIDENCE, "Cache timestamp is in the future; clock drift is unverified."
-        return QualityOutcome.FAIL, "Observation is later than the analysis boundary."
+        if age < -skew_tolerance:
+            return QualityOutcome.FAIL, "Observation is later than the analysis boundary."
+        age = timedelta(0)
     if limit is None:
         return QualityOutcome.INSUFFICIENT_EVIDENCE, "No maximum age policy is configured."
     if age > limit:
@@ -300,18 +308,27 @@ def evaluate_freshness(  # noqa: PLR0913
     for timestamp in (cached_at, observed_at, available_at):
         _aware(timestamp)
     boundary = context.analysis_as_of or context.evaluated_at
+    # A live run (no explicit as_of) tolerates FROZEN_CLOCK_SKEW_TOLERANCE of skew between the
+    # frozen boundary and a provider-supplied timestamp stamped later, once a live fetch actually
+    # completes -- see src/core/clock.py's module docstring for the full clock model. An --as-of
+    # run tolerates none: a timestamp after an explicitly requested historical boundary is
+    # look-ahead, not clock skew, and must still fail.
+    skew_tolerance = FROZEN_CLOCK_SKEW_TOLERANCE if context.analysis_as_of is None else timedelta(0)
     if available_at is None:
         availability = (
             QualityOutcome.FAIL if context.analysis_as_of is not None else QualityOutcome.INSUFFICIENT_EVIDENCE,
             "Availability evidence is missing; historical use requires it.",
         )
-    elif available_at > boundary:
+    elif (available_at - boundary) > skew_tolerance:
         availability = (QualityOutcome.FAIL, "Availability is later than the analysis boundary.")
     else:
         availability = (QualityOutcome.PASS, "Availability is no later than the analysis boundary.")
     results = (
         ("freshness.cache_age", _age_result(cached_at, context.evaluated_at, policy.cache_ttl, cache=True)),
-        ("freshness.observation_age", _age_result(observed_at, boundary, policy.observation_max_age, cache=False)),
+        (
+            "freshness.observation_age",
+            _age_result(observed_at, boundary, policy.observation_max_age, cache=False, skew_tolerance=skew_tolerance),
+        ),
         ("freshness.availability", availability),
     )
     return tuple(

@@ -883,8 +883,6 @@ class InputResolver:
             return None
         if financial_quality_error(stored, input_id=str(key), now=self._clock(), as_of=key.analysis_as_of):
             return None
-        if stored.available_at is not None and stored.available_at > self._clock():
-            return None
 
         return ResolvedInput(
             field_name=stored.field_name,
@@ -1068,9 +1066,6 @@ class InputResolver:
                 or self._quote_freshness_policy.max_retrieval_age.total_seconds() == 0
             ):
                 return None
-        # Current-request temporal check: available_at must not be in the future.
-        if request.as_of is None and stored.available_at is not None and stored.available_at > self._clock():
-            return None
 
         return ResolvedInput(
             field_name=stored.field_name,
@@ -1484,11 +1479,6 @@ def _validate_provider_response(
                 f"Fact available_at ({fact.available_at.isoformat()}) is later than "
                 f"request as_of ({request.as_of.isoformat()}).",
             )
-    elif fact.available_at is not None and fact.available_at > now:
-        return (
-            CalculationStatus.INPUT_UNAVAILABLE,
-            f"Fact available_at ({fact.available_at.isoformat()}) is later than current time ({now.isoformat()}).",
-        )
     error = financial_quality_error(
         fact,
         input_id=f"{request.subject_id}:{request.field_name.value}:{request.provider_id}",

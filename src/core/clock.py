@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 
 def utc_now() -> datetime:
@@ -13,3 +13,6 @@ def utc_now() -> datetime:
 def effective_as_of(as_of: datetime | None, executed_at: datetime) -> datetime:
     """Return the point-in-time cutoff: the requested boundary, or the execution clock."""
     return as_of or executed_at
+
+
+FROZEN_CLOCK_SKEW_TOLERANCE = timedelta(minutes=10)
