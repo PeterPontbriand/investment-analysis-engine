@@ -15,6 +15,8 @@ Use the plan's links and the directory names below to locate records by work are
 - `step-2.2` through `step-2.6` — strategy designs, provider coverage, evaluation, and reliability.
 - `step-3.1` through `step-3.5`, `r1`, `r2`, and `step-3.3a` — persistence, package boundaries, repositories, data quality, workspace execution, and planned quantitative screens.
 - `step-2.5a`, `p2-profiles`, `existing-strategy-correctness`, and `integration-readiness` — provider coverage, instrument profiles, correctness reviews, and integration preparation.
+- `graham-comparison` — completed Graham price-comparison repair: evidence, contract, and implementation/verification record.
+- `issue-17` — telemetry closeout plan and verification contract.
 - Other top-level v0.2 records document deferred decisions, package work, and repository audits.
 
 For project rationale and alternatives across milestones, see the [Discovery Workbook](../DISCOVERY_WORKBOOK.md). For overall project direction, see the [Master Plan](../MASTER_PLAN.md).
