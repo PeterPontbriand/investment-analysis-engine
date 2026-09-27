@@ -5,8 +5,9 @@ current codebase and reorganizing it for a first-time contributor. Numbered and 
 implementation by the project owner. **Implemented and complete** on `fix/ir7-architecture-doc-pass`,
 branched from `feat/ir-integration-readiness` (not `main` — see §8). See the completion record at
 the end for what actually happened, commit by commit, and the final §5 outcome table — including
-"Read-through corrections", where a stakeholder read-through of the first submission found
-acceptance criterion 2 was not fully met and eleven further commits fixed it.
+"Read-through corrections" and "Final-pass corrections", two rounds of stakeholder read-through
+that together found acceptance criterion 2 was not fully met at first submission and fixed it in
+eighteen further commits, three of which were regressions the first correction round introduced.
 
 ## 1. Problem
 
@@ -374,3 +375,56 @@ code cited in its own commit message:
 
 The full managed quality gate, including the D3 link/anchor checker, passed after the last of
 these commits (3188 tests, 91% coverage, `check_doc_links` reporting zero breaks).
+
+## Final-pass corrections
+
+A second read-through, closer but not yet clean, found seven more issues — three introduced by
+the first round of corrections above, four missed by both passes. Fixed in seven further
+content-only commits on `fix/ir7-architecture-doc-pass`, each independently verified against the
+code cited in its own commit message:
+
+1. `d481e2e` — §4's "Every composition root reads `executed_at` exactly once" (added by commit
+   `c5a97fe` above) contradicted the per-job reads described in the sentence immediately before it.
+   Reworded to "exactly once per analysis it runs", matching §5's own phrasing of the same rule.
+2. `14c7ce8` — §7's diagram (realigned by commit `b259959` above) showed the FCF annual-series
+   resolver box as "◄── override/cache", the same label as the two Graham resolver boxes. Checked
+   `ProductionAnnualGrowthSeriesResolver.resolve()` and `resolve_annual_growth_series()` in
+   `src/analysis/strategy/fcf_earnings_growth/input_resolver.py`: neither takes an `override`
+   parameter, only `cache`/provider/unavailable. Changed the FCF box's label to "◄── cache";
+   the precedence section already only names the two Graham resolvers, so no further change needed
+   there.
+3. `2b567d3` — §8's "Typed SQLite repositories" table listed four repositories and omitted
+   `SQLiteAnalysisRunRepository` (`src/data/repositories/analysis_runs.py`) and
+   `SQLiteWatchlistRepository` (`src/data/repositories/watchlists.py`), even though the prose just
+   below the table discusses both `AnalysisRun` and the watchlist/refresh workspace at length.
+   Added both rows, public access and semantics read directly from each file. Checked every other
+   file in `src/data/repositories/` (`trajectory.py`, `migrations.py`, `readiness_lock.py`,
+   `sqlite.py`, `readiness.py`, `instrument_profiles.py`, `market_data.py`,
+   `resolved_input_cache.py`): no other repository row was missing.
+4. `1886391` — §3's diagram (the historical-series box named MarketDataProvider by commit
+   `7a71f01` above) had grown long enough that "BaseDataClient / MarketDataProvider" pushed
+   "FinancialFactsProvider" out of the "financial facts" column it needs to sit under. Split the
+   two provider names across two lines so the second box lands back in its column.
+5. `640fe8e` — §7's fixture-capability list named what Momentum's and Graham's fixtures prove but
+   never mentioned FCF & Earnings Growth's, even though
+   `src/evaluation/fixtures/fcf_earnings_growth.py` provides a deterministic
+   `FixtureAnnualFinancialFactsProvider` with annual OCF/CapEx/EPS series. Added the missing bullet.
+6. `3e0830c` — §6's `MetricResult` sentence (added by commit `074c826` above, correcting the
+   original false "shared by every strategy" claim) still named the two strategies that currently
+   use it. Named strategies drift the moment a third adopts the convention or one of the two stops;
+   reworded to "some strategies use" — the sentence's function is to say `MetricResult` is not
+   universal, not to enumerate who uses it, and §6 avoids strategy catalogues everywhere else for
+   the same reason.
+7. `629ce63` — two sentences the earlier read-throughs both missed were still phrased as a diff
+   against an earlier state rather than a description of current behavior: "No durable evidence
+   cache or database migration is introduced" (§7's SEC seam) and "retain their existing signatures
+   and import paths as repository delegates" (§8's trajectory-sink paragraph). Rewritten as plain
+   present-tense statements.
+
+Three of these seven (items 1, 2, and 4) were regressions introduced by the read-through
+corrections themselves, not missed on the first pass — a reminder that a correction pass needs the
+same code-verification discipline as the original content, especially for anything touching a
+hand-aligned diagram or a sentence built by editing another sentence in place.
+
+The full managed quality gate, including the D3 link/anchor checker, passed after the last of
+these seven commits (3188 tests, 91% coverage, `check_doc_links` reporting zero breaks).
