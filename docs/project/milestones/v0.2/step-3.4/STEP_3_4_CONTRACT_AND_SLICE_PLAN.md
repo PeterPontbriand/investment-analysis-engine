@@ -389,6 +389,11 @@ use hyphenated aliases; `runs list --method` uses the canonical identifier)
 was also separately flagged and is likewise not addressed here. Neither
 gap blocks I1-I3.
 
+**Scheduled (2026-09-27):** all three deferred items above (watchlist rename,
+watchlist delete, and the alias vs. `method_id` inconsistency) are now in
+scope as IR.6; see
+[IR6_WATCHLIST_LIFECYCLE_COMPLETION.md](../integration-readiness/IR6_WATCHLIST_LIFECYCLE_COMPLETION.md).
+
 Final Step 3.4 acceptance (previously targeted at H) is deferred until I3
 (see §9's slice table) completes. P2-Profiles, ESC-D renewed acceptance, and
 Step 3.5 remain unstarted until then, per §1's existing sequencing note.
