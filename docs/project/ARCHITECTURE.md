@@ -161,7 +161,7 @@ Existing abstract analysis boundary. A strategy owns:
 ### `MomentumAnalyzer`
 Deterministic SMA/crossover/RSI analyzer. `MomentumInputResolver` consumes the provider-neutral `MarketDataProvider` boundary, applies strict `bar_timestamp <= effective_as_of` truncation before calculation, wraps retained closes in `ResolvedInput` provenance, and records a `ResolutionTrace`. `MomentumPolicy` owns the short/long/RSI defaults. SMA and RSI availability is exposed through standard `MetricResult` values with `insufficient_history` reason codes while compatibility views preserve the existing optional numeric fields.
 
-### Graham analysis (Step 2.3 implemented through F2)
+### Graham analysis
 The Graham family has two method identifiers:
 
 - `graham_number` — default screening-ceiling method using three-year-average EPS by default plus BVPS;
@@ -171,7 +171,7 @@ The implemented direct command is `ian graham TICKER [--method number|growth]`. 
 
 Graham is intentionally not required to return `TrendStatus` or consume a historical DataFrame merely to look like Momentum.
 
-### Free Cash Flow & Earnings Growth analysis (Step 2.4 implemented through Slice F-1)
+### Free Cash Flow & Earnings Growth analysis
 `FCFEarningsGrowthAnalyzer` deterministically derives completed annual total-company FCF and FCF per diluted share, computes their CAGRs alongside diluted-EPS CAGR, and returns a versioned `FCFEarningsGrowthResult`. Its classification is `PASS`, `FAIL`, or `INDETERMINATE`, separate from software execution status.
 
 `ProductionAnnualGrowthSeriesResolver` selects compatible, contiguous annual evidence under the requested `as_of` boundary. The default horizon policy prefers 5 elapsed years, then 4, then 3; explicit horizons are strict. Total-company FCF controls classification by default, while an explicit policy can select FCF per diluted share. Optional FCF yield is informational only, and optional forward EPS evidence follows an explicit display-only, confirmation, or hard-gate policy.
@@ -183,16 +183,16 @@ Existing provider boundary for historical market prices. Under the selected Step
 
 Current quote retrieval is a separate valuation capability; it is not implemented as a one-day historical request.
 
-### `FinancialFactsProvider` boundary (Step 2.3 implemented)
+### `FinancialFactsProvider` boundary
 A dedicated provider-neutral financial-fact boundary supplies or composes the minimum quote and company-fundamental capabilities required by the two Graham methods. The contract can represent macro observations, but the production CLI does not currently claim an approved live AAA-yield series.
 
 Implemented production adapters are deliberately narrow:
 
 - **SEC EDGAR (`sec_edgar`)** — completed annual duration facts from `10-K`, `10-K/A`, `20-F`, `20-F/A`, `40-F`, and `40-F/A`. Existing exact US-GAAP mappings cover diluted EPS, diluted weighted-average shares, operating cash flow, and CapEx. Exact IFRS mappings cover diluted EPS, diluted weighted-average shares, operating cash flow, and physical-PP&E CapEx. Fiscal-year-end balance-sheet components and conservative BVPS derivation remain US-GAAP-only; IFRS BVPS and preferred-zero inference are unsupported.
-- **Massive (`massive`)** — current TTM diluted EPS and current price for the Massive when explicitly selected. Live use requires `MASSIVE_API_KEY`; current-only facts do not masquerade as historical evidence.
+- **Massive (`massive`)** — current TTM diluted EPS and current price when Massive is explicitly selected. Live use requires `MASSIVE_API_KEY`; current-only facts do not masquerade as historical evidence.
 - **Yahoo Finance (`yfinance`)** — narrow current-price financial-facts adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts. It does not claim historical quote support through the financial-facts contract.
 
-The Graham Number using its standard SEC financial facts uses SEC financial facts plus Yahoo current quote comparison. Its explicit Massive route is deliberately limited to Massive TTM EPS plus a BVPS override and may use a Massive quote. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote; explicitly selecting Massive uses its supported TTM EPS/current-price data. Unsupported provider/basis combinations are rejected before provider work.
+The Graham Number's default SEC route pairs SEC financial facts with Yahoo current quote comparison. Its explicit Massive route is deliberately limited to Massive TTM EPS plus a BVPS override and may use a Massive quote. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote; explicitly selecting Massive uses its supported TTM EPS/current-price data. Unsupported provider/basis combinations are rejected before provider work.
 
 ### Security identity and instrument applicability
 `SecurityIdentityProvider` is a narrow optional capability beside, not inside, numeric financial facts. F-1 returns an immutable current descriptive snapshot with normalized ticker, optional instrument name/listing venue/issuer and instrument identifiers, provider identity, and timezone-aware `resolved_at`. SEC retains current ticker-title/CIK evidence from its ticker mapping; Yahoo retains supported instrument metadata, including non-company names where available.
@@ -213,10 +213,10 @@ explicit override → valid cache → configured provider → unavailable
 
 Calculators receive resolved values and do not perform I/O. The resolver enforces requested `as_of` boundaries and preserves typed provenance. Method-input assembly adds only method-semantic annotations that are justified by retained evidence, such as fiscal-year-end basis on derived BVPS.
 
-### Resolved-input cache seam (Step 2.3 implemented)
-A narrow in-memory/fixture-backed `get`/`put` seam proves precedence, temporal eligibility, and provenance. The resolver—not the cache—owns provider fallback. Durable SQLite-backed caching remains Step 3.1.
+### Resolved-input cache seam
+A narrow in-memory/fixture-backed `get`/`put` seam proves precedence, temporal eligibility, and provenance. The resolver—not the cache—owns provider fallback. Durable SQLite-backed caching is implemented; see `SQLiteResolvedInputCache` below.
 
-### Durable instrument profiles (P2-Profiles implemented) and ETF aggregate FCF (planned)
+### Durable instrument profiles
 
 `SQLiteInstrumentProfileRepository` persists composed identity/kind evidence keyed by a minted `profile_id`, not by ticker: only a resolution that yields a provider-verified identity anchor (`SecurityIdentity.issuer_identifier`) becomes durable, so a ticker that never earns an anchor keeps resolving live on every request, exactly as the request-scoped composer above does unwrapped. `CachedInstrumentProfileResolver` layers freshness/TTL/refresh over that repository: a fresh durable profile is reused without a provider call; a stale or missing one refreshes live. When a refresh's anchor disagrees with the stored one — a **ticker reuse**, such as delisting and relisting — the prior row is superseded (retained, never deleted or overwritten) and a new profile is minted; the resolver serializes this decision per ticker so concurrent callers (watchlist refresh's worker pool) cannot mint two competing profiles for the same ticker. Provider precedence and disagreement handling remain entirely owned by the request-scoped composer described above; the durable layer adds only persistence, freshness and the identity/ticker-reuse rule on top of it, matching the "Traceable, Time-Bounded Inputs" and "Decoupled Contracts" invariants (§1). See the [P2-Profiles contract](milestones/v0.2/p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md) for the full identity-key, precedence, freshness and historical-snapshot design.
 
@@ -226,7 +226,7 @@ An `AnalysisRun`'s persisted `instrument_profile` is the immutable value capture
 
 ETF aggregate FCF remains planned (P2-ETF, deferred beyond Step 3.6). The strategy will own its holdings-effective-date, weighting, cash/derivative, currency, missing/stale constituent, coverage, rebalancing, and `as_of` semantics plus native typed configuration/result/tool identity. It may reuse company-level calculations for constituents but must not add ETF branches to or redefine the existing company-level FCF Growth strategy. Company-level FCF requested for a known ETF remains explicitly `not_applicable`; orchestration cannot silently substitute the aggregate strategy.
 
-### Resolved input and provenance models (Step 2.3 implemented)
+### Resolved input and provenance models
 Typed records preserve value, units/currency, source kind, provider field/series, reporting/observation period, availability/filing date where supplied, analysis `as_of`, retrieval time, transformations/derived lineage, and override/cache state.
 
 ### Fixture-backed data capabilities
@@ -241,21 +241,21 @@ Introduced minimally in Step 2.3 to prove the historical-price and financial-fac
 
 Fixture support for a capability does not claim that the same capability exists in a production adapter. Step 2.4 reuses this foundation for Golden cases.
 
-### Investor-facing result presentation (Steps 2.3 and 2.4 implemented through Slice F-1)
+### Investor-facing result presentation
 A narrow presentation seam maps Momentum, Graham, and Free Cash Flow & Earnings Growth typed outputs into a common investor-facing grammar without altering their domain models. The default view is concise and result-first; details expose financial provenance; diagnostics expose resolution mechanics; JSON exposes each strategy's stable versioned machine-readable contract. Material overrides and warnings remain visible.
 
 Each JSON presentation exposes one explicit nullable `security_identity` snapshot. Momentum and Graham presentation schemas increment from 1 to 2. The FCF/Earnings Growth presentation schema increments from 2 to 3 while retaining `result_schema_version = 2`, because identity is presentation metadata and does not change the typed calculation result.
 
 The Graham Number is labeled as a **maximum indicated price / screening ceiling**. The Growth view makes the expected-growth assumption explicit and warns when the AAA yield is user-supplied. Successful concise output omits redundant `Status: ok` and `As of: current`; historical requests surface the `as_of` boundary in the heading. All required-input/provider/ticker failures pass through the typed presentation boundary, and every calculation status has an exhaustive plain-English investor label.
 
-### `AnalysisRun` (Step 3.4 target)
+### `AnalysisRun`
 A durable investor-domain record of one requested analysis. It owns an `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, warnings, timestamps, calculation/version identifiers, and the nullable security identity/instrument-profile snapshot used by that completed run (including provider and `resolved_at`). It may link to execution/trajectory identity but must not overload telemetry `RunContext`.
 
 A report is a rendering of an Analysis Run, not a second canonical result object in v0.2. Viewing an old run must use its persisted identity snapshot rather than re-resolving the ticker and silently relabeling history after ticker reuse.
 
 The investor-report boundary is a deterministic, versioned projection. Given the same persisted Analysis Run, projection version, presentation mode, and explicit locale/format options, it must produce the same semantic report without provider calls, LLM calls, financial recalculation, mutable cache reads, or wall-clock-dependent enrichment. The report exposes its projection version separately from the run's calculation method version and typed result-schema version. A breaking change to report structure or field meaning requires a new projection version; historical projection versions remain reproducible or require an explicit, auditable migration rather than being silently reinterpreted.
 
-### Watchlist / refresh workspace (Step 3.4 target)
+### Watchlist / refresh workspace
 Named watchlists hold tickers and supported requested analyses. A user-initiated refresh may execute independent ticker/analysis jobs concurrently and persist each outcome as it finishes. No daemon, scheduler, proactive monitoring, or notification service is implied.
 
 ### `TrajectoryEvent` / `TrajectoryRecorder` / `TrajectorySink`
@@ -444,7 +444,7 @@ evaluation result   ──► Golden evaluation artifact
 
 These stores/artifacts must not be collapsed merely because they can all be serialized. In particular, telemetry describes execution, while an Analysis Run is the durable investor-facing outcome of one requested analysis.
 
-## 8. Golden-Suite architecture (Step 2.5)
+## 8. Golden-Suite architecture
 
 The production orchestration seam exposes four explicit handlers in `src/orchestrator/analysis_tools.py`: Momentum, Graham Number, Graham growth value, and Free Cash Flow & Earnings Growth. `register_analysis_tools(...)` registers them on the existing `AsyncToolDispatcher` using injected analyzers, resolvers, provider selections, calculation policy, and clock. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. Tool argument schemas are derived from the strict Pydantic models in `ANALYSIS_TOOL_ARGUMENT_MODELS`; successful calls retain each strategy's native typed execution result.
 
@@ -481,7 +481,7 @@ request-building boundary so a mandatory gate can produce one auditable report.
 Test-local per-strategy invocations are supporting evidence, not a substitute for
 that complete-suite operation.
 
-### 8.1 SEC foreign-private-issuer seam (Step 2.5A implemented)
+### 8.1 SEC foreign-private-issuer seam
 
 The existing SEC adapter supports the reviewed FPI/IFRS slice without creating
 a parallel provider architecture:
@@ -581,19 +581,6 @@ Private model reasoning is never reconstructed.
 
 ---
 
-### Planned Graham comparison evidence repair
-
-The [immediate repair plan](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)
-has planning acceptance with branch-naming and combined README-review caveats. Current profile composition does not supply the share-unit
-evidence required by the Graham services, and nullable comparison output loses
-the compatibility reason. The repair must supply defensible provider-backed,
-request-scoped evidence and propagate typed decisions through services and reporting.
-Matching currencies and an equity classification alone do not establish a 1:1
-filing-share/quoted-unit relationship. Preserve the fail-closed guard and valid
-standalone financial results; unsupported comparisons need explicit reasons.
-This target introduces neither durable profile storage nor ADR/FX conversion and
-is not a claim that production behavior has already changed.
-
 ### Database readiness and explicit maintenance
 
 The [fresh database readiness contract](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
@@ -612,7 +599,8 @@ storage. The hidden `src/cli_database.py` maintenance group exposes these throug
 Typed sanitized errors preserve stable reason categories and analysis envelopes.
 Optional telemetry neither initializes storage nor controls business execution;
 financial cache bypass and storage-free help/imports avoid opening that cache.
-The current migration bundle has only `0001_persistence`; older-schema support
+The migration bundle currently comprises `0001_persistence`, `0002_research_workspace`,
+`0003_watchlist_entries`, and `0004_instrument_profiles`; older-schema support
 is verified with synthetic history. See [Local Database Operations](../user/DATABASE.md)
 for target selection, error recovery and installation/platform limits.
 
