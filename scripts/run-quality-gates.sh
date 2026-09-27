@@ -35,9 +35,10 @@ python_version="${version_info%%|*}"
 pandas_version="${version_info##*|}"
 printf 'Quality gate running on Python %s, pandas %s\n' "$python_version" "$pandas_version"
 
+uv run --no-sync python scripts/check_doc_links.py
 uv run --no-sync ruff check --no-cache .
 uv run --no-sync ruff format --check .
-uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" src tests
+uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" src tests scripts
 uv run --no-sync pytest \
     -o addopts= \
     -p no:cacheprovider \

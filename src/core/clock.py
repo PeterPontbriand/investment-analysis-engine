@@ -1,7 +1,7 @@
 """The shared wall-clock read and point-in-time boundary derivation for the whole codebase.
 
 Before touching any timestamp comparison in the data layer, read "Time and the analysis
-boundary" (``docs/project/ARCHITECTURE.md``, §3) for the full picture: ``executed_at``,
+boundary" in ``docs/project/ARCHITECTURE.md`` for the full picture: ``executed_at``,
 ``effective_as_of``, ``utc_now()``, and why ``FROZEN_CLOCK_SKEW_TOLERANCE`` is sized the way it
 is and applies only to live (non-``as_of``) runs.
 """
