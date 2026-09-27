@@ -385,10 +385,6 @@ propagate; the recorder retains fail-open handling. Event encoding and readback
 validation preserve the existing contract, including the readback encoding
 check without adding a new write-time encoding policy.
 
-This storage layer does not introduce watchlists, investor Analysis Runs, new
-cache invalidation rules, or a second audit log. Those remain distinct product
-and policy concerns.
-
 ### Durable instrument profiles
 
 `SQLiteInstrumentProfileRepository` persists composed identity/kind evidence keyed by a minted `profile_id`, not by ticker: only a resolution that yields a provider-verified identity anchor (`SecurityIdentity.issuer_identifier`) becomes durable, so a ticker that never earns an anchor keeps resolving live on every request, exactly as the request-scoped composer above does unwrapped. `CachedInstrumentProfileResolver` layers freshness/TTL/refresh over that repository: a fresh durable profile is reused without a provider call; a stale or missing one refreshes live. When a refresh's anchor disagrees with the stored one — a **ticker reuse**, such as delisting and relisting — the prior row is superseded (retained, never deleted or overwritten) and a new profile is minted; the resolver serializes this decision per ticker so concurrent callers (watchlist refresh's worker pool) cannot mint two competing profiles for the same ticker. Provider precedence and disagreement handling remain entirely owned by the request-scoped composer described above; the durable layer adds only persistence, freshness and the identity/ticker-reuse rule on top of it, matching the "Time-bounded provenance" invariant (§2). See the [P2-Profiles contract](milestones/v0.2/p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md) for the full identity-key, precedence, freshness and historical-snapshot design.
