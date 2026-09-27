@@ -22,7 +22,7 @@ All current strategy analyzers inherit from `BaseAnalyzer` with their own config
 - `use_cache` is the run-wide permission governing cache reads and writes used by the analysis.
 - `instrument_profile` carries the run's identity evidence. It is retained in results even when the calculation does not consult it.
 
-For the full clock model — which instant each kind of check compares against, the decision-clock/event-clock distinction, `utc_now()`, and why frozen-clock skew is tolerated only for live runs — see ARCHITECTURE.md's [*Time and the analysis boundary*](ARCHITECTURE.md#3-time-and-the-analysis-boundary) rather than this guide; duplicating those rules here would let the two drift.
+For the full clock model — which instant each kind of check compares against, the decision-clock/event-clock distinction, `utc_now()`, and why frozen-clock skew is tolerated only for live runs — see ARCHITECTURE.md's [*Time and the analysis boundary*](ARCHITECTURE.md#5-time-and-the-analysis-boundary) rather than this guide; duplicating those rules here would let the two drift.
 
 The workspace selections expose `to_analysis_context(executed_at, instrument_profile)` alongside method-specific config conversion. Direct execution adapters and orchestrator handlers construct this context at their execution boundary. See [`AnalysisSelection` and its method-specific request models](../../src/workspace/requests.py) for the workspace request boundary. The [Architecture](ARCHITECTURE.md) documents broader boundaries and rationale.
 
