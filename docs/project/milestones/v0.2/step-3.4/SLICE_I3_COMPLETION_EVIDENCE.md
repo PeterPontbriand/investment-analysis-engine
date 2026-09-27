@@ -16,7 +16,7 @@ Step 3.4 acceptance.
 ## Documentation
 
 `docs/user/WORKSPACE.md`: the "Watchlists" section is rewritten around
-[entries](GLOSSARY.md#entry) rather than a separate members list and
+[entries](../../../../user/GLOSSARY.md#entry) rather than a separate members list and
 selections list — the retired default-selection-materialization example and
 the file-based `--config PATH` example are both gone. It now documents
 seeded creation (`create --analysis METHOD [flags] TICKER...`), the

@@ -363,7 +363,7 @@ already-migrated database and do not migrate or close it implicitly.
 The first analysis that needs local storage automatically initializes a missing
 or verified empty SQLite database. Existing databases require explicit upgrades;
 readiness failures identify the target and next action. See
-[Local Database Operations](docs/user/DATABASE.md) for inspection, upgrades and recovery.
+[Local Database Operations](../user/DATABASE.md) for inspection, upgrades and recovery.
 
 | Repository | Public access | Semantics |
 | :--- | :--- | :--- |
