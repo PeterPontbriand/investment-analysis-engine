@@ -187,6 +187,17 @@ In scope, each independently landable:
    reproduction, audit, remedy, acceptance criteria, and completion record:
    [IR4_PYTHON_VERSION_REPRODUCIBILITY.md](IR4_PYTHON_VERSION_REPRODUCIBILITY.md), which
    supersedes §7 below.
+8. **Amendment (project owner, 2026-09-27): watchlist lifecycle completion.** Step 3.4 Amendment A1
+   (§12) deferred watchlist delete and rename, and the `--analysis` alias vs. canonical `method_id`
+   inconsistency, as out-of-scope gaps. An agentic caller driving `ian` through its CLI (this work
+   package's target consumer) can create a watchlist but never remove it, and must use two
+   vocabularies to name the same method. Scope: `watchlist delete` (with confirmation, `--yes`,
+   and an idempotent `--missing-ok`), `watchlist rename`, removal verbs renamed to `remove-ticker`
+   / `remove-method`, and the aliases made the CLI's only input and human-readable method
+   vocabulary (`--json` keeps canonical `method_id`). No schema change or migration. **Labeled
+   IR.6, not IR.5, because "IR.5" still labels the JSON-envelope scope that moved to `SWC`.** Full
+   problem statement, verified facts, decisions D1-D5, sub-slices, and acceptance criteria:
+   [IR6_WATCHLIST_LIFECYCLE_COMPLETION.md](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md).
 
 Excluded: any new trading-signal, entry/exit, or order-generation capability; a
 `compute_series`-style API for the three fundamentals-based analyses; an actual MCP server,
@@ -211,6 +222,7 @@ diff is non-executable declarative metadata with no import-time or runtime effec
 | IR.2 | Unify the analyzer invocation envelope across all four analyzers (§2 item 3) and bring Momentum to full parity with the other three (§2 item 4). Large enough, and cutting across enough files, that it is itself split into five gated sub-slices by concern — never analyzer-by-analyzer — so that every sub-slice leaves all four analyzers mutually consistent and passes the full gate on its own. All five land on one branch, each as its own reviewed commit; nothing merges to `main` until the last one is accepted (§6.12). Full sub-slice list, scope, order, and dependencies: §6.12. Verified, not merely revisited, once Step 3.5's Piotroski analyzer is built against it (§5 item 7). |
 | IR.3 | Momentum series API: pure vectorized series function beneath the existing snapshot API. Renumbered from IR.4 — the slice previously between it and IR.2 (Momentum quality-check/clock purity) is now part of IR.2 itself (§2 item 4), and IR.5 (JSON envelope models) moved to `SWC` (§2 item 6) — so this work package had three slices, not five, until IR.4 below was added. |
 | IR.4 | Python-version reproducibility (§2 item 7): fix `market_data.py`'s eager-evaluated `pd.Index[Any]` annotations, and re-apply IR.1 item 2a's `momentum_analyzer.py` fix to `main` (present only on `feat/ir-integration-readiness` at the time this slice was planned), so `requires-python = ">=3.12"` is genuinely honored on 3.12/3.13, not only on 3.14; repository-wide audit for the same defect class; widen `.github/workflows/ci.yaml`'s matrix to actually test the declared range; correct `[tool.mypy] python_version` to the declared floor. **Reuses the number freed by IR.3's renumbering above — an unrelated new slice found during IR.2.3 verification, not a revival of the old IR.4 (Momentum series API) content.** No dependency on IR.2's remaining sub-slices. **Branch: its own (`fix/ir4-python-version-reproducibility` off `main`, not `feat/ir-integration-readiness`), merged to `main` independently once accepted — decided, not left open.** IR.2's five sub-slices all land on one branch with nothing merging to `main` until the last is accepted (§6.12); binding IR.4 to that same rule would leave a verified-broken `requires-python` claim on `main` for as long as IR.2.4–IR.2.6 take, for a defect with no dependency on any of them. After IR.4 merges to `main`, `feat/ir-integration-readiness` merges `main` back in before IR.2.4 begins, so IR.2's remaining sub-slices are gated by a genuinely working 3.12/3.13 CI too, not developed against the same 3.14-only blind spot that hid this defect. Delivered and merged back 2026-09-26; spec and completion record: [IR4_PYTHON_VERSION_REPRODUCIBILITY.md](IR4_PYTHON_VERSION_REPRODUCIBILITY.md), superseding §7 below. |
+| IR.6 | Watchlist lifecycle completion (§2 item 8): three gated sub-slices, IR.6.1 command vocabulary (`remove-ticker`/`remove-method`, `runs list --analysis`, alias-only text output), IR.6.2 `watchlist delete`, IR.6.3 `watchlist rename`. No dependency on IR.2's remaining sub-slices. **Branch: its own (`fix/ir6-watchlist-lifecycle` off `main`), merged to `main` independently once accepted, following IR.4's precedent;** `feat/ir-integration-readiness` merges `main` back in afterward. Spec: [IR6_WATCHLIST_LIFECYCLE_COMPLETION.md](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md). |
 
 ## 4. Acceptance criteria
 
@@ -231,6 +243,12 @@ diff is non-executable declarative metadata with no import-time or runtime effec
   strategy name once the function is no longer Graham-specific. Recorded here rather than silently
   allowed, per this criterion's own "do not change" rule; every affected test assertion was updated
   to match, not left passing by coincidence.
+  **Accepted exception (IR.6.1, approved 2026-09-27):** the workspace commands' human-readable
+  text (`watchlist show`, `runs list`, `refresh`) shows the hyphenated analysis aliases where it
+  printed canonical `method_id`s, and the `watchlist remove`/`disable` commands and `runs list
+  --method` are replaced by `remove-ticker`/`remove-method` and `runs list --analysis`. This is
+  a workspace command-surface change, not an analysis formula, classification, result, or exit-code
+  change. Every `--json` payload, including its canonical `method_id`, is unchanged.
 - The complete managed gate (`scripts/run-quality-gates.ps1` / `.sh`), ≥85% coverage, after every
   slice that touches Python source, tests, or executable configuration. IR.1 is exempt per §3's
   sequencing note above.
