@@ -57,7 +57,8 @@ For work-package sequencing and status, see the [milestone table](milestones/v0.
        ▼                      ▼                      ▼
  historical series     financial facts        quotes / macro data
        │                      │                      │
- BaseDataClient / MarketDataProvider  FinancialFactsProvider / narrow providers
+ BaseDataClient /      FinancialFactsProvider / narrow providers
+ MarketDataProvider
        └──────────────────────┬──────────────────────┘
                               ▼
                      typed strategy result
