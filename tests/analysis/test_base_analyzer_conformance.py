@@ -192,3 +192,172 @@ def test_no_plain_function_imports_cross_the_strategy_boundary() -> None:
     """Item 4: only classes may be imported from ``src.analysis.strategy.**`` outside that package."""
     violations = _strategy_boundary_function_imports()
     assert not violations, "Plain-function imports crossing the strategy boundary:\n" + "\n".join(violations)
+
+
+# ---------------------------------------------------------------------------
+# Item 5: no bare wall-clock reads outside the composition roots (§6.11).
+#
+# `src.core.clock.utc_now()` is the one call site permitted to read the real
+# clock; every other module must receive its clock through an injected
+# parameter. A plain textual grep for `datetime.now`/`datetime.utcnow`/
+# `time.time()` misses `datetime.today()`, `date.today()`, `time.time_ns()`,
+# `pandas.Timestamp.now()/.today()/.utcnow()`, an aliased import
+# (`import datetime as _dt`, `from datetime import datetime as dt`,
+# `from time import time`), and a bare, uncalled reference such as
+# `field(default_factory=datetime.now)`. This scan catches all of those by
+# resolving each file's own import aliases and walking every `ast.Attribute`
+# node, not only ones a `Call` wraps.
+#
+# Known gap, not covered here: a clock read hidden inside a string literal
+# passed to a constructor (`pd.Timestamp("now")`, `pd.to_datetime("today")`,
+# `np.datetime64("now")`). Grepped `src/` for these directly: none exist
+# today. This scan cannot see that shape at all; it is not silently treated
+# as covered.
+# ---------------------------------------------------------------------------
+
+_FORBIDDEN_CLOCK_ATTRS: dict[str, frozenset[str]] = {
+    "datetime": frozenset({"now", "utcnow", "today"}),
+    "date": frozenset({"today"}),
+    "Timestamp": frozenset({"now", "today", "utcnow"}),
+    "time_module": frozenset({"time", "time_ns"}),
+}
+_TIME_DURATION_EXEMPT = frozenset({"monotonic", "perf_counter"})
+_ALLOWED_CLOCK_READ_PATHS = frozenset({Path("core/clock.py"), Path("utils/logger_util.py")})
+
+
+def _clock_import_aliases(tree: ast.Module) -> dict[str, str]:
+    """Map each local name one file's imports bind to a canonical clock-related target.
+
+    Values are one of ``"module:datetime"``, ``"module:time_module"``, ``"module:pandas"``,
+    ``"class:datetime"``, ``"class:date"``, ``"class:Timestamp"``, or
+    ``"boundfunc:time_module.time"``/``"boundfunc:time_module.time_ns"``. A name this file
+    imports for an unrelated reason is simply absent.
+    """
+    aliases: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                local = alias.asname or alias.name.split(".")[0]
+                if alias.name == "datetime":
+                    aliases[local] = "module:datetime"
+                elif alias.name == "time":
+                    aliases[local] = "module:time_module"
+                elif alias.name == "pandas":
+                    aliases[local] = "module:pandas"
+        elif isinstance(node, ast.ImportFrom) and node.module is not None:
+            for alias in node.names:
+                local = alias.asname or alias.name
+                if node.module == "datetime" and alias.name in ("datetime", "date"):
+                    aliases[local] = f"class:{alias.name}"
+                elif node.module == "time" and alias.name in ("time", "time_ns"):
+                    aliases[local] = f"boundfunc:time_module.{alias.name}"
+                elif node.module == "pandas" and alias.name == "Timestamp":
+                    aliases[local] = "class:Timestamp"
+    return aliases
+
+
+def _dotted_chain(node: ast.expr) -> tuple[str, ...] | None:
+    """Return ``(root_name, *attrs)`` for a `Name`/`Attribute` chain, or ``None`` otherwise."""
+    attrs: list[str] = []
+    current = node
+    while isinstance(current, ast.Attribute):
+        attrs.append(current.attr)
+        current = current.value
+    if not isinstance(current, ast.Name):
+        return None
+    return (current.id, *reversed(attrs))
+
+
+def _is_forbidden_attribute_read(target: str, rest: tuple[str, ...], attr: str) -> bool:
+    """Return whether an ``Attribute`` chain resolving to *target* reads a forbidden clock."""
+    if target == "module:datetime":
+        return len(rest) >= 2 and rest[0] in _FORBIDDEN_CLOCK_ATTRS and attr in _FORBIDDEN_CLOCK_ATTRS[rest[0]]
+    if target == "module:time_module":
+        return attr in _FORBIDDEN_CLOCK_ATTRS["time_module"] and attr not in _TIME_DURATION_EXEMPT
+    if target == "module:pandas":
+        return len(rest) >= 2 and rest[0] == "Timestamp" and attr in _FORBIDDEN_CLOCK_ATTRS["Timestamp"]
+    if target.startswith("class:"):
+        cls = target.removeprefix("class:")
+        return attr in _FORBIDDEN_CLOCK_ATTRS.get(cls, frozenset())
+    return False
+
+
+def _is_forbidden_bound_function_read(target: str) -> bool:
+    """Return whether a bare `Name` reference resolving to *target* reads a forbidden clock."""
+    if not target.startswith("boundfunc:"):
+        return False
+    bound = target.removeprefix("boundfunc:")
+    return not bound.endswith((".monotonic", ".perf_counter"))
+
+
+def _clock_read_violations_in_module(tree: ast.Module) -> list[str]:
+    """Return one description per forbidden wall-clock read found in *tree*."""
+    aliases = _clock_import_aliases(tree)
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute):
+            chain = _dotted_chain(node)
+            if chain is None:
+                continue
+            root, *rest = chain
+            target = aliases.get(root)
+            if target is not None and _is_forbidden_attribute_read(target, tuple(rest), node.attr):
+                violations.append(f"{'.'.join(chain)} (line {node.lineno})")
+        elif isinstance(node, ast.Name):
+            target = aliases.get(node.id)
+            if target is not None and _is_forbidden_bound_function_read(target):
+                bound = target.removeprefix("boundfunc:")
+                violations.append(f"bare `{node.id}` (aliases {bound}, line {node.lineno})")
+    return violations
+
+
+def _clock_read_violations_in_src() -> list[str]:
+    """Return one description per forbidden wall-clock read anywhere under ``src/``."""
+    violations: list[str] = []
+    for path in sorted(_SRC_ROOT.rglob("*.py")):
+        if path.relative_to(_SRC_ROOT) in _ALLOWED_CLOCK_READ_PATHS:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        relative_path = path.relative_to(_REPO_ROOT)
+        violations.extend(f"{relative_path}: {violation}" for violation in _clock_read_violations_in_module(tree))
+    return violations
+
+
+def test_no_bare_clock_reads_outside_the_shared_helper() -> None:
+    """Item 5: only two modules read the real wall clock.
+
+    ``src/core/clock.py`` and the named ``logger_util.py`` exemption; every other module
+    receives its clock through an injected parameter.
+    """
+    violations = _clock_read_violations_in_src()
+    assert not violations, "Bare wall-clock reads outside src/core/clock.py:\n" + "\n".join(violations)
+
+
+@pytest.mark.parametrize(
+    ("snippet", "expect_violation"),
+    [
+        ("import datetime as _dt\ndef f():\n    return _dt.datetime.now()\n", True),
+        ("from datetime import datetime as dt\ndef f():\n    return dt.now()\n", True),
+        ("import pandas as pd\ndef f():\n    return pd.Timestamp.now()\n", True),
+        ("from datetime import date\ndef f():\n    return date.today()\n", True),
+        ("from datetime import datetime\ndef f():\n    return datetime.today()\n", True),
+        ("import time\ndef f():\n    return time.time_ns()\n", True),
+        (
+            "from datetime import datetime\nfrom dataclasses import field\nx = field(default_factory=datetime.now)\n",
+            True,
+        ),
+        ("from time import time\ndef f():\n    return time()\n", True),
+        ("import time\ndef f():\n    return time.monotonic()\n", False),
+        ("import time\ndef f():\n    return time.perf_counter()\n", False),
+    ],
+)
+def test_clock_scan_self_test(snippet: str, expect_violation: bool) -> None:
+    """The scan itself fires on every pattern it claims to catch, and only those."""
+    tree = ast.parse(snippet)
+    violations = _clock_read_violations_in_module(tree)
+    assert bool(violations) is expect_violation, violations
+
+
+def test_clock_scan_covers_more_than_zero_files() -> None:
+    """An empty or broken file glob must not silently pass as "no violations"."""
+    assert sum(1 for _ in _SRC_ROOT.rglob("*.py")) > 0
