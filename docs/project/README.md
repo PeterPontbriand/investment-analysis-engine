@@ -16,6 +16,7 @@ history. Update the owner instead of copying status into indexes or other guides
 - [Master Plan](MASTER_PLAN.md) — project direction, milestone ordering, and long-term scope.
 - [Evidence Provider Roadmap](EVIDENCE_PROVIDER_ROADMAP.md) — non-authoritative candidate backlog of future strategies and platform features; the Master Plan and implementation plan remain authoritative for scope and sequencing.
 - [Architecture](ARCHITECTURE.md) — current architectural boundaries and approved target seams.
+- [Analysis Strategy Contributor Guide](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md) — how a strategy fits into the code: the analyzer contract, execution/capture flow, and what's strategy-specific versus shared.
 - [Discovery Workbook](DISCOVERY_WORKBOOK.md) — rationale, alternatives, decisions, and product/engineering context.
 - [Evaluations & Golden Suite](../EVALUATIONS.md) — Step 2.5 benchmark purpose, execution modes, scoring boundaries, fixtures, and maintenance rules.
 - [Step 2.5 Golden Suite Slice Plan](milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md) — component contracts and local review gates.
@@ -27,7 +28,7 @@ history. Update the owner instead of copying status into indexes or other guides
 - [Step 2.5A A0 Identity/Security-Unit Boundary Review](milestones/v0.2/step-2.5a/STEP_2_5A_A0_REVIEW.md) — bounded identity/unit correction, fail-closed preservation, deterministic proof, and complete quality-gate evidence.
 - [Step 2.5A Slice E Closeout Verification Record](milestones/v0.2/step-2.5a/STEP_2_5A_E_CLOSEOUT.md) — final approved scope, explicit deferrals, deterministic Golden result, and complete repository gate.
 - [Step 2.6 Reliability Limits Slice Plan](milestones/v0.2/step-2.6/STEP_2_6_RELIABILITY_SLICE_PLAN.md) — reliability contracts and verification evidence.
-- [Milestone plans](milestones) — implementation plans plus step/slice specifications for each milestone.
+- [Milestone plans](milestones/README.md) — index of implementation plans plus step/slice specifications for each milestone.
 - [`deploy/`](deploy) — deployment/configuration artifacts intended for project development and review.
 
 User-facing financial semantics remain authoritative in:

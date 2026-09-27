@@ -6,6 +6,7 @@ This document explains system boundaries, data ownership and explicitly labeled 
 **Active implementation detail:** `milestones/v0.2/IMPLEMENTATION_PLAN.md`<br/>
 **Step 2.3 implementation specification:** `milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Rationale:** `docs/project/DISCOVERY_WORKBOOK.md`<br/>
+**Adding a strategy:** `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`<br/>
 
 For work-package sequencing and status, see the [milestone table](milestones/v0.2/IMPLEMENTATION_PLAN.md#sequence-and-status).
 
