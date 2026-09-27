@@ -1,6 +1,6 @@
 # Investment Analysis Engine Architecture
 
-This document explains system boundaries, data ownership and explicitly labeled target designs.
+This document explains system boundaries, data ownership, and execution flow. Content describes current behavior unless it appears in *Planned work*, which is the only place a not-yet-built item is described.
 
 **Related roadmap:** `docs/project/MASTER_PLAN.md`<br/>
 **Active implementation detail:** `milestones/v0.2/IMPLEMENTATION_PLAN.md`<br/>
@@ -32,8 +32,6 @@ For work-package sequencing and status, see the [milestone table](milestones/v0.
 - **Bounded agentic behavior:** User-initiated refresh may execute independent analysis jobs concurrently. Daemons, unattended scheduling, proactive monitoring, and notifications remain later autonomy work.
 - **Deterministic, versioned investor-report projection:** A stored Analysis Run is projected into an investor report without provider access, LLM synthesis, financial recalculation, or current-state enrichment. The projection contract has its own explicit version, independent of strategy method and result-schema versions.
 - **One clock per run:** Time-dependent decisions use injected clocks derived from `executed_at`; see [*Time and the analysis boundary*](#3-time-and-the-analysis-boundary).
-
-Everything outside this document's *Planned work* section describes current behavior; nothing else in this document carries a per-item current/planned label.
 
 ---
 
@@ -277,75 +275,23 @@ Do not rewrite the runtime around a model-specific assumption merely to make one
 
 ---
 
-## 6. Module layout
+## 6. Module boundaries
 
 Strategy implementations live under `src/analysis/strategy/`. Shared financial-resolution helpers (`shared/financial_resolution.py`) own strategy-neutral mechanics such as EPS/quote resolution, the price-relationship comparison, and ticker normalization; callers supply strategy-specific messages. Graham Number and Graham Growth Value are two fully independent strategies with no shared Graham-specific base — each owns its own config, selection, EPS-basis acceptance rule and defaults, calculation, and result type; the only Graham-adjacent code either strategy imports is the genuinely neutral, provider-facing `data/financial/eps_basis.py`. Each strategy package exports its own analyzer, configuration, calculation/resolver, and service contracts through `__init__.py`; Momentum and FCF Growth retain their distinct interfaces and internal layouts.
 
-Relevant current packages include:
+This is a package-level map, not a generated file listing — it names what each top-level `src/` package owns, not every file in it:
 
-```text
-src/
-├── analysis/
-│   ├── base_analyzer.py
-│   ├── shared/
-│   │   └── financial_resolution.py
-│   └── strategy/
-│       ├── momentum/
-│       │   └── momentum_analyzer.py
-│       ├── fcf_earnings_growth/
-│       │   ├── analyzer.py
-│       │   ├── calculators.py
-│       │   ├── input_resolver.py
-│       │   └── models.py
-│       ├── graham_number/
-│       │   ├── analyzer.py
-│       │   ├── calculation.py
-│       │   ├── config.py
-│       │   └── service.py
-│       └── graham_growth/
-│           ├── analyzer.py
-│           ├── calculation.py
-│           ├── config.py
-│           └── service.py
-├── core/
-│   └── telemetry/
-├── data/
-│   ├── base_client.py
-│   ├── instrument_profile.py
-│   ├── instrument_profile_cache.py
-│   ├── repositories/
-│   │   ├── sqlite.py
-│   │   ├── schema.py
-│   │   ├── migrations.py
-│   │   ├── market_data.py
-│   │   ├── resolved_input_cache.py
-│   │   ├── instrument_profiles.py
-│   │   └── trajectory.py
-│   ├── massive/
-│   │   └── valuation.py
-│   ├── sec_edgar/
-│   │   └── valuation.py
-│   ├── valuation/
-│   │   ├── facts.py
-│   │   ├── production.py
-│   │   ├── provenance.py
-│   │   ├── providers.py
-│   │   └── resolver.py
-│   └── yfinance/
-│       ├── client.py
-│       └── valuation.py
-├── reporting/
-│   ├── graham_number.py
-│   ├── graham_growth.py
-│   ├── valuation_presentation.py
-│   ├── fcf_earnings_growth.py
-│   ├── momentum.py
-│   └── presentation.py
-├── llm/
-├── orchestrator/
-├── tools/
-└── utils/
-```
+- `src/analysis/` — the generic `BaseAnalyzer`/`AnalysisContext` contract, plus each strategy's own package under `strategy/`.
+- `src/core/` — the shared clock (`clock.py`), core result/status types, and trajectory telemetry.
+- `src/data/` — provider contracts and adapters (`base_client.py`, `market_data.py`, `sec_edgar/`, `massive/`, `yfinance/`), financial provenance and resolution (`financial/`), instrument identity/profiles, and SQLite repositories under `repositories/`.
+- `src/evaluation/` — the Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting.
+- `src/llm/` — the local-model client.
+- `src/orchestrator/` — LLM tool selection/dispatch and the analysis-tool handlers registered on it.
+- `src/reporting/` — direct strategy presenters and saved-run report projections.
+- `src/schema/` — structured-output schema constraints and validation.
+- `src/tools/` — the tool-dispatch protocol and argument-schema generation.
+- `src/utils/` — logging and worker/concurrency helpers.
+- `src/workspace/` — validated selections, strategy execution adapters, run capture, watchlists, and refresh.
 
 The provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. Production SQLite persistence is implemented under `src/data/repositories/`; callers consume typed domain objects rather than SQL rows.
 
@@ -619,11 +565,8 @@ for target selection, error recovery and installation/platform limits.
 - Keep calculators free of provider/cache/CLI I/O.
 - Enforce requested `as_of` as an information boundary; do not substitute later current facts.
 - Do not claim a production AAA-yield series until its identity, semantics, availability, and integration are explicitly approved.
-- Do not build Step 2.5 evaluator/reporting work during Steps 2.3–2.4.
-- Do not build Step 3.1 production persistence/cache during Step 2.3/2.4.
 - Do not use operational logger lines as the primary investor-facing result renderer.
 - Do not force heterogeneous strategies into one generic result object merely for presentation.
-- Do not pull Step 3.4 watchlists/Analysis Run persistence into Step 2.3.
 - Do not build a daemon, scheduler, proactive-monitoring service, notification system, full-screen TUI, or executive-report generator before the roadmap step that owns it.
 - Keep application persistence SQL in `src/data/repositories/`; migration DDL and test setup/assertion SQL retain their established owners.
 - Run Ruff, `mypy --strict`, and pytest according to the active milestone plan.
