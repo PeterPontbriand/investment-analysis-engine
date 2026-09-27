@@ -264,6 +264,7 @@ Fixture-backed data capabilities prove the historical-price and financial-fact c
 - deterministic;
 - historical data for Momentum;
 - quote, EPS history/TTM EPS, BVPS facts/components, and AAA-yield observations for Graham;
+- annual operating-cash-flow, CapEx, and diluted-EPS series for FCF & Earnings Growth;
 - override/cache/provider/unavailable resolution branches;
 - realistic reporting, availability, `as_of`, and retrieval metadata;
 - explicit failure when data is absent;
