@@ -163,14 +163,14 @@ tolerance cannot hide that kind of defect.
 
 ## 6. Analysis strategies: the boundary
 
-Every current analyzer implements `BaseAnalyzer[ConfigT, ResultT]` and is invoked identically — `run_analysis(ticker, config, context)` — but that is the full extent of what strategies share by contract. What a strategy owns:
+Every current analyzer implements `BaseAnalyzer[ConfigT, ResultT]` and shares the same `run_analysis(ticker, config, context)` signature — that shared signature is the full extent of what strategies share by contract. Each strategy's own execution adapter composes and invokes it differently, as the [Analysis Strategy Contributor Guide](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md) documents. What a strategy owns:
 
 - its own configuration/policy model;
 - its own input resolution (which provider capabilities it needs, and how it resolves them);
 - its own deterministic calculation;
 - its own typed result and metrics.
 
-What every strategy shares instead of rebuilding: `BaseAnalyzer` and `AnalysisContext`, the provider/cache contracts and `ResolvedInput`/`ResolutionTrace` provenance model, the shared `MetricResult` outcome type, workspace execution and Analysis Run persistence, and the concise/details/diagnostics/JSON presentation grammar. A strategy that needs a concern one of these doesn't cover extends its own layer first; nothing here is a reason to build a second, strategy-specific version of shared infrastructure.
+What every strategy shares instead of rebuilding: `BaseAnalyzer` and `AnalysisContext`, the provider/cache contracts and `ResolvedInput`/`ResolutionTrace` provenance model, workspace execution and Analysis Run persistence, and the concise/details/diagnostics/JSON presentation grammar. `MetricResult` is a per-metric outcome convention Momentum and FCF & Earnings Growth both use, not a type every strategy is required to return. When a strategy needs something none of these shared layers cover, it extends its own layer first; nothing here is a reason to build a second, strategy-specific version of shared infrastructure.
 
 No two strategies share a strategy-specific base beyond `BaseAnalyzer` itself: each owns its config, resolver, calculation, and result type independently, and a resolver pattern used by one strategy — such as evidence truncated to `effective_as_of` and recorded as a `ResolutionTrace` — is a convention other strategies may follow, not a shared class they inherit.
 
