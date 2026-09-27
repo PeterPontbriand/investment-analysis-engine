@@ -1,12 +1,13 @@
 # Investment Analysis Engine Architecture
 
+## 1. Purpose and how to read this document
+
 This document explains system boundaries, data ownership, and execution flow. Content describes current behavior unless it appears in [*Planned work*](#12-planned-work), which is the only place a not-yet-built item is described.
 
-**Related roadmap:** `docs/project/MASTER_PLAN.md`<br/>
-**Active implementation detail:** `milestones/v0.2/IMPLEMENTATION_PLAN.md`<br/>
-**Step 2.3 implementation specification:** `milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`<br/>
-**Rationale:** `docs/project/DISCOVERY_WORKBOOK.md`<br/>
-**Adding a strategy:** `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`<br/>
+**Related roadmap:** [MASTER_PLAN.md](MASTER_PLAN.md)<br/>
+**Active implementation detail:** [milestones/v0.2/IMPLEMENTATION_PLAN.md](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>
+**Rationale:** [DISCOVERY_WORKBOOK.md](DISCOVERY_WORKBOOK.md)<br/>
+**Adding a strategy:** [ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md)<br/>
 
 For work-package sequencing and status, see the [milestone table](milestones/v0.2/IMPLEMENTATION_PLAN.md#sequence-and-status).
 
