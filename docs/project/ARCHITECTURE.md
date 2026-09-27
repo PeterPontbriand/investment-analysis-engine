@@ -454,7 +454,7 @@ Do not rewrite the runtime around a model-specific assumption merely to make one
 
 ### Golden-Suite architecture
 
-The production orchestration seam exposes four explicit handlers in `src/orchestrator/analysis_tools.py`: Momentum, Graham Number, Graham growth value, and Free Cash Flow & Earnings Growth. `register_analysis_tools(...)` registers them on the existing `AsyncToolDispatcher` using injected analyzers, resolvers, provider selections, calculation policy, and clock. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. Tool argument schemas are derived from the strict Pydantic models in `ANALYSIS_TOOL_ARGUMENT_MODELS`; successful calls retain each strategy's native typed execution result.
+The production orchestration seam exposes one explicit handler per strategy (see [*Analysis strategies: the boundary*](#6-analysis-strategies-the-boundary)) in `src/orchestrator/analysis_tools.py`. `register_analysis_tools(...)` registers them on the existing `AsyncToolDispatcher` using injected analyzers, resolvers, provider selections, calculation policy, and clock. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. Tool argument schemas are derived from the strict Pydantic models in `ANALYSIS_TOOL_ARGUMENT_MODELS`; successful calls retain each strategy's native typed execution result.
 
 ```text
 Golden Case
@@ -549,11 +549,9 @@ Private model reasoning is never reconstructed.
 
 ## 13. Module boundaries
 
-Strategy implementations live under `src/analysis/strategy/`. Shared financial-resolution helpers (`shared/financial_resolution.py`) own strategy-neutral mechanics such as EPS/quote resolution, the price-relationship comparison, and ticker normalization; callers supply strategy-specific messages. Graham Number and Graham Growth Value are two fully independent strategies with no shared Graham-specific base — each owns its own config, selection, EPS-basis acceptance rule and defaults, calculation, and result type; the only Graham-adjacent code either strategy imports is the genuinely neutral, provider-facing `data/financial/eps_basis.py`. Each strategy package exports its own analyzer, configuration, calculation/resolver, and service contracts through `__init__.py`; Momentum and FCF Growth retain their distinct interfaces and internal layouts.
-
 This is a package-level map, not a generated file listing — it names what each top-level `src/` package owns, not every file in it:
 
-- `src/analysis/` — the generic `BaseAnalyzer`/`AnalysisContext` contract, plus each strategy's own package under `strategy/`.
+- `src/analysis/` — the generic `BaseAnalyzer`/`AnalysisContext` contract, each strategy's own package under `strategy/`, and strategy-neutral helpers shared across those packages (`shared/financial_resolution.py`: EPS/quote resolution, price-relationship comparison, ticker normalization).
 - `src/core/` — the shared clock (`clock.py`), core result/status types, and trajectory telemetry.
 - `src/data/` — provider contracts and adapters (`base_client.py`, `market_data.py`, `sec_edgar/`, `massive/`, `yfinance/`), financial provenance and resolution (`financial/`), instrument identity/profiles, and SQLite repositories under `repositories/`.
 - `src/evaluation/` — the Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting.
