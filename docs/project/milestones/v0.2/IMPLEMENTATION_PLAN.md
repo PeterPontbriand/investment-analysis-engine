@@ -137,7 +137,7 @@ approval. Follow the linked contract for local gates and scope changes.
 
 Trajectory logging separates typed, fail-open execution telemetry from operational logging. Retain provider-reported metrics, sanitize payloads before hashing/persistence, and preserve ordered span linkage.
 
-See [Architecture](../../ARCHITECTURE.md#8-logging-and-telemetry-boundary) and the [telemetry verification contract](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md).
+See [Architecture](../../ARCHITECTURE.md#9-logging-and-telemetry-boundary) and the [telemetry verification contract](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md).
 
 ### 4.2 Step 2.2 – Native Schema Enforcement
 

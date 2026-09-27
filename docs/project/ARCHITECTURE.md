@@ -30,6 +30,7 @@ For work-package sequencing and status, see the [milestone table](milestones/v0.
 15. **Analysis Run is a product-domain record:** Step 3.4 persists requested analysis/config/result/provenance history separately from telemetry `RunContext`; reports/views render that record.
 16. **Bounded v0.2 agentic behavior:** User-initiated refresh may execute independent analysis jobs concurrently. Daemons, unattended scheduling, proactive monitoring, and notifications remain later autonomy work.
 17. **Deterministic, versioned investor-report projection:** A stored Analysis Run is projected into an investor report without provider access, LLM synthesis, financial recalculation, or current-state enrichment. The projection contract has its own explicit version, independent of strategy method and result-schema versions.
+18. **One clock per run:** Time-dependent decisions use injected clocks derived from `executed_at`; see [*Time and the analysis boundary*](#3-time-and-the-analysis-boundary).
 
 ---
 
@@ -76,7 +77,78 @@ For work-package sequencing and status, see the [milestone table](milestones/v0.
 
 The presentation boundary is intentionally downstream of deterministic calculation and provenance. Step 3.4 later persists Analysis Runs and renders them through the same presentation contract rather than recalculating merely to display historical results.
 
-## 3. Core entities and boundaries
+## 3. Time and the analysis boundary
+
+Every time-dependent decision in the data layer ("is this cached value still fresh?", "had this
+filing been published yet?") is made against one of three well-defined instants, never against
+an ad-hoc read of the wall clock. The helpers and the tolerance constant live in
+`src/core/clock.py`.
+
+### The three instants
+
+- **`executed_at`: when the run happens.** The composition root reads the wall clock once, via
+  `utc_now()`, at the start of each analysis (a watchlist refresh takes a separate reading for
+  each analysis it runs) and threads the value down through `AnalysisContext`. It is never
+  re-read mid-run, so every decision within one analysis sees the same instant.
+
+- **`as_of`: the date the analysis is about, if the user asked for one.** Supplied with
+  `--as-of`, it asks for the analysis as it could have been performed at that earlier point: only
+  information that was publicly available by then may be used, even though the run itself happens
+  later. When no `--as-of` is given, `as_of` is `None`, meaning "as of right now": a *live* run.
+  Requests carry `as_of` down unchanged, `None` included, because `as_of is None` is the only way
+  the data layer can tell a live run from a historical one, and the two behave differently:
+  - live runs tolerate frozen-clock skew and historical runs don't (see below);
+  - requests for current data keep stable cache keys across live runs;
+  - historical runs omit current quotes rather than compare a past valuation with today's price.
+
+  Never fill in a missing `as_of` with a substitute value before passing it on. Code that needs a
+  concrete instant uses the analysis boundary instead.
+
+- **The analysis boundary: the instant eligibility is judged against.** It answers "was this
+  information knowable by then?" For a historical run it is `as_of`. A live run has no requested
+  date, so its boundary is `executed_at`, the latest instant the run can know anything about.
+  Compute it with `effective_as_of(as_of, executed_at)` from `src/core/clock.py`, which
+  `AnalysisContext.effective_as_of` also uses. Don't re-derive it inline, so there is exactly one
+  definition. Because the boundary is always a concrete instant, it cannot tell you whether a run
+  is live; check `as_of is None` for that.
+
+### Reading the wall clock
+
+`utc_now()` is the only permitted read of the real wall clock in `src/`. The single exception is
+log-rotation timing in `src/utils/logger_util.py`. A structural conformance test in
+`tests/analysis/test_base_analyzer_conformance.py` enforces this. Everything else receives its
+clock by injection, and which clock depends on what it is used for:
+
+- A **decision clock** determines an outcome: cache or TTL freshness, a quality or eligibility
+  check. It is a required constructor parameter with no default, and composition roots pass
+  `lambda: executed_at`. A default would let a forgotten wire silently fall back to the wall
+  clock, making one decision in a run use a different "now" from every other.
+- An **event clock** only records when something happened: a row written, a provider response
+  received. It defaults to `utc_now` and is injected only in tests.
+
+### Which instant to compare against
+
+- Freshness and TTL ("is this still recent enough?") compare against `executed_at`.
+- Point-in-time eligibility ("was this knowable by then?") compares against the analysis
+  boundary.
+
+### Frozen-clock skew
+
+In a live run, `executed_at` is fixed at the start, but provider timestamps (a quote's retrieval
+time, a market observation, a fact's availability time) are stamped later, when each fetch
+completes. A timestamp slightly after `executed_at` is therefore normal in a live run, not a data
+problem. The timestamp-versus-boundary checks in `src/data/quality.py` (`evaluate_freshness`,
+the single owner of these comparisons in the resolver) and the retrieval-age check in
+`src/data/financial/quote_freshness.py` accept up to `FROZEN_CLOCK_SKEW_TOLERANCE` of it.
+
+A historical run accepts none: a timestamp after an explicitly requested `as_of` is look-ahead,
+and must fail. The tolerance is ten minutes. A timezone misconfiguration, such as local time
+mistaken for UTC, produces an error of at least 30 minutes for any real-world UTC offset, so the
+tolerance cannot hide that kind of defect.
+
+---
+
+## 4. Core entities and boundaries
 
 ### `BaseAnalyzer`
 Existing abstract analysis boundary. A strategy owns:
@@ -192,7 +264,7 @@ Telemetry records observable execution evidence and does not provide benchmark g
 
 ---
 
-## 4. Structured-output boundary
+## 5. Structured-output boundary
 
 Step 2.2 establishes structured-output enforcement with layered defenses:
 
@@ -205,7 +277,7 @@ Do not rewrite the runtime around a model-specific assumption merely to make one
 
 ---
 
-## 5. Module layout
+## 6. Module layout
 
 Strategy implementations live under `src/analysis/strategy/`. Shared financial-resolution helpers (`shared/financial_resolution.py`) own strategy-neutral mechanics such as EPS/quote resolution, the price-relationship comparison, and ticker normalization; callers supply strategy-specific messages. Graham Number and Graham Growth Value are two fully independent strategies with no shared Graham-specific base — each owns its own config, selection, EPS-basis acceptance rule and defaults, calculation, and result type; the only Graham-adjacent code either strategy imports is the genuinely neutral, provider-facing `data/financial/eps_basis.py`. Each strategy package exports its own analyzer, configuration, calculation/resolver, and service contracts through `__init__.py`; Momentum and FCF Growth retain their distinct interfaces and internal layouts.
 
@@ -323,7 +395,7 @@ This storage layer does not introduce watchlists, investor Analysis Runs, new
 cache invalidation rules, or a second audit log. Those remain distinct product
 and policy concerns.
 
-## 6. Data flow and persistence boundaries
+## 7. Data flow and persistence boundaries
 
 The project distinguishes the financial execution flow:
 
@@ -371,7 +443,7 @@ evaluation result   ──► Golden evaluation artifact
 
 These stores/artifacts must not be collapsed merely because they can all be serialized. In particular, telemetry describes execution, while an Analysis Run is the durable investor-facing outcome of one requested analysis.
 
-## 7. Golden-Suite architecture (Step 2.5)
+## 8. Golden-Suite architecture (Step 2.5)
 
 The production orchestration seam exposes four explicit handlers in `src/orchestrator/analysis_tools.py`: Momentum, Graham Number, Graham growth value, and Free Cash Flow & Earnings Growth. `register_analysis_tools(...)` registers them on the existing `AsyncToolDispatcher` using injected analyzers, resolvers, provider selections, calculation policy, and clock. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. Tool argument schemas are derived from the strict Pydantic models in `ANALYSIS_TOOL_ARGUMENT_MODELS`; successful calls retain each strategy's native typed execution result.
 
@@ -408,7 +480,7 @@ request-building boundary so a mandatory gate can produce one auditable report.
 Test-local per-strategy invocations are supporting evidence, not a substitute for
 that complete-suite operation.
 
-### 7.1 SEC foreign-private-issuer seam (Step 2.5A implemented)
+### 8.1 SEC foreign-private-issuer seam (Step 2.5A implemented)
 
 The existing SEC adapter supports the reviewed FPI/IFRS slice without creating
 a parallel provider architecture:
@@ -463,7 +535,7 @@ The exact approved scope and deferrals are in the
 
 ---
 
-## 8. Logging and telemetry boundary
+## 9. Logging and telemetry boundary
 
 Operational logging, investor presentation, and trajectory telemetry remain separate:
 
@@ -484,7 +556,7 @@ Private model reasoning is never reconstructed.
 
 ---
 
-## 9. Failure and reliability boundary
+## 10. Failure and reliability boundary
 
 - Recoverable failures may enter a bounded retry/repair flow.
 - Non-recoverable failures halt with structured diagnostics.
@@ -543,7 +615,7 @@ The current migration bundle has only `0001_persistence`; older-schema support
 is verified with synthetic history. See [Local Database Operations](../user/DATABASE.md)
 for target selection, error recovery and installation/platform limits.
 
-## 10. Development guardrails
+## 11. Development guardrails
 
 - Preserve existing behavior outside the active step.
 - Use the smallest change that satisfies the current milestone plan.
@@ -560,3 +632,4 @@ for target selection, error recovery and installation/platform limits.
 - Do not build a daemon, scheduler, proactive-monitoring service, notification system, full-screen TUI, or executive-report generator before the roadmap step that owns it.
 - Keep application persistence SQL in `src/data/repositories/`; migration DDL and test setup/assertion SQL retain their established owners.
 - Run Ruff, `mypy --strict`, and pytest according to the active milestone plan.
+- Never read the wall clock directly; use an injected clock (see [*Time and the analysis boundary*](#3-time-and-the-analysis-boundary)).
