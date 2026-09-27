@@ -203,7 +203,7 @@ Provider Adapter Boundary
         ┌─────────────┴─────────────┐                                     │
         ▼                           ▼                                     │
 method-specific Graham        FCF annual-series                           │
-resolver ◄── override/cache   resolver ◄── override/cache                 │
+resolver ◄── override/cache   resolver ◄── cache                          │
         │                           │                                     │
         ▼                           ▼                                     │
   resolved inputs             resolved inputs                             │
