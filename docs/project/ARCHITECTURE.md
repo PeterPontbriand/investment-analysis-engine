@@ -1,561 +1,156 @@
 # Investment Analysis Engine Architecture
 
-This document explains system boundaries, data ownership and explicitly labeled target designs.
+This document describes the system's current boundaries, data ownership, and execution flow.
 
-**Related roadmap:** `docs/project/MASTER_PLAN.md`<br/>
-**Active implementation detail:** `milestones/v0.2/IMPLEMENTATION_PLAN.md`<br/>
-**Step 2.3 implementation specification:** `milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`<br/>
-**Rationale:** `docs/project/DISCOVERY_WORKBOOK.md`<br/>
+## Architectural invariants
 
-For work-package sequencing and status, see the [milestone table](milestones/v0.2/IMPLEMENTATION_PLAN.md#sequence-and-status).
+1. **Deterministic analysis:** Python performs calculations, validation, data processing, and persistence. The language model selects registered tools and synthesizes results.
+2. **Typed boundaries:** Requests, analyzer configurations, results, provider facts, and persisted records use explicit typed contracts.
+3. **Heterogeneous strategies:** Strategies keep their own inputs, configuration, policies, calculations, and result types.
+4. **Shared analyzer contract:** Current analyzers implement `BaseAnalyzer[ConfigT, ResultT]` and receive an `AnalysisContext`; this common invocation shape does not impose a common financial result model.
+5. **Narrow provider capabilities:** Historical prices, financial facts, quotes, identity evidence, and macro observations are distinct capabilities.
+6. **Time-bounded provenance:** Resolved inputs retain source, period, availability and retrieval times, transformations, cache/override state, and the requested analysis boundary where applicable.
+7. **Presentation without homogenization:** Strategy results retain their native types while sharing investor-facing presentation conventions.
+8. **Persistence has a product boundary:** `AnalysisRun` records an analysis outcome. It is separate from trajectory telemetry and market-data storage.
+9. **Telemetry is observational:** Telemetry failures do not change business execution semantics.
+10. **Historical reports are reproducible:** A stored result is rendered from its persisted evidence without provider access, financial recalculation, or LLM synthesis.
 
----
-
-## 1. Architectural invariants
-
-1. **LLM orchestration, deterministic execution:** The LLM plans/selects tools and synthesizes results; Python performs calculations, validation, data processing, and persistence.
-2. **Typed boundaries:** Tool/analyzer/data inputs and outputs are explicitly typed at application boundaries.
-3. **Heterogeneous strategies:** Different financial strategies may have different config/data/result shapes. The architecture must not impose one strategy's data or result shape on other strategies.
-4. **No speculative strategy framework:** Reuse the existing `BaseAnalyzer` and current tool-dispatch flow unless implementation proves a new abstraction is necessary.
-5. **Provider isolation:** Historical-price access remains behind `BaseDataClient`; Step 2.3 financial facts use a dedicated provider/resolution boundary rather than enlarging a price-history-shaped interface.
-6. **Historical prices, quotes, fundamentals, and macro series are distinct capabilities:** A composed valuation façade may coordinate narrow providers, but no upstream service is assumed to supply every capability.
-7. **Evaluation is not persistence:** Golden fixtures, evaluation results, trajectory telemetry, and production market-data storage are separate concerns.
-8. **Local-LLM boundary:** The LLM cannot directly execute shell/code or access the external network. Registered data tools may perform controlled provider access.
-9. **Telemetry is observational:** Telemetry failures must not change business execution semantics.
-10. **Light Mode first:** Core useful analysis must remain viable under the documented Light Mode workflow.
-11. **Method-explicit financial semantics:** Distinct analysis methods retain explicit names, inputs, typed results, and limitations.
-12. **Time-bounded provenance:** Resolved inputs preserve source, reporting/observation and availability dates, transformations, cache/override state, and requested analysis `as_of`.
-13. **Presentation without homogenization:** Analysis strategies use a coherent investor-facing visual grammar while retaining their own typed result models.
-14. **Operational logs are not product UI:** User results are rendered by a presentation boundary; logs and trajectory telemetry remain diagnostics/execution evidence.
-15. **Analysis Run is a product-domain record:** Step 3.4 persists requested analysis/config/result/provenance history separately from telemetry `RunContext`; reports/views render that record.
-16. **Bounded v0.2 agentic behavior:** User-initiated refresh may execute independent analysis jobs concurrently. Daemons, unattended scheduling, proactive monitoring, and notifications remain later autonomy work.
-17. **Deterministic, versioned investor-report projection:** A stored Analysis Run is projected into an investor report without provider access, LLM synthesis, financial recalculation, or current-state enrichment. The projection contract has its own explicit version, independent of strategy method and result-schema versions.
-
----
-
-## 2. Current and near-term architecture
+## System structure
 
 ```text
-                        terminal / caller
-                              │
-               ┌──────────────┴──────────────┐
-               ▼                             ▼
-       direct analysis request        bounded orchestrator flow
-               │                             │
-               └──────────────┬──────────────┘
-                              ▼
-                    Tool / analysis dispatch
-                              │
-                  selected analysis method
-                              │
-                    typed input resolution
-                              │
-       ┌──────────────────────┼──────────────────────┐
-       ▼                      ▼                      ▼
- historical series     financial facts        quotes / macro data
-       │                      │                      │
- BaseDataClient       FinancialFactsProvider / narrow providers
-       └──────────────────────┬──────────────────────┘
-                              ▼
-                     typed strategy result
-                              │
-                              ▼
-               investor presentation boundary
-          concise · details · diagnostics · JSON
-                              │
-                 ┌────────────┴────────────┐
-                 ▼                         ▼
-          direct terminal view       Analysis Run library
-                                      (Step 3.4 target)
-                                             │
-                                             ▼
-                                later report/view formats
+                         terminal / caller
+                               │
+                 ┌─────────────┴─────────────┐
+                 ▼                           ▼
+       direct analysis request      bounded orchestrator flow
+                 │                           │
+                 └─────────────┬─────────────┘
+                               ▼
+                   CLI / analysis dispatch
+                               │
+                 method config + AnalysisContext
+                               │
+                               ▼
+                 BaseAnalyzer[ConfigT, ResultT]
+                               │
+                   strategy-specific resolver
+                               │
+             ┌─────────────────┼─────────────────┐
+             ▼                 ▼                 ▼
+      historical prices   financial facts    identity/profile
+      and market data       and quotes           evidence
+             └─────────────────┼─────────────────┘
+                               ▼
+                   typed strategy result
+                               │
+                 ┌─────────────┴─────────────┐
+                 ▼                           ▼
+         direct presentation      capture adapter → workspace
+                                                │
+                                                ▼
+                                         AnalysisRun store
+                                                │
+                                                ▼
+                                      saved-run presentation
 ```
 
-`BaseAnalyzer` remains the existing common analyzer abstraction where applicable. The diagram does **not** imply a new strategy registry, plugin system, factory hierarchy, or unified strategy-result model.
+Direct output and saved-run output use presentation boundaries. Data providers, calculators, execution capture, and persistence remain separate responsibilities.
 
-The presentation boundary is intentionally downstream of deterministic calculation and provenance. Step 3.4 later persists Analysis Runs and renders them through the same presentation contract rather than recalculating merely to display historical results.
+## Analyzer contract and execution context
 
-## 3. Core entities and boundaries
+[`BaseAnalyzer[ConfigT, ResultT]`](../../src/analysis/base_analyzer.py) defines the abstract invocation `run_analysis(ticker, config, context) -> result`. Its type variables are unconstrained so each strategy can use an appropriate typed configuration and result.
 
-### `BaseAnalyzer`
-Existing abstract analysis boundary. A strategy owns:
-- its configuration model;
-- deterministic calculation;
-- typed result/metrics;
-- only the data capabilities it actually requires.
+`AnalysisContext` is a frozen per-run value object:
 
-### `MomentumAnalyzer`
-Deterministic SMA/crossover/RSI analyzer. `MomentumInputResolver` consumes the provider-neutral `MarketDataProvider` boundary, applies strict `bar_timestamp <= effective_as_of` truncation before calculation, wraps retained closes in `ResolvedInput` provenance, and records a `ResolutionTrace`. `MomentumPolicy` owns the short/long/RSI defaults. SMA and RSI availability is exposed through standard `MetricResult` values with `insufficient_history` reason codes while compatibility views preserve the existing optional numeric fields.
+- `as_of` is the requested point-in-time boundary, or `None` when no boundary was requested.
+- `executed_at` is the timezone-aware execution clock captured once for the analysis.
+- `effective_as_of` is `as_of` when supplied and otherwise `executed_at`. Analysis inputs must respect this information cutoff.
+- `use_cache` controls cache reads and writes used for the run. Cache freshness is judged relative to execution time, separately from the requested historical boundary.
+- `instrument_profile` optionally carries the run's identity evidence. Results retain the profile when present, whether or not calculations use it.
 
-### Graham analysis (Step 2.3 implemented through F2)
-The Graham family has two method identifiers:
+The workspace captures `started_at` and `completed_at` separately around its capture callable. Those persistence-envelope timestamps do not replace the analyzer context's `executed_at`.
 
-- `graham_number` — default screening-ceiling method using three-year-average EPS by default plus BVPS;
-- `graham_growth_value` — explicit secondary method using EPS, user-supplied expected growth under the current policy, and an explicit current AAA-yield input until a production series is approved.
+Current analyzers are:
 
-The implemented direct command is `ian graham TICKER [--method number|growth]`. Invalid cross-method combinations are rejected at the CLI boundary. Existing transitional flag aliases remain only where intentionally retained for compatibility.
+- **Momentum** — historical-price series and its own window policy, metrics, and `MomentumRun` result.
+- **Graham Number** — fundamental facts and quote comparison under its own configuration and `GrahamNumberAnalysis` result.
+- **Graham Growth Value** — its own valuation assumptions, inputs, and `GrahamGrowthAnalysis` result.
+- **Free Cash Flow & Earnings Growth** — annual company financial facts and its `FCFEarningsGrowthConfig` / `FCFEarningsGrowthResult` types.
 
-Graham is intentionally not required to return `TrendStatus` or consume a historical DataFrame merely to look like Momentum.
+The [Analysis Strategy Contributor Guide](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md) traces these boundaries through an implementation example.
 
-### Free Cash Flow & Earnings Growth analysis (Step 2.4 implemented through Slice F-1)
-`FCFEarningsGrowthAnalyzer` deterministically derives completed annual total-company FCF and FCF per diluted share, computes their CAGRs alongside diluted-EPS CAGR, and returns a versioned `FCFEarningsGrowthResult`. Its classification is `PASS`, `FAIL`, or `INDETERMINATE`, separate from software execution status.
+## Data providers and resolution
 
-`ProductionAnnualGrowthSeriesResolver` selects compatible, contiguous annual evidence under the requested `as_of` boundary. The default horizon policy prefers 5 elapsed years, then 4, then 3; explicit horizons are strict. Total-company FCF controls classification by default, while an explicit policy can select FCF per diluted share. Optional FCF yield is informational only, and optional forward EPS evidence follows an explicit display-only, confirmation, or hard-gate policy.
+### Historical prices and financial facts
 
-The direct command is `ian fcf-growth TICKER`. The strategy retains its own policy, annual-observation, metric, classification, and forward-evidence types rather than being forced into either the Momentum or Graham result shape.
+`BaseDataClient` supplies historical market prices. It does not also own company fundamentals, quotes, or macro data. `FinancialFactsProvider` supplies financial facts through a provider-neutral request boundary. `SecurityIdentityProvider` supplies descriptive identity and instrument-kind evidence independently of numeric facts.
 
-### `BaseDataClient`
-Existing provider boundary for historical market prices. Under the selected Step 2.3 Option A direction, it remains price-history focused rather than becoming the owner of fundamentals, valuation quotes, macro series, and cache policy.
+Production adapters have narrow capabilities:
 
-Current quote retrieval is a separate valuation capability; it is not implemented as a one-day historical request.
+- **SEC EDGAR (`sec_edgar`)** supplies mapped annual financial-statement facts. Supported US-GAAP and IFRS concepts differ by field; unsupported mappings remain unavailable.
+- **Massive (`massive`)** supplies selected current TTM EPS and quote facts when explicitly configured.
+- **Yahoo Finance (`yfinance`)** supplies current quote comparison and supported instrument metadata. It does not make a historical quote from a one-day price request.
 
-### `FinancialFactsProvider` boundary (Step 2.3 implemented)
-A dedicated provider-neutral financial-fact boundary supplies or composes the minimum quote and company-fundamental capabilities required by the two Graham methods. The contract can represent macro observations, but the production CLI does not currently claim an approved live AAA-yield series.
+The Graham strategies compose the financial-fact and quote capabilities they need. The FCF growth resolver requires compatible completed annual operating cash flow, capital expenditures, and diluted EPS evidence; its current production resolver uses SEC EDGAR mappings for those fields.
 
-Implemented production adapters are deliberately narrow:
+### Input resolution and provenance
 
-- **SEC EDGAR (`sec_edgar`)** — completed annual duration facts from `10-K`, `10-K/A`, `20-F`, `20-F/A`, `40-F`, and `40-F/A`. Existing exact US-GAAP mappings cover diluted EPS, diluted weighted-average shares, operating cash flow, and CapEx. Exact IFRS mappings cover diluted EPS, diluted weighted-average shares, operating cash flow, and physical-PP&E CapEx. Fiscal-year-end balance-sheet components and conservative BVPS derivation remain US-GAAP-only; IFRS BVPS and preferred-zero inference are unsupported.
-- **Massive (`massive`)** — current TTM diluted EPS and current price for the Massive when explicitly selected. Live use requires `MASSIVE_API_KEY`; current-only facts do not masquerade as historical evidence.
-- **Yahoo Finance (`yfinance`)** — narrow current-price financial-facts adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts. It does not claim historical quote support through the financial-facts contract.
+Strategy resolvers select inputs that satisfy the strategy's semantic and time-boundary requirements. Resolved values use `ResolvedInput` provenance; derived values retain `ComponentLineage`; resolver actions can be recorded in a `ResolutionTrace`. Missing, invalid, or inapplicable data remains explicit instead of being replaced with zero.
 
-The Graham Number using its standard SEC financial facts uses SEC financial facts plus Yahoo current quote comparison. Its explicit Massive route is deliberately limited to Massive TTM EPS plus a BVPS override and may use a Massive quote. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote; explicitly selecting Massive uses its supported TTM EPS/current-price data. Unsupported provider/basis combinations are rejected before provider work.
+Graham input resolution handles explicit overrides, eligible cached evidence, and configured providers. Calculators consume resolved values and do not perform provider or cache I/O. The FCF annual-series resolver selects compatible contiguous observations under `as_of`, applies horizon policy, and returns typed observations with their input lineage.
 
-### Security identity and instrument applicability
-`SecurityIdentityProvider` is a narrow optional capability beside, not inside, numeric financial facts. F-1 returns an immutable current descriptive snapshot with normalized ticker, optional instrument name/listing venue/issuer and instrument identifiers, provider identity, and timezone-aware `resolved_at`. SEC retains current ticker-title/CIK evidence from its ticker mapping; Yahoo retains supported instrument metadata, including non-company names where available.
+### Cache and identity profile
 
-Approved pre-Golden P1 preserves that one-provider snapshot and adds a separate immutable `InstrumentKindEvidence` value with normalized kind, retained raw provider classification, provider identity, and resolution time. A composed `InstrumentProfile` can therefore retain SEC identity/CIK and Yahoo kind evidence without pretending that one provider supplied both. Kind is provider-backed metadata: it is never inferred from a ticker, name, missing financial facts, or another strategy's success. The exact proposed mappings and schema consequences are recorded in the [P1 instrument applicability mapping record](milestones/v0.2/step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
+Resolvers own precedence and provider fallback; caches store resolved evidence and apply their eligibility rules. Resolved financial inputs can use in-memory or SQLite-backed cache implementations. A caller's `use_cache` setting governs cache access for the analysis.
 
-An ordered, explicitly injected profile resolver selects the best available descriptive identity by provider precedence and obtains kind evidence independently. Each provider/capability is consulted at most once per run, and one YFinance metadata fetch is shared by its identity and kind capabilities. Missing metadata, unsupported capability, and lookup failure remain unknown and fail open. They cannot invalidate or downgrade otherwise usable financial evidence. Affirmative kind evidence is different from lookup failure: a provider-confirmed ETF establishes that both Graham methods and the existing company-level FCF Growth strategy are `not_applicable`, while Momentum remains applicable. This strategy-specific applicability decision does not change any financial formula and does not silently select a future ETF strategy.
+`InstrumentProfile` composes descriptive identity and provider-backed instrument-kind evidence without implying that one provider supplied both. `CachedInstrumentProfileResolver` uses `SQLiteInstrumentProfileRepository` when persistence is composed. Identity-anchored records are keyed by profile identity; when a ticker is later associated with a different identity, the older profile remains available for historical records and a new profile is stored. Missing or unsupported metadata remains unknown and does not invalidate otherwise usable financial facts.
 
-A present name uses `Instrument Name (TICKER) — Analysis` in successful, unsuccessful, and `not_applicable` presentations; whitespace is normalized without changing official capitalization or punctuation. Ordinary unavailability/provider failures do not claim the ticker is invalid without affirmative provider evidence. Current metadata does not prove the identity or instrument kind that applied at a historical analysis `as_of`.
+## Strategy calculations and presentation
 
-### Method-specific Graham input resolution
+Each analyzer applies its own deterministic rules and returns its own typed result. For example, FCF & Earnings Growth derives free cash flow and free cash flow per diluted share, computes growth metrics, and classifies the historical evidence. Its `PASS`, `FAIL`, or `INDETERMINATE` classification is distinct from the software execution outcome.
 
-`GrahamNumberInputResolver` and `GrahamGrowthInputResolver` inherit the shared `InputResolver` constructor and field-resolution behavior. Each lives in its strategy package's `calculation.py` and assembles only its own method inputs. Both borrow the provider, cache, and clock supplied by composition; neither constructs or closes those dependencies. Each required field resolves independently using:
+Direct commands render results through strategy-specific presenters. Shared helpers in [`src/reporting/presentation.py`](../../src/reporting/presentation.py) provide common labels and formatting, not a universal result schema. Investor output supports concise, details, diagnostics, and JSON views where the strategy exposes them.
+
+Saved-run reporting decodes the stored native evidence and invokes the corresponding presenter. It does not fetch current provider data, rerun calculations, or reinterpret a historical result using current configuration.
+
+## Execution capture and persistence
+
+Strategy-specific execution adapters integrate an analyzer with application composition and execution capture. The FCF adapter constructs `AnalysisContext`, invokes the analyzer, and returns `FCFGrowthCapture`. Composition normalizes method-specific captures to `ExecutionCapture` while retaining native evidence.
+
+Common [`workspace.execute()`](../../src/workspace/execution.py) invokes the capture callable, records envelope timestamps, encodes native evidence, builds an [`AnalysisRun`](../../src/workspace/runs.py), and inserts it through the supplied repository. It does not resolve financial inputs or implement strategy calculations. `SQLiteAnalysisRunRepository` persists the complete run envelope; its summaries support bounded listing without decoding every result.
+
+An `AnalysisRun` retains the request and configuration snapshot, strategy identifiers and versions, execution outcome and times, native result evidence, presentation inputs, and instrument profile. Reports and views are projections of this record. Watchlists pair tickers with method-specific selections; user-initiated refresh can execute independent jobs concurrently and persist each result.
+
+## Storage, evaluation, and telemetry
+
+Storage concerns remain distinct:
 
 ```text
-explicit override → valid cache → configured provider → unavailable
+historical market data ──► market-data repository/cache
+resolved financial facts ─► resolved-input cache
+instrument identity ─────► instrument-profile repository
+analysis result ─────────► AnalysisRun repository ─► saved-run report
+trajectory events ───────► telemetry sink
+evaluation fixtures ─────► deterministic evaluation result
 ```
 
-Calculators receive resolved values and do not perform I/O. The resolver enforces requested `as_of` boundaries and preserves typed provenance. Method-input assembly adds only method-semantic annotations that are justified by retained evidence, such as fiscal-year-end basis on derived BVPS.
+Golden evaluation fixtures contain reproducible evidence and expected behavior. Deterministic evaluation exercises the case catalog, analyzers, scoring, and report serialization without live model calls. Real local-model evaluation is a separate empirical mode.
 
-### Resolved-input cache seam (Step 2.3 implemented)
-A narrow in-memory/fixture-backed `get`/`put` seam proves precedence, temporal eligibility, and provenance. The resolver—not the cache—owns provider fallback. Durable SQLite-backed caching remains Step 3.1.
+Operational logging provides readable runtime diagnostics. Investor presentation renders analysis outcomes. `TrajectoryRecorder` emits structured execution evidence to JSONL or SQLite sinks, sanitizes telemetry, and fails open when telemetry storage fails. Telemetry is not benchmark ground truth or an alternate source of financial data.
 
-### Durable instrument profiles (P2-Profiles implemented) and ETF aggregate FCF (planned)
+## Structured output and reliability
 
-`SQLiteInstrumentProfileRepository` persists composed identity/kind evidence keyed by a minted `profile_id`, not by ticker: only a resolution that yields a provider-verified identity anchor (`SecurityIdentity.issuer_identifier`) becomes durable, so a ticker that never earns an anchor keeps resolving live on every request, exactly as the request-scoped composer above does unwrapped. `CachedInstrumentProfileResolver` layers freshness/TTL/refresh over that repository: a fresh durable profile is reused without a provider call; a stale or missing one refreshes live. When a refresh's anchor disagrees with the stored one — a **ticker reuse**, such as delisting and relisting — the prior row is superseded (retained, never deleted or overwritten) and a new profile is minted; the resolver serializes this decision per ticker so concurrent callers (watchlist refresh's worker pool) cannot mint two competing profiles for the same ticker. Provider precedence and disagreement handling remain entirely owned by the request-scoped composer described above; the durable layer adds only persistence, freshness and the identity/ticker-reuse rule on top of it, matching the "Traceable, Time-Bounded Inputs" and "Decoupled Contracts" invariants (§1). See the [P2-Profiles contract](milestones/v0.2/p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md) for the full identity-key, precedence, freshness and historical-snapshot design.
+The orchestrator uses native provider schema constraints when available, Pydantic validation at application boundaries, and configured schema fallback behavior when native constraints are unavailable or unknown. Legacy compatibility parsing is retained only where the application still requires it.
 
-Every production instrument-profile composition site (Momentum's direct/refresh paths, and the Graham Number/Growth/FCF Growth shared composition helper, covering both direct commands and watchlist refresh) resolves through this durable cache wherever a database is already open for another reason; a genuinely storage-free CLI invocation (no `--save-run`, no refresh) remains live-only rather than opening a database solely to populate the cache.
+`ReliabilityLimits` bounds orchestration work units, retries, schema violations, and elapsed time for the full run and its individual operations. Monotonic deadlines determine which limit is reached first. Asynchronous work is cooperatively cancelled; synchronous handlers still need their own I/O timeouts and idempotency safeguards. Telemetry failures fail open.
 
-An `AnalysisRun`'s persisted `instrument_profile` is the immutable value captured at execution time regardless of whether it came from a live call or the durable cache; a later ticker-reuse supersession never relabels an already-persisted run, since replay (§ `AnalysisRun` below) reads only that stored snapshot and never the durable cache's current state.
+## Module boundaries
 
-ETF aggregate FCF remains planned (P2-ETF, deferred beyond Step 3.6). The strategy will own its holdings-effective-date, weighting, cash/derivative, currency, missing/stale constituent, coverage, rebalancing, and `as_of` semantics plus native typed configuration/result/tool identity. It may reuse company-level calculations for constituents but must not add ETF branches to or redefine the existing company-level FCF Growth strategy. Company-level FCF requested for a known ETF remains explicitly `not_applicable`; orchestration cannot silently substitute the aggregate strategy.
+- `src/analysis/base_analyzer.py` — generic analyzer interface and `AnalysisContext`.
+- `src/analysis/strategy/` — strategy-specific analyzers, configs, resolvers, calculations, and result models.
+- `src/data/` — provider contracts/adapters, financial provenance, caches, identity profiles, and repositories.
+- `src/workspace/` — validated selections, strategy execution adapters, run capture, and common workspace execution.
+- `src/reporting/` — direct strategy presenters and saved-run projections.
+- `src/orchestrator/` — LLM tool selection and invocation of typed analysis handlers.
 
-### Resolved input and provenance models (Step 2.3 implemented)
-Typed records preserve value, units/currency, source kind, provider field/series, reporting/observation period, availability/filing date where supplied, analysis `as_of`, retrieval time, transformations/derived lineage, and override/cache state.
-
-### Fixture-backed data capabilities
-Introduced minimally in Step 2.3 to prove the historical-price and financial-fact contracts:
-- deterministic;
-- historical data for Momentum;
-- quote, EPS history/TTM EPS, BVPS facts/components, and AAA-yield observations for Graham;
-- override/cache/provider/unavailable resolution branches;
-- realistic reporting, availability, `as_of`, and retrieval metadata;
-- explicit failure when data is absent;
-- no live network fallback.
-
-Fixture support for a capability does not claim that the same capability exists in a production adapter. Step 2.4 reuses this foundation for Golden cases.
-
-### Investor-facing result presentation (Steps 2.3 and 2.4 implemented through Slice F-1)
-A narrow presentation seam maps Momentum, Graham, and Free Cash Flow & Earnings Growth typed outputs into a common investor-facing grammar without altering their domain models. The default view is concise and result-first; details expose financial provenance; diagnostics expose resolution mechanics; JSON exposes each strategy's stable versioned machine-readable contract. Material overrides and warnings remain visible.
-
-Each JSON presentation exposes one explicit nullable `security_identity` snapshot. Momentum and Graham presentation schemas increment from 1 to 2. The FCF/Earnings Growth presentation schema increments from 2 to 3 while retaining `result_schema_version = 2`, because identity is presentation metadata and does not change the typed calculation result.
-
-The Graham Number is labeled as a **maximum indicated price / screening ceiling**. The Growth view makes the expected-growth assumption explicit and warns when the AAA yield is user-supplied. Successful concise output omits redundant `Status: ok` and `As of: current`; historical requests surface the `as_of` boundary in the heading. All required-input/provider/ticker failures pass through the typed presentation boundary, and every calculation status has an exhaustive plain-English investor label.
-
-### `AnalysisRun` (Step 3.4 target)
-A durable investor-domain record of one requested analysis. It owns an `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, warnings, timestamps, calculation/version identifiers, and the nullable security identity/instrument-profile snapshot used by that completed run (including provider and `resolved_at`). It may link to execution/trajectory identity but must not overload telemetry `RunContext`.
-
-A report is a rendering of an Analysis Run, not a second canonical result object in v0.2. Viewing an old run must use its persisted identity snapshot rather than re-resolving the ticker and silently relabeling history after ticker reuse.
-
-The investor-report boundary is a deterministic, versioned projection. Given the same persisted Analysis Run, projection version, presentation mode, and explicit locale/format options, it must produce the same semantic report without provider calls, LLM calls, financial recalculation, mutable cache reads, or wall-clock-dependent enrichment. The report exposes its projection version separately from the run's calculation method version and typed result-schema version. A breaking change to report structure or field meaning requires a new projection version; historical projection versions remain reproducible or require an explicit, auditable migration rather than being silently reinterpreted.
-
-### Watchlist / refresh workspace (Step 3.4 target)
-Named watchlists hold tickers and supported requested analyses. A user-initiated refresh may execute independent ticker/analysis jobs concurrently and persist each outcome as it finishes. No daemon, scheduler, proactive monitoring, or notification service is implied.
-
-### `TrajectoryEvent` / `TrajectoryRecorder` / `TrajectorySink`
-Structured telemetry supports JSONL (the default) and SQLite sinks. `SQLiteTrajectorySink` delegates event persistence to `SQLiteTrajectoryRepository`, retaining synchronous locking and database ownership. The recorder owns sanitization and fail-open handling.
-
-Telemetry records observable execution evidence and does not provide benchmark ground truth.
-
----
-
-## 4. Structured-output boundary
-
-Step 2.2 establishes structured-output enforcement with layered defenses:
-
-1. use native Ollama/provider schema constraints when capability is confirmed;
-2. retain Pydantic validation at the application boundary;
-3. use the configured prompt-based schema fallback when native capability is unavailable or unknown;
-4. retain legacy compatibility parsing only as the final fallback where required.
-
-Do not rewrite the runtime around a model-specific assumption merely to make one model pass.
-
----
-
-## 5. Module layout
-
-Strategy implementations live under `src/analysis/strategy/`. Shared financial-resolution helpers own strategy-neutral mechanics; callers supply strategy-specific messages. `shared/graham_contracts.py` holds common Graham configuration and method contracts. Each Graham package exports its own analyzer, configuration, calculation/resolver, and service contracts through `__init__.py`; Momentum and FCF Growth retain their distinct interfaces and internal layouts.
-
-Relevant current packages include:
-
-```text
-src/
-├── analysis/
-│   ├── base_analyzer.py
-│   ├── shared/
-│   │   ├── financial_resolution.py
-│   │   └── graham_contracts.py
-│   └── strategy/
-│       ├── momentum/
-│       │   └── momentum_analyzer.py
-│       ├── fcf_earnings_growth/
-│       │   ├── analyzer.py
-│       │   ├── calculators.py
-│       │   ├── input_resolver.py
-│       │   └── models.py
-│       ├── graham_number/
-│       │   ├── analyzer.py
-│       │   ├── calculation.py
-│       │   ├── config.py
-│       │   └── service.py
-│       └── graham_growth/
-│           ├── analyzer.py
-│           ├── calculation.py
-│           ├── config.py
-│           └── service.py
-├── core/
-│   └── telemetry/
-├── data/
-│   ├── base_client.py
-│   ├── instrument_profile.py
-│   ├── instrument_profile_cache.py
-│   ├── repositories/
-│   │   ├── sqlite.py
-│   │   ├── schema.py
-│   │   ├── migrations.py
-│   │   ├── market_data.py
-│   │   ├── resolved_input_cache.py
-│   │   ├── instrument_profiles.py
-│   │   └── trajectory.py
-│   ├── massive/
-│   │   └── valuation.py
-│   ├── sec_edgar/
-│   │   └── valuation.py
-│   ├── valuation/
-│   │   ├── facts.py
-│   │   ├── production.py
-│   │   ├── provenance.py
-│   │   ├── providers.py
-│   │   └── resolver.py
-│   └── yfinance/
-│       ├── client.py
-│       └── valuation.py
-├── reporting/
-│   ├── graham.py
-│   ├── fcf_earnings_growth.py
-│   ├── momentum.py
-│   └── presentation.py
-├── llm/
-├── orchestrator/
-├── tools/
-└── utils/
-```
-
-The provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. Production SQLite persistence is implemented under `src/data/repositories/`; callers consume typed domain objects rather than SQL rows.
-
----
-
-### Typed SQLite repositories and administrative inspection
-
-`SQLiteDatabase` owns lazy connection scopes and explicit transactions. File-backed
-connections verify WAL mode, foreign keys, and the configured busy timeout;
-SQLite serializes competing writers. `read()` provides a query-only snapshot.
-In-memory databases support sequential scopes only. Repositories borrow an
-already-migrated database and do not migrate or close it implicitly.
-
-The first analysis that needs local storage automatically initializes a missing
-or verified empty SQLite database. Existing databases require explicit upgrades;
-readiness failures identify the target and next action. See
-[Local Database Operations](docs/user/DATABASE.md) for inspection, upgrades and recovery.
-
-| Repository | Public access | Semantics |
-| :--- | :--- | :--- |
-| `SQLiteMarketDataRepository` | `put`, `get`, `list_keys` | Exact historical request snapshots preserve frame structure/precision, context, and cache/retrieval timestamps. `get` returns the validated stored snapshot or `None` for a miss. |
-| `SQLiteResolvedInputCache` | `put`, `get`, `get_series`, `list_keys`, `inspect`, `ttl` | Normal retrieval applies existing TTL and historical availability rules. `inspect` returns the validated stored entry irrespective of eligibility, preserving original provenance and timestamps; only an absent key returns `None`. |
-| `SQLiteInstrumentProfileRepository` | `get`, `get_by_id`, `put` | `put` mints, updates in place, or supersedes-and-mints a profile per the identity-anchor/ticker-reuse rule, atomically within one transaction. Only identity-anchored resolutions are ever written; a superseded row is retained, never deleted. |
-| `SQLiteTrajectoryRepository` | `record`, `read_trajectory` | Immutable atomic events; identical event-ID retries are no-ops, conflicts raise, and readback returns typed events in sequence order with gaps preserved. A missing run returns an empty list. |
-
-Both `list_keys` methods require an explicit positive integer `limit` and accept
-a nonnegative integer `offset` (default zero); booleans are rejected. They select
-only key columns, validate stored keys and encoding versions, and return typed
-tuples ordered by canonical stored identity. Each page uses one snapshot;
-separate pages across concurrent writes do not form a frozen database view.
-Empty pages return empty tuples. Malformed selected data raises explicitly.
-
-Inspection is read-only administrative access: it performs no provider calls,
-refresh, deletion, financial recalculation, or freshness-policy change. Normal
-financial input resolution continues through `get` / `get_series`; the existing
-cache protocols do not acquire these SQLite-specific inspection methods.
-
-`SQLiteTrajectorySink` and the public `read_trajectory(database, run_id)` function
-retain their existing signatures and import paths as repository delegates.
-The sink retains flush/close synchronization and optional database disposal;
-by default, closing it leaves the borrowed database open. Repository errors
-propagate; the recorder retains fail-open handling. Event encoding and readback
-validation preserve the existing contract, including the readback encoding
-check without adding a new write-time encoding policy.
-
-This storage layer does not introduce watchlists, investor Analysis Runs, new
-cache invalidation rules, or a second audit log. Those remain distinct product
-and policy concerns.
-
-## 6. Data flow and persistence boundaries
-
-The project distinguishes the financial execution flow:
-
-```text
-External Provider
-      │
-      ▼
-Provider Adapter Boundary
-      │
-      ├── BaseDataClient ─────────────► historical series ─► Momentum
-      ├── SecurityIdentityProvider ───► current identity / instrument-kind snapshot
-      └── FinancialFactsProvider
-              ├── quote
-              ├── company fundamentals
-              └── macro observation contract
-                      │
-                      ▼
-      method-specific Graham resolver ◄── override / cache
-                      │
-                      ▼
-               resolved inputs
-                      │
-                      ▼
-             deterministic Graham method
-                      │
-                      ▼
-                typed strategy result
-                      │
-                      ▼
-             presentation boundary
-```
-
-And it separately distinguishes persistence/artifacts:
-
-```text
-Golden fixture data ──► fixture adapter ──► deterministic/evaluation execution
-trajectory events   ──► telemetry sink (JSONL / SQLite)
-production data     ──► SQLite/cache repositories
-analysis result     ──► Analysis Run repository (Step 3.4)
-identity/profile snapshot ─► same Analysis Run (never re-resolved for historical viewing)
-Analysis Run        ──► versioned deterministic report projection
-report projection   ──► concise/details/diagnostic/JSON view
-evaluation result   ──► Golden evaluation artifact
-```
-
-These stores/artifacts must not be collapsed merely because they can all be serialized. In particular, telemetry describes execution, while an Analysis Run is the durable investor-facing outcome of one requested analysis.
-
-## 7. Golden-Suite architecture (Step 2.5)
-
-The production orchestration seam exposes four explicit handlers in `src/orchestrator/analysis_tools.py`: Momentum, Graham Number, Graham growth value, and Free Cash Flow & Earnings Growth. `register_analysis_tools(...)` registers them on the existing `AsyncToolDispatcher` using injected analyzers, resolvers, provider selections, calculation policy, and clock. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. Tool argument schemas are derived from the strict Pydantic models in `ANALYSIS_TOOL_ARGUMENT_MODELS`; successful calls retain each strategy's native typed execution result.
-
-```text
-Golden Case
-   │
-   ├── prompt/task
-   ├── fixture IDs
-   ├── expected strategy/tool behavior
-   └── independently verified numeric expectations
-   │
-   ▼
-real orchestration flow
-   │
-   ├── structured strategy/tool evidence
-   └── deterministic result
-   │
-   ▼
-Evaluator
-   ├── strategy/tool-selection score
-   ├── Graham method-selection score
-   ├── numerical-correctness score
-   └── overall case pass/fail
-```
-
-Deterministic/no-LLM tests validate fixtures, contracts, analytics, evaluator behavior, and report serialization. They cannot measure actual model strategy selection.
-
-Real-local-Ollama evaluation is an empirical mode and remains separate from deterministic regression/CI tests unless explicitly configured. The shared `evaluate` CLI selects one mode, one canonical full-suite or named-case request set, and one explicit local JSON report destination; it does not merge deterministic and empirical scores.
-
-The ≥90% target is a measurement target, not permission to weaken cases until a model passes. Expected native domain outcomes are first-class evidence: a deliberate `input_unavailable` or `not_applicable` result passes only when the case expects its exact observable contract, and the same result fails when success was expected. Infrastructure/fixture failures remain distinct from valid non-success analytical outcomes.
-
-The deterministic runner requires one canonical versioned case catalog and
-request-building boundary so a mandatory gate can produce one auditable report.
-Test-local per-strategy invocations are supporting evidence, not a substitute for
-that complete-suite operation.
-
-### 7.1 SEC foreign-private-issuer seam (Step 2.5A implemented)
-
-The existing SEC adapter supports the reviewed FPI/IFRS slice without creating
-a parallel provider architecture:
-
-```text
-analysis request + effective as_of
-               │
-               ▼
-immutable request-scoped SEC snapshot
-    ├── Company Facts payload
-    └── submissions/accession availability evidence
-               │
-               ▼
-latest eligible annual accession / taxonomy regime
-               │
-       ┌───────┴────────┐
-       ▼                ▼
-US-GAAP duration    exact IFRS duration
-10-K/20-F/40-F      EPS / diluted shares /
-                    OCF / physical-PP&E CapEx
-       └───────┬────────┘
-               ▼
-existing provider-neutral facts, provenance, and resolvers
-```
-
-All fields in one analysis use the same snapshot. Accounting regime is selected
-at the requested historical boundary, not from lifetime namespace presence.
-Existing annual-period, availability, currency, duplicate/restatement,
-provenance, and exact-concept rules remain authoritative.
-
-Per-share filing values and market quotes cross a separate security-unit gate.
-The implemented predicate accepts only affirmative ordinary-share / 1:1 quoted-
-unit evidence; unknown and ADR/ADS shapes make quote-dependent comparisons
-unavailable without erasing independently supported issuer-level facts.
-
-The Graham services complete missing unit evidence after financial input
-resolution, inside the existing request-scoped SEC snapshot. The optional SEC
-capability verifies original source accessions and current annual filing class
-evidence through a bounded Inline XBRL reader. It supports the reviewed domestic
-US-GAAP single-common-class mapping for current requests; unsupported evidence
-produces a structured absence. Derived shares and inferred preferred-share
-guards retain typed source lineage through the existing financial cache format.
-No durable evidence cache or database migration is introduced. Shared comparison
-evaluation supplies both the legacy percentage and structured status/reason;
-Graham presentation schema 4 exposes sanitized evidence and provenance.
-
-IFRS BVPS is not in this seam. Company Facts does not preserve the
-dimensional ordinary/preference share-class evidence needed to infer common
-equity and denominator safely; missing preferred-share evidence is never zero.
-The exact approved scope and deferrals are in the
-[FPI / IFRS D0 Mapping Record](milestones/v0.2/step-2.5a/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md).
-
----
-
-## 8. Logging and telemetry boundary
-
-Operational logging, investor presentation, and trajectory telemetry remain separate:
-
-```text
-Agent Runtime
-   │
-   ├── typed analysis result ─► investor presenter ─► terminal/run view
-   ├── operational logging ───► human-readable execution diagnostics
-   │
-   └── trajectory telemetry ──► machine-readable execution evidence
-                                ├── JSONL (Step 2.1)
-                                └── SQLite (Step 3.1)
-```
-
-Telemetry may capture observable provider/model metadata, prompts/completions, tool arguments/results, latency, and exposed token metrics subject to retention/redaction policy.
-
-Private model reasoning is never reconstructed.
-
----
-
-## 9. Failure and reliability boundary
-
-- Recoverable failures may enter a bounded retry/repair flow.
-- Non-recoverable failures halt with structured diagnostics.
-- Step 2.6 owns hard execution/time/error caps through one immutable
-  `ReliabilityLimits` value per orchestration run. The default caps are 10
-  planning steps, 3 transient retries, 4 consecutive schema violations, 300
-  seconds overall, 180 seconds per step, 120 seconds per LLM call, and 60
-  seconds per tool call; terminal diagnostics retain 5 sanitized recent-event
-  summaries.
-- A breached cap returns `ReliabilityFailure` on the terminal
-  `AgentStepResult`. Its stable reason and `run_id` cross the consumer boundary;
-  the internal circuit-trip exception does not.
-- Overall, step, and operation deadlines use monotonic time, and the earliest
-  applicable deadline determines the reason. No new work begins after a trip.
-- Asynchronous work is cooperatively cancelled. Synchronous tool handlers run
-  off the event-loop thread, but Python cannot safely terminate arbitrary
-  running thread work; a timeout therefore reports unconfirmed cancellation,
-  and handlers still require their own I/O timeouts and idempotency safeguards.
-- The configured limits are authoritative; runtime documents must not invent a separate fixed turn limit.
-- Telemetry sink failures fail open.
-
----
-
-### Planned Graham comparison evidence repair
-
-The [immediate repair plan](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)
-has planning acceptance with branch-naming and combined README-review caveats. Current profile composition does not supply the share-unit
-evidence required by the Graham services, and nullable comparison output loses
-the compatibility reason. The repair must supply defensible provider-backed,
-request-scoped evidence and propagate typed decisions through services and reporting.
-Matching currencies and an equity classification alone do not establish a 1:1
-filing-share/quoted-unit relationship. Preserve the fail-closed guard and valid
-standalone financial results; unsupported comparisons need explicit reasons.
-This target introduces neither durable profile storage nor ADR/FX conversion and
-is not a claim that production behavior has already changed.
-
-### Database readiness and explicit maintenance
-
-The [fresh database readiness contract](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
-is implemented by `src/data/repositories/readiness.py`. CLI cache composition
-checks required persistence before use and initializes only missing or verified
-empty storage through bundled Alembic migrations. Existing schemas require
-explicit operator upgrades. Repositories remain lazy borrowers; analyzers own no
-schema management. `readiness_lock.py` coordinates automatic, explicit and manual
-migration owners through a persistent OS-locked sidecar, followed by an authoritative
-recheck, transactional DDL and revision/structure verification before commit.
-
-`inspect_database()` uses a read-only consistent snapshot without initialization;
-`upgrade_database()` explicitly migrates only fresh or supported compatible
-storage. The hidden `src/cli_database.py` maintenance group exposes these through
-`db status` and `db upgrade`, with target overrides and versioned JSON reports.
-Typed sanitized errors preserve stable reason categories and analysis envelopes.
-Optional telemetry neither initializes storage nor controls business execution;
-financial cache bypass and storage-free help/imports avoid opening that cache.
-The current migration bundle has only `0001_persistence`; older-schema support
-is verified with synthetic history. See [Local Database Operations](../user/DATABASE.md)
-for target selection, error recovery and installation/platform limits.
-
-## 10. Development guardrails
-
-- Preserve existing behavior outside the active step.
-- Use the smallest change that satisfies the current milestone plan.
-- Do not create a generic strategy registry merely because multiple strategies exist.
-- Do not collapse distinct analysis methods behind ambiguous names or optional-field bags.
-- Keep calculators free of provider/cache/CLI I/O.
-- Enforce requested `as_of` as an information boundary; do not substitute later current facts.
-- Do not claim a production AAA-yield series until its identity, semantics, availability, and integration are explicitly approved.
-- Do not build Step 2.5 evaluator/reporting work during Steps 2.3–2.4.
-- Do not build Step 3.1 production persistence/cache during Step 2.3/2.4.
-- Do not use operational logger lines as the primary investor-facing result renderer.
-- Do not force heterogeneous strategies into one generic result object merely for presentation.
-- Do not pull Step 3.4 watchlists/Analysis Run persistence into Step 2.3.
-- Do not build a daemon, scheduler, proactive-monitoring service, notification system, full-screen TUI, or executive-report generator before the roadmap step that owns it.
-- Keep application persistence SQL in `src/data/repositories/`; migration DDL and test setup/assertion SQL retain their established owners.
-- Run Ruff, `mypy --strict`, and pytest according to the active milestone plan.
+SQLite access stays behind repository interfaces in `src/data/repositories/`. `SQLiteDatabase` owns lazy connection scopes and transactions; repositories borrow a ready database and do not migrate or close it implicitly. Readiness checks initialize a missing or verified empty database; existing schemas require explicit operator upgrades. Administrative inspection is read-only. See [Local Database Operations](../user/DATABASE.md) for usage and recovery details.
