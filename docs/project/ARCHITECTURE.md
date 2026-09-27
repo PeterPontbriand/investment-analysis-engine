@@ -14,24 +14,26 @@ For work-package sequencing and status, see the [milestone table](milestones/v0.
 
 ## 1. Architectural invariants
 
-1. **LLM orchestration, deterministic execution:** The LLM plans/selects tools and synthesizes results; Python performs calculations, validation, data processing, and persistence.
-2. **Typed boundaries:** Tool/analyzer/data inputs and outputs are explicitly typed at application boundaries.
-3. **Heterogeneous strategies:** Different financial strategies may have different config/data/result shapes. The architecture must not impose one strategy's data or result shape on other strategies.
-4. **No speculative strategy framework:** Reuse the existing `BaseAnalyzer` and current tool-dispatch flow unless implementation proves a new abstraction is necessary.
-5. **Provider isolation:** Historical-price access remains behind `BaseDataClient`; Step 2.3 financial facts use a dedicated provider/resolution boundary rather than enlarging a price-history-shaped interface.
-6. **Historical prices, quotes, fundamentals, and macro series are distinct capabilities:** A composed valuation façade may coordinate narrow providers, but no upstream service is assumed to supply every capability.
-7. **Evaluation is not persistence:** Golden fixtures, evaluation results, trajectory telemetry, and production market-data storage are separate concerns.
-8. **Local-LLM boundary:** The LLM cannot directly execute shell/code or access the external network. Registered data tools may perform controlled provider access.
-9. **Telemetry is observational:** Telemetry failures must not change business execution semantics.
-10. **Light Mode first:** Core useful analysis must remain viable under the documented Light Mode workflow.
-11. **Method-explicit financial semantics:** Distinct analysis methods retain explicit names, inputs, typed results, and limitations.
-12. **Time-bounded provenance:** Resolved inputs preserve source, reporting/observation and availability dates, transformations, cache/override state, and requested analysis `as_of`.
-13. **Presentation without homogenization:** Analysis strategies use a coherent investor-facing visual grammar while retaining their own typed result models.
-14. **Operational logs are not product UI:** User results are rendered by a presentation boundary; logs and trajectory telemetry remain diagnostics/execution evidence.
-15. **Analysis Run is a product-domain record:** Step 3.4 persists requested analysis/config/result/provenance history separately from telemetry `RunContext`; reports/views render that record.
-16. **Bounded v0.2 agentic behavior:** User-initiated refresh may execute independent analysis jobs concurrently. Daemons, unattended scheduling, proactive monitoring, and notifications remain later autonomy work.
-17. **Deterministic, versioned investor-report projection:** A stored Analysis Run is projected into an investor report without provider access, LLM synthesis, financial recalculation, or current-state enrichment. The projection contract has its own explicit version, independent of strategy method and result-schema versions.
-18. **One clock per run:** Time-dependent decisions use injected clocks derived from `executed_at`; see [*Time and the analysis boundary*](#3-time-and-the-analysis-boundary).
+- **LLM orchestration, deterministic execution:** The LLM plans/selects tools and synthesizes results; Python performs calculations, validation, data processing, and persistence.
+- **Typed boundaries:** Tool/analyzer/data inputs and outputs are explicitly typed at application boundaries.
+- **Heterogeneous strategies:** Different financial strategies may have different config/data/result shapes. The architecture must not impose one strategy's data or result shape on other strategies.
+- **No speculative strategy framework:** Reuse the existing `BaseAnalyzer` and current tool-dispatch flow unless implementation proves a new abstraction is necessary.
+- **Provider isolation:** Historical-price access stays behind its own narrow boundary (`BaseDataClient`/`MarketDataProvider`); financial facts use a dedicated provider/resolution boundary rather than enlarging a price-history-shaped interface.
+- **Historical prices, quotes, fundamentals, and macro series are distinct capabilities:** A composed valuation façade may coordinate narrow providers, but no upstream service is assumed to supply every capability.
+- **Evaluation is not persistence:** Golden fixtures, evaluation results, trajectory telemetry, and production market-data storage are separate concerns.
+- **Local-LLM boundary:** The LLM cannot directly execute shell/code or access the external network. Registered data tools may perform controlled provider access.
+- **Telemetry is observational:** Telemetry failures must not change business execution semantics.
+- **Light Mode first:** Core useful analysis must remain viable under the documented Light Mode workflow.
+- **Method-explicit financial semantics:** Distinct analysis methods retain explicit names, inputs, typed results, and limitations.
+- **Time-bounded provenance:** Resolved inputs preserve source, reporting/observation and availability dates, transformations, cache/override state, and requested analysis `as_of`.
+- **Presentation without homogenization:** Analysis strategies use a coherent investor-facing visual grammar while retaining their own typed result models.
+- **Operational logs are not product UI:** User results are rendered by a presentation boundary; logs and trajectory telemetry remain diagnostics/execution evidence.
+- **Analysis Run is a product-domain record:** persisted requested analysis/config/result/provenance history is kept separate from telemetry `RunContext`; reports/views render that record.
+- **Bounded agentic behavior:** User-initiated refresh may execute independent analysis jobs concurrently. Daemons, unattended scheduling, proactive monitoring, and notifications remain later autonomy work.
+- **Deterministic, versioned investor-report projection:** A stored Analysis Run is projected into an investor report without provider access, LLM synthesis, financial recalculation, or current-state enrichment. The projection contract has its own explicit version, independent of strategy method and result-schema versions.
+- **One clock per run:** Time-dependent decisions use injected clocks derived from `executed_at`; see [*Time and the analysis boundary*](#3-time-and-the-analysis-boundary).
+
+Everything outside this document's *Planned work* section describes current behavior; nothing else in this document carries a per-item current/planned label.
 
 ---
 
@@ -217,7 +219,7 @@ A narrow in-memory/fixture-backed `get`/`put` seam proves precedence, temporal e
 
 ### Durable instrument profiles
 
-`SQLiteInstrumentProfileRepository` persists composed identity/kind evidence keyed by a minted `profile_id`, not by ticker: only a resolution that yields a provider-verified identity anchor (`SecurityIdentity.issuer_identifier`) becomes durable, so a ticker that never earns an anchor keeps resolving live on every request, exactly as the request-scoped composer above does unwrapped. `CachedInstrumentProfileResolver` layers freshness/TTL/refresh over that repository: a fresh durable profile is reused without a provider call; a stale or missing one refreshes live. When a refresh's anchor disagrees with the stored one — a **ticker reuse**, such as delisting and relisting — the prior row is superseded (retained, never deleted or overwritten) and a new profile is minted; the resolver serializes this decision per ticker so concurrent callers (watchlist refresh's worker pool) cannot mint two competing profiles for the same ticker. Provider precedence and disagreement handling remain entirely owned by the request-scoped composer described above; the durable layer adds only persistence, freshness and the identity/ticker-reuse rule on top of it, matching the "Traceable, Time-Bounded Inputs" and "Decoupled Contracts" invariants (§1). See the [P2-Profiles contract](milestones/v0.2/p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md) for the full identity-key, precedence, freshness and historical-snapshot design.
+`SQLiteInstrumentProfileRepository` persists composed identity/kind evidence keyed by a minted `profile_id`, not by ticker: only a resolution that yields a provider-verified identity anchor (`SecurityIdentity.issuer_identifier`) becomes durable, so a ticker that never earns an anchor keeps resolving live on every request, exactly as the request-scoped composer above does unwrapped. `CachedInstrumentProfileResolver` layers freshness/TTL/refresh over that repository: a fresh durable profile is reused without a provider call; a stale or missing one refreshes live. When a refresh's anchor disagrees with the stored one — a **ticker reuse**, such as delisting and relisting — the prior row is superseded (retained, never deleted or overwritten) and a new profile is minted; the resolver serializes this decision per ticker so concurrent callers (watchlist refresh's worker pool) cannot mint two competing profiles for the same ticker. Provider precedence and disagreement handling remain entirely owned by the request-scoped composer described above; the durable layer adds only persistence, freshness and the identity/ticker-reuse rule on top of it, matching the "Time-bounded provenance" invariant (§1). See the [P2-Profiles contract](milestones/v0.2/p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md) for the full identity-key, precedence, freshness and historical-snapshot design.
 
 Every production instrument-profile composition site (Momentum's direct/refresh paths, and the Graham Number/Growth/FCF Growth shared composition helper, covering both direct commands and watchlist refresh) resolves through this durable cache wherever a database is already open for another reason; a genuinely storage-free CLI invocation (no `--save-run`, no refresh) remains live-only rather than opening a database solely to populate the cache.
 
