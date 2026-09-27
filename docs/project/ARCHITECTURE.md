@@ -189,30 +189,30 @@ External Provider
 Provider Adapter Boundary
       │
       ├── BaseDataClient / MarketDataProvider ──► historical series ──► Momentum
-      ├── SecurityIdentityProvider ────────────► identity / instrument-kind snapshot
-      │                                                    │
-      │                                                    ▼
+      ├── SecurityIdentityProvider ──────────────► identity / instrument-kind snapshot
+      │                                                                   │
+      │                                                                   ▼
       │                                    durable instrument-profile cache (optional)
-      │                                                    │
-      └── FinancialFactsProvider                           │
-              ├── quote                                    │
-              ├── company fundamentals                     │
-              └── macro observation contract                │
-                      │                                     │
-        ┌─────────────┴─────────────┐                       │
-        ▼                           ▼                       │
-method-specific Graham        FCF annual-series              │
-resolver ◄── override/cache   resolver ◄── override/cache    │
-        │                           │                       │
-        ▼                           ▼                       │
-  resolved inputs             resolved inputs                │
-        │                           │                       │
-        ▼                           ▼                       │
-deterministic Graham method   deterministic FCF method       │
-        │                           │                       │
-        └─────────────┬─────────────┘                       │
-                       ▼                                     │
-              typed strategy result ◄─────────────────────────┘
+      │                                                                   │
+      └── FinancialFactsProvider                                          │
+              ├── quote                                                   │
+              ├── company fundamentals                                    │
+              └── macro observation contract                              │
+                      │                                                   │
+        ┌─────────────┴─────────────┐                                     │
+        ▼                           ▼                                     │
+method-specific Graham        FCF annual-series                           │
+resolver ◄── override/cache   resolver ◄── override/cache                 │
+        │                           │                                     │
+        ▼                           ▼                                     │
+  resolved inputs             resolved inputs                             │
+        │                           │                                     │
+        ▼                           ▼                                     │
+deterministic Graham method   deterministic FCF method                    │
+        │                           │                                     │
+        └─────────────┬─────────────┘                                     │
+                       ▼                                                  │
+              typed strategy result ◄─────────────────────────────────────┘
                        │
                        ▼
              presentation boundary
@@ -224,7 +224,7 @@ deterministic Graham method   deterministic FCF method       │
 Current quote retrieval is a separate valuation capability; it is not implemented as a one-day historical request.
 
 ### `FinancialFactsProvider` boundary
-A dedicated provider-neutral financial-fact boundary supplies or composes the minimum quote and company-fundamental capabilities required by the two Graham methods. The contract can represent macro observations, but the production CLI does not currently claim an approved live AAA-yield series.
+A dedicated provider-neutral financial-fact boundary supplies or composes the quote, company-fundamental, and annual-series capabilities the two Graham methods and FCF & Earnings Growth require. The contract can represent macro observations, but the production CLI does not currently claim an approved live AAA-yield series.
 
 Implemented production adapters are deliberately narrow:
 
@@ -243,15 +243,17 @@ An ordered, explicitly injected profile resolver selects the best available desc
 
 A present name uses `Instrument Name (TICKER) — Analysis` in successful, unsuccessful, and `not_applicable` presentations; whitespace is normalized without changing official capitalization or punctuation. Ordinary unavailability/provider failures do not claim the ticker is invalid without affirmative provider evidence. Current metadata does not prove the identity or instrument kind that applied at a historical analysis `as_of`.
 
-### Method-specific Graham input resolution
+### Input resolution: override, cache, provider, unavailable
 
-`GrahamNumberInputResolver` and `GrahamGrowthInputResolver` inherit the shared `InputResolver` constructor and field-resolution behavior. Each lives in its strategy package's `calculation.py` and assembles only its own method inputs. Both borrow the provider, cache, and clock supplied by composition; neither constructs or closes those dependencies. Each required field resolves independently using:
+Each required field resolves independently through one general precedence:
 
 ```text
 explicit override → valid cache → configured provider → unavailable
 ```
 
-Calculators receive resolved values and do not perform I/O. The resolver enforces requested `as_of` boundaries and preserves typed provenance. Method-input assembly adds only method-semantic annotations that are justified by retained evidence, such as fiscal-year-end basis on derived BVPS.
+Calculators receive resolved values and do not perform I/O. The resolver enforces requested `as_of` boundaries and preserves typed provenance.
+
+Today, `GrahamNumberInputResolver` and `GrahamGrowthInputResolver` are the strategies that use this pattern by directly inheriting the shared `InputResolver` constructor and field-resolution behavior; each lives in its strategy package's `calculation.py`, assembles only its own method inputs, and borrows the provider, cache, and clock supplied by composition without constructing or closing them. Method-input assembly adds only method-semantic annotations that are justified by retained evidence, such as fiscal-year-end basis on derived BVPS.
 
 ### Resolved input and provenance models
 Typed records preserve value, units/currency, source kind, provider field/series, reporting/observation period, availability/filing date where supplied, analysis `as_of`, retrieval time, transformations/derived lineage, and override/cache state.
