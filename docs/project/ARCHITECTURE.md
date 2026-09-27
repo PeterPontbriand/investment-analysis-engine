@@ -163,19 +163,16 @@ Existing abstract analysis boundary. A strategy owns:
 Deterministic SMA/crossover/RSI analyzer. `MomentumInputResolver` consumes the provider-neutral `MarketDataProvider` boundary, applies strict `bar_timestamp <= effective_as_of` truncation before calculation, wraps retained closes in `ResolvedInput` provenance, and records a `ResolutionTrace`. `MomentumPolicy` owns the short/long/RSI defaults. SMA and RSI availability is exposed through standard `MetricResult` values with `insufficient_history` reason codes while compatibility views preserve the existing optional numeric fields.
 
 ### Graham analysis
-The Graham family has two method identifiers:
-
-- `graham_number` — default screening-ceiling method using three-year-average EPS by default plus BVPS;
-- `graham_growth_value` — explicit secondary method using EPS, user-supplied expected growth under the current policy, and an explicit current AAA-yield input until a production series is approved.
+The Graham family has two method identifiers, `graham_number` and `graham_growth_value`, each a complete independent strategy with its own policy, inputs, and calculation — see the [user strategy guides](../user/strategies/README.md) for what each one computes and why.
 
 The implemented direct command is `ian graham TICKER [--method number|growth]`. Invalid cross-method combinations are rejected at the CLI boundary. Existing transitional flag aliases remain only where intentionally retained for compatibility.
 
 Graham is intentionally not required to return `TrendStatus` or consume a historical DataFrame merely to look like Momentum.
 
 ### Free Cash Flow & Earnings Growth analysis
-`FCFEarningsGrowthAnalyzer` deterministically derives completed annual total-company FCF and FCF per diluted share, computes their CAGRs alongside diluted-EPS CAGR, and returns a versioned `FCFEarningsGrowthResult`. Its classification is `PASS`, `FAIL`, or `INDETERMINATE`, separate from software execution status.
+`FCFEarningsGrowthAnalyzer` deterministically derives completed annual total-company FCF and FCF per diluted share, computes their CAGRs alongside diluted-EPS CAGR, and returns a versioned `FCFEarningsGrowthResult`. Its classification is `PASS`, `FAIL`, or `INDETERMINATE`, separate from software execution status — see the [FCF & Earnings Growth guide](../user/strategies/FCF_EARNINGS_GROWTH.md) for its horizon policy, classification basis, and forward-evidence handling.
 
-`ProductionAnnualGrowthSeriesResolver` selects compatible, contiguous annual evidence under the requested `as_of` boundary. The default horizon policy prefers 5 elapsed years, then 4, then 3; explicit horizons are strict. Total-company FCF controls classification by default, while an explicit policy can select FCF per diluted share. Optional FCF yield is informational only, and optional forward EPS evidence follows an explicit display-only, confirmation, or hard-gate policy.
+`ProductionAnnualGrowthSeriesResolver` selects compatible, contiguous annual evidence under the requested `as_of` boundary.
 
 The direct command is `ian fcf-growth TICKER`. The strategy retains its own policy, annual-observation, metric, classification, and forward-evidence types rather than being forced into either the Momentum or Graham result shape.
 
@@ -247,7 +244,7 @@ A narrow presentation seam maps Momentum, Graham, and Free Cash Flow & Earnings 
 
 Each JSON presentation exposes one explicit nullable `security_identity` snapshot. Momentum and Graham presentation schemas increment from 1 to 2. The FCF/Earnings Growth presentation schema increments from 2 to 3 while retaining `result_schema_version = 2`, because identity is presentation metadata and does not change the typed calculation result.
 
-The Graham Number is labeled as a **maximum indicated price / screening ceiling**. The Growth view makes the expected-growth assumption explicit and warns when the AAA yield is user-supplied. Successful concise output omits redundant `Status: ok` and `As of: current`; historical requests surface the `as_of` boundary in the heading. All required-input/provider/ticker failures pass through the typed presentation boundary, and every calculation status has an exhaustive plain-English investor label.
+Each strategy's concise view uses investor-facing wording specific to its own method — see the [user strategy guides](../user/strategies/README.md) for what each one says and why; the presentation seam does not impose shared wording across strategies. Successful concise output omits redundant `Status: ok` and `As of: current`; historical requests surface the `as_of` boundary in the heading. All required-input/provider/ticker failures pass through the typed presentation boundary, and every calculation status has an exhaustive plain-English investor label.
 
 ### `AnalysisRun`
 A durable investor-domain record of one requested analysis. It owns an `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, warnings, timestamps, calculation/version identifiers, and the nullable security identity/instrument-profile snapshot used by that completed run (including provider and `resolved_at`). It may link to execution/trajectory identity but must not overload telemetry `RunContext`.
