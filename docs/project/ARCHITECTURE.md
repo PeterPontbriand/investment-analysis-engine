@@ -315,7 +315,7 @@ evidence through a bounded Inline XBRL reader. It supports the reviewed domestic
 US-GAAP single-common-class mapping for current requests; unsupported evidence
 produces a structured absence. Derived shares and inferred preferred-share
 guards retain typed source lineage through the existing financial cache format.
-No durable evidence cache or database migration is introduced. Shared comparison
+This seam adds no durable evidence cache and requires no database migration. Shared comparison
 evaluation supplies both the legacy percentage and structured status/reason;
 the Graham presentation schema exposes sanitized evidence and provenance.
 
@@ -380,7 +380,7 @@ financial input resolution continues through `get` / `get_series`; the existing
 cache protocols do not acquire these SQLite-specific inspection methods.
 
 `SQLiteTrajectorySink` and the public `read_trajectory(database, run_id)` function
-retain their existing signatures and import paths as repository delegates.
+keep stable signatures and import paths, delegating to the repository underneath.
 The sink retains flush/close synchronization and optional database disposal;
 by default, closing it leaves the borrowed database open. Repository errors
 propagate; the recorder retains fail-open handling. Event encoding and readback
