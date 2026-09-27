@@ -68,7 +68,6 @@ For work-package sequencing and status, see the [milestone table](milestones/v0.
                  ┌────────────┴────────────┐
                  ▼                         ▼
           direct terminal view       Analysis Run library
-                                      (Step 3.4 target)
                                              │
                                              ▼
                                 later report/view formats
@@ -178,8 +177,8 @@ Graham is intentionally not required to return `TrendStatus` or consume a histor
 
 The direct command is `ian fcf-growth TICKER`. The strategy retains its own policy, annual-observation, metric, classification, and forward-evidence types rather than being forced into either the Momentum or Graham result shape.
 
-### `BaseDataClient`
-Existing provider boundary for historical market prices. Under the selected Step 2.3 Option A direction, it remains price-history focused rather than becoming the owner of fundamentals, valuation quotes, macro series, and cache policy.
+### `BaseDataClient` and `MarketDataProvider`
+`BaseDataClient` is the original concrete provider boundary for historical market prices; it remains price-history focused rather than becoming the owner of fundamentals, valuation quotes, macro series, and cache policy. `MarketDataProvider` (`src/data/market_data.py`) is a narrower structural protocol — `provider_id` plus `fetch_historical_data` — and is the boundary Momentum's resolver actually consumes. `MomentumAnalyzer` accepts either a `BaseDataClient` or a `MarketDataProvider` directly; when only the former is supplied, a private `_ClientProviderAdapter` wraps it so existing `BaseDataClient` callers keep working without duplicating the historical-price contract.
 
 Current quote retrieval is a separate valuation capability; it is not implemented as a one-day historical request.
 
@@ -406,26 +405,33 @@ External Provider
       ▼
 Provider Adapter Boundary
       │
-      ├── BaseDataClient ─────────────► historical series ─► Momentum
-      ├── SecurityIdentityProvider ───► current identity / instrument-kind snapshot
-      └── FinancialFactsProvider
-              ├── quote
-              ├── company fundamentals
-              └── macro observation contract
-                      │
-                      ▼
-      method-specific Graham resolver ◄── override / cache
-                      │
-                      ▼
-               resolved inputs
-                      │
-                      ▼
-             deterministic Graham method
-                      │
-                      ▼
-                typed strategy result
-                      │
-                      ▼
+      ├── BaseDataClient / MarketDataProvider ──► historical series ──► Momentum
+      ├── SecurityIdentityProvider ────────────► identity / instrument-kind snapshot
+      │                                                    │
+      │                                                    ▼
+      │                                    durable instrument-profile cache (optional)
+      │                                                    │
+      └── FinancialFactsProvider                           │
+              ├── quote                                    │
+              ├── company fundamentals                     │
+              └── macro observation contract                │
+                      │                                     │
+        ┌─────────────┴─────────────┐                       │
+        ▼                           ▼                       │
+method-specific Graham        FCF annual-series              │
+resolver ◄── override/cache   resolver ◄── override/cache    │
+        │                           │                       │
+        ▼                           ▼                       │
+  resolved inputs             resolved inputs                │
+        │                           │                       │
+        ▼                           ▼                       │
+deterministic Graham method   deterministic FCF method       │
+        │                           │                       │
+        └─────────────┬─────────────┘                       │
+                       ▼                                     │
+              typed strategy result ◄─────────────────────────┘
+                       │
+                       ▼
              presentation boundary
 ```
 
@@ -435,7 +441,7 @@ And it separately distinguishes persistence/artifacts:
 Golden fixture data ──► fixture adapter ──► deterministic/evaluation execution
 trajectory events   ──► telemetry sink (JSONL / SQLite)
 production data     ──► SQLite/cache repositories
-analysis result     ──► Analysis Run repository (Step 3.4)
+analysis result     ──► Analysis Run repository
 identity/profile snapshot ─► same Analysis Run (never re-resolved for historical viewing)
 Analysis Run        ──► versioned deterministic report projection
 report projection   ──► concise/details/diagnostic/JSON view
