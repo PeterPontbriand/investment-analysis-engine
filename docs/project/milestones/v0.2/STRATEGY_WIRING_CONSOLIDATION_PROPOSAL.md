@@ -67,7 +67,7 @@ is duplicated per strategy today, and how many times (four, soon nine).
 | Wiring point | Shape |
 | :--- | :--- |
 | `encode_evidence`'s isinstance chain | One `isinstance(evidence, *)` branch per strategy, order-sensitive (subclass-before-superclass concerns don't currently apply, but the chain is manually ordered). |
-| `decode_evidence`'s version-check tuple | One `(analysis_id, method_id)` tuple per strategy in a manually-maintained membership check, plus one more manually-maintained literal per strategy for the expected `method_version`/`result_schema_version` (already awkward today — see IR.2 inventory §6.10 on the `3 if fcf_pair else 1` pattern this document's own IR.2 work is about to make one branch more awkward). |
+| `decode_evidence`'s version-check tuple | One `(analysis_id, method_id)` tuple per strategy in a manually-maintained membership check, plus one more manually-maintained literal per strategy for the expected `method_version`/`result_schema_version` (already awkward today — see the [IR.2 plan](integration-readiness/IR2_ANALYZER_ENVELOPE_PLAN.md#610-persisted-shape-version-bumps-and-alembic-per-the-project-owners-direction-item-7) §6.10 on the `3 if fcf_pair else 1` pattern this document's own IR.2 work is about to make one branch more awkward). |
 | `decode_evidence`'s dispatch chain | One `if` branch per strategy, each calling that strategy's own `decode_*` function and checking ticker identity by strategy-specific field access. |
 | `src/workspace/{strategy}.py` (`graham_number.py`, `graham_growth.py`, `fcf_growth.py`, `momentum.py`) | One file per strategy, each with its own `encode_*`/`decode_*` pair. |
 

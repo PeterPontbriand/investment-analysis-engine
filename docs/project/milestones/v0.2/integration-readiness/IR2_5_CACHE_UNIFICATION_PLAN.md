@@ -4,9 +4,9 @@ Revision 4 (final before implementation). Resolves the mypy/LSP conflict revisio
 unifies both composition functions to the same shape, per review. Sections below describe the
 implementation as built.
 
-Local sequence and status: [companion plan](IR_CONTRACT_AND_SLICE_PLAN.md#3-sequencing). Scope
-origin: [§6, item 10](IR_CONTRACT_AND_SLICE_PLAN.md#6-ir2-implementation-inventory--approved-2026-09-24)
-and [§6.9](IR_CONTRACT_AND_SLICE_PLAN.md#6-ir2-implementation-inventory--approved-2026-09-24).
+Local sequence and status: [companion plan](IR_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status). Scope
+origin: [§6, item 10](IR2_ANALYZER_ENVELOPE_PLAN.md#6-ir2-implementation-inventory--approved-2026-09-24)
+and [§6.9](IR2_ANALYZER_ENVELOPE_PLAN.md#6-ir2-implementation-inventory--approved-2026-09-24).
 
 ## Revision 4 decisions
 
