@@ -32,7 +32,8 @@ current codes:
   analyses safely consumable by an external harness (point-in-time evidence/filter provider, not a
   trading-signal generator). **Reordered 2026-09-24 to run before `R3` and `SWC`**, not after —
   IR.2 itself removes dead code and the per-strategy dispatch shape both of those packages would
-  otherwise have to audit or delete separately; see row 10's note.
+  otherwise have to audit or delete separately; see the
+  [milestone-plan status history](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#milestone-plan-status-history).
 - `PKG` — the `src` → real top-level package rename ([plan](PKG_RENAME_PLAN.md)), split out of `IR`
   given its scale. Not `R4`, deliberately: that code is already used as a document-local
   requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted
@@ -50,28 +51,28 @@ this milestone's `R1`/`R2`/`R3` codes above — that document's own status line 
 evidence already folded into the Existing Strategy Correctness audit, so it carries no current
 sequencing meaning.
 
-| Order | Work | Status / next gate |
-| :--- | :--- | :--- |
-| 1 | Telemetry and native schema enforcement (2.1–2.2) | Implemented; model-specific empirical validation belongs to Light Mode. |
-| 2 | Graham, FCF growth, evaluation and SEC FPI/IFRS (2.3–2.5A) | Complete and accepted. |
-| 3 | Reliability, SQLite, analyzer/CLI separation and package split (2.6, 3.1, R1, R2) | Complete and accepted. |
-| 4 | Repositories, telemetry verification and data quality (3.2, Issue #17, 3.3) | Complete and accepted. |
-| 5 | Existing-analysis correctness | Initial audit/repair accepted; [renewal requirements](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status) remain applicable. |
-| 6 | [Database readiness (3.3A)](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete and accepted. |
-| 7 | [Research workspace (3.4)](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) | Complete and accepted; final acceptance granted 2026-09-20 (Amendment A1's I3). |
-| 8 | [Durable instrument profiles (P2-Profiles)](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete and accepted; final acceptance granted 2026-09-22 (see [final summary](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#153-milestone-summary)). |
-| 9 | [Existing-analysis renewal (ESC-D)](existing-strategy-correctness/ESC_D_RENEWAL_PLAN.md) | Complete and accepted; final acceptance granted 2026-09-23 (see [final acceptance record](existing-strategy-correctness/ESC_D_FINAL_ACCEPTANCE.md)). Full seven-dimension audit-matrix re-run found and repaired ESC-19; ESC-18 was corrected (its branch was already unreachable dead code, tracked as R3). No unresolved correctness defects. |
-| 10 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md) | Scope drafted, pending review; **reordered ahead of R3 (2026-09-24)** — IR.2 itself removes a verified set of dead code as an intrinsic consequence of unifying the analyzer envelope, so R3's general sweep runs against an already-smaller, already-cleaned codebase instead of duplicating IR.2's reachability analysis. IR.1, IR.2, and IR.3 (renumbered from IR.4) remain in this work package; the old IR.3 (Momentum purity) folded into IR.2 (2026-09-24); IR.5 moved to SWC (below). IR.4 (Python-version reproducibility, reusing the number freed by IR.3's renumbering) was delivered independently on its own branch and merged back 2026-09-26; its spec and completion record now live in [IR4_PYTHON_VERSION_REPRODUCIBILITY.md](integration-readiness/IR4_PYTHON_VERSION_REPRODUCIBILITY.md), which supersedes the contract's own §7. IR.6 (watchlist lifecycle completion: delete, rename, one method vocabulary), added 2026-09-27, is planned on its own branch off `main` like IR.4; see [IR6_WATCHLIST_LIFECYCLE_COMPLETION.md](integration-readiness/IR6_WATCHLIST_LIFECYCLE_COMPLETION.md). |
-| 11 | [Strategy wiring consolidation (SWC)](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md) | Accepted as a work package 2026-09-24; not yet scoped into slices. Scheduled after IR (the shared `run_analysis(ticker, config, context)` envelope is this package's prerequisite — see the proposal's §6) and before R3, since it deletes the per-strategy dispatch chains (`isinstance` chains, per-strategy dicts) R3 would otherwise have to individually audit as dead-or-not. Absorbs IR.5's scope (typed JSON envelope models and generated schemas are per-strategy wiring, built once on the shared descriptor rather than hand-written per strategy). |
-| 12 | [Repository-wide dead code audit (R3)](R3_DEAD_CODE_AUDIT_PLAN.md) | Not started; **reordered after IR and SWC (2026-09-24)**, for the reasons in rows 10–11. Scope/contract review required before implementation. |
-| 13 | [`src` package rename (PKG)](PKG_RENAME_PLAN.md) | Not started; scheduled after R3 and before Step 3.5, so Step 3.5's five new analyzers are written once under the final import path, against an already-consolidated and already-cleaned codebase. |
-| 14 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Plan accepted; implementation waits for integration readiness (IR), strategy wiring consolidation (SWC), the dead code audit (R3), and the package rename (PKG). |
-| 15 | Light Mode (3.6) | Not started; includes empirical model/schema and end-to-end workflow validation. |
-| Deferred | ETF aggregation (P2-ETF) | Separate prioritization and provider/product-policy approval after 3.6; not a validation prerequisite. |
-| Deferred | [Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export)](DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Decided as its own future work package; not started, and not to be scheduled until after Step 3.5. Discovered 2026-09 via the evidence provider roadmap. |
-| Deferred | [Structured error reporting for programmatic/agentic CLI consumers](DEFERRED_STRUCTURED_ERROR_REPORTING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
-| Deferred | [Prefix matching for Analysis Run/refresh IDs](DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
-| Deferred | [Deduplicate Momentum's instrument-profile composition sites](DEFERRED_MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) | Not started; discovered 2026-09-21 during P2-Profiles Slice D reconnaissance, raised again in PR #39 review. Scope/contract review required; not a validation prerequisite. |
+| Order | Work | Status | Completed |
+| :--- | :--- | :--- | :--- |
+| 1 | [Telemetry and native schema enforcement (2.1–2.2)](#41-step-21--trajectory-logging--telemetry) | Complete | 2026-08-17 |
+| 2 | [Graham, FCF growth, evaluation and SEC FPI/IFRS (2.3–2.5A)](#43-step-23--graham-methods-input-resolution--data-contracts) | Complete | 2026-09-02 |
+| 3 | [Reliability, SQLite, analyzer/CLI separation and package split (2.6, 3.1, R1, R2)](#46-step-26--circuit-breakers--timeout-limits) | Complete | 2026-09-07 |
+| 4 | [Repositories, telemetry verification and data quality (3.2, Issue #17, 3.3)](#48-step-32--dao--repository-layer) | Complete | 2026-09-08 |
+| 5 | [Existing-analysis correctness](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status) | Complete | 2026-09-11 |
+| 6 | [Database readiness (3.3A)](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete | 2026-09-13 |
+| 7 | [Research workspace (3.4)](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) | Complete | 2026-09-20 |
+| 8 | [Durable instrument profiles (P2-Profiles)](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete | 2026-09-22 |
+| 9 | [Existing-analysis renewal (ESC-D)](existing-strategy-correctness/ESC_D_RENEWAL_PLAN.md) | Complete | 2026-09-23 |
+| 10 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#3-sequencing) | In progress | |
+| 11 | [Strategy wiring consolidation (SWC)](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md) | Next | |
+| 12 | [Repository-wide dead code audit (R3)](R3_DEAD_CODE_AUDIT_PLAN.md) | Planned | |
+| 13 | [`src` package rename (PKG)](PKG_RENAME_PLAN.md) | Planned | |
+| 14 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Planned | |
+| 15 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
+| Deferred | [ETF aggregation (P2-ETF)](#47a-p2--durable-instrument-profiles--etf-aggregate-fcf-growth) | Deferred | |
+| Deferred | [Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export)](DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Deferred | |
+| Deferred | [Structured error reporting for programmatic/agentic CLI consumers](DEFERRED_STRUCTURED_ERROR_REPORTING.md) | Deferred | |
+| Deferred | [Prefix matching for Analysis Run/refresh IDs](DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Deferred | |
+| Deferred | [Deduplicate Momentum's instrument-profile composition sites](DEFERRED_MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) | Deferred | |
 
 ## 1. Purpose & Scope
 
@@ -200,6 +201,8 @@ No ETF holdings ingestion or aggregation belongs to this deliverable.
 in item 6, and item 7. Preserve the separate evidence/product-policy gate before
 implementation. Do not create
 speculative ETF schemas or infrastructure while implementing P2-Profiles or 3.4.
+Deferred: separate prioritization and provider/product-policy approval after Step 3.6;
+not a Milestone v0.2 validation prerequisite.
 
 **Goal:** Replace repeated live descriptive/classification lookups with durable, time-aware instrument profiles and add a distinct look-through FCF-growth strategy for ETFs without changing the meaning of the existing company-level strategy.
 

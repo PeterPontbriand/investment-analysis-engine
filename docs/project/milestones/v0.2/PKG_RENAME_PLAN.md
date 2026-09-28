@@ -1,7 +1,8 @@
 # PKG — `src` to Real Top-Level Package Rename
 
-**Status:** next after IR; not yet started; scope/contract review required before implementation,
-matching this project's convention for any nontrivial work package.
+**Status:** next in sequence per `IMPLEMENTATION_PLAN.md` row 13, after IR (row 10), SWC (row 11),
+and R3 (row 12); not yet started; scope/contract review required before implementation, matching
+this project's convention for any nontrivial work package.
 **Discovered:** 2026-09, during the same integration-readiness review that produced
 [IR](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md); split out from IR into its own work
 package because of its scale relative to IR's other, smaller fixes.
