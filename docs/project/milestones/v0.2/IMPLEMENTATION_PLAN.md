@@ -33,7 +33,7 @@ current codes:
   trading-signal generator). **Reordered 2026-09-24 to run before `R3` and `SWC`**, not after —
   IR.2 itself removes dead code and the per-strategy dispatch shape both of those packages would
   otherwise have to audit or delete separately; see the
-  [milestone-plan status history](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#milestone-plan-status-history).
+  [milestone-plan status history](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#a6-milestone-plan-status-history).
 - `PKG` — the `src` → real top-level package rename ([plan](PKG_RENAME_PLAN.md)), split out of `IR`
   given its scale. Not `R4`, deliberately: that code is already used as a document-local
   requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted
@@ -62,7 +62,7 @@ sequencing meaning.
 | 7 | [Research workspace (3.4)](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) | Complete | 2026-09-20 |
 | 8 | [Durable instrument profiles (P2-Profiles)](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete | 2026-09-22 |
 | 9 | [Existing-analysis renewal (ESC-D)](existing-strategy-correctness/ESC_D_RENEWAL_PLAN.md) | Complete | 2026-09-23 |
-| 10 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#3-sequencing) | In progress | |
+| 10 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
 | 11 | [Strategy wiring consolidation (SWC)](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md) | Next | |
 | 12 | [Repository-wide dead code audit (R3)](R3_DEAD_CODE_AUDIT_PLAN.md) | Planned | |
 | 13 | [`src` package rename (PKG)](PKG_RENAME_PLAN.md) | Planned | |
