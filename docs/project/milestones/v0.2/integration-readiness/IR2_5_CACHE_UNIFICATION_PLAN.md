@@ -214,3 +214,58 @@ constructors. No formula, classification, or calculation result change.
    `graham-number` and `momentum`.
 4. Final acceptance record: which persisted-shape version fields changed (expected: none) and
    confirmation no Alembic migration was required.
+
+## 5. Final acceptance record
+
+**Implemented as planned in §2**, across three commits: composition unification + Momentum
+threading + required parameters with their own tests; the 117 mechanical `resolver.py` test edits
+alone; this record.
+
+**Gate:** `scripts/run-quality-gates.sh` passed clean — 3191 tests, 91% line coverage, `ruff check`/
+`ruff format --check`/`mypy --strict` all clean on both `src` and `tests`.
+
+**Manual smoke (live network, throwaway SQLite paths, cleaned up after):**
+- `ian momentum KO` (cache enabled, no CLI flag exists for disabling it yet): identical output to
+  pre-slice behavior; `analysis.sqlite3` and its readiness lock were created.
+- `ian graham-number KO` (cache enabled): identical output to pre-slice behavior (same Graham
+  Number, EPS, BVPS values as the `--no-cache` run below); `graham.sqlite3` and its readiness lock
+  were created.
+- `ian graham-number KO --no-cache`: succeeded with the same result values; **no database file was
+  created** (directory listing empty afterward).
+- `ian fcf-growth KO --no-cache`: succeeded (real FCF/EPS CAGR result, screen FAIL for KO on its
+  own financial merits, not an error); **no database file was created**. Traced separately from
+  Graham/Momentum because FCF's cache reaches the composed cache through a different path
+  (`ProductionAnnualGrowthSeriesResolver.resolve` → `resolve_annual_growth_series` →
+  `_resolve_field`'s own `if use_cache and cache is not None:` gate,
+  `fcf_earnings_growth/input_resolver.py`) — confirmed this was always a genuine per-call gate, not
+  a reliance on the removed `InMemoryResolvedInputCache` substitution, so removing that substitution
+  could not have broken it. `test_no_cache_does_not_open_database` (parametrized over all three
+  commands including `fcf-growth`) re-run in isolation: 3 passed.
+- Momentum has no `--no-cache` CLI surface yet (IR.2.6), so its disabled-cache path was exercised
+  directly at the composition-function level: `_production_historical_client(provider,
+  use_cache=False, clock=...)` followed by a real `fetch_data_with_context(..., use_cache=False)`
+  call against Yahoo Finance succeeded (39 rows returned) with **no database file created** —
+  matching the new `test_disabled_cache_never_checks_readiness` unit test's assertion.
+
+**Review fix folded into the composition/threading commit:**
+`CachedHistoricalDataClient.fetch_data_with_context`'s three internal calls to
+`self._provider.fetch_historical_data(...)` now forward the caller's own `use_cache` value instead
+of a literal `True`. The wrapped raw provider still has nothing of its own to skip today, but an
+outer caller's explicit "use no cache anywhere" must never be silently overridden by an inner layer,
+including a future one — forwarding the real value closes that off structurally rather than by
+convention. `fetch_data` (the legacy entry point with no `use_cache` parameter of its own) still
+hardcodes `use_cache=True` when delegating internally, unchanged; checked for production callers of
+`CachedHistoricalDataClient.fetch_data` specifically and found none — every call site reaches the
+client through `fetch_data_with_context`/`fetch_historical_data` instead.
+
+**Persisted-shape version fields changed:** none. No `Selection`/tool-argument/config schema
+touched by this slice — `use_cache` was already a real field everywhere it's persisted
+(`AnalysisContext.use_cache`, `GrahamNumberSelection.use_cache`, etc.); this slice only made the
+*data-client* layer finally honor the value Momentum already carried and dropped.
+
+**Alembic migration:** none required or added. No repository, schema, or table definition changed.
+
+**Scope check against §2.4 ("what this slice does not touch"):** confirmed — no `--no-cache` CLI
+option or `MomentumSelection.use_cache`/`MomentumToolArguments.use_cache` field was added (IR.2.6
+still owns that); no cache key construction changed; no formula, classification, or calculation
+result changed.
