@@ -13,6 +13,13 @@ Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequen
 | 3.5.3 | CLI, presentation and Analysis Run integration | Planned |
 | 3.5.4 | Regression/Golden tests, docs and quality gate | Planned |
 
+### Milestone-plan entry condition
+
+Moved here from `IMPLEMENTATION_PLAN.md` row 14, which now carries only status and date: this
+plan is accepted, but implementation waits for integration readiness (IR), strategy wiring
+consolidation (SWC), the dead code audit (R3), and the package rename (PKG) — see the
+[milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status) for why those four run first.
+
 ## 1. Strategy Selection & Justification
 
 Five strategies are selected. The set is deliberately small so that each can receive proper data-mapping, edge-case handling, documentation, Golden-Suite coverage, and investor-facing presentation before Light Mode validation begins. All five are mathematically well-specified in the public literature, complementary to the existing Momentum / Graham / FCF-Growth suite, and feasible with the project’s current data boundaries.

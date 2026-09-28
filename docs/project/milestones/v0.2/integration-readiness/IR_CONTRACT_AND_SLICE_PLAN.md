@@ -225,6 +225,22 @@ diff is non-executable declarative metadata with no import-time or runtime effec
 | IR.6 | Watchlist lifecycle completion (§2 item 8): three gated sub-slices, IR.6.1 command vocabulary (`remove-ticker`/`remove-method`, `runs list --analysis`, alias-only text output), IR.6.2 `watchlist delete`, IR.6.3 `watchlist rename`. No dependency on IR.2's remaining sub-slices. **Branch: its own (`fix/ir6-watchlist-lifecycle` off `main`), merged to `main` independently once accepted, following IR.4's precedent;** `feat/ir-integration-readiness` merges `main` back in afterward. Spec: [IR6_WATCHLIST_LIFECYCLE_COMPLETION.md](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md). |
 | IR.7 | `ARCHITECTURE.md` contributor pass: reorganize into a 14-section outline for a first-time contributor, remove every stale "(Step N implemented/target)" label and the self-contradicting Graham-comparison "planned" section, reconcile `BaseDataClient`/`MarketDataProvider`, condense the invariants list, replace the per-strategy catalog with an ownership/sharing statement linking to the Analysis Strategy Contributor Guide and the user strategy guides, and add a new repo-wide Markdown link/anchor checker (`scripts/check_doc_links.py`) wired into the quality gate. Found and required by this session's `docs/contributor-documentation` merge review, not a pre-existing `§2` item. **Branch: its own (`fix/ir7-architecture-doc-pass` off `feat/ir-integration-readiness`, not `main`, since `main`'s `ARCHITECTURE.md` predates IR.2.1–2.4 and would recreate the collision that merge resolved), merging back into `feat/ir-integration-readiness` directly.** Delivered; spec and completion record: [IR7_ARCHITECTURE_DOC_CONTRIBUTOR_PASS.md](IR7_ARCHITECTURE_DOC_CONTRIBUTOR_PASS.md). |
 
+### Milestone-plan status history
+
+Moved here from `IMPLEMENTATION_PLAN.md`'s row 10, which now carries only status and date.
+
+Reordered ahead of R3 (2026-09-24) — IR.2 itself removes a verified set of dead code as an
+intrinsic consequence of unifying the analyzer envelope, so R3's general sweep runs against an
+already-smaller, already-cleaned codebase instead of duplicating IR.2's reachability analysis.
+IR.1, IR.2, and IR.3 (renumbered from IR.4) remain in this work package; the old IR.3 (Momentum
+purity) folded into IR.2 (2026-09-24); IR.5 moved to SWC (§2 item 6). IR.4 (Python-version
+reproducibility, reusing the number freed by IR.3's renumbering) was delivered independently on
+its own branch and merged back 2026-09-26; its spec and completion record now live in
+[IR4_PYTHON_VERSION_REPRODUCIBILITY.md](IR4_PYTHON_VERSION_REPRODUCIBILITY.md), which supersedes
+this contract's own §7. IR.6 (watchlist lifecycle completion: delete, rename, one method
+vocabulary), added 2026-09-27, is planned on its own branch off `main` like IR.4; see
+[IR6_WATCHLIST_LIFECYCLE_COMPLETION.md](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md).
+
 ## 4. Acceptance criteria
 
 - No existing analysis's formulas or classifications change — verified by report, not by fixing:
