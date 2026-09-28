@@ -258,6 +258,9 @@ Require explicit user confirmation before:
 
 - To find current or next work, start at the sequence table in
   `docs/project/MASTER_PLAN.md` and follow its links.
+- When a unit of work completes, update its row in the nearest sequence table (status and
+  completion date) as part of the same change, and set the next row to Next. Change a parent
+  table only when a parent's status actually changes.
 - Active milestone implementation → `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`
 - Roadmap → `docs/project/MASTER_PLAN.md`
 - Rationale / decision history → `docs/project/DISCOVERY_WORKBOOK.md`
