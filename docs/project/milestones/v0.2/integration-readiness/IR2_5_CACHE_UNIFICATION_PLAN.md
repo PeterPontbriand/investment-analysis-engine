@@ -2,163 +2,148 @@
 
 Planning record only. No source or test file has been changed by this document; it is written
 against the codebase as it stands after IR.2.1–2.4 and IR.4, IR.7 (verified directly, file by
-file, rather than trusted from the contract's original wording — the contract predates IR.2.1–2.4
-and several of its call-site details have already moved).
+file, rather than trusted from the contract's original wording). Revision 2: incorporates a
+composition-time ordering fix found by explicitly tracing exception paths and call order (see §1
+and the "Order-preservation fix" subsection) — the design in this revision changes today's
+observable behavior less than revision 1 did.
 
 Local sequence and status: [companion plan](IR_CONTRACT_AND_SLICE_PLAN.md#3-sequencing). Scope
 origin: [§6, item 10](IR_CONTRACT_AND_SLICE_PLAN.md#6-ir2-implementation-inventory--approved-2026-09-24)
 and [§6.9](IR_CONTRACT_AND_SLICE_PLAN.md#6-ir2-implementation-inventory--approved-2026-09-24).
 
-## Open design choices
+## Decisions from review
 
-These need a decision before or during implementation; none has a single obviously-correct
-answer. Recommendations are marked, but every one is a real choice, not a formality.
-
-**D1 — Where does "lazy open" live: a new wrapper class, or inside the existing cache/client
-classes?**
-
-- **Option A (recommended): wrap outside, at the existing protocol boundary.** Add
-  `LazyResolvedInputCache` (satisfies `ResolvedInputSeriesCacheProtocol`) and
-  `LazyMarketDataProvider` (satisfies `MarketDataProvider`) as new, small classes. Composition
-  functions build one of these instead of the real cache/client, and defer constructing the real
-  thing until first `get`/`put`/`fetch_historical_data`. `SQLiteResolvedInputCache` and
-  `CachedHistoricalDataClient` are untouched — their constructors, their own unit tests (42 direct
-  constructions of `SQLiteResolvedInputCache` across 4 test files; 13 of `CachedHistoricalDataClient`
-  in `tests/data/test_cached_client.py`), and every other caller keep working exactly as today.
-- **Option B: make the existing classes lazy internally**, by changing
-  `SQLiteResolvedInputCache.__init__`'s `database: SQLiteDatabase` and
-  `CachedHistoricalDataClient.__init__`'s `repository: SQLiteMarketDataRepository` into
-  factory-typed parameters (`Callable[[], ...]`), memoized on first real access. No new classes.
-  But it changes two already-accepted, heavily-tested public constructors, and all 55 direct
-  constructions above would need mechanical rewriting to pass a factory instead of a value — for no
-  behavioral benefit over Option A.
-
-Recommendation: **A**. It isolates the new behavior in its own small, independently testable
-classes and leaves the existing, already-verified classes and their tests completely alone. The
-cost is two new files' worth of tests and (for the historical side only) a parameter-type widening
-at three call sites — see D2.
-
-**D2 — Historical side: does `run_momentum` keep taking a `BaseDataClient`, or a `MarketDataProvider`?**
-
-Under D1/Option A, the historical composition functions hand back a `LazyMarketDataProvider`
-(satisfying `MarketDataProvider`), not a `BaseDataClient`. `run_momentum`
-(`src/workspace/momentum_execution.py:65`) currently declares
-`historical_client: BaseDataClient` and passes it to `MomentumAnalyzer(data_client=historical_client)`.
-`MomentumAnalyzer.__init__` already accepts either `data_client: BaseDataClient | None` or
-`market_data_provider: MarketDataProvider | None` (`momentum_analyzer.py:129-131`), so:
-
-- **Option A (recommended):** widen `run_momentum`'s parameter to `MarketDataProvider` and call
-  `MomentumAnalyzer(market_data_provider=historical_client)` instead. Three call sites move
-  (`run_momentum`'s own signature; `src/cli.py`'s two `momentum` branches; `src/cli_workspace.py`'s
-  `_execute_momentum`), all in this same slice, all already passing through a local variable, not a
-  stored/persisted type.
-- **Option B:** give `LazyMarketDataProvider` a `fetch_current_price` method too so it can also
-  satisfy `BaseDataClient` structurally... except `BaseDataClient` is an `ABC`, not a `Protocol` —
-  satisfying it means subclassing it, which reintroduces the abstract-method boilerplate this slice
-  is trying to avoid, for a method Momentum's own path never calls (`_ClientProviderAdapter`, the
-  thing Momentum actually consumes today, only ever exposes `provider_id`/`fetch_historical_data` —
-  `momentum_analyzer.py:414-429` — never `fetch_current_price`).
-
-Recommendation: **A**. Option B fights the type system to preserve a parameter name
-(`data_client`) nothing downstream needs to keep.
-
-**D3 — Naming.** `LazyResolvedInputCache` / `LazyMarketDataProvider` are working names, chosen to
-read as "the lazy variant of the thing this composes," matching no existing naming collision. Not
-load-bearing; change freely during review.
-
-**D4 — Thread-safety of the memoized open.** Both lazy wrappers do a classic
-"open on first access, remember the result" check. Today, every composition path
-(`_production_financial_cache`, `_production_historical_client`) is entered fresh per CLI
-invocation or per refresh job (`cli_workspace.py:766-772`'s `_execute_momentum` builds one per
-ticker, not once for the whole batch) — no current caller shares one instance across concurrent
-threads. The only long-lived, potentially-shared composition (`AnalysisToolDependencies` in
-`src/evaluation/composition.py:197`) is evaluation-only and single-threaded today.
-- **Option A (recommended): no lock.** Match actual current usage; add one later if a future
-  daemon/long-lived orchestrator composition ever shares one instance across concurrent calls.
-- **Option B: add a trivial lock now** (a few lines, e.g. guarding the check-and-set with
-  `threading.Lock`) as defensive insurance against that future case.
-
-Recommendation: **A**, but this is cheap enough that **B** is a reasonable, low-cost alternative if
-the project owner would rather not rely on "no current caller shares this" as an implicit
-invariant.
+- **D1 = A.** Wrap outside, at the existing protocol boundary: `LazyResolvedInputCache`
+  (`ResolvedInputSeriesCacheProtocol`) and `LazyMarketDataProvider` (`MarketDataProvider`). Neither
+  `SQLiteResolvedInputCache` nor `CachedHistoricalDataClient`'s own constructors change; none of
+  their 55 combined direct-construction tests need touching.
+- **D2 = A.** `run_momentum`'s `historical_client` parameter widens from `BaseDataClient` to
+  `MarketDataProvider`; it constructs `MomentumAnalyzer(market_data_provider=historical_client)`
+  instead of `data_client=historical_client`.
+- **D3 = keep `Lazy*`.** Each wraps a real, still-in-use eager class (`SQLiteResolvedInputCache`,
+  `CachedHistoricalDataClient`); the prefix distinguishes two real variants of the same capability,
+  not a placeholder. Each wrapper's class docstring names the eager class it wraps and why both
+  exist (the eager one for callers/tests that already have a ready database in hand and want it
+  used immediately; the lazy one for composition that must not assume storage is ready or wanted).
+- **D4 = B.** Add a lock. `refresh_watchlist`'s worker pool already shares the durable
+  instrument-profile cache across concurrent jobs by contract (`CachedInstrumentProfileResolver`
+  serializes its own per-ticker critical section); a cheap, consistent lock on the two new lazy
+  wrappers matches that existing posture rather than relying on "no current caller happens to share
+  one instance" as an implicit invariant.
 
 ## 1. Context
 
-**The problem (verified against the current code, not assumed from the contract):**
+**The problem (verified against the current code):** Graham and FCF have two independent, redundant
+cache controls today. `_production_financial_cache(*, enabled: bool, clock: ...)`
+(`src/cli_support.py:59-79`) decides, at composition time, whether to build a durable
+`SQLiteResolvedInputCache` (calling `ensure_database_ready(database)` eagerly first) or a scratch
+`InMemoryResolvedInputCache` that never opens SQLite. Separately, every resolver method in
+`src/data/financial/resolver.py` takes its own per-call `use_cache: bool = True` (verified at lines
+212, 235, 268, 338, 373, 434, 706, 728, 847, 1100, 1233) that independently gates each read/write.
+Both controls are driven by the same six call sites' local `use_cache` value (`src/cli.py:397,513,605`,
+`src/cli_workspace.py:796,822,848`) — `_production_financial_cache(enabled=use_cache, ...)`
+immediately followed by `resolver.resolve(..., use_cache=use_cache)` downstream. Momentum has no
+control at all today: `_production_historical_client` (`cli_support.py:34-56`) unconditionally wires
+and eagerly readiness-checks a durable historical cache, and `MomentumInputResolver.resolve`
+(`momentum_analyzer.py:327-352`) never accepts a `use_cache` parameter to skip it.
 
-Graham and FCF have two independent, redundant cache controls today.
-`_production_financial_cache(*, enabled: bool, clock: ...)` (`src/cli_support.py:59-79`) decides,
-at composition time, whether to build a durable `SQLiteResolvedInputCache` (calling
-`ensure_database_ready(database)` eagerly first) or a scratch `InMemoryResolvedInputCache` that
-never opens SQLite at all. Separately, every resolver method in `src/data/financial/resolver.py`
-takes its own per-call `use_cache: bool = True` (verified: lines 212, 235, 268, 338, 373, 434, 706,
-728, 847, 1100, 1233) that independently gates each read/write against whichever cache object was
-composed. Both controls are driven by the same six call sites' local `use_cache` value
-(`src/cli.py:397,513,605`, `src/cli_workspace.py:796,822,848` — six confirmed, matching the
-contract's count) — `_production_financial_cache(enabled=use_cache, ...)` immediately followed by
-`resolver.resolve(..., use_cache=use_cache)` downstream.
+**Order-preservation fix (found while tracing item 1/2's exception and call-order questions,
+revision 2's actual design change):** a naive "always defer to first real `get`/`put`" lazy wrapper
+would, for Graham Number/Growth and FCF Growth's *default* (non-`--save-run`) command path, let two
+things run that today never run when storage is broken — `build_graham_resolver`'s unconditional
+construction of the real SEC/Massive facts provider (`build_sec_production_provider()`), and
+`compose_graham_profile`'s live SEC/Yahoo identity-provider call, which every one of
+`execute_graham_number`/`execute_graham_growth`/`execute_fcf_growth` runs *before* `run_analysis`
+(verified: Graham's calculation needs the composed profile as a required `AnalysisContext` field
+upfront for applicability, unlike Momentum, which attaches its profile after calculation). Today,
+neither runs when storage is broken, only because `_production_financial_cache.__enter__()` raises
+before the `with` body ever starts. **Fix:** the composition functions take the caller's already-known
+`use_cache` as a required parameter and eagerly trigger the lazy wrapper's open — call it `warm()` —
+at composition time whenever `use_cache` is `True`. Every real caller today (direct commands,
+`_maybe_save_run`, and each refresh job's own fresh per-job composition) already knows `use_cache`
+before composing the cache, so this costs nothing and restores exact parity with today's eager
+behavior for the common case, while `use_cache=False` still never touches storage (the wrapper is
+built but `warm()` is never called, and the resolver's/`CachedHistoricalDataClient`'s own per-call
+gate — unchanged — never calls `get`/`put` either). Momentum's `_production_historical_client` gets
+the identical `use_cache`-gated `warm()` call for symmetry, even though tracing its call order
+(§2 below) shows it isn't strictly required there — Momentum's cache access already precedes
+instrument-profile composition in both its branches, and an explicit CLI comment
+(`cli.py:276-279`) already documents this as an intended, project-wide invariant: *"Readiness is
+checked before the historical-data provider call, matching every other command's 'preflight before
+provider work' ordering."* This revision's design preserves that invariant for all four commands
+instead of quietly breaking it for three of them.
 
-Removing the `enabled` switch naively — always eagerly calling `ensure_database_ready(database)` at
-composition time — would be a real regression, confirmed against
-`tests/test_cli_financial_cache.py`'s `test_...--no-cache...` case (line ~189): today, `--no-cache`
-mocks `SQLiteDatabase` to raise if constructed and asserts the database file never appears, because
-`enabled=False` skips opening SQLite entirely. An eager "always wired" cache would make `--no-cache`
-newly *fail* on a machine where storage is broken, when today it silently succeeds by never looking.
+**Net effect of this fix:** this slice is now a much more conservative refactor than revision 1
+proposed. `_production_financial_cache`/`_production_historical_client` still raise
+`DatabaseReadinessError` at `__enter__` time whenever `use_cache=True` (today's exact behavior,
+verified against `tests/test_cli_database_readiness.py`'s parametrized readiness tests — see §3).
+The change is: one flag (`use_cache`, not `enabled`) instead of two independently-settable ones; one
+wired object type (`Lazy*`) in both branches instead of switching between
+`InMemoryResolvedInputCache` and the real SQLite-backed class; and Momentum finally gets a real,
+per-call `use_cache` gate all the way down, where before it silently had none.
 
-**The fix:** the cache is always wired at composition (same object reference every time — no more
-in-memory substitute), but it opens storage lazily, on the first actual `get`/`put` call, not at
-composition time. Since the resolver's existing `if use_cache: ...` gates already skip calling the
-cache at all when `use_cache=False` (unchanged by this slice), a lazily-opening cache object means
-`use_cache=False` still never touches storage — matching today's behavior exactly. The "always
-wired" part is the object reference; the connection/readiness check is what becomes deferred.
-
-Momentum gets the identical treatment for symmetry, even though it has no existing regression risk
-today (verified: `_production_historical_client`, `src/cli_support.py:34-56`, has no `enabled`
-parameter at all — Momentum's historical cache is unconditionally wired, with no bypass anywhere).
-Unlike Graham/FCF, Momentum's cache-skip becomes a genuine **per-call** parameter from this slice
-onward, never a composition-time enabled/disabled choice — closing the two-controls problem before
-it can ever arise for Momentum, rather than creating it first and unifying it later (as happened
-for Graham/FCF). This slice builds that mechanism only; every current caller still passes a fixed
-`use_cache=True` for Momentum (verified: `src/orchestrator/analysis_tools.py:183-188`'s own comment,
-and `src/workspace/requests.py:139-144`'s `MomentumSelection.to_analysis_context` docstring, both
-say so explicitly) until IR.2.6 adds the real `--no-cache` CLI/`MomentumSelection`/
-`MomentumToolArguments` surface.
-
-**Relevant architecture (`ARCHITECTURE.md` §5, §8), and what does *not* change:**
-
-- §5's three instants (`executed_at`, `as_of`, the analysis boundary) and the decision-clock rule
-  (a required constructor parameter, no default, fed from `context.executed_at`) are unaffected.
-  Both lazy wrappers accept and forward the *same* already-computed `clock: Callable[[], datetime]`
-  the real classes take today — the clock is captured in a closure, never re-read, and the lazy
-  wrappers themselves make no time-based decision (whether the real object has been built yet is a
-  plain boolean, not a clock read), so they need no clock of their own and add no new decision
-  clock to inventory.
-- §8's repository table (`SQLiteResolvedInputCache`, `SQLiteMarketDataRepository`) is unchanged:
-  this slice does not touch either repository class, only what composes them and when.
-- Cache **keys** (`ResolvedInputCacheKey`, `MarketDataCacheKey`) are built entirely outside this
-  slice's scope, by callers unaffected by it. Live-run cache-key stability
-  (`tests/analysis/fcf_earnings_growth/test_fcf_earnings_growth_input_resolver.py`'s two tests
-  around line 415/455, which construct `InMemoryResolvedInputCache` directly and never go through
-  `_production_financial_cache`) is untouched by this slice — nothing here changes what a key
-  contains or when two runs' keys agree or differ.
+**Relevant architecture (`ARCHITECTURE.md` §5, §8), and what does *not* change:** §5's three instants
+and decision-clock rule are unaffected — both lazy wrappers accept and forward the same
+already-computed `clock: Callable[[], datetime]` the real classes take today, captured in a closure,
+never re-read; the wrappers make no time-based decision of their own (whether the real object exists
+yet, or whether the remembered failure should be re-raised, are plain booleans, not clock reads), so
+they need no clock and add nothing to the conformance inventory. §8's repository table
+(`SQLiteResolvedInputCache`, `SQLiteMarketDataRepository`) is unchanged — this slice does not touch
+either repository class. Cache **keys** (`ResolvedInputCacheKey`, `MarketDataCacheKey`) are built
+entirely outside this slice's scope; live-run cache-key stability
+(`tests/analysis/fcf_earnings_growth/test_fcf_earnings_growth_input_resolver.py`'s two tests, which
+construct `InMemoryResolvedInputCache` directly and never go through `_production_financial_cache`)
+is untouched.
 
 ## 2. Approach
 
 ### 2.1 New: `src/data/financial/cache.py` — `LazyResolvedInputCache`
 
-Add beside `InMemoryResolvedInputCache`. Satisfies `ResolvedInputSeriesCacheProtocol`
-structurally (no inheritance needed — it is a `Protocol`).
+Add beside `InMemoryResolvedInputCache`. Satisfies `ResolvedInputSeriesCacheProtocol` structurally.
+Remembers a factory failure and re-raises the *same* exception object on every later call (item 4 —
+not a retry: most `DatabaseReadinessError` reasons are structural, not transient, and a
+`SQLiteResolvedInputCache.get()`/`.put()` may be called many times across one command's several
+resolved fields, all of which must see the identical failure, not attempt the expensive check
+again). Guarded by a `threading.Lock` (D4) since a future long-lived composition (or, defensively,
+today's refresh worker pool) could in principle share one instance.
 
 ```python
 class LazyResolvedInputCache:
+    """Defers ``SQLiteResolvedInputCache``'s readiness check and construction.
+
+    Wraps the same real ``SQLiteResolvedInputCache`` this project already uses; that class is
+    unchanged and remains the right choice for a caller that already has a ready database and
+    wants it used immediately (e.g. its own direct-construction unit tests). This wrapper exists
+    for composition that must not assume storage is ready, or wanted, before the first real
+    resolution needs it.
+    """
+
     def __init__(self, open_factory: Callable[[], ResolvedInputSeriesCacheProtocol]) -> None:
         self._open_factory = open_factory
         self._real: ResolvedInputSeriesCacheProtocol | None = None
+        self._failure: Exception | None = None
+        self._lock = threading.Lock()
 
     def _opened(self) -> ResolvedInputSeriesCacheProtocol:
-        if self._real is None:
-            self._real = self._open_factory()
+        if self._real is not None:
+            return self._real
+        if self._failure is not None:
+            raise self._failure
+        with self._lock:
+            if self._real is None and self._failure is None:
+                try:
+                    self._real = self._open_factory()
+                except Exception as exc:
+                    self._failure = exc
+                    raise
+            elif self._failure is not None:
+                raise self._failure
+        assert self._real is not None
         return self._real
+
+    def warm(self) -> None:
+        """Force the deferred open now; a no-op once already opened or failed."""
+        self._opened()
 
     def get(self, key): return self._opened().get(key)
     def put(self, key, resolved_input): self._opened().put(key, resolved_input)
@@ -167,174 +152,283 @@ class LazyResolvedInputCache:
 
 ### 2.2 New: `src/data/cached_client.py` — `LazyMarketDataProvider`
 
-Add beside `CachedHistoricalDataClient`. Satisfies `MarketDataProvider` structurally. Takes the
-*raw* provider separately from the open factory, so `provider_id` answers immediately without
-triggering the lazy open (verified this is safe: `CachedHistoricalDataClient.provider_id` already
-just delegates to `self._provider.provider_id`, `cached_client.py:78-81`, independent of the
-repository).
+Same shape, wrapping `CachedHistoricalDataClient`. Satisfies `MarketDataProvider` structurally.
+Takes the *raw* provider separately from the open factory so `provider_id` answers immediately
+without triggering the open (`CachedHistoricalDataClient.provider_id` already just delegates to
+`self._provider.provider_id`, independent of the repository).
 
 ```python
 class LazyMarketDataProvider:
+    """Defers ``CachedHistoricalDataClient``'s readiness check and construction.
+
+    Wraps the same real ``CachedHistoricalDataClient``; that class is unchanged. This wrapper lets
+    composition decide, via ``warm()``, whether readiness is established now (matching every
+    other command's preflight-before-provider-work ordering) or left for the first real fetch.
+    """
+
     def __init__(self, provider: MarketDataProvider, open_factory: Callable[[], CachedHistoricalDataClient]) -> None:
         self._provider = provider
         self._open_factory = open_factory
         self._real: CachedHistoricalDataClient | None = None
+        self._failure: Exception | None = None
+        self._lock = threading.Lock()
 
     @property
     def provider_id(self) -> str | None:
         return self._provider.provider_id
 
-    def fetch_historical_data(self, ticker, start_date, end_date=None) -> HistoricalMarketData:
-        if self._real is None:
-            self._real = self._open_factory()
-        return self._real.fetch_historical_data(ticker, start_date, end_date)
+    def _opened(self) -> CachedHistoricalDataClient:
+        # Same remember-and-reraise, locked shape as LazyResolvedInputCache._opened.
+        ...
+
+    def warm(self) -> None:
+        self._opened()
+
+    def fetch_historical_data(self, ticker, start_date, end_date=None, *, use_cache: bool) -> HistoricalMarketData:
+        return self._opened().fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
 ```
 
 ### 2.3 `src/cli_support.py` — `_production_financial_cache` and `_production_historical_client`
 
-- `_production_financial_cache`: drop the `enabled: bool` parameter entirely (signature becomes
-  `(*, clock: Callable[[], datetime])`). Build `database = SQLiteDatabase(settings)` eagerly as
-  today (this remains cheap — `SQLiteDatabase.__init__` never connects, per its own docstring,
-  `src/data/repositories/sqlite.py:25-26`); yield
-  `LazyResolvedInputCache(open_factory=lambda: _open_financial_cache(database, clock))` where a new
-  small module-level helper `_open_financial_cache` calls `ensure_database_ready(database)` then
-  returns `SQLiteResolvedInputCache(database, ttl=..., clock=clock)`. Keep the `finally:
-  database.close()` unconditional, exactly as today — closing an unopened lazy engine is safe, and
-  `test_cache_scope_closes_on_error` (`tests/test_cli_financial_cache.py`) already depends on close
-  happening even when nothing in the block touched the cache.
-- `_production_historical_client`: same shape. Remove the eager `ensure_database_ready(database)`
-  call from the function body; yield
-  `LazyMarketDataProvider(provider, open_factory=lambda: _open_historical_client(database, provider, clock))`
-  where `_open_historical_client` does today's `ensure_database_ready` +
-  `SQLiteMarketDataRepository(database)` + `CachedHistoricalDataClient(...)` construction.
-  Both new helpers are defined in `cli_support.py` itself (not imported pre-bound) so that
-  `patch("src.cli_support.ensure_database_ready", ...)` and `patch("src.cli_support.SQLiteDatabase",
-  ...)` — both used by existing tests — keep intercepting the real calls: a closure defined in this
-  module resolves `ensure_database_ready`/`SQLiteDatabase` as module globals at call time, so a
-  patch on the module attribute is visible to the closure regardless of when it fires.
+Both gain a required keyword-only `use_cache: bool` parameter (replacing `enabled` on the financial
+one; new on the historical one — every current Momentum caller passes a literal `True`, matching
+`analysis_tools.py:183-188`'s existing "fixed until a later change" pattern).
 
-### 2.4 `src/data/base_client.py`, `src/data/market_data.py` — thread `use_cache` through the fetch surface
+```python
+@contextmanager
+def _production_financial_cache(*, use_cache: bool, clock: Callable[[], datetime]) -> Iterator[LazyResolvedInputCache]:
+    database = SQLiteDatabase(settings)
+    cache = LazyResolvedInputCache(open_factory=lambda: _open_financial_cache(database, clock))
+    try:
+        if use_cache:
+            cache.warm()
+        yield cache
+    finally:
+        database.close()
 
-- `BaseDataClient.fetch_data`, `fetch_data_with_context`, `fetch_historical_data`
-  (`base_client.py:34,50,70`) each gain `use_cache: bool = True`.
-- `MarketDataProvider.fetch_historical_data` (`market_data.py:44`, a `Protocol` method) gains the
-  same parameter.
+def _open_financial_cache(database: SQLiteDatabase, clock: Callable[[], datetime]) -> SQLiteResolvedInputCache:
+    ensure_database_ready(database)
+    seconds = settings.financial_cache_ttl_seconds
+    return SQLiteResolvedInputCache(database, ttl=None if seconds is None else timedelta(seconds=seconds), clock=clock)
+```
 
-### 2.5 `src/data/cached_client.py` — `CachedHistoricalDataClient.fetch_data_with_context`
+Symmetric shape for `_production_historical_client`/`_open_historical_client`. Both `_open_*` helpers
+stay defined in `cli_support.py` itself (not imported pre-bound) so that
+`patch("src.cli_support.ensure_database_ready", ...)` and `patch("src.cli_support.SQLiteDatabase",
+...)` — both used by existing tests — keep intercepting the real calls: a closure defined in this
+module resolves those names as module globals at call time, so a patch on the module attribute is
+visible regardless of when the closure fires. The unconditional `finally: database.close()` is
+unchanged and safe to call whether or not `warm()` ever ran (`SQLiteDatabase.__init__` never
+connects, per its own docstring, and `test_cache_scope_closes_on_error` already depends on `close()`
+running even when nothing touched the cache).
 
-Read `use_cache`: when `False`, skip `self._repository.get(key)` (always fetch live) and skip
-`self._repository.put(...)` (never write) — mirroring `resolver.py`'s existing
-`if use_cache: ...` / `if use_cache and self._cache is not None: ...` shape conceptually (Momentum
-has no per-field `ResolutionTrace` to update, so this is a coarser two-branch gate, not a literal
-copy of that trace-emitting code).
+### 2.4 `src/data/base_client.py` — thread `use_cache` through, at the levels that need it
 
-### 2.6 `src/data/yfinance/client.py`, `src/evaluation/fixtures/market_data.py` — accept and ignore
+Only `BaseDataClient.fetch_data_with_context` and `fetch_historical_data` (`base_client.py:50,70`)
+gain `use_cache: bool = True` (default kept — this is the general-purpose interface other, cache-
+agnostic callers also use directly). **`fetch_data` itself is untouched** — corrected from revision
+1, which incorrectly listed it: nothing in the call chain (`_ClientProviderAdapter` delegates to
+`fetch_data_with_context`, never `fetch_data`) ever needs it there, and `FixtureDataClient`
+(overrides only `fetch_data`) confirms no implementer needs to touch it.
 
-`YFinanceClient.fetch_data`/`fetch_data_with_context` (`yfinance/client.py:67,101`) and
-`FixtureMarketDataProvider.fetch_historical_data` / `FixtureDataClient.fetch_data`
-(`evaluation/fixtures/market_data.py:46,65`) each gain `use_cache: bool = True` and ignore it —
-none of them have a cache of their own to skip.
+### 2.5 `src/data/market_data.py` — `MarketDataProvider.fetch_historical_data`
 
-### 2.7 `src/analysis/strategy/momentum/momentum_analyzer.py`
+Gains `use_cache: bool` as a **required, keyword-only** parameter (item 3) — no default. A default
+here is exactly the shape of bug that let Momentum silently drop `context.use_cache` in the first
+place; requiring it forces every implementer and every call site to make a conscious choice, and
+`mypy --strict` catches any caller that forgets.
 
-- `_ClientProviderAdapter.fetch_historical_data` (lines 414-429): accept `use_cache: bool = True`
-  and pass it through to `self._client.fetch_data_with_context(ticker, start_date, end_date,
-  use_cache=use_cache)`.
-- `MomentumInputResolver.resolve` (lines 327-352): gains `use_cache: bool = True`, passed to
-  `self._provider.fetch_historical_data(ticker, start_date, use_cache=use_cache)`.
-- `MomentumAnalyzer.run_analysis` (lines 152-168): passes `use_cache=context.use_cache` into
-  `resolver.resolve(...)`. `AnalysisContext.use_cache` already exists (`base_analyzer.py:36`) and is
-  already threaded to every caller — this slice just makes Momentum's resolver finally *read* it,
-  where today it is accepted but silently dropped.
+### 2.6 `src/data/cached_client.py` — `CachedHistoricalDataClient.fetch_data_with_context`
 
-### 2.8 Call-site signature widening (D2)
+Also required, keyword-only, no default (item 3). When `False`: skip `self._repository.get(key)`
+(always fetch live) and skip `self._repository.put(...)` (never write) — the same two-branch shape
+`resolver.py`'s `if use_cache: ...` / `if use_cache and self._cache is not None: ...` already uses
+conceptually (Momentum has no per-field `ResolutionTrace` to update here, so this is coarser, not a
+literal copy). Because `BaseDataClient.fetch_historical_data`'s default implementation
+(`base_client.py:70`) always explicitly forwards `use_cache=use_cache` to `fetch_data_with_context`
+(never omits it), this override having no default of its own is safe — every caller that reaches it
+through `fetch_historical_data` already supplies a real value.
 
-- `run_momentum` (`src/workspace/momentum_execution.py:65-84`): `historical_client: BaseDataClient`
-  → `historical_client: MarketDataProvider`; construct
+### 2.7 `src/data/yfinance/client.py`, `src/evaluation/fixtures/market_data.py` — accept and ignore
+
+`YFinanceClient.fetch_data_with_context` (`yfinance/client.py:101`) gains `use_cache: bool = True`
+and ignores it (default kept — a raw provider with nothing of its own to skip).
+`FixtureMarketDataProvider.fetch_historical_data` (`evaluation/fixtures/market_data.py:46`) — this
+one **is required to change**, because it implements `MarketDataProvider` directly (not via
+`BaseDataClient`) and is used as `market_data_provider=` in `src/evaluation/composition.py:158` and
+`tests/orchestrator/test_analysis_tools.py:68` — gains `use_cache: bool = True` (default kept, so
+`tests/evaluation/cases/test_momentum.py:41`'s existing bare call keeps working). `FixtureDataClient`
+needs **no change** — it overrides only `fetch_data`, never `fetch_data_with_context`, so it
+inherits `BaseDataClient`'s new default automatically.
+
+### 2.8 `src/analysis/strategy/momentum/momentum_analyzer.py`
+
+- `_ClientProviderAdapter.fetch_historical_data` (lines 414-429): required, keyword-only
+  `use_cache: bool` (item 3), forwarded to `self._client.fetch_data_with_context(ticker, start_date,
+  end_date, use_cache=use_cache)`.
+- `MomentumInputResolver.resolve` (lines 327-352): required, keyword-only `use_cache: bool` (item 3),
+  passed to `self._provider.fetch_historical_data(ticker, start_date, use_cache=use_cache)`.
+- `MomentumAnalyzer.run_analysis` (lines 152-168): passes `use_cache=context.use_cache`.
+  `AnalysisContext.use_cache` already exists (`base_analyzer.py:36`) and is already threaded to every
+  caller — this slice makes Momentum's resolver finally *read* it, where today it is silently
+  dropped.
+
+### 2.9 Call-site signature widening (D2)
+
+- `run_momentum` (`src/workspace/momentum_execution.py:65-84`): `historical_client: BaseDataClient` →
+  `historical_client: MarketDataProvider`; constructs
   `MomentumAnalyzer(default_ticker=ticker, market_data_provider=historical_client)` instead of
   `data_client=historical_client`.
-- `src/cli.py`'s two `momentum` command branches (lines 285, 302) and
-  `src/cli_workspace.py:766-772`'s `_execute_momentum`: no change needed beyond what
-  `_production_historical_client`'s new return type already provides — the `with ... as
-  historical_client:` binding keeps working since `historical_client` is just passed straight
-  through to `run_momentum`.
+- `src/cli.py`'s two `momentum` branches (lines 285, 302) and `src/cli_workspace.py:766-772`'s
+  `_execute_momentum`: no source change needed — `historical_client` is a local variable passed
+  straight through; its static type comes from `_production_historical_client`'s new return type.
 
-### 2.9 What this slice does **not** touch
+### 2.10 Item 3, extension not taken here: `resolver.py`'s own `use_cache: bool = True` defaults
 
-No `--no-cache` CLI option, no `MomentumSelection.use_cache`/`MomentumToolArguments.use_cache`
-field (IR.2.6). No change to any resolver's cache **key** construction. No change to
-`SQLiteResolvedInputCache` or `CachedHistoricalDataClient`'s own constructors (D1/Option A). No
-formula, classification, or calculation result change.
+Out of scope for this slice, listed as an option with its cost, not decided: `src/data/financial/
+resolver.py`'s ~10 methods (`resolve`, `resolve_bvps`, `resolve_three_year_average_eps`, and others)
+all default `use_cache` to `True`, unlike `src/analysis/shared/financial_resolution.py`'s functions,
+which already require it with no default (`financial_resolution.py:81,133` — confirmed: this
+consistency gap already exists independent of this slice). Extending "required, no default" to
+`resolver.py` itself would complete that consistency, but its cost is real: every call site across
+production *and* the test suite that currently omits `use_cache` (relying on the default) would need
+an explicit value — a materially larger, more mechanical diff than this slice's four required
+signatures, spanning resolver unit tests this slice otherwise never touches. Not recommended for
+this slice specifically; worth a future pass once IR.2.6 or SWC needs to touch `resolver.py` anyway.
+
+### 2.11 What this slice does **not** touch
+
+No `--no-cache` CLI option, no `MomentumSelection.use_cache`/`MomentumToolArguments.use_cache` field
+(IR.2.6). No change to any resolver's cache **key** construction. No change to
+`SQLiteResolvedInputCache`, `CachedHistoricalDataClient`, or `resolver.py`'s own constructors/
+defaults. No formula, classification, or calculation result change. `src/cli_composition.py`'s
+`build_graham_resolver`'s `InMemoryResolvedInputCache(clock=clock)` fallback (item 6, used when no
+`cache=` is passed) is **kept unchanged** — it is a wholly separate code path from
+`_production_financial_cache`, has no readiness concept to defer (pure in-memory, always instantly
+"ready"), and is deliberately exercised today by `tests/test_cli.py`'s two identity-focused unit
+tests (`build_graham_resolver(..., data_provider=None, clock=...)`, no `cache=`) specifically to
+avoid needing real SQLite for a test that isn't about caching at all.
 
 ## 3. Test changes
 
 **New:**
-- `tests/data/financial/test_lazy_resolved_input_cache.py` (or alongside
-  `tests/data/repositories/test_resolved_input_cache.py`): open factory is not called at
-  construction; first `get`/`put`/`get_series` triggers it exactly once; a second call reuses the
-  same opened instance (assert the factory mock's call count); a factory that raises propagates the
-  real exception unchanged (so a `DatabaseReadinessError` still surfaces as itself, not wrapped).
-- `tests/data/test_lazy_market_data_provider.py`: `provider_id` never triggers the factory; first
-  `fetch_historical_data` triggers it exactly once; subsequent calls reuse it; factory-raised
-  exceptions propagate unchanged.
+- `tests/data/financial/test_lazy_resolved_input_cache.py`: `warm()`/first `get`/`put`/`get_series`
+  triggers the factory exactly once; a second `warm()` or any later call reuses the same opened
+  instance (factory mock's call count stays 1); a factory that raises is remembered and re-raised
+  *unchanged* (same exception object, `isinstance`/`.reason` intact) on every subsequent call,
+  without re-invoking the factory (item 4).
+- `tests/data/test_lazy_market_data_provider.py`: same shape, plus `provider_id` never triggers the
+  open.
 
-**Changed — call-site signature only, behavior preserved:**
+**Changed — rename only, behavior preserved (revision 2's whole point):**
 - `tests/test_cli_financial_cache.py`, `tests/test_cli_database_readiness.py`: every
-  `_production_financial_cache(enabled=True, ...)` → `_production_financial_cache(clock=...)` (the
-  `enabled=False` cases were already covered by dedicated `--no-cache` tests whose *assertions*
-  don't change, only need confirming still pass — see below).
-- Any `build_graham_resolver`/cache-composition test asserting the old `enabled=` keyword exists on
-  `_production_financial_cache`'s signature (`tests/_cli_helpers.py` if it builds one directly) —
-  update the same way.
-- `tests/data/test_cached_client.py`, direct `SQLiteResolvedInputCache`/`SQLiteMarketDataRepository`
-  constructions (42 + 13 sites): **unchanged** — D1/Option A means these classes' own constructors
-  don't move.
+  `_production_financial_cache(enabled=True, ...)` → `_production_financial_cache(use_cache=True,
+  ...)`. `test_optional_telemetry_failure_does_not_control_cache_readiness`'s `incompatible=True`
+  branch needs **no behavioral rewrite** — `warm()` still raises at `__enter__` time for
+  `use_cache=True`, exactly matching what the test already asserts.
+- Any test asserting `build_graham_resolver`'s no-clock construction, or `_production_financial_cache`'s
+  old `enabled=` keyword (`tests/_cli_helpers.py` if it builds one directly): same rename.
+- `tests/data/test_cached_client.py` (42+13 direct constructions of `SQLiteResolvedInputCache`/
+  `CachedHistoricalDataClient`): **unchanged** (D1).
+- `tests/test_cli_historical_cache.py:134,137`: these call `client.fetch_historical_data("ACME",
+  "2025-01-01")` directly on what `_production_historical_client` yields — once that's a
+  `LazyMarketDataProvider` requiring `use_cache`, both calls need `use_cache=True` added explicitly.
 
-**Changed — genuine behavior difference, needs a new assertion shape:**
-- `tests/test_cli_database_readiness.py::test_optional_telemetry_failure_does_not_control_cache_readiness`
-  (the `incompatible=True` branch, around line 150): today asserts
-  `DatabaseReadinessError` is raised by *entering* `with _production_financial_cache(...)`. Under the
-  lazy design, entering never raises — the error only surfaces on the first `get`/`put`. **This test
-  must call an actual cache operation inside the `with` block** (e.g. `cache.get(a_key)`, or reuse
-  whatever key-construction helper the surrounding test file already has) for the
-  `pytest.raises(DatabaseReadinessError)` to still observe it. Flagged explicitly because this is
-  the one existing test whose current shape actively assumes the eager behavior this slice removes.
-- `tests/test_cli_financial_cache.py`'s `--no-cache` test (~line 165-179, asserting `SQLiteDatabase`
-  is never constructed and the file never appears): **must keep passing unchanged** — confirms the
-  design didn't regress the exact case this slice exists to protect. If it doesn't, the design is
-  wrong, not the test.
+**Confirmed unaffected, verify during review rather than assume:**
 - `tests/test_cli_database_readiness.py::test_typed_readiness_failure_preserves_envelope_and_closes_storage`
-  and `::test_real_rejected_storage_precedes_provider_calls` (both parametrized over all four
-  commands including `momentum`, no `--no-cache`): assert a readiness failure precedes every
-  provider call. This still holds under the lazy design *only if* the cache's `get` is always
-  attempted before the provider fallback — verified true today in both
-  `src/data/financial/resolver.py` (cache lookup before `_resolve_provider`) and
-  `CachedHistoricalDataClient.fetch_data_with_context` (`self._repository.get(key)` before
-  `self._provider.fetch_historical_data(...)`, `cached_client.py:113-121`). No test change expected,
-  but call out explicitly as the one thing this slice must not silently break — run these
-  parametrized cases with extra attention during review, not just as part of the full suite.
+  and `::test_real_rejected_storage_precedes_provider_calls` (parametrized over all four commands,
+  no `--no-cache`): with `use_cache=True` triggering `warm()` at composition, `ensure_database_ready`
+  still raises before `build_graham_resolver`/`build_sec_production_provider`/
+  `YFinanceClient.fetch_historical_data` are ever reached — same as today. This is the pair that
+  revision 1's design would have broken; re-run them with extra attention, not just as part of the
+  full suite.
+- `tests/test_cli_financial_cache.py`'s `--no-cache` test (asserts `SQLiteDatabase` never
+  constructed, file never appears): `use_cache=False` never calls `warm()`, and the resolver's own
+  gate never calls `get`/`put` either — unchanged.
+
+**Verified needing no change at all (checked, not assumed):**
+- The five `_FixtureClient(FixtureDataClient)` subclasses across
+  `tests/reporting/test_analysis_run_replay.py`, `tests/test_cli_workspace.py`,
+  `tests/workspace/test_execution.py`, `tests/workspace/test_momentum_execution.py`,
+  `tests/workspace/test_refresh.py` — none override `fetch_data_with_context`/`fetch_historical_data`
+  (grepped the whole tree: only `BaseDataClient`, `CachedHistoricalDataClient`, and `YFinanceClient`
+  override `fetch_data_with_context` anywhere), so they inherit the new default transparently, and
+  they structurally satisfy `MarketDataProvider` for D2's widened `run_momentum` parameter without
+  any change.
+- `tests/analysis/momentum/test_momentum_analyzer.py` (4 `MomentumAnalyzer(data_client=...)`/`()`
+  sites), `tests/analysis/test_base_analyzer_conformance.py:60`, `tests/test_cli_historical_cache.py:173`
+  — all exercise `_ClientProviderAdapter` with plain `BaseDataClient` doubles that don't override
+  `fetch_data_with_context`; unaffected by the required-`use_cache` change on
+  `_ClientProviderAdapter.fetch_historical_data` itself, since that method's own body is what supplies
+  the value downstream, not the caller of `MomentumAnalyzer`.
 
 **New coverage for the threaded parameter:**
-- `tests/analysis/momentum/test_momentum_analyzer.py` /
-  `tests/analysis/momentum/test_momentum_hardening.py`: assert `use_cache=False` reaches the
-  provider's `fetch_historical_data` call (a fake/mock provider capturing the keyword it received),
-  and `use_cache=True` (today's only real value) is unaffected.
+- Assert `use_cache=False` reaches the provider's `fetch_historical_data` call and skips repository
+  `get`/`put` (a fake/mock provider or repository capturing the keyword/call count), in
+  `tests/analysis/momentum/test_momentum_analyzer.py` or `test_momentum_hardening.py`.
 
-## 4. Verification
+## 4. Every caller of `run_momentum` and every implementer/caller of `MarketDataProvider.fetch_historical_data`
+
+**`run_momentum` callers (item 5):**
+
+| Caller | Change needed |
+|---|---|
+| `src/workspace/momentum_execution.py:65` (the function itself) | Yes — D2 signature + construction change |
+| `src/cli.py:286,302` | No — passes `historical_client` straight through |
+| `src/cli_workspace.py:772` | No — same |
+| `tests/reporting/test_analysis_run_replay.py:82` | No (verified: fixture client structurally satisfies `MarketDataProvider`) |
+| `tests/test_cli_workspace.py:465,529` | No |
+| `tests/workspace/test_execution.py:75,223` | No |
+| `tests/workspace/test_momentum_execution.py:71,84,97,103,151` | No |
+| `tests/workspace/test_refresh.py:95,375` | No |
+
+**`MarketDataProvider.fetch_historical_data` implementers:**
+
+| Class | Change |
+|---|---|
+| `BaseDataClient.fetch_historical_data` (default impl, `base_client.py:70`) | Add `use_cache: bool = True`, forward to `fetch_data_with_context` |
+| `CachedHistoricalDataClient` | Inherits the default above unchanged (does not override `fetch_historical_data` itself) |
+| `YFinanceClient` | Inherits the default above unchanged (does not override `fetch_historical_data` itself) |
+| `FixtureDataClient` | No change (same reason) |
+| `_ClientProviderAdapter.fetch_historical_data` (`momentum_analyzer.py:425`) | Required, no default; forwards to `self._client.fetch_data_with_context(..., use_cache=use_cache)` |
+| `FixtureMarketDataProvider.fetch_historical_data` (`evaluation/fixtures/market_data.py:46`) | Add `use_cache: bool = True` (implements the protocol directly, not via `BaseDataClient`) |
+| New `LazyMarketDataProvider.fetch_historical_data` | Required, no default; forwards to the opened `CachedHistoricalDataClient` |
+
+**Callers of `.fetch_historical_data(...)`:**
+
+| Call site | Passes `use_cache`? |
+|---|---|
+| `MomentumInputResolver.resolve` → `self._provider.fetch_historical_data(...)` (`momentum_analyzer.py:339`) | Yes — becomes `use_cache=use_cache` (required, threaded from `run_analysis`) |
+| `CachedHistoricalDataClient.fetch_data_with_context` → `self._provider.fetch_historical_data(...)` (`cached_client.py:101,121`) | **No** — this is the *wrapped raw provider* fetch on a cache miss/bypass; it never needed to know about outer caching intent, and doesn't gain the parameter |
+| `tests/data/test_cached_client.py:169,280,281` (`client.fetch_historical_data("ABC", START)`, no `use_cache`) | No change — uses the new default |
+| `tests/evaluation/cases/test_momentum.py:41` | No change — uses the new default |
+| `tests/test_cli_historical_cache.py:134,137` | **Yes, needs `use_cache=True` added** — see §3 |
+
+**Orchestrator handler and evaluation composition:** `src/orchestrator/analysis_tools.py:174-193`'s
+`analyze_momentum` constructs `AnalysisContext(..., use_cache=True, ...)` directly (already
+hardcoded, unaffected in shape — this slice makes the *value* finally reach the provider, not the
+construction site). `src/evaluation/composition.py:155-158` passes `market_data_provider=
+FixtureMarketDataProvider(...)` already (not `data_client=`), so it never goes through
+`_ClientProviderAdapter` at all; only `FixtureMarketDataProvider` itself needs the accept-and-ignore
+parameter (above).
+
+## 5. Verification
 
 1. `uv run ruff check --fix .` → `uv run ruff format .` → `uv run mypy --strict src tests`.
-2. Full managed gate: `bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"` (per
-   `AGENTS.md` §10 — this slice touches Python source and tests, no exemption applies).
-3. Targeted attention beyond the blanket gate pass, per the flagged items above:
-   - `tests/test_cli_financial_cache.py` and `tests/test_cli_database_readiness.py` in isolation,
-     confirming the rewritten `incompatible=True` case and the unchanged `--no-cache` case both
-     pass for the *reason* described above, not merely green.
+2. Full managed gate: `bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"`.
+3. Targeted attention beyond the blanket pass:
+   - `tests/test_cli_database_readiness.py`'s two parametrized "readiness precedes provider calls"
+     tests, for the specific reason in §1/§3 — this is the one thing revision 1 would have silently
+     broken.
+   - `tests/test_cli_financial_cache.py`'s `--no-cache` test, confirming it needs no behavior change.
    - The two live-run cache-key-stability tests in
-     `tests/analysis/fcf_earnings_growth/test_fcf_earnings_growth_input_resolver.py` pass unchanged
-     (confirms this slice truly didn't touch key construction).
-4. Manual smoke, one live-shaped call per strategy against a throwaway SQLite path: confirm a
-   normal (cache-enabled) run still returns identical output to pre-slice behavior, and
-   `--no-cache` still never creates the database file, for at least `graham-number` and `momentum`.
+     `tests/analysis/fcf_earnings_growth/test_fcf_earnings_growth_input_resolver.py`, confirming this
+     slice still doesn't touch key construction.
+   - New `LazyResolvedInputCache`/`LazyMarketDataProvider` tests specifically for the
+     remember-and-reraise (not retry) contract (item 4).
+4. Manual smoke, one live-shaped call per strategy against a throwaway SQLite path: a normal
+   (cache-enabled) run returns identical output to pre-slice behavior; `--no-cache` still never
+   creates the database file, for `graham-number` and `momentum`.
 5. Final acceptance record (once implemented), per `IR_CONTRACT_AND_SLICE_PLAN.md` §4: which
-   persisted-shape version fields changed (expected: none — this slice touches no `Selection`/tool-
-   argument schema) and confirmation no Alembic migration was required.
+   persisted-shape version fields changed (expected: none) and confirmation no Alembic migration was
+   required.
