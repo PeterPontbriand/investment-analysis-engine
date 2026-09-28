@@ -215,8 +215,9 @@ and merges back into it directly.
 
 # Completion record
 
-Implemented on `fix/ir7-architecture-doc-pass`, branched from `feat/ir-integration-readiness`. Not
-yet merged back or pushed at the time of this record.
+Implemented on `fix/ir7-architecture-doc-pass`, branched from `feat/ir-integration-readiness`.
+Merged back via merge commit `2b8a152` and pushed to `feat/ir-integration-readiness`
+(`6c9e6a0..2b8a152`).
 
 ## Commits, in order
 
