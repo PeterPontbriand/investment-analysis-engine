@@ -130,18 +130,18 @@ def test_settings_control_reuse_age(
         patch.object(provider, "fetch_historical_data", return_value=history) as fetch,
     ):
         clock.now.return_value = NOW
-        with _production_historical_client(provider, clock=clock.now) as client:
-            client.fetch_historical_data("ACME", "2025-01-01")
+        with _production_historical_client(provider, use_cache=True, clock=clock.now) as client:
+            client.fetch_historical_data("ACME", "2025-01-01", use_cache=True)
         clock.now.return_value = NOW + timedelta(seconds=age)
-        with _production_historical_client(provider, clock=clock.now) as client:
-            client.fetch_historical_data("ACME", "2025-01-01")
+        with _production_historical_client(provider, use_cache=True, clock=clock.now) as client:
+            client.fetch_historical_data("ACME", "2025-01-01", use_cache=True)
     assert fetch.call_count == calls
 
 
 def test_quote_delegation_survives_closed_storage(configured_settings: ProjectSettings) -> None:
     assert configured_settings.database_url.startswith("sqlite:")
     provider = YFinanceClient()
-    with _production_historical_client(provider, clock=lambda: NOW) as client:
+    with _production_historical_client(provider, use_cache=True, clock=lambda: NOW) as client:
         pass
     with patch.object(provider, "fetch_current_price", return_value=87.5) as quote:
         assert client.fetch_current_price("ACME") == 87.5
@@ -155,11 +155,24 @@ def test_storage_closes_after_provider_error(configured_settings: ProjectSetting
         patch("src.cli_support.SQLiteDatabase", return_value=database),
         patch.object(provider, "fetch_historical_data", side_effect=DataFetchError("offline")),
         pytest.raises(DataFetchError, match="offline"),
-        _production_historical_client(provider, clock=lambda: NOW) as client,
+        _production_historical_client(provider, use_cache=True, clock=lambda: NOW) as client,
     ):
         client.fetch_data("ACME", "2025-01-01")
     with pytest.raises(RuntimeError, match="closed"), database.read():
         pass
+
+
+def test_disabled_cache_never_checks_readiness(tmp_path: Path) -> None:
+    """``use_cache=False`` must never call ``ensure_database_ready``, mirroring the financial cache."""
+    settings = ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'absent.sqlite3').as_posix()}")
+    provider = YFinanceClient()
+    with (
+        patch("src.cli_support.settings", settings),
+        patch("src.cli_support.ensure_database_ready", side_effect=AssertionError("must not check readiness")),
+        _production_historical_client(provider, use_cache=False, clock=lambda: NOW),
+    ):
+        pass
+    assert not Path(settings.database_url.removeprefix("sqlite:///")).exists()
 
 
 def test_custom_analyzer_client_remains_direct(history: HistoricalMarketData) -> None:

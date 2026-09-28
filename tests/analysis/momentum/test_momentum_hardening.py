@@ -31,7 +31,9 @@ def test_resolver_truncates_future_bars_and_retains_provenance() -> None:
     )
     boundary = datetime(2026, 1, 3, 23, 59, tzinfo=UTC)
 
-    resolved = resolver.resolve(ticker="TEST", start_date="2026-01-01", as_of=boundary, effective_as_of=boundary)
+    resolved = resolver.resolve(
+        ticker="TEST", start_date="2026-01-01", as_of=boundary, effective_as_of=boundary, use_cache=True
+    )
 
     assert resolved.market_data.frame["Close"].tolist() == [10.0, 11.0, 12.0]
     assert len(resolved.price_inputs) == 3

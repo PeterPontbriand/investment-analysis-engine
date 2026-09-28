@@ -55,7 +55,7 @@ def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
     with (
         patch("src.cli.build_graham_resolver") as build,
         patch("src.cli._run_" + command.replace("-", "_"), return_value=("ok", 0)) as run,
-        patch("src.cli_support.SQLiteDatabase", side_effect=AssertionError("cache bypass")),
+        patch("src.cli_support.ensure_database_ready", side_effect=AssertionError("cache bypass")),
     ):
         result = CliRunner().invoke(
             app,

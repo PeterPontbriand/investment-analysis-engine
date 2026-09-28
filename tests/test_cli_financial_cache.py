@@ -170,7 +170,7 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
         patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=profile),
         patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=profile),
         patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=profile),
-        patch("src.cli_support.SQLiteDatabase", side_effect=AssertionError("Database must not open")),
+        patch("src.cli_support.ensure_database_ready", side_effect=AssertionError("Database must not be migrated")),
     ):
         result = CliRunner().invoke(app, arguments)
     assert result.exit_code == 0, result.output
@@ -186,7 +186,7 @@ def test_cache_scope_closes_on_error(configured_database: Path) -> None:
     with (
         patch("src.cli_support.SQLiteDatabase", return_value=database),
         pytest.raises(ValueError, match="analysis failed"),
-        _production_financial_cache(enabled=True, clock=lambda: NOW),
+        _production_financial_cache(use_cache=True, clock=lambda: NOW),
     ):
         raise ValueError("analysis failed")
     with pytest.raises(RuntimeError, match="closed"), database.read():

@@ -165,6 +165,7 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
             start_date=self._start_date,
             as_of=context.as_of,
             effective_as_of=context.effective_as_of,
+            use_cache=context.use_cache,
         )
         df = resolved.market_data.frame
         decisions = evaluate_historical_quality(
@@ -325,7 +326,13 @@ class MomentumInputResolver:
         self._clock = clock
 
     def resolve(
-        self, *, ticker: str, start_date: str, effective_as_of: datetime, as_of: datetime | None = None
+        self,
+        *,
+        ticker: str,
+        start_date: str,
+        effective_as_of: datetime,
+        use_cache: bool,
+        as_of: datetime | None = None,
     ) -> MomentumResolution:
         """Fetch prices and retain only observations at or before ``as_of``."""
         trace = ResolutionTrace().append(
@@ -336,7 +343,7 @@ class MomentumInputResolver:
                 "Requested historical market observations from the configured provider.",
             )
         )
-        data = self._provider.fetch_historical_data(ticker, start_date)
+        data = self._provider.fetch_historical_data(ticker, start_date, use_cache=use_cache)
         decisions = evaluate_historical_quality(
             data, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=effective_as_of)
         )
@@ -422,8 +429,10 @@ class _ClientProviderAdapter:
         """Return the legacy client's retained provider identity."""
         return self._client.provider_id
 
-    def fetch_historical_data(self, ticker: str, start_date: str, end_date: str | None = None) -> HistoricalMarketData:
+    def fetch_historical_data(
+        self, ticker: str, start_date: str, end_date: str | None = None, *, use_cache: bool
+    ) -> HistoricalMarketData:
         """Delegate through the existing context-retaining call."""
         if end_date is None:
-            return self._client.fetch_data_with_context(ticker, start_date)
-        return self._client.fetch_data_with_context(ticker, start_date, end_date)
+            return self._client.fetch_data_with_context(ticker, start_date, use_cache=use_cache)
+        return self._client.fetch_data_with_context(ticker, start_date, end_date, use_cache=use_cache)

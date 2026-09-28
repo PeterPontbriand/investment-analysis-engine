@@ -1,72 +1,52 @@
 # IR.2.5 — Cache Unification: Implementation Plan
 
-Planning record only. No source or test file has been changed by this document; it is written
-against the codebase as it stands after IR.2.1–2.4 and IR.4, IR.7. Revision 3: drops the lazy
-wrapper classes revision 2 proposed, after confirming none of the three real classes they would
-have wrapped actually touch the database. This revision is smaller and lower-risk than either prior
-one.
+Revision 4 (final before implementation). Resolves the mypy/LSP conflict revision 3 left open and
+unifies both composition functions to the same shape, per review. Sections below describe the
+implementation as built.
 
 Local sequence and status: [companion plan](IR_CONTRACT_AND_SLICE_PLAN.md#3-sequencing). Scope
 origin: [§6, item 10](IR_CONTRACT_AND_SLICE_PLAN.md#6-ir2-implementation-inventory--approved-2026-09-24)
 and [§6.9](IR_CONTRACT_AND_SLICE_PLAN.md#6-ir2-implementation-inventory--approved-2026-09-24).
 
-## Revision 3: the lazy wrappers are gone
+## Revision 4 decisions
 
-**Do `SQLiteResolvedInputCache`, `SQLiteMarketDataRepository`, and `CachedHistoricalDataClient`'s
-constructors touch the database?** No, none of them — verified directly:
+**1. `BaseDataClient.fetch_data_with_context`/`fetch_historical_data` also become required,
+keyword-only `use_cache: bool` (no default).** `CachedHistoricalDataClient` overrides
+`fetch_data_with_context` to require the parameter; mypy --strict rejects an override that narrows an
+optional base parameter to required, so the base must require it too. Every caller of
+`BaseDataClient.fetch_data_with_context`/`fetch_historical_data`, found exhaustively (grepped both
+method names across the whole tree, not just one):
 
-- `SQLiteResolvedInputCache.__init__` (`repositories/resolved_input_cache.py:145-157`): "Configure
-  the cache without opening connections or changing schema" — stores `database`/`clock`/`ttl` only.
-- `SQLiteMarketDataRepository.__init__` (`repositories/market_data.py:292-295`): "Retain a
-  caller-owned database without opening it or migrating" — stores `database`/`clock` only.
-- `CachedHistoricalDataClient.__init__` (`cached_client.py:43-61`): stores `provider`, `repository`,
-  `variant`, `ttl`, `clock`, `quality_policy` — no I/O.
-- `SQLiteDatabase.__init__` itself (`repositories/sqlite.py:25-34`) is also lazy by its own
-  docstring — building it never connects; `create_engine` doesn't connect until first use.
+| Caller | Kind | Change |
+| :--- | :--- | :--- |
+| `_ClientProviderAdapter.fetch_historical_data`/`fetch_data_with_context` (`momentum_analyzer.py:428-429`) | Momentum path | Already threads `use_cache` explicitly (§2.2) |
+| `BaseDataClient.fetch_historical_data`'s own body calling `fetch_data_with_context` (`base_client.py:77`) | Interface-internal | Forwards `use_cache` explicitly |
+| `CachedHistoricalDataClient.fetch_data`'s own body calling `fetch_data_with_context` (`cached_client.py:91`) | Class-internal | `fetch_data`'s own signature has no `use_cache` (untouched, §2.2) — hardcodes a literal `use_cache=True` when delegating, since this legacy no-cache-concept entry point has no caller preference to forward. Documented in the method's docstring. |
+| `CachedHistoricalDataClient.fetch_data_with_context`'s two calls to `self._provider.fetch_historical_data(...)` (`cached_client.py:101,121`) | Class-internal | `self._provider: BaseDataClient` — now also required. These fetch the *wrapped raw provider* on a cache miss/bypass; its own caching stance is irrelevant, so both pass a literal `use_cache=True`. |
+| `tests/data/test_yfinance_client.py:43,61` | Test | No change — calls the concrete `YFinanceClient` directly, which keeps its own `use_cache: bool = True` override |
+| `tests/data/test_cached_client.py:169,171,280,281` | Test | Add `use_cache=True` — these call `CachedHistoricalDataClient` (inherits the now-required base default) |
+| `tests/data/test_cached_client.py`'s local `FakeProvider(BaseDataClient)` overriding `fetch_historical_data` directly (`test_cached_client.py:137`) | Test-only implementer, found by re-grepping every `def fetch_historical_data` in the tree, not only `def fetch_data_with_context` (revision 3's search was incomplete) | Add `use_cache: bool = True`, ignored — it is the wrapped raw provider passed into `CachedHistoricalDataClient(provider=FakeProvider(), ...)`, called with a literal `True` per the row above |
 
-**The only thing that touches the database is the explicit `ensure_database_ready(database)` call**
-— a separate, deliberate step every composition function already calls on its own. Revision 2's lazy
-wrappers existed to defer *that specific call*, but with `use_cache` now known at composition time
-(the whole point of the order-preservation fix in revision 2 was to trigger the open immediately
-whenever `use_cache=True` anyway), a wrapper class adds no capability — it would open at exactly the
-same instant a plain `if use_cache: ensure_database_ready(database)` does. **Dropped entirely:**
-`LazyResolvedInputCache`, `LazyMarketDataProvider`, D1, D3, D4, the failed-open remember-and-reraise
-mechanism and its dedicated tests, and (since `_production_historical_client` now simply keeps
-returning `CachedHistoricalDataClient` unchanged) D2's widening of `run_momentum`'s parameter type.
+No genuine cache-agnostic production caller exists outside the Momentum path — confirmed
+exhaustively. `YFinanceClient` and the fixtures (`FixtureMarketDataProvider`, and now `FakeProvider`)
+accept-and-ignore the parameter with their own concrete-class defaults, so every test that calls one
+of *those* concretely, rather than through `BaseDataClient`, needs no change.
 
-**One real constraint this surfaces, and how it's handled:** `test_cli_financial_cache.py`'s
-`--no-cache` test mocks `src.cli_support.SQLiteDatabase` itself to raise, not just
-`ensure_database_ready` — because *today's* `enabled=False` branch returns early with
-`InMemoryResolvedInputCache` before `SQLiteDatabase(settings)` is ever called at all
-(`cli_support.py:68-70`). Two ways to keep that guarantee:
+**2. Both composition functions unified to the same shape.** `_production_financial_cache` drops the
+`InMemoryResolvedInputCache` early return entirely: it always constructs `SQLiteDatabase` and always
+yields the real `SQLiteResolvedInputCache`, skipping only `ensure_database_ready` when
+`use_cache=False` — identical shape to `_production_historical_client`. `tests/test_cli_financial_cache.py`'s
+`--no-cache` test changes its mock target from `src.cli_support.SQLiteDatabase` to
+`src.cli_support.ensure_database_ready`; its `assert not path.exists()` check — the real proof — is
+unchanged. (`cli_composition.py`'s own `InMemoryResolvedInputCache(clock=clock)` default, used for
+evaluation/identity-only tests with no `cache=` argument, is untouched — separate code path, no
+readiness concept, decided already.)
 
-- **Keep the early-return shape** (recommended, smallest diff): `_production_financial_cache`
-  keeps its two-branch structure — `if not use_cache: yield InMemoryResolvedInputCache(clock=clock);
-  return`, else construct `SQLiteDatabase`, conditionally-always-true-here call
-  `ensure_database_ready`, yield the real cache. This is a straight rename of `enabled` to
-  `use_cache` plus nothing else changing in the financial-cache composition; the existing `--no-cache`
-  test needs **no change at all**.
-- **Alternative:** always construct `SQLiteDatabase(settings)` and always yield
-  `SQLiteResolvedInputCache`, skipping only `ensure_database_ready` when `use_cache=False` — this is
-  closer to the original contract's literal "always wired" phrasing (one object type in both
-  branches), but requires updating that one test's mock target from `SQLiteDatabase` to
-  `ensure_database_ready` (the file-never-created assertion, `assert not path.exists()`, is unchanged
-  and remains the real proof either way).
+**3. New test:** `_production_historical_client(use_cache=False, ...)` never calls
+`ensure_database_ready`.
 
-Recommendation: the first option. It changes nothing beyond a parameter rename for the financial
-side, touches zero tests, and the "two independent controls" problem item 10 actually cared about
-(composition-time `enabled` and per-call `use_cache` able to silently disagree) is still fully
-closed — because the *value* is now the same `use_cache` flag consulted at both points, not two
-separately-named, separately-settable parameters. Whether the object type still differs between
-branches is a much smaller concern than that, and not worth an existing test's mock-target churn to
-close.
-
-## Decisions carried over from the prior review
-
-- **D2 = moot.** `_production_historical_client` keeps returning `CachedHistoricalDataClient`
-  unchanged; `run_momentum`'s parameter stays `BaseDataClient`.
-- **Item 3 (this message): extend "required, no default" to `resolver.py`'s own `use_cache`
-  parameters — see the count below. Included in this slice.**
+**4. Commit structure:** (a) composition + Momentum threading + required parameters, with their
+tests; (b) the 117 mechanical `resolver.py` test edits alone; (c) the final acceptance record.
 
 ## 1. Context
 
@@ -75,28 +55,23 @@ Graham and FCF have two independent, redundant cache controls today.
 composition time, whether to build a durable `SQLiteResolvedInputCache` (eager
 `ensure_database_ready`) or a scratch `InMemoryResolvedInputCache`. Separately, `resolver.py`'s own
 methods take an independent per-call `use_cache: bool = True`. Both are driven by the same value at
-all six call sites (`src/cli.py:397,513,605`, `src/cli_workspace.py:796,822,848`) — structurally two
-parameters that happen to always agree, not one. Momentum has no control at all today:
-`_production_historical_client` (`cli_support.py:34-56`) unconditionally wires and eagerly
+all six call sites (`src/cli.py:397,513,605`, `src/cli_workspace.py:796,822,848`). Momentum has no
+control at all today: `_production_historical_client` unconditionally wires and eagerly
 readiness-checks the historical cache, and `MomentumInputResolver.resolve` never accepts a
-`use_cache` parameter to skip it — the exact defaulting bug class item 3 (below) is about to be
-found and closed a second time if `resolver.py`'s own defaults are left alone.
+`use_cache` parameter to skip it.
 
-**Order-preservation (from the prior review, unchanged by this revision):**
-`build_graham_resolver`'s unconditional construction of the real financial-facts provider, and
-`compose_graham_profile`'s live SEC/Yahoo identity-provider call — which every one of
-`execute_graham_number`/`execute_graham_growth`/`execute_fcf_growth` runs *before* `run_analysis`,
-since Graham's calculation needs the composed profile as a required `AnalysisContext` field upfront
-— both currently never run when storage is broken, only because `_production_financial_cache`'s
-`enabled=True` branch raises at `__enter__` before the `with` body starts. Keeping the early-return
-composition shape (above) preserves this exactly: `ensure_database_ready` still raises at `__enter__`
-whenever `use_cache=True`, before `build_graham_resolver` is ever reached. Momentum's own two command
-branches already call the historical cache before instrument-profile composition either way
-(`cli.py:275-308`) — unaffected.
+**Order-preservation (unchanged since the prior review):** `build_graham_resolver`'s unconditional
+construction of the real financial-facts provider, and `compose_graham_profile`'s live SEC/Yahoo
+identity-provider call — which every one of `execute_graham_number`/`execute_graham_growth`/
+`execute_fcf_growth` runs *before* `run_analysis` — both currently never run when storage is broken,
+only because `_production_financial_cache` raises before the `with` body starts. This still holds
+under the unified shape: `ensure_database_ready` still raises immediately whenever `use_cache=True`,
+before `build_graham_resolver` is ever reached — only *which mock* proves it changes (§ revision 4
+decision 2), not the behavior itself. Momentum's own two command branches already call the historical
+cache before instrument-profile composition either way (`cli.py:275-308`) — unaffected.
 
 **Relevant architecture, unchanged:** `ARCHITECTURE.md` §5's three instants and decision-clock rule
-are untouched — nothing new reads a clock in this revision, since there are no wrapper objects left
-to need one. §8's repository table is untouched. Cache **keys** are built entirely outside this
+are untouched. §8's repository table is untouched. Cache **keys** are built entirely outside this
 slice's scope; live-run cache-key stability is untouched.
 
 ## 2. Approach
@@ -105,28 +80,27 @@ slice's scope; live-run cache-key stability is untouched.
 
 ```python
 @contextmanager
-def _production_financial_cache(*, use_cache: bool, clock: Callable[[], datetime]) -> Iterator[ResolvedInputSeriesCacheProtocol]:
-    """Own one invocation's durable cache; schema upgrades remain explicit."""
-    if not use_cache:
-        yield InMemoryResolvedInputCache(clock=clock)
-        return
+def _production_financial_cache(
+    *, use_cache: bool, clock: Callable[[], datetime]
+) -> Iterator[ResolvedInputSeriesCacheProtocol]:
+    """Own one invocation's durable cache; schema upgrades remain explicit unless caching is disabled."""
     database = SQLiteDatabase(settings)
     try:
-        ensure_database_ready(database)
+        if use_cache:
+            ensure_database_ready(database)
         seconds = settings.financial_cache_ttl_seconds
-        yield SQLiteResolvedInputCache(database, ttl=None if seconds is None else timedelta(seconds=seconds), clock=clock)
+        yield SQLiteResolvedInputCache(
+            database, ttl=None if seconds is None else timedelta(seconds=seconds), clock=clock
+        )
     finally:
         database.close()
-```
 
-This is identical to today's implementation with `enabled` renamed to `use_cache` — no other change.
 
-```python
 @contextmanager
 def _production_historical_client(
     provider: YFinanceClient, *, use_cache: bool, clock: Callable[[], datetime]
 ) -> Iterator[CachedHistoricalDataClient]:
-    """Borrow the Yahoo client and own historical storage for one analysis."""
+    """Borrow the Yahoo client and own historical storage for one analysis unless caching is disabled."""
     database = SQLiteDatabase(settings)
     try:
         if use_cache:
@@ -144,91 +118,54 @@ def _production_historical_client(
         database.close()
 ```
 
-New required `use_cache` parameter; every current caller passes a literal `True` (matching
-`analysis_tools.py:183-188`'s existing "fixed until IR.2.6" pattern) — zero behavior change for any
-current caller, since `ensure_database_ready` already ran unconditionally before. No early-return
-branch needed here: unlike the financial side, there is no existing test asserting
-`SQLiteMarketDataRepository`/`CachedHistoricalDataClient` are never constructed for a disabled case
-(Momentum has no disable surface yet), and both classes are confirmed non-touching to construct, so
-always building them and conditionally skipping only `ensure_database_ready` is safe and simpler.
+`InMemoryResolvedInputCache` is no longer imported/used by either function. Both remain defined
+inline in `cli_support.py`, so `patch("src.cli_support.ensure_database_ready", ...)` /
+`patch("src.cli_support.SQLiteDatabase", ...)` targets keep working unchanged.
 
-Both stay defined with their `_open_*`-equivalent logic inline in `cli_support.py` itself (not a
-separate helper this time — there's no factory closure to isolate), so existing
-`patch("src.cli_support.ensure_database_ready", ...)` / `patch("src.cli_support.SQLiteDatabase",
-...)` targets are completely unaffected by this revision.
+Six call sites rename `enabled=` to `use_cache=` (`cli.py:397,513,605`,
+`cli_workspace.py:796,822,848`); four call sites gain a literal `use_cache=True`
+(`cli.py:285,302`, `cli_workspace.py:771`, plus `analysis_tools.py`'s momentum context stays
+hardcoded `True` as already documented there).
 
-### 2.2 `src/data/base_client.py`, `src/data/market_data.py`, `src/data/cached_client.py`,
-`src/data/yfinance/client.py`, `src/evaluation/fixtures/market_data.py`,
-`src/analysis/strategy/momentum/momentum_analyzer.py` — unchanged from revision 2
+### 2.2 Per-call `use_cache` threading
 
-All of the per-call `use_cache` threading below is orthogonal to the composition-function
-simplification above and still needed — this is what actually makes Momentum's cache-skip real,
-which is the slice's other half of scope:
-
-- `MarketDataProvider.fetch_historical_data` (`market_data.py:44`): required, keyword-only
-  `use_cache: bool` — no default (item 3's original finding: a default here is exactly how Momentum
-  silently dropped `context.use_cache`).
-- `CachedHistoricalDataClient.fetch_data_with_context` (`cached_client.py:93`): required, keyword-only
-  `use_cache: bool`. `False` skips `self._repository.get(key)` and `self._repository.put(...)`.
-- `BaseDataClient.fetch_data_with_context`/`fetch_historical_data` (`base_client.py:50,70`): keep
-  `use_cache: bool = True` (default) — the general-purpose interface other, cache-agnostic callers
-  also use directly. `fetch_data` itself is untouched (nothing in the chain ever calls it with
-  `use_cache`).
+- `MarketDataProvider.fetch_historical_data` (`market_data.py:44`): required, keyword-only.
+- `BaseDataClient.fetch_data_with_context`/`fetch_historical_data` (`base_client.py:50,70`): also
+  required, keyword-only (revision 4 decision 1). `fetch_data` itself untouched.
+- `CachedHistoricalDataClient.fetch_data_with_context` (`cached_client.py:93`): required,
+  keyword-only. `False` skips `self._repository.get(key)`/`.put(...)`. Its own `fetch_data`
+  (`cached_client.py:89-91`) and its two calls to `self._provider.fetch_historical_data(...)`
+  (`cached_client.py:101,121`) each pass a literal `use_cache=True` — see the table in the revision 4
+  decision above for why.
 - `YFinanceClient.fetch_data_with_context` (`yfinance/client.py:101`): `use_cache: bool = True`,
-  ignored (default kept).
+  ignored.
 - `FixtureMarketDataProvider.fetch_historical_data` (`evaluation/fixtures/market_data.py:46`):
-  `use_cache: bool = True`, ignored (default kept — implements the protocol directly, used as
-  `market_data_provider=` in `src/evaluation/composition.py:158` and
-  `tests/orchestrator/test_analysis_tools.py:68`; default preserves
-  `tests/evaluation/cases/test_momentum.py:41`'s existing bare call). `FixtureDataClient` needs no
-  change (overrides only `fetch_data`).
-- `_ClientProviderAdapter.fetch_historical_data` (`momentum_analyzer.py:414-429`): required, keyword-
-  only `use_cache: bool`, forwarded to `self._client.fetch_data_with_context(..., use_cache=use_cache)`.
-- `MomentumInputResolver.resolve` (`momentum_analyzer.py:327-352`): required, keyword-only
-  `use_cache: bool`, passed to `self._provider.fetch_historical_data(ticker, start_date,
-  use_cache=use_cache)`.
+  `use_cache: bool = True`, ignored.
+- `_ClientProviderAdapter.fetch_historical_data` (`momentum_analyzer.py:414-429`): required,
+  forwarded to `self._client.fetch_data_with_context(..., use_cache=use_cache)`.
+- `MomentumInputResolver.resolve` (`momentum_analyzer.py:327-352`): required, passed to
+  `self._provider.fetch_historical_data(ticker, start_date, use_cache=use_cache)`.
 - `MomentumAnalyzer.run_analysis` (`momentum_analyzer.py:152-168`): passes
-  `use_cache=context.use_cache` — `AnalysisContext.use_cache` already exists and is already threaded
-  to every caller; this slice makes Momentum's resolver finally *read* it.
-- `run_momentum` (`src/workspace/momentum_execution.py:65-84`): **unchanged** — D2 dropped, parameter
-  stays `historical_client: BaseDataClient`, construction stays `MomentumAnalyzer(default_ticker=
-  ticker, data_client=historical_client)`.
+  `use_cache=context.use_cache`.
+- `run_momentum` (`src/workspace/momentum_execution.py:65-84`): unchanged — parameter stays
+  `historical_client: BaseDataClient`, construction stays `MomentumAnalyzer(data_client=
+  historical_client)`.
 
-### 2.3 `src/data/financial/resolver.py` — item 3, now included
+### 2.3 `src/data/financial/resolver.py` — item 3
 
-**Count (verified by grep, not estimated):** `resolve` (line 207), `_resolve` (line 230, private —
-called only internally by `resolve`, already always passed explicitly), `resolve_bvps` (line 333),
-and `resolve_three_year_average_eps` (line 369) currently default `use_cache: bool = True`.
-`_derive_bvps_from_components` (724) and `_resolve_provider` (1097) already require it with no
-default — this gap is pre-existing and partial, not something this slice introduces.
-
-Every production call site of `resolve`/`resolve_bvps`/`resolve_three_year_average_eps` already
-passes `use_cache=` explicitly (`src/analysis/shared/financial_resolution.py:100,123,143`,
-`src/analysis/strategy/graham_growth/calculation.py:302`,
-`src/analysis/strategy/graham_number/calculation.py:214`, and `resolver.py`'s own three internal
-calls at lines 360, 739, 749, 759) — **zero production changes needed.**
-
-Test call sites, counted directly (not estimated): **120 total calls to these three methods across 6
-test files, of which 3 already pass `use_cache=` explicitly and 117 rely on the default:**
+`resolve` (207), `_resolve` (230, private), `resolve_bvps` (333), `resolve_three_year_average_eps`
+(369) drop their `= True` default (already keyword-only). Every production call site already passes
+`use_cache=` explicitly — zero production changes. **120 test call sites total across 6 files; 3
+already explicit; 117 need `use_cache=True` added** (76 of the 117 in `test_resolver.py` alone):
 
 | File | `.resolve(` | `.resolve_bvps(` | `.resolve_three_year_average_eps(` |
 | :--- | :--- | :--- | :--- |
 | `tests/analysis/graham_value/test_fixture_provider.py` | 15 | 0 | 2 |
 | `tests/analysis/graham_value/test_resolution_trace.py` | 5 | 1 | 0 |
-| `tests/analysis/graham_value/test_resolver.py` | 46 (1 already explicit) | 0 | 30 (1 already explicit) |
+| `tests/analysis/graham_value/test_resolver.py` | 46 (1 explicit) | 0 | 30 (1 explicit) |
 | `tests/analysis/graham_value/test_production_providers.py` | 0 | 4 | 0 |
 | `tests/analysis/graham_value/test_sec_bvps_hardening.py` | 0 | 3 | 0 |
-| `tests/data/test_quote_freshness.py` | 14 (1 already explicit) | 0 | 0 |
-| **Total** | **80** | **8** | **32** |
-
-**Recommendation: include it in this slice**, despite the count. All 117 are the same one-line,
-zero-risk mechanical edit (`use_cache=True`, preserving current behavior exactly — the 3 already-
-explicit sites already show what the edit looks like), concentrated in one file
-(`test_resolver.py` alone is 76 of the 117), and it closes precisely the defaulting pattern this
-slice already exists to close for Momentum — leaving `resolver.py` itself inconsistent with
-`financial_resolution.py`'s already-required parameters (and with the rest of this slice) would be a
-strange place to stop. Not a design decision, just a larger mechanical diff than the rest of this
-slice combined — flagging the size honestly rather than folding it in silently.
+| `tests/data/test_quote_freshness.py` | 14 (1 explicit) | 0 | 0 |
 
 ### 2.4 What this slice does **not** touch
 
@@ -236,53 +173,44 @@ No `--no-cache` CLI option, no `MomentumSelection.use_cache`/`MomentumToolArgume
 (IR.2.6). No change to any resolver's cache **key** construction. No change to
 `SQLiteResolvedInputCache`, `SQLiteMarketDataRepository`, or `CachedHistoricalDataClient`'s own
 constructors. No formula, classification, or calculation result change.
-`src/cli_composition.py`'s `build_graham_resolver`'s `InMemoryResolvedInputCache(clock=clock)`
-fallback (item 6) is kept unchanged — a wholly separate code path, no readiness concept, deliberately
-exercised by `tests/test_cli.py`'s two identity-focused unit tests that call it without `cache=`.
 
 ## 3. Test changes
 
-**Unchanged (revision 3's whole point):**
-- `tests/test_cli_financial_cache.py`'s `--no-cache` test: no change (the early-return shape means
-  `SQLiteDatabase` still is never constructed for `use_cache=False`).
+**Behavior-preserving mock-target update:**
+- `tests/test_cli_financial_cache.py`'s `--no-cache` test: mock `ensure_database_ready` instead of
+  `SQLiteDatabase`; `assert not path.exists()` unchanged.
+
+**No change:**
 - `tests/test_cli_database_readiness.py`'s two parametrized "readiness precedes provider calls"
-  tests: no change — `ensure_database_ready` still raises at `__enter__` for `use_cache=True`.
-- `tests/data/test_cached_client.py` (all direct `SQLiteMarketDataRepository`/
-  `CachedHistoricalDataClient` constructions): no change.
-- The five `_FixtureClient(FixtureDataClient)` subclasses: no change (confirmed no override of
-  `fetch_data_with_context`/`fetch_historical_data` anywhere outside `BaseDataClient`,
-  `CachedHistoricalDataClient`, `YFinanceClient`).
+  tests — `ensure_database_ready` still raises at `__enter__` for `use_cache=True`, unaffected by
+  which branch structure yields the cache.
+- The five `_FixtureClient(FixtureDataClient)` subclasses.
 
-**Rename only:**
-- `tests/test_cli_financial_cache.py`, `tests/test_cli_database_readiness.py`, `tests/_cli_helpers.py`
-  (if applicable): `_production_financial_cache(enabled=...)` → `_production_financial_cache(
-  use_cache=...)`.
+**Rename only:** `_production_financial_cache(enabled=...)` → `(use_cache=...)` across
+`tests/test_cli_financial_cache.py`, `tests/test_cli_database_readiness.py`, `tests/_cli_helpers.py`
+(if applicable).
 
-**New required parameter, needs an explicit value added:**
-- `tests/test_cli_historical_cache.py:133,136,144,158` (all four direct calls to
-  `_production_historical_client`): add `use_cache=True`.
-- `tests/test_cli_historical_cache.py:134,137` (`client.fetch_historical_data(...)`, once
-  `use_cache` is required on `MarketDataProvider`/inherited via `BaseDataClient`'s new default): no
-  change needed — `BaseDataClient`'s default covers these.
+**New required parameter:**
+- `tests/test_cli_historical_cache.py:133,136,144,158` (direct `_production_historical_client`
+  calls): add `use_cache=True`.
+- `tests/data/test_cached_client.py:169,171,280,281`: add `use_cache=True`.
+- `tests/data/test_cached_client.py`'s `FakeProvider.fetch_historical_data`: add
+  `use_cache: bool = True` to its signature (ignored).
 
-**Mechanical, per §2.3:** 117 call sites across the 6 files in the table above, each gaining
-`use_cache=True`.
+**New:**
+- `_production_historical_client(use_cache=False, ...)` never calls `ensure_database_ready` (mirrors
+  the financial side's existing readiness-skip test).
+- `use_cache=False` reaches the provider's `fetch_historical_data` call and skips repository
+  `get`/`put`, in `tests/analysis/momentum/test_momentum_analyzer.py` or `test_momentum_hardening.py`.
 
-**New coverage for the threaded parameter:** assert `use_cache=False` reaches the provider's
-`fetch_historical_data` call and skips repository `get`/`put`, in
-`tests/analysis/momentum/test_momentum_analyzer.py` or `test_momentum_hardening.py`.
+**Mechanical, per §2.3:** 117 call sites across the 6 files in the table above.
 
 ## 4. Verification
 
 1. `uv run ruff check --fix .` → `uv run ruff format .` → `uv run mypy --strict src tests`.
 2. Full managed gate: `bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"`.
-3. Targeted re-confirmation (not just full-suite green): `tests/test_cli_database_readiness.py`'s two
-   readiness-order tests and `tests/test_cli_financial_cache.py`'s `--no-cache` test, specifically
-   confirming they needed no behavioral edits — only the `enabled`→`use_cache` rename where
-   applicable.
-4. Manual smoke, one live-shaped call per strategy against a throwaway SQLite path: normal
+3. Manual smoke, one live-shaped call per strategy against a throwaway SQLite path: normal
    (cache-enabled) output unchanged; `--no-cache` still never creates the database file, for
    `graham-number` and `momentum`.
-5. Final acceptance record (once implemented), per `IR_CONTRACT_AND_SLICE_PLAN.md` §4: which
-   persisted-shape version fields changed (expected: none) and confirmation no Alembic migration was
-   required.
+4. Final acceptance record: which persisted-shape version fields changed (expected: none) and
+   confirmation no Alembic migration was required.

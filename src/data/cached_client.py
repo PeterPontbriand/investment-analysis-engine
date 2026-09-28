@@ -87,18 +87,36 @@ class CachedHistoricalDataClient(BaseDataClient):
         return now
 
     def fetch_data(self, ticker: str, start_date: str, end_date: str | None = None) -> pd.DataFrame:
-        """Return historical observations through the context-preserving cache."""
-        return self.fetch_data_with_context(ticker, start_date, end_date).frame
+        """Return historical observations through the context-preserving cache.
+
+        This legacy entry point has no ``use_cache`` parameter of its own to forward; it always
+        behaves as if caching were requested, matching this method's historical contract.
+        """
+        return self.fetch_data_with_context(ticker, start_date, end_date, use_cache=True).frame
 
     def fetch_data_with_context(
-        self, ticker: str, start_date: str, end_date: str | None = None
+        self, ticker: str, start_date: str, end_date: str | None = None, *, use_cache: bool
     ) -> HistoricalMarketData:
-        """Reuse an eligible exact snapshot or fetch and validate a full request."""
+        """Reuse an eligible exact snapshot or fetch and validate a full request.
+
+        ``use_cache=False`` always fetches live and never reads or writes the repository. The
+        wrapped raw provider's own ``fetch_historical_data`` call always forwards this same
+        ``use_cache`` value unchanged: it has nothing of its own to skip today, but an outer
+        caller's explicit "do not use any cache" must never be silently overridden by an inner
+        layer, including a future one.
+        """
         provider_id = self.provider_id
         input_id = f"{ticker}:{provider_id}:{start_date}:{end_date}:{self._variant}"
+        if not use_cache:
+            logger.debug("Historical cache bypassed: use_cache is False for this call.")
+            data = self._provider.fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
+            error = self._quality_error(data, input_id)
+            if error is not None:
+                raise DataQualityError(error)
+            return self._provider_resolution(data)
         if not provider_id or not provider_id.strip() or not self._variant or not self._variant.strip():
             logger.debug("Historical cache bypassed: provider or request variant is unavailable.")
-            data = self._provider.fetch_historical_data(ticker, start_date, end_date)
+            data = self._provider.fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
             error = self._quality_error(data, input_id)
             if error is not None:
                 raise DataQualityError(error)
@@ -118,7 +136,7 @@ class CachedHistoricalDataClient(BaseDataClient):
                     SourceKind.CACHE, entry.fetch_completed_at, entry.cached_at, self._now(), key.schema_version
                 ),
             )
-        data = self._provider.fetch_historical_data(ticker, start_date, end_date)
+        data = self._provider.fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
         completed_at = self._now()
         error = self._quality_error(data, input_id)
         if error is not None:

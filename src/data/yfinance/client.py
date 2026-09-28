@@ -103,8 +103,14 @@ class YFinanceClient(BaseDataClient):
         ticker: str,
         start_date: str,
         end_date: str | None = None,
+        *,
+        use_cache: bool = True,  # noqa: ARG002
     ) -> HistoricalMarketData:
-        """Return explicitly adjusted daily historical prices with retained yfinance metadata."""
+        """Return explicitly adjusted daily historical prices with retained yfinance metadata.
+
+        ``use_cache`` is accepted for interface uniformity and ignored: this raw provider has no
+        cache of its own to skip.
+        """
         frame = self.fetch_data(ticker, start_date, end_date)
         context = MarketDataContext(
             provider_id=self.provider_id,

@@ -768,7 +768,7 @@ def _execute_momentum(
 ) -> ExecutionCapture:
     data_client = YFinanceClient()
     executed_at = utc_now()
-    with _production_historical_client(data_client, clock=lambda: executed_at) as historical_client:
+    with _production_historical_client(data_client, use_cache=True, clock=lambda: executed_at) as historical_client:
         run = run_momentum(selection, ticker, historical_client, executed_at=executed_at)
 
     def _identity_candidate() -> InstrumentProfileCandidate:
@@ -793,7 +793,7 @@ def _execute_graham_number(
 ) -> ExecutionCapture:
     config = selection.to_graham_number_config()
     executed_at = utc_now()
-    with _production_financial_cache(enabled=selection.use_cache, clock=lambda: executed_at) as cache:
+    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
         resolver = build_graham_resolver(
             resolver_type=GrahamNumberInputResolver,
             data_provider=config.security_provider_id,
@@ -819,7 +819,7 @@ def _execute_graham_growth(
     config = selection.to_graham_growth_config()
     policy = growth_assumptions()
     executed_at = utc_now()
-    with _production_financial_cache(enabled=selection.use_cache, clock=lambda: executed_at) as cache:
+    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
         resolver = build_graham_resolver(
             resolver_type=GrahamGrowthInputResolver,
             data_provider=config.security_provider_id,
@@ -845,7 +845,7 @@ def _execute_fcf_growth(
 ) -> ExecutionCapture:
     config = selection.to_fcf_config()
     executed_at = utc_now()
-    with _production_financial_cache(enabled=selection.use_cache, clock=lambda: executed_at) as cache:
+    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
         provider = build_sec_production_provider()
         resolver = ProductionAnnualGrowthSeriesResolver(provider, cache=cache, clock=lambda: executed_at)
         capture = execute_fcf_growth(

@@ -12,7 +12,7 @@ from src.config import settings
 from src.core.telemetry.quality import record_cli_quality
 from src.data.base_client import DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
-from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputSeriesCacheProtocol
+from src.data.financial.cache import ResolvedInputSeriesCacheProtocol
 from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
 from src.data.quality import DataQualityError, HistoricalDataQualityError, HistoricalQualityPolicy, QualityOutcome
 from src.data.repositories import (
@@ -33,16 +33,19 @@ class AnalysisConfigurationError(ValueError):
 
 @contextmanager
 def _production_historical_client(
-    provider: YFinanceClient, *, clock: Callable[[], datetime]
+    provider: YFinanceClient, *, use_cache: bool, clock: Callable[[], datetime]
 ) -> Iterator[CachedHistoricalDataClient]:
     """Borrow the Yahoo client and own historical storage for one analysis.
 
     Daily adjusted request identity matches the provider's download configuration.
-    Reuse age comes from settings; fresh storage is initialized before fetching.
+    Reuse age comes from settings. Readiness is checked and storage initialized before
+    fetching only when ``use_cache`` is True; the per-call ``use_cache`` gate on the
+    yielded client's own methods is what actually skips reads/writes.
     """
     database = SQLiteDatabase(settings)
     try:
-        ensure_database_ready(database)
+        if use_cache:
+            ensure_database_ready(database)
         seconds = settings.historical_cache_ttl_seconds
         yield CachedHistoricalDataClient(
             provider,
@@ -58,19 +61,19 @@ def _production_historical_client(
 
 @contextmanager
 def _production_financial_cache(
-    *, enabled: bool, clock: Callable[[], datetime]
+    *, use_cache: bool, clock: Callable[[], datetime]
 ) -> Iterator[ResolvedInputSeriesCacheProtocol]:
-    """Own one invocation's durable cache; schema upgrades remain explicit.
+    """Own one invocation's durable cache; schema upgrades remain explicit unless caching is disabled.
 
     Financial facts use configured residence age (unlimited by default) and
-    temporal quality checks. Disabling caching avoids opening SQLite altogether.
+    temporal quality checks. Readiness is checked only when ``use_cache`` is True; the
+    resolver's own per-call ``use_cache`` gate is what actually skips reads/writes, so
+    disabling caching still never touches storage.
     """
-    if not enabled:
-        yield InMemoryResolvedInputCache(clock=clock)
-        return
     database = SQLiteDatabase(settings)
     try:
-        ensure_database_ready(database)
+        if use_cache:
+            ensure_database_ready(database)
         seconds = settings.financial_cache_ttl_seconds
         yield SQLiteResolvedInputCache(
             database, ttl=None if seconds is None else timedelta(seconds=seconds), clock=clock

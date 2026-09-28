@@ -209,7 +209,7 @@ class InputResolver:
         request: FinancialFactRequest,
         *,
         override: float | None = None,
-        use_cache: bool = True,
+        use_cache: bool,
     ) -> InputResolutionResult:
         """Resolve a fact and retain independently evaluated quote-response timing."""
         result = self._resolve(request, override=override, use_cache=use_cache)
@@ -232,7 +232,7 @@ class InputResolver:
         request: FinancialFactRequest,
         *,
         override: float | None = None,
-        use_cache: bool = True,
+        use_cache: bool,
     ) -> InputResolutionResult:
         """Resolve a single financial fact and retain the path actually taken."""
         field_name = request.field_name.value
@@ -335,7 +335,7 @@ class InputResolver:
         request: FinancialFactRequest,
         *,
         override: float | None = None,
-        use_cache: bool = True,
+        use_cache: bool,
     ) -> InputResolutionResult:
         """Resolve direct BVPS first, then conservatively derive it from SEC-style components.
 
@@ -370,7 +370,7 @@ class InputResolver:
         self,
         request: FinancialFactRequest,
         *,
-        use_cache: bool = True,
+        use_cache: bool,
     ) -> InputResolutionResult:
         """Resolve the three-year average EPS.
 

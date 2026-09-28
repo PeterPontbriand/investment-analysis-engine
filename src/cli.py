@@ -282,7 +282,9 @@ def momentum(  # noqa: PLR0913
             try:
                 ensure_database_ready(database)
                 profile_cache = _production_instrument_profile_cache(database, clock=lambda: executed_at)
-                with _production_historical_client(data_client, clock=lambda: executed_at) as historical_client:
+                with _production_historical_client(
+                    data_client, use_cache=True, clock=lambda: executed_at
+                ) as historical_client:
                     run = run_momentum(selection, target_ticker, historical_client, executed_at=executed_at)
                 profile = profile_cache.resolve(
                     run.metrics.ticker,
@@ -299,7 +301,9 @@ def momentum(  # noqa: PLR0913
             finally:
                 database.close()
         else:
-            with _production_historical_client(data_client, clock=lambda: executed_at) as historical_client:
+            with _production_historical_client(
+                data_client, use_cache=True, clock=lambda: executed_at
+            ) as historical_client:
                 run = run_momentum(selection, target_ticker, historical_client, executed_at=executed_at)
             profile = compose_instrument_profile(
                 run.metrics.ticker,
@@ -394,7 +398,7 @@ def graham_number(  # noqa: PLR0913
             ticker=target_ticker,
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ),
-        _production_financial_cache(enabled=use_cache, clock=lambda: executed_at) as cache,
+        _production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache,
     ):
         with execution_errors(
             mode=mode,
@@ -510,7 +514,7 @@ def graham_growth(  # noqa: PLR0913
             ticker=target_ticker,
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ),
-        _production_financial_cache(enabled=use_cache, clock=lambda: executed_at) as cache,
+        _production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache,
     ):
         with execution_errors(
             mode=mode,
@@ -602,7 +606,7 @@ def fcf_growth(  # noqa: PLR0913
             invalid=lambda exc: f"Unable to start FCF & earnings-growth analysis: {exc}",
             unexpected=lambda _exc: f"FCF & earnings-growth analysis failed unexpectedly for {target_ticker}.",
         ),
-        _production_financial_cache(enabled=not no_cache, clock=lambda: executed_at) as cache,
+        _production_financial_cache(use_cache=not no_cache, clock=lambda: executed_at) as cache,
     ):
         provider = build_sec_production_provider()
         resolver = ProductionAnnualGrowthSeriesResolver(

@@ -153,7 +153,33 @@ def test_run_analysis_retains_market_metadata(bullish_dataframe: pd.DataFrame) -
 
     assert run.metrics.status is TrendStatus.BULLISH
     assert run.market_data == market_data.context
-    client.fetch_data_with_context.assert_called_once_with("BTC-USD", "2026-01-01")
+    client.fetch_data_with_context.assert_called_once_with("BTC-USD", "2026-01-01", use_cache=True)
+
+
+def test_run_analysis_forwards_disabled_cache_to_the_client(bullish_dataframe: pd.DataFrame) -> None:
+    """``context.use_cache=False`` must reach the wrapped client's own per-call gate."""
+    market_data = HistoricalMarketData(
+        frame=bullish_dataframe,
+        context=MarketDataContext(
+            provider_id="fixture-market",
+            observation_interval="1d",
+            data_as_of=date(2026, 1, 10),
+            currency="USD",
+            observation_count=10,
+        ),
+    )
+    client = MagicMock()
+    client.fetch_data_with_context.return_value = market_data
+    analyzer = MomentumAnalyzer(data_client=client)
+    context = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 20, tzinfo=UTC), use_cache=False)
+
+    analyzer.run_analysis(
+        ticker="BTC-USD",
+        config=MomentumConfig(short_window=2, long_window=5),
+        context=context,
+    )
+
+    client.fetch_data_with_context.assert_called_once_with("BTC-USD", "2026-01-01", use_cache=False)
 
 
 def test_insufficient_window_history_returns_unknown_without_nan() -> None:

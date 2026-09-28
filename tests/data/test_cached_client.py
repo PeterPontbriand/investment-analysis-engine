@@ -134,7 +134,10 @@ class FakeProvider(BaseDataClient):
     def fetch_data(self, ticker: str, start_date: str, end_date: str | None = None) -> pd.DataFrame:
         return self.fetch_historical_data(ticker, start_date, end_date).frame
 
-    def fetch_historical_data(self, ticker: str, start_date: str, end_date: str | None = None) -> HistoricalMarketData:
+    def fetch_historical_data(
+        self, ticker: str, start_date: str, end_date: str | None = None, *, use_cache: bool = True
+    ) -> HistoricalMarketData:
+        del use_cache
         self.calls.append((ticker, start_date, end_date))
         if self.error is not None:
             raise self.error
@@ -166,9 +169,9 @@ def test_hit_all_boundaries_and_reopen(database: SQLiteDatabase, tmp_path: Path)
     client = CachedHistoricalDataClient(
         provider, repository, request_variant="1d:adjusted", ttl=None, clock=lambda: NOW
     )
-    assert client.fetch_historical_data("ABC", START).frame is provider.data.frame
+    assert client.fetch_historical_data("ABC", START, use_cache=True).frame is provider.data.frame
     assert_frame_equal(client.fetch_data(" abc ", START), provider.data.frame)
-    assert client.fetch_data_with_context("ABC", START).context == provider.data.context
+    assert client.fetch_data_with_context("ABC", START, use_cache=True).context == provider.data.context
     assert client.provider_id == "Fixture"
     entry = repository.get(MarketDataCacheKey("ABC", "fixture", date(2025, 1, 1), None, "1d:adjusted"))
     assert entry is not None
@@ -184,6 +187,24 @@ def test_hit_all_boundaries_and_reopen(database: SQLiteDatabase, tmp_path: Path)
     finally:
         reopened.close()
     assert len(provider.calls) == 1
+
+
+def test_disabled_cache_never_reads_or_writes_the_repository(database: SQLiteDatabase) -> None:
+    provider = FakeProvider()
+    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    key = MarketDataCacheKey("ABC", "Fixture", date(2025, 1, 1), None, "1d:adjusted")
+    repository.put(key, provider.data, fetch_completed_at=NOW)
+    client = CachedHistoricalDataClient(
+        provider, repository, request_variant="1d:adjusted", ttl=None, clock=lambda: NOW
+    )
+
+    first = client.fetch_historical_data("ABC", START, use_cache=False)
+    second = client.fetch_historical_data("ABC", START, use_cache=False)
+
+    assert first.frame is provider.data.frame
+    assert second.frame is provider.data.frame
+    # Two live fetches, not one cache hit followed by a write -- use_cache=False skipped both.
+    assert len(provider.calls) == 2
 
 
 @pytest.mark.parametrize(
@@ -277,8 +298,8 @@ def test_valid_bypass(database: SQLiteDatabase, reason: str, caplog: pytest.LogC
         provider, SQLiteMarketDataRepository(database), request_variant=variant, ttl=None, clock=lambda: NOW
     )
     with caplog.at_level("DEBUG", logger="src.data.cached_client"):
-        assert client.fetch_historical_data("ABC", START).frame is provider.data.frame
-        assert client.fetch_historical_data("ABC", START).frame is provider.data.frame
+        assert client.fetch_historical_data("ABC", START, use_cache=True).frame is provider.data.frame
+        assert client.fetch_historical_data("ABC", START, use_cache=True).frame is provider.data.frame
     assert len(provider.calls) == 2
     assert "cache bypassed" in caplog.text
 
