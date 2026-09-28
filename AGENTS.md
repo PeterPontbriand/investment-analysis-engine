@@ -256,6 +256,8 @@ Require explicit user confirmation before:
 
 ## 12. Context index
 
+- To find current or next work, start at the sequence table in
+  `docs/project/MASTER_PLAN.md` and follow its links.
 - Active milestone implementation → `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`
 - Roadmap → `docs/project/MASTER_PLAN.md`
 - Rationale / decision history → `docs/project/DISCOVERY_WORKBOOK.md`
