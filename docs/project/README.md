@@ -92,6 +92,7 @@ The first two repair commands intentionally mutate files. Review their diff befo
 
 ## Documentation conventions
 
+- Planning document structure: follow the [planning document structure rules](../../AGENTS.md#planning-document-structure), using the [IR contract and slice plan](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md) as the reference example.
 - The root README and `docs/user/` describe the product without duplicating active milestone/step/slice status.
 - This index links to planning owners; it does not maintain work status.
 - User-facing analysis details belong in strategy guides; project design contracts belong here.

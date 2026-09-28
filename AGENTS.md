@@ -65,6 +65,18 @@ that must be preserved.
 - Outside those locations, describe behavior, requirements, and verification in durable technical terms without planning labels such as "Step 2.6," "Slice B," or "Gate D0."
 - Ordinary technical uses of words such as "step," "slice," and "gate" are allowed. Agent instruction files may define this policy and link to authoritative planning documents without reproducing their implementation details.
 
+### Planning document structure
+
+Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md) as the reference example for every new planning document. Convert an existing planning document to this structure when a change touches it; do not run a separate sweep over untouched plans.
+
+- Open with **At a glance**: a few bullets stating what the work is, what it is not, and the rules it follows. Include no history there.
+- Put the sequence and status table next. Each scope cell contains one line and a link; each status cell contains only a status word, following the existing sequence-table rules.
+- Add one short section per unit of work, using labeled bullets: **Problem**, **Decision**, **Scope**, **Branch**, and **Detail**. End each section with a link to the lower-level document that owns the detail, or `⚠ no slice plan yet`.
+- Follow the work-unit sections with scope limits and acceptance criteria, expressed as bullets.
+- Put background and origin after the scope limits and acceptance criteria.
+- Put decision records, renumbering history, branching rationale, and accepted exceptions in a verbatim appendix at the end.
+- Keep detail in the lowest-level document that owns it. A parent summarizes and links; it does not duplicate a child's inventory, design decisions, or history.
+
 ### Implementation preservation
 
 - Treat the active task's approved file scope as an edit boundary. Before changing a file outside that scope, request explicit user authorization and identify the file, proposed change, and why it is needed. This includes previously accepted implementation and test files, even for a correct, minimal compatibility or typing adjustment. A dependency on earlier work, passing checks, or recording the change afterward does not authorize a scope extension. Continue independent work within scope while awaiting approval. Files explicitly included in the active task's approved scope, such as shared dispatch files, remain authorized even if an earlier task also changed them.
