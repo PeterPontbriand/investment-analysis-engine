@@ -399,7 +399,7 @@ def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -
         provider_id=SEC_PROVIDER_ID,
     )
 
-    result = resolver.resolve_bvps(request)
+    result = resolver.resolve_bvps(request, use_cache=True)
 
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
@@ -426,7 +426,7 @@ def test_resolver_historical_bvps_uses_components_known_at_as_of() -> None:
         as_of=as_of,
     )
 
-    result = resolver.resolve_bvps(request)
+    result = resolver.resolve_bvps(request, use_cache=True)
 
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
@@ -450,7 +450,7 @@ def test_resolver_bvps_missing_or_nonzero_preferred_share_guard_is_unavailable(
         provider_id=SEC_PROVIDER_ID,
     )
 
-    result = resolver.resolve_bvps(request)
+    result = resolver.resolve_bvps(request, use_cache=True)
 
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None
@@ -490,7 +490,7 @@ def test_wfc_negative_control_material_preferred_stock_blocks_bvps_derivation() 
         provider_id=SEC_PROVIDER_ID,
     )
 
-    result = resolver.resolve_bvps(request)
+    result = resolver.resolve_bvps(request, use_cache=True)
 
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None

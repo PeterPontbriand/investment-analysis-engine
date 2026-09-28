@@ -155,9 +155,9 @@ def test_cache_age_uses_original_retrieval(age: int, calls: int) -> None:
     cache = InMemoryResolvedInputCache(clock=lambda: provider.now)
     resolver = InputResolver(provider, cache, clock=lambda: provider.now)
     request = FinancialFactRequest(FinancialSubjectKind.SECURITY, "ACME", FinancialField.CURRENT_PRICE, "yfinance")
-    first = resolver.resolve(request)
+    first = resolver.resolve(request, use_cache=True)
     provider.now += timedelta(seconds=age)
-    second = resolver.resolve(request)
+    second = resolver.resolve(request, use_cache=True)
     assert provider.calls == calls
     assert first.resolved_input is not None
     assert second.resolved_input is not None
@@ -173,10 +173,10 @@ def test_expired_quote_refresh_failure_never_returns_stale_value() -> None:
         provider, InMemoryResolvedInputCache(clock=lambda: provider.now), clock=lambda: provider.now
     )
     request = FinancialFactRequest(FinancialSubjectKind.SECURITY, "ACME", FinancialField.CURRENT_PRICE, "yfinance")
-    assert resolver.resolve(request).resolved_input is not None
+    assert resolver.resolve(request, use_cache=True).resolved_input is not None
     provider.now += timedelta(hours=14)
     provider.fail = True
-    result = resolver.resolve(request)
+    result = resolver.resolve(request, use_cache=True)
     assert result.resolved_input is None
     assert result.status.value == "provider_error"
     assert provider.calls == 2
@@ -192,10 +192,10 @@ def test_zero_ttl_bypass_and_override_do_not_reuse_quote() -> None:
         quote_freshness_policy=QuoteFreshnessPolicy(timedelta(0)),
     )
     request = FinancialFactRequest(FinancialSubjectKind.SECURITY, "ACME", FinancialField.CURRENT_PRICE, "yfinance")
-    resolver.resolve(request)
-    resolver.resolve(request)
+    resolver.resolve(request, use_cache=True)
+    resolver.resolve(request, use_cache=True)
     resolver.resolve(request, use_cache=False)
-    override = resolver.resolve(request, override=15.0)
+    override = resolver.resolve(request, override=15.0, use_cache=True)
     assert provider.calls == 3
     assert override.quote_freshness is not None
     assert override.quote_freshness.status == "user_supplied"
@@ -233,8 +233,8 @@ def test_yahoo_adapter_quote_round_trips_through_real_sqlite(tmp_path: Path) -> 
             clock=lambda: NOW,
         )
         request = FinancialFactRequest(FinancialSubjectKind.SECURITY, "ACME", FinancialField.CURRENT_PRICE, "yfinance")
-        first = resolver.resolve(request)
-        second = resolver.resolve(request)
+        first = resolver.resolve(request, use_cache=True)
+        second = resolver.resolve(request, use_cache=True)
         assert first.resolved_input is not None
         assert second.resolved_input is not None
         assert second.resolved_input.source_kind is SourceKind.CACHE
@@ -291,7 +291,7 @@ def test_resolver_accepts_a_quote_that_ticked_during_the_run_trading_hours_case(
     resolver = InputResolver(provider, InMemoryResolvedInputCache(clock=lambda: executed_at), clock=lambda: executed_at)
     request = FinancialFactRequest(FinancialSubjectKind.SECURITY, "ACME", FinancialField.CURRENT_PRICE, "yfinance")
 
-    result = resolver.resolve(request)
+    result = resolver.resolve(request, use_cache=True)
 
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
@@ -314,7 +314,7 @@ def test_resolver_rejects_a_quote_ticked_beyond_the_skew_tolerance() -> None:
     resolver = InputResolver(provider, InMemoryResolvedInputCache(clock=lambda: executed_at), clock=lambda: executed_at)
     request = FinancialFactRequest(FinancialSubjectKind.SECURITY, "ACME", FinancialField.CURRENT_PRICE, "yfinance")
 
-    result = resolver.resolve(request)
+    result = resolver.resolve(request, use_cache=True)
 
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None
@@ -342,8 +342,8 @@ def test_same_run_cache_round_trip_tolerates_a_quote_ticked_after_the_frozen_clo
     resolver = InputResolver(provider, cache, clock=lambda: executed_at)
     request = FinancialFactRequest(FinancialSubjectKind.SECURITY, "ACME", FinancialField.CURRENT_PRICE, "yfinance")
 
-    first = resolver.resolve(request)
-    second = resolver.resolve(request)
+    first = resolver.resolve(request, use_cache=True)
+    second = resolver.resolve(request, use_cache=True)
 
     assert first.status is CalculationStatus.OK
     assert first.resolved_input is not None

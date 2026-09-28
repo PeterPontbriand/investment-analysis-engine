@@ -125,14 +125,14 @@ def test_future_observation_refreshes_cache_but_rejects_invalid_provider_replace
     cache.put(key, bad)
     provider = FakeProvider((_make_fact(observed_at=NOW + timedelta(days=1)),))
     resolver = InputResolver(provider, cache=cache, clock=lambda: NOW)
-    result = resolver.resolve(request)
+    result = resolver.resolve(request, use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert provider.call_count == 1
     stored = cache.get(key)
     assert stored is not None
     assert stored.resolved_input == bad
     provider._facts = (_make_fact(observed_at=NOW),)
-    assert resolver.resolve(request).status is CalculationStatus.OK
+    assert resolver.resolve(request, use_cache=True).status is CalculationStatus.OK
     assert provider.call_count == 2
 
 
@@ -260,7 +260,7 @@ def _make_resolver(
 
 def test_valid_override_returns_ok_and_override_source() -> None:
     resolver = _make_resolver()
-    result = resolver.resolve(_make_request(), override=42.0)
+    result = resolver.resolve(_make_request(), override=42.0, use_cache=True)
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
     assert result.resolved_input.source_kind is SourceKind.OVERRIDE
@@ -277,7 +277,7 @@ def test_override_prevents_cache_and_provider_access() -> None:
     provider = FakeProvider()
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
-    resolver.resolve(_make_request(), override=99.0)
+    resolver.resolve(_make_request(), override=99.0, use_cache=True)
     assert provider.call_count == 0
     assert cache.get_count == 0
     assert cache.put_count == 0
@@ -291,7 +291,7 @@ def test_override_prevents_cache_and_provider_access() -> None:
 @pytest.mark.parametrize("bad_value", [nan, inf, -inf])
 def test_nan_infinite_override_rejected(bad_value: float) -> None:
     resolver = _make_resolver()
-    result = resolver.resolve(_make_request(), override=bad_value)
+    result = resolver.resolve(_make_request(), override=bad_value, use_cache=True)
     assert result.status is CalculationStatus.INVALID_INPUT
     assert result.resolved_input is None
     assert result.reason is not None
@@ -306,7 +306,7 @@ def test_nan_infinite_override_rejected(bad_value: float) -> None:
 def test_zero_negative_current_price_override_rejected(val: float) -> None:
     resolver = _make_resolver()
     req = _make_request(field=FinancialField.CURRENT_PRICE)
-    result = resolver.resolve(req, override=val)
+    result = resolver.resolve(req, override=val, use_cache=True)
     assert result.status is CalculationStatus.INVALID_INPUT
     assert result.resolved_input is None
 
@@ -324,7 +324,7 @@ def test_zero_negative_aaa_yield_override_rejected(val: float) -> None:
         subject_kind=FinancialSubjectKind.MACRO,
         subject_id="macro-a",
     )
-    result = resolver.resolve(req, override=val)
+    result = resolver.resolve(req, override=val, use_cache=True)
     assert result.status is CalculationStatus.INVALID_INPUT
     assert result.resolved_input is None
 
@@ -337,7 +337,7 @@ def test_zero_negative_aaa_yield_override_rejected(val: float) -> None:
 @pytest.mark.parametrize("val", [0.0, -3.5])
 def test_zero_negative_eps_override_valid(val: float) -> None:
     resolver = _make_resolver()
-    result = resolver.resolve(_make_request(field=FinancialField.EPS), override=val)
+    result = resolver.resolve(_make_request(field=FinancialField.EPS), override=val, use_cache=True)
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
     assert result.resolved_input.value == val
@@ -351,7 +351,7 @@ def test_zero_negative_eps_override_valid(val: float) -> None:
 @pytest.mark.parametrize("val", [0.0, -10.0])
 def test_zero_negative_bvps_override_valid(val: float) -> None:
     resolver = _make_resolver()
-    result = resolver.resolve(_make_request(field=FinancialField.BVPS), override=val)
+    result = resolver.resolve(_make_request(field=FinancialField.BVPS), override=val, use_cache=True)
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
     assert result.resolved_input.value == val
@@ -365,7 +365,7 @@ def test_zero_negative_bvps_override_valid(val: float) -> None:
 def test_override_preserves_fields() -> None:
     resolver = _make_resolver()
     req = _make_request(field=FinancialField.EPS, basis="ttm", as_of=AS_OF)
-    result = resolver.resolve(req, override=7.5)
+    result = resolver.resolve(req, override=7.5, use_cache=True)
     ri = result.resolved_input
     assert ri is not None
     assert ri.field_name == "eps"
@@ -379,7 +379,7 @@ def test_override_preserves_fields() -> None:
 def test_override_current_as_of_none() -> None:
     resolver = _make_resolver()
     req = _make_request(field=FinancialField.EPS)
-    result = resolver.resolve(req, override=7.5)
+    result = resolver.resolve(req, override=7.5, use_cache=True)
     ri = result.resolved_input
     assert ri is not None
     assert ri.as_of is None
@@ -406,7 +406,7 @@ def test_valid_cache_hit_wins_over_provider() -> None:
     cache = SpyCache(entry=entry)
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
     assert result.resolved_input.source_kind is SourceKind.CACHE
@@ -433,7 +433,7 @@ def test_cache_hit_returns_new_cache_sourced_value() -> None:
     cache = SpyCache(entry=entry)
     resolver = _make_resolver(cache=cache)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     ri = result.resolved_input
     assert ri is not None
     assert ri.source_kind is SourceKind.CACHE
@@ -460,7 +460,7 @@ def test_cache_hit_preserves_origin_provider() -> None:
     cache = SpyCache(entry=entry)
     resolver = _make_resolver(cache=cache)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     ri = result.resolved_input
     assert ri is not None
     assert ri.origin_source_kind is SourceKind.PROVIDER
@@ -504,7 +504,7 @@ def test_cache_hit_preserves_provenance() -> None:
     cache = SpyCache(entry=entry)
     resolver = _make_resolver(cache=cache)
 
-    result = resolver.resolve(_make_request(basis="ttm"))
+    result = resolver.resolve(_make_request(basis="ttm"), use_cache=True)
     ri = result.resolved_input
     assert ri is not None
     assert ri.value == 6.6
@@ -547,7 +547,7 @@ def test_cache_hit_derived_retains_lineage() -> None:
     resolver = _make_resolver(provider=provider, cache=cache)
 
     req = _make_request(field=FinancialField.EPS, basis="three_year_average")
-    result = resolver.resolve(req)
+    result = resolver.resolve(req, use_cache=True)
     ri = result.resolved_input
     assert ri is not None
     assert ri.source_kind is SourceKind.CACHE
@@ -578,7 +578,7 @@ def test_cache_hit_does_not_mutate_stored_input() -> None:
     cache = SpyCache(entry=entry)
     resolver = _make_resolver(cache=cache)
 
-    resolver.resolve(_make_request())
+    resolver.resolve(_make_request(), use_cache=True)
     # Stored object remains unchanged.
     assert stored.source_kind is SourceKind.PROVIDER
     assert stored.value == 1.0
@@ -597,7 +597,7 @@ def test_cache_miss_falls_through_to_provider() -> None:
     cache = SpyCache(entry=None)
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     assert provider.call_count == 1
     assert cache.get_count == 1
@@ -630,7 +630,7 @@ def test_stale_ttl_entry_falls_through() -> None:
     provider = FakeProvider(facts=(fact,))
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     assert provider.call_count == 1
 
@@ -665,7 +665,7 @@ def test_historical_cache_future_available_at_falls_through() -> None:
     provider = FakeProvider(facts=(fact,))
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request(as_of=AS_OF))
+    result = resolver.resolve(_make_request(as_of=AS_OF), use_cache=True)
     assert result.status is CalculationStatus.OK
     assert provider.call_count == 1
 
@@ -695,7 +695,7 @@ def test_schema_version_mismatch_falls_through() -> None:
     provider = FakeProvider(facts=(fact,))
     resolver = _make_resolver(provider=provider, cache=cache, schema_version=2)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     assert provider.call_count == 1
 
@@ -727,7 +727,7 @@ def test_provider_success_returns_provider_source() -> None:
     provider = FakeProvider(facts=(fact,))
     resolver = _make_resolver(provider=provider)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -745,7 +745,7 @@ def test_provider_success_cached_after_validation() -> None:
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     assert cache.put_count == 1
     assert cache.last_put_input is not None
@@ -761,7 +761,7 @@ def test_empty_provider_tuple_input_unavailable() -> None:
     provider = FakeProvider(facts=())
     resolver = _make_resolver(provider=provider)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None
     assert result.reason is not None
@@ -776,7 +776,7 @@ def test_provider_error_raises() -> None:
     provider = FakeProvider(facts=FinancialProviderError("synthetic failure"))
     resolver = _make_resolver(provider=provider)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert result.resolved_input is None
     assert "synthetic failure" in (result.reason or "")
@@ -793,7 +793,7 @@ def test_multiple_facts_provider_error() -> None:
     provider = FakeProvider(facts=(f1, f2))
     resolver = _make_resolver(provider=provider)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert result.resolved_input is None
 
@@ -815,7 +815,7 @@ def test_mismatched_subject_kind() -> None:
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert cache.put_count == 0
 
@@ -826,7 +826,7 @@ def test_mismatched_subject_id() -> None:
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert cache.put_count == 0
 
@@ -842,7 +842,7 @@ def test_mismatched_field_name() -> None:
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request(field=FinancialField.EPS))
+    result = resolver.resolve(_make_request(field=FinancialField.EPS), use_cache=True)
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert cache.put_count == 0
 
@@ -858,7 +858,7 @@ def test_mismatched_provider_id() -> None:
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request(provider_id=PROVIDER_ID))
+    result = resolver.resolve(_make_request(provider_id=PROVIDER_ID), use_cache=True)
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert cache.put_count == 0
 
@@ -874,7 +874,7 @@ def test_mismatched_basis() -> None:
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request(basis="ttm"))
+    result = resolver.resolve(_make_request(basis="ttm"), use_cache=True)
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert cache.put_count == 0
 
@@ -890,7 +890,7 @@ def test_historical_fact_no_available_at() -> None:
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request(as_of=AS_OF))
+    result = resolver.resolve(_make_request(as_of=AS_OF), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert cache.put_count == 0
 
@@ -906,7 +906,7 @@ def test_historical_fact_future_available_at() -> None:
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request(as_of=AS_OF))
+    result = resolver.resolve(_make_request(as_of=AS_OF), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert cache.put_count == 0
 
@@ -922,7 +922,7 @@ def test_historical_fact_available_at_before_as_of() -> None:
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request(as_of=AS_OF))
+    result = resolver.resolve(_make_request(as_of=AS_OF), use_cache=True)
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
     assert result.resolved_input.as_of == AS_OF
@@ -939,7 +939,7 @@ def test_current_fact_no_available_at_ok() -> None:
     provider = FakeProvider(facts=(fact,))
     resolver = _make_resolver(provider=provider)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
     assert result.resolved_input.available_at is None
@@ -956,7 +956,7 @@ def test_current_fact_future_available_at_rejected() -> None:
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert cache.put_count == 0
 
@@ -971,7 +971,7 @@ def test_current_resolution_preserves_as_of_none() -> None:
     provider = FakeProvider(facts=(fact,))
     resolver = _make_resolver(provider=provider)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     ri = result.resolved_input
     assert ri is not None
     assert ri.as_of is None
@@ -998,7 +998,7 @@ def test_provider_success_preserves_provenance() -> None:
     provider = FakeProvider(facts=(fact,))
     resolver = _make_resolver(provider=provider)
 
-    result = resolver.resolve(_make_request(basis="ttm"))
+    result = resolver.resolve(_make_request(basis="ttm"), use_cache=True)
     ri = result.resolved_input
     assert ri is not None
     assert ri.value == 8.8
@@ -1036,7 +1036,9 @@ def test_provider_success_preserves_annual_fact_metadata() -> None:
     )
     resolver = _make_resolver(provider=FakeProvider(facts=(fact,)))
 
-    result = resolver.resolve(_make_request(field=FinancialField.CAPITAL_EXPENDITURES, basis="fiscal_year"))
+    result = resolver.resolve(
+        _make_request(field=FinancialField.CAPITAL_EXPENDITURES, basis="fiscal_year"), use_cache=True
+    )
 
     ri = result.resolved_input
     assert ri is not None
@@ -1056,7 +1058,7 @@ def test_unavailable_does_not_become_zero() -> None:
     provider = FakeProvider(facts=())
     resolver = _make_resolver(provider=provider)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None
 
@@ -1071,7 +1073,7 @@ def test_multi_observation_rejected_bare() -> None:
     resolver = _make_resolver(provider=provider)
     req = _make_request(field=FinancialField.EPS, basis="fiscal_year", observation_count=3)
 
-    result = resolver.resolve(req)
+    result = resolver.resolve(req, use_cache=True)
     assert result.status is CalculationStatus.INVALID_INPUT
     assert result.resolved_input is None
     assert result.reason is not None
@@ -1084,7 +1086,7 @@ def test_multi_observation_rejected_with_override() -> None:
     resolver = _make_resolver(provider=provider, cache=cache)
     req = _make_request(field=FinancialField.EPS, basis="fiscal_year", observation_count=3)
 
-    result = resolver.resolve(req, override=99.0)
+    result = resolver.resolve(req, override=99.0, use_cache=True)
     assert result.status is CalculationStatus.INVALID_INPUT
     assert result.resolved_input is None
     assert provider.call_count == 0
@@ -1098,7 +1100,7 @@ def test_multi_observation_rejected_with_cache() -> None:
     resolver = _make_resolver(provider=provider, cache=cache)
     req = _make_request(field=FinancialField.EPS, basis="fiscal_year", observation_count=3)
 
-    result = resolver.resolve(req)
+    result = resolver.resolve(req, use_cache=True)
     assert result.status is CalculationStatus.INVALID_INPUT
     assert result.resolved_input is None
     assert provider.call_count == 0
@@ -1133,7 +1135,7 @@ def test_current_cache_future_available_at_falls_through() -> None:
     provider = FakeProvider(facts=(_make_fact(available_at=AVAILABLE_AT),))
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request())
+    result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
     assert result.resolved_input.source_kind is SourceKind.PROVIDER
@@ -1167,7 +1169,7 @@ def test_historical_cache_missing_available_at_falls_through() -> None:
     provider = FakeProvider(facts=(_make_fact(available_at=AVAILABLE_AT),))
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request(as_of=AS_OF))
+    result = resolver.resolve(_make_request(as_of=AS_OF), use_cache=True)
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
     assert result.resolved_input.source_kind is SourceKind.PROVIDER
@@ -1319,7 +1321,7 @@ def test_c2c_wrong_field_rejected_before_cache_provider() -> None:
         basis=FISCAL_YEAR,
         observation_count=1,
     )
-    result = resolver.resolve_three_year_average_eps(req)
+    result = resolver.resolve_three_year_average_eps(req, use_cache=True)
     assert result.status is CalculationStatus.INVALID_INPUT
     assert provider.call_count == 0
     assert cache.get_count == 0
@@ -1339,7 +1341,7 @@ def test_c2c_wrong_observation_count_rejected() -> None:
         basis=FISCAL_YEAR,
         observation_count=2,
     )
-    result = resolver.resolve_three_year_average_eps(req)
+    result = resolver.resolve_three_year_average_eps(req, use_cache=True)
     assert result.status is CalculationStatus.INVALID_INPUT
     assert provider.call_count == 0
     assert cache.get_count == 0
@@ -1373,7 +1375,7 @@ def test_c2c_empty_provider_input_unavailable() -> None:
     """Empty provider tuple => INPUT_UNAVAILABLE."""
     provider = FakeProvider(facts=())
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None
 
@@ -1386,7 +1388,7 @@ def test_c2c_two_eligible_periods_input_unavailable() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
 
@@ -1395,7 +1397,7 @@ def test_c2c_one_eligible_period_input_unavailable() -> None:
     facts = (_fy_fact(2.0, FY2024_START, FY2024_END),)
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
 
@@ -1415,7 +1417,7 @@ def test_c2c_five_observations_selects_latest_three() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -1439,7 +1441,7 @@ def test_c2c_scrambled_order_same_result() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -1471,7 +1473,7 @@ def test_c2c_historical_look_ahead_fact_excluded() -> None:
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
     req = _c2c_request(as_of=as_of)
-    result = resolver.resolve_three_year_average_eps(req)
+    result = resolver.resolve_three_year_average_eps(req, use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -1491,7 +1493,7 @@ def test_c2c_current_future_dated_fact_excluded() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -1514,7 +1516,7 @@ def test_c2c_duplicate_in_selected_period_is_unavailable() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
 
@@ -1529,7 +1531,7 @@ def test_c2c_duplicate_in_unselected_period_harmless() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -1551,7 +1553,7 @@ def test_c2c_incompatible_provider_field_is_unavailable() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
 
@@ -1564,7 +1566,7 @@ def test_c2c_incompatible_currency_is_unavailable() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
 
@@ -1578,7 +1580,7 @@ def test_c2c_mean_and_lineage_correct() -> None:
     facts = _three_fy_facts()
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -1616,7 +1618,7 @@ def test_c2c_derived_metadata_correct() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -1649,7 +1651,7 @@ def test_c2c_derived_available_at_none_when_any_missing() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -1670,7 +1672,7 @@ def test_c2c_zero_eps_valid() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -1686,7 +1688,7 @@ def test_c2c_negative_eps_valid() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -1706,7 +1708,7 @@ def test_c2c_derived_cache_hit() -> None:
     resolver = _make_resolver(provider=provider, cache=cache)
 
     # First call: miss -> provider -> cache write
-    result1 = resolver.resolve_three_year_average_eps(_c2c_request())
+    result1 = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result1.status is CalculationStatus.OK
     ri1 = result1.resolved_input
     assert ri1 is not None
@@ -1714,7 +1716,7 @@ def test_c2c_derived_cache_hit() -> None:
     assert provider.call_count == 1
 
     # Second call: hit -> CACHE source
-    result2 = resolver.resolve_three_year_average_eps(_c2c_request())
+    result2 = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result2.status is CalculationStatus.OK
     ri2 = result2.resolved_input
     assert ri2 is not None
@@ -1744,7 +1746,7 @@ def test_c2c_provider_error_never_caches() -> None:
     provider = FakeProvider(facts=FinancialProviderError("synthetic failure"))
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert cache.put_count == 0
 
@@ -2097,7 +2099,7 @@ def test_c2c_provider_origin_cache_entry_falls_through() -> None:
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     assert provider.call_count == 1
     ri = result.resolved_input
@@ -2117,7 +2119,7 @@ def test_c2c_derived_result_preserves_provider_id() -> None:
     provider = FakeProvider(facts=facts)
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -2136,10 +2138,10 @@ def test_c2c_cache_hit_preserves_provider_id() -> None:
     provider = FakeProvider(facts=facts)
     cache = InMemoryResolvedInputCache(clock=_fixed_clock())
     resolver = _make_resolver(provider=provider, cache=cache)
-    resolver.resolve_three_year_average_eps(_c2c_request())
+    resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
 
     # Second resolve should hit cache.
-    result2 = resolver.resolve_three_year_average_eps(_c2c_request())
+    result2 = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result2.status is CalculationStatus.OK
     ri2 = result2.resolved_input
     assert ri2 is not None
@@ -2165,7 +2167,7 @@ def test_c2c_historical_publication_date_lookahead_excluded() -> None:
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
     req = _c2c_request(as_of=as_of)
-    result = resolver.resolve_three_year_average_eps(req)
+    result = resolver.resolve_three_year_average_eps(req, use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -2195,7 +2197,7 @@ def test_c2c_current_incomplete_fiscal_period_excluded() -> None:
     )
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.OK
     ri = result.resolved_input
     assert ri is not None
@@ -2209,7 +2211,7 @@ def test_c2c_input_unavailable_never_caches() -> None:
     provider = FakeProvider(facts=facts)
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert cache.put_count == 0
 
@@ -2224,7 +2226,7 @@ def test_c2c_provider_error_candidate_never_caches() -> None:
     provider = FakeProvider(facts=facts)
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
-    result = resolver.resolve_three_year_average_eps(_c2c_request())
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert cache.put_count == 0
 

@@ -262,7 +262,7 @@ class TestResolverSingleFact:
             field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
-        result = resolver.resolve(request)
+        result = resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.OK
         assert result.resolved_input is not None
         assert result.resolved_input.value == pytest.approx(BVPS_VALUE)
@@ -278,7 +278,7 @@ class TestResolverSingleFact:
             field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
-        result = resolver.resolve(request)
+        result = resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
     def test_resolve_error(self) -> None:
@@ -291,7 +291,7 @@ class TestResolverSingleFact:
             field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
-        result = resolver.resolve(request)
+        result = resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.PROVIDER_ERROR
 
     def test_resolve_incompatible_basis(self) -> None:
@@ -305,7 +305,7 @@ class TestResolverSingleFact:
             provider_id=PROVIDER_ID,
             basis="ttm",
         )
-        result = resolver.resolve(request)
+        result = resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.PROVIDER_ERROR
 
 
@@ -343,7 +343,7 @@ class TestNetworkGuard:
             field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
-        result = resolver.resolve(request)
+        result = resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.OK
         assert result.resolved_input is not None
         assert result.resolved_input.value == pytest.approx(BVPS_VALUE)
@@ -363,7 +363,7 @@ class TestNetworkGuard:
             basis="fiscal_year",
             observation_count=3,
         )
-        result = resolver.resolve_three_year_average_eps(request)
+        result = resolver.resolve_three_year_average_eps(request, use_cache=True)
         assert result.status is CalculationStatus.OK
         assert result.resolved_input is not None
         expected = (EPS_FY2022 + EPS_FY2023 + EPS_FY2024) / 3.0
@@ -391,7 +391,7 @@ class TestCacheStaleness:
             field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
-        result1 = resolver.resolve(request)
+        result1 = resolver.resolve(request, use_cache=True)
         assert result1.status is CalculationStatus.OK
 
         # Advance the clock beyond TTL.
@@ -401,14 +401,14 @@ class TestCacheStaleness:
         resolver2 = GrahamNumberInputResolver(provider=provider, cache=cache2, clock=mutable_clock)
 
         # Populate cache with entry at NOW.
-        result2a = resolver2.resolve(request)
+        result2a = resolver2.resolve(request, use_cache=True)
         assert result2a.status is CalculationStatus.OK
 
         # Advance past TTL — entry is now stale.
         mutable_clock.advance(timedelta(hours=2))
 
         # Resolve again: cache entry is stale, so provider is called.
-        result2b = resolver2.resolve(request)
+        result2b = resolver2.resolve(request, use_cache=True)
         assert result2b.status is CalculationStatus.OK
         assert result2b.resolved_input is not None
         assert result2b.resolved_input.source_kind is SourceKind.PROVIDER
@@ -428,13 +428,13 @@ class TestCacheStaleness:
         )
 
         # First call: populates cache, returns PROVIDER.
-        result1 = resolver.resolve(request)
+        result1 = resolver.resolve(request, use_cache=True)
         assert result1.status is CalculationStatus.OK
         assert result1.resolved_input is not None
         assert result1.resolved_input.source_kind is SourceKind.PROVIDER
 
         # Second call: cache hit, returns CACHE source.
-        result2 = resolver.resolve(request)
+        result2 = resolver.resolve(request, use_cache=True)
         assert result2.status is CalculationStatus.OK
         assert result2.resolved_input is not None
         assert result2.resolved_input.source_kind is SourceKind.CACHE
@@ -454,7 +454,7 @@ class TestCacheStaleness:
             provider_id=PROVIDER_ID,
             as_of=historical_as_of,
         )
-        result = resolver.resolve(request)
+        result = resolver.resolve(request, use_cache=True)
         # The FUTURE subject returns a fact with available_at=2025-08-01 > as_of
         assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
@@ -479,7 +479,7 @@ class TestThreeYearEPSProvenance:
             basis="fiscal_year",
             observation_count=3,
         )
-        result = resolver.resolve_three_year_average_eps(request)
+        result = resolver.resolve_three_year_average_eps(request, use_cache=True)
         assert result.status is CalculationStatus.OK
         assert result.resolved_input is not None
         return result.resolved_input
@@ -539,7 +539,7 @@ class TestOverrideCachePrecedence:
             provider_id=PROVIDER_ID,
         )
         override_value = 99.0
-        result = resolver.resolve(request, override=override_value)
+        result = resolver.resolve(request, override=override_value, use_cache=True)
         assert result.status is CalculationStatus.OK
         assert result.resolved_input is not None
         assert result.resolved_input.source_kind is SourceKind.OVERRIDE
@@ -560,13 +560,13 @@ class TestOverrideCachePrecedence:
             provider_id=PROVIDER_ID,
         )
         # Populate the cache.
-        result_populate = fixture_resolver.resolve(request)
+        result_populate = fixture_resolver.resolve(request, use_cache=True)
         assert result_populate.status is CalculationStatus.OK
 
         # Now use the error provider with the same cache — must hit cache.
         error_provider = ErrorProvider()
         error_resolver = GrahamNumberInputResolver(provider=error_provider, cache=cache, clock=mutable_clock)
-        result = error_resolver.resolve(request)
+        result = error_resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.OK
         assert result.resolved_input is not None
         assert result.resolved_input.source_kind is SourceKind.CACHE
@@ -583,7 +583,7 @@ class TestOverrideCachePrecedence:
             field_name=FinancialField.BVPS,
             provider_id=PROVIDER_ID,
         )
-        result = resolver.resolve(request)
+        result = resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.PROVIDER_ERROR
         assert result.resolved_input is None
 

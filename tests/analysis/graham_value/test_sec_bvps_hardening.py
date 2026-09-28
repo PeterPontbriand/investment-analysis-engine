@@ -119,7 +119,7 @@ def _resolve_bvps(ticker: str, payload: object) -> InputResolutionResult:
         field_name=FinancialField.BVPS,
         provider_id=SEC_PROVIDER_ID,
     )
-    return resolver.resolve_bvps(request)
+    return resolver.resolve_bvps(request, use_cache=True)
 
 
 def test_ko_shape_derives_common_shares_and_infers_zero_preferred_guard() -> None:
@@ -298,7 +298,7 @@ def test_future_preferred_equity_fact_does_not_create_historical_lookahead() -> 
         as_of=as_of,
     )
 
-    result = resolver.resolve_bvps(request)
+    result = resolver.resolve_bvps(request, use_cache=True)
 
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
@@ -421,6 +421,6 @@ def test_unrelated_concept_with_preferred_in_description_does_not_block_inferenc
         field_name=FinancialField.BVPS,
         provider_id=SEC_PROVIDER_ID,
     )
-    result = resolver.resolve_bvps(request)
+    result = resolver.resolve_bvps(request, use_cache=True)
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
