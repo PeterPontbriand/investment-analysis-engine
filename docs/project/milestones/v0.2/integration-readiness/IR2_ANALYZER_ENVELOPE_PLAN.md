@@ -4,7 +4,7 @@ This is IR.2's own detail plan: the sub-slice sequence table, the full call-site
 
 Moved verbatim from that contract's own content (subsection numbers kept as-is, so existing `§6.x` cross-references — from this document, the contract, and [IR2_5_CACHE_UNIFICATION_PLAN.md](IR2_5_CACHE_UNIFICATION_PLAN.md) — stay valid); only the order changes, sequence table first.
 
-### 6.12 IR.2 slice list (item 8) — approved, revised 2026-09-25 (Graham separation inserted)
+### 6.12 IR.2 slice list — approved, revised 2026-09-25 (Graham separation inserted)
 
 Split by concern across all four analyzers, never analyzer-by-analyzer, per the project owner's
 explicit instruction; revised 2026-09-25 to six slices — **IR.2.2, Graham strategy separation
