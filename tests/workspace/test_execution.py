@@ -73,7 +73,12 @@ class _FakeSink:
 def _momentum_native_evidence() -> MomentumRun:
     client = _FixtureClient()
     return run_momentum(
-        MomentumSelection(short_window=2, long_window=3), "AAPL", client, start_date="2026-01-01", executed_at=NOW
+        MomentumSelection(short_window=2, long_window=3),
+        "AAPL",
+        client,
+        start_date="2026-01-01",
+        executed_at=NOW,
+        instrument_profile=None,
     )
 
 
@@ -115,7 +120,7 @@ def test_execute_assembles_and_inserts_a_completed_run() -> None:
     assert run.method_id == "sma_crossover"
     assert run.config_schema_version == 1
     assert run.method_version == 1
-    assert run.result_schema_version == 1
+    assert run.result_schema_version == 2
     assert run.evidence_codec_version == 1
     assert run.projection_version == 1
     assert run.status is RunOutcome.COMPLETED
@@ -222,11 +227,16 @@ def test_execute_calls_capture_exactly_once() -> None:
 
 def test_from_momentum_capture_maps_fields() -> None:
     client = _FixtureClient()
-    run = run_momentum(
-        MomentumSelection(short_window=2, long_window=3), "AAPL", client, start_date="2026-01-01", executed_at=NOW
-    )
     profile = fixture_instrument_profile("AAPL", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
-    momentum_capture = capture_momentum(run, profile)
+    run = run_momentum(
+        MomentumSelection(short_window=2, long_window=3),
+        "AAPL",
+        client,
+        start_date="2026-01-01",
+        executed_at=NOW,
+        instrument_profile=profile,
+    )
+    momentum_capture = capture_momentum(run)
 
     result = from_momentum_capture(momentum_capture)
 

@@ -61,7 +61,7 @@ from src.workspace.runs import AnalysisRun
 NativeEvidence = MomentumRun | GrahamNumberAnalysis | GrahamGrowthAnalysis | FCFEarningsGrowthResult
 
 _METHOD_VERSIONS: dict[tuple[str, str], tuple[int, int]] = {
-    ("momentum", "sma_crossover"): (1, 1),
+    ("momentum", "sma_crossover"): (1, 2),
     ("graham_number", "graham_number"): (1, 1),
     ("graham_growth_value", "graham_growth_value"): (1, 1),
     ("fcf_earnings_growth", "reported_fcf_eps_cagr"): (2, 3),
@@ -111,7 +111,7 @@ def from_momentum_capture(capture: MomentumCapture) -> ExecutionCapture:
     """Normalize a Momentum capture; Momentum has no native failure status."""
     return ExecutionCapture(
         native_evidence=capture.run,
-        profile=capture.profile,
+        profile=capture.run.instrument_profile,
         outcome=RunOutcome.COMPLETED,
         presentation_inputs=capture.presentation_inputs,
     )

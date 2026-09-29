@@ -12,8 +12,10 @@ from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig, compute_momentum_metrics
 from src.core.constants import TrendStatus
 from src.data.base_client import DataFetchError
+from src.data.instrument_profile import InstrumentKind
 from src.data.market_data import HistoricalMarketData, MarketDataContext
 from src.data.yfinance import YFinanceClient
+from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 
 _CONTEXT = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 20, tzinfo=UTC), use_cache=True)
 
@@ -149,6 +151,29 @@ def test_run_analysis_retains_market_metadata(bullish_dataframe: pd.DataFrame) -
     assert run.metrics.status is TrendStatus.BULLISH
     assert run.market_data == market_data.context
     provider.fetch_historical_data.assert_called_once_with("BTC-USD", "2026-01-01", use_cache=True)
+
+
+@pytest.mark.parametrize("with_profile", [True, False])
+def test_run_analysis_embeds_the_context_instrument_profile(
+    bullish_dataframe: pd.DataFrame, *, with_profile: bool
+) -> None:
+    """The result carries exactly the profile the caller supplied, or None when there is none."""
+    provider = MagicMock()
+    provider.fetch_historical_data.return_value = HistoricalMarketData(
+        frame=bullish_dataframe, context=MarketDataContext(provider_id="fixture-market")
+    )
+    profile = fixture_instrument_profile("BTC-USD", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
+    context = AnalysisContext(
+        as_of=None,
+        executed_at=datetime(2026, 1, 20, tzinfo=UTC),
+        use_cache=True,
+        instrument_profile=profile if with_profile else None,
+    )
+    analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
+
+    run = analyzer.run_analysis(ticker="BTC-USD", config=MomentumConfig(short_window=2, long_window=5), context=context)
+
+    assert run.instrument_profile is (profile if with_profile else None)
 
 
 def test_run_analysis_forwards_disabled_cache_to_the_client(bullish_dataframe: pd.DataFrame) -> None:

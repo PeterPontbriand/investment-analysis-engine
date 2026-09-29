@@ -463,7 +463,12 @@ def _insert_momentum_run(
 
         def capture() -> ExecutionCapture:
             native = run_momentum(
-                selection, ticker, _FixtureClient(), start_date="2026-01-01", executed_at=datetime.now(UTC)
+                selection,
+                ticker,
+                _FixtureClient(),
+                start_date="2026-01-01",
+                executed_at=datetime.now(UTC),
+                instrument_profile=None,
             )
             return ExecutionCapture(native_evidence=native, profile=None, outcome=outcome)
 
@@ -528,7 +533,14 @@ def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
     possible — and must surface as the same sanitized exit 1, not a raw traceback.
     """
     selection = MomentumSelection(short_window=2, long_window=3)
-    native = run_momentum(selection, "AAPL", _FixtureClient(), start_date="2026-01-01", executed_at=datetime.now(UTC))
+    native = run_momentum(
+        selection,
+        "AAPL",
+        _FixtureClient(),
+        start_date="2026-01-01",
+        executed_at=datetime.now(UTC),
+        instrument_profile=None,
+    )
     run = AnalysisRun(
         analysis_run_id=UUID("66666666-6666-4666-8666-666666666666"),
         ticker="AAPL",

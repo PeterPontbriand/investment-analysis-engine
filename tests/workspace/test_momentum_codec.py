@@ -105,7 +105,7 @@ def _run(evidence: MomentumRun | None = None) -> AnalysisRun:
         started_at=STAMP,
         completed_at=STAMP,
         method_version=1,
-        result_schema_version=1,
+        result_schema_version=2,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_evidence(evidence or _evidence()),
@@ -171,6 +171,17 @@ def test_unknown_version_is_classified(field: str, monkeypatch: pytest.MonkeyPat
     with pytest.raises(UnsupportedRunVersionError, match="Unsupported") as error:
         decode_evidence(run)
     assert error.value.reason_code == "unsupported_run_version"
+
+
+def test_previous_result_schema_version_is_rejected_before_decoding(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A run stored before the profile was embedded in the result is unsupported, not re-read."""
+
+    def unexpected_decode(_payload: object) -> MomentumRun:
+        raise AssertionError("Unsupported versions must be rejected before evidence decoding.")
+
+    monkeypatch.setattr("src.workspace.codecs.decode_momentum", unexpected_decode)
+    with pytest.raises(UnsupportedRunVersionError, match="Unsupported"):
+        decode_evidence(_run().model_copy(update={"result_schema_version": 1}))
 
 
 @pytest.mark.parametrize(

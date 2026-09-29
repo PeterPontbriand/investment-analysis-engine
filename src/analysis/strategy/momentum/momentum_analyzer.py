@@ -155,6 +155,7 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
             market_data=resolved.market_data.context,
             price_inputs=resolved.price_inputs,
             resolution_trace=trace,
+            instrument_profile=context.instrument_profile,
             data_resolution=resolved.market_data.resolution,
         )
 

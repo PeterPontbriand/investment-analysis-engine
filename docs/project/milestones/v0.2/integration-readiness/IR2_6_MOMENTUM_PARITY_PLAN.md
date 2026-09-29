@@ -34,8 +34,8 @@ commit passes the full managed gate on its own; the review stop is after commit 
 | :--- | :--- | :--- | :--- |
 | 1 | [Required dependencies and the ticker default](#31-required-dependencies-and-the-ticker-default) | Complete | 2026-09-29 |
 | 2 | [Delete `MomentumPolicy`](#32-delete-momentumpolicy) | Complete | 2026-09-29 |
-| 3 | [Instrument profile embedded in `MomentumRun`](#33-instrument-profile-embedded-in-momentumrun) | Next | |
-| 4 | [`--as-of` and `--no-cache` on every caller surface](#34---as-of-and---no-cache-on-every-caller-surface) | Planned | |
+| 3 | [Instrument profile embedded in `MomentumRun`](#33-instrument-profile-embedded-in-momentumrun) | Complete | 2026-09-29 |
+| 4 | [`--as-of` and `--no-cache` on every caller surface](#34---as-of-and---no-cache-on-every-caller-surface) | Next | |
 | 5 | [Durable documentation](#35-durable-documentation) | Planned | |
 | 6 | [IR.2 acceptance record](#36-ir2-acceptance-record) | Planned | |
 
@@ -366,4 +366,11 @@ Gaps the plan missed, fixed in the commit where each became visible.
    formats Python code blocks in Markdown, and the indented `MomentumSelection` excerpt in A.4 was
    not formatter-clean, so the gate failed on this plan. The excerpt is now a formatted class
    excerpt with the same content.
+2. **Commit 3: the `momentum_execution.py` module and `MomentumCapture` docstrings described the
+   after-calculation profile order.** They became wrong in this commit, so both were corrected here
+   rather than in commit 5 (A.5 keeps only the user and architecture documents).
+3. **Commit 3: the CLI presenters keep reading the locally composed profile.** The direct command's
+   existing tests replace `run_analysis`, so the returned run carries no profile there. The presenter
+   uses the same profile object the command passed into `run_momentum`; in production that object is
+   `run.instrument_profile`, and the new analyzer and orchestrator tests assert the embedding itself.
 

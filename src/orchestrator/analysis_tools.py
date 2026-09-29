@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
 from typing import Annotated, Final
@@ -179,17 +179,18 @@ class AnalysisToolHandlers:
             rsi_period=arguments.rsi_period,
         )
         executed_at = self._validated_clock_value()
+        profile = self._resolve_profile(arguments.ticker)
         # use_cache is not yet a real per-call toggle for Momentum; every composition
         # root passes a fixed True until a later change wires one through.
         context = AnalysisContext(
             as_of=arguments.as_of,
             executed_at=executed_at,
             use_cache=True,
-            instrument_profile=None,
+            instrument_profile=profile,
         )
-        run = self._dependencies.momentum_analyzer.run_analysis(ticker=arguments.ticker, config=config, context=context)
-        profile = self._resolve_profile(arguments.ticker)
-        return replace(run, instrument_profile=profile) if profile is not None else run
+        return self._dependencies.momentum_analyzer.run_analysis(
+            ticker=arguments.ticker, config=config, context=context
+        )
 
     def analyze_graham_number(self, **raw_arguments: object) -> GrahamNumberAnalysis:
         """Validate, resolve, and calculate one Graham Number run."""

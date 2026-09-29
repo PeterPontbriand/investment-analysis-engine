@@ -20,6 +20,7 @@ from uuid import UUID
 
 import typer
 
+from src.analysis.base_analyzer import require_ticker
 from src.analysis.strategy.fcf_earnings_growth import (
     FCFClassificationBasis,
     FCFEarningsGrowthPolicy,
@@ -769,10 +770,7 @@ def _execute_momentum(
 ) -> ExecutionCapture:
     data_client = YFinanceClient()
     executed_at = utc_now()
-    with _production_historical_client(data_client, use_cache=True, clock=lambda: executed_at) as historical_client:
-        run = run_momentum(
-            selection, ticker, historical_client, start_date=_default_history_start_date(), executed_at=executed_at
-        )
+    normalized_ticker = require_ticker(ticker)
 
     def _identity_candidate() -> InstrumentProfileCandidate:
         return InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
@@ -780,15 +778,22 @@ def _execute_momentum(
     identity_candidates = (_identity_candidate(),)
     kind_candidate = _identity_candidate()
     profile = (
-        profile_cache.resolve(
-            run.metrics.ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate
-        )
+        profile_cache.resolve(normalized_ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate)
         if profile_cache is not None
         else compose_instrument_profile(
-            run.metrics.ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate
+            normalized_ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate
         )
     )
-    return from_momentum_capture(capture_momentum(run, profile))
+    with _production_historical_client(data_client, use_cache=True, clock=lambda: executed_at) as historical_client:
+        run = run_momentum(
+            selection,
+            normalized_ticker,
+            historical_client,
+            start_date=_default_history_start_date(),
+            executed_at=executed_at,
+            instrument_profile=profile,
+        )
+    return from_momentum_capture(capture_momentum(run))
 
 
 def _execute_graham_number(

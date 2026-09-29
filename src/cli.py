@@ -285,18 +285,23 @@ def momentum(  # noqa: PLR0913
             try:
                 ensure_database_ready(database)
                 profile_cache = _production_instrument_profile_cache(database, clock=lambda: executed_at)
+                profile = profile_cache.resolve(
+                    target_ticker,
+                    identity_candidates=(_identity_candidate(),),
+                    kind_candidate=_identity_candidate(),
+                )
                 with _production_historical_client(
                     data_client, use_cache=True, clock=lambda: executed_at
                 ) as historical_client:
                     run = run_momentum(
-                        selection, target_ticker, historical_client, start_date=start_date, executed_at=executed_at
+                        selection,
+                        target_ticker,
+                        historical_client,
+                        start_date=start_date,
+                        executed_at=executed_at,
+                        instrument_profile=profile,
                     )
-                profile = profile_cache.resolve(
-                    run.metrics.ticker,
-                    identity_candidates=(_identity_candidate(),),
-                    kind_candidate=_identity_candidate(),
-                )
-                momentum_capture = capture_momentum(run, profile)
+                momentum_capture = capture_momentum(run)
                 saved = execute(
                     AnalysisRequest(ticker=target_ticker, selection=selection),
                     capture=lambda: from_momentum_capture(momentum_capture),
@@ -306,17 +311,22 @@ def momentum(  # noqa: PLR0913
             finally:
                 database.close()
         else:
+            profile = compose_instrument_profile(
+                target_ticker,
+                identity_candidates=(_identity_candidate(),),
+                kind_candidate=_identity_candidate(),
+            )
             with _production_historical_client(
                 data_client, use_cache=True, clock=lambda: executed_at
             ) as historical_client:
                 run = run_momentum(
-                    selection, target_ticker, historical_client, start_date=start_date, executed_at=executed_at
+                    selection,
+                    target_ticker,
+                    historical_client,
+                    start_date=start_date,
+                    executed_at=executed_at,
+                    instrument_profile=profile,
                 )
-            profile = compose_instrument_profile(
-                run.metrics.ticker,
-                identity_candidates=(_identity_candidate(),),
-                kind_candidate=_identity_candidate(),
-            )
         presentation = MomentumPresentation(
             metrics=run.metrics,
             config=config,

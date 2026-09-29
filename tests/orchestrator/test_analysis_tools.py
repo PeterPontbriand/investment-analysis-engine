@@ -188,6 +188,7 @@ async def test_registered_handlers_apply_known_etf_policy_without_changing_momen
     assert isinstance(momentum.result, MomentumRun)
     assert momentum.result.metrics.status.value == "BULLISH"
     assert momentum.result.instrument_profile is not None
+    assert momentum.result.instrument_profile.ticker == "FLSW"
     assert number.success is True
     assert isinstance(number.result, GrahamNumberAnalysis)
     assert number.result.result.status is CalculationStatus.NOT_APPLICABLE
