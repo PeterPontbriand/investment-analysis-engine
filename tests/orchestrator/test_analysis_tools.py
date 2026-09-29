@@ -23,6 +23,7 @@ from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, M
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
+from src.data.market_data import HistoricalMarketData
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
@@ -149,6 +150,45 @@ async def test_registered_handlers_execute_all_approved_strategies() -> None:
     assert fcf.result.execution_status is CalculationStatus.OK
     assert fcf.result.ticker == "ACME"
     assert fcf.result.effective_as_of == EXECUTION_TIME
+
+
+class _RecordingMarketDataProvider(FixtureMarketDataProvider):
+    """Fixture provider that records each ``use_cache`` value it is asked for."""
+
+    def __init__(self, frame: pd.DataFrame) -> None:
+        super().__init__(frame)
+        self.use_cache_calls: list[bool] = []
+
+    def fetch_historical_data(
+        self, ticker: str, start_date: str, end_date: str | None = None, *, use_cache: bool = True
+    ) -> HistoricalMarketData:
+        self.use_cache_calls.append(use_cache)
+        return super().fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("arguments", "expected"), [({}, True), ({"use_cache": False}, False)])
+async def test_momentum_tool_use_cache_argument_reaches_the_provider(
+    arguments: dict[str, object], *, expected: bool
+) -> None:
+    """The tool's ``use_cache`` argument, defaulting to True, is the per-call cache switch."""
+    frame = pd.DataFrame(
+        {"Close": [10.0, 10.5, 11.0, 11.8, 12.4, 13.0]},
+        index=pd.date_range("2026-01-01", periods=6, tz=UTC),
+    )
+    provider = _RecordingMarketDataProvider(frame)
+    dependencies = replace(
+        _dependencies(), momentum_analyzer=MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
+    )
+    dispatcher = AsyncToolDispatcher()
+    register_analysis_tools(dispatcher, dependencies)
+
+    result = await dispatcher.dispatch(
+        _call(ANALYZE_MOMENTUM_TOOL, {"ticker": "MOM", "short_window": 2, "long_window": 3, **arguments})
+    )
+
+    assert result.success is True
+    assert provider.use_cache_calls == [expected]
 
 
 @pytest.mark.asyncio

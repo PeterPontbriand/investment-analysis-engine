@@ -71,15 +71,19 @@ class MomentumSelection(_FrozenSelection):
     (``momentum`` / ``sma_crossover``) and cannot be overridden or made to disagree
     with one another. Window and RSI values are materialized from explicit inputs or
     the current configured policy at creation time; later settings changes do not
-    affect an existing selection. Momentum accepts no ``as_of`` option.
+    affect an existing selection. ``as_of`` and ``use_cache`` are persisted with the
+    selection, so a saved or refreshed run reuses the boundary and cache choice it was
+    created with.
     """
 
     analysis_id: Literal["momentum"] = "momentum"
     method_id: Literal["sma_crossover"] = "sma_crossover"
-    config_schema_version: Literal[1] = 1
+    config_schema_version: Literal[2] = 2
     short_window: int = Field(gt=0, strict=True)
     long_window: int = Field(gt=0, strict=True)
     rsi_period: int = Field(default=14, gt=0, strict=True)
+    as_of: AwareDatetime | None = None
+    use_cache: bool = Field(default=True, strict=True)
 
     @model_validator(mode="after")
     def _validate_windows(self) -> "MomentumSelection":
@@ -134,14 +138,12 @@ class MomentumSelection(_FrozenSelection):
     def to_analysis_context(
         self, executed_at: datetime, instrument_profile: InstrumentProfile | None = None
     ) -> AnalysisContext:
-        """Return the run context for this snapshot.
-
-        Momentum has no persisted ``as_of``/``use_cache`` fields yet; ``as_of`` is always
-        ``None`` and ``use_cache`` always ``True`` until a later change adds real,
-        CLI-wired ones.
-        """
+        """Return the run context for this snapshot's persisted ``as_of``/``use_cache``."""
         return AnalysisContext(
-            as_of=None, executed_at=executed_at, use_cache=True, instrument_profile=instrument_profile
+            as_of=self.as_of,
+            executed_at=executed_at,
+            use_cache=self.use_cache,
+            instrument_profile=instrument_profile,
         )
 
 

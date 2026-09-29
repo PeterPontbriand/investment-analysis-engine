@@ -240,6 +240,12 @@ def momentum(  # noqa: PLR0913
         "--rsi-period",
         help="RSI lookback period in daily market observations",
     ),
+    as_of: str | None = typer.Option(
+        None,
+        "--as-of",
+        help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp",
+    ),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass historical price cache reads and writes"),
     details: bool = typer.Option(False, "--details", help="Show calculation and data-context details"),
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show retained execution diagnostics"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
@@ -249,6 +255,7 @@ def momentum(  # noqa: PLR0913
     requested_ticker = _resolve_ticker(ticker, ticker_option, required=False, command="momentum")
     mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
     _validate_momentum_windows(short_window, long_window, rsi_period)
+    boundary = _parse_as_of(as_of)
     if save_run and requested_ticker is None:
         raise typer.BadParameter("--save-run requires an explicit ticker; the configured default ticker is not saved.")
 
@@ -270,8 +277,14 @@ def momentum(  # noqa: PLR0913
         start_date = _default_history_start_date()
         data_client = YFinanceClient()
         config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
-        selection = MomentumSelection(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
-        # Momentum has no --as-of option yet; executed_at is the run's own execution clock.
+        selection = MomentumSelection(
+            short_window=short_window,
+            long_window=long_window,
+            rsi_period=rsi_period,
+            as_of=boundary,
+            use_cache=not no_cache,
+        )
+        # executed_at is the run's own execution clock, distinct from the requested as_of boundary.
         executed_at = utc_now()
 
         def _identity_candidate() -> InstrumentProfileCandidate:
@@ -291,7 +304,7 @@ def momentum(  # noqa: PLR0913
                     kind_candidate=_identity_candidate(),
                 )
                 with _production_historical_client(
-                    data_client, use_cache=True, clock=lambda: executed_at
+                    data_client, use_cache=selection.use_cache, clock=lambda: executed_at
                 ) as historical_client:
                     run = run_momentum(
                         selection,
@@ -317,7 +330,7 @@ def momentum(  # noqa: PLR0913
                 kind_candidate=_identity_candidate(),
             )
             with _production_historical_client(
-                data_client, use_cache=True, clock=lambda: executed_at
+                data_client, use_cache=selection.use_cache, clock=lambda: executed_at
             ) as historical_client:
                 run = run_momentum(
                     selection,

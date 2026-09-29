@@ -2,9 +2,11 @@
 
 import json
 from collections.abc import Iterator
+from contextlib import ExitStack
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 from alembic.config import Config
@@ -188,3 +190,57 @@ def test_custom_analyzer_client_remains_direct(history: HistoricalMarketData) ->
         run = analyzer.run_analysis("ACME", MomentumConfig(short_window=2, long_window=3, rsi_period=3), context)
     fetch.assert_called_once_with("ACME", "2026-01-01", None, use_cache=True)
     assert run.metrics.current_price > 0
+
+
+def _momentum_options_run(
+    tmp_path: Path, extra_args: list[str], history: HistoricalMarketData, *, guard_readiness: bool
+) -> tuple[Path, dict[str, Any], MagicMock]:
+    """Invoke the momentum command against a not-yet-created database and a fixture provider."""
+    path = tmp_path / "absent.sqlite3"
+    provider = YFinanceClient()
+    profile = InstrumentProfile(ticker="ACME", identity=None, kind_evidence=None, diagnostics=())
+    with ExitStack() as stack:
+        stack.enter_context(
+            patch("src.cli_support.settings", ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+        )
+        stack.enter_context(patch("src.cli.YFinanceClient", return_value=provider))
+        fetch = stack.enter_context(patch.object(provider, "fetch_historical_data", return_value=history))
+        stack.enter_context(patch("src.cli.compose_instrument_profile", return_value=profile))
+        if guard_readiness:
+            stack.enter_context(
+                patch(
+                    "src.cli_support.ensure_database_ready", side_effect=AssertionError("Database must not be migrated")
+                )
+            )
+        result = CliRunner().invoke(
+            app,
+            ["momentum", "ACME", "--short-window", "2", "--long-window", "3", "--rsi-period", "3", "--json"]
+            + extra_args,
+        )
+    assert result.exit_code == 0, result.output
+    return path, json.loads(result.output), fetch
+
+
+def test_momentum_no_cache_does_not_create_the_database(tmp_path: Path, history: HistoricalMarketData) -> None:
+    path, _payload, fetch = _momentum_options_run(tmp_path, ["--no-cache"], history, guard_readiness=True)
+    assert not path.exists()
+    assert not Path(str(path) + ".readiness.lock").exists()
+    assert fetch.call_args.kwargs["use_cache"] is False
+
+
+def test_momentum_without_no_cache_still_creates_the_database(tmp_path: Path, history: HistoricalMarketData) -> None:
+    path, _payload, fetch = _momentum_options_run(tmp_path, [], history, guard_readiness=False)
+    assert path.exists()
+    assert fetch.call_args.kwargs["use_cache"] is True
+
+
+def test_momentum_as_of_truncates_the_series_at_the_requested_boundary(
+    tmp_path: Path, history: HistoricalMarketData
+) -> None:
+    latest = history.frame.index[-1].date()
+    boundary = history.frame.index[2].date()
+    assert boundary < latest
+    _path, payload, _fetch = _momentum_options_run(
+        tmp_path, ["--no-cache", "--as-of", boundary.isoformat()], history, guard_readiness=True
+    )
+    assert payload["as_of"] == boundary.isoformat()

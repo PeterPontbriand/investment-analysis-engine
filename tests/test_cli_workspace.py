@@ -546,7 +546,7 @@ def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
         ticker="AAPL",
         analysis_id="momentum",
         method_id="sma_crossover",
-        config_schema_version=1,
+        config_schema_version=2,
         requested_config=selection,
         started_at=datetime(2026, 9, 19, 12, tzinfo=UTC),
         completed_at=datetime(2026, 9, 19, 12, tzinfo=UTC),

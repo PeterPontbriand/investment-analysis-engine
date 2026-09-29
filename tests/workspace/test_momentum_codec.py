@@ -100,7 +100,7 @@ def _run(evidence: MomentumRun | None = None) -> AnalysisRun:
         ticker="CNR.TO",
         analysis_id="momentum",
         method_id="sma_crossover",
-        config_schema_version=1,
+        config_schema_version=2,
         requested_config=MomentumSelection(short_window=50, long_window=200),
         started_at=STAMP,
         completed_at=STAMP,

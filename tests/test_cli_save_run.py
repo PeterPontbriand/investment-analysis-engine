@@ -42,7 +42,7 @@ from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFa
 from src.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
 from src.workspace.models import RunOutcome
-from src.workspace.requests import GrahamGrowthSelection
+from src.workspace.requests import GrahamGrowthSelection, MomentumSelection
 from src.workspace.runs import RunQuery
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 
@@ -186,6 +186,25 @@ def test_momentum_save_run_persists_and_reports_id_on_stderr(mock_run: MagicMock
     assert len(saved) == 2
     assert {item.ticker for item in saved} == {"BTC-USD"}
     assert all(item.method_id == "sma_crossover" for item in saved)
+
+
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+def test_momentum_save_run_persists_as_of_and_no_cache_on_the_selection(mock_run: MagicMock) -> None:
+    mock_run.return_value = _mock_momentum_run()
+
+    result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run", "--as-of", "2026-08-01", "--no-cache"])
+
+    assert result.exit_code == 0, result.output
+    context = mock_run.call_args.kwargs["context"]
+    assert context.as_of == datetime(2026, 8, 1, 23, 59, 59, 999999, tzinfo=UTC)
+    assert context.use_cache is False
+    (summary,) = _repository().list(RunQuery())
+    run = _repository().get(summary.analysis_run_id)
+    assert run is not None
+    selection = run.requested_config
+    assert isinstance(selection, MomentumSelection)
+    assert selection.as_of == context.as_of
+    assert selection.use_cache is False
 
 
 def test_momentum_save_run_without_explicit_ticker_is_a_usage_error() -> None:

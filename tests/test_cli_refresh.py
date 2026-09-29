@@ -166,6 +166,21 @@ def test_refresh_sequential_persists_every_member_and_exits_0(mock_run: MagicMoc
 
 
 @patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+def test_refresh_reuses_a_momentum_selections_as_of_and_no_cache(mock_run: MagicMock) -> None:
+    mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
+    boundary = datetime(2026, 8, 1, tzinfo=UTC)
+    selection = MomentumSelection(short_window=2, long_window=3, as_of=boundary, use_cache=False)
+    _seed("My Watch", [("AAPL", selection)])
+
+    result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
+
+    assert result.exit_code == 0, result.output
+    context = mock_run.call_args.kwargs["context"]
+    assert context.as_of == boundary
+    assert context.use_cache is False
+
+
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_refresh_json_emits_one_stable_final_document(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("My Watch", ["AAPL"])

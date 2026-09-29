@@ -78,6 +78,7 @@ class MomentumToolArguments(_AnalysisToolArguments):
     short_window: int = Field(default=_MOMENTUM_DEFAULTS.short_window, gt=0)
     long_window: int = Field(default=_MOMENTUM_DEFAULTS.long_window, gt=0)
     rsi_period: int = Field(default=_MOMENTUM_DEFAULTS.rsi_period, gt=0)
+    use_cache: bool = True
 
     @model_validator(mode="after")
     def require_ordered_windows(self) -> MomentumToolArguments:
@@ -180,12 +181,10 @@ class AnalysisToolHandlers:
         )
         executed_at = self._validated_clock_value()
         profile = self._resolve_profile(arguments.ticker)
-        # use_cache is not yet a real per-call toggle for Momentum; every composition
-        # root passes a fixed True until a later change wires one through.
         context = AnalysisContext(
             as_of=arguments.as_of,
             executed_at=executed_at,
-            use_cache=True,
+            use_cache=arguments.use_cache,
             instrument_profile=profile,
         )
         return self._dependencies.momentum_analyzer.run_analysis(

@@ -35,8 +35,8 @@ commit passes the full managed gate on its own; the review stop is after commit 
 | 1 | [Required dependencies and the ticker default](#31-required-dependencies-and-the-ticker-default) | Complete | 2026-09-29 |
 | 2 | [Delete `MomentumPolicy`](#32-delete-momentumpolicy) | Complete | 2026-09-29 |
 | 3 | [Instrument profile embedded in `MomentumRun`](#33-instrument-profile-embedded-in-momentumrun) | Complete | 2026-09-29 |
-| 4 | [`--as-of` and `--no-cache` on every caller surface](#34---as-of-and---no-cache-on-every-caller-surface) | Next | |
-| 5 | [Durable documentation](#35-durable-documentation) | Planned | |
+| 4 | [`--as-of` and `--no-cache` on every caller surface](#34---as-of-and---no-cache-on-every-caller-surface) | Complete | 2026-09-29 |
+| 5 | [Durable documentation](#35-durable-documentation) | Next | |
 | 6 | [IR.2 acceptance record](#36-ir2-acceptance-record) | Planned | |
 
 ## 3. The commits
@@ -373,4 +373,16 @@ Gaps the plan missed, fixed in the commit where each became visible.
    existing tests replace `run_analysis`, so the returned run carries no profile there. The presenter
    uses the same profile object the command passed into `run_momentum`; in production that object is
    `run.instrument_profile`, and the new analyzer and orchestrator tests assert the embedding itself.
+4. **Commit 4: a stored version-1 Momentum watchlist selection fails with a validation error, not the
+   "does not match its method/version columns" error A.4 names.** `decode_selection` validates the
+   stored JSON against `Literal[2]` before it compares identity columns, so a version-1 entry raises
+   the selection's own `config_schema_version` validation error (still a `ValueError`); the
+   column-mismatch error applies only when the column disagrees with an otherwise valid selection.
+   Both paths reject the entry and neither reads it as version 2, which is what B.1 item 1 decides.
+   The test asserts the actual error and separately asserts the column-mismatch error.
+5. **Commit 4: several existing test expectations encoded "Momentum has no `as_of`".** The foreign-field
+   check in `test_requests.py` (`from_settings(as_of=None)`), the parser allowlist case
+   `{"config": {"as_of": None}}`, and the version-2 probes in the identity-override, union-version and
+   version-coercion tests all assumed version 1 was current. They now probe fields and versions that are
+   still invalid (`use_cache: null`, version 99, `"2"`), and the alias test expects version 2 for Momentum.
 

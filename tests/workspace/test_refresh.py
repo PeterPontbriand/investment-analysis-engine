@@ -387,7 +387,7 @@ def _build_run(*, status: RunOutcome, failure_reason_code: str | None = None) ->
         ticker="AAPL",
         analysis_id="momentum",
         method_id="sma_crossover",
-        config_schema_version=1,
+        config_schema_version=2,
         requested_config=MomentumSelection(short_window=2, long_window=3),
         started_at=NOW,
         completed_at=NOW,

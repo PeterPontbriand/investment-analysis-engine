@@ -784,7 +784,9 @@ def _execute_momentum(
             normalized_ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate
         )
     )
-    with _production_historical_client(data_client, use_cache=True, clock=lambda: executed_at) as historical_client:
+    with _production_historical_client(
+        data_client, use_cache=selection.use_cache, clock=lambda: executed_at
+    ) as historical_client:
         run = run_momentum(
             selection,
             normalized_ticker,

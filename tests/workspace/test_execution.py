@@ -118,7 +118,7 @@ def test_execute_assembles_and_inserts_a_completed_run() -> None:
     assert run.ticker == "AAPL"
     assert run.analysis_id == "momentum"
     assert run.method_id == "sma_crossover"
-    assert run.config_schema_version == 1
+    assert run.config_schema_version == 2
     assert run.method_version == 1
     assert run.result_schema_version == 2
     assert run.evidence_codec_version == 1
