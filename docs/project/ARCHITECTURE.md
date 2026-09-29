@@ -220,7 +220,7 @@ deterministic Graham method   deterministic FCF method                    │
 ```
 
 ### `BaseDataClient` and `MarketDataProvider`
-`BaseDataClient` is the original concrete provider boundary for historical market prices; it remains price-history focused rather than becoming the owner of fundamentals, valuation quotes, macro series, and cache policy. `MarketDataProvider` (`src/data/market_data.py`) is a narrower structural protocol — `provider_id` plus `fetch_historical_data` — and is the boundary Momentum's resolver actually consumes. `MomentumAnalyzer` accepts either a `BaseDataClient` or a `MarketDataProvider` directly; when only the former is supplied, a private `_ClientProviderAdapter` wraps it so existing `BaseDataClient` callers keep working without duplicating the historical-price contract.
+`BaseDataClient` is the original concrete provider boundary for historical market prices; it remains price-history focused rather than becoming the owner of fundamentals, valuation quotes, macro series, and cache policy. `MarketDataProvider` (`src/data/market_data.py`) is a narrower structural protocol — `provider_id` plus `fetch_historical_data` — and is the boundary Momentum's resolver actually consumes. `MomentumAnalyzer` takes one required `MarketDataProvider` and the series start date at construction. `BaseDataClient` satisfies the protocol structurally through its `fetch_historical_data` method, so a data client, the cached historical client, or a fixture provider is passed directly with no adapter.
 
 Current quote retrieval is a separate valuation capability; it is not implemented as a one-day historical request.
 

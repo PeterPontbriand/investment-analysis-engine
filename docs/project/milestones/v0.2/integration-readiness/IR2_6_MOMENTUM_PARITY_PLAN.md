@@ -36,8 +36,8 @@ commit passes the full managed gate on its own; the review stop is after commit 
 | 2 | [Delete `MomentumPolicy`](#32-delete-momentumpolicy) | Complete | 2026-09-29 |
 | 3 | [Instrument profile embedded in `MomentumRun`](#33-instrument-profile-embedded-in-momentumrun) | Complete | 2026-09-29 |
 | 4 | [`--as-of` and `--no-cache` on every caller surface](#34---as-of-and---no-cache-on-every-caller-surface) | Complete | 2026-09-29 |
-| 5 | [Durable documentation](#35-durable-documentation) | Next | |
-| 6 | [IR.2 acceptance record](#36-ir2-acceptance-record) | Planned | |
+| 5 | [Durable documentation](#35-durable-documentation) | Complete | 2026-09-29 |
+| 6 | [IR.2 acceptance record](#36-ir2-acceptance-record) | Next | |
 
 ## 3. The commits
 
@@ -385,4 +385,16 @@ Gaps the plan missed, fixed in the commit where each became visible.
    `{"config": {"as_of": None}}`, and the version-2 probes in the identity-override, union-version and
    version-coercion tests all assumed version 1 was current. They now probe fields and versions that are
    still invalid (`use_cache: null`, version 99, `"2"`), and the alias test expects version 2 for Momentum.
+6. **Commit 5: `watchlist create` and `watchlist add-selection` silently ignored `--as-of` and
+   `--no-cache` for Momentum.** Both commands already declare the two options, and the selection
+   builder discarded them for Momentum because Momentum's selection had nowhere to keep them. That is
+   a caller surface the plan did not list, and it leaves a watchlist entry unable to carry the options
+   the direct command now has. The builder now passes them through (`--as-of` parsed as for the other
+   methods; `--no-cache` meaning the historical price cache), the two options' help text names Momentum,
+   and the workspace guide's flag table lists them. A test asserts the persisted selection.
+7. **Commit 5: `watchlist show` output for Momentum entries gains `as_of` and `use_cache`.** Both
+   the text detail and `--json` render the selection generically, so the new selection fields appear
+   for Momentum exactly as they already do for the other three methods, and `config_schema_version`
+   reads 2. This follows from the selection shape A.4 requires; no presentation code was changed.
+   Recorded because it is a visible change to an existing command's output.
 

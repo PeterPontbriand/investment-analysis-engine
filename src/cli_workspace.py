@@ -282,7 +282,13 @@ def _build_selection(  # noqa: PLR0913
     """
     if method == "momentum":
         _check_momentum_windows(short_window, long_window, rsi_period)
-        return MomentumSelection(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
+        return MomentumSelection(
+            short_window=short_window,
+            long_window=long_window,
+            rsi_period=rsi_period,
+            as_of=_parse_as_of(as_of),
+            use_cache=not no_cache,
+        )
 
     boundary = _parse_as_of(as_of)
     if method in ("graham-number", "graham-growth"):
@@ -346,7 +352,8 @@ def watchlist_create(  # noqa: PLR0913
         int, typer.Option("--rsi-period", help="RSI lookback period in daily observations (momentum).")
     ] = _MOMENTUM_CLI_DEFAULTS.rsi_period,
     as_of: Annotated[
-        str | None, typer.Option("--as-of", help="Point-in-time boundary (graham-number/graham-growth/fcf-growth).")
+        str | None,
+        typer.Option("--as-of", help="Point-in-time boundary (momentum/graham-number/graham-growth/fcf-growth)."),
     ] = None,
     data_provider: Annotated[
         str | None,
@@ -355,7 +362,8 @@ def watchlist_create(  # noqa: PLR0913
     no_cache: Annotated[
         bool,
         typer.Option(
-            "--no-cache", help="Bypass resolved-input cache reads/writes (graham-number/graham-growth/fcf-growth)."
+            "--no-cache",
+            help="Bypass cache reads/writes (momentum: historical prices; others: resolved inputs).",
         ),
     ] = False,
     eps: Annotated[
@@ -480,7 +488,8 @@ def watchlist_add_selection(  # noqa: PLR0913
         int, typer.Option("--rsi-period", help="RSI lookback period in daily observations (momentum).")
     ] = _MOMENTUM_CLI_DEFAULTS.rsi_period,
     as_of: Annotated[
-        str | None, typer.Option("--as-of", help="Point-in-time boundary (graham-number/graham-growth/fcf-growth).")
+        str | None,
+        typer.Option("--as-of", help="Point-in-time boundary (momentum/graham-number/graham-growth/fcf-growth)."),
     ] = None,
     data_provider: Annotated[
         str | None,
@@ -489,7 +498,8 @@ def watchlist_add_selection(  # noqa: PLR0913
     no_cache: Annotated[
         bool,
         typer.Option(
-            "--no-cache", help="Bypass resolved-input cache reads/writes (graham-number/graham-growth/fcf-growth)."
+            "--no-cache",
+            help="Bypass cache reads/writes (momentum: historical prices; others: resolved inputs).",
         ),
     ] = False,
     eps: Annotated[

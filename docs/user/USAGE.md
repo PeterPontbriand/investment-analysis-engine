@@ -117,6 +117,12 @@ uv run ian momentum AAPL \
     --long-window 30
 ```
 
+With a point-in-time boundary, bypassing the historical price cache:
+
+```bash
+uv run ian momentum AAPL --as-of 2025-12-31 --no-cache
+```
+
 See the [Momentum Analysis Strategy Guide](strategies/MOMENTUM.md).
 
 ## Free Cash Flow & Earnings Growth analysis

@@ -156,6 +156,29 @@ def test_watchlist_create_graham_growth_seeds_with_its_assumptions() -> None:
     assert "aaa_yield_override=4.4" in output
 
 
+def test_watchlist_create_momentum_persists_as_of_and_no_cache() -> None:
+    result = runner.invoke(
+        app,
+        [
+            "watchlist",
+            "create",
+            "Point In Time",
+            "--analysis",
+            "momentum",
+            "--as-of",
+            "2026-08-01",
+            "--no-cache",
+            "AAPL",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(runner.invoke(app, ["watchlist", "show", "Point In Time", "--json"]).output)
+    selection = payload["entries"][0]["selection"]
+    assert selection["as_of"] == "2026-08-01T23:59:59.999999Z"
+    assert selection["use_cache"] is False
+    assert selection["config_schema_version"] == 2
+
+
 def test_watchlist_create_rejects_invalid_momentum_windows() -> None:
     """Mirrors the direct ``momentum`` command's own window/RSI validation exactly."""
     cases = [
