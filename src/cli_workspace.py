@@ -89,7 +89,7 @@ from src.workspace.requests import (
     MomentumSelection,
 )
 from src.workspace.runs import AnalysisRunSummary, RunQuery, Watchlist, WatchlistEntry, WatchlistSummary
-from src.workspace.watchlists import WatchlistSpec, normalize_ticker
+from src.workspace.watchlists import StoredSelectionError, WatchlistSpec, normalize_ticker
 
 watchlist_app = typer.Typer(help="Manage named watchlists of tickers and their analysis selections.")
 runs_app = typer.Typer(help="Browse persisted Analysis Run history.")
@@ -121,7 +121,10 @@ def _workspace_database() -> Iterator[SQLiteDatabase]:
             ensure_database_ready(database)
         except DatabaseReadinessError as exc:
             _fail(str(exc))
-        yield database
+        try:
+            yield database
+        except StoredSelectionError as exc:
+            _fail(str(exc))
     finally:
         database.close()
 
@@ -363,7 +366,10 @@ def watchlist_create(  # noqa: PLR0913
         bool,
         typer.Option(
             "--no-cache",
-            help="Bypass cache reads/writes (momentum: historical prices; others: resolved inputs).",
+            help=(
+                "Bypass cache reads/writes: resolved inputs for graham-number/graham-growth/fcf-growth; "
+                "for momentum, the historical price cache."
+            ),
         ),
     ] = False,
     eps: Annotated[
@@ -499,7 +505,10 @@ def watchlist_add_selection(  # noqa: PLR0913
         bool,
         typer.Option(
             "--no-cache",
-            help="Bypass cache reads/writes (momentum: historical prices; others: resolved inputs).",
+            help=(
+                "Bypass cache reads/writes: resolved inputs for graham-number/graham-growth/fcf-growth; "
+                "for momentum, the historical price cache."
+            ),
         ),
     ] = False,
     eps: Annotated[

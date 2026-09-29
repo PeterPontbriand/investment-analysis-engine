@@ -340,14 +340,17 @@ def momentum(  # noqa: PLR0913
                     executed_at=executed_at,
                     instrument_profile=profile,
                 )
+        embedded_profile = run.instrument_profile
+        if embedded_profile is None:
+            raise ValueError("Momentum result did not retain the instrument profile it ran with.")
         presentation = MomentumPresentation(
             metrics=run.metrics,
             config=config,
             market_data=run.market_data,
             resolution_trace=run.resolution_trace,
             data_resolution=run.data_resolution,
-            identity_resolution=profile_identity_resolution(profile),
-            instrument_profile=profile,
+            identity_resolution=profile_identity_resolution(embedded_profile),
+            instrument_profile=embedded_profile,
         )
         typer.echo(render_momentum(presentation, mode))
 

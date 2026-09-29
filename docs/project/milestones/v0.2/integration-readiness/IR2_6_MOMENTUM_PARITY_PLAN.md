@@ -360,7 +360,8 @@ accepted all three as drafted on 2026-09-29.
 
 ### B.3 Found during implementation
 
-Gaps the plan missed, fixed in the commit where each became visible.
+Gaps the plan missed, fixed in the commit where each became visible. Items 3, 4 and the help text
+in item 6 were corrected in a review-fix commit before the acceptance record.
 
 1. **Commit 1: the A.4 snippet failed the repository's formatter check.** `ruff format --check .`
    formats Python code blocks in Markdown, and the indented `MomentumSelection` excerpt in A.4 was
@@ -369,32 +370,41 @@ Gaps the plan missed, fixed in the commit where each became visible.
 2. **Commit 3: the `momentum_execution.py` module and `MomentumCapture` docstrings described the
    after-calculation profile order.** They became wrong in this commit, so both were corrected here
    rather than in commit 5 (A.5 keeps only the user and architecture documents).
-3. **Commit 3: the CLI presenters keep reading the locally composed profile.** The direct command's
-   existing tests replace `run_analysis`, so the returned run carries no profile there. The presenter
-   uses the same profile object the command passed into `run_momentum`; in production that object is
-   `run.instrument_profile`, and the new analyzer and orchestrator tests assert the embedding itself.
-4. **Commit 4: a stored version-1 Momentum watchlist selection fails with a validation error, not the
-   "does not match its method/version columns" error A.4 names.** `decode_selection` validates the
-   stored JSON against `Literal[2]` before it compares identity columns, so a version-1 entry raises
-   the selection's own `config_schema_version` validation error (still a `ValueError`); the
-   column-mismatch error applies only when the column disagrees with an otherwise valid selection.
-   Both paths reject the entry and neither reads it as version 2, which is what B.1 item 1 decides.
-   The test asserts the actual error and separately asserts the column-mismatch error.
+3. **Commit 3, corrected in the review-fix commit: the `momentum` presenters read
+   `run.instrument_profile`, as A.3 specifies.** Commit 3 first left them reading the locally composed
+   profile, because the direct command's existing tests replace `run_analysis` with a canned run that
+   carries no profile. That was a deviation, not an accepted one. The presenter now reads the profile
+   from the run and treats a run without one as an invariant failure, and the tests that replace
+   `run_analysis` return a run carrying the caller's profile (`carry_profile` in
+   `tests/_cli_helpers.py`), as the real analyzer does. A test asserts the failure case.
+4. **Commit 4, corrected in the review-fix commit: a stored version-1 Momentum watchlist selection
+   failed with the selection's own validation error, not the "does not match its method/version columns"
+   error A.4 names, and `watchlist show` and `ian refresh` printed a raw validation traceback.**
+   `decode_selection` validates the stored JSON against `Literal[2]` before it compares identity
+   columns. It now raises `StoredSelectionError` (still a `ValueError`) with one line, and the CLI
+   prints it and exits 1:
+   `Stored sma_crossover selection (version 1) is not supported by this version
+   (sma_crossover.config_schema_version: Input should be 2); remove the entry and add it again.`
+   The column-mismatch case raises the same error type with its existing message. Neither path reads a
+   version-1 entry as version 2, which is what B.1 item 1 decides. `watchlist remove-entry` still works on
+   such a watchlist, so the message's advice is actionable. Tests cover both commands and the decode.
 5. **Commit 4: several existing test expectations encoded "Momentum has no `as_of`".** The foreign-field
    check in `test_requests.py` (`from_settings(as_of=None)`), the parser allowlist case
    `{"config": {"as_of": None}}`, and the version-2 probes in the identity-override, union-version and
    version-coercion tests all assumed version 1 was current. They now probe fields and versions that are
    still invalid (`use_cache: null`, version 99, `"2"`), and the alias test expects version 2 for Momentum.
 6. **Commit 5: `watchlist create` and `watchlist add-selection` silently ignored `--as-of` and
-   `--no-cache` for Momentum.** Both commands already declare the two options, and the selection
-   builder discarded them for Momentum because Momentum's selection had nowhere to keep them. That is
-   a caller surface the plan did not list, and it leaves a watchlist entry unable to carry the options
-   the direct command now has. The builder now passes them through (`--as-of` parsed as for the other
-   methods; `--no-cache` meaning the historical price cache), the two options' help text names Momentum,
-   and the workspace guide's flag table lists them. A test asserts the persisted selection.
-7. **Commit 5: `watchlist show` output for Momentum entries gains `as_of` and `use_cache`.** Both
-   the text detail and `--json` render the selection generically, so the new selection fields appear
-   for Momentum exactly as they already do for the other three methods, and `config_schema_version`
-   reads 2. This follows from the selection shape A.4 requires; no presentation code was changed.
-   Recorded because it is a visible change to an existing command's output.
-
+   `--no-cache` for Momentum.** Both commands already declared the two options, and the selection
+   builder discarded them for Momentum because Momentum's selection had nowhere to keep them. The
+   plan's list of caller surfaces missed the watchlist commands; wiring them is within IR.2's acceptance
+   line that every analyzer's real caller-facing surface exercises every `AnalysisContext` field. The
+   builder now passes them through (`--as-of` parsed as for the other methods; `--no-cache` meaning the
+   historical price cache). Both options' help text on both commands now names Momentum, and says that for
+   Momentum `--no-cache` bypasses the historical price cache (review-fix commit). The workspace guide's
+   flag table says the same. A test asserts the persisted selection.
+7. **Commit 5: `watchlist show` output for Momentum entries gains `as_of` and `use_cache`.** Both the
+   text detail and `--json` render the selection generically, so the new selection fields appear for
+   Momentum exactly as they already do for the other three methods. `config_schema_version` (now 2)
+   appears only in `--json`; the text view omits it. This follows from the selection shape A.4
+   requires; no presentation code was changed. Recorded because it is a visible change to an existing
+   command's output, and accepted by the project owner in review.

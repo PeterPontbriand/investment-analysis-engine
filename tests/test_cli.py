@@ -31,7 +31,7 @@ from src.evaluation.fixtures.graham import (
     FixtureFinancialFactsProvider,
 )
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
+from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_cli_output  # noqa: F401
 
 runner = CliRunner()
 
@@ -142,6 +142,7 @@ def mock_momentum_run(mock_metrics: MomentumMetrics) -> MomentumRun:
 @patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_success_uses_investor_presenter(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "BTC-USD"])
 
@@ -159,11 +160,25 @@ def test_cli_momentum_success_uses_investor_presenter(mock_run: MagicMock, mock_
 
 
 @patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+def test_cli_momentum_presents_only_the_profile_embedded_in_the_run(
+    mock_run: MagicMock, mock_momentum_run: MomentumRun
+) -> None:
+    """The presenter reads ``run.instrument_profile``; a run without one is an invariant failure."""
+    mock_run.return_value = replace(mock_momentum_run, instrument_profile=None)
+
+    result = runner.invoke(app, ["momentum", "BTC-USD"])
+
+    assert result.exit_code == 1
+    assert "Unable to complete momentum analysis for BTC-USD" in normalize_cli_output(result.output)
+
+
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_known_etf_remains_applicable_and_retains_kind(
     mock_run: MagicMock,
     mock_momentum_run: MomentumRun,
 ) -> None:
     mock_run.return_value = replace(mock_momentum_run, metrics=replace(mock_momentum_run.metrics, ticker="FLSW"))
+    carry_profile(mock_run)
     profile = fixture_instrument_profile(
         "FLSW",
         kind=InstrumentKind.ETF,
@@ -186,6 +201,7 @@ def test_cli_momentum_without_ticker_uses_the_normalized_configured_default(
     mock_run: MagicMock, mock_momentum_run: MomentumRun
 ) -> None:
     mock_run.return_value = mock_momentum_run
+    carry_profile(mock_run)
     configured = {"default": {"default_ticker": " btc-usd ", "data_start_date": "2026-01-01"}}
 
     with patch("src.config.ProjectSettings.get_analysis_settings", return_value=configured):
@@ -198,6 +214,7 @@ def test_cli_momentum_without_ticker_uses_the_normalized_configured_default(
 @patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_legacy_ticker_option_still_routes(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "--ticker", "BTC-USD"])
 
@@ -209,6 +226,7 @@ def test_cli_momentum_legacy_ticker_option_still_routes(mock_run: MagicMock, moc
 @patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_with_options(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "AAPL", "-s", "10", "-l", "30"])
 
@@ -233,6 +251,7 @@ def test_cli_momentum_reports_identity_from_retained_market_context(
             observation_count=300,
         ),
     )
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "BTC-USD", "--details"])
 
@@ -263,6 +282,7 @@ def test_cli_momentum_insufficient_history_is_unknown_without_nan(mock_run: Magi
             observation_count=3,
         ),
     )
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "SHORT"])
 
@@ -294,6 +314,7 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
             observation_count=3,
         ),
     )
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "SHORT", "--json"])
 
@@ -313,6 +334,7 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
 @patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_diagnostics_are_retained_and_useful(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "BTC-USD", "--diagnostics"])
 

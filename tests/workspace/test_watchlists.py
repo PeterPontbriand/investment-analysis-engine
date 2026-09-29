@@ -6,7 +6,13 @@ import pytest
 from pydantic import ValidationError
 
 from src.workspace.requests import FCFGrowthSelection, GrahamGrowthSelection, GrahamNumberSelection, MomentumSelection
-from src.workspace.watchlists import WatchlistSpec, decode_selection, encode_selection, normalize_ticker
+from src.workspace.watchlists import (
+    StoredSelectionError,
+    WatchlistSpec,
+    decode_selection,
+    encode_selection,
+    normalize_ticker,
+)
 
 
 def test_watchlist_spec_accepts_only_display_name() -> None:
@@ -73,7 +79,7 @@ def test_decode_selection_rejects_a_stored_momentum_selection_from_before_as_of_
     payload = json.loads(encode_selection(MomentumSelection(short_window=2, long_window=5)))
     payload["config_schema_version"] = 1
     del payload["as_of"], payload["use_cache"]
-    with pytest.raises(ValueError, match="config_schema_version"):
+    with pytest.raises(StoredSelectionError, match="is not supported by this version"):
         decode_selection("sma_crossover", 1, json.dumps(payload))
 
 

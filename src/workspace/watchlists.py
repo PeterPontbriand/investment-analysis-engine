@@ -9,11 +9,15 @@ live in :mod:`src.workspace.runs`.
 
 import json
 
-from pydantic import BaseModel, ConfigDict, TypeAdapter
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 from src.workspace.requests import AnalysisSelection
 
 _SELECTION_ADAPTER: TypeAdapter[AnalysisSelection] = TypeAdapter(AnalysisSelection)
+
+
+class StoredSelectionError(ValueError):
+    """A stored watchlist selection cannot be read by this version of the application."""
 
 
 class WatchlistSpec(BaseModel):
@@ -70,16 +74,28 @@ def decode_selection(method_id: str, config_schema_version: int, selection_json:
         The validated selection with canonical identifiers restored.
 
     Raises:
-        ValueError: If the JSON is malformed or its identity does not match
-            the row's own method/version columns.
+        StoredSelectionError: If the JSON is malformed, is not a selection this
+            version supports (for example a retired configuration version), or
+            its identity does not match the row's own method/version columns.
+            The message is a single readable line.
     """
-    selection = _SELECTION_ADAPTER.validate_json(selection_json)
+    try:
+        selection = _SELECTION_ADAPTER.validate_json(selection_json)
+    except ValidationError as exc:
+        first = exc.errors()[0]
+        location = ".".join(str(part) for part in first["loc"])
+        detail = f"{location}: {first['msg']}" if location else str(first["msg"])
+        raise StoredSelectionError(
+            f"Stored {method_id} selection (version {config_schema_version}) is not supported by this "
+            f"version ({detail}); remove the entry and add it again."
+        ) from exc
     if selection.method_id != method_id or selection.config_schema_version != config_schema_version:
-        raise ValueError("Stored selection identity does not match its method/version columns.")
+        raise StoredSelectionError("Stored selection identity does not match its method/version columns.")
     return selection
 
 
 __all__ = [
+    "StoredSelectionError",
     "WatchlistSpec",
     "decode_selection",
     "encode_selection",
