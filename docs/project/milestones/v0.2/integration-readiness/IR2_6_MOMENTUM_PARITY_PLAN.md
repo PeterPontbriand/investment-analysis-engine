@@ -1,6 +1,6 @@
 # IR.2.6 — Momentum Parity: Implementation Plan
 
-Revision 1, draft for review. Not yet approved for implementation.
+Revision 1 was approved for implementation on 2026-09-29.
 
 Parent: [IR.2 detail plan, §6.12](IR2_ANALYZER_ENVELOPE_PLAN.md#612-ir2-slice-list--approved-revised-2026-09-25-graham-separation-inserted).
 Scope origin: that plan's §2 item 4, §6.4, §6.5, §6.9 and §6.10. Where this plan disagrees with
@@ -22,8 +22,8 @@ them, this plan is based on the current code; the differences are listed in
 - **When it lands, IR.2 is complete:** the last commit is IR.2's acceptance record, and the IR.2
   plan's rule that nothing merges to `main` before IR.2.6 is accepted no longer applies (merging
   still needs its own approval, `AGENTS.md` §11).
-- **Needs the project owner's decision before implementation:** three choices this draft makes on
-  the owner's behalf, listed in [B.1](#b1-decisions-flagged-for-the-project-owner).
+- **Decisions:** the project owner accepted the three choices in
+  [B.1](#b1-decisions-flagged-for-the-project-owner) as drafted (2026-09-29).
 
 ## 2. Sequence and status
 
@@ -320,8 +320,9 @@ of this record: it runs once IR as a whole is complete, after IR.3 and IR.6.
 
 ### B.1 Decisions flagged for the project owner
 
-`AGENTS.md` §0 requires decisions, not open items, so this draft decides each of these. They are
-listed here because each is a behavior the project owner may want to overrule.
+`AGENTS.md` §0 requires decisions, not open items, so this plan decides each of these. They are
+listed here because each is a behavior the project owner might have overruled. The project owner
+accepted all three as drafted on 2026-09-29.
 
 1. **Existing Momentum watchlist entries stop loading.** This is the first bump of a *selection*
    version; earlier bumps only touched result versions. Watchlist entries store the selection, and
