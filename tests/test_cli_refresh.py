@@ -15,6 +15,7 @@ rendering, interruption).
 """
 
 import json
+import re
 import signal
 import sqlite3
 from collections.abc import Callable
@@ -168,23 +169,39 @@ def test_refresh_sequential_persists_every_member_and_exits_0(mock_run: MagicMoc
     assert mock_run.call_count == 2
 
 
+def _retire_momentum_entries(*retired: str) -> None:
+    """Rewrite the named tickers' Momentum entries into the retired version-1 stored shape."""
+    path = src.cli_workspace.settings.database_url.removeprefix("sqlite:///")
+    with closing(sqlite3.connect(path)) as connection:
+        for ticker in retired:
+            ((selection_json,),) = connection.execute(
+                "SELECT selection_json FROM watchlist_entries WHERE ticker = ? AND method_id = 'sma_crossover'",
+                (ticker,),
+            ).fetchall()
+            selection = json.loads(selection_json)
+            selection.pop("as_of")
+            selection.pop("use_cache")
+            selection["config_schema_version"] = 1
+            connection.execute(
+                "UPDATE watchlist_entries SET selection_json = ?, config_schema_version = 1 "
+                "WHERE ticker = ? AND method_id = 'sma_crossover'",
+                (json.dumps(selection), ticker),
+            )
+        connection.commit()
+
+
+def _stored_tickers() -> list[str]:
+    """Return the stored entries' tickers in position order, read without decoding any selection."""
+    path = src.cli_workspace.settings.database_url.removeprefix("sqlite:///")
+    with closing(sqlite3.connect(path)) as connection:
+        rows = connection.execute("SELECT ticker FROM watchlist_entries ORDER BY position").fetchall()
+    return [ticker for (ticker,) in rows]
+
+
 def _store_momentum_entry_as_retired_version_one(name: str, tickers: list[str], retired: str) -> None:
     """Seed Momentum entries, then rewrite the ``retired`` ticker's into the retired version-1 stored shape."""
     _create_momentum_only(name, tickers)
-    path = src.cli_workspace.settings.database_url.removeprefix("sqlite:///")
-    with closing(sqlite3.connect(path)) as connection:
-        ((selection_json,),) = connection.execute(
-            "SELECT selection_json FROM watchlist_entries WHERE ticker = ?", (retired,)
-        ).fetchall()
-        selection = json.loads(selection_json)
-        selection.pop("as_of")
-        selection.pop("use_cache")
-        selection["config_schema_version"] = 1
-        connection.execute(
-            "UPDATE watchlist_entries SET selection_json = ?, config_schema_version = 1 WHERE ticker = ?",
-            (json.dumps(selection), retired),
-        )
-        connection.commit()
+    _retire_momentum_entries(retired)
 
 
 @pytest.mark.parametrize("arguments", [["watchlist", "show", "Old Watch"], ["refresh", "Old Watch"]])
@@ -211,6 +228,73 @@ def test_the_removal_command_in_the_retired_entry_error_restores_the_watchlist()
     assert shown.exit_code == 0, shown.output
     assert "AAPL" in shown.output
     assert "MSFT" not in shown.output
+
+
+_REMOVAL_COMMAND = re.compile(r'Remove it with: ian (watchlist remove-entry) "([^"]+)" (\d+)')
+
+
+def test_printed_removal_command_removes_one_unreadable_entry_at_a_time() -> None:
+    """Three retired entries and one valid: each run removes exactly one and names the next."""
+    _create_momentum_only("Old Watch", ["AAPL", "MSFT", "KO", "NVDA"])
+    _retire_momentum_entries("AAPL", "KO", "NVDA")
+
+    shown = runner.invoke(app, ["watchlist", "show", "Old Watch"])
+    assert shown.exit_code == 1
+    expected_remaining = [["MSFT", "KO", "NVDA"], ["MSFT", "NVDA"], ["MSFT"]]
+    expected_next = [("KO", "2"), ("NVDA", "2")]
+    output = normalize_cli_output(shown.output)
+    assert "entry 1 (AAPL, sma_crossover)" in output
+
+    for step, remaining in enumerate(expected_remaining):
+        match = _REMOVAL_COMMAND.search(output)
+        assert match is not None, output
+        command, name, index = match.groups()
+        result = runner.invoke(app, [*command.split(), name, index])
+        assert _stored_tickers() == remaining
+        output = normalize_cli_output(result.output)
+        if step < len(expected_next):
+            ticker, next_index = expected_next[step]
+            assert result.exit_code == 1
+            assert output.startswith(f"Removed entry {index} from watchlist 'Old Watch'.")
+            assert f"entry {next_index} ({ticker}, sma_crossover)" in output
+            assert f'remove-entry "Old Watch" {next_index}' in output
+        else:
+            assert result.exit_code == 0, output
+            assert "MSFT" in output
+
+    final = runner.invoke(app, ["watchlist", "show", "Old Watch"])
+    assert final.exit_code == 0, final.output
+    assert "MSFT" in final.output
+    assert "AAPL" not in final.output
+    assert "KO" not in final.output
+    assert "NVDA" not in final.output
+
+
+def test_remove_by_ticker_commits_when_another_entry_is_unreadable() -> None:
+    _create_momentum_only("Old Watch", ["AAPL", "MSFT", "KO"])
+    _retire_momentum_entries("KO")
+
+    result = runner.invoke(app, ["watchlist", "remove", "Old Watch", "AAPL"])
+
+    assert result.exit_code == 1
+    output = normalize_cli_output(result.output)
+    assert output.startswith("Removed any entries for AAPL from watchlist 'Old Watch'.")
+    assert "entry 2 (KO, sma_crossover)" in output
+    assert 'remove-entry "Old Watch" 2' in output
+    assert _stored_tickers() == ["MSFT", "KO"]
+
+
+def test_remove_by_method_commits_when_another_entry_is_unreadable() -> None:
+    _seed("Old Watch", [("KO", GrahamNumberSelection()), ("AAPL", MomentumSelection(short_window=2, long_window=3))])
+    _retire_momentum_entries("AAPL")
+
+    result = runner.invoke(app, ["watchlist", "disable", "Old Watch", "--analysis", "graham-number"])
+
+    assert result.exit_code == 1
+    output = normalize_cli_output(result.output)
+    assert output.startswith("Removed any graham-number entries from watchlist 'Old Watch'.")
+    assert "entry 1 (AAPL, sma_crossover)" in output
+    assert _stored_tickers() == ["AAPL"]
 
 
 @patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")

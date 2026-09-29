@@ -21,6 +21,7 @@ from src.data.repositories.watchlists import (
     WatchlistNotFoundError,
 )
 from src.workspace.requests import GrahamGrowthSelection, GrahamNumberSelection
+from src.workspace.runs import Watchlist
 from src.workspace.watchlists import WatchlistSpec
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)
@@ -155,19 +156,28 @@ def test_add_entries_with_empty_sequence_is_a_no_op(repository: SQLiteWatchlistR
     assert unchanged.updated_at is None
 
 
+def _read(repository: SQLiteWatchlistRepository, name: str) -> Watchlist:
+    """Read a watchlist back after a removal, which returns nothing."""
+    watchlist = repository.get(name)
+    assert watchlist is not None
+    return watchlist
+
+
 def test_remove_entry_removes_by_position_and_renumbers_survivors(repository: SQLiteWatchlistRepository) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
     selection = GrahamNumberSelection()
     watchlist = repository.add_entries(
         watchlist.display_name, [("KO", selection), ("PFE", selection), ("AAPL", selection)]
     )
-    updated = repository.remove_entry(watchlist.display_name, 1)
+    repository.remove_entry(watchlist.display_name, 1)
+    updated = _read(repository, watchlist.display_name)
     assert [entry.ticker for entry in updated.entries] == ["KO", "AAPL"]
     # The survivor that used to be at position 2 is now at position 1 (renumbered, no gap).
-    with_ko_removed = repository.remove_entry(updated.display_name, 0)
+    repository.remove_entry(updated.display_name, 0)
+    with_ko_removed = _read(repository, updated.display_name)
     assert [entry.ticker for entry in with_ko_removed.entries] == ["AAPL"]
-    emptied = repository.remove_entry(with_ko_removed.display_name, 0)
-    assert emptied.entries == ()
+    repository.remove_entry(with_ko_removed.display_name, 0)
+    assert _read(repository, with_ko_removed.display_name).entries == ()
 
 
 def test_remove_entry_out_of_range_raises_and_leaves_storage_unchanged(
@@ -192,9 +202,11 @@ def test_remove_entries_for_ticker_is_idempotent_for_absent_tickers(repository: 
     watchlist = repository.add_entries(
         watchlist.display_name, [("KO", selection), ("PFE", selection), ("AAPL", selection)]
     )
-    updated = repository.remove_entries_for_ticker(watchlist.display_name, ["PFE", "NOTHERE"])
+    repository.remove_entries_for_ticker(watchlist.display_name, ["PFE", "NOTHERE"])
+    updated = _read(repository, watchlist.display_name)
     assert [entry.ticker for entry in updated.entries] == ["KO", "AAPL"]
-    again = repository.remove_entries_for_ticker(updated.display_name, ["PFE"])
+    repository.remove_entries_for_ticker(updated.display_name, ["PFE"])
+    again = _read(repository, updated.display_name)
     assert [entry.ticker for entry in again.entries] == ["KO", "AAPL"]
 
 
@@ -210,8 +222,8 @@ def test_remove_entries_for_ticker_removes_every_entry_for_that_ticker(
             ("KO", GrahamNumberSelection()),
         ],
     )
-    updated = repository.remove_entries_for_ticker(watchlist.display_name, ["AAPL"])
-    assert [entry.ticker for entry in updated.entries] == ["KO"]
+    repository.remove_entries_for_ticker(watchlist.display_name, ["AAPL"])
+    assert [entry.ticker for entry in _read(repository, watchlist.display_name).entries] == ["KO"]
 
 
 def test_remove_entries_for_ticker_missing_watchlist_raises(repository: SQLiteWatchlistRepository) -> None:
@@ -222,8 +234,8 @@ def test_remove_entries_for_ticker_missing_watchlist_raises(repository: SQLiteWa
 def test_remove_entries_for_ticker_with_empty_sequence_is_a_no_op(repository: SQLiteWatchlistRepository) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
     watchlist = repository.add_entries(watchlist.display_name, [("KO", GrahamNumberSelection())])
-    unchanged = repository.remove_entries_for_ticker(watchlist.display_name, [])
-    assert [entry.ticker for entry in unchanged.entries] == ["KO"]
+    repository.remove_entries_for_ticker(watchlist.display_name, [])
+    assert [entry.ticker for entry in _read(repository, watchlist.display_name).entries] == ["KO"]
 
 
 def test_remove_entries_for_method_is_idempotent_for_absent_method(repository: SQLiteWatchlistRepository) -> None:
@@ -235,11 +247,14 @@ def test_remove_entries_for_method_is_idempotent_for_absent_method(repository: S
             ("KO", GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5)),
         ],
     )
-    unchanged = repository.remove_entries_for_method(watchlist.display_name, "sma_crossover")
+    repository.remove_entries_for_method(watchlist.display_name, "sma_crossover")
+    unchanged = _read(repository, watchlist.display_name)
     assert [entry.selection.method_id for entry in unchanged.entries] == ["graham_number", "graham_growth_value"]
-    reduced = repository.remove_entries_for_method(unchanged.display_name, "graham_number")
+    repository.remove_entries_for_method(unchanged.display_name, "graham_number")
+    reduced = _read(repository, unchanged.display_name)
     assert [entry.selection.method_id for entry in reduced.entries] == ["graham_growth_value"]
-    again = repository.remove_entries_for_method(reduced.display_name, "graham_number")
+    repository.remove_entries_for_method(reduced.display_name, "graham_number")
+    again = _read(repository, reduced.display_name)
     assert [entry.selection.method_id for entry in again.entries] == ["graham_growth_value"]
 
 
@@ -254,8 +269,8 @@ def test_mutations_bump_updated_at_only_when_something_changes(
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
     assert watchlist.updated_at is None
     clocked = SQLiteWatchlistRepository(database, clock=lambda: LATER, id_factory=lambda: SECOND_ID)
-    unchanged = clocked.remove_entries_for_ticker(watchlist.display_name, ["NOTHERE"])
-    assert unchanged.updated_at is None
+    clocked.remove_entries_for_ticker(watchlist.display_name, ["NOTHERE"])
+    assert _read(clocked, watchlist.display_name).updated_at is None
     changed = clocked.add_entries(watchlist.display_name, [("KO", GrahamNumberSelection())])
     assert changed.updated_at == LATER
 

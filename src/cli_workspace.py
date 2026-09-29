@@ -596,6 +596,22 @@ def watchlist_add_selection(  # noqa: PLR0913
     typer.echo(_watchlist_text(watchlist))
 
 
+def _read_back_after_removal(repository: SQLiteWatchlistRepository, name: str, confirmation: str) -> Watchlist:
+    """Read a watchlist back to display it after a removal that has already committed.
+
+    If another entry cannot be read, the removal stands: print ``confirmation``, then the error
+    naming the next unreadable entry and the command that removes it, and exit 1.
+    """
+    try:
+        watchlist = repository.get(name)
+    except StoredSelectionError as exc:
+        typer.echo(confirmation)
+        _fail(str(exc))
+    if watchlist is None:
+        _fail(f"No watchlist named {name!r} exists.")
+    return watchlist
+
+
 @watchlist_app.command("remove-entry")
 def watchlist_remove_entry(
     name: Annotated[str, typer.Argument(help="Watchlist name.")],
@@ -607,11 +623,12 @@ def watchlist_remove_entry(
     with _workspace_database() as database:
         repository = SQLiteWatchlistRepository(database)
         try:
-            watchlist = repository.remove_entry(name, index - 1)
+            repository.remove_entry(name, index - 1)
         except WatchlistNotFoundError as exc:
             _fail(str(exc))
         except WatchlistEntryNotFoundError as exc:
             _fail(str(exc))
+        watchlist = _read_back_after_removal(repository, name, f"Removed entry {index} from watchlist {name!r}.")
     typer.echo(_watchlist_text(watchlist))
 
 
@@ -624,11 +641,14 @@ def watchlist_remove(
     with _workspace_database() as database:
         repository = SQLiteWatchlistRepository(database)
         try:
-            watchlist = repository.remove_entries_for_ticker(name, tickers)
+            repository.remove_entries_for_ticker(name, tickers)
         except WatchlistNotFoundError as exc:
             _fail(str(exc))
         except ValueError as exc:
             raise typer.BadParameter(str(exc)) from exc
+        watchlist = _read_back_after_removal(
+            repository, name, f"Removed any entries for {', '.join(tickers)} from watchlist {name!r}."
+        )
     typer.echo(_watchlist_text(watchlist))
 
 
@@ -645,9 +665,10 @@ def watchlist_disable(
     with _workspace_database() as database:
         repository = SQLiteWatchlistRepository(database)
         try:
-            watchlist = repository.remove_entries_for_method(name, _ALIAS_METHOD_IDS[method])
+            repository.remove_entries_for_method(name, _ALIAS_METHOD_IDS[method])
         except WatchlistNotFoundError as exc:
             _fail(str(exc))
+        watchlist = _read_back_after_removal(repository, name, f"Removed any {method} entries from watchlist {name!r}.")
     typer.echo(_watchlist_text(watchlist))
 
 

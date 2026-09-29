@@ -391,10 +391,19 @@ in item 6 were corrected in a review-fix commit before the acceptance record.
    Neither path reads a version-1 entry as version 2, which is what B.1 item 1 decides. A
    watchlist holding an unreadable entry cannot be listed by `watchlist show`, which decodes every entry
    before printing, so the error is the only place the entry's number appears. Tests cover both commands,
-   the exact line, the decode, and that the printed command restores the watchlist. **Decision requested:**
-   `remove-entry` reloads the surviving entries inside its transaction, so when two or more entries are
-   unreadable, removing one fails and rolls back; the printed remedy works only while a single unreadable
-   entry remains.
+   the exact line, the decode, and that the printed command restores the watchlist.
+   **Decision (project owner) and fix: removal works one entry at a time, however many entries are
+   unreadable.** `remove-entry`, `remove` (by ticker) and `disable` (by method) reloaded the surviving
+   entries inside their transaction, so a second unreadable entry rolled the removal back and left the
+   printed remedy unable to work. `SQLiteWatchlistRepository.remove_entry`, `remove_entries_for_ticker`
+   and `remove_entries_for_method` now return `None` and decode nothing, so the removal commits. The three
+   CLI commands read the watchlist back with `get()` only to display it; if that raises
+   `StoredSelectionError`, they print a one-line confirmation (`Removed entry 2 from watchlist 'Mixed'.`),
+   then the error line for the next unreadable entry, numbered from the renumbered list, and exit 1.
+   `add-selection` is unchanged. Tests: three unreadable entries beside one valid entry, running the printed
+   command repeatedly (each run removes exactly one and names the next; after the third, `watchlist show`
+   lists only the valid entry), and `remove` and `disable` committing while another unreadable entry
+   survives. A placeholder entry in `watchlist show` was proposed and not adopted.
 5. **Commit 4: several existing test expectations encoded "Momentum has no `as_of`".** The foreign-field
    check in `test_requests.py` (`from_settings(as_of=None)`), the parser allowlist case
    `{"config": {"as_of": None}}`, and the version-2 probes in the identity-override, union-version and

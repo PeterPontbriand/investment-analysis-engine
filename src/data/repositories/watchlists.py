@@ -171,8 +171,11 @@ class SQLiteWatchlistRepository:
                 self._touch(connection, watchlist_id)
             return self._load(connection, watchlist_id)
 
-    def remove_entry(self, name: str, position: int) -> Watchlist:
+    def remove_entry(self, name: str, position: int) -> None:
         """Remove exactly one entry by its stored 0-based position, renumbering survivors.
+
+        Nothing is decoded and no watchlist is returned, so the removal commits even when
+        other entries can no longer be read; read the result back with :meth:`get`.
 
         Raises:
             WatchlistNotFoundError: If no watchlist matches ``name``.
@@ -186,10 +189,12 @@ class SQLiteWatchlistRepository:
                 raise WatchlistEntryNotFoundError(f"No entry at position {position} in watchlist {name!r}.")
             self._replace_entries(connection, watchlist_id, survivors)
             self._touch(connection, watchlist_id)
-            return self._load(connection, watchlist_id)
 
-    def remove_entries_for_ticker(self, name: str, tickers: Sequence[str]) -> Watchlist:
+    def remove_entries_for_ticker(self, name: str, tickers: Sequence[str]) -> None:
         """Remove every entry for the given ticker(s); absent tickers are a no-op.
+
+        Nothing is decoded and no watchlist is returned, so the removal commits even when
+        other entries can no longer be read; read the result back with :meth:`get`.
 
         Raises:
             ValueError: If any ticker normalizes to empty.
@@ -204,10 +209,12 @@ class SQLiteWatchlistRepository:
                 if len(survivors) != len(rows):
                     self._replace_entries(connection, watchlist_id, survivors)
                     self._touch(connection, watchlist_id)
-            return self._load(connection, watchlist_id)
 
-    def remove_entries_for_method(self, name: str, method_id: str) -> Watchlist:
+    def remove_entries_for_method(self, name: str, method_id: str) -> None:
         """Remove every entry for ``method_id``; absent is a no-op.
+
+        Nothing is decoded and no watchlist is returned, so the removal commits even when
+        other entries can no longer be read; read the result back with :meth:`get`.
 
         Raises:
             WatchlistNotFoundError: If no watchlist matches ``name``.
@@ -219,7 +226,6 @@ class SQLiteWatchlistRepository:
             if len(survivors) != len(rows):
                 self._replace_entries(connection, watchlist_id, survivors)
                 self._touch(connection, watchlist_id)
-            return self._load(connection, watchlist_id)
 
     def _touch(self, connection: Connection, watchlist_id: str) -> None:
         """Bump ``updated_at`` to the injected clock's current instant."""
