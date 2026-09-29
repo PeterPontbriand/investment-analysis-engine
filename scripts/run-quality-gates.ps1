@@ -46,7 +46,20 @@ try {
     $pythonVersion, $pandasVersion = ($versionInfo | Select-Object -Last 1) -split '\|'
     Write-Host "Quality gate running on Python $pythonVersion, pandas $pandasVersion"
 
-    Invoke-QualityCommand -Arguments @("run", "--no-sync", "python", "scripts/check_doc_links.py")
+    # The link checker imports only the standard library, so it runs with system Python
+    # rather than through uv or the project virtualenv.
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+        & py -3 scripts/check_doc_links.py
+    }
+    elseif (Get-Command python -ErrorAction SilentlyContinue) {
+        & python scripts/check_doc_links.py
+    }
+    else {
+        throw "No system Python found (tried: py -3, python); cannot run scripts/check_doc_links.py"
+    }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Link check failed with exit code $LASTEXITCODE`: scripts/check_doc_links.py"
+    }
     Invoke-QualityCommand -Arguments @("run", "--no-sync", "ruff", "check", "--no-cache", ".")
     Invoke-QualityCommand -Arguments @("run", "--no-sync", "ruff", "format", "--check", ".")
     Invoke-QualityCommand -Arguments @(

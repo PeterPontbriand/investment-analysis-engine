@@ -56,12 +56,14 @@ If governing documents conflict, surface the conflict rather than blending incom
 Run the complete non-mutating repository gate from the repository root before requesting technical review or declaring implementation work complete, whenever the change touches Python source, tests, or any file the gate's own tooling actually parses or executes (this includes `pyproject.toml` fields that affect dependency resolution, build, or tool configuration):
 
 ```bash
-uv run python scripts/check_doc_links.py
+py -3 scripts/check_doc_links.py
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy --strict src tests scripts
 uv run pytest
 ```
+
+Standard-library-only gate scripts run with system Python (`py -3` on Windows), not through `uv run` or the project virtualenv.
 
 These commands verify that every local link and heading anchor across every tracked Markdown file resolves, lint, formatting, strict typing (including the `scripts/` developer tooling, not only `src`/`tests`), deterministic unit/integration behavior, and the pytest-cov configuration in `pyproject.toml`. The project target is at least 85% aggregate line coverage; new financial-analysis code should directly cover meaningful branches and edge cases. Automated tests must not make real external API or LLM calls.
 
