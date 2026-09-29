@@ -79,7 +79,7 @@ def _build_run(profile: InstrumentProfile | None = None) -> AnalysisRun:
 
     def capture() -> ExecutionCapture:
         client = _FixtureClient()
-        native = run_momentum(selection, "AAPL", client, executed_at=NOW)
+        native = run_momentum(selection, "AAPL", client, start_date="2026-01-01", executed_at=NOW)
         return ExecutionCapture(
             native_evidence=native,
             profile=profile,

@@ -16,14 +16,12 @@ from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ti
 from src.config import settings
 from src.core.constants import ConfigKeys, DataColumns, TrendStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
-from src.data.base_client import BaseDataClient
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.data.instrument_profile import InstrumentProfile
 from src.data.market_data import HistoricalDataResolution, HistoricalMarketData, MarketDataContext, MarketDataProvider
 from src.data.quality import HistoricalDataQualityError, QualityContext, QualityOutcome, evaluate_historical_quality
 from src.data.quality_reporting import publish_quality
-from src.data.yfinance import YFinanceClient
 
 
 @dataclass(frozen=True)
@@ -124,30 +122,10 @@ class MomentumConfig(BaseModel):
 class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
     """Execute vectorized financial momentum analysis over historical market metrics."""
 
-    def __init__(
-        self,
-        default_ticker: str | None = None,
-        data_client: BaseDataClient | None = None,
-        market_data_provider: MarketDataProvider | None = None,
-    ) -> None:
-        """Initialize analyzer with custom dependency injections and fallback policies."""
-        analysis_settings = settings.get_analysis_settings()
-
-        default_section = analysis_settings[ConfigKeys.DEFAULT_SECTION]
-        self._fallback_ticker: Final[str] = default_ticker or default_section[ConfigKeys.TICKER]
-        self._start_date: Final[str] = default_section[ConfigKeys.START_DATE]
-
-        client = data_client or YFinanceClient()
-        self.data_client: Final[BaseDataClient] = client
-        self.market_data_provider: Final[MarketDataProvider] = market_data_provider or _ClientProviderAdapter(client)
-
-    def resolve_ticker(self, ticker: str | None) -> str:
-        """Return the explicit ticker or this analyzer's configured fallback.
-
-        A later change relocates this TOML-fallback lookup to the CLI layer and removes it
-        from the analyzer entirely.
-        """
-        return ticker or self._fallback_ticker
+    def __init__(self, *, market_data_provider: MarketDataProvider, start_date: str) -> None:
+        """Initialize with the injected historical market-data provider and series start date."""
+        self._market_data_provider: Final[MarketDataProvider] = market_data_provider
+        self._start_date: Final[str] = start_date
 
     def run_analysis(self, ticker: str, config: MomentumConfig, context: AnalysisContext) -> MomentumRun:
         """Fetch market data once, calculate metrics, and retain retrieval context.
@@ -159,7 +137,7 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
         input, not a second independent telemetry event.
         """
         normalized_ticker = require_ticker(ticker)
-        resolver = MomentumInputResolver(self.market_data_provider, clock=lambda: context.executed_at)
+        resolver = MomentumInputResolver(self._market_data_provider, clock=lambda: context.executed_at)
         resolved = resolver.resolve(
             ticker=normalized_ticker,
             start_date=self._start_date,
@@ -416,23 +394,3 @@ class MomentumInputResolver:
             price_inputs=prices,
             resolution_trace=trace,
         )
-
-
-class _ClientProviderAdapter:
-    """Compatibility adapter from the legacy client to ``MarketDataProvider``."""
-
-    def __init__(self, client: BaseDataClient) -> None:
-        self._client = client
-
-    @property
-    def provider_id(self) -> str | None:
-        """Return the legacy client's retained provider identity."""
-        return self._client.provider_id
-
-    def fetch_historical_data(
-        self, ticker: str, start_date: str, end_date: str | None = None, *, use_cache: bool
-    ) -> HistoricalMarketData:
-        """Delegate through the existing context-retaining call."""
-        if end_date is None:
-            return self._client.fetch_data_with_context(ticker, start_date, use_cache=use_cache)
-        return self._client.fetch_data_with_context(ticker, start_date, end_date, use_cache=use_cache)

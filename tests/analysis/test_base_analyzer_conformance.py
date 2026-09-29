@@ -14,7 +14,6 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, get_args, get_origin
-from unittest.mock import patch
 
 import pytest
 
@@ -40,7 +39,6 @@ _SRC_ROOT = _REPO_ROOT / "src"
 _STRATEGY_PACKAGE = _SRC_ROOT / "analysis" / "strategy"
 
 _GROWTH_POLICY = GrahamGrowthCalculationPolicy(base_pe=8.5, growth_multiplier=2.0, baseline_aaa_yield=4.4)
-_MOMENTUM_SETTINGS = {"default": {"default_ticker": "AAPL", "data_start_date": "2026-01-01"}}
 
 
 class _FixtureDataClientWithIdentity(FixtureDataClient):
@@ -56,8 +54,7 @@ def _context() -> AnalysisContext:
 
 
 def _momentum_analyzer() -> MomentumAnalyzer:
-    with patch("src.config.ProjectSettings.get_analysis_settings", return_value=_MOMENTUM_SETTINGS):
-        return MomentumAnalyzer(default_ticker="AAPL", data_client=_FixtureDataClientWithIdentity())
+    return MomentumAnalyzer(market_data_provider=_FixtureDataClientWithIdentity(), start_date="2026-01-01")
 
 
 def _momentum_config() -> MomentumConfig:

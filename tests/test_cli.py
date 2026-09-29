@@ -182,6 +182,20 @@ def test_cli_momentum_known_etf_remains_applicable_and_retains_kind(
 
 
 @patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+def test_cli_momentum_without_ticker_uses_the_normalized_configured_default(
+    mock_run: MagicMock, mock_momentum_run: MomentumRun
+) -> None:
+    mock_run.return_value = mock_momentum_run
+    configured = {"default": {"default_ticker": " btc-usd ", "data_start_date": "2026-01-01"}}
+
+    with patch("src.config.ProjectSettings.get_analysis_settings", return_value=configured):
+        result = runner.invoke(app, ["momentum"])
+
+    assert result.exit_code == 0
+    assert mock_run.call_args.kwargs["ticker"] == "BTC-USD"
+
+
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_legacy_ticker_option_still_routes(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
 

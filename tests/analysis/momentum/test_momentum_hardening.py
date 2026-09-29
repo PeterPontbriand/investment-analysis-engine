@@ -94,14 +94,12 @@ def test_run_analysis_rejects_invalid_values_outside_latest_windows(invalid: flo
         {"Close": [invalid, 2.0, 3.0, 4.0]},
         index=pd.date_range("2026-01-01", periods=4, tz=UTC),
     )
-    analysis_settings = {"default": {"default_ticker": "ACME", "data_start_date": "2026-01-01"}}
     momentum_settings = {"window_sizes": {"short_window": 2, "long_window": 3}}
     context = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 5, tzinfo=UTC), use_cache=True)
     with (
-        patch("src.config.ProjectSettings.get_analysis_settings", return_value=analysis_settings),
         patch("src.config.ProjectSettings.get_momentum_analysis", return_value=momentum_settings),
     ):
-        analyzer = MomentumAnalyzer(market_data_provider=FixtureMarketDataProvider(frame))
+        analyzer = MomentumAnalyzer(market_data_provider=FixtureMarketDataProvider(frame), start_date="2026-01-01")
         with pytest.raises(HistoricalDataQualityError, match="finite"):
             analyzer.run_analysis(
                 ticker="ACME",

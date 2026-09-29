@@ -92,7 +92,7 @@ def _watchlist(members: tuple[str, ...], selections: tuple[AnalysisSelection, ..
 
 def _momentum_capture(ticker: str, outcome: RunOutcome = RunOutcome.COMPLETED) -> ExecutionCapture:
     selection = MomentumSelection(short_window=2, long_window=3)
-    native: MomentumRun = run_momentum(selection, ticker, _FixtureClient(), executed_at=NOW)
+    native: MomentumRun = run_momentum(selection, ticker, _FixtureClient(), start_date="2026-01-01", executed_at=NOW)
     return ExecutionCapture(native_evidence=native, profile=None, outcome=outcome)
 
 
@@ -372,7 +372,13 @@ def test_refresh_summary_counts_by_outcome() -> None:
 
 
 def _build_run(*, status: RunOutcome, failure_reason_code: str | None = None) -> AnalysisRun:
-    native = run_momentum(MomentumSelection(short_window=2, long_window=3), "AAPL", _FixtureClient(), executed_at=NOW)
+    native = run_momentum(
+        MomentumSelection(short_window=2, long_window=3),
+        "AAPL",
+        _FixtureClient(),
+        start_date="2026-01-01",
+        executed_at=NOW,
+    )
     return AnalysisRun(
         analysis_run_id=UUID("33333333-3333-4333-8333-333333333333"),
         ticker="AAPL",

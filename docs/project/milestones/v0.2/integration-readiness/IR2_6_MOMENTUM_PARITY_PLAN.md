@@ -32,8 +32,8 @@ commit passes the full managed gate on its own; the review stop is after commit 
 
 | Commit | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| 1 | [Required dependencies and the ticker default](#31-required-dependencies-and-the-ticker-default) | Next | |
-| 2 | [Delete `MomentumPolicy`](#32-delete-momentumpolicy) | Planned | |
+| 1 | [Required dependencies and the ticker default](#31-required-dependencies-and-the-ticker-default) | Complete | 2026-09-29 |
+| 2 | [Delete `MomentumPolicy`](#32-delete-momentumpolicy) | Next | |
 | 3 | [Instrument profile embedded in `MomentumRun`](#33-instrument-profile-embedded-in-momentumrun) | Planned | |
 | 4 | [`--as-of` and `--no-cache` on every caller surface](#34---as-of-and---no-cache-on-every-caller-surface) | Planned | |
 | 5 | [Durable documentation](#35-durable-documentation) | Planned | |
@@ -255,6 +255,7 @@ are unchanged.
 `requests.py` `MomentumSelection`:
 
 ```python
+class MomentumSelection(BaseModel):
     config_schema_version: Literal[2] = 2
     ...
     as_of: AwareDatetime | None = None
@@ -262,7 +263,9 @@ are unchanged.
 
     def to_analysis_context(self, executed_at, instrument_profile=None) -> AnalysisContext:
         return AnalysisContext(
-            as_of=self.as_of, executed_at=executed_at, use_cache=self.use_cache,
+            as_of=self.as_of,
+            executed_at=executed_at,
+            use_cache=self.use_cache,
             instrument_profile=instrument_profile,
         )
 ```
@@ -354,3 +357,13 @@ accepted all three as drafted on 2026-09-29.
   second parameter are deleted instead of made required (A.1).
 - **The IR.2.6 row lists `compute_momentum_metrics` and the quality-check split implicitly as
   pending.** Both landed in IR.2.3 (§6).
+
+### B.3 Found during implementation
+
+Gaps the plan missed, fixed in the commit where each became visible.
+
+1. **Commit 1: the A.4 snippet failed the repository's formatter check.** `ruff format --check .`
+   formats Python code blocks in Markdown, and the indented `MomentumSelection` excerpt in A.4 was
+   not formatter-clean, so the gate failed on this plan. The excerpt is now a formatted class
+   excerpt with the same content.
+

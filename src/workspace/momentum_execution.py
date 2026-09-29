@@ -22,8 +22,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumMetrics, MomentumRun
-from src.data.base_client import BaseDataClient
 from src.data.instrument_profile import InstrumentProfile
+from src.data.market_data import MarketDataProvider
 from src.workspace.models import StrictJsonMapping
 from src.workspace.requests import MomentumSelection
 
@@ -63,25 +63,29 @@ def _sma_spread_percent(metrics: MomentumMetrics) -> float | None:
 
 
 def run_momentum(
-    selection: MomentumSelection, ticker: str | None, historical_client: BaseDataClient, *, executed_at: datetime
+    selection: MomentumSelection,
+    ticker: str,
+    market_data_provider: MarketDataProvider,
+    *,
+    start_date: str,
+    executed_at: datetime,
 ) -> MomentumRun:
-    """Run Momentum through the existing analyzer with a borrowed data client.
+    """Run Momentum through the existing analyzer with a borrowed market-data provider.
 
     Args:
         selection: A validated, immutable Momentum configuration snapshot.
-        ticker: The requested ticker, or None to use the analyzer's
-            configured fallback ticker (matching the existing CLI behavior).
-        historical_client: A borrowed client; not constructed or closed here.
+        ticker: The ticker to analyze; the analyzer normalizes it.
+        market_data_provider: A borrowed provider; not constructed or closed here.
+        start_date: The first date of the requested historical series.
         executed_at: The run's own execution clock, a single aware read of
             "now" taken once by the caller.
 
     Returns:
         The unmodified native analyzer result.
     """
-    analyzer = MomentumAnalyzer(default_ticker=ticker, data_client=historical_client)
-    resolved_ticker = analyzer.resolve_ticker(ticker)
+    analyzer = MomentumAnalyzer(market_data_provider=market_data_provider, start_date=start_date)
     context = selection.to_analysis_context(executed_at=executed_at)
-    return analyzer.run_analysis(ticker=resolved_ticker, config=selection.to_momentum_config(), context=context)
+    return analyzer.run_analysis(ticker=ticker, config=selection.to_momentum_config(), context=context)
 
 
 def capture_momentum(run: MomentumRun, profile: InstrumentProfile | None) -> MomentumCapture:

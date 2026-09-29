@@ -64,8 +64,8 @@ def _dependencies(*, clock: datetime = EXECUTION_TIME) -> AnalysisToolDependenci
         index=pd.date_range("2026-01-01", periods=6, tz=UTC),
     )
     momentum = MomentumAnalyzer(
-        default_ticker="MOM",
         market_data_provider=FixtureMarketDataProvider(momentum_frame),
+        start_date="2026-01-01",
     )
     graham_provider = FixtureFinancialFactsProvider()
 

@@ -181,10 +181,10 @@ def test_custom_analyzer_client_remains_direct(history: HistoricalMarketData) ->
         patch(
             "src.cli_support.SQLiteDatabase", side_effect=AssertionError("Custom clients do not use production storage")
         ),
-        patch.object(custom, "fetch_data_with_context", return_value=history),
+        patch.object(custom, "fetch_data_with_context", return_value=history) as fetch,
     ):
-        analyzer = MomentumAnalyzer(default_ticker="ACME", data_client=custom)
+        analyzer = MomentumAnalyzer(market_data_provider=custom, start_date="2026-01-01")
         context = AnalysisContext(as_of=None, executed_at=datetime.now(UTC), use_cache=True)
         run = analyzer.run_analysis("ACME", MomentumConfig(short_window=2, long_window=3, rsi_period=3), context)
-    assert analyzer.data_client is custom
+    fetch.assert_called_once_with("ACME", "2026-01-01", None, use_cache=True)
     assert run.metrics.current_price > 0

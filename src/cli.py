@@ -12,6 +12,7 @@ from typing import Annotated
 
 import typer
 
+from src.analysis.base_analyzer import require_ticker
 from src.analysis.shared.financial_resolution import PriceComparison
 from src.analysis.strategy.fcf_earnings_growth import (
     FCFClassificationBasis,
@@ -33,6 +34,8 @@ from src.cli_composition import build_graham_resolver, build_sec_production_prov
 from src.cli_database import app as database_app
 from src.cli_support import (
     _canonical_provider_id,
+    _default_history_start_date,
+    _default_ticker,
     _parse_as_of,
     _presentation_mode,
     _production_financial_cache,
@@ -243,18 +246,18 @@ def momentum(  # noqa: PLR0913
     save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
 ) -> None:
     """Execute SMA crossover momentum analysis over daily historical market prices."""
-    target_ticker = _resolve_ticker(ticker, ticker_option, required=False, command="momentum")
+    requested_ticker = _resolve_ticker(ticker, ticker_option, required=False, command="momentum")
     mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
     _validate_momentum_windows(short_window, long_window, rsi_period)
-    if save_run and target_ticker is None:
+    if save_run and requested_ticker is None:
         raise typer.BadParameter("--save-run requires an explicit ticker; the configured default ticker is not saved.")
 
-    label = target_ticker or "the configured default ticker"
+    label = requested_ticker or "the configured default ticker"
     with execution_errors(
         mode=mode,
         analysis="momentum",
         method="sma_crossover",
-        ticker=target_ticker,
+        ticker=requested_ticker,
         data_error=lambda _exc: (
             f"Unable to analyze {label}: the configured market-data provider returned no usable price history."
         ),
@@ -263,6 +266,8 @@ def momentum(  # noqa: PLR0913
         ),
         unexpected=lambda _exc: f"Momentum analysis failed unexpectedly for {label}.",
     ):
+        target_ticker = require_ticker(requested_ticker if requested_ticker is not None else _default_ticker())
+        start_date = _default_history_start_date()
         data_client = YFinanceClient()
         config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
         selection = MomentumSelection(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
@@ -273,11 +278,9 @@ def momentum(  # noqa: PLR0913
             return InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
 
         if save_run:
-            # Momentum's profile is composed CLI-side (outside the D1 adapter), and its
-            # ticker may be None (a configured default) — already rejected above when
-            # saving. Readiness is checked before the historical-data provider call,
-            # matching every other command's "preflight before provider work" ordering.
-            assert target_ticker is not None
+            # Momentum's profile is composed CLI-side (outside the D1 adapter). Readiness is
+            # checked before the historical-data provider call, matching every other
+            # command's "preflight before provider work" ordering.
             database = SQLiteDatabase(settings)
             try:
                 ensure_database_ready(database)
@@ -285,7 +288,9 @@ def momentum(  # noqa: PLR0913
                 with _production_historical_client(
                     data_client, use_cache=True, clock=lambda: executed_at
                 ) as historical_client:
-                    run = run_momentum(selection, target_ticker, historical_client, executed_at=executed_at)
+                    run = run_momentum(
+                        selection, target_ticker, historical_client, start_date=start_date, executed_at=executed_at
+                    )
                 profile = profile_cache.resolve(
                     run.metrics.ticker,
                     identity_candidates=(_identity_candidate(),),
@@ -304,7 +309,9 @@ def momentum(  # noqa: PLR0913
             with _production_historical_client(
                 data_client, use_cache=True, clock=lambda: executed_at
             ) as historical_client:
-                run = run_momentum(selection, target_ticker, historical_client, executed_at=executed_at)
+                run = run_momentum(
+                    selection, target_ticker, historical_client, start_date=start_date, executed_at=executed_at
+                )
             profile = compose_instrument_profile(
                 run.metrics.ticker,
                 identity_candidates=(_identity_candidate(),),

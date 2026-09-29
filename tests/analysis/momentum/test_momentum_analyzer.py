@@ -13,6 +13,7 @@ from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, M
 from src.core.constants import TrendStatus
 from src.data.base_client import DataFetchError
 from src.data.market_data import HistoricalMarketData, MarketDataContext
+from src.data.yfinance import YFinanceClient
 
 _CONTEXT = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 20, tzinfo=UTC), use_cache=True)
 
@@ -80,19 +81,13 @@ def test_momentum_config_rejects_non_positive_windows() -> None:
         MomentumConfig(short_window=0, long_window=5)
 
 
-def test_momentum_analyzer_fallback_ticker_assignment() -> None:
-    analyzer = MomentumAnalyzer()
-    assert analyzer._fallback_ticker == "BTC-USD"
-
-
 @patch("src.data.yfinance.client.yf.download")
 def test_fetch_market_data_handles_multiindex_flattening(mock_download: MagicMock) -> None:
     multi_cols = pd.MultiIndex.from_product([["Close", "Volume"], ["BTC-USD"]])
     multi_df = pd.DataFrame(np.random.randn(5, 2), columns=multi_cols)
     mock_download.return_value = multi_df
 
-    analyzer = MomentumAnalyzer()
-    df = analyzer.data_client.fetch_data("BTC-USD", start_date="2026-01-01")
+    df = YFinanceClient().fetch_data("BTC-USD", start_date="2026-01-01")
 
     assert not isinstance(df.columns, pd.MultiIndex)
     assert "Close" in df.columns
@@ -141,9 +136,9 @@ def test_run_analysis_retains_market_metadata(bullish_dataframe: pd.DataFrame) -
             observation_count=10,
         ),
     )
-    client = MagicMock()
-    client.fetch_data_with_context.return_value = market_data
-    analyzer = MomentumAnalyzer(data_client=client)
+    provider = MagicMock()
+    provider.fetch_historical_data.return_value = market_data
+    analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
 
     run = analyzer.run_analysis(
         ticker="BTC-USD",
@@ -153,7 +148,7 @@ def test_run_analysis_retains_market_metadata(bullish_dataframe: pd.DataFrame) -
 
     assert run.metrics.status is TrendStatus.BULLISH
     assert run.market_data == market_data.context
-    client.fetch_data_with_context.assert_called_once_with("BTC-USD", "2026-01-01", use_cache=True)
+    provider.fetch_historical_data.assert_called_once_with("BTC-USD", "2026-01-01", use_cache=True)
 
 
 def test_run_analysis_forwards_disabled_cache_to_the_client(bullish_dataframe: pd.DataFrame) -> None:
@@ -168,9 +163,9 @@ def test_run_analysis_forwards_disabled_cache_to_the_client(bullish_dataframe: p
             observation_count=10,
         ),
     )
-    client = MagicMock()
-    client.fetch_data_with_context.return_value = market_data
-    analyzer = MomentumAnalyzer(data_client=client)
+    provider = MagicMock()
+    provider.fetch_historical_data.return_value = market_data
+    analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
     context = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 20, tzinfo=UTC), use_cache=False)
 
     analyzer.run_analysis(
@@ -179,7 +174,7 @@ def test_run_analysis_forwards_disabled_cache_to_the_client(bullish_dataframe: p
         context=context,
     )
 
-    client.fetch_data_with_context.assert_called_once_with("BTC-USD", "2026-01-01", use_cache=False)
+    provider.fetch_historical_data.assert_called_once_with("BTC-USD", "2026-01-01", use_cache=False)
 
 
 def test_insufficient_window_history_returns_unknown_without_nan() -> None:
@@ -231,6 +226,6 @@ def test_analyze_momentum_window_validation() -> None:
 def test_analyze_momentum_empty_dataset_fault(mock_fetch: MagicMock) -> None:
     mock_fetch.side_effect = DataFetchError("No market data was returned for ticker 'XYZ'.")
 
-    analyzer = MomentumAnalyzer()
+    analyzer = MomentumAnalyzer(market_data_provider=YFinanceClient(), start_date="2026-01-01")
     with pytest.raises(DataFetchError, match="No market data was returned"):
         analyzer.run_analysis(ticker="XYZ", config=MomentumConfig(), context=_CONTEXT)

@@ -13,6 +13,8 @@ from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculat
 from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer
+from src.config import settings
+from src.core.constants import ConfigKeys
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
 from src.data.instrument_profile import InstrumentProfile
 from src.data.sec_edgar import SEC_PROVIDER_ID
@@ -34,7 +36,6 @@ from src.evaluation.fixtures.graham import (
 )
 from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER, fixture_known_etf_profile
 from src.evaluation.fixtures.market_data import (
-    FixtureDataClient,
     FixtureMarketDataProvider,
     momentum_boundary_frame,
     momentum_success_frame,
@@ -153,9 +154,8 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
         else momentum_boundary_frame().iloc[0:0].copy()
     )
     momentum_analyzer = MomentumAnalyzer(
-        default_ticker="FIXTURE",
-        data_client=FixtureDataClient(),
         market_data_provider=FixtureMarketDataProvider(momentum_frame),
+        start_date=str(settings.get_analysis_settings()[ConfigKeys.DEFAULT_SECTION][ConfigKeys.START_DATE]),
     )
 
     sec_fpi_provider = (

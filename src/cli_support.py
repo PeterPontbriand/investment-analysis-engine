@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from typer._click.exceptions import UsageError
 
 from src.config import settings
+from src.core.constants import ConfigKeys
 from src.core.telemetry.quality import record_cli_quality
 from src.data.base_client import DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
@@ -129,6 +130,16 @@ def _resolve_ticker(positional: str | None, option: str | None, *, required: boo
     if not normalized:
         raise typer.BadParameter("Ticker must be a non-empty symbol.")
     return normalized
+
+
+def _default_ticker() -> str:
+    """Return the configured default ticker used when a command is given none."""
+    return str(settings.get_analysis_settings()[ConfigKeys.DEFAULT_SECTION][ConfigKeys.TICKER])
+
+
+def _default_history_start_date() -> str:
+    """Return the configured start date for historical price series."""
+    return str(settings.get_analysis_settings()[ConfigKeys.DEFAULT_SECTION][ConfigKeys.START_DATE])
 
 
 def _canonical_provider_id(value: str | None) -> str | None:

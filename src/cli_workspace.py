@@ -33,6 +33,7 @@ from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
 from src.cli_composition import build_graham_resolver, build_sec_production_provider, growth_assumptions
 from src.cli_support import (
     _canonical_provider_id,
+    _default_history_start_date,
     _parse_as_of,
     _production_financial_cache,
     _production_historical_client,
@@ -769,7 +770,9 @@ def _execute_momentum(
     data_client = YFinanceClient()
     executed_at = utc_now()
     with _production_historical_client(data_client, use_cache=True, clock=lambda: executed_at) as historical_client:
-        run = run_momentum(selection, ticker, historical_client, executed_at=executed_at)
+        run = run_momentum(
+            selection, ticker, historical_client, start_date=_default_history_start_date(), executed_at=executed_at
+        )
 
     def _identity_candidate() -> InstrumentProfileCandidate:
         return InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
