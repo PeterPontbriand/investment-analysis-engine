@@ -12,7 +12,6 @@ from src.analysis.strategy.momentum.momentum_analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
     MomentumInputResolver,
-    MomentumPolicy,
     compute_momentum_metrics,
 )
 from src.data.quality import HistoricalDataQualityError
@@ -63,10 +62,12 @@ def test_metric_results_classify_insufficient_history() -> None:
     assert metrics.rsi_14.reason_code is ReasonCode.INSUFFICIENT_HISTORY
 
 
-def test_momentum_policy_validates_all_periods() -> None:
-    """The typed policy owns and validates SMA/RSI periods."""
-    policy = MomentumPolicy(short_window=20, long_window=50, rsi_period=10)
-    assert (policy.short_window, policy.long_window, policy.rsi_period) == (20, 50, 10)
+def test_momentum_config_validates_all_periods() -> None:
+    """The typed config owns and validates SMA/RSI periods."""
+    config = MomentumConfig(short_window=20, long_window=50, rsi_period=10)
+    assert (config.short_window, config.long_window, config.rsi_period) == (20, 50, 10)
+    with pytest.raises(ValueError, match="smaller than Long window"):
+        MomentumConfig(short_window=50, long_window=20)
 
 
 def test_first_valid_long_window_does_not_invent_a_crossover() -> None:

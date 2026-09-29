@@ -83,22 +83,6 @@ def _get_default_long_window() -> int:
     return int(settings.get_momentum_analysis()[ConfigKeys.WINDOW_SIZES][ConfigKeys.LONG_WINDOW])
 
 
-@dataclass(frozen=True)
-class MomentumPolicy:
-    """Typed home for Momentum calculation-window defaults."""
-
-    short_window: int = _get_default_short_window()
-    long_window: int = _get_default_long_window()
-    rsi_period: int = 14
-
-    def __post_init__(self) -> None:
-        """Reject invalid window combinations."""
-        if self.short_window <= 0 or self.long_window <= 0 or self.rsi_period <= 0:
-            raise ValueError("Momentum windows and RSI period must be positive.")
-        if self.short_window >= self.long_window:
-            raise ValueError("Momentum short_window must be smaller than long_window.")
-
-
 class MomentumConfig(BaseModel):
     """Parameter definitions specific to SMA momentum indicators.
 

@@ -29,7 +29,6 @@ from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.analysis.strategy.momentum.momentum_analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
-    MomentumPolicy,
     MomentumRun,
 )
 from src.data.instrument_profile import InstrumentProfile
@@ -70,7 +69,7 @@ class _AnalysisToolArguments(BaseModel):
         return value
 
 
-_MOMENTUM_DEFAULTS = MomentumPolicy()
+_MOMENTUM_DEFAULTS = MomentumConfig()
 
 
 class MomentumToolArguments(_AnalysisToolArguments):

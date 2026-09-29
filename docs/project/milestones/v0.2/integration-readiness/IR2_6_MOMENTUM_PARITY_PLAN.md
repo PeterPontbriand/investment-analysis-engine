@@ -33,8 +33,8 @@ commit passes the full managed gate on its own; the review stop is after commit 
 | Commit | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | 1 | [Required dependencies and the ticker default](#31-required-dependencies-and-the-ticker-default) | Complete | 2026-09-29 |
-| 2 | [Delete `MomentumPolicy`](#32-delete-momentumpolicy) | Next | |
-| 3 | [Instrument profile embedded in `MomentumRun`](#33-instrument-profile-embedded-in-momentumrun) | Planned | |
+| 2 | [Delete `MomentumPolicy`](#32-delete-momentumpolicy) | Complete | 2026-09-29 |
+| 3 | [Instrument profile embedded in `MomentumRun`](#33-instrument-profile-embedded-in-momentumrun) | Next | |
 | 4 | [`--as-of` and `--no-cache` on every caller surface](#34---as-of-and---no-cache-on-every-caller-surface) | Planned | |
 | 5 | [Durable documentation](#35-durable-documentation) | Planned | |
 | 6 | [IR.2 acceptance record](#36-ir2-acceptance-record) | Planned | |
