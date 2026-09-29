@@ -161,7 +161,9 @@ concurrent agent runs cannot clear or overwrite one another. Never replace the
 unique run directory with a shared fixed `--basetemp`; pytest deletes its base
 temp directory at startup. The wrappers use `uv run --no-sync` against the
 already-synchronized project environment so managed verification neither
-mutates dependencies nor requires network access. Standard-library-only gate scripts run with system Python (`py -3` on Windows), not through `uv run` or the project virtualenv.
+mutates dependencies nor requires network access. Standard-library-only gate
+scripts run with system Python (`py -3` on Windows), not through `uv run` or the
+project virtualenv.
 
 Interactive developers and CI environments with normal user-directory access
 may continue to run the underlying `uv run ...` commands directly. Focused

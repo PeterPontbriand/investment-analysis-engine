@@ -46,8 +46,7 @@ for candidate in "py -3" python3 python; do
     fi
 done
 if [ "${#system_python[@]}" -eq 0 ]; then
-    printf 'No working system Python found (tried: py -3, python3, python); cannot run scripts/check_doc_links.py
-' >&2
+    printf 'No working system Python found (tried: py -3, python3, python); cannot run scripts/check_doc_links.py\n' >&2
     exit 1
 fi
 "${system_python[@]}" scripts/check_doc_links.py

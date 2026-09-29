@@ -56,7 +56,7 @@ If governing documents conflict, surface the conflict rather than blending incom
 Run the complete non-mutating repository gate from the repository root before requesting technical review or declaring implementation work complete, whenever the change touches Python source, tests, or any file the gate's own tooling actually parses or executes (this includes `pyproject.toml` fields that affect dependency resolution, build, or tool configuration):
 
 ```bash
-py -3 scripts/check_doc_links.py
+python3 scripts/check_doc_links.py
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy --strict src tests scripts
