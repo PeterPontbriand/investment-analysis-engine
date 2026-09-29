@@ -109,8 +109,11 @@ names and final text vocabulary.
   silent fallback to the canonical id.
 - Human-readable text shows aliases wherever it currently shows `method_id`: `_selection_summary`
   (`watchlist show` entry lines), `--group-by method` group headings, `_run_summary_line`
-  (`runs list`), and the `refresh` text summary lines. `--group-by` keeps its `ticker|method`
-  values, since "method" is the grouping axis and not a method name.
+  (`runs list`), the `refresh` text summary lines, and the error printed when a stored watchlist
+  entry can no longer be read (`StoredSelectionError`, built in
+  `SQLiteWatchlistRepository._decode_entry`, which names the entry's `method_id`).
+  `--group-by` keeps its `ticker|method` values, since "method" is the grouping axis and not a
+  method name.
 - `--json` payloads (`watchlist show`, `runs list`, `runs show`, `refresh`) are unchanged.
 - Docs: `WORKSPACE.md` (removal section, `runs list` filter example, any sample output showing
   canonical ids) and `GLOSSARY.md` where it names these commands. Historical completion-evidence

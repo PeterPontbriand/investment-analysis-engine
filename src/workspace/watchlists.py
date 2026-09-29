@@ -17,7 +17,12 @@ _SELECTION_ADAPTER: TypeAdapter[AnalysisSelection] = TypeAdapter(AnalysisSelecti
 
 
 class StoredSelectionError(ValueError):
-    """A stored watchlist selection cannot be read by this version of the application."""
+    """A stored watchlist selection cannot be read by this version of the application.
+
+    The message is a self-contained clause describing the entry's state (for example
+    "saved by an earlier version (selection version 1) and can no longer be read"); a caller
+    that knows which entry it was decoding adds the watchlist, position and remedy.
+    """
 
 
 class WatchlistSpec(BaseModel):
@@ -83,14 +88,15 @@ def decode_selection(method_id: str, config_schema_version: int, selection_json:
         selection = _SELECTION_ADAPTER.validate_json(selection_json)
     except ValidationError as exc:
         first = exc.errors()[0]
-        location = ".".join(str(part) for part in first["loc"])
-        detail = f"{location}: {first['msg']}" if location else str(first["msg"])
-        raise StoredSelectionError(
-            f"Stored {method_id} selection (version {config_schema_version}) is not supported by this "
-            f"version ({detail}); remove the entry and add it again."
-        ) from exc
+        if first["type"] == "json_invalid":
+            raise StoredSelectionError("its stored selection is not valid JSON") from exc
+        if first["loc"] and first["loc"][-1] == "config_schema_version":
+            raise StoredSelectionError(
+                f"saved by an earlier version (selection version {config_schema_version}) and can no longer be read"
+            ) from exc
+        raise StoredSelectionError("its stored selection is not in a shape this version can read") from exc
     if selection.method_id != method_id or selection.config_schema_version != config_schema_version:
-        raise StoredSelectionError("Stored selection identity does not match its method/version columns.")
+        raise StoredSelectionError("its stored selection does not match its method/version columns")
     return selection
 
 

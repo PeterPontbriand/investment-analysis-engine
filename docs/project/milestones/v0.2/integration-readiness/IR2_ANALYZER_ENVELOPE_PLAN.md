@@ -1025,10 +1025,11 @@ when the project owner accepts this record.
 `feat/ir-integration-readiness` (approval record, required dependencies, `MomentumPolicy` deleted,
 profile embedded in `MomentumRun`, `--as-of`/`--no-cache` on every caller surface, durable
 documentation), plus one review-fix commit (presenters read the embedded profile; a retired stored
-watchlist selection reports a readable one-line error; watchlist option help text names Momentum).
+watchlist selection reports a readable one-line error naming the watchlist, entry number, ticker,
+method and the `watchlist remove-entry` command that removes it; watchlist option help text names Momentum).
 Its own plan lists what it found beyond the original design in its B.3.
 
-**Gate:** `scripts/run-quality-gates.sh` passed after every IR.2.6 commit. Final state: 3212 tests
+**Gate:** `scripts/run-quality-gates.sh` passed after every IR.2.6 commit. Final state: 3213 tests
 passed, 91% line coverage, and the doc-link check, `ruff check`, `ruff format --check` and
 `mypy --strict` clean on `src`, `tests` and `scripts`.
 
@@ -1049,6 +1050,9 @@ declared result type, and no plain function crosses the strategy-package boundar
   `runs show` decodes the first and reproduces its output; `runs list` shows both.
 - `ian watchlist create Smoke --analysis momentum --as-of 2025-12-31 --no-cache AAPL` then
   `ian refresh Smoke`: the entry carries `as_of` and `use_cache=False`, and the refresh completed.
+- With one Momentum entry stored in the retired version-1 shape beside a valid one, `watchlist show`
+  and `ian refresh` print the one-line error for that entry and exit 1; the command it prints removes
+  the entry and restores the watchlist.
 - After the review-fix commit the plain, `--no-cache --as-of` (no database file created), `--save-run`
   and watchlist refresh runs were repeated with the same results.
 

@@ -377,17 +377,24 @@ in item 6 were corrected in a review-fix commit before the acceptance record.
    from the run and treats a run without one as an invariant failure, and the tests that replace
    `run_analysis` return a run carrying the caller's profile (`carry_profile` in
    `tests/_cli_helpers.py`), as the real analyzer does. A test asserts the failure case.
-4. **Commit 4, corrected in the review-fix commit: a stored version-1 Momentum watchlist selection
-   failed with the selection's own validation error, not the "does not match its method/version columns"
-   error A.4 names, and `watchlist show` and `ian refresh` printed a raw validation traceback.**
-   `decode_selection` validates the stored JSON against `Literal[2]` before it compares identity
-   columns. It now raises `StoredSelectionError` (still a `ValueError`) with one line, and the CLI
-   prints it and exits 1:
-   `Stored sma_crossover selection (version 1) is not supported by this version
-   (sma_crossover.config_schema_version: Input should be 2); remove the entry and add it again.`
-   The column-mismatch case raises the same error type with its existing message. Neither path reads a
-   version-1 entry as version 2, which is what B.1 item 1 decides. `watchlist remove-entry` still works on
-   such a watchlist, so the message's advice is actionable. Tests cover both commands and the decode.
+4. **Commit 4, corrected in the review-fix commits: a stored version-1 Momentum watchlist selection
+   failed with the selection's own validation error, not the "does not match its method/version
+   columns" error A.4 names, and `watchlist show` and `ian refresh` printed a raw validation
+   traceback.** `decode_selection` validates the stored JSON against `Literal[2]` before it compares
+   identity columns. It now raises `StoredSelectionError` (still a `ValueError`) with a plain clause,
+   and `SQLiteWatchlistRepository._decode_entry` adds which entry it was, so the CLI prints one line and
+   exits 1:
+   `Watchlist 'Mixed', entry 2 (MSFT, sma_crossover): saved by an earlier version (selection version 1)
+   and can no longer be read. Remove it with: ian watchlist remove-entry "Mixed" 2`
+   The line uses the canonical `method_id`; IR.6 switches it to the alias with the other human-readable
+   text. The column-mismatch and malformed-JSON cases raise the same error type with their own clause.
+   Neither path reads a version-1 entry as version 2, which is what B.1 item 1 decides. A
+   watchlist holding an unreadable entry cannot be listed by `watchlist show`, which decodes every entry
+   before printing, so the error is the only place the entry's number appears. Tests cover both commands,
+   the exact line, the decode, and that the printed command restores the watchlist. **Decision requested:**
+   `remove-entry` reloads the surviving entries inside its transaction, so when two or more entries are
+   unreadable, removing one fails and rolls back; the printed remedy works only while a single unreadable
+   entry remains.
 5. **Commit 4: several existing test expectations encoded "Momentum has no `as_of`".** The foreign-field
    check in `test_requests.py` (`from_settings(as_of=None)`), the parser allowlist case
    `{"config": {"as_of": None}}`, and the version-2 probes in the identity-override, union-version and

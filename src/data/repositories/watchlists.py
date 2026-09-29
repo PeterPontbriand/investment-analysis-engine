@@ -28,7 +28,13 @@ from src.data.repositories.schema import watchlist_entries, watchlists
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.workspace.requests import AnalysisSelection
 from src.workspace.runs import Watchlist, WatchlistEntry, WatchlistSummary
-from src.workspace.watchlists import WatchlistSpec, decode_selection, encode_selection, normalize_ticker
+from src.workspace.watchlists import (
+    StoredSelectionError,
+    WatchlistSpec,
+    decode_selection,
+    encode_selection,
+    normalize_ticker,
+)
 
 
 class WatchlistConflictError(ValueError):
@@ -277,18 +283,27 @@ class SQLiteWatchlistRepository:
                 ],
             )
 
+    @staticmethod
+    def _decode_entry(display_name: str, index: int, entry_row: RowMapping) -> WatchlistEntry:
+        """Decode one stored entry, naming it and the command that removes it if it cannot be read."""
+        try:
+            selection = decode_selection(
+                entry_row["method_id"], entry_row["config_schema_version"], entry_row["selection_json"]
+            )
+        except StoredSelectionError as exc:
+            raise StoredSelectionError(
+                f"Watchlist {display_name!r}, entry {index} ({entry_row['ticker']}, {entry_row['method_id']}): "
+                f'{exc}. Remove it with: ian watchlist remove-entry "{display_name}" {index}'
+            ) from exc
+        return WatchlistEntry(ticker=entry_row["ticker"], selection=selection)
+
     def _load(self, connection: Connection, watchlist_id: str) -> Watchlist:
         """Reconstruct one full watchlist from its two tables in position order."""
         row = connection.execute(select(watchlists).where(watchlists.c.watchlist_id == watchlist_id)).mappings().one()
         entry_rows = self._entry_rows(connection, watchlist_id)
         entries = tuple(
-            WatchlistEntry(
-                ticker=entry_row["ticker"],
-                selection=decode_selection(
-                    entry_row["method_id"], entry_row["config_schema_version"], entry_row["selection_json"]
-                ),
-            )
-            for entry_row in entry_rows
+            self._decode_entry(row["display_name"], index, entry_row)
+            for index, entry_row in enumerate(entry_rows, start=1)
         )
         return Watchlist(
             watchlist_id=UUID(row["watchlist_id"]),

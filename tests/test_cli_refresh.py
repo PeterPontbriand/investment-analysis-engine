@@ -168,35 +168,49 @@ def test_refresh_sequential_persists_every_member_and_exits_0(mock_run: MagicMoc
     assert mock_run.call_count == 2
 
 
-def _store_momentum_entry_as_retired_version_one(name: str) -> None:
-    """Rewrite a seeded Momentum entry into the retired version-1 stored shape."""
-    _create_momentum_only(name, ["AAPL"])
+def _store_momentum_entry_as_retired_version_one(name: str, tickers: list[str], retired: str) -> None:
+    """Seed Momentum entries, then rewrite the ``retired`` ticker's into the retired version-1 stored shape."""
+    _create_momentum_only(name, tickers)
     path = src.cli_workspace.settings.database_url.removeprefix("sqlite:///")
     with closing(sqlite3.connect(path)) as connection:
-        ((selection_json,),) = connection.execute("SELECT selection_json FROM watchlist_entries").fetchall()
+        ((selection_json,),) = connection.execute(
+            "SELECT selection_json FROM watchlist_entries WHERE ticker = ?", (retired,)
+        ).fetchall()
         selection = json.loads(selection_json)
         selection.pop("as_of")
         selection.pop("use_cache")
         selection["config_schema_version"] = 1
         connection.execute(
-            "UPDATE watchlist_entries SET selection_json = ?, config_schema_version = 1", (json.dumps(selection),)
+            "UPDATE watchlist_entries SET selection_json = ?, config_schema_version = 1 WHERE ticker = ?",
+            (json.dumps(selection), retired),
         )
         connection.commit()
 
 
 @pytest.mark.parametrize("arguments", [["watchlist", "show", "Old Watch"], ["refresh", "Old Watch"]])
 def test_a_retired_version_one_momentum_entry_reports_a_readable_error(arguments: list[str]) -> None:
-    _store_momentum_entry_as_retired_version_one("Old Watch")
+    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
 
     result = runner.invoke(app, arguments)
 
     assert result.exit_code == 1
     message = normalize_cli_output(result.output)
-    assert message.startswith("Stored sma_crossover selection (version 1) is not supported by this version")
-    assert "remove the entry and add it again" in message
-    assert "Traceback" not in message
-    assert "pydantic" not in message
-    assert len(message.strip().splitlines()) == 1
+    assert message.strip() == (
+        "Watchlist 'Old Watch', entry 2 (MSFT, sma_crossover): saved by an earlier version "
+        '(selection version 1) and can no longer be read. Remove it with: ian watchlist remove-entry "Old Watch" 2'
+    )
+
+
+def test_the_removal_command_in_the_retired_entry_error_restores_the_watchlist() -> None:
+    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+
+    result = runner.invoke(app, ["watchlist", "remove-entry", "Old Watch", "2"])
+    shown = runner.invoke(app, ["watchlist", "show", "Old Watch"])
+
+    assert result.exit_code == 0, result.output
+    assert shown.exit_code == 0, shown.output
+    assert "AAPL" in shown.output
+    assert "MSFT" not in shown.output
 
 
 @patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")

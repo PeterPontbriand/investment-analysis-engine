@@ -79,7 +79,7 @@ def test_decode_selection_rejects_a_stored_momentum_selection_from_before_as_of_
     payload = json.loads(encode_selection(MomentumSelection(short_window=2, long_window=5)))
     payload["config_schema_version"] = 1
     del payload["as_of"], payload["use_cache"]
-    with pytest.raises(StoredSelectionError, match="is not supported by this version"):
+    with pytest.raises(StoredSelectionError, match=r"saved by an earlier version \(selection version 1\)"):
         decode_selection("sma_crossover", 1, json.dumps(payload))
 
 
@@ -95,5 +95,5 @@ def test_decode_selection_rejects_malformed_json() -> None:
 
 
 def test_decode_selection_rejects_unknown_method_id() -> None:
-    with pytest.raises(ValueError, match="validation error|unknown_method"):
+    with pytest.raises(ValueError, match="not in a shape this version can read"):
         decode_selection("unknown_method", 1, '{"method_id": "unknown_method"}')
