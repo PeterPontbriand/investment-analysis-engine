@@ -32,7 +32,7 @@ not one to expose on `main`.
 | **IR.2.3 — Clock unification (analyzer/resolver layer)** | Every consumer in `src/analysis/**` is wired to the field matching its own concern, per §6.1 item 12: freshness/TTL/result-timestamp reads use `context.executed_at`; data-truncation/availability reads use `context.effective_as_of` (the derived cutoff). Graham Number's and Graham Growth's now-independent resolvers each gain an injected clock from their own composition-root construction, fed `executed_at` (never `effective_as_of` — that stays a separate data argument wherever the resolver needs the truncation boundary, §6.1 item 9); FCF's internal fallback and `cli_workspace.py`'s duplicate are deleted, both replaced by the composition root's single `executed_at` read plus the derived `effective_as_of` passed as data; the two Category B hardcoded quality-event calls (§6.11) are fixed to read `executed_at`; Momentum's quality-check/clock restructuring lands (resolver checks-and-publishes once using `effective_as_of` as data for its `as_of`-aware truncation, `run_analysis` re-checks independently without publishing, `compute_momentum_metrics` extracted as a genuinely pure function, §2 item 4). Establishes the "compute `executed_at` once per run, derive `effective_as_of` from it, thread each to the consumer that needs it" composition-root pattern that IR.2.4 extends more broadly. | IR.2.1, IR.2.2 (touches two clean, independent Graham packages, not a shared base mid-transition) | ...every freshness/TTL/timestamp read sourced from `context.executed_at` and every truncation/availability read sourced from `context.effective_as_of`, nowhere else, in the analysis/resolver layer, with no remaining exception. | Complete | 2026-09-27 |
 | **IR.2.4 — Data-layer clock consolidation** | New `src/core/clock.py` (`utc_now()`); six decision-clock classes (`CachedHistoricalDataClient`, `financial/cache.py`, `financial/resolver.py`, `CachedInstrumentProfileResolver`, `SQLiteResolvedInputCache`, SEC EDGAR's provider) become required-clock, no default, fed from `context.executed_at` by every composition root — TTL/freshness decisions are judged against real elapsed time, never the requested historical boundary; SEC EDGAR's filing-eligibility check stops reusing the injected clock for that purpose and instead takes the boundary as an explicit argument fed `context.effective_as_of` as data (§6.11); nine event-timestamp files migrate their `datetime.now(UTC)`-defaulting pattern to `utc_now()` (§6.11's full table). The `datetime.now`/`utcnow`/`time.time` conformance check (§6.6 item 5) lands here, scanning all of `src/` with `src/core/clock.py` as the only exception, plus the named `logger_util.py` exemption pending confirmation (§6.11). | IR.2.3 (reuses its composition-root pattern; touches far more files, hence its own slice) | ...with every decision clock anywhere in the codebase sourced from `context.executed_at`, every truncation/eligibility decision sourced from `context.effective_as_of` passed as data, and every event timestamp sourced from one shared helper. | Complete | 2026-09-27 |
 | [**IR.2.5 — Cache unification**](IR2_5_CACHE_UNIFICATION_PLAN.md) | `context.use_cache` becomes the sole cache control for all four: `_production_financial_cache`'s `enabled` parameter removed; the durable cache is always wired at composition but opens storage lazily on first actual read/write, so `use_cache=False` never touches storage — matching today's behavior and avoiding a Step 3.3A readiness-check regression (§6.1 item 10, revised); Momentum's `BaseDataClient`/`MarketDataProvider`/`CachedHistoricalDataClient` gain a threaded `use_cache` parameter (§6.9's mechanism, steps 1–4), given the same lazy-open treatment for symmetry. This slice builds the *mechanism*; it does not yet add Momentum's `--no-cache` CLI surface — every composition root passes a fixed `use_cache=True` for Momentum until IR.2.6 wires a real toggle, which is a caller-surface gap, not an analyzer inconsistency (all four `run_analysis` bodies already consume `context.use_cache` identically at this point). **Superseded by revision 3 (2026-09-28, see the linked plan's full history):** no lazy wrapper was built. Composition always constructs the real database/cache/client and calls `ensure_database_ready` only when `use_cache` is `True`; `use_cache` was also made required, keyword-only, with no default, on the protocol, both clients, and the Momentum resolver — everything else in this cell (the single control, Momentum's threaded parameter, the deferred `--no-cache` CLI surface) is accurate as built. | IR.2.1 (independent of 2.2/2.3/2.4 — either order works; listed after them to match the project owner's example ordering) | ...consuming `context.use_cache` identically, with the underlying data/cache-client layer able to honor it end-to-end without any storage-readiness regression. | Complete | 2026-09-28 |
-| [**IR.2.6 — Momentum parity**](IR2_6_MOMENTUM_PARITY_PLAN.md) | Everything that makes Momentum's *caller-facing surface* match the other three, not just its internals: `instrument_profile` embedded unconditionally in `MomentumRun` (orchestrator's `replace()` deleted, workspace reads the profile from the result, §6.4); real `--as-of`/`--no-cache` CLI options, `MomentumSelection.as_of`/`use_cache` fields, and `MomentumToolArguments.use_cache` (it already inherits `as_of`, §2 item 4); `MomentumAnalyzer.__init__` loses its `YFinanceClient()` default and `settings` reads (injected/required dependencies, §6.5); the TOML ticker-default fallback moves to the CLI; `MomentumPolicy` is deleted in favor of `MomentumConfig` (§2 item 4). Version bumps (§6.10) land here, since this is the slice that actually changes `MomentumSelection`'s and `MomentumRun`'s persisted shape. `MOMENTUM.md`'s retroactive-price-revision note (§6.9) lands here too. | IR.2.1, IR.2.3 (needs `effective_as_of` for `--as-of` to mean anything), IR.2.5 (needs the cache mechanism for `--no-cache` to mean anything) | ...at full parity: every field of `AnalysisContext` genuinely exercisable through every analyzer's real caller-facing surface, no placeholders, no known gaps. | Next | |
+| [**IR.2.6 — Momentum parity**](IR2_6_MOMENTUM_PARITY_PLAN.md) | Everything that makes Momentum's *caller-facing surface* match the other three, not just its internals: `instrument_profile` embedded unconditionally in `MomentumRun` (orchestrator's `replace()` deleted, workspace reads the profile from the result, §6.4); real `--as-of`/`--no-cache` CLI options, `MomentumSelection.as_of`/`use_cache` fields, and `MomentumToolArguments.use_cache` (it already inherits `as_of`, §2 item 4); `MomentumAnalyzer.__init__` loses its `YFinanceClient()` default and `settings` reads (injected/required dependencies, §6.5); the TOML ticker-default fallback moves to the CLI; `MomentumPolicy` is deleted in favor of `MomentumConfig` (§2 item 4). Version bumps (§6.10) land here, since this is the slice that actually changes `MomentumSelection`'s and `MomentumRun`'s persisted shape. `MOMENTUM.md`'s retroactive-price-revision note (§6.9) lands here too. | IR.2.1, IR.2.3 (needs `effective_as_of` for `--as-of` to mean anything), IR.2.5 (needs the cache mechanism for `--no-cache` to mean anything) | ...at full parity: every field of `AnalysisContext` genuinely exercisable through every analyzer's real caller-facing surface, no placeholders, no known gaps. | Complete | 2026-09-29 |
 
 Each slice ends with the full managed gate and its own regression tests, per §4. IR.2 as a whole is
 accepted only once all six sub-slices have landed and the conformance tests (§6.6) pass against the
@@ -1014,3 +1014,52 @@ Moved verbatim from the original contract's §5 (items 1, 4, 5, 6, and 7 — ite
    building Piotroski requires an envelope change, that change is made once and applies to all five
    analyzers (the four existing plus Piotroski) in the same piece of work, not accepted as a
    Piotroski-only special case or deferred as a known gap. See also §2 item 3.
+
+## IR.2 acceptance record
+
+Recorded 2026-09-29 with the last IR.2 sub-slice, [IR.2.6](IR2_6_MOMENTUM_PARITY_PLAN.md). IR.2 is
+accepted here only as far as the six sub-slices go; the IR contract's own IR.2 row changes to Complete
+when the project owner accepts this record.
+
+**Delivered:** IR.2.1 through IR.2.6 are Complete in the §6.12 table. IR.2.6 landed as six commits on
+`feat/ir-integration-readiness` (approval record, required dependencies, `MomentumPolicy` deleted,
+profile embedded in `MomentumRun`, `--as-of`/`--no-cache` on every caller surface, durable
+documentation). Its own plan lists what it found beyond the original design in its B.3.
+
+**Gate:** `scripts/run-quality-gates.sh` passed after every IR.2.6 commit. Final state: 3209 tests
+passed, 91% line coverage, and the doc-link check, `ruff check`, `ruff format --check` and
+`mypy --strict` clean on `src`, `tests` and `scripts`.
+
+**Conformance tests (§6.6) against the final state:** `tests/analysis/test_base_analyzer_conformance.py`,
+25 passed. All four analyzers subclass `BaseAnalyzer`, share the `run_analysis` signature, return their
+declared result type, and no plain function crosses the strategy-package boundary.
+
+**Live smoke (network, throwaway SQLite database under `.tmp/`, deleted afterward):**
+- `ian momentum AAPL`: normal output, data through the latest session; the database file and its
+  readiness lock were created.
+- `ian momentum AAPL --no-cache`: identical result values; no database file was created.
+- `ian momentum AAPL --as-of 2025-12-31`: output ends at 2025-12-31 ("through 2025-12-31"), price
+  271.12 USD, against 338.40 USD unbounded.
+- `ian momentum AAPL --no-cache --as-of 2025-12-31 --json`: the boundary is reported as
+  `analysis_timestamp` 2025-12-31T23:59:59.999999+00:00 and `as_of` 2025-12-31; no database file was
+  created.
+- `ian momentum AAPL --save-run --as-of 2025-12-31 --no-cache` and a plain `--save-run`: both saved;
+  `runs show` decodes the first and reproduces its output; `runs list` shows both.
+- `ian watchlist create Smoke --analysis momentum --as-of 2025-12-31 --no-cache AAPL` then
+  `ian refresh Smoke`: the entry carries `as_of` and `use_cache=False`, and the refresh completed.
+
+**Persisted-shape version fields changed across IR.2** (from §6.10 and IR.2.6): Momentum's
+`MomentumSelection.config_schema_version` 1 to 2; Momentum's `(method_version, result_schema_version)`
+(1, 1) to (1, 2); the evidence codec's version check is now one per-method table of
+`(config_schema_version, method_version, result_schema_version)`, with Graham Number, Graham Growth and
+FCF Growth unchanged. Stored Momentum runs and watchlist entries from before these bumps no longer
+decode, by decision (IR.2.6 plan B.1, item 1).
+
+**Alembic migration:** none required or added. Selections and run evidence are stored as JSON in existing
+versioned columns; no table, column or repository definition changed.
+
+**Scope check:** no formula, window, RSI or classification change; no presentation line or `--json`
+key added by Momentum's own code; `IR2_ANALYZER_ENVELOPE_PLAN.md` was not converted to the
+planning-document structure, and nothing was merged to `main`. The ESC re-run (IR contract §5) is not
+part of this record; it runs once IR as a whole is complete.
+

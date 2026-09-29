@@ -37,7 +37,7 @@ commit passes the full managed gate on its own; the review stop is after commit 
 | 3 | [Instrument profile embedded in `MomentumRun`](#33-instrument-profile-embedded-in-momentumrun) | Complete | 2026-09-29 |
 | 4 | [`--as-of` and `--no-cache` on every caller surface](#34---as-of-and---no-cache-on-every-caller-surface) | Complete | 2026-09-29 |
 | 5 | [Durable documentation](#35-durable-documentation) | Complete | 2026-09-29 |
-| 6 | [IR.2 acceptance record](#36-ir2-acceptance-record) | Next | |
+| 6 | [IR.2 acceptance record](#36-ir2-acceptance-record) | Complete | 2026-09-29 |
 
 ## 3. The commits
 
