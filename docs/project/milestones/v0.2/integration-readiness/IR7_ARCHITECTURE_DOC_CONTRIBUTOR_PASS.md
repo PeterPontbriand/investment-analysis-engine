@@ -21,7 +21,7 @@ runs.
 
 A second, now-merged branch (`docs/contributor-documentation`) independently reached a similar
 conclusion and rewrote the file from a snapshot several slices behind this one (before IR.2.1
-through IR.2.4). That rewrite was not taken — see merge commit `35141ea` for why — but it is real
+through IR.2.4). That rewrite was not taken — see merge commit `19a6799` for why — but it is real
 source material for this slice, not a competing version of record. §6 says specifically what was
 taken from it.
 
@@ -30,7 +30,7 @@ taken from it.
 ### 2.1 Stale "target"/"planned" labels on implemented features
 
 - **§4 `AnalysisRun` — labeled "(Step 3.4 target)".** Step 3.4 (the local research workspace) is
-  complete: `git log` shows `a12b790`/`89f62af` "feat(workspace): complete the local research
+  complete: `git log` shows "feat(workspace): complete the local research
   workspace (Step 3.4) (#37)", and `src/data/repositories/analysis_runs.py` and the entire
   `src/workspace/` package (16 files) exist and are exercised by `tests/workspace/` and
   `tests/test_workspace_integration.py`.
@@ -39,7 +39,7 @@ taken from it.
   and the `ian watchlist` / `ian runs` CLI surface are implemented and are the direct subject of the
   planned IR.6 slice, which fixes a *lifecycle gap* in an already-shipped feature.
 - **§4 "Resolved-input cache seam" — "Durable SQLite-backed caching remains Step 3.1."** Step 3.1
-  shipped (`b64669f`, #28), and `SQLiteResolvedInputCache` is listed two sections later in the same
+  shipped (#28), and `SQLiteResolvedInputCache` is listed two sections later in the same
   document (§6) as an existing repository with a public contract.
 - **§10 "Database readiness..." — "The current migration bundle has only `0001_persistence`."**
   `alembic/versions/` currently has four bundles. Stale by three migrations.
@@ -121,7 +121,7 @@ Growth" — itself a catalogue. Two signals argued against any strategy catalogu
   does *not* enumerate strategies by name either — its "current analyzer contract" section
   describes the shared contract generically.
 - `docs/contributor-documentation`'s rewrite added its own strategy-list paragraph to
-  `ARCHITECTURE.md`. Not taken into this branch (merge commit `35141ea`), and not a precedent to
+  `ARCHITECTURE.md`. Not taken into this branch (merge commit `19a6799`), and not a precedent to
   repeat: a third catalogue would drift from `docs/user/strategies/README.md` the moment a strategy
   is added — exactly what invariant 3 ("Heterogeneous strategies") and the Contributor Guide's own
   existence already guard against.
@@ -193,7 +193,7 @@ the security-unit gate entirely).
 **Branch: `feat/ir-integration-readiness`, not `main`.** `main`'s `ARCHITECTURE.md` predates
 IR.2.1–2.4, the §3/§5 clock section, this session's renumbering, and the
 `docs/contributor-documentation` merge — branching from it would have recreated the exact collision
-`35141ea` resolved. `fix/ir7-architecture-doc-pass` branched from `feat/ir-integration-readiness`
+ `19a6799` resolved. `fix/ir7-architecture-doc-pass` branched from `feat/ir-integration-readiness`
 and merges back into it directly.
 
 ## 9. Acceptance criteria
@@ -216,36 +216,36 @@ and merges back into it directly.
 # Completion record
 
 Implemented on `fix/ir7-architecture-doc-pass`, branched from `feat/ir-integration-readiness`.
-Merged back via merge commit `2b8a152` and pushed to `feat/ir-integration-readiness`
-(`6c9e6a0..2b8a152`).
+Merged back via merge commit `de6c3e6` and pushed to `feat/ir-integration-readiness`
+(`81fc63f..de6c3e6`).
 
 ## Commits, in order
 
-1. `2f177c2` — the repo-wide Markdown link/anchor checker (D3) and its tests, including a
+1. the repo-wide Markdown link/anchor checker (D3) and its tests, including a
    Unicode-punctuation fix found and fixed during the checker's own first real run (folded into
    this commit rather than left as a separate fix-a-bug-in-yesterday's-commit step).
-2. `128f488` — every pre-existing broken link/anchor the checker found on its first repo-wide run:
+2. every pre-existing broken link/anchor the checker found on its first repo-wide run:
    22 breaks, concentrated in three files, all relative-path errors rather than stale content.
-3. `7a50888` — stale target labels removed (D1) and the self-contradicting "Planned Graham
+3. stale target labels removed (D1) and the self-contradicting "Planned Graham
    comparison evidence repair" section deleted outright (on rereading, its content was fully
    redundant with §8.1, not partially so as the draft plan assumed).
-4. `4349722` — `BaseDataClient`/`MarketDataProvider` reconciled; the data-flow diagram gained the
+4. `BaseDataClient`/`MarketDataProvider` reconciled; the data-flow diagram gained the
    missing FCF and instrument-profile branches.
-5. `b731b06` — invariants list condensed to unnumbered bullets (D1); fixed its own pre-existing
+5. invariants list condensed to unnumbered bullets (D1); fixed its own pre-existing
    stale self-reference.
-6. `a940284` — method-semantic duplication removed wherever the user strategy guides and
+6. method-semantic duplication removed wherever the user strategy guides and
    `FINANCE_MATH.md` already covered it (verified each one before deleting anything; nothing needed
    to be added to those docs).
-7. `b9bdd02` — new "Composition roots and dependency wiring" section; the three per-strategy
+7. new "Composition roots and dependency wiring" section; the three per-strategy
    subsections replaced by one "Analysis strategies: the boundary" section with no catalog.
-8. `5aa7f46` — module layout rewritten as a package-level map (D2); three step-sequencing
+8. module layout rewritten as a package-level map (D2); three step-sequencing
    guardrails removed as obsolete (the steps they gated are complete).
-9. `14c13cb` — the pure reorder into the approved 14-section outline, plus the two external anchor
+9. the pure reorder into the approved 14-section outline, plus the two external anchor
    references the renumbering broke.
-10. `7faa5fa` — the checker wired into both quality-gate wrappers and the documented commands;
+10. the checker wired into both quality-gate wrappers and the documented commands;
     `scripts/` added to the `mypy --strict` scope.
 
-Immediately before this slice, on `feat/ir-integration-readiness` itself: `1458781` added
+Immediately before this slice, on `feat/ir-integration-readiness` itself: the milestone-index update added
 `graham-comparison` and `issue-17` to `milestones/README.md`'s directory list, found while
 verifying that file's own list against the real tree.
 
@@ -265,7 +265,7 @@ verifying that file's own list against the real tree.
 
 | Content | Destination | Outcome |
 | --- | --- | --- |
-| Momentum SMA/RSI window defaults, `MomentumPolicy` | `MOMENTUM.md` + `FINANCE_MATH.md` | **Superseded.** Corrected on later review: this row's sentence ("`MomentumPolicy` owns the short/long/RSI defaults") was not kept in place as first recorded here — it was removed along with the rest of the `MomentumAnalyzer` subsection when commit `b9bdd02` replaced all three per-strategy subsections with the unified "Analysis strategies: the boundary" section. `MOMENTUM.md` already covers the actual defaults, so nothing was lost, but the original table entry mischaracterized this as a deliberate "kept, architectural" decision when it was actually deleted as part of a later commit. |
+| Momentum SMA/RSI window defaults, `MomentumPolicy` | `MOMENTUM.md` + `FINANCE_MATH.md` | **Superseded.** Corrected on later review: this row's sentence ("`MomentumPolicy` owns the short/long/RSI defaults") was not kept in place as first recorded here — it was removed along with the rest of the `MomentumAnalyzer` subsection when the Composition roots and dependency wiring change replaced all three per-strategy subsections with the unified "Analysis strategies: the boundary" section. `MOMENTUM.md` already covers the actual defaults, so nothing was lost, but the original table entry mischaracterized this as a deliberate "kept, architectural" decision when it was actually deleted as part of a later commit. |
 | Graham method identifiers, three-year-average EPS default, explicit AAA-yield input | `GRAHAM_NUMBER.md` / `GRAHAM_GROWTH.md` + `FINANCE_MATH.md` | **Already covered, deleted only.** Both guides' "Earnings basis" / "Required user-supplied values" cover this in more depth. Nothing added; default-value language removed from `ARCHITECTURE.md`. |
 | FCF 5→4→3 horizon fallback, classification basis, forward-EPS policy | `FCF_EARNINGS_GROWTH.md` + `FINANCE_MATH.md` | **Already covered, deleted only.** Covered by "Quick start" and "Forward EPS policy". Nothing added; policy enumeration removed. |
 | Per-strategy provider routing | §7 | **Kept, relocated.** Provider concern; moved to §7 unchanged. |
@@ -292,7 +292,7 @@ from the pre-reorder snapshot and the reordered file, then compared the remainin
 multiset. Exactly one line differed on each side — the ETF-planned-work paragraph, accounted for
 above — confirming every other paragraph, list item, table row, and diagram line moved unchanged.
 The one other necessary text change (splitting the two-diagram intro sentence across §7 and §8) is
-called out in commit `14c13cb`'s own message.
+called out in commit `a0ec51b`'s own message.
 
 ## Outstanding / not done
 
@@ -315,27 +315,27 @@ clarity/staleness issues the original pass missed. All sixteen are fixed in elev
 content-only commits on `fix/ir7-architecture-doc-pass`, each independently verified against the
 code cited in its own commit message:
 
-1. `64943d5` — added the missing "## 1. Purpose and how to read this document" heading over the
-   intro paragraph (§9's outline calls for it; the reorder in `14c13cb` had left it out), and
+1. added the missing "## 1. Purpose and how to read this document" heading over the
+   intro paragraph (§9's outline calls for it; the approved 14-section reorganization had left it out), and
    converted the header block's four backtick paths to real relative links the D3 checker can
    verify, dropping the "Step 2.3 implementation specification" entry (a single completed slice
    pinned in a document header meant to survive many slices).
-2. `7a71f01` — §3's diagram named only `BaseDataClient` in the historical-series box though §7
+2. §3's diagram named only `BaseDataClient` in the historical-series box though §7
    documents `MarketDataProvider` as the boundary Momentum's resolver actually consumes; added it.
    Rewrote "Step 3.4 later persists Analysis Runs..." in the present tense — Step 3.4 is complete
    and §8 already documents the persisted-run behavior as implemented.
-3. `c5a97fe` — §4 listed `src/workspace/refresh.py` as a composition root performing "one
+3. §4 listed `src/workspace/refresh.py` as a composition root performing "one
    composition per job." Verified against the code: per-job composition and the `executed_at` read
    happen in `cli_workspace.py`'s `_execute_*` functions; `refresh.py`'s own clock only timestamps
    each job's persisted `AnalysisRun` capture. Corrected, and named `cli_composition.py` /
    `cli_support.py` as the factory-helper modules the two real composition roots draw on.
-4. `074c826` — §6 listed the shared `MetricResult` outcome type as something "every strategy
+4. §6 listed the shared `MetricResult` outcome type as something "every strategy
    shares." Grepped every strategy package: Momentum and FCF & Earnings Growth use it; neither
    Graham strategy does. Corrected to name it as a convention two strategies share, not a
    universal contract. Narrowed "invoked identically" to the shared `run_analysis` signature and
    noted execution adapters differ per strategy, per the Contributor Guide. Reworded an unclear
    sentence about extending a strategy's own layer.
-5. `b259959` — three fixes: (a) §7's diagram had drifted out of column alignment in the
+5. three fixes: (a) §7's diagram had drifted out of column alignment in the
    instrument-profile-cache branch after earlier edits touched neighboring boxes; rebuilt with a
    small script that asserts column consistency rather than by eye. (b) `FinancialFactsProvider`
    was described as serving only the two Graham methods; FCF & Earnings Growth's input resolver
@@ -345,12 +345,12 @@ code cited in its own commit message:
    (`src/data/financial/resolver.py`). Retitled to "Input resolution: override, cache, provider,
    unavailable" with the general pattern first and the Graham-specific inheritance detail as a
    sentence beneath it.
-6. `65be04b` — deleted §8's "This storage layer does not introduce watchlists, investor Analysis
+6. deleted §8's "This storage layer does not introduce watchlists, investor Analysis
    Runs, new cache invalidation rules, or a second audit log" — directly contradicted by the
    `AnalysisRun` and watchlist/refresh subsections a few paragraphs later in the same section,
    which describe exactly those things as implemented.
-7. `f9ebc57` — §9's "in the previous section" pointed at §7's identity subsection, but the reorder
-   in `14c13cb` had already moved §9 two sections past it; removed the stale phrase, kept the link.
+7. §9's "in the previous section" pointed at §7's identity subsection, but the reorder
+   in the approved 14-section reorganization had already moved §9 two sections past it; removed the stale phrase, kept the link.
    §9's schema-version change log ("increment from 1 to 2 / 2 to 3") and §7's "Graham presentation
    schema 4" were both stale against `src/reporting/` (Momentum=4, Graham Number/Growth=6, FCF=5 at
    time of check) and did not reconcile with each other; replaced both with the underlying rule
@@ -358,20 +358,20 @@ code cited in its own commit message:
    `schema_version`, independent of `result_schema_version`) instead of point-in-time numbers.
    Replaced the two remaining plain-text section references, `(§2)` and `` (§ `AnalysisRun` below) ``,
    with links to the section titles.
-8. `368f966` — removed "(Step 2.1)" / "(Step 3.1)" from §11's telemetry-sink diagram (both shipped
+8. removed "(Step 2.1)" / "(Step 3.1)" from §11's telemetry-sink diagram (both shipped
    several slices ago) and rewrote "Step 2.6 owns hard execution/time/error caps..." in the
    present tense.
-9. `3e67e5a` — rewrote the remaining step/milestone jargon in body prose to the present tense:
+9. rewrote the remaining step/milestone jargon in body prose to the present tense:
    "F-1 returns", "Approved pre-Golden P1 preserves", "Introduced minimally in Step 2.3", "Step 2.4
    reuses", "Step 2.2 establishes", and "in v0.2". Kept the one step-labeled link that points at an
    actual record (the P1 instrument applicability mapping record), dropping "proposed" from its
    surrounding sentence now that the mappings are implemented rather than proposed.
-10. `6caf8e2` — replaced §10's by-name list of the four orchestration-tool handlers with a pointer
+10. replaced §10's by-name list of the four orchestration-tool handlers with a pointer
     to §6, and deleted §13's opening paragraph, which restated §6's "no shared strategy-specific
     base beyond `BaseAnalyzer`" claim with Graham-specific detail layered on top. Preserved the one
     non-duplicative fact it carried — the location of `shared/financial_resolution.py` — by folding
     it into the `src/analysis/` bullet in §13's package map.
-11. `ebf7be6` — linked "Light Mode" in §2's invariants list to its definition in
+11. linked "Light Mode" in §2's invariants list to its definition in
     `docs/user/GLOSSARY.md#light-mode`; the term was previously used undefined and unlinked.
 
 The full managed quality gate, including the D3 link/anchor checker, passed after the last of
@@ -384,17 +384,16 @@ the first round of corrections above, four missed by both passes. Fixed in seven
 content-only commits on `fix/ir7-architecture-doc-pass`, each independently verified against the
 code cited in its own commit message:
 
-1. `d481e2e` — §4's "Every composition root reads `executed_at` exactly once" (added by commit
-   `c5a97fe` above) contradicted the per-job reads described in the sentence immediately before it.
+1. §4's "Every composition root reads `executed_at` exactly once" (added by the composition-root correction above) contradicted the per-job reads described in the sentence immediately before it.
    Reworded to "exactly once per analysis it runs", matching §5's own phrasing of the same rule.
-2. `14c7ce8` — §7's diagram (realigned by commit `b259959` above) showed the FCF annual-series
+2. §7's diagram (realigned by the diagram-alignment correction above) showed the FCF annual-series
    resolver box as "◄── override/cache", the same label as the two Graham resolver boxes. Checked
    `ProductionAnnualGrowthSeriesResolver.resolve()` and `resolve_annual_growth_series()` in
    `src/analysis/strategy/fcf_earnings_growth/input_resolver.py`: neither takes an `override`
    parameter, only `cache`/provider/unavailable. Changed the FCF box's label to "◄── cache";
    the precedence section already only names the two Graham resolvers, so no further change needed
    there.
-3. `2b567d3` — §8's "Typed SQLite repositories" table listed four repositories and omitted
+3. §8's "Typed SQLite repositories" table listed four repositories and omitted
    `SQLiteAnalysisRunRepository` (`src/data/repositories/analysis_runs.py`) and
    `SQLiteWatchlistRepository` (`src/data/repositories/watchlists.py`), even though the prose just
    below the table discusses both `AnalysisRun` and the watchlist/refresh workspace at length.
@@ -402,21 +401,20 @@ code cited in its own commit message:
    file in `src/data/repositories/` (`trajectory.py`, `migrations.py`, `readiness_lock.py`,
    `sqlite.py`, `readiness.py`, `instrument_profiles.py`, `market_data.py`,
    `resolved_input_cache.py`): no other repository row was missing.
-4. `1886391` — §3's diagram (the historical-series box named MarketDataProvider by commit
-   `7a71f01` above) had grown long enough that "BaseDataClient / MarketDataProvider" pushed
+4. §3's diagram (the historical-series box named MarketDataProvider by the provider-boundary correction above) had grown long enough that "BaseDataClient / MarketDataProvider" pushed
    "FinancialFactsProvider" out of the "financial facts" column it needs to sit under. Split the
    two provider names across two lines so the second box lands back in its column.
-5. `640fe8e` — §7's fixture-capability list named what Momentum's and Graham's fixtures prove but
+5. §7's fixture-capability list named what Momentum's and Graham's fixtures prove but
    never mentioned FCF & Earnings Growth's, even though
    `src/evaluation/fixtures/fcf_earnings_growth.py` provides a deterministic
    `FixtureAnnualFinancialFactsProvider` with annual OCF/CapEx/EPS series. Added the missing bullet.
-6. `3e0830c` — §6's `MetricResult` sentence (added by commit `074c826` above, correcting the
+6. §6's `MetricResult` sentence (added by the shared-contract correction above, correcting the
    original false "shared by every strategy" claim) still named the two strategies that currently
    use it. Named strategies drift the moment a third adopts the convention or one of the two stops;
    reworded to "some strategies use" — the sentence's function is to say `MetricResult` is not
    universal, not to enumerate who uses it, and §6 avoids strategy catalogues everywhere else for
    the same reason.
-7. `629ce63` — two sentences the earlier read-throughs both missed were still phrased as a diff
+7. two sentences the earlier read-throughs both missed were still phrased as a diff
    against an earlier state rather than a description of current behavior: "No durable evidence
    cache or database migration is introduced" (§7's SEC seam) and "retain their existing signatures
    and import paths as repository delegates" (§8's trajectory-sink paragraph). Rewritten as plain

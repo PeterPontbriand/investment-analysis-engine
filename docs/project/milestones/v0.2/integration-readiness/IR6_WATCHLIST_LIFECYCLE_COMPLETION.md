@@ -113,7 +113,7 @@ here.
 
 ### 6.2 Verified facts
 
-Originally checked against `feat/ir-integration-readiness` at `d2a7be9`, and revised 2026-09-29 for
+Originally checked against `feat/ir-integration-readiness` at `b871b62`, and revised 2026-09-29 for
 IR.2.6's watchlist changes:
 
 1. **No schema change or migration.** `watchlist_entries.watchlist_id` already declares
