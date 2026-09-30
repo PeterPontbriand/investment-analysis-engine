@@ -4,7 +4,8 @@ Closes the watchlist lifecycle gap that Step 3.4 Amendment A1 deferred
 ([`STEP_3_4_CONTRACT_AND_SLICE_PLAN.md`](../step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) §12,
 "Deferred, not included in this amendment"). Scope and decisions approved by the project owner
 2026-09-27; branching revised 2026-09-29 (see [Appendix B](#appendix-b-decision-records)).
-Implementation is not yet authorized.
+Implementation of all three sub-slices was authorized by the project owner on 2026-09-30, and
+completed the same day, pending acceptance ([completion record](#51-completion-record)).
 
 ## 1. At a glance
 
@@ -29,9 +30,9 @@ written once, in final command names and final text vocabulary.
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| IR.6.1 | [Command vocabulary](#ir61--command-vocabulary) | Planned | |
-| IR.6.2 | [Delete](#ir62--delete) | Planned | |
-| IR.6.3 | [Rename](#ir63--rename) | Planned | |
+| IR.6.1 | [Command vocabulary](#ir61--command-vocabulary) | Complete | 2026-09-30 |
+| IR.6.2 | [Delete](#ir62--delete) | Complete | 2026-09-30 |
+| IR.6.3 | [Rename](#ir63--rename) | Complete | 2026-09-30 |
 
 ## 3. The slices
 
@@ -79,8 +80,8 @@ written once, in final command names and final text vocabulary.
 
 - No change to any analysis formula, classification, result, run envelope, persisted schema, or
   `--json` payload. No Alembic migration; the head revision is unchanged.
-- Human-readable workspace text changes only as A.1 specifies, and the change is recorded in the
-  [IR contract](IR_CONTRACT_AND_SLICE_PLAN.md) §4.
+- Human-readable workspace text changes only as A.1 specifies, and the change is the accepted exception
+  already recorded in the [IR contract](IR_CONTRACT_AND_SLICE_PLAN.md#a3-accepted-exceptions-to-the-presentation-output-rule)'s Appendix A.3.
 - `delete` and `rename` commit even when other stored entries cannot be read, and any display that needs
   those entries reports the unreadable one with the existing one-line error (D6).
 - The complete managed gate (`scripts/run-quality-gates.ps1` / `.sh`), at least 85% coverage, after
@@ -88,6 +89,69 @@ written once, in final command names and final text vocabulary.
 - Step 3.4 §12's deferral note points here, so no document still describes watchlist rename,
   delete, or the alias/`method_id` inconsistency as open.
 - A completion record appended to this document, analogous to IR.4's.
+
+### 5.1 Completion record
+
+Implemented 2026-09-30 on `fix/ir6-watchlist-lifecycle`, one commit per sub-slice. Complete pending the
+project owner's acceptance.
+
+| Commit | Gate | Coverage |
+| :--- | :--- | :--- |
+| IR.6.1 command vocabulary | passed, 3325 tests | 91% |
+| IR.6.2 delete | passed, 3349 tests | 91% |
+| IR.6.3 rename | passed, 3367 tests | 91% |
+| Windows NUL stdin fix (B.4 item 5) | passed, 3371 tests | 91% |
+
+Each gate ran `scripts/run-quality-gates.sh` on Python 3.12.14 and pandas 3.0.5: link check, Ruff, format
+check, `mypy --strict` over all 309 source files, and the full suite with the 85% coverage floor.
+
+- **No schema change.** No Alembic revision was added; the head revision is still `0004_instrument_profiles`.
+- **No `--json` payload or canonical `method_id` changed.** `watchlist show --json`, `runs list --json` and
+  `refresh --json` keep the canonical identifiers, and tests assert it. The new `delete --json` document
+  is additive. The `rename --json` document is the `watchlist show --json` document.
+- **No analysis result, run envelope or saved run changed.** Delete and rename never touch `analysis_runs`;
+  tests delete and rename a watchlist that has saved runs and read them back.
+- **The text change is the accepted exception** already recorded in the IR contract's
+  [Appendix A.3](IR_CONTRACT_AND_SLICE_PLAN.md#a3-accepted-exceptions-to-the-presentation-output-rule).
+- **D6 held for every command IR.6 adds or changes.** Tests delete, rename, remove by ticker and method, and
+  list runs by alias for a watchlist holding entries stored by an earlier version, created the way IR.2.6's
+  tests create them (a Momentum entry rewritten into the retired version-1 shape).
+
+**Live smoke.** Run against a throwaway database (`sqlite:///.tmp/ir6-smoke/x.sqlite3`, migrated with
+`ian db upgrade`), each command with standard input redirected from nothing, as a script would run it. The
+database was deleted afterward. No provider or network call was made, so `runs list --analysis momentum`
+returned no rows; filtering against real rows is covered by the tests.
+
+| Command | Exit |
+| :--- | :--- |
+| `watchlist create "Core Holdings" --analysis momentum AAPL MSFT`, `add-selection ... graham-number`, `create "Scratch" ...`, `list` | 0 |
+| `watchlist show "Core Holdings"`: entry lines read `momentum:` and `graham-number:` | 0 |
+| `watchlist show "Core Holdings" --group-by method`: group headings read `momentum:` and `graham-number:` | 0 |
+| `watchlist show "Core Holdings" --json`: `method_id` reads `sma_crossover` and `graham_number` | 0 |
+| `watchlist remove-ticker "Core Holdings" MSFT`, then `remove-method ... --analysis graham-number` | 0 |
+| `watchlist remove` (the retired name) | 2 |
+| `runs list --analysis momentum` | 0 |
+| `runs list --method sma_crossover` (the retired option) | 2 |
+| `runs list --analysis sma_crossover` (a canonical id is not an alias) | 2 |
+| `watchlist rename "Core Holdings" "Long-Term Holdings"` | 0 |
+| `watchlist rename "long-term holdings" "LONG-TERM HOLDINGS"` (case only) | 0 |
+| `watchlist rename "LONG-TERM HOLDINGS" scratch` (another watchlist's name) | 1 |
+| `watchlist rename "LONG-TERM HOLDINGS" "   "` | 2 |
+| `watchlist rename ... --json`: only the watchlist document on stdout | 0 |
+| `watchlist delete "Scratch"` with no `--yes` and no terminal | 2 |
+| `watchlist delete "Scratch" --yes` | 0 |
+| `watchlist delete "Scratch" --yes` again (now missing) | 1 |
+| `watchlist delete "Scratch" --yes --missing-ok` | 0 |
+| `watchlist delete "Scratch" --yes --missing-ok --json`: `{"requested_name": "Scratch", "deleted": false, "watchlist": null}` | 0 |
+| `watchlist list`: only "Long-Term Holdings" remains | 0 |
+
+The first smoke run found the defect recorded as B.4 item 5: the no-terminal `delete` reached the
+confirmation prompt instead of exit 2. It was fixed and the smoke rerun; the table is the rerun.
+
+**Not verified by the agent.** The fix asks Windows whether standard input is a real console. The
+agent's shell has no console, so the "yes, a real terminal" answer was not exercised; the project owner
+should confirm that `ian watchlist delete NAME` prompts in an interactive PowerShell or Windows Terminal
+window. The non-console answers were verified with standard input redirected from `NUL` and from a pipe.
 
 ## 6. Background: the problem and the facts the design relies on
 
@@ -189,9 +253,10 @@ IR.2.6's watchlist changes:
   an alias-filter test for `runs list`; add text-output assertions showing aliases, including the
   confirmation lines and the retired-selection error; add a JSON assertion that `method_id` is still
   canonical.
-- This changes human-readable workspace text output. It is recorded as an accepted exception to
-  IR §4's "presentation output does not change" criterion, in the same way IR.2.2's wording change
-  was.
+- This changes human-readable workspace text output. It is the accepted exception (IR.6.1, approved
+  2026-09-27) already recorded in the IR contract's
+  [Appendix A.3](IR_CONTRACT_AND_SLICE_PLAN.md#a3-accepted-exceptions-to-the-presentation-output-rule),
+  and is not recorded again.
 
 ### A.2 IR.6.2 — Delete
 
@@ -236,7 +301,7 @@ same as every other watchlist command.
 
 If an entry cannot be decoded, `--json` cannot build the `watchlist` document. The deletion still
 commits; stdout stays empty, stderr carries the confirmation
-(`Deleted watchlist 'NAME' (ID, N entries). Saved Analysis Runs are kept.`) and then the existing
+(`Deleted watchlist 'NAME' (ID <id>, N entries). Saved Analysis Runs are kept.`) and then the existing
 one-line `StoredSelectionError` naming the first unreadable entry, and the command exits 1, as the
 removal commands do.
 
@@ -342,3 +407,36 @@ commands and text renderers.
 Three sub-slices on that branch. Each ends with the managed gate and is gated by explicit
 authorization. Vocabulary goes first, so delete and rename are written once, in final command
 names and final text vocabulary.
+
+### B.4 Found during implementation
+
+Gaps in this plan found while implementing it, each fixed in the commit where it became visible and
+within the plan's stated goals. None changes a `--json` payload, a canonical `method_id`, the persisted
+schema, a saved run or an analysis result.
+
+1. **The alias mapping moved out of the CLI (IR.6.1).** A.1 has the repository's `StoredSelectionError`
+   builder print aliases, but the mapping lived in `src/cli_workspace.py` and the data layer cannot import
+   it. The mapping now lives in `src/workspace/method_aliases.py`, and the CLI and the repository both use
+   it; `_ANALYSIS_ALIASES` and `_ALIAS_METHOD_IDS` no longer exist in the CLI module.
+2. **An unmapped stored `method_id` is shown as stored (IR.6.1).** A.1 says an unmapped `method_id` in the
+   renderers is a programming error, not a fallback. That holds for decoded selections and stored run rows,
+   where the identifier is always one this version defines. The retired-selection error describes an entry
+   saved by an earlier version, whose method may no longer exist, so a KeyError there would hide the error
+   it exists to report. That one builder falls back to the identifier as stored. A repository test covers it.
+3. **A repository method that reads a watchlist's identity and entry count without decoding (IR.6.2).** A.2
+   requires the delete prompt to show the count from the stored rows but names no repository method for it.
+   `SQLiteWatchlistRepository.summary(name)` is that method, and `list()` builds its summaries the same way.
+4. **`runs show` does not display a run's watchlist name (IR.6.3).** A.3 and §6.2 item 2 say `runs show` may
+   display a name that no longer exists after a rename. Neither `runs show` nor `runs list` prints the
+   watchlist snapshot today; it exists only inside the stored run envelope. The user documentation says so
+   accurately, and the rename test asserts the stored snapshot through the run repository instead of through
+   CLI output. No projection or `--json` payload changed.
+5. **A Windows script's standard input counted as a terminal (IR.6.2, found by the live smoke).** D2 requires
+   a non-interactive standard input without `--yes` to be a usage error (exit 2) before the database is
+   opened. Windows reports the `NUL` device, which is what a script's redirected-from-nothing standard input
+   is, as a terminal, so `sys.stdin.isatty()` alone sent such a script to the confirmation prompt. The
+   interactivity helper now also asks Windows whether standard input is a real console. This is a separate
+   commit after IR.6.3, with its own gate, because it was found after IR.6.3 was committed.
+6. **`ARCHITECTURE.md` listed the watchlist repository's methods (IR.6.3 and the completion commit).** The
+   repository table named the methods before delete, rename and the count-only summary existed; it now
+   lists them.

@@ -382,16 +382,16 @@ I2 restores equivalent and expanded capability under the new command names
 
 **Deferred, not included in this amendment.** Watchlist rename and delete
 were separately flagged during this review as a plain missing-CRUD gap;
-they are not part of Amendment A1 and remain open for a future, separately
-authorized change. The `--analysis` alias vs. canonical `method_id`
+they are not part of Amendment A1 and were left for a future, separately
+authorized change (delivered later; see the note that follows). The `--analysis` alias vs. canonical `method_id`
 vocabulary inconsistency across commands (`watchlist configure/disable`
 use hyphenated aliases; `runs list --method` uses the canonical identifier)
 was also separately flagged and is likewise not addressed here. Neither
 gap blocks I1-I3.
 
-**Scheduled (2026-09-27):** all three deferred items above (watchlist rename,
-watchlist delete, and the alias vs. `method_id` inconsistency) are now in
-scope as IR.6; see
+**Delivered (2026-09-30):** all three deferred items above (watchlist rename,
+watchlist delete, and the alias vs. `method_id` inconsistency) were scheduled
+on 2026-09-27 and delivered as IR.6, so none is open; see
 [IR6_WATCHLIST_LIFECYCLE_COMPLETION.md](../integration-readiness/IR6_WATCHLIST_LIFECYCLE_COMPLETION.md).
 
 Final Step 3.4 acceptance (previously targeted at H) is deferred until I3

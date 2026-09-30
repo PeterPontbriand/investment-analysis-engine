@@ -1,4 +1,4 @@
-"""SQLite-backed watchlist repository: create, entry edits, reopen.
+"""SQLite-backed watchlist repository: create, rename, delete, entry edits, reopen.
 
 No provider, network, or analysis work occurs here; only reads/writes against
 a caller-owned, already-migrated :class:`SQLiteDatabase`. Conflicts and
@@ -15,6 +15,7 @@ left behind by a deletion.
 """
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -26,6 +27,7 @@ from sqlalchemy.exc import IntegrityError
 from src.core.clock import utc_now
 from src.data.repositories.schema import watchlist_entries, watchlists
 from src.data.repositories.sqlite import SQLiteDatabase
+from src.workspace.method_aliases import METHOD_ID_ALIASES
 from src.workspace.requests import AnalysisSelection
 from src.workspace.runs import Watchlist, WatchlistEntry, WatchlistSummary
 from src.workspace.watchlists import (
@@ -47,6 +49,28 @@ class WatchlistNotFoundError(ValueError):
 
 class WatchlistEntryNotFoundError(ValueError):
     """No entry exists at the requested 0-based position."""
+
+
+@dataclass(frozen=True)
+class DeletedWatchlist:
+    """What :meth:`SQLiteWatchlistRepository.delete` removed.
+
+    The identity and stored entry count always come from the stored rows. Exactly one of
+    ``watchlist`` (every entry decoded, as it was immediately before deletion) and ``unreadable``
+    (the error for the first entry this version cannot decode) is set: deletion never depends on
+    decoding, so a watchlist holding an entry stored by an earlier version is still deleted.
+    """
+
+    watchlist_id: UUID
+    display_name: str
+    entry_count: int
+    watchlist: Watchlist | None
+    unreadable: StoredSelectionError | None
+
+    def __post_init__(self) -> None:
+        """Require exactly one of the decoded aggregate and the decoding error."""
+        if (self.watchlist is None) == (self.unreadable is None):
+            raise ValueError("DeletedWatchlist holds exactly one of watchlist and unreadable.")
 
 
 def _normalize_name(name: str) -> str:
@@ -124,21 +148,105 @@ class SQLiteWatchlistRepository:
                 .mappings()
                 .all()
             )
-            summaries = [
-                WatchlistSummary(
-                    watchlist_id=UUID(row["watchlist_id"]),
-                    display_name=row["display_name"],
-                    entry_count=connection.execute(
-                        select(func.count())
-                        .select_from(watchlist_entries)
-                        .where(watchlist_entries.c.watchlist_id == row["watchlist_id"])
-                    ).scalar_one(),
-                    created_at=datetime.fromisoformat(row["created_at"]),
-                    updated_at=None if row["updated_at"] is None else datetime.fromisoformat(row["updated_at"]),
-                )
-                for row in rows
-            ]
+            summaries = [self._summarize(connection, row) for row in rows]
         return tuple(summaries)
+
+    @staticmethod
+    def _summarize(connection: Connection, row: RowMapping) -> WatchlistSummary:
+        """Build one summary from a watchlist row and a count of its stored entries, decoding none."""
+        return WatchlistSummary(
+            watchlist_id=UUID(row["watchlist_id"]),
+            display_name=row["display_name"],
+            entry_count=connection.execute(
+                select(func.count())
+                .select_from(watchlist_entries)
+                .where(watchlist_entries.c.watchlist_id == row["watchlist_id"])
+            ).scalar_one(),
+            created_at=datetime.fromisoformat(row["created_at"]),
+            updated_at=None if row["updated_at"] is None else datetime.fromisoformat(row["updated_at"]),
+        )
+
+    def summary(self, name: str) -> WatchlistSummary:
+        """Return one watchlist's identity and stored entry count without decoding any entry.
+
+        Raises:
+            WatchlistNotFoundError: If no watchlist matches ``name``.
+        """
+        with self._database.read() as connection:
+            row = (
+                connection.execute(select(watchlists).where(watchlists.c.normalized_name == _normalize_name(name)))
+                .mappings()
+                .one_or_none()
+            )
+            if row is None:
+                raise WatchlistNotFoundError(f"No watchlist named {name!r} exists.")
+            return self._summarize(connection, row)
+
+    def delete(self, name: str) -> DeletedWatchlist:
+        """Delete a watchlist and all its entries in one transaction, without decoding any entry.
+
+        Saved Analysis Runs are not touched: they carry their own snapshot of the watchlist's
+        identity. The entries are deleted explicitly and then the watchlist row; the schema's
+        cascade would also remove them. The decoded aggregate, if every entry can be read, is
+        loaded inside the transaction before the rows are removed. An unreadable entry is reported
+        in the result and never prevents or rolls back the deletion.
+
+        Raises:
+            WatchlistNotFoundError: If no watchlist matches ``name``.
+        """
+        with self._database.transaction() as connection:
+            watchlist_id = self._find_id(connection, name)
+            row = (
+                connection.execute(select(watchlists).where(watchlists.c.watchlist_id == watchlist_id)).mappings().one()
+            )
+            entry_count = self._summarize(connection, row).entry_count
+            aggregate: Watchlist | None = None
+            unreadable: StoredSelectionError | None = None
+            try:
+                aggregate = self._load(connection, watchlist_id)
+            except StoredSelectionError as exc:
+                unreadable = exc
+            connection.execute(delete(watchlist_entries).where(watchlist_entries.c.watchlist_id == watchlist_id))
+            connection.execute(delete(watchlists).where(watchlists.c.watchlist_id == watchlist_id))
+            return DeletedWatchlist(
+                watchlist_id=UUID(watchlist_id),
+                display_name=row["display_name"],
+                entry_count=entry_count,
+                watchlist=aggregate,
+                unreadable=unreadable,
+            )
+
+    def rename(self, name: str, new_display_name: str) -> None:
+        """Change a watchlist's display name, keeping its ID and entries; nothing is decoded.
+
+        The new name is trimmed. Renaming to a different casing of the watchlist's own name is
+        allowed and changes only ``display_name``. Renaming to the identical display name is a
+        no-op that leaves ``updated_at`` alone; any real change bumps it.
+
+        Raises:
+            ValueError: If ``new_display_name`` is blank after trimming.
+            WatchlistNotFoundError: If no watchlist matches ``name``.
+            WatchlistConflictError: If the new normalized name belongs to a different watchlist.
+        """
+        display_name = new_display_name.strip()
+        if not display_name:
+            raise ValueError("display_name must not be blank.")
+        normalized = _normalize_name(display_name)
+        with self._database.transaction() as connection:
+            watchlist_id = self._find_id(connection, name)
+            current = connection.execute(
+                select(watchlists.c.display_name).where(watchlists.c.watchlist_id == watchlist_id)
+            ).scalar_one()
+            if current == display_name:
+                return
+            try:
+                connection.execute(
+                    update(watchlists)
+                    .where(watchlists.c.watchlist_id == watchlist_id)
+                    .values(display_name=display_name, normalized_name=normalized, updated_at=_utc(self._clock()))
+                )
+            except IntegrityError as exc:
+                raise WatchlistConflictError(f"A watchlist named {new_display_name!r} already exists.") from exc
 
     def add_entries(self, name: str, entries: Sequence[tuple[str, AnalysisSelection]]) -> Watchlist:
         """Append one entry per (ticker, selection) pair, after the current highest position.
@@ -300,14 +408,20 @@ class SQLiteWatchlistRepository:
 
     @staticmethod
     def _decode_entry(display_name: str, index: int, entry_row: RowMapping) -> WatchlistEntry:
-        """Decode one stored entry, naming it and the command that removes it if it cannot be read."""
+        """Decode one stored entry, naming it and the command that removes it if it cannot be read.
+
+        The entry is named by its method alias when it has one. An entry stored by an earlier
+        version may carry a method identifier this version no longer maps, so the stored identifier
+        is shown as written rather than failing while reporting the failure.
+        """
         try:
             selection = decode_selection(
                 entry_row["method_id"], entry_row["config_schema_version"], entry_row["selection_json"]
             )
         except StoredSelectionError as exc:
+            method = METHOD_ID_ALIASES.get(entry_row["method_id"], entry_row["method_id"])
             raise StoredSelectionError(
-                f"Watchlist {display_name!r}, entry {index} ({entry_row['ticker']}, {entry_row['method_id']}): "
+                f"Watchlist {display_name!r}, entry {index} ({entry_row['ticker']}, {method}): "
                 f'{exc}. Remove it with: ian watchlist remove-entry "{display_name}" {index}'
             ) from exc
         return WatchlistEntry(ticker=entry_row["ticker"], selection=selection)
@@ -331,6 +445,7 @@ class SQLiteWatchlistRepository:
 
 
 __all__ = [
+    "DeletedWatchlist",
     "SQLiteWatchlistRepository",
     "WatchlistConflictError",
     "WatchlistEntryNotFoundError",

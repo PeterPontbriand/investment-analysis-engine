@@ -53,11 +53,11 @@ Watchlist: Core Holdings
 ID: 5f1c9e2a-...
 Entries (4):
   AAPL:
-    [1] sma_crossover: long_window=200, rsi_period=14, short_window=50
-    [2] graham_number: as_of=None, bvps_override=None, eps_basis=three_year_average, security_provider_id=sec_edgar, ...
-    [3] graham_number: as_of=None, bvps_override=12.5, eps_basis=ttm, security_provider_id=massive, ...
+    [1] momentum: long_window=200, rsi_period=14, short_window=50
+    [2] graham-number: as_of=None, bvps_override=None, eps_basis=three_year_average, security_provider_id=sec_edgar, ...
+    [3] graham-number: as_of=None, bvps_override=12.5, eps_basis=ttm, security_provider_id=massive, ...
   MSFT:
-    [4] sma_crossover: long_window=200, rsi_period=14, short_window=50
+    [4] momentum: long_window=200, rsi_period=14, short_window=50
 ```
 
 Entries are grouped by ticker by default; `--group-by method` groups them by method instead — useful once a watchlist has several tickers sharing the same handful of methods. Either way, the number in front of each entry is the same 1-based index `remove-entry` expects, so what you see is exactly what you'd type back in.
@@ -97,9 +97,52 @@ uv run ian watchlist remove-entry "Core Holdings" 3
 Remove every entry for a ticker (across every method) or every entry for a method (across every ticker):
 
 ```bash
-uv run ian watchlist remove "Core Holdings" KO
-uv run ian watchlist disable "Core Holdings" --analysis graham-number
+uv run ian watchlist remove-ticker "Core Holdings" KO
+uv run ian watchlist remove-method "Core Holdings" --analysis graham-number
 ```
+
+Every command that removes entries starts with `remove-`, and text output names methods by the same hyphenated names you type (`momentum`, `graham-number`, `graham-growth`, `fcf-growth`). `--json` output keeps the stored method identifiers (`sma_crossover`, `graham_number`, `graham_growth_value`, `reported_fcf_eps_cagr`), which never change.
+
+### Renaming a watchlist
+
+```bash
+uv run ian watchlist rename "Core Holdings" "Long-Term Holdings"
+```
+
+Renaming is not destructive, so it never asks for confirmation. It prints `Renamed watchlist 'Core Holdings' to 'Long-Term Holdings'.` and then the renamed watchlist as `watchlist show` would. With `--json` it prints only the `watchlist show --json` document. The watchlist keeps its ID and its entries. Changing only the capitalization (`core holdings` to `Core Holdings`) is allowed; renaming to another watchlist's name is exit `1`, and a blank new name is a usage error (exit `2`).
+
+Saved Analysis Runs keep the name the watchlist had when they ran, by design: each run stores its own snapshot of the watchlist's name and ID, and a rename changes neither the snapshot nor anything else about a saved run. Today `runs list` and `runs show` do not print that snapshot.
+
+If the watchlist holds an entry saved by an earlier version that this version can no longer read, the rename still happens. The command then prints the confirmation, followed by the one-line error that names the unreadable entry and the `remove-entry` command that removes it, and exits `1`; with `--json`, stdout is empty and both lines go to stderr.
+
+### Deleting a watchlist
+
+```bash
+uv run ian watchlist delete "Scratch"
+```
+
+On an interactive terminal this shows the watchlist's name, ID and entry count and asks for confirmation; answering no deletes nothing and exits `1`. Anywhere else (a script, an agent, a pipe) there is no one to ask, so `--yes` is required and its absence is a usage error (exit `2`) before the database is opened:
+
+```bash
+uv run ian watchlist delete "Scratch" --yes
+```
+
+Deleting removes the watchlist and its entries. **Saved Analysis Runs are kept**: each run carries its own snapshot of the watchlist's name and ID, so `runs list` and `runs show` still work afterward. Creating a new watchlist with the same name gives it a new ID; the old runs stay tied to the old one.
+
+An unknown name is exit `1`, like every other watchlist command. For idempotent cleanup, `--missing-ok` turns that into exit `0` with nothing deleted:
+
+```bash
+uv run ian watchlist delete "Scratch" --yes --missing-ok
+```
+
+`--json` prints one document, with `watchlist` holding the same document `watchlist show --json` prints for the watchlist as it was just before deletion (or `null` when nothing was deleted):
+
+```text
+{"requested_name": "Scratch", "deleted": true, "watchlist": {...}}
+{"requested_name": "Nonexistent", "deleted": false, "watchlist": null}
+```
+
+A watchlist holding an entry saved by an earlier version, which this version can no longer read, is still deleted. In text mode that succeeds quietly. With `--json` there is no entry document to print, so stdout stays empty, the confirmation and the one-line error naming the unreadable entry go to stderr, and the exit code is `1`.
 
 ### Method-specific flags
 
@@ -122,10 +165,10 @@ uv run ian refresh "Core Holdings"
 
 ```text
 Refresh 7c1a... for 'Core Holdings':
-  3f9b...  AAPL       sma_crossover            completed
-  3f9c...  AAPL       graham_number            completed
-  3f9d...  MSFT       sma_crossover            completed
-  3f9e...  MSFT       graham_number            unavailable
+  3f9b...  AAPL       momentum                 completed
+  3f9c...  AAPL       graham-number            completed
+  3f9d...  MSFT       momentum                 completed
+  3f9e...  MSFT       graham-number            unavailable
 Counts: completed=3, unavailable=1
 ```
 
@@ -137,8 +180,8 @@ uv run ian refresh "Core Holdings" --no-save
 
 ```text
 Refresh 7c1a... for 'Core Holdings':
-  (not saved)                           AAPL       sma_crossover            completed
-  (not saved)                           AAPL       graham_number            completed
+  (not saved)                           AAPL       momentum                 completed
+  (not saved)                           AAPL       graham-number            completed
 Counts: completed=2
 ```
 
@@ -207,14 +250,14 @@ uv run ian runs list
 ```
 
 ```text
-3f9b...  AAPL       sma_crossover            completed      2026-09-19T14:02:11+00:00
-3f9c...  AAPL       graham_number            completed      2026-09-19T14:02:12+00:00
+3f9b...  AAPL       momentum                 completed      2026-09-19T14:02:11+00:00
+3f9c...  AAPL       graham-number            completed      2026-09-19T14:02:12+00:00
 ```
 
-Filter by ticker, method, outcome, or the refresh batch that produced a run:
+Filter by ticker, analysis, outcome, or the refresh batch that produced a run. `--analysis` (or `-a`) takes the same names as the watchlist commands:
 
 ```bash
-uv run ian runs list --ticker AAPL --method graham_number
+uv run ian runs list --ticker AAPL --analysis graham-number
 uv run ian runs list --status unavailable
 uv run ian runs list --refresh-id 7c1a...
 uv run ian runs list --json

@@ -38,8 +38,8 @@ see `docs/project/README.md`'s Quality gates section for the exact boundary.
 | IR.4 | [Python-version reproducibility](IR4_PYTHON_VERSION_REPRODUCIBILITY.md) | Complete | 2026-09-26 |
 | IR.7 | [`ARCHITECTURE.md` contributor pass](IR7_ARCHITECTURE_DOC_CONTRIBUTOR_PASS.md) | Complete | 2026-09-27 |
 | IR.2 | [Analyzer envelope unification and Momentum parity](IR2_ANALYZER_ENVELOPE_PLAN.md) | Complete | 2026-09-29 |
-| IR.6 | [Watchlist lifecycle completion](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md) | Next | |
 | IR.8 | [Windows path anchoring guard](IR8_WINDOWS_PATH_ANCHORING_GUARD.md) | Complete | 2026-09-30 |
+| IR.6 | [Watchlist lifecycle completion](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md) | Complete | 2026-09-30 |
 
 `feat/ir-integration-readiness` is retired once PR #48 merges; all remaining IR work branches from `main`.
 
@@ -97,7 +97,8 @@ see `docs/project/README.md`'s Quality gates section for the exact boundary.
   `watchlist rename`. No schema change or migration.
 - **Branch:** its own, off `main` after `feat/ir-integration-readiness` has merged; IR.2.6 changed the
   watchlist removal commands and text IR.6.1 rewrites, so IR.6 depends on IR.2.
-- **Detail:** [IR6_WATCHLIST_LIFECYCLE_COMPLETION.md](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md).
+- **Detail and completion record:** [IR6_WATCHLIST_LIFECYCLE_COMPLETION.md](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md).
+  Complete pending the project owner's acceptance.
 
 ### IR.7 — `ARCHITECTURE.md` contributor pass
 

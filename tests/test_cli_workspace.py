@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 from uuid import UUID
 
+import pytest
 from alembic.config import Config
 from sqlalchemy import update
 from typer.testing import CliRunner
@@ -99,7 +100,8 @@ def test_watchlist_create_seeds_one_method_across_multiple_tickers() -> None:
     assert "Entries (2):" in output
     assert "AAPL" in output
     assert "MSFT" in output
-    assert "sma_crossover" in output
+    assert "momentum:" in output
+    assert "sma_crossover" not in output
 
 
 def test_watchlist_create_seeding_requires_analysis_with_tickers() -> None:
@@ -151,7 +153,8 @@ def test_watchlist_create_graham_growth_seeds_with_its_assumptions() -> None:
     )
     assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
-    assert "graham_growth_value" in output
+    assert "graham-growth:" in output
+    assert "graham_growth_value" not in output
     assert "expected_growth=6.0" in output
     assert "aaa_yield_override=4.4" in output
 
@@ -215,7 +218,8 @@ def test_watchlist_create_fcf_growth_seeds_with_flags() -> None:
     )
     assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
-    assert "reported_fcf_eps_cagr" in output
+    assert "fcf-growth:" in output
+    assert "reported_fcf_eps_cagr" not in output
     assert "currency=EUR" in output
 
 
@@ -339,7 +343,7 @@ def test_watchlist_remove_entry_missing_watchlist_exits_1() -> None:
 
 def test_watchlist_remove_rejects_a_blank_ticker() -> None:
     _create("Blank Ticker Remove")
-    result = runner.invoke(app, ["watchlist", "remove", "Blank Ticker Remove", "  "])
+    result = runner.invoke(app, ["watchlist", "remove-ticker", "Blank Ticker Remove", "  "])
     assert result.exit_code == 2
 
 
@@ -348,7 +352,7 @@ def test_watchlist_remove_removes_every_entry_for_a_ticker_across_methods() -> N
     runner.invoke(app, ["watchlist", "add-selection", "Bulk By Ticker", "AAPL", "MSFT", "--analysis", "momentum"])
     runner.invoke(app, ["watchlist", "add-selection", "Bulk By Ticker", "AAPL", "--analysis", "graham-number"])
 
-    result = runner.invoke(app, ["watchlist", "remove", "Bulk By Ticker", "AAPL"])
+    result = runner.invoke(app, ["watchlist", "remove-ticker", "Bulk By Ticker", "AAPL"])
     assert result.exit_code == 0, result.output
     confirmation, *listing_lines = result.output.splitlines()
     listing = " ".join(listing_lines)
@@ -362,7 +366,7 @@ def test_watchlist_remove_of_an_absent_ticker_says_so_and_exits_0() -> None:
     _create("Nothing To Remove")
     runner.invoke(app, ["watchlist", "add-selection", "Nothing To Remove", "MSFT", "--analysis", "momentum"])
 
-    result = runner.invoke(app, ["watchlist", "remove", "Nothing To Remove", "AAPL"])
+    result = runner.invoke(app, ["watchlist", "remove-ticker", "Nothing To Remove", "AAPL"])
 
     assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
@@ -371,14 +375,14 @@ def test_watchlist_remove_of_an_absent_ticker_says_so_and_exits_0() -> None:
 
 
 def test_watchlist_remove_missing_watchlist_exits_1() -> None:
-    result = runner.invoke(app, ["watchlist", "remove", "Nonexistent", "AAPL"])
+    result = runner.invoke(app, ["watchlist", "remove-ticker", "Nonexistent", "AAPL"])
     assert result.exit_code == 1
     assert "No watchlist named" in normalize_cli_output(result.output)
 
 
 def test_watchlist_remove_requires_at_least_one_ticker() -> None:
     _create("No Tickers To Remove")
-    result = runner.invoke(app, ["watchlist", "remove", "No Tickers To Remove"])
+    result = runner.invoke(app, ["watchlist", "remove-ticker", "No Tickers To Remove"])
     assert result.exit_code == 2
     assert "Missing argument" in normalize_cli_output(result.output)
 
@@ -388,12 +392,13 @@ def test_watchlist_disable_removes_every_entry_for_a_method_across_tickers() -> 
     runner.invoke(app, ["watchlist", "add-selection", "Bulk By Method", "AAPL", "MSFT", "--analysis", "momentum"])
     runner.invoke(app, ["watchlist", "add-selection", "Bulk By Method", "AAPL", "--analysis", "graham-number"])
 
-    result = runner.invoke(app, ["watchlist", "disable", "Bulk By Method", "--analysis", "momentum"])
+    result = runner.invoke(app, ["watchlist", "remove-method", "Bulk By Method", "--analysis", "momentum"])
     assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
     assert output.startswith("Removed 2 entries for momentum from watchlist 'Bulk By Method'.")
     assert "Entries (1):" in output
-    assert "graham_number" in output
+    assert "graham-number:" in output
+    assert "momentum:" not in output
     assert "sma_crossover" not in output
 
 
@@ -401,14 +406,14 @@ def test_watchlist_disable_of_an_absent_method_says_so_and_exits_0() -> None:
     _create("No Such Method")
     runner.invoke(app, ["watchlist", "add-selection", "No Such Method", "MSFT", "--analysis", "momentum"])
 
-    result = runner.invoke(app, ["watchlist", "disable", "No Such Method", "--analysis", "graham-number"])
+    result = runner.invoke(app, ["watchlist", "remove-method", "No Such Method", "--analysis", "graham-number"])
 
     assert result.exit_code == 0, result.output
     assert normalize_cli_output(result.output).startswith("No entries for graham-number in watchlist 'No Such Method'.")
 
 
 def test_watchlist_disable_missing_watchlist_exits_1() -> None:
-    result = runner.invoke(app, ["watchlist", "disable", "Nonexistent", "--analysis", "momentum"])
+    result = runner.invoke(app, ["watchlist", "remove-method", "Nonexistent", "--analysis", "momentum"])
     assert result.exit_code == 1
     assert "No watchlist named" in normalize_cli_output(result.output)
 
@@ -419,13 +424,13 @@ def test_watchlist_show_groups_by_ticker_by_default_and_by_method_on_request() -
     runner.invoke(app, ["watchlist", "add-selection", "Grouped", "AAPL", "--analysis", "graham-number"])
 
     by_ticker = normalize_cli_output(runner.invoke(app, ["watchlist", "show", "Grouped"]).output)
-    assert by_ticker.index("AAPL") < by_ticker.index("sma_crossover") < by_ticker.index("graham_number")
-    assert by_ticker.index("MSFT") > by_ticker.index("graham_number")  # MSFT is its own later group
+    assert by_ticker.index("AAPL") < by_ticker.index("momentum") < by_ticker.index("graham-number")
+    assert by_ticker.index("MSFT") > by_ticker.index("graham-number")  # MSFT is its own later group
 
     by_method = normalize_cli_output(
         runner.invoke(app, ["watchlist", "show", "Grouped", "--group-by", "method"]).output
     )
-    assert by_method.index("sma_crossover") < by_method.index("AAPL") < by_method.index("graham_number")
+    assert by_method.index("momentum") < by_method.index("AAPL") < by_method.index("graham-number")
 
 
 def test_watchlist_show_rejects_an_invalid_group_by() -> None:
@@ -664,11 +669,343 @@ def test_watchlist_help_and_runs_help_have_no_storage_side_effects() -> None:
         assert runner.invoke(app, ["watchlist", "create", "--help"]).exit_code == 0
         assert runner.invoke(app, ["watchlist", "add-selection", "--help"]).exit_code == 0
         assert runner.invoke(app, ["watchlist", "remove-entry", "--help"]).exit_code == 0
-        assert runner.invoke(app, ["watchlist", "remove", "--help"]).exit_code == 0
-        assert runner.invoke(app, ["watchlist", "disable", "--help"]).exit_code == 0
+        assert runner.invoke(app, ["watchlist", "remove-ticker", "--help"]).exit_code == 0
+        assert runner.invoke(app, ["watchlist", "remove-method", "--help"]).exit_code == 0
         assert runner.invoke(app, ["runs", "show", "--help"]).exit_code == 0
 
 
 def test_module_import_has_no_storage_side_effects() -> None:
     with patch.object(SQLiteDatabase, "__init__", side_effect=AssertionError("import must not open a database")):
         importlib.reload(src.cli_workspace)
+
+
+def test_the_retired_watchlist_command_names_are_rejected() -> None:
+    """IR.6.1 (D1): `remove` and `disable` are gone outright, with no aliases or shims."""
+    _create("Old Names")
+    for arguments in (
+        ["watchlist", "remove", "Old Names", "AAPL"],
+        ["watchlist", "disable", "Old Names", "--analysis", "momentum"],
+    ):
+        result = runner.invoke(app, arguments)
+        assert result.exit_code == 2, arguments
+        assert "No such command" in normalize_cli_output(result.output)
+
+
+def test_runs_list_method_option_is_rejected() -> None:
+    """IR.6.1 (D4): `runs list --method` is replaced by `--analysis`, with no shim."""
+    result = runner.invoke(app, ["runs", "list", "--method", "sma_crossover"])
+    assert result.exit_code == 2
+    assert "No such option" in normalize_cli_output(result.output)
+
+
+def test_runs_list_filters_by_analysis_alias() -> None:
+    run = _insert_momentum_run()
+
+    for flag in ("--analysis", "-a"):
+        result = runner.invoke(app, ["runs", "list", flag, "momentum"])
+        assert result.exit_code == 0, result.output
+        assert str(run.analysis_run_id) in result.output
+
+    result = runner.invoke(app, ["runs", "list", "--analysis", "  Momentum "])
+    assert result.exit_code == 0, result.output
+    assert str(run.analysis_run_id) in result.output
+
+    result = runner.invoke(app, ["runs", "list", "--analysis", "graham-number"])
+    assert result.exit_code == 0, result.output
+    assert "No matching runs." in result.output
+
+
+def test_runs_list_rejects_a_canonical_method_id_or_unknown_alias_as_a_usage_error() -> None:
+    for value in ("sma_crossover", "bogus"):
+        result = runner.invoke(app, ["runs", "list", "--analysis", value])
+        assert result.exit_code == 2, value
+        assert "--analysis must be one of: momentum, graham-number, graham-growth, fcf-growth." in (
+            normalize_cli_output(result.output)
+        )
+
+
+def test_runs_list_text_shows_the_alias_and_json_keeps_the_canonical_method_id() -> None:
+    _insert_momentum_run()
+
+    text = runner.invoke(app, ["runs", "list"])
+    assert text.exit_code == 0, text.output
+    assert "momentum" in text.output
+    assert "sma_crossover" not in text.output
+
+    payload = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)
+    assert payload[0]["method_id"] == "sma_crossover"
+
+
+def test_watchlist_show_json_keeps_the_canonical_method_id() -> None:
+    _create("Canonical Json")
+    runner.invoke(app, ["watchlist", "add-selection", "Canonical Json", "AAPL", "--analysis", "graham-number"])
+
+    text = normalize_cli_output(runner.invoke(app, ["watchlist", "show", "Canonical Json"]).output)
+    assert "graham-number:" in text
+    assert "graham_number" not in text
+
+    payload = json.loads(runner.invoke(app, ["watchlist", "show", "Canonical Json", "--json"]).output)
+    assert payload["entries"][0]["selection"]["method_id"] == "graham_number"
+
+
+def test_removal_confirmation_lines_name_the_alias_never_the_canonical_id() -> None:
+    _create("Confirm Lines")
+    runner.invoke(
+        app,
+        [
+            "watchlist",
+            "add-selection",
+            "Confirm Lines",
+            "AAPL",
+            "MSFT",
+            "--analysis",
+            "graham-growth",
+            "--expected-growth",
+            "6.0",
+            "--aaa-yield",
+            "4.4",
+        ],
+    )
+
+    absent = runner.invoke(app, ["watchlist", "remove-method", "Confirm Lines", "--analysis", "fcf-growth"])
+    assert absent.output.splitlines()[0] == "No entries for fcf-growth in watchlist 'Confirm Lines'."
+
+    removed = runner.invoke(app, ["watchlist", "remove-method", "Confirm Lines", "--analysis", "graham-growth"])
+    assert removed.output.splitlines()[0] == "Removed 2 entries for graham-growth from watchlist 'Confirm Lines'."
+    assert "graham_growth_value" not in removed.output
+
+
+def _database_path() -> Path:
+    return Path(src.cli_workspace.settings.database_url.removeprefix("sqlite:///"))
+
+
+def _seed_for_delete(name: str = "Scratch") -> None:
+    _create(name)
+    runner.invoke(app, ["watchlist", "add-selection", name, "AAPL", "MSFT", "--analysis", "momentum"])
+
+
+def _listed_names() -> str:
+    return normalize_cli_output(runner.invoke(app, ["watchlist", "list"]).output)
+
+
+def test_watchlist_delete_with_yes_deletes_and_says_runs_are_kept() -> None:
+    _seed_for_delete()
+
+    result = runner.invoke(app, ["watchlist", "delete", "scratch", "--yes"])
+
+    assert result.exit_code == 0, result.output
+    output = normalize_cli_output(result.output)
+    assert output.startswith("Deleted watchlist 'Scratch' (ID ")
+    assert "2 entries" in output
+    assert "Saved Analysis Runs are kept." in output
+    assert "No watchlists exist yet." in _listed_names()
+
+
+def test_watchlist_delete_json_carries_the_watchlist_show_document() -> None:
+    _seed_for_delete()
+    shown = json.loads(runner.invoke(app, ["watchlist", "show", "Scratch", "--json"]).output)
+
+    result = runner.invoke(app, ["watchlist", "delete", "Scratch", "--yes", "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.stdout) == {"requested_name": "Scratch", "deleted": True, "watchlist": shown}
+
+
+def test_watchlist_delete_non_interactive_without_yes_is_a_usage_error_and_changes_nothing() -> None:
+    _seed_for_delete()
+    before = _database_path().read_bytes()
+
+    with patch("src.cli_workspace._stdin_is_interactive", return_value=False):
+        result = runner.invoke(app, ["watchlist", "delete", "Scratch"])
+
+    assert result.exit_code == 2
+    assert "--yes" in normalize_cli_output(result.output)
+    assert _database_path().read_bytes() == before
+
+
+def test_watchlist_delete_non_interactive_check_happens_before_the_database_is_opened() -> None:
+    with (
+        patch("src.cli_workspace._stdin_is_interactive", return_value=False),
+        patch.object(SQLiteDatabase, "__init__", side_effect=AssertionError("must not open a database")),
+    ):
+        result = runner.invoke(app, ["watchlist", "delete", "Scratch"])
+
+    assert result.exit_code == 2
+
+
+def test_watchlist_delete_interactive_confirm_shows_name_id_and_count_then_deletes() -> None:
+    _seed_for_delete()
+
+    with patch("src.cli_workspace._stdin_is_interactive", return_value=True):
+        result = runner.invoke(app, ["watchlist", "delete", "Scratch"], input="y\n")
+
+    assert result.exit_code == 0, result.output
+    output = normalize_cli_output(result.output)
+    assert "Scratch" in output
+    assert "2 entries" in output
+    assert "Deleted watchlist 'Scratch'" in output
+    assert "No watchlists exist yet." in _listed_names()
+
+
+def test_watchlist_delete_interactive_decline_exits_1_and_deletes_nothing() -> None:
+    _seed_for_delete()
+
+    with patch("src.cli_workspace._stdin_is_interactive", return_value=True):
+        result = runner.invoke(app, ["watchlist", "delete", "Scratch"], input="n\n")
+
+    assert result.exit_code == 1
+    assert "Nothing was deleted." in normalize_cli_output(result.output)
+    assert "Scratch" in _listed_names()
+
+
+def test_watchlist_delete_interactive_unknown_name_exits_1_before_prompting() -> None:
+    with patch("src.cli_workspace._stdin_is_interactive", return_value=True):
+        result = runner.invoke(app, ["watchlist", "delete", "Nonexistent"])
+
+    assert result.exit_code == 1
+    assert "No watchlist named 'Nonexistent' exists." in normalize_cli_output(result.output)
+
+
+def test_watchlist_delete_unknown_name_exits_1() -> None:
+    result = runner.invoke(app, ["watchlist", "delete", "Nonexistent", "--yes"])
+
+    assert result.exit_code == 1
+    assert "No watchlist named 'Nonexistent' exists." in normalize_cli_output(result.output)
+
+
+def test_watchlist_delete_missing_ok_on_an_unknown_name_exits_0_in_text_and_json() -> None:
+    text_result = runner.invoke(app, ["watchlist", "delete", "Nonexistent", "--yes", "--missing-ok"])
+    assert text_result.exit_code == 0, text_result.output
+    assert "Nothing was deleted." in normalize_cli_output(text_result.output)
+
+    json_result = runner.invoke(app, ["watchlist", "delete", "Nonexistent", "--yes", "--missing-ok", "--json"])
+    assert json_result.exit_code == 0, json_result.output
+    assert json.loads(json_result.stdout) == {"requested_name": "Nonexistent", "deleted": False, "watchlist": None}
+
+
+def test_watchlist_delete_missing_ok_on_an_existing_watchlist_deletes_normally() -> None:
+    _seed_for_delete()
+
+    result = runner.invoke(app, ["watchlist", "delete", "Scratch", "--yes", "--missing-ok"])
+
+    assert result.exit_code == 0, result.output
+    assert "Deleted watchlist 'Scratch'" in normalize_cli_output(result.output)
+    assert "No watchlists exist yet." in _listed_names()
+
+
+def test_watchlist_delete_leaves_other_watchlists_in_the_list() -> None:
+    _seed_for_delete("Scratch")
+    _create("Keeper")
+
+    runner.invoke(app, ["watchlist", "delete", "Scratch", "--yes"])
+
+    listed = _listed_names()
+    assert "Keeper" in listed
+    assert "Scratch" not in listed
+
+
+def test_watchlist_delete_help_has_no_storage_side_effects() -> None:
+    with patch.object(SQLiteDatabase, "__init__", side_effect=AssertionError("must not open a database for --help")):
+        assert runner.invoke(app, ["watchlist", "delete", "--help"]).exit_code == 0
+
+
+def test_watchlist_rename_prints_the_confirmation_then_the_renamed_watchlist() -> None:
+    _seed_for_delete("Old Name")
+
+    result = runner.invoke(app, ["watchlist", "rename", "old name", "New Name"])
+
+    assert result.exit_code == 0, result.output
+    confirmation, *listing = result.output.splitlines()
+    assert confirmation == "Renamed watchlist 'old name' to 'New Name'."
+    shown = runner.invoke(app, ["watchlist", "show", "New Name"])
+    assert "\n".join(listing).strip() == shown.output.strip()
+    assert "Watchlist: New Name" in shown.output
+    assert runner.invoke(app, ["watchlist", "show", "Old Name"]).exit_code == 1
+
+
+def test_watchlist_rename_json_prints_only_the_watchlist_document() -> None:
+    _seed_for_delete("Old Name")
+    before = json.loads(runner.invoke(app, ["watchlist", "show", "Old Name", "--json"]).output)
+
+    result = runner.invoke(app, ["watchlist", "rename", "Old Name", "New Name", "--json"])
+
+    assert result.exit_code == 0, result.output
+    document = json.loads(result.stdout)
+    assert document["display_name"] == "New Name"
+    assert document["watchlist_id"] == before["watchlist_id"]
+    assert document["entries"] == before["entries"]
+
+
+def test_watchlist_rename_case_only_and_identical_names_succeed() -> None:
+    _create("core holdings")
+
+    case_only = runner.invoke(app, ["watchlist", "rename", "core holdings", "Core Holdings"])
+    identical = runner.invoke(app, ["watchlist", "rename", "Core Holdings", "Core Holdings"])
+
+    assert case_only.exit_code == 0, case_only.output
+    assert identical.exit_code == 0, identical.output
+    assert "Watchlist: Core Holdings" in case_only.output
+
+
+def test_watchlist_rename_to_another_watchlists_name_exits_1() -> None:
+    _create("First")
+    _create("Second")
+
+    result = runner.invoke(app, ["watchlist", "rename", "First", "second"])
+
+    assert result.exit_code == 1
+    assert "already exists" in normalize_cli_output(result.output)
+    assert "First" in _listed_names()
+
+
+def test_watchlist_rename_to_a_blank_name_is_a_usage_error() -> None:
+    _create("Keep")
+
+    result = runner.invoke(app, ["watchlist", "rename", "Keep", "   "])
+
+    assert result.exit_code == 2
+    assert "Keep" in _listed_names()
+
+
+def test_watchlist_rename_of_an_unknown_name_exits_1() -> None:
+    result = runner.invoke(app, ["watchlist", "rename", "Nonexistent", "Anything"])
+
+    assert result.exit_code == 1
+    assert "No watchlist named 'Nonexistent' exists." in normalize_cli_output(result.output)
+
+
+def test_watchlist_rename_help_has_no_storage_side_effects() -> None:
+    with patch.object(SQLiteDatabase, "__init__", side_effect=AssertionError("must not open a database for --help")):
+        assert runner.invoke(app, ["watchlist", "rename", "--help"]).exit_code == 0
+
+
+class _FakeStdin:
+    def __init__(self, *, tty: bool) -> None:
+        self._tty = tty
+
+    def isatty(self) -> bool:
+        return self._tty
+
+
+def test_stdin_is_not_interactive_when_it_is_not_a_terminal() -> None:
+    with patch("src.cli_workspace.sys.stdin", _FakeStdin(tty=False)):
+        assert src.cli_workspace._stdin_is_interactive() is False
+
+
+def test_stdin_is_interactive_for_a_terminal_off_windows() -> None:
+    with (
+        patch("src.cli_workspace.sys.stdin", _FakeStdin(tty=True)),
+        patch("src.cli_workspace.is_windows", return_value=False),
+    ):
+        assert src.cli_workspace._stdin_is_interactive() is True
+
+
+@pytest.mark.parametrize("console_attached", [True, False])
+def test_on_windows_a_terminal_report_must_be_confirmed_as_a_real_console(console_attached: bool) -> None:
+    """Windows reports the NUL device as a terminal, so isatty() alone would let a script reach the prompt."""
+    with (
+        patch("src.cli_workspace.sys.stdin", _FakeStdin(tty=True)),
+        patch("src.cli_workspace.is_windows", return_value=True),
+        patch("src.cli_workspace._windows_console_attached", return_value=console_attached),
+    ):
+        assert src.cli_workspace._stdin_is_interactive() is console_attached
