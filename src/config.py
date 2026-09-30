@@ -1,7 +1,6 @@
 # src/config.py
 """Application configurations managed via Pydantic-settings and external TOML profiles."""
 
-import sys
 import tomllib
 from pathlib import Path
 from typing import Any, Literal, Self
@@ -14,13 +13,10 @@ from sqlalchemy.exc import ArgumentError
 
 from src.orchestrator.reliability import ReliabilityLimits
 from src.schema.config import SchemaConfig
-from src.utils.paths import require_anchored_path
+from src.utils import paths
 
 # Ensure core environment variables are populated
 load_dotenv()
-
-# Seam so the Windows path rule can be exercised on any operating system.
-_IS_WINDOWS = sys.platform == "win32"
 
 
 def load_config_file(file_path: str) -> dict[str, Any]:
@@ -143,7 +139,7 @@ class ProjectSettings(BaseSettings):
         """
         for name in ("base_dir", "data_dir", "log_dir", "telemetry_log_dir"):
             if name in self.model_fields_set:
-                require_anchored_path(getattr(self, name).as_posix(), name=name, windows=_IS_WINDOWS)
+                paths.require_anchored_path(getattr(self, name).as_posix(), name=name, windows=paths.is_windows())
         application_root = Path(__file__).resolve().parent.parent
         self.base_dir = (application_root / self.base_dir).resolve()
         data_path = self.data_dir if "data_dir" in self.model_fields_set else Path("data")
@@ -167,7 +163,7 @@ class ProjectSettings(BaseSettings):
             database_path = Path(url.database)
             if url.database.startswith("file:"):
                 raise ValueError("SQLite file URI databases are not supported; use a filesystem path.")
-            require_anchored_path(url.database, name="database_url", windows=_IS_WINDOWS)
+            paths.require_anchored_path(url.database, name="database_url", windows=paths.is_windows())
             url = url.set(database=(self.base_dir / database_path).resolve().as_posix())
         self.database_url = url.render_as_string()
         return self

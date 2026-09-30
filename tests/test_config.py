@@ -200,7 +200,7 @@ _PARTLY_ANCHORED = [
 @pytest.fixture
 def windows_rules(monkeypatch: pytest.MonkeyPatch) -> None:
     """Apply the Windows path rule on any operating system."""
-    monkeypatch.setattr("src.config._IS_WINDOWS", True)
+    monkeypatch.setattr("src.utils.paths.is_windows", lambda: True)
     for name in ("log_dir", "telemetry_log_dir"):
         monkeypatch.delenv(name, raising=False)
 
@@ -229,7 +229,7 @@ def test_partly_anchored_paths_are_not_checked_off_windows(
     field: str, value: object, message: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     del message
-    monkeypatch.setattr("src.config._IS_WINDOWS", False)
+    monkeypatch.setattr("src.utils.paths.is_windows", lambda: False)
     values: dict[str, object] = {"base_dir": tmp_path, field: value}
     ProjectSettings.model_validate(values)
 

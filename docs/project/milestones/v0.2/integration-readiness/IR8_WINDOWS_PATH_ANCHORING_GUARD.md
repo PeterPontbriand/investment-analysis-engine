@@ -43,7 +43,7 @@ Parent: [IR contract and slice plan](IR_CONTRACT_AND_SLICE_PLAN.md).
   `require_anchored_path(value: str, *, name: str, windows: bool) -> None` in
   `src/utils/paths.py`, which raises `ValueError` for a partly anchored path. It is built on
   `PureWindowsPath`, so the rule is testable on every OS. `ProjectSettings`' existing model
-  validator calls it with `windows=sys.platform == "win32"` on the *raw* values of `base_dir`,
+  validator calls it with `windows=paths.is_windows()` on the *raw* values of `base_dir`,
   `data_dir`, `log_dir`, `telemetry_log_dir` and `database_url`'s database path, before any
   resolution. `log_dir` and `telemetry_log_dir` also start resolving relative values against
   `base_dir`, which is how `data_dir` and `database_url` already behave.
@@ -54,7 +54,7 @@ Parent: [IR contract and slice plan](IR_CONTRACT_AND_SLICE_PLAN.md).
 
 ### 3.2 Reasons reach the user on every CLI surface
 
-- **Problem:** `database check` and `database upgrade --database-url` replace every validation
+- **Problem:** `db status` and `db upgrade --database-url` replace every validation
   failure with "Select a valid local SQLite database URL.", so the guard's explanation would
   never be shown there. `evaluate --report` accepts a path and creates its parent folders without
   any check.
@@ -82,8 +82,8 @@ Parent: [IR contract and slice plan](IR_CONTRACT_AND_SLICE_PLAN.md).
   [DEFERRED_STRUCTURED_ERROR_REPORTING.md](../DEFERRED_STRUCTURED_ERROR_REPORTING.md).
 - Converting Git Bash paths automatically ([B.1](#b1-decisions), item 1).
 - Any change on Linux or macOS, where `/e/Source` is a valid absolute path.
-- Registering IR.8 in the IR contract's sequence table. The contract is maintained on
-  `feat/ir-integration-readiness`, so the row is added there when `main` is merged back in.
+- Anything in the IR contract beyond IR.8's sequence row and summary section, which were added on this
+  branch after review.
 
 ## 5. Acceptance criteria
 
@@ -93,7 +93,7 @@ Parent: [IR contract and slice plan](IR_CONTRACT_AND_SLICE_PLAN.md).
   UNC paths, `:memory:` and the empty database, on every OS; any path on Linux and macOS.
 - **Log directories:** a relative `log_dir` or `telemetry_log_dir` resolves under `base_dir`; the
   defaults are unchanged.
-- **Reason shown:** `database check --database-url sqlite:////e/x.sqlite3` on Windows prints the
+- **Reason shown:** `db status --database-url sqlite:////e/x.sqlite3` on Windows prints the
   existing sentence followed by the guard's reason.
 - **Tests run everywhere:** the helper's tests run on all three CI operating systems via
   `windows=True/False`. At least one end-to-end `ProjectSettings` test runs unmocked on Windows
@@ -157,8 +157,7 @@ against that drive's current folder…".
   (`base_dir / "logs"`, the module-relative telemetry path) are not changed.
 - Tests: `tests/utils/test_paths.py` covers each row of the table in both `windows` modes, plus
   the suggestion text. `tests/test_config.py` gains validator-level rejection tests for each
-  setting, using `windows=True` through a module-level seam
-  (`src.config._IS_WINDOWS`, monkeypatched). It also gains relative log-directory resolution
+  setting, using `windows=True` through one seam (`src.utils.paths.is_windows`, monkeypatched). It also gains relative log-directory resolution
   tests and one unmocked `skipif(sys.platform != "win32")` test.
 
 ### A.2 Commit 2: reasons reach the user on every CLI surface
@@ -169,7 +168,7 @@ against that drive's current folder…".
   `ValueError`. This also exposes the existing reasons (wrong driver, credentials, `file:` URIs);
   update tests that assert the old exact text.
 - `src/cli.py` `evaluate`: call `require_anchored_path(str(report_path), name="--report",
-  windows=sys.platform == "win32")` before any work, converting `ValueError` to
+  windows=paths.is_windows())` before any work, converting `ValueError` to
   `typer.BadParameter`. Relative `--report` paths keep resolving against the current folder, as
   command-line paths conventionally do.
 - Tests: `tests/test_cli_database.py` (reason appended, for the guard and one existing reason);
@@ -198,7 +197,7 @@ against that drive's current folder…".
    somewhere unexpected is the failure this guard exists to prevent. The message carries the
    suggested form instead.
 2. **The rule lives in the settings loader, not in `SQLiteDatabase`.** Every database surface
-   (the application, `database check/upgrade --database-url`, Alembic `-x database_url`) already
+   (the application, `db status/upgrade --database-url`, Alembic `-x database_url`) already
    builds a `ProjectSettings`, so one check covers all of them, and the log directories come for
    free.
 3. **Relative log directories now follow `base_dir`.** This closes the one remaining case where a
@@ -211,12 +210,14 @@ against that drive's current folder…".
 
 ### B.2 Found during implementation
 
-1. **The plan says `database check`; the command is `ian db status`.** The hidden `db` group has
-   `status` and `upgrade`; there is no `check`. Every reference in this plan and its tests means
-   `db status`.
-2. **`evaluate` needs its own Windows seam.** A.2 passes `sys.platform == "win32"` inline, which cannot be
-   exercised on Linux or macOS. `src/cli.py` gains a module constant `_IS_WINDOWS`, the same seam
-   `src/config.py` uses, and the tests monkeypatch it.
+1. **Found and fixed: the plan named a command that does not exist.** It said `database check`; the
+   hidden `db` group has `status` and `upgrade`. §3.2, §5 and A.2 now name `db status` and `db upgrade`, and
+   the implementation, tests and live check always used them.
+2. **The Windows rule needs one test seam, and it is a function.** A.1 and A.2 pass
+   `sys.platform == "win32"` inline, which cannot be exercised on Linux or macOS. The first implementation
+   added a module constant in each of `src/config.py` and `src/cli.py`. They are replaced by one
+   `is_windows()` in `src/utils/paths.py`, which `src/config.py` and `src/cli.py` call as
+   `paths.is_windows()`, and every test monkeypatches `src.utils.paths.is_windows`.
 3. **Messages show forward slashes.** Path-valued settings and `--report` reach the guard as
    `Path` objects, so the original spelling is gone. They are passed as `as_posix()`, which is the form
    the message's suggestion uses; the database URL path is passed exactly as typed.

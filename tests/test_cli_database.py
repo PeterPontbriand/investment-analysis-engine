@@ -196,7 +196,7 @@ def test_invalid_target_is_sanitized_usage_error(target: Path, command: str, url
 def test_a_partly_anchored_windows_path_is_rejected_with_the_reason(
     target: Path, command: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("src.config._IS_WINDOWS", True)
+    monkeypatch.setattr("src.utils.paths.is_windows", lambda: True)
 
     result = CliRunner().invoke(app, ["db", command, "--database-url", "sqlite:////e/ir8-probe/x.sqlite3"])
 

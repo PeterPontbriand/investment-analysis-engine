@@ -1,8 +1,14 @@
 """Path validation shared by settings and command-line path options."""
 
+import sys
 from pathlib import PureWindowsPath
 
 _HOW_TO_CONVERT = "in Git Bash, 'cygpath -m <path>' prints the Windows form."
+
+
+def is_windows() -> bool:
+    """Return whether the process runs on Windows; tests patch this one seam to exercise the rule elsewhere."""
+    return sys.platform == "win32"
 
 
 def require_anchored_path(value: str, *, name: str, windows: bool) -> None:

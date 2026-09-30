@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime
@@ -88,7 +87,7 @@ from src.reporting.graham_growth import GrahamGrowthPresentation, growth_with_pu
 from src.reporting.graham_number import GrahamNumberPresentation, number_with_public_quote_reason, render_graham_number
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
-from src.utils.paths import require_anchored_path
+from src.utils import paths
 from src.workspace.execution import (
     ExecutionCapture,
     execute,
@@ -117,9 +116,6 @@ app.add_typer(database_app, name="db", hidden=True)
 register_workspace_commands(app)
 
 _MOMENTUM_CLI_DEFAULTS = MomentumConfig()
-
-# Seam so the Windows path rule can be exercised on any operating system.
-_IS_WINDOWS = sys.platform == "win32"
 
 
 class EvaluationCliMode(StrEnum):
@@ -729,7 +725,7 @@ def evaluate(  # noqa: PLR0913
 ) -> None:
     """Run the versioned Golden Suite and write one machine-readable report."""
     try:
-        require_anchored_path(report_path.as_posix(), name="--report", windows=_IS_WINDOWS)
+        paths.require_anchored_path(report_path.as_posix(), name="--report", windows=paths.is_windows())
     except ValueError as exc:
         raise typer.BadParameter(str(exc), param_hint="--report") from exc
     requests = _select_evaluation_requests(case_id)
