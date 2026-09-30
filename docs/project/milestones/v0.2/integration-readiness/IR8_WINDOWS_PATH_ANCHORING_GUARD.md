@@ -26,8 +26,8 @@ Parent: [IR contract and slice plan](IR_CONTRACT_AND_SLICE_PLAN.md).
 
 | Commit | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| 1 | [Guard in the settings loader](#31-guard-in-the-settings-loader) | Next | |
-| 2 | [Reasons reach the user on every CLI surface](#32-reasons-reach-the-user-on-every-cli-surface) | Planned | |
+| 1 | [Guard in the settings loader](#31-guard-in-the-settings-loader) | Complete | 2026-09-29 |
+| 2 | [Reasons reach the user on every CLI surface](#32-reasons-reach-the-user-on-every-cli-surface) | Next | |
 | 3 | [User documentation and agent guidance](#33-user-documentation-and-agent-guidance) | Planned | |
 
 ## 3. The commits

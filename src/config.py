@@ -1,6 +1,7 @@
 # src/config.py
 """Application configurations managed via Pydantic-settings and external TOML profiles."""
 
+import sys
 import tomllib
 from pathlib import Path
 from typing import Any, Literal, Self
@@ -13,9 +14,13 @@ from sqlalchemy.exc import ArgumentError
 
 from src.orchestrator.reliability import ReliabilityLimits
 from src.schema.config import SchemaConfig
+from src.utils.paths import require_anchored_path
 
 # Ensure core environment variables are populated
 load_dotenv()
+
+# Seam so the Windows path rule can be exercised on any operating system.
+_IS_WINDOWS = sys.platform == "win32"
 
 
 def load_config_file(file_path: str) -> dict[str, Any]:
@@ -132,12 +137,20 @@ class ProjectSettings(BaseSettings):
 
         Relative base paths anchor to the application root; relative data and
         database paths anchor to base_dir, independent of the caller's cwd.
-        Explicit SQLite memory URLs remain available for injected tests.
+        Explicit SQLite memory URLs remain available for injected tests. On Windows, a configured path
+        that is only partly anchored (a root without a drive, or a drive without a root) is rejected
+        before any resolution; see :func:`src.utils.paths.require_anchored_path`.
         """
+        for name in ("base_dir", "data_dir", "log_dir", "telemetry_log_dir"):
+            if name in self.model_fields_set:
+                require_anchored_path(getattr(self, name).as_posix(), name=name, windows=_IS_WINDOWS)
         application_root = Path(__file__).resolve().parent.parent
         self.base_dir = (application_root / self.base_dir).resolve()
         data_path = self.data_dir if "data_dir" in self.model_fields_set else Path("data")
         self.data_dir = (self.base_dir / data_path).resolve()
+        for name in ("log_dir", "telemetry_log_dir"):
+            if name in self.model_fields_set:
+                setattr(self, name, (self.base_dir / getattr(self, name)).resolve())
         if "database_url" not in self.model_fields_set:
             self.database_url = URL.create(
                 "sqlite", database=(self.data_dir / "investment-analysis-engine.sqlite3").as_posix()
@@ -154,6 +167,7 @@ class ProjectSettings(BaseSettings):
             database_path = Path(url.database)
             if url.database.startswith("file:"):
                 raise ValueError("SQLite file URI databases are not supported; use a filesystem path.")
+            require_anchored_path(url.database, name="database_url", windows=_IS_WINDOWS)
             url = url.set(database=(self.base_dir / database_path).resolve().as_posix())
         self.database_url = url.render_as_string()
         return self
