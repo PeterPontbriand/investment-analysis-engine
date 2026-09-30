@@ -41,6 +41,8 @@ see `docs/project/README.md`'s Quality gates section for the exact boundary.
 | IR.3 | [Momentum series API](#ir3--momentum-series-api) | Next | |
 | IR.6 | [Watchlist lifecycle completion](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md) | Planned | |
 
+`feat/ir-integration-readiness` is retired once PR #48 merges; all remaining IR work branches from `main`.
+
 ## 3. The slices
 
 ### IR.1 — License declaration
@@ -86,6 +88,7 @@ see `docs/project/README.md`'s Quality gates section for the exact boundary.
   points in one series doesn't pay one full fetch-and-recompute per point.
 - **Momentum only:** Graham Number, Graham Growth and FCF/Earnings Growth evaluate once per fiscal
   period, not once per bar, so a per-bar series API would be speculative for them.
+- **Branch:** its own, off `main`, merged to `main` once accepted.
 - **Detail:** ⚠ no slice plan yet; this section is the whole scope.
 
 ### IR.4 — Python-version reproducibility
