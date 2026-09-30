@@ -4,7 +4,7 @@ Closes the watchlist lifecycle gap that Step 3.4 Amendment A1 deferred
 ([`STEP_3_4_CONTRACT_AND_SLICE_PLAN.md`](../step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) §12,
 "Deferred, not included in this amendment"). Scope and decisions approved by the project owner
 2026-09-27; branching revised 2026-09-29 (see [Appendix B](#appendix-b-decision-records)).
-Implementation is not yet authorized.
+Implementation of all three sub-slices was authorized by the project owner on 2026-09-30.
 
 ## 1. At a glance
 
@@ -79,8 +79,8 @@ written once, in final command names and final text vocabulary.
 
 - No change to any analysis formula, classification, result, run envelope, persisted schema, or
   `--json` payload. No Alembic migration; the head revision is unchanged.
-- Human-readable workspace text changes only as A.1 specifies, and the change is recorded in the
-  [IR contract](IR_CONTRACT_AND_SLICE_PLAN.md) §4.
+- Human-readable workspace text changes only as A.1 specifies, and the change is the accepted exception
+  already recorded in the [IR contract](IR_CONTRACT_AND_SLICE_PLAN.md#a3-accepted-exceptions-to-the-presentation-output-rule)'s Appendix A.3.
 - `delete` and `rename` commit even when other stored entries cannot be read, and any display that needs
   those entries reports the unreadable one with the existing one-line error (D6).
 - The complete managed gate (`scripts/run-quality-gates.ps1` / `.sh`), at least 85% coverage, after
@@ -189,9 +189,10 @@ IR.2.6's watchlist changes:
   an alias-filter test for `runs list`; add text-output assertions showing aliases, including the
   confirmation lines and the retired-selection error; add a JSON assertion that `method_id` is still
   canonical.
-- This changes human-readable workspace text output. It is recorded as an accepted exception to
-  IR §4's "presentation output does not change" criterion, in the same way IR.2.2's wording change
-  was.
+- This changes human-readable workspace text output. It is the accepted exception (IR.6.1, approved
+  2026-09-27) already recorded in the IR contract's
+  [Appendix A.3](IR_CONTRACT_AND_SLICE_PLAN.md#a3-accepted-exceptions-to-the-presentation-output-rule),
+  and is not recorded again.
 
 ### A.2 IR.6.2 — Delete
 
