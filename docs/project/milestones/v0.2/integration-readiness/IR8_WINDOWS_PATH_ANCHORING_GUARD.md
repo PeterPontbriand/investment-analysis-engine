@@ -27,8 +27,8 @@ Parent: [IR contract and slice plan](IR_CONTRACT_AND_SLICE_PLAN.md).
 | Commit | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | 1 | [Guard in the settings loader](#31-guard-in-the-settings-loader) | Complete | 2026-09-29 |
-| 2 | [Reasons reach the user on every CLI surface](#32-reasons-reach-the-user-on-every-cli-surface) | Next | |
-| 3 | [User documentation and agent guidance](#33-user-documentation-and-agent-guidance) | Planned | |
+| 2 | [Reasons reach the user on every CLI surface](#32-reasons-reach-the-user-on-every-cli-surface) | Complete | 2026-09-29 |
+| 3 | [User documentation and agent guidance](#33-user-documentation-and-agent-guidance) | Next | |
 
 ## 3. The commits
 
@@ -196,3 +196,16 @@ against that drive's current folder…".
 4. **Existing `database` error reasons become visible too.** Hiding the reason was a
    contributor-hostile default for every failure, not just this one. The existing sentence is
    kept as the message's first part.
+
+### B.2 Found during implementation
+
+1. **The plan says `database check`; the command is `ian db status`.** The hidden `db` group has
+   `status` and `upgrade`; there is no `check`. Every reference in this plan and its tests means
+   `db status`.
+2. **`evaluate` needs its own Windows seam.** A.2 passes `sys.platform == "win32"` inline, which cannot be
+   exercised on Linux or macOS. `src/cli.py` gains a module constant `_IS_WINDOWS`, the same seam
+   `src/config.py` uses, and the tests monkeypatch it.
+3. **Messages show forward slashes.** Path-valued settings and `--report` reach the guard as
+   `Path` objects, so the original spelling is gone. They are passed as `as_posix()`, which is the form
+   the message's suggestion uses; the database URL path is passed exactly as typed.
+

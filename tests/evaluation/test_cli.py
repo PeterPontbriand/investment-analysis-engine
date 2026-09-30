@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 from src.cli import app
@@ -124,6 +125,26 @@ def test_evaluate_cli_rejects_unknown_case_and_does_not_create_report(tmp_path: 
     assert result.exit_code == 2
     assert "Unknown Golden case ID" in result.output
     assert not target.exists()
+
+
+@pytest.mark.parametrize(
+    "report", ["/e/ir8-probe/report.json", "\\e\\ir8-probe\report.json", "E:ir8-probe/report.json"]
+)
+def test_evaluate_cli_rejects_a_partly_anchored_windows_report_path(
+    report: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A path Windows would anchor to the wrong place fails as a usage error before any work or file creation."""
+    monkeypatch.setattr("src.cli._IS_WINDOWS", True)
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["evaluate", "--report", report])
+
+    assert result.exit_code == 2
+    output = normalize_cli_output(result.output)
+    assert "--report path" in output
+    assert "Windows would" in output
+    assert list(tmp_path.iterdir()) == []
+    assert not Path(report).parent.exists()
 
 
 def test_evaluate_cli_protects_existing_report_unless_overwrite_is_explicit(tmp_path: Path) -> None:

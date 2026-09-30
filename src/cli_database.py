@@ -35,6 +35,12 @@ class DatabaseMaintenanceReport:
     schema_version: int = 1
 
 
+def _first_reason(error: ValidationError) -> str:
+    """Return the validator's own message for the first failure, without pydantic's prefix."""
+    message = str(error.errors()[0]["msg"])
+    return message.removeprefix("Value error, ")
+
+
 def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
     try:
         if database_url is None:
@@ -42,8 +48,10 @@ def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
         else:
             selected = ProjectSettings(**(settings.model_dump() | {"database_url": database_url}))
         database = SQLiteDatabase(selected)
-    except (ValidationError, ValueError) as exc:
-        raise typer.BadParameter("Select a valid local SQLite database URL.") from exc
+    except ValidationError as exc:
+        raise typer.BadParameter(f"Select a valid local SQLite database URL: {_first_reason(exc)}") from exc
+    except ValueError as exc:
+        raise typer.BadParameter(f"Select a valid local SQLite database URL: {exc}") from exc
     report: DatabaseMaintenanceReport
     code = 0
     try:
