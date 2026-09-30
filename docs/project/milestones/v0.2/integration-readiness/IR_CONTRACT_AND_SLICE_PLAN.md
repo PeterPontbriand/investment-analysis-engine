@@ -37,7 +37,7 @@ see `docs/project/README.md`'s Quality gates section for the exact boundary.
 | IR.1 | [License declaration fix](#ir1--license-declaration) | Complete | 2026-09-24 |
 | IR.4 | [Python-version reproducibility](IR4_PYTHON_VERSION_REPRODUCIBILITY.md) | Complete | 2026-09-26 |
 | IR.7 | [`ARCHITECTURE.md` contributor pass](IR7_ARCHITECTURE_DOC_CONTRIBUTOR_PASS.md) | Complete | 2026-09-27 |
-| IR.2 | [Analyzer envelope unification and Momentum parity](IR2_ANALYZER_ENVELOPE_PLAN.md) | In progress | |
+| IR.2 | [Analyzer envelope unification and Momentum parity](IR2_ANALYZER_ENVELOPE_PLAN.md) | Complete | 2026-09-29 |
 | IR.3 | [Momentum series API](#ir3--momentum-series-api) | Next | |
 | IR.6 | [Watchlist lifecycle completion](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md) | Planned | |
 

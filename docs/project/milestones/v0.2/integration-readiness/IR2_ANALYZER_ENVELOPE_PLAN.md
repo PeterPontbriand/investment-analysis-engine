@@ -1018,8 +1018,10 @@ Moved verbatim from the original contract's §5 (items 1, 4, 5, 6, and 7 — ite
 ## IR.2 acceptance record
 
 Recorded 2026-09-29 with the last IR.2 sub-slice, [IR.2.6](IR2_6_MOMENTUM_PARITY_PLAN.md). IR.2 is
-accepted here only as far as the six sub-slices go; the IR contract's own IR.2 row changes to Complete
-when the project owner accepts this record.
+accepted here only as far as the six sub-slices go.
+
+**Acceptance:** the project owner accepted this record and IR.2 as complete on 2026-09-29, and the IR
+contract's IR.2 row is Complete as of that date.
 
 **Delivered:** IR.2.1 through IR.2.6 are Complete in the §6.12 table. IR.2.6 landed as six commits on
 `feat/ir-integration-readiness` (approval record, required dependencies, `MomentumPolicy` deleted,
