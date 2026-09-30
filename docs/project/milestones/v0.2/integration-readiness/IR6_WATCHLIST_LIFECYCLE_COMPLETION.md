@@ -19,7 +19,8 @@ Implementation is not yet authorized.
 - **It depends on IR.2.** IR.2.6 changed the watchlist removal commands, their error handling and
   their confirmation text, so IR.6 branches off `main` after `feat/ir-integration-readiness` has
   merged, not before.
-- **Decisions:** D1 to D5 are recorded verbatim in [Appendix B](#appendix-b-decision-records).
+- **Decisions:** D1 to D5 are recorded verbatim in [Appendix B](#appendix-b-decision-records), and D6
+  (mutations commit without decoding stored entries) follows them there.
 
 ## 2. Sequence and status
 
@@ -53,7 +54,7 @@ written once, in final command names and final text vocabulary.
   scratch watchlist can never be cleaned up.
 - **Decision:** D2 and D3. `ian watchlist delete NAME [--yes] [--missing-ok] [--json]`, with a prompt
   when interactive, a usage error when not and `--yes` is absent, and `--missing-ok` for idempotent
-  cleanup.
+  cleanup. Per D6, delete commits without decoding any stored entry.
 - **Scope:** repository `delete`, the CLI command, `WORKSPACE.md`, and tests.
 - **Branch:** as IR.6.1.
 - **Detail:** [A.2](#a2-ir62--delete).
@@ -62,7 +63,7 @@ written once, in final command names and final text vocabulary.
 
 - **Problem:** a watchlist's display name is fixed at creation.
 - **Decision:** `ian watchlist rename NAME NEW_NAME [--json]`, without confirmation because it is not
-  destructive.
+  destructive. Per D6, rename commits without decoding any stored entry.
 - **Scope:** repository `rename`, the CLI command, `WORKSPACE.md`, and tests.
 - **Branch:** as IR.6.1.
 - **Detail:** [A.3](#a3-ir63--rename).
@@ -80,6 +81,8 @@ written once, in final command names and final text vocabulary.
   `--json` payload. No Alembic migration; the head revision is unchanged.
 - Human-readable workspace text changes only as A.1 specifies, and the change is recorded in the
   [IR contract](IR_CONTRACT_AND_SLICE_PLAN.md) §4.
+- `delete` and `rename` commit even when other stored entries cannot be read, and any display that needs
+  those entries reports the unreadable one with the existing one-line error (D6).
 - The complete managed gate (`scripts/run-quality-gates.ps1` / `.sh`), at least 85% coverage, after
   each sub-slice.
 - Step 3.4 §12's deferral note points here, so no document still describes watchlist rename,
@@ -138,6 +141,11 @@ IR.2.6's watchlist changes:
    `StoredSelectionError` naming the entry and the `watchlist remove-entry` command that removes it, and
    exit 1. `SQLiteWatchlistRepository.get()` raises `StoredSelectionError` for a watchlist holding an
    entry stored by an earlier version, so `watchlist show` and `refresh` fail for the whole watchlist.
+8. **Which paths decode every entry** (checked 2026-09-29 for D6). `get()`, `add_entries` and the
+   aggregate-returning methods decode every entry of the watchlist. `list()` does not: it counts stored
+   rows. `runs list` reads the `analysis_runs` table, never watchlist entries. The removal methods decode
+   nothing (7 above). `delete` and `rename` as first planned would decode, because each returned the
+   loaded aggregate; D6 removes that.
 
 ---
 
@@ -170,6 +178,9 @@ IR.2.6's watchlist changes:
   alias the caller typed and must keep doing so, never the canonical id. The retired-selection error
   keeps naming `watchlist remove-entry`, which this slice does not rename.
 - `--json` payloads (`watchlist show`, `runs list`, `runs show`, `refresh`) are unchanged.
+- The alias vocabulary adds no dependency on decoding entries: `runs list --analysis` maps an alias to a
+  `method_id` before querying `analysis_runs`, and the reverse mapping is applied to run rows and to
+  already-decoded entries only (D6).
 - Docs: `WORKSPACE.md` (removal section, `runs list` filter example, any sample output showing
   canonical ids) and `GLOSSARY.md` where it names these commands. Historical completion-evidence
   documents are not rewritten.
@@ -186,9 +197,13 @@ IR.2.6's watchlist changes:
 
 Repository (`src/data/repositories/watchlists.py`):
 
-- `delete(name: str) -> Watchlist` resolves `name` with the existing trim/casefold convention,
-  loads the full aggregate, and deletes its entries and then its watchlist row **in one
-  transaction**. It returns the aggregate as it was immediately before deletion.
+- `delete(name: str) -> DeletedWatchlist` resolves `name` with the existing trim/casefold convention
+  and deletes its entries and then its watchlist row **in one transaction**, without decoding any entry
+  (D6). It returns the watchlist's ID, display name and stored entry count, plus the decoded aggregate
+  as it was immediately before deletion **when every entry could be decoded**, or the
+  `StoredSelectionError` for the first unreadable entry when not (`DeletedWatchlist` holds one or the
+  other). Decoding happens inside the same transaction, before the rows are removed, and a failure
+  never rolls the deletion back.
 - Entries are deleted explicitly, not only through the cascade. This matches IR's
   verify-at-both-boundaries approach. A separate test proves the cascade alone also leaves no
   orphans, so neither mechanism is untested.
@@ -200,11 +215,12 @@ CLI (`src/cli_workspace.py`), `ian watchlist delete NAME [--yes] [--missing-ok] 
 1. If `--yes` is absent and stdin is not interactive: usage error (exit 2) naming `--yes`, before
    opening the database. Interactivity is checked through one small helper, so tests can control
    it instead of depending on the test runner's stdin.
-2. If `--yes` is absent and stdin is interactive: look up the watchlist (applying the not-found
-   rule below), show its name, ID, and entry count, and prompt. Declining exits 1 with nothing
+2. If `--yes` is absent and stdin is interactive: look up the watchlist row (applying the not-found
+   rule below), show its name, ID, and stored entry count, taken from the row and a count of its stored
+   entries with no decoding (D2's content is unchanged), and prompt. Declining exits 1 with nothing
    deleted.
 3. Delete. Text output names the deleted watchlist and its ID and states that saved Analysis
-   Runs are kept.
+   Runs are kept; it needs no entry, so it succeeds (exit 0) whatever the entries' state.
 4. Not found: exit 1 via `_fail`, or with `--missing-ok`, exit 0 and a message that nothing was
    deleted.
 
@@ -218,35 +234,52 @@ CLI (`src/cli_workspace.py`), `ian watchlist delete NAME [--yes] [--missing-ok] 
 The second form appears only under `--missing-ok`. Without it, not-found is exit 1 on stderr, the
 same as every other watchlist command.
 
+If an entry cannot be decoded, `--json` cannot build the `watchlist` document. The deletion still
+commits; stdout stays empty, stderr carries the confirmation
+(`Deleted watchlist 'NAME' (ID, N entries). Saved Analysis Runs are kept.`) and then the existing
+one-line `StoredSelectionError` naming the first unreadable entry, and the command exits 1, as the
+removal commands do.
+
 Tests:
 
 - Repository: returns the pre-delete aggregate; the watchlist and all its entries are gone;
   case-insensitive match; not-found raises; other watchlists untouched; a saved run carrying the
   deleted `watchlist_id` still loads and replays; the name can be reused and gets a new ID;
-  deleting the parent row by raw SQL alone leaves no orphan entries.
+  deleting the parent row by raw SQL alone leaves no orphan entries; a watchlist holding one or more
+  entries stored by an earlier version is deleted, with the entry count reported and no decoding
+  attempted, and the result carries the `StoredSelectionError` instead of the aggregate.
 - CLI: `--yes` success (text and `--json`); interactive confirm and decline; non-interactive without
   `--yes` is exit 2 and the database file is byte-for-byte unchanged; not-found is exit 1;
   `--missing-ok` not-found is exit 0 (text and `--json`); `--missing-ok` on an existing watchlist
-  deletes normally; `watchlist list` no longer shows it.
+  deletes normally; `watchlist list` no longer shows it; a watchlist with unreadable entries is deleted
+  by `--yes` in text mode (exit 0), the interactive prompt shows the entry count without decoding, and
+  `--json` on such a watchlist deletes it, prints nothing on stdout, and prints the confirmation and the
+  one-line error on stderr with exit 1.
 - Docs: a "Deleting a watchlist" subsection in `WORKSPACE.md`, covering run retention, `--yes`,
   and `--missing-ok`.
 
 ### A.3 IR.6.3 — Rename
 
-- Repository `rename(name: str, new_display_name: str) -> Watchlist` applies the same trim/blank
+- Repository `rename(name: str, new_display_name: str) -> None` decodes no entry (D6) and applies the same trim/blank
   validation as `create` and raises `WatchlistConflictError` if the new normalized name belongs to
   a *different* watchlist. Renaming to a different casing of its own name (`core holdings` →
   `Core Holdings`) is allowed and changes only `display_name`. Renaming to the identical display
   name is a no-op that does not bump `updated_at`. Any real change bumps `updated_at`.
   `watchlist_id` never changes.
 - CLI `ian watchlist rename NAME NEW_NAME [--json]`: not destructive, so no confirmation. Not
-  found is exit 1; conflict is exit 1; a blank new name is a usage error (exit 2). Output is the
-  renamed watchlist, as `watchlist show` renders it.
+  found is exit 1; conflict is exit 1; a blank new name is a usage error (exit 2). After the rename
+  commits, the command prints `Renamed watchlist 'OLD' to 'NEW'.` and then the renamed watchlist, read
+  back with `get()` and rendered as `watchlist show` renders it. If `get()` raises
+  `StoredSelectionError`, the confirmation stands, the existing one-line error follows, and the command
+  exits 1. With `--json`, the document is the only stdout on success; on an unreadable entry stdout is
+  empty and stderr carries the confirmation and the error.
 - Docs: a "Renaming a watchlist" subsection, stating that saved runs keep the name the watchlist
   had when they ran, by design (§6.2 item 2), so `runs show` may display a name that no longer
   exists.
 - Tests: success; case-only rename; identical-name no-op; conflict; blank; not found; a saved run's
-  snapshot name is unchanged after rename; `updated_at` behavior.
+  snapshot name is unchanged after rename; `updated_at` behavior; a watchlist holding unreadable entries
+  is renamed (the row changes, the confirmation and one-line error print, exit 1, and `--json` leaves stdout
+  empty), and the same watchlist can then be brought back to a readable state with `remove-entry`.
 
 ---
 
@@ -275,7 +308,20 @@ Tests:
   JSON-envelope scope that moved to `SWC`, and reusing it would recreate the ambiguity the IR.4
   reuse needed a note to resolve.
 
-### B.2 Branching history
+### B.2 D6 — Unreadable stored entries (project owner, 2026-09-29)
+
+- **D6 — Mutations commit without decoding.** An entry stored by an earlier version cannot be decoded,
+  and `get()` fails for the whole watchlist. IR.2.6 fixed the removal commands so each removal commits
+  without decoding any survivor. Every command IR.6 adds or changes follows the same rule. `delete`
+  builds its confirmation summary (name, ID, entry count) from the watchlist row and a count of its
+  stored entries, and deletes without decoding; D2's decision about what the prompt shows is unchanged.
+  `rename` commits without decoding. The alias-vocabulary paths (`runs list --analysis` and the
+  renderers) add no dependency on decoding entries. Any display after a mutation that needs the decoded
+  entries reports an unreadable one with the existing one-line `StoredSelectionError` message, after a
+  confirmation of what was done, and exits 1. Recorded so a sub-slice cannot reintroduce an
+  aggregate-returning mutation that rolls back because an unrelated entry cannot be read.
+
+### B.3 Branching history
 
 **Revised 2026-09-29 (current).** IR.6 branches `fix/ir6-watchlist-lifecycle` off `main` after
 `feat/ir-integration-readiness` has merged. IR.2.6 changed the watchlist removal commands, their error
