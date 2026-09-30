@@ -192,6 +192,10 @@ defers to it.
 
 Kept for the record. Nothing here is needed to understand what IR does or what comes next.
 
+Commit IDs cited in the IR planning records up to IR.2's acceptance are this branch's individual commits,
+preserved on GitHub under PR #48 (`git fetch origin pull/48/head`), not in `main`'s history, because that PR
+is squash-merged.
+
 ### A.1 IR.1: found and fixed `momentum_analyzer.py` import failure on Python 3.12/3.13
 
 `pyproject.toml` declares `requires-python = ">=3.12"`, but
