@@ -10,6 +10,7 @@ one repository call, and closes it before returning — mirroring the existing
 to dispatch one refresh job per stored selection.
 """
 
+import ctypes
 import json
 import signal
 import sys
@@ -60,6 +61,7 @@ from src.data.repositories.watchlists import (
 from src.data.yfinance import YFinanceClient
 from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
 from src.reporting.presentation import PresentationMode
+from src.utils.paths import is_windows
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from src.workspace.execution import (
     ExecutionCapture,
@@ -683,9 +685,24 @@ def watchlist_remove_method(
     typer.echo(_watchlist_text(watchlist))
 
 
+def _windows_console_attached() -> bool:  # pragma: no cover - needs a real Windows console handle
+    """Report whether standard input is a real Windows console, not merely a character device."""
+    kernel32 = getattr(ctypes, "WinDLL")("kernel32")  # noqa: B009 - typeshed defines WinDLL on Windows only
+    kernel32.GetStdHandle.restype = ctypes.c_void_p
+    kernel32.GetConsoleMode.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
+    mode = ctypes.c_uint32()
+    return bool(kernel32.GetConsoleMode(kernel32.GetStdHandle(-10), ctypes.byref(mode)))
+
+
 def _stdin_is_interactive() -> bool:
-    """Report whether standard input is an interactive terminal; the one seam tests control."""
-    return sys.stdin.isatty()
+    """Report whether standard input is an interactive terminal; the one seam tests control.
+
+    Windows reports the NUL device, which is what a script's redirected-from-nothing standard input
+    is, as a terminal, so there ``isatty()`` alone would let a script reach a prompt nobody can answer.
+    """
+    if not sys.stdin.isatty():
+        return False
+    return _windows_console_attached() if is_windows() else True
 
 
 @watchlist_app.command("delete")

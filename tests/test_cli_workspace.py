@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 from uuid import UUID
 
+import pytest
 from alembic.config import Config
 from sqlalchemy import update
 from typer.testing import CliRunner
@@ -976,3 +977,35 @@ def test_watchlist_rename_of_an_unknown_name_exits_1() -> None:
 def test_watchlist_rename_help_has_no_storage_side_effects() -> None:
     with patch.object(SQLiteDatabase, "__init__", side_effect=AssertionError("must not open a database for --help")):
         assert runner.invoke(app, ["watchlist", "rename", "--help"]).exit_code == 0
+
+
+class _FakeStdin:
+    def __init__(self, *, tty: bool) -> None:
+        self._tty = tty
+
+    def isatty(self) -> bool:
+        return self._tty
+
+
+def test_stdin_is_not_interactive_when_it_is_not_a_terminal() -> None:
+    with patch("src.cli_workspace.sys.stdin", _FakeStdin(tty=False)):
+        assert src.cli_workspace._stdin_is_interactive() is False
+
+
+def test_stdin_is_interactive_for_a_terminal_off_windows() -> None:
+    with (
+        patch("src.cli_workspace.sys.stdin", _FakeStdin(tty=True)),
+        patch("src.cli_workspace.is_windows", return_value=False),
+    ):
+        assert src.cli_workspace._stdin_is_interactive() is True
+
+
+@pytest.mark.parametrize("console_attached", [True, False])
+def test_on_windows_a_terminal_report_must_be_confirmed_as_a_real_console(console_attached: bool) -> None:
+    """Windows reports the NUL device as a terminal, so isatty() alone would let a script reach the prompt."""
+    with (
+        patch("src.cli_workspace.sys.stdin", _FakeStdin(tty=True)),
+        patch("src.cli_workspace.is_windows", return_value=True),
+        patch("src.cli_workspace._windows_console_attached", return_value=console_attached),
+    ):
+        assert src.cli_workspace._stdin_is_interactive() is console_attached
