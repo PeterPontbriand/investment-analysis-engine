@@ -128,9 +128,9 @@ def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMoc
     result = runner.invoke(app, ["watchlist", "show", "Core Holdings"])
     assert result.exit_code == 0, result.output
     shown = normalize_cli_output(result.output)
-    assert "sma_crossover" in shown
-    assert "graham_number" in shown
-    assert "graham_growth_value" in shown
+    assert "momentum:" in shown
+    assert "graham-number:" in shown
+    assert "graham-growth:" in shown
     assert "Entries (3)" in shown
 
     # 4. Refresh the whole watchlist in one command.

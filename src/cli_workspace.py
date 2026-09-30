@@ -10,8 +10,10 @@ one repository call, and closes it before returning — mirroring the existing
 to dispatch one refresh job per stored selection.
 """
 
+import ctypes
 import json
 import signal
+import sys
 import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -50,6 +52,7 @@ from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.readiness import DatabaseReadinessError, ensure_database_ready
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.repositories.watchlists import (
+    DeletedWatchlist,
     SQLiteWatchlistRepository,
     WatchlistConflictError,
     WatchlistEntryNotFoundError,
@@ -58,6 +61,7 @@ from src.data.repositories.watchlists import (
 from src.data.yfinance import YFinanceClient
 from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
 from src.reporting.presentation import PresentationMode
+from src.utils.paths import is_windows
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from src.workspace.execution import (
     ExecutionCapture,
@@ -69,6 +73,7 @@ from src.workspace.execution import (
 from src.workspace.fcf_growth_execution import execute_fcf_growth
 from src.workspace.graham_growth_execution import execute_graham_growth
 from src.workspace.graham_number_execution import execute_graham_number
+from src.workspace.method_aliases import ALIAS_METHOD_IDS, ANALYSIS_ALIASES, alias_for_method_id
 from src.workspace.models import RunOutcome
 from src.workspace.momentum_execution import capture_momentum, run_momentum
 from src.workspace.refresh import (
@@ -95,17 +100,6 @@ watchlist_app = typer.Typer(help="Manage named watchlists of tickers and their a
 runs_app = typer.Typer(help="Browse persisted Analysis Run history.")
 
 _MOMENTUM_CLI_DEFAULTS = MomentumConfig()
-
-# Amendment A1 (§12) keeps the existing hyphenated `--analysis` alias vocabulary
-# used by watchlist commands; the mismatch with `runs list --method`'s canonical
-# `method_id` values is a separately flagged, out-of-scope inconsistency.
-_ANALYSIS_ALIASES = ("momentum", "graham-number", "graham-growth", "fcf-growth")
-_ALIAS_METHOD_IDS = {
-    "momentum": "sma_crossover",
-    "graham-number": "graham_number",
-    "graham-growth": "graham_growth_value",
-    "fcf-growth": "reported_fcf_eps_cagr",
-}
 
 
 @contextmanager
@@ -145,9 +139,10 @@ def _selection_detail_text(selection: AnalysisSelection) -> str:
 
 
 def _selection_summary(selection: AnalysisSelection) -> str:
-    """Render one selection's method identifier and distinguishing fields, compactly."""
+    """Render one selection's method alias and distinguishing fields, compactly."""
     detail = _selection_detail_text(selection)
-    return f"{selection.method_id}: {detail}" if detail else selection.method_id
+    alias = alias_for_method_id(selection.method_id)
+    return f"{alias}: {detail}" if detail else alias
 
 
 def _entry_line(entry: WatchlistEntry, *, group_by: str) -> str:
@@ -170,7 +165,9 @@ def _watchlist_text(watchlist: Watchlist, *, group_by: str = "ticker") -> str:
         return "\n".join(lines)
 
     key_of: Callable[[WatchlistEntry], str] = (
-        (lambda entry: entry.selection.method_id) if group_by == "method" else (lambda entry: entry.ticker)
+        (lambda entry: alias_for_method_id(entry.selection.method_id))
+        if group_by == "method"
+        else (lambda entry: entry.ticker)
     )
     groups: dict[str, list[tuple[int, WatchlistEntry]]] = {}
     for index, entry in enumerate(watchlist.entries, start=1):
@@ -181,9 +178,9 @@ def _watchlist_text(watchlist: Watchlist, *, group_by: str = "ticker") -> str:
     return "\n".join(lines)
 
 
-def _watchlist_json(watchlist: Watchlist) -> str:
-    """Emit the flat, ordered entry list, each carrying the same 1-based index a user sees."""
-    payload = {
+def _watchlist_payload(watchlist: Watchlist) -> dict[str, object]:
+    """Build the flat, ordered entry list, each carrying the same 1-based index a user sees."""
+    return {
         "watchlist_id": str(watchlist.watchlist_id),
         "display_name": watchlist.display_name,
         "created_at": watchlist.created_at.isoformat(),
@@ -193,7 +190,11 @@ def _watchlist_json(watchlist: Watchlist) -> str:
             for index, entry in enumerate(watchlist.entries, start=1)
         ],
     }
-    return json.dumps(payload, ensure_ascii=False, allow_nan=False)
+
+
+def _watchlist_json(watchlist: Watchlist) -> str:
+    """Emit the complete watchlist document."""
+    return json.dumps(_watchlist_payload(watchlist), ensure_ascii=False, allow_nan=False)
 
 
 def _summary_line(summary: WatchlistSummary) -> str:
@@ -204,8 +205,8 @@ def _summary_line(summary: WatchlistSummary) -> str:
 def _parse_analysis(value: str) -> str:
     """Normalize and validate a watchlist ``--analysis`` alias."""
     normalized = value.strip().lower()
-    if normalized not in _ANALYSIS_ALIASES:
-        allowed = ", ".join(_ANALYSIS_ALIASES)
+    if normalized not in ANALYSIS_ALIASES:
+        allowed = ", ".join(ANALYSIS_ALIASES)
         raise typer.BadParameter(f"--analysis must be one of: {allowed}.")
     return normalized
 
@@ -646,8 +647,8 @@ def watchlist_remove_entry(
     typer.echo(_watchlist_text(watchlist))
 
 
-@watchlist_app.command("remove")
-def watchlist_remove(
+@watchlist_app.command("remove-ticker")
+def watchlist_remove_ticker(
     name: Annotated[str, typer.Argument(help="Watchlist name.")],
     tickers: Annotated[list[str], typer.Argument(help="Tickers to remove every entry for, across every method.")],
 ) -> None:
@@ -664,8 +665,8 @@ def watchlist_remove(
     typer.echo(_watchlist_text(watchlist))
 
 
-@watchlist_app.command("disable")
-def watchlist_disable(
+@watchlist_app.command("remove-method")
+def watchlist_remove_method(
     name: Annotated[str, typer.Argument(help="Watchlist name.")],
     *,
     analysis: Annotated[
@@ -677,11 +678,114 @@ def watchlist_disable(
     with _workspace_database() as database:
         repository = SQLiteWatchlistRepository(database)
         try:
-            removed = repository.remove_entries_for_method(name, _ALIAS_METHOD_IDS[method])
+            removed = repository.remove_entries_for_method(name, ALIAS_METHOD_IDS[method])
         except WatchlistNotFoundError as exc:
             _fail(str(exc))
         watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, method))
     typer.echo(_watchlist_text(watchlist))
+
+
+def _windows_console_attached() -> bool:  # pragma: no cover - needs a real Windows console handle
+    """Report whether standard input is a real Windows console, not merely a character device."""
+    kernel32 = getattr(ctypes, "WinDLL")("kernel32")  # noqa: B009 - typeshed defines WinDLL on Windows only
+    kernel32.GetStdHandle.restype = ctypes.c_void_p
+    kernel32.GetConsoleMode.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
+    mode = ctypes.c_uint32()
+    return bool(kernel32.GetConsoleMode(kernel32.GetStdHandle(-10), ctypes.byref(mode)))
+
+
+def _stdin_is_interactive() -> bool:
+    """Report whether standard input is an interactive terminal; the one seam tests control.
+
+    Windows reports the NUL device, which is what a script's redirected-from-nothing standard input
+    is, as a terminal, so there ``isatty()`` alone would let a script reach a prompt nobody can answer.
+    """
+    if not sys.stdin.isatty():
+        return False
+    return _windows_console_attached() if is_windows() else True
+
+
+@watchlist_app.command("delete")
+def watchlist_delete(
+    name: Annotated[str, typer.Argument(help="Watchlist name.")],
+    *,
+    yes: Annotated[bool, typer.Option("--yes", help="Delete without asking for confirmation.")] = False,
+    missing_ok: Annotated[
+        bool, typer.Option("--missing-ok", help="Exit 0 instead of 1 when no such watchlist exists.")
+    ] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit one JSON document describing the outcome.")] = False,
+) -> None:
+    """Delete a watchlist and its entries. Saved Analysis Runs are kept.
+
+    Asks for confirmation on an interactive terminal; without one, --yes is required.
+    """
+    if not yes and not _stdin_is_interactive():
+        raise typer.BadParameter("--yes is required when input is not interactive.", param_hint="--yes")
+    deleted: DeletedWatchlist | None = None
+    with _workspace_database() as database:
+        repository = SQLiteWatchlistRepository(database)
+        try:
+            if not yes:
+                summary = repository.summary(name)
+                question = (
+                    f"Delete watchlist {summary.display_name!r} (ID {summary.watchlist_id}, "
+                    f"{_plural_entries(summary.entry_count)})? Saved Analysis Runs are kept."
+                )
+                if not typer.confirm(question):
+                    typer.echo("Nothing was deleted.")
+                    raise typer.Exit(code=1)
+            deleted = repository.delete(name)
+        except WatchlistNotFoundError as exc:
+            if not missing_ok:
+                _fail(str(exc))
+    if deleted is None:
+        if json_output:
+            typer.echo(json.dumps({"requested_name": name, "deleted": False, "watchlist": None}, ensure_ascii=False))
+        else:
+            typer.echo(f"No watchlist named {name!r} exists. Nothing was deleted.")
+        return
+    confirmation = (
+        f"Deleted watchlist {deleted.display_name!r} (ID {deleted.watchlist_id}, "
+        f"{_plural_entries(deleted.entry_count)}). Saved Analysis Runs are kept."
+    )
+    if not json_output:
+        typer.echo(confirmation)
+        return
+    if deleted.watchlist is None:
+        typer.echo(confirmation, err=True)
+        _fail(str(deleted.unreadable))
+    document = {"requested_name": name, "deleted": True, "watchlist": _watchlist_payload(deleted.watchlist)}
+    typer.echo(json.dumps(document, ensure_ascii=False, allow_nan=False))
+
+
+@watchlist_app.command("rename")
+def watchlist_rename(
+    name: Annotated[str, typer.Argument(help="Current watchlist name.")],
+    new_name: Annotated[str, typer.Argument(help="New display name.")],
+    *,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit the renamed watchlist document.")] = False,
+) -> None:
+    """Rename a watchlist. Saved Analysis Runs keep the name it had when they ran."""
+    with _workspace_database() as database:
+        repository = SQLiteWatchlistRepository(database)
+        try:
+            repository.rename(name, new_name)
+        except (WatchlistNotFoundError, WatchlistConflictError) as exc:
+            _fail(str(exc))
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+        confirmation = f"Renamed watchlist {name!r} to {new_name.strip()!r}."
+        if not json_output:
+            typer.echo(confirmation)
+        try:
+            watchlist = repository.get(new_name)
+        except StoredSelectionError as exc:
+            if json_output:
+                typer.echo(confirmation, err=True)
+            _fail(str(exc))
+    if watchlist is None:
+        _fail(f"No watchlist named {new_name!r} exists.")
+    typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist))
 
 
 @watchlist_app.command("list")
@@ -720,7 +824,12 @@ def watchlist_show(
 def runs_list(  # noqa: PLR0913
     *,
     ticker: Annotated[str | None, typer.Option("--ticker", help="Filter by exact normalized ticker.")] = None,
-    method: Annotated[str | None, typer.Option("--method", help="Filter by canonical method identifier.")] = None,
+    analysis: Annotated[
+        str | None,
+        typer.Option(
+            "--analysis", "-a", help="Filter by method: momentum, graham-number, graham-growth, or fcf-growth."
+        ),
+    ] = None,
     status: Annotated[str | None, typer.Option("--status", help="Filter by outcome.")] = None,
     refresh_id: Annotated[
         str | None, typer.Option("--refresh-id", help="Filter by refresh batch ID (the full UUID shown by 'refresh').")
@@ -733,7 +842,7 @@ def runs_list(  # noqa: PLR0913
     try:
         query = RunQuery(
             ticker=None if ticker is None else normalize_ticker(ticker),
-            method_id=method,
+            method_id=None if analysis is None else ALIAS_METHOD_IDS[_parse_analysis(analysis)],
             status=None if status is None else _parse_status(status),
             refresh_id=None if refresh_id is None else _parse_run_id(refresh_id, field="--refresh-id"),
             limit=limit,
@@ -812,7 +921,7 @@ def _parse_status(value: str) -> RunOutcome:
 
 def _run_summary_line(summary: AnalysisRunSummary) -> str:
     return (
-        f"{summary.analysis_run_id}  {summary.ticker:<10} {summary.method_id:<24} "
+        f"{summary.analysis_run_id}  {summary.ticker:<10} {alias_for_method_id(summary.method_id):<24} "
         f"{summary.status.value:<14} {summary.completed_at.isoformat()}"
     )
 
@@ -964,14 +1073,13 @@ def _refresh_has_failure(summary: RefreshSummary) -> bool:
 def _refresh_text(summary: RefreshSummary) -> str:
     lines = [f"Refresh {summary.refresh_id} for {summary.watchlist_name!r}:"]
     for result in summary.results:
+        method = alias_for_method_id(result.method_id)
         if result.run is not None:
-            lines.append(
-                f"  {result.run.analysis_run_id}  {result.ticker:<10} {result.method_id:<24} {result.run.status.value}"
-            )
+            lines.append(f"  {result.run.analysis_run_id}  {result.ticker:<10} {method:<24} {result.run.status.value}")
         elif result.outcome is not None:
-            lines.append(f"  {'(not saved)':<38}{result.ticker:<10} {result.method_id:<24} {result.outcome.value}")
+            lines.append(f"  {'(not saved)':<38}{result.ticker:<10} {method:<24} {result.outcome.value}")
         else:
-            lines.append(f"  {'':<38}{result.ticker:<10} {result.method_id:<24} error: {result.error}")
+            lines.append(f"  {'':<38}{result.ticker:<10} {method:<24} error: {result.error}")
     counts = ", ".join(f"{key}={value}" for key, value in sorted(summary.counts.items()))
     lines.append(f"Counts: {counts}" if counts else "Counts: (none)")
     return "\n".join(lines)
