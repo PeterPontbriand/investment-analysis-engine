@@ -234,7 +234,7 @@ against that drive's current folder…".
    set only the value under test, and use the current folder, not `base_dir`, to prove nothing was created. The
    `db` command test runs on Windows only, because those commands rebuild settings from
    `settings.model_dump()` and so re-check every resolved path. The backslash `--report` case is now a raw
-   string (it contained ``, a carriage return), and the drive-root folder is asserted absent only on real
+   string (it contained `\r`, a carriage return), and the drive-root folder is asserted absent only on real
    Windows. The managed gate runs on Windows, so the project's CI is the check for other operating systems: a
    change to simulated-platform tests is verified there before it is reported complete.
 
