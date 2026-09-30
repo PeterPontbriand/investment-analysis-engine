@@ -38,8 +38,7 @@ see `docs/project/README.md`'s Quality gates section for the exact boundary.
 | IR.4 | [Python-version reproducibility](IR4_PYTHON_VERSION_REPRODUCIBILITY.md) | Complete | 2026-09-26 |
 | IR.7 | [`ARCHITECTURE.md` contributor pass](IR7_ARCHITECTURE_DOC_CONTRIBUTOR_PASS.md) | Complete | 2026-09-27 |
 | IR.2 | [Analyzer envelope unification and Momentum parity](IR2_ANALYZER_ENVELOPE_PLAN.md) | Complete | 2026-09-29 |
-| IR.3 | [Momentum series API](#ir3--momentum-series-api) | Next | |
-| IR.6 | [Watchlist lifecycle completion](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md) | Planned | |
+| IR.6 | [Watchlist lifecycle completion](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md) | Next | |
 | IR.8 | [Windows path anchoring guard](IR8_WINDOWS_PATH_ANCHORING_GUARD.md) | Complete | 2026-09-30 |
 
 `feat/ir-integration-readiness` is retired once PR #48 merges; all remaining IR work branches from `main`.
@@ -79,18 +78,6 @@ see `docs/project/README.md`'s Quality gates section for the exact boundary.
   accepted as a special case.
 - **Detail:** [IR.2 plan](IR2_ANALYZER_ENVELOPE_PLAN.md), which holds the sub-slice sequence table,
   the full call-site and field inventory, and every design decision.
-
-### IR.3 — Momentum series API
-
-- **Problem:** `run_analysis` already computes full rolling SMA series
-  (`close_series.rolling(window=s_win).mean()`) and then discards everything except `.iloc[-1]`.
-- **Scope:** expose a pure, vectorized function returning the full computed series (SMA short/long,
-  RSI, crossover) beneath the existing snapshot-returning public API, so a caller evaluating many
-  points in one series doesn't pay one full fetch-and-recompute per point.
-- **Momentum only:** Graham Number, Graham Growth and FCF/Earnings Growth evaluate once per fiscal
-  period, not once per bar, so a per-bar series API would be speculative for them.
-- **Branch:** its own, off `main`, merged to `main` once accepted.
-- **Detail:** ⚠ no slice plan yet; this section is the whole scope.
 
 ### IR.4 — Python-version reproducibility
 
@@ -143,10 +130,22 @@ on 2026-09-24. They are per-strategy wiring of the same kind SWC consolidates, s
 SWC's shared strategy descriptor means writing them once instead of once per strategy. Details:
 [A.4](#a4-slice-numbering-history).
 
+### Moved out: Momentum series API (formerly IR.3)
+
+A pure, vectorized Momentum series API (full SMA short/long, RSI and crossover series beneath the
+snapshot API) moved to the [evidence-provider candidate backlog](../../../EVIDENCE_PROVIDER_ROADMAP.md)
+on 2026-09-30. No consumer needs per-bar evaluation: the external backtester integration that
+motivated it was judged not viable ([Background](#6-background-origin-of-this-work-package)), and
+point-in-time filtering is already served by `--as-of` on every caller surface. The backlog row
+carries the original scope, the trigger to revisit it and the questions a future plan must answer.
+The IR.3 number is retired, not reused. Details: [A.4](#a4-slice-numbering-history).
+
 ## 4. Out of scope
 
 - Any new trading-signal, entry/exit, or order-generation capability.
-- A `compute_series`-style API for the three fundamentals-based analyses.
+- A `compute_series`-style API for any analysis. Momentum's is a candidate in the
+  [backlog](../../../EVIDENCE_PROVIDER_ROADMAP.md); the three fundamentals-based analyses evaluate
+  once per fiscal period, not once per bar, so a per-bar series API would be speculative for them.
 - An actual MCP server, subprocess boundary, or harness adapter. This work package makes that
   possible later; it doesn't build it.
 - Backtester-specific integration code for any named external project.
@@ -290,6 +289,12 @@ change. Every `--json` payload, including its canonical `method_id`, is unchange
 - **IR.4 reused for Python-version reproducibility, 2026-09-25.** Labeled IR.4, reusing the number
   freed when the old IR.4 (Momentum series API) was renumbered to IR.3 — an unrelated new slice found
   during IR.2.3 verification, not a revival of that content.
+- **Momentum series API moved to the candidate backlog, 2026-09-30.** The project owner decided that
+  no consumer needs per-bar evaluation (the external backtester integration was judged not viable, and
+  `--as-of` already serves point-in-time filtering), so the slice left IR and became a candidate in
+  [`EVIDENCE_PROVIDER_ROADMAP.md`](../../../EVIDENCE_PROVIDER_ROADMAP.md). The IR.3 number is retired,
+  not reused, so it cannot be confused with either earlier IR.3 (Momentum purity, or the series API
+  under its renumbered label).
 - **IR.6 added, 2026-09-27.** Labeled IR.6, not IR.5, because "IR.5" still labels the JSON-envelope
   scope that moved to `SWC`.
 - **IR.7 added, 2026-09-27.** Found and required by the `docs/contributor-documentation` merge
@@ -332,3 +337,6 @@ merged back 2026-09-26; its spec and completion record live in
 lifecycle completion: delete, rename, one method vocabulary), added 2026-09-27, is planned on its
 own branch off `main` like IR.4; see
 [IR6_WATCHLIST_LIFECYCLE_COMPLETION.md](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md).
+
+The Momentum series API (the renumbered IR.3 named above) moved to the candidate backlog on
+2026-09-30; see [A.4](#a4-slice-numbering-history).
