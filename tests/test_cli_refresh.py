@@ -543,7 +543,7 @@ def test_delete_commits_when_an_entry_is_unreadable_in_text_mode() -> None:
 
     assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
-    assert output.startswith("Deleted watchlist 'Old Watch' (")
+    assert output.startswith("Deleted watchlist 'Old Watch' (ID ")
     assert "2 entries" in output
     assert "can no longer be read" not in output
     assert _stored_tickers() == []
@@ -569,7 +569,7 @@ def test_delete_json_with_an_unreadable_entry_deletes_prints_no_stdout_and_exits
     assert result.exit_code == 1
     assert result.stdout == ""
     message = normalize_cli_output(result.stderr)
-    assert message.startswith("Deleted watchlist 'Old Watch' (")
+    assert message.startswith("Deleted watchlist 'Old Watch' (ID ")
     assert "2 entries). Saved Analysis Runs are kept." in message
     assert "entry 2 (MSFT, momentum): saved by an earlier version" in message
     assert _stored_tickers() == []

@@ -301,7 +301,7 @@ same as every other watchlist command.
 
 If an entry cannot be decoded, `--json` cannot build the `watchlist` document. The deletion still
 commits; stdout stays empty, stderr carries the confirmation
-(`Deleted watchlist 'NAME' (ID, N entries). Saved Analysis Runs are kept.`) and then the existing
+(`Deleted watchlist 'NAME' (ID <id>, N entries). Saved Analysis Runs are kept.`) and then the existing
 one-line `StoredSelectionError` naming the first unreadable entry, and the command exits 1, as the
 removal commands do.
 

@@ -795,7 +795,7 @@ def test_watchlist_delete_with_yes_deletes_and_says_runs_are_kept() -> None:
 
     assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
-    assert output.startswith("Deleted watchlist 'Scratch' (")
+    assert output.startswith("Deleted watchlist 'Scratch' (ID ")
     assert "2 entries" in output
     assert "Saved Analysis Runs are kept." in output
     assert "No watchlists exist yet." in _listed_names()

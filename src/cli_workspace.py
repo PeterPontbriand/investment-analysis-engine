@@ -745,8 +745,8 @@ def watchlist_delete(
             typer.echo(f"No watchlist named {name!r} exists. Nothing was deleted.")
         return
     confirmation = (
-        f"Deleted watchlist {deleted.display_name!r} ({deleted.watchlist_id}, {_plural_entries(deleted.entry_count)}). "
-        "Saved Analysis Runs are kept."
+        f"Deleted watchlist {deleted.display_name!r} (ID {deleted.watchlist_id}, "
+        f"{_plural_entries(deleted.entry_count)}). Saved Analysis Runs are kept."
     )
     if not json_output:
         typer.echo(confirmation)
