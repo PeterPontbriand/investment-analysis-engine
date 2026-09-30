@@ -137,17 +137,20 @@ class ProjectSettings(BaseSettings):
         that is only partly anchored (a root without a drive, or a drive without a root) is rejected
         before any resolution; see :func:`src.utils.paths.require_anchored_path`.
         """
+        # Assignments below add fields to model_fields_set, so the user's choices are captured first:
+        # only values the user set are checked, never the paths this validator derives.
+        user_set = frozenset(self.model_fields_set)
         for name in ("base_dir", "data_dir", "log_dir", "telemetry_log_dir"):
-            if name in self.model_fields_set:
+            if name in user_set:
                 paths.require_anchored_path(getattr(self, name).as_posix(), name=name, windows=paths.is_windows())
         application_root = Path(__file__).resolve().parent.parent
         self.base_dir = (application_root / self.base_dir).resolve()
-        data_path = self.data_dir if "data_dir" in self.model_fields_set else Path("data")
+        data_path = self.data_dir if "data_dir" in user_set else Path("data")
         self.data_dir = (self.base_dir / data_path).resolve()
         for name in ("log_dir", "telemetry_log_dir"):
-            if name in self.model_fields_set:
+            if name in user_set:
                 setattr(self, name, (self.base_dir / getattr(self, name)).resolve())
-        if "database_url" not in self.model_fields_set:
+        if "database_url" not in user_set:
             self.database_url = URL.create(
                 "sqlite", database=(self.data_dir / "investment-analysis-engine.sqlite3").as_posix()
             ).render_as_string()
@@ -163,7 +166,8 @@ class ProjectSettings(BaseSettings):
             database_path = Path(url.database)
             if url.database.startswith("file:"):
                 raise ValueError("SQLite file URI databases are not supported; use a filesystem path.")
-            paths.require_anchored_path(url.database, name="database_url", windows=paths.is_windows())
+            if "database_url" in user_set:
+                paths.require_anchored_path(url.database, name="database_url", windows=paths.is_windows())
             url = url.set(database=(self.base_dir / database_path).resolve().as_posix())
         self.database_url = url.render_as_string()
         return self

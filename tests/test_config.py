@@ -207,18 +207,18 @@ def windows_rules(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.usefixtures("windows_rules")
 @pytest.mark.parametrize(("field", "value", "message"), _PARTLY_ANCHORED)
-def test_partly_anchored_paths_are_rejected_on_windows(field: str, value: object, message: str, tmp_path: Path) -> None:
-    values: dict[str, object] = {"base_dir": tmp_path, field: value}
+def test_partly_anchored_paths_are_rejected_on_windows(field: str, value: object, message: str) -> None:
+    # Only the value under test is set: under the Windows rule a real POSIX absolute path such as
+    # tmp_path is itself partly anchored, so it must not be fed through a checked setting.
     with pytest.raises(ValidationError, match=re.escape(message)):
-        ProjectSettings.model_validate(values)
+        ProjectSettings.model_validate({field: value})
 
 
 @pytest.mark.usefixtures("windows_rules")
 @pytest.mark.parametrize(("field", "value", "message"), _PARTLY_ANCHORED)
 def test_partly_anchored_paths_are_rejected_from_the_environment(
-    field: str, value: object, message: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    field: str, value: object, message: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("base_dir", str(tmp_path))
     monkeypatch.setenv(field, str(value))
     with pytest.raises(ValidationError, match=re.escape(message)):
         ProjectSettings()
@@ -226,18 +226,18 @@ def test_partly_anchored_paths_are_rejected_from_the_environment(
 
 @pytest.mark.parametrize(("field", "value", "message"), _PARTLY_ANCHORED)
 def test_partly_anchored_paths_are_not_checked_off_windows(
-    field: str, value: object, message: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    field: str, value: object, message: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     del message
     monkeypatch.setattr("src.utils.paths.is_windows", lambda: False)
-    values: dict[str, object] = {"base_dir": tmp_path, field: value}
-    ProjectSettings.model_validate(values)
+    ProjectSettings.model_validate({field: value})
 
 
 @pytest.mark.usefixtures("windows_rules")
-def test_a_rejected_path_creates_nothing(tmp_path: Path) -> None:
+def test_a_rejected_path_creates_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
     with pytest.raises(ValidationError):
-        ProjectSettings(base_dir=tmp_path, database_url="sqlite:////e/Source/x/y.sqlite3")
+        ProjectSettings(database_url="sqlite:////e/Source/x/y.sqlite3")
     assert list(tmp_path.iterdir()) == []
 
 
@@ -253,12 +253,13 @@ def test_a_rejected_path_creates_nothing(tmp_path: Path) -> None:
         "sqlite:///:memory:",
     ],
 )
-def test_relative_qualified_and_memory_database_urls_are_accepted_on_windows(database_url: str, tmp_path: Path) -> None:
-    assert ProjectSettings(base_dir=tmp_path, database_url=database_url).database_url
+def test_relative_qualified_and_memory_database_urls_are_accepted_on_windows(database_url: str) -> None:
+    assert ProjectSettings(database_url=database_url).database_url
 
 
 @pytest.mark.usefixtures("windows_rules")
 def test_defaults_are_accepted_on_windows() -> None:
+    """The derived default paths are not user-set, so the guard does not check them on any OS."""
     assert ProjectSettings().database_url
 
 

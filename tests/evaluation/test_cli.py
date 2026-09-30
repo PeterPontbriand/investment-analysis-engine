@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -127,9 +128,7 @@ def test_evaluate_cli_rejects_unknown_case_and_does_not_create_report(tmp_path: 
     assert not target.exists()
 
 
-@pytest.mark.parametrize(
-    "report", ["/e/ir8-probe/report.json", "\\e\\ir8-probe\report.json", "E:ir8-probe/report.json"]
-)
+@pytest.mark.parametrize("report", ["/e/ir8-probe/report.json", r"\e\ir8-probe\report.json", "E:ir8-probe/report.json"])
 def test_evaluate_cli_rejects_a_partly_anchored_windows_report_path(
     report: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -144,7 +143,8 @@ def test_evaluate_cli_rejects_a_partly_anchored_windows_report_path(
     assert "--report path" in output
     assert "Windows would" in output
     assert list(tmp_path.iterdir()) == []
-    assert not Path(report).parent.exists()
+    if sys.platform == "win32":
+        assert not Path(report).parent.exists()
 
 
 def test_evaluate_cli_protects_existing_report_unless_overwrite_is_explicit(tmp_path: Path) -> None:

@@ -3,6 +3,7 @@
 import json
 import shutil
 import sqlite3
+import sys
 from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
@@ -192,12 +193,15 @@ def test_invalid_target_is_sanitized_usage_error(target: Path, command: str, url
     assert not target.parent.exists()
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="the db commands re-check every resolved path on Windows only")
 @pytest.mark.parametrize("command", ["status", "upgrade"])
-def test_a_partly_anchored_windows_path_is_rejected_with_the_reason(
-    target: Path, command: str, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr("src.utils.paths.is_windows", lambda: True)
+def test_a_partly_anchored_windows_path_is_rejected_with_the_reason(target: Path, command: str) -> None:
+    """Runs on Windows only.
 
+    The ``db`` commands rebuild settings from ``settings.model_dump()``, so every resolved path is checked
+    again. Simulating Windows elsewhere would therefore reject the real POSIX absolute paths, which are
+    partly anchored under the Windows rule, before reaching the URL under test.
+    """
     result = CliRunner().invoke(app, ["db", command, "--database-url", "sqlite:////e/ir8-probe/x.sqlite3"])
 
     assert result.exit_code == 2

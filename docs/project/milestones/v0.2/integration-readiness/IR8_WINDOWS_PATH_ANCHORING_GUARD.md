@@ -221,4 +221,20 @@ against that drive's current folder…".
 3. **Messages show forward slashes.** Path-valued settings and `--report` reach the guard as
    `Path` objects, so the original spelling is gone. They are passed as `as_posix()`, which is the form
    the message's suggestion uses; the database URL path is passed exactly as typed.
+4. **Found and fixed: the derived default database path was checked as if the user had set it.**
+   `resolve_database_configuration` assigns `base_dir`, `data_dir` and the default `database_url` before it
+   checks `database_url`, and assignment adds a field to `model_fields_set`. The guard therefore saw the
+   default path, which is a real absolute path, and on Linux and macOS under the simulated Windows rule it
+   was partly anchored. The validator now captures `user_set = frozenset(self.model_fields_set)` first and uses
+   it for every guard check and every "was this set?" decision. A test asserts that a simulated-Windows
+   `ProjectSettings()` with no path settings is accepted.
+5. **Found and fixed: the local Windows-only gate could not catch tests that fail only off Windows.** Tests
+   that simulate Windows through `src.utils.paths.is_windows` must not pass real absolute POSIX paths through
+   a checked setting, because under the Windows rule those are partly anchored too. The settings tests now
+   set only the value under test, and use the current folder, not `base_dir`, to prove nothing was created. The
+   `db` command test runs on Windows only, because those commands rebuild settings from
+   `settings.model_dump()` and so re-check every resolved path. The backslash `--report` case is now a raw
+   string (it contained ``, a carriage return), and the drive-root folder is asserted absent only on real
+   Windows. The managed gate runs on Windows, so the project's CI is the check for other operating systems: a
+   change to simulated-platform tests is verified there before it is reported complete.
 
