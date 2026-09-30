@@ -6,12 +6,13 @@ import logging
 import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import cast
 
 import pandas as pd
 import yfinance as yf
 
+from src.core.clock import utc_now
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.financial.provenance import SourceKind
 from src.data.instrument_profile import (
@@ -55,7 +56,7 @@ class YFinanceClient(BaseDataClient):
 
     def __init__(self, *, clock: Callable[[], datetime] | None = None) -> None:
         """Initialize with an injectable metadata-resolution clock."""
-        self._clock = clock or (lambda: datetime.now(UTC))
+        self._clock = clock or utc_now
         self._metadata_by_ticker: dict[str, _YFinanceMetadataSnapshot | DataFetchError] = {}
 
     @property
@@ -102,8 +103,14 @@ class YFinanceClient(BaseDataClient):
         ticker: str,
         start_date: str,
         end_date: str | None = None,
+        *,
+        use_cache: bool = True,  # noqa: ARG002
     ) -> HistoricalMarketData:
-        """Return explicitly adjusted daily historical prices with retained yfinance metadata."""
+        """Return explicitly adjusted daily historical prices with retained yfinance metadata.
+
+        ``use_cache`` is accepted for interface uniformity and ignored: this raw provider has no
+        cache of its own to skip.
+        """
         frame = self.fetch_data(ticker, start_date, end_date)
         context = MarketDataContext(
             provider_id=self.provider_id,
@@ -113,7 +120,7 @@ class YFinanceClient(BaseDataClient):
             observation_count=len(frame),
             price_adjustment=YFINANCE_PRICE_ADJUSTMENT,
         )
-        retrieved = datetime.now(UTC)
+        retrieved = utc_now()
         return HistoricalMarketData(
             frame=frame,
             context=context,

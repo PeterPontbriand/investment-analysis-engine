@@ -14,7 +14,7 @@ from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
 from src.evaluation.cases.graham_number import GRA_ETF_01, GRAHAM_NUMBER_CASES, GRN_01, GRN_02, GRN_03
 from src.evaluation.composition import dispatch_fixture_case
-from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult, GrahamMethod, ToolName
+from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult, ToolName
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.analysis_tools import GrahamNumberToolArguments
@@ -79,8 +79,6 @@ def test_reviewed_graham_number_catalog_is_explicit(
     assert case.fixture_ids == (fixture_id,)
     assert case.expectation.tool_constraints.permitted == (ToolName.ANALYZE_GRAHAM_NUMBER,)
     assert case.expectation.tool_constraints.required == (ToolName.ANALYZE_GRAHAM_NUMBER,)
-    assert case.expectation.graham_method_constraints.permitted == (GrahamMethod.GRAHAM_NUMBER,)
-    assert case.expectation.graham_method_constraints.required == (GrahamMethod.GRAHAM_NUMBER,)
     arguments = _arguments(case)
     assert arguments.ticker == ticker
     assert arguments.eps_basis == eps_basis
@@ -130,7 +128,6 @@ async def test_reviewed_graham_number_cases_run_deterministically_and_pass() -> 
         assert _component(result, ComponentKind.FIXTURE_STATUS).outcome is ComponentOutcome.PASS
         assert _component(result, ComponentKind.EXECUTION_STATUS).outcome is ComponentOutcome.PASS
         assert _component(result, ComponentKind.STRATEGY_SELECTION).outcome is ComponentOutcome.NOT_MEASURED
-        assert _component(result, ComponentKind.GRAHAM_METHOD_SELECTION).outcome is ComponentOutcome.NOT_MEASURED
     etf_result = next(result for result in report.case_results if result.case_id == "GRA-ETF-01")
     assert _component(etf_result, ComponentKind.NUMERICAL_CORRECTNESS).outcome is ComponentOutcome.NOT_APPLICABLE
 

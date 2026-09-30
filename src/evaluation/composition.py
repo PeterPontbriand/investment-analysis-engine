@@ -8,9 +8,13 @@ from datetime import datetime
 from typing import Final
 
 from src.analysis.strategy.fcf_earnings_growth import FCFEarningsGrowthAnalyzer, ProductionAnnualGrowthSeriesResolver
+from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer
+from src.config import settings
+from src.core.constants import ConfigKeys
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
 from src.data.instrument_profile import InstrumentProfile
 from src.data.sec_edgar import SEC_PROVIDER_ID
@@ -32,7 +36,6 @@ from src.evaluation.fixtures.graham import (
 )
 from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER, fixture_known_etf_profile
 from src.evaluation.fixtures.market_data import (
-    FixtureDataClient,
     FixtureMarketDataProvider,
     momentum_boundary_frame,
     momentum_success_frame,
@@ -99,7 +102,12 @@ class FixtureCompositionError(ValueError):
 class _UnavailableFinancialFactsProvider:
     """Return explicit absence when a case did not select Graham facts."""
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Return no facts for every request without consulting another provider."""
         del request
         return ()
@@ -146,9 +154,8 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
         else momentum_boundary_frame().iloc[0:0].copy()
     )
     momentum_analyzer = MomentumAnalyzer(
-        default_ticker="FIXTURE",
-        data_client=FixtureDataClient(),
         market_data_provider=FixtureMarketDataProvider(momentum_frame),
+        start_date=str(settings.get_analysis_settings()[ConfigKeys.DEFAULT_SECTION][ConfigKeys.START_DATE]),
     )
 
     sec_fpi_provider = (
@@ -168,6 +175,15 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
 
     graham_number_resolver = GrahamNumberInputResolver(provider=graham_provider, cache=graham_cache, clock=graham_clock)
     graham_growth_resolver = GrahamGrowthInputResolver(provider=graham_provider, cache=graham_cache, clock=graham_clock)
+    graham_number_analyzer = GrahamNumberAnalyzer(graham_number_resolver)
+    graham_growth_analyzer = GrahamGrowthAnalyzer(
+        graham_growth_resolver,
+        policy=GrahamGrowthCalculationPolicy(
+            base_pe=GOLDEN_GROWTH_BASE_PE,
+            growth_multiplier=GOLDEN_GROWTH_MULTIPLIER,
+            baseline_aaa_yield=GOLDEN_BASELINE_AAA_YIELD,
+        ),
+    )
 
     annual_facts = _annual_facts(fcf_fixture_id)
     annual_provider = sec_fpi_provider or FixtureAnnualFinancialFactsProvider(
@@ -180,15 +196,10 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
     profile_resolver = _profile_resolver(fixture_ids, clock_at=clock_at)
     return AnalysisToolDependencies(
         momentum_analyzer=momentum_analyzer,
-        graham_number_resolver=graham_number_resolver,
-        graham_growth_resolver=graham_growth_resolver,
+        graham_number_analyzer=graham_number_analyzer,
+        graham_growth_analyzer=graham_growth_analyzer,
         graham_security_provider_id=SEC_PROVIDER_ID if sec_fpi_provider is not None else GRAHAM_PROVIDER_ID,
         graham_quote_provider_id=SEC_PROVIDER_ID if sec_fpi_provider is not None else GRAHAM_PROVIDER_ID,
-        graham_growth_policy=GrahamGrowthCalculationPolicy(
-            base_pe=GOLDEN_GROWTH_BASE_PE,
-            growth_multiplier=GOLDEN_GROWTH_MULTIPLIER,
-            baseline_aaa_yield=GOLDEN_BASELINE_AAA_YIELD,
-        ),
         fcf_analyzer=fcf_analyzer,
         fcf_provider_id=SEC_PROVIDER_ID,
         clock=lambda: clock_at,

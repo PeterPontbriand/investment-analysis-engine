@@ -18,12 +18,8 @@ from src.data.financial.resolution_trace import (
     ResolutionStage,
     ResolutionTrace,
 )
-from src.reporting.graham import (
-    GrahamGrowthPresentation,
-    GrahamNumberPresentation,
-    render_graham_growth,
-    render_graham_number,
-)
+from src.reporting.graham_growth import GrahamGrowthPresentation, render_graham_growth
+from src.reporting.graham_number import GrahamNumberPresentation, render_graham_number
 from src.reporting.presentation import PresentationMode
 
 NOW = datetime(2026, 8, 22, 4, 0, tzinfo=UTC)
@@ -209,7 +205,7 @@ def test_number_json_preserves_typed_provenance() -> None:
 
     payload = json.loads(render_graham_number(presentation, PresentationMode.JSON))
 
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     assert payload["security_identity"]["instrument_name"] is None
     assert payload["method"] == "graham_number"
     assert payload["result"]["maximum_indicated_price"] == pytest.approx(33.8004677786747)

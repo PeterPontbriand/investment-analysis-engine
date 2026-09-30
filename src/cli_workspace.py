@@ -15,12 +15,12 @@ import signal
 import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
 from typing import Annotated, NoReturn
 from uuid import UUID
 
 import typer
 
+from src.analysis.base_analyzer import require_ticker
 from src.analysis.strategy.fcf_earnings_growth import (
     FCFClassificationBasis,
     FCFEarningsGrowthPolicy,
@@ -34,6 +34,7 @@ from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
 from src.cli_composition import build_graham_resolver, build_sec_production_provider, growth_assumptions
 from src.cli_support import (
     _canonical_provider_id,
+    _default_history_start_date,
     _parse_as_of,
     _production_financial_cache,
     _production_historical_client,
@@ -41,6 +42,7 @@ from src.cli_support import (
     config_usage_errors,
 )
 from src.config import settings
+from src.core.clock import utc_now
 from src.data.financial.providers import SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
 from src.data.instrument_profile import InstrumentProfileCandidate, compose_instrument_profile
 from src.data.instrument_profile_cache import InstrumentProfileResolver
@@ -87,7 +89,7 @@ from src.workspace.requests import (
     MomentumSelection,
 )
 from src.workspace.runs import AnalysisRunSummary, RunQuery, Watchlist, WatchlistEntry, WatchlistSummary
-from src.workspace.watchlists import WatchlistSpec, normalize_ticker
+from src.workspace.watchlists import StoredSelectionError, WatchlistSpec, normalize_ticker
 
 watchlist_app = typer.Typer(help="Manage named watchlists of tickers and their analysis selections.")
 runs_app = typer.Typer(help="Browse persisted Analysis Run history.")
@@ -119,7 +121,10 @@ def _workspace_database() -> Iterator[SQLiteDatabase]:
             ensure_database_ready(database)
         except DatabaseReadinessError as exc:
             _fail(str(exc))
-        yield database
+        try:
+            yield database
+        except StoredSelectionError as exc:
+            _fail(str(exc))
     finally:
         database.close()
 
@@ -280,7 +285,13 @@ def _build_selection(  # noqa: PLR0913
     """
     if method == "momentum":
         _check_momentum_windows(short_window, long_window, rsi_period)
-        return MomentumSelection(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
+        return MomentumSelection(
+            short_window=short_window,
+            long_window=long_window,
+            rsi_period=rsi_period,
+            as_of=_parse_as_of(as_of),
+            use_cache=not no_cache,
+        )
 
     boundary = _parse_as_of(as_of)
     if method in ("graham-number", "graham-growth"):
@@ -344,7 +355,8 @@ def watchlist_create(  # noqa: PLR0913
         int, typer.Option("--rsi-period", help="RSI lookback period in daily observations (momentum).")
     ] = _MOMENTUM_CLI_DEFAULTS.rsi_period,
     as_of: Annotated[
-        str | None, typer.Option("--as-of", help="Point-in-time boundary (graham-number/graham-growth/fcf-growth).")
+        str | None,
+        typer.Option("--as-of", help="Point-in-time boundary (momentum/graham-number/graham-growth/fcf-growth)."),
     ] = None,
     data_provider: Annotated[
         str | None,
@@ -353,7 +365,11 @@ def watchlist_create(  # noqa: PLR0913
     no_cache: Annotated[
         bool,
         typer.Option(
-            "--no-cache", help="Bypass resolved-input cache reads/writes (graham-number/graham-growth/fcf-growth)."
+            "--no-cache",
+            help=(
+                "Bypass cache reads/writes: resolved inputs for graham-number/graham-growth/fcf-growth; "
+                "for momentum, the historical price cache."
+            ),
         ),
     ] = False,
     eps: Annotated[
@@ -478,7 +494,8 @@ def watchlist_add_selection(  # noqa: PLR0913
         int, typer.Option("--rsi-period", help="RSI lookback period in daily observations (momentum).")
     ] = _MOMENTUM_CLI_DEFAULTS.rsi_period,
     as_of: Annotated[
-        str | None, typer.Option("--as-of", help="Point-in-time boundary (graham-number/graham-growth/fcf-growth).")
+        str | None,
+        typer.Option("--as-of", help="Point-in-time boundary (momentum/graham-number/graham-growth/fcf-growth)."),
     ] = None,
     data_provider: Annotated[
         str | None,
@@ -487,7 +504,11 @@ def watchlist_add_selection(  # noqa: PLR0913
     no_cache: Annotated[
         bool,
         typer.Option(
-            "--no-cache", help="Bypass resolved-input cache reads/writes (graham-number/graham-growth/fcf-growth)."
+            "--no-cache",
+            help=(
+                "Bypass cache reads/writes: resolved inputs for graham-number/graham-growth/fcf-growth; "
+                "for momentum, the historical price cache."
+            ),
         ),
     ] = False,
     eps: Annotated[
@@ -575,6 +596,36 @@ def watchlist_add_selection(  # noqa: PLR0913
     typer.echo(_watchlist_text(watchlist))
 
 
+def _plural_entries(count: int) -> str:
+    """Return ``"1 entry"`` or ``"N entries"``."""
+    return "1 entry" if count == 1 else f"{count} entries"
+
+
+def _removal_confirmation(count: int, name: str, subject: str | None) -> str:
+    """Describe a committed removal; ``subject`` is the ticker(s) or method it was for, if any."""
+    if count == 0:
+        return f"No entries for {subject} in watchlist {name!r}."
+    scope = "" if subject is None else f" for {subject}"
+    return f"Removed {_plural_entries(count)}{scope} from watchlist {name!r}."
+
+
+def _read_back_after_removal(repository: SQLiteWatchlistRepository, name: str, confirmation: str) -> Watchlist:
+    """Read a watchlist back to display it after a removal that has already committed.
+
+    ``confirmation`` is printed first on every path. If another entry cannot be read, the
+    removal stands: the error naming the next unreadable entry and the command that removes it
+    follows, and the command exits 1.
+    """
+    typer.echo(confirmation)
+    try:
+        watchlist = repository.get(name)
+    except StoredSelectionError as exc:
+        _fail(str(exc))
+    if watchlist is None:
+        _fail(f"No watchlist named {name!r} exists.")
+    return watchlist
+
+
 @watchlist_app.command("remove-entry")
 def watchlist_remove_entry(
     name: Annotated[str, typer.Argument(help="Watchlist name.")],
@@ -586,11 +637,12 @@ def watchlist_remove_entry(
     with _workspace_database() as database:
         repository = SQLiteWatchlistRepository(database)
         try:
-            watchlist = repository.remove_entry(name, index - 1)
+            removed = repository.remove_entry(name, index - 1)
         except WatchlistNotFoundError as exc:
             _fail(str(exc))
         except WatchlistEntryNotFoundError as exc:
             _fail(str(exc))
+        watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, None))
     typer.echo(_watchlist_text(watchlist))
 
 
@@ -603,11 +655,12 @@ def watchlist_remove(
     with _workspace_database() as database:
         repository = SQLiteWatchlistRepository(database)
         try:
-            watchlist = repository.remove_entries_for_ticker(name, tickers)
+            removed = repository.remove_entries_for_ticker(name, tickers)
         except WatchlistNotFoundError as exc:
             _fail(str(exc))
         except ValueError as exc:
             raise typer.BadParameter(str(exc)) from exc
+        watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, ", ".join(tickers)))
     typer.echo(_watchlist_text(watchlist))
 
 
@@ -624,9 +677,10 @@ def watchlist_disable(
     with _workspace_database() as database:
         repository = SQLiteWatchlistRepository(database)
         try:
-            watchlist = repository.remove_entries_for_method(name, _ALIAS_METHOD_IDS[method])
+            removed = repository.remove_entries_for_method(name, _ALIAS_METHOD_IDS[method])
         except WatchlistNotFoundError as exc:
             _fail(str(exc))
+        watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, method))
     typer.echo(_watchlist_text(watchlist))
 
 
@@ -767,8 +821,8 @@ def _execute_momentum(
     ticker: str, selection: MomentumSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
     data_client = YFinanceClient()
-    with _production_historical_client(data_client) as historical_client:
-        run = run_momentum(selection, ticker, historical_client)
+    executed_at = utc_now()
+    normalized_ticker = require_ticker(ticker)
 
     def _identity_candidate() -> InstrumentProfileCandidate:
         return InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
@@ -776,26 +830,48 @@ def _execute_momentum(
     identity_candidates = (_identity_candidate(),)
     kind_candidate = _identity_candidate()
     profile = (
-        profile_cache.resolve(
-            run.metrics.ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate
-        )
+        profile_cache.resolve(normalized_ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate)
         if profile_cache is not None
         else compose_instrument_profile(
-            run.metrics.ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate
+            normalized_ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate
         )
     )
-    return from_momentum_capture(capture_momentum(run, profile))
+    with _production_historical_client(
+        data_client, use_cache=selection.use_cache, clock=lambda: executed_at
+    ) as historical_client:
+        run = run_momentum(
+            selection,
+            normalized_ticker,
+            historical_client,
+            start_date=_default_history_start_date(),
+            executed_at=executed_at,
+            instrument_profile=profile,
+        )
+    return from_momentum_capture(capture_momentum(run))
 
 
 def _execute_graham_number(
     ticker: str, selection: GrahamNumberSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
     config = selection.to_graham_number_config()
-    with _production_financial_cache(enabled=config.use_cache) as cache:
+    executed_at = utc_now()
+    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
         resolver = build_graham_resolver(
-            resolver_type=GrahamNumberInputResolver, data_provider=config.security_provider_id, cache=cache
+            resolver_type=GrahamNumberInputResolver,
+            data_provider=config.security_provider_id,
+            cache=cache,
+            clock=lambda: executed_at,
         )
-        capture = execute_graham_number(resolver, ticker, config, YFinanceClient(), profile_cache=profile_cache)
+        capture = execute_graham_number(
+            resolver,
+            ticker,
+            config,
+            YFinanceClient(),
+            as_of=selection.as_of,
+            executed_at=executed_at,
+            use_cache=selection.use_cache,
+            profile_cache=profile_cache,
+        )
     return from_graham_number_capture(capture)
 
 
@@ -804,31 +880,43 @@ def _execute_graham_growth(
 ) -> ExecutionCapture:
     config = selection.to_graham_growth_config()
     policy = growth_assumptions()
-    with _production_financial_cache(enabled=config.use_cache) as cache:
+    executed_at = utc_now()
+    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
         resolver = build_graham_resolver(
-            resolver_type=GrahamGrowthInputResolver, data_provider=config.security_provider_id, cache=cache
+            resolver_type=GrahamGrowthInputResolver,
+            data_provider=config.security_provider_id,
+            cache=cache,
+            clock=lambda: executed_at,
         )
-        capture = execute_graham_growth(resolver, ticker, config, policy, YFinanceClient(), profile_cache=profile_cache)
+        capture = execute_graham_growth(
+            resolver,
+            ticker,
+            config,
+            policy,
+            YFinanceClient(),
+            as_of=selection.as_of,
+            executed_at=executed_at,
+            use_cache=selection.use_cache,
+            profile_cache=profile_cache,
+        )
     return from_graham_growth_capture(capture)
 
 
 def _execute_fcf_growth(
     ticker: str, selection: FCFGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
-    policy = selection.to_fcf_policy()
-    boundary = selection.as_of or datetime.now(UTC)
-    with _production_financial_cache(enabled=selection.use_cache) as cache:
+    config = selection.to_fcf_config()
+    executed_at = utc_now()
+    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
         provider = build_sec_production_provider()
-        resolver = ProductionAnnualGrowthSeriesResolver(provider, cache=cache, clock=lambda: boundary)
+        resolver = ProductionAnnualGrowthSeriesResolver(provider, cache=cache, clock=lambda: executed_at)
         capture = execute_fcf_growth(
             resolver,
             ticker,
-            policy=policy,
-            currency=selection.currency,
+            config=config,
             as_of=selection.as_of,
-            provider_id=selection.provider_id,
+            executed_at=executed_at,
             use_cache=selection.use_cache,
-            effective_as_of=boundary,
             provider=provider,
             profile_cache=profile_cache,
         )
@@ -951,7 +1039,7 @@ def refresh(
     try:
         with _workspace_database() as database:
             try:
-                profile_cache = _production_instrument_profile_cache(database)
+                profile_cache = _production_instrument_profile_cache(database, clock=utc_now)
                 summary = refresh_watchlist(
                     name,
                     watchlists=SQLiteWatchlistRepository(database),

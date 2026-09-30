@@ -156,6 +156,29 @@ def test_watchlist_create_graham_growth_seeds_with_its_assumptions() -> None:
     assert "aaa_yield_override=4.4" in output
 
 
+def test_watchlist_create_momentum_persists_as_of_and_no_cache() -> None:
+    result = runner.invoke(
+        app,
+        [
+            "watchlist",
+            "create",
+            "Point In Time",
+            "--analysis",
+            "momentum",
+            "--as-of",
+            "2026-08-01",
+            "--no-cache",
+            "AAPL",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(runner.invoke(app, ["watchlist", "show", "Point In Time", "--json"]).output)
+    selection = payload["entries"][0]["selection"]
+    assert selection["as_of"] == "2026-08-01T23:59:59.999999Z"
+    assert selection["use_cache"] is False
+    assert selection["config_schema_version"] == 2
+
+
 def test_watchlist_create_rejects_invalid_momentum_windows() -> None:
     """Mirrors the direct ``momentum`` command's own window/RSI validation exactly."""
     cases = [
@@ -287,6 +310,7 @@ def test_watchlist_remove_entry_by_1_based_index_and_renumbers_survivors() -> No
     result = runner.invoke(app, ["watchlist", "remove-entry", "Trimmed", "1"])
     assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
+    assert output.startswith("Removed 1 entry from watchlist 'Trimmed'.")
     assert "Entries (2):" in output
     assert "[1] " in output  # MSFT renumbered down to display index 1
     assert "[2] " in output
@@ -326,10 +350,24 @@ def test_watchlist_remove_removes_every_entry_for_a_ticker_across_methods() -> N
 
     result = runner.invoke(app, ["watchlist", "remove", "Bulk By Ticker", "AAPL"])
     assert result.exit_code == 0, result.output
+    confirmation, *listing_lines = result.output.splitlines()
+    listing = " ".join(listing_lines)
+    assert confirmation == "Removed 2 entries for AAPL from watchlist 'Bulk By Ticker'."
+    assert "Entries (1):" in listing
+    assert "MSFT" in listing
+    assert "AAPL" not in listing
+
+
+def test_watchlist_remove_of_an_absent_ticker_says_so_and_exits_0() -> None:
+    _create("Nothing To Remove")
+    runner.invoke(app, ["watchlist", "add-selection", "Nothing To Remove", "MSFT", "--analysis", "momentum"])
+
+    result = runner.invoke(app, ["watchlist", "remove", "Nothing To Remove", "AAPL"])
+
+    assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
+    assert output.startswith("No entries for AAPL in watchlist 'Nothing To Remove'.")
     assert "Entries (1):" in output
-    assert "MSFT" in output
-    assert "AAPL" not in output
 
 
 def test_watchlist_remove_missing_watchlist_exits_1() -> None:
@@ -353,9 +391,20 @@ def test_watchlist_disable_removes_every_entry_for_a_method_across_tickers() -> 
     result = runner.invoke(app, ["watchlist", "disable", "Bulk By Method", "--analysis", "momentum"])
     assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
+    assert output.startswith("Removed 2 entries for momentum from watchlist 'Bulk By Method'.")
     assert "Entries (1):" in output
     assert "graham_number" in output
     assert "sma_crossover" not in output
+
+
+def test_watchlist_disable_of_an_absent_method_says_so_and_exits_0() -> None:
+    _create("No Such Method")
+    runner.invoke(app, ["watchlist", "add-selection", "No Such Method", "MSFT", "--analysis", "momentum"])
+
+    result = runner.invoke(app, ["watchlist", "disable", "No Such Method", "--analysis", "graham-number"])
+
+    assert result.exit_code == 0, result.output
+    assert normalize_cli_output(result.output).startswith("No entries for graham-number in watchlist 'No Such Method'.")
 
 
 def test_watchlist_disable_missing_watchlist_exits_1() -> None:
@@ -462,7 +511,14 @@ def _insert_momentum_run(
         request = AnalysisRequest(ticker=ticker, selection=selection)
 
         def capture() -> ExecutionCapture:
-            native = run_momentum(selection, ticker, _FixtureClient())
+            native = run_momentum(
+                selection,
+                ticker,
+                _FixtureClient(),
+                start_date="2026-01-01",
+                executed_at=datetime.now(UTC),
+                instrument_profile=None,
+            )
             return ExecutionCapture(native_evidence=native, profile=None, outcome=outcome)
 
         return execute(
@@ -526,13 +582,20 @@ def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
     possible — and must surface as the same sanitized exit 1, not a raw traceback.
     """
     selection = MomentumSelection(short_window=2, long_window=3)
-    native = run_momentum(selection, "AAPL", _FixtureClient())
+    native = run_momentum(
+        selection,
+        "AAPL",
+        _FixtureClient(),
+        start_date="2026-01-01",
+        executed_at=datetime.now(UTC),
+        instrument_profile=None,
+    )
     run = AnalysisRun(
         analysis_run_id=UUID("66666666-6666-4666-8666-666666666666"),
         ticker="AAPL",
         analysis_id="momentum",
         method_id="sma_crossover",
-        config_schema_version=1,
+        config_schema_version=2,
         requested_config=selection,
         started_at=datetime(2026, 9, 19, 12, tzinfo=UTC),
         completed_at=datetime(2026, 9, 19, 12, tzinfo=UTC),

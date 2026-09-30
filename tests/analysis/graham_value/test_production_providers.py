@@ -271,7 +271,7 @@ def test_sec_adapter_sends_explicit_declared_user_agent_unchanged() -> None:
         user_agent=declared_identity,
     )
 
-    adapter.fetch_facts(_sec_request())
+    adapter.fetch_facts(_sec_request(), effective_as_of=NOW)
 
     assert all(headers["User-Agent"] == declared_identity for _url, headers in fetcher.calls)
 
@@ -280,7 +280,7 @@ def test_sec_adapter_returns_one_annual_eps_fact_per_period_with_acceptance_prov
     fetcher = _sec_fetcher()
     adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
 
-    facts = adapter.fetch_facts(_sec_request())
+    facts = adapter.fetch_facts(_sec_request(), effective_as_of=NOW)
 
     assert [fact.observation_period_end.year for fact in facts if fact.observation_period_end is not None] == [
         2023,
@@ -301,7 +301,7 @@ def test_sec_adapter_historical_as_of_uses_restatement_known_at_boundary() -> No
     adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
     as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
 
-    facts = adapter.fetch_facts(_sec_request(as_of=as_of))
+    facts = adapter.fetch_facts(_sec_request(as_of=as_of), effective_as_of=as_of)
 
     # FY2025 and the Jan-2025 FY2024 amendment are both unavailable at as_of.
     assert [fact.observation_period_end.year for fact in facts if fact.observation_period_end is not None] == [
@@ -322,7 +322,7 @@ def test_sec_adapter_unsupported_capability_returns_empty_without_fetching() -> 
         provider_id=SEC_PROVIDER_ID,
     )
 
-    assert adapter.fetch_facts(request) == ()
+    assert adapter.fetch_facts(request, effective_as_of=NOW) == ()
     assert fetcher.calls == []
 
 
@@ -330,9 +330,11 @@ def test_sec_adapter_returns_bvps_components_with_exact_fields_and_period() -> N
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
     adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
 
-    equity = adapter.fetch_facts(_sec_component_request(FinancialField.STOCKHOLDERS_EQUITY))
-    common = adapter.fetch_facts(_sec_component_request(FinancialField.COMMON_SHARES_OUTSTANDING))
-    preferred = adapter.fetch_facts(_sec_component_request(FinancialField.PREFERRED_SHARES_OUTSTANDING))
+    equity = adapter.fetch_facts(_sec_component_request(FinancialField.STOCKHOLDERS_EQUITY), effective_as_of=NOW)
+    common = adapter.fetch_facts(_sec_component_request(FinancialField.COMMON_SHARES_OUTSTANDING), effective_as_of=NOW)
+    preferred = adapter.fetch_facts(
+        _sec_component_request(FinancialField.PREFERRED_SHARES_OUTSTANDING), effective_as_of=NOW
+    )
 
     assert len(equity) == len(common) == len(preferred) == 1
     assert equity[0].provider_field == SEC_STOCKHOLDERS_EQUITY_FIELD
@@ -354,7 +356,9 @@ def test_sec_component_historical_as_of_uses_latest_period_known_at_boundary() -
     adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
     as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
 
-    facts = adapter.fetch_facts(_sec_component_request(FinancialField.STOCKHOLDERS_EQUITY, as_of=as_of))
+    facts = adapter.fetch_facts(
+        _sec_component_request(FinancialField.STOCKHOLDERS_EQUITY, as_of=as_of), effective_as_of=as_of
+    )
 
     assert len(facts) == 1
     assert facts[0].value == pytest.approx(60_000_000_000.0)
@@ -379,7 +383,9 @@ def test_sec_component_ambiguous_latest_share_class_values_are_unavailable() -> 
     fetcher = _sec_fetcher(payload)
     adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
 
-    assert adapter.fetch_facts(_sec_component_request(FinancialField.COMMON_SHARES_OUTSTANDING)) == ()
+    assert (
+        adapter.fetch_facts(_sec_component_request(FinancialField.COMMON_SHARES_OUTSTANDING), effective_as_of=NOW) == ()
+    )
 
 
 def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -> None:
@@ -393,7 +399,7 @@ def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -
         provider_id=SEC_PROVIDER_ID,
     )
 
-    result = resolver.resolve_bvps(request)
+    result = resolver.resolve_bvps(request, use_cache=True)
 
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
@@ -420,7 +426,7 @@ def test_resolver_historical_bvps_uses_components_known_at_as_of() -> None:
         as_of=as_of,
     )
 
-    result = resolver.resolve_bvps(request)
+    result = resolver.resolve_bvps(request, use_cache=True)
 
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None
@@ -444,7 +450,7 @@ def test_resolver_bvps_missing_or_nonzero_preferred_share_guard_is_unavailable(
         provider_id=SEC_PROVIDER_ID,
     )
 
-    result = resolver.resolve_bvps(request)
+    result = resolver.resolve_bvps(request, use_cache=True)
 
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None
@@ -484,7 +490,7 @@ def test_wfc_negative_control_material_preferred_stock_blocks_bvps_derivation() 
         provider_id=SEC_PROVIDER_ID,
     )
 
-    result = resolver.resolve_bvps(request)
+    result = resolver.resolve_bvps(request, use_cache=True)
 
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None
@@ -566,7 +572,7 @@ def test_massive_ttm_eps_preserves_current_only_provenance_and_secret_stays_in_h
     fetcher = _massive_fetcher()
     adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
 
-    facts = adapter.fetch_facts(_massive_request(FinancialField.EPS, basis="ttm"))
+    facts = adapter.fetch_facts(_massive_request(FinancialField.EPS, basis="ttm"), effective_as_of=NOW)
 
     assert len(facts) == 1
     fact = facts[0]
@@ -585,7 +591,7 @@ def test_massive_latest_trade_price_has_observation_timestamp_and_currency() -> 
     fetcher = _massive_fetcher()
     adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
 
-    facts = adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE))
+    facts = adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE), effective_as_of=NOW)
 
     assert len(facts) == 1
     fact = facts[0]
@@ -607,7 +613,7 @@ def test_massive_quote_without_verified_currency_is_unavailable() -> None:
     )
     adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
 
-    assert adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE)) == ()
+    assert adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE), effective_as_of=NOW) == ()
 
 
 def test_massive_historical_request_is_unavailable_without_network_call() -> None:
@@ -619,7 +625,7 @@ def test_massive_historical_request_is_unavailable_without_network_call() -> Non
         as_of=datetime(2025, 12, 31, 23, 59, tzinfo=UTC),
     )
 
-    assert adapter.fetch_facts(request) == ()
+    assert adapter.fetch_facts(request, effective_as_of=NOW) == ()
     assert fetcher.calls == []
 
 
@@ -627,7 +633,7 @@ def test_massive_unsupported_bvps_is_unavailable_without_network_call() -> None:
     fetcher = _massive_fetcher()
     adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
 
-    assert adapter.fetch_facts(_massive_request(FinancialField.BVPS)) == ()
+    assert adapter.fetch_facts(_massive_request(FinancialField.BVPS), effective_as_of=NOW) == ()
     assert fetcher.calls == []
 
 
@@ -635,7 +641,7 @@ def test_massive_missing_api_key_is_unavailable_without_network_call() -> None:
     fetcher = _massive_fetcher()
     adapter = MassiveFinancialFactsAdapter(api_key="", json_fetcher=fetcher, clock=lambda: NOW)
 
-    assert adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE)) == ()
+    assert adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE), effective_as_of=NOW) == ()
     assert fetcher.calls == []
 
 
@@ -651,7 +657,7 @@ def test_massive_non_ok_response_is_provider_error() -> None:
     adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
 
     with pytest.raises(FinancialProviderError, match="non-OK status"):
-        adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE))
+        adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE), effective_as_of=NOW)
 
 
 class StaticProvider:
@@ -662,7 +668,12 @@ class StaticProvider:
         self.facts = facts
         self.calls: list[FinancialFactRequest] = []
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         self.calls.append(request)
         return tuple(
             fact
@@ -713,8 +724,8 @@ def test_production_provider_routes_without_rewriting_provider_identity() -> Non
     massive = StaticProvider((_massive_quote_fact(),))
     provider = ProductionFinancialFactsProvider(sec_edgar=sec, massive=massive)
 
-    sec_result = provider.fetch_facts(_sec_request())
-    quote_result = provider.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE))
+    sec_result = provider.fetch_facts(_sec_request(), effective_as_of=NOW)
+    quote_result = provider.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE), effective_as_of=NOW)
 
     assert sec_result[0].provider_id == SEC_PROVIDER_ID
     assert quote_result[0].provider_id == MASSIVE_PROVIDER_ID

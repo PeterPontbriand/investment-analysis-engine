@@ -1,10 +1,12 @@
 """Focused tests for the Graham Number execution adapter, using fake dependencies only."""
 
 import socket
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.calculation import (
     GrahamNumberInputAssembly,
@@ -85,18 +87,21 @@ def test_execute_graham_number_delegates_and_falls_back_to_the_composed_profile(
     captured: dict[str, object] = {}
 
     def fake_run_analysis(
-        self: GrahamNumberAnalyzer, config: GrahamNumberConfig, ticker: str | None = None
+        self: GrahamNumberAnalyzer, ticker: str, config: GrahamNumberConfig, context: AnalysisContext
     ) -> GrahamNumberAnalysis:
+        del self
         captured["config"] = config
         captured["ticker"] = ticker
-        captured["profile_supplied"] = self._instrument_profile
+        captured["profile_supplied"] = context.instrument_profile
         return canned
 
     with (
         patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=composed),
         patch.object(GrahamNumberAnalyzer, "run_analysis", fake_run_analysis),
     ):
-        capture = execute_graham_number(resolver, SECURITY_ID, config, object())
+        capture = execute_graham_number(
+            resolver, SECURITY_ID, config, object(), as_of=None, executed_at=NOW, use_cache=True
+        )
 
     assert capture.analysis is canned
     assert capture.profile is composed
@@ -115,7 +120,9 @@ def test_execute_graham_number_prefers_the_analysis_own_profile() -> None:
         patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=composed),
         patch.object(GrahamNumberAnalyzer, "run_analysis", return_value=canned),
     ):
-        capture = execute_graham_number(resolver, SECURITY_ID, config, object())
+        capture = execute_graham_number(
+            resolver, SECURITY_ID, config, object(), as_of=None, executed_at=NOW, use_cache=True
+        )
 
     assert capture.profile is refined
     assert isinstance(capture, GrahamNumberCapture)
@@ -129,6 +136,14 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(socket.socket, "connect", reject_network)
 
     with patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=_profile()):
-        capture = execute_graham_number(_resolver(), SECURITY_ID, GrahamNumberConfig(), object())
+        capture = execute_graham_number(
+            _resolver(),
+            SECURITY_ID,
+            GrahamNumberConfig(),
+            object(),
+            as_of=None,
+            executed_at=datetime.now(UTC),
+            use_cache=True,
+        )
 
     assert capture.analysis.ticker == SECURITY_ID

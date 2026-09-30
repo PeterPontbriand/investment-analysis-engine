@@ -9,6 +9,7 @@ Public exports for calculation and input-resolution layers:
 - ``MetricStatus`` / ``ForwardEvidenceStatus`` — metric outcome discriminators.
 - ``ReasonCode`` — machine-readable reason codes.
 - ``FCFEarningsGrowthPolicy`` — investor-selectable policy.
+- ``FCFEarningsGrowthConfig`` — the analyzer's complete per-call configuration.
 - ``MetricResult`` — invariant-checked typed metric result.
 - ``ForwardEvidence`` — forward consensus evidence block.
 - ``AnnualGrowthObservation`` — one completed-fiscal-year observation.
@@ -46,6 +47,7 @@ from src.analysis.strategy.fcf_earnings_growth.models import (
     Classification,
     ClassificationDecision,
     FCFClassificationBasis,
+    FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
@@ -65,6 +67,7 @@ __all__ = [
     "CalculationStatus",
     "Classification",
     "ClassificationDecision",
+    "FCFEarningsGrowthConfig",
     "FCFEarningsGrowthPolicy",
     "FCFEarningsGrowthAnalyzer",
     "FCFEarningsGrowthResult",

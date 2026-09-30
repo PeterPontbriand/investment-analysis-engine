@@ -137,7 +137,7 @@ class SQLiteResolvedInputCache:
 
     Args:
         database: Borrowed connection/transaction boundary.
-        clock: Aware clock for writes and TTL checks; defaults to current UTC.
+        clock: Required aware clock for writes and TTL checks.
         ttl: Nonnegative lifetime, or None to disable age checking. Equality
             at the boundary and future cached times remain eligible.
     """
@@ -146,14 +146,14 @@ class SQLiteResolvedInputCache:
         self,
         database: SQLiteDatabase,
         *,
-        clock: Callable[[], datetime] | None = None,
+        clock: Callable[[], datetime],
         ttl: timedelta | None = None,
     ) -> None:
         """Configure the cache without opening connections or changing schema."""
         if ttl is not None and ttl < timedelta(0):
             raise ValueError("ttl must be non-negative.")
         self._database = database
-        self._clock = clock if clock is not None else lambda: datetime.now(UTC)
+        self._clock = clock
         self._ttl = ttl
 
     @property
@@ -281,7 +281,7 @@ class SQLiteResolvedInputCache:
         return financial_cache_eligible(
             entry.resolved_input,
             input_id=str(entry.key),
-            now=self._clock() if self._ttl is not None else datetime.now(UTC),
+            now=self._clock(),
             as_of=entry.key.analysis_as_of,
             cached_at=entry.cached_at,
             ttl=self._ttl,

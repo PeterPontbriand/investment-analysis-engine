@@ -15,6 +15,7 @@ from types import MappingProxyType
 from typing import cast
 from zoneinfo import ZoneInfo
 
+from src.core.clock import utc_now
 from src.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
@@ -223,7 +224,7 @@ class SecEdgarFinancialFactsAdapter:
         self._fetch_json = json_fetcher
         self._filing_fetcher = filing_fetcher
         self._filing_policy = filing_policy or FilingReaderPolicy()
-        self._clock = clock or (lambda: datetime.now(UTC))
+        self._clock = clock or utc_now
         self._headers = {"User-Agent": resolved_user_agent, "Accept": "application/json"}
         self._ticker_to_cik: dict[str, str] | None = None
         self._cik_to_tickers: dict[str, frozenset[str]] | None = None
@@ -387,8 +388,17 @@ class SecEdgarFinancialFactsAdapter:
             return None
         return identities.get(request.ticker)
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:  # noqa: PLR0911, PLR0912
-        """Return supported SEC facts, or explicit unavailability."""
+    def fetch_facts(  # noqa: PLR0911, PLR0912
+        self, request: FinancialFactRequest, *, effective_as_of: datetime
+    ) -> tuple[ProviderFact, ...]:
+        """Return supported SEC facts, or explicit unavailability.
+
+        Args:
+            request: The provider-neutral fact request.
+            effective_as_of: The resolved point-in-time eligibility boundary for
+                annual-candidate and balance-sheet-fact filtering. Independent of
+                this adapter's own retrieval clock (used only to stamp ``retrieved_at``).
+        """
         if not self._supports(request):
             return ()
 
@@ -437,7 +447,7 @@ class SecEdgarFinancialFactsAdapter:
                     retrieved_at=provider_now,
                     taxonomy=taxonomy,
                 )
-                facts = _eligible_annual_candidates(candidates, request=request, now=provider_now)
+                facts = _eligible_annual_candidates(candidates, request=request, now=effective_as_of)
                 return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
             if request.field_name is FinancialField.CAPITAL_EXPENDITURES:
                 candidates = _annual_capital_expenditure_candidates(
@@ -448,7 +458,7 @@ class SecEdgarFinancialFactsAdapter:
                     retrieved_at=provider_now,
                     taxonomy=taxonomy,
                 )
-                facts = _eligible_annual_candidates(candidates, request=request, now=provider_now)
+                facts = _eligible_annual_candidates(candidates, request=request, now=effective_as_of)
                 return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
             if request.field_name is FinancialField.EPS:
                 candidates = _annual_eps_candidates(
@@ -459,7 +469,7 @@ class SecEdgarFinancialFactsAdapter:
                     retrieved_at=provider_now,
                     taxonomy=taxonomy,
                 )
-                facts = _reconcile_annual_eps(candidates, request=request, now=provider_now)
+                facts = _reconcile_annual_eps(candidates, request=request, now=effective_as_of)
                 return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
             if request.field_name is FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES:
                 candidates = _annual_diluted_share_candidates(
@@ -470,7 +480,7 @@ class SecEdgarFinancialFactsAdapter:
                     retrieved_at=provider_now,
                     taxonomy=taxonomy,
                 )
-                facts = _reconcile_annual_eps(candidates, request=request, now=provider_now)
+                facts = _reconcile_annual_eps(candidates, request=request, now=effective_as_of)
                 return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
 
             if request.field_name is FinancialField.COMMON_SHARES_OUTSTANDING:
@@ -479,7 +489,7 @@ class SecEdgarFinancialFactsAdapter:
                     request=request,
                     acceptance_by_accession=acceptance_by_accession,
                     retrieved_at=provider_now,
-                    now=provider_now,
+                    now=effective_as_of,
                 )
             if request.field_name is FinancialField.PREFERRED_SHARES_OUTSTANDING:
                 return _preferred_shares_facts(
@@ -487,7 +497,7 @@ class SecEdgarFinancialFactsAdapter:
                     request=request,
                     acceptance_by_accession=acceptance_by_accession,
                     retrieved_at=provider_now,
-                    now=provider_now,
+                    now=effective_as_of,
                 )
 
             candidates = _balance_sheet_fact_candidates(
@@ -496,7 +506,7 @@ class SecEdgarFinancialFactsAdapter:
                 acceptance_by_accession=acceptance_by_accession,
                 retrieved_at=provider_now,
             )
-            return _select_latest_balance_sheet_fact(candidates, request=request, now=provider_now)
+            return _select_latest_balance_sheet_fact(candidates, request=request, now=effective_as_of)
         except FinancialProviderError:
             raise
         except (KeyError, TypeError, ValueError, OSError) as exc:

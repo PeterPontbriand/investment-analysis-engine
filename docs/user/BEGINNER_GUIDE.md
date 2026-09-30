@@ -47,7 +47,7 @@ The project derives BVPS from year-end accounting facts that meet the method's d
 
 The method combines the average EPS and BVPS to produce a [maximum indicated price](GLOSSARY.md#maximum-indicated-price--screening-ceiling), or screening ceiling (a price limit indicated by this formula). If the project has a current share price for the same kind of share and currency as the financial figures, the result can show how they compare.
 
-This is one limited screen, not a complete judgment of what a company is worth or whether its shares are suitable for someone. See the [Graham strategy guide](strategies/GRAHAM.md) and [Financial Math & Data Conventions](FINANCE_MATH.md#graham-analysis-strategy) for the exact inputs, formula, and data rules.
+This is one limited screen, not a complete judgment of what a company is worth or whether its shares are suitable for someone. See the [Graham strategy guide](strategies/GRAHAM.md) and [Financial Math & Data Conventions](FINANCE_MATH.md#graham-number-strategy) for the exact inputs, formula, and data rules.
 
 The arrows show the relationship between these ideas; they are not a literal map of every software operation. The diagram is conceptual, not a substitute for the actual formula.
 
@@ -69,7 +69,7 @@ A **growth rate** describes how a value changes across a period. **[CAGR (compou
 
 A **historical price** is one observed share price in a series of prices over time. The current market price is a separate kind of input: it is a quote, and the time the project retrieves it does not necessarily establish when the underlying trade occurred.
 
-A **[yield](GLOSSARY.md#yield)** expresses an amount of income relative to an investment's price or value, usually as a percentage. In this project's [Graham Growth Value](strategies/GRAHAM.md#graham-growth-value-secondary-method) method, a user supplies an expected growth estimate and the yield on AAA-rated (highest credit category) corporate bonds; the project does not currently provide a live series of that yield. See the glossary's [AAA definition](GLOSSARY.md#aaa).
+A **[yield](GLOSSARY.md#yield)** expresses an amount of income relative to an investment's price or value, usually as a percentage. In this project's [Graham Growth Value](strategies/GRAHAM.md#graham-growth-value) method, a user supplies an expected growth estimate and the yield on AAA-rated (highest credit category) corporate bonds; the project does not currently provide a live series of that yield. See the glossary's [AAA definition](GLOSSARY.md#aaa).
 
 **Market capitalization** is the market value of a company's shares, generally calculated from share price and shares outstanding. It is different from accounting book value. **Valuation measures** compare a price or market value with a financial measure. For example, the [price-to-earnings ratio (P/E)](GLOSSARY.md#pe-price-to-earnings-ratio) compares price per share with EPS; the [price-to-book ratio (P/B)](GLOSSARY.md#pb-price-to-book-ratio) compares price per share with BVPS. A ratio can help frame a comparison, but it does not establish what a business should be worth. In the current FCF strategy, market capitalization may support an optional, informational [FCF yield](GLOSSARY.md#fcf-yield); it does not determine the growth classification.
 

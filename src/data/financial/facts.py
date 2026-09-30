@@ -449,8 +449,15 @@ class FinancialFactsProvider(Protocol):
     This protocol performs no cache or resolution behavior.
     """
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
         """Return the provider observations for *request*, or an empty tuple.
+
+        Args:
+            request: The provider-neutral fact request.
+            effective_as_of: The resolved point-in-time cutoff (``request.as_of`` when
+                given, otherwise the run's own execution clock) for any provider-side
+                availability/eligibility decision. Never a substitute for the
+                provider's own retrieval clock, and never itself a clock read.
 
         Raises:
             FinancialProviderError: On an operational provider failure.

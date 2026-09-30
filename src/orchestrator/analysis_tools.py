@@ -3,29 +3,32 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
-from typing import Annotated, Final, Literal
+from typing import Annotated, Final
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.fcf_earnings_growth import (
     FCFClassificationBasis,
     FCFEarningsGrowthAnalyzer,
+    FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardPolicy,
     HistoricalHorizon,
 )
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
-from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis, run_graham_growth_analysis
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
+from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
+from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
+from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
+from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
+from src.analysis.strategy.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
+from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.analysis.strategy.momentum.momentum_analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
-    MomentumPolicy,
     MomentumRun,
 )
 from src.data.instrument_profile import InstrumentProfile
@@ -66,7 +69,7 @@ class _AnalysisToolArguments(BaseModel):
         return value
 
 
-_MOMENTUM_DEFAULTS = MomentumPolicy()
+_MOMENTUM_DEFAULTS = MomentumConfig()
 
 
 class MomentumToolArguments(_AnalysisToolArguments):
@@ -75,6 +78,7 @@ class MomentumToolArguments(_AnalysisToolArguments):
     short_window: int = Field(default=_MOMENTUM_DEFAULTS.short_window, gt=0)
     long_window: int = Field(default=_MOMENTUM_DEFAULTS.long_window, gt=0)
     rsi_period: int = Field(default=_MOMENTUM_DEFAULTS.rsi_period, gt=0)
+    use_cache: bool = True
 
     @model_validator(mode="after")
     def require_ordered_windows(self) -> MomentumToolArguments:
@@ -87,7 +91,7 @@ class MomentumToolArguments(_AnalysisToolArguments):
 class GrahamNumberToolArguments(_AnalysisToolArguments):
     """Validated arguments for Graham Number analysis."""
 
-    eps_basis: Literal["three_year_average", "ttm", "fiscal_year"] = "three_year_average"
+    eps_basis: GrahamNumberEPSBasis = "three_year_average"
     eps_override: FiniteFloat | None = None
     bvps_override: FiniteFloat | None = None
     current_price_override: FiniteFloat | None = None
@@ -97,7 +101,7 @@ class GrahamNumberToolArguments(_AnalysisToolArguments):
 class GrahamGrowthValueToolArguments(_AnalysisToolArguments):
     """Validated arguments for Graham growth-value analysis."""
 
-    eps_basis: Literal["three_year_average", "ttm", "fiscal_year"] = "three_year_average"
+    eps_basis: GrahamGrowthEPSBasis = "three_year_average"
     expected_growth: FiniteFloat
     current_aaa_yield: PositiveFiniteFloat
     eps_override: FiniteFloat | None = None
@@ -140,11 +144,10 @@ class AnalysisToolDependencies:
     """Injected production analysis dependencies and provider selections."""
 
     momentum_analyzer: MomentumAnalyzer
-    graham_number_resolver: GrahamNumberInputResolver
-    graham_growth_resolver: GrahamGrowthInputResolver
+    graham_number_analyzer: GrahamNumberAnalyzer
+    graham_growth_analyzer: GrahamGrowthAnalyzer
     graham_security_provider_id: str
     graham_quote_provider_id: str
-    graham_growth_policy: GrahamGrowthCalculationPolicy
     fcf_analyzer: FCFEarningsGrowthAnalyzer
     fcf_provider_id: str
     clock: Callable[[], datetime]
@@ -176,39 +179,46 @@ class AnalysisToolHandlers:
             long_window=arguments.long_window,
             rsi_period=arguments.rsi_period,
         )
-        run = self._dependencies.momentum_analyzer.run_with_context(
-            config=config,
-            ticker=arguments.ticker,
-            as_of=arguments.as_of,
-        )
+        executed_at = self._validated_clock_value()
         profile = self._resolve_profile(arguments.ticker)
-        return replace(run, instrument_profile=profile) if profile is not None else run
+        context = AnalysisContext(
+            as_of=arguments.as_of,
+            executed_at=executed_at,
+            use_cache=arguments.use_cache,
+            instrument_profile=profile,
+        )
+        return self._dependencies.momentum_analyzer.run_analysis(
+            ticker=arguments.ticker, config=config, context=context
+        )
 
     def analyze_graham_number(self, **raw_arguments: object) -> GrahamNumberAnalysis:
         """Validate, resolve, and calculate one Graham Number run."""
         arguments = GrahamNumberToolArguments.model_validate(raw_arguments)
         profile = self._resolve_profile(arguments.ticker)
-        return run_graham_number_analysis(
-            resolver=self._dependencies.graham_number_resolver,
-            ticker=arguments.ticker,
+        config = GrahamNumberConfig(
             security_provider_id=self._dependencies.graham_security_provider_id,
             quote_provider_id=self._dependencies.graham_quote_provider_id,
             eps_basis=arguments.eps_basis,
             eps_override=arguments.eps_override,
             bvps_override=arguments.bvps_override,
             quote_override=arguments.current_price_override,
+        )
+        executed_at = self._validated_clock_value()
+        context = AnalysisContext(
             as_of=arguments.as_of,
+            executed_at=executed_at,
             use_cache=arguments.use_cache,
             instrument_profile=profile,
+        )
+        return self._dependencies.graham_number_analyzer.run_analysis(
+            ticker=arguments.ticker, config=config, context=context
         )
 
     def analyze_graham_growth_value(self, **raw_arguments: object) -> GrahamGrowthAnalysis:
         """Validate, resolve, and calculate one Graham growth-value run."""
         arguments = GrahamGrowthValueToolArguments.model_validate(raw_arguments)
         profile = self._resolve_profile(arguments.ticker)
-        return run_graham_growth_analysis(
-            resolver=self._dependencies.graham_growth_resolver,
-            ticker=arguments.ticker,
+        config = GrahamGrowthConfig(
             security_provider_id=self._dependencies.graham_security_provider_id,
             quote_provider_id=self._dependencies.graham_quote_provider_id,
             eps_basis=arguments.eps_basis,
@@ -216,10 +226,16 @@ class AnalysisToolHandlers:
             expected_growth=arguments.expected_growth,
             aaa_yield_override=arguments.current_aaa_yield,
             quote_override=arguments.current_price_override,
+        )
+        executed_at = self._validated_clock_value()
+        context = AnalysisContext(
             as_of=arguments.as_of,
+            executed_at=executed_at,
             use_cache=arguments.use_cache,
-            policy=self._dependencies.graham_growth_policy,
             instrument_profile=profile,
+        )
+        return self._dependencies.graham_growth_analyzer.run_analysis(
+            ticker=arguments.ticker, config=config, context=context
         )
 
     def analyze_fcf_earnings_growth(self, **raw_arguments: object) -> FCFEarningsGrowthResult:
@@ -231,18 +247,20 @@ class AnalysisToolHandlers:
             forward_policy=arguments.forward_policy,
             include_fcf_yield=arguments.include_fcf_yield,
         )
-        effective_as_of = arguments.as_of or self._validated_clock_value()
-        profile = self._resolve_profile(arguments.ticker)
-        return self._dependencies.fcf_analyzer.run_analysis(
-            ticker=arguments.ticker,
+        config = FCFEarningsGrowthConfig(
             policy=policy,
             currency=arguments.currency,
-            as_of=arguments.as_of,
             provider_id=self._dependencies.fcf_provider_id,
+        )
+        executed_at = self._validated_clock_value()
+        profile = self._resolve_profile(arguments.ticker)
+        context = AnalysisContext(
+            as_of=arguments.as_of,
+            executed_at=executed_at,
             use_cache=arguments.use_cache,
-            effective_as_of=effective_as_of,
             instrument_profile=profile,
         )
+        return self._dependencies.fcf_analyzer.run_analysis(ticker=arguments.ticker, config=config, context=context)
 
     def _resolve_profile(self, ticker: str) -> InstrumentProfile | None:
         """Resolve optional injected profile evidence once for one tool invocation."""

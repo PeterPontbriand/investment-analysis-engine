@@ -43,10 +43,10 @@ def mock_settings_config(monkeypatch: pytest.MonkeyPatch) -> Generator[None, Non
 def test_fixed_identifiers_and_schema_version() -> None:
     momentum = MomentumSelection.from_settings()
     assert momentum.analysis_id == "momentum"
-    assert (momentum.method_id, momentum.config_schema_version) == ("sma_crossover", 1)
+    assert (momentum.method_id, momentum.config_schema_version) == ("sma_crossover", 2)
 
     graham = GrahamNumberSelection()
-    assert graham.analysis_id == "graham"
+    assert graham.analysis_id == "graham_number"
     assert (graham.method_id, graham.config_schema_version) == ("graham_number", 1)
 
 
@@ -57,6 +57,32 @@ def test_momentum_defaults_materialized_from_configured_policy() -> None:
     config = selection.to_momentum_config()
     assert isinstance(config, MomentumConfig)
     assert (config.short_window, config.long_window, config.rsi_period) == (2, 5, 14)
+
+
+def test_momentum_as_of_and_use_cache_default_and_reach_the_context() -> None:
+    default = MomentumSelection.from_settings()
+    assert (default.as_of, default.use_cache) == (None, True)
+    executed_at = datetime(2026, 9, 1, tzinfo=UTC)
+    context = default.to_analysis_context(executed_at)
+    assert (context.as_of, context.use_cache, context.executed_at) == (None, True, executed_at)
+
+    boundary = datetime(2025, 1, 1, tzinfo=UTC)
+    explicit = MomentumSelection.from_settings(as_of=boundary, use_cache=False)
+    context = explicit.to_analysis_context(executed_at)
+    assert (context.as_of, context.use_cache) == (boundary, False)
+    assert MomentumSelection.model_validate_json(explicit.model_dump_json()) == explicit
+
+
+def test_momentum_rejects_naive_as_of_and_non_boolean_use_cache() -> None:
+    with pytest.raises(ValidationError, match="timezone_aware"):
+        MomentumSelection.from_settings(as_of=datetime(2025, 1, 1))
+    with pytest.raises(ValidationError, match="bool"):
+        MomentumSelection.from_settings(use_cache="no")
+
+
+def test_momentum_rejects_the_previous_selection_version() -> None:
+    with pytest.raises(ValidationError, match="config_schema_version"):
+        MomentumSelection.model_validate({"short_window": 2, "long_window": 5, "config_schema_version": 1})
 
 
 def test_momentum_explicit_inputs_win_over_settings() -> None:
@@ -74,8 +100,6 @@ def test_momentum_snapshot_is_independent_of_caller_inputs() -> None:
 
 
 def test_momentum_rejects_foreign_fields() -> None:
-    with pytest.raises(ValidationError, match="extra_forbidden"):
-        MomentumSelection.from_settings(as_of=None)
     with pytest.raises(ValidationError, match="extra_forbidden"):
         MomentumSelection(expected_growth=5.0)  # type: ignore[call-arg]
 
@@ -109,7 +133,7 @@ def test_graham_defaults_resolve_like_analyzer_config(provider: str) -> None:
     expected_basis = "three_year_average" if provider == "sec_edgar" else "ttm"
     expected_quote = "yfinance" if provider == "sec_edgar" else provider
     assert (selection.eps_basis, selection.quote_provider_id) == (expected_basis, expected_quote)
-    assert config.use_cache is True
+    assert selection.use_cache is True
 
 
 def test_graham_number_defaults() -> None:
@@ -139,8 +163,8 @@ def test_graham_normalization_and_explicit_values() -> None:
     assert (selection.security_provider_id, selection.quote_provider_id) == ("massive", "yfinance")
     config = selection.to_graham_number_config()
     assert (config.eps_override, config.bvps_override, config.quote_override) == (4.5, 20.0, 100.0)
-    assert config.as_of == as_of
-    assert config.use_cache is False
+    assert selection.as_of == as_of
+    assert selection.use_cache is False
 
 
 def test_graham_snapshot_is_independent_of_caller_inputs() -> None:
@@ -155,9 +179,9 @@ def test_graham_snapshot_is_independent_of_caller_inputs() -> None:
 @pytest.mark.parametrize(
     ("values", "message"),
     [
-        ({"security_provider_id": "sec_edgar", "eps_basis": "ttm"}, "three-year average"),
-        ({"security_provider_id": "massive", "eps_basis": "three_year_average"}, "TTM"),
-        ({"security_provider_id": "massive"}, "book value per share"),
+        ({"security_provider_id": "sec_edgar", "eps_basis": "ttm"}, "three_year_average"),
+        ({"security_provider_id": "massive", "eps_basis": "three_year_average"}, "ttm"),
+        ({"security_provider_id": "massive"}, "bvps_override"),
         ({"eps_basis": "annual"}, "literal_error"),
     ],
 )
@@ -192,7 +216,7 @@ def test_graham_selection_is_frozen() -> None:
 @pytest.mark.parametrize("model", [MomentumSelection, GrahamNumberSelection])
 @pytest.mark.parametrize(
     ("field", "value"),
-    [("analysis_id", "wrong"), ("method_id", "wrong"), ("config_schema_version", 2)],
+    [("analysis_id", "wrong"), ("method_id", "wrong"), ("config_schema_version", 99)],
 )
 def test_identity_overrides_rejected(
     model: type[MomentumSelection] | type[GrahamNumberSelection], field: str, value: object
@@ -258,7 +282,7 @@ def test_round_trip_and_conversion_do_not_read_settings(monkeypatch: pytest.Monk
     assert MomentumSelection.model_validate_json(momentum.model_dump_json()) == momentum
     assert GrahamNumberSelection.model_validate_json(graham.model_dump_json()) == graham
     assert momentum.to_momentum_config().short_window == 2
-    assert graham.to_graham_number_config().as_of == graham.as_of
+    assert graham.to_analysis_context(executed_at=graham.as_of or datetime.now(UTC)).as_of == graham.as_of
     assert MomentumSelection.from_settings(short_window=2, long_window=5) == momentum
 
 
@@ -454,7 +478,7 @@ def test_request_rejects_duplicated_method_options(field: str) -> None:
 
 def test_union_rejects_bad_identifiers_and_versions(all_selections: tuple[AnalysisSelection, ...]) -> None:
     for selection in all_selections:
-        for field, invalid in [("analysis_id", "wrong"), ("method_id", "wrong"), ("config_schema_version", 2)]:
+        for field, invalid in [("analysis_id", "wrong"), ("method_id", "wrong"), ("config_schema_version", 99)]:
             payload = selection.model_dump()
             payload[field] = invalid
             with pytest.raises(ValidationError):
@@ -465,14 +489,24 @@ def test_union_rejects_bad_identifiers_and_versions(all_selections: tuple[Analys
     ("alias", "body", "analysis", "method"),
     [
         ("momentum", "{}", "momentum", "sma_crossover"),
-        ("graham-number", "{}", "graham", "graham_number"),
-        ("graham-growth", '{"config":{"expected_growth":5,"aaa_yield_override":4.5}}', "graham", "graham_growth_value"),
+        ("graham-number", "{}", "graham_number", "graham_number"),
+        (
+            "graham-growth",
+            '{"config":{"expected_growth":5,"aaa_yield_override":4.5}}',
+            "graham_growth_value",
+            "graham_growth_value",
+        ),
         ("fcf-growth", "{}", "fcf_earnings_growth", "reported_fcf_eps_cagr"),
     ],
 )
 def test_parser_aliases_and_canonical_identifiers(alias: str, body: str, analysis: str, method: str) -> None:
     selection = parse_selection(alias, body)
-    assert (selection.analysis_id, selection.method_id, selection.config_schema_version) == (analysis, method, 1)
+    expected_version = 2 if analysis == "momentum" else 1
+    assert (selection.analysis_id, selection.method_id, selection.config_schema_version) == (
+        analysis,
+        method,
+        expected_version,
+    )
 
 
 @pytest.mark.parametrize("alias", ["", "Momentum", " momentum", "graham_number", "sma_crossover", "fcf"])
@@ -540,7 +574,7 @@ def test_parser_requires_config_object_when_present(alias: str, value: object) -
 @pytest.mark.parametrize(
     ("alias", "body"),
     [
-        ("momentum", {"config": {"as_of": None}}),
+        ("momentum", {"config": {"use_cache": None}}),
         ("momentum", {"config": {"unknown": 1}}),
         ("momentum", {"config": {"short_window": None}}),
         ("momentum", {"config": {"rsi_period": None}}),
@@ -617,7 +651,7 @@ def test_explicit_config_round_trips_without_settings_or_external_activity(monke
             assert selection.to_fcf_policy().forward_policy is ForwardPolicy.CONFIRMATION
 
 
-@pytest.mark.parametrize("version", [True, False, 1.0, "1", 0, 2])
+@pytest.mark.parametrize("version", [True, False, 1.0, "1", 2.0, "2", 0, 99])
 def test_union_rejects_version_type_coercion(all_selections: tuple[AnalysisSelection, ...], version: object) -> None:
     for selection in all_selections:
         values = selection.model_dump()

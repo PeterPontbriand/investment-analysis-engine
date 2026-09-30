@@ -29,7 +29,9 @@ run-storage database locally instead — see ``tests/test_cli_save_run.py``.
 """
 
 import re
+from dataclasses import replace
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from alembic.config import Config
@@ -68,3 +70,13 @@ def isolated_cli_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     isolated = ProjectSettings(database_url=url)
     monkeypatch.setattr("src.cli_support.settings", isolated)
     monkeypatch.setattr("src.cli_workspace.settings", isolated)
+
+
+def carry_profile(mock_run: MagicMock) -> None:
+    """Make a mocked ``MomentumAnalyzer.run_analysis`` return its canned run carrying the caller's profile.
+
+    The real analyzer embeds ``context.instrument_profile`` in the run it returns, and the
+    ``momentum`` presenters read it from there; a bare canned run would not carry it.
+    """
+    canned = mock_run.return_value
+    mock_run.side_effect = lambda **kwargs: replace(canned, instrument_profile=kwargs["context"].instrument_profile)

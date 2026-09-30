@@ -31,7 +31,7 @@ from src.evaluation.fixtures.graham import (
     FixtureFinancialFactsProvider,
 )
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
+from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_cli_output  # noqa: F401
 
 runner = CliRunner()
 
@@ -85,10 +85,10 @@ class QuoteUnavailableProvider:
         """Initialize the deterministic fixture delegate."""
         self._delegate = FixtureFinancialFactsProvider()
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
         if request.field_name is FinancialField.CURRENT_PRICE:
             return ()
-        return self._delegate.fetch_facts(request)
+        return self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
 
 
 @pytest.fixture
@@ -139,9 +139,10 @@ def mock_momentum_run(mock_metrics: MomentumMetrics) -> MomentumRun:
     )
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_success_uses_investor_presenter(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "BTC-USD"])
 
@@ -158,12 +159,26 @@ def test_cli_momentum_success_uses_investor_presenter(mock_run: MagicMock, mock_
     assert "cli_runtime" not in result.output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+def test_cli_momentum_presents_only_the_profile_embedded_in_the_run(
+    mock_run: MagicMock, mock_momentum_run: MomentumRun
+) -> None:
+    """The presenter reads ``run.instrument_profile``; a run without one is an invariant failure."""
+    mock_run.return_value = replace(mock_momentum_run, instrument_profile=None)
+
+    result = runner.invoke(app, ["momentum", "BTC-USD"])
+
+    assert result.exit_code == 1
+    assert "Unable to complete momentum analysis for BTC-USD" in normalize_cli_output(result.output)
+
+
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_known_etf_remains_applicable_and_retains_kind(
     mock_run: MagicMock,
     mock_momentum_run: MomentumRun,
 ) -> None:
     mock_run.return_value = replace(mock_momentum_run, metrics=replace(mock_momentum_run.metrics, ticker="FLSW"))
+    carry_profile(mock_run)
     profile = fixture_instrument_profile(
         "FLSW",
         kind=InstrumentKind.ETF,
@@ -181,9 +196,25 @@ def test_cli_momentum_known_etf_remains_applicable_and_retains_kind(
     assert payload["instrument_kind"]["kind"] == "etf"
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+def test_cli_momentum_without_ticker_uses_the_normalized_configured_default(
+    mock_run: MagicMock, mock_momentum_run: MomentumRun
+) -> None:
+    mock_run.return_value = mock_momentum_run
+    carry_profile(mock_run)
+    configured = {"default": {"default_ticker": " btc-usd ", "data_start_date": "2026-01-01"}}
+
+    with patch("src.config.ProjectSettings.get_analysis_settings", return_value=configured):
+        result = runner.invoke(app, ["momentum"])
+
+    assert result.exit_code == 0
+    assert mock_run.call_args.kwargs["ticker"] == "BTC-USD"
+
+
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_legacy_ticker_option_still_routes(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "--ticker", "BTC-USD"])
 
@@ -192,9 +223,10 @@ def test_cli_momentum_legacy_ticker_option_still_routes(mock_run: MagicMock, moc
     assert mock_run.call_args.kwargs["ticker"] == "BTC-USD"
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_with_options(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "AAPL", "-s", "10", "-l", "30"])
 
@@ -204,7 +236,7 @@ def test_cli_momentum_with_options(mock_run: MagicMock, mock_momentum_run: Momen
     assert config_passed.long_window == 30
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_reports_identity_from_retained_market_context(
     mock_run: MagicMock,
     mock_metrics: MomentumMetrics,
@@ -219,6 +251,7 @@ def test_cli_momentum_reports_identity_from_retained_market_context(
             observation_count=300,
         ),
     )
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "BTC-USD", "--details"])
 
@@ -228,7 +261,7 @@ def test_cli_momentum_reports_identity_from_retained_market_context(
     assert "Currency: CAD" in result.output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_insufficient_history_is_unknown_without_nan(mock_run: MagicMock) -> None:
     metrics = MomentumMetrics(
         ticker="SHORT",
@@ -249,6 +282,7 @@ def test_cli_momentum_insufficient_history_is_unknown_without_nan(mock_run: Magi
             observation_count=3,
         ),
     )
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "SHORT"])
 
@@ -259,7 +293,7 @@ def test_cli_momentum_insufficient_history_is_unknown_without_nan(mock_run: Magi
     assert re.search(r"\bnan\b", result.output, flags=re.IGNORECASE) is None
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicMock) -> None:
     metrics = MomentumMetrics(
         ticker="SHORT",
@@ -280,6 +314,7 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
             observation_count=3,
         ),
     )
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "SHORT", "--json"])
 
@@ -296,9 +331,10 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
     assert payload["source"]["observation_count"] == 3
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_diagnostics_are_retained_and_useful(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
+    carry_profile(mock_run)
 
     result = runner.invoke(app, ["momentum", "BTC-USD", "--diagnostics"])
 
@@ -309,7 +345,7 @@ def test_cli_momentum_diagnostics_are_retained_and_useful(mock_run: MagicMock, m
     assert "No execution trace was retained" not in result.output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_data_fetch_failure_is_one_clean_message(mock_run: MagicMock) -> None:
     mock_run.side_effect = DataFetchError("provider-library key currentTradingPeriod leaked here")
 
@@ -323,7 +359,7 @@ def test_cli_momentum_data_fetch_failure_is_one_clean_message(mock_run: MagicMoc
     assert "Traceback" not in result.output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_analysis_failure_does_not_expose_internal_text(mock_run: MagicMock) -> None:
     mock_run.side_effect = ValueError("Validation error. See https://errors.pydantic.dev/2.0/v/value_error")
 
@@ -384,7 +420,9 @@ def test_graham_resolver_passes_configured_sec_identity_explicitly(mock_sec_adap
     declared_identity = "investment-analysis-engine-test test@example.invalid"
 
     with patch.object(settings, "sec_user_agent", declared_identity):
-        build_graham_resolver(resolver_type=GrahamNumberInputResolver, data_provider=None)
+        build_graham_resolver(
+            resolver_type=GrahamNumberInputResolver, data_provider=None, clock=lambda: datetime.now(UTC)
+        )
 
     mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
 
@@ -394,7 +432,9 @@ def test_graham_growth_default_uses_configured_sec_identity(mock_sec_adapter: Ma
     declared_identity = "investment-analysis-engine-test test@example.invalid"
 
     with patch.object(settings, "sec_user_agent", declared_identity):
-        build_graham_resolver(resolver_type=GrahamGrowthInputResolver, data_provider=None)
+        build_graham_resolver(
+            resolver_type=GrahamGrowthInputResolver, data_provider=None, clock=lambda: datetime.now(UTC)
+        )
 
     mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
 
@@ -425,14 +465,14 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 5
-    assert payload["analysis"] == "graham"
+    assert payload["schema_version"] == 6
+    assert payload["analysis"] == "graham_number"
     assert payload["method"] == "graham_number"
     assert payload["ticker"] == SECURITY_ID
     assert payload["status"] == "ok"
     assert payload["result"]["maximum_indicated_price"] is not None
-    assert payload["inputs"]["eps"]["basis"] == "three_year_average"
-    assert payload["inputs"]["eps"]["source_kind"] == "derived"
+    assert payload["inputs"]["eps"]["basis"] == "ttm"
+    assert payload["inputs"]["eps"]["source_kind"] == "provider"
 
 
 @pytest.mark.parametrize(
@@ -503,7 +543,7 @@ def test_cli_graham_number_eps_override_inherits_default_basis(fixture_resolver:
     assert result.exit_code == 0
     payload = json.loads(result.output)
     assert payload["inputs"]["eps"]["source_kind"] == "override"
-    assert payload["inputs"]["eps"]["basis"] == "three_year_average"
+    assert payload["inputs"]["eps"]["basis"] == "ttm"
     assert any("EPS is a user override" in warning for warning in payload["warnings"])
 
 
@@ -657,7 +697,7 @@ def test_cli_graham_details_shows_financial_provenance(fixture_resolver: GrahamN
 
     assert result.exit_code == 0
     assert "Details" in result.output
-    assert "3-year average" in result.output
+    assert "TTM" in result.output
     assert "Source:" in result.output
     assert "sqrt(22.5" in result.output
     assert "derivation: arithmetic_mean" not in result.output

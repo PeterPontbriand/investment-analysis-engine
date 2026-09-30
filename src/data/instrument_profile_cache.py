@@ -13,7 +13,7 @@ unwrapped, and nothing is written to the durable repository for it.
 import threading
 from collections.abc import Callable, Mapping
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 
 from src.data.instrument_profile import (
@@ -187,12 +187,12 @@ class CachedInstrumentProfileResolver:
         repository: SQLiteInstrumentProfileRepository,
         *,
         ttl: timedelta | None,
-        clock: Callable[[], datetime] | None = None,
+        clock: Callable[[], datetime],
     ) -> None:
-        """Retain the caller-owned repository and an explicit, named TTL policy."""
+        """Retain the caller-owned repository, an explicit, named TTL policy, and a required clock."""
         self._repository = repository
         self._ttl = ttl
-        self._clock = clock if clock is not None else lambda: datetime.now(UTC)
+        self._clock = clock
         self._locks_guard = threading.Lock()
         self._ticker_locks: dict[str, threading.Lock] = {}
 

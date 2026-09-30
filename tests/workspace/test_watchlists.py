@@ -1,10 +1,18 @@
 """Focused tests for the watchlist creation spec and selection JSON codec."""
 
+import json
+
 import pytest
 from pydantic import ValidationError
 
 from src.workspace.requests import FCFGrowthSelection, GrahamGrowthSelection, GrahamNumberSelection, MomentumSelection
-from src.workspace.watchlists import WatchlistSpec, decode_selection, encode_selection, normalize_ticker
+from src.workspace.watchlists import (
+    StoredSelectionError,
+    WatchlistSpec,
+    decode_selection,
+    encode_selection,
+    normalize_ticker,
+)
 
 
 def test_watchlist_spec_accepts_only_display_name() -> None:
@@ -66,11 +74,26 @@ def test_decode_selection_rejects_version_mismatch() -> None:
         decode_selection("graham_number", 2, encoded)
 
 
+def test_decode_selection_rejects_a_stored_momentum_selection_from_before_as_of_and_no_cache() -> None:
+    """An entry saved with the retired version 1 shape is rejected, never read as version 2."""
+    payload = json.loads(encode_selection(MomentumSelection(short_window=2, long_window=5)))
+    payload["config_schema_version"] = 1
+    del payload["as_of"], payload["use_cache"]
+    with pytest.raises(StoredSelectionError, match=r"saved by an earlier version \(selection version 1\)"):
+        decode_selection("sma_crossover", 1, json.dumps(payload))
+
+
+def test_decode_selection_rejects_a_momentum_version_column_that_disagrees() -> None:
+    encoded = encode_selection(MomentumSelection(short_window=2, long_window=5))
+    with pytest.raises(ValueError, match="does not match"):
+        decode_selection("sma_crossover", 1, encoded)
+
+
 def test_decode_selection_rejects_malformed_json() -> None:
     with pytest.raises(ValueError, match="JSON"):
         decode_selection("graham_number", 1, "{not json")
 
 
 def test_decode_selection_rejects_unknown_method_id() -> None:
-    with pytest.raises(ValueError, match="validation error|unknown_method"):
+    with pytest.raises(ValueError, match="not in a shape this version can read"):
         decode_selection("unknown_method", 1, '{"method_id": "unknown_method"}')

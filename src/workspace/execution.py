@@ -39,7 +39,7 @@ Ordering and error-visibility guarantees:
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID, uuid4
 
@@ -47,6 +47,7 @@ from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthRe
 from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
+from src.core.clock import utc_now
 from src.data.instrument_profile import InstrumentProfile
 from src.workspace.codecs import encode_evidence
 from src.workspace.fcf_growth_execution import FCFGrowthCapture
@@ -60,9 +61,9 @@ from src.workspace.runs import AnalysisRun
 NativeEvidence = MomentumRun | GrahamNumberAnalysis | GrahamGrowthAnalysis | FCFEarningsGrowthResult
 
 _METHOD_VERSIONS: dict[tuple[str, str], tuple[int, int]] = {
-    ("momentum", "sma_crossover"): (1, 1),
-    ("graham", "graham_number"): (1, 1),
-    ("graham", "graham_growth_value"): (1, 1),
+    ("momentum", "sma_crossover"): (1, 2),
+    ("graham_number", "graham_number"): (1, 1),
+    ("graham_growth_value", "graham_growth_value"): (1, 1),
     ("fcf_earnings_growth", "reported_fcf_eps_cagr"): (2, 3),
 }
 
@@ -110,7 +111,7 @@ def from_momentum_capture(capture: MomentumCapture) -> ExecutionCapture:
     """Normalize a Momentum capture; Momentum has no native failure status."""
     return ExecutionCapture(
         native_evidence=capture.run,
-        profile=capture.profile,
+        profile=capture.run.instrument_profile,
         outcome=RunOutcome.COMPLETED,
         presentation_inputs=capture.presentation_inputs,
     )
@@ -162,7 +163,7 @@ def execute(  # noqa: PLR0913
         Exception: Whatever `capture` or `repository.insert` raise,
             unmodified. Neither is caught or reinterpreted here.
     """
-    resolved_clock = clock if clock is not None else lambda: datetime.now(UTC)
+    resolved_clock = clock if clock is not None else utc_now
     started_at = resolved_clock()
     result = capture()
     completed_at = resolved_clock()

@@ -12,6 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from src.cli import app
+from src.core.clock import utc_now
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
@@ -35,7 +36,10 @@ def disable_live_instrument_profile_resolution() -> Iterator[None]:
 
     with (
         patch("src.workspace.fcf_growth_execution.compose_graham_profile", side_effect=unknown_profile),
-        patch("src.cli._production_financial_cache", side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache())),
+        patch(
+            "src.cli._production_financial_cache",
+            side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache(clock=utc_now)),
+        ),
     ):
         yield
 

@@ -7,8 +7,6 @@ from src.evaluation.models import (
     Case,
     DomainOutcomeExpectation,
     Expectation,
-    GrahamMethod,
-    GrahamMethodConstraints,
     NumericalExpectation,
     ToolConstraints,
     ToolName,
@@ -17,10 +15,6 @@ from src.evaluation.models import (
 _GROWTH_TOOL_CONSTRAINTS: Final = ToolConstraints(
     permitted=(ToolName.ANALYZE_GRAHAM_GROWTH_VALUE,),
     required=(ToolName.ANALYZE_GRAHAM_GROWTH_VALUE,),
-)
-_GROWTH_METHOD_CONSTRAINTS: Final = GrahamMethodConstraints(
-    permitted=(GrahamMethod.GRAHAM_GROWTH_VALUE,),
-    required=(GrahamMethod.GRAHAM_GROWTH_VALUE,),
 )
 
 
@@ -34,7 +28,6 @@ GRG_01: Final = Case(
     fixture_ids=(GRAHAM_FACTS_FIXTURE_ID,),
     expectation=Expectation(
         tool_constraints=_GROWTH_TOOL_CONSTRAINTS,
-        graham_method_constraints=_GROWTH_METHOD_CONSTRAINTS,
         numerical_expectations=(
             NumericalExpectation(field_path="assembly.eps.value", expected_value=4.80, absolute_tolerance=0.0),
             NumericalExpectation(
@@ -80,7 +73,6 @@ GRG_ETF_01: Final = Case(
     fixture_ids=(KNOWN_ETF_PROFILE_FIXTURE_ID,),
     expectation=Expectation(
         tool_constraints=_GROWTH_TOOL_CONSTRAINTS,
-        graham_method_constraints=_GROWTH_METHOD_CONSTRAINTS,
         domain_outcome_expectations=(
             DomainOutcomeExpectation(field_path="assembly.status", expected_value="not_applicable"),
             DomainOutcomeExpectation(field_path="margin_of_safety_percent", expected_value=None),

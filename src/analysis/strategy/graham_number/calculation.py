@@ -5,15 +5,14 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from typing import Final
+from typing import Final, Literal
 
 from src.analysis.shared.financial_resolution import resolve_normalized_eps, resolve_optional_quote
-from src.analysis.shared.graham_contracts import GrahamMethod, _trace_event
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from src.data.financial.quote_freshness import QuoteFreshnessEvidence
-from src.data.financial.resolution_trace import ResolutionOutcome, ResolutionStage, ResolutionTrace
+from src.data.financial.resolution_trace import ResolutionOutcome, ResolutionStage, ResolutionTrace, single_event_trace
 from src.data.financial.resolver import InputResolver
 
 
@@ -45,7 +44,7 @@ class GrahamNumberInputAssembly:
         quote_reason: Human-readable reason for a non-OK quote.
         reason: Explanation when assembly ``status`` is not OK.
         resolution_trace: Ordered resolver events across attempted method inputs.
-        method: Always ``GrahamMethod.NUMBER``.
+        method: Always ``"graham_number"``.
     """
 
     status: CalculationStatus
@@ -57,7 +56,7 @@ class GrahamNumberInputAssembly:
     quote_freshness: QuoteFreshnessEvidence | None = None
     reason: str | None = None
     resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
-    method: GrahamMethod = field(init=False, default=GrahamMethod.NUMBER)
+    method: Literal["graham_number"] = field(init=False, default="graham_number")
 
 
 @dataclass(frozen=True)
@@ -69,14 +68,14 @@ class GrahamNumberResult:
         maximum_indicated_price: The screening-ceiling price.  ``None`` when
             ``status`` is not ``OK``.
         reason: Human-readable explanation when ``status`` is not ``OK``.
-        method: Always ``GrahamMethod.NUMBER`` (set automatically, not
+        method: Always ``"graham_number"`` (set automatically, not
             caller-supplied).
     """
 
     status: CalculationStatus
     maximum_indicated_price: float | None = None
     reason: str | None = None
-    method: GrahamMethod = field(init=False, default=GrahamMethod.NUMBER)
+    method: Literal["graham_number"] = field(init=False, default="graham_number")
 
     def __post_init__(self) -> None:
         """Enforce result-state invariants."""
@@ -179,7 +178,7 @@ class GrahamNumberInputResolver(InputResolver):
             return GrahamNumberInputAssembly(
                 status=CalculationStatus.INVALID_INPUT,
                 reason=reason,
-                resolution_trace=_trace_event(
+                resolution_trace=single_event_trace(
                     "eps",
                     ResolutionStage.VALIDATION,
                     ResolutionOutcome.INVALID,

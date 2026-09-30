@@ -1,8 +1,8 @@
 # R3 — Repository-Wide Dead Code Audit
 
-**Status:** next in sequence per `IMPLEMENTATION_PLAN.md` row 10; not yet started; scope/contract
-review required before implementation, matching this project's convention for any nontrivial
-work package.
+**Status:** next in sequence per `IMPLEMENTATION_PLAN.md` row 12, after IR (row 10) and SWC
+(row 11); not yet started; scope/contract review required before implementation, matching this
+project's convention for any nontrivial work package.
 **Discovered:** 2026-09-23, during ESC-D.4 reconnaissance (ESC-18's correction in
 [the defect ledger](existing-strategy-correctness/ESC_A_DEFECT_LEDGER.md)).
 **Why scheduled here:** deliberately placed before Step 3.5, which adds five new

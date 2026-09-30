@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
 from src.data.financial.production import ProductionFinancialFactsProvider
@@ -16,7 +17,12 @@ class RecordingProvider:
 
     requests: list[FinancialFactRequest] = field(default_factory=list)
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Record one request and return no facts."""
         self.requests.append(request)
         return ()
@@ -34,7 +40,7 @@ def test_production_provider_routes_yfinance_quote_by_provider_identity() -> Non
         provider_id=YFINANCE_PROVIDER_ID,
     )
 
-    assert provider.fetch_facts(request) == ()
+    assert provider.fetch_facts(request, effective_as_of=datetime(2026, 9, 26, tzinfo=UTC)) == ()
     assert yfinance.requests == [request]
     assert sec.requests == []
     assert massive.requests == []

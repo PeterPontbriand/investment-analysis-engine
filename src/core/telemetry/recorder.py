@@ -8,11 +8,11 @@ import logging
 from collections import deque
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 from src.config import settings
+from src.core.clock import utc_now
 from src.core.telemetry.models import TelemetryMode, TrajectoryEvent, TrajectoryEventType
 from src.core.telemetry.redaction import redact_value, sanitize_exception_message
 from src.core.telemetry.run_context import RunContext
@@ -151,7 +151,7 @@ class TrajectoryRecorder:
             run_id=self.run_id,
             session_id=self.session_id,
             sequence=self._sequence,
-            timestamp=datetime.now(UTC),
+            timestamp=utc_now(),
             event_type=record.event_type,
             component=record.component,
             mode=self.mode,

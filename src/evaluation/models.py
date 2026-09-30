@@ -25,18 +25,10 @@ class ToolName(StrEnum):
     ANALYZE_FCF_EARNINGS_GROWTH = "analyze_fcf_earnings_growth"
 
 
-class GrahamMethod(StrEnum):
-    """Supported Graham valuation method identifiers."""
-
-    GRAHAM_NUMBER = "graham_number"
-    GRAHAM_GROWTH_VALUE = "graham_growth_value"
-
-
 class ComponentKind(StrEnum):
     """Independently reported Golden-Suite evaluation components."""
 
     STRATEGY_SELECTION = "strategy_selection"
-    GRAHAM_METHOD_SELECTION = "graham_method_selection"
     NUMERICAL_CORRECTNESS = "numerical_correctness"
     FIXTURE_STATUS = "fixture_status"
     EXECUTION_STATUS = "execution_status"
@@ -51,7 +43,7 @@ class ComponentOutcome(StrEnum):
     NOT_MEASURED = "not_measured"
 
 
-def _canonicalize[ConstraintValue: (ToolName, GrahamMethod, str)](
+def _canonicalize[ConstraintValue: (ToolName, str)](
     values: tuple[ConstraintValue, ...],
 ) -> tuple[ConstraintValue, ...]:
     """Reject duplicate constraint values and return deterministic order."""
@@ -60,7 +52,7 @@ def _canonicalize[ConstraintValue: (ToolName, GrahamMethod, str)](
     return tuple(sorted(values, key=str))
 
 
-def _validate_relationships[ConstraintValue: (ToolName, GrahamMethod, str)](
+def _validate_relationships[ConstraintValue: (ToolName, str)](
     *,
     permitted: tuple[ConstraintValue, ...],
     required: tuple[ConstraintValue, ...],
@@ -94,28 +86,6 @@ class ToolConstraints(BaseModel):
     @model_validator(mode="after")
     def validate_relationships(self) -> ToolConstraints:
         """Enforce relationships between tool constraint collections."""
-        _validate_relationships(permitted=self.permitted, required=self.required, forbidden=self.forbidden)
-        return self
-
-
-class GrahamMethodConstraints(BaseModel):
-    """Immutable expected constraints on selected Graham methods."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    permitted: tuple[GrahamMethod, ...] = ()
-    required: tuple[GrahamMethod, ...] = ()
-    forbidden: tuple[GrahamMethod, ...] = ()
-
-    @field_validator("permitted", "required", "forbidden")
-    @classmethod
-    def canonicalize_values(cls, values: tuple[GrahamMethod, ...]) -> tuple[GrahamMethod, ...]:
-        """Reject duplicates and canonicalize semantically unordered methods."""
-        return _canonicalize(values)
-
-    @model_validator(mode="after")
-    def validate_relationships(self) -> GrahamMethodConstraints:
-        """Enforce relationships between Graham-method constraint collections."""
         _validate_relationships(permitted=self.permitted, required=self.required, forbidden=self.forbidden)
         return self
 
@@ -203,7 +173,6 @@ class Expectation(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     tool_constraints: ToolConstraints = Field(default_factory=ToolConstraints)
-    graham_method_constraints: GrahamMethodConstraints = Field(default_factory=GrahamMethodConstraints)
     behavior_constraints: BehaviorConstraints = Field(default_factory=BehaviorConstraints)
     numerical_expectations: tuple[NumericalExpectation, ...] = ()
     domain_outcome_expectations: tuple[DomainOutcomeExpectation, ...] = ()
@@ -287,14 +256,6 @@ class ToolCallObservation(BaseModel):
     tool_name: ToolName
 
 
-class GrahamMethodObservation(BaseModel):
-    """Raw observation of one selected Graham method."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    method: GrahamMethod
-
-
 class NumericalObservation(BaseModel):
     """Raw finite numerical observation addressed by result field path."""
 
@@ -339,7 +300,6 @@ class Observation(BaseModel):
     execution_mode: ExecutionMode
     observed_at: datetime
     tool_calls: tuple[ToolCallObservation, ...] = ()
-    graham_methods: tuple[GrahamMethodObservation, ...] = ()
     numerical_observations: tuple[NumericalObservation, ...] = ()
     domain_outcome_observations: tuple[DomainOutcomeObservation, ...] = ()
 
@@ -378,7 +338,7 @@ class Observation(BaseModel):
     @model_validator(mode="after")
     def reject_unmeasured_selection_evidence(self) -> Observation:
         """Prevent direct deterministic dispatch from masquerading as measured selection."""
-        if self.execution_mode is ExecutionMode.DETERMINISTIC_NO_LLM and (self.tool_calls or self.graham_methods):
+        if self.execution_mode is ExecutionMode.DETERMINISTIC_NO_LLM and self.tool_calls:
             raise ValueError("deterministic_no_llm observations must not contain selection evidence")
         return self
 

@@ -29,7 +29,7 @@ from src.evaluation.fixtures.graham import (
     SECURITY_ID,
     FixtureFinancialFactsProvider,
 )
-from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult, GrahamMethod, ToolName
+from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult, ToolName
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.analysis_tools import GrahamGrowthValueToolArguments, GrahamNumberToolArguments
@@ -111,24 +111,21 @@ def _seeded_precedence_resolver() -> GrahamNumberInputResolver:
 
 
 @pytest.mark.parametrize(
-    ("case", "tool", "method"),
+    ("case", "tool"),
     [
-        (GRG_01, ToolName.ANALYZE_GRAHAM_GROWTH_VALUE, GrahamMethod.GRAHAM_GROWTH_VALUE),
-        (GRG_ETF_01, ToolName.ANALYZE_GRAHAM_GROWTH_VALUE, GrahamMethod.GRAHAM_GROWTH_VALUE),
-        (GRN_04, ToolName.ANALYZE_GRAHAM_NUMBER, GrahamMethod.GRAHAM_NUMBER),
-        (GRN_05, ToolName.ANALYZE_GRAHAM_NUMBER, GrahamMethod.GRAHAM_NUMBER),
+        (GRG_01, ToolName.ANALYZE_GRAHAM_GROWTH_VALUE),
+        (GRG_ETF_01, ToolName.ANALYZE_GRAHAM_GROWTH_VALUE),
+        (GRN_04, ToolName.ANALYZE_GRAHAM_NUMBER),
+        (GRN_05, ToolName.ANALYZE_GRAHAM_NUMBER),
     ],
 )
 def test_reviewed_g3_catalog_constraints_and_expectations_are_explicit(
     case: Case,
     tool: ToolName,
-    method: GrahamMethod,
 ) -> None:
     """Stable IDs, strategy/method constraints, and reviewed numeric truth are present."""
     assert case.expectation.tool_constraints.permitted == (tool,)
     assert case.expectation.tool_constraints.required == (tool,)
-    assert case.expectation.graham_method_constraints.permitted == (method,)
-    assert case.expectation.graham_method_constraints.required == (method,)
     assert case.task
     if case.case_id == "GRG-ETF-01":
         assert case.fixture_ids == ("known_etf_profile",)
@@ -152,7 +149,7 @@ def test_reviewed_g3_catalog_constraints_and_expectations_are_explicit(
 
 
 @pytest.mark.asyncio
-async def test_growth_case_runner_keeps_strategy_and_method_selection_independent() -> None:
+async def test_growth_case_runner_keeps_strategy_selection_independent() -> None:
     """GRG-01 passes numerically while deterministic selection remains unmeasured."""
     request = DeterministicCaseRequest(case=GRG_01, arguments=_growth_arguments())
     report = await run_deterministic_suite(
@@ -170,7 +167,6 @@ async def test_growth_case_runner_keeps_strategy_and_method_selection_independen
     assert result.outcome is CaseOutcome.PASS
     assert _component(result, ComponentKind.NUMERICAL_CORRECTNESS).outcome is ComponentOutcome.PASS
     assert _component(result, ComponentKind.STRATEGY_SELECTION).outcome is ComponentOutcome.NOT_MEASURED
-    assert _component(result, ComponentKind.GRAHAM_METHOD_SELECTION).outcome is ComponentOutcome.NOT_MEASURED
 
 
 @pytest.mark.asyncio

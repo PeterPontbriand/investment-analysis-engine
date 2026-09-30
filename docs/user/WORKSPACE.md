@@ -107,7 +107,7 @@ These are the flags `watchlist create --analysis METHOD` and `watchlist add-sele
 
 | `--analysis` value | Flags | Notes |
 |---|---|---|
-| `momentum` | `--short-window`, `--long-window`, `--rsi-period` | Defaults match the configured Momentum policy. |
+| `momentum` | `--short-window`, `--long-window`, `--rsi-period`, `--as-of`, `--no-cache` | Window defaults match the configured Momentum policy. `--no-cache` bypasses the historical price cache. |
 | `graham-number` | `--as-of`, `--data-provider`, `--no-cache`, `--eps`, `--eps-basis`, `--bvps`, `--current-price` | `--bvps` is required when `--data-provider massive`. |
 | `graham-growth` | Same as `graham-number`, plus `--expected-growth`/`--aaa-yield` | The growth/yield assumptions are required; there is no default. |
 | `fcf-growth` | `--growth-years`, `--forward-policy`, `--classification-basis`, `--currency` | Always uses SEC EDGAR data, matching the direct `fcf-growth` command. |

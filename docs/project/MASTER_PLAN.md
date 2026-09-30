@@ -153,13 +153,13 @@ System settings are managed through the project's centralized `ProjectSettings` 
 
 ## 8. Ordered Implementation Steps & Release Milestones
 
-| Order | Release | Status / entry condition |
-| :--- | :--- | :--- |
-| 1 | v0.1 — orchestration | Delivered. |
-| 2 | v0.2 — analysis and research workspace | See the [milestone plan](milestones/v0.2/IMPLEMENTATION_PLAN.md#sequence-and-status). |
-| 3 | v0.2.5 — user validation | After the Light Mode workflow; at least three external tester sessions. |
-| 4 | v0.3 — analytical expansion and localization | Scope confirmed by validation findings. |
-| 5 | v1.0 — autonomy and reporting | Validation complete and at least one tester-confirmed useful output. |
+| Order | Release | Status | Completed |
+| :--- | :--- | :--- | :--- |
+| 1 | [v0.1 — orchestration](#milestone-v01-core-orchestration-engine) | Complete | 2026-07-31 |
+| 2 | [v0.2 — analysis and research workspace](milestones/v0.2/IMPLEMENTATION_PLAN.md#sequence-and-status) | In progress | |
+| 3 | [v0.2.5 — user validation](#milestone-v025-real-user-validation-checkpoint) | Next | |
+| 4 | [v0.3 — analytical expansion and localization](#milestone-v03-analytics-expansion--canadian-localization) | Planned | |
+| 5 | [v1.0 — autonomy and reporting](#milestone-v10-multi-step-autonomy--executive-reporting) | Planned | |
 
 **Work-package identifiers.** Within an active milestone's own implementation plan, most
 work-package rows follow the roadmap's own decimal Step/Slice numbering (`2.3`, `3.3A`, ...).
@@ -190,6 +190,8 @@ scope, sequencing and status; its companion contracts supply technical detail.
 The [research-workspace contract](milestones/v0.2/step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) defines watchlist, Analysis Run, replay and refresh interfaces with bounded implementation slices.
 
 ### **Milestone v0.2.5: Real-User Validation Checkpoint**
+**Entry condition:** Begins once Milestone v0.2's Light Mode workflow (Step 3.6) is complete.
+
 This milestone answers a question none of the technical quality gates can answer: does this help anyone besides the author?
 
 * **Step 0.5.1:** Recruit at least 3 external testers using Light Mode.
@@ -199,6 +201,7 @@ This milestone answers a question none of the technical quality gates can answer
 * **Exit criterion:** At least 3 completed tester sessions using the real Light Mode investor workflow, documented findings, and v0.3 scope confirmed or adjusted before Step 4 begins.
 
 ### **Milestone v0.3: Analytics Expansion & Canadian Localization**
+**Entry condition:** Scope confirmed by Milestone v0.2.5 validation findings.
 
 #### Step 4: Analytical Expansion & Quantitative Modeling
 Momentum, Graham, Free Cash Flow & Earnings Growth, and the Step 3.5 quantitative screening suite (Piotroski F-Score, Altman Z-Score, Beneish M-Score, EV/EBITDA & FCF Yield, Greenblatt Magic Formula) are already established. Step 4 expands the analytical library rather than introducing the first fundamental screens. New strategies remain independently specified, deterministic, and strongly typed; the roadmap does not treat a broad named-investor philosophy as an implementable strategy unless it is decomposed into explicit, testable analytical rules.
@@ -217,6 +220,7 @@ Momentum, Graham, Free Cash Flow & Earnings Growth, and the Step 3.5 quantitativ
 * **Step 5.3:** Locale-aware reporting text and compliance disclaimers.
 
 ### **Milestone v1.0: Multi-Step Autonomy & Executive Reporting**
+**Entry condition:** Validation complete and at least one tester-confirmed useful output.
 
 #### Step 6: Autonomous Multi-Step Tool Integration (Hardened)
 * **Step 6.1:** Multi-Step Planner, including unattended/scheduled research only after the v0.2.5 evidence gate justifies it.

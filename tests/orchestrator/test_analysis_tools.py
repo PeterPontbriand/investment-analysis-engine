@@ -13,14 +13,17 @@ from src.analysis.strategy.fcf_earnings_growth import (
     FCFEarningsGrowthResult,
     ProductionAnnualGrowthSeriesResolver,
 )
+from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
 from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
+from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumRun
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
+from src.data.market_data import HistoricalMarketData
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
@@ -62,31 +65,35 @@ def _dependencies(*, clock: datetime = EXECUTION_TIME) -> AnalysisToolDependenci
         index=pd.date_range("2026-01-01", periods=6, tz=UTC),
     )
     momentum = MomentumAnalyzer(
-        default_ticker="MOM",
         market_data_provider=FixtureMarketDataProvider(momentum_frame),
+        start_date="2026-01-01",
     )
     graham_provider = FixtureFinancialFactsProvider()
 
     def graham_clock() -> datetime:
         return GRAHAM_NOW
 
-    graham = GrahamNumberInputResolver(provider=graham_provider, clock=graham_clock)
-    graham_growth = GrahamGrowthInputResolver(provider=graham_provider, clock=graham_clock)
+    graham_number_analyzer = GrahamNumberAnalyzer(
+        GrahamNumberInputResolver(provider=graham_provider, clock=graham_clock)
+    )
+    graham_growth_analyzer = GrahamGrowthAnalyzer(
+        GrahamGrowthInputResolver(provider=graham_provider, clock=graham_clock),
+        policy=GrahamGrowthCalculationPolicy(
+            base_pe=8.5,
+            growth_multiplier=2.0,
+            baseline_aaa_yield=4.4,
+        ),
+    )
 
     annual_facts = tuple(replace(fact, provider_id=SEC_PROVIDER_ID) for fact in annual_series(range(2020, 2026)))
     annual_provider = ProductionFinancialFactsProvider(sec_edgar=FixtureAnnualFinancialFactsProvider(annual_facts))
     fcf = FCFEarningsGrowthAnalyzer(ProductionAnnualGrowthSeriesResolver(annual_provider, clock=lambda: clock))
     return AnalysisToolDependencies(
         momentum_analyzer=momentum,
-        graham_number_resolver=graham,
-        graham_growth_resolver=graham_growth,
+        graham_number_analyzer=graham_number_analyzer,
+        graham_growth_analyzer=graham_growth_analyzer,
         graham_security_provider_id=GRAHAM_PROVIDER_ID,
         graham_quote_provider_id=GRAHAM_PROVIDER_ID,
-        graham_growth_policy=GrahamGrowthCalculationPolicy(
-            base_pe=8.5,
-            growth_multiplier=2.0,
-            baseline_aaa_yield=4.4,
-        ),
         fcf_analyzer=fcf,
         fcf_provider_id=SEC_PROVIDER_ID,
         clock=lambda: clock,
@@ -145,6 +152,45 @@ async def test_registered_handlers_execute_all_approved_strategies() -> None:
     assert fcf.result.effective_as_of == EXECUTION_TIME
 
 
+class _RecordingMarketDataProvider(FixtureMarketDataProvider):
+    """Fixture provider that records each ``use_cache`` value it is asked for."""
+
+    def __init__(self, frame: pd.DataFrame) -> None:
+        super().__init__(frame)
+        self.use_cache_calls: list[bool] = []
+
+    def fetch_historical_data(
+        self, ticker: str, start_date: str, end_date: str | None = None, *, use_cache: bool = True
+    ) -> HistoricalMarketData:
+        self.use_cache_calls.append(use_cache)
+        return super().fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("arguments", "expected"), [({}, True), ({"use_cache": False}, False)])
+async def test_momentum_tool_use_cache_argument_reaches_the_provider(
+    arguments: dict[str, object], *, expected: bool
+) -> None:
+    """The tool's ``use_cache`` argument, defaulting to True, is the per-call cache switch."""
+    frame = pd.DataFrame(
+        {"Close": [10.0, 10.5, 11.0, 11.8, 12.4, 13.0]},
+        index=pd.date_range("2026-01-01", periods=6, tz=UTC),
+    )
+    provider = _RecordingMarketDataProvider(frame)
+    dependencies = replace(
+        _dependencies(), momentum_analyzer=MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
+    )
+    dispatcher = AsyncToolDispatcher()
+    register_analysis_tools(dispatcher, dependencies)
+
+    result = await dispatcher.dispatch(
+        _call(ANALYZE_MOMENTUM_TOOL, {"ticker": "MOM", "short_window": 2, "long_window": 3, **arguments})
+    )
+
+    assert result.success is True
+    assert provider.use_cache_calls == [expected]
+
+
 @pytest.mark.asyncio
 async def test_registered_handlers_apply_known_etf_policy_without_changing_momentum() -> None:
     """One injected profile drives consistent native applicability across handlers."""
@@ -182,6 +228,7 @@ async def test_registered_handlers_apply_known_etf_policy_without_changing_momen
     assert isinstance(momentum.result, MomentumRun)
     assert momentum.result.metrics.status.value == "BULLISH"
     assert momentum.result.instrument_profile is not None
+    assert momentum.result.instrument_profile.ticker == "FLSW"
     assert number.success is True
     assert isinstance(number.result, GrahamNumberAnalysis)
     assert number.result.result.status is CalculationStatus.NOT_APPLICABLE

@@ -7,10 +7,12 @@ from unittest.mock import patch
 
 import pytest
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.fcf_earnings_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.analysis.strategy.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from src.analysis.strategy.fcf_earnings_growth.models import (
     Classification,
+    FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
@@ -41,14 +43,9 @@ def _resolver() -> ProductionAnnualGrowthSeriesResolver:
 def _ok_result() -> FCFEarningsGrowthResult:
     """A real, fully computed result from the fixture provider chain."""
     return FCFEarningsGrowthAnalyzer(_resolver()).run_analysis(
-        ticker="ACME",
-        policy=FCFEarningsGrowthPolicy(),
-        currency="USD",
-        as_of=None,
-        provider_id=SEC_PROVIDER_ID,
-        use_cache=True,
-        effective_as_of=NOW,
-        instrument_profile=None,
+        "ACME",
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID),
+        AnalysisContext(as_of=None, executed_at=NOW, use_cache=True),
     )
 
 
@@ -137,29 +134,11 @@ def test_execute_fcf_growth_delegates_with_the_composed_profile() -> None:
     canned = _ok_result()
     captured: dict[str, object] = {}
 
-    def fake_run_analysis(  # noqa: PLR0913
-        self: FCFEarningsGrowthAnalyzer,
-        *,
-        ticker: str,
-        policy: FCFEarningsGrowthPolicy,
-        currency: str,
-        as_of: datetime | None,
-        provider_id: str,
-        use_cache: bool = True,
-        effective_as_of: datetime | None = None,
-        instrument_profile: object | None = None,
+    def fake_run_analysis(
+        self: FCFEarningsGrowthAnalyzer, ticker: str, config: FCFEarningsGrowthConfig, context: AnalysisContext
     ) -> FCFEarningsGrowthResult:
         del self
-        captured.update(
-            ticker=ticker,
-            policy=policy,
-            currency=currency,
-            as_of=as_of,
-            provider_id=provider_id,
-            use_cache=use_cache,
-            effective_as_of=effective_as_of,
-            instrument_profile=instrument_profile,
-        )
+        captured.update(ticker=ticker, config=config, context=context)
         return canned
 
     with (
@@ -169,12 +148,10 @@ def test_execute_fcf_growth_delegates_with_the_composed_profile() -> None:
         capture = execute_fcf_growth(
             resolver,
             "ACME",
-            policy=policy,
-            currency="USD",
+            config=FCFEarningsGrowthConfig(policy=policy, currency="USD", provider_id=SEC_PROVIDER_ID),
             as_of=None,
-            provider_id=SEC_PROVIDER_ID,
+            executed_at=NOW,
             use_cache=True,
-            effective_as_of=NOW,
             provider=object(),
         )
 
@@ -183,13 +160,8 @@ def test_execute_fcf_growth_delegates_with_the_composed_profile() -> None:
     assert capture.outcome is RunOutcome.COMPLETED
     assert captured == {
         "ticker": "ACME",
-        "policy": policy,
-        "currency": "USD",
-        "as_of": None,
-        "provider_id": SEC_PROVIDER_ID,
-        "use_cache": True,
-        "effective_as_of": NOW,
-        "instrument_profile": composed,
+        "config": FCFEarningsGrowthConfig(policy=policy, currency="USD", provider_id=SEC_PROVIDER_ID),
+        "context": AnalysisContext(as_of=None, executed_at=NOW, use_cache=True, instrument_profile=composed),
     }
 
 
@@ -202,12 +174,12 @@ def test_known_etf_profile_is_not_applicable_through_the_real_analyzer() -> None
         capture = execute_fcf_growth(
             resolver,
             GOLDEN_ETF_TICKER,
-            policy=FCFEarningsGrowthPolicy(),
-            currency="USD",
+            config=FCFEarningsGrowthConfig(
+                policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID
+            ),
             as_of=None,
-            provider_id=SEC_PROVIDER_ID,
+            executed_at=NOW,
             use_cache=True,
-            effective_as_of=NOW,
             provider=object(),
         )
 
@@ -226,12 +198,12 @@ def test_partial_forward_evidence_is_preserved_unmodified() -> None:
         capture = execute_fcf_growth(
             resolver,
             "ACME",
-            policy=FCFEarningsGrowthPolicy(),
-            currency="USD",
+            config=FCFEarningsGrowthConfig(
+                policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID
+            ),
             as_of=None,
-            provider_id=SEC_PROVIDER_ID,
+            executed_at=NOW,
             use_cache=True,
-            effective_as_of=NOW,
             provider=object(),
         )
 
@@ -253,12 +225,12 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
         capture = execute_fcf_growth(
             _resolver(),
             "ACME",
-            policy=FCFEarningsGrowthPolicy(),
-            currency="USD",
+            config=FCFEarningsGrowthConfig(
+                policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID
+            ),
             as_of=None,
-            provider_id=SEC_PROVIDER_ID,
+            executed_at=NOW,
             use_cache=True,
-            effective_as_of=NOW,
             provider=object(),
         )
 

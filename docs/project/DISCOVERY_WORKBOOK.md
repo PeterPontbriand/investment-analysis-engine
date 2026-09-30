@@ -305,8 +305,7 @@ Light Mode is the recommended adoption mode; Full Dual-Tier remains optional.
 
 ### Evaluation
 Step 2.5 measures:
-- strategy/tool selection;
-- Graham method selection where applicable;
+- strategy/tool selection (Graham Number and Graham Growth Value are each their own registered tool, so this category alone covers choosing between them);
 - deterministic numerical correctness;
 - overall case success.
 

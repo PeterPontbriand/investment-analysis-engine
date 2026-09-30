@@ -66,3 +66,12 @@ class ResolutionTrace:
     def __bool__(self) -> bool:
         """Return whether this trace contains any retained events."""
         return bool(self.events)
+
+
+def single_event_trace(
+    field_name: str, stage: ResolutionStage, outcome: ResolutionOutcome, message: str
+) -> ResolutionTrace:
+    """Construct a one-event resolution trace from caller-supplied text."""
+    return ResolutionTrace(
+        events=(ResolutionEvent(field_name=field_name, stage=stage, outcome=outcome, message=message),)
+    )

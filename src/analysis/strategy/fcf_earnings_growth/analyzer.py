@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 
+from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
 from src.analysis.shared.financial_resolution import is_known_etf, validate_profile_ticker
 from src.analysis.strategy.fcf_earnings_growth.calculators import classify_fcf_earnings_growth
 from src.analysis.strategy.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from src.analysis.strategy.fcf_earnings_growth.models import (
     Classification,
+    FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
@@ -59,30 +61,23 @@ def _etf_not_applicable_forward(reason: str) -> ForwardEvidence:
     )
 
 
-class FCFEarningsGrowthAnalyzer:
+class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarningsGrowthResult]):
     """Resolve approved inputs and produce the strategy's canonical typed result."""
 
     def __init__(self, resolver: ProductionAnnualGrowthSeriesResolver) -> None:
         """Initialize the analyzer with its annual-series resolver."""
         self._resolver = resolver
 
-    def run_analysis(  # noqa: PLR0913
-        self,
-        *,
-        ticker: str,
-        policy: FCFEarningsGrowthPolicy,
-        currency: str,
-        as_of: datetime | None,
-        provider_id: str,
-        use_cache: bool = True,
-        effective_as_of: datetime | None = None,
-        instrument_profile: InstrumentProfile | None = None,
+    def run_analysis(
+        self, ticker: str, config: FCFEarningsGrowthConfig, context: AnalysisContext
     ) -> FCFEarningsGrowthResult:
         """Run one deterministic analysis without optional unapproved data substitutions."""
-        boundary = effective_as_of or as_of or datetime.now(UTC)
+        boundary = context.effective_as_of
         if boundary.utcoffset() is None:
             raise ValueError("FCF effective execution time must be timezone-aware.")
-        normalized_ticker = ticker.strip().upper()
+        policy = config.policy
+        instrument_profile = context.instrument_profile
+        normalized_ticker = require_ticker(ticker)
         validate_profile_ticker(
             ticker,
             instrument_profile,
@@ -93,17 +88,17 @@ class FCFEarningsGrowthAnalyzer:
             return _etf_not_applicable_result(
                 ticker=normalized_ticker,
                 policy=policy,
-                requested_as_of=as_of,
+                requested_as_of=context.as_of,
                 effective_as_of=boundary,
                 instrument_profile=instrument_profile,
             )
         assembly = self._resolver.resolve(
             policy=policy,
             subject_id=ticker,
-            currency=currency,
-            as_of=as_of,
-            provider_id=provider_id,
-            use_cache=use_cache,
+            currency=config.currency,
+            as_of=context.as_of,
+            provider_id=config.provider_id,
+            use_cache=context.use_cache,
             effective_as_of=boundary,
         )
         latest_eps = assembly.observations[-1].diluted_eps if assembly.observations else None
@@ -144,8 +139,8 @@ class FCFEarningsGrowthAnalyzer:
             warnings.append("Forward consensus policy was selected, but approved consensus evidence is unavailable.")
 
         return FCFEarningsGrowthResult(
-            ticker=ticker.strip().upper(),
-            requested_as_of=as_of,
+            ticker=normalized_ticker,
+            requested_as_of=context.as_of,
             effective_as_of=boundary,
             policy=policy,
             instrument_profile=instrument_profile,

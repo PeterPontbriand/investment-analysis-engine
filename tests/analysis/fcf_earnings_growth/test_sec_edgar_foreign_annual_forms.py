@@ -80,7 +80,7 @@ def _payload_with_form(form: str, *, fp: str = "FY") -> dict[str, Any]:
 @pytest.mark.parametrize("form", ["10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"])
 @pytest.mark.parametrize("field", ANNUAL_DURATION_FIELDS)
 def test_completed_annual_duration_fields_accept_approved_forms(form: str, field: FinancialField) -> None:
-    facts = _adapter(_payload_with_form(form)).fetch_facts(_request(field))
+    facts = _adapter(_payload_with_form(form)).fetch_facts(_request(field), effective_as_of=NOW)
 
     assert len(facts) == 1
     assert facts[0].field_name is field
@@ -90,12 +90,12 @@ def test_completed_annual_duration_fields_accept_approved_forms(form: str, field
 @pytest.mark.parametrize("form", ["6-K", "8-K"])
 @pytest.mark.parametrize("field", ANNUAL_DURATION_FIELDS)
 def test_non_annual_forms_remain_ineligible(form: str, field: FinancialField) -> None:
-    assert _adapter(_payload_with_form(form)).fetch_facts(_request(field)) == ()
+    assert _adapter(_payload_with_form(form)).fetch_facts(_request(field), effective_as_of=NOW) == ()
 
 
 @pytest.mark.parametrize("field", ANNUAL_DURATION_FIELDS)
 def test_non_fiscal_year_observations_remain_ineligible(field: FinancialField) -> None:
-    assert _adapter(_payload_with_form("20-F", fp="Q4")).fetch_facts(_request(field)) == ()
+    assert _adapter(_payload_with_form("20-F", fp="Q4")).fetch_facts(_request(field), effective_as_of=NOW) == ()
 
 
 def test_foreign_annual_forms_do_not_expand_balance_sheet_eligibility() -> None:
@@ -116,6 +116,8 @@ def test_foreign_annual_forms_do_not_expand_balance_sheet_eligibility() -> None:
         }
     }
 
-    facts = _adapter(payload).fetch_facts(_request(FinancialField.STOCKHOLDERS_EQUITY, basis="fiscal_year_end"))
+    facts = _adapter(payload).fetch_facts(
+        _request(FinancialField.STOCKHOLDERS_EQUITY, basis="fiscal_year_end"), effective_as_of=NOW
+    )
 
     assert facts == ()

@@ -23,11 +23,18 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import IntegrityError
 
+from src.core.clock import utc_now
 from src.data.repositories.schema import watchlist_entries, watchlists
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.workspace.requests import AnalysisSelection
 from src.workspace.runs import Watchlist, WatchlistEntry, WatchlistSummary
-from src.workspace.watchlists import WatchlistSpec, decode_selection, encode_selection, normalize_ticker
+from src.workspace.watchlists import (
+    StoredSelectionError,
+    WatchlistSpec,
+    decode_selection,
+    encode_selection,
+    normalize_ticker,
+)
 
 
 class WatchlistConflictError(ValueError):
@@ -66,7 +73,7 @@ class SQLiteWatchlistRepository:
     ) -> None:
         """Retain a caller-owned database and injected clock/ID generator."""
         self._database = database
-        self._clock = clock if clock is not None else lambda: datetime.now(UTC)
+        self._clock = clock if clock is not None else utc_now
         self._id_factory = id_factory if id_factory is not None else uuid4
 
     def create(self, spec: WatchlistSpec) -> Watchlist:
@@ -164,8 +171,12 @@ class SQLiteWatchlistRepository:
                 self._touch(connection, watchlist_id)
             return self._load(connection, watchlist_id)
 
-    def remove_entry(self, name: str, position: int) -> Watchlist:
+    def remove_entry(self, name: str, position: int) -> int:
         """Remove exactly one entry by its stored 0-based position, renumbering survivors.
+
+        Returns the number of entries removed, which is always 1. Nothing is decoded, so the
+        removal commits even when other entries can no longer be read; read the result back
+        with :meth:`get`.
 
         Raises:
             WatchlistNotFoundError: If no watchlist matches ``name``.
@@ -179,10 +190,14 @@ class SQLiteWatchlistRepository:
                 raise WatchlistEntryNotFoundError(f"No entry at position {position} in watchlist {name!r}.")
             self._replace_entries(connection, watchlist_id, survivors)
             self._touch(connection, watchlist_id)
-            return self._load(connection, watchlist_id)
+            return len(rows) - len(survivors)
 
-    def remove_entries_for_ticker(self, name: str, tickers: Sequence[str]) -> Watchlist:
+    def remove_entries_for_ticker(self, name: str, tickers: Sequence[str]) -> int:
         """Remove every entry for the given ticker(s); absent tickers are a no-op.
+
+        Returns the number of entries removed (0 for a no-op). Nothing is decoded, so the
+        removal commits even when other entries can no longer be read; read the result back
+        with :meth:`get`.
 
         Raises:
             ValueError: If any ticker normalizes to empty.
@@ -191,16 +206,22 @@ class SQLiteWatchlistRepository:
         normalized_tickers = {normalize_ticker(ticker) for ticker in tickers}
         with self._database.transaction() as connection:
             watchlist_id = self._find_id(connection, name)
+            removed = 0
             if normalized_tickers:
                 rows = self._entry_rows(connection, watchlist_id)
                 survivors = [row for row in rows if row["ticker"] not in normalized_tickers]
-                if len(survivors) != len(rows):
+                removed = len(rows) - len(survivors)
+                if removed:
                     self._replace_entries(connection, watchlist_id, survivors)
                     self._touch(connection, watchlist_id)
-            return self._load(connection, watchlist_id)
+            return removed
 
-    def remove_entries_for_method(self, name: str, method_id: str) -> Watchlist:
+    def remove_entries_for_method(self, name: str, method_id: str) -> int:
         """Remove every entry for ``method_id``; absent is a no-op.
+
+        Returns the number of entries removed (0 for a no-op). Nothing is decoded, so the
+        removal commits even when other entries can no longer be read; read the result back
+        with :meth:`get`.
 
         Raises:
             WatchlistNotFoundError: If no watchlist matches ``name``.
@@ -209,10 +230,11 @@ class SQLiteWatchlistRepository:
             watchlist_id = self._find_id(connection, name)
             rows = self._entry_rows(connection, watchlist_id)
             survivors = [row for row in rows if row["method_id"] != method_id]
-            if len(survivors) != len(rows):
+            removed = len(rows) - len(survivors)
+            if removed:
                 self._replace_entries(connection, watchlist_id, survivors)
                 self._touch(connection, watchlist_id)
-            return self._load(connection, watchlist_id)
+            return removed
 
     def _touch(self, connection: Connection, watchlist_id: str) -> None:
         """Bump ``updated_at`` to the injected clock's current instant."""
@@ -276,18 +298,27 @@ class SQLiteWatchlistRepository:
                 ],
             )
 
+    @staticmethod
+    def _decode_entry(display_name: str, index: int, entry_row: RowMapping) -> WatchlistEntry:
+        """Decode one stored entry, naming it and the command that removes it if it cannot be read."""
+        try:
+            selection = decode_selection(
+                entry_row["method_id"], entry_row["config_schema_version"], entry_row["selection_json"]
+            )
+        except StoredSelectionError as exc:
+            raise StoredSelectionError(
+                f"Watchlist {display_name!r}, entry {index} ({entry_row['ticker']}, {entry_row['method_id']}): "
+                f'{exc}. Remove it with: ian watchlist remove-entry "{display_name}" {index}'
+            ) from exc
+        return WatchlistEntry(ticker=entry_row["ticker"], selection=selection)
+
     def _load(self, connection: Connection, watchlist_id: str) -> Watchlist:
         """Reconstruct one full watchlist from its two tables in position order."""
         row = connection.execute(select(watchlists).where(watchlists.c.watchlist_id == watchlist_id)).mappings().one()
         entry_rows = self._entry_rows(connection, watchlist_id)
         entries = tuple(
-            WatchlistEntry(
-                ticker=entry_row["ticker"],
-                selection=decode_selection(
-                    entry_row["method_id"], entry_row["config_schema_version"], entry_row["selection_json"]
-                ),
-            )
-            for entry_row in entry_rows
+            self._decode_entry(row["display_name"], index, entry_row)
+            for index, entry_row in enumerate(entry_rows, start=1)
         )
         return Watchlist(
             watchlist_id=UUID(row["watchlist_id"]),

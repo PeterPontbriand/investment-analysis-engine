@@ -49,6 +49,15 @@ def encode_evidence(
         raise InvalidStoredRunError(f"Invalid {label} evidence.") from exc
 
 
+# Expected (config_schema_version, method_version, result_schema_version) per supported method.
+_EXPECTED_VERSIONS: dict[tuple[str, str], tuple[int, int, int]] = {
+    ("momentum", "sma_crossover"): (2, 1, 2),
+    ("graham_number", "graham_number"): (1, 1, 1),
+    ("graham_growth_value", "graham_growth_value"): (1, 1, 1),
+    ("fcf_earnings_growth", "reported_fcf_eps_cagr"): (1, 2, 3),
+}
+
+
 def decode_evidence(
     run: AnalysisRun,
 ) -> MomentumRun | GrahamNumberAnalysis | GrahamGrowthAnalysis | FCFEarningsGrowthResult | None:
@@ -58,29 +67,20 @@ def decode_evidence(
     still apply; unsupported records must never trigger recomputation.
     """
     fcf_pair = (run.analysis_id, run.method_id) == ("fcf_earnings_growth", "reported_fcf_eps_cagr")
+    expected = _EXPECTED_VERSIONS.get((run.analysis_id, run.method_id))
     if (
-        (run.analysis_id, run.method_id)
-        not in (
-            ("momentum", "sma_crossover"),
-            ("graham", "graham_number"),
-            ("graham", "graham_growth_value"),
-            ("fcf_earnings_growth", "reported_fcf_eps_cagr"),
-        )
+        expected is None
         or any(
             type(version) is not int or version != 1
-            for version in (
-                run.run_schema_version,
-                run.config_schema_version,
-                run.evidence_codec_version,
-                run.projection_version,
-            )
+            for version in (run.run_schema_version, run.evidence_codec_version, run.projection_version)
         )
         or (
-            type(run.method_version) is not int
-            or run.method_version != (2 if fcf_pair else 1)
-            or type(run.result_schema_version) is not int
-            or run.result_schema_version != (3 if fcf_pair else 1)
+            type(run.config_schema_version),
+            type(run.method_version),
+            type(run.result_schema_version),
         )
+        != (int, int, int)
+        or (run.config_schema_version, run.method_version, run.result_schema_version) != expected
     ):
         raise UnsupportedRunVersionError("Unsupported Analysis Run method or version.")
     if run.result_evidence is None:

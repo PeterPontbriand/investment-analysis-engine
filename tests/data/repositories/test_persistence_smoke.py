@@ -90,7 +90,7 @@ def test_fresh_database_persistence_lifecycle(tmp_path: Path, monkeypatch: pytes
         SQLiteResolvedInputCache(database, clock=lambda: now).put(fact_key, fact)
         SQLiteMarketDataRepository(database, clock=lambda: now).put(history_key, history, fetch_completed_at=now)
         assert SQLiteTrajectoryRepository(database).read_trajectory(event.run_id) == [event]
-        assert SQLiteResolvedInputCache(database).list_keys(limit=1) == (fact_key,)
+        assert SQLiteResolvedInputCache(database, clock=lambda: now).list_keys(limit=1) == (fact_key,)
         assert SQLiteMarketDataRepository(database).list_keys(limit=1) == (history_key,)
     finally:
         database.close()
@@ -117,7 +117,7 @@ def _assert_reopened(
     reopened = SQLiteDatabase(settings)
     try:
         assert read_trajectory(reopened, event.run_id) == [event]
-        stored_fact = SQLiteResolvedInputCache(reopened).get(fact_key)
+        stored_fact = SQLiteResolvedInputCache(reopened, clock=lambda: now).get(fact_key)
         assert stored_fact is not None
         assert stored_fact.resolved_input == fact
         assert stored_fact.cached_at == now
@@ -128,7 +128,7 @@ def _assert_reopened(
         assert inspector.list_keys(limit=1, offset=1) == ()
         # Administrative inspection does not change eligibility or stored age.
         assert inspector.get(fact_key) is None
-        assert SQLiteResolvedInputCache(reopened).get(fact_key) == stored_fact
+        assert SQLiteResolvedInputCache(reopened, clock=lambda: now).get(fact_key) == stored_fact
         assert SQLiteTrajectoryRepository(reopened).read_trajectory(event.run_id) == [event]
         assert SQLiteMarketDataRepository(reopened).list_keys(limit=1) == (history_key,)
         stored_history = SQLiteMarketDataRepository(reopened).get(history_key)
@@ -149,13 +149,14 @@ def _assert_empty(
 ) -> None:
     """Confirm re-upgrade recreates empty stores after the destructive downgrade."""
     empty = SQLiteDatabase(settings)
+    now = datetime.now(UTC)
     try:
         assert read_trajectory(empty, event.run_id) == []
-        assert SQLiteResolvedInputCache(empty).get(fact_key) is None
+        assert SQLiteResolvedInputCache(empty, clock=lambda: now).get(fact_key) is None
         assert SQLiteMarketDataRepository(empty).get(history_key) is None
         assert SQLiteTrajectoryRepository(empty).read_trajectory(event.run_id) == []
-        assert SQLiteResolvedInputCache(empty).inspect(fact_key) is None
-        assert SQLiteResolvedInputCache(empty).list_keys(limit=1) == ()
+        assert SQLiteResolvedInputCache(empty, clock=lambda: now).inspect(fact_key) is None
+        assert SQLiteResolvedInputCache(empty, clock=lambda: now).list_keys(limit=1) == ()
         assert SQLiteMarketDataRepository(empty).list_keys(limit=1) == ()
     finally:
         empty.close()

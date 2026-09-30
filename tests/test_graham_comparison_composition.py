@@ -3,6 +3,7 @@
 import json
 from contextlib import nullcontext
 from dataclasses import replace
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
@@ -21,7 +22,12 @@ from tests.data.test_sec_security_unit import NOW, FilingFixture, eps_input
 
 
 class QuoteProvider:
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         return (
             ProviderFact(
                 subject_kind=request.subject_kind,
@@ -49,7 +55,7 @@ def test_verified_comparison_reaches_cli_and_cache(command: str, mode: str, bypa
     )
     provider = ProductionFinancialFactsProvider(sec_edgar=sec, yfinance=QuoteProvider())
     resolver_type = GrahamGrowthInputResolver if command == "graham-growth" else GrahamNumberInputResolver
-    resolver = resolver_type(provider, cache=InMemoryResolvedInputCache(), clock=lambda: NOW)
+    resolver = resolver_type(provider, cache=InMemoryResolvedInputCache(clock=lambda: NOW), clock=lambda: NOW)
     arguments = [command, "KO"]
     if mode:
         arguments.append(mode)
@@ -71,7 +77,7 @@ def test_verified_comparison_reaches_cli_and_cache(command: str, mode: str, bypa
             assert result.exit_code == 0, result.output
             if mode == "--json":
                 payload = json.loads(result.stdout)
-                assert payload["schema_version"] == 5
+                assert payload["schema_version"] == 6
                 comparison = payload["price_comparison"]
                 assert comparison["status"] == "available", comparison
                 assert comparison["provenance"]["documents"][0]["accession"] == "0001628280-26-010047"
@@ -94,7 +100,7 @@ def test_verified_comparison_reaches_cli_and_cache(command: str, mode: str, bypa
 
 
 def _cache_context() -> nullcontext[InMemoryResolvedInputCache]:
-    return nullcontext(InMemoryResolvedInputCache())
+    return nullcontext(InMemoryResolvedInputCache(clock=lambda: NOW))
 
 
 def test_bad_filing_preserves_value_and_reports_reason() -> None:

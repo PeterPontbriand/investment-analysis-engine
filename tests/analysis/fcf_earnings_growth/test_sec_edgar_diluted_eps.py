@@ -95,7 +95,7 @@ def test_returns_exact_annual_diluted_eps_with_complete_metadata() -> None:
         filed="2025-10-31",
     )
 
-    facts = _adapter(_payload([observation])).fetch_facts(_request(observation_count=1))
+    facts = _adapter(_payload([observation])).fetch_facts(_request(observation_count=1), effective_as_of=NOW)
 
     assert len(facts) == 1
     fact = facts[0]
@@ -118,7 +118,7 @@ def test_uses_one_common_split_basis_for_an_apple_like_span() -> None:
         _observation(3.28, accession="2020-current", start="2019-09-29", end="2020-09-26", filed="2020-10-30"),
     ]
 
-    facts = _adapter(_payload(observations)).fetch_facts(_request())
+    facts = _adapter(_payload(observations)).fetch_facts(_request(), effective_as_of=NOW)
 
     assert [fact.value for fact in facts] == pytest.approx([2.98, 2.97, 3.28])
     expected_accessions = ("2020-represented-2018", "2020-represented-2019", "2020-current")
@@ -135,7 +135,7 @@ def test_rejects_span_when_oldest_period_was_not_represented_after_split() -> No
         _observation(3.28, accession="2020-current", start="2019-09-29", end="2020-09-26", filed="2020-10-30"),
     ]
 
-    assert _adapter(_payload(observations)).fetch_facts(_request()) == ()
+    assert _adapter(_payload(observations)).fetch_facts(_request(), effective_as_of=NOW) == ()
 
 
 def test_respects_historical_boundary_before_remeasurement() -> None:
@@ -146,7 +146,9 @@ def test_respects_historical_boundary_before_remeasurement() -> None:
     ]
     boundary = datetime(2020, 1, 1, tzinfo=UTC)
 
-    facts = _adapter(_payload(observations)).fetch_facts(_request(observation_count=2, as_of=boundary))
+    facts = _adapter(_payload(observations)).fetch_facts(
+        _request(observation_count=2, as_of=boundary), effective_as_of=boundary
+    )
 
     assert [fact.value for fact in facts] == pytest.approx([11.91, 11.89])
 
@@ -161,6 +163,14 @@ def test_rejects_conflicting_equal_rank_and_unsupported_shapes() -> None:
         "1": {"cik_str": CIK, "ticker": "AAPL-A", "title": "Apple"},
     }
 
-    assert _adapter(_payload(conflict)).fetch_facts(_request(observation_count=1)) == ()
-    assert _adapter(_payload(conflict, unit="shares")).fetch_facts(_request(observation_count=1)) == ()
-    assert _adapter(_payload(conflict), ticker_rows=multi_ticker).fetch_facts(_request(observation_count=1)) == ()
+    assert _adapter(_payload(conflict)).fetch_facts(_request(observation_count=1), effective_as_of=NOW) == ()
+    assert (
+        _adapter(_payload(conflict, unit="shares")).fetch_facts(_request(observation_count=1), effective_as_of=NOW)
+        == ()
+    )
+    assert (
+        _adapter(_payload(conflict), ticker_rows=multi_ticker).fetch_facts(
+            _request(observation_count=1), effective_as_of=NOW
+        )
+        == ()
+    )

@@ -4,9 +4,9 @@ An [analysis strategy](../GLOSSARY.md#analysis-strategy) is a deterministic anal
 
 ## Available strategies
 
-- [Graham Analysis Strategy](GRAHAM.md) — fundamental valuation/screening analysis with two distinct methods:
-  - Graham Number (default method)
-  - Graham Growth Value (secondary, forecast-dependent method)
+- [Graham Valuation Strategies](GRAHAM.md) — two independent fundamental valuation/screening strategies, each with its own formula and guide:
+  - [Graham Number](GRAHAM_NUMBER.md) — earnings-and-book-value screening ceiling
+  - [Graham Growth Value](GRAHAM_GROWTH.md) — forecast-dependent growth valuation
 - [Momentum Analysis Strategy](MOMENTUM.md) — simple-moving-average/crossover analysis over historical prices.
 - [Free Cash Flow & Earnings Growth Strategy](FCF_EARNINGS_GROWTH.md) — historical total-company FCF, FCF-per-diluted-share, and diluted-EPS growth screening with explicit `PASS`, `FAIL`, or `INDETERMINATE` classification.
 

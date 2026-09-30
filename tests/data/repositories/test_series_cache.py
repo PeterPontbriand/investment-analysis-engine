@@ -243,6 +243,7 @@ def resolve(
         subject_id="ACME",
         currency="USD",
         as_of=None,
+        effective_as_of=clock(),
         providers=dict.fromkeys(fields, FinancialFieldProvider(PROVIDER_ID, provider)),
         cache=cache,
         clock=clock,

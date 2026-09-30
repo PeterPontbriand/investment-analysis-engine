@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.momentum.momentum_analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
@@ -56,22 +57,24 @@ def test_run_momentum_delegates_to_the_existing_analyzer_unchanged(monkeypatch: 
     canned = MomentumRun(metrics=_metrics(short=1.0, long=2.0), market_data=MarketDataContext())
     captured: dict[str, object] = {}
 
-    def fake_run_with_context(
-        self: MomentumAnalyzer, *, config: MomentumConfig, ticker: str | None = None, as_of: datetime | None = None
+    def fake_run_analysis(
+        self: MomentumAnalyzer, ticker: str, config: MomentumConfig, context: AnalysisContext
     ) -> MomentumRun:
-        del as_of
-        captured["data_client_is_ours"] = self.data_client is client
+        del context
+        captured["provider_is_ours"] = self._market_data_provider is client
         captured["config"] = config
         captured["ticker"] = ticker
         return canned
 
-    monkeypatch.setattr(MomentumAnalyzer, "run_with_context", fake_run_with_context)
+    monkeypatch.setattr(MomentumAnalyzer, "run_analysis", fake_run_analysis)
 
-    result = run_momentum(selection, "AAPL", client)
+    result = run_momentum(
+        selection, "AAPL", client, start_date="2026-01-01", executed_at=STAMP, instrument_profile=None
+    )
 
     assert result is canned
     assert captured == {
-        "data_client_is_ours": True,
+        "provider_is_ours": True,
         "config": selection.to_momentum_config(),
         "ticker": "AAPL",
     }
@@ -80,7 +83,9 @@ def test_run_momentum_delegates_to_the_existing_analyzer_unchanged(monkeypatch: 
 def test_run_momentum_computes_real_sma_values_from_the_fixture_series() -> None:
     """Exercise the real analyzer math against a known deterministic series."""
     client = _FixtureClient()
-    run = run_momentum(_selection(), "AAPL", client)
+    run = run_momentum(
+        _selection(), "AAPL", client, start_date="2026-01-01", executed_at=STAMP, instrument_profile=None
+    )
 
     closes = [100.0 * (1.01**i) for i in range(5)]
     expected_short = sum(closes[-2:]) / 2
@@ -91,21 +96,25 @@ def test_run_momentum_computes_real_sma_values_from_the_fixture_series() -> None
     assert run.metrics.long_sma_val == pytest.approx(expected_long)
 
 
-def test_run_momentum_falls_back_to_configured_default_ticker_when_none() -> None:
+def test_run_momentum_normalizes_the_ticker() -> None:
     client = _FixtureClient()
-    run = run_momentum(_selection(), None, client)
-    assert run.metrics.ticker == "BTC-USD"
+    run = run_momentum(
+        _selection(), " aapl ", client, start_date="2026-01-01", executed_at=STAMP, instrument_profile=None
+    )
+    assert run.metrics.ticker == "AAPL"
 
 
 def test_capture_momentum_computes_spread_and_percent_matching_reporting() -> None:
     client = _FixtureClient()
-    run = run_momentum(_selection(), "AAPL", client)
     profile = _profile("AAPL")
+    run = run_momentum(
+        _selection(), "AAPL", client, start_date="2026-01-01", executed_at=STAMP, instrument_profile=profile
+    )
 
-    capture = capture_momentum(run, profile)
+    capture = capture_momentum(run)
 
     assert capture.run is run
-    assert capture.profile is profile
+    assert run.instrument_profile is profile
     assert capture.presentation_inputs["sma_spread"] == _sma_spread(run.metrics)
     assert capture.presentation_inputs["sma_spread_percent"] == _sma_spread_percent(run.metrics)
     assert run.metrics.short_sma_val is not None
@@ -127,14 +136,14 @@ def _metrics(*, short: float | None, long: float | None) -> MomentumMetrics:
 
 def test_capture_momentum_leaves_presentation_inputs_null_when_smas_unavailable() -> None:
     run = MomentumRun(metrics=_metrics(short=None, long=None), market_data=MarketDataContext())
-    capture = capture_momentum(run, None)
+    capture = capture_momentum(run)
     assert capture.presentation_inputs == {"sma_spread": None, "sma_spread_percent": None}
-    assert capture.profile is None
+    assert run.instrument_profile is None
 
 
 def test_capture_momentum_guards_a_zero_long_sma() -> None:
     run = MomentumRun(metrics=_metrics(short=1.0, long=0.0), market_data=MarketDataContext())
-    capture = capture_momentum(run, None)
+    capture = capture_momentum(run)
     assert capture.presentation_inputs["sma_spread"] == 1.0
     assert capture.presentation_inputs["sma_spread_percent"] is None
 
@@ -147,6 +156,8 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(socket.socket, "connect", reject_network)
 
     client = _FixtureClient()
-    run = run_momentum(_selection(), "AAPL", client)
-    capture = capture_momentum(run, _profile("AAPL"))
+    run = run_momentum(
+        _selection(), "AAPL", client, start_date="2026-01-01", executed_at=STAMP, instrument_profile=_profile("AAPL")
+    )
+    capture = capture_momentum(run)
     assert capture.run.metrics.ticker == "AAPL"

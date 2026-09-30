@@ -30,9 +30,10 @@ completed result are retained unmodified by this adapter.
 from dataclasses import dataclass
 from datetime import datetime
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.fcf_earnings_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.analysis.strategy.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthPolicy, FCFEarningsGrowthResult
+from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthResult
 from src.core.analysis_status import CalculationStatus
 from src.data.instrument_profile import InstrumentProfile
 from src.data.instrument_profile_cache import InstrumentProfileResolver
@@ -71,12 +72,10 @@ def execute_fcf_growth(  # noqa: PLR0913
     resolver: ProductionAnnualGrowthSeriesResolver,
     ticker: str,
     *,
-    policy: FCFEarningsGrowthPolicy,
-    currency: str,
+    config: FCFEarningsGrowthConfig,
     as_of: datetime | None,
-    provider_id: str,
+    executed_at: datetime,
     use_cache: bool,
-    effective_as_of: datetime,
     provider: object,
     profile_cache: InstrumentProfileResolver | None = None,
 ) -> FCFGrowthCapture:
@@ -85,12 +84,11 @@ def execute_fcf_growth(  # noqa: PLR0913
     Args:
         resolver: A borrowed, already-composed annual growth-series resolver.
         ticker: The normalized target ticker.
-        policy: The requested FCF/Earnings Growth policy.
-        currency: The normalized three-letter reporting currency.
+        config: The requested policy, currency, and provider selection.
         as_of: The requested point-in-time boundary, or None.
-        provider_id: The canonical security-fact provider identifier.
+        executed_at: The run's own execution clock, a single aware read of
+            "now" taken once by the caller.
         use_cache: Whether resolved-input caching is enabled.
-        effective_as_of: The aware execution boundary actually applied.
         provider: The production provider, used as both the primary and
             Yahoo identity candidate, exactly as the CLI composes it today.
         profile_cache: When supplied, resolves the profile through the
@@ -103,20 +101,12 @@ def execute_fcf_growth(  # noqa: PLR0913
     profile = compose_graham_profile(
         ticker,
         primary_provider=provider,
-        primary_provider_id=provider_id,
+        primary_provider_id=config.provider_id,
         yahoo_provider=provider,
         profile_cache=profile_cache,
     )
-    result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
-        ticker=ticker,
-        policy=policy,
-        currency=currency,
-        as_of=as_of,
-        provider_id=provider_id,
-        use_cache=use_cache,
-        effective_as_of=effective_as_of,
-        instrument_profile=profile,
-    )
+    context = AnalysisContext(as_of=as_of, executed_at=executed_at, use_cache=use_cache, instrument_profile=profile)
+    result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(ticker, config, context)
     return FCFGrowthCapture(result=result, profile=profile, outcome=classify_fcf_growth_outcome(result))
 
 

@@ -36,7 +36,12 @@ class RecordingProvider:
         self.facts_by_field = facts_by_field
         self.calls: list[FinancialFactRequest] = []
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Record the request and return facts for its semantic field."""
         self.calls.append(request)
         return self.facts_by_field.get(request.field_name, ())
@@ -45,7 +50,12 @@ class RecordingProvider:
 class ErrorProvider:
     """Provider fake that always raises an operational provider error."""
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Raise a deterministic provider error."""
         raise FinancialProviderError(f"boom for {request.field_name.value}")
 
@@ -117,7 +127,7 @@ def test_override_trace_short_circuits_cache_and_provider() -> None:
         provider=provider, cache=InMemoryResolvedInputCache(clock=lambda: NOW), clock=lambda: NOW
     )
 
-    result = resolver.resolve(_request(FinancialField.EPS, basis="ttm"), override=5.0)
+    result = resolver.resolve(_request(FinancialField.EPS, basis="ttm"), override=5.0, use_cache=True)
 
     assert result.status is CalculationStatus.OK
     assert _event_signature(result.resolution_trace) == [
@@ -140,7 +150,7 @@ def test_cache_miss_then_provider_success_is_recorded_in_order() -> None:
         provider=provider, cache=InMemoryResolvedInputCache(clock=lambda: NOW), clock=lambda: NOW
     )
 
-    result = resolver.resolve(_request(FinancialField.EPS, basis="ttm"))
+    result = resolver.resolve(_request(FinancialField.EPS, basis="ttm"), use_cache=True)
 
     assert result.status is CalculationStatus.OK
     assert _event_signature(result.resolution_trace) == [
@@ -167,8 +177,8 @@ def test_cache_hit_records_hit_and_does_not_repeat_provider_attempt() -> None:
     resolver = GrahamNumberInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
     request = _request(FinancialField.EPS, basis="ttm")
 
-    first = resolver.resolve(request)
-    second = resolver.resolve(request)
+    first = resolver.resolve(request, use_cache=True)
+    second = resolver.resolve(request, use_cache=True)
 
     assert first.status is CalculationStatus.OK
     assert second.status is CalculationStatus.OK
@@ -183,7 +193,7 @@ def test_provider_error_is_classified_without_losing_attempt_event() -> None:
     """Operational provider failures are distinct from ordinary unavailability."""
     resolver = GrahamNumberInputResolver(provider=ErrorProvider(), clock=lambda: NOW)
 
-    result = resolver.resolve(_request(FinancialField.EPS, basis="ttm"))
+    result = resolver.resolve(_request(FinancialField.EPS, basis="ttm"), use_cache=True)
 
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert _event_signature(result.resolution_trace)[-2:] == [
@@ -222,7 +232,7 @@ def test_bvps_fallback_trace_preserves_direct_failure_component_paths_and_deriva
     )
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
 
-    result = resolver.resolve_bvps(_request(FinancialField.BVPS))
+    result = resolver.resolve_bvps(_request(FinancialField.BVPS), use_cache=True)
 
     assert result.status is CalculationStatus.OK
     assert result.resolved_input is not None

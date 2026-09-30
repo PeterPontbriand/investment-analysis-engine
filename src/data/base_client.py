@@ -52,12 +52,16 @@ class BaseDataClient(ABC):
         ticker: str,
         start_date: str,
         end_date: str | None = None,
+        *,
+        use_cache: bool,  # noqa: ARG002
     ) -> HistoricalMarketData:
         """Retrieve historical data together with context known by the base boundary.
 
         Concrete clients may override this method to retain provider-specific
         metadata such as observation interval, currency, or price-adjustment basis. The default path
-        never guesses those fields.
+        never guesses those fields. ``use_cache`` is accepted for interface uniformity with
+        implementers that do cache (e.g. ``CachedHistoricalDataClient``); this default path has
+        nothing of its own to skip and ignores it.
         """
         frame = self.fetch_data(ticker, start_date, end_date)
         context = MarketDataContext(
@@ -72,9 +76,11 @@ class BaseDataClient(ABC):
         ticker: str,
         start_date: str,
         end_date: str | None = None,
+        *,
+        use_cache: bool,
     ) -> HistoricalMarketData:
         """Satisfy the provider-neutral historical market-data boundary."""
-        return self.fetch_data_with_context(ticker, start_date, end_date)
+        return self.fetch_data_with_context(ticker, start_date, end_date, use_cache=use_cache)
 
     @abstractmethod
     def fetch_current_price(self, ticker: str) -> float:
