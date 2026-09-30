@@ -255,7 +255,7 @@ def test_printed_removal_command_removes_one_unreadable_entry_at_a_time() -> Non
         if step < len(expected_next):
             ticker, next_index = expected_next[step]
             assert result.exit_code == 1
-            assert output.startswith(f"Removed entry {index} from watchlist 'Old Watch'.")
+            assert output.startswith("Removed 1 entry from watchlist 'Old Watch'.")
             assert f"entry {next_index} ({ticker}, sma_crossover)" in output
             assert f'remove-entry "Old Watch" {next_index}' in output
         else:
@@ -278,10 +278,22 @@ def test_remove_by_ticker_commits_when_another_entry_is_unreadable() -> None:
 
     assert result.exit_code == 1
     output = normalize_cli_output(result.output)
-    assert output.startswith("Removed any entries for AAPL from watchlist 'Old Watch'.")
+    assert output.startswith("Removed 1 entry for AAPL from watchlist 'Old Watch'.")
     assert "entry 2 (KO, sma_crossover)" in output
     assert 'remove-entry "Old Watch" 2' in output
     assert _stored_tickers() == ["MSFT", "KO"]
+
+
+def test_remove_by_ticker_counts_every_entry_it_removes_when_another_is_unreadable() -> None:
+    momentum = MomentumSelection(short_window=2, long_window=3)
+    _seed("Old Watch", [("AAPL", momentum), ("KO", momentum), ("AAPL", GrahamNumberSelection())])
+    _retire_momentum_entries("KO")
+
+    result = runner.invoke(app, ["watchlist", "remove", "Old Watch", "AAPL"])
+
+    assert result.exit_code == 1
+    assert normalize_cli_output(result.output).startswith("Removed 2 entries for AAPL from watchlist 'Old Watch'.")
+    assert _stored_tickers() == ["KO"]
 
 
 def test_remove_by_method_commits_when_another_entry_is_unreadable() -> None:
@@ -292,7 +304,7 @@ def test_remove_by_method_commits_when_another_entry_is_unreadable() -> None:
 
     assert result.exit_code == 1
     output = normalize_cli_output(result.output)
-    assert output.startswith("Removed any graham-number entries from watchlist 'Old Watch'.")
+    assert output.startswith("Removed 1 entry for graham-number from watchlist 'Old Watch'.")
     assert "entry 1 (AAPL, sma_crossover)" in output
     assert _stored_tickers() == ["AAPL"]
 

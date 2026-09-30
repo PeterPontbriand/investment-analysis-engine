@@ -104,7 +104,8 @@ see `docs/project/README.md`'s Quality gates section for the exact boundary.
 - **Scope, in three gated sub-slices:** IR.6.1 command vocabulary (`remove-ticker`/`remove-method`,
   `runs list --analysis`, alias-only text output), IR.6.2 `watchlist delete`, IR.6.3
   `watchlist rename`. No schema change or migration.
-- **Branch:** its own, off `main`, merged independently, following IR.4's precedent.
+- **Branch:** its own, off `main` after `feat/ir-integration-readiness` has merged; IR.2.6 changed the
+  watchlist removal commands and text IR.6.1 rewrites, so IR.6 depends on IR.2.
 - **Detail:** [IR6_WATCHLIST_LIFECYCLE_COMPLETION.md](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md).
 
 ### IR.7 — `ARCHITECTURE.md` contributor pass
@@ -284,7 +285,9 @@ the same 3.14-only blind spot that hid this defect.
 
 **IR.6:** Branch: its own (`fix/ir6-watchlist-lifecycle` off `main`), merged to `main` independently
 once accepted, following IR.4's precedent; `feat/ir-integration-readiness` merges `main` back in
-afterward.
+afterward. **Revised 2026-09-29:** IR.2.6 changed the watchlist removal commands, their error handling
+and their confirmation text, which IR.6.1 rewrites, so IR.6 now branches off `main` after
+`feat/ir-integration-readiness` has merged.
 
 **IR.7:** Branch: its own (`fix/ir7-architecture-doc-pass` off `feat/ir-integration-readiness`, not
 `main`, since `main`'s `ARCHITECTURE.md` predates IR.2.1–2.4 and would recreate the collision the

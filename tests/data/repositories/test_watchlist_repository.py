@@ -169,7 +169,7 @@ def test_remove_entry_removes_by_position_and_renumbers_survivors(repository: SQ
     watchlist = repository.add_entries(
         watchlist.display_name, [("KO", selection), ("PFE", selection), ("AAPL", selection)]
     )
-    repository.remove_entry(watchlist.display_name, 1)
+    assert repository.remove_entry(watchlist.display_name, 1) == 1
     updated = _read(repository, watchlist.display_name)
     assert [entry.ticker for entry in updated.entries] == ["KO", "AAPL"]
     # The survivor that used to be at position 2 is now at position 1 (renumbered, no gap).
@@ -202,10 +202,10 @@ def test_remove_entries_for_ticker_is_idempotent_for_absent_tickers(repository: 
     watchlist = repository.add_entries(
         watchlist.display_name, [("KO", selection), ("PFE", selection), ("AAPL", selection)]
     )
-    repository.remove_entries_for_ticker(watchlist.display_name, ["PFE", "NOTHERE"])
+    assert repository.remove_entries_for_ticker(watchlist.display_name, ["PFE", "NOTHERE"]) == 1
     updated = _read(repository, watchlist.display_name)
     assert [entry.ticker for entry in updated.entries] == ["KO", "AAPL"]
-    repository.remove_entries_for_ticker(updated.display_name, ["PFE"])
+    assert repository.remove_entries_for_ticker(updated.display_name, ["PFE"]) == 0
     again = _read(repository, updated.display_name)
     assert [entry.ticker for entry in again.entries] == ["KO", "AAPL"]
 
@@ -222,7 +222,7 @@ def test_remove_entries_for_ticker_removes_every_entry_for_that_ticker(
             ("KO", GrahamNumberSelection()),
         ],
     )
-    repository.remove_entries_for_ticker(watchlist.display_name, ["AAPL"])
+    assert repository.remove_entries_for_ticker(watchlist.display_name, ["AAPL"]) == 2
     assert [entry.ticker for entry in _read(repository, watchlist.display_name).entries] == ["KO"]
 
 
@@ -234,7 +234,7 @@ def test_remove_entries_for_ticker_missing_watchlist_raises(repository: SQLiteWa
 def test_remove_entries_for_ticker_with_empty_sequence_is_a_no_op(repository: SQLiteWatchlistRepository) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
     watchlist = repository.add_entries(watchlist.display_name, [("KO", GrahamNumberSelection())])
-    repository.remove_entries_for_ticker(watchlist.display_name, [])
+    assert repository.remove_entries_for_ticker(watchlist.display_name, []) == 0
     assert [entry.ticker for entry in _read(repository, watchlist.display_name).entries] == ["KO"]
 
 
@@ -247,13 +247,13 @@ def test_remove_entries_for_method_is_idempotent_for_absent_method(repository: S
             ("KO", GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5)),
         ],
     )
-    repository.remove_entries_for_method(watchlist.display_name, "sma_crossover")
+    assert repository.remove_entries_for_method(watchlist.display_name, "sma_crossover") == 0
     unchanged = _read(repository, watchlist.display_name)
     assert [entry.selection.method_id for entry in unchanged.entries] == ["graham_number", "graham_growth_value"]
-    repository.remove_entries_for_method(unchanged.display_name, "graham_number")
+    assert repository.remove_entries_for_method(unchanged.display_name, "graham_number") == 1
     reduced = _read(repository, unchanged.display_name)
     assert [entry.selection.method_id for entry in reduced.entries] == ["graham_growth_value"]
-    repository.remove_entries_for_method(reduced.display_name, "graham_number")
+    assert repository.remove_entries_for_method(reduced.display_name, "graham_number") == 0
     again = _read(repository, reduced.display_name)
     assert [entry.selection.method_id for entry in again.entries] == ["graham_growth_value"]
 

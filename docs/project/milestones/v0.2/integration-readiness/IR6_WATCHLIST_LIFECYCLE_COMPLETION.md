@@ -2,11 +2,93 @@
 
 Closes the watchlist lifecycle gap that Step 3.4 Amendment A1 deferred
 ([`STEP_3_4_CONTRACT_AND_SLICE_PLAN.md`](../step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) §12,
-"Deferred, not included in this amendment"): a watchlist can be created but never deleted or
-renamed, and the workspace CLI mixes two vocabularies for naming an analysis method. Scope and
-decisions approved by the project owner 2026-09-27; implementation not yet authorized.
+"Deferred, not included in this amendment"). Scope and decisions approved by the project owner
+2026-09-27; branching revised 2026-09-29 (see [Appendix B](#appendix-b-decision-records)).
+Implementation is not yet authorized.
 
-## 1. Problem
+## 1. At a glance
+
+- **What IR.6 is:** a complete watchlist lifecycle for agentic and human CLI callers: delete, rename,
+  unambiguous removal verbs, and one method vocabulary (the hyphenated aliases) in human-readable text
+  and command input.
+- **What it is not:** no schema change or Alembic migration, no analysis formula, classification,
+  result or run-envelope change, and no `--json` payload change (`method_id` stays canonical there).
+- **Rules it follows:** the full managed gate and at least 85% coverage after each sub-slice, explicit
+  authorization before the next sub-slice, and `AGENTS.md` §0 (old command names are removed outright,
+  with no aliases or shims).
+- **It depends on IR.2.** IR.2.6 changed the watchlist removal commands, their error handling and
+  their confirmation text, so IR.6 branches off `main` after `feat/ir-integration-readiness` has
+  merged, not before.
+- **Decisions:** D1 to D5 are recorded verbatim in [Appendix B](#appendix-b-decision-records).
+
+## 2. Sequence and status
+
+Three sub-slices on one branch, in this order. Vocabulary goes first, so delete and rename are
+written once, in final command names and final text vocabulary.
+
+| Slice | Scope | Status | Completed |
+| :--- | :--- | :--- | :--- |
+| IR.6.1 | [Command vocabulary](#ir61--command-vocabulary) | Planned | |
+| IR.6.2 | [Delete](#ir62--delete) | Planned | |
+| IR.6.3 | [Rename](#ir63--rename) | Planned | |
+
+## 3. The slices
+
+### IR.6.1 — Command vocabulary
+
+- **Problem:** `watchlist remove` removes tickers and `watchlist disable` removes a method's entries,
+  which is ambiguous beside a future `delete`; `runs list --method` needs the canonical `method_id`
+  while watchlist commands use aliases; and text output prints canonical ids.
+- **Decision:** D1 and D4. `remove` becomes `remove-ticker`, `disable` becomes `remove-method`,
+  `runs list --method` becomes `runs list --analysis ALIAS`, and human-readable text prints aliases.
+  This includes the removal confirmation lines and the retired-selection error IR.2.6 added.
+- **Scope:** `src/cli_workspace.py` commands and text renderers, the repository's
+  `StoredSelectionError` builder, `WORKSPACE.md`, `GLOSSARY.md`, and their tests.
+- **Branch:** `fix/ir6-watchlist-lifecycle`, off `main` after `feat/ir-integration-readiness` merges.
+- **Detail:** [A.1](#a1-ir61--command-vocabulary).
+
+### IR.6.2 — Delete
+
+- **Problem:** neither `ian watchlist` nor `SQLiteWatchlistRepository` can delete a watchlist, so a
+  scratch watchlist can never be cleaned up.
+- **Decision:** D2 and D3. `ian watchlist delete NAME [--yes] [--missing-ok] [--json]`, with a prompt
+  when interactive, a usage error when not and `--yes` is absent, and `--missing-ok` for idempotent
+  cleanup.
+- **Scope:** repository `delete`, the CLI command, `WORKSPACE.md`, and tests.
+- **Branch:** as IR.6.1.
+- **Detail:** [A.2](#a2-ir62--delete).
+
+### IR.6.3 — Rename
+
+- **Problem:** a watchlist's display name is fixed at creation.
+- **Decision:** `ian watchlist rename NAME NEW_NAME [--json]`, without confirmation because it is not
+  destructive.
+- **Scope:** repository `rename`, the CLI command, `WORKSPACE.md`, and tests.
+- **Branch:** as IR.6.1.
+- **Detail:** [A.3](#a3-ir63--rename).
+
+## 4. Out of scope
+
+- Any analysis, formula, classification, result, run-envelope or persisted-schema change.
+- Any `--json` payload change, and any change to canonical `method_id` values.
+- Renaming `watchlist remove-entry`, which IR.2.6's retired-selection error names by its current name.
+- Changes to saved Analysis Runs; delete and rename never touch them.
+
+## 5. Acceptance criteria
+
+- No change to any analysis formula, classification, result, run envelope, persisted schema, or
+  `--json` payload. No Alembic migration; the head revision is unchanged.
+- Human-readable workspace text changes only as A.1 specifies, and the change is recorded in the
+  [IR contract](IR_CONTRACT_AND_SLICE_PLAN.md) §4.
+- The complete managed gate (`scripts/run-quality-gates.ps1` / `.sh`), at least 85% coverage, after
+  each sub-slice.
+- Step 3.4 §12's deferral note points here, so no document still describes watchlist rename,
+  delete, or the alias/`method_id` inconsistency as open.
+- A completion record appended to this document, analogous to IR.4's.
+
+## 6. Background: the problem and the facts the design relies on
+
+### 6.1 Problem
 
 1. **No delete.** Neither `ian watchlist` nor `SQLiteWatchlistRepository` can delete a watchlist.
    A human or agentic caller that creates a scratch watchlist cannot clean it up, and the
@@ -26,10 +108,10 @@ Items 1, 2, and 4 are the items §12 of the Step 3.4 plan recorded as deferred. 
 current rule that open items are not an acceptable outcome in this period, they are scheduled
 here.
 
-## 2. Verified facts the design relies on
+### 6.2 Verified facts
 
-Checked against `feat/ir-integration-readiness` at `d2a7be9` (the watchlist code is unchanged from
-`main` at `af0a222`, except for IR.2's selection/execution changes, which this slice does not touch):
+Originally checked against `feat/ir-integration-readiness` at `d2a7be9`, and revised 2026-09-29 for
+IR.2.6's watchlist changes:
 
 1. **No schema change or migration.** `watchlist_entries.watchlist_id` already declares
    `ON DELETE CASCADE` to `watchlists.watchlist_id` (`schema.py`), and `SQLiteDatabase` enables
@@ -49,53 +131,19 @@ Checked against `feat/ir-integration-readiness` at `d2a7be9` (the watchlist code
    must not change; only the CLI's *input* and *human-readable text* vocabulary changes.
 6. **The alias map already exists in one place.** `_ANALYSIS_ALIASES` / `_ALIAS_METHOD_IDS` in
    `src/cli_workspace.py` is the only alias-to-`method_id` mapping.
+7. **IR.2.6 changed the watchlist removal path** (its plan's B.3 item 4). The repository's
+   `remove_entry`, `remove_entries_for_ticker` and `remove_entries_for_method` return the number of
+   entries removed and decode no survivors. The three CLI removal commands print a confirmation line,
+   then the watchlist; if another entry cannot be read they still print the confirmation, then a one-line
+   `StoredSelectionError` naming the entry and the `watchlist remove-entry` command that removes it, and
+   exit 1. `SQLiteWatchlistRepository.get()` raises `StoredSelectionError` for a watchlist holding an
+   entry stored by an earlier version, so `watchlist show` and `refresh` fail for the whole watchlist.
 
-## 3. Decisions (project owner, 2026-09-27)
+---
 
-- **D1 — Removal verbs.** `watchlist remove` → `watchlist remove-ticker`; `watchlist disable` →
-  `watchlist remove-method`. Every entry-removal command reads `remove-*`, and `delete` means only
-  the whole watchlist. The old names are removed outright, with no aliases or deprecation shims,
-  since there are no users to migrate (`AGENTS.md` §0).
-- **D2 — Delete confirmation.** Interactive terminal: prompt, showing name, ID, and entry count.
-  `--yes` skips the prompt. A non-interactive stdin without `--yes` is a usage error (exit 2)
-  checked before the database is opened, so the command never hangs waiting for input.
-- **D3 — Missing watchlist.** Deleting an unknown name is exit 1, consistent with every other
-  watchlist command. `--missing-ok` turns that case into exit 0 with nothing deleted, for
-  idempotent agentic cleanup. Delivered in this work package, not deferred.
-- **D4 — One method vocabulary.** The hyphenated aliases are the only method vocabulary the CLI
-  accepts and prints in human-readable text. `runs list --method METHOD_ID` becomes
-  `runs list --analysis ALIAS`. `--json` output keeps the canonical `method_id` unchanged,
-  since it is persisted identity (§2 item 5). JSON is the machine contract; the aliases are the
-  human and command-line contract.
-- **D5 — Placement.** This is an amendment to IR (§2 item 8 and §3 row IR.6 of the
-  [IR contract](IR_CONTRACT_AND_SLICE_PLAN.md)). It is justified by agentic callers driving `ian`
-  through its CLI, IR's target consumer. Numbered IR.6, not IR.5, because "IR.5" still labels the
-  JSON-envelope scope that moved to `SWC`, and reusing it would recreate the ambiguity the IR.4
-  reuse needed a note to resolve.
+## Appendix A: Slice detail
 
-## 4. Branch and sequencing
-
-Following IR.4's precedent: **its own branch, `fix/ir6-watchlist-lifecycle` off `main`, merged
-to `main` independently once accepted.** IR.6 has no dependency on IR.2.4–IR.2.6, and binding it
-to IR.2's "nothing merges until the last sub-slice" rule would keep a known lifecycle gap on
-`main` for as long as those take. After IR.6 merges, `feat/ir-integration-readiness` merges `main`
-back in. The expected conflict surface is small: IR.2.5 and IR.2.6 touch `cli_workspace.py`'s
-execution helpers and Momentum selection flags, and IR.6 touches its watchlist and `runs list`
-commands and text renderers.
-
-Three sub-slices on that branch. Each ends with the managed gate and is gated by explicit
-authorization. Vocabulary goes first, so delete and rename are written once, in final command
-names and final text vocabulary.
-
-| Slice | Scope |
-| :--- | :--- |
-| IR.6.1 | Command vocabulary (D1, D4): `remove-ticker`, `remove-method`, `runs list --analysis`, alias-only human-readable text. |
-| IR.6.2 | Delete (D2, D3): repository `delete`, `ian watchlist delete NAME [--yes] [--missing-ok] [--json]`. |
-| IR.6.3 | Rename: repository `rename`, `ian watchlist rename NAME NEW_NAME [--json]`. |
-
-## 5. Slice scope
-
-### IR.6.1 — Command vocabulary
+### A.1 IR.6.1 — Command vocabulary
 
 - Rename the Typer commands: `remove` → `remove-ticker`, `disable` → `remove-method`. Arguments,
   options, behavior, and exit codes are unchanged.
@@ -114,19 +162,27 @@ names and final text vocabulary.
   `SQLiteWatchlistRepository._decode_entry`, which names the entry's `method_id`).
   `--group-by` keeps its `ticker|method` values, since "method" is the grouping axis and not a
   method name.
+- The removal confirmation lines IR.2.6 added are part of that text and are asserted by the tests:
+  `Removed 1 entry from watchlist 'NAME'.` (`remove-entry`),
+  `Removed N entries for TICKER from watchlist 'NAME'.` and `No entries for TICKER in watchlist 'NAME'.`
+  (`remove-ticker`), and `Removed N entries for ALIAS from watchlist 'NAME'.` and
+  `No entries for ALIAS in watchlist 'NAME'.` (`remove-method`). The method lines already print the
+  alias the caller typed and must keep doing so, never the canonical id. The retired-selection error
+  keeps naming `watchlist remove-entry`, which this slice does not rename.
 - `--json` payloads (`watchlist show`, `runs list`, `runs show`, `refresh`) are unchanged.
 - Docs: `WORKSPACE.md` (removal section, `runs list` filter example, any sample output showing
   canonical ids) and `GLOSSARY.md` where it names these commands. Historical completion-evidence
   documents are not rewritten.
 - Tests: update the existing `remove`/`disable`/`--method` invocations and help checks to the new
   names; assert that the old command names and `--method` are now rejected (Typer usage error); add
-  an alias-filter test for `runs list`; add text-output assertions showing aliases; add a JSON
-  assertion that `method_id` is still canonical.
+  an alias-filter test for `runs list`; add text-output assertions showing aliases, including the
+  confirmation lines and the retired-selection error; add a JSON assertion that `method_id` is still
+  canonical.
 - This changes human-readable workspace text output. It is recorded as an accepted exception to
   IR §4's "presentation output does not change" criterion, in the same way IR.2.2's wording change
   was.
 
-### IR.6.2 — Delete
+### A.2 IR.6.2 — Delete
 
 Repository (`src/data/repositories/watchlists.py`):
 
@@ -175,7 +231,7 @@ Tests:
 - Docs: a "Deleting a watchlist" subsection in `WORKSPACE.md`, covering run retention, `--yes`,
   and `--missing-ok`.
 
-### IR.6.3 — Rename
+### A.3 IR.6.3 — Rename
 
 - Repository `rename(name: str, new_display_name: str) -> Watchlist` applies the same trim/blank
   validation as `create` and raises `WatchlistConflictError` if the new normalized name belongs to
@@ -187,19 +243,56 @@ Tests:
   found is exit 1; conflict is exit 1; a blank new name is a usage error (exit 2). Output is the
   renamed watchlist, as `watchlist show` renders it.
 - Docs: a "Renaming a watchlist" subsection, stating that saved runs keep the name the watchlist
-  had when they ran, by design (§2 item 2), so `runs show` may display a name that no longer
+  had when they ran, by design (§6.2 item 2), so `runs show` may display a name that no longer
   exists.
 - Tests: success; case-only rename; identical-name no-op; conflict; blank; not found; a saved run's
   snapshot name is unchanged after rename; `updated_at` behavior.
 
-## 6. Acceptance criteria
+---
 
-- No change to any analysis formula, classification, result, run envelope, persisted schema, or
-  `--json` payload. No Alembic migration; the head revision is unchanged.
-- Human-readable workspace text changes only as §5 IR.6.1 specifies, and the change is recorded in
-  IR §4.
-- The complete managed gate (`scripts/run-quality-gates.ps1` / `.sh`), ≥85% coverage, after each
-  sub-slice.
-- Step 3.4 §12's deferral note points here, so no document still describes watchlist rename,
-  delete, or the alias/`method_id` inconsistency as open.
-- A completion record appended to this document, analogous to IR.4's.
+## Appendix B: Decision records
+
+### B.1 Decisions (project owner, 2026-09-27)
+
+- **D1 — Removal verbs.** `watchlist remove` → `watchlist remove-ticker`; `watchlist disable` →
+  `watchlist remove-method`. Every entry-removal command reads `remove-*`, and `delete` means only
+  the whole watchlist. The old names are removed outright, with no aliases or deprecation shims,
+  since there are no users to migrate (`AGENTS.md` §0).
+- **D2 — Delete confirmation.** Interactive terminal: prompt, showing name, ID, and entry count.
+  `--yes` skips the prompt. A non-interactive stdin without `--yes` is a usage error (exit 2)
+  checked before the database is opened, so the command never hangs waiting for input.
+- **D3 — Missing watchlist.** Deleting an unknown name is exit 1, consistent with every other
+  watchlist command. `--missing-ok` turns that case into exit 0 with nothing deleted, for
+  idempotent agentic cleanup. Delivered in this work package, not deferred.
+- **D4 — One method vocabulary.** The hyphenated aliases are the only method vocabulary the CLI
+  accepts and prints in human-readable text. `runs list --method METHOD_ID` becomes
+  `runs list --analysis ALIAS`. `--json` output keeps the canonical `method_id` unchanged,
+  since it is persisted identity (§6.2 item 5). JSON is the machine contract; the aliases are the
+  human and command-line contract.
+- **D5 — Placement.** This is an amendment to IR (§2 item 8 and §3 row IR.6 of the
+  [IR contract](IR_CONTRACT_AND_SLICE_PLAN.md)). It is justified by agentic callers driving `ian`
+  through its CLI, IR's target consumer. Numbered IR.6, not IR.5, because "IR.5" still labels the
+  JSON-envelope scope that moved to `SWC`, and reusing it would recreate the ambiguity the IR.4
+  reuse needed a note to resolve.
+
+### B.2 Branching history
+
+**Revised 2026-09-29 (current).** IR.6 branches `fix/ir6-watchlist-lifecycle` off `main` after
+`feat/ir-integration-readiness` has merged. IR.2.6 changed the watchlist removal commands, their error
+handling and their confirmation text, and IR.6.1 rewrites the same commands and text, so IR.6 now
+depends on IR.2 and can no longer be merged first. Merging that branch to `main` still needs its own
+approval (`AGENTS.md` §11).
+
+**Original (2026-09-27), superseded by the revision above; kept verbatim.**
+
+Following IR.4's precedent: **its own branch, `fix/ir6-watchlist-lifecycle` off `main`, merged
+to `main` independently once accepted.** IR.6 has no dependency on IR.2.4–IR.2.6, and binding it
+to IR.2's "nothing merges until the last sub-slice" rule would keep a known lifecycle gap on
+`main` for as long as those take. After IR.6 merges, `feat/ir-integration-readiness` merges `main`
+back in. The expected conflict surface is small: IR.2.5 and IR.2.6 touch `cli_workspace.py`'s
+execution helpers and Momentum selection flags, and IR.6 touches its watchlist and `runs list`
+commands and text renderers.
+
+Three sub-slices on that branch. Each ends with the managed gate and is gated by explicit
+authorization. Vocabulary goes first, so delete and rename are written once, in final command
+names and final text vocabulary.

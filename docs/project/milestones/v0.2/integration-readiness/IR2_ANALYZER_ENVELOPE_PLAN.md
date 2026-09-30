@@ -1027,10 +1027,11 @@ profile embedded in `MomentumRun`, `--as-of`/`--no-cache` on every caller surfac
 documentation), plus one review-fix commit (presenters read the embedded profile; a retired stored
 watchlist selection reports a readable one-line error naming the watchlist, entry number, ticker,
 method and the `watchlist remove-entry` command that removes it, and the three removal commands commit
-without decoding the other entries so that removal works one entry at a time; watchlist option help text names Momentum).
+without decoding the other entries, report how many entries they removed, and so work one entry at a
+time; watchlist option help text names Momentum).
 Its own plan lists what it found beyond the original design in its B.3.
 
-**Gate:** `scripts/run-quality-gates.sh` passed after every IR.2.6 commit. Final state: 3216 tests
+**Gate:** `scripts/run-quality-gates.sh` passed after every IR.2.6 commit. Final state: 3219 tests
 passed, 91% line coverage, and the doc-link check, `ruff check`, `ruff format --check` and
 `mypy --strict` clean on `src`, `tests` and `scripts`.
 
@@ -1054,7 +1055,8 @@ declared result type, and no plain function crosses the strategy-package boundar
 - With one Momentum entry stored in the retired version-1 shape beside a valid one, `watchlist show`
   and `ian refresh` print the one-line error for that entry and exit 1; the command it prints removes
   the entry and restores the watchlist. With three such entries beside a valid one, running the printed
-  command repeatedly removes one entry per run until `watchlist show` lists only the valid entry.
+  command repeatedly removes one entry per run until `watchlist show` lists only the valid entry; the
+  removal commands print `Removed N entries ...` or `No entries ...` from the removed count.
 - After the review-fix commit the plain, `--no-cache --as-of` (no database file created), `--save-run`
   and watchlist refresh runs were repeated with the same results.
 

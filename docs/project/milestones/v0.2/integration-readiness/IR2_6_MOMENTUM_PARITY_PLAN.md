@@ -396,14 +396,18 @@ in item 6 were corrected in a review-fix commit before the acceptance record.
    unreadable.** `remove-entry`, `remove` (by ticker) and `disable` (by method) reloaded the surviving
    entries inside their transaction, so a second unreadable entry rolled the removal back and left the
    printed remedy unable to work. `SQLiteWatchlistRepository.remove_entry`, `remove_entries_for_ticker`
-   and `remove_entries_for_method` now return `None` and decode nothing, so the removal commits. The three
-   CLI commands read the watchlist back with `get()` only to display it; if that raises
-   `StoredSelectionError`, they print a one-line confirmation (`Removed entry 2 from watchlist 'Mixed'.`),
-   then the error line for the next unreadable entry, numbered from the renumbered list, and exit 1.
-   `add-selection` is unchanged. Tests: three unreadable entries beside one valid entry, running the printed
-   command repeatedly (each run removes exactly one and names the next; after the third, `watchlist show`
-   lists only the valid entry), and `remove` and `disable` committing while another unreadable entry
-   survives. A placeholder entry in `watchlist show` was proposed and not adopted.
+   and `remove_entries_for_method` now decode nothing and return the number of entries removed. The
+   three CLI commands print a confirmation from that count, then read the watchlist back with `get()` only
+   to display it: `Removed 1 entry from watchlist 'Mixed'.`, `Removed 2 entries for AAPL from watchlist
+   'Mixed'.`, or, for zero, `No entries for AAPL in watchlist 'Mixed'.` (a no-op still exits 0). The same
+   line is printed on the success path and on the path where `get()` raises `StoredSelectionError`, which
+   is followed by the error line for the next unreadable entry, numbered from the renumbered list, and exit
+   1. `add-selection` is unchanged. Tests: three unreadable entries beside one valid entry, running the
+   printed command repeatedly (each run removes exactly one and names the next; after the third, `watchlist
+   show` lists only the valid entry), `remove` and `disable` committing while another unreadable entry
+   survives, the counts, and the zero-entry lines. A placeholder entry in `watchlist show` was proposed
+   and not adopted. Because IR.6.1 rewrites these commands and text, IR.6 now depends on IR.2 (see
+   `IR6_WATCHLIST_LIFECYCLE_COMPLETION.md`).
 5. **Commit 4: several existing test expectations encoded "Momentum has no `as_of`".** The foreign-field
    check in `test_requests.py` (`from_settings(as_of=None)`), the parser allowlist case
    `{"config": {"as_of": None}}`, and the version-2 probes in the identity-override, union-version and

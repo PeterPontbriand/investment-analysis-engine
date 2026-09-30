@@ -310,6 +310,7 @@ def test_watchlist_remove_entry_by_1_based_index_and_renumbers_survivors() -> No
     result = runner.invoke(app, ["watchlist", "remove-entry", "Trimmed", "1"])
     assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
+    assert output.startswith("Removed 1 entry from watchlist 'Trimmed'.")
     assert "Entries (2):" in output
     assert "[1] " in output  # MSFT renumbered down to display index 1
     assert "[2] " in output
@@ -349,10 +350,24 @@ def test_watchlist_remove_removes_every_entry_for_a_ticker_across_methods() -> N
 
     result = runner.invoke(app, ["watchlist", "remove", "Bulk By Ticker", "AAPL"])
     assert result.exit_code == 0, result.output
+    confirmation, *listing_lines = result.output.splitlines()
+    listing = " ".join(listing_lines)
+    assert confirmation == "Removed 2 entries for AAPL from watchlist 'Bulk By Ticker'."
+    assert "Entries (1):" in listing
+    assert "MSFT" in listing
+    assert "AAPL" not in listing
+
+
+def test_watchlist_remove_of_an_absent_ticker_says_so_and_exits_0() -> None:
+    _create("Nothing To Remove")
+    runner.invoke(app, ["watchlist", "add-selection", "Nothing To Remove", "MSFT", "--analysis", "momentum"])
+
+    result = runner.invoke(app, ["watchlist", "remove", "Nothing To Remove", "AAPL"])
+
+    assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
+    assert output.startswith("No entries for AAPL in watchlist 'Nothing To Remove'.")
     assert "Entries (1):" in output
-    assert "MSFT" in output
-    assert "AAPL" not in output
 
 
 def test_watchlist_remove_missing_watchlist_exits_1() -> None:
@@ -376,9 +391,20 @@ def test_watchlist_disable_removes_every_entry_for_a_method_across_tickers() -> 
     result = runner.invoke(app, ["watchlist", "disable", "Bulk By Method", "--analysis", "momentum"])
     assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
+    assert output.startswith("Removed 2 entries for momentum from watchlist 'Bulk By Method'.")
     assert "Entries (1):" in output
     assert "graham_number" in output
     assert "sma_crossover" not in output
+
+
+def test_watchlist_disable_of_an_absent_method_says_so_and_exits_0() -> None:
+    _create("No Such Method")
+    runner.invoke(app, ["watchlist", "add-selection", "No Such Method", "MSFT", "--analysis", "momentum"])
+
+    result = runner.invoke(app, ["watchlist", "disable", "No Such Method", "--analysis", "graham-number"])
+
+    assert result.exit_code == 0, result.output
+    assert normalize_cli_output(result.output).startswith("No entries for graham-number in watchlist 'No Such Method'.")
 
 
 def test_watchlist_disable_missing_watchlist_exits_1() -> None:
