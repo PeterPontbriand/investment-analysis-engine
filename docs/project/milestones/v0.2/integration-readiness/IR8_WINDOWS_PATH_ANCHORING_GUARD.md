@@ -28,7 +28,7 @@ Parent: [IR contract and slice plan](IR_CONTRACT_AND_SLICE_PLAN.md).
 | :--- | :--- | :--- | :--- |
 | 1 | [Guard in the settings loader](#31-guard-in-the-settings-loader) | Complete | 2026-09-29 |
 | 2 | [Reasons reach the user on every CLI surface](#32-reasons-reach-the-user-on-every-cli-surface) | Complete | 2026-09-29 |
-| 3 | [User documentation and agent guidance](#33-user-documentation-and-agent-guidance) | Next | |
+| 3 | [User documentation and agent guidance](#33-user-documentation-and-agent-guidance) | Complete | 2026-09-30 |
 
 ## 3. The commits
 
@@ -99,6 +99,18 @@ Parent: [IR contract and slice plan](IR_CONTRACT_AND_SLICE_PLAN.md).
   `windows=True/False`. At least one end-to-end `ProjectSettings` test runs unmocked on Windows
   (`skipif` elsewhere).
 - **Quality gate:** the full managed gate after every commit, ≥85% coverage.
+
+**Acceptance note (2026-09-30).** All three commits passed the full managed gate; final state 3311
+tests, 91% line coverage. Live check on Windows 11 with Git Bash, using only Windows-form or relative
+paths:
+
+- `ian db status --database-url sqlite:////e/ir8-probe/x.sqlite3` is rejected as a usage error that
+  shows the existing sentence, the guard's reason and the suggestion `E:/ir8-probe/x.sqlite3`.
+- With `database_url` set to that value in the environment, `ian db status` fails on import with the
+  guard's one-line message inside the startup traceback, as [Out of scope](#4-out-of-scope) says.
+- `ian db status --database-url sqlite:///.tmp/ir8-probe/x.sqlite3` and `ian db upgrade` against the same
+  relative URL work and create the database under the project folder.
+- `E:\e`, `E:\c` and `E:\ir8-probe` do not exist afterward. The throwaway `.tmp/ir8-probe` was deleted.
 
 ## 6. Background
 
