@@ -106,7 +106,7 @@ chosen.
 
 ## New analysis strategies
 
-Thirty-two candidates across eight families; most filing-based ones would reuse the existing fact
+Thirty-three candidates across eight families; most filing-based ones would reuse the existing fact
 resolver. "Existing plan" names the Master Plan step that already owns a candidate, precisely —
 where a step names a candidate only as a subject to separate approval rather than committed scope,
 or where the candidate would merely fall under a step's general subject without being separately
@@ -137,6 +137,7 @@ inputs.
 | Price and market structure | Risk profile | Realized volatility, maximum drawdown, Ulcer index, downside deviation, beta | Step 4.3 names maximum drawdown and volatility as committed examples of its basic risk measures; Ulcer index, downside deviation, and beta specifically are not named there | Yes |
 | Price and market structure | Momentum variants | 12-minus-1-month momentum, 52-week-high proximity, time-series momentum, trend with hysteresis | Step 4.2 is the general "additional technical indicators" step (its own named examples are RSI/EMA/MACD); these specific variants are not separately named and would need their own specification under 4.2's "only when explicitly selected and specified" gate | Yes |
 | Price and market structure | Abnormal events | Price gaps and volume spikes vs. the stock's own history | New | Yes |
+| Price and market structure | Momentum series API | A pure, vectorized function returning the full computed series (SMA short/long, RSI, crossover) beneath the existing snapshot API; Momentum only | New — formerly IR.3, moved out of [IR](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#moved-out-momentum-series-api-formerly-ir3) on 2026-09-30. Trigger to revisit: a consumer that needs Momentum at many dates in one series; per-date `--as-of` evaluation re-reads the cached history, re-runs the quality checks and rebuilds per-observation provenance on every call, so its cost grows roughly with the square of the history length. That consumer's needs must answer four questions first: how warm-up rows are represented without NaN; whether quality checks apply per row or once; whether rows carry provenance; and the output shape | Yes |
 | Filing behavior and ownership | Filing red flags | Late-filing notices, 8-K Item 4.01 auditor changes, Item 5.02 departures, going-concern language, amendment frequency | New | Yes |
 | Filing behavior and ownership | Insider activity (Form 4) | Net insider buying, cluster buys, purchases vs. option exercises | New | Yes |
 | Filing behavior and ownership | Large holders (13D/13G, 13F) | Activist stakes; institutional changes with the 45-day 13F lag encoded | New | Partial |
