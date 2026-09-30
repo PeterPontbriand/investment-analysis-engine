@@ -741,6 +741,36 @@ def watchlist_delete(
     typer.echo(json.dumps(document, ensure_ascii=False, allow_nan=False))
 
 
+@watchlist_app.command("rename")
+def watchlist_rename(
+    name: Annotated[str, typer.Argument(help="Current watchlist name.")],
+    new_name: Annotated[str, typer.Argument(help="New display name.")],
+    *,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit the renamed watchlist document.")] = False,
+) -> None:
+    """Rename a watchlist. Saved Analysis Runs keep the name it had when they ran."""
+    with _workspace_database() as database:
+        repository = SQLiteWatchlistRepository(database)
+        try:
+            repository.rename(name, new_name)
+        except (WatchlistNotFoundError, WatchlistConflictError) as exc:
+            _fail(str(exc))
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+        confirmation = f"Renamed watchlist {name!r} to {new_name.strip()!r}."
+        if not json_output:
+            typer.echo(confirmation)
+        try:
+            watchlist = repository.get(new_name)
+        except StoredSelectionError as exc:
+            if json_output:
+                typer.echo(confirmation, err=True)
+            _fail(str(exc))
+    if watchlist is None:
+        _fail(f"No watchlist named {new_name!r} exists.")
+    typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist))
+
+
 @watchlist_app.command("list")
 def watchlist_list() -> None:
     """List every watchlist with its entry count."""

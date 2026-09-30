@@ -536,3 +536,116 @@ def test_summary_counts_stored_entries_without_decoding_them(
 def test_deleted_watchlist_holds_exactly_one_of_the_aggregate_or_the_error() -> None:
     with pytest.raises(ValueError, match="exactly one"):
         DeletedWatchlist(watchlist_id=FIRST_ID, display_name="X", entry_count=0, watchlist=None, unreadable=None)
+
+
+def test_rename_changes_the_name_keeps_the_id_and_entries_and_bumps_updated_at(
+    database: SQLiteDatabase, repository: SQLiteWatchlistRepository
+) -> None:
+    watchlist = _seed_momentum(repository, "Old Name", ["AAPL", "MSFT"])
+    clocked = SQLiteWatchlistRepository(database, clock=lambda: LATER)
+
+    clocked.rename("  old name ", "  New Name ")
+
+    assert repository.get("Old Name") is None
+    renamed = repository.get("new name")
+    assert renamed is not None
+    assert renamed.display_name == "New Name"
+    assert renamed.normalized_name == "new name"
+    assert renamed.watchlist_id == watchlist.watchlist_id
+    assert renamed.entries == watchlist.entries
+    assert renamed.created_at == watchlist.created_at
+    assert renamed.updated_at == LATER
+
+
+def test_rename_to_a_different_casing_of_its_own_name_changes_only_the_display_name(
+    database: SQLiteDatabase, repository: SQLiteWatchlistRepository
+) -> None:
+    watchlist = repository.create(WatchlistSpec(display_name="core holdings"))
+    clocked = SQLiteWatchlistRepository(database, clock=lambda: LATER)
+
+    clocked.rename("core holdings", "Core Holdings")
+
+    renamed = repository.get("core holdings")
+    assert renamed is not None
+    assert renamed.display_name == "Core Holdings"
+    assert renamed.watchlist_id == watchlist.watchlist_id
+    assert renamed.updated_at == LATER
+
+
+def test_rename_to_the_identical_display_name_is_a_no_op_that_does_not_bump_updated_at(
+    database: SQLiteDatabase, repository: SQLiteWatchlistRepository
+) -> None:
+    repository.create(WatchlistSpec(display_name="Same"))
+    clocked = SQLiteWatchlistRepository(database, clock=lambda: LATER)
+
+    clocked.rename("same", " Same ")
+
+    unchanged = repository.get("Same")
+    assert unchanged is not None
+    assert unchanged.display_name == "Same"
+    assert unchanged.updated_at is None
+
+
+def test_rename_to_another_watchlists_name_is_a_conflict_and_changes_nothing(
+    database: SQLiteDatabase, repository: SQLiteWatchlistRepository
+) -> None:
+    repository.create(WatchlistSpec(display_name="First"))
+    repository.create(WatchlistSpec(display_name="Second"))
+    before = _row_counts(database)
+
+    with pytest.raises(WatchlistConflictError):
+        repository.rename("First", "  SECOND ")
+
+    assert _row_counts(database) == before
+    unchanged = repository.get("First")
+    assert unchanged is not None
+    assert unchanged.display_name == "First"
+    assert unchanged.updated_at is None
+
+
+def test_rename_rejects_a_blank_new_name(repository: SQLiteWatchlistRepository) -> None:
+    repository.create(WatchlistSpec(display_name="Keep"))
+
+    with pytest.raises(ValueError, match="blank"):
+        repository.rename("Keep", "   ")
+
+    assert repository.get("Keep") is not None
+
+
+def test_rename_of_an_unknown_name_raises(repository: SQLiteWatchlistRepository) -> None:
+    with pytest.raises(WatchlistNotFoundError):
+        repository.rename("Nonexistent", "Anything")
+
+
+def test_rename_keeps_a_saved_runs_snapshot_name(
+    database: SQLiteDatabase, repository: SQLiteWatchlistRepository
+) -> None:
+    _seed_momentum(repository, "Before", ["AAPL"])
+    runs = SQLiteAnalysisRunRepository(database)
+    summary = refresh_watchlist("Before", watchlists=repository, repository=runs, executor=_momentum_executor)
+    saved = summary.results[0].run
+    assert saved is not None
+
+    repository.rename("Before", "After")
+
+    stored = runs.get(saved.analysis_run_id)
+    assert stored is not None
+    assert stored.watchlist_name == "Before"
+
+
+def test_rename_commits_when_entries_were_stored_by_an_earlier_version(
+    database: SQLiteDatabase, repository: SQLiteWatchlistRepository
+) -> None:
+    """D6: rename touches only the watchlist row, so a retired stored entry cannot prevent it."""
+    watchlist = _seed_momentum(repository, "Old", ["AAPL", "MSFT"])
+    _retire_entry(database, position=1)
+
+    repository.rename("Old", "Renamed")
+
+    with database.read() as connection:
+        row = connection.execute(select(watchlists)).mappings().one()
+    assert row["display_name"] == "Renamed"
+    assert row["watchlist_id"] == str(watchlist.watchlist_id)
+    assert _row_counts(database)[1] == 2
+    with pytest.raises(StoredSelectionError, match=r"entry 2 \(MSFT, momentum\)"):
+        repository.get("Renamed")

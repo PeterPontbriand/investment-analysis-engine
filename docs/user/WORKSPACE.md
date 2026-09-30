@@ -103,6 +103,18 @@ uv run ian watchlist remove-method "Core Holdings" --analysis graham-number
 
 Every command that removes entries starts with `remove-`, and text output names methods by the same hyphenated names you type (`momentum`, `graham-number`, `graham-growth`, `fcf-growth`). `--json` output keeps the stored method identifiers (`sma_crossover`, `graham_number`, `graham_growth_value`, `reported_fcf_eps_cagr`), which never change.
 
+### Renaming a watchlist
+
+```bash
+uv run ian watchlist rename "Core Holdings" "Long-Term Holdings"
+```
+
+Renaming is not destructive, so it never asks for confirmation. It prints `Renamed watchlist 'Core Holdings' to 'Long-Term Holdings'.` and then the renamed watchlist as `watchlist show` would. With `--json` it prints only the `watchlist show --json` document. The watchlist keeps its ID and its entries. Changing only the capitalization (`core holdings` to `Core Holdings`) is allowed; renaming to another watchlist's name is exit `1`, and a blank new name is a usage error (exit `2`).
+
+Saved Analysis Runs keep the name the watchlist had when they ran, by design: each run stores its own snapshot of the watchlist's name and ID, and a rename changes neither the snapshot nor anything else about a saved run. Today `runs list` and `runs show` do not print that snapshot.
+
+If the watchlist holds an entry saved by an earlier version that this version can no longer read, the rename still happens. The command then prints the confirmation, followed by the one-line error that names the unreadable entry and the `remove-entry` command that removes it, and exits `1`; with `--json`, stdout is empty and both lines go to stderr.
+
 ### Deleting a watchlist
 
 ```bash

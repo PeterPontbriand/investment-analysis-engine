@@ -31,7 +31,7 @@ written once, in final command names and final text vocabulary.
 | :--- | :--- | :--- | :--- |
 | IR.6.1 | [Command vocabulary](#ir61--command-vocabulary) | Complete | 2026-09-30 |
 | IR.6.2 | [Delete](#ir62--delete) | Complete | 2026-09-30 |
-| IR.6.3 | [Rename](#ir63--rename) | Next | |
+| IR.6.3 | [Rename](#ir63--rename) | Complete | 2026-09-30 |
 
 ## 3. The slices
 
@@ -362,3 +362,8 @@ schema, a saved run or an analysis result.
 3. **A repository method that reads a watchlist's identity and entry count without decoding (IR.6.2).** A.2
    requires the delete prompt to show the count from the stored rows but names no repository method for it.
    `SQLiteWatchlistRepository.summary(name)` is that method, and `list()` builds its summaries the same way.
+4. **`runs show` does not display a run's watchlist name (IR.6.3).** A.3 and §6.2 item 2 say `runs show` may
+   display a name that no longer exists after a rename. Neither `runs show` nor `runs list` prints the
+   watchlist snapshot today; it exists only inside the stored run envelope. The user documentation says so
+   accurately, and the rename test asserts the stored snapshot through the run repository instead of through
+   CLI output. No projection or `--json` payload changed.

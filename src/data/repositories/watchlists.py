@@ -1,4 +1,4 @@
-"""SQLite-backed watchlist repository: create, delete, entry edits, reopen.
+"""SQLite-backed watchlist repository: create, rename, delete, entry edits, reopen.
 
 No provider, network, or analysis work occurs here; only reads/writes against
 a caller-owned, already-migrated :class:`SQLiteDatabase`. Conflicts and
@@ -215,6 +215,38 @@ class SQLiteWatchlistRepository:
                 watchlist=aggregate,
                 unreadable=unreadable,
             )
+
+    def rename(self, name: str, new_display_name: str) -> None:
+        """Change a watchlist's display name, keeping its ID and entries; nothing is decoded.
+
+        The new name is trimmed. Renaming to a different casing of the watchlist's own name is
+        allowed and changes only ``display_name``. Renaming to the identical display name is a
+        no-op that leaves ``updated_at`` alone; any real change bumps it.
+
+        Raises:
+            ValueError: If ``new_display_name`` is blank after trimming.
+            WatchlistNotFoundError: If no watchlist matches ``name``.
+            WatchlistConflictError: If the new normalized name belongs to a different watchlist.
+        """
+        display_name = new_display_name.strip()
+        if not display_name:
+            raise ValueError("display_name must not be blank.")
+        normalized = _normalize_name(display_name)
+        with self._database.transaction() as connection:
+            watchlist_id = self._find_id(connection, name)
+            current = connection.execute(
+                select(watchlists.c.display_name).where(watchlists.c.watchlist_id == watchlist_id)
+            ).scalar_one()
+            if current == display_name:
+                return
+            try:
+                connection.execute(
+                    update(watchlists)
+                    .where(watchlists.c.watchlist_id == watchlist_id)
+                    .values(display_name=display_name, normalized_name=normalized, updated_at=_utc(self._clock()))
+                )
+            except IntegrityError as exc:
+                raise WatchlistConflictError(f"A watchlist named {new_display_name!r} already exists.") from exc
 
     def add_entries(self, name: str, entries: Sequence[tuple[str, AnalysisSelection]]) -> Watchlist:
         """Append one entry per (ticker, selection) pair, after the current highest position.

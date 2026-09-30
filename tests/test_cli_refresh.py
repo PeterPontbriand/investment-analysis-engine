@@ -23,6 +23,7 @@ from contextlib import closing
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 import pytest
 from typer.testing import CliRunner
@@ -572,3 +573,56 @@ def test_delete_json_with_an_unreadable_entry_deletes_prints_no_stdout_and_exits
     assert "2 entries). Saved Analysis Runs are kept." in message
     assert "entry 2 (MSFT, momentum): saved by an earlier version" in message
     assert _stored_tickers() == []
+
+
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+def test_rename_leaves_a_saved_run_showing_the_name_the_watchlist_had_when_it_ran(mock_run: MagicMock) -> None:
+    mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
+    _create_momentum_only("Before", ["AAPL"])
+    assert runner.invoke(app, ["refresh", "Before", "--workers", "1"]).exit_code == 0
+    (saved,) = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)
+
+    assert runner.invoke(app, ["watchlist", "rename", "Before", "After"]).exit_code == 0
+    shown = runner.invoke(app, ["runs", "show", saved["analysis_run_id"]])
+
+    assert shown.exit_code == 0, shown.output
+    database = SQLiteDatabase(src.cli_workspace.settings)
+    try:
+        stored = SQLiteAnalysisRunRepository(database).get(UUID(saved["analysis_run_id"]))
+    finally:
+        database.close()
+    assert stored is not None
+    assert stored.watchlist_name == "Before"
+
+
+def test_rename_commits_when_an_entry_is_unreadable_and_remove_entry_then_restores_it() -> None:
+    """D6: rename needs no decoded entry; the display afterward reports the unreadable one."""
+    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+
+    result = runner.invoke(app, ["watchlist", "rename", "Old Watch", "Renamed"])
+
+    assert result.exit_code == 1
+    output = normalize_cli_output(result.output)
+    assert output.startswith("Renamed watchlist 'Old Watch' to 'Renamed'.")
+    assert "Watchlist 'Renamed', entry 2 (MSFT, momentum)" in output
+    assert 'Remove it with: ian watchlist remove-entry "Renamed" 2' in output
+    assert runner.invoke(app, ["watchlist", "list"]).output.startswith("Renamed")
+
+    fixed = runner.invoke(app, ["watchlist", "remove-entry", "Renamed", "2"])
+    shown = runner.invoke(app, ["watchlist", "show", "Renamed"])
+    assert fixed.exit_code == 0, fixed.output
+    assert shown.exit_code == 0, shown.output
+    assert "AAPL" in shown.output
+    assert "MSFT" not in shown.output
+
+
+def test_rename_json_with_an_unreadable_entry_renames_prints_no_stdout_and_exits_1() -> None:
+    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+
+    result = runner.invoke(app, ["watchlist", "rename", "Old Watch", "Renamed", "--json"])
+
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    message = normalize_cli_output(result.stderr)
+    assert message.startswith("Renamed watchlist 'Old Watch' to 'Renamed'.")
+    assert "entry 2 (MSFT, momentum): saved by an earlier version" in message

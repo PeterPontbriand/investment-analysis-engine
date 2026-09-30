@@ -906,3 +906,73 @@ def test_watchlist_delete_leaves_other_watchlists_in_the_list() -> None:
 def test_watchlist_delete_help_has_no_storage_side_effects() -> None:
     with patch.object(SQLiteDatabase, "__init__", side_effect=AssertionError("must not open a database for --help")):
         assert runner.invoke(app, ["watchlist", "delete", "--help"]).exit_code == 0
+
+
+def test_watchlist_rename_prints_the_confirmation_then_the_renamed_watchlist() -> None:
+    _seed_for_delete("Old Name")
+
+    result = runner.invoke(app, ["watchlist", "rename", "old name", "New Name"])
+
+    assert result.exit_code == 0, result.output
+    confirmation, *listing = result.output.splitlines()
+    assert confirmation == "Renamed watchlist 'old name' to 'New Name'."
+    shown = runner.invoke(app, ["watchlist", "show", "New Name"])
+    assert "\n".join(listing).strip() == shown.output.strip()
+    assert "Watchlist: New Name" in shown.output
+    assert runner.invoke(app, ["watchlist", "show", "Old Name"]).exit_code == 1
+
+
+def test_watchlist_rename_json_prints_only_the_watchlist_document() -> None:
+    _seed_for_delete("Old Name")
+    before = json.loads(runner.invoke(app, ["watchlist", "show", "Old Name", "--json"]).output)
+
+    result = runner.invoke(app, ["watchlist", "rename", "Old Name", "New Name", "--json"])
+
+    assert result.exit_code == 0, result.output
+    document = json.loads(result.stdout)
+    assert document["display_name"] == "New Name"
+    assert document["watchlist_id"] == before["watchlist_id"]
+    assert document["entries"] == before["entries"]
+
+
+def test_watchlist_rename_case_only_and_identical_names_succeed() -> None:
+    _create("core holdings")
+
+    case_only = runner.invoke(app, ["watchlist", "rename", "core holdings", "Core Holdings"])
+    identical = runner.invoke(app, ["watchlist", "rename", "Core Holdings", "Core Holdings"])
+
+    assert case_only.exit_code == 0, case_only.output
+    assert identical.exit_code == 0, identical.output
+    assert "Watchlist: Core Holdings" in case_only.output
+
+
+def test_watchlist_rename_to_another_watchlists_name_exits_1() -> None:
+    _create("First")
+    _create("Second")
+
+    result = runner.invoke(app, ["watchlist", "rename", "First", "second"])
+
+    assert result.exit_code == 1
+    assert "already exists" in normalize_cli_output(result.output)
+    assert "First" in _listed_names()
+
+
+def test_watchlist_rename_to_a_blank_name_is_a_usage_error() -> None:
+    _create("Keep")
+
+    result = runner.invoke(app, ["watchlist", "rename", "Keep", "   "])
+
+    assert result.exit_code == 2
+    assert "Keep" in _listed_names()
+
+
+def test_watchlist_rename_of_an_unknown_name_exits_1() -> None:
+    result = runner.invoke(app, ["watchlist", "rename", "Nonexistent", "Anything"])
+
+    assert result.exit_code == 1
+    assert "No watchlist named 'Nonexistent' exists." in normalize_cli_output(result.output)
+
+
+def test_watchlist_rename_help_has_no_storage_side_effects() -> None:
+    with patch.object(SQLiteDatabase, "__init__", side_effect=AssertionError("must not open a database for --help")):
+        assert runner.invoke(app, ["watchlist", "rename", "--help"]).exit_code == 0
