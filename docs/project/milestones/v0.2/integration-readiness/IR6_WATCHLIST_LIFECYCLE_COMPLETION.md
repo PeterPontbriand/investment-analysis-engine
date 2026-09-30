@@ -4,7 +4,8 @@ Closes the watchlist lifecycle gap that Step 3.4 Amendment A1 deferred
 ([`STEP_3_4_CONTRACT_AND_SLICE_PLAN.md`](../step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) §12,
 "Deferred, not included in this amendment"). Scope and decisions approved by the project owner
 2026-09-27; branching revised 2026-09-29 (see [Appendix B](#appendix-b-decision-records)).
-Implementation of all three sub-slices was authorized by the project owner on 2026-09-30.
+Implementation of all three sub-slices was authorized by the project owner on 2026-09-30, and
+completed the same day, pending acceptance ([completion record](#51-completion-record)).
 
 ## 1. At a glance
 
@@ -88,6 +89,69 @@ written once, in final command names and final text vocabulary.
 - Step 3.4 §12's deferral note points here, so no document still describes watchlist rename,
   delete, or the alias/`method_id` inconsistency as open.
 - A completion record appended to this document, analogous to IR.4's.
+
+### 5.1 Completion record
+
+Implemented 2026-09-30 on `fix/ir6-watchlist-lifecycle`, one commit per sub-slice. Complete pending the
+project owner's acceptance.
+
+| Commit | Gate | Coverage |
+| :--- | :--- | :--- |
+| IR.6.1 command vocabulary | passed, 3325 tests | 91% |
+| IR.6.2 delete | passed, 3349 tests | 91% |
+| IR.6.3 rename | passed, 3367 tests | 91% |
+| Windows NUL stdin fix (B.4 item 5) | passed, 3371 tests | 91% |
+
+Each gate ran `scripts/run-quality-gates.sh` on Python 3.12.14 and pandas 3.0.5: link check, Ruff, format
+check, `mypy --strict` over all 309 source files, and the full suite with the 85% coverage floor.
+
+- **No schema change.** No Alembic revision was added; the head revision is still `0004_instrument_profiles`.
+- **No `--json` payload or canonical `method_id` changed.** `watchlist show --json`, `runs list --json` and
+  `refresh --json` keep the canonical identifiers, and tests assert it. The new `delete --json` document
+  is additive. The `rename --json` document is the `watchlist show --json` document.
+- **No analysis result, run envelope or saved run changed.** Delete and rename never touch `analysis_runs`;
+  tests delete and rename a watchlist that has saved runs and read them back.
+- **The text change is the accepted exception** already recorded in the IR contract's
+  [Appendix A.3](IR_CONTRACT_AND_SLICE_PLAN.md#a3-accepted-exceptions-to-the-presentation-output-rule).
+- **D6 held for every command IR.6 adds or changes.** Tests delete, rename, remove by ticker and method, and
+  list runs by alias for a watchlist holding entries stored by an earlier version, created the way IR.2.6's
+  tests create them (a Momentum entry rewritten into the retired version-1 shape).
+
+**Live smoke.** Run against a throwaway database (`sqlite:///.tmp/ir6-smoke/x.sqlite3`, migrated with
+`ian db upgrade`), each command with standard input redirected from nothing, as a script would run it. The
+database was deleted afterward. No provider or network call was made, so `runs list --analysis momentum`
+returned no rows; filtering against real rows is covered by the tests.
+
+| Command | Exit |
+| :--- | :--- |
+| `watchlist create "Core Holdings" --analysis momentum AAPL MSFT`, `add-selection ... graham-number`, `create "Scratch" ...`, `list` | 0 |
+| `watchlist show "Core Holdings"`: entry lines read `momentum:` and `graham-number:` | 0 |
+| `watchlist show "Core Holdings" --group-by method`: group headings read `momentum:` and `graham-number:` | 0 |
+| `watchlist show "Core Holdings" --json`: `method_id` reads `sma_crossover` and `graham_number` | 0 |
+| `watchlist remove-ticker "Core Holdings" MSFT`, then `remove-method ... --analysis graham-number` | 0 |
+| `watchlist remove` (the retired name) | 2 |
+| `runs list --analysis momentum` | 0 |
+| `runs list --method sma_crossover` (the retired option) | 2 |
+| `runs list --analysis sma_crossover` (a canonical id is not an alias) | 2 |
+| `watchlist rename "Core Holdings" "Long-Term Holdings"` | 0 |
+| `watchlist rename "long-term holdings" "LONG-TERM HOLDINGS"` (case only) | 0 |
+| `watchlist rename "LONG-TERM HOLDINGS" scratch` (another watchlist's name) | 1 |
+| `watchlist rename "LONG-TERM HOLDINGS" "   "` | 2 |
+| `watchlist rename ... --json`: only the watchlist document on stdout | 0 |
+| `watchlist delete "Scratch"` with no `--yes` and no terminal | 2 |
+| `watchlist delete "Scratch" --yes` | 0 |
+| `watchlist delete "Scratch" --yes` again (now missing) | 1 |
+| `watchlist delete "Scratch" --yes --missing-ok` | 0 |
+| `watchlist delete "Scratch" --yes --missing-ok --json`: `{"requested_name": "Scratch", "deleted": false, "watchlist": null}` | 0 |
+| `watchlist list`: only "Long-Term Holdings" remains | 0 |
+
+The first smoke run found the defect recorded as B.4 item 5: the no-terminal `delete` reached the
+confirmation prompt instead of exit 2. It was fixed and the smoke rerun; the table is the rerun.
+
+**Not verified by the agent.** The fix asks Windows whether standard input is a real console. The
+agent's shell has no console, so the "yes, a real terminal" answer was not exercised; the project owner
+should confirm that `ian watchlist delete NAME` prompts in an interactive PowerShell or Windows Terminal
+window. The non-console answers were verified with standard input redirected from `NUL` and from a pipe.
 
 ## 6. Background: the problem and the facts the design relies on
 
@@ -367,3 +431,12 @@ schema, a saved run or an analysis result.
    watchlist snapshot today; it exists only inside the stored run envelope. The user documentation says so
    accurately, and the rename test asserts the stored snapshot through the run repository instead of through
    CLI output. No projection or `--json` payload changed.
+5. **A Windows script's standard input counted as a terminal (IR.6.2, found by the live smoke).** D2 requires
+   a non-interactive standard input without `--yes` to be a usage error (exit 2) before the database is
+   opened. Windows reports the `NUL` device, which is what a script's redirected-from-nothing standard input
+   is, as a terminal, so `sys.stdin.isatty()` alone sent such a script to the confirmation prompt. The
+   interactivity helper now also asks Windows whether standard input is a real console. This is a separate
+   commit after IR.6.3, with its own gate, because it was found after IR.6.3 was committed.
+6. **`ARCHITECTURE.md` listed the watchlist repository's methods (IR.6.3 and the completion commit).** The
+   repository table named the methods before delete, rename and the count-only summary existed; it now
+   lists them.
