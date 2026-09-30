@@ -1,4 +1,4 @@
-"""SQLite-backed watchlist repository: create, entry edits, reopen.
+"""SQLite-backed watchlist repository: create, delete, entry edits, reopen.
 
 No provider, network, or analysis work occurs here; only reads/writes against
 a caller-owned, already-migrated :class:`SQLiteDatabase`. Conflicts and
@@ -15,6 +15,7 @@ left behind by a deletion.
 """
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -48,6 +49,28 @@ class WatchlistNotFoundError(ValueError):
 
 class WatchlistEntryNotFoundError(ValueError):
     """No entry exists at the requested 0-based position."""
+
+
+@dataclass(frozen=True)
+class DeletedWatchlist:
+    """What :meth:`SQLiteWatchlistRepository.delete` removed.
+
+    The identity and stored entry count always come from the stored rows. Exactly one of
+    ``watchlist`` (every entry decoded, as it was immediately before deletion) and ``unreadable``
+    (the error for the first entry this version cannot decode) is set: deletion never depends on
+    decoding, so a watchlist holding an entry stored by an earlier version is still deleted.
+    """
+
+    watchlist_id: UUID
+    display_name: str
+    entry_count: int
+    watchlist: Watchlist | None
+    unreadable: StoredSelectionError | None
+
+    def __post_init__(self) -> None:
+        """Require exactly one of the decoded aggregate and the decoding error."""
+        if (self.watchlist is None) == (self.unreadable is None):
+            raise ValueError("DeletedWatchlist holds exactly one of watchlist and unreadable.")
 
 
 def _normalize_name(name: str) -> str:
@@ -125,21 +148,73 @@ class SQLiteWatchlistRepository:
                 .mappings()
                 .all()
             )
-            summaries = [
-                WatchlistSummary(
-                    watchlist_id=UUID(row["watchlist_id"]),
-                    display_name=row["display_name"],
-                    entry_count=connection.execute(
-                        select(func.count())
-                        .select_from(watchlist_entries)
-                        .where(watchlist_entries.c.watchlist_id == row["watchlist_id"])
-                    ).scalar_one(),
-                    created_at=datetime.fromisoformat(row["created_at"]),
-                    updated_at=None if row["updated_at"] is None else datetime.fromisoformat(row["updated_at"]),
-                )
-                for row in rows
-            ]
+            summaries = [self._summarize(connection, row) for row in rows]
         return tuple(summaries)
+
+    @staticmethod
+    def _summarize(connection: Connection, row: RowMapping) -> WatchlistSummary:
+        """Build one summary from a watchlist row and a count of its stored entries, decoding none."""
+        return WatchlistSummary(
+            watchlist_id=UUID(row["watchlist_id"]),
+            display_name=row["display_name"],
+            entry_count=connection.execute(
+                select(func.count())
+                .select_from(watchlist_entries)
+                .where(watchlist_entries.c.watchlist_id == row["watchlist_id"])
+            ).scalar_one(),
+            created_at=datetime.fromisoformat(row["created_at"]),
+            updated_at=None if row["updated_at"] is None else datetime.fromisoformat(row["updated_at"]),
+        )
+
+    def summary(self, name: str) -> WatchlistSummary:
+        """Return one watchlist's identity and stored entry count without decoding any entry.
+
+        Raises:
+            WatchlistNotFoundError: If no watchlist matches ``name``.
+        """
+        with self._database.read() as connection:
+            row = (
+                connection.execute(select(watchlists).where(watchlists.c.normalized_name == _normalize_name(name)))
+                .mappings()
+                .one_or_none()
+            )
+            if row is None:
+                raise WatchlistNotFoundError(f"No watchlist named {name!r} exists.")
+            return self._summarize(connection, row)
+
+    def delete(self, name: str) -> DeletedWatchlist:
+        """Delete a watchlist and all its entries in one transaction, without decoding any entry.
+
+        Saved Analysis Runs are not touched: they carry their own snapshot of the watchlist's
+        identity. The entries are deleted explicitly and then the watchlist row; the schema's
+        cascade would also remove them. The decoded aggregate, if every entry can be read, is
+        loaded inside the transaction before the rows are removed. An unreadable entry is reported
+        in the result and never prevents or rolls back the deletion.
+
+        Raises:
+            WatchlistNotFoundError: If no watchlist matches ``name``.
+        """
+        with self._database.transaction() as connection:
+            watchlist_id = self._find_id(connection, name)
+            row = (
+                connection.execute(select(watchlists).where(watchlists.c.watchlist_id == watchlist_id)).mappings().one()
+            )
+            entry_count = self._summarize(connection, row).entry_count
+            aggregate: Watchlist | None = None
+            unreadable: StoredSelectionError | None = None
+            try:
+                aggregate = self._load(connection, watchlist_id)
+            except StoredSelectionError as exc:
+                unreadable = exc
+            connection.execute(delete(watchlist_entries).where(watchlist_entries.c.watchlist_id == watchlist_id))
+            connection.execute(delete(watchlists).where(watchlists.c.watchlist_id == watchlist_id))
+            return DeletedWatchlist(
+                watchlist_id=UUID(watchlist_id),
+                display_name=row["display_name"],
+                entry_count=entry_count,
+                watchlist=aggregate,
+                unreadable=unreadable,
+            )
 
     def add_entries(self, name: str, entries: Sequence[tuple[str, AnalysisSelection]]) -> Watchlist:
         """Append one entry per (ticker, selection) pair, after the current highest position.
@@ -338,6 +413,7 @@ class SQLiteWatchlistRepository:
 
 
 __all__ = [
+    "DeletedWatchlist",
     "SQLiteWatchlistRepository",
     "WatchlistConflictError",
     "WatchlistEntryNotFoundError",

@@ -516,3 +516,59 @@ def test_runs_list_by_alias_does_not_decode_a_watchlists_unreadable_entries() ->
 
     assert result.exit_code == 0, result.output
     assert "No matching runs." in result.output
+
+
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+def test_delete_keeps_saved_runs_browsable_and_replayable(mock_run: MagicMock) -> None:
+    mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
+    _create_momentum_only("Scratch", ["AAPL"])
+    assert runner.invoke(app, ["refresh", "Scratch", "--workers", "1"]).exit_code == 0
+    (saved,) = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)
+
+    deleted = runner.invoke(app, ["watchlist", "delete", "Scratch", "--yes"])
+    listed = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)
+    shown = runner.invoke(app, ["runs", "show", saved["analysis_run_id"]])
+
+    assert deleted.exit_code == 0, deleted.output
+    assert [item["analysis_run_id"] for item in listed] == [saved["analysis_run_id"]]
+    assert shown.exit_code == 0, shown.output
+
+
+def test_delete_commits_when_an_entry_is_unreadable_in_text_mode() -> None:
+    """D6: delete needs no decoded entry, so a retired stored entry cannot prevent it."""
+    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+
+    result = runner.invoke(app, ["watchlist", "delete", "Old Watch", "--yes"])
+
+    assert result.exit_code == 0, result.output
+    output = normalize_cli_output(result.output)
+    assert output.startswith("Deleted watchlist 'Old Watch' (")
+    assert "2 entries" in output
+    assert "can no longer be read" not in output
+    assert _stored_tickers() == []
+    assert "No watchlists exist yet." in runner.invoke(app, ["watchlist", "list"]).output
+
+
+def test_delete_prompt_shows_the_entry_count_without_decoding_unreadable_entries() -> None:
+    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+
+    with patch("src.cli_workspace._stdin_is_interactive", return_value=True):
+        declined = runner.invoke(app, ["watchlist", "delete", "Old Watch"], input="n\n")
+
+    assert declined.exit_code == 1
+    assert "2 entries" in normalize_cli_output(declined.output)
+    assert _stored_tickers() == ["AAPL", "MSFT"]
+
+
+def test_delete_json_with_an_unreadable_entry_deletes_prints_no_stdout_and_exits_1() -> None:
+    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+
+    result = runner.invoke(app, ["watchlist", "delete", "Old Watch", "--yes", "--json"])
+
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    message = normalize_cli_output(result.stderr)
+    assert message.startswith("Deleted watchlist 'Old Watch' (")
+    assert "2 entries). Saved Analysis Runs are kept." in message
+    assert "entry 2 (MSFT, momentum): saved by an earlier version" in message
+    assert _stored_tickers() == []

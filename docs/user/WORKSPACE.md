@@ -103,6 +103,35 @@ uv run ian watchlist remove-method "Core Holdings" --analysis graham-number
 
 Every command that removes entries starts with `remove-`, and text output names methods by the same hyphenated names you type (`momentum`, `graham-number`, `graham-growth`, `fcf-growth`). `--json` output keeps the stored method identifiers (`sma_crossover`, `graham_number`, `graham_growth_value`, `reported_fcf_eps_cagr`), which never change.
 
+### Deleting a watchlist
+
+```bash
+uv run ian watchlist delete "Scratch"
+```
+
+On an interactive terminal this shows the watchlist's name, ID and entry count and asks for confirmation; answering no deletes nothing and exits `1`. Anywhere else (a script, an agent, a pipe) there is no one to ask, so `--yes` is required and its absence is a usage error (exit `2`) before the database is opened:
+
+```bash
+uv run ian watchlist delete "Scratch" --yes
+```
+
+Deleting removes the watchlist and its entries. **Saved Analysis Runs are kept**: each run carries its own snapshot of the watchlist's name and ID, so `runs list` and `runs show` still work afterward. Creating a new watchlist with the same name gives it a new ID; the old runs stay tied to the old one.
+
+An unknown name is exit `1`, like every other watchlist command. For idempotent cleanup, `--missing-ok` turns that into exit `0` with nothing deleted:
+
+```bash
+uv run ian watchlist delete "Scratch" --yes --missing-ok
+```
+
+`--json` prints one document, with `watchlist` holding the same document `watchlist show --json` prints for the watchlist as it was just before deletion (or `null` when nothing was deleted):
+
+```text
+{"requested_name": "Scratch", "deleted": true, "watchlist": {...}}
+{"requested_name": "Nonexistent", "deleted": false, "watchlist": null}
+```
+
+A watchlist holding an entry saved by an earlier version, which this version can no longer read, is still deleted. In text mode that succeeds quietly. With `--json` there is no entry document to print, so stdout stays empty, the confirmation and the one-line error naming the unreadable entry go to stderr, and the exit code is `1`.
+
 ### Method-specific flags
 
 These are the flags `watchlist create --analysis METHOD` and `watchlist add-selection --analysis METHOD` accept, one method at a time. They mirror that method's direct command exactly — same names, same defaults, same required fields.

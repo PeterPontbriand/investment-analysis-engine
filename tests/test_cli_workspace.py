@@ -772,3 +772,137 @@ def test_removal_confirmation_lines_name_the_alias_never_the_canonical_id() -> N
     removed = runner.invoke(app, ["watchlist", "remove-method", "Confirm Lines", "--analysis", "graham-growth"])
     assert removed.output.splitlines()[0] == "Removed 2 entries for graham-growth from watchlist 'Confirm Lines'."
     assert "graham_growth_value" not in removed.output
+
+
+def _database_path() -> Path:
+    return Path(src.cli_workspace.settings.database_url.removeprefix("sqlite:///"))
+
+
+def _seed_for_delete(name: str = "Scratch") -> None:
+    _create(name)
+    runner.invoke(app, ["watchlist", "add-selection", name, "AAPL", "MSFT", "--analysis", "momentum"])
+
+
+def _listed_names() -> str:
+    return normalize_cli_output(runner.invoke(app, ["watchlist", "list"]).output)
+
+
+def test_watchlist_delete_with_yes_deletes_and_says_runs_are_kept() -> None:
+    _seed_for_delete()
+
+    result = runner.invoke(app, ["watchlist", "delete", "scratch", "--yes"])
+
+    assert result.exit_code == 0, result.output
+    output = normalize_cli_output(result.output)
+    assert output.startswith("Deleted watchlist 'Scratch' (")
+    assert "2 entries" in output
+    assert "Saved Analysis Runs are kept." in output
+    assert "No watchlists exist yet." in _listed_names()
+
+
+def test_watchlist_delete_json_carries_the_watchlist_show_document() -> None:
+    _seed_for_delete()
+    shown = json.loads(runner.invoke(app, ["watchlist", "show", "Scratch", "--json"]).output)
+
+    result = runner.invoke(app, ["watchlist", "delete", "Scratch", "--yes", "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.stdout) == {"requested_name": "Scratch", "deleted": True, "watchlist": shown}
+
+
+def test_watchlist_delete_non_interactive_without_yes_is_a_usage_error_and_changes_nothing() -> None:
+    _seed_for_delete()
+    before = _database_path().read_bytes()
+
+    with patch("src.cli_workspace._stdin_is_interactive", return_value=False):
+        result = runner.invoke(app, ["watchlist", "delete", "Scratch"])
+
+    assert result.exit_code == 2
+    assert "--yes" in normalize_cli_output(result.output)
+    assert _database_path().read_bytes() == before
+
+
+def test_watchlist_delete_non_interactive_check_happens_before_the_database_is_opened() -> None:
+    with (
+        patch("src.cli_workspace._stdin_is_interactive", return_value=False),
+        patch.object(SQLiteDatabase, "__init__", side_effect=AssertionError("must not open a database")),
+    ):
+        result = runner.invoke(app, ["watchlist", "delete", "Scratch"])
+
+    assert result.exit_code == 2
+
+
+def test_watchlist_delete_interactive_confirm_shows_name_id_and_count_then_deletes() -> None:
+    _seed_for_delete()
+
+    with patch("src.cli_workspace._stdin_is_interactive", return_value=True):
+        result = runner.invoke(app, ["watchlist", "delete", "Scratch"], input="y\n")
+
+    assert result.exit_code == 0, result.output
+    output = normalize_cli_output(result.output)
+    assert "Scratch" in output
+    assert "2 entries" in output
+    assert "Deleted watchlist 'Scratch'" in output
+    assert "No watchlists exist yet." in _listed_names()
+
+
+def test_watchlist_delete_interactive_decline_exits_1_and_deletes_nothing() -> None:
+    _seed_for_delete()
+
+    with patch("src.cli_workspace._stdin_is_interactive", return_value=True):
+        result = runner.invoke(app, ["watchlist", "delete", "Scratch"], input="n\n")
+
+    assert result.exit_code == 1
+    assert "Nothing was deleted." in normalize_cli_output(result.output)
+    assert "Scratch" in _listed_names()
+
+
+def test_watchlist_delete_interactive_unknown_name_exits_1_before_prompting() -> None:
+    with patch("src.cli_workspace._stdin_is_interactive", return_value=True):
+        result = runner.invoke(app, ["watchlist", "delete", "Nonexistent"])
+
+    assert result.exit_code == 1
+    assert "No watchlist named 'Nonexistent' exists." in normalize_cli_output(result.output)
+
+
+def test_watchlist_delete_unknown_name_exits_1() -> None:
+    result = runner.invoke(app, ["watchlist", "delete", "Nonexistent", "--yes"])
+
+    assert result.exit_code == 1
+    assert "No watchlist named 'Nonexistent' exists." in normalize_cli_output(result.output)
+
+
+def test_watchlist_delete_missing_ok_on_an_unknown_name_exits_0_in_text_and_json() -> None:
+    text_result = runner.invoke(app, ["watchlist", "delete", "Nonexistent", "--yes", "--missing-ok"])
+    assert text_result.exit_code == 0, text_result.output
+    assert "Nothing was deleted." in normalize_cli_output(text_result.output)
+
+    json_result = runner.invoke(app, ["watchlist", "delete", "Nonexistent", "--yes", "--missing-ok", "--json"])
+    assert json_result.exit_code == 0, json_result.output
+    assert json.loads(json_result.stdout) == {"requested_name": "Nonexistent", "deleted": False, "watchlist": None}
+
+
+def test_watchlist_delete_missing_ok_on_an_existing_watchlist_deletes_normally() -> None:
+    _seed_for_delete()
+
+    result = runner.invoke(app, ["watchlist", "delete", "Scratch", "--yes", "--missing-ok"])
+
+    assert result.exit_code == 0, result.output
+    assert "Deleted watchlist 'Scratch'" in normalize_cli_output(result.output)
+    assert "No watchlists exist yet." in _listed_names()
+
+
+def test_watchlist_delete_leaves_other_watchlists_in_the_list() -> None:
+    _seed_for_delete("Scratch")
+    _create("Keeper")
+
+    runner.invoke(app, ["watchlist", "delete", "Scratch", "--yes"])
+
+    listed = _listed_names()
+    assert "Keeper" in listed
+    assert "Scratch" not in listed
+
+
+def test_watchlist_delete_help_has_no_storage_side_effects() -> None:
+    with patch.object(SQLiteDatabase, "__init__", side_effect=AssertionError("must not open a database for --help")):
+        assert runner.invoke(app, ["watchlist", "delete", "--help"]).exit_code == 0

@@ -30,8 +30,8 @@ written once, in final command names and final text vocabulary.
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | IR.6.1 | [Command vocabulary](#ir61--command-vocabulary) | Complete | 2026-09-30 |
-| IR.6.2 | [Delete](#ir62--delete) | Next | |
-| IR.6.3 | [Rename](#ir63--rename) | Planned | |
+| IR.6.2 | [Delete](#ir62--delete) | Complete | 2026-09-30 |
+| IR.6.3 | [Rename](#ir63--rename) | Next | |
 
 ## 3. The slices
 
@@ -343,3 +343,22 @@ commands and text renderers.
 Three sub-slices on that branch. Each ends with the managed gate and is gated by explicit
 authorization. Vocabulary goes first, so delete and rename are written once, in final command
 names and final text vocabulary.
+
+### B.4 Found during implementation
+
+Gaps in this plan found while implementing it, each fixed in the commit where it became visible and
+within the plan's stated goals. None changes a `--json` payload, a canonical `method_id`, the persisted
+schema, a saved run or an analysis result.
+
+1. **The alias mapping moved out of the CLI (IR.6.1).** A.1 has the repository's `StoredSelectionError`
+   builder print aliases, but the mapping lived in `src/cli_workspace.py` and the data layer cannot import
+   it. The mapping now lives in `src/workspace/method_aliases.py`, and the CLI and the repository both use
+   it; `_ANALYSIS_ALIASES` and `_ALIAS_METHOD_IDS` no longer exist in the CLI module.
+2. **An unmapped stored `method_id` is shown as stored (IR.6.1).** A.1 says an unmapped `method_id` in the
+   renderers is a programming error, not a fallback. That holds for decoded selections and stored run rows,
+   where the identifier is always one this version defines. The retired-selection error describes an entry
+   saved by an earlier version, whose method may no longer exist, so a KeyError there would hide the error
+   it exists to report. That one builder falls back to the identifier as stored. A repository test covers it.
+3. **A repository method that reads a watchlist's identity and entry count without decoding (IR.6.2).** A.2
+   requires the delete prompt to show the count from the stored rows but names no repository method for it.
+   `SQLiteWatchlistRepository.summary(name)` is that method, and `list()` builds its summaries the same way.

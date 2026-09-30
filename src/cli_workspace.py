@@ -12,6 +12,7 @@ to dispatch one refresh job per stored selection.
 
 import json
 import signal
+import sys
 import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -50,6 +51,7 @@ from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.readiness import DatabaseReadinessError, ensure_database_ready
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.repositories.watchlists import (
+    DeletedWatchlist,
     SQLiteWatchlistRepository,
     WatchlistConflictError,
     WatchlistEntryNotFoundError,
@@ -174,9 +176,9 @@ def _watchlist_text(watchlist: Watchlist, *, group_by: str = "ticker") -> str:
     return "\n".join(lines)
 
 
-def _watchlist_json(watchlist: Watchlist) -> str:
-    """Emit the flat, ordered entry list, each carrying the same 1-based index a user sees."""
-    payload = {
+def _watchlist_payload(watchlist: Watchlist) -> dict[str, object]:
+    """Build the flat, ordered entry list, each carrying the same 1-based index a user sees."""
+    return {
         "watchlist_id": str(watchlist.watchlist_id),
         "display_name": watchlist.display_name,
         "created_at": watchlist.created_at.isoformat(),
@@ -186,7 +188,11 @@ def _watchlist_json(watchlist: Watchlist) -> str:
             for index, entry in enumerate(watchlist.entries, start=1)
         ],
     }
-    return json.dumps(payload, ensure_ascii=False, allow_nan=False)
+
+
+def _watchlist_json(watchlist: Watchlist) -> str:
+    """Emit the complete watchlist document."""
+    return json.dumps(_watchlist_payload(watchlist), ensure_ascii=False, allow_nan=False)
 
 
 def _summary_line(summary: WatchlistSummary) -> str:
@@ -675,6 +681,64 @@ def watchlist_remove_method(
             _fail(str(exc))
         watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, method))
     typer.echo(_watchlist_text(watchlist))
+
+
+def _stdin_is_interactive() -> bool:
+    """Report whether standard input is an interactive terminal; the one seam tests control."""
+    return sys.stdin.isatty()
+
+
+@watchlist_app.command("delete")
+def watchlist_delete(
+    name: Annotated[str, typer.Argument(help="Watchlist name.")],
+    *,
+    yes: Annotated[bool, typer.Option("--yes", help="Delete without asking for confirmation.")] = False,
+    missing_ok: Annotated[
+        bool, typer.Option("--missing-ok", help="Exit 0 instead of 1 when no such watchlist exists.")
+    ] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit one JSON document describing the outcome.")] = False,
+) -> None:
+    """Delete a watchlist and its entries. Saved Analysis Runs are kept.
+
+    Asks for confirmation on an interactive terminal; without one, --yes is required.
+    """
+    if not yes and not _stdin_is_interactive():
+        raise typer.BadParameter("--yes is required when input is not interactive.", param_hint="--yes")
+    deleted: DeletedWatchlist | None = None
+    with _workspace_database() as database:
+        repository = SQLiteWatchlistRepository(database)
+        try:
+            if not yes:
+                summary = repository.summary(name)
+                question = (
+                    f"Delete watchlist {summary.display_name!r} (ID {summary.watchlist_id}, "
+                    f"{_plural_entries(summary.entry_count)})? Saved Analysis Runs are kept."
+                )
+                if not typer.confirm(question):
+                    typer.echo("Nothing was deleted.")
+                    raise typer.Exit(code=1)
+            deleted = repository.delete(name)
+        except WatchlistNotFoundError as exc:
+            if not missing_ok:
+                _fail(str(exc))
+    if deleted is None:
+        if json_output:
+            typer.echo(json.dumps({"requested_name": name, "deleted": False, "watchlist": None}, ensure_ascii=False))
+        else:
+            typer.echo(f"No watchlist named {name!r} exists. Nothing was deleted.")
+        return
+    confirmation = (
+        f"Deleted watchlist {deleted.display_name!r} ({deleted.watchlist_id}, {_plural_entries(deleted.entry_count)}). "
+        "Saved Analysis Runs are kept."
+    )
+    if not json_output:
+        typer.echo(confirmation)
+        return
+    if deleted.watchlist is None:
+        typer.echo(confirmation, err=True)
+        _fail(str(deleted.unreadable))
+    document = {"requested_name": name, "deleted": True, "watchlist": _watchlist_payload(deleted.watchlist)}
+    typer.echo(json.dumps(document, ensure_ascii=False, allow_nan=False))
 
 
 @watchlist_app.command("list")
