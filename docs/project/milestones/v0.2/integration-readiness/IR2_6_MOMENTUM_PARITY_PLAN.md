@@ -315,7 +315,7 @@ and add an acceptance record covering the gate result, the live smoke, the confo
 (§6.6) against the final state, the version fields changed across IR.2 (from §6.10 and this plan),
 and confirmation that no Alembic migration was added. The IR contract's own IR.2 row changes to
 Complete only if the project owner accepts the record. The ESC re-run (IR contract §5) is not part
-of this record: it runs once IR as a whole is complete, after IR.3 and IR.6.
+of this record: it runs once IR as a whole is complete, after IR.6 (IR.3 having moved out to the candidate backlog on 2026-09-30).
 
 ---
 

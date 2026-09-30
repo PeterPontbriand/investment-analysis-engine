@@ -174,7 +174,7 @@ Piotroski specifically (IR §5 item 7).
 
 ## 6. Relationship to other work packages — decided 2026-09-24
 
-Sequence: `IR` (IR.1, IR.2, IR.3 — renumbered from IR.4) → `SWC` (this package, including IR.5's absorbed scope) → `R3` →
+Sequence: `IR` (IR.1, IR.2 and the slices added since; the Momentum series API, once IR.3, moved to the candidate backlog on 2026-09-30) → `SWC` (this package, including IR.5's absorbed scope) → `R3` →
 `PKG` → Step 3.5.
 
 - **Depends on IR.** The `StrategyDescriptor.build_analyzer`-shaped callable only makes sense once
