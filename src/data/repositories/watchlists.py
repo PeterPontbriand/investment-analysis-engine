@@ -26,6 +26,7 @@ from sqlalchemy.exc import IntegrityError
 from src.core.clock import utc_now
 from src.data.repositories.schema import watchlist_entries, watchlists
 from src.data.repositories.sqlite import SQLiteDatabase
+from src.workspace.method_aliases import METHOD_ID_ALIASES
 from src.workspace.requests import AnalysisSelection
 from src.workspace.runs import Watchlist, WatchlistEntry, WatchlistSummary
 from src.workspace.watchlists import (
@@ -300,14 +301,20 @@ class SQLiteWatchlistRepository:
 
     @staticmethod
     def _decode_entry(display_name: str, index: int, entry_row: RowMapping) -> WatchlistEntry:
-        """Decode one stored entry, naming it and the command that removes it if it cannot be read."""
+        """Decode one stored entry, naming it and the command that removes it if it cannot be read.
+
+        The entry is named by its method alias when it has one. An entry stored by an earlier
+        version may carry a method identifier this version no longer maps, so the stored identifier
+        is shown as written rather than failing while reporting the failure.
+        """
         try:
             selection = decode_selection(
                 entry_row["method_id"], entry_row["config_schema_version"], entry_row["selection_json"]
             )
         except StoredSelectionError as exc:
+            method = METHOD_ID_ALIASES.get(entry_row["method_id"], entry_row["method_id"])
             raise StoredSelectionError(
-                f"Watchlist {display_name!r}, entry {index} ({entry_row['ticker']}, {entry_row['method_id']}): "
+                f"Watchlist {display_name!r}, entry {index} ({entry_row['ticker']}, {method}): "
                 f'{exc}. Remove it with: ian watchlist remove-entry "{display_name}" {index}'
             ) from exc
         return WatchlistEntry(ticker=entry_row["ticker"], selection=selection)

@@ -29,8 +29,8 @@ written once, in final command names and final text vocabulary.
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| IR.6.1 | [Command vocabulary](#ir61--command-vocabulary) | Planned | |
-| IR.6.2 | [Delete](#ir62--delete) | Planned | |
+| IR.6.1 | [Command vocabulary](#ir61--command-vocabulary) | Complete | 2026-09-30 |
+| IR.6.2 | [Delete](#ir62--delete) | Next | |
 | IR.6.3 | [Rename](#ir63--rename) | Planned | |
 
 ## 3. The slices

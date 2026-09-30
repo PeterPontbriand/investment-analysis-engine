@@ -69,6 +69,7 @@ from src.workspace.execution import (
 from src.workspace.fcf_growth_execution import execute_fcf_growth
 from src.workspace.graham_growth_execution import execute_graham_growth
 from src.workspace.graham_number_execution import execute_graham_number
+from src.workspace.method_aliases import ALIAS_METHOD_IDS, ANALYSIS_ALIASES, alias_for_method_id
 from src.workspace.models import RunOutcome
 from src.workspace.momentum_execution import capture_momentum, run_momentum
 from src.workspace.refresh import (
@@ -95,17 +96,6 @@ watchlist_app = typer.Typer(help="Manage named watchlists of tickers and their a
 runs_app = typer.Typer(help="Browse persisted Analysis Run history.")
 
 _MOMENTUM_CLI_DEFAULTS = MomentumConfig()
-
-# Amendment A1 (§12) keeps the existing hyphenated `--analysis` alias vocabulary
-# used by watchlist commands; the mismatch with `runs list --method`'s canonical
-# `method_id` values is a separately flagged, out-of-scope inconsistency.
-_ANALYSIS_ALIASES = ("momentum", "graham-number", "graham-growth", "fcf-growth")
-_ALIAS_METHOD_IDS = {
-    "momentum": "sma_crossover",
-    "graham-number": "graham_number",
-    "graham-growth": "graham_growth_value",
-    "fcf-growth": "reported_fcf_eps_cagr",
-}
 
 
 @contextmanager
@@ -145,9 +135,10 @@ def _selection_detail_text(selection: AnalysisSelection) -> str:
 
 
 def _selection_summary(selection: AnalysisSelection) -> str:
-    """Render one selection's method identifier and distinguishing fields, compactly."""
+    """Render one selection's method alias and distinguishing fields, compactly."""
     detail = _selection_detail_text(selection)
-    return f"{selection.method_id}: {detail}" if detail else selection.method_id
+    alias = alias_for_method_id(selection.method_id)
+    return f"{alias}: {detail}" if detail else alias
 
 
 def _entry_line(entry: WatchlistEntry, *, group_by: str) -> str:
@@ -170,7 +161,9 @@ def _watchlist_text(watchlist: Watchlist, *, group_by: str = "ticker") -> str:
         return "\n".join(lines)
 
     key_of: Callable[[WatchlistEntry], str] = (
-        (lambda entry: entry.selection.method_id) if group_by == "method" else (lambda entry: entry.ticker)
+        (lambda entry: alias_for_method_id(entry.selection.method_id))
+        if group_by == "method"
+        else (lambda entry: entry.ticker)
     )
     groups: dict[str, list[tuple[int, WatchlistEntry]]] = {}
     for index, entry in enumerate(watchlist.entries, start=1):
@@ -204,8 +197,8 @@ def _summary_line(summary: WatchlistSummary) -> str:
 def _parse_analysis(value: str) -> str:
     """Normalize and validate a watchlist ``--analysis`` alias."""
     normalized = value.strip().lower()
-    if normalized not in _ANALYSIS_ALIASES:
-        allowed = ", ".join(_ANALYSIS_ALIASES)
+    if normalized not in ANALYSIS_ALIASES:
+        allowed = ", ".join(ANALYSIS_ALIASES)
         raise typer.BadParameter(f"--analysis must be one of: {allowed}.")
     return normalized
 
@@ -646,8 +639,8 @@ def watchlist_remove_entry(
     typer.echo(_watchlist_text(watchlist))
 
 
-@watchlist_app.command("remove")
-def watchlist_remove(
+@watchlist_app.command("remove-ticker")
+def watchlist_remove_ticker(
     name: Annotated[str, typer.Argument(help="Watchlist name.")],
     tickers: Annotated[list[str], typer.Argument(help="Tickers to remove every entry for, across every method.")],
 ) -> None:
@@ -664,8 +657,8 @@ def watchlist_remove(
     typer.echo(_watchlist_text(watchlist))
 
 
-@watchlist_app.command("disable")
-def watchlist_disable(
+@watchlist_app.command("remove-method")
+def watchlist_remove_method(
     name: Annotated[str, typer.Argument(help="Watchlist name.")],
     *,
     analysis: Annotated[
@@ -677,7 +670,7 @@ def watchlist_disable(
     with _workspace_database() as database:
         repository = SQLiteWatchlistRepository(database)
         try:
-            removed = repository.remove_entries_for_method(name, _ALIAS_METHOD_IDS[method])
+            removed = repository.remove_entries_for_method(name, ALIAS_METHOD_IDS[method])
         except WatchlistNotFoundError as exc:
             _fail(str(exc))
         watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, method))
@@ -720,7 +713,12 @@ def watchlist_show(
 def runs_list(  # noqa: PLR0913
     *,
     ticker: Annotated[str | None, typer.Option("--ticker", help="Filter by exact normalized ticker.")] = None,
-    method: Annotated[str | None, typer.Option("--method", help="Filter by canonical method identifier.")] = None,
+    analysis: Annotated[
+        str | None,
+        typer.Option(
+            "--analysis", "-a", help="Filter by method: momentum, graham-number, graham-growth, or fcf-growth."
+        ),
+    ] = None,
     status: Annotated[str | None, typer.Option("--status", help="Filter by outcome.")] = None,
     refresh_id: Annotated[
         str | None, typer.Option("--refresh-id", help="Filter by refresh batch ID (the full UUID shown by 'refresh').")
@@ -733,7 +731,7 @@ def runs_list(  # noqa: PLR0913
     try:
         query = RunQuery(
             ticker=None if ticker is None else normalize_ticker(ticker),
-            method_id=method,
+            method_id=None if analysis is None else ALIAS_METHOD_IDS[_parse_analysis(analysis)],
             status=None if status is None else _parse_status(status),
             refresh_id=None if refresh_id is None else _parse_run_id(refresh_id, field="--refresh-id"),
             limit=limit,
@@ -812,7 +810,7 @@ def _parse_status(value: str) -> RunOutcome:
 
 def _run_summary_line(summary: AnalysisRunSummary) -> str:
     return (
-        f"{summary.analysis_run_id}  {summary.ticker:<10} {summary.method_id:<24} "
+        f"{summary.analysis_run_id}  {summary.ticker:<10} {alias_for_method_id(summary.method_id):<24} "
         f"{summary.status.value:<14} {summary.completed_at.isoformat()}"
     )
 
@@ -964,14 +962,13 @@ def _refresh_has_failure(summary: RefreshSummary) -> bool:
 def _refresh_text(summary: RefreshSummary) -> str:
     lines = [f"Refresh {summary.refresh_id} for {summary.watchlist_name!r}:"]
     for result in summary.results:
+        method = alias_for_method_id(result.method_id)
         if result.run is not None:
-            lines.append(
-                f"  {result.run.analysis_run_id}  {result.ticker:<10} {result.method_id:<24} {result.run.status.value}"
-            )
+            lines.append(f"  {result.run.analysis_run_id}  {result.ticker:<10} {method:<24} {result.run.status.value}")
         elif result.outcome is not None:
-            lines.append(f"  {'(not saved)':<38}{result.ticker:<10} {result.method_id:<24} {result.outcome.value}")
+            lines.append(f"  {'(not saved)':<38}{result.ticker:<10} {method:<24} {result.outcome.value}")
         else:
-            lines.append(f"  {'':<38}{result.ticker:<10} {result.method_id:<24} error: {result.error}")
+            lines.append(f"  {'':<38}{result.ticker:<10} {method:<24} error: {result.error}")
     counts = ", ".join(f"{key}={value}" for key, value in sorted(summary.counts.items()))
     lines.append(f"Counts: {counts}" if counts else "Counts: (none)")
     return "\n".join(lines)

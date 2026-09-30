@@ -213,7 +213,7 @@ def test_a_retired_version_one_momentum_entry_reports_a_readable_error(arguments
     assert result.exit_code == 1
     message = normalize_cli_output(result.output)
     assert message.strip() == (
-        "Watchlist 'Old Watch', entry 2 (MSFT, sma_crossover): saved by an earlier version "
+        "Watchlist 'Old Watch', entry 2 (MSFT, momentum): saved by an earlier version "
         '(selection version 1) and can no longer be read. Remove it with: ian watchlist remove-entry "Old Watch" 2'
     )
 
@@ -243,7 +243,7 @@ def test_printed_removal_command_removes_one_unreadable_entry_at_a_time() -> Non
     expected_remaining = [["MSFT", "KO", "NVDA"], ["MSFT", "NVDA"], ["MSFT"]]
     expected_next = [("KO", "2"), ("NVDA", "2")]
     output = normalize_cli_output(shown.output)
-    assert "entry 1 (AAPL, sma_crossover)" in output
+    assert "entry 1 (AAPL, momentum)" in output
 
     for step, remaining in enumerate(expected_remaining):
         match = _REMOVAL_COMMAND.search(output)
@@ -256,7 +256,7 @@ def test_printed_removal_command_removes_one_unreadable_entry_at_a_time() -> Non
             ticker, next_index = expected_next[step]
             assert result.exit_code == 1
             assert output.startswith("Removed 1 entry from watchlist 'Old Watch'.")
-            assert f"entry {next_index} ({ticker}, sma_crossover)" in output
+            assert f"entry {next_index} ({ticker}, momentum)" in output
             assert f'remove-entry "Old Watch" {next_index}' in output
         else:
             assert result.exit_code == 0, output
@@ -274,12 +274,12 @@ def test_remove_by_ticker_commits_when_another_entry_is_unreadable() -> None:
     _create_momentum_only("Old Watch", ["AAPL", "MSFT", "KO"])
     _retire_momentum_entries("KO")
 
-    result = runner.invoke(app, ["watchlist", "remove", "Old Watch", "AAPL"])
+    result = runner.invoke(app, ["watchlist", "remove-ticker", "Old Watch", "AAPL"])
 
     assert result.exit_code == 1
     output = normalize_cli_output(result.output)
     assert output.startswith("Removed 1 entry for AAPL from watchlist 'Old Watch'.")
-    assert "entry 2 (KO, sma_crossover)" in output
+    assert "entry 2 (KO, momentum)" in output
     assert 'remove-entry "Old Watch" 2' in output
     assert _stored_tickers() == ["MSFT", "KO"]
 
@@ -289,7 +289,7 @@ def test_remove_by_ticker_counts_every_entry_it_removes_when_another_is_unreadab
     _seed("Old Watch", [("AAPL", momentum), ("KO", momentum), ("AAPL", GrahamNumberSelection())])
     _retire_momentum_entries("KO")
 
-    result = runner.invoke(app, ["watchlist", "remove", "Old Watch", "AAPL"])
+    result = runner.invoke(app, ["watchlist", "remove-ticker", "Old Watch", "AAPL"])
 
     assert result.exit_code == 1
     assert normalize_cli_output(result.output).startswith("Removed 2 entries for AAPL from watchlist 'Old Watch'.")
@@ -300,12 +300,12 @@ def test_remove_by_method_commits_when_another_entry_is_unreadable() -> None:
     _seed("Old Watch", [("KO", GrahamNumberSelection()), ("AAPL", MomentumSelection(short_window=2, long_window=3))])
     _retire_momentum_entries("AAPL")
 
-    result = runner.invoke(app, ["watchlist", "disable", "Old Watch", "--analysis", "graham-number"])
+    result = runner.invoke(app, ["watchlist", "remove-method", "Old Watch", "--analysis", "graham-number"])
 
     assert result.exit_code == 1
     output = normalize_cli_output(result.output)
     assert output.startswith("Removed 1 entry for graham-number from watchlist 'Old Watch'.")
-    assert "entry 1 (AAPL, sma_crossover)" in output
+    assert "entry 1 (AAPL, momentum)" in output
     assert _stored_tickers() == ["AAPL"]
 
 
@@ -493,3 +493,26 @@ def test_refresh_no_save_unavailable_outcome_still_exits_1() -> None:
 
     payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", SUBJECT_MISSING, "--json"]).output)
     assert payload == []
+
+
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+def test_refresh_text_shows_the_alias_and_json_keeps_the_canonical_method_id(mock_run: MagicMock) -> None:
+    mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
+    _create_momentum_only("My Watch", ["AAPL"])
+
+    text = runner.invoke(app, ["refresh", "My Watch", "--workers", "1", "--no-save"])
+    as_json = runner.invoke(app, ["refresh", "My Watch", "--workers", "1", "--no-save", "--json"])
+
+    assert "momentum" in text.output
+    assert "sma_crossover" not in text.output
+    assert json.loads(as_json.output)["results"][0]["method_id"] == "sma_crossover"
+
+
+def test_runs_list_by_alias_does_not_decode_a_watchlists_unreadable_entries() -> None:
+    """D6: the alias vocabulary reads run rows only, so a retired stored entry cannot affect it."""
+    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+
+    result = runner.invoke(app, ["runs", "list", "--analysis", "momentum"])
+
+    assert result.exit_code == 0, result.output
+    assert "No matching runs." in result.output

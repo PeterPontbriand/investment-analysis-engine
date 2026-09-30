@@ -22,7 +22,7 @@ from src.data.repositories.watchlists import (
 )
 from src.workspace.requests import GrahamGrowthSelection, GrahamNumberSelection
 from src.workspace.runs import Watchlist
-from src.workspace.watchlists import WatchlistSpec
+from src.workspace.watchlists import StoredSelectionError, WatchlistSpec
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)
 LATER = datetime(2026, 9, 18, 12, 5, 0, tzinfo=UTC)
@@ -324,3 +324,38 @@ def test_no_network_access(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         assert repository.get("offline") is not None
     finally:
         database.close()
+
+
+def _store_raw_entry(database: SQLiteDatabase, watchlist_id: UUID, *, method_id: str) -> None:
+    with database.transaction() as connection:
+        connection.execute(
+            watchlist_entries.insert().values(
+                watchlist_id=str(watchlist_id),
+                position=0,
+                ticker="KO",
+                method_id=method_id,
+                config_schema_version=1,
+                selection_json="{}",
+            )
+        )
+
+
+def test_an_unreadable_entry_is_named_by_its_method_alias(
+    repository: SQLiteWatchlistRepository, database: SQLiteDatabase
+) -> None:
+    watchlist = repository.create(WatchlistSpec(display_name="Old"))
+    _store_raw_entry(database, watchlist.watchlist_id, method_id="graham_number")
+
+    with pytest.raises(StoredSelectionError, match=r"entry 1 \(KO, graham-number\)"):
+        repository.get("Old")
+
+
+def test_an_unreadable_entry_with_an_unmapped_method_id_is_named_as_stored(
+    repository: SQLiteWatchlistRepository, database: SQLiteDatabase
+) -> None:
+    """A method retired by an earlier version has no alias; the error still names the entry."""
+    watchlist = repository.create(WatchlistSpec(display_name="Old"))
+    _store_raw_entry(database, watchlist.watchlist_id, method_id="retired_method")
+
+    with pytest.raises(StoredSelectionError, match=r"entry 1 \(KO, retired_method\)"):
+        repository.get("Old")

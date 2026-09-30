@@ -53,11 +53,11 @@ Watchlist: Core Holdings
 ID: 5f1c9e2a-...
 Entries (4):
   AAPL:
-    [1] sma_crossover: long_window=200, rsi_period=14, short_window=50
-    [2] graham_number: as_of=None, bvps_override=None, eps_basis=three_year_average, security_provider_id=sec_edgar, ...
-    [3] graham_number: as_of=None, bvps_override=12.5, eps_basis=ttm, security_provider_id=massive, ...
+    [1] momentum: long_window=200, rsi_period=14, short_window=50
+    [2] graham-number: as_of=None, bvps_override=None, eps_basis=three_year_average, security_provider_id=sec_edgar, ...
+    [3] graham-number: as_of=None, bvps_override=12.5, eps_basis=ttm, security_provider_id=massive, ...
   MSFT:
-    [4] sma_crossover: long_window=200, rsi_period=14, short_window=50
+    [4] momentum: long_window=200, rsi_period=14, short_window=50
 ```
 
 Entries are grouped by ticker by default; `--group-by method` groups them by method instead — useful once a watchlist has several tickers sharing the same handful of methods. Either way, the number in front of each entry is the same 1-based index `remove-entry` expects, so what you see is exactly what you'd type back in.
@@ -97,9 +97,11 @@ uv run ian watchlist remove-entry "Core Holdings" 3
 Remove every entry for a ticker (across every method) or every entry for a method (across every ticker):
 
 ```bash
-uv run ian watchlist remove "Core Holdings" KO
-uv run ian watchlist disable "Core Holdings" --analysis graham-number
+uv run ian watchlist remove-ticker "Core Holdings" KO
+uv run ian watchlist remove-method "Core Holdings" --analysis graham-number
 ```
+
+Every command that removes entries starts with `remove-`, and text output names methods by the same hyphenated names you type (`momentum`, `graham-number`, `graham-growth`, `fcf-growth`). `--json` output keeps the stored method identifiers (`sma_crossover`, `graham_number`, `graham_growth_value`, `reported_fcf_eps_cagr`), which never change.
 
 ### Method-specific flags
 
@@ -122,10 +124,10 @@ uv run ian refresh "Core Holdings"
 
 ```text
 Refresh 7c1a... for 'Core Holdings':
-  3f9b...  AAPL       sma_crossover            completed
-  3f9c...  AAPL       graham_number            completed
-  3f9d...  MSFT       sma_crossover            completed
-  3f9e...  MSFT       graham_number            unavailable
+  3f9b...  AAPL       momentum                 completed
+  3f9c...  AAPL       graham-number            completed
+  3f9d...  MSFT       momentum                 completed
+  3f9e...  MSFT       graham-number            unavailable
 Counts: completed=3, unavailable=1
 ```
 
@@ -137,8 +139,8 @@ uv run ian refresh "Core Holdings" --no-save
 
 ```text
 Refresh 7c1a... for 'Core Holdings':
-  (not saved)                           AAPL       sma_crossover            completed
-  (not saved)                           AAPL       graham_number            completed
+  (not saved)                           AAPL       momentum                 completed
+  (not saved)                           AAPL       graham-number            completed
 Counts: completed=2
 ```
 
@@ -207,14 +209,14 @@ uv run ian runs list
 ```
 
 ```text
-3f9b...  AAPL       sma_crossover            completed      2026-09-19T14:02:11+00:00
-3f9c...  AAPL       graham_number            completed      2026-09-19T14:02:12+00:00
+3f9b...  AAPL       momentum                 completed      2026-09-19T14:02:11+00:00
+3f9c...  AAPL       graham-number            completed      2026-09-19T14:02:12+00:00
 ```
 
-Filter by ticker, method, outcome, or the refresh batch that produced a run:
+Filter by ticker, analysis, outcome, or the refresh batch that produced a run. `--analysis` (or `-a`) takes the same names as the watchlist commands:
 
 ```bash
-uv run ian runs list --ticker AAPL --method graham_number
+uv run ian runs list --ticker AAPL --analysis graham-number
 uv run ian runs list --status unavailable
 uv run ian runs list --refresh-id 7c1a...
 uv run ian runs list --json
