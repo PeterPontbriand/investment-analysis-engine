@@ -1,5 +1,6 @@
 """Focused tests for application settings used by user-facing runtime setup."""
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -168,3 +169,135 @@ def test_import_does_not_create_database(tmp_path: Path, monkeypatch: pytest.Mon
 
     assert result.returncode == 0, result.stderr
     assert not database_path.parent.exists()
+
+
+# --- Windows path anchoring guard -------------------------------------------------------------
+
+_PARTLY_ANCHORED = [
+    ("base_dir", Path("/e/Source/x"), "base_dir path '/e/Source/x' has a root but no drive letter"),
+    ("data_dir", Path("/e/Source/x"), "data_dir path '/e/Source/x' has a root but no drive letter"),
+    ("log_dir", Path("/e/Source/x"), "log_dir path '/e/Source/x' has a root but no drive letter"),
+    (
+        "telemetry_log_dir",
+        Path("/e/Source/x"),
+        "telemetry_log_dir path '/e/Source/x' has a root but no drive letter",
+    ),
+    ("data_dir", Path("E:data"), "data_dir path 'E:data' has a drive letter but no root"),
+    (
+        "database_url",
+        "sqlite:////e/Source/x.sqlite3",
+        "database_url path '/e/Source/x.sqlite3' has a root but no drive letter",
+    ),
+    ("database_url", "sqlite:///E:data/x.sqlite3", "database_url path 'E:data/x.sqlite3' has a drive letter"),
+    (
+        "database_url",
+        "sqlite+pysqlite:////e/Source/x.sqlite3",
+        "database_url path '/e/Source/x.sqlite3' has a root but no drive letter",
+    ),
+]
+
+
+@pytest.fixture
+def windows_rules(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Apply the Windows path rule on any operating system."""
+    monkeypatch.setattr("src.utils.paths.is_windows", lambda: True)
+    for name in ("log_dir", "telemetry_log_dir"):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.mark.usefixtures("windows_rules")
+@pytest.mark.parametrize(("field", "value", "message"), _PARTLY_ANCHORED)
+def test_partly_anchored_paths_are_rejected_on_windows(field: str, value: object, message: str) -> None:
+    # Only the value under test is set: under the Windows rule a real POSIX absolute path such as
+    # tmp_path is itself partly anchored, so it must not be fed through a checked setting.
+    with pytest.raises(ValidationError, match=re.escape(message)):
+        ProjectSettings.model_validate({field: value})
+
+
+@pytest.mark.usefixtures("windows_rules")
+@pytest.mark.parametrize(("field", "value", "message"), _PARTLY_ANCHORED)
+def test_partly_anchored_paths_are_rejected_from_the_environment(
+    field: str, value: object, message: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(field, str(value))
+    with pytest.raises(ValidationError, match=re.escape(message)):
+        ProjectSettings()
+
+
+@pytest.mark.parametrize(("field", "value", "message"), _PARTLY_ANCHORED)
+def test_partly_anchored_paths_are_not_checked_off_windows(
+    field: str, value: object, message: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    del message
+    monkeypatch.setattr("src.utils.paths.is_windows", lambda: False)
+    ProjectSettings.model_validate({field: value})
+
+
+@pytest.mark.usefixtures("windows_rules")
+def test_a_rejected_path_creates_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(ValidationError):
+        ProjectSettings(database_url="sqlite:////e/Source/x/y.sqlite3")
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.usefixtures("windows_rules")
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "sqlite:///data/x.sqlite3",
+        "sqlite:///.tmp/probe/x.sqlite3",
+        "sqlite:///E:/Source/x.sqlite3",
+        "sqlite:///E:\\Source\\x.sqlite3",
+        "sqlite://",
+        "sqlite:///:memory:",
+    ],
+)
+def test_relative_qualified_and_memory_database_urls_are_accepted_on_windows(database_url: str) -> None:
+    assert ProjectSettings(database_url=database_url).database_url
+
+
+@pytest.mark.usefixtures("windows_rules")
+def test_defaults_are_accepted_on_windows() -> None:
+    """The derived default paths are not user-set, so the guard does not check them on any OS."""
+    assert ProjectSettings().database_url
+
+
+@pytest.mark.parametrize("field", ["log_dir", "telemetry_log_dir"])
+def test_relative_log_directories_resolve_under_base_dir(
+    field: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    other = tmp_path / "elsewhere"
+    other.mkdir()
+    monkeypatch.chdir(other)
+    base = tmp_path / "application"
+
+    configured = ProjectSettings.model_validate({"base_dir": base, field: Path("my logs")})
+
+    assert getattr(configured, field) == (base / "my logs").resolve()
+
+
+@pytest.mark.parametrize("field", ["log_dir", "telemetry_log_dir"])
+def test_absolute_log_directories_are_preserved(field: str, tmp_path: Path) -> None:
+    target = tmp_path / "abs logs"
+
+    configured = ProjectSettings.model_validate({"base_dir": tmp_path / "application", field: target})
+
+    assert getattr(configured, field) == target.resolve()
+
+
+def test_log_directory_defaults_are_unchanged(tmp_path: Path) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+
+    configured = ProjectSettings(base_dir=tmp_path)
+
+    assert configured.log_dir == project_root / "logs"
+    assert configured.telemetry_log_dir == project_root / "logs"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="exercises the real Windows path rules")
+@pytest.mark.parametrize("database_url", ["sqlite:////e/Source/x.sqlite3", "sqlite:///E:data/x.sqlite3"])
+def test_partly_anchored_database_url_is_rejected_by_real_windows_rules(database_url: str, tmp_path: Path) -> None:
+    with pytest.raises(ValidationError, match="Windows would"):
+        ProjectSettings(base_dir=tmp_path, database_url=database_url)
+    assert list(tmp_path.iterdir()) == []

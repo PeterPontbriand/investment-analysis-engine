@@ -138,6 +138,9 @@ Strategies differ in what they compute, not in how they are invoked.
 
 - Primary development environment: Windows 11 + PowerShell.
 - Prefer portable path handling through `pathlib.Path`.
+- In Git Bash, give settings and CLI options Windows-form (`E:/...`) or relative paths; the settings loader
+  rejects a path with a root but no drive letter (`/e/...`). For throwaway smoke databases, prefer a relative
+  URL such as `sqlite:///.tmp/<name>/x.sqlite3`, which resolves under the project folder.
 - Execute project tools through `uv run ...` from the repository root.
 - Recommended local repair/check order:
   `uv run ruff check --fix .` → `uv run ruff format .` → type check → tests.

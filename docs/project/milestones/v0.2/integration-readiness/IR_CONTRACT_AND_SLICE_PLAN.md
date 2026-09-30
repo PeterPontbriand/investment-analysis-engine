@@ -40,6 +40,7 @@ see `docs/project/README.md`'s Quality gates section for the exact boundary.
 | IR.2 | [Analyzer envelope unification and Momentum parity](IR2_ANALYZER_ENVELOPE_PLAN.md) | Complete | 2026-09-29 |
 | IR.3 | [Momentum series API](#ir3--momentum-series-api) | Next | |
 | IR.6 | [Watchlist lifecycle completion](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md) | Planned | |
+| IR.8 | [Windows path anchoring guard](IR8_WINDOWS_PATH_ANCHORING_GUARD.md) | Complete | 2026-09-30 |
 
 `feat/ir-integration-readiness` is retired once PR #48 merges; all remaining IR work branches from `main`.
 
@@ -118,6 +119,21 @@ see `docs/project/README.md`'s Quality gates section for the exact boundary.
   (`scripts/check_doc_links.py`) to the quality gate.
 - **Branch:** its own, off `feat/ir-integration-readiness` (not `main`), merged back into it.
 - **Detail and completion record:** [IR7_ARCHITECTURE_DOC_CONTRIBUTOR_PASS.md](IR7_ARCHITECTURE_DOC_CONTRIBUTOR_PASS.md).
+
+### IR.8 — Windows path anchoring guard
+
+- **Problem:** on Windows, a path that is only partly anchored (`/e/Source/x`, how Git Bash writes
+  paths, or `E:data`) is accepted silently and resolves against the current drive, so SQLite or the
+  log handlers create folders outside the project.
+- **Decision:** reject such a path, with a message that names the setting and suggests the full path,
+  in the settings loader and in `evaluate --report`; show the reason in the `db` commands. No automatic
+  conversion, and no change on Linux or macOS.
+- **Scope:** `src/utils/paths.py`, `src/config.py`, `src/cli_database.py`, `src/cli.py` (`evaluate`),
+  `docs/user/DATABASE.md`, `AGENTS.md`, and tests. Relative `log_dir` and `telemetry_log_dir` now resolve
+  under the project folder.
+- **Branch:** `fix/ir8-windows-path-guard`, off `main`, merged to `main` on its own.
+- **Detail and completion record:** [IR8_WINDOWS_PATH_ANCHORING_GUARD.md](IR8_WINDOWS_PATH_ANCHORING_GUARD.md).
+  Complete pending the project owner's acceptance.
 
 ### Moved out: typed JSON envelopes (formerly IR.5)
 
