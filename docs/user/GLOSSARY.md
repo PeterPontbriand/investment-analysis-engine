@@ -20,7 +20,7 @@ A method is an application concept; it does not imply that Benjamin Graham or an
 The existing common analysis abstraction. Supporting multiple analyzers does not imply a separate strategy registry/plugin framework.
 
 ### Momentum Analyzer
-The existing deterministic technical-analysis strategy. The current implementation uses configurable short/long simple moving averages and crossover state.
+The existing deterministic technical-analysis strategy. The current implementation uses configurable short/long simple moving averages and crossover state, with RSI as a supporting indicator.
 
 ### Graham Number Strategy (`graham_number`)
 The implemented earnings-and-book-value screening strategy. It combines positive earnings per share and book value per share to estimate a conservative maximum indicated price for screening. Independent of Graham Growth Value — a different strategy with a different formula, not an alternative method of the same one.
