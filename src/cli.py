@@ -87,6 +87,7 @@ from src.reporting.graham_growth import GrahamGrowthPresentation, growth_with_pu
 from src.reporting.graham_number import GrahamNumberPresentation, number_with_public_quote_reason, render_graham_number
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
+from src.utils import paths
 from src.workspace.execution import (
     ExecutionCapture,
     execute,
@@ -723,6 +724,10 @@ def evaluate(  # noqa: PLR0913
     ),
 ) -> None:
     """Run the versioned Golden Suite and write one machine-readable report."""
+    try:
+        paths.require_anchored_path(report_path.as_posix(), name="--report", windows=paths.is_windows())
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--report") from exc
     requests = _select_evaluation_requests(case_id)
     _validate_evaluation_mode_options(
         mode,

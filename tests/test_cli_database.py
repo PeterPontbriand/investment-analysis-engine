@@ -3,6 +3,7 @@
 import json
 import shutil
 import sqlite3
+import sys
 from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
@@ -13,6 +14,7 @@ from typer.testing import CliRunner
 from src.cli import app
 from src.config import ProjectSettings
 from src.data.repositories import migrations, readiness, readiness_lock
+from tests._cli_helpers import normalize_cli_output
 
 
 @pytest.fixture
@@ -188,6 +190,49 @@ def test_invalid_target_is_sanitized_usage_error(target: Path, command: str, url
     assert result.exit_code == 2
     assert not result.stdout
     assert "private-password" not in result.output
+    assert not target.parent.exists()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="the db commands re-check every resolved path on Windows only")
+@pytest.mark.parametrize("command", ["status", "upgrade"])
+def test_a_partly_anchored_windows_path_is_rejected_with_the_reason(target: Path, command: str) -> None:
+    """Runs on Windows only.
+
+    The ``db`` commands rebuild settings from ``settings.model_dump()``, so every resolved path is checked
+    again. Simulating Windows elsewhere would therefore reject the real POSIX absolute paths, which are
+    partly anchored under the Windows rule, before reaching the URL under test.
+    """
+    result = CliRunner().invoke(app, ["db", command, "--database-url", "sqlite:////e/ir8-probe/x.sqlite3"])
+
+    assert result.exit_code == 2
+    output = normalize_cli_output(result.output)
+    assert "Select a valid local SQLite database URL: " in output
+    assert "database_url path '/e/ir8-probe/x.sqlite3' has a root but no drive letter" in output
+    assert "Use a full path such as 'E:/ir8-probe/x.sqlite3'" in output
+    assert "Value error" not in output
+    assert not target.parent.exists()
+
+
+@pytest.mark.parametrize("command", ["status", "upgrade"])
+@pytest.mark.parametrize(
+    ("url", "reason"),
+    [
+        ("postgresql://user:private-password@host/db", "database_url must use synchronous SQLite"),
+        ("sqlite://host/data", "database_url must not contain credentials, host, port, or query parameters."),
+        ("sqlite:///file:data", "SQLite file URI databases are not supported; use a filesystem path."),
+        ("not-a-url", "database_url must be a valid SQLite URL."),
+    ],
+)
+def test_existing_validation_reasons_are_shown_without_leaking_input(
+    target: Path, command: str, url: str, reason: str
+) -> None:
+    result = CliRunner().invoke(app, ["db", command, "--database-url", url])
+
+    assert result.exit_code == 2
+    output = normalize_cli_output(result.output)
+    assert f"Select a valid local SQLite database URL: {reason}" in output
+    assert "private-password" not in output
+    assert "Value error" not in output
     assert not target.parent.exists()
 
 

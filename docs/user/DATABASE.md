@@ -98,12 +98,26 @@ uv run --no-sync alembic upgrade head
 uv run --no-sync alembic current
 ```
 
-Bash example:
+Linux or macOS example:
 
 ```bash
 export database_url="sqlite:////srv/financial-data/investment-analysis-engine.sqlite3"
 uv run --no-sync alembic upgrade head
 ```
+
+Git Bash on Windows example:
+
+```bash
+export database_url="sqlite:///E:/FinancialData/investment-analysis-engine.sqlite3"
+uv run --no-sync alembic upgrade head
+```
+
+On Windows, a path that has a root but no drive letter (such as `/e/FinancialData/...`,
+which is how Git Bash writes paths) is rejected, because Windows would place it under
+the root of the current drive. The message suggests the full path; `cygpath -m <path>`
+converts a Git Bash path to the form to use. A path with a drive letter but no root
+(`E:data`) is rejected for the same reason. Relative paths and full paths that start
+with a drive letter or a network share are accepted.
 
 The environment setting lasts for the terminal session. Add `database_url` to
 local `.env` configuration to retain it. The directory must be writable.
