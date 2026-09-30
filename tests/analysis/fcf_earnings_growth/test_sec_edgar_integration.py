@@ -110,6 +110,7 @@ def test_real_sec_adapter_composes_a_complete_provenanced_series() -> None:
         subject_id="msft",
         currency="USD",
         as_of=NOW,
+        effective_as_of=NOW,
     )
 
     assert result.status is CalculationStatus.OK, result.reason
@@ -133,6 +134,7 @@ def test_unsupported_productive_assets_shape_remains_typed_unavailable() -> None
         subject_id="MSFT",
         currency="USD",
         as_of=NOW,
+        effective_as_of=NOW,
     )
 
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE

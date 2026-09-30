@@ -30,12 +30,20 @@ current codes:
 - `IR` — short for "Integration Readiness"
   ([contract](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md)): makes the existing four
   analyses safely consumable by an external harness (point-in-time evidence/filter provider, not a
-  trading-signal generator), scheduled after `R3` and before Step 3.5 for the same reason `R3`
-  precedes it — corrected before, not after, more analyzers are added.
+  trading-signal generator). **Reordered 2026-09-24 to run before `R3` and `SWC`**, not after —
+  IR.2 itself removes dead code and the per-strategy dispatch shape both of those packages would
+  otherwise have to audit or delete separately; see the
+  [milestone-plan status history](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#a6-milestone-plan-status-history).
 - `PKG` — the `src` → real top-level package rename ([plan](PKG_RENAME_PLAN.md)), split out of `IR`
   given its scale. Not `R4`, deliberately: that code is already used as a document-local
   requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted
   below for `graham-comparison`'s local `R1`/`R2`/`R3`.
+- `SWC` — short for "Strategy Wiring Consolidation"
+  ([proposal](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md)): replaces the per-strategy hand-wiring
+  duplicated across the orchestrator, workspace, codec, and reporting layers (and evaluation's
+  fixture composition) with one statically-declared strategy descriptor list, before Step 3.5
+  multiplies that duplication by five. Accepted 2026-09-24; not yet scoped into slices. Absorbs
+  IR.5's scope (typed JSON envelope models and generated schemas).
 
 Note the resulting collision: `graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md` uses its own
 document-local `R1 → R2 → R3` sequence (evidence → implementation → verification), unrelated to
@@ -43,27 +51,28 @@ this milestone's `R1`/`R2`/`R3` codes above — that document's own status line 
 evidence already folded into the Existing Strategy Correctness audit, so it carries no current
 sequencing meaning.
 
-| Order | Work | Status / next gate |
-| :--- | :--- | :--- |
-| 1 | Telemetry and native schema enforcement (2.1–2.2) | Implemented; model-specific empirical validation belongs to Light Mode. |
-| 2 | Graham, FCF growth, evaluation and SEC FPI/IFRS (2.3–2.5A) | Complete and accepted. |
-| 3 | Reliability, SQLite, analyzer/CLI separation and package split (2.6, 3.1, R1, R2) | Complete and accepted. |
-| 4 | Repositories, telemetry verification and data quality (3.2, Issue #17, 3.3) | Complete and accepted. |
-| 5 | Existing-analysis correctness | Initial audit/repair accepted; [renewal requirements](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status) remain applicable. |
-| 6 | [Database readiness (3.3A)](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete and accepted. |
-| 7 | [Research workspace (3.4)](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) | Complete and accepted; final acceptance granted 2026-09-20 (Amendment A1's I3). |
-| 8 | [Durable instrument profiles (P2-Profiles)](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete and accepted; final acceptance granted 2026-09-22 (see [final summary](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#153-milestone-summary)). |
-| 9 | [Existing-analysis renewal (ESC-D)](existing-strategy-correctness/ESC_D_RENEWAL_PLAN.md) | Complete and accepted; final acceptance granted 2026-09-23 (see [final acceptance record](existing-strategy-correctness/ESC_D_FINAL_ACCEPTANCE.md)). Full seven-dimension audit-matrix re-run found and repaired ESC-19; ESC-18 was corrected (its branch was already unreachable dead code, tracked as R3). No unresolved correctness defects. |
-| 10 | [Repository-wide dead code audit (R3)](R3_DEAD_CODE_AUDIT_PLAN.md) | Not started; next in sequence now that ESC-D is accepted. Scope/contract review required before implementation. |
-| 11 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md) | Scope drafted, pending review; scheduled after R3 and before Step 3.5 so the codebase's integration surface is corrected before more analyzers are added on top of it. IR.4 (Python-version reproducibility) was split out and delivered independently; see [IR4_PYTHON_VERSION_REPRODUCIBILITY.md](integration-readiness/IR4_PYTHON_VERSION_REPRODUCIBILITY.md). |
-| 12 | [`src` package rename (PKG)](PKG_RENAME_PLAN.md) | Not started; scheduled after IR and before Step 3.5, so Step 3.5's five new analyzers are written once under the final import path. |
-| 13 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Plan accepted; implementation waits for the dead code audit (R3), integration readiness (IR), and the package rename (PKG). |
-| 14 | Light Mode (3.6) | Not started; includes empirical model/schema and end-to-end workflow validation. |
-| Deferred | ETF aggregation (P2-ETF) | Separate prioritization and provider/product-policy approval after 3.6; not a validation prerequisite. |
-| Deferred | [Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export)](DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Decided as its own future work package; not started, and not to be scheduled until after Step 3.5. Discovered 2026-09 via the evidence provider roadmap. |
-| Deferred | [Structured error reporting for programmatic/agentic CLI consumers](DEFERRED_STRUCTURED_ERROR_REPORTING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
-| Deferred | [Prefix matching for Analysis Run/refresh IDs](DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
-| Deferred | [Deduplicate Momentum's instrument-profile composition sites](DEFERRED_MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) | Not started; discovered 2026-09-21 during P2-Profiles Slice D reconnaissance, raised again in PR #39 review. Scope/contract review required; not a validation prerequisite. |
+| Order | Work | Status | Completed |
+| :--- | :--- | :--- | :--- |
+| 1 | [Telemetry and native schema enforcement (2.1–2.2)](#41-step-21--trajectory-logging--telemetry) | Complete | 2026-08-17 |
+| 2 | [Graham, FCF growth, evaluation and SEC FPI/IFRS (2.3–2.5A)](#43-step-23--graham-methods-input-resolution--data-contracts) | Complete | 2026-09-02 |
+| 3 | [Reliability, SQLite, analyzer/CLI separation and package split (2.6, 3.1, R1, R2)](#46-step-26--circuit-breakers--timeout-limits) | Complete | 2026-09-07 |
+| 4 | [Repositories, telemetry verification and data quality (3.2, Issue #17, 3.3)](#48-step-32--dao--repository-layer) | Complete | 2026-09-08 |
+| 5 | [Existing-analysis correctness](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status) | Complete | 2026-09-11 |
+| 6 | [Database readiness (3.3A)](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete | 2026-09-13 |
+| 7 | [Research workspace (3.4)](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) | Complete | 2026-09-20 |
+| 8 | [Durable instrument profiles (P2-Profiles)](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete | 2026-09-22 |
+| 9 | [Existing-analysis renewal (ESC-D)](existing-strategy-correctness/ESC_D_RENEWAL_PLAN.md) | Complete | 2026-09-23 |
+| 10 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
+| 11 | [Strategy wiring consolidation (SWC)](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md) | Next | |
+| 12 | [Repository-wide dead code audit (R3)](R3_DEAD_CODE_AUDIT_PLAN.md) | Planned | |
+| 13 | [`src` package rename (PKG)](PKG_RENAME_PLAN.md) | Planned | |
+| 14 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Planned | |
+| 15 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
+| Deferred | [ETF aggregation (P2-ETF)](#47a-p2--durable-instrument-profiles--etf-aggregate-fcf-growth) | Deferred | |
+| Deferred | [Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export)](DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Deferred | |
+| Deferred | [Structured error reporting for programmatic/agentic CLI consumers](DEFERRED_STRUCTURED_ERROR_REPORTING.md) | Deferred | |
+| Deferred | [Prefix matching for Analysis Run/refresh IDs](DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Deferred | |
+| Deferred | [Deduplicate Momentum's instrument-profile composition sites](DEFERRED_MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) | Deferred | |
 
 ## 1. Purpose & Scope
 
@@ -129,7 +138,7 @@ approval. Follow the linked contract for local gates and scope changes.
 
 Trajectory logging separates typed, fail-open execution telemetry from operational logging. Retain provider-reported metrics, sanitize payloads before hashing/persistence, and preserve ordered span linkage.
 
-See [Architecture](../../ARCHITECTURE.md#8-logging-and-telemetry-boundary) and the [telemetry verification contract](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md).
+See [Architecture](../../ARCHITECTURE.md#logging-and-telemetry-boundary) and the [telemetry verification contract](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md).
 
 ### 4.2 Step 2.2 – Native Schema Enforcement
 
@@ -192,6 +201,8 @@ No ETF holdings ingestion or aggregation belongs to this deliverable.
 in item 6, and item 7. Preserve the separate evidence/product-policy gate before
 implementation. Do not create
 speculative ETF schemas or infrastructure while implementing P2-Profiles or 3.4.
+Deferred: separate prioritization and provider/product-policy approval after Step 3.6;
+not a Milestone v0.2 validation prerequisite.
 
 **Goal:** Replace repeated live descriptive/classification lookups with durable, time-aware instrument profiles and add a distinct look-through FCF-growth strategy for ETFs without changing the meaning of the existing company-level strategy.
 
@@ -357,7 +368,7 @@ The following quality checks must pass on every pull request within this milesto
 All of the following must be true before declaring the milestone complete and opening the v0.2.5 validation window:
 
 1. Steps 2.1–2.6 and 3.1–3.6, including the Step 3.4 research workspace and the Step 3.5 quantitative screening suite, are fully implemented and merged.
-2. Step 2.5 Golden-test suite exists, runs headlessly, exercises Momentum, both Graham methods, and Free Cash Flow & Earnings Growth, and reports strategy-selection, Graham method-selection, numerical-correctness, and overall pass rates against the ≥ 90 % target.
+2. Step 2.5 Golden-test suite exists, runs headlessly, exercises Momentum, Graham Number, Graham Growth Value, and Free Cash Flow & Earnings Growth as independent strategies, and reports strategy-selection, numerical-correctness, and overall pass rates against the ≥ 90 % target.
 3. A fresh repository clone running Light Mode setup instructions completes the investor workflow: direct/watchlist analysis (including selected Step 3.5 screens), refresh, persisted Analysis Run, concise view, detailed provenance, and bounded synthesis.
 4. CI pipeline is green on `main`.
 5. Master Plan and Discovery Workbook cross-references remain consistent.

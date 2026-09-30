@@ -118,7 +118,7 @@ def _run(analysis: GrahamGrowthAnalysis | None = None) -> AnalysisRun:
     return AnalysisRun(
         analysis_run_id=UUID("11111111-1111-4111-8111-111111111111"),
         ticker="KO",
-        analysis_id="graham",
+        analysis_id="graham_growth_value",
         method_id="graham_growth_value",
         config_schema_version=1,
         requested_config=GrahamGrowthSelection(expected_growth=6.0, aaa_yield_override=4.4),

@@ -69,7 +69,7 @@ def test_eps_override_bypasses_provider_and_cache(basis: str, value: float) -> N
 def test_eps_provider_cache_and_bypass_preserve_basis_and_provenance(basis: str) -> None:
     facts = _three_fy_facts() if basis == "three_year_average" else (_make_fact(basis="ttm"),)
     provider = FakeProvider(facts)
-    resolver = InputResolver(provider, InMemoryResolvedInputCache(), clock=lambda: NOW)
+    resolver = InputResolver(provider, InMemoryResolvedInputCache(clock=lambda: NOW), clock=lambda: NOW)
     results = [
         resolve_normalized_eps(
             resolver,

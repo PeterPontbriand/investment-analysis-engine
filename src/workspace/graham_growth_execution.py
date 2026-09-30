@@ -20,7 +20,9 @@ not an execution failure) maps to ``RunOutcome.COMPLETED``.
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
 from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
@@ -76,6 +78,9 @@ def execute_graham_growth(  # noqa: PLR0913
     policy: GrahamGrowthCalculationPolicy,
     profile_provider: object,
     *,
+    as_of: datetime | None,
+    executed_at: datetime,
+    use_cache: bool,
     profile_cache: InstrumentProfileResolver | None = None,
 ) -> GrahamGrowthCapture:
     """Compose the profile and run the existing Graham Growth analyzer.
@@ -88,6 +93,10 @@ def execute_graham_growth(  # noqa: PLR0913
             caller exactly as the CLI does today.
         profile_provider: The Yahoo-identity candidate source, exactly as
             the CLI supplies it today.
+        as_of: The requested point-in-time boundary, or None.
+        executed_at: The run's own execution clock, a single aware read of
+            "now" taken once by the caller.
+        use_cache: Whether resolved-input caching is enabled for this run.
         profile_cache: When supplied, resolves the profile through the
             durable P2-Profiles cache instead of composing live every call.
 
@@ -102,9 +111,10 @@ def execute_graham_growth(  # noqa: PLR0913
         yahoo_provider=profile_provider,
         profile_cache=profile_cache,
     )
-    analysis = GrahamGrowthAnalyzer(resolver, instrument_profile=composed_profile, policy=policy).run_analysis(
-        config, ticker=ticker
+    context = AnalysisContext(
+        as_of=as_of, executed_at=executed_at, use_cache=use_cache, instrument_profile=composed_profile
     )
+    analysis = GrahamGrowthAnalyzer(resolver, policy=policy).run_analysis(ticker, config, context)
     profile = analysis.instrument_profile or composed_profile
     return GrahamGrowthCapture(analysis=analysis, profile=profile, outcome=classify_graham_growth_outcome(analysis))
 

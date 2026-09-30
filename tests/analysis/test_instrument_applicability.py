@@ -7,7 +7,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.fcf_earnings_growth import FCFEarningsGrowthAnalyzer, FCFEarningsGrowthPolicy
+from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthConfig
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy
 from src.analysis.strategy.graham_growth.service import run_graham_growth_analysis
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly
@@ -133,13 +135,9 @@ def test_known_etf_short_circuits_company_fcf_before_annual_fact_resolution() ->
     profile = _profile(InstrumentKind.ETF, "ETF")
 
     result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
-        ticker="FLSW",
-        policy=FCFEarningsGrowthPolicy(),
-        currency="USD",
-        as_of=None,
-        provider_id="sec_edgar",
-        effective_as_of=NOW,
-        instrument_profile=profile,
+        "FLSW",
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id="sec_edgar"),
+        AnalysisContext(as_of=None, executed_at=NOW, use_cache=True, instrument_profile=profile),
     )
 
     assert result.execution_status is CalculationStatus.NOT_APPLICABLE
@@ -235,13 +233,9 @@ def test_fcf_profile_mismatch_precedes_applicability_and_resolution(known_etf: b
     profile = _profile(InstrumentKind.ETF, "ETF") if known_etf else _profile(None, "MUTUALFUND")
     with pytest.raises(ValueError, match="Instrument profile ticker does not match") as error:
         FCFEarningsGrowthAnalyzer(resolver).run_analysis(
-            ticker="OTHER",
-            policy=FCFEarningsGrowthPolicy(),
-            currency="USD",
-            as_of=NOW,
-            provider_id="sec_edgar",
-            effective_as_of=NOW,
-            instrument_profile=profile,
+            "OTHER",
+            FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id="sec_edgar"),
+            AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile),
         )
     assert str(error.value) == "Instrument profile ticker does not match the FCF & Earnings Growth analysis ticker."
     resolver.resolve.assert_not_called()
@@ -252,13 +246,11 @@ def test_fcf_etf_result_retains_caller_owned_messages_and_boundaries(include_yie
     resolver = MagicMock()
     profile = _profile(InstrumentKind.ETF, "ETF")
     result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
-        ticker=" flsw ",
-        policy=FCFEarningsGrowthPolicy(include_fcf_yield=include_yield),
-        currency="USD",
-        as_of=NOW,
-        provider_id="sec_edgar",
-        effective_as_of=NOW,
-        instrument_profile=profile,
+        " flsw ",
+        FCFEarningsGrowthConfig(
+            policy=FCFEarningsGrowthPolicy(include_fcf_yield=include_yield), currency="USD", provider_id="sec_edgar"
+        ),
+        AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile),
     )
     reason = (
         "Reported company free-cash-flow and diluted-EPS growth analysis does not apply directly to an ETF. "

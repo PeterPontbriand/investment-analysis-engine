@@ -43,9 +43,14 @@ class FixtureMarketDataProvider:
         """Retain the deterministic historical frame."""
         self._frame = frame
 
-    def fetch_historical_data(self, ticker: str, start_date: str, end_date: str | None = None) -> HistoricalMarketData:
-        """Return the complete fixture series so the resolver must truncate it."""
-        del ticker, start_date, end_date
+    def fetch_historical_data(
+        self, ticker: str, start_date: str, end_date: str | None = None, *, use_cache: bool = True
+    ) -> HistoricalMarketData:
+        """Return the complete fixture series so the resolver must truncate it.
+
+        ``use_cache`` is accepted for interface uniformity and ignored: this fixture has no cache.
+        """
+        del ticker, start_date, end_date, use_cache
         return HistoricalMarketData(
             frame=self._frame,
             context=MarketDataContext(

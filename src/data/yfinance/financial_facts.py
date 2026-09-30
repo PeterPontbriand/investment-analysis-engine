@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime
 
+from src.core.clock import utc_now
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import (
     FinancialFactRequest,
@@ -32,9 +33,14 @@ class YFinanceFinancialFactsAdapter:
     ) -> None:
         """Initialize with injectable market client and retrieval clock."""
         self._client = client or YFinanceClient()
-        self._clock = clock or (lambda: datetime.now(UTC))
+        self._clock = clock or utc_now
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Return one current quote fact, or explicit unavailability."""
         if not self._supports(request):
             return ()

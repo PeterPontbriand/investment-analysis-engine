@@ -54,6 +54,24 @@ In investor terms:
 
 See [Financial Math](../FINANCE_MATH.md#momentum-analysis-strategy) for the exact deterministic convention.
 
+## Point-in-time analysis and cache control
+
+```bash
+uv run ian momentum AAPL --as-of 2025-12-31
+uv run ian momentum AAPL --no-cache
+```
+
+| Option | Meaning |
+| :--- | :--- |
+| `--as-of DATE_OR_TIMESTAMP` | Use only price observations at or before this boundary, given as `YYYY-MM-DD` or a timezone-aware ISO-8601 timestamp. |
+| `--no-cache` | Bypass historical price cache reads and writes for this run. |
+
+The result reports the latest observation that remained after the boundary was applied, not the boundary you requested. A date-only boundary includes that whole day.
+
+Provider-adjusted prices are revised retroactively: splits and dividends restate history. An `--as-of` result is therefore filtered to a date but reflects today's adjusted view of the prices on that date, not the prices as they would have looked then. See [look-ahead bias](../GLOSSARY.md#look-ahead-bias).
+
+`--no-cache` affects the historical price cache only. With `--no-cache` and without `--save-run`, the command does not open or create the local database. `--save-run` stores the `--as-of` and `--no-cache` choices with the run, and refreshing a watchlist entry saved this way reuses them.
+
 ## Presentation modes
 
 ### Default

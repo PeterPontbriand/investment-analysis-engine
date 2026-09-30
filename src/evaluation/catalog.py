@@ -47,7 +47,7 @@ from src.orchestrator.analysis_tools import (
 )
 
 DETERMINISTIC_SUITE_ID: Final = "step-2.5-golden-minimum"
-DETERMINISTIC_SUITE_VERSION: Final = "h1-v3"
+DETERMINISTIC_SUITE_VERSION: Final = "h1-v4"
 DETERMINISTIC_FIXTURE_SET_VERSION: Final = "step-2.5-h1-v3"
 
 DETERMINISTIC_CASES: Final[tuple[Case, ...]] = (

@@ -1,6 +1,5 @@
 """Contract matrix for method-specific Graham requests."""
 
-from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -23,7 +22,7 @@ def test_provider_basis_matrix(growth: bool, provider: str, basis: str | None, b
     else:
         config_type = GrahamNumberConfig
         values["bvps_override"] = bvps
-    effective = basis or ("ttm" if growth and provider != "sec_edgar" else "three_year_average")
+    effective = basis or ("three_year_average" if provider == "sec_edgar" else "ttm")
     invalid = (
         (provider == "sec_edgar" and effective != "three_year_average")
         or (provider == "massive" and effective != "ttm")
@@ -36,7 +35,6 @@ def test_provider_basis_matrix(growth: bool, provider: str, basis: str | None, b
         config = config_type.model_validate(values)
         assert config.eps_basis == effective
         assert config.quote_provider_id == ("yfinance" if provider == "sec_edgar" else provider)
-        assert config.use_cache is True
 
 
 @pytest.mark.parametrize("config_type", [GrahamNumberConfig, GrahamGrowthConfig])
@@ -45,18 +43,14 @@ def test_normalization_frozen_and_roundtrip(config_type: type[GrahamNumberConfig
         "security_provider_id": " CUSTOM ",
         "quote_provider_id": " QUOTES ",
         "eps_basis": " TTM ",
-        "as_of": datetime(2025, 1, 1, tzinfo=UTC),
-        "use_cache": False,
     }
     if config_type is GrahamGrowthConfig:
         values.update(expected_growth=5.0, aaa_yield_override=4.5)
     config = config_type.model_validate(values)
     assert (config.security_provider_id, config.quote_provider_id, config.eps_basis) == ("custom", "quotes", "ttm")
-    assert config.as_of == values["as_of"]
-    assert config.use_cache is False
     assert config_type.model_validate_json(config.model_dump_json()) == config
     with pytest.raises(ValidationError, match="frozen"):
-        config.use_cache = True
+        config.eps_basis = "ttm"
 
 
 @pytest.mark.parametrize(
@@ -68,7 +62,6 @@ def test_normalization_frozen_and_roundtrip(config_type: type[GrahamNumberConfig
         ("eps_basis", " "),
         ("eps_basis", "annual"),
         ("eps_basis", 1),
-        ("as_of", datetime(2025, 1, 1)),
         ("eps_override", "4.5"),
         ("quote_override", True),
         ("method", None),

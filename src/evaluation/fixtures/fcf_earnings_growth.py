@@ -46,7 +46,12 @@ class FixtureAnnualFinancialFactsProvider:
         self.error_field = error_field
         self.requests: list[FinancialFactRequest] = []
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Return matching configured facts or raise the configured error."""
         self.requests.append(request)
         if request.field_name is self.error_field:

@@ -43,12 +43,17 @@ class _SecLabeledGrahamProvider:
     def __init__(self) -> None:
         self._delegate = FixtureFinancialFactsProvider()
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
-        return tuple(replace(fact, provider_id="sec_edgar") for fact in self._delegate.fetch_facts(request))
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
+        return tuple(
+            replace(fact, provider_id="sec_edgar")
+            for fact in self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
+        )
 
 
-def _resolver_side_effect(*, resolver_type: type, data_provider: str | None = None, cache: object = None) -> object:
-    del data_provider, cache
+def _resolver_side_effect(
+    *, resolver_type: type, data_provider: str | None = None, cache: object = None, clock: object = None
+) -> object:
+    del data_provider, cache, clock
     if resolver_type is GrahamNumberInputResolver:
         return GrahamNumberInputResolver(_SecLabeledGrahamProvider(), clock=lambda: NOW)
     return GrahamGrowthInputResolver(_SecLabeledGrahamProvider(), clock=lambda: NOW)
@@ -75,7 +80,7 @@ def _mock_momentum_run(ticker: str) -> MomentumRun:
     )
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(str(kwargs["ticker"]))
 

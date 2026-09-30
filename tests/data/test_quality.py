@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
+from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
 from src.data.base_client import DataFetchError
 from src.data.market_data import HistoricalMarketData, MarketDataContext
 from src.data.quality import (
@@ -214,14 +215,49 @@ def test_old_observation_without_age_policy_is_not_declared_stale_or_fresh() -> 
 
 
 @pytest.mark.parametrize(
+    ("offset", "expected"),
+    [
+        (timedelta(0), QualityOutcome.PASS),
+        (FROZEN_CLOCK_SKEW_TOLERANCE, QualityOutcome.PASS),
+        (FROZEN_CLOCK_SKEW_TOLERANCE + timedelta(seconds=1), QualityOutcome.FAIL),
+    ],
+)
+def test_observation_age_live_mode_tolerates_skew_within_bound(offset: timedelta, expected: QualityOutcome) -> None:
+    """A live (no ``as_of``) run tolerates a provider observation slightly ahead of ``now``."""
+    result = evaluate_freshness(
+        context=CONTEXT,  # analysis_as_of=None: live.
+        policy=FreshnessPolicy(observation_max_age=timedelta(days=10)),
+        observed_at=NOW + offset,
+    )
+    assert outcomes(result)["freshness.observation_age"] is expected
+
+
+def test_observation_age_as_of_mode_rejects_even_within_the_live_tolerance() -> None:
+    """An ``--as-of`` run rejects look-ahead even within what a live run would allow."""
+    as_of = NOW - timedelta(days=100)
+    context = replace(CONTEXT, analysis_as_of=as_of)
+    result = evaluate_freshness(
+        context=context,
+        policy=FreshnessPolicy(observation_max_age=timedelta(days=10)),
+        observed_at=as_of + timedelta(seconds=1),
+        available_at=as_of,
+    )
+    assert outcomes(result)["freshness.observation_age"] is QualityOutcome.FAIL
+
+
+@pytest.mark.parametrize(
     ("historical", "available", "expected"),
     [
         (False, None, QualityOutcome.INSUFFICIENT_EVIDENCE),
         (True, None, QualityOutcome.FAIL),
         (False, NOW, QualityOutcome.PASS),
         (True, NOW, QualityOutcome.PASS),
-        (False, NOW + timedelta(seconds=1), QualityOutcome.FAIL),
+        # Live mode tolerates skew up to FROZEN_CLOCK_SKEW_TOLERANCE, --as-of mode tolerates none.
+        (False, NOW + timedelta(seconds=1), QualityOutcome.PASS),
         (True, NOW + timedelta(seconds=1), QualityOutcome.FAIL),
+        (False, NOW + FROZEN_CLOCK_SKEW_TOLERANCE, QualityOutcome.PASS),
+        (False, NOW + FROZEN_CLOCK_SKEW_TOLERANCE + timedelta(seconds=1), QualityOutcome.FAIL),
+        (True, NOW + FROZEN_CLOCK_SKEW_TOLERANCE, QualityOutcome.FAIL),
     ],
 )
 def test_availability_boundary(historical: bool, available: datetime | None, expected: QualityOutcome) -> None:

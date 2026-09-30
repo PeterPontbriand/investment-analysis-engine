@@ -20,6 +20,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import select, update
 from sqlalchemy.engine import Connection, RowMapping
 
+from src.core.clock import utc_now
 from src.data.repositories.schema import instrument_profiles
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.security_identity import _normalized_required
@@ -98,7 +99,7 @@ class SQLiteInstrumentProfileRepository:
     ) -> None:
         """Retain a caller-owned, already-migrated database and injected clock/ID generator."""
         self._database = database
-        self._clock = clock if clock is not None else lambda: datetime.now(UTC)
+        self._clock = clock if clock is not None else utc_now
         self._id_factory = id_factory if id_factory is not None else uuid4
 
     def get(self, ticker: str) -> InstrumentProfileRecord | None:

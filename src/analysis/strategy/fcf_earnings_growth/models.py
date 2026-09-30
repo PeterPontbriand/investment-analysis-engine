@@ -113,6 +113,21 @@ class FCFEarningsGrowthPolicy:
     include_fcf_yield: bool = True
 
 
+@dataclass(frozen=True)
+class FCFEarningsGrowthConfig:
+    """The analyzer's complete per-call configuration: policy, currency, and provider selection.
+
+    Attributes:
+        policy: Investor-selectable controls for the run.
+        currency: Normalized three-letter ISO 4217 reporting currency.
+        provider_id: Canonical security-fact provider identifier.
+    """
+
+    policy: FCFEarningsGrowthPolicy
+    currency: str
+    provider_id: str
+
+
 # ---------------------------------------------------------------------------
 # Metric result
 # ---------------------------------------------------------------------------

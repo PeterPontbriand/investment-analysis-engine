@@ -34,7 +34,7 @@ def test_growth_default_routes_sec_three_year_average_and_yahoo_quote() -> None:
     assert result.exit_code == 0
     assert result.output.strip() == "ok"
     mock_build.assert_called_once_with(
-        resolver_type=GrahamGrowthInputResolver, data_provider=SEC_PROVIDER_ID, cache=ANY
+        resolver_type=GrahamGrowthInputResolver, data_provider=SEC_PROVIDER_ID, cache=ANY, clock=ANY
     )
     assert mock_run.call_args.kwargs["config"].security_provider_id == SEC_PROVIDER_ID
     assert mock_run.call_args.kwargs["config"].quote_provider_id == YFINANCE_PROVIDER_ID
@@ -50,7 +50,7 @@ def test_growth_explicit_massive_routes_ttm_and_massive_quote() -> None:
 
     assert result.exit_code == 0
     mock_build.assert_called_once_with(
-        resolver_type=GrahamGrowthInputResolver, data_provider=MASSIVE_PROVIDER_ID, cache=ANY
+        resolver_type=GrahamGrowthInputResolver, data_provider=MASSIVE_PROVIDER_ID, cache=ANY, clock=ANY
     )
     assert mock_run.call_args.kwargs["config"].security_provider_id == MASSIVE_PROVIDER_ID
     assert mock_run.call_args.kwargs["config"].quote_provider_id == MASSIVE_PROVIDER_ID
@@ -65,7 +65,7 @@ def test_growth_rejects_ttm_with_sec_before_provider_access() -> None:
 
     assert result.exit_code == 2
     normalized = normalize_cli_output(result.output)
-    assert "SEC EDGAR requires --eps-basis='three_year_average'" in normalized
+    assert "SEC EDGAR requires --eps-basis to be one of (fiscal_year, three_year_average)" in normalized
     assert "--eps-basis" in normalized
 
 

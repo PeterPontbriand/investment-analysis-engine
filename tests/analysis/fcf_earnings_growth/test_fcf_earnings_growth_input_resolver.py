@@ -84,6 +84,7 @@ def _resolve(
         subject_id="ACME",
         currency="USD",
         as_of=None,
+        effective_as_of=NOW,
         providers=_bindings(provider),
         cache=cache,
         clock=lambda: NOW,
@@ -277,6 +278,7 @@ def test_stale_cache_refreshes_all_fields() -> None:
         subject_id="ACME",
         currency="USD",
         as_of=None,
+        effective_as_of=now[0],
         providers=_bindings(seed),
         cache=cache,
         clock=lambda: now[0],
@@ -289,6 +291,7 @@ def test_stale_cache_refreshes_all_fields() -> None:
         subject_id="ACME",
         currency="USD",
         as_of=None,
+        effective_as_of=now[0],
         providers=_bindings(refresh),
         cache=cache,
         clock=lambda: now[0],
@@ -315,6 +318,7 @@ def test_historical_boundary_excludes_later_restatement() -> None:
         subject_id="ACME",
         currency="USD",
         as_of=boundary,
+        effective_as_of=boundary,
         providers=_bindings(provider),
         clock=lambda: NOW,
     )
@@ -367,6 +371,7 @@ def test_selected_fcf_per_share_requires_share_evidence() -> None:
         subject_id="ACME",
         currency="USD",
         as_of=None,
+        effective_as_of=NOW,
         providers=_bindings(provider),
         clock=lambda: NOW,
     )
@@ -382,8 +387,104 @@ def test_invalid_request_is_typed(subject: str, currency: str) -> None:
         subject_id=subject,
         currency=currency,
         as_of=None,
+        effective_as_of=NOW,
         providers=_bindings(provider),
         clock=lambda: NOW,
     )
     assert result.status is CalculationStatus.INVALID_INPUT
     assert result.reason_code is ReasonCode.INVALID_REQUEST
+
+
+def test_naive_effective_as_of_is_rejected() -> None:
+    provider = FixtureAnnualFinancialFactsProvider(())
+    result = resolve_annual_growth_series(
+        policy=FCFEarningsGrowthPolicy(),
+        subject_id="ACME",
+        currency="USD",
+        as_of=None,
+        effective_as_of=datetime(2026, 3, 1),  # noqa: DTZ001 - deliberately offset-naive
+        providers=_bindings(provider),
+        clock=lambda: NOW,
+    )
+    assert result.status is CalculationStatus.INVALID_INPUT
+    assert result.reason_code is ReasonCode.INVALID_REQUEST
+    assert "effective_as_of" in (result.reason or "")
+
+
+def test_live_runs_share_a_cache_key_regardless_of_executed_at() -> None:
+    """Two live runs share a cache key even though each run's own ``executed_at`` differs.
+
+    The cache key is keyed on the raw requested ``as_of``, never on the derived analysis
+    boundary -- see ARCHITECTURE.md's "Time and the analysis boundary" on stable cache keys
+    for live runs. Both runs share one clock, advanced between calls, because production never
+    lets a run's cache and its resolver disagree on ``executed_at`` -- both come from the same
+    composition-root reading (§3, "One clock per run").
+    """
+    clock = [NOW]
+    cache = InMemoryResolvedInputCache(clock=lambda: clock[0], ttl=timedelta(days=1))
+    first_provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    first = resolve_annual_growth_series(
+        policy=FCFEarningsGrowthPolicy(),
+        subject_id="ACME",
+        currency="USD",
+        as_of=None,
+        effective_as_of=clock[0],
+        providers=_bindings(first_provider),
+        cache=cache,
+        clock=lambda: clock[0],
+    )
+    assert first.status is CalculationStatus.OK
+    assert len(first_provider.requests) == 4
+
+    clock[0] += timedelta(hours=1)  # a later run's executed_at, well inside the 1-day TTL
+    second_provider = FixtureAnnualFinancialFactsProvider(())
+    second = resolve_annual_growth_series(
+        policy=FCFEarningsGrowthPolicy(),
+        subject_id="ACME",
+        currency="USD",
+        as_of=None,
+        effective_as_of=clock[0],
+        providers=_bindings(second_provider),
+        cache=cache,
+        clock=lambda: clock[0],
+    )
+    assert second.status is CalculationStatus.OK
+    assert second_provider.requests == []
+
+
+def test_as_of_boundary_does_not_reuse_a_live_runs_cache_entry() -> None:
+    """A historical ``as_of`` must miss the cache entry a live run populated.
+
+    Negative control for the stable-cache-key claim above: the cache key is built from the raw
+    requested ``as_of``, so a concrete boundary and a live ``None`` must be distinct keys even at
+    the same instant, not merely different ``executed_at`` values.
+    """
+    clock = [NOW]
+    cache = InMemoryResolvedInputCache(clock=lambda: clock[0], ttl=timedelta(days=1))
+    first_provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    first = resolve_annual_growth_series(
+        policy=FCFEarningsGrowthPolicy(),
+        subject_id="ACME",
+        currency="USD",
+        as_of=None,
+        effective_as_of=clock[0],
+        providers=_bindings(first_provider),
+        cache=cache,
+        clock=lambda: clock[0],
+    )
+    assert first.status is CalculationStatus.OK
+
+    clock[0] += timedelta(hours=1)
+    second_provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    second = resolve_annual_growth_series(
+        policy=FCFEarningsGrowthPolicy(),
+        subject_id="ACME",
+        currency="USD",
+        as_of=clock[0],
+        effective_as_of=clock[0],
+        providers=_bindings(second_provider),
+        cache=cache,
+        clock=lambda: clock[0],
+    )
+    assert second.status is CalculationStatus.OK
+    assert len(second_provider.requests) == 4

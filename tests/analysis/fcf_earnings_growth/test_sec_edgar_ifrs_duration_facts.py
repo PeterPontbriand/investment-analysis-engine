@@ -92,7 +92,7 @@ def test_ntr_exact_ifrs_duration_facts_preserve_lineage(
     adapter = _adapter("ntr")
 
     with adapter.analysis_scope(subject_id="NTR", provider_id=SEC_PROVIDER_ID, as_of=None):
-        facts = adapter.fetch_facts(_request("NTR", field))
+        facts = adapter.fetch_facts(_request("NTR", field), effective_as_of=NOW)
 
     assert len(facts) == 1
     assert facts[0].value == pytest.approx(expected_value)
@@ -112,7 +112,7 @@ def test_ifrs_capex_uses_positive_expenditure_without_absolute_value() -> None:
     adapter = _adapter("ntr", company_facts=payload)
 
     with adapter.analysis_scope(subject_id="NTR", provider_id=SEC_PROVIDER_ID, as_of=None):
-        facts = adapter.fetch_facts(_request("NTR", FinancialField.CAPITAL_EXPENDITURES))
+        facts = adapter.fetch_facts(_request("NTR", FinancialField.CAPITAL_EXPENDITURES), effective_as_of=NOW)
 
     assert facts == ()
 
@@ -121,7 +121,7 @@ def test_ifrs_capex_lineage_declares_positive_expenditure_sign() -> None:
     adapter = _adapter("ntr")
 
     with adapter.analysis_scope(subject_id="NTR", provider_id=SEC_PROVIDER_ID, as_of=None):
-        facts = adapter.fetch_facts(_request("NTR", FinancialField.CAPITAL_EXPENDITURES))
+        facts = adapter.fetch_facts(_request("NTR", FinancialField.CAPITAL_EXPENDITURES), effective_as_of=NOW)
 
     assert facts[0].capital_expenditure_sign is CapitalExpenditureSign.POSITIVE_EXPENDITURE
 
@@ -130,8 +130,12 @@ def test_sap_broader_capex_concept_is_not_substituted_or_summed() -> None:
     adapter = _adapter("sap")
 
     with adapter.analysis_scope(subject_id="SAP", provider_id=SEC_PROVIDER_ID, as_of=None):
-        operating_cash_flow = adapter.fetch_facts(_request("SAP", FinancialField.OPERATING_CASH_FLOW))
-        capital_expenditures = adapter.fetch_facts(_request("SAP", FinancialField.CAPITAL_EXPENDITURES))
+        operating_cash_flow = adapter.fetch_facts(
+            _request("SAP", FinancialField.OPERATING_CASH_FLOW), effective_as_of=NOW
+        )
+        capital_expenditures = adapter.fetch_facts(
+            _request("SAP", FinancialField.CAPITAL_EXPENDITURES), effective_as_of=NOW
+        )
 
     assert len(operating_cash_flow) == 1
     assert operating_cash_flow[0].provider_field == SEC_IFRS_OPERATING_CASH_FLOW_FIELD
@@ -150,4 +154,4 @@ def test_ifrs_mapping_does_not_enable_instant_bvps_components() -> None:
     )
 
     with adapter.analysis_scope(subject_id="NTR", provider_id=SEC_PROVIDER_ID, as_of=None):
-        assert adapter.fetch_facts(request) == ()
+        assert adapter.fetch_facts(request, effective_as_of=NOW) == ()

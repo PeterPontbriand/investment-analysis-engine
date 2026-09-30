@@ -179,7 +179,12 @@ class FixtureFinancialFactsProvider:
         """Anchor synthetic current-quote responses to the injected evaluation clock."""
         self._quote_retrieved_at = quote_retrieved_at
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Return provider observations for *request*.
 
         Dispatches based on subject_id to select the scenario.

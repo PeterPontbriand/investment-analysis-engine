@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, time
 from urllib.parse import urlencode
 
+from src.core.clock import utc_now
 from src.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
@@ -52,7 +53,7 @@ class MassiveFinancialFactsAdapter:
         """Initialize the adapter with injectable credentials, transport, and clock."""
         self._api_key = api_key if api_key is not None else os.getenv("MASSIVE_API_KEY")
         self._fetch_json = json_fetcher
-        self._clock = clock or (lambda: datetime.now(UTC))
+        self._clock = clock or utc_now
         self._base_url = base_url.rstrip("/")
         self._currency_by_ticker: dict[str, str] = {}
 
@@ -61,7 +62,12 @@ class MassiveFinancialFactsAdapter:
         """Return whether usable Massive API credentials are available."""
         return self._api_key is not None and bool(self._api_key.strip())
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:  # noqa: PLR0911
+    def fetch_facts(  # noqa: PLR0911
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
         """Return supported current facts, or explicit unavailability."""
         if request.provider_id != MASSIVE_PROVIDER_ID:
             return ()

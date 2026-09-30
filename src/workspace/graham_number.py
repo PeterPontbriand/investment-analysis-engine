@@ -4,7 +4,6 @@ import json
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from src.analysis.shared.graham_contracts import GrahamMethod
 from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.core.analysis_status import CalculationStatus
 from src.workspace.models import StrictJsonMapping, _validate_json_value
@@ -25,7 +24,7 @@ class _NumberEvidence(BaseModel):
         if analysis.as_of is not None and analysis.as_of.utcoffset() is None:
             raise ValueError("Analysis as_of must be timezone-aware.")
         assembly, result = analysis.assembly, analysis.result
-        if assembly.method is not GrahamMethod.NUMBER or result.method is not GrahamMethod.NUMBER:
+        if assembly.method != "graham_number" or result.method != "graham_number":
             raise ValueError("Graham Number assembly/result method mismatch.")
         if assembly.status is CalculationStatus.OK:
             if assembly.eps is None or assembly.bvps is None or assembly.reason is not None:

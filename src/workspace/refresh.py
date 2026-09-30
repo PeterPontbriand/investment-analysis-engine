@@ -53,10 +53,11 @@ import threading
 from collections.abc import Callable
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID, uuid4
 
+from src.core.clock import utc_now
 from src.workspace.execution import AnalysisRunSink, BatchContext, ExecutionCapture, execute
 from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest, AnalysisSelection
@@ -234,7 +235,7 @@ def refresh_watchlist(  # noqa: PLR0913
         raise EmptyRefreshTargetError(f"Watchlist {name!r} has no entries; there is nothing to refresh.")
 
     refresh_id = refresh_id_factory()
-    resolved_clock = clock if clock is not None else lambda: datetime.now(UTC)
+    resolved_clock = clock if clock is not None else utc_now
     jobs = [(entry.ticker, entry.selection) for entry in watchlist.entries]
 
     if policy.workers == 1:

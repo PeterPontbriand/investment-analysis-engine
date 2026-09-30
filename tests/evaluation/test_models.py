@@ -16,9 +16,6 @@ from src.evaluation.models import (
     DomainOutcomeObservation,
     ExecutionMode,
     Expectation,
-    GrahamMethod,
-    GrahamMethodConstraints,
-    GrahamMethodObservation,
     NumericalExpectation,
     NumericalObservation,
     Observation,
@@ -41,12 +38,10 @@ from src.evaluation.models import (
                 "analyze_fcf_earnings_growth",
             ],
         ),
-        (GrahamMethod, ["graham_number", "graham_growth_value"]),
         (
             ComponentKind,
             [
                 "strategy_selection",
-                "graham_method_selection",
                 "numerical_correctness",
                 "fixture_status",
                 "execution_status",
@@ -77,18 +72,6 @@ def test_tool_constraints_are_canonical_and_accept_required_permitted_values() -
     )
 
 
-def test_graham_method_constraints_are_canonical() -> None:
-    constraints = GrahamMethodConstraints(
-        permitted=(GrahamMethod.GRAHAM_NUMBER, GrahamMethod.GRAHAM_GROWTH_VALUE),
-        required=(GrahamMethod.GRAHAM_NUMBER,),
-    )
-
-    assert constraints.permitted == (
-        GrahamMethod.GRAHAM_GROWTH_VALUE,
-        GrahamMethod.GRAHAM_NUMBER,
-    )
-
-
 def test_behavior_constraints_normalize_and_canonicalize_identifiers() -> None:
     constraints = BehaviorConstraints(
         permitted=(" use_fixture_data ", "retain_provenance"),
@@ -105,7 +88,6 @@ def test_behavior_constraints_normalize_and_canonicalize_identifiers() -> None:
     ("model", "field_name", "value"),
     [
         (ToolConstraints(permitted=(ToolName.ANALYZE_MOMENTUM,)), "permitted", ()),
-        (GrahamMethodConstraints(permitted=(GrahamMethod.GRAHAM_NUMBER,)), "permitted", ()),
         (BehaviorConstraints(permitted=("retain_provenance",)), "permitted", ()),
         (
             NumericalExpectation(field_path="result.value", expected_value=1.0, absolute_tolerance=0.0),
@@ -125,10 +107,6 @@ def test_leaf_models_are_frozen(model: BaseModel, field_name: str, value: object
         ToolConstraints(
             permitted=(ToolName.ANALYZE_MOMENTUM, ToolName.ANALYZE_GRAHAM_NUMBER),
             required=(ToolName.ANALYZE_MOMENTUM,),
-        ),
-        GrahamMethodConstraints(
-            permitted=(GrahamMethod.GRAHAM_NUMBER, GrahamMethod.GRAHAM_GROWTH_VALUE),
-            forbidden=(),
         ),
         BehaviorConstraints(
             permitted=("retain_provenance", "use_fixture_data"),
@@ -155,9 +133,6 @@ def test_leaf_models_have_deterministic_json_round_trips(model: BaseModel) -> No
         lambda: ToolConstraints(
             permitted=(ToolName.ANALYZE_MOMENTUM, ToolName.ANALYZE_MOMENTUM),
         ),
-        lambda: GrahamMethodConstraints(
-            forbidden=(GrahamMethod.GRAHAM_NUMBER, GrahamMethod.GRAHAM_NUMBER),
-        ),
         lambda: BehaviorConstraints(required=("retain_provenance", " retain_provenance ")),
     ],
 )
@@ -170,7 +145,6 @@ def test_constraint_models_reject_duplicates(factory: Callable[[], BaseModel]) -
     "factory",
     [
         lambda: ToolConstraints(required=(ToolName.ANALYZE_MOMENTUM,)),
-        lambda: GrahamMethodConstraints(required=(GrahamMethod.GRAHAM_NUMBER,)),
         lambda: BehaviorConstraints(required=("retain_provenance",)),
     ],
 )
@@ -187,11 +161,6 @@ def test_constraint_models_reject_required_values_that_are_not_permitted(
         lambda: ToolConstraints(
             permitted=(ToolName.ANALYZE_MOMENTUM,),
             forbidden=(ToolName.ANALYZE_MOMENTUM,),
-        ),
-        lambda: GrahamMethodConstraints(
-            permitted=(GrahamMethod.GRAHAM_NUMBER,),
-            required=(GrahamMethod.GRAHAM_NUMBER,),
-            forbidden=(GrahamMethod.GRAHAM_NUMBER,),
         ),
         lambda: BehaviorConstraints(
             permitted=("retain_provenance",),
@@ -282,7 +251,6 @@ def test_expectation_composes_constraints_and_canonical_numerical_paths() -> Non
         "result.alpha",
         "result.z_score",
     )
-    assert expectation.graham_method_constraints == GrahamMethodConstraints()
 
 
 def test_expectation_rejects_duplicate_numerical_paths() -> None:
@@ -396,22 +364,12 @@ def test_observation_preserves_ordered_and_repeated_selection_evidence() -> None
             ToolCallObservation(tool_name=ToolName.ANALYZE_GRAHAM_NUMBER),
             ToolCallObservation(tool_name=ToolName.ANALYZE_MOMENTUM),
         ),
-        graham_methods=(
-            GrahamMethodObservation(method=GrahamMethod.GRAHAM_NUMBER),
-            GrahamMethodObservation(method=GrahamMethod.GRAHAM_GROWTH_VALUE),
-            GrahamMethodObservation(method=GrahamMethod.GRAHAM_NUMBER),
-        ),
     )
 
     assert tuple(call.tool_name for call in observation.tool_calls) == (
         ToolName.ANALYZE_MOMENTUM,
         ToolName.ANALYZE_GRAHAM_NUMBER,
         ToolName.ANALYZE_MOMENTUM,
-    )
-    assert tuple(item.method for item in observation.graham_methods) == (
-        GrahamMethod.GRAHAM_NUMBER,
-        GrahamMethod.GRAHAM_GROWTH_VALUE,
-        GrahamMethod.GRAHAM_NUMBER,
     )
 
 
@@ -486,7 +444,6 @@ def test_observation_rejects_naive_timestamp() -> None:
     "selection_evidence",
     [
         {"tool_calls": [{"tool_name": ToolName.ANALYZE_MOMENTUM}]},
-        {"graham_methods": [{"method": GrahamMethod.GRAHAM_NUMBER}]},
     ],
 )
 def test_deterministic_observation_rejects_selection_evidence(
@@ -510,11 +467,6 @@ def test_deterministic_observation_rejects_selection_evidence(
             kind=ComponentKind.EXECUTION_STATUS,
             outcome=ComponentOutcome.FAIL,
             failure_reason=" execution failed ",
-        ),
-        ComponentResult(
-            kind=ComponentKind.GRAHAM_METHOD_SELECTION,
-            outcome=ComponentOutcome.NOT_APPLICABLE,
-            evidence=" not a Graham case ",
         ),
         ComponentResult(
             kind=ComponentKind.STRATEGY_SELECTION,
@@ -587,11 +539,6 @@ def test_component_result_unmeasured_outcomes_require_nonblank_evidence(
             "other_case",
         ),
         (ToolCallObservation(tool_name=ToolName.ANALYZE_MOMENTUM), "tool_name", ToolName.ANALYZE_GRAHAM_NUMBER),
-        (
-            GrahamMethodObservation(method=GrahamMethod.GRAHAM_NUMBER),
-            "method",
-            GrahamMethod.GRAHAM_GROWTH_VALUE,
-        ),
         (NumericalObservation(field_path="result.value", value=1.0), "value", 2.0),
         (
             Observation(
@@ -651,9 +598,6 @@ def test_public_evaluation_exports_are_deliberate() -> None:
         "DomainOutcomeObservation",
         "ExecutionMode",
         "Expectation",
-        "GrahamMethod",
-        "GrahamMethodConstraints",
-        "GrahamMethodObservation",
         "NumericalExpectation",
         "NumericalObservation",
         "Observation",

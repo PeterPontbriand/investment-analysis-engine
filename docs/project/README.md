@@ -16,6 +16,7 @@ history. Update the owner instead of copying status into indexes or other guides
 - [Master Plan](MASTER_PLAN.md) — project direction, milestone ordering, and long-term scope.
 - [Evidence Provider Roadmap](EVIDENCE_PROVIDER_ROADMAP.md) — non-authoritative candidate backlog of future strategies and platform features; the Master Plan and implementation plan remain authoritative for scope and sequencing.
 - [Architecture](ARCHITECTURE.md) — current architectural boundaries and approved target seams.
+- [Analysis Strategy Contributor Guide](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md) — how a strategy fits into the code: the analyzer contract, execution/capture flow, and what's strategy-specific versus shared.
 - [Discovery Workbook](DISCOVERY_WORKBOOK.md) — rationale, alternatives, decisions, and product/engineering context.
 - [Evaluations & Golden Suite](../EVALUATIONS.md) — Step 2.5 benchmark purpose, execution modes, scoring boundaries, fixtures, and maintenance rules.
 - [Step 2.5 Golden Suite Slice Plan](milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md) — component contracts and local review gates.
@@ -27,7 +28,7 @@ history. Update the owner instead of copying status into indexes or other guides
 - [Step 2.5A A0 Identity/Security-Unit Boundary Review](milestones/v0.2/step-2.5a/STEP_2_5A_A0_REVIEW.md) — bounded identity/unit correction, fail-closed preservation, deterministic proof, and complete quality-gate evidence.
 - [Step 2.5A Slice E Closeout Verification Record](milestones/v0.2/step-2.5a/STEP_2_5A_E_CLOSEOUT.md) — final approved scope, explicit deferrals, deterministic Golden result, and complete repository gate.
 - [Step 2.6 Reliability Limits Slice Plan](milestones/v0.2/step-2.6/STEP_2_6_RELIABILITY_SLICE_PLAN.md) — reliability contracts and verification evidence.
-- [Milestone plans](milestones) — implementation plans plus step/slice specifications for each milestone.
+- [Milestone plans](milestones/README.md) — index of implementation plans plus step/slice specifications for each milestone.
 - [`deploy/`](deploy) — deployment/configuration artifacts intended for project development and review.
 
 User-facing financial semantics remain authoritative in:
@@ -52,16 +53,21 @@ If governing documents conflict, surface the conflict rather than blending incom
 
 ## Quality gates
 
-Run the complete non-mutating repository gate from the repository root before requesting technical review or declaring implementation work complete:
+Run the complete non-mutating repository gate from the repository root before requesting technical review or declaring implementation work complete, whenever the change touches Python source, tests, or any file the gate's own tooling actually parses or executes (this includes `pyproject.toml` fields that affect dependency resolution, build, or tool configuration):
 
 ```bash
+python3 scripts/check_doc_links.py
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy --strict src tests
+uv run mypy --strict src tests scripts
 uv run pytest
 ```
 
-These commands verify lint, formatting, strict typing, deterministic unit/integration behavior, and the pytest-cov configuration in `pyproject.toml`. The project target is at least 85% aggregate line coverage; new financial-analysis code should directly cover meaningful branches and edge cases. Automated tests must not make real external API or LLM calls.
+Standard-library-only gate scripts run with system Python (`py -3` on Windows), not through `uv run` or the project virtualenv.
+
+These commands verify that every local link and heading anchor across every tracked Markdown file resolves, lint, formatting, strict typing (including the `scripts/` developer tooling, not only `src`/`tests`), deterministic unit/integration behavior, and the pytest-cov configuration in `pyproject.toml`. The project target is at least 85% aggregate line coverage; new financial-analysis code should directly cover meaningful branches and edge cases. Automated tests must not make real external API or LLM calls.
+
+A change confined to non-executable declarative metadata with no import-time or runtime effect — for example, a single project-metadata field such as `license`, or a prose-only documentation edit — does not require the full pytest run. Confirm the file still parses (e.g. the relevant `uv`/build command succeeds) and note in the record that no source changed; that is sufficient. If there is any doubt whether a change is actually confined in this sense, run the full gate.
 
 The commands above are the ordinary developer and CI interface. Managed agents whose sandbox cannot write to Windows user-profile temp/cache directories should run the portable wrapper for their active shell instead:
 
@@ -73,14 +79,14 @@ The commands above are the ordinary developer and CI interface. Managed agents w
 bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"
 ```
 
-The wrappers run the same four gates with `uv run --no-sync` and isolate writable pytest, coverage, mypy, Ruff, and UV artifacts under a unique ignored `/.tmp/quality-runs/` directory. They are safe for concurrent managed-agent runs and contain no machine-specific repository path. Developers with normal user-directory access do not need the wrappers.
+The wrappers run the same five gates with `uv run --no-sync` and isolate writable pytest, coverage, mypy, Ruff, and UV artifacts under a unique ignored `/.tmp/quality-runs/` directory. They are safe for concurrent managed-agent runs and contain no machine-specific repository path. Developers with normal user-directory access do not need the wrappers.
 
 When local repair is required, the recommended order is:
 
 ```bash
 uv run ruff check --fix .
 uv run ruff format .
-uv run mypy --strict src tests
+uv run mypy --strict src tests scripts
 uv run pytest
 ```
 
@@ -88,6 +94,7 @@ The first two repair commands intentionally mutate files. Review their diff befo
 
 ## Documentation conventions
 
+- Planning document structure: follow the [planning document structure rules](../../AGENTS.md#planning-document-structure), using the [IR contract and slice plan](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md) as the reference example.
 - The root README and `docs/user/` describe the product without duplicating active milestone/step/slice status.
 - This index links to planning owners; it does not maintain work status.
 - User-facing analysis details belong in strategy guides; project design contracts belong here.

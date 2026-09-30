@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import UTC, datetime
 
 import pytest
 
@@ -54,7 +55,7 @@ def test_sec_user_agent_explicit_constructor_value_takes_precedence(
         user_agent="explicit-agent explicit@example.invalid",
     )
 
-    assert adapter.fetch_facts(_annual_eps_request()) == ()
+    assert adapter.fetch_facts(_annual_eps_request(), effective_as_of=datetime.now(UTC)) == ()
     assert fetcher.calls
     assert all(headers["User-Agent"] == "explicit-agent explicit@example.invalid" for _url, headers in fetcher.calls)
 
@@ -65,7 +66,7 @@ def test_sec_user_agent_falls_back_to_environment(monkeypatch: pytest.MonkeyPatc
     fetcher = HeaderCaptureFetcher()
     adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher)
 
-    assert adapter.fetch_facts(_annual_eps_request()) == ()
+    assert adapter.fetch_facts(_annual_eps_request(), effective_as_of=datetime.now(UTC)) == ()
     assert fetcher.calls
     assert all(headers["User-Agent"] == "environment-agent env@example.invalid" for _url, headers in fetcher.calls)
 

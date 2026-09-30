@@ -34,8 +34,8 @@ initial four-site count was complete.
 
 | Pattern | Call sites | Notes |
 | :--- | :--- | :--- |
-| Momentum: three independently duplicated inline sites | [`src/cli.py:278`](../../../../src/cli.py) (`momentum`, `--save-run` branch); [`src/cli.py:295`](../../../../src/cli.py) (`momentum`, default branch); [`src/cli_workspace.py:772`](../../../../src/cli_workspace.py) (`_execute_momentum`, used by `_refresh_executor`) | Each constructs its own `_identity_candidate()` closure over a fresh `YFinanceClient()`, used as both the identity and kind candidate. No shared helper exists for Momentum (unlike Graham/FCF). |
-| Graham Number / Graham Growth / FCF Growth: one shared site | [`src/workspace/graham_shared.py:34`](../../../../src/workspace/graham_shared.py) (`compose_graham_profile`) | Called from `graham_number_execution.execute_graham_number` (78), `graham_growth_execution.execute_graham_growth` (93), `fcf_growth_execution.execute_fcf_growth` (99). Each of those three adapters is itself called from **both** a direct CLI command (via `cli.py`'s `_run_graham_number`/`_run_graham_growth`/its FCF equivalent) **and** watchlist refresh (via `cli_workspace.py`'s `_execute_graham_number`/`_execute_graham_growth`/`_execute_fcf_growth`, dispatched from `_refresh_executor`). Confirmed by reading both call chains, not assumed from the shared module name. Wiring this one function covers six execution paths. |
+| Momentum: three independently duplicated inline sites | [`src/cli.py:278`](../../../../../src/cli.py) (`momentum`, `--save-run` branch); [`src/cli.py:295`](../../../../../src/cli.py) (`momentum`, default branch); [`src/cli_workspace.py:772`](../../../../../src/cli_workspace.py) (`_execute_momentum`, used by `_refresh_executor`) | Each constructs its own `_identity_candidate()` closure over a fresh `YFinanceClient()`, used as both the identity and kind candidate. No shared helper exists for Momentum (unlike Graham/FCF). |
+| Graham Number / Graham Growth / FCF Growth: one shared site | [`src/workspace/graham_shared.py:34`](../../../../../src/workspace/graham_shared.py) (`compose_graham_profile`) | Called from `graham_number_execution.execute_graham_number` (78), `graham_growth_execution.execute_graham_growth` (93), `fcf_growth_execution.execute_fcf_growth` (99). Each of those three adapters is itself called from **both** a direct CLI command (via `cli.py`'s `_run_graham_number`/`_run_graham_growth`/its FCF equivalent) **and** watchlist refresh (via `cli_workspace.py`'s `_execute_graham_number`/`_execute_graham_growth`/`_execute_fcf_growth`, dispatched from `_refresh_executor`). Confirmed by reading both call chains, not assumed from the shared module name. Wiring this one function covers six execution paths. |
 
 ## 3. Database availability per site (confirmed by reading, not inferred)
 
@@ -50,11 +50,11 @@ initial four-site count was complete.
 
 ## 4. Out of scope: the orchestrator/evaluation seam
 
-[`src/orchestrator/analysis_tools.py`](../../../../src/orchestrator/analysis_tools.py)'s
+[`src/orchestrator/analysis_tools.py`](../../../../../src/orchestrator/analysis_tools.py)'s
 `AnalysisToolDependencies.profile_resolver: Callable[[str], InstrumentProfile] | None`
 is an already-built injection seam used by all four `analyze_*` tool handlers.
 It is **not a production call site today**: `AnalysisToolDependencies(` is
-constructed only in [`src/evaluation/composition.py:181`](../../../../src/evaluation/composition.py)
+constructed only in [`src/evaluation/composition.py:181`](../../../../../src/evaluation/composition.py)
 (the Golden-Suite evaluation harness) and in tests — confirmed by searching
 every construction site, not assumed. There is no live CLI/orchestrator entry
 point yet; IMPLEMENTATION_PLAN.md's own sequence table lists Step 3.6 (Light

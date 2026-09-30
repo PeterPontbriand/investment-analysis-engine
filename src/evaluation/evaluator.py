@@ -9,15 +9,13 @@ from src.evaluation.models import (
     ComponentResult,
     DomainOutcomeExpectation,
     ExecutionMode,
-    GrahamMethod,
-    GrahamMethodConstraints,
     NumericalExpectation,
     Observation,
     ToolConstraints,
     ToolName,
 )
 
-type ConstraintValue = ToolName | GrahamMethod | str
+type ConstraintValue = ToolName | str
 
 
 def _display(values: set[ConstraintValue]) -> str:
@@ -97,33 +95,6 @@ def evaluate_tool_selection(constraints: ToolConstraints, observation: Observati
         kind=ComponentKind.STRATEGY_SELECTION,
         label="tools",
         observed=tuple(call.tool_name for call in observation.tool_calls),
-        permitted=constraints.permitted,
-        required=constraints.required,
-        forbidden=constraints.forbidden,
-    )
-
-
-def evaluate_graham_method_selection(
-    constraints: GrahamMethodConstraints,
-    observation: Observation,
-) -> ComponentResult:
-    """Evaluate Graham-method selection separately from broad tool selection."""
-    if not (constraints.permitted or constraints.required or constraints.forbidden):
-        return ComponentResult(
-            kind=ComponentKind.GRAHAM_METHOD_SELECTION,
-            outcome=ComponentOutcome.NOT_APPLICABLE,
-            evidence="This case defines no Graham-method constraints.",
-        )
-    if observation.execution_mode is ExecutionMode.DETERMINISTIC_NO_LLM:
-        return ComponentResult(
-            kind=ComponentKind.GRAHAM_METHOD_SELECTION,
-            outcome=ComponentOutcome.NOT_MEASURED,
-            evidence="Deterministic/no-LLM execution does not measure model Graham-method selection.",
-        )
-    return _evaluate_constraints(
-        kind=ComponentKind.GRAHAM_METHOD_SELECTION,
-        label="Graham methods",
-        observed=tuple(item.method for item in observation.graham_methods),
         permitted=constraints.permitted,
         required=constraints.required,
         forbidden=constraints.forbidden,

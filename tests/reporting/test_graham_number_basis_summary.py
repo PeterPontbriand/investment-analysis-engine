@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
-from src.reporting.graham import GrahamNumberPresentation, render_graham_number
+from src.reporting.graham_number import GrahamNumberPresentation, render_graham_number
 
 NOW = datetime(2026, 8, 24, 4, 0, tzinfo=UTC)
 

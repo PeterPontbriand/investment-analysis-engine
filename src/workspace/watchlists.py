@@ -9,11 +9,20 @@ live in :mod:`src.workspace.runs`.
 
 import json
 
-from pydantic import BaseModel, ConfigDict, TypeAdapter
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 from src.workspace.requests import AnalysisSelection
 
 _SELECTION_ADAPTER: TypeAdapter[AnalysisSelection] = TypeAdapter(AnalysisSelection)
+
+
+class StoredSelectionError(ValueError):
+    """A stored watchlist selection cannot be read by this version of the application.
+
+    The message is a self-contained clause describing the entry's state (for example
+    "saved by an earlier version (selection version 1) and can no longer be read"); a caller
+    that knows which entry it was decoding adds the watchlist, position and remedy.
+    """
 
 
 class WatchlistSpec(BaseModel):
@@ -70,16 +79,29 @@ def decode_selection(method_id: str, config_schema_version: int, selection_json:
         The validated selection with canonical identifiers restored.
 
     Raises:
-        ValueError: If the JSON is malformed or its identity does not match
-            the row's own method/version columns.
+        StoredSelectionError: If the JSON is malformed, is not a selection this
+            version supports (for example a retired configuration version), or
+            its identity does not match the row's own method/version columns.
+            The message is a single readable line.
     """
-    selection = _SELECTION_ADAPTER.validate_json(selection_json)
+    try:
+        selection = _SELECTION_ADAPTER.validate_json(selection_json)
+    except ValidationError as exc:
+        first = exc.errors()[0]
+        if first["type"] == "json_invalid":
+            raise StoredSelectionError("its stored selection is not valid JSON") from exc
+        if first["loc"] and first["loc"][-1] == "config_schema_version":
+            raise StoredSelectionError(
+                f"saved by an earlier version (selection version {config_schema_version}) and can no longer be read"
+            ) from exc
+        raise StoredSelectionError("its stored selection is not in a shape this version can read") from exc
     if selection.method_id != method_id or selection.config_schema_version != config_schema_version:
-        raise ValueError("Stored selection identity does not match its method/version columns.")
+        raise StoredSelectionError("its stored selection does not match its method/version columns")
     return selection
 
 
 __all__ = [
+    "StoredSelectionError",
     "WatchlistSpec",
     "decode_selection",
     "encode_selection",

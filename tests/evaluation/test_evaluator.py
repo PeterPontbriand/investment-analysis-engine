@@ -9,7 +9,6 @@ from src.evaluation.evaluator import (
     evaluate_domain_outcomes,
     evaluate_execution_status,
     evaluate_fixture_status,
-    evaluate_graham_method_selection,
     evaluate_numerical_correctness,
     evaluate_tool_selection,
 )
@@ -21,9 +20,6 @@ from src.evaluation.models import (
     DomainOutcomeExpectation,
     DomainOutcomeObservation,
     ExecutionMode,
-    GrahamMethod,
-    GrahamMethodConstraints,
-    GrahamMethodObservation,
     NumericalExpectation,
     NumericalObservation,
     Observation,
@@ -39,7 +35,6 @@ def _observation(
     *,
     mode: ExecutionMode = ExecutionMode.REAL_LOCAL_OLLAMA,
     tools: tuple[ToolName, ...] = (),
-    methods: tuple[GrahamMethod, ...] = (),
     numbers: tuple[tuple[str, float], ...] = (),
     domain_outcomes: tuple[tuple[str, str | bool | int | None], ...] = (),
 ) -> Observation:
@@ -47,7 +42,6 @@ def _observation(
         execution_mode=mode,
         observed_at=OBSERVED_AT,
         tool_calls=tuple(ToolCallObservation(tool_name=tool) for tool in tools),
-        graham_methods=tuple(GrahamMethodObservation(method=method) for method in methods),
         numerical_observations=tuple(
             NumericalObservation(field_path=field_path, value=value) for field_path, value in numbers
         ),
@@ -151,30 +145,6 @@ def test_deterministic_tool_selection_is_not_measured() -> None:
     assert "does not measure" in result.evidence
 
 
-def test_deterministic_graham_method_selection_is_not_measured_when_applicable() -> None:
-    constraints = GrahamMethodConstraints(
-        permitted=(GrahamMethod.GRAHAM_NUMBER,),
-        required=(GrahamMethod.GRAHAM_NUMBER,),
-    )
-
-    result = evaluate_graham_method_selection(
-        constraints,
-        _observation(mode=ExecutionMode.DETERMINISTIC_NO_LLM),
-    )
-
-    assert result.outcome is ComponentOutcome.NOT_MEASURED
-
-
-def test_graham_method_selection_is_not_applicable_without_constraints() -> None:
-    result = evaluate_graham_method_selection(
-        GrahamMethodConstraints(),
-        _observation(mode=ExecutionMode.DETERMINISTIC_NO_LLM),
-    )
-
-    assert result.kind is ComponentKind.GRAHAM_METHOD_SELECTION
-    assert result.outcome is ComponentOutcome.NOT_APPLICABLE
-
-
 def test_tool_selection_is_not_applicable_without_constraints() -> None:
     result = evaluate_tool_selection(ToolConstraints(), _observation())
 
@@ -256,32 +226,6 @@ def test_tool_selection_rejects_unpermitted_tool() -> None:
     assert result.outcome is ComponentOutcome.FAIL
     assert result.failure_reason is not None
     assert "unpermitted tools" in result.failure_reason
-
-
-def test_graham_method_failure_is_independent_of_correct_tool_selection() -> None:
-    observation = _observation(
-        tools=(ToolName.ANALYZE_GRAHAM_NUMBER,),
-        methods=(GrahamMethod.GRAHAM_GROWTH_VALUE,),
-    )
-    tool_result = evaluate_tool_selection(
-        ToolConstraints(
-            permitted=(ToolName.ANALYZE_GRAHAM_NUMBER,),
-            required=(ToolName.ANALYZE_GRAHAM_NUMBER,),
-        ),
-        observation,
-    )
-    method_result = evaluate_graham_method_selection(
-        GrahamMethodConstraints(
-            permitted=(GrahamMethod.GRAHAM_NUMBER,),
-            required=(GrahamMethod.GRAHAM_NUMBER,),
-        ),
-        observation,
-    )
-
-    assert tool_result.outcome is ComponentOutcome.PASS
-    assert method_result.outcome is ComponentOutcome.FAIL
-    assert method_result.failure_reason is not None
-    assert "Missing required Graham methods" in method_result.failure_reason
 
 
 def test_behavior_constraints_accept_permitted_required_behavior() -> None:

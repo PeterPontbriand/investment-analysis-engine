@@ -6,12 +6,13 @@ import json
 from dataclasses import replace
 from datetime import UTC, datetime
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.fcf_earnings_growth import (
     FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthPolicy,
     ProductionAnnualGrowthSeriesResolver,
 )
-from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthResult
+from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthResult
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
@@ -32,12 +33,8 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
     annual_series,
 )
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
-from src.reporting.graham import (
-    GrahamGrowthPresentation,
-    GrahamNumberPresentation,
-    render_graham_growth,
-    render_graham_number,
-)
+from src.reporting.graham_growth import GrahamGrowthPresentation, render_graham_growth
+from src.reporting.graham_number import GrahamNumberPresentation, render_graham_number
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
 
@@ -150,12 +147,9 @@ def _fcf_result() -> FCFEarningsGrowthResult:
     provider = ProductionFinancialFactsProvider(sec_edgar=FixtureAnnualFinancialFactsProvider(facts))
     analyzer = FCFEarningsGrowthAnalyzer(ProductionAnnualGrowthSeriesResolver(provider, clock=lambda: NOW))
     return analyzer.run_analysis(
-        ticker="ACME",
-        policy=FCFEarningsGrowthPolicy(),
-        currency="USD",
-        as_of=None,
-        provider_id=SEC_PROVIDER_ID,
-        effective_as_of=NOW,
+        "ACME",
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID),
+        AnalysisContext(as_of=None, executed_at=NOW, use_cache=True),
     )
 
 
@@ -182,7 +176,7 @@ def test_json_contracts_expose_same_snapshot_and_deliberate_versions() -> None:
         json.loads(render_fcf_earnings_growth(fcf_result, PresentationMode.JSON, identity)),
     )
 
-    assert [document["schema_version"] for document in documents] == [4, 5, 5, 5]
+    assert [document["schema_version"] for document in documents] == [4, 6, 6, 5]
     for document in documents:
         snapshot = document["security_identity"]
         assert snapshot["ticker"] == "ACME"

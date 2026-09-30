@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal
 
+from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
 from src.data.financial.provenance import ResolvedInput, SourceKind
 
 
@@ -39,13 +40,27 @@ class QuoteFreshnessEvidence:
 def evaluate_quote_freshness(
     value: ResolvedInput, *, now: datetime, policy: QuoteFreshnessPolicy = DEFAULT_QUOTE_FRESHNESS_POLICY
 ) -> QuoteFreshnessEvidence:
-    """Evaluate retained timing without inventing provider observation evidence."""
+    """Evaluate retained timing without inventing provider observation evidence.
+
+    ``retrieved_at``'s age clamp below is this function's own responsibility — nothing else in
+    the codebase examines it (see ``src/core/clock.py``'s clock-model docstring for why a live
+    run tolerates it being slightly ahead of ``now``). ``observed_at``'s future-check duplicates
+    ``evaluate_freshness``'s ``observation_age`` rule, which the resolver already runs earlier in
+    the same call chain for a live (non-``as_of``) fact — kept here anyway because this function
+    is the one place that turns that outcome into the caller-facing, diagnostic
+    ``QuoteFreshnessEvidence.status`` (``"future_timestamp"`` vs. ``"expired"`` vs.
+    ``"recent_retrieval"``, etc.), used directly in CLI presentation.
+    """
     if now.utcoffset() is None:
         raise ValueError("Quote evaluation time must be timezone-aware.")
     observed = value.observed_at
     if value.provider_id == "yfinance" and any("conservatively use retrieval time" in note for note in value.notes):
         observed = None
+    tolerance = FROZEN_CLOCK_SKEW_TOLERANCE.total_seconds()
     age = (now - value.retrieved_at).total_seconds() if value.retrieved_at is not None else None
+    if age is not None and -tolerance <= age < 0:
+        age = 0.0
+    observed_ahead = (observed - now).total_seconds() if observed is not None else None
     status: Literal[
         "recent_retrieval", "expired", "unknown_retrieval_time", "future_timestamp", "user_supplied", "historical"
     ]
@@ -53,7 +68,7 @@ def evaluate_quote_freshness(
         status = "user_supplied"
     elif value.as_of is not None:
         status = "historical"
-    elif (age is not None and age < 0) or (observed is not None and observed > now):
+    elif (age is not None and age < 0) or (observed_ahead is not None and observed_ahead > tolerance):
         status = "future_timestamp"
     elif age is None:
         status = "unknown_retrieval_time"

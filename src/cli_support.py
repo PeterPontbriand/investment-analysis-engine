@@ -9,10 +9,11 @@ from pydantic import ValidationError
 from typer._click.exceptions import UsageError
 
 from src.config import settings
+from src.core.constants import ConfigKeys
 from src.core.telemetry.quality import record_cli_quality
 from src.data.base_client import DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
-from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputSeriesCacheProtocol
+from src.data.financial.cache import ResolvedInputSeriesCacheProtocol
 from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
 from src.data.quality import DataQualityError, HistoricalDataQualityError, HistoricalQualityPolicy, QualityOutcome
 from src.data.repositories import (
@@ -32,21 +33,27 @@ class AnalysisConfigurationError(ValueError):
 
 
 @contextmanager
-def _production_historical_client(provider: YFinanceClient) -> Iterator[CachedHistoricalDataClient]:
+def _production_historical_client(
+    provider: YFinanceClient, *, use_cache: bool, clock: Callable[[], datetime]
+) -> Iterator[CachedHistoricalDataClient]:
     """Borrow the Yahoo client and own historical storage for one analysis.
 
     Daily adjusted request identity matches the provider's download configuration.
-    Reuse age comes from settings; fresh storage is initialized before fetching.
+    Reuse age comes from settings. Readiness is checked and storage initialized before
+    fetching only when ``use_cache`` is True; the per-call ``use_cache`` gate on the
+    yielded client's own methods is what actually skips reads/writes.
     """
     database = SQLiteDatabase(settings)
     try:
-        ensure_database_ready(database)
+        if use_cache:
+            ensure_database_ready(database)
         seconds = settings.historical_cache_ttl_seconds
         yield CachedHistoricalDataClient(
             provider,
             SQLiteMarketDataRepository(database),
             request_variant=f"{YFINANCE_HISTORICAL_INTERVAL}:{YFINANCE_PRICE_ADJUSTMENT}",
             ttl=None if seconds is None else timedelta(seconds=seconds),
+            clock=clock,
             quality_policy=HistoricalQualityPolicy(expected_adjustment=YFINANCE_PRICE_ADJUSTMENT),
         )
     finally:
@@ -54,25 +61,31 @@ def _production_historical_client(provider: YFinanceClient) -> Iterator[CachedHi
 
 
 @contextmanager
-def _production_financial_cache(*, enabled: bool) -> Iterator[ResolvedInputSeriesCacheProtocol]:
-    """Own one invocation's durable cache; schema upgrades remain explicit.
+def _production_financial_cache(
+    *, use_cache: bool, clock: Callable[[], datetime]
+) -> Iterator[ResolvedInputSeriesCacheProtocol]:
+    """Own one invocation's durable cache; schema upgrades remain explicit unless caching is disabled.
 
     Financial facts use configured residence age (unlimited by default) and
-    temporal quality checks. Disabling caching avoids opening SQLite altogether.
+    temporal quality checks. Readiness is checked only when ``use_cache`` is True; the
+    resolver's own per-call ``use_cache`` gate is what actually skips reads/writes, so
+    disabling caching still never touches storage.
     """
-    if not enabled:
-        yield InMemoryResolvedInputCache()
-        return
     database = SQLiteDatabase(settings)
     try:
-        ensure_database_ready(database)
+        if use_cache:
+            ensure_database_ready(database)
         seconds = settings.financial_cache_ttl_seconds
-        yield SQLiteResolvedInputCache(database, ttl=None if seconds is None else timedelta(seconds=seconds))
+        yield SQLiteResolvedInputCache(
+            database, ttl=None if seconds is None else timedelta(seconds=seconds), clock=clock
+        )
     finally:
         database.close()
 
 
-def _production_instrument_profile_cache(database: SQLiteDatabase) -> CachedInstrumentProfileResolver:
+def _production_instrument_profile_cache(
+    database: SQLiteDatabase, *, clock: Callable[[], datetime]
+) -> CachedInstrumentProfileResolver:
     """Build the durable instrument-profile cache over an already-open database.
 
     Unlike the historical/financial cache helpers above, this does not own or
@@ -84,7 +97,9 @@ def _production_instrument_profile_cache(database: SQLiteDatabase) -> CachedInst
     """
     seconds = settings.instrument_profile_ttl_seconds
     return CachedInstrumentProfileResolver(
-        SQLiteInstrumentProfileRepository(database), ttl=None if seconds is None else timedelta(seconds=seconds)
+        SQLiteInstrumentProfileRepository(database),
+        ttl=None if seconds is None else timedelta(seconds=seconds),
+        clock=clock,
     )
 
 
@@ -115,6 +130,16 @@ def _resolve_ticker(positional: str | None, option: str | None, *, required: boo
     if not normalized:
         raise typer.BadParameter("Ticker must be a non-empty symbol.")
     return normalized
+
+
+def _default_ticker() -> str:
+    """Return the configured default ticker used when a command is given none."""
+    return str(settings.get_analysis_settings()[ConfigKeys.DEFAULT_SECTION][ConfigKeys.TICKER])
+
+
+def _default_history_start_date() -> str:
+    """Return the configured start date for historical price series."""
+    return str(settings.get_analysis_settings()[ConfigKeys.DEFAULT_SECTION][ConfigKeys.START_DATE])
 
 
 def _canonical_provider_id(value: str | None) -> str | None:

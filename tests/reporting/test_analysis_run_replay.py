@@ -79,7 +79,9 @@ def _build_run(profile: InstrumentProfile | None = None) -> AnalysisRun:
 
     def capture() -> ExecutionCapture:
         client = _FixtureClient()
-        native = run_momentum(selection, "AAPL", client)
+        native = run_momentum(
+            selection, "AAPL", client, start_date="2026-01-01", executed_at=NOW, instrument_profile=None
+        )
         return ExecutionCapture(
             native_evidence=native,
             profile=profile,
@@ -120,7 +122,7 @@ def _graham_run(
     return AnalysisRun(
         analysis_run_id=RUN_ID,
         ticker=analysis.ticker,
-        analysis_id="graham",
+        analysis_id="graham_number",
         method_id="graham_number",
         config_schema_version=1,
         requested_config=GrahamNumberSelection(),
@@ -227,7 +229,6 @@ def test_project_run_never_calls_the_live_analyzer_or_settings() -> None:
 
     run = _build_run()
     with (
-        patch.object(MomentumAnalyzer, "run_with_context", forbidden),
         patch.object(MomentumAnalyzer, "run_analysis", forbidden),
         patch("src.config.ProjectSettings.get_momentum_analysis", forbidden),
     ):
@@ -279,7 +280,7 @@ def test_graham_project_run_json_matches_the_stored_result() -> None:
     payload = json.loads(project_run(run, ReplayOptions(mode=PresentationMode.JSON)))
     assert payload["result"]["maximum_indicated_price"] == 42.0
     assert payload["ticker"] == "KO"
-    assert payload["analysis"] == "graham"
+    assert payload["analysis"] == "graham_number"
     assert payload["method"] == "graham_number"
 
 
@@ -335,7 +336,7 @@ def test_graham_project_run_invalid_input_renders_stored_failure_without_recalcu
     assert "KO" in rendered
     assert "Status: invalid input" in rendered
     # The raw resolver reason is normalized to the live command's investor-facing sentence...
-    assert "Unable to analyze KO: the requested Graham inputs are invalid. Review the method and overrides." in rendered
+    assert "Unable to analyze KO: the requested inputs are invalid. Review the method and overrides." in rendered
     # ...and the raw technical string must never leak through.
     assert "resolved value failed strict finite validation" not in rendered
     assert "Graham Number (maximum indicated price)" not in rendered
@@ -496,7 +497,7 @@ def _growth_run(
     return AnalysisRun(
         analysis_run_id=RUN_ID,
         ticker=analysis.ticker,
-        analysis_id="graham",
+        analysis_id="graham_growth_value",
         method_id="graham_growth_value",
         config_schema_version=1,
         requested_config=GrahamGrowthSelection(expected_growth=6.0, aaa_yield_override=4.4),
@@ -603,7 +604,7 @@ def test_growth_project_run_invalid_input_renders_normalized_reason() -> None:
 
     rendered = project_run(run, ReplayOptions(mode=PresentationMode.CONCISE))
     assert "KO" in rendered
-    assert "Unable to analyze KO: the requested Graham inputs are invalid. Review the method and overrides." in rendered
+    assert "Unable to analyze KO: the requested inputs are invalid. Review the method and overrides." in rendered
     assert "override value failed strict finite validation" not in rendered
 
 

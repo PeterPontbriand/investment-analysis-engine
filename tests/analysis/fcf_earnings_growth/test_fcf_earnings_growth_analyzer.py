@@ -7,8 +7,10 @@ from dataclasses import replace
 
 import pytest
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.fcf_earnings_growth import (
     FCFEarningsGrowthAnalyzer,
+    FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     ForwardPolicy,
     ProductionAnnualGrowthSeriesResolver,
@@ -41,14 +43,9 @@ def _analyzer() -> FCFEarningsGrowthAnalyzer:
 
 
 def test_analyzer_composes_approved_history_into_canonical_result() -> None:
-    result = _analyzer().run_analysis(
-        ticker="acme",
-        policy=FCFEarningsGrowthPolicy(),
-        currency="USD",
-        as_of=None,
-        provider_id=SEC_PROVIDER_ID,
-        effective_as_of=NOW,
-    )
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID)
+    context = AnalysisContext(as_of=None, executed_at=NOW, use_cache=True)
+    result = _analyzer().run_analysis("acme", config, context)
 
     assert result.ticker == "ACME"
     assert result.classification is Classification.PASS
@@ -62,28 +59,22 @@ def test_analyzer_composes_approved_history_into_canonical_result() -> None:
 
 
 def test_hard_gate_is_indeterminate_when_unapproved_consensus_is_unavailable() -> None:
-    result = _analyzer().run_analysis(
-        ticker="ACME",
+    config = FCFEarningsGrowthConfig(
         policy=FCFEarningsGrowthPolicy(forward_policy=ForwardPolicy.HARD_GATE),
         currency="USD",
-        as_of=None,
         provider_id=SEC_PROVIDER_ID,
-        effective_as_of=NOW,
     )
+    context = AnalysisContext(as_of=None, executed_at=NOW, use_cache=True)
+    result = _analyzer().run_analysis("ACME", config, context)
 
     assert result.classification is Classification.INDETERMINATE
     assert result.classification_reason_code is ReasonCode.CONSENSUS_UNAVAILABLE
 
 
 def test_presenter_modes_share_result_and_json_has_null_not_nan() -> None:
-    result = _analyzer().run_analysis(
-        ticker="ACME",
-        policy=FCFEarningsGrowthPolicy(),
-        currency="USD",
-        as_of=None,
-        provider_id=SEC_PROVIDER_ID,
-        effective_as_of=NOW,
-    )
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID)
+    context = AnalysisContext(as_of=None, executed_at=NOW, use_cache=True)
+    result = _analyzer().run_analysis("ACME", config, context)
 
     concise = render_fcf_earnings_growth(result, PresentationMode.CONCISE)
     details = render_fcf_earnings_growth(result, PresentationMode.DETAILS)
@@ -133,23 +124,10 @@ def test_matching_or_unknown_profile_preserves_complete_fcf_result(kind_value: s
     )
     profile = InstrumentProfile("ACME", None, evidence, ())
     analyzer = _analyzer()
-    policy = FCFEarningsGrowthPolicy()
-    baseline = analyzer.run_analysis(
-        ticker=" acme ",
-        policy=policy,
-        currency="USD",
-        as_of=NOW,
-        provider_id=SEC_PROVIDER_ID,
-        effective_as_of=NOW,
-    )
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID)
+    baseline = analyzer.run_analysis(" acme ", config, AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True))
     result = analyzer.run_analysis(
-        ticker=" acme ",
-        policy=policy,
-        currency="USD",
-        as_of=NOW,
-        provider_id=SEC_PROVIDER_ID,
-        effective_as_of=NOW,
-        instrument_profile=profile,
+        " acme ", config, AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile)
     )
     assert result == replace(baseline, instrument_profile=profile)
     assert result.diagnostics == baseline.diagnostics

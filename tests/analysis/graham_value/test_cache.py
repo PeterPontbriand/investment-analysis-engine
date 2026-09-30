@@ -475,7 +475,7 @@ def test_ttl_none_no_staleness() -> None:
 
 def test_negative_ttl_rejected() -> None:
     with pytest.raises(ValueError, match="non-negative"):
-        InMemoryResolvedInputCache(ttl=timedelta(seconds=-1))
+        InMemoryResolvedInputCache(_fixed_clock(), ttl=timedelta(seconds=-1))
 
 
 def test_cached_at_from_injected_clock() -> None:

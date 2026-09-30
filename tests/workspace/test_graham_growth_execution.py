@@ -1,10 +1,12 @@
 """Focused tests for the Graham Growth execution adapter, using fake dependencies only."""
 
 import socket
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.analysis.strategy.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
@@ -96,11 +98,11 @@ def test_execute_graham_growth_delegates_and_falls_back_to_the_composed_profile(
     captured: dict[str, object] = {}
 
     def fake_run_analysis(
-        self: GrahamGrowthAnalyzer, config: GrahamGrowthConfig, ticker: str | None = None
+        self: GrahamGrowthAnalyzer, ticker: str, config: GrahamGrowthConfig, context: AnalysisContext
     ) -> GrahamGrowthAnalysis:
         captured["config"] = config
         captured["ticker"] = ticker
-        captured["profile_supplied"] = self._instrument_profile
+        captured["profile_supplied"] = context.instrument_profile
         captured["policy_supplied"] = self._policy
         return canned
 
@@ -108,7 +110,9 @@ def test_execute_graham_growth_delegates_and_falls_back_to_the_composed_profile(
         patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=composed),
         patch.object(GrahamGrowthAnalyzer, "run_analysis", fake_run_analysis),
     ):
-        capture = execute_graham_growth(resolver, SECURITY_ID, config, _POLICY, object())
+        capture = execute_graham_growth(
+            resolver, SECURITY_ID, config, _POLICY, object(), as_of=None, executed_at=NOW, use_cache=True
+        )
 
     assert capture.analysis is canned
     assert capture.profile is composed
@@ -132,7 +136,9 @@ def test_execute_graham_growth_prefers_the_analysis_own_profile() -> None:
         patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=composed),
         patch.object(GrahamGrowthAnalyzer, "run_analysis", return_value=canned),
     ):
-        capture = execute_graham_growth(resolver, SECURITY_ID, config, _POLICY, object())
+        capture = execute_graham_growth(
+            resolver, SECURITY_ID, config, _POLICY, object(), as_of=None, executed_at=NOW, use_cache=True
+        )
 
     assert capture.profile is refined
     assert isinstance(capture, GrahamGrowthCapture)
@@ -143,7 +149,9 @@ def test_captured_analysis_retains_the_effective_policy() -> None:
     config = GrahamGrowthConfig(expected_growth=5.0, aaa_yield_override=4.4)
 
     with patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=_profile()):
-        capture = execute_graham_growth(resolver, SECURITY_ID, config, _POLICY, object())
+        capture = execute_graham_growth(
+            resolver, SECURITY_ID, config, _POLICY, object(), as_of=None, executed_at=NOW, use_cache=True
+        )
 
     assert capture.analysis.policy == _POLICY
 
@@ -157,6 +165,15 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
 
     config = GrahamGrowthConfig(expected_growth=5.0, aaa_yield_override=4.4)
     with patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=_profile()):
-        capture = execute_graham_growth(_resolver(), SECURITY_ID, config, _POLICY, object())
+        capture = execute_graham_growth(
+            _resolver(),
+            SECURITY_ID,
+            config,
+            _POLICY,
+            object(),
+            as_of=None,
+            executed_at=datetime.now(UTC),
+            use_cache=True,
+        )
 
     assert capture.analysis.ticker == SECURITY_ID

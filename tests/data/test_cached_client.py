@@ -73,7 +73,9 @@ def test_rejected_cache_refreshes_once_and_preserves_snapshot_on_failure(
 def test_bypass_enforces_quality_even_with_broken_observer(database: SQLiteDatabase) -> None:
     provider = FakeProvider()
     provider.data.frame.index = provider.data.frame.index[::-1]
-    client = CachedHistoricalDataClient(provider, SQLiteMarketDataRepository(database), request_variant=None, ttl=None)
+    client = CachedHistoricalDataClient(
+        provider, SQLiteMarketDataRepository(database), request_variant=None, ttl=None, clock=lambda: NOW
+    )
 
     def broken(_decision: QualityDecision) -> None:
         raise RuntimeError("observer unavailable")
@@ -132,7 +134,10 @@ class FakeProvider(BaseDataClient):
     def fetch_data(self, ticker: str, start_date: str, end_date: str | None = None) -> pd.DataFrame:
         return self.fetch_historical_data(ticker, start_date, end_date).frame
 
-    def fetch_historical_data(self, ticker: str, start_date: str, end_date: str | None = None) -> HistoricalMarketData:
+    def fetch_historical_data(
+        self, ticker: str, start_date: str, end_date: str | None = None, *, use_cache: bool = True
+    ) -> HistoricalMarketData:
+        del use_cache
         self.calls.append((ticker, start_date, end_date))
         if self.error is not None:
             raise self.error
@@ -164,9 +169,9 @@ def test_hit_all_boundaries_and_reopen(database: SQLiteDatabase, tmp_path: Path)
     client = CachedHistoricalDataClient(
         provider, repository, request_variant="1d:adjusted", ttl=None, clock=lambda: NOW
     )
-    assert client.fetch_historical_data("ABC", START).frame is provider.data.frame
+    assert client.fetch_historical_data("ABC", START, use_cache=True).frame is provider.data.frame
     assert_frame_equal(client.fetch_data(" abc ", START), provider.data.frame)
-    assert client.fetch_data_with_context("ABC", START).context == provider.data.context
+    assert client.fetch_data_with_context("ABC", START, use_cache=True).context == provider.data.context
     assert client.provider_id == "Fixture"
     entry = repository.get(MarketDataCacheKey("ABC", "fixture", date(2025, 1, 1), None, "1d:adjusted"))
     assert entry is not None
@@ -176,12 +181,30 @@ def test_hit_all_boundaries_and_reopen(database: SQLiteDatabase, tmp_path: Path)
     try:
         provider.error = DataFetchError("offline")
         second = CachedHistoricalDataClient(
-            provider, SQLiteMarketDataRepository(reopened), request_variant="1d:adjusted", ttl=None
+            provider, SQLiteMarketDataRepository(reopened), request_variant="1d:adjusted", ttl=None, clock=lambda: NOW
         )
         assert_frame_equal(second.fetch_data("ABC", START), provider.data.frame)
     finally:
         reopened.close()
     assert len(provider.calls) == 1
+
+
+def test_disabled_cache_never_reads_or_writes_the_repository(database: SQLiteDatabase) -> None:
+    provider = FakeProvider()
+    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    key = MarketDataCacheKey("ABC", "Fixture", date(2025, 1, 1), None, "1d:adjusted")
+    repository.put(key, provider.data, fetch_completed_at=NOW)
+    client = CachedHistoricalDataClient(
+        provider, repository, request_variant="1d:adjusted", ttl=None, clock=lambda: NOW
+    )
+
+    first = client.fetch_historical_data("ABC", START, use_cache=False)
+    second = client.fetch_historical_data("ABC", START, use_cache=False)
+
+    assert first.frame is provider.data.frame
+    assert second.frame is provider.data.frame
+    # Two live fetches, not one cache hit followed by a write -- use_cache=False skipped both.
+    assert len(provider.calls) == 2
 
 
 @pytest.mark.parametrize(
@@ -217,7 +240,9 @@ def test_ranges_and_configuration_are_independent(database: SQLiteDatabase) -> N
     for variant in ("daily", "weekly"):
         for identity in ("first", "second"):
             provider.identity = identity
-            client = CachedHistoricalDataClient(provider, repository, request_variant=variant, ttl=None)
+            client = CachedHistoricalDataClient(
+                provider, repository, request_variant=variant, ttl=None, clock=lambda: NOW
+            )
             for start, end in ((START, None), (START, "2025-01-03"), ("2025-01-02", "2025-01-03")):
                 client.fetch_data("ABC", start, end)
                 client.fetch_data("ABC", start, end)
@@ -270,11 +295,11 @@ def test_valid_bypass(database: SQLiteDatabase, reason: str, caplog: pytest.LogC
     else:
         provider.data.frame.attrs["custom"] = "retained"
     client = CachedHistoricalDataClient(
-        provider, SQLiteMarketDataRepository(database), request_variant=variant, ttl=None
+        provider, SQLiteMarketDataRepository(database), request_variant=variant, ttl=None, clock=lambda: NOW
     )
     with caplog.at_level("DEBUG", logger="src.data.cached_client"):
-        assert client.fetch_historical_data("ABC", START).frame is provider.data.frame
-        assert client.fetch_historical_data("ABC", START).frame is provider.data.frame
+        assert client.fetch_historical_data("ABC", START, use_cache=True).frame is provider.data.frame
+        assert client.fetch_historical_data("ABC", START, use_cache=True).frame is provider.data.frame
     assert len(provider.calls) == 2
     assert "cache bypassed" in caplog.text
 
@@ -282,7 +307,7 @@ def test_valid_bypass(database: SQLiteDatabase, reason: str, caplog: pytest.LogC
 def test_quotes_never_touch_storage(database: SQLiteDatabase) -> None:
     provider = FakeProvider()
     client = CachedHistoricalDataClient(
-        provider, SQLiteMarketDataRepository(database), request_variant="daily", ttl=None
+        provider, SQLiteMarketDataRepository(database), request_variant="daily", ttl=None, clock=lambda: NOW
     )
     client.fetch_data("ABC", START)
     database.close()
@@ -297,7 +322,9 @@ def test_quotes_never_touch_storage(database: SQLiteDatabase) -> None:
 def test_invalid_policy_and_clock(database: SQLiteDatabase) -> None:
     repository = SQLiteMarketDataRepository(database)
     with pytest.raises(ValueError, match="non-negative"):
-        CachedHistoricalDataClient(FakeProvider(), repository, request_variant="daily", ttl=timedelta(seconds=-1))
+        CachedHistoricalDataClient(
+            FakeProvider(), repository, request_variant="daily", ttl=timedelta(seconds=-1), clock=lambda: NOW
+        )
     client = CachedHistoricalDataClient(
         FakeProvider(), repository, request_variant="daily", ttl=None, clock=lambda: datetime(2025, 1, 1)
     )

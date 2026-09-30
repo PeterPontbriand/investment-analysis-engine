@@ -41,7 +41,9 @@ class MarketDataProvider(Protocol):
         """Return the stable provider identifier when known."""
         ...
 
-    def fetch_historical_data(self, ticker: str, start_date: str, end_date: str | None = None) -> HistoricalMarketData:
+    def fetch_historical_data(
+        self, ticker: str, start_date: str, end_date: str | None = None, *, use_cache: bool
+    ) -> HistoricalMarketData:
         """Return historical observations and retained retrieval context."""
         ...
 

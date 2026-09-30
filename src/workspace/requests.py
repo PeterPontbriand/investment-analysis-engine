@@ -21,21 +21,25 @@ another; an unsupported version is rejected at validation time.
 
 import json
 import math
+from datetime import datetime
 from typing import Annotated, Literal, cast
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictFloat, field_validator, model_validator
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.fcf_earnings_growth.models import (
     FCFClassificationBasis,
+    FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     ForwardPolicy,
     HistoricalHorizon,
 )
-from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
-from src.analysis.strategy.graham_number.config import GrahamNumberConfig
+from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
+from src.analysis.strategy.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
 from src.config import settings
 from src.core.constants import ConfigKeys
+from src.data.instrument_profile import InstrumentProfile
 
 # Provider identifiers supported by the current CLI composition. These mirror the
 # stable IDs declared in ``src.data.massive.constants``,
@@ -67,15 +71,19 @@ class MomentumSelection(_FrozenSelection):
     (``momentum`` / ``sma_crossover``) and cannot be overridden or made to disagree
     with one another. Window and RSI values are materialized from explicit inputs or
     the current configured policy at creation time; later settings changes do not
-    affect an existing selection. Momentum accepts no ``as_of`` option.
+    affect an existing selection. ``as_of`` and ``use_cache`` are persisted with the
+    selection, so a saved or refreshed run reuses the boundary and cache choice it was
+    created with.
     """
 
     analysis_id: Literal["momentum"] = "momentum"
     method_id: Literal["sma_crossover"] = "sma_crossover"
-    config_schema_version: Literal[1] = 1
+    config_schema_version: Literal[2] = 2
     short_window: int = Field(gt=0, strict=True)
     long_window: int = Field(gt=0, strict=True)
     rsi_period: int = Field(default=14, gt=0, strict=True)
+    as_of: AwareDatetime | None = None
+    use_cache: bool = Field(default=True, strict=True)
 
     @model_validator(mode="after")
     def _validate_windows(self) -> "MomentumSelection":
@@ -127,17 +135,30 @@ class MomentumSelection(_FrozenSelection):
             rsi_period=self.rsi_period,
         )
 
+    def to_analysis_context(
+        self, executed_at: datetime, instrument_profile: InstrumentProfile | None = None
+    ) -> AnalysisContext:
+        """Return the run context for this snapshot's persisted ``as_of``/``use_cache``."""
+        return AnalysisContext(
+            as_of=self.as_of,
+            executed_at=executed_at,
+            use_cache=self.use_cache,
+            instrument_profile=instrument_profile,
+        )
 
-class _GrahamSelection(_FrozenSelection):
-    """Shared provider choices and immutable scalar configuration for Graham methods."""
 
-    analysis_id: Literal["graham"] = "graham"
+class GrahamNumberSelection(_FrozenSelection):
+    """Immutable Graham Number selection with an optional book-value override."""
+
+    analysis_id: Literal["graham_number"] = "graham_number"
+    method_id: Literal["graham_number"] = "graham_number"
     config_schema_version: Literal[1] = 1
     security_provider_id: str = "sec_edgar"
     quote_provider_id: str | None = None
-    eps_basis: Literal["three_year_average", "ttm"] | None = None
+    eps_basis: GrahamNumberEPSBasis | None = None
     eps_override: StrictFloat | None = None
     quote_override: StrictFloat | None = None
+    bvps_override: StrictFloat | None = None
     as_of: AwareDatetime | None = None
     use_cache: bool = Field(default=True, strict=True)
 
@@ -169,7 +190,7 @@ class _GrahamSelection(_FrozenSelection):
             )
         return normalized
 
-    @field_validator("eps_override", "quote_override")
+    @field_validator("eps_override", "quote_override", "bvps_override")
     @classmethod
     def _require_finite_overrides(cls, value: float | None) -> float | None:
         """Reject NaN/Inf financial overrides at the workspace boundary."""
@@ -184,41 +205,17 @@ class _GrahamSelection(_FrozenSelection):
         return value.strip().lower() if isinstance(value, str) else value
 
     @model_validator(mode="after")
-    def _resolve_effective_configuration(self) -> "_GrahamSelection":
-        """Resolve the effective EPS basis/quote provider and enforce compatibility."""
-        security_provider_id = self.security_provider_id
-        if self.quote_provider_id is None:
-            resolved_quote = "yfinance" if security_provider_id == "sec_edgar" else security_provider_id
-        else:
-            resolved_quote = self.quote_provider_id
+    def _resolve_configuration(self) -> "GrahamNumberSelection":
+        """Resolve the effective EPS basis/quote provider by constructing this method's own config.
 
-        eps_basis = self.eps_basis or ("three_year_average" if security_provider_id == "sec_edgar" else "ttm")
-
-        if security_provider_id == "sec_edgar" and eps_basis != "three_year_average":
-            raise ValueError("SEC EDGAR financial data requires the three-year average EPS basis.")
-        if security_provider_id == "massive" and eps_basis != "ttm":
-            raise ValueError("Massive financial data requires the TTM EPS basis.")
-
-        object.__setattr__(self, "quote_provider_id", resolved_quote)
-        object.__setattr__(self, "eps_basis", eps_basis)
-        return self
-
-
-class GrahamNumberSelection(_GrahamSelection):
-    """Immutable Graham Number selection with an optional book-value override."""
-
-    method_id: Literal["graham_number"] = "graham_number"
-    bvps_override: StrictFloat | None = None
-
-    @field_validator("bvps_override")
-    @classmethod
-    def _finite_book_value(cls, value: float | None) -> float | None:
-        return cls._require_finite_overrides(value)
-
-    @model_validator(mode="after")
-    def _require_massive_book_value(self) -> "GrahamNumberSelection":
-        if self.security_provider_id == "massive" and self.bvps_override is None:
-            raise ValueError("Massive provider requires an explicit book value per share override.")
+        ``GrahamNumberConfig.validate_method`` is the single definition of Graham Number's
+        entire accept/default rule (EPS basis and the Massive book-value requirement); this
+        Selection validates by delegating to it rather than reimplementing the rule, so the
+        CLI-direct and ``--save-run``/workspace entry points cannot silently diverge.
+        """
+        config = self.to_graham_number_config()
+        object.__setattr__(self, "eps_basis", config.eps_basis)
+        object.__setattr__(self, "quote_provider_id", config.quote_provider_id)
         return self
 
     def to_graham_number_config(self) -> GrahamNumberConfig:
@@ -230,23 +227,91 @@ class GrahamNumberSelection(_GrahamSelection):
             eps_override=self.eps_override,
             bvps_override=self.bvps_override,
             quote_override=self.quote_override,
+        )
+
+    def to_analysis_context(
+        self, executed_at: datetime, instrument_profile: InstrumentProfile | None = None
+    ) -> AnalysisContext:
+        """Return the run context for this snapshot's persisted ``as_of``/``use_cache``."""
+        return AnalysisContext(
             as_of=self.as_of,
+            executed_at=executed_at,
             use_cache=self.use_cache,
+            instrument_profile=instrument_profile,
         )
 
 
-class GrahamGrowthSelection(_GrahamSelection):
+class GrahamGrowthSelection(_FrozenSelection):
     """Graham growth-value selection requiring explicit growth and AAA yield percentages."""
 
+    analysis_id: Literal["graham_growth_value"] = "graham_growth_value"
     method_id: Literal["graham_growth_value"] = "graham_growth_value"
+    config_schema_version: Literal[1] = 1
+    security_provider_id: str = "sec_edgar"
+    quote_provider_id: str | None = None
+    eps_basis: GrahamGrowthEPSBasis | None = None
+    eps_override: StrictFloat | None = None
+    quote_override: StrictFloat | None = None
     expected_growth: StrictFloat
     aaa_yield_override: StrictFloat
+    as_of: AwareDatetime | None = None
+    use_cache: bool = Field(default=True, strict=True)
 
-    @field_validator("expected_growth", "aaa_yield_override")
+    @field_validator("security_provider_id")
     @classmethod
-    def _finite_assumption(cls, value: float) -> float:
-        cls._require_finite_overrides(value)
+    def _restrict_security_provider(cls, value: str) -> str:
+        """Normalize and restrict the security-fact provider to CLI-supported choices."""
+        normalized = value.strip().lower()
+        if not normalized:
+            raise ValueError("Provider identifier must not be blank.")
+        if normalized not in _CLI_SECURITY_PROVIDERS:
+            raise ValueError(
+                f"Unsupported security provider {normalized!r}; supported providers are 'sec_edgar' and 'massive'."
+            )
+        return normalized
+
+    @field_validator("quote_provider_id")
+    @classmethod
+    def _restrict_quote_provider(cls, value: str | None) -> str | None:
+        """Normalize and restrict an explicit quote provider to CLI-supported choices."""
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if not normalized:
+            raise ValueError("Provider identifier must not be blank.")
+        if normalized not in _CLI_QUOTE_PROVIDERS:
+            raise ValueError(
+                f"Unsupported quote provider {normalized!r}; supported providers are 'yfinance' and 'massive'."
+            )
+        return normalized
+
+    @field_validator("eps_override", "quote_override", "expected_growth", "aaa_yield_override")
+    @classmethod
+    def _require_finite_overrides(cls, value: float | None) -> float | None:
+        """Reject NaN/Inf financial overrides at the workspace boundary."""
+        if value is not None and not math.isfinite(value):
+            raise ValueError("Financial override must be a finite number.")
         return value
+
+    @field_validator("eps_basis", mode="before")
+    @classmethod
+    def _normalize_basis(cls, value: object) -> object:
+        """Normalize explicit basis strings before validating supported literals."""
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _resolve_configuration(self) -> "GrahamGrowthSelection":
+        """Resolve the effective EPS basis/quote provider by constructing this method's own config.
+
+        ``GrahamGrowthConfig.validate_method`` is the single definition of Graham Growth's
+        entire accept/default rule; this Selection validates by delegating to it rather than
+        reimplementing the rule, so the CLI-direct and ``--save-run``/workspace entry points
+        cannot silently diverge.
+        """
+        config = self.to_graham_growth_config()
+        object.__setattr__(self, "eps_basis", config.eps_basis)
+        object.__setattr__(self, "quote_provider_id", config.quote_provider_id)
+        return self
 
     def to_graham_growth_config(self) -> GrahamGrowthConfig:
         """Return the existing config without deriving assumptions or calculation policy."""
@@ -258,8 +323,17 @@ class GrahamGrowthSelection(_GrahamSelection):
             quote_override=self.quote_override,
             expected_growth=self.expected_growth,
             aaa_yield_override=self.aaa_yield_override,
+        )
+
+    def to_analysis_context(
+        self, executed_at: datetime, instrument_profile: InstrumentProfile | None = None
+    ) -> AnalysisContext:
+        """Return the run context for this snapshot's persisted ``as_of``/``use_cache``."""
+        return AnalysisContext(
             as_of=self.as_of,
+            executed_at=executed_at,
             use_cache=self.use_cache,
+            instrument_profile=instrument_profile,
         )
 
 
@@ -321,6 +395,23 @@ class FCFGrowthSelection(_FrozenSelection):
     def to_fcf_policy(self) -> FCFEarningsGrowthPolicy:
         """Return the existing policy type for explicit analyzer invocation."""
         return self.policy.to_policy()
+
+    def to_fcf_config(self) -> FCFEarningsGrowthConfig:
+        """Return the analyzer's complete per-call configuration for this snapshot."""
+        return FCFEarningsGrowthConfig(
+            policy=self.to_fcf_policy(), currency=self.currency, provider_id=self.provider_id
+        )
+
+    def to_analysis_context(
+        self, executed_at: datetime, instrument_profile: InstrumentProfile | None = None
+    ) -> AnalysisContext:
+        """Return the run context for this snapshot's persisted ``as_of``/``use_cache``."""
+        return AnalysisContext(
+            as_of=self.as_of,
+            executed_at=executed_at,
+            use_cache=self.use_cache,
+            instrument_profile=instrument_profile,
+        )
 
 
 AnalysisSelection = Annotated[

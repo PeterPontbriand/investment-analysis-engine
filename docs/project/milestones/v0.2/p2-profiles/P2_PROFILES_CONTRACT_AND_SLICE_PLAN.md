@@ -26,7 +26,7 @@ work package as a whole was granted 2026-09-22** — see §15.4.
 
 ## 1. Problem and decision
 
-[`src/data/instrument_profile.py`](../../../../src/data/instrument_profile.py)
+[`src/data/instrument_profile.py`](../../../../../src/data/instrument_profile.py)
 today only composes **request-scoped, live** identity and instrument-kind
 evidence (`compose_instrument_profile`): every analysis re-resolves the same
 descriptive/classification lookups from providers, with no persisted identity,
@@ -40,14 +40,14 @@ freshness and ticker-reuse rules — is decided.
 Separately, quality-decision failures are inconsistently typed across the
 repository/data-quality boundary:
 
-- [`src/data/quality.py:66`](../../../../src/data/quality.py) defines
+- [`src/data/quality.py:66`](../../../../../src/data/quality.py) defines
   `HistoricalDataQualityError(DataFetchError)` — a genuine quality-rule
   rejection is raised as a *fetch* error.
-- [`src/data/cached_client.py:103,124`](../../../../src/data/cached_client.py)
+- [`src/data/cached_client.py:103,124`](../../../../../src/data/cached_client.py)
   raises bare `DataFetchError(error)` where `error` is itself a quality-decision
   reason string produced by `evaluate_historical_quality`/`evaluate_freshness`,
   not a provider/network failure.
-- [`src/analysis/strategy/momentum/momentum_analyzer.py:198,333`](../../../../src/analysis/strategy/momentum/momentum_analyzer.py)
+- [`src/analysis/strategy/momentum/momentum_analyzer.py:198,333`](../../../../../src/analysis/strategy/momentum/momentum_analyzer.py)
   raises `HistoricalDataQualityError` for the same reason, inheriting the same
   mis-based hierarchy.
 - `src/data/financial/quality.py`'s `financial_quality_error` already returns a
@@ -164,7 +164,7 @@ single rendered view.
 
 Modeled directly on the accepted `market_data_cache_entries` /
 `market_price_observations` pattern in
-[`src/data/repositories/schema.py`](../../../../src/data/repositories/schema.py):
+[`src/data/repositories/schema.py`](../../../../../src/data/repositories/schema.py):
 
 - `instrument_profiles` — one row per `profile_id`: `ticker`, `identity_anchor`
   (required, non-null — §2's decision means every row is anchored), `cached_at`,
@@ -196,11 +196,11 @@ Modeled directly on the accepted `market_data_cache_entries` /
   `envelope_json` column.
 
 Implemented in Slice B:
-[`src/data/repositories/schema.py`](../../../../src/data/repositories/schema.py)
+[`src/data/repositories/schema.py`](../../../../../src/data/repositories/schema.py)
 (`instrument_profiles` table),
-[`alembic/versions/0004_instrument_profiles.py`](../../../../alembic/versions/0004_instrument_profiles.py),
+[`alembic/versions/0004_instrument_profiles.py`](../../../../../alembic/versions/0004_instrument_profiles.py),
 and
-[`src/data/repositories/instrument_profiles.py`](../../../../src/data/repositories/instrument_profiles.py)
+[`src/data/repositories/instrument_profiles.py`](../../../../../src/data/repositories/instrument_profiles.py)
 (`SQLiteInstrumentProfileRepository`, `InstrumentProfileRecord`).
 
 ## 7. `DataQualityError` hierarchy (Issue #33 / item 8)
@@ -634,20 +634,20 @@ satisfies §5's historical-snapshot contract by construction, with no
 production code change required. Verified by reading the actual chain rather
 than trusting the plan:
 
-- [`src/workspace/execution.py`](../../../../src/workspace/execution.py)'s
+- [`src/workspace/execution.py`](../../../../../src/workspace/execution.py)'s
   `execute()` builds `AnalysisRun(..., instrument_profile=result.profile, ...)`
   from the `InstrumentProfile` *value* the capture callable already produced
   — whether that value came from a live `compose_instrument_profile()` call
   or (after Slice D) `CachedInstrumentProfileResolver.resolve()` makes no
   difference, since either way it is a plain immutable dataclass value by the
   time `execute()` sees it.
-- [`src/data/repositories/analysis_runs.py`](../../../../src/data/repositories/analysis_runs.py)
+- [`src/data/repositories/analysis_runs.py`](../../../../../src/data/repositories/analysis_runs.py)
   persists the *entire* `AnalysisRun` — including `instrument_profile`, with
   its identity/kind evidence and diagnostics — verbatim as `envelope_json` via
   `model_dump(mode="json")`, and `get()` only ever re-validates and returns
   that same stored value. Nothing about a later durable-cache supersession
   can reach an already-inserted row.
-- [`src/reporting/analysis_runs.py`](../../../../src/reporting/analysis_runs.py)'s
+- [`src/reporting/analysis_runs.py`](../../../../../src/reporting/analysis_runs.py)'s
   `project_run()` reads `run.instrument_profile` exclusively — its own module
   docstring already states it "must never call ... profile resolvers ...
   mutable caches" — so replay was already immune to Slice D's wiring before
@@ -713,7 +713,7 @@ built in this contract.
 
 ### 15.2 Documentation
 
-- [`docs/project/ARCHITECTURE.md`](../../ARCHITECTURE.md): the "Durable
+- [`docs/project/ARCHITECTURE.md`](../../../ARCHITECTURE.md): the "Durable
   instrument profiles and ETF aggregate FCF" section described a *planned*
   extension; rewritten to describe the implemented repository/cache/identity-
   anchor/ticker-reuse design (with a link to this contract) while leaving ETF
@@ -722,11 +722,11 @@ built in this contract.
   `repositories/instrument_profiles.py` to the module-layout tree and a
   `SQLiteInstrumentProfileRepository` row to the repository table, matching
   the existing entries' format.
-- [`docs/user/GLOSSARY.md`](../../../user/GLOSSARY.md): added an "Instrument
+- [`docs/user/GLOSSARY.md`](../../../../user/GLOSSARY.md): added an "Instrument
   Profile" entry next to the existing "Security Identity" entry, explaining
   durable caching and ticker reuse in the glossary's plain-language,
   investor-facing style.
-- [`docs/project/DISCOVERY_WORKBOOK.md`](../../DISCOVERY_WORKBOOK.md): added
+- [`docs/project/DISCOVERY_WORKBOOK.md`](../../../DISCOVERY_WORKBOOK.md): added
   two Decision Log rows (identity-anchored persistence keyed by `profile_id`;
   the per-ticker-lock correction over the ruled-out partial index) and a
   "Durable instrument profiles" lessons-learned section in the same style as

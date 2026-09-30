@@ -95,7 +95,9 @@ def _adapter(payload: object, *, ticker_rows: object | None = None) -> SecEdgarF
 
 
 def test_returns_exact_concept_with_positive_expenditure_metadata() -> None:
-    facts = _adapter(_payload([_observation(24_000_000_000.0, accession="positive")])).fetch_facts(_request())
+    facts = _adapter(_payload([_observation(24_000_000_000.0, accession="positive")])).fetch_facts(
+        _request(), effective_as_of=NOW
+    )
 
     assert len(facts) == 1
     fact = facts[0]
@@ -121,7 +123,7 @@ def test_accepts_zero_and_rejects_negative_without_absolute_value_normalization(
                 _observation(-5.0, accession="negative"),
             ]
         )
-    ).fetch_facts(_request())
+    ).fetch_facts(_request(), effective_as_of=NOW)
 
     assert [fact.value for fact in facts] == pytest.approx([0.0])
 
@@ -135,7 +137,7 @@ def test_does_not_substitute_productive_assets_or_other_ppe_concepts() -> None:
         )
     }
 
-    assert _adapter(_payload(extra_concepts=alternates)).fetch_facts(_request()) == ()
+    assert _adapter(_payload(extra_concepts=alternates)).fetch_facts(_request(), effective_as_of=NOW) == ()
 
 
 def test_rejects_unsupported_period_unit_and_request_shapes() -> None:
@@ -143,8 +145,11 @@ def test_rejects_unsupported_period_unit_and_request_shapes() -> None:
     wrong_units = {
         "PaymentsToAcquirePropertyPlantAndEquipment": {"units": {"USD millions": [_observation(6.0, accession="unit")]}}
     }
-    assert _adapter(_payload([quarterly])).fetch_facts(_request()) == ()
-    assert _adapter(_payload(extra_concepts=wrong_units)).fetch_facts(_request()) == ()
+    assert _adapter(_payload([quarterly])).fetch_facts(_request(), effective_as_of=NOW) == ()
+    assert _adapter(_payload(extra_concepts=wrong_units)).fetch_facts(_request(), effective_as_of=NOW) == ()
     assert (
-        _adapter(_payload([_observation(5.0, accession="basis")])).fetch_facts(_request(basis="fiscal_year_end")) == ()
+        _adapter(_payload([_observation(5.0, accession="basis")])).fetch_facts(
+            _request(basis="fiscal_year_end"), effective_as_of=NOW
+        )
+        == ()
     )

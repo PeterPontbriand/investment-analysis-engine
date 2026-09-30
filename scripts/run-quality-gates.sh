@@ -35,9 +35,24 @@ python_version="${version_info%%|*}"
 pandas_version="${version_info##*|}"
 printf 'Quality gate running on Python %s, pandas %s\n' "$python_version" "$pandas_version"
 
+# The link checker imports only the standard library, so it runs with system Python
+# rather than through uv or the project virtualenv.
+system_python=()
+for candidate in "py -3" python3 python; do
+    # shellcheck disable=SC2086
+    if $candidate --version >/dev/null 2>&1; then
+        read -r -a system_python <<<"$candidate"
+        break
+    fi
+done
+if [ "${#system_python[@]}" -eq 0 ]; then
+    printf 'No working system Python found (tried: py -3, python3, python); cannot run scripts/check_doc_links.py\n' >&2
+    exit 1
+fi
+"${system_python[@]}" scripts/check_doc_links.py
 uv run --no-sync ruff check --no-cache .
 uv run --no-sync ruff format --check .
-uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" src tests
+uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" src tests scripts
 uv run --no-sync pytest \
     -o addopts= \
     -p no:cacheprovider \

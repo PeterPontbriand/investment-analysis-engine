@@ -2,6 +2,19 @@
 
 These rules apply to agents that write, refactor, test, document, or maintain this codebase.
 
+## 0. Pre-Step-3.5 consolidation period (temporary)
+
+Until Step 3.5 implementation begins, the project's priority is making the existing codebase fully consistent before new strategies copy its patterns. During this period, for work packages R3, IR, PKG, and any consolidation package added before Step 3.5:
+
+- Stored data has no compatibility value. Persisted selection, evidence, and result shapes may change without migration or compatibility code; local databases may be discarded. Bump the relevant version fields whenever a stored shape changes.
+- Public interfaces, constructors, and signatures may be changed or removed when the approved work package requires it.
+- The approved work package's plan defines the file scope; scope extensions within that plan's stated goals need no separate authorization.
+- An explicit, statically declared list of strategies with shared generic wiring is permitted where it removes per-strategy duplication. Discovery-based plugin loading and speculative frameworks remain prohibited.
+
+Unchanged during this period: no formula or classification changes (correctness issues go through the existing-strategy correctness process), no NaN/Inf, no network or LLM calls in tests, the full managed quality gate on every slice, and no AI/tool attribution. "Open items" are not an acceptable outcome of a design decision in this period; decide, or escalate to the project owner.
+
+Remove this section when Step 3.5 implementation begins.
+
 # 1. Project Instructions
 
 You are an expert Python developer specializing in financial data analysis, pandas, NumPy, and quantitative workflows. Always prioritize correctness, readability, and performance. Use type hints and docstrings where helpful.
@@ -52,6 +65,18 @@ that must be preserved.
 - Outside those locations, describe behavior, requirements, and verification in durable technical terms without planning labels such as "Step 2.6," "Slice B," or "Gate D0."
 - Ordinary technical uses of words such as "step," "slice," and "gate" are allowed. Agent instruction files may define this policy and link to authoritative planning documents without reproducing their implementation details.
 
+### Planning document structure
+
+Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md) as the reference example for every new planning document. Convert an existing planning document to this structure when a change touches it; do not run a separate sweep over untouched plans.
+
+- Open with **At a glance**: a few bullets stating what the work is, what it is not, and the rules it follows. Include no history there.
+- Put the sequence and status table next. Each scope cell contains one line and a link; each status cell contains only a status word, following the existing sequence-table rules.
+- Add one short section per unit of work, using labeled bullets: **Problem**, **Decision**, **Scope**, **Branch**, and **Detail**. End each section with a link to the lower-level document that owns the detail, or `⚠ no slice plan yet`.
+- Follow the work-unit sections with scope limits and acceptance criteria, expressed as bullets.
+- Put background and origin after the scope limits and acceptance criteria.
+- Put decision records, renumbering history, branching rationale, and accepted exceptions in a verbatim appendix at the end.
+- Keep detail in the lowest-level document that owns it. A parent summarizes and links; it does not duplicate a child's inventory, design decisions, or history.
+
 ### Implementation preservation
 
 - Treat the active task's approved file scope as an edit boundary. Before changing a file outside that scope, request explicit user authorization and identify the file, proposed change, and why it is needed. This includes previously accepted implementation and test files, even for a correct, minimal compatibility or typing adjustment. A dependency on earlier work, passing checks, or recording the change afterward does not authorize a scope extension. Continue independent work within scope while awaiting approval. Files explicitly included in the active task's approved scope, such as shared dispatch files, remain authorized even if an earlier task also changed them.
@@ -87,7 +112,7 @@ When editing a legacy file that currently uses a different logging pattern, do n
 - Run the relevant pytest suite before declaring work complete.
 - Mock external APIs and local LLM endpoints in deterministic tests.
 - Project target: ≥85% line coverage overall; new financial-analysis code should directly exercise meaningful branches and edge cases.
-- Run the complete quality gate specified by the active milestone plan before completion.
+- Run the complete quality gate specified by the active milestone plan before completion of any change that touches Python source, tests, or a file the tooling actually parses/executes. A change confined to non-executable declarative metadata (e.g. a single `pyproject.toml` project-metadata field such as `license`) or a prose-only documentation edit does not require the full pytest run — see `docs/project/README.md`'s Quality gates section for the exact boundary. When in doubt, run the full gate.
 
 ## 8. Financial-analysis guardrails
 
@@ -100,10 +125,14 @@ When editing a legacy file that currently uses a different logging pattern, do n
 
 ## 9. Heterogeneous strategy independence
 
-- Select/implement analyzers according to the task, not according to which analyzer existed first.
-- Do not treat Momentum as the universal financial-analysis shape.
-- A new strategy may legitimately use different config fields, data inputs, and result metrics.
-- Reuse `BaseAnalyzer` where sufficient; do not invent a parallel strategy framework speculatively.
+Strategies differ in what they compute, not in how they are invoked.
+
+- Select/implement analyzers according to the task, not according to which analyzer existed first. Do not treat Momentum, or any existing analyzer, as the template for a new strategy's configuration, inputs, calculation, or result.
+- Each strategy owns its typed configuration, data inputs, calculation, and result type, and may legitimately differ from existing strategies in all four.
+- Every strategy shares one invocation envelope: it subclasses `BaseAnalyzer[ConfigT, ResultT]`, receives its dependencies (resolvers, providers, policies, clock) at construction, and is invoked as `run_analysis(ticker, config, context)`, where `AnalysisContext` carries cross-cutting execution concerns (point-in-time boundary, effective execution time, cache use, instrument profile). `ResultT` is the complete evidence type production callers consume.
+- Do not add per-strategy parameters for concerns `AnalysisContext` already carries, and do not bypass a strategy's analyzer by calling its service or calculation functions from composition, orchestration, CLI, or workspace code.
+- Every strategy follows the shared outcome conventions: `MetricResult` for metrics, explicit reason codes instead of silent defaults, and retained provenance.
+- Change the envelope or conventions only through an explicit plan change, never by working around them in one strategy. Do not build registries, plugin loaders, or factories on top of the envelope speculatively.
 
 ## 10. OS, shell & execution
 
@@ -132,7 +161,9 @@ concurrent agent runs cannot clear or overwrite one another. Never replace the
 unique run directory with a shared fixed `--basetemp`; pytest deletes its base
 temp directory at startup. The wrappers use `uv run --no-sync` against the
 already-synchronized project environment so managed verification neither
-mutates dependencies nor requires network access.
+mutates dependencies nor requires network access. Standard-library-only gate
+scripts run with system Python (`py -3` on Windows), not through `uv run` or the
+project virtualenv.
 
 Interactive developers and CI environments with normal user-directory access
 may continue to run the underlying `uv run ...` commands directly. Focused
@@ -239,6 +270,11 @@ Require explicit user confirmation before:
 
 ## 12. Context index
 
+- To find current or next work, start at the sequence table in
+  `docs/project/MASTER_PLAN.md` and follow its links.
+- When a unit of work completes, update its row in the nearest sequence table (status and
+  completion date) as part of the same change, and set the next row to Next. Change a parent
+  table only when a parent's status actually changes.
 - Active milestone implementation → `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`
 - Roadmap → `docs/project/MASTER_PLAN.md`
 - Rationale / decision history → `docs/project/DISCOVERY_WORKBOOK.md`

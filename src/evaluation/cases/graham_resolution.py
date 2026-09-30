@@ -7,8 +7,6 @@ from src.evaluation.models import (
     Case,
     DomainOutcomeExpectation,
     Expectation,
-    GrahamMethod,
-    GrahamMethodConstraints,
     NumericalExpectation,
     ToolConstraints,
     ToolName,
@@ -17,10 +15,6 @@ from src.evaluation.models import (
 _NUMBER_TOOL_CONSTRAINTS: Final = ToolConstraints(
     permitted=(ToolName.ANALYZE_GRAHAM_NUMBER,),
     required=(ToolName.ANALYZE_GRAHAM_NUMBER,),
-)
-_NUMBER_METHOD_CONSTRAINTS: Final = GrahamMethodConstraints(
-    permitted=(GrahamMethod.GRAHAM_NUMBER,),
-    required=(GrahamMethod.GRAHAM_NUMBER,),
 )
 
 
@@ -37,7 +31,6 @@ GRN_04: Final = Case(
     fixture_ids=(GRAHAM_FACTS_FIXTURE_ID, GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID),
     expectation=Expectation(
         tool_constraints=_NUMBER_TOOL_CONSTRAINTS,
-        graham_method_constraints=_NUMBER_METHOD_CONSTRAINTS,
         numerical_expectations=(
             NumericalExpectation(
                 field_path="result.maximum_indicated_price",
@@ -65,7 +58,6 @@ GRN_05: Final = Case(
     fixture_ids=(GRAHAM_FACTS_FIXTURE_ID,),
     expectation=Expectation(
         tool_constraints=_NUMBER_TOOL_CONSTRAINTS,
-        graham_method_constraints=_NUMBER_METHOD_CONSTRAINTS,
         domain_outcome_expectations=(
             DomainOutcomeExpectation(field_path="assembly.bvps", expected_value=None),
             DomainOutcomeExpectation(field_path="assembly.current_price", expected_value=None),

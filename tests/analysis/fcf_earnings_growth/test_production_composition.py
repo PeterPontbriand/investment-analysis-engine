@@ -38,6 +38,7 @@ def test_sec_composition_resolves_all_required_fields_with_provenance() -> None:
         subject_id="ACME",
         currency="USD",
         as_of=None,
+        effective_as_of=NOW,
     )
 
     assert result.status is CalculationStatus.OK
@@ -65,6 +66,7 @@ def test_unapproved_provider_is_typed_unavailable_without_provider_work() -> Non
         subject_id="ACME",
         currency="USD",
         as_of=None,
+        effective_as_of=NOW,
         provider_id="unsupported-provider",
     )
 
@@ -84,6 +86,7 @@ def test_sec_provider_failure_remains_a_typed_provider_error() -> None:
         subject_id="ACME",
         currency="USD",
         as_of=None,
+        effective_as_of=NOW,
     )
 
     assert result.status is CalculationStatus.PROVIDER_ERROR

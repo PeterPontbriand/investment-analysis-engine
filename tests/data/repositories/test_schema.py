@@ -153,7 +153,7 @@ def base_row(table: str) -> dict[str, object]:
         "analysis_runs": {
             "analysis_run_id": "run-1",
             "ticker": "KO",
-            "analysis_id": "graham",
+            "analysis_id": "graham_number",
             "method_id": "graham_number",
             "outcome": "completed",
             "completed_at": STAMP,
