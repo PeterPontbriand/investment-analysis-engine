@@ -13,7 +13,7 @@ requirement/test-ID label in `issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md` and
 recreate the exact `R1`/`R2`/`R3` collision with `graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md`
 that `MASTER_PLAN.md` now has to explicitly disambiguate. `PKG` (short for "package rename") is
 unused anywhere in the repository at the time of writing.
-**Sequenced before Step 3.5**, for the same reason `R3` and `IR` are: five new analyzers land in
+**Sequenced before Step 3.5**, for the same reason `R3` and `IR` are: seven new analyzers land in
 3.5, and every one of them will use the same `from src.xxx import ...` pattern this rename
 changes, so doing the rename first means those new files are written once, under the final
 import path, instead of being written once and then touched again by the rename.
