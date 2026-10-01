@@ -26,7 +26,13 @@ from src.data.market_data import (
     MarketDataProvider,
     NoEligibleObservationsError,
 )
-from src.data.quality import HistoricalDataQualityError, QualityContext, QualityOutcome, evaluate_historical_quality
+from src.data.quality import (
+    HistoricalDataQualityError,
+    QualityContext,
+    QualityOutcome,
+    evaluate_future_observation,
+    evaluate_historical_quality,
+)
 from src.data.quality_reporting import publish_quality
 
 
@@ -326,6 +332,13 @@ class MomentumInputResolver:
                 raise ValueError("Momentum as_of must be timezone-aware.")
             timestamps = pd.to_datetime(frame.index, utc=True)
             frame = frame.loc[timestamps <= pd.Timestamp(as_of)]
+        if as_of is None:
+            future = evaluate_future_observation(
+                frame, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=None)
+            )
+            if future.outcome is QualityOutcome.FAIL:
+                publish_quality((future,))
+                raise HistoricalDataQualityError((future,), frame)
         if frame.empty:
             raise NoEligibleObservationsError(
                 "No price history is available at or before the requested --as-of boundary."

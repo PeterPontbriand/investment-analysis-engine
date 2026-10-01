@@ -224,6 +224,39 @@ def _sessions_result(data: HistoricalMarketData, policy: HistoricalQualityPolicy
 DEFAULT_HISTORICAL_QUALITY_POLICY = HistoricalQualityPolicy()
 
 
+def evaluate_future_observation(frame: pd.DataFrame, *, context: QualityContext) -> QualityDecision:
+    """Fail a live run's frame holding an observation dated after the execution time.
+
+    The allowance is ``FROZEN_CLOCK_SKEW_TOLERANCE``, the same one the shared freshness check gives a
+    live run, because a provider may stamp a bar slightly after the run's clock was frozen. The bar is
+    never dropped: the decision fails and callers reject the frame. Not for ``--as-of`` runs, whose
+    truncation already excludes later observations.
+    """
+    if not isinstance(frame.index, pd.DatetimeIndex) or frame.empty or frame.index.hasnans:
+        return QualityDecision(
+            "historical.future_observation",
+            QualityOutcome.INSUFFICIENT_EVIDENCE,
+            "Observation dates cannot be compared with the execution time.",
+            context,
+        )
+    latest = pd.Timestamp(frame.index.max())
+    latest = latest.tz_localize("UTC") if latest.tzinfo is None else latest
+    if latest.to_pydatetime() - context.evaluated_at > FROZEN_CLOCK_SKEW_TOLERANCE:
+        return QualityDecision(
+            "historical.future_observation",
+            QualityOutcome.FAIL,
+            f"An observation dated {latest.isoformat()} is later than the execution time beyond the allowed "
+            "clock skew.",
+            context,
+        )
+    return QualityDecision(
+        "historical.future_observation",
+        QualityOutcome.PASS,
+        "No observation is dated later than the execution time beyond the allowed clock skew.",
+        context,
+    )
+
+
 def evaluate_historical_quality(
     data: HistoricalMarketData,
     *,

@@ -13,8 +13,9 @@ import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
+from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
 from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
-from src.data.quality import HistoricalDataQualityError
+from src.data.quality import HistoricalDataQualityError, QualityOutcome
 
 FIRST_BAR = datetime(2026, 1, 1, 12, tzinfo=UTC)
 EXECUTED_AT = datetime(2026, 2, 1, tzinfo=UTC)
@@ -75,3 +76,45 @@ def test_as_of_run_fails_closed_when_a_bar_after_the_boundary_is_invalid() -> No
 
     with pytest.raises(HistoricalDataQualityError):
         _run(closes, as_of=_bar_time(5))
+
+
+def _run_with_final_bar(offset: timedelta, *, as_of: datetime | None) -> MomentumRun:
+    """Nine ordinary daily bars, then one dated ``offset`` after the run's execution time."""
+    index = pd.DatetimeIndex([FIRST_BAR + timedelta(days=day) for day in range(9)] + [EXECUTED_AT + offset])
+    frame = pd.DataFrame({"Close": [float(10 + day) for day in range(10)]}, index=index)
+    provider = MagicMock()
+    provider.fetch_historical_data.return_value = HistoricalMarketData(
+        frame,
+        MarketDataContext(
+            provider_id="fixture",
+            observation_interval="1d",
+            data_as_of=index[-1].date(),
+            currency="USD",
+            observation_count=10,
+        ),
+    )
+    analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
+    return analyzer.run_analysis("ACME", CONFIG, AnalysisContext(as_of=as_of, executed_at=EXECUTED_AT, use_cache=True))
+
+
+@pytest.mark.parametrize("offset", [timedelta(0), timedelta(minutes=5), FROZEN_CLOCK_SKEW_TOLERANCE])
+def test_live_run_accepts_a_bar_dated_within_the_skew_tolerance_after_execution(offset: timedelta) -> None:
+    run = _run_with_final_bar(offset, as_of=None)
+
+    assert run.metrics.current_price == 19.0
+
+
+@pytest.mark.parametrize("offset", [FROZEN_CLOCK_SKEW_TOLERANCE + ONE_SECOND, timedelta(hours=1), timedelta(days=30)])
+def test_live_run_rejects_a_bar_dated_beyond_the_skew_tolerance_with_a_specific_reason(offset: timedelta) -> None:
+    """ESC-23: the bar is not dropped silently; the run fails and names the rule."""
+    with pytest.raises(HistoricalDataQualityError, match="later than the execution time") as raised:
+        _run_with_final_bar(offset, as_of=None)
+
+    failed = [decision for decision in raised.value.decisions if decision.outcome is QualityOutcome.FAIL]
+    assert [decision.rule_id for decision in failed] == ["historical.future_observation"]
+
+
+def test_as_of_run_is_unaffected_because_truncation_already_excludes_the_future_bar() -> None:
+    run = _run_with_final_bar(timedelta(days=30), as_of=_bar_time(7))
+
+    assert run.metrics.current_price == 17.0
