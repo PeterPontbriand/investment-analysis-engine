@@ -13,7 +13,7 @@ import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
-from src.data.market_data import HistoricalMarketData, MarketDataContext
+from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
 from src.data.quality import HistoricalDataQualityError
 
 FIRST_BAR = datetime(2026, 1, 1, 12, tzinfo=UTC)
@@ -60,7 +60,7 @@ def test_as_of_drops_a_bar_one_second_after_the_boundary() -> None:
 
 
 def test_as_of_before_every_bar_has_no_eligible_observations() -> None:
-    with pytest.raises(ValueError, match="No historical observations are eligible"):
+    with pytest.raises(NoEligibleObservationsError, match="No price history is available at or before"):
         _run([10.0, 11.0, 12.0], as_of=FIRST_BAR - ONE_SECOND)
 
 

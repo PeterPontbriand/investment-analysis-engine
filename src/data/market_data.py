@@ -11,6 +11,10 @@ import pandas as pd
 from src.data.financial.provenance import SourceKind
 
 
+class NoEligibleObservationsError(ValueError):
+    """No observation exists at or before the requested point-in-time boundary."""
+
+
 @dataclass(frozen=True)
 class HistoricalDataResolution:
     """Transient retrieval evidence reconstructed from the source or cache entry."""

@@ -192,7 +192,7 @@ Graham JSON uses presentation schema version **6**. The additive top-level
 `result.margin_of_safety_percent` field; unavailable comparisons use null.
 Consumers pinned to earlier versions must accept version 5 explicitly. Existing
 programmatic presentations without a structured comparison emit a null object.
-Momentum uses presentation version **4** and FCF/Earnings Growth version **5**.
+Momentum and FCF/Earnings Growth use presentation version **5**; Graham uses version **6**.
 FCF's canonical result schema remains **3** and method version **2**.
 
 Quote timing distinguishes original retrieval from market observation. Filing venue evidence is separate from current identity. Momentum retains cache/provider resolution evidence and a typed crossover result. Missing numeric values remain `null`, never zero or non-standard `NaN`.

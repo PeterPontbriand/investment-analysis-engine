@@ -9,7 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from src.cli import app
-from src.data.market_data import HistoricalMarketData, MarketDataContext
+from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
 from src.data.quality import HistoricalDataQualityError, QualityContext, evaluate_historical_quality
 
 
@@ -44,3 +44,29 @@ def test_missing_ohlc_error_retains_field_and_date() -> None:
     payload = json.loads(result.stdout)
     assert "Close at 2026-09-10" in payload["reason"]
     assert payload["diagnostics"][0]["rule"] == "historical.numeric"
+
+
+_NO_HISTORY_REASON = "No price history is available at or before the requested --as-of boundary."
+
+
+def test_momentum_boundary_before_the_first_observation_is_input_unavailable_in_json() -> None:
+    """ESC-24: an unavailable boundary is reported like Graham and FCF report unavailable inputs."""
+    with patch("src.cli._production_historical_client", side_effect=NoEligibleObservationsError(_NO_HISTORY_REASON)):
+        result = CliRunner().invoke(app, ["momentum", "ACME", "--as-of", "1990-01-01", "--json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "input_unavailable"
+    assert payload["reason_code"] == "no_eligible_observations"
+    assert payload["reason"] == _NO_HISTORY_REASON
+    assert payload["result"] is None
+    assert payload["schema_version"] == 5
+
+
+def test_momentum_boundary_before_the_first_observation_is_explained_in_text() -> None:
+    with patch("src.cli._production_historical_client", side_effect=NoEligibleObservationsError(_NO_HISTORY_REASON)):
+        result = CliRunner().invoke(app, ["momentum", "ACME", "--as-of", "1990-01-01"])
+
+    assert result.exit_code == 1
+    assert _NO_HISTORY_REASON in result.output
+    assert "could not be analyzed" not in result.output

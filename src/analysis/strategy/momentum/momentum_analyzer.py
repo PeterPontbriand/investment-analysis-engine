@@ -19,7 +19,13 @@ from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.data.instrument_profile import InstrumentProfile
-from src.data.market_data import HistoricalDataResolution, HistoricalMarketData, MarketDataContext, MarketDataProvider
+from src.data.market_data import (
+    HistoricalDataResolution,
+    HistoricalMarketData,
+    MarketDataContext,
+    MarketDataProvider,
+    NoEligibleObservationsError,
+)
 from src.data.quality import HistoricalDataQualityError, QualityContext, QualityOutcome, evaluate_historical_quality
 from src.data.quality_reporting import publish_quality
 
@@ -321,7 +327,9 @@ class MomentumInputResolver:
             timestamps = pd.to_datetime(frame.index, utc=True)
             frame = frame.loc[timestamps <= pd.Timestamp(as_of)]
         if frame.empty:
-            raise ValueError("No historical observations are eligible at the requested as_of boundary.")
+            raise NoEligibleObservationsError(
+                "No price history is available at or before the requested --as-of boundary."
+            )
 
         retrieved_at = self._clock()
         resolution = data.resolution
