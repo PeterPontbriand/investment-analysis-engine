@@ -108,7 +108,7 @@ E.1 was accepted by the project owner on 2026-09-30, with three corrections (ESC
   complete managed gate, and record acceptance in the same form as ESC-D.
 - **Scope:** `ESC_E_FINAL_ACCEPTANCE.md` in the format of [ESC_D_FINAL_ACCEPTANCE.md](ESC_D_FINAL_ACCEPTANCE.md).
 - **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
-- **Detail:** [ESC_E_FINAL_ACCEPTANCE.md](ESC_E_FINAL_ACCEPTANCE.md), awaiting the project owner's acceptance; ESC-D's
+- **Detail:** [ESC_E_FINAL_ACCEPTANCE.md](ESC_E_FINAL_ACCEPTANCE.md), accepted by the project owner on 2026-10-01; ESC-D's
   [sixth slice](ESC_D_RENEWAL_PLAN.md#11-esc-d6--reconciliation-and-final-acceptance-record) was the template.
 
 ## 4. Proposed scope for E.2 to E.5

@@ -24,7 +24,7 @@ Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequen
 | :--- | :--- | :--- | :--- |
 | ESC-A → ESC-B → ESC-C | [Evidence and repair contract](ESC_A_EVIDENCE_AND_REPAIR_CONTRACT.md), [implementation](ESC_B_IMPLEMENTATION_AND_REVIEW.md), [initial acceptance](ESC_C_FINAL_ACCEPTANCE.md) | Complete | 2026-09-11 |
 | ESC-D | [Refresh lifecycle/output evidence and full gate](ESC_D_RENEWAL_PLAN.md) | Complete | 2026-09-23 |
-| ESC-E | [Re-run after integration readiness (IR)](ESC_E_RENEWAL_PLAN.md) | In progress | |
+| ESC-E | [Re-run after integration readiness (IR)](ESC_E_RENEWAL_PLAN.md) | Complete | 2026-10-01 |
 
 ## The work units
 

@@ -33,4 +33,6 @@ universal upstream data accuracy or the absence of all future defects.
 
 ## Final acceptance
 
-Awaiting the project owner's acceptance. On acceptance, the IR contract's ESC re-run requirement is met.
+Final acceptance for ESC-E was granted by the project owner on 2026-10-01, on the evidence above (pull request #53). The IR
+contract's ESC re-run requirement ([§5](../integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#5-acceptance-criteria)) is met, which
+completes IR as a whole and sets `IMPLEMENTATION_PLAN.md` row 10 to Complete.
