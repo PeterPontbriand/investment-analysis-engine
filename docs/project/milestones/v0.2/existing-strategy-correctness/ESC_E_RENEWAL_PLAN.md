@@ -33,8 +33,8 @@ authorization before the next begins.
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | E.1 | [Side-by-side comparison against ESC-D's revision](#e1--side-by-side-comparison) | Complete | 2026-09-30 |
-| E.2 | [Graham Number matrix](#e2--graham-number) | Next | |
-| E.3 | [Graham Growth matrix](#e3--graham-growth) | Planned | |
+| E.2 | [Graham Number matrix](#e2--graham-number) | Complete | 2026-09-30 |
+| E.3 | [Graham Growth matrix](#e3--graham-growth) | Next | |
 | E.4 | [Momentum matrix](#e4--momentum) | Planned | |
 | E.5 | [FCF/Earnings Growth matrix](#e5--fcfearnings-growth) | Planned | |
 | E.6 | [Reconciliation and final acceptance](#e6--reconciliation-and-final-acceptance) | Planned | |
@@ -70,7 +70,7 @@ E.1 was accepted by the project owner on 2026-09-30, with three corrections (ESC
 - **Scope:** the seven matrix dimensions for `graham-number`, including its `--save-run`, replay, watchlist
   refresh and orchestrator paths.
 - **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
-- **Detail:** ⚠ no slice plan yet; the [proposal](#4-proposed-scope-for-e2-to-e5) is the working scope.
+- **Detail:** [ESC_E2_GRAHAM_NUMBER_EVIDENCE.md](ESC_E2_GRAHAM_NUMBER_EVIDENCE.md). It also holds the cross-cutting evidence for all four analyses, which E.3 to E.5 cite.
 
 ### E.3 — Graham Growth
 

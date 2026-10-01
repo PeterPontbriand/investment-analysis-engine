@@ -135,4 +135,6 @@ Read-only SEC evidence on 2026-09-12 UTC confirmed direct common shares and equi
 
 **Expected contract.** A live run accepts a provider fact or quote stamped within ten minutes after `executed_at`, from the provider and from a cache hit, and rejects one stamped beyond that. An `--as-of` run rejects a fact available even one second after the boundary.
 
-**Disposition (approved by the project owner, 2026-09-30):** no code change. Record the tolerance and the consolidation in the IR.2 acceptance record's list of changes. Verification is by offline tests, in E.2 for the Graham resolver path and in E.4 for Momentum's historical path.
+**Disposition (approved by the project owner, 2026-09-30):** no code change. Record the tolerance and the consolidation in the IR.2 acceptance record's list of changes (done, commit `e48a122`). Verification is by offline tests, in E.2 for the Graham resolver path and in E.4 for Momentum's historical path.
+
+**Verification, Graham resolver path (E.2, 2026-09-30):** `tests/analysis/graham_value/test_clock_skew_tolerance.py` (24 offline tests) confirms the expected contract for provider facts, cache hits and quotes on a live run, and the zero-tolerance rule on an `--as-of` run. The existing tests in `tests/data/test_quality.py` and `tests/data/test_quote_freshness.py` cover the shared checks directly but not the resolver or a cache hit. The Momentum half is open until E.4.
