@@ -37,7 +37,7 @@ authorization before the next begins.
 | E.3 | [Graham Growth matrix](#e3--graham-growth) | Complete | 2026-09-30 |
 | E.4 | [Momentum matrix](#e4--momentum) | Complete | 2026-10-01 |
 | E.5 | [FCF/Earnings Growth matrix](#e5--fcfearnings-growth) | Complete | 2026-10-01 |
-| E.6 | [Reconciliation and final acceptance](#e6--reconciliation-and-final-acceptance) | Next | |
+| E.6 | [Reconciliation and final acceptance](#e6--reconciliation-and-final-acceptance) | Complete | 2026-10-01 |
 
 E.1 was accepted by the project owner on 2026-09-30, with three corrections (ESC-21, ESC-20's closure, one branch). The [proposal in §4](#4-proposed-scope-for-e2-to-e5) is approved per dimension, with one change: the cross-cutting paths E.1 did not reach (`--save-run`, replay, watchlist refresh, the orchestrator) are verified once, at the start of E.2, for all four analyses, and E.3 to E.5 cite that evidence instead of repeating it. E.2 to E.6 were authorized the same day.
 
@@ -108,8 +108,8 @@ E.1 was accepted by the project owner on 2026-09-30, with three corrections (ESC
   complete managed gate, and record acceptance in the same form as ESC-D.
 - **Scope:** `ESC_E_FINAL_ACCEPTANCE.md` in the format of [ESC_D_FINAL_ACCEPTANCE.md](ESC_D_FINAL_ACCEPTANCE.md).
 - **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
-- **Detail:** ⚠ no slice plan yet; ESC-D's [sixth slice](ESC_D_RENEWAL_PLAN.md#11-esc-d6--reconciliation-and-final-acceptance-record)
-  is the template.
+- **Detail:** [ESC_E_FINAL_ACCEPTANCE.md](ESC_E_FINAL_ACCEPTANCE.md), awaiting the project owner's acceptance; ESC-D's
+  [sixth slice](ESC_D_RENEWAL_PLAN.md#11-esc-d6--reconciliation-and-final-acceptance-record) was the template.
 
 ## 4. Proposed scope for E.2 to E.5
 
