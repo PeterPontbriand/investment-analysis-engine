@@ -68,6 +68,8 @@ uv run ian momentum AAPL --no-cache
 
 The result reports the latest observation that remained after the boundary was applied, not the boundary you requested. A date-only boundary includes that whole day.
 
+`--as-of` runs fetch history only up to the boundary, so they are cached separately from live runs, and an invalid price dated after the boundary does not affect them.
+
 Provider-adjusted prices are revised retroactively: splits and dividends restate history. An `--as-of` result is therefore filtered to a date but reflects today's adjusted view of the prices on that date, not the prices as they would have looked then. See [look-ahead bias](../GLOSSARY.md#look-ahead-bias).
 
 `--no-cache` affects the historical price cache only. With `--no-cache` and without `--save-run`, the command does not open or create the local database. `--save-run` stores the `--as-of` and `--no-cache` choices with the run, and refreshing a watchlist entry saved this way reuses them.

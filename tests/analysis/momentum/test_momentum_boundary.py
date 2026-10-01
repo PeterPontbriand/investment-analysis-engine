@@ -2,7 +2,8 @@
 
 Momentum does not use the shared timestamp-versus-boundary freshness check that the fact resolver
 uses, so the frozen-clock skew tolerance does not apply to it. Its boundary checks are: a strict
-truncation to observations at or before ``as_of``, and a data-quality check on the fetched frame.
+truncation to observations at or before ``as_of``, and a data-quality check on the fetched frame. What an
+``--as-of`` run fetches is tested in ``test_momentum_as_of_fetch.py``.
 """
 
 from datetime import UTC, date, datetime, timedelta
@@ -63,19 +64,6 @@ def test_as_of_drops_a_bar_one_second_after_the_boundary() -> None:
 def test_as_of_before_every_bar_has_no_eligible_observations() -> None:
     with pytest.raises(NoEligibleObservationsError, match="No price history is available at or before"):
         _run([10.0, 11.0, 12.0], as_of=FIRST_BAR - ONE_SECOND)
-
-
-def test_as_of_run_fails_closed_when_a_bar_after_the_boundary_is_invalid() -> None:
-    """Quality is checked on the whole fetched frame before truncation (ESC-22 records this).
-
-    The bar after the boundary never reaches the calculation, yet its invalid value still stops the run.
-    This pins the current behavior so a change to it is deliberate.
-    """
-    closes = [float(10 + value) for value in range(10)]
-    closes[-1] = float("nan")
-
-    with pytest.raises(HistoricalDataQualityError):
-        _run(closes, as_of=_bar_time(5))
 
 
 def _run_with_final_bar(offset: timedelta, *, as_of: datetime | None) -> MomentumRun:

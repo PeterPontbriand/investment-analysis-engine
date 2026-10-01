@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Final
 
 import numpy as np
@@ -318,7 +318,19 @@ class MomentumInputResolver:
                 "Requested historical market observations from the configured provider.",
             )
         )
-        data = self._provider.fetch_historical_data(ticker, start_date, use_cache=use_cache)
+        if as_of is None:
+            data = self._provider.fetch_historical_data(ticker, start_date, use_cache=use_cache)
+        else:
+            if as_of.tzinfo is None or as_of.tzinfo.utcoffset(as_of) is None:
+                raise ValueError("Momentum as_of must be timezone-aware.")
+            # An --as-of run asks only for history up to the boundary. Providers treat the end date as
+            # exclusive, so the day after the boundary's UTC date keeps every bar dated on it; the strict
+            # truncation below still decides which of those bars are at or before the boundary instant.
+            window_end = as_of.astimezone(UTC).date() + timedelta(days=1)
+            # A window that ends before the series starts cannot be requested (its cache key would be
+            # invalid) and holds no bar anyway; fetch as a live run does and let the truncation report it.
+            end_date = window_end.isoformat() if window_end > date.fromisoformat(start_date) else None
+            data = self._provider.fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
         decisions = evaluate_historical_quality(
             data, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=effective_as_of)
         )
@@ -328,8 +340,6 @@ class MomentumInputResolver:
             raise HistoricalDataQualityError(decisions, data.frame)
         frame = data.frame
         if as_of is not None:
-            if as_of.tzinfo is None or as_of.tzinfo.utcoffset(as_of) is None:
-                raise ValueError("Momentum as_of must be timezone-aware.")
             timestamps = pd.to_datetime(frame.index, utc=True)
             frame = frame.loc[timestamps <= pd.Timestamp(as_of)]
         if as_of is None:
