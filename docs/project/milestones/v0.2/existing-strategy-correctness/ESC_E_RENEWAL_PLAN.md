@@ -34,8 +34,8 @@ authorization before the next begins.
 | :--- | :--- | :--- | :--- |
 | E.1 | [Side-by-side comparison against ESC-D's revision](#e1--side-by-side-comparison) | Complete | 2026-09-30 |
 | E.2 | [Graham Number matrix](#e2--graham-number) | Complete | 2026-09-30 |
-| E.3 | [Graham Growth matrix](#e3--graham-growth) | Next | |
-| E.4 | [Momentum matrix](#e4--momentum) | Planned | |
+| E.3 | [Graham Growth matrix](#e3--graham-growth) | Complete | 2026-09-30 |
+| E.4 | [Momentum matrix](#e4--momentum) | Next | |
 | E.5 | [FCF/Earnings Growth matrix](#e5--fcfearnings-growth) | Planned | |
 | E.6 | [Reconciliation and final acceptance](#e6--reconciliation-and-final-acceptance) | Planned | |
 
@@ -79,7 +79,7 @@ E.1 was accepted by the project owner on 2026-09-30, with three corrections (ESC
 - **Decision:** as E.2.
 - **Scope:** the seven matrix dimensions for `graham-growth`, in ESC-D's order.
 - **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
-- **Detail:** ⚠ no slice plan yet; see the [proposal](#4-proposed-scope-for-e2-to-e5).
+- **Detail:** [ESC_E3_GRAHAM_GROWTH_EVIDENCE.md](ESC_E3_GRAHAM_GROWTH_EVIDENCE.md).
 
 ### E.4 — Momentum
 

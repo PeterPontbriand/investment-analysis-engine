@@ -16,7 +16,7 @@ Scope and proposal: [ESC-E plan](ESC_E_RENEWAL_PLAN.md#4-proposed-scope-for-e2-t
 - **Graham Number:** no new ledger entry. Presentation, Data lifecycle, Time, Inputs and applicability,
   Financial claims, Composition and Public contracts were verified at the scope the plan approved
   ([§3](#3-graham-number-matrix)).
-- **ESC-21, Graham resolver path:** 24 new offline tests confirm the contract: a live run accepts a provider
+- **ESC-21, Graham resolver path:** 24 new offline scenarios, run against both Graham resolvers (48 test cases), confirm the contract: a live run accepts a provider
   fact or quote stamped up to ten minutes after `executed_at` and rejects one beyond it, from the provider
   and from a cache hit; an `--as-of` run rejects a fact available one second after the boundary.
 - **Environment:** `main` at the E.2 commit on Python 3.12.14 (the project's pinned interpreter); baseline
@@ -48,7 +48,7 @@ here because nothing about it is wrong yet: failing closed on a bad row is the s
 | Dimension | How it was verified | Narrowness and reason |
 | :--- | :--- | :--- |
 | Presentation | E.1's 19 Graham Number pairs (KO, AAPL, MSFT, SPY and ESC-17's scenario) compared all four modes. Added a differential over every presenter branch: the baseline's own six presenter test files (82 tests, which cover unavailable, not applicable, overrides, warnings, failure reasons, quote timing and identity) were run unmodified against `main`'s presenters, with only a name shim for the module split and one call adapted for the analyzer signature. 79 pass; the 3 failures are exactly the assertions that pin `schema_version` to 5 (ESC-20). The test diff itself was audited: every changed expected string is X-01, X-02, X-03 or ESC-20. | As approved: comparison plus differential, not a hand-check of each branch live. |
-| Data lifecycle | Live: cold fetch, cache hit, `--no-cache` bypass (E.1) and an expired quote re-fetched on refresh (above). Offline, each state names a passing test: cold `test_cache_miss_falls_through_to_provider`; hit `test_valid_cache_hit_wins_over_provider`; bypass `test_use_cache_false_skips_cache`; expired and stale `test_stale_ttl_entry_falls_through` and `tests/data/test_quote_freshness.py`; future `test_current_cache_future_available_at_falls_through` and the 24 new skew tests; legacy `test_schema_version_mismatch_falls_through` and `test_legacy_yahoo_timestamp_is_not_market_observation`; corrupt `test_corrupt_storage_raises` and `test_series_read_rejects_corruption_without_partial_results`; provider failure during refresh `test_expired_quote_refresh_failure_never_returns_stale_value` and `test_c2c_provider_error_never_caches`. The assertion diff of those test files since the baseline adds checks and weakens none. | Full, as approved. |
+| Data lifecycle | Live: cold fetch, cache hit, `--no-cache` bypass (E.1) and an expired quote re-fetched on refresh (above). Offline, each state names a passing test: cold `test_cache_miss_falls_through_to_provider`; hit `test_valid_cache_hit_wins_over_provider`; bypass `test_use_cache_false_skips_cache`; expired and stale `test_stale_ttl_entry_falls_through` and `tests/data/test_quote_freshness.py`; future `test_current_cache_future_available_at_falls_through` and the new skew tests; legacy `test_schema_version_mismatch_falls_through` and `test_legacy_yahoo_timestamp_is_not_market_observation`; corrupt `test_corrupt_storage_raises` and `test_series_read_rejects_corruption_without_partial_results`; provider failure during refresh `test_expired_quote_refresh_failure_never_returns_stale_value` and `test_c2c_provider_error_never_caches`. The assertion diff of those test files since the baseline adds checks and weakens none. | Full, as approved. |
 | Time | Live pairs at the SEC filing boundary for KO's 10-K, accepted 2026-02-20T14:46:32Z: one second before, exactly at, and one second after, plus the day before. Before: EPS 2.37 (older fiscal years). At and after: EPS 2.66. Baseline and current identical in text; JSON differs only as in the register. So the boundary is inclusive and look-ahead is excluded on both revisions. ESC-21's `--as-of` half: a fact available one second after the boundary is rejected, exactly at it accepted, from the provider and from the cache. | Full, as approved. |
 | Inputs and applicability | 26 pairs ([table](#inputs-pairs)): zero, negative, NaN and infinite EPS; zero and negative BVPS; zero and NaN price; every `--eps-basis` value; Massive with and without BVPS; a bogus provider; an invalid, lowercase and missing ticker; invalid, naive and future `--as-of`; a Canadian listing, an ETF with overrides and a cryptocurrency. | Full, as approved. |
 | Financial claims | Recomputed from the unrounded retained inputs of the live KO JSON, independently of the calculator: EPS `(2.47 + 2.46 + 3.04) / 3 = 2.6566666666666667`; BVPS `32,169,000,000 / (7,040,000,000 − 2,738,000,000) = 7.47768479776848`; `sqrt(22.5 × EPS × BVPS) = 21.14186862097603`; margin `(21.14186862097603 − 86.08000183105469) / 21.14186862097603 × 100 = −307.15417138953944`. All four match the output exactly and `FINANCE_MATH.md`. The calculation module is unchanged except a method tag. | One recomputation, as approved. |
@@ -108,8 +108,9 @@ here because nothing about it is wrong yet: failing closed on a bad row is the s
 
 ## 4. ESC-21 for the Graham resolver path
 
-`tests/analysis/graham_value/test_clock_skew_tolerance.py` (24 tests, offline, no network, every OS) drives
-the shared input resolver through `GrahamNumberInputResolver` with a frozen clock:
+`tests/analysis/graham_value/test_clock_skew_tolerance.py` (24 scenarios, each run against both
+`GrahamNumberInputResolver` and `GrahamGrowthInputResolver`, which share one fact-resolution path; offline, no
+network, every OS) drives the shared input resolver with a frozen clock:
 
 - a live provider fact with `available_at` at 0, 9:59 and exactly ten minutes after `executed_at` is accepted;
   at ten minutes and one second, and at one hour, it is rejected as `input_unavailable`;
@@ -122,7 +123,7 @@ the shared input resolver through `GrahamNumberInputResolver` with a frozen cloc
   `--as-of` cache entry tolerates no skew at all: one second ahead falls through, five minutes ahead falls
   through.
 
-All 24 pass on the unmodified code, so the behavior matches the contract in ESC-21. Pre-existing coverage
+All 48 cases pass on the unmodified code, so the behavior matches the contract in ESC-21. Pre-existing coverage
 is narrower: `tests/data/test_quality.py` and `tests/data/test_quote_freshness.py` test the shared check and
 the quote check directly, and neither drives the resolver or a cache hit.
 
@@ -130,7 +131,8 @@ the quote check directly, and neither drives the resolver or a cache hit.
 
 `scripts/run-quality-gates.sh` on Python 3.12.14 and pandas 3.0.5, after the new tests were added: link check,
 Ruff, format check and `mypy --strict` clean over 310 source files; **3,395 tests passed, 91% coverage**.
-Artifacts: `.tmp/quality-runs/20261001005033-1249-1120/`.
+Artifacts: `.tmp/quality-runs/20261001005033-1249-1120/`. E.3 later broadened the skew tests to run against both
+Graham resolvers (3,419 tests).
 
 ## 6. Limits
 

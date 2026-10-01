@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.core.analysis_status import CalculationStatus
 from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
@@ -123,8 +124,21 @@ def _entry(field: FinancialField, stored: ResolvedInput, *, as_of: datetime | No
     return ResolvedInputCacheEntry(key=key, resolved_input=stored, cached_at=NOW)
 
 
-def _resolver(provider: _Provider, cache: _Cache | None = None) -> GrahamNumberInputResolver:
-    return GrahamNumberInputResolver(provider=provider, cache=cache, clock=lambda: NOW, cache_schema_version=1)
+_RESOLVER_UNDER_TEST: list[type[GrahamNumberInputResolver] | type[GrahamGrowthInputResolver]] = [
+    GrahamNumberInputResolver
+]
+
+
+@pytest.fixture(autouse=True, params=[GrahamNumberInputResolver, GrahamGrowthInputResolver], ids=["number", "growth"])
+def _resolver_class(request: pytest.FixtureRequest) -> None:
+    """Run every test against both Graham resolvers, which share one fact-resolution path."""
+    _RESOLVER_UNDER_TEST[0] = request.param
+
+
+def _resolver(
+    provider: _Provider, cache: _Cache | None = None
+) -> GrahamNumberInputResolver | GrahamGrowthInputResolver:
+    return _RESOLVER_UNDER_TEST[0](provider=provider, cache=cache, clock=lambda: NOW, cache_schema_version=1)
 
 
 def test_the_tolerance_is_ten_minutes() -> None:
