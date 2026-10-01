@@ -1069,6 +1069,17 @@ declared result type, and no plain function crosses the strategy-package boundar
 FCF Growth unchanged. Stored Momentum runs and watchlist entries from before these bumps no longer
 decode, by decision (IR.2.6 plan B.1, item 1).
 
+**Addendum, recorded 2026-09-30 from ESC-E.1** (changes made inside IR.2 that this record did not list; the project owner approved recording them, ESC-20 and ESC-21 in `ESC_A_DEFECT_LEDGER.md`):
+- **Graham presentation schema version 5 to 6.** `graham_number` and `graham_growth_value` `--json` reports carry
+  `"schema_version": 6`, set in commit `3703164` when the Graham separation changed the `analysis` value from
+  `graham` to `graham_number` / `graham_growth_value` (§6.13.6). Momentum (4) and FCF (5) are unchanged.
+- **Frozen-clock skew tolerance and one shared availability check.** In commit `5f01ac0` the shared resolver's
+  three hand-written `available_at > now` comparisons were replaced by `evaluate_freshness` in
+  `src/data/quality.py`, which tolerates up to `FROZEN_CLOCK_SKEW_TOLERANCE` (ten minutes, `src/core/clock.py`) between
+  `executed_at` and a provider timestamp on a live run, and nothing on an `--as-of` run;
+  `src/data/financial/quote_freshness.py` tolerates the same amount. It fixed live Graham quote resolution failing
+  with `future_timestamp` once the resolver's clock was frozen at the run's start.
+
 **Alembic migration:** none required or added. Selections and run evidence are stored as JSON in existing
 versioned columns; no table, column or repository definition changed.
 

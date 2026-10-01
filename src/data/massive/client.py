@@ -35,6 +35,8 @@ class MassiveClient(BaseDataClient):
         # Mock structured response matching yfinance schemas
         try:
             dates = pd.date_range(start=start_date, end=end_date or "2026-07-01", freq="B")
+            if end_date is not None:
+                dates = dates[dates < pd.Timestamp(end_date)]  # end_date is exclusive, as for yfinance
             if len(dates) == 0:
                 raise DataFetchError("Calculated mock range resolved to empty dataset.")
 

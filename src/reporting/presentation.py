@@ -170,11 +170,13 @@ def analysis_failure_document(  # noqa: PLR0913
     """Render sanitized execution failures using the analysis presentation version."""
     return json_document(
         {
-            "schema_version": 4 if analysis == "momentum" else 5,
+            "schema_version": 5,
             "analysis": analysis,
             "method": method,
             "ticker": ticker,
-            "status": "input_unavailable" if reason_code in ("historical_quality", "provider_error") else "error",
+            "status": "input_unavailable"
+            if reason_code in ("historical_quality", "provider_error", "no_eligible_observations")
+            else "error",
             "reason_code": reason_code,
             "reason": reason,
             "result": None,

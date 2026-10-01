@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Final
 
 import numpy as np
@@ -19,8 +19,20 @@ from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.data.instrument_profile import InstrumentProfile
-from src.data.market_data import HistoricalDataResolution, HistoricalMarketData, MarketDataContext, MarketDataProvider
-from src.data.quality import HistoricalDataQualityError, QualityContext, QualityOutcome, evaluate_historical_quality
+from src.data.market_data import (
+    HistoricalDataResolution,
+    HistoricalMarketData,
+    MarketDataContext,
+    MarketDataProvider,
+    NoEligibleObservationsError,
+)
+from src.data.quality import (
+    HistoricalDataQualityError,
+    QualityContext,
+    QualityOutcome,
+    evaluate_future_observation,
+    evaluate_historical_quality,
+)
 from src.data.quality_reporting import publish_quality
 
 
@@ -306,7 +318,21 @@ class MomentumInputResolver:
                 "Requested historical market observations from the configured provider.",
             )
         )
-        data = self._provider.fetch_historical_data(ticker, start_date, use_cache=use_cache)
+        if as_of is None:
+            data = self._provider.fetch_historical_data(ticker, start_date, use_cache=use_cache)
+        else:
+            if as_of.tzinfo is None or as_of.tzinfo.utcoffset(as_of) is None:
+                raise ValueError("Momentum as_of must be timezone-aware.")
+            # An --as-of run asks only for history up to the boundary. Providers treat the end date as
+            # exclusive, so the day after the boundary's UTC date keeps every bar dated on it; the strict
+            # truncation below still decides which of those bars are at or before the boundary instant.
+            window_end = as_of.astimezone(UTC).date() + timedelta(days=1)
+            if window_end <= date.fromisoformat(start_date):
+                raise NoEligibleObservationsError(
+                    "No price history is available at or before the requested --as-of boundary."
+                )
+            end_date = window_end.isoformat()
+            data = self._provider.fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
         decisions = evaluate_historical_quality(
             data, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=effective_as_of)
         )
@@ -316,12 +342,19 @@ class MomentumInputResolver:
             raise HistoricalDataQualityError(decisions, data.frame)
         frame = data.frame
         if as_of is not None:
-            if as_of.tzinfo is None or as_of.tzinfo.utcoffset(as_of) is None:
-                raise ValueError("Momentum as_of must be timezone-aware.")
             timestamps = pd.to_datetime(frame.index, utc=True)
             frame = frame.loc[timestamps <= pd.Timestamp(as_of)]
+        if as_of is None:
+            future = evaluate_future_observation(
+                frame, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=None)
+            )
+            if future.outcome is QualityOutcome.FAIL:
+                publish_quality((future,))
+                raise HistoricalDataQualityError((future,), frame)
         if frame.empty:
-            raise ValueError("No historical observations are eligible at the requested as_of boundary.")
+            raise NoEligibleObservationsError(
+                "No price history is available at or before the requested --as-of boundary."
+            )
 
         retrieved_at = self._clock()
         resolution = data.resolution

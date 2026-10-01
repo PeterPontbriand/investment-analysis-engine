@@ -27,7 +27,7 @@ from src.reporting.presentation import (
     provider_display_name,
 )
 
-_SCHEMA_VERSION = 4
+_SCHEMA_VERSION = 5
 _LIMITATION = (
     "SMA momentum describes recent price trend; it is not a valuation, "
     "fundamental-quality conclusion, or investment recommendation."

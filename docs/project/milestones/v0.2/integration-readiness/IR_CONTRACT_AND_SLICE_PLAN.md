@@ -41,6 +41,9 @@ see `docs/project/README.md`'s Quality gates section for the exact boundary.
 | IR.8 | [Windows path anchoring guard](IR8_WINDOWS_PATH_ANCHORING_GUARD.md) | Complete | 2026-09-30 |
 | IR.6 | [Watchlist lifecycle completion](IR6_WATCHLIST_LIFECYCLE_COMPLETION.md) | Complete | 2026-09-30 |
 
+**IR is complete as of 2026-10-01.** Every slice above is complete, and the [ESC-E](../existing-strategy-correctness/ESC_E_FINAL_ACCEPTANCE.md)
+re-run, [§5](#5-acceptance-criteria)'s last criterion, was accepted by the project owner the same day.
+
 `feat/ir-integration-readiness` is retired once PR #48 merges; all remaining IR work branches from `main`.
 
 ## 3. The slices
@@ -175,7 +178,9 @@ The IR.3 number is retired, not reused. Details: [A.4](#a4-slice-numbering-histo
   no Alembic migration was required.
 - **ESC re-run before Step 3.5:** the full Existing Strategy Correctness audit matrix re-runs once,
   after IR as a whole is complete, to confirm no analysis result changed across the whole work
-  package. Once at the end, not slice by slice, per the project owner's direction.
+  package. Once at the end, not slice by slice, per the project owner's direction. The re-run is
+  [ESC-E](../existing-strategy-correctness/ESC_E_RENEWAL_PLAN.md), accepted 2026-10-01
+  ([record](../existing-strategy-correctness/ESC_E_FINAL_ACCEPTANCE.md)); this criterion is met.
 
 ## 6. Background: origin of this work package
 

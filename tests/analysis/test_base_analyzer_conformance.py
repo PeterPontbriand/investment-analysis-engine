@@ -54,7 +54,7 @@ def _context() -> AnalysisContext:
 
 
 def _momentum_analyzer() -> MomentumAnalyzer:
-    return MomentumAnalyzer(market_data_provider=_FixtureDataClientWithIdentity(), start_date="2026-01-01")
+    return MomentumAnalyzer(market_data_provider=_FixtureDataClientWithIdentity(), start_date="2025-01-01")
 
 
 def _momentum_config() -> MomentumConfig:
