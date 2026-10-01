@@ -202,7 +202,7 @@ CLI / bounded orchestrator
 
 The initial Momentum and Graham pair is deliberately heterogeneous. Their coexistence tests whether the architecture is genuinely general rather than Momentum-specific.
 
- Step 2.5 consumes their stable strategy contracts. Step 3.5 later adds the deterministic quantitative screening suite (Piotroski, Altman Z, Beneish M, valuation multiples, Magic Formula).
+ Step 2.5 consumes their stable strategy contracts. Step 3.5 later adds the deterministic quantitative screening suite (Piotroski, Altman Z, Beneish M, valuation multiples, Magic Formula, Interest Coverage, ROIC).
 
 ### Current package intent
 
