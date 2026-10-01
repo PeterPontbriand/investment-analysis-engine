@@ -175,7 +175,8 @@ The IR.3 number is retired, not reused. Details: [A.4](#a4-slice-numbering-histo
   no Alembic migration was required.
 - **ESC re-run before Step 3.5:** the full Existing Strategy Correctness audit matrix re-runs once,
   after IR as a whole is complete, to confirm no analysis result changed across the whole work
-  package. Once at the end, not slice by slice, per the project owner's direction.
+  package. Once at the end, not slice by slice, per the project owner's direction. The re-run is
+  [ESC-E](../existing-strategy-correctness/ESC_E_RENEWAL_PLAN.md).
 
 ## 6. Background: origin of this work package
 
