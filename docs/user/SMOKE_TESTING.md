@@ -65,7 +65,7 @@ Provider data changes over time, so exact values are not prescribed. For each co
    uv run ian graham-number KO --json
    ```
 
-   Expect top-level schema version 5 and `price_comparison.quote_freshness` with original retrieval time, response age and the configured maximum (300 seconds by default). An eligible cache hit retains its retrieval time; an expired or unverifiable quote must refresh or explain unavailability, never silently fall back to stale data. A missing market timestamp remains `null`. If legacy-input evidence prevents comparison, rerun command 6 with `--no-cache`; continuing unavailability requires its own supported explanation, not automatic acceptance of the refresh hint.
+   Expect top-level schema version 6 and `price_comparison.quote_freshness` with original retrieval time, response age and the configured maximum (300 seconds by default). An eligible cache hit retains its retrieval time; an expired or unverifiable quote must refresh or explain unavailability, never silently fall back to stale data. A missing market timestamp remains `null`. If legacy-input evidence prevents comparison, rerun command 6 with `--no-cache`; continuing unavailability requires its own supported explanation, not automatic acceptance of the refresh hint.
 
 8. Exercise a historical Graham boundary and its resolver diagnostics:
 

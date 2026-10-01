@@ -186,7 +186,7 @@ Diagnostics retain complete technical provenance as well as resolution behavior:
 uv run ian graham-number KO --json
 ```
 
-Graham JSON uses presentation schema version **5**. The additive top-level
+Graham JSON uses presentation schema version **6**. The additive top-level
 `price_comparison` object contains `status`, `reason`, `percent`,
 `security_unit_evidence`, `provenance`, and `quote_freshness`. Its percentage matches the retained
 `result.margin_of_safety_percent` field; unavailable comparisons use null.
