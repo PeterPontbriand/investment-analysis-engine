@@ -36,8 +36,8 @@ authorization before the next begins.
 | E.2 | [Graham Number matrix](#e2--graham-number) | Complete | 2026-09-30 |
 | E.3 | [Graham Growth matrix](#e3--graham-growth) | Complete | 2026-09-30 |
 | E.4 | [Momentum matrix](#e4--momentum) | Complete | 2026-10-01 |
-| E.5 | [FCF/Earnings Growth matrix](#e5--fcfearnings-growth) | Next | |
-| E.6 | [Reconciliation and final acceptance](#e6--reconciliation-and-final-acceptance) | Planned | |
+| E.5 | [FCF/Earnings Growth matrix](#e5--fcfearnings-growth) | Complete | 2026-10-01 |
+| E.6 | [Reconciliation and final acceptance](#e6--reconciliation-and-final-acceptance) | Next | |
 
 E.1 was accepted by the project owner on 2026-09-30, with three corrections (ESC-21, ESC-20's closure, one branch). The [proposal in §4](#4-proposed-scope-for-e2-to-e5) is approved per dimension, with one change: the cross-cutting paths E.1 did not reach (`--save-run`, replay, watchlist refresh, the orchestrator) are verified once, at the start of E.2, for all four analyses, and E.3 to E.5 cite that evidence instead of repeating it. E.2 to E.6 were authorized the same day.
 
@@ -98,7 +98,7 @@ E.1 was accepted by the project owner on 2026-09-30, with three corrections (ESC
 - **Decision:** as E.2.
 - **Scope:** the seven matrix dimensions for `fcf-growth`.
 - **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
-- **Detail:** ⚠ no slice plan yet; see the [proposal](#4-proposed-scope-for-e2-to-e5).
+- **Detail:** [ESC_E5_FCF_EVIDENCE.md](ESC_E5_FCF_EVIDENCE.md).
 
 ### E.6 — Reconciliation and final acceptance
 
