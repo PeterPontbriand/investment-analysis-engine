@@ -71,6 +71,7 @@ Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-r
 
 - Open with **At a glance**: a few bullets stating what the work is, what it is not, and the rules it follows. Include no history there.
 - Put the sequence and status table next. Each scope cell contains one line and a link; each status cell contains only a status word, following the existing sequence-table rules.
+- A sequence table is any Markdown table whose header ends with `Status | Completed`. Rows are ordered by status: `Complete`, `In progress`, `Next`, `Planned`, `Deferred`; the order never goes backward. Complete rows have an ISO date in Completed and dates are non-decreasing; other rows leave Completed empty. At most one row is `Next`. When a row's status changes, move the row if needed to keep this order.
 - Add one short section per unit of work, using labeled bullets: **Problem**, **Decision**, **Scope**, **Branch**, and **Detail**. End each section with a link to the lower-level document that owns the detail, or `⚠ no slice plan yet`.
 - Follow the work-unit sections with scope limits and acceptance criteria, expressed as bullets.
 - Put background and origin after the scope limits and acceptance criteria.
@@ -276,7 +277,8 @@ Require explicit user confirmation before:
 - To find current or next work, start at the sequence table in
   `docs/project/MASTER_PLAN.md` and follow its links.
 - When a unit of work completes, update its row in the nearest sequence table (status and
-  completion date) as part of the same change, and set the next row to Next. Change a parent
+  completion date) as part of the same change, and set the next row to Next, moving it as needed to
+  preserve sequence-table order. Change a parent
   table only when a parent's status actually changes.
 - Active milestone implementation → `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`
 - Roadmap → `docs/project/MASTER_PLAN.md`

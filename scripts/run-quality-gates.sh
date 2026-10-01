@@ -35,7 +35,7 @@ python_version="${version_info%%|*}"
 pandas_version="${version_info##*|}"
 printf 'Quality gate running on Python %s, pandas %s\n' "$python_version" "$pandas_version"
 
-# The link checker imports only the standard library, so it runs with system Python
+# The Markdown checkers import only the standard library, so they run with system Python
 # rather than through uv or the project virtualenv.
 system_python=()
 for candidate in "py -3" python3 python; do
@@ -46,10 +46,11 @@ for candidate in "py -3" python3 python; do
     fi
 done
 if [ "${#system_python[@]}" -eq 0 ]; then
-    printf 'No working system Python found (tried: py -3, python3, python); cannot run scripts/check_doc_links.py\n' >&2
+    printf 'No working system Python found (tried: py -3, python3, python); cannot run Markdown checks\n' >&2
     exit 1
 fi
 "${system_python[@]}" scripts/check_doc_links.py
+"${system_python[@]}" scripts/check_sequence_tables.py
 uv run --no-sync ruff check --no-cache .
 uv run --no-sync ruff format --check .
 uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" src tests scripts

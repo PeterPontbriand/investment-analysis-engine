@@ -164,6 +164,10 @@ class TestFindBrokenLinksInFile:
 
 
 class TestRepositoryIntegration:
+    def test_check_repository_passes_for_repository_markdown(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        assert check_repository(repo_root) == []
+
     def test_check_repository_finds_and_lists_a_real_git_repos_markdown_files(self, tmp_path: Path) -> None:
         subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
         (tmp_path / "good.md").write_text("# Good\n\n[self](#good)\n", encoding="utf-8")
