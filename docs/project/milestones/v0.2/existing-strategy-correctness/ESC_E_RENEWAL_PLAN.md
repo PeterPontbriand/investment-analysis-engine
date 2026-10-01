@@ -66,11 +66,11 @@ E.1 is complete pending the project owner's review of its evidence and of the sc
 - **Problem:** the comparison exercised Graham Number only on KO (success), AAPL and MSFT (the same
   preferred-share failure on both revisions), SPY (not applicable) and two historical and cache-bypass
   cases. The changed code reaches further than that.
-- **Decision:** re-verify in proportion to what changed; see [the proposal below](#proposed-scope-for-e2-e5).
+- **Decision:** re-verify in proportion to what changed; see [the proposal below](#4-proposed-scope-for-e2-to-e5).
 - **Scope:** the seven matrix dimensions for `graham-number`, including its `--save-run`, replay, watchlist
   refresh and orchestrator paths.
 - **Branch:** its own audit branch off `main`, merged when accepted.
-- **Detail:** ⚠ no slice plan yet; the [proposal](#proposed-scope-for-e2-e5) is the working scope.
+- **Detail:** ⚠ no slice plan yet; the [proposal](#4-proposed-scope-for-e2-to-e5) is the working scope.
 
 ### E.3 — Graham Growth
 
@@ -79,7 +79,7 @@ E.1 is complete pending the project owner's review of its evidence and of the sc
 - **Decision:** as E.2.
 - **Scope:** the seven matrix dimensions for `graham-growth`, in ESC-D's order.
 - **Branch:** as E.2.
-- **Detail:** ⚠ no slice plan yet; see the [proposal](#proposed-scope-for-e2-e5).
+- **Detail:** ⚠ no slice plan yet; see the [proposal](#4-proposed-scope-for-e2-to-e5).
 
 ### E.4 — Momentum
 
@@ -89,7 +89,7 @@ E.1 is complete pending the project owner's review of its evidence and of the sc
 - **Scope:** the seven matrix dimensions for `momentum`, with particular attention to the new time and
   cache controls, which have no baseline behavior to compare against.
 - **Branch:** as E.2.
-- **Detail:** ⚠ no slice plan yet; see the [proposal](#proposed-scope-for-e2-e5).
+- **Detail:** ⚠ no slice plan yet; see the [proposal](#4-proposed-scope-for-e2-to-e5).
 
 ### E.5 — FCF/Earnings Growth
 
@@ -98,7 +98,7 @@ E.1 is complete pending the project owner's review of its evidence and of the sc
 - **Decision:** as E.2.
 - **Scope:** the seven matrix dimensions for `fcf-growth`.
 - **Branch:** as E.2.
-- **Detail:** ⚠ no slice plan yet; see the [proposal](#proposed-scope-for-e2-e5).
+- **Detail:** ⚠ no slice plan yet; see the [proposal](#4-proposed-scope-for-e2-to-e5).
 
 ### E.6 — Reconciliation and final acceptance
 
@@ -123,7 +123,8 @@ re-run, the proposal says so and gives the reason, so review can accept or overr
   arithmetic, which moved into a pure function with the same body. This is what lets Financial claims be
   verified more narrowly.
 - **Time and data-lifecycle code changed everywhere.** One clock per run, a SEC eligibility boundary passed
-  as data, a skew tolerance for live runs, a removed future-availability guard in the resolver's cache check,
+  as data, a ten-minute skew tolerance for live runs (the hand-written future-availability comparisons were
+  replaced by the shared freshness check, [ESC-21](ESC_A_DEFECT_LEDGER.md#esc-21--frozen-clock-skew-tolerance-and-the-consolidated-availability-check-have-no-ir-record)),
   and a single cache control ([Appendix A](#appendix-a-change-inventory-7e2f8d2-to-e6b1f76) groups G4 to G7).
   The comparison exercised these only on cold fetch, cache hit, `--no-cache` and three historical requests.
 - **The Graham presenters were rewritten** (about 1,200 lines removed from one module and 1,400 added across four new ones). The
@@ -140,7 +141,7 @@ re-run, the proposal says so and gives the reason, so review can accept or overr
 | Dimension | Proposed scope | Reason |
 | :--- | :--- | :--- |
 | Presentation | Graham Number and Growth: the comparison's identical text and JSON count as evidence for the modes and cases it ran; add a differential render of every presenter branch (unavailable, not applicable, user override, warnings, failure reasons) through both revisions' presenters on the repository's existing fixtures, instead of hand-checking each branch live. Momentum and FCF: the comparison plus the new `--as-of` cases is enough; their presenter files are unchanged. | The presenter rewrite is the largest diff and the comparison cannot reach its error branches. Momentum's and FCF's presenters are byte-identical to the baseline; all 19 FCF pairs matched, and Momentum's text modes matched in the first pass and on RY.TO. |
-| Data lifecycle | Full re-run for all four: cold, hit, bypass, expired, stale, future, legacy, corrupt, and provider failure during refresh. | The decision clock, the cache gate and the availability guard all changed, and the comparison exercised three of the nine states. |
+| Data lifecycle | Full re-run for all four: cold, hit, bypass, expired, stale, future, legacy, corrupt, and provider failure during refresh. | The decision clock, the cache gate and the availability check all changed, and the comparison exercised three of the nine states. |
 | Time | Full re-run for all four, with boundary cases at, just before and just after each eligibility boundary (filing acceptance for SEC, observation date for Momentum), and the new Momentum `--as-of`. | The boundary source changed from the adapter's clock to `effective_as_of`; look-ahead is the failure this dimension exists to catch. |
 | Inputs and applicability | Full for Graham Number and Growth (the EPS-basis accept and default rule was rewritten and now differs by provider). Narrow for FCF and Momentum to the paths that changed: FCF's config object and Momentum's new options and ticker default. | FCF's and Momentum's input validation is otherwise unchanged. |
 | Financial claims | One independent recomputation per analysis on dated evidence (two for FCF, one failing and one passing), plus the boundary and sign cases the ESC plan already lists, rather than re-deriving every classification. Momentum's recomputation uses a constructed fixture, as ESC-D did. | The diff shows the arithmetic unchanged. The comparison also shows identical calculated values on all four analyses. Overrule this if review wants the full oracle re-run. |
@@ -245,12 +246,14 @@ is listed as expected unless a record says so. **Seen in E.1** says whether the 
 | X-08 | Persisted version fields: `MomentumSelection.config_schema_version` 1 to 2; Momentum `(method_version, result_schema_version)` (1, 1) to (1, 2); the evidence codec checks a per-method table; Graham selections carry their own `analysis_id`; stored Momentum runs and watchlist entries saved earlier no longer decode | [IR.2 acceptance record](../integration-readiness/IR2_ANALYZER_ENVELOPE_PLAN.md#ir2-acceptance-record), [IR.2.6 plan B.1 item 1](../integration-readiness/IR2_6_MOMENTUM_PARITY_PLAN.md#b1-decisions-flagged-for-the-project-owner), IR.2 plan §6.10 | No: direct commands do not print them |
 | X-09 | One `executed_at` per run feeds every decision and event clock; Momentum's result timestamp is the run's boundary, not a wall-clock read taken during calculation; Graham resolvers' quote-freshness clock is injected | IR.2 plan [§6.1 item 9](../integration-readiness/IR2_ANALYZER_ENVELOPE_PLAN.md#61-problems-verified-against-the-code) and §6.11; IR.2.3 and IR.2.4 rows | Yes: Golden `MOM-01`, `MOM-02`, `MOM-ETF-01` timestamps; `--as-of` timestamp on `main` |
 | X-10 | SEC EDGAR filing-eligibility checks take the analysis boundary as an explicit `effective_as_of` argument instead of reusing the adapter's retrieval clock | IR.2 plan §6.11; IR.2.4 row | Yes, as no change: the SEC-backed `--as-of` pairs matched |
-| X-11 | Live runs tolerate up to ten minutes of frozen-clock skew between `executed_at` and provider timestamps; historical runs tolerate none; the resolver's cache check no longer rejects a stored fact whose availability is after the clock | [ARCHITECTURE.md, Frozen-clock skew](../../../ARCHITECTURE.md#frozen-clock-skew); introduced by commit `5f01ac0` during IR.2.4 (PR #48). **No IR plan or acceptance record names the tolerance or the removed guard.** | No |
 | X-12 | `use_cache=False` (`--no-cache`) never opens storage or runs the readiness check, for all four analyses; one cache control | [IR.2.5 plan, final acceptance record](../integration-readiness/IR2_5_CACHE_UNIFICATION_PLAN.md#5-final-acceptance-record) | Yes: the three `--no-cache` pairs and the Momentum `--no-cache` run |
 | X-13 | Golden suite version `h1-v3` to `h1-v4`; the `graham_method_selection` component and each Graham case's method constraint are removed, folded into ordinary strategy selection | [IR.2 plan §6.13.7](../integration-readiness/IR2_ANALYZER_ENVELOPE_PLAN.md#6137-evaluation-harness-graham_method_selection-folds-into-ordinary-strategy-selection) | Yes: case definitions differ only by those constraints |
 | X-14 | Orchestrator Graham handlers run through `GrahamNumberAnalyzer` and `GrahamGrowthAnalyzer` instead of the service functions | [IR.2 plan §6.1 item 5](../integration-readiness/IR2_ANALYZER_ENVELOPE_PLAN.md#61-problems-verified-against-the-code) | Yes: the Golden suite dispatches through it and every observed value matched |
 | X-15 | Workspace command names, `runs list --analysis`, alias text, `watchlist delete` and `rename`; Momentum entries in `watchlist show` gain `as_of` and `use_cache` | [IR contract Appendix A.3](../integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#a3-accepted-exceptions-to-the-presentation-output-rule) (IR.6.1), [IR.6 plan](../integration-readiness/IR6_WATCHLIST_LIFECYCLE_COMPLETION.md), [IR.2.6 plan B.3 item 7](../integration-readiness/IR2_6_MOMENTUM_PARITY_PLAN.md#b3-found-during-implementation) | No: direct commands do not reach them |
 | X-16 | On Windows, a partly anchored path is rejected with a readable reason; relative `log_dir` and `telemetry_log_dir` resolve under the project folder | [IR.8 plan](../integration-readiness/IR8_WINDOWS_PATH_ANCHORING_GUARD.md#5-acceptance-criteria) | No: no pair used such a path |
+
+X-11 was withdrawn from the register on 2026-09-30 and is not reused: its only sources are `ARCHITECTURE.md` and a commit
+message, so it is [ESC-21](ESC_A_DEFECT_LEDGER.md#esc-21--frozen-clock-skew-tolerance-and-the-consolidated-availability-check-have-no-ir-record).
 
 Not in the register, so not expected: Graham's JSON `schema_version` 5 to 6
 ([ESC-20](ESC_A_DEFECT_LEDGER.md#esc-20--graham-json-presentation-schema-version-changed-from-5-to-6-with-no-ir-record-and-two-user-documents-still-say-5)).

@@ -245,7 +245,7 @@ live fetch ([§6](#6-limits)). The first pass otherwise agrees with the reported
 - **Not reached by any pair:** `--save-run`, replay, watchlist refresh and the orchestrator path (compared
   only through the Golden suite's dispatch); the Massive provider (no key configured); invalid-input
   failures (so X-02 is unobserved); expired, stale, future-stamped, legacy and corrupt cache entries; the
-  ten-minute skew tolerance and the removed availability guard (X-11); the Windows path guard.
+  ten-minute skew tolerance and the consolidated availability check (ESC-21); the Windows path guard.
 - **Market movement:** pairs ran seconds apart. Quote values matched in every pair that includes a quote,
   so no price moved between a pair's two runs; response ages differed by seconds, as expected.
 - **Dates:** the first pass ran 2026-09-30 from 23:39Z to 23:55Z; the reported pass and the added pairs ran
