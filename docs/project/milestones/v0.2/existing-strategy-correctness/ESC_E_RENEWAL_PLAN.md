@@ -39,7 +39,7 @@ authorization before the next begins.
 | E.5 | [FCF/Earnings Growth matrix](#e5--fcfearnings-growth) | Planned | |
 | E.6 | [Reconciliation and final acceptance](#e6--reconciliation-and-final-acceptance) | Planned | |
 
-E.1 is complete pending the project owner's review of its evidence and of the scope proposed below.
+E.1 was accepted by the project owner on 2026-09-30, with three corrections (ESC-21, ESC-20's closure, one branch). The [proposal in §4](#4-proposed-scope-for-e2-to-e5) is approved per dimension, with one change: the cross-cutting paths E.1 did not reach (`--save-run`, replay, watchlist refresh, the orchestrator) are verified once, at the start of E.2, for all four analyses, and E.3 to E.5 cite that evidence instead of repeating it. E.2 to E.6 were authorized the same day.
 
 ## 3. The slices
 
@@ -58,7 +58,7 @@ E.1 is complete pending the project owner's review of its evidence and of the sc
 - **Result:** no unexplained difference in any calculated value, status, reason or exit code. One
   unexplained difference in a public contract: Graham's JSON `schema_version` moved from 5 to 6 with no
   IR record ([ESC-20](ESC_A_DEFECT_LEDGER.md#esc-20--graham-json-presentation-schema-version-changed-from-5-to-6-with-no-ir-record-and-two-user-documents-still-say-5)).
-- **Branch:** `audit/esc-e-renewal`.
+- **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
 - **Detail:** [ESC_E1_COMPARISON_EVIDENCE.md](ESC_E1_COMPARISON_EVIDENCE.md).
 
 ### E.2 — Graham Number
@@ -69,7 +69,7 @@ E.1 is complete pending the project owner's review of its evidence and of the sc
 - **Decision:** re-verify in proportion to what changed; see [the proposal below](#4-proposed-scope-for-e2-to-e5).
 - **Scope:** the seven matrix dimensions for `graham-number`, including its `--save-run`, replay, watchlist
   refresh and orchestrator paths.
-- **Branch:** its own audit branch off `main`, merged when accepted.
+- **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
 - **Detail:** ⚠ no slice plan yet; the [proposal](#4-proposed-scope-for-e2-to-e5) is the working scope.
 
 ### E.3 — Graham Growth
@@ -78,7 +78,7 @@ E.1 is complete pending the project owner's review of its evidence and of the sc
   made an EPS basis (`fiscal_year`) reachable from the CLI that it never was before.
 - **Decision:** as E.2.
 - **Scope:** the seven matrix dimensions for `graham-growth`, in ESC-D's order.
-- **Branch:** as E.2.
+- **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
 - **Detail:** ⚠ no slice plan yet; see the [proposal](#4-proposed-scope-for-e2-to-e5).
 
 ### E.4 — Momentum
@@ -88,7 +88,7 @@ E.1 is complete pending the project owner's review of its evidence and of the sc
 - **Decision:** as E.2.
 - **Scope:** the seven matrix dimensions for `momentum`, with particular attention to the new time and
   cache controls, which have no baseline behavior to compare against.
-- **Branch:** as E.2.
+- **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
 - **Detail:** ⚠ no slice plan yet; see the [proposal](#4-proposed-scope-for-e2-to-e5).
 
 ### E.5 — FCF/Earnings Growth
@@ -97,7 +97,7 @@ E.1 is complete pending the project owner's review of its evidence and of the sc
   boundary reach them.
 - **Decision:** as E.2.
 - **Scope:** the seven matrix dimensions for `fcf-growth`.
-- **Branch:** as E.2.
+- **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
 - **Detail:** ⚠ no slice plan yet; see the [proposal](#4-proposed-scope-for-e2-to-e5).
 
 ### E.6 — Reconciliation and final acceptance
@@ -107,7 +107,7 @@ E.1 is complete pending the project owner's review of its evidence and of the sc
 - **Decision:** reconcile every ledger entry, repeat dated live checks for all four analyses, run the
   complete managed gate, and record acceptance in the same form as ESC-D.
 - **Scope:** `ESC_E_FINAL_ACCEPTANCE.md` in the format of [ESC_D_FINAL_ACCEPTANCE.md](ESC_D_FINAL_ACCEPTANCE.md).
-- **Branch:** as E.2.
+- **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
 - **Detail:** ⚠ no slice plan yet; ESC-D's [sixth slice](ESC_D_RENEWAL_PLAN.md#11-esc-d6--reconciliation-and-final-acceptance-record)
   is the template.
 
@@ -159,6 +159,7 @@ re-run, the proposal says so and gives the reason, so review can accept or overr
 
 ## 5. Scope limits
 
+- ESC-E uses one branch, `audit/esc-e-renewal`, and merges as one pull request at the end.
 - No repair in E.1 to E.5. A finding is a ledger entry and a proposed disposition.
 - No new strategies, algorithms, persistence schemas or provider coverage, as the ESC plan already excludes.
 - The Massive provider is exercised only where a key is configured; otherwise its paths are covered by
