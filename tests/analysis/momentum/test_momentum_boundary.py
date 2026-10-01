@@ -61,6 +61,17 @@ def test_as_of_drops_a_bar_one_second_after_the_boundary() -> None:
     assert run.market_data.data_as_of == date(2026, 1, 7)
 
 
+def test_as_of_1990_never_calls_the_provider() -> None:
+    provider = MagicMock()
+    analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
+    context = AnalysisContext(as_of=datetime(1990, 1, 1, tzinfo=UTC), executed_at=EXECUTED_AT, use_cache=True)
+
+    with pytest.raises(NoEligibleObservationsError, match="No price history is available at or before"):
+        analyzer.run_analysis("ACME", CONFIG, context)
+
+    provider.fetch_historical_data.assert_not_called()
+
+
 def test_as_of_before_every_bar_has_no_eligible_observations() -> None:
     with pytest.raises(NoEligibleObservationsError, match="No price history is available at or before"):
         _run([10.0, 11.0, 12.0], as_of=FIRST_BAR - ONE_SECOND)

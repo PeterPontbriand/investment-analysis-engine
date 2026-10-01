@@ -327,9 +327,11 @@ class MomentumInputResolver:
             # exclusive, so the day after the boundary's UTC date keeps every bar dated on it; the strict
             # truncation below still decides which of those bars are at or before the boundary instant.
             window_end = as_of.astimezone(UTC).date() + timedelta(days=1)
-            # A window that ends before the series starts cannot be requested (its cache key would be
-            # invalid) and holds no bar anyway; fetch as a live run does and let the truncation report it.
-            end_date = window_end.isoformat() if window_end > date.fromisoformat(start_date) else None
+            if window_end <= date.fromisoformat(start_date):
+                raise NoEligibleObservationsError(
+                    "No price history is available at or before the requested --as-of boundary."
+                )
+            end_date = window_end.isoformat()
             data = self._provider.fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
         decisions = evaluate_historical_quality(
             data, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=effective_as_of)

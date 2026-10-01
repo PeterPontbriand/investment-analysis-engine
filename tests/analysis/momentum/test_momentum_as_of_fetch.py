@@ -252,13 +252,27 @@ def test_a_valid_bar_dated_on_the_boundary_day_but_stamped_after_the_boundary_in
 
 
 @pytest.mark.parametrize("use_cache", [True, False])
-def test_a_boundary_before_the_series_start_date_reports_no_eligible_observations(
-    database: SQLiteDatabase, use_cache: bool
+@pytest.mark.parametrize(
+    "as_of",
+    [datetime(1990, 1, 1, tzinfo=UTC), datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)],
+    ids=["1990", "one-second-before-the-start-date"],
+)
+def test_a_boundary_before_the_series_start_date_reports_no_eligible_observations_without_fetching(
+    database: SQLiteDatabase, use_cache: bool, as_of: datetime
 ) -> None:
-    """Such a window cannot be requested, so the run fetches as a live run does and nothing is eligible."""
     provider = _EndDateProvider(_closes())
 
     with pytest.raises(NoEligibleObservationsError, match="No price history is available at or before"):
-        _run(_client(provider, database), as_of=datetime(1990, 1, 1, tzinfo=UTC), use_cache=use_cache)
+        _run(_client(provider, database), as_of=as_of, use_cache=use_cache)
 
-    assert provider.calls == [("ACME", START, None)]
+    assert provider.calls == []
+    assert _stored(database, None) is None
+
+
+def test_a_boundary_at_the_series_start_date_is_fetched_and_keeps_the_first_bar(database: SQLiteDatabase) -> None:
+    provider = _EndDateProvider(_closes())
+
+    run = _run(_client(provider, database), as_of=datetime(2026, 1, 1, tzinfo=UTC))
+
+    assert provider.calls == [("ACME", START, "2026-01-02")]
+    assert run.metrics.current_price == 10.0
