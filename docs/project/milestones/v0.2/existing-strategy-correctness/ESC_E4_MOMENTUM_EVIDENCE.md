@@ -75,19 +75,42 @@ Scope and proposal: [ESC-E plan](ESC_E_RENEWAL_PLAN.md#4-proposed-scope-for-e2-t
 | `e4s_SPY_diag` | `ian momentum SPY --diagnostics` | 0 to 0 | Identical apart from timestamps and ages |
 | `e4s_SPY_json` | `ian momentum SPY --json` | 0 to 0 | Provider noise in `long_sma` and the two values derived from it (eighth digit; see E.1 section 5) |
 
-## 3. Main-only runs (no baseline equivalent)
+## 3. Repairs decided after E.4 and re-verification
+
+The project owner decided on 2026-10-01 to repair ESC-22, ESC-23 and ESC-24, each in its own commit with tests
+first and the full gate after each.
+
+| Entry | Result |
+| :--- | :--- |
+| ESC-24 | Repaired, `dfd0cf6`. Gate 3,425 tests, 91%. Momentum's presentation schema is now 5 (register X-17). |
+| ESC-23 | Repaired, `d9fa796`. Gate 3,432 tests, 91%. |
+| ESC-22 | **Not repaired; stopped.** The resolver is not the only layer that rejects the frame: the cache client in front of every production run evaluates the raw fetch itself, so a resolver-only change alters no outcome. Reproduced offline. Needs the project owner's direction (ledger entry). |
+
+Re-verification on the dimensions the repairs touch, after the repairs:
+
+- **Calculated values:** the Golden suite passes 19 of 19, and every observed numerical and domain value still
+  equals the baseline's (all 19 cases compared); the independent Momentum oracle was unchanged by the repairs
+  (no calculation code changed).
+- **Public contracts:** Momentum JSON pairs against the baseline differ only in `schema_version` (4 to 5, X-17)
+  and provider noise; text modes are identical (KO concise and details, SPY diagnostics). `--as-of 1990-01-01`
+  now prints the specified text and returns `input_unavailable` / `no_eligible_observations` in JSON.
+- **Time:** bars within ten minutes after the execution time are accepted; ten minutes and one second, an hour
+  and thirty days are rejected with the rule `historical.future_observation`; an `--as-of` run is unaffected.
+- **Data lifecycle:** no cache code changed. The cache layer's own checks are untouched.
+
+## 4. Main-only runs (no baseline equivalent)
 
 KO on 2026-10-01: `--as-of` at, before and after the bar (JSON, text, details, diagnostics); `--as-of`
 2099-01-01, 1990-01-01, naive and malformed; `--no-cache --json`; `--as-of 2025-12-31 --save-run --json`
 followed by `runs show` in four modes. Outputs are under `.tmp/esc-e/raw/e4-main-only/`.
 
-## 4. Gate
+## 5. Gate
 
 `scripts/run-quality-gates.sh` on Python 3.12.14 and pandas 3.0.5, with the four new boundary tests: Ruff, format check
 and `mypy --strict` clean over 311 source files; **3,423 tests passed, 91% coverage**. Artifacts:
 `.tmp/quality-runs/20261001021629-585-8788/`.
 
-## 5. Limits
+## 6. Limits
 
 - Live Momentum arithmetic is limited to about 1e-8 relative by provider noise.
 - Earlier in the ESC-E window Yahoo returned non-finite prices for the latest session on US tickers
