@@ -40,5 +40,5 @@ expansion adds its quantitative-screen analyzers.
 
 - [R3 audit plan](R3_DEAD_CODE_AUDIT_PLAN.md)
 - [Milestone v0.2 Implementation Plan sequencing](IMPLEMENTATION_PLAN.md#sequence-and-status)
-- [Master Plan sequencing note](../../../MASTER_PLAN.md#8-ordered-implementation-steps--release-milestones)
+- [Master Plan sequencing note](../../MASTER_PLAN.md#8-ordered-implementation-steps--release-milestones)
 - Close-out date: 2026-10-01
