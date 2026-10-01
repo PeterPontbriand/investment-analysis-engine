@@ -4,12 +4,56 @@ Defines the audit coverage, repair boundaries and acceptance requirements for ex
 
 Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
+## At a glance
+
+- **What this is:** the standing correctness contract for the four existing public analyses (Graham Number,
+  Graham Growth, Momentum, FCF/Earnings Growth): what to audit, how to record a defect, and what counts as
+  accepted. Each pass over the analyses is a numbered unit of work below and follows this contract.
+- **What it is not:** a place for new strategies, algorithms, persistence schemas or architecture rewrites
+  ([scope limits](#1-scope-and-outcomes)).
+- **Rules every pass follows:** the seven-dimension [audit matrix](#3-required-audit-matrix), a defect
+  ledger entry for every discrepancy, independent arithmetic, dated live checks, and the complete managed
+  gate with at least 85% coverage ([verification](#4-verification-and-review-requirements)).
+- **Where the detail lives:** each unit's own plan; the ledger is
+  [ESC_A_DEFECT_LEDGER.md](ESC_A_DEFECT_LEDGER.md); the initial findings are in
+  [Appendix A](#appendix-a-background-and-initial-findings).
+
 ## Sequence and status
 
-| Order | Scope | Local gate |
-| :--- | :--- | :--- |
-| ESC-A → ESC-B → ESC-C | Evidence/contracts; repairs; initial acceptance | Accepted |
-| ESC-D | [Refresh lifecycle/output evidence and full gate on proposed starting revision](ESC_D_RENEWAL_PLAN.md) | Accepted; final acceptance granted 2026-09-23 (see [final acceptance record](ESC_D_FINAL_ACCEPTANCE.md)) |
+| Order | Scope | Status | Completed |
+| :--- | :--- | :--- | :--- |
+| ESC-A → ESC-B → ESC-C | [Evidence and repair contract](ESC_A_EVIDENCE_AND_REPAIR_CONTRACT.md), [implementation](ESC_B_IMPLEMENTATION_AND_REVIEW.md), [initial acceptance](ESC_C_FINAL_ACCEPTANCE.md) | Complete | 2026-09-11 |
+| ESC-D | [Refresh lifecycle/output evidence and full gate](ESC_D_RENEWAL_PLAN.md) | Complete | 2026-09-23 |
+| ESC-E | [Re-run after integration readiness (IR)](ESC_E_RENEWAL_PLAN.md) | Complete | 2026-10-01 |
+
+## The work units
+
+### ESC-A → ESC-B → ESC-C
+
+- **Problem:** the four analyses had known output-correctness findings and no systematic coverage record.
+- **Decision:** audit, repair and accept in three gated steps.
+- **Scope:** the four existing analyses, end to end.
+- **Branch:** `main` history before the project's branch-per-package convention.
+- **Detail:** [ESC_C_FINAL_ACCEPTANCE.md](ESC_C_FINAL_ACCEPTANCE.md).
+
+### ESC-D
+
+- **Problem:** six commits (Step 3.4, P2-Profiles and others) landed after ESC-C's accepted revision.
+- **Decision:** re-run the complete matrix on the new revision rather than only the files the diff touched.
+- **Scope:** all four analyses plus the new workspace, persistence and profile-cache layer.
+- **Branch:** `main`, accepted as PR #42.
+- **Detail:** [ESC_D_RENEWAL_PLAN.md](ESC_D_RENEWAL_PLAN.md) and
+  [ESC_D_FINAL_ACCEPTANCE.md](ESC_D_FINAL_ACCEPTANCE.md).
+
+### ESC-E
+
+- **Problem:** integration readiness (IR) reshaped every analyzer's entry point, clock, cache control and
+  presenters after ESC-D's accepted revision, and the IR contract requires one re-run once IR is complete.
+- **Decision:** start from a side-by-side comparison against ESC-D's accepted revision, then re-verify each
+  analysis in proportion to what that comparison and the change inventory show.
+- **Scope:** the four existing analyses on the post-IR revision.
+- **Branch:** `audit/esc-e-renewal`.
+- **Detail:** [ESC_E_RENEWAL_PLAN.md](ESC_E_RENEWAL_PLAN.md).
 
 ## 1. Scope and outcomes
 
@@ -21,21 +65,13 @@ Completion means systematic documented coverage, no unresolved known correctness
 
 Excluded: new strategies/algorithms, speculative architecture rewrites, database-readiness implementation, new persistence schemas, universal provider coverage, automatic currency/ADR/split conversions, and unrelated documentation cleanup. Necessary financial-policy changes must be made explicit and reviewed before implementation; preserve existing assumptions until that decision is approved.
 
-## 2. Known findings and defect accounting
+## 2. Acceptance criteria
 
-Maintain a ledger during investigation with: ID, affected analyses/modes, severity and impact, source revision, reproduction, expected contract, actual output, root cause, proposed policy/API/files, repair commit, regression and live evidence, and acceptance disposition. A linked issue is not closure. Every new discrepancy enters the ledger. An intentionally unavailable case needs supporting evidence and an approved disposition, not a silent waiver.
-
-Initial entries (verified findings, not completed repairs):
-
-| ID | Finding | Required resolution evidence |
-| :--- | :--- | :--- |
-| ESC-01 | A cached quote retrieved 13h51 before the pasted run was labelled current; financial-cache reuse defaults to unlimited. Exchange observation time is not retained. | Design quote-specific freshness independently from annual-fact age; define quote age, retrieval age, cache residence, historical boundaries, unknown timestamps, refresh/error behavior, configuration and headline wording. Prove expired/unknown evidence cannot silently imply a current-market comparison. |
-| ESC-02 | Listing venue is absent from the selected identity although the inspected filing supplies exchange evidence. | Define source/time-aware metadata enrichment or display the filing exchange separately. Do not silently relabel historical registration evidence as verified current listing metadata. Test partial identity and provider disagreement. |
-| ESC-03 | Generic unavailable/n/a/unspecified labels conflate missing evidence, inapplicable fields, and unpopulated metadata. | Inventory each occurrence in every mode; distinguish these states. Derived fields and point-in-time values need accurate labels, not fabricated timestamps or provider fields. |
-| ESC-04 | Inferred preferred-share zero is rendered as derived; component notes and deeper lineage are omitted in details. | Expose inference versus observation and supporting assumptions/lineage. Verify zero guards and units across all analyses; missing inputs must never become zero by default. |
-| ESC-05 | Original Graham fixtures omitted ordinary dimensioned equity disclosures; parsing a real filing without verifying its source values missed a production failure. | Retain the corrected regression and require representative provider-shaped composition tests and dated live checks for all four analyses. Record limits of fixtures and live evidence. |
-
-The existing [Graham implementation record](../graham-comparison/R2_IMPLEMENTATION_AND_VERIFICATION.md) contains the comparison repair and follow-up evidence (2,004 tests, 89% reported coverage). That is historical evidence for the checkpoint, not the baseline or acceptance of this expanded audit. Graham R2/R3 final acceptance is reopened and folded into the broader final review.
+- No unresolved ledger entry for any dimension of any analysis on the revision under review.
+- Independent arithmetic, dated live checks and the complete managed gate (at least 85% coverage), as
+  [§4](#4-verification-and-review-requirements) specifies.
+- A final acceptance record analogous to [ESC_C_FINAL_ACCEPTANCE.md](ESC_C_FINAL_ACCEPTANCE.md),
+  including the limits retained for acceptance.
 
 ## 3. Required audit matrix
 
@@ -80,3 +116,23 @@ output examples and freshness on the actual proposed starting revision.
 Record revision, commands, results and isolated artifact paths. Synthetic tests
 remain offline; live checks supplement them without secrets. Use disposable
 storage for lifecycle tests. An independent read-only review is optional.
+
+## Appendix A: Background and initial findings
+
+Kept for the record. Nothing here is needed to apply the matrix above.
+
+### A.1 Known findings and defect accounting (formerly §2)
+
+Maintain a ledger during investigation with: ID, affected analyses/modes, severity and impact, source revision, reproduction, expected contract, actual output, root cause, proposed policy/API/files, repair commit, regression and live evidence, and acceptance disposition. A linked issue is not closure. Every new discrepancy enters the ledger. An intentionally unavailable case needs supporting evidence and an approved disposition, not a silent waiver.
+
+Initial entries (verified findings, not completed repairs):
+
+| ID | Finding | Required resolution evidence |
+| :--- | :--- | :--- |
+| ESC-01 | A cached quote retrieved 13h51 before the pasted run was labelled current; financial-cache reuse defaults to unlimited. Exchange observation time is not retained. | Design quote-specific freshness independently from annual-fact age; define quote age, retrieval age, cache residence, historical boundaries, unknown timestamps, refresh/error behavior, configuration and headline wording. Prove expired/unknown evidence cannot silently imply a current-market comparison. |
+| ESC-02 | Listing venue is absent from the selected identity although the inspected filing supplies exchange evidence. | Define source/time-aware metadata enrichment or display the filing exchange separately. Do not silently relabel historical registration evidence as verified current listing metadata. Test partial identity and provider disagreement. |
+| ESC-03 | Generic unavailable/n/a/unspecified labels conflate missing evidence, inapplicable fields, and unpopulated metadata. | Inventory each occurrence in every mode; distinguish these states. Derived fields and point-in-time values need accurate labels, not fabricated timestamps or provider fields. |
+| ESC-04 | Inferred preferred-share zero is rendered as derived; component notes and deeper lineage are omitted in details. | Expose inference versus observation and supporting assumptions/lineage. Verify zero guards and units across all analyses; missing inputs must never become zero by default. |
+| ESC-05 | Original Graham fixtures omitted ordinary dimensioned equity disclosures; parsing a real filing without verifying its source values missed a production failure. | Retain the corrected regression and require representative provider-shaped composition tests and dated live checks for all four analyses. Record limits of fixtures and live evidence. |
+
+The existing [Graham implementation record](../graham-comparison/R2_IMPLEMENTATION_AND_VERIFICATION.md) contains the comparison repair and follow-up evidence (2,004 tests, 89% reported coverage). That is historical evidence for the checkpoint, not the baseline or acceptance of this expanded audit. Graham R2/R3 final acceptance is reopened and folded into the broader final review.

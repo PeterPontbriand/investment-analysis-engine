@@ -11,6 +11,10 @@ import pandas as pd
 from src.data.financial.provenance import SourceKind
 
 
+class NoEligibleObservationsError(ValueError):
+    """No observation exists at or before the requested point-in-time boundary."""
+
+
 @dataclass(frozen=True)
 class HistoricalDataResolution:
     """Transient retrieval evidence reconstructed from the source or cache entry."""
@@ -44,7 +48,11 @@ class MarketDataProvider(Protocol):
     def fetch_historical_data(
         self, ticker: str, start_date: str, end_date: str | None = None, *, use_cache: bool
     ) -> HistoricalMarketData:
-        """Return historical observations and retained retrieval context."""
+        """Return historical observations and retained retrieval context.
+
+        ``end_date`` is exclusive: an observation dated on it is not returned, matching yfinance's
+        ``end``. ``None`` requests everything through the latest observation.
+        """
         ...
 
 

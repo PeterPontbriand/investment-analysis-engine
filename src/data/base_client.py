@@ -37,7 +37,8 @@ class BaseDataClient(ABC):
         Args:
             ticker: The target stock or asset ticker symbol.
             start_date: Query start date (format: YYYY-MM-DD).
-            end_date: Optional query end date (format: YYYY-MM-DD).
+            end_date: Optional query end date (format: YYYY-MM-DD). Exclusive: an observation dated
+                on ``end_date`` is not returned. ``None`` requests everything through the latest.
 
         Returns:
             pd.DataFrame: A structured pandas DataFrame containing standard market indicators.

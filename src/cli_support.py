@@ -15,6 +15,7 @@ from src.data.base_client import DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.financial.cache import ResolvedInputSeriesCacheProtocol
 from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
+from src.data.market_data import NoEligibleObservationsError
 from src.data.quality import DataQualityError, HistoricalDataQualityError, HistoricalQualityPolicy, QualityOutcome
 from src.data.repositories import (
     SQLiteDatabase,
@@ -176,7 +177,7 @@ def _parse_as_of(value: str | None) -> datetime | None:
 
 
 @contextmanager
-def execution_errors(  # noqa: PLR0913
+def execution_errors(  # noqa: PLR0912, PLR0913
     *,
     unexpected: Callable[[Exception], str],
     invalid: Callable[[ValueError], str] | None = None,
@@ -217,6 +218,9 @@ def execution_errors(  # noqa: PLR0913
         elif isinstance(exc, AnalysisConfigurationError):
             message = invalid(exc) if invalid is not None else str(exc)
             code = "configuration_error"
+        elif isinstance(exc, NoEligibleObservationsError):
+            message = str(exc)
+            code = "no_eligible_observations"
         elif isinstance(exc, ValueError) and invalid is not None:
             message = (
                 invalid(exc) if mode is None or analysis == "momentum" else "Invalid analysis inputs or provider data."

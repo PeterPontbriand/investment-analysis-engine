@@ -57,7 +57,7 @@ def test_typed_readiness_failure_preserves_envelope_and_closes_storage(
     assert "private SQL" not in result.output
     if mode == ["--json"]:
         report = json.loads(result.stdout)
-        assert report["schema_version"] == (4 if command == "momentum" else 5)
+        assert report["schema_version"] == 5
         assert report["status"] == "error"
         assert report["result"] is None
         assert report["reason_code"] == reason.value
