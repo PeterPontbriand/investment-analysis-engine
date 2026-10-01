@@ -1,7 +1,7 @@
 # Deferred — Standard Delivery Surfaces
 
 **Status:** deferred; own scoped work package once picked up, but not to be scheduled until
-after [Step 3.5](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status).
+after [Step 3.5](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status).
 **Discovered:** 2026-09, via the [evidence provider roadmap](../../EVIDENCE_PROVIDER_ROADMAP.md)'s
 "Standard delivery surfaces" candidate.
 **Decision:** the project owner confirmed this becomes its own work package rather than folding

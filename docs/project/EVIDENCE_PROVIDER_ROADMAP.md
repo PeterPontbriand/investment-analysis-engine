@@ -39,11 +39,12 @@ sequence, followed by [integration readiness (IR)](milestones/v0.2/integration-r
 and the [`src` package rename (PKG)](milestones/v0.2/PKG_RENAME_PLAN.md) — both scoped
 independently of this backlog but addressing the same "library-readiness" observations it
 originally raised (see "Suggested priorities" below) — all three before
-[Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status)'s
-five new analyzers land. Step 3.5 (plan accepted) covers Piotroski F-Score, Altman Z-Score,
-Beneish M-Score, EV/EBITDA and FCF yield, and the Greenblatt Magic Formula ranking. [Step 4.1](MASTER_PLAN.md#milestone-v03-analytics-expansion--canadian-localization)
+[Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)'s
+seven new analyzers land. Step 3.5 (plan accepted) covers Piotroski F-Score, Altman Z-Score and Z'',
+Beneish M-Score, EV/EBITDA and FCF yield, the Greenblatt Magic Formula ranking, Interest Coverage,
+and ROIC / incremental ROIC. [Step 4.1](MASTER_PLAN.md#milestone-v03-analytics-expansion--canadian-localization)
 lists price-to-cash-flow/price-to-free-cash-flow screens as committed scope, with cash-conversion
-quality, ROIC, point-in-time estimate revisions, growth-adjusted cash-flow valuation, and leverage
+quality, point-in-time estimate revisions, growth-adjusted cash-flow valuation, and leverage
 and earnings stability named as candidates subject to separate approval; Step 4.2 covers further
 technical indicators; Step 4.3 covers aggregation, drawdown, and volatility, with cross-sectional
 ranking named as a possibility for later product-policy work. The strategy table below marks each
@@ -90,7 +91,7 @@ differentiators.
   JSON Schemas are already [IR](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md)
   item 7, not part of this candidate). The project owner confirmed this becomes its own scoped
   work package rather than folding into an existing one, explicitly not scheduled until after
-  [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) —
+  [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) —
   see [the deferred-item record](milestones/v0.2/DEFERRED_STANDARD_DELIVERY_SURFACES.md).
 - **Published conformance suite.** Release Golden Suite fixtures as test vectors so other
   implementations can prove they compute the same results.
@@ -120,17 +121,17 @@ inputs.
 | Graham extensions | Enterprising Investor criteria | Graham's looser multi-part screen, same component structure | New | Yes |
 | Graham extensions | Net current asset value (net-nets) | Liquidation-floor test from balance-sheet facts | New | Yes |
 | Graham extensions | Earnings Power Value | No-growth valuation, a counterweight to Graham Growth | New | Yes |
-| Accounting quality and distress | Piotroski F-Score | Nine binary signals, each with status and reason | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#21-piotroski-f-score-srcanalysisstrategypiotroskipy) | Yes |
-| Accounting quality and distress | Altman Z-Score and Z'' | Distress zone for manufacturers and non-manufacturers | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#22-altman-z-score-srcanalysisstrategyaltman_zpy) covers only the classic 1968 five-factor model for non-financial public firms; the Z'' variant (non-manufacturers/private firms) is not in that scope — confirmed by direct inspection, not left open | Yes |
+| Accounting quality and distress | Piotroski F-Score | Nine binary signals, each with status and reason | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#1-piotroski-f-score) | Yes |
+| Accounting quality and distress | Altman Z-Score and Z'' | Distress zone for manufacturers and non-manufacturers | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#2-altman-z-score) covers the classic 1968 model for manufacturers and Z'' for other non-financial public firms; the private-firm variants are not in that scope | Yes |
 | Accounting quality and distress | Ohlson O-Score | Bankruptcy-probability evidence | New | Yes |
-| Accounting quality and distress | Beneish M-Score | Earnings-manipulation likelihood | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#23-beneish-m-score-srcanalysisstrategybeneish_mpy) | Yes |
+| Accounting quality and distress | Beneish M-Score | Earnings-manipulation likelihood | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#3-beneish-m-score) | Yes |
 | Accounting quality and distress | Sloan accruals ratio and cash conversion | Earnings quality relative to cash | Step 4.1 names cash-conversion quality as a candidate subject to separate approval; the Sloan accruals ratio specifically is not named there — New for that part | Yes |
 | Accounting quality and distress | Dilution and stock-comp-adjusted FCF | Share-count creep; FCF after stock-based compensation | New | Yes |
-| Accounting quality and distress | ROIC and gross profitability | Capital efficiency and quality | Step 4.1 names ROIC (and incremental-ROIC/reinvestment opportunity) as a candidate subject to separate approval; gross profitability specifically is not named there — New for that part | Yes |
+| Accounting quality and distress | ROIC and gross profitability | Capital efficiency and quality | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#7-roic-and-incremental-roic) covers ROIC and incremental ROIC; gross profitability specifically is not named there — New for that part | Yes |
 | Accounting quality and distress | Kind-specific metrics | FFO/AFFO for REITs; efficiency ratio, capital ratios, NIM for banks | New — confirmed to require extending `InstrumentKind` (`src/data/instrument_profile.py`) beyond its current equity/ETF/cryptocurrency set; deliberately not planned further until after Step 3.5 | Partial |
 | Market-implied and relative valuation | Reverse DCF | Growth rate the current price implies, by deterministic root-finding | New (Step 4.1 requires a separate DCF specification before any DCF-based method) | Yes |
-| Market-implied and relative valuation | Point-in-time EV multiples | EV/EBIT, EV/EBITDA, earnings yield with as-of share count and net debt | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#24-unlevered-valuation-multiples-srcanalysisstrategyvaluation_multiplespy) covers EV/EBITDA and FCF yield; EV/EBIT and earnings yield specifically are not named there | Yes |
-| Market-implied and relative valuation | Greenblatt Magic Formula | Earnings yield plus return on capital, combined rank | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#25-greenblatt-magic-formula-ranking-srcanalysisstrategymagic_formulapy) | Yes |
+| Market-implied and relative valuation | Point-in-time EV multiples | EV/EBIT, EV/EBITDA, earnings yield with as-of share count and net debt | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#4-cash-flow-valuation-multiples) covers EV/EBITDA and FCF yield, and its [Magic Formula](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula) computes earnings yield (EBIT/EV); EV/EBIT as a standalone multiple is not named there | Yes |
+| Market-implied and relative valuation | Greenblatt Magic Formula | Earnings yield plus return on capital, combined rank | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula) | Yes |
 | Market-implied and relative valuation | Shareholder yield and dividend safety | Dividends + net buybacks + debt paydown; payout coverage by FCF | New | Yes |
 | Market-implied and relative valuation | Peer-relative percentiles | Rank within point-in-time peer group, with coverage counts | Step 4.3 names cross-sectional ranking only as a possibility for later product-policy work, not committed scope | Partial |
 | Price and market structure | Liquidity and capacity | Average daily dollar volume, Amihud illiquidity, spread proxies | New | Yes |
@@ -183,13 +184,13 @@ sequenced as [R3](milestones/v0.2/R3_DEAD_CODE_AUDIT_PLAN.md),
 
 1. **Library-readiness cleanup, already decided and sequenced.** New code in this project is
    agent-written, and agents replicate the patterns they find; fixing the patterns before Step 3.5
-   adds five more analyzers keeps review effort bounded. This runs as R3 (dead code), then IR
+   adds seven more analyzers keeps review effort bounded. This runs as R3 (dead code), then IR
    (analyzer contract, Momentum purity, JSON schemas, license), then PKG (the `src` rename), all
    before Step 3.5. IR's own contract additionally calls for validating the new typed analyzer
    contract against Piotroski — Step 3.5's first analyzer — once it exists, rather than treating
    the contract as settled from the four existing analyzers alone.
 2. **Step 3.5 quantitative screens.** As already planned: Piotroski, Altman, Beneish, EV/EBITDA and
-   FCF yield, Magic Formula.
+   FCF yield, Magic Formula, Interest Coverage, ROIC.
 3. **Three-valued composable screens.** Proposed as the missing-data policy Step 4.3 requires;
    multiplies the value of every strategy.
 4. **Graham Defensive and Enterprising criteria, and NCAV.** New, and almost entirely reuse the

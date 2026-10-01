@@ -15,14 +15,14 @@ analogous to `IR_CONTRACT_AND_SLICE_PLAN.md` remain to be written before impleme
 
 ## 1. Why this, and why before Step 3.5
 
-Step 3.5 adds five new quantitative-screen analyzers (Piotroski F-Score, Altman Z-Score, Beneish
-M-Score, unlevered valuation multiples, Greenblatt Magic Formula). Every wiring point enumerated
+Step 3.5 adds seven new quantitative-screen analyzers (Piotroski F-Score, Altman Z-Score, Beneish
+M-Score, cash-flow valuation multiples, Greenblatt Magic Formula, Interest Coverage, ROIC). Every wiring point enumerated
 below is currently **hand-written once per existing strategy**, in a fixed, repeated shape: a
 Pydantic tool-arguments model, a persisted selection model, an execution adapter file, a codec
 dispatch branch, a presentation module, a CLI command, an evaluation fixture wiring block, and
 several isinstance/dict-key dispatch chains that grow one branch per strategy. None of it is
 generated, inherited, or shared — each of the four existing strategies duplicates the same shape
-independently. Adding five more analyzers without consolidating this first means writing (and
+independently. Adding seven more analyzers without consolidating this first means writing (and
 reviewing, and keeping in sync) roughly five times as much boilerplate as exists today, at exactly
 the size where a missed branch (a forgotten `isinstance` case, a forgotten dict entry) becomes a
 silent gap rather than an immediate test failure.
@@ -36,7 +36,7 @@ frameworks remain prohibited.").
 ## 2. Inventory: every hand-written per-strategy wiring point
 
 Surveyed across the five layers named in the project owner's request. Each row names the file, what
-is duplicated per strategy today, and how many times (four, soon nine).
+is duplicated per strategy today, and how many times (four, soon eleven).
 
 ### Orchestrator (`src/orchestrator/analysis_tools.py`)
 
@@ -89,7 +89,7 @@ is duplicated per strategy today, and how many times (four, soon nine).
 
 ### Rough count
 
-Nine strategies (four existing + five Step 3.5) × roughly fourteen wiring points per strategy across
+Eleven strategies (four existing + seven Step 3.5) × roughly fourteen wiring points per strategy across
 these layers ≈ **over a hundred hand-maintained touch points**, once Step 3.5 lands, for what is
 structurally the same shape every time: a config type, a context-consuming `run_analysis`, a result
 type, and version identifiers. That count is the concrete case for consolidating before Step 3.5,
@@ -156,7 +156,7 @@ single place to check "was this strategy wired everywhere." A `StrategyDescripto
 single place, and a missing wiring point becomes a type error (an incomplete descriptor) rather than
 a silent runtime gap.
 
-**Exact typing shape (`Any`/covariance/how nine heterogeneous `ConfigT`/`ResultT` pairs coexist in
+**Exact typing shape (`Any`/covariance/how eleven heterogeneous `ConfigT`/`ResultT` pairs coexist in
 one tuple) needs real design work this proposal deliberately doesn't do** — that's implementation,
 not scoping, and belongs to whichever slice plan eventually owns this if accepted.
 
@@ -186,7 +186,7 @@ Sequence: `IR` (IR.1, IR.2 and the slices added since; the Momentum series API, 
   dispatch-chain shape at all, rather than auditing branches this package is about to delete anyway.
 - **Precedes PKG**, along with R3 — PKG (the `src` → real package rename) changes import paths, not
   strategy-wiring shape, and gains nothing from running before either R3 or SWC; running it last
-  among the three means Step 3.5's five new analyzers are written once, under the final import path,
+  among the three means Step 3.5's seven new analyzers are written once, under the final import path,
   against an already-consolidated, already-cleaned codebase.
 - **Feeds Step 3.5 directly**, per §5 above — this is the practical reason it runs *before* Step 3.5,
   not merely "sometime before."

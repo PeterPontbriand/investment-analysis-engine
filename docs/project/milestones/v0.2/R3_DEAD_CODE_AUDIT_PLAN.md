@@ -5,7 +5,7 @@
 project's convention for any nontrivial work package.
 **Discovered:** 2026-09-23, during ESC-D.4 reconnaissance (ESC-18's correction in
 [the defect ledger](existing-strategy-correctness/ESC_A_DEFECT_LEDGER.md)).
-**Why scheduled here:** deliberately placed before Step 3.5, which adds five new
+**Why scheduled here:** deliberately placed before Step 3.5, which adds seven new
 quantitative-screen analyzers, so this audit covers a smaller, more tractable codebase than it
 would after that expansion. See this milestone's own
 [work-package identifiers list](IMPLEMENTATION_PLAN.md#sequence-and-status) for how this `R3` code

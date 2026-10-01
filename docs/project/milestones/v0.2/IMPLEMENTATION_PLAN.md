@@ -19,7 +19,7 @@ current codes:
   split, both pure refactors with no new functionality.
 - `R3` — a repository-wide dead code audit ([plan](R3_DEAD_CODE_AUDIT_PLAN.md)): locate and remove
   code, branches, and files that can no longer be reached, across all of `src/`, not scoped to one
-  strategy or module. Scheduled deliberately before Step 3.5 (which adds five new
+  strategy or module. Scheduled deliberately before Step 3.5 (which adds seven new
   quantitative-screen analyzers) so the audit runs while the codebase is still a manageable size,
   rather than after another substantial expansion makes the same audit larger and more error-prone.
 - `P1` / `P2` — short for "Profile": the instrument-identity/kind applicability work, then the
@@ -66,7 +66,7 @@ sequencing meaning.
 | 11 | [Strategy wiring consolidation (SWC)](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md) | Next | |
 | 12 | [Repository-wide dead code audit (R3)](R3_DEAD_CODE_AUDIT_PLAN.md) | Planned | |
 | 13 | [`src` package rename (PKG)](PKG_RENAME_PLAN.md) | Planned | |
-| 14 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Planned | |
+| 14 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
 | 15 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
 | Deferred | [ETF aggregation (P2-ETF)](#47a-p2--durable-instrument-profiles--etf-aggregate-fcf-growth) | Deferred | |
 | Deferred | [Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export)](DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Deferred | |
@@ -320,8 +320,8 @@ no speculative plugin framework or ETF schema is authorized here.
 
 ### 4.11 Step 3.5 – Deterministic Quantitative Screening Strategies
 
-Implement independently typed Piotroski, Altman, Beneish, valuation-multiple and
-Magic Formula analyses using public data, explicit applicability and provenance.
+Implement independently typed Piotroski, Altman, Beneish, valuation-multiple, Magic Formula,
+Interest Coverage and ROIC analyses using public data, explicit applicability and provenance.
 The [screening contract](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md) owns
 component scope and local delivery detail.
 
