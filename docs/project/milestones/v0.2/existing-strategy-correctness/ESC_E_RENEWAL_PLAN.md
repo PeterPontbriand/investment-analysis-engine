@@ -35,7 +35,7 @@ authorization before the next begins.
 | E.1 | [Side-by-side comparison against ESC-D's revision](#e1--side-by-side-comparison) | Complete | 2026-09-30 |
 | E.2 | [Graham Number matrix](#e2--graham-number) | Complete | 2026-09-30 |
 | E.3 | [Graham Growth matrix](#e3--graham-growth) | Complete | 2026-09-30 |
-| E.4 | [Momentum matrix](#e4--momentum) | Next | |
+| E.4 | [Momentum matrix](#e4--momentum) | In progress | |
 | E.5 | [FCF/Earnings Growth matrix](#e5--fcfearnings-growth) | Planned | |
 | E.6 | [Reconciliation and final acceptance](#e6--reconciliation-and-final-acceptance) | Planned | |
 
@@ -89,7 +89,7 @@ E.1 was accepted by the project owner on 2026-09-30, with three corrections (ESC
 - **Scope:** the seven matrix dimensions for `momentum`, with particular attention to the new time and
   cache controls, which have no baseline behavior to compare against.
 - **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
-- **Detail:** ⚠ no slice plan yet; see the [proposal](#4-proposed-scope-for-e2-to-e5).
+- **Detail:** [ESC_E4_MOMENTUM_EVIDENCE.md](ESC_E4_MOMENTUM_EVIDENCE.md). Verification is complete; the slice waits on the project owner's decision about ESC-24, whose proposed repair changes a public JSON field.
 
 ### E.5 — FCF/Earnings Growth
 

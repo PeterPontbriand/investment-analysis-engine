@@ -137,4 +137,34 @@ Read-only SEC evidence on 2026-09-12 UTC confirmed direct common shares and equi
 
 **Disposition (approved by the project owner, 2026-09-30):** no code change. Record the tolerance and the consolidation in the IR.2 acceptance record's list of changes (done, commit `e48a122`). Verification is by offline tests, in E.2 for the Graham resolver path and in E.4 for Momentum's historical path.
 
-**Verification, Graham resolver path (E.2, 2026-09-30):** `tests/analysis/graham_value/test_clock_skew_tolerance.py` (24 offline scenarios, each run against both Graham resolvers) confirms the expected contract for provider facts, cache hits and quotes on a live run, and the zero-tolerance rule on an `--as-of` run. The existing tests in `tests/data/test_quality.py` and `tests/data/test_quote_freshness.py` cover the shared checks directly but not the resolver or a cache hit. The Momentum half is open until E.4.
+**Verification, Graham resolver path (E.2, 2026-09-30):** `tests/analysis/graham_value/test_clock_skew_tolerance.py` (24 offline scenarios, each run against both Graham resolvers) confirms the expected contract for provider facts, cache hits and quotes on a live run, and the zero-tolerance rule on an `--as-of` run. The existing tests in `tests/data/test_quality.py` and `tests/data/test_quote_freshness.py` cover the shared checks directly but not the resolver or a cache hit. **Verification, Momentum (E.4, 2026-09-30):** Momentum's historical path does not use the shared freshness check, so the tolerance does not apply to it. Its boundary checks are a strict truncation to bars at or before `as_of` and a data-quality check on the fetched frame. `tests/analysis/momentum/test_momentum_boundary.py` tests the truncation: a bar exactly at the boundary is kept and one a second later dropped. The review also produced ESC-22 and ESC-23. ESC-21 is verified for both paths.
+
+### ESC-22 — A Momentum `--as-of` run fails when a bar after the boundary is invalid
+
+**Scope/severity:** Momentum with `--as-of`, every mode; low availability and documentation finding, not a wrong value. Found live during ESC-E.2's cross-cutting run and confirmed offline in E.4. **Source revision:** IR.2.3 (PR #48, `af7bad1`), which made the resolver check and publish data quality once against the raw provider fetch and the analyzer re-check the truncated frame.
+
+**Reproduction:** on 2026-10-01 at 00:30Z Yahoo returned non-finite prices for the 2026-09-30 row. `ian momentum KO --as-of 2025-12-31` failed with the sanitized `historical_quality` rejection naming 2026-09-30, although every bar up to the boundary was valid and the bad bar can never reach the calculation. Offline: `tests/analysis/momentum/test_momentum_boundary.py::test_as_of_run_fails_closed_when_a_bar_after_the_boundary_is_invalid`.
+
+**Expected contract:** the ESC plan's Time dimension requires that information after the boundary cannot silently enter a historical result. It does not enter; the run fails closed, which is the safe direction. Nothing documents that a historical request depends on the integrity of later data, and `MOMENTUM.md` does not say so.
+
+**Disposition (proposed):** no code change; add one sentence to `docs/user/strategies/MOMENTUM.md` saying an `--as-of` run is rejected if any fetched bar, including one after the boundary, is invalid. A code change (check quality on the truncated frame only) would turn some failures into results, so it needs the project owner's decision.
+
+### ESC-23 — A live Momentum run does not check bar dates against the execution time
+
+**Scope/severity:** Momentum without `--as-of`; low Time finding; no known real-world trigger. Found by E.4's boundary review. **Source revision:** predates the baseline; unchanged by IR.
+
+**Reproduction:** `MomentumAnalyzer.run_analysis` with `as_of=None` and a frame whose last bar is dated 2099-01-01, `executed_at` 2026-01-20: the run succeeds, reports that bar as the latest close and `data_as_of` 2099-01-01. The resolver truncates only when `as_of` is given, and its quality check has no timestamp-versus-boundary rule (the shared freshness check with the ten-minute tolerance, ESC-21, is not used on this path).
+
+**Expected contract:** a live run's boundary is `executed_at`. A bar dated after it, beyond any exchange-time skew, is not knowable information.
+
+**Disposition (proposed):** record it as a known limit in the final acceptance record; no code change now. Rejecting bars dated after `executed_at` plus the skew tolerance is a possible later repair, but it would turn a result into a failure for such data, so it needs the project owner's decision. Real providers date bars at or before the current instant, so no live trigger is known.
+
+### ESC-24 — Momentum `--as-of` before the first observation reports a generic error, not the cause
+
+**Scope/severity:** Momentum with `--as-of`, every mode; low-to-medium presentation and public-contract defect. Found in E.4's Inputs review. **Source revision:** IR.2.6 (PR #48), which added `--as-of` to Momentum.
+
+**Reproduction:** `ian momentum KO --as-of 1990-01-01` on `main`, 2026-10-01. Exit 1. Text: "Unable to complete momentum analysis for KO: the returned price history could not be analyzed." JSON: `"status": "error"`, `"reason_code": "invalid_input"`, empty `diagnostics`. The price history is valid; the boundary simply precedes it. The resolver raises `ValueError("No historical observations are eligible at the requested as_of boundary.")`, and the CLI's generic handler discards that message. Graham and FCF report an unavailable boundary as `input_unavailable` with a specific reason.
+
+**Expected contract:** ESC-11 requires failures to be typed and sanitized with an actionable cause, and the Inputs dimension requires insufficient or unavailable history to be distinguished from invalid input.
+
+**Disposition (proposed, needs the project owner's decision):** report this case as `input_unavailable` with the reason "No price history is available at or before the requested `--as-of` boundary." in text and JSON. That changes a public JSON `status` and `reason_code` for this case, and Momentum's failure wording, so it is not applied here. A wording-only alternative keeps `status` and `reason_code` and replaces only the reason text.
