@@ -68,7 +68,7 @@ uv run ian momentum AAPL --no-cache
 
 The result reports the latest observation that remained after the boundary was applied, not the boundary you requested. A date-only boundary includes that whole day.
 
-`--as-of` runs fetch history only up to the boundary, so they are cached separately from live runs, and an invalid price dated after the boundary does not affect them.
+`--as-of` runs fetch history only up to the boundary, so they are cached separately from live runs, and an invalid price dated after the boundary does not affect them. The one exception is a provider that stamps a daily price later in its date than the boundary time; Yahoo stamps daily prices at midnight, so it does not apply to them.
 
 Provider-adjusted prices are revised retroactively: splits and dividends restate history. An `--as-of` result is therefore filtered to a date but reflects today's adjusted view of the prices on that date, not the prices as they would have looked then. See [look-ahead bias](../GLOSSARY.md#look-ahead-bias).
 

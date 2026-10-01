@@ -13,8 +13,8 @@ Scope and proposal: [ESC-E plan](ESC_E_RENEWAL_PLAN.md#4-proposed-scope-for-e2-t
   (an `--as-of` run fails if a later bar is invalid), [ESC-23](ESC_A_DEFECT_LEDGER.md#esc-23--a-live-momentum-run-does-not-check-bar-dates-against-the-execution-time)
   (a live run does not check bar dates against the execution time) and
   [ESC-24](ESC_A_DEFECT_LEDGER.md#esc-24--momentum---as-of-before-the-first-observation-reports-a-generic-error-not-the-cause)
-  (a boundary before the first observation reports a generic error). ESC-24's proposed repair changes a public
-  JSON field, so E.4 stopped there for the project owner's decision.
+  (a boundary before the first observation reports a generic error). The project owner decided on 2026-10-01 to
+  repair all three; they are closed (section 3).
 - **ESC-21, Momentum path:** Momentum does not use the shared freshness check, so the skew tolerance does not
   apply. Its boundary checks are a strict truncation to bars at or before `as_of` and a quality check on the
   fetched frame; four offline tests cover the truncation.
@@ -34,7 +34,7 @@ Scope and proposal: [ESC-E plan](ESC_E_RENEWAL_PLAN.md#4-proposed-scope-for-e2-t
 | Inputs and applicability | The invalid-input pairs below: zero and negative windows, short at or above long, zero RSI period, a long window longer than the history, an invalid, lowercase and missing ticker, the legacy `--ticker` option, a cryptocurrency, a Canadian listing and an ETF. Every pair matches the baseline, including the missing-ticker case (the configured default is now resolved in the CLI, not the analyzer, with the same result). | Narrow to the changed paths, as approved: the options and the ticker default. |
 | Financial claims | The real analyzer on a constructed 300-bar series (seeded, closes rounded to four places), compared with an independent pure-Python oracle: 50-day SMA 112.33018800000002 against 112.33018799999999; 200-day SMA 106.149032 exact; RSI(14) simple-average (not Wilder) 85.37334356954496 exact; crossover 0 and trend BULLISH. All within 1e-9. The calculation body moved into `compute_momentum_metrics` unchanged. Live arithmetic cannot be checked closer than about 1e-8 because the provider's prices vary slightly between fetches (E.1). | One recomputation on a constructed fixture, as approved and as ESC-D did. |
 | Composition | The cross-cutting table in E.2 covers Momentum (RY.TO live): `--save-run`, replay, refresh and orchestrator all match the direct command. Here a saved `--as-of 2025-12-31` run replays identically in all four modes. | Cited, as approved, plus the `--as-of` replay. |
-| Public contracts | JSON `schema_version` 4 and every key identical to the baseline. New: `--as-of` and `--no-cache` options and their help text (X-05), and stored selections and runs at version 2 (X-08). The user guide (`MOMENTUM.md`) documents both options and the retroactive-adjustment note, and matches behavior except for ESC-22 and ESC-24. | Full, as approved. |
+| Public contracts | JSON `schema_version` 4 and every key identical to the baseline. New: `--as-of` and `--no-cache` options and their help text (X-05), and stored selections and runs at version 2 (X-08). The user guide (`MOMENTUM.md`) documents both options and the retroactive-adjustment note, and matches behavior; ESC-22 and ESC-24 are repaired. | Full, as approved. |
 
 ### Pairs
 
@@ -84,7 +84,7 @@ first and the full gate after each.
 | :--- | :--- |
 | ESC-24 | Repaired, `dfd0cf6`. Gate 3,425 tests, 91%. Momentum's presentation schema is now 5 (register X-17). |
 | ESC-23 | Repaired, `d9fa796`. Gate 3,432 tests, 91%. |
-| ESC-22 | **Not repaired; stopped.** The resolver is not the only layer that rejects the frame: the cache client in front of every production run evaluates the raw fetch itself, so a resolver-only change alters no outcome. Reproduced offline. Needs the project owner's direction (ledger entry). |
+| ESC-22 | Repaired, `d55c450`, with no new parameter. A first attempt at a resolver-only change was stopped because the cache client in front of every production run validates the raw fetch itself; the project owner then directed the repair through `end_date`, which the provider interface and the cache key already carry. An `--as-of` run now requests history ending the day after the boundary's UTC date and keeps the strict truncation. Gate 3,451 tests, 91%. One case remains, recorded in the ledger and `MOMENTUM.md`: an invalid bar dated on the boundary's date but stamped after the boundary instant (Yahoo's midnight-stamped daily bars cannot produce it). |
 
 Re-verification on the dimensions the repairs touch, after the repairs:
 
@@ -96,7 +96,7 @@ Re-verification on the dimensions the repairs touch, after the repairs:
   now prints the specified text and returns `input_unavailable` / `no_eligible_observations` in JSON.
 - **Time:** bars within ten minutes after the execution time are accepted; ten minutes and one second, an hour
   and thirty days are rejected with the rule `historical.future_observation`; an `--as-of` run is unaffected.
-- **Data lifecycle:** no cache code changed. The cache layer's own checks are untouched.
+- **Data lifecycle:** no cache code changed. An `--as-of` run is cached under its own key (request end the day after the boundary's date) and holds no later bar, and a live run still caches the full history; tested through the production cache client on a miss, a hit and `--no-cache`. Live on 2026-10-01: `--as-of 2025-12-31` cached 1,255 bars ending 2025-12-31 and a live run cached 1,442 bars under a separate key. The `--as-of` values equal the earlier output within provider noise, and the Golden suite is unchanged (19 of 19, all values equal to the baseline).
 
 ## 4. Main-only runs (no baseline equivalent)
 
@@ -106,9 +106,10 @@ followed by `runs show` in four modes. Outputs are under `.tmp/esc-e/raw/e4-main
 
 ## 5. Gate
 
-`scripts/run-quality-gates.sh` on Python 3.12.14 and pandas 3.0.5, with the four new boundary tests: Ruff, format check
-and `mypy --strict` clean over 311 source files; **3,423 tests passed, 91% coverage**. Artifacts:
-`.tmp/quality-runs/20261001021629-585-8788/`.
+`scripts/run-quality-gates.sh` on Python 3.12.14 and pandas 3.0.5. After the four boundary tests: 3,423 tests. After
+each repair (section 3): 3,425 (ESC-24), 3,432 (ESC-23) and, with the ESC-22 repair at `d55c450`, **3,451 tests
+passed, 91% coverage**, Ruff, format check, `mypy --strict` and the doc-link check clean each time. Artifacts of
+the last run: `.tmp/quality-runs/20261001105634-1675-8783/`.
 
 ## 6. Limits
 

@@ -35,8 +35,8 @@ authorization before the next begins.
 | E.1 | [Side-by-side comparison against ESC-D's revision](#e1--side-by-side-comparison) | Complete | 2026-09-30 |
 | E.2 | [Graham Number matrix](#e2--graham-number) | Complete | 2026-09-30 |
 | E.3 | [Graham Growth matrix](#e3--graham-growth) | Complete | 2026-09-30 |
-| E.4 | [Momentum matrix](#e4--momentum) | In progress | |
-| E.5 | [FCF/Earnings Growth matrix](#e5--fcfearnings-growth) | Planned | |
+| E.4 | [Momentum matrix](#e4--momentum) | Complete | 2026-10-01 |
+| E.5 | [FCF/Earnings Growth matrix](#e5--fcfearnings-growth) | Next | |
 | E.6 | [Reconciliation and final acceptance](#e6--reconciliation-and-final-acceptance) | Planned | |
 
 E.1 was accepted by the project owner on 2026-09-30, with three corrections (ESC-21, ESC-20's closure, one branch). The [proposal in §4](#4-proposed-scope-for-e2-to-e5) is approved per dimension, with one change: the cross-cutting paths E.1 did not reach (`--save-run`, replay, watchlist refresh, the orchestrator) are verified once, at the start of E.2, for all four analyses, and E.3 to E.5 cite that evidence instead of repeating it. E.2 to E.6 were authorized the same day.
@@ -89,7 +89,7 @@ E.1 was accepted by the project owner on 2026-09-30, with three corrections (ESC
 - **Scope:** the seven matrix dimensions for `momentum`, with particular attention to the new time and
   cache controls, which have no baseline behavior to compare against.
 - **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
-- **Detail:** [ESC_E4_MOMENTUM_EVIDENCE.md](ESC_E4_MOMENTUM_EVIDENCE.md). ESC-23 and ESC-24 were repaired on the project owner's decision; the slice waits on direction for ESC-22, whose repair needs a broader change than decided.
+- **Detail:** [ESC_E4_MOMENTUM_EVIDENCE.md](ESC_E4_MOMENTUM_EVIDENCE.md). ESC-22, ESC-23 and ESC-24 were repaired on the project owner's decision (`d55c450`, `d9fa796`, `dfd0cf6`).
 
 ### E.5 — FCF/Earnings Growth
 
@@ -252,7 +252,7 @@ is listed as expected unless a record says so. **Seen in E.1** says whether the 
 | X-14 | Orchestrator Graham handlers run through `GrahamNumberAnalyzer` and `GrahamGrowthAnalyzer` instead of the service functions | [IR.2 plan §6.1 item 5](../integration-readiness/IR2_ANALYZER_ENVELOPE_PLAN.md#61-problems-verified-against-the-code) | Yes: the Golden suite dispatches through it and every observed value matched |
 | X-15 | Workspace command names, `runs list --analysis`, alias text, `watchlist delete` and `rename`; Momentum entries in `watchlist show` gain `as_of` and `use_cache` | [IR contract Appendix A.3](../integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#a3-accepted-exceptions-to-the-presentation-output-rule) (IR.6.1), [IR.6 plan](../integration-readiness/IR6_WATCHLIST_LIFECYCLE_COMPLETION.md), [IR.2.6 plan B.3 item 7](../integration-readiness/IR2_6_MOMENTUM_PARITY_PLAN.md#b3-found-during-implementation) | No: direct commands do not reach them |
 | X-16 | On Windows, a partly anchored path is rejected with a readable reason; relative `log_dir` and `telemetry_log_dir` resolve under the project folder | [IR.8 plan](../integration-readiness/IR8_WINDOWS_PATH_ANCHORING_GUARD.md#5-acceptance-criteria) | No: no pair used such a path |
-| X-17 | Momentum's presentation `schema_version` is 5 (was 4), and a boundary before the first observation is `input_unavailable` with reason code `no_eligible_observations`; a live run rejects a bar dated beyond the skew tolerance after the execution time | The decisions recorded in ESC-22 to ESC-24 in the defect ledger (project owner, 2026-10-01); commits `dfd0cf6` and `d9fa796` | Yes: Momentum JSON pairs after the repairs |
+| X-17 | Momentum's presentation `schema_version` is 5 (was 4), and a boundary before the first observation is `input_unavailable` with reason code `no_eligible_observations`; a live run rejects a bar dated beyond the skew tolerance after the execution time; an `--as-of` run fetches history only up to the boundary and is cached separately from a live run | The decisions recorded in ESC-22 to ESC-24 in the defect ledger (project owner, 2026-10-01); commits `dfd0cf6`, `d9fa796` and `d55c450` | Yes: Momentum JSON pairs after the repairs |
 
 X-11 was withdrawn from the register on 2026-09-30 and is not reused: its only sources are `ARCHITECTURE.md` and a commit
 message, so it is [ESC-21](ESC_A_DEFECT_LEDGER.md#esc-21--frozen-clock-skew-tolerance-and-the-consolidated-availability-check-have-no-ir-record).
