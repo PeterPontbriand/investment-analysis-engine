@@ -123,7 +123,7 @@ Read-only SEC evidence on 2026-09-12 UTC confirmed direct common shares and equi
 
 **Expected contract:** `ARCHITECTURE.md` (its security-identity passage) says each strategy's presentation `schema_version` bumps when presentation content changes, so the bump itself is consistent with the project's convention. The ESC plan's Public contracts dimension requires JSON schema and version changes to be reviewed explicitly and documentation to match. `docs/user/USAGE.md` (Graham JSON section) says "presentation schema version **5**" and `docs/user/SMOKE_TESTING.md` (step 7) says "Expect top-level schema version 5"; ESC-C and ESC-D both recorded Graham schema 5 as the accepted value.
 
-**Disposition (proposed, not applied in ESC-E.1):** no code change. Record the bump in the IR.2 acceptance record's list of changed version fields, update the two user documents to 6, and carry "Graham presentation schema 6" into ESC-E's final acceptance record. Closure needs the project owner's decision because it changes a value two accepted records state as 5.
+**Disposition (approved by the project owner, 2026-09-30; closed):** no code change. The bump is recorded in the IR.2 acceptance record's addendum (commit `e48a122`) and the two user documents now say 6 (commit `1fc212c`). ESC-E's final acceptance record carries "Graham presentation schema 6" as the accepted value.
 
 ### ESC-21 — Frozen-clock skew tolerance and the consolidated availability check have no IR record
 
