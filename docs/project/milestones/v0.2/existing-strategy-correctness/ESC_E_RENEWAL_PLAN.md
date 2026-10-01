@@ -89,7 +89,7 @@ E.1 was accepted by the project owner on 2026-09-30, with three corrections (ESC
 - **Scope:** the seven matrix dimensions for `momentum`, with particular attention to the new time and
   cache controls, which have no baseline behavior to compare against.
 - **Branch:** `audit/esc-e-renewal`, the one branch for all of ESC-E.
-- **Detail:** [ESC_E4_MOMENTUM_EVIDENCE.md](ESC_E4_MOMENTUM_EVIDENCE.md). Verification is complete; the slice waits on the project owner's decision about ESC-24, whose proposed repair changes a public JSON field.
+- **Detail:** [ESC_E4_MOMENTUM_EVIDENCE.md](ESC_E4_MOMENTUM_EVIDENCE.md). ESC-23 and ESC-24 were repaired on the project owner's decision; the slice waits on direction for ESC-22, whose repair needs a broader change than decided.
 
 ### E.5 — FCF/Earnings Growth
 
