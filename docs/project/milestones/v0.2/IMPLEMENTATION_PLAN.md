@@ -39,11 +39,12 @@ current codes:
   requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted
   below for `graham-comparison`'s local `R1`/`R2`/`R3`.
 - `SWC` — short for "Strategy Wiring Consolidation"
-  ([proposal](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md)): replaces the per-strategy hand-wiring
+  ([contract](SWC_CONTRACT_AND_SLICE_PLAN.md)): replaces the per-strategy hand-wiring
   duplicated across the orchestrator, workspace, codec, and reporting layers (and evaluation's
   fixture composition) with one statically-declared strategy descriptor list, before Step 3.5
-  multiplies that duplication by five. Accepted 2026-09-24; not yet scoped into slices. Absorbs
-  IR.5's scope (typed JSON envelope models and generated schemas).
+  multiplies that duplication by five. Absorbs IR.5's scope (typed JSON envelope models and
+  generated schemas). Origin: [proposal](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md), accepted
+  2026-09-24.
 
 Note the resulting collision: `graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md` uses its own
 document-local `R1 → R2 → R3` sequence (evidence → implementation → verification), unrelated to
@@ -64,7 +65,7 @@ sequencing meaning.
 | 9 | [Existing-analysis renewal (ESC-D)](existing-strategy-correctness/ESC_D_RENEWAL_PLAN.md) | Complete | 2026-09-23 |
 | 10 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-01 |
 | 11 | [Repository-wide dead code audit (R3)](R3_DEAD_CODE_AUDIT_PLAN.md) | Complete | 2026-10-01 |
-| 12 | [Strategy wiring consolidation (SWC)](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md) | Next | |
+| 12 | [Strategy wiring consolidation (SWC)](SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Next | |
 | 13 | [`src` package rename (PKG)](PKG_RENAME_PLAN.md) | Planned | |
 | 14 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
 | 15 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
