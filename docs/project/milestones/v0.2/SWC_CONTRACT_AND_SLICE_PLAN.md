@@ -1,26 +1,31 @@
 # SWC — Strategy Wiring Consolidation: Contract and Slice Plan
 
 Consolidates repeated strategy wiring before Step 3.5 adds seven analyzers, and completes the
-typed JSON envelope and schema scope moved from IR.5. Placement among the milestone work packages
-is in the [milestone plan](IMPLEMENTATION_PLAN.md#sequence-and-status).
+typed JSON envelope and schema scope moved from IR.5. The [milestone plan](IMPLEMENTATION_PLAN.md#sequence-and-status)
+owns its position and work-package status.
 
 ## 1. At a glance
 
 - **What this work does:** reduce repeated per-strategy wiring across orchestration, workspace
   selection and execution, evidence codecs, reporting, CLI integration and deterministic
-  evaluation; give each strategy's JSON output a typed contract and generated schema; document the
-  resulting contributor workflow.
+  evaluation through a closed, statically declared wiring descriptor; give each strategy's JSON
+  output a typed contract and generated schema; document the contributor workflow.
+- **What the descriptor means:** one authoritative infrastructure declaration for repeated wiring
+  metadata. It is not a representation of strategy behavior. Generic consumers derive their
+  dispatch metadata from it; independent conformance tests verify complete consumption.
 - **What it does not do:** change analyzer formulas, classifications, result semantics, or the
-  shared `BaseAnalyzer[ConfigT, ResultT]` invocation envelope; add discovery, plugins, or a
-  speculative framework. Full list: [Scope limits](#6-scope-limits).
-- **Decision required before implementation:** the proposal's descriptor list has registry-like
-  behavior, while IR.2 explicitly says “no generic result supertype, registry or factory.” The
-  conflict and two possible resolutions are in [§3](#3-design-conflict-requiring-a-decision).
+  `BaseAnalyzer[ConfigT, ResultT]` invocation envelope; add a common result type, dynamic discovery,
+  plugins, self-registration, or a general strategy framework. Full list: [Scope limits](#6-scope-limits).
+- **Decision:** a closed descriptor is authorized only to consolidate the duplicated wiring in
+  Appendix A. SWC applies the existing AGENTS.md §0 allowance for an explicit, statically declared list with shared generic wiring. This does not create a registry in the architectural sense prohibited by IR.2. See [§3](#3-architectural-contract).
 - **Rules every slice follows:** preserve strategy-owned config and result types, retain explicit
   provenance and outcomes, bump affected stored-shape versions without migrations during the
   consolidation period, and run the complete managed gate at each slice end. Each next slice waits
   for explicit project-owner authorization.
-- **Where detail lives:** inventory verification is in [Appendix A](#appendix-a-proposal-inventory-verified-against-main); design decisions and history belong in [Appendix B](#appendix-b-decision-records-and-history).
+- **Where detail lives:** the audited inventory is in
+  [Appendix A](#appendix-a-proposal-inventory-verified-against-main); its scope disposition is in
+  [§4](#4-inventory-disposition); the decision record is in
+  [Appendix B](#appendix-b-decision-records-and-history).
 
 ## 2. Sequence and status
 
@@ -31,146 +36,223 @@ document-link check and applicable documentation checks.
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| SWC.1 | [Resolve the wiring contract and prove inventory coverage](#swc1--wiring-contract-and-coverage) | Planned | |
-| SWC.2 | [Orchestration and evaluation wiring](#swc2--orchestration-and-evaluation-wiring) | Planned | |
-| SWC.3 | [Workspace selections, execution and codecs](#swc3--workspace-selection-execution-and-codecs) | Planned | |
-| SWC.4 | [Reporting and typed JSON envelopes](#swc4--reporting-and-typed-json-envelopes) | Planned | |
-| SWC.5 | [Generated schemas, contributor guide and final conformance](#swc5--generated-schemas-contributor-guide-and-final-conformance) | Planned | |
+| SWC.1 | [Settle descriptor contract and conformance design](#swc1--descriptor-contract-and-conformance-design) | Planned | |
+| SWC.2 | [Declare and consume wiring in orchestration and evaluation](#swc2--orchestration-and-evaluation-wiring) | Planned | |
+| SWC.3 | [Consume wiring in workspace execution and codecs](#swc3--workspace-selection-execution-and-codecs) | Planned | |
+| SWC.4 | [Consume wiring in reporting and typed JSON envelopes](#swc4--reporting-and-typed-json-envelopes) | Planned | |
+| SWC.5 | [Generate schemas, document contribution, and complete conformance](#swc5--schemas-contributor-guide-and-final-conformance) | Planned | |
 
-## 3. Design conflict requiring a decision
+## 3. Architectural contract
 
-The accepted SWC proposal §4 illustrates a `StrategyDescriptor[ConfigT, ResultT]` and a central
-`STRATEGIES` tuple, then proposes using that tuple to replace per-strategy dispatch and lookup
-structures. That is registry-like in purpose and operation. IR.2's accepted contract says “no
-generic result supertype, registry or factory,” while `AGENTS.md` §0 temporarily permits an explicit,
-statically declared list with shared generic wiring, and §9 says not to build registries, plugin
-loaders, or factories speculatively. Both rules apply: the §0 permission does not silently erase
-IR.2's narrower contract, and a descriptor cannot be treated as harmless merely by avoiding the word
-“registry.”
+### 3.1 Decision and relationship to IR.2
 
-**Project-owner decision required before SWC.1 implementation.** The proposed choices are:
+SWC uses a closed, statically declared descriptor as the single authoritative declaration of
+duplicated strategy-wiring metadata identified by the audited inventory. Generic infrastructure
+consumes that declaration. Independent structural conformance tests verify that every supported
+strategy is declared and that each required generic consumer derives its wiring from the descriptor.
+The descriptor and tests together prevent forgotten wiring without runtime discovery.
 
-1. **Narrow static descriptor exception (recommended for decision):** explicitly amend the IR.2
-   contract for SWC to allow one closed, source-declared descriptor list solely for eliminating the
-   audited duplicated wiring. Keep strategy configs/results heterogeneous; use no discovery,
-   self-registration, plugin API, factory hierarchy, or generic result type. Record the exception
-   in the SWC decision appendix and, if the project owner approves, make any corresponding planning
-   update required by the IR.2 contract's change-control rule.
-2. **No descriptor registry:** retain explicit per-layer declarations and dispatch, but add static
-   completeness checks generated from an independently maintained strategy inventory. This avoids
-   changing IR.2's no-registry rule but may retain duplicated declarations and needs a concrete
-   design showing that it actually prevents forgotten branches.
+IR.2 established: “No new framework: no generic result supertype, registry or factory. Each
+strategy keeps its own `ConfigT` and `ResultT`.” SWC preserves the substance of that contract:
+strategies retain distinct configs, results, evidence, calculations, and invocation through
+`BaseAnalyzer[ConfigT, ResultT]`. SWC introduces only the narrow closed wiring declaration needed to
+consolidate the audited per-strategy duplication. This is the specific shared-generic-wiring
+allowance in the temporary consolidation rule in `AGENTS.md` §0. It is a bounded exception to IR.2's
+“no registry” wording for this consolidation purpose; it does not supersede IR.2 or authorize a
+general strategy registry, dynamic discovery, plugin lifecycle, self-registration, or factory
+architecture.
 
-This plan does not choose between the options. SWC.1 cannot be authorized for implementation until
-the project owner decides. If option 2 is selected, SWC.1 must demonstrate that its independent
-inventory catches an omitted consumer branch without merely recreating the same registry under a
-different name.
+If contract design finds that the audited consumers cannot use this bounded declaration without a
+new public or internal contract that changes IR.2's approved invocation or evidence boundaries, the
+design must identify that exact change and its necessity for project-owner review before code uses
+it. Do not silently expand the exception.
 
-## 4. The slices
+### 3.2 Descriptor responsibilities and exclusions
 
-### SWC.1 — Wiring contract and coverage
+The descriptor is an infrastructure declaration of wiring metadata, not a universal representation
+of strategy behavior. The contract slice will authorize only fields needed by audited consumers:
 
-- **Problem:** the original inventory predates IR.2–IR.8, omits some current dispatch sites, and
-  describes a descriptor design that conflicts with the accepted IR.2 boundary.
-- **Decision:** settle the design conflict above before implementation; establish one verified,
-  symbol-level wiring inventory and an executable conformance strategy that can detect an omitted
-  strategy at every owned consumer.
-- **Scope:** approve the descriptor exception or select a non-registry alternative; update this
-  contract as required by that decision; specify how the declared supported strategy set is compared
-  with tool arguments, evaluation, selection, execution, version metadata, codecs, replay and schema
-  outputs. No production source changes are part of this planning slice.
+- stable analysis and method identifiers, tool name, and tool-argument/configuration model types
+  where generic wiring requires them, plus result/evidence model types only where a generic
+  consumer genuinely needs them for dispatch or codec selection;
+- per-strategy configuration, method, result-schema, codec, or projection version metadata where
+  the inventory shows repeated declarations that must stay aligned;
+- references to strategy-owned encoding, decoding, presentation, selection-conversion, or execution
+  functions when a generic consumer needs to dispatch to that strategy-owned behavior; and
+- construction or dependency-wiring information only where the audit proves it removes repeated
+  composition while preserving injected strategy dependencies.
+
+It must not contain calculation logic, financial formulas, strategy policy, generic strategy
+behavior, a generic result supertype, plugin lifecycle, dynamic discovery, self-registration, or a
+speculative factory hierarchy. It adds no strategy abstraction beyond the existing
+`BaseAnalyzer[ConfigT, ResultT]` invocation envelope. A descriptor reference may route to a
+strategy-owned function; it does not absorb or generalize that function's behavior.
+
+### 3.3 Static declaration, typing, and conformance
+
+The supported strategy declarations are closed and source-declared. Generic consumers use or derive
+their wiring from those declarations; consumers do not independently repeat the same identifiers,
+types, versions, or dispatch cases. No runtime package scanning, registration side effects, plugin
+loading, reflection-based probing, dynamic lookup, or discovery is introduced merely to connect the
+descriptor to its consumers. Consumers may iterate the closed declarations or use a statically
+constructed index derived from them.
+
+SWC.1 will settle the actual Python typing form only after inspecting the audited consumers. It must
+compare generic parameters, erased/existential representations, typed callables, concrete instances,
+and other minimal options without presupposing `StrategyDescriptor[ConfigT, ResultT]`. Choose the
+simplest structure that passes `mypy --strict` and keeps each strategy's config, result, and
+evidence contracts distinct.
+
+Focused conformance tests are required safety nets around the descriptor, not alternatives to it.
+They must verify that:
+
+1. every supported strategy at the existing explicit strategy boundaries has a descriptor;
+2. every descriptor has all required metadata and required strategy-owned function references;
+3. every generic wiring consumer identified in §4 actually derives its supported entries from the
+   descriptor;
+4. an intentionally incomplete consumer or dispatch fixture fails a focused test and identifies
+   the missing consumer and, where practical, the strategy; and
+5. strategy-specific calculations, configuration meaning, classification, evidence shape and
+   presentation remain owned by their strategy implementations rather than inferred from descriptor
+   fields.
+
+Do not make these checks tautological by deriving both the descriptor and the independently checked
+strategy set from the same unchecked list. SWC.1 will identify existing explicit contract surfaces
+that independently define or expose supported strategies and compare their coverage with the
+descriptor. The test code may name the required consumer surfaces, but it must not become a second
+copy of the strategy wiring metadata.
+
+The intended data flow is static; the tests inspect and challenge it rather than registering or
+discovering strategies:
+
+```text
+closed static strategy declarations
+              |
+              v
+      strategy wiring descriptor
+              |
+      +-------+-------+-------+
+      |       |       |       |
+      v       v       v       v
+  generic  generic  generic  generic
+  wiring   wiring   wiring   wiring
+              |
+              v
+       conformance tests
+```
+
+## 4. Inventory disposition
+
+Appendix A is the audited basis for SWC scope, including surfaces missed by the original proposal.
+The descriptor replaces repeated infrastructure declarations, not every strategy-specific branch
+or type that mentions a strategy.
+
+| Inventory area | Descriptor-authoritative information and generic consumption | Remains strategy-specific or explicit |
+| :--- | :--- | :--- |
+| Orchestration tools and evaluation mappings | Stable analysis/method/tool identifiers, tool-argument model references, tool-argument-to-tool routing, and the repeated evaluation `_tool_name` mappings. Tool registration and generic routing consume descriptor metadata. `ToolName` values are sourced from the descriptor without a second manually maintained mapping. | Analyzer/provider dependency fields, analyzer construction, argument validation details, and config construction remain typed and strategy-owned. `ToolName` may remain as a deliberate type boundary, with its representation settled in SWC.1. |
+| Persisted selection and workspace execution | Selection-to-executor dispatch keys and method/config/result-schema version metadata where currently duplicated across execution and codec tables. A generic dispatcher may use descriptor references to strategy-owned selection conversion or execution adapters. | `AnalysisSelection`, `AnalysisToolArguments`, `NativeEvidence`, each persisted selection/config model, conversion semantics, analyzer invocation, capture shape, and outcome classification remain explicit heterogeneous contracts. Adapters remain strategy-owned even when dispatch to them is generic. |
+| Evidence encoding and decoding | Result/capture type-to-codec dispatch and repeated expected version metadata derive from descriptor references and version fields. | Each strategy's encode/decode implementation, validation rules, evidence shape, ticker checks, and provenance semantics remain owned by its codec and result type. |
+| Reporting, replay, and JSON output | The `(analysis_id, method_id)` route and any genuinely duplicated dispatch key derive from the descriptor. Generic infrastructure may route to versioned strategy-owned projector/presenter functions and enumerate typed envelope models for schema generation. | Versioned projection behavior, presentation wording, rendering, typed envelope shape, strategy result unions, and historical replay semantics remain strategy-specific and explicit. `projection_version` remains distinct from method and result-schema versions. |
+| Fixture-backed evaluation composition and direct CLI commands | Only repeated metadata or dispatch keys proven by Appendix A to be wiring duplication may derive from the descriptor. | Fixture values, expected outcomes, scoring, dependency composition, direct CLI command semantics, and any explicit user-facing boundary remain as they are. A strategy mention alone does not justify changing a site. |
+
+SWC.1 must confirm this mapping against the named symbols and update it if a surface is no longer
+present or if further duplication is found. It may narrow descriptor fields when a consumer does not
+need them. Expanding scope beyond audited wiring requires a documented reason and owner review.
+
+## 5. The slices
+
+### SWC.1 — Descriptor contract and conformance design
+
+- **Problem:** the audited surfaces mix genuinely duplicated wiring with legitimate heterogeneous
+  strategy contracts, and the original proposal inventory missed consumers.
+- **Decision:** use the bounded closed descriptor and independent conformance approach in §3. Define
+  precisely which duplicated facts have one descriptor declaration and which functions/types stay
+  strategy-owned or explicit.
+- **Scope:** inspect Appendix A symbols and settle (1) descriptor responsibility/exclusions, (2) the
+  static declaration model, (3) relation to `BaseAnalyzer`, (4) exact generic consumers, (5)
+  strategy-specific escape hatches, (6) simplest strict typing form, (7) independent conformance
+  tests and negative-control failure, (8) migration from current declarations, and (9) acceptance
+  checks against a general framework. Identify any required IR.2 public/internal contract change
+  explicitly. No production source changes occur in this design slice.
 - **Branch:** the planning contract is prepared on `docs/swc-contract-plan` from `main` after PR #53
-  merged. The future implementation slice branches follow the accepted decision and the milestone's
-  per-slice review practice.
-- **Detail:** [design conflict](#3-design-conflict-requiring-a-decision) and [verified inventory](#appendix-a-proposal-inventory-verified-against-main).
+  merged; it has since been fast-forwarded to include the current milestone plan. Each implementation
+  slice uses a review branch from the approved post-R3 base.
+- **Detail:** [architectural contract](#3-architectural-contract), [inventory disposition](#4-inventory-disposition),
+  and [audited inventory](#appendix-a-proposal-inventory-verified-against-main).
 
 ### SWC.2 — Orchestration and evaluation wiring
 
 - **Problem:** each strategy currently has its own tool-argument model, handler, dependency fields,
   registration call and evaluation argument/tool mapping; an omitted branch can silently remove a
   strategy from production or deterministic evaluation.
-- **Decision:** use only the approved SWC.1 representation to remove repeated invocation plumbing;
-  preserve each analyzer's own typed config/result and `run_analysis(ticker, config, context)` call.
+- **Decision:** establish the closed declaration and focused metadata/coverage checks, then consume
+  descriptor-owned tool and evaluation routing. Keep analyzer config creation, injected dependencies,
+  and fixture composition strategy-specific.
 - **Scope:** `src/orchestrator/analysis_tools.py` and the relevant `src/evaluation/` composition,
-  runner and model modules, including every strict argument-to-tool mapping and fixture-backed
-  dependency composition identified in Appendix A. Do not change evaluation fixture truth, scoring,
-  formula semantics or external-call behavior.
+  runner and model modules. Replace only descriptor-authoritative metadata and dispatch in Appendix
+  A. Add conformance checks for descriptor completeness and each changed consumer, including an
+  incomplete-consumer negative control. Do not change evaluation fixture truth, scoring, formula
+  semantics or external-call behavior.
 - **Branch:** one implementation branch for this slice, from the post-acceptance base selected by
   the approved implementation plan.
-- **Detail:** [verified inventory](#appendix-a-proposal-inventory-verified-against-main).
+- **Detail:** [inventory disposition](#4-inventory-disposition) and [audited inventory](#appendix-a-proposal-inventory-verified-against-main).
 
 ### SWC.3 — Workspace selection, execution and codecs
 
 - **Problem:** persisted selections, selection-to-config conversion, method adapters, native result
   unions, version metadata, refresh dispatch and evidence codecs each repeat strategy-specific
   wiring. Version tuples must stay aligned across capture, storage and decoding.
-- **Decision:** consolidate only the dispatch and metadata duplication allowed by SWC.1; retain
-  explicit typed selection/config/result boundaries and each strategy's own evidence codec. Any
-  stored-shape change increments its relevant version; no migration or compatibility code is added
-  during the consolidation period.
+- **Decision:** consume descriptor dispatch and version metadata where the inventory marks it
+  duplicated. Retain explicit typed selection/config/result boundaries, strategy-owned execution
+  adapters and codecs. Any stored-shape change increments its relevant version; no migration or
+  compatibility code is added during the consolidation period.
 - **Scope:** `src/workspace/requests.py`, strategy execution adapters, `src/workspace/execution.py`,
   `src/workspace/codecs.py`, per-strategy codec modules, `src/cli_workspace.py`, and focused tests.
-  Preserve `AnalysisRun` replay guarantees and refresh isolation. No financial or outcome
+  Move only selection-to-executor routing and repeated version/codec dispatch metadata identified in
+  §4. Preserve the `AnalysisSelection` union, conversion methods, adapter behavior, `NativeEvidence`
+  union, `AnalysisRun` replay guarantees and refresh isolation. No financial or outcome
   classification changes.
 - **Branch:** one implementation branch for this slice, with its scope and review gate recorded in
   the implementation record.
-- **Detail:** [verified inventory](#appendix-a-proposal-inventory-verified-against-main).
+- **Detail:** [inventory disposition](#4-inventory-disposition) and [audited inventory](#appendix-a-proposal-inventory-verified-against-main).
 
 ### SWC.4 — Reporting and typed JSON envelopes
 
 - **Problem:** report construction and stored-run replay retain per-method type dispatch, while JSON
   presentation payloads lack the typed envelope models that IR.5 intended to add.
-- **Decision:** introduce real typed models that back the existing JSON payload builders and
-  preserve their investor-visible meaning. A one-time schema snapshot detached from those models is
-  not sufficient. Schema publication details are proposed in [§5](#5-ir5-typed-json-envelopes-and-schemas).
+- **Decision:** derive generic replay and envelope-model dispatch from the descriptor where it
+  removes repeated routing. Keep each projector, presenter, and envelope model strategy-owned and
+  preserve investor-visible meaning. Generate schemas from the runtime typed models; detached schema
+  snapshots are not sufficient. See the [IR.5 schema decision](#b3-ir5-schemas).
 - **Scope:** `src/reporting/analysis_runs.py`, strategy presentation modules where dispatch changes
-  are necessary, and the JSON-mode builders and tests. Include both direct/report rendering and the
-  stored Analysis Run projection path. Keep `projection_version`, method version and result-schema
-  version distinct; do not silently reinterpret historical runs.
+  are necessary, and JSON-mode builders and tests. Include direct/report rendering and stored
+  Analysis Run projection only where Appendix A identifies duplicated dispatch. Add typed envelope
+  models for actual output. Keep `projection_version`, method version, and result-schema version
+  distinct; do not silently reinterpret historical runs. IR.5's moved scope remains included: models
+  describe actual `--json` output, preserve each strategy's evidence shape, and validate at the
+  appropriate output boundary. Generate schemas from the runtime typed models rather than detached
+  snapshots; check generated files into a discoverable `schemas/` directory with deterministic
+  generation and drift checks.
 - **Branch:** one implementation branch for this slice, based on the approved SWC.1 design.
-- **Detail:** [verified inventory](#appendix-a-proposal-inventory-verified-against-main) and
-  [IR.5 scope](#5-ir5-typed-json-envelopes-and-schemas).
+- **Detail:** [inventory disposition](#4-inventory-disposition), [audited inventory](#appendix-a-proposal-inventory-verified-against-main),
+  and [decision record](#appendix-b-decision-records-and-history).
 
-### SWC.5 — Generated schemas, contributor guide and final conformance
+### SWC.5 — Schemas, contributor guide, and final conformance
 
 - **Problem:** consumers and contributors need discoverable schemas and a complete, tested account
   of which wiring is automatic and which work remains strategy-specific.
-- **Decision:** generate the published schemas from the typed models and document the approved
-  strategy-addition workflow, then use an independent end-to-end wiring audit to challenge the
-  completeness checks.
-- **Scope:** add the developer guide proposed as `docs/TOOL_DEVELOPMENT.md`, link it from
-  `docs/project/README.md`, generate/check schemas using the approach selected in §5, and verify
-  conformance across all current strategies. Use a representative new strategy, preferably
-  Piotroski from Step 3.5, as a wiring-completeness exercise only if it can be done without pulling
-  Step 3.5 implementation into SWC; otherwise use a deliberately minimal test fixture/type to
-  demonstrate the omitted-branch failure.
+- **Decision:** generate published schemas from typed models and document the approved
+  strategy-addition workflow. Challenge the structural checks with independent end-to-end review.
+- **Scope:** add the developer guide `docs/TOOL_DEVELOPMENT.md`, link it from
+  `docs/project/README.md`, generate/check schemas from the envelope models defined in SWC.4, and
+  verify conformance across all
+  current strategies and generic consumers. Use an independent implementation review or a
+  deliberately incomplete consumer fixture to prove that omission fails with a useful diagnostic.
+  Do not pull Step 3.5 strategy implementation into SWC; a later Piotroski addition may exercise the
+  documented path when that strategy is implemented.
 - **Branch:** one implementation branch for this slice, with generated schema updates reviewed
   alongside their source models.
-- **Detail:** [acceptance criteria](#7-acceptance-criteria).
-
-## 5. IR.5: typed JSON envelopes and schemas
-
-IR.5's moved scope is part of SWC: define typed envelope models backing `--json` payloads and publish
-generated JSON Schemas. Models must describe actual runtime output, retain each strategy's distinct
-evidence shape, reject malformed output at the appropriate boundary, and stay aligned with the
-documented JSON contract. Do not add a generic result supertype to obtain a uniform schema.
-
-Two questions travelled from IR.5. Proposed answers for project-owner review:
-
-- **Schema-generation approach:** generate JSON Schema directly from the typed Pydantic v2 envelope
-  models using their supported schema API (`model_json_schema` or `TypeAdapter.json_schema` as
-  appropriate). Provide a deterministic repository command and a check mode that fails on drift;
-  do not hand-maintain schemas or take a disconnected one-time snapshot. Confirm the precise API and
-  generation invocation against the final model form during implementation planning.
-- **Checked-in `schemas/` directory:** yes. Check in generated schemas in a clearly named
-  `schemas/` directory, version or identify each public envelope schema, and require regeneration
-  drift checks in the quality gate. This makes the consumer contract reviewable and distributable
-  without requiring consumers to import the Python package. The checked-in files remain generated
-  outputs; the typed models are authoritative.
-
-These are proposed resolutions, not implementation authorization. If approved, the exact filenames,
-schema identifiers and whether schemas are per-strategy or a discriminated top-level envelope are
-settled in SWC.1/SWC.4 detail before code is written.
+- **Detail:** [acceptance criteria](#7-acceptance-criteria) and [conformance design](#33-static-declaration-typing-and-conformance).
 
 ## 6. Scope limits
 
@@ -199,6 +281,10 @@ settled in SWC.1/SWC.4 detail before code is written.
   construction is insufficient.
 - **Static strategy set:** no runtime discovery, auto-registration, plugin loader, or speculative
   factory hierarchy. Each analyzer keeps its own typed config and complete result evidence type.
+- **Strategy ownership:** each strategy keeps its own `AnalysisSelection` and
+  `AnalysisToolArguments`/`NativeEvidence` union members where applicable, plus its codec, adapter
+  behavior, outcome classification, and presentation/projection semantics. The descriptor only
+  routes generic infrastructure to those contracts.
 - **Invocation contract:** production callers continue to invoke analyzers only through
   `BaseAnalyzer[ConfigT, ResultT].run_analysis(ticker, config, context)` with dependencies injected
   at construction and cross-cutting concerns carried in `AnalysisContext`.
@@ -228,10 +314,13 @@ SWC was accepted on 2026-09-24 after an inventory pass during IR.2. The accepted
 that four existing strategies each repeat orchestration, workspace, codec, reporting and evaluation
 wiring, and that Step 3.5's seven strategies would multiply the risk of a missed branch. IR.5's
 typed JSON envelope and schema scope moved into SWC because it is another per-strategy consumer
-contract. SWC follows IR and precedes R3, PKG and Step 3.5 as recorded in the milestone plan.
+contract. SWC follows R3 (which followed IR) and precedes PKG and Step 3.5 as recorded in the
+milestone plan.
 
 The original proposal's claims are not taken as a current inventory: Appendix A records a fresh
-symbol-level comparison against `main` at `8edbff4` (2026-10-01), after IR.2–IR.8 and PR #53.
+symbol-level comparison after IR.2–IR.8 and PR #53. The code inventory baseline is `main` at
+`8edbff4`; later `main` commit `3375a77` records the R3 close-out and changes documentation only,
+not the code wiring observations.
 
 ---
 
@@ -281,18 +370,33 @@ repeated evaluation `_tool_name` mappings above.
 
 ## Appendix B: Decision records and history
 
-### B.1 IR.5 scope carried into SWC
+### B.1 Closed descriptor decision and IR.2 boundary
 
-Typed JSON envelope models backing the `--json` payloads and generated JSON Schemas remain in scope.
-The IR.5 questions are carried forward with proposals in [§5](#5-ir5-typed-json-envelopes-and-schemas):
-generate from the runtime typed models and check generated schema files into a discoverable
-`schemas/` directory with drift verification. These proposals require project-owner review before
-implementation.
+The descriptor is the single source of truth for duplicated infrastructure wiring metadata
+identified in Appendix A. It may declare identifiers, tool and model types, applicable version
+metadata, and references to strategy-owned functions needed for generic routing. It does not encode
+strategy behavior, calculations, policy, a universal result type, or plugin/factory lifecycle. Its
+static declaration is limited to this consolidation purpose under `AGENTS.md` §0.
 
-### B.2 Descriptor and IR.2 contract tension
+IR.2's “no generic result supertype, registry or factory” decision remains operative for general
+architecture. This plan authorizes only a narrow closed wiring declaration to remove the audited
+duplication, while preserving each strategy's `ConfigT`, `ResultT`, evidence contract and
+`BaseAnalyzer` invocation. That is a bounded exception to the earlier no-registry wording, not a
+general strategy-registry authorization.
 
-The proposal's descriptor tuple was illustrative and explicitly deferred typing design; IR.2 later
-landed an accepted “no generic result supertype, registry or factory” constraint. SWC planning has
-therefore surfaced the tension instead of treating §0's temporary allowance as automatic approval
-for the descriptor shape. The project owner must select or revise the option in [§3](#3-design-conflict-requiring-a-decision)
-before implementation sequencing is authorized.
+### B.2 Conformance decision
+
+Option 2 in the former §3 sought independent evidence that a strategy or required wiring path had
+not been forgotten. It was not selected as the primary architecture because a separately maintained
+strategy inventory would preserve the repeated wiring knowledge SWC is meant to consolidate. Its
+strongest safeguard is retained: focused conformance tests independently compare the descriptor
+against existing supported-strategy boundaries, verify descriptor consumption by each required
+generic surface, and include an incomplete-consumer negative control with a useful failure.
+
+### B.3 IR.5 schemas
+
+Typed envelope models back the actual `--json` payloads, preserve each strategy's evidence shape,
+and generate checked-in schemas in a discoverable `schemas/` directory. Models are authoritative;
+generation and drift checks are deterministic. Exact schema identifiers, filenames, and whether
+publication uses per-envelope files or a top-level discriminated schema depend on the final model
+shape and are settled during contract/implementation design, not left as an architectural choice.
