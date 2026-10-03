@@ -71,9 +71,9 @@ sequencing meaning.
 | 15 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
 | Deferred | [ETF aggregation (P2-ETF)](#47a-p2--durable-instrument-profiles--etf-aggregate-fcf-growth) | Deferred | |
 | Deferred | [Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export)](deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Deferred | |
-| Deferred | [Structured error reporting for programmatic/agentic CLI consumers](deferred/DEFERRED_STRUCTURED_ERROR_REPORTING.md) | Deferred | |
 | Deferred | [Prefix matching for Analysis Run/refresh IDs](deferred/DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Deferred | |
-| Deferred | [Deduplicate Momentum's instrument-profile composition sites](deferred/DEFERRED_MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) | Deferred | |
+
+Every deferred note states a **Reconsider at** point that names a work package, and that work package's plan links back to it.
 
 ## 1. Purpose & Scope
 
@@ -339,6 +339,7 @@ The complete investor workflow—data fetch/cache → deterministic analytics �
 5. Complete the Step 2.2 empirical schema/model compatibility check for the supported Light Mode configuration.
 6. Add or validate a simple `ian analyze TICKER` entry point that can request the default deterministic analyses and optionally ask the local LLM to synthesize only their completed typed results.
 7. Ensure synthesis failure, timeout, or schema failure never discards valid deterministic Analysis Runs.
+8. Decide [prefix matching for Analysis Run and refresh IDs](deferred/DEFERRED_RUN_ID_PREFIX_MATCHING.md): implement it, or drop it and delete the note.
 
 **Synthesis boundary**
 The model may summarize, compare, flag tensions, and suggest what the investor may wish to inspect next. It may not invent financial facts, perform the deterministic arithmetic, silently select a growth assumption, or turn a screening result into an investment recommendation.

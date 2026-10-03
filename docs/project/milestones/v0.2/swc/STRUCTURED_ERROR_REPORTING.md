@@ -1,6 +1,7 @@
-# Deferred — Structured Error Reporting for Programmatic/Agentic CLI Consumers
+# Structured Error Reporting for Programmatic/Agentic CLI Consumers
 
-**Status:** deferred; not started; scope/contract review required before implementation.
+**Status:** owned by SWC; envelope contract settled in [SWC.1](SWC_CONTRACT_AND_SLICE_PLAN.md#swc1--descriptor-contract-and-conformance-design);
+implemented in [SWC.4](SWC_CONTRACT_AND_SLICE_PLAN.md#swc4--reporting-and-typed-json-envelopes).
 **Discovered:** 2026-09-20 (America/Toronto), during Step 3.4 review of the
 `DatabaseReadinessError` message a human sees from
 `ian graham-number ... --save-run` when the local database needs
