@@ -1,6 +1,6 @@
 # SWC.1 — Descriptor Contract and Conformance Design
 
-Settles the descriptor, failure-envelope and conformance contracts that SWC.2–SWC.5 implement. The
+Settles the descriptor, failure-envelope and conformance contracts that SWC.2a–SWC.5 implement. The
 [SWC plan](SWC_CONTRACT_AND_SLICE_PLAN.md) owns scope, sequence and status; this document owns the
 design detail. Nothing under `src/`, `tests/`, `scripts/`, `config/`, `alembic/`, `pyproject.toml` or
 `uv.lock` changes in SWC.1.
@@ -51,7 +51,7 @@ design detail. Nothing under `src/`, `tests/`, `scripts/`, `config/`, `alembic/`
 | D10 | Conformance compares the descriptors to independent surfaces and includes a three-part negative control. | [§10](#10-conformance-tests-and-negative-control) |
 | D11 | Every `--json` document gets a typed model and a checked-in generated schema. SWC.4 is split into SWC.4a, SWC.4b and SWC.4c. | [§11](#11-migration-from-current-declarations), [§13.6](#136-every-json-document-is-typed) |
 | D12 | Per-job failures in `refresh --json` carry a `reason_code` from the same vocabulary, alongside their existing text. | [§13.4](#134-what-changes) |
-| D13 | The design fits all seven Step 3.5 strategies. Two changes are made now: the command-coverage test and the keyed-table replacement of two remaining `if` chains. | [§16](#16-step-35-fit-check) |
+| D13 | The design fits all seven Step 3.5 strategies. Two changes are made now: the command-coverage test and the keyed-table replacement of four remaining `if` chains. | [§16](#16-step-35-fit-check) |
 | D14 | Every finding the audit left unowned is assigned to a slice. | [§18](#18-findings-assigned-to-a-slice) |
 
 ## 3. Descriptor fields and exclusions
@@ -63,12 +63,12 @@ is the slice whose consumer first reads it; a later slice adds the field, not SW
 
 | Field | Type | Introduced | Consumers | Declarations replaced |
 | :--- | :--- | :--- | :--- | :--- |
-| `analysis_id` | `str` | SWC.2 | The `(analysis_id, method_id)` key of every index; conformance; later codecs, run envelope, replay, refresh, JSON builders. | Key literals in `_METHOD_VERSIONS`, `_EXPECTED_VERSIONS`, `project_run` (4 pairs), six `execution_errors(analysis=, method=)` calls, three reporting JSON builders, the string tests inside `decode_evidence`. |
-| `method_id` | `str` | SWC.2 | As `analysis_id`; also `RunQuery`, watchlist alias lookup. | As above, plus the values of `ALIAS_METHOD_IDS`. |
-| `tool` | `ToolName` | SWC.2 | Tool registration; evaluation routing; the local Ollama runner. | The four `ANALYZE_*_TOOL` constants; the three `_tool_name` isinstance chains. |
-| `tool_arguments` | `type[BaseModel]` | SWC.2 | The argument-model view (`ANALYSIS_TOOL_ARGUMENT_MODELS`); Ollama validation, schema and parser; `tool_for_arguments`. | The literal `ANALYSIS_TOOL_ARGUMENT_MODELS` dict; the three `_tool_name` chains. |
-| `tool_description` | `str` | SWC.2 | Ollama tool-schema JSON and parser registry. | `_TOOL_DESCRIPTIONS`. |
-| `evidence` | `EvidenceView` | SWC.2 (type test), SWC.3 (codec) | `evaluation.runner._native_result` (type membership); `encode_evidence`; `decode_evidence`. | The `encode_evidence` and `decode_evidence` isinstance chains; four inline ticker-identity blocks; the runner's isinstance tuple. |
+| `analysis_id` | `str` | SWC.2b | The `(analysis_id, method_id)` key of every index; conformance; later codecs, run envelope, replay, refresh, JSON builders. | Key literals in `_METHOD_VERSIONS`, `_EXPECTED_VERSIONS`, `project_run` (4 pairs), six `execution_errors(analysis=, method=)` calls, three reporting JSON builders, the string tests inside `decode_evidence`. |
+| `method_id` | `str` | SWC.2b | As `analysis_id`; also `RunQuery`, watchlist alias lookup. | As above, plus the values of `ALIAS_METHOD_IDS`. |
+| `tool` | `ToolName` | SWC.2b | Tool registration; evaluation routing; the local Ollama runner. | The four `ANALYZE_*_TOOL` constants; the three `_tool_name` isinstance chains. |
+| `tool_arguments` | `type[BaseModel]` | SWC.2b | The argument-model view (`ANALYSIS_TOOL_ARGUMENT_MODELS`); Ollama validation, schema and parser; `tool_for_arguments`. | The literal `ANALYSIS_TOOL_ARGUMENT_MODELS` dict; the three `_tool_name` chains. |
+| `tool_description` | `str` | SWC.2b | Ollama tool-schema JSON and parser registry. | `_TOOL_DESCRIPTIONS`. |
+| `evidence` | `EvidenceView` | SWC.2b (type test), SWC.3 (codec) | `evaluation.runner._native_result` (type membership); `encode_evidence`; `decode_evidence`. | The `encode_evidence` and `decode_evidence` isinstance chains; four inline ticker-identity blocks; the runner's isinstance tuple. |
 | `alias` | `str` | SWC.3 | `parse_selection`; `_parse_analysis`; alias-to-method lookups; `alias_for_method_id`; help text. | `method_aliases.py` (three tables); the alias tuple in `parse_selection`. |
 | `label` | `str` | SWC.3 | `encode_evidence` and `decode_evidence` error text. | The two four-way label chains in `codecs.py`. |
 | `config_schema_version` | `int` | SWC.3 | `decode_evidence`. | `_EXPECTED_VERSIONS`. |
@@ -135,7 +135,7 @@ The descriptor must not hold, and no field may be added for:
   `reporting`, `evaluation` and the CLI, still has none (163 modules plus the fifteen the design adds). Three plausible wider designs
   do create cycles; they are why D5 exists. Evidence: [Appendix C](#appendix-c-import-cycle-evidence).
   Test T13 makes this a permanent guard.
-- **Prerequisite moves, with no compatibility re-exports** (made by SWC.2): `ToolName` to
+- **Prerequisite moves, with no compatibility re-exports** (made by SWC.2a): `ToolName` to
   `src/orchestrator/tool_names.py`; the four `*ToolArguments` models, `FiniteFloat` and
   `PositiveFiniteFloat` to `src/orchestrator/analysis_tool_arguments.py`; the `NativeEvidence` union to
   `src/workspace/native_evidence.py`. After the move each has exactly one import path. The importers
@@ -145,7 +145,7 @@ The descriptor must not hold, and no field may be added for:
   `NativeEvidence`. No public package export has to stay: `src/evaluation/__init__.py` exports
   `ToolName` today, but nothing imports it from the package (a search of `src/`, `tests/` and `docs/`
   finds no `from src.evaluation import`), so that export is removed. `docs/EVALUATIONS.md` and
-  `docs/project/ARCHITECTURE.md` name the moved symbols and are updated in SWC.2.
+  `docs/project/ARCHITECTURE.md` name the moved symbols and are updated in SWC.2a.
 
 ## 5. Relation to `BaseAnalyzer`
 
@@ -170,13 +170,13 @@ closed on a missing key, and are checked against the descriptors by T10.
 
 | Slice | File and symbol | Derives from the descriptor | Stays explicit |
 | :--- | :--- | :--- | :--- |
-| SWC.2 | `src/orchestrator/analysis_tools.py`: `register_analysis_tools` | Iterates `STRATEGIES`; tool name per entry. | The four handler methods, `AnalysisToolDependencies`, config construction, and one `ToolName`-keyed table of bound handlers. |
-| SWC.2 | `analysis_tools.py`: `ANALYSIS_TOOL_ARGUMENT_MODELS`, the four `ANALYZE_*_TOOL` constants | Deleted. Consumers read `BY_TOOL`. | The argument models, moved to `analysis_tool_arguments.py`. |
-| SWC.2 | `src/evaluation/composition.py`, `runner.py`, `ollama_runner.py`: three `_tool_name` | One `tool_for_arguments` over `BY_ARGUMENTS`. | The `AnalysisToolArguments` union (typing; compared by T4), fixture composition, `catalog.py`, case expectations. |
-| SWC.2 | `composition.py`: `_require_tool_evidence` | Table keys. | An `if`/`else` chain over `ToolName` whose last branch makes FCF the default becomes a `ToolName`-keyed table of fixture requirements; an unknown tool raises. |
-| SWC.2 | `ollama_runner.py`: `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser`, `_selection_observation` | Description and argument model per tool; `ToolName` lookup replaces the private `_value2member_map_`. | Prompt construction and observation evidence. |
-| SWC.2 | `evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | Result-type membership via `BY_EVIDENCE`; the duplicate union becomes `NativeEvidence`. | `_native_status` becomes a table keyed by result type of per-type accessors (Momentum's returns `None`, [§7](#7-strategy-specific-escape-hatches)); the chain whose last branch makes FCF the default is gone. |
-| SWC.2 | `evaluation/models.py`: `ToolName`; `core/constants.py`: `AnalysisType` | `ToolName` moves; no re-export. `AnalysisType` is deleted. | The enum members. |
+| SWC.2b | `src/orchestrator/analysis_tools.py`: `register_analysis_tools` | Iterates `STRATEGIES`; tool name per entry. | The four handler methods, `AnalysisToolDependencies`, config construction, and one `ToolName`-keyed table of bound handlers. |
+| SWC.2b | `analysis_tools.py`: `ANALYSIS_TOOL_ARGUMENT_MODELS`, the four `ANALYZE_*_TOOL` constants | Deleted. Consumers read `BY_TOOL`. | The argument models, moved to `analysis_tool_arguments.py` in SWC.2a. |
+| SWC.2b | `src/evaluation/composition.py`, `runner.py`, `ollama_runner.py`: three `_tool_name` | One `tool_for_arguments` over `BY_ARGUMENTS`. | The `AnalysisToolArguments` union (typing; compared by T4), fixture composition, `catalog.py`, case expectations. |
+| SWC.2b | `composition.py`: `_require_tool_evidence` | Table keys. | An `if`/`else` chain over `ToolName` whose last branch makes FCF the default becomes a `ToolName`-keyed table of fixture requirements; an unknown tool raises. |
+| SWC.2b | `ollama_runner.py`: `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser`, `_selection_observation` | Description and argument model per tool; `ToolName` lookup replaces the private `_value2member_map_`. | Prompt construction and observation evidence. |
+| SWC.2b | `evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | Result-type membership via `BY_EVIDENCE`; the duplicate union becomes `NativeEvidence`. | `_native_status` becomes a table keyed by result type of per-type accessors (Momentum's returns `None`, [§7](#7-strategy-specific-escape-hatches)); the chain whose last branch makes FCF the default is gone. |
+| SWC.2a | `evaluation/models.py`: `ToolName`; `core/constants.py`: `AnalysisType` | `ToolName` moves; no re-export. `AnalysisType` is deleted. | The enum members. |
 | SWC.3 | `workspace/codecs.py`: `encode_evidence`, `decode_evidence`, `_EXPECTED_VERSIONS` | Exact-type lookup for encode; key lookup, expected versions, label, ticker identity and codec for decode. | Each strategy's `encode_*`/`decode_*`, validation and provenance rules. |
 | SWC.3 | `workspace/execution.py`: `_METHOD_VERSIONS`, `execute` | Method, result and codec versions. `getattr(selection, "as_of", None)` becomes `selection.as_of` (every union member has it). | `NativeEvidence`, `ExecutionCapture`, the four `from_*_capture` normalizers. |
 | SWC.3 | `workspace/requests.py`: `parse_selection`; `workspace/method_aliases.py` | Alias membership; the alias vocabulary replaces `method_aliases.py` (deleted). | The per-alias `if` chain, whose last branch is an unconditional Momentum return, becomes an alias-keyed table of strategy-owned parsers. The four selections. |
@@ -260,7 +260,7 @@ MOMENTUM: Final = StrategyDescriptor(
 )
 ```
 
-Two points learned from the prototype that SWC.2 must follow:
+Two points learned from the prototype that SWC.2b must follow:
 
 - Write the type argument explicitly (`EvidenceCodec[MomentumRun](...)`). Without it, mypy infers the
   whole union from the `Protocol` field's expected type and rejects every declaration.
@@ -307,7 +307,7 @@ consumer has a fall-through branch.
 | `decode_evidence` | `(analysis_id, method_id)` with no descriptor. | Existing `UnsupportedRunVersionError`, message and `reason_code` unchanged. |
 | `project_run` | A key with no projector. | Existing `UnsupportedProjectionError`, message unchanged. |
 | `_refresh_executor` | A selection whose key has no executor. | `UndeclaredStrategyError`, replacing the `AssertionError` fallthrough. |
-| `parse_selection` | Unknown alias. | Existing `ValueError("Unknown analysis alias: ...")`. The last branch tests `momentum` explicitly. |
+| `parse_selection` | Unknown alias. | Existing `ValueError("Unknown analysis alias: ...")`, raised when the alias-keyed table of parsers has no entry. No strategy is a fall-through. |
 | `tool_for_arguments` | Arguments of an undeclared model type. | `UndeclaredStrategyError`, replacing `TypeError`. |
 | Handler registration | A descriptor tool with no handler entry. | `UndeclaredStrategyError` at registration, naming the tool. |
 | `evaluation.runner._native_result`, `_native_status` | A result of an undeclared type. | `UndeclaredStrategyError`, replacing today's `TypeError` and the FCF default. |
@@ -318,7 +318,7 @@ For valid inputs every path behaves as today; T8 round-trips real evidence for e
 ## 10. Conformance tests and negative control
 
 All tests are deterministic, make no network, provider or LLM call, and live in
-`tests/test_strategy_wiring_conformance.py` (new in SWC.2, extended by later slices) unless noted. The
+`tests/test_strategy_wiring_conformance.py` (new in SWC.2b, extended by later slices) unless noted. The
 test code names the consumer surfaces it checks; it does not copy wiring metadata.
 
 ### 10.1 Tests
@@ -380,12 +380,13 @@ explicit approval.
 
 | Slice | Branch | Files touched | Declarations removed | Order of work |
 | :--- | :--- | :--- | :--- | :--- |
-| SWC.2 | `feat/swc-2-orchestration-evaluation-wiring` | New: `src/strategy_wiring.py`, `src/orchestrator/tool_names.py`, `src/orchestrator/analysis_tool_arguments.py`, `src/workspace/native_evidence.py`, conformance tests. Edited: `src/orchestrator/analysis_tools.py`, `src/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py`, the six `src/evaluation/cases/*.py` importers, `src/workspace/execution.py` (import of `NativeEvidence` only), `src/core/constants.py`, affected tests (seventeen import `ToolName`, eleven the argument models), `docs/EVALUATIONS.md`, `docs/project/ARCHITECTURE.md`. | Four `ANALYZE_*_TOOL` constants; `ANALYSIS_TOOL_ARGUMENT_MODELS`; three `_tool_name`; `_TOOL_DESCRIPTIONS`; duplicate `NativeAnalysisResult`; the FCF defaults in `_require_tool_evidence` and `_native_status`; `AnalysisType`; the `ToolName` export from `src.evaluation`. | Move `ToolName`, split arguments, move `NativeEvidence` (updating importers each time), add the descriptor with tests T1 (ids), T2–T7, T10–T17, T24 and the negative control, then switch consumers. |
+| SWC.2a | `feat/swc-2a-symbol-moves` | New: `src/orchestrator/tool_names.py`, `src/orchestrator/analysis_tool_arguments.py`, `src/workspace/native_evidence.py`. Edited: `src/orchestrator/analysis_tools.py`, `src/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py`, the six `src/evaluation/cases/*.py` importers, `src/workspace/execution.py` (import of `NativeEvidence` only), `src/core/constants.py`, affected tests (seventeen import `ToolName`, eleven the argument models), `docs/EVALUATIONS.md`, `docs/project/ARCHITECTURE.md`. | The old definitions of the three symbols; the `ToolName` export from `src.evaluation`; `AnalysisType`. | One symbol at a time (`ToolName`, then the argument models, then `NativeEvidence`), updating importers and running the gate after each; then `AnalysisType`. No behavior change and no descriptor. |
+| SWC.2b | `feat/swc-2b-orchestration-evaluation-wiring` | New: `src/strategy_wiring.py`, conformance tests. Edited: `src/orchestrator/analysis_tools.py`, `src/evaluation/{composition,runner,ollama_runner}.py`, affected tests. | Four `ANALYZE_*_TOOL` constants; `ANALYSIS_TOOL_ARGUMENT_MODELS`; three `_tool_name`; `_TOOL_DESCRIPTIONS`; duplicate `NativeAnalysisResult`; the FCF defaults in `_require_tool_evidence` and `_native_status`; the private `_value2member_map_` use. | Add the descriptor with tests T1 (ids), T2–T7, T10–T17, T24 and the negative control, then switch consumers. |
 | SWC.3 | `feat/swc-3-workspace-wiring` | `src/strategy_wiring.py`, `src/workspace/{codecs,execution,requests,momentum_execution}.py`, delete `src/workspace/method_aliases.py`, `src/data/repositories/watchlists.py`, `src/cli_workspace.py`, `src/cli.py` (Momentum composition only), tests (T1, T8, T10, T11, T22, T23 extended or added; `test_method_aliases.py` folded in). | `_METHOD_VERSIONS`; `_EXPECTED_VERSIONS`; both label chains; both codec isinstance chains; `method_aliases.py`; the `parse_selection` alias tuple and Momentum fall-through; the `_build_selection` chain; the `_refresh_executor` isinstance chain; the `getattr(selection, "as_of", None)` probe; two inline Momentum composition copies in `cli.py` and one in `cli_workspace.py`. | Momentum helper first (independent), then descriptor fields, then codecs and execution, then aliases, `parse_selection` and `_build_selection`, then the refresh table. |
 | SWC.4a | `feat/swc-4a-failure-envelope` | New `src/reporting/documents/{__init__,failure,database}.py`, `src/reporting/failure_classification.py`, `scripts/generate_schemas.py`, `schemas/` (failure, database report). Edited: `src/cli_support.py`, `src/reporting/presentation.py`, `src/cli.py` (`execution_errors` call sites), `src/cli_workspace.py`, `src/cli_database.py`, `src/workspace/refresh.py`, `src/workspace/watchlists.py`, `src/data/repositories/watchlists.py`, `docs/user/DATABASE.md`, tests (T18–T20). | `analysis_failure_document`'s hand-built dict and its wrong docstring; the `analysis == "momentum"` test; the six literal id pairs in `execution_errors` calls; the duplicate `WatchlistNotFoundError` in `refresh.py`. | Failure model and classifier, then direct commands, then workspace `--json` paths, then `refresh_watchlist`'s injected classifier and per-job codes, then the database report rename, then the generator and T20. |
 | SWC.4b | `feat/swc-4b-workspace-documents` | New `src/reporting/documents/{watchlist,runs,refresh}.py`; `src/cli_workspace.py` JSON builders; `schemas/` (watchlist, watchlist delete, runs list, refresh summary); tests (T20 extended). | The hand-built dicts in `_watchlist_payload`, the delete outcome and `_refresh_json`; the `model_dump` list in `runs list`. | One model per document, each proved byte-identical to the current output except the listed changes, then the schemas. |
 | SWC.4c | `feat/swc-4c-strategy-json-envelopes` | `src/strategy_wiring.py`; new `src/reporting/envelopes/<strategy>.py` (four), `src/reporting/json_documents.py`; `src/reporting/{analysis_runs,momentum,graham_number,graham_growth,fcf_earnings_growth}.py`; `schemas/` (four strategy documents); tests (T9, T10, T20, T21, T24 extended). | Literal ids in three builders; the `project_run` pair chain. | Envelope models and `json_envelope`, then the builders' boundary validation, then the projector table, then `JSON_DOCUMENTS` and T21 last, when every command is covered. |
-| SWC.5 | `feat/swc-5-contributor-guide` | `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` moved to `docs/TOOL_DEVELOPMENT.md` and extended (including the identifier rules in [§16](#16-step-35-fit-check) and the edit-site table in [§17](#17-edit-sites-for-a-new-strategy)); every link to it; `AGENTS.md` §3; final conformance coverage; independent review. | None in code. | Guide, then authorization, then final conformance. |
+| SWC.5 | `feat/swc-5-contributor-guide` | `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` moved to `docs/TOOL_DEVELOPMENT.md` and extended (including the identifier rules in [§16](#16-step-35-fit-check) and the edit-site table in [§17](#17-edit-sites-for-a-new-strategy)); every link to it; the Step 3.5 contract plan's link to the edit-site table; `AGENTS.md` §3; final conformance coverage; independent review. | None in code. | Guide, then authorization, then final conformance. |
 
 Why SWC.4 is split: with every `--json` document typed, SWC.4 would carry four large strategy envelope
 models, the failure envelope and its classifier, the refresh and database output changes, four
@@ -394,7 +395,7 @@ reviewable concerns, so it is three slices, in the order above. SWC.4a ships the
 test with the first schemas. T21 lands last, in SWC.4c, because it can only pass once every `--json`
 command is covered, and it has no exemption list.
 
-Stored-shape version bumps expected: **none.** SWC.2 touches no stored shape. SWC.3 relocates version
+Stored-shape version bumps expected: **none.** SWC.2a and SWC.2b touch no stored shape. SWC.3 relocates version
 values unchanged and changes no selection, evidence or result shape, so no `config_schema_version`,
 `method_version`, `result_schema_version` or `evidence_codec_version` changes. The `--json` output
 versions that change are listed in [§13.4](#134-what-changes): the failure document `schema_version`
@@ -602,9 +603,9 @@ Where the audit disagreed with the plan, and what changed:
 | 2 | §3.2/§4: `ToolName` values are sourced from the descriptor. | A functional enum from descriptor strings fails `mypy --strict` and breaks `ToolName.X` ([§9.1](#91-toolname)). | `ToolName` stays the single hand-written declaration; the plan's §4 row is amended. |
 | 3 | §3.2 permits descriptor references to execution adapters and presentation functions. | Executors, handlers and projectors need production dependencies or sit above the codecs; putting them in the descriptor creates import cycles of 2, 4 and 8 modules ([Appendix C](#appendix-c-import-cycle-evidence)). The audited consumers are still served within §3. | The design uses fewer references than §3.2 allows; those three stay in consumer-owned keyed tables. |
 | 4 | SWC.4 and SWC.5 both own schema generation and the drift check. | The plan states it twice. | SWC.4a owns the generator, `schemas/` and the drift check; SWC.4b and SWC.4c add schemas to it; SWC.5 verifies per-descriptor coverage and documents. |
-| 5 | Appendix A inventory. | Sites it misses ([Appendix A](#appendix-a-inventory-re-verified-at-247ecdf)), including three more default-branch patterns: `parse_selection`'s final Momentum branch, `_require_tool_evidence`'s final FCF branch and `_native_status`'s final FCF branch. | Plan Appendix A and §4 updated; SWC.2 and SWC.3 scope lines extended. |
+| 5 | Appendix A inventory. | Sites it misses ([Appendix A](#appendix-a-inventory-re-verified-at-247ecdf)), including four more default-branch patterns: `parse_selection`'s final Momentum branch, `_build_selection`'s final FCF branch, `_require_tool_evidence`'s final FCF branch and `_native_status`'s final FCF branch. | Plan Appendix A and §4 updated; SWC.2 and SWC.3 scope lines extended. |
 | 6 | SWC scope lines. | SWC.2 omits `analysis_tool_arguments.py`, `tool_names.py`, `native_evidence.py` and `evaluation/models.py`; SWC.3 omits `data/repositories/watchlists.py` and the deletion of `method_aliases.py`; SWC.4 omits the `src/cli.py` call sites. | Scope lines corrected in the plan. |
-| 7 | SWC.4 branch is "based on the approved SWC.1 design". | SWC.4 reads declarations SWC.2 and SWC.3 create. | Every slice branches from `main` after its predecessor merges ([§11](#11-migration-from-current-declarations)). |
+| 7 | SWC.4 branch is "based on the approved SWC.1 design". | SWC.4 reads declarations SWC.2b and SWC.3 create. | Every slice branches from `main` after its predecessor merges ([§11](#11-migration-from-current-declarations)). |
 | 8 | The plan makes SWC.4 one slice covering strategy envelopes and the failure envelope. | With every `--json` document typed, the refresh and database output changes and a schema generator, it is three reviewable concerns. | SWC.4 is split into SWC.4a, SWC.4b and SWC.4c ([§11](#11-migration-from-current-declarations)). |
 | 9 | The plan's JSON scope is the strategies' output and the failure envelope. | The project owner's review decided that every `--json` document is typed. | The plan's At a glance, SWC.4 scope and acceptance criteria are widened ([§13.6](#136-every-json-document-is-typed)). |
 | 10 | SWC.3's Decision says today `encode_evidence` and `decode_evidence` both fall through to Momentum. | Item 1 above. | The sentence is corrected in the plan. |
@@ -631,7 +632,7 @@ decision; identifiers are left to that step.
 
 | Assumption | Covering test | Result and resolution |
 | :--- | :--- | :--- |
-| One descriptor has exactly one tool, arguments model, evidence type, alias and JSON envelope, each unique across strategies. | T24, through `BY_TOOL`, `BY_ARGUMENTS`, `BY_EVIDENCE`, `BY_ALIAS` and (SWC.4c) `BY_ENVELOPE`. | Holds for all seven. **Misfit:** the Step 3.5 slice scopes name "direct command, watchlist selection, refresh, `--json`" and do not name the orchestrator tool, arguments model, `ToolName` member, handler or dependency fields. SWC requires them for every strategy, and the golden suite (3.5.8) cannot select a strategy without them. *Design unchanged*: the rule stays; sites 3 to 7 of [§17](#17-edit-sites-for-a-new-strategy) are the handoff that the Step 3.5 slice plans pick up. |
+| One descriptor has exactly one tool, arguments model, evidence type, alias and JSON envelope, each unique across strategies. | T24, through `BY_TOOL`, `BY_ARGUMENTS`, `BY_EVIDENCE`, `BY_ALIAS` and (SWC.4c) `BY_ENVELOPE`. | Holds for all seven. **Misfit:** the Step 3.5 slice scopes name "direct command, watchlist selection, refresh, `--json`" and do not name the orchestrator tool, arguments model, `ToolName` member, handler or dependency fields. SWC requires them for every strategy, and the golden suite (3.5.8) cannot select a strategy without them. *Design unchanged*: the rule stays; sites 3 to 7 of [§17](#17-edit-sites-for-a-new-strategy) are the handoff, and the Step 3.5 contract plan now states that every strategy slice covers them. |
 | `method_id` is unique across all analyses. | T24, through `BY_METHOD_ID`. | Holds. It is a rule, not an accident, because runs, watchlist removal and CLI filters select by `method_id` alone (`RunQuery`, `remove_entries_for_method`, `--analysis`). It is stated in three places: the import-time error names both descriptors and the rule; the `strategy_wiring` module docstring; and the SWC.5 contributor guide's identifier section. A strategy with several methods needs distinct method ids, one descriptor per method, and so one tool, evidence type and alias per method. |
 | One result concerns one ticker. | `ticker_of`, `decode_for(payload, ticker)`, and the failure envelope's `ticker`. | Holds for all seven analyzers (each is `run_analysis(ticker, ...)`). The ranked view and the side-by-side table concern many tickers but are views over persisted runs, store no evidence and fail with `ticker: null`. Escape hatch: they are outside the descriptor. |
 | One analyzer class maps to one descriptor. | T3, now enumerating analyzers by package walk. | Holds; Altman's two models are one analyzer. **Misfit:** an enumeration by hand-written list would need an edit for each of seven analyzers; the package walk needs none. |
@@ -681,9 +682,9 @@ date; run scripts/generate_schemas.py`.
 **Total: 23 hand-edited sites** (plus the generator run). **12 are genuine heterogeneity** (1, 2, 4, 7,
 12, 13, 15, 16, 17, 21, 22, 23), **3 are residual repetition** (3, 5, 8) and **8 are genuine content
 plus one repeated line** (6, 9, 10, 11, 14, 18, 19, 20). Every site has a failing check, so none is a
-gap. Two earlier gaps were closed in this design: `parse_selection`, `_native_status`,
-`_require_tool_evidence` and `_build_selection` were unguarded chains that routed an unlisted strategy
-to Momentum or FCF, and nothing checked that documentation existed (T23).
+gap. Two gaps were closed while writing this table: four unguarded chains (`parse_selection`,
+`_build_selection`, `_native_status`, `_require_tool_evidence`) that routed an unlisted strategy to Momentum
+or FCF are now keyed tables with a T10 surface, and documentation now has T23.
 
 **What SWC could still remove.** Nothing within the contract. The three residual sites (3, 5, 8) are
 type-level lists that `mypy --strict` needs and that no descriptor can generate: an enum, a union
@@ -698,13 +699,13 @@ identifier literals. Each is now one declaration or one line with a named test.
 
 | Finding | Decision | Slice |
 | :--- | :--- | :--- |
-| `AnalysisType` in `src/core/constants.py` has one member (`MOMENTUM`) and no reader in `src/` or `tests/` (a repository search for the name finds only its definition). | Delete it. It is a dead per-strategy name list, and SWC.2 is where per-strategy name declarations are removed. | SWC.2 |
+| `AnalysisType` in `src/core/constants.py` has one member (`MOMENTUM`) and no reader in `src/` or `tests/` (a repository search for the name finds only its definition). | Delete it. It is a dead per-strategy name list, and SWC.2a is where per-strategy name declarations are removed. | SWC.2a |
 | Two classes named `WatchlistNotFoundError`, in `src/data/repositories/watchlists.py` and `src/workspace/refresh.py`. | One class, defined in `src/workspace/watchlists.py` next to `StoredSelectionError`; the repository and `refresh.py` import it; the duplicate and the aliased import in `cli_workspace.py` go. The classifier maps one class to `watchlist_not_found`, and no handler can miss the other. Tests in `tests/data` and `tests/workspace` import the single class. | SWC.4a |
 | `analysis_failure_document`'s docstring says the failure document uses "the analysis presentation version", but its `schema_version` is 5 for every strategy while the Graham success documents carry 6. | The docstring is removed with the hand-built dict. `FailureEnvelope` documents that its `schema_version` is its own lineage, independent of every success document's. | SWC.4a |
 | The failure envelope and the Graham success documents would share `schema_version` 6. | Acceptable. A `schema_version` identifies a shape only within its own schema file; consumers dispatch on `status` and `result` first, then on `analysis`. The generated schema's description says so, the contributor guide states it, and renumbering the failure lineage to avoid a coincidence would be a second, arbitrary output change. | SWC.4a, SWC.5 |
 | `execute()` reads `getattr(selection, "as_of", None)`, although every `AnalysisSelection` member defines `as_of`. | Read `selection.as_of`; the probe adds no safety and hides a missing field. | SWC.3 |
-| `ollama_runner._selection_observation` uses the private `ToolName._value2member_map_`. | Replace with ordinary enum lookup. | SWC.2 |
-| `evaluation.runner.NativeAnalysisResult` duplicates `NativeEvidence`. | Remove it and use `NativeEvidence`. | SWC.2 |
+| `ollama_runner._selection_observation` uses the private `ToolName._value2member_map_`. | Replace with ordinary enum lookup. | SWC.2b |
+| `evaluation.runner.NativeAnalysisResult` duplicates `NativeEvidence`. | Remove it and use `NativeEvidence`. | SWC.2b |
 | Each strategy's codec checks its own `method` string inside `workspace/{graham_number,graham_growth}.py`. | Kept: wire-integrity checks the descriptor cannot be imported into without a cycle. | none |
 | `refresh --json` per-job `error` text is `str(exception)`. | Unchanged. The new `reason_code` is classified from the same exception. | SWC.4a |
 
@@ -752,21 +753,22 @@ Classification: **D** is duplicated wiring (descriptor-authoritative or consumer
 | Site | Class | Reason | Owner |
 | :--- | :--- | :--- | :--- |
 | `src/workspace/method_aliases.py`: `ANALYSIS_ALIASES`, `ALIAS_METHOD_IDS`, `METHOD_ID_ALIASES`, `alias_for_method_id` | D | Alias and method-id vocabulary; replaced by `alias` and `method_id`. | SWC.3 |
-| `src/workspace/requests.py::parse_selection`: alias tuple; final unconditional Momentum branch | D (tuple); S (per-alias parsing) | Membership is repeated vocabulary; parsing differs by strategy; the fall-through is a default branch. | SWC.3 |
+| `src/workspace/requests.py::parse_selection`: alias tuple; final unconditional Momentum branch | D (tuple, chain); S (per-alias parsing) | Membership is repeated vocabulary; parsing differs by strategy; the fall-through is a default branch. Becomes an alias-keyed table of strategy-owned parsers ([§6](#6-generic-consumers)). | SWC.3 |
 | `src/workspace/requests.py`: `Literal` ids and version on each selection | S | Types the discriminated union; compared by T1. | none (kept) |
 | `src/data/repositories/watchlists.py`: `METHOD_ID_ALIASES.get(...)` | D | Alias lookup tolerant of an unknown stored method. | SWC.3 |
 | `src/cli_workspace.py`: `_parse_analysis`, `ALIAS_METHOD_IDS[...]` (2), `alias_for_method_id(...)` (4), `--analysis` help (3) | D | Alias vocabulary. | SWC.3 |
-| `src/cli_workspace.py::_build_selection`, `_execute_*` | S | Flag mapping and production composition. | none (kept) |
+| `src/cli_workspace.py::_build_selection` | D (chain); S (flag mapping) | The `if method == ...` chain ends in an unconditional FCF return. Becomes an alias-keyed table of strategy-owned builders over one frozen flag bundle ([§6](#6-generic-consumers)). | SWC.3 |
+| `src/cli_workspace.py::_execute_*` | S | Production composition. | none (kept) |
 | `src/cli.py`: `execution_errors(analysis=, method=)` ×6 | D | Literal id pairs. | SWC.4a |
 | `src/reporting/{momentum,graham_number,graham_growth}.py`: `"analysis"`, `"method"` literals | D | Literal ids. FCF reads native `strategy_id`, `method_id`. | SWC.4c |
 | `src/cli_support.py:226`: `analysis == "momentum"` | S | Strategy-specific behavior inside generic code; becomes a call-site parameter. | SWC.4a |
-| `src/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | D (union, membership); S (status accessor) | Duplicate of `NativeEvidence`; FCF is the default branch; Momentum has no native status. | SWC.2 |
-| `src/evaluation/composition.py::_require_tool_evidence` | S | Per-tool fixture requirement; final `else` makes FCF the default. | SWC.2 |
-| `src/evaluation/ollama_runner.py`: `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser`, `_selection_observation` | D | Per-tool description and model; private `_value2member_map_` use. | SWC.2 |
+| `src/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | D (union, membership); S (status accessor) | Duplicate of `NativeEvidence`; FCF is the default branch; Momentum has no native status. | SWC.2b |
+| `src/evaluation/composition.py::_require_tool_evidence` | S (requirements); D (chain) | Per-tool fixture requirement; the final `else` makes FCF the default. Becomes a `ToolName`-keyed table ([§6](#6-generic-consumers)). | SWC.2b |
+| `src/evaluation/ollama_runner.py`: `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser`, `_selection_observation` | D | Per-tool description and model; private `_value2member_map_` use. | SWC.2b |
 | `src/evaluation/catalog.py`, `src/evaluation/cases/*.py` | S | Reviewed case arguments and `ToolConstraints`; the independent truth for T5 and T6. | none (kept) |
 | `src/workspace/{graham_number,graham_growth}.py`: string checks of `method` inside the codecs | S | Each codec's own wire integrity check; the descriptor cannot be imported there without a cycle. | none (kept) |
 | `src/workspace/__init__.py` re-exports | S | Public names. | none (kept) |
-| `src/core/constants.py::AnalysisType` | D (dead) | A one-member per-strategy name enum with no reader in `src/` or `tests/`. | SWC.2 (deleted) |
+| `src/core/constants.py::AnalysisType` | D (dead) | A one-member per-strategy name enum with no reader in `src/` or `tests/`. | SWC.2a (deleted) |
 
 ## Appendix B: Typing form comparison and prototype evidence
 

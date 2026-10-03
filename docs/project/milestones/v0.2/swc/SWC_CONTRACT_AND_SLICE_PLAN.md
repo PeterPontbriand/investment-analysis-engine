@@ -25,7 +25,8 @@ owns its position and work-package status.
   provenance and outcomes, bump affected stored-shape versions without migrations during the
   consolidation period, and run the complete managed gate at each slice end. Each next slice waits
   for explicit project-owner authorization.
-- **Where detail lives:** the audited inventory is in
+- **Where detail lives:** the settled contracts and their evidence are in the
+  [SWC.1 design](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md); the audited inventory is in
   [Appendix A](#appendix-a-proposal-inventory-verified-against-main); its scope disposition is in
   [§4](#4-inventory-disposition); the decision record is in
   [Appendix B](#appendix-b-decision-records-and-history).
@@ -40,12 +41,13 @@ document-link check and applicable documentation checks.
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | SWC.1 | [Settle descriptor contract and conformance design](#swc1--descriptor-contract-and-conformance-design) | Complete | 2026-10-03 |
-| SWC.2 | [Declare and consume wiring in orchestration and evaluation](#swc2--orchestration-and-evaluation-wiring) | Next | |
+| SWC.2a | [Move the symbols the descriptor will reference](#swc2a--symbol-moves) | Next | |
+| SWC.2b | [Declare and consume wiring in orchestration and evaluation](#swc2b--descriptor-and-orchestration-and-evaluation-wiring) | Planned | |
 | SWC.3 | [Consume wiring in workspace execution and codecs](#swc3--workspace-selection-execution-and-codecs) | Planned | |
 | SWC.4a | [Typed failure envelope and schema generator](#swc4a--failure-envelope-and-schema-generator) | Planned | |
 | SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Planned | |
 | SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Planned | |
-| SWC.5 | [Generate schemas, document contribution, and complete conformance](#swc5--schemas-contributor-guide-and-final-conformance) | Planned | |
+| SWC.5 | [Document contribution and complete conformance](#swc5--contributor-guide-and-final-conformance) | Planned | |
 
 ## 3. Architectural contract
 
@@ -190,25 +192,44 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
 
 ### SWC.2 — Orchestration and evaluation wiring
 
+Split in two so the mechanical moves are reviewed apart from the wiring change. SWC.2a changes no
+behavior and adds no descriptor; SWC.2b is everything else.
+
+#### SWC.2a — Symbol moves
+
+- **Problem:** the symbols the descriptor will reference sit in modules it cannot import without cycles:
+  `ToolName` in `src/evaluation/models.py` (and exported from `src.evaluation`), the argument models in
+  `src/orchestrator/analysis_tools.py`, and `NativeEvidence` in `src/workspace/execution.py`. `AnalysisType`
+  in `src/core/constants.py` is a per-strategy name list with no reader.
+- **Decision:** move each symbol to a leaf module with one import path and no compatibility re-export;
+  delete `AnalysisType`. No behavior change, no descriptor.
+- **Scope:** new `src/orchestrator/tool_names.py`, `src/orchestrator/analysis_tool_arguments.py` and
+  `src/workspace/native_evidence.py`; `src/orchestrator/analysis_tools.py`;
+  `src/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py` (the
+  `src.evaluation` export of `ToolName` is removed); the six `src/evaluation/cases/*.py` importers;
+  `src/workspace/execution.py` (import only); `src/core/constants.py`; every test that imports a moved
+  symbol; and `docs/EVALUATIONS.md` and `docs/project/ARCHITECTURE.md`. The `ANALYZE_*_TOOL` constants and
+  `ANALYSIS_TOOL_ARGUMENT_MODELS` stay until SWC.2b.
+- **Branch:** `feat/swc-2a-symbol-moves`, from `main` after SWC.1 has merged.
+- **Detail:** [SWC.1 design §4 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#11-migration-from-current-declarations).
+
+#### SWC.2b — Descriptor and orchestration and evaluation wiring
+
 - **Problem:** each strategy currently has its own tool-argument model, handler, dependency fields,
   registration call and evaluation argument/tool mapping; an omitted branch can silently remove a
   strategy from production or deterministic evaluation.
 - **Decision:** establish the closed declaration and focused metadata/coverage checks, then consume
   descriptor-owned tool and evaluation routing. Keep analyzer config creation, injected dependencies,
   and fixture composition strategy-specific.
-- **Scope:** the new `src/strategy_wiring.py`; `src/orchestrator/{analysis_tools,tool_names,analysis_tool_arguments}.py`
-  (`ToolName` and the argument models move out of their current modules); `src/workspace/native_evidence.py`
-  (the `NativeEvidence` union moves; `src/workspace/execution.py` changes its import only); and
-  `src/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py`, the six
-  `src/evaluation/cases/*.py` importers, the tests that import the moved symbols, `src/core/constants.py`
-  (the unused `AnalysisType` is deleted) and the docs that name the moved symbols. `ToolName`, the argument
-  models and `NativeEvidence` move with no compatibility re-export; every importer is updated, and the
-  `ToolName` export from `src.evaluation` is removed. `_require_tool_evidence` and `_native_status` become
-  keyed tables instead of defaulting to FCF. Replace only descriptor-authoritative metadata and dispatch in Appendix
-  A. Add conformance checks for descriptor completeness and each changed consumer, including an
+- **Scope:** the new `src/strategy_wiring.py`; `src/orchestrator/analysis_tools.py` (the
+  `ANALYZE_*_TOOL` constants and `ANALYSIS_TOOL_ARGUMENT_MODELS` are deleted);
+  `src/evaluation/{composition,runner,ollama_runner}.py`; and conformance tests. `NativeAnalysisResult` is
+  replaced by `NativeEvidence`; `_require_tool_evidence` and `_native_status` become keyed tables instead
+  of defaulting to FCF. Replace only descriptor-authoritative metadata and dispatch in Appendix A. Add
+  conformance checks for descriptor completeness and each changed consumer, including an
   incomplete-consumer negative control. Do not change evaluation fixture truth, scoring, formula
   semantics or external-call behavior.
-- **Branch:** `feat/swc-2-orchestration-evaluation-wiring`, from `main` after SWC.1 has merged.
+- **Branch:** `feat/swc-2b-orchestration-evaluation-wiring`, from `main` after SWC.2a has merged.
 - **Detail:** [SWC.1 design §6 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#11-migration-from-current-declarations),
   [inventory disposition](#4-inventory-disposition) and [audited inventory](#appendix-a-proposal-inventory-verified-against-main).
 
@@ -241,7 +262,7 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
   classification changes. Add tests that an undeclared evidence type and an undeclared
   `(analysis_id, method_id)` are rejected rather than handled as Momentum; every valid input
   encodes and decodes exactly as before.
-- **Branch:** `feat/swc-3-workspace-wiring`, from `main` after SWC.2 has merged; its scope and review gate are
+- **Branch:** `feat/swc-3-workspace-wiring`, from `main` after SWC.2b has merged; its scope and review gate are
   recorded in the implementation record.
 - **Detail:** [SWC.1 design §6 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#11-migration-from-current-declarations),
   [inventory disposition](#4-inventory-disposition), [audited inventory](#appendix-a-proposal-inventory-verified-against-main),
@@ -299,10 +320,10 @@ version and result-schema version distinct and do not silently reinterpret histo
   [inventory disposition](#4-inventory-disposition) and
   [audited inventory](#appendix-a-proposal-inventory-verified-against-main).
 
-### SWC.5 — Schemas, contributor guide, and final conformance
+### SWC.5 — Contributor guide and final conformance
 
-- **Problem:** consumers and contributors need discoverable schemas and a complete, tested account
-  of which wiring is automatic and which work remains strategy-specific.
+- **Problem:** contributors need one guide for adding a strategy and a complete, tested account of which
+  wiring is automatic and which work remains strategy-specific. Schemas ship in SWC.4.
 - **Decision:** verify the published schemas that SWC.4a to SWC.4c generate from typed models and document the approved
   strategy-addition workflow in one guide. Make the descriptor's authorization permanent before the
   temporary rule that permits it is removed. Challenge the structural checks with independent
@@ -318,6 +339,8 @@ version and result-schema version distinct and do not silently reinterpret histo
   - Verify that every descriptor has a current published schema (SWC.4a owns generation and the drift
     check), and verify conformance across all current strategies and generic consumers. Use an independent implementation review or a
     deliberately incomplete consumer fixture to prove that omission fails with a useful diagnostic.
+  - Point the Step 3.5 contract plan's link to the edit-site table ([SWC.1 design §17](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#17-edit-sites-for-a-new-strategy))
+    at the table's new home in `docs/TOOL_DEVELOPMENT.md`.
   - Do not pull Step 3.5 strategy implementation into SWC; a later Piotroski addition may exercise
     the documented path when that strategy is implemented.
 - **Branch:** `feat/swc-5-contributor-guide`, from `main` after SWC.4c has merged.
@@ -464,12 +487,12 @@ classified, with its owning slice, in the [SWC.1 design](SWC_1_DESCRIPTOR_CONTRA
 | Alias membership and a final unconditional Momentum branch | `src/workspace/requests.py`: `parse_selection` | SWC.3 |
 | Identifier literals in failure calls and JSON builders | `src/cli.py`: six `execution_errors(analysis=, method=)` calls; `src/reporting/{momentum,graham_number,graham_growth}.py` | SWC.4a (`cli.py` calls), SWC.4c (builders) |
 | Strategy name tested inside generic failure handling | `src/cli_support.py`: `analysis == "momentum"` | SWC.4a |
-| A second `NativeEvidence`-shaped union, and an FCF default branch | `src/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | SWC.2 |
-| An FCF default branch in the fixture capability check | `src/evaluation/composition.py`: `_require_tool_evidence` | SWC.2 |
-| A one-member per-strategy name enum with no reader | `src/core/constants.py`: `AnalysisType` | SWC.2 (deleted) |
+| A second `NativeEvidence`-shaped union, and an FCF default branch | `src/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | SWC.2b |
+| An FCF default branch in the fixture capability check | `src/evaluation/composition.py`: `_require_tool_evidence` | SWC.2b |
+| A one-member per-strategy name enum with no reader | `src/core/constants.py`: `AnalysisType` | SWC.2a (deleted) |
 | An unconditional FCF return after a chain of method tests | `src/cli_workspace.py`: `_build_selection` | SWC.3 |
 | A probe for a field every selection defines | `src/workspace/execution.py`: `getattr(selection, "as_of", None)` | SWC.3 |
-| Tool descriptions, schemas and parser registry keyed by tool name | `src/evaluation/ollama_runner.py`: `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser` | SWC.2 |
+| Tool descriptions, schemas and parser registry keyed by tool name | `src/evaluation/ollama_runner.py`: `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser` | SWC.2b |
 
 ## Appendix B: Decision records and history
 
