@@ -4,7 +4,7 @@
 and R3 (row 12); not yet started; scope/contract review required before implementation, matching
 this project's convention for any nontrivial work package.
 **Discovered:** 2026-09, during the same integration-readiness review that produced
-[IR](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md); split out from IR into its own work
+[IR](../integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md); split out from IR into its own work
 package because of its scale relative to IR's other, smaller fixes.
 **Why not `R4`:** the obvious code for "one more refactor-shaped work package" would extend the
 existing `R1`/`R2`/`R3` refactor-code series, but `R4` is already used as a document-local

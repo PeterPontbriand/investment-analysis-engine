@@ -1,7 +1,7 @@
 # SWC — Strategy Wiring Consolidation: Contract and Slice Plan
 
 Consolidates repeated strategy wiring before Step 3.5 adds seven analyzers, and completes the
-typed JSON envelope and schema scope moved from IR.5. The [milestone plan](IMPLEMENTATION_PLAN.md#sequence-and-status)
+typed JSON envelope and schema scope moved from IR.5. The [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status)
 owns its position and work-package status.
 
 ## 1. At a glance

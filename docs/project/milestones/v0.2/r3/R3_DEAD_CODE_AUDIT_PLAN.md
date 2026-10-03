@@ -3,11 +3,11 @@
 **Status:** complete (2026-10-01); performed after Integration Readiness (IR). See the
 [close-out record](R3_DEAD_CODE_AUDIT_CLOSEOUT.md) for method, evidence, findings, and disposition.
 **Discovered:** 2026-09-23, during ESC-D.4 reconnaissance (ESC-18's correction in
-[the defect ledger](existing-strategy-correctness/ESC_A_DEFECT_LEDGER.md)).
+[the defect ledger](../existing-strategy-correctness/ESC_A_DEFECT_LEDGER.md)).
 **Why scheduled here:** deliberately placed before Step 3.5, which adds seven new
 quantitative-screen analyzers, so this audit covers a smaller, more tractable codebase than it
 would after that expansion. See this milestone's own
-[work-package identifiers list](IMPLEMENTATION_PLAN.md#sequence-and-status) for how this `R3` code
+[work-package identifiers list](../IMPLEMENTATION_PLAN.md#sequence-and-status) for how this `R3` code
 relates to (and is unrelated to) other `R`-prefixed identifiers in this project.
 
 ## Trigger
