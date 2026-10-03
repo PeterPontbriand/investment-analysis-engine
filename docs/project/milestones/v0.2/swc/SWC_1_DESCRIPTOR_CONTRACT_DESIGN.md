@@ -230,11 +230,13 @@ Essential sketch (prototype, `.tmp/` only, not committed):
 ```python
 type NativeEvidence = MomentumRun | GrahamNumberAnalysis | GrahamGrowthAnalysis | FCFEarningsGrowthResult
 
+
 class EvidenceView(Protocol):
     @property
     def result_type(self) -> type[NativeEvidence]: ...
     def encode_object(self, evidence: object) -> StrictJsonMapping: ...
     def decode_for(self, payload: StrictJsonMapping, ticker: str) -> NativeEvidence: ...
+
 
 @dataclass(frozen=True)
 class EvidenceCodec[ResultT: NativeEvidence]:
@@ -245,18 +247,31 @@ class EvidenceCodec[ResultT: NativeEvidence]:
     # encode_object: isinstance guard, then self.encode(evidence)   (rejects anything else)
     # decode_for: self.decode(payload), then verify ticker_of(result) == ticker
 
+
 @dataclass(frozen=True)
-class StrategyDescriptor:                       # non-generic: no consumer needs ConfigT
-    analysis_id: str; method_id: str; alias: str; label: str
-    tool: ToolName; tool_arguments: type[BaseModel]; tool_description: str
-    config_schema_version: int; method_version: int
-    result_schema_version: int; evidence_codec_version: int
+class StrategyDescriptor:  # non-generic: no consumer needs ConfigT
+    analysis_id: str
+    method_id: str
+    alias: str
+    label: str
+    tool: ToolName
+    tool_arguments: type[BaseModel]
+    tool_description: str
+    config_schema_version: int
+    method_version: int
+    result_schema_version: int
+    evidence_codec_version: int
     evidence: EvidenceView
 
+
 MOMENTUM: Final = StrategyDescriptor(
-    "momentum", "sma_crossover", ..., ToolName.ANALYZE_MOMENTUM, MomentumToolArguments, ...,
-    EvidenceCodec[MomentumRun](MomentumRun, encode_momentum, decode_momentum,
-                               lambda run: run.metrics.ticker),
+    "momentum",
+    "sma_crossover",
+    ...,
+    ToolName.ANALYZE_MOMENTUM,
+    MomentumToolArguments,
+    ...,
+    EvidenceCodec[MomentumRun](MomentumRun, encode_momentum, decode_momentum, lambda run: run.metrics.ticker),
 )
 ```
 
