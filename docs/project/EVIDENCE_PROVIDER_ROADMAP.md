@@ -7,7 +7,7 @@ scope, sequencing, and status for this project. Every candidate strategy, platfo
 cleanup item listed below needs its own specification and explicit approval before any
 implementation begins — inclusion here is not that approval. Where an item below has already
 been scoped and sequenced as a real work package (for example [IR](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md)
-or [PKG](milestones/v0.2/PKG_RENAME_PLAN.md)), that work package's own document is authoritative
+or [PKG](milestones/v0.2/pkg/PKG_RENAME_PLAN.md)), that work package's own document is authoritative
 and this backlog defers to it rather than duplicating its scope.
 
 The project's role, as already established by its existing design: a point-in-time evidence and
@@ -34,9 +34,9 @@ current revision, which the composable-screen ideas below would depend on.
 | Profile cache | Durable instrument-profile cache with TTL-based freshness evaluation | Point-in-time profile history rather than latest snapshot |
 | Typed failures | ESC-D's renewal found and fixed one real gap (Graham Number's JSON failure reason was less specific than its text-mode equivalent for the same blocker) and corrected one initial finding that further investigation showed was never actually reachable in production (a `DataQualityError` branch believed to affect Momentum's error message turned out to be dead code before and after the change that prompted the investigation — see the [defect ledger](milestones/v0.2/existing-strategy-correctness/ESC_A_DEFECT_LEDGER.md)) | Published JSON Schemas so consumers can rely on reason codes contractually (see [IR](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md) item 7) |
 
-A repository-wide dead code audit ([R3](milestones/v0.2/R3_DEAD_CODE_AUDIT_PLAN.md)) is next in
+A repository-wide dead code audit ([R3](milestones/v0.2/r3/R3_DEAD_CODE_AUDIT_PLAN.md)) is next in
 sequence, followed by [integration readiness (IR)](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md)
-and the [`src` package rename (PKG)](milestones/v0.2/PKG_RENAME_PLAN.md) — both scoped
+and the [`src` package rename (PKG)](milestones/v0.2/pkg/PKG_RENAME_PLAN.md) — both scoped
 independently of this backlog but addressing the same "library-readiness" observations it
 originally raised (see "Suggested priorities" below) — all three before
 [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)'s
@@ -92,7 +92,7 @@ differentiators.
   item 7, not part of this candidate). The project owner confirmed this becomes its own scoped
   work package rather than folding into an existing one, explicitly not scheduled until after
   [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) —
-  see [the deferred-item record](milestones/v0.2/DEFERRED_STANDARD_DELIVERY_SURFACES.md).
+  see [the deferred-item record](milestones/v0.2/deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md).
 - **Published conformance suite.** Release Golden Suite fixtures as test vectors so other
   implementations can prove they compute the same results.
 
@@ -101,7 +101,7 @@ Library-readiness cleanup (renaming the top-level `src` package, injecting the c
 analyzer result instead of returning `Any`, and the `pyproject.toml` license correction) is not
 listed as a candidate here: it is already scoped and sequenced as two work packages,
 [IR](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md) and
-[PKG](milestones/v0.2/PKG_RENAME_PLAN.md), sequenced after R3 and before Step 3.5. Those documents
+[PKG](milestones/v0.2/pkg/PKG_RENAME_PLAN.md), sequenced after R3 and before Step 3.5. Those documents
 are authoritative for this scope; see "Suggested priorities" below for why that sequencing was
 chosen.
 
@@ -178,9 +178,9 @@ named integration.
 
 These are proposals; the implementation plan owns actual sequencing. The one exception is the
 library-readiness item below, which is not a proposal — it reflects work already scoped and
-sequenced as [R3](milestones/v0.2/R3_DEAD_CODE_AUDIT_PLAN.md),
+sequenced as [R3](milestones/v0.2/r3/R3_DEAD_CODE_AUDIT_PLAN.md),
 [IR](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md), and
-[PKG](milestones/v0.2/PKG_RENAME_PLAN.md).
+[PKG](milestones/v0.2/pkg/PKG_RENAME_PLAN.md).
 
 1. **Library-readiness cleanup, already decided and sequenced.** New code in this project is
    agent-written, and agents replicate the patterns they find; fixing the patterns before Step 3.5
@@ -228,7 +228,7 @@ Three questions raised during this document's drafting were resolved by the proj
 
 - **Standard delivery surfaces** becomes its own scoped work package, not folded into IR/PKG, and
   is explicitly not scheduled until after Step 3.5. Recorded at
-  [`DEFERRED_STANDARD_DELIVERY_SURFACES.md`](milestones/v0.2/DEFERRED_STANDARD_DELIVERY_SURFACES.md).
+  [`DEFERRED_STANDARD_DELIVERY_SURFACES.md`](milestones/v0.2/deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md).
 - **Kind-specific metrics** does imply extending `InstrumentKind` beyond its current
   equity/ETF/cryptocurrency set — confirmed, not merely suspected — but this is deliberately not
   planned further until after Step 3.5.

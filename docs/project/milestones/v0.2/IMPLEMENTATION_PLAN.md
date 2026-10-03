@@ -17,7 +17,7 @@ current codes:
 
 - `R1` / `R2` — a refactor-work code: the Graham analyzer separation and the analysis-package
   split, both pure refactors with no new functionality.
-- `R3` — a repository-wide dead code audit ([plan](R3_DEAD_CODE_AUDIT_PLAN.md)): locate and remove
+- `R3` — a repository-wide dead code audit ([plan](r3/R3_DEAD_CODE_AUDIT_PLAN.md)): locate and remove
   code, branches, and files that can no longer be reached, across all of `src/`, not scoped to one
   strategy or module. Scheduled deliberately before Step 3.5 (which adds seven new
   quantitative-screen analyzers) so the audit runs while the codebase is still a manageable size,
@@ -34,16 +34,16 @@ current codes:
   IR.2 itself removes dead code and the per-strategy dispatch shape both of those packages would
   otherwise have to audit or delete separately; see the
   [milestone-plan status history](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#a6-milestone-plan-status-history).
-- `PKG` — the `src` → real top-level package rename ([plan](PKG_RENAME_PLAN.md)), split out of `IR`
+- `PKG` — the `src` → real top-level package rename ([plan](pkg/PKG_RENAME_PLAN.md)), split out of `IR`
   given its scale. Not `R4`, deliberately: that code is already used as a document-local
   requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted
   below for `graham-comparison`'s local `R1`/`R2`/`R3`.
 - `SWC` — short for "Strategy Wiring Consolidation"
-  ([contract](SWC_CONTRACT_AND_SLICE_PLAN.md)): replaces the per-strategy hand-wiring
+  ([contract](swc/SWC_CONTRACT_AND_SLICE_PLAN.md)): replaces the per-strategy hand-wiring
   duplicated across the orchestrator, workspace, codec, and reporting layers (and evaluation's
   fixture composition) with one statically-declared strategy descriptor list, before Step 3.5
   adds seven more strategies to it. Absorbs IR.5's scope (typed JSON envelope models and
-  generated schemas). Origin: [proposal](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md), accepted
+  generated schemas). Origin: [proposal](swc/STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md), accepted
   2026-09-24.
 
 Note the resulting collision: `graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md` uses its own
@@ -64,16 +64,16 @@ sequencing meaning.
 | 8 | [Durable instrument profiles (P2-Profiles)](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete | 2026-09-22 |
 | 9 | [Existing-analysis renewal (ESC-D)](existing-strategy-correctness/ESC_D_RENEWAL_PLAN.md) | Complete | 2026-09-23 |
 | 10 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-01 |
-| 11 | [Repository-wide dead code audit (R3)](R3_DEAD_CODE_AUDIT_PLAN.md) | Complete | 2026-10-01 |
-| 12 | [Strategy wiring consolidation (SWC)](SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Next | |
-| 13 | [`src` package rename (PKG)](PKG_RENAME_PLAN.md) | Planned | |
+| 11 | [Repository-wide dead code audit (R3)](r3/R3_DEAD_CODE_AUDIT_PLAN.md) | Complete | 2026-10-01 |
+| 12 | [Strategy wiring consolidation (SWC)](swc/SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Next | |
+| 13 | [`src` package rename (PKG)](pkg/PKG_RENAME_PLAN.md) | Planned | |
 | 14 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
 | 15 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
 | Deferred | [ETF aggregation (P2-ETF)](#47a-p2--durable-instrument-profiles--etf-aggregate-fcf-growth) | Deferred | |
-| Deferred | [Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export)](DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Deferred | |
-| Deferred | [Structured error reporting for programmatic/agentic CLI consumers](DEFERRED_STRUCTURED_ERROR_REPORTING.md) | Deferred | |
-| Deferred | [Prefix matching for Analysis Run/refresh IDs](DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Deferred | |
-| Deferred | [Deduplicate Momentum's instrument-profile composition sites](DEFERRED_MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) | Deferred | |
+| Deferred | [Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export)](deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Deferred | |
+| Deferred | [Structured error reporting for programmatic/agentic CLI consumers](deferred/DEFERRED_STRUCTURED_ERROR_REPORTING.md) | Deferred | |
+| Deferred | [Prefix matching for Analysis Run/refresh IDs](deferred/DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Deferred | |
+| Deferred | [Deduplicate Momentum's instrument-profile composition sites](deferred/DEFERRED_MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) | Deferred | |
 
 ## 1. Purpose & Scope
 

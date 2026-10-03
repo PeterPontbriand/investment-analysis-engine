@@ -476,13 +476,13 @@ only so this plan's history stays complete:
   list`/`refresh` for a valid ID, and carries a `param_hint`. Git-style
   prefix matching for Analysis Run/refresh IDs was considered and
   deliberately deferred; see
-  [DEFERRED_RUN_ID_PREFIX_MATCHING.md](../DEFERRED_RUN_ID_PREFIX_MATCHING.md).
+  [DEFERRED_RUN_ID_PREFIX_MATCHING.md](../deferred/DEFERRED_RUN_ID_PREFIX_MATCHING.md).
 - A broader structured-error-reporting gap for programmatic/agentic CLI
   consumers was identified while reviewing the message above (a stable
   `reason_code` exists, but `expected_revision`/`database_path` are not
   exposed as JSON fields, and workspace commands have no JSON error
   envelope at all). Deliberately deferred, not fixed on this branch; see
-  [DEFERRED_STRUCTURED_ERROR_REPORTING.md](../DEFERRED_STRUCTURED_ERROR_REPORTING.md).
+  [DEFERRED_STRUCTURED_ERROR_REPORTING.md](../deferred/DEFERRED_STRUCTURED_ERROR_REPORTING.md).
 - `refresh` always saved every result with no opt-out, unlike direct
   commands' opt-in `--save-run`. After considering and rejecting the
   reverse change (defaulting direct commands to save, which would leave

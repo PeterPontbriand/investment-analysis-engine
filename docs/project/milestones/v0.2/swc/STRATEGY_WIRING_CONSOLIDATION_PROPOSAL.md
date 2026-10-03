@@ -4,12 +4,12 @@
 implementation-inventory pass, per the project owner's explicit request to survey per-strategy
 hand-wiring while already reading the CLI, orchestrator, workspace, codec, and reporting layers for
 that inventory. Accepted as a work package and sequenced in
-[`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md#sequence-and-status) (row 11, code `SWC`): after
+[`IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md#sequence-and-status) (row 11, code `SWC`): after
 `IR` (needs the shared `run_analysis(ticker, config, context)` envelope as its prerequisite) and
 before `R3` (its own dead-code audit runs against a codebase this package has already simplified).
 Absorbs IR.5's scope (typed JSON envelope models and generated JSON Schemas), removed from `IR`'s
 own scope for that reason — see
-[`IR_CONTRACT_AND_SLICE_PLAN.md` §2 item 7](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md).
+[`IR_CONTRACT_AND_SLICE_PLAN.md` §2 item 7](../integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md).
 Nothing in this document is implemented yet; slicing, local review gates, and a contract document
 analogous to `IR_CONTRACT_AND_SLICE_PLAN.md` remain to be written before implementation begins.
 
@@ -67,7 +67,7 @@ is duplicated per strategy today, and how many times (four, soon eleven).
 | Wiring point | Shape |
 | :--- | :--- |
 | `encode_evidence`'s isinstance chain | One `isinstance(evidence, *)` branch per strategy, order-sensitive (subclass-before-superclass concerns don't currently apply, but the chain is manually ordered). |
-| `decode_evidence`'s version-check tuple | One `(analysis_id, method_id)` tuple per strategy in a manually-maintained membership check, plus one more manually-maintained literal per strategy for the expected `method_version`/`result_schema_version` (already awkward today — see the [IR.2 plan](integration-readiness/IR2_ANALYZER_ENVELOPE_PLAN.md#610-persisted-shape-version-bumps-and-alembic-per-the-project-owners-direction-item-7) §6.10 on the `3 if fcf_pair else 1` pattern this document's own IR.2 work is about to make one branch more awkward). |
+| `decode_evidence`'s version-check tuple | One `(analysis_id, method_id)` tuple per strategy in a manually-maintained membership check, plus one more manually-maintained literal per strategy for the expected `method_version`/`result_schema_version` (already awkward today — see the [IR.2 plan](../integration-readiness/IR2_ANALYZER_ENVELOPE_PLAN.md#610-persisted-shape-version-bumps-and-alembic-per-the-project-owners-direction-item-7) §6.10 on the `3 if fcf_pair else 1` pattern this document's own IR.2 work is about to make one branch more awkward). |
 | `decode_evidence`'s dispatch chain | One `if` branch per strategy, each calling that strategy's own `decode_*` function and checking ticker identity by strategy-specific field access. |
 | `src/workspace/{strategy}.py` (`graham_number.py`, `graham_growth.py`, `fcf_growth.py`, `momentum.py`) | One file per strategy, each with its own `encode_*`/`decode_*` pair. |
 

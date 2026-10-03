@@ -2,7 +2,7 @@
 
 **Status:** deferred; not started; scope/contract review required before implementation.
 **Discovered:** 2026-09-21, during the P2-Profiles Slice D reconnaissance
-([inventory](p2-profiles/P2_PROFILES_SLICE_D_INVENTORY.md#2-composition-pattern-map)),
+([inventory](../p2-profiles/P2_PROFILES_SLICE_D_INVENTORY.md#2-composition-pattern-map)),
 and raised again during PR #39 review.
 **Not a blocker:** this does not block P2-Profiles acceptance or any other
 active v0.2 work package. It is recorded here so it is not lost, not to
