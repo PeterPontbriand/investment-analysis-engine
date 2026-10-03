@@ -10,9 +10,8 @@ own variant or fallback formula for any of them.
 
 ## 1. Applicability
 
-Industry class comes from the SEC SIC code in the issuer's EDGAR submissions data, recorded in the
-instrument profile (3.5.1). GICS is not used: it is proprietary and unavailable from the project's
-sources.
+Industry class comes from the issuer's SEC SIC code (3.5.1). GICS is not used: it is proprietary
+and unavailable from the project's sources.
 
 | Class | SIC range |
 | :--- | :--- |
@@ -30,12 +29,32 @@ sources.
 | Interest Coverage | Not applicable | Applicable | |
 | ROIC | Not applicable | Applicable | |
 
-When the SIC code is unknown, a sector-gated strategy's metrics are `unavailable` with a reason
-code saying so.
+An issuer whose SIC code falls in none of the three ranges is an ordinary non-financial,
+non-manufacturing issuer.
+
+### Industry-class evidence
+
+- **Source:** for an analysis anchored to an eligible annual filing (the anchor filing of
+  [§3](#period-alignment)), applicability is decided from the `ASSIGNED-SIC` in that filing's SEC
+  header.
+- **Point-in-time:** the code is kept as filing evidence with the filing's accession, filing date
+  and acceptance time, and passes the same boundary check as every other input. A live run uses
+  the same rule, so one issuer and one filing always give one class.
+- **Never the current value:** the `sic` field of the EDGAR submissions data is the issuer's
+  classification today. It never substitutes for the as-filed code, because applying it to a
+  historical run would be look-ahead.
+- **Where it lives:** in the strategy's resolved evidence, with its provenance. It is not added to
+  the instrument profile, which holds request-scoped identity evidence and has no historical form.
+- **Unknown:** when the as-filed code cannot be read, a sector-gated strategy's metrics are
+  `unavailable` with a reason code saying so. Piotroski, which is not sector-gated, runs without
+  the financial-issuer warning and says the class is unknown.
+- **Limitation:** the SEC assigns one coarse code per filer. A diversified issuer is classified by
+  that one code.
 
 ## 2. Outcomes and reason codes
 
-Every metric is a `MetricResult` (`src/core/metric_result.py`); no new status is introduced.
+Every calculated numeric metric is a `MetricResult` (`src/core/metric_result.py`); no new status is
+introduced.
 
 | Situation | `MetricStatus` |
 | :--- | :--- |
@@ -48,8 +67,11 @@ Every metric is a `MetricResult` (`src/core/metric_result.py`); no new status is
   the codes no existing one covers, such as sector applicability and unknown SIC.
 - No value is ever `NaN` or `Inf`. A ratio with a zero or non-positive denominator is `unavailable`
   or `not_applicable` with a reason code, as each definition below states.
-- A result-level summary (a score, a zone, a band) is a field of the strategy's own result type,
-  not a new status.
+- **What is not a `MetricResult`:** strategy-level scores, zones, bands, completeness and
+  eligibility flags are typed fields of the strategy's own result. Ranks and percentiles belong to
+  the ranked view. None of them is forced through `MetricResult`, and none is a new status. A
+  field that is itself a number with its own availability (the Piotroski score) is the one case
+  that is also a `MetricResult`.
 
 ## 3. Data sources, periods and point-in-time
 
@@ -62,6 +84,24 @@ Every metric is a `MetricResult` (`src/core/metric_result.py`); no new status is
 - **Point-in-time:** a strategy uses the latest annual filing with a filing date on or before
   `context.effective_as_of`. Restatements follow the existing amendment-selection rules.
 
+### Period alignment
+
+- **Anchor year:** year *t* is the newest completed fiscal year available at the boundary. If its
+  inputs are missing, the affected metrics are `unavailable`. A strategy never steps back to an
+  older year to produce a complete-looking result.
+- **Actual dates decide:** periods are matched on their reported start and end dates. The
+  Company Facts `fy` and `frame` labels describe the filing an observation appeared in, not the
+  period it measures, and are never used to align years.
+- **Annual durations:** the existing annual-duration tolerance applies, so 52- and 53-week years
+  are consecutive. Quarters, year-to-date periods, and transition or stub years are rejected.
+- **Balance-sheet values** are instants at a fiscal year-end, never durations. A metric that
+  needs several year-ends requests each exact date and never reuses the newest one.
+- **Comparatives:** prior-year values come from the anchor filing where it reports them. An earlier
+  year-end it does not report (such as *t−2* total assets) may come from an earlier eligible
+  filing, on the same taxonomy and currency. Every such value passes the same boundary check.
+- **Conflicts:** two eligible values of equal priority that disagree make the input `unavailable`.
+- **One basis:** a run never mixes us-gaap with ifrs-full, or two reporting currencies.
+
 ### Absent-component convention
 
 These optional components are treated as zero when the filing reports no element for them, with
@@ -70,18 +110,22 @@ a diagnostic saying so:
 - preferred stock;
 - noncontrolling interest;
 - short-term investments;
-- long-term investments;
-- each individual debt component (short-term borrowings, current portion of long-term debt,
-  long-term debt, finance-lease liabilities).
+- long-term investments.
 
-The convention never applies to the critical inputs each definition below names. It is the only
-case in which an absent element yields a number.
+Filers do not tag a line they do not have, so for these items an absent element is the normal way
+a filing says "none", and requiring an explicit zero would make EV unavailable for most issuers.
+
+The convention never applies to the critical inputs each definition below names. Debt is not
+covered by it: [total debt](#total-debt) has its own, stricter rule. These two are the only cases
+in which an absent element yields a number.
 
 ## 4. Market capitalization
 
 **Market cap = common shares outstanding × price**
 
-- **Shares:** the existing `COMMON_SHARES_OUTSTANDING` field from the selected filing.
+- **Shares:** the existing `COMMON_SHARES_OUTSTANDING` field: common shares outstanding on the
+  balance sheet at fiscal year-end *t* of the selected filing. See
+  [share-count rule](#share-count-rule).
 - **Price:**
   - with a requested `as_of`: the unadjusted close on the last trading day on or before `as_of`,
     from the historical market-data boundary;
@@ -89,10 +133,26 @@ case in which an absent element yields a number.
   A one-day historical download is never used as a quote.
 - **Split adjustment:** if a split occurred between the share-count date and the price date, the
   share count is scaled by the split ratio.
-- **Multiple share classes:** valued at the primary listing's price. This is a documented
-  limitation.
 - **Critical inputs:** shares and price.
 - **Both dates stay visible** in the result: the share-count date and the price date.
+
+### Share-count rule
+
+- **One observation:** the count at fiscal year-end *t*, as the existing resolver returns it:
+  reported directly, or as shares issued minus treasury shares at the same date. The share-count
+  date is that fiscal year-end.
+- **Not the cover page.** The later cover-page count is never used, even though it is closer to
+  the price date. It is not a balance-sheet fact, and filers with several classes report it per
+  class.
+- **No count at year-end *t*:** market cap is `unavailable`. An older year's count is never
+  substituted.
+- **Conflicting counts** for the same date make market cap `unavailable`
+  ([§3](#period-alignment)).
+- **Several share classes:** when the filer reports counts per class and no unambiguous total,
+  market cap is `unavailable`. Where one total is reported, it is valued at the requested ticker's
+  price.
+- **Limitation, stated in the guides:** buybacks and issuance between the fiscal year-end and the
+  price date are not reflected.
 
 ## 5. EBIT, D&A and EBITDA
 
@@ -108,11 +168,55 @@ case in which an absent element yields a number.
 **EV = market cap + total debt + preferred stock + noncontrolling interest − cash and cash
 equivalents − short-term investments**
 
-- **Total debt:** short-term borrowings + current portion of long-term debt + long-term debt +
-  finance-lease liabilities.
-- **Operating-lease liabilities are always excluded.** This keeps EV consistent with EBITDA, which
-  is already after operating-lease cost under ASC 842 and IFRS 16.
+- **Total debt:** defined [below](#total-debt), including which
+  [lease liabilities](#lease-liabilities) count as debt.
 - **Critical inputs:** market cap and cash.
+
+### Total debt
+
+**Total debt = short-term borrowings + current portion of long-term debt + long-term debt +
+lease liabilities counted as debt**
+
+A missing debt figure is not assumed to be zero. Debt is tagged in more varied ways than the
+optional items in [§3](#absent-component-convention), so a missing mapped concept is weak evidence
+that the debt does not exist, and a wrong zero always flatters the issuer: lower EV, a passed
+leverage test, "no interest expense". An absent component counts as zero only with supporting
+evidence:
+
+| What the filing reports for the year-end | Treatment |
+| :--- | :--- |
+| At least one mapped debt concept | Each absent component is zero, with a diagnostic. The filer demonstrably tags its debt. |
+| No mapped debt concept, and interest expense is absent or zero | Total debt is zero ("no reported debt"), with a diagnostic. |
+| No mapped debt concept, but interest expense is positive | Total debt is `unavailable`: the issuer has debt the mapping does not see. |
+
+- **Direct totals:** where a filer reports both a direct long-term-debt total and its current and
+  noncurrent parts, they must reconcile, and the total is never added to its parts. A mismatch
+  makes the affected component `unavailable`.
+- **Short-term borrowings are not current maturities.** Commercial paper and similar borrowings
+  are their own component and never stand in for the current portion of long-term debt.
+- Every consumer of a debt figure uses this rule, including Piotroski's long-term debt and
+  Interest Coverage's zero-debt outcome.
+
+### Lease liabilities
+
+Lease figures are used as each accounting framework reports them. Nothing is normalized.
+
+| Framework | Counted as debt | Not counted | Effect on reported EBITDA |
+| :--- | :--- | :--- | :--- |
+| US GAAP (ASC 842) | Finance-lease liabilities | Operating-lease liabilities | After operating-lease cost |
+| IFRS (IFRS 16) | All lease liabilities | — | Before all lease cost |
+
+- **Each framework is consistent with itself.** A lease liability counts as debt exactly when its
+  cost sits below EBITDA.
+- **The two frameworks are not comparable with each other.** For the same leased assets, an IFRS
+  filer shows higher EBITDA, higher EBIT and higher EV than a US GAAP filer. This affects
+  EV/EBITDA, earnings yield, return on capital, ROIC and interest coverage.
+- **Invested capital** ([§7](#7-invested-capital)) uses net PP&E as reported. Right-of-use assets
+  reported on their own line are not added, under either framework.
+- **What the product does about it:** every result names its taxonomy. The ranked view and the
+  side-by-side table show it per row, and a ranking whose members mix us-gaap and ifrs-full
+  carries a diagnostic saying the members are not fully comparable. The guides state the
+  limitation.
 
 ## 7. Invested capital
 
@@ -123,6 +227,8 @@ Greenblatt's tangible capital employed:
 - **Net working capital:** (current assets − cash − short-term investments) − (current liabilities
   − short-term borrowings − current portion of long-term debt).
 - Goodwill and intangibles are excluded.
+- Net PP&E is taken as reported; see [lease liabilities](#lease-liabilities) for right-of-use
+  assets.
 - **Critical inputs:** current assets, current liabilities, net PP&E and cash.
 - Any ratio with IC ≤ 0 as its denominator is `not_applicable`.
 
@@ -148,8 +254,12 @@ strategies, runs or persistence.
 
 **Behavior**
 
-1. **Deduplicate by issuer.** Two members with the same issuer key (share classes of one SEC
-   filer) keep the first listed; the other is reported in a diagnostic.
+1. **Deduplicate by issuer.** When several members share an issuer key (share classes of one SEC
+   filer), the member whose ticker sorts first alphabetically is kept and the others are reported
+   in a diagnostic. The choice does not depend on input order, and the issuer stays in the
+   ranking. The kept ticker is a canonical representative for ranking only. The diagnostic says so,
+   and says the rule does not assert that the share classes are economically equivalent: their
+   prices and rights can differ.
 2. **Determine the eligible set.** A member is eligible only if every requested metric has a value.
    Each excluded member is listed with its reason.
 3. **Enforce a minimum universe.** With fewer than 10 eligible members, the helper returns no ranks,
@@ -157,12 +267,14 @@ strategies, runs or persistence.
 4. **Rank each metric.** Rank 1 is best. Tied values share the average (fractional) rank.
 5. **Report a display percentile:** 100 × (N − rank) ÷ (N − 1). Higher is better.
 6. **Aggregate.** The aggregate is the sum of per-metric ranks, with equal weights and no weights
-   parameter. Final positions follow the ascending sum. Equal sums share a position and are listed
-   in ticker order.
+   parameter. Final positions follow the ascending sum.
+7. **Assign positions** by competition ranking: equal sums share a position, and the next position
+   skips the tied ones (1, 1, 3). Ticker order among tied members is display order only and
+   carries no ranking meaning.
 
 **Guarantees**
 
-- The same input always produces the same output.
+- The same members produce the same output in any input order.
 - Values are never imputed.
 - Every exclusion carries its reason.
 - The universe is exactly the members passed in.
@@ -179,6 +291,11 @@ The ranked view (3.5.6) applies the helper to the persisted runs of one watchlis
 - **Time consistency:** every included run must share the same requested `as_of`. If the refresh
   mixes `as_of` values, the view refuses to rank and says why. Runs with no requested `as_of` rank
   together and the view shows the refresh's execution window.
+- **One run per member:** the refresh must hold at most one run of the selected strategy per
+  ticker. If it holds more (two configurations of one strategy), the view refuses to rank and names
+  the duplicates.
+- **Mixed frameworks:** members on different taxonomies are ranked together with the diagnostic
+  [lease liabilities](#lease-liabilities) describes.
 - **Not persisted:** the view is recomputed from the stored runs each time it is requested.
 
 ## 10. Side-by-side refresh table
@@ -187,7 +304,10 @@ Built on the existing watchlist refresh, which already runs every enabled strate
 member and records one `refresh_id` on each run.
 
 - **Rows and columns:** one row per ticker. Each strategy contributes its headline values and
-  outcome, the fiscal period end used, and the run ID for drill-down.
+  outcome, the fiscal period end used, the taxonomy, and the run ID for drill-down.
+- **One run per cell:** a refresh executes (ticker, selection) pairs, so the table requires at most
+  one run per ticker and strategy. If the refresh holds more, the table refuses and names the
+  duplicates. It never picks one silently.
 - **Rebuilt from storage:** the table is recomputed from the persisted runs of one `refresh_id`,
   with no recalculation, provider access or clock reads.
 - **Fiscal year-ends** that differ across members are displayed, not normalized.
