@@ -156,6 +156,16 @@ class TestFindBrokenLinksInFile:
         lines = ["```text\n", "[example](sub/missing.md)\n", "```\n"]
         assert find_broken_links_in_file(source, lines, repo_root=repo, heading_slug_cache={}) == []
 
+    def test_links_inside_inline_code_spans_are_skipped(self, repo: Path) -> None:
+        source = repo / "source.md"
+        lines = [
+            "`[example](sub/missing.md)` and ``[another](#missing-anchor)``\n",
+            "[real link](sub/missing.md)\n",
+        ]
+        broken = find_broken_links_in_file(source, lines, repo_root=repo, heading_slug_cache={})
+        assert len(broken) == 1
+        assert broken[0].link_text == "real link"
+
     def test_reports_every_break_in_one_pass(self, repo: Path) -> None:
         source = repo / "source.md"
         lines = ["[a](sub/missing1.md)\n", "[b](sub/missing2.md)\n", "[c](#missing-anchor)\n"]

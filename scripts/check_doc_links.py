@@ -4,8 +4,8 @@ Walks every git-tracked ``.md`` file, resolves every local ``[text](path)``,
 ``[text](#anchor)``, and ``[text](path#anchor)`` link, and reports every break
 in one run. External links (anything with a URL scheme, e.g. ``https://`` or
 ``mailto:``) are skipped entirely -- this script makes no network access.
-Fenced code blocks (``` or ~~~) are skipped, since a link shown as an example
-inside one is not a real link.
+Fenced code blocks (``` or ~~~) and inline code spans are skipped, since a link
+shown as an example inside code is not a real link.
 
 Anchor slugs are generated the way GitHub renders heading anchors: lowercase,
 a fixed set of ASCII punctuation stripped, each remaining whitespace character
@@ -36,6 +36,7 @@ from pathlib import Path
 _ATX_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 _FENCE_RE = re.compile(r"^(```+|~~~+)")
 _LINK_RE = re.compile(r"(?<!!)\[([^\]]*)\]\(([^)]+)\)")
+_INLINE_CODE_SPAN_RE = re.compile(r"(?<!`)(?P<ticks>`+)(?!`).*?(?<!`)(?P=ticks)(?!`)")
 _SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 _MARKDOWN_LINK_IN_TEXT_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 _EMPHASIS_MARKUP_RE = re.compile(r"\*\*|__|`")
@@ -142,7 +143,8 @@ def find_broken_links_in_file(
     """
     broken: list[BrokenLink] = []
     for line_number, line in iter_non_fenced_lines(lines):
-        for match in _LINK_RE.finditer(line):
+        searchable_line = _INLINE_CODE_SPAN_RE.sub(" ", line)
+        for match in _LINK_RE.finditer(searchable_line):
             link_text, target = match.group(1), match.group(2).strip()
             if not target or _is_external(target):
                 continue
