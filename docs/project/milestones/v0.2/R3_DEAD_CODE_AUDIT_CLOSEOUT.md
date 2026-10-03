@@ -3,8 +3,8 @@
 ## 1. Scope and method
 
 The audit covered potentially unreachable branches, functions, modules, and files across all of
-`src/`. A full tree of `src/` and `tests/`, plus known execution roots, was supplied to a local
-Qwen3-Coder-Next 80B-A3B Q4_K_M model under a conservative system prompt focused on reachability
+`src/`. A full tree of `src/` and `tests/`, plus known execution roots, was supplied to a locally
+hosted language model under a conservative system prompt focused on reachability
 evidence. Live roots included the `ian` entry point through `src.main:main` to `src.cli.app`,
 evaluation runners, and workspace, reporting, and other production execution paths.
 

@@ -24,8 +24,8 @@ current codes:
   rather than after another substantial expansion makes the same audit larger and more error-prone.
 - `P1` / `P2` — short for "Profile": the instrument-identity/kind applicability work, then the
   durable instrument-profile cache built on it.
-- `ESC-A` through `ESC-D` — an acronym of "Existing Strategy Correctness" (the correctness
-  audit/repair/renewal work package), which uses its own internal `A`→`D` gate sequence rather than
+- `ESC-A` through `ESC-E` — an acronym of "Existing Strategy Correctness" (the correctness
+  audit/repair/renewal work package), which uses its own internal `A`→`E` gate sequence rather than
   decimal sub-numbers.
 - `IR` — short for "Integration Readiness"
   ([contract](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md)): makes the existing four
@@ -42,7 +42,7 @@ current codes:
   ([contract](SWC_CONTRACT_AND_SLICE_PLAN.md)): replaces the per-strategy hand-wiring
   duplicated across the orchestrator, workspace, codec, and reporting layers (and evaluation's
   fixture composition) with one statically-declared strategy descriptor list, before Step 3.5
-  multiplies that duplication by five. Absorbs IR.5's scope (typed JSON envelope models and
+  adds seven more strategies to it. Absorbs IR.5's scope (typed JSON envelope models and
   generated schemas). Origin: [proposal](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md), accepted
   2026-09-24.
 
