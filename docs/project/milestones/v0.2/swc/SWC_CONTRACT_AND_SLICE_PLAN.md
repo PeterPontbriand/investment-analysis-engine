@@ -1,7 +1,7 @@
 # SWC — Strategy Wiring Consolidation: Contract and Slice Plan
 
-Consolidates repeated strategy wiring before Step 3.5 adds seven analyzers, and completes the
-typed JSON envelope and schema scope moved from IR.5. The [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status)
+Consolidates repeated strategy wiring before Step 3.5 adds seven analyzers, completes the
+typed JSON envelope and schema scope moved from IR.5, and gives failures a typed envelope. The [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status)
 owns its position and work-package status.
 
 ## 1. At a glance
@@ -9,7 +9,9 @@ owns its position and work-package status.
 - **What this work does:** reduce repeated per-strategy wiring across orchestration, workspace
   selection and execution, evidence codecs, reporting, CLI integration and deterministic
   evaluation through a closed, statically declared wiring descriptor; give each strategy's JSON
-  output a typed contract and generated schema; document the contributor workflow.
+  output a typed contract and generated schema; give failures a typed envelope on direct and
+  workspace commands; replace Momentum's three profile-composition copies with one; document the
+  contributor workflow.
 - **What the descriptor means:** one authoritative infrastructure declaration for repeated wiring
   metadata. It is not a representation of strategy behavior. Generic consumers derive their
   dispatch metadata from it; independent conformance tests verify complete consumption.
@@ -39,7 +41,7 @@ document-link check and applicable documentation checks.
 | SWC.1 | [Settle descriptor contract and conformance design](#swc1--descriptor-contract-and-conformance-design) | Planned | |
 | SWC.2 | [Declare and consume wiring in orchestration and evaluation](#swc2--orchestration-and-evaluation-wiring) | Planned | |
 | SWC.3 | [Consume wiring in workspace execution and codecs](#swc3--workspace-selection-execution-and-codecs) | Planned | |
-| SWC.4 | [Consume wiring in reporting and typed JSON envelopes](#swc4--reporting-and-typed-json-envelopes) | Planned | |
+| SWC.4 | [Consume wiring in reporting; typed JSON and failure envelopes](#swc4--reporting-and-typed-json-envelopes) | Planned | |
 | SWC.5 | [Generate schemas, document contribution, and complete conformance](#swc5--schemas-contributor-guide-and-final-conformance) | Planned | |
 
 ## 3. Architectural contract
@@ -152,8 +154,8 @@ or type that mentions a strategy.
 | Orchestration tools and evaluation mappings | Stable analysis/method/tool identifiers, tool-argument model references, tool-argument-to-tool routing, and the repeated evaluation `_tool_name` mappings. Tool registration and generic routing consume descriptor metadata. `ToolName` values are sourced from the descriptor without a second manually maintained mapping. | Analyzer/provider dependency fields, analyzer construction, argument validation details, and config construction remain typed and strategy-owned. `ToolName` may remain as a deliberate type boundary, with its representation settled in SWC.1. |
 | Persisted selection and workspace execution | Selection-to-executor dispatch keys and method/config/result-schema version metadata where currently duplicated across execution and codec tables. A generic dispatcher may use descriptor references to strategy-owned selection conversion or execution adapters. | `AnalysisSelection`, `AnalysisToolArguments`, `NativeEvidence`, each persisted selection/config model, conversion semantics, analyzer invocation, capture shape, and outcome classification remain explicit heterogeneous contracts. Adapters remain strategy-owned even when dispatch to them is generic. |
 | Evidence encoding and decoding | Result/capture type-to-codec dispatch and repeated expected version metadata derive from descriptor references and version fields. | Each strategy's encode/decode implementation, validation rules, evidence shape, ticker checks, and provenance semantics remain owned by its codec and result type. |
-| Reporting, replay, and JSON output | The `(analysis_id, method_id)` route and any genuinely duplicated dispatch key derive from the descriptor. Generic infrastructure may route to versioned strategy-owned projector/presenter functions and enumerate typed envelope models for schema generation. | Versioned projection behavior, presentation wording, rendering, typed envelope shape, strategy result unions, and historical replay semantics remain strategy-specific and explicit. `projection_version` remains distinct from method and result-schema versions. |
-| Fixture-backed evaluation composition and direct CLI commands | Only repeated metadata or dispatch keys proven by Appendix A to be wiring duplication may derive from the descriptor. | Fixture values, expected outcomes, scoring, dependency composition, direct CLI command semantics, and any explicit user-facing boundary remain as they are. A strategy mention alone does not justify changing a site. |
+| Reporting, replay, and JSON output | The `(analysis_id, method_id)` route and any genuinely duplicated dispatch key derive from the descriptor. Generic infrastructure may route to versioned strategy-owned projector/presenter functions and enumerate typed envelope models, including the failure envelope, for schema generation. | Versioned projection behavior, presentation wording, rendering, typed envelope shape, strategy result unions, and historical replay semantics remain strategy-specific and explicit. The failure envelope is one shared shape, not a descriptor field. `projection_version` remains distinct from method and result-schema versions. |
+| Fixture-backed evaluation composition and direct CLI commands | Only repeated metadata or dispatch keys proven by Appendix A to be wiring duplication may derive from the descriptor. | Fixture values, expected outcomes, scoring, dependency composition, direct CLI command semantics, and any explicit user-facing boundary remain as they are. The one exception is Momentum's profile composition in `src/cli.py` and `src/cli_workspace.py`, which SWC.3 reduces to a single implementation. A strategy mention alone does not justify changing a site. |
 
 SWC.1 must confirm this mapping against the named symbols and update it if a surface is no longer
 present or if further duplication is found. It may narrow descriptor fields when a consumer does not
@@ -172,11 +174,14 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
   static declaration model, (3) relation to `BaseAnalyzer`, (4) exact generic consumers, (5)
   strategy-specific escape hatches, (6) simplest strict typing form, (7) independent conformance
   tests and negative-control failure, (8) migration from current declarations, and (9) acceptance
-  checks against a general framework. Identify any required IR.2 public/internal contract change
-  explicitly. No production source changes occur in this design slice.
+  checks against a general framework, and (10) the typed failure-envelope contract: its shape, the
+  stable `reason_code` values, and whether `DatabaseMaintenanceReport` is the shared shape. Identify
+  any required IR.2 public/internal contract change explicitly. No production source changes occur
+  in this design slice.
 - **Branch:** one review branch from `main`, as for every SWC slice.
 - **Detail:** [architectural contract](#3-architectural-contract), [inventory disposition](#4-inventory-disposition),
-  and [audited inventory](#appendix-a-proposal-inventory-verified-against-main).
+  [audited inventory](#appendix-a-proposal-inventory-verified-against-main), and the
+  [structured error reporting note](STRUCTURED_ERROR_REPORTING.md).
 
 ### SWC.2 — Orchestration and evaluation wiring
 
@@ -207,8 +212,10 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
   stored run that matches no declared strategy is rejected with an error naming it. No strategy is
   the default branch. Today `encode_evidence` and `decode_evidence` fall through to Momentum.
 - **Scope:** `src/workspace/requests.py`, strategy execution adapters, `src/workspace/execution.py`,
-  `src/workspace/codecs.py`, per-strategy codec modules, `src/cli_workspace.py`, and focused tests.
-  Move only selection-to-executor routing and repeated version/codec dispatch metadata identified in
+  `src/workspace/codecs.py`, per-strategy codec modules, `src/cli_workspace.py`, `src/cli.py` (Momentum profile composition only), and focused tests.
+  Replace Momentum's three profile-composition copies (two in `src/cli.py`'s `momentum` command,
+  one in `src/cli_workspace.py`'s `_execute_momentum`) with one shared helper; detail in the
+  [Momentum profile composition note](MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md). Move only selection-to-executor routing and repeated version/codec dispatch metadata identified in
   §4. Preserve the `AnalysisSelection` union, conversion methods, adapter behavior, `NativeEvidence`
   union, `AnalysisRun` replay guarantees and refresh isolation. No financial or outcome
   classification changes. Add tests that an undeclared evidence type and an undeclared
@@ -216,7 +223,8 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
   encodes and decodes exactly as before.
 - **Branch:** one implementation branch for this slice, with its scope and review gate recorded in
   the implementation record.
-- **Detail:** [inventory disposition](#4-inventory-disposition) and [audited inventory](#appendix-a-proposal-inventory-verified-against-main).
+- **Detail:** [inventory disposition](#4-inventory-disposition), [audited inventory](#appendix-a-proposal-inventory-verified-against-main),
+  and the [Momentum profile composition note](MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md).
 
 ### SWC.4 — Reporting and typed JSON envelopes
 
@@ -232,12 +240,15 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
   models for actual output. Keep `projection_version`, method version, and result-schema version
   distinct; do not silently reinterpret historical runs. IR.5's moved scope remains included: models
   describe actual `--json` output, preserve each strategy's evidence shape, and validate at the
-  appropriate output boundary. Generate schemas from the runtime typed models rather than detached
+  appropriate output boundary. Also in scope: typed failure envelopes for the direct commands
+  (`src/cli_support.py`, `src/reporting/presentation.py`), a `--json`-aware structured error path for
+  the workspace commands (`src/cli_workspace.py`), and their generated schemas, following the
+  contract settled in SWC.1. Failures are reported, never self-remediated. Generate schemas from the runtime typed models rather than detached
   snapshots; check generated files into a discoverable `schemas/` directory with deterministic
   generation and drift checks.
 - **Branch:** one implementation branch for this slice, based on the approved SWC.1 design.
 - **Detail:** [inventory disposition](#4-inventory-disposition), [audited inventory](#appendix-a-proposal-inventory-verified-against-main),
-  and [decision record](#appendix-b-decision-records-and-history).
+  [decision record](#appendix-b-decision-records-and-history), and the [structured error reporting note](STRUCTURED_ERROR_REPORTING.md).
 
 ### SWC.5 — Schemas, contributor guide, and final conformance
 
@@ -303,6 +314,11 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
 - **JSON contract:** typed models back the real JSON builders; generated schemas correspond to the
   models and a drift check detects stale checked-in output. Existing payload meaning and projection
   versioning remain explicit.
+- **Failure envelopes:** direct and workspace commands report failures through typed envelopes with
+  stable `reason_code` values, `--json`-aware on the workspace commands, with generated schemas and a
+  drift check. No command self-remediates (for example by running `db upgrade`).
+- **Momentum profile composition:** exactly one implementation remains, used by the direct
+  `momentum` command, its `--save-run` branch and the workspace refresh.
 - **Persistence:** any changed stored config/evidence/result shape bumps the relevant version. No
   migration or compatibility layer is added during this period.
 - **No semantic change:** no analyzer formula, classification, result meaning, or evaluation
@@ -367,6 +383,7 @@ row is in scope for removal; they identify what the implementation plan must acc
 | `encode_evidence` isinstance chain | Changed | `src/workspace/codecs.py`: `encode_evidence` | FCF/Graham branches remain; Momentum is now the unconditional fallback rather than an explicit final branch, so unknown evidence could be routed as Momentum. |
 | Decoder version membership and expected versions | Changed | `src/workspace/codecs.py`: `_EXPECTED_VERSIONS`, `decode_evidence` | Now one mapping entry stores `(config_schema_version, method_version, result_schema_version)`; `decode_evidence` validates run-schema, codec and projection versions too. |
 | Per-method `decode_evidence` dispatch | Changed | `src/workspace/codecs.py`: `decode_evidence` | Explicit branches remain for FCF, Graham Growth and Graham Number, with Momentum as fallback; ticker identity is checked per result shape. |
+| Momentum instrument-profile composition | Still present | `src/cli.py`: `momentum` command (`--save-run` and default branches); `src/cli_workspace.py`: `_execute_momentum` | Three independent inline copies of one composition pattern; Graham and FCF Growth already share `compose_graham_profile`. Owned by SWC.3 ([Momentum profile composition note](MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md)). |
 | Per-strategy evidence codec modules | Still present | `src/workspace/momentum.py`, `graham_number.py`, `graham_growth.py`, `fcf_growth.py`: `encode_*`, `decode_*` | One pair remains per strategy. |
 | Per-strategy report construction functions | Changed | `src/reporting/analysis_runs.py`: `_project_momentum_v1`, `_project_graham_number_v1`, `_project_graham_growth_v1`, `_project_fcf_growth_v1` | Projection is now explicit versioned replay over persisted Analysis Runs, decodes stored evidence and retains type assertions; original line references no longer apply. |
 | Strategy presentation modules | Still present | `src/reporting/momentum.py`, `graham_number.py`, `graham_growth.py`, `fcf_earnings_growth.py` | Each retains method-specific presentation and rendering. |
@@ -431,3 +448,16 @@ A review before SWC.1 found three gaps in this plan. Each was decided:
 - **Authorization that expires.** The descriptor is permitted only by `AGENTS.md` §0, which Step
   3.5.1 removes, leaving §3's prohibition on registries as the only rule an agent would see. SWC.5
   now amends §3.
+
+### B.5 Deferred items absorbed (2026-10-02)
+
+The project owner decided that two items recorded as deferred belong to SWC:
+
+- **Structured error reporting.** SWC.1 settles the typed failure-envelope contract (shape, stable
+  `reason_code` values, whether `DatabaseMaintenanceReport` is the shared shape) and SWC.4
+  implements it for direct and workspace commands with generated schemas. The note's non-goal
+  stands: failures are reported, never self-remediated. Detail: the [structured error reporting note](STRUCTURED_ERROR_REPORTING.md).
+- **Momentum profile composition.** SWC.3 replaces the three duplicated composition sites with one
+  implementation. This is a maintainability change, not a correctness defect. Detail: the [Momentum profile composition note](MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md).
+
+The `Deferred` rows for both items leave the milestone sequence table.

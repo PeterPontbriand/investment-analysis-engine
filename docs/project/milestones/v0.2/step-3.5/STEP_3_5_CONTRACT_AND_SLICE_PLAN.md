@@ -201,6 +201,8 @@ its own quality gate and authorization.
   available through the shared market cap is evidence becoming available, not a formula change.
 - Changing the default selection of a new or existing watchlist. Each new strategy is selected
   explicitly.
+- Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export): deferred, to be
+  reconsidered when Step 3.5 closes ([deferred note](../deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md)).
 
 ## 5. Acceptance criteria
 
