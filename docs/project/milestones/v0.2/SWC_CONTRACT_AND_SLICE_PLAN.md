@@ -174,9 +174,7 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
   tests and negative-control failure, (8) migration from current declarations, and (9) acceptance
   checks against a general framework. Identify any required IR.2 public/internal contract change
   explicitly. No production source changes occur in this design slice.
-- **Branch:** the planning contract is prepared on `docs/swc-contract-plan` from `main` after PR #53
-  merged; it has since been fast-forwarded to include the current milestone plan. Each implementation
-  slice uses a review branch from the approved post-R3 base.
+- **Branch:** one review branch from `main`, as for every SWC slice.
 - **Detail:** [architectural contract](#3-architectural-contract), [inventory disposition](#4-inventory-disposition),
   and [audited inventory](#appendix-a-proposal-inventory-verified-against-main).
 
@@ -205,13 +203,17 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
 - **Decision:** consume descriptor dispatch and version metadata where the inventory marks it
   duplicated. Retain explicit typed selection/config/result boundaries, strategy-owned execution
   adapters and codecs. Any stored-shape change increments its relevant version; no migration or
-  compatibility code is added during the consolidation period.
+  compatibility code is added during the consolidation period. Dispatch fails closed: evidence or a
+  stored run that matches no declared strategy is rejected with an error naming it. No strategy is
+  the default branch. Today `encode_evidence` and `decode_evidence` fall through to Momentum.
 - **Scope:** `src/workspace/requests.py`, strategy execution adapters, `src/workspace/execution.py`,
   `src/workspace/codecs.py`, per-strategy codec modules, `src/cli_workspace.py`, and focused tests.
   Move only selection-to-executor routing and repeated version/codec dispatch metadata identified in
   §4. Preserve the `AnalysisSelection` union, conversion methods, adapter behavior, `NativeEvidence`
   union, `AnalysisRun` replay guarantees and refresh isolation. No financial or outcome
-  classification changes.
+  classification changes. Add tests that an undeclared evidence type and an undeclared
+  `(analysis_id, method_id)` are rejected rather than handled as Momentum; every valid input
+  encodes and decodes exactly as before.
 - **Branch:** one implementation branch for this slice, with its scope and review gate recorded in
   the implementation record.
 - **Detail:** [inventory disposition](#4-inventory-disposition) and [audited inventory](#appendix-a-proposal-inventory-verified-against-main).
@@ -242,14 +244,22 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
 - **Problem:** consumers and contributors need discoverable schemas and a complete, tested account
   of which wiring is automatic and which work remains strategy-specific.
 - **Decision:** generate published schemas from typed models and document the approved
-  strategy-addition workflow. Challenge the structural checks with independent end-to-end review.
-- **Scope:** add the developer guide `docs/TOOL_DEVELOPMENT.md`, link it from
-  `docs/project/README.md`, generate/check schemas from the envelope models defined in SWC.4, and
-  verify conformance across all
-  current strategies and generic consumers. Use an independent implementation review or a
-  deliberately incomplete consumer fixture to prove that omission fails with a useful diagnostic.
-  Do not pull Step 3.5 strategy implementation into SWC; a later Piotroski addition may exercise the
-  documented path when that strategy is implemented.
+  strategy-addition workflow in one guide. Make the descriptor's authorization permanent before the
+  temporary rule that permits it is removed. Challenge the structural checks with independent
+  end-to-end review.
+- **Scope:**
+  - **One contributor guide.** Move `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` to
+    `docs/TOOL_DEVELOPMENT.md` and extend it with the strategy-addition workflow. Keep its existing
+    content, update every link to it, and leave no second guide behind.
+  - **Permanent authorization.** Amend `AGENTS.md` §3 so that the closed, statically declared
+    strategy descriptor is permitted in its own right, with dynamic discovery, plugins,
+    self-registration and factory hierarchies still prohibited. Step 3.5.1 removes `AGENTS.md` §0,
+    which is the descriptor's only authorization today.
+  - Generate/check schemas from the envelope models defined in SWC.4, and verify conformance across
+    all current strategies and generic consumers. Use an independent implementation review or a
+    deliberately incomplete consumer fixture to prove that omission fails with a useful diagnostic.
+  - Do not pull Step 3.5 strategy implementation into SWC; a later Piotroski addition may exercise
+    the documented path when that strategy is implemented.
 - **Branch:** one implementation branch for this slice, with generated schema updates reviewed
   alongside their source models.
 - **Detail:** [acceptance criteria](#7-acceptance-criteria) and [conformance design](#33-static-declaration-typing-and-conformance).
@@ -298,9 +308,15 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
 - **No semantic change:** no analyzer formula, classification, result meaning, or evaluation
   expectation changes. Report/CLI output may change only where specifically identified and approved
   in the slice contract.
-- **Contributor guide:** `docs/TOOL_DEVELOPMENT.md` identifies what the shared wiring owns and what
-  remains strategy-specific, including calculator, source fixtures, presentation semantics and
-  Golden cases.
+- **Contributor guide:** `docs/TOOL_DEVELOPMENT.md` is the only contributor guide for adding a
+  strategy. It replaces `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`, keeps that guide's
+  content, and identifies what the shared wiring owns and what remains strategy-specific, including
+  calculator, source fixtures, presentation semantics and Golden cases. No link to the old path
+  remains.
+- **Fail-closed dispatch:** no generic consumer treats one strategy as the default. Undeclared
+  evidence and undeclared stored runs are rejected, and tests prove it.
+- **Lasting authorization:** `AGENTS.md` §3 permits the closed static descriptor without relying on
+  §0, so the descriptor remains authorized when Step 3.5.1 removes §0.
 - **Quality gate:** the complete managed quality gate passes at the end of every implementation
   slice, including ≥85% coverage and new meaningful branch coverage; any new deterministic tests
   make no real provider, network or LLM calls. The final link check passes.
@@ -400,3 +416,18 @@ and generate checked-in schemas in a discoverable `schemas/` directory. Models a
 generation and drift checks are deterministic. Exact schema identifiers, filenames, and whether
 publication uses per-envelope files or a top-level discriminated schema depend on the final model
 shape and are settled during contract/implementation design, not left as an architectural choice.
+
+### B.4 Pre-implementation review (2026-10-02)
+
+A review before SWC.1 found three gaps in this plan. Each was decided:
+
+- **Momentum as the default branch.** Appendix A records that `encode_evidence` and
+  `decode_evidence` route anything unrecognized to Momentum, but no slice owned the repair. SWC.3
+  now makes dispatch fail closed. This is not a semantic change for any valid input.
+- **Two contributor guides.** SWC.5 planned a new `docs/TOOL_DEVELOPMENT.md` while
+  `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` already covered the same ground. The
+  project owner decided on one guide, named `docs/TOOL_DEVELOPMENT.md`. SWC.5 moves and extends the
+  existing guide; the move happens in SWC.5 because that slice owns the document.
+- **Authorization that expires.** The descriptor is permitted only by `AGENTS.md` §0, which Step
+  3.5.1 removes, leaving §3's prohibition on registries as the only rule an agent would see. SWC.5
+  now amends §3.
