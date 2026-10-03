@@ -15,7 +15,7 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
   expressions, trading signals, or ranking against an implicit market-wide universe. Full list:
   [Out of scope](#4-out-of-scope).
 - **Entry condition:** implementation waits for integration readiness (IR), strategy wiring
-  consolidation (SWC), the dead code audit (R3) and the package rename (PKG). 3.5.1 begins by
+  consolidation (SWC), the dead code audit (R3) and the package rename (PKG). 3.5.0 begins by
   removing `AGENTS.md` §0, as that section requires.
 - **Rules every slice follows:**
   - One definition per shared metric, used everywhere, with no per-strategy fallback variants.
@@ -24,8 +24,11 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
     fields of the strategy's own result, not `MetricResult`s.
   - Every input respects the analysis boundary, including the industry class.
   - Fundamentals come from SEC EDGAR annual filings only.
-  - A strategy slice ships complete: analyzer, wiring, presentation, tests, user guide, and
-    `FINANCE_MATH.md` and `GLOSSARY.md` entries.
+  - Every strategy result carries one explicit result-level status, `execution_status`, defined in
+    [Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status); the strategy's native-status
+    function returns it, as FCF-Growth's does.
+  - A strategy slice ships complete: analyzer, wiring (including its `headline` function for the
+    side-by-side table), presentation, tests, user guide, and `FINANCE_MATH.md` and `GLOSSARY.md` entries.
   - The managed quality gate after every slice, and explicit authorization before the next begins.
 - **Where the detail lives:** shared definitions, applicability and ranking in
   [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md); per-strategy formulas and edge cases in
@@ -43,14 +46,14 @@ next begins.
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
+| 3.5.0 | [Side-by-side refresh table](#350--side-by-side-refresh-table) | Planned | |
 | 3.5.1 | [Data mappings and applicability](#351--data-mappings-and-applicability) | Planned | |
 | 3.5.2 | [Shared metrics and ranking helper](#352--shared-metrics-and-ranking-helper) | Planned | |
 | 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Planned | |
 | 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |
 | 3.5.5 | [Valuation multiples, Interest Coverage and ROIC](#355--valuation-multiples-interest-coverage-and-roic) | Planned | |
 | 3.5.6 | [Magic Formula and ranked refresh view](#356--magic-formula-and-ranked-refresh-view) | Planned | |
-| 3.5.7 | [Side-by-side refresh table](#357--side-by-side-refresh-table) | Planned | |
-| 3.5.8 | [Golden suite and cross-cutting docs](#358--golden-suite-and-cross-cutting-docs) | Planned | |
+| 3.5.7 | [Golden suite and cross-cutting docs](#357--golden-suite-and-cross-cutting-docs) | Planned | |
 
 ## 3. The slices
 
@@ -106,6 +109,29 @@ units, period behavior and the filers it holds for. 3.5.1 does that work.
 Their slice plans split them into sub-slices (3.5.4a Altman, 3.5.4b Beneish, and so on), each with
 its own quality gate and authorization.
 
+### 3.5.0 — Side-by-side refresh table
+
+- **Problem:** a refresh already runs several strategies over a watchlist and records one
+  `refresh_id`, but its results can only be inspected run by run. The table needs a per-strategy
+  headline for every strategy, and building it after the new strategies would mean retrofitting eleven.
+- **Decision:** build the table first, over the four existing strategies, so the SWC behavior bundle's
+  `headline` member has a real consumer before any new analyzer is written and every new strategy supplies
+  it from the start. It is a table view, one row per ticker and one column group per strategy, rebuilt
+  from the persisted runs of one refresh, with no persistence and no new batch mechanism. It depends only
+  on the finished SWC work and on runs that already exist: no new data (3.5.1), no shared metric or
+  ranking helper (3.5.2). Sorting by the ranked view needs that view, so it arrives with Magic Formula
+  (3.5.6).
+- **Scope:** `AGENTS.md` §0 removal (3.5.0 is the first implementation slice); the `headline` member and
+  the `Headline` and `HeadlineCell` types added to the SWC behavior bundle, with the four existing
+  strategies' functions. This one slice also updates, once, the generator's templates, the site data file,
+  the specimen strategy and the closed-field test (T15) for the new member. The view, its command, a typed
+  `--json` model and checked-in schema, an entry for the command in the SWC command test's non-strategy
+  list, tests and `WORKSPACE.md` documentation.
+- **Detail:** [Shared definitions §10](STEP_3_5_SHARED_DEFINITIONS.md#10-side-by-side-refresh-table),
+  [Slice inputs §2](STEP_3_5_SLICE_INPUTS.md#2-350--side-by-side-refresh-table) and the
+  [SWC design §3.3](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers).
+  ⚠ no slice plan yet
+
 ### 3.5.1 — Data mappings and applicability
 
 - **Problem:** the seven strategies need line items the financial-fact layer does not map yet,
@@ -118,11 +144,11 @@ its own quality gate and authorization.
   from captured filings that a filing's SEC header keeps the `ASSIGNED-SIC` of its filing date. If
   it does not, sector-gated strategies are `unavailable` for a requested `as_of`, and the slice
   returns to the project owner before continuing.
-- **Scope:** `AGENTS.md` §0 removal; new `FinancialField` members with evidence-approved us-gaap
+- **Scope:** new `FinancialField` members with evidence-approved us-gaap
   and ifrs-full mappings; as-filed SIC evidence; applicability helpers; split history in the
   historical market-data boundary; new `ReasonCode` members these need.
 - **Detail:** [Shared definitions §1–§3](STEP_3_5_SHARED_DEFINITIONS.md#1-applicability) and
-  [Slice inputs §2](STEP_3_5_SLICE_INPUTS.md#2-351--data-mappings-and-applicability).
+  [Slice inputs §3](STEP_3_5_SLICE_INPUTS.md#3-351--data-mappings-and-applicability).
   ⚠ no slice plan yet
 
 ### 3.5.2 — Shared metrics and ranking helper
@@ -137,7 +163,7 @@ its own quality gate and authorization.
 - **Scope:** shared metric functions and their tests; `src/analysis/shared/ranking.py`;
   FCF-Growth's market-cap wiring; `FINANCE_MATH.md` entries for every shared metric.
 - **Detail:** [Shared definitions §4–§9](STEP_3_5_SHARED_DEFINITIONS.md#4-market-capitalization)
-  and [Slice inputs §3](STEP_3_5_SLICE_INPUTS.md#3-352--shared-metrics-and-ranking-helper).
+  and [Slice inputs §4](STEP_3_5_SLICE_INPUTS.md#4-352--shared-metrics-and-ranking-helper).
   ⚠ no slice plan yet
 
 ### 3.5.3 — Piotroski F-Score
@@ -152,7 +178,7 @@ its own quality gate and authorization.
   and the repetition checkpoint above.
 - **Detail:** [Strategy specifications §1](STEP_3_5_STRATEGY_SPECIFICATIONS.md#1-piotroski-f-score)
   the [Piotroski evidence record](STEP_3_5_PIOTROSKI_EVIDENCE.md) and
-  [Slice inputs §4](STEP_3_5_SLICE_INPUTS.md#4-353--piotroski-f-score). ⚠ no slice plan yet
+  [Slice inputs §5](STEP_3_5_SLICE_INPUTS.md#5-353--piotroski-f-score). ⚠ no slice plan yet
 
 ### 3.5.4 — Altman Z-Score and Beneish M-Score
 
@@ -164,7 +190,7 @@ its own quality gate and authorization.
   named deviation.
 - **Scope:** both analyzers with the same completeness as 3.5.3.
 - **Detail:** [Strategy specifications §2–§3](STEP_3_5_STRATEGY_SPECIFICATIONS.md#2-altman-z-score)
-  and [Slice inputs §5](STEP_3_5_SLICE_INPUTS.md#5-354--altman-and-beneish). ⚠ no slice plan yet
+  and [Slice inputs §6](STEP_3_5_SLICE_INPUTS.md#6-354--altman-and-beneish). ⚠ no slice plan yet
 
 ### 3.5.5 — Valuation multiples, Interest Coverage and ROIC
 
@@ -174,7 +200,7 @@ its own quality gate and authorization.
   incremental view.
 - **Scope:** three analyzers with the same completeness as 3.5.3.
 - **Detail:** [Strategy specifications §4, §6, §7](STEP_3_5_STRATEGY_SPECIFICATIONS.md#4-cash-flow-valuation-multiples)
-  and [Slice inputs §6](STEP_3_5_SLICE_INPUTS.md#6-355--valuation-multiples-interest-coverage-and-roic).
+  and [Slice inputs §7](STEP_3_5_SLICE_INPUTS.md#7-355--valuation-multiples-interest-coverage-and-roic).
   ⚠ no slice plan yet
 
 ### 3.5.6 — Magic Formula and ranked refresh view
@@ -186,32 +212,19 @@ its own quality gate and authorization.
   always a watchlist.
 - **Scope:** analyzer with the same completeness as 3.5.3; the ranked view and its command, with a typed
   `--json` model and checked-in schema, and an entry for the command in the SWC command test's
-  non-strategy list.
+  non-strategy list; and the side-by-side table's sort option over this view (the table itself is 3.5.0).
 - **Detail:** [Strategy specifications §5](STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula),
   [Shared definitions §9](STEP_3_5_SHARED_DEFINITIONS.md#9-ranking-helper) and
-  [Slice inputs §7](STEP_3_5_SLICE_INPUTS.md#7-356--magic-formula-and-ranked-refresh-view).
+  [Slice inputs §8](STEP_3_5_SLICE_INPUTS.md#8-356--magic-formula-and-ranked-refresh-view).
   ⚠ no slice plan yet
 
-### 3.5.7 — Side-by-side refresh table
-
-- **Problem:** a refresh already runs several strategies over a watchlist and records one
-  `refresh_id`, but its results can only be inspected run by run.
-- **Decision:** a table view, one row per ticker and one column group per strategy, rebuilt from
-  the persisted runs of one refresh. It adds no persistence and no new batch mechanism.
-- **Scope:** the view, its command, a typed `--json` model and checked-in schema, an entry for the command in
-  the SWC command test's non-strategy list, the table's per-strategy headline content as a new `headline`
-  member of the SWC behavior bundle (the T15 field set is edited in this slice), supplied by every strategy, tests and `WORKSPACE.md` documentation.
-- **Detail:** [Shared definitions §10](STEP_3_5_SHARED_DEFINITIONS.md#10-side-by-side-refresh-table)
-  and [Slice inputs §8](STEP_3_5_SLICE_INPUTS.md#8-357--side-by-side-refresh-table).
-  ⚠ no slice plan yet
-
-### 3.5.8 — Golden suite and cross-cutting docs
+### 3.5.7 — Golden suite and cross-cutting docs
 
 - **Problem:** the new strategies must take part in the golden suite, and the user-facing indexes
   must list them.
 - **Scope:** golden-suite cases for each new strategy; the strategy-guide index and root README;
   the regression issuer set named in [Acceptance criteria](#5-acceptance-criteria).
-- **Detail:** [Slice inputs §9](STEP_3_5_SLICE_INPUTS.md#9-358--golden-suite-and-cross-cutting-docs).
+- **Detail:** [Slice inputs §9](STEP_3_5_SLICE_INPUTS.md#9-357--golden-suite-and-cross-cutting-docs).
   ⚠ no slice plan yet
 
 ## 4. Out of scope
@@ -393,3 +406,12 @@ Three review points were not adopted as proposed:
 - **Writing every slice plan now.** The September Piotroski plan named thirteen slices and their
   files, and was stale within two weeks. The stable part is recorded in
   [Slice inputs](STEP_3_5_SLICE_INPUTS.md); the rest waits for the code it describes.
+
+### A.7 Build order and result status (2026-10-03)
+
+Two decisions made while finalizing the SWC design, which this step's documents own:
+
+| Topic | Before | Decision | Why |
+| :--- | :--- | :--- | :--- |
+| Side-by-side table | Slice 3.5.7, after every strategy | Slice 3.5.0, before 3.5.1, over the four existing strategies | The SWC behavior bundle needs a per-strategy `headline` member. Added after the strategy slices it would force a retrofit of eleven strategies and a mid-step edit of the generator, the site list, the specimen and the closed-field test. Built first, every new strategy supplies it from its own slice and the member is added once. The table needs no new data (3.5.1) and no shared metric (3.5.2), so it does not wait for them; only its sort option over the ranked view waits, and moves to 3.5.6. The golden suite is renumbered 3.5.7 and `AGENTS.md` §0 is removed by 3.5.0, the first implementation slice. |
+| Native status | One headline metric reports its status; several report none (a rule proposed in the SWC design) | Every result carries one explicit `execution_status`, and the native-status function returns it for all seven | It is a result-shape decision, so this step owns it ([Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status)). The execution adapter needs the same value to map a run to its workspace outcome, FCF-Growth already works this way, and no strategy specification contradicts it: each row of the table restates an outcome the specification already defines. |

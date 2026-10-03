@@ -1,96 +1,134 @@
 # PKG — `src` to Real Top-Level Package Rename
 
-**Status:** next in sequence per `IMPLEMENTATION_PLAN.md` row 13, after IR (row 10), SWC (row 11),
-and R3 (row 12); not yet started; scope/contract review required before implementation, matching
-this project's convention for any nontrivial work package.
+Renames the project's import package from the collision-prone `src` to `investment_analysis_engine`,
+before Step 3.5 adds seven analyzers that would otherwise be written under the old path. The
+[milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status) owns its position and work-package status.
+
+## 1. At a glance
+
+- **What this work does:** moves the `src/` package to `investment_analysis_engine/`, rewrites every
+  absolute import and every dotted patch target to the new name, and updates `pyproject.toml`,
+  `AGENTS.md` and any document that names an import path literally.
+- **What it is not:** a restructuring of the package's internal layout, or any change of behavior,
+  formula, presentation contract or public CLI surface. `ian` stays the CLI command name; it is
+  independent of the import name. The strategy folder layout is already settled by SWC
+  ([§6](#6-folder-layout-outcome)); PKG renames it and does not regroup it.
+- **Rules it follows:** the managed quality gate at the end; no new dependency without explicit user
+  permission; scope and contract review before implementation, as for any nontrivial work package.
+- **Where it sits:** after IR (milestone row 10), R3 (row 11) and SWC (row 12), and before Step 3.5. Seven
+  new analyzers land in Step 3.5 and every one will use the `from <package>.xxx import ...` pattern this
+  rename changes, so doing the rename first means those files are written once, under the final import
+  path.
+- **Where the history lives:** why the work package exists and why it is called PKG are in
+  [Background](#5-background-and-origin); decisions are in
+  [Appendix A](#appendix-a-decision-records).
+
+## 2. Sequence and status
+
+| Slice | Scope | Status | Completed |
+| :--- | :--- | :--- | :--- |
+| PKG | [Rename the src package](#pkg--rename-the-src-package) | Planned | |
+
+## 3. The work
+
+### PKG — Rename the `src` package
+
+- **Problem:** `pyproject.toml`'s `[tool.setuptools.packages.find]` (`where = ["."]`,
+  `include = ["src*"]`) packages the literal directory `src` as the project's distributed module, and every
+  absolute import is `from src.xxx import ...`. Installing the project alongside another that also
+  distributes `src` itself collides on `import src`. This does not affect running the project through
+  `uv run` or `ian` today, but it is a real defect for the "safely consumable by an external harness" goal
+  the IR work package serves: a Python-based harness would import this project's modules directly.
+- **Decision:** the new top-level package is `investment_analysis_engine`, the conventional choice (a
+  distribution name, already `investment-analysis-engine`, normalizes into its import name) and
+  self-describing. Test patch targets are rewritten by the same mechanical rewrite, and a check resolves
+  every dotted `patch(...)` and `monkeypatch.setattr(...)` target string to an importable object, so none
+  silently points at a name that no longer exists.
+- **Scope:**
+  - move `src/` to `investment_analysis_engine/`;
+  - update every absolute import (`from src.xxx import ...` and `import src.xxx`) across the package,
+    `tests/`, `scripts/` and any document that names an import path literally;
+  - update `pyproject.toml`: the `include` of `[tool.setuptools.packages.find]`, the entry point
+    (`ian = "src.main:main"` becomes `ian = "investment_analysis_engine.main:main"`) and any other literal
+    `src` reference;
+  - update `AGENTS.md`'s `uv run ...` examples and the layering test's package name;
+  - the patch-target resolution check above.
+- **Branch:** `feat/pkg-rename`, from `main` after SWC.7 has merged.
+- **Detail:** ⚠ no slice plan yet
+
+## 4. Scope limits and acceptance criteria
+
+Scope limits:
+
+- Any restructuring of the package's internal module layout beyond the rename itself.
+- Any change of behavior, formula, presentation contract or public CLI surface.
+- Any change to the `ian` command name.
+
+Acceptance criteria:
+
+- **No stale import path:** no `src.` import or dotted string target remains in the package, `tests/`,
+  `scripts/`, `pyproject.toml` or the living documents.
+- **Patch targets resolve:** the check in the decision above passes for every target string.
+- **Entry point works:** `ian` runs from the installed package.
+- **Layering rule intact:** the SWC layering test, renamed to the new package, passes unchanged.
+- **Quality gate:** the complete managed quality gate passes, including the link check.
+
+## 5. Background and origin
+
 **Discovered:** 2026-09, during the same integration-readiness review that produced
-[IR](../integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md); split out from IR into its own work
-package because of its scale relative to IR's other, smaller fixes.
-**Why not `R4`:** the obvious code for "one more refactor-shaped work package" would extend the
-existing `R1`/`R2`/`R3` refactor-code series, but `R4` is already used as a document-local
-requirement/test-ID label in `issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md` and
-`step-3.4/SLICE_B2_COMPLETION_EVIDENCE.md` — reusing it as a project-wide work-package code would
-recreate the exact `R1`/`R2`/`R3` collision with `graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md`
-that `MASTER_PLAN.md` now has to explicitly disambiguate. `PKG` (short for "package rename") is
-unused anywhere in the repository at the time of writing.
-**Sequenced before Step 3.5**, for the same reason `R3` and `IR` are: seven new analyzers land in
-3.5, and every one of them will use the same `from src.xxx import ...` pattern this rename
-changes, so doing the rename first means those new files are written once, under the final
-import path, instead of being written once and then touched again by the rename.
+[IR](../integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md); split out from IR into its own work package
+because of its scale relative to IR's other, smaller fixes.
 
-## Trigger
+**Why not `R4`:** the obvious code for "one more refactor-shaped work package" would extend the existing
+`R1`/`R2`/`R3` refactor-code series, but `R4` is already used as a document-local requirement/test-ID label
+in `issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md` and `step-3.4/SLICE_B2_COMPLETION_EVIDENCE.md`. Reusing it
+as a project-wide work-package code would recreate the exact `R1`/`R2`/`R3` collision with
+`graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md` that `MASTER_PLAN.md` now has to explicitly
+disambiguate. `PKG` (short for "package rename") is unused anywhere in the repository.
 
-`pyproject.toml`'s `[tool.setuptools.packages.find]` (`where = ["."]`, `include = ["src*"]`)
-packages the literal directory `src` as this project's distributed module. Every absolute import
-in the codebase is `from src.xxx import ...`. Installing this project alongside any other project
-that uses the common "src layout" convention — where `src/` is a directory that is *not* itself a
-package, and the actually-distributed package lives one level under it — is fine; installing it
-alongside a project that (like this one currently does) distributes `src` itself as the package
-name collides on `import src`.
+**Why before Step 3.5:** the same reason `R3` and `IR` run first. Seven new analyzers land in 3.5, and doing
+the rename first means those new files are written once.
 
-## Problem
+## 6. Folder layout outcome
 
-This project's own `pyproject.toml` already declares a real project name
-(`investment-analysis-engine`) and a real CLI entry point (`ian`), but the Python import surface
-underneath both is the generic, collision-prone `src`. This doesn't affect running the project
-via `uv run` or the `ian` command today, and nothing currently installs this project alongside
-another `src`-named package — but it is a real defect for the "safely consumable by an external
-harness" goal the IR work package exists to serve, since a Python-based harness would need to
-`pip install` or otherwise import this project's modules directly, not just shell out to `ian`.
+The strategy folder layout was an open question here. SWC settled it, because its first slices create the
+strategy-owned files and its later slices build tooling around their locations. The outcome:
 
-## Likely scope, once picked up
+- every file a strategy owns, except its fixtures and cases, lives in `src/strategies/<strategy>/`, named
+  for its role, with shared code in `src/strategies/_shared/` and the Graham family package
+  `src/strategies/_graham/`, and every `__init__.py` under `src/strategies/` empty;
+- a role-based layering test replaces the folder rule;
+- SWC.2a relocates the existing analyzers, codecs, adapters and presenters, and retargets 101 importer
+  files, before PKG rewrites every import line again. The second touch is accepted: the files had to be in
+  their final place before the slices after SWC.2a could create theirs.
 
-- **Decided:** the new top-level package name is `investment_analysis_engine` — the conventional
-  choice (Python packaging convention normalizes a distribution name, already
-  `investment-analysis-engine`, into its import name), and self-describing to a reader who has
-  never seen this project before. `ian` remains the separate CLI entry point name, unaffected by
-  this choice.
-- Move `src/` to the chosen package directory name.
-- Update every absolute import (`from src.xxx import ...` / `import src.xxx`) across `src/`,
-  `tests/`, and any scripts or docs that reference import paths literally.
-- Update `pyproject.toml`: `[tool.setuptools.packages.find]`'s `include`, `[project.scripts]`'s
-  entry point target (`ian = "src.main:main"` → `ian = "investment_analysis_engine.main:main"`),
-  and any other literal `src` reference.
-- Update `AGENTS.md`'s own `uv run ...` examples and any other documentation that names the
-  package path literally.
-- Decide whether test patch targets (`patch("src.cli_support.typer.echo")`-style strings
-  throughout the test suite) are mechanically rewritten or need individual review — a rename of
-  this scale risks a patch target silently pointing at a name that no longer resolves to
-  anything, which `mypy --strict` will not catch (`unittest.mock.patch` targets are strings) but
-  the test suite itself will, if the patched code path is actually exercised.
+PKG therefore renames `src/strategies/` along with everything else and regroups nothing. The
+[SWC design](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#4-static-declaration-model) states the layout and the rule;
+[its Appendix C.6](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#c6-one-package-per-strategy) records the evidence.
 
-## Decision for PKG planning: folder layout
+---
 
-**Question.** SWC (design adopted 2026-10-03) leaves each strategy's files in the layer folders they
-already belong to: a new strategy is 21 files across 11 directories, of which 15 are new and strategy-named.
-Those files could be regrouped into one package per strategy (analyzer, arguments, handler, selection,
-codec, adapter, replay, presenter, envelope, CLI and evaluation files together) as a pure move. PKG rewrites
-every import line anyway. **PKG planning must decide whether to combine the regrouping with the rename.**
-This note does not decide it.
+## Appendix A: Decision records
 
-**Evidence for the decision** (from the [co-location study](../swc/SWC_COLOCATION_STUDY.md), Appendix H, and the
-adopted design):
+### A.1 Package name
 
-| Figure | Value |
-| :--- | :--- |
-| Existing modules that would relocate | About 29 (17 analyzer files across four packages, four codecs, four adapters, four presenters), plus the new strategy files |
-| Importer files whose import lines change because of the move (`src` and `tests`) | 76 beyond the 29 that SWC already rewrites (105 in all: 35 in `src`, 70 in `tests`) |
-| Package `__init__.py` files that would have to be emptied | Three analyzer packages (`fcf_earnings_growth`, `graham_growth`, `graham_number`), with 13 importer files of their re-exports |
-| Directories a new strategy touches | 11 today; 8 with a package per strategy (fixtures and cases stay in `evaluation`) |
-| Saving if combined with PKG | Each of the 76 additional importer files is edited once instead of twice |
-| Cost if combined | One diff that is both a move and a rename, which cannot be reviewed as either; test patch strings (this plan's named risk) change in one pass |
+`investment_analysis_engine`, decided before this plan was written: the conventional normalization of the
+distribution name, self-describing to a reader who has never seen the project, and independent of the `ian`
+entry point name.
 
-**Layering rule the decision must respect.** SWC's design establishes that no module under `data`,
-`workspace`, `orchestrator`, `reporting`, `analysis`, `core` or `config` imports the composition-root
-descriptor, a tier or a strategy-owned CLI or evaluation file, including through a parent package. A package
-per strategy spans layers, so folder names would stop encoding layers; the layering test (T13) states its
-rule by folder and would have to state it by module role. Shared Graham code (profile composition, the
-two-selection provider tuples, replay helper) would need a family package. Package `__init__.py` files must
-stay empty. The decision must say how each of these is handled, or keep the layer folders.
+### A.2 Test patch targets
 
-## Out of scope for this note
+Previously left to PKG planning. Decided here: rewrite them mechanically with the import rewrite, and prove
+none dangles with a resolution check, because `mypy --strict` cannot see a string target and a patch of an
+unexercised path would otherwise pass silently.
 
-This is not a request to restructure the package's internal module layout beyond the rename
-itself, apart from the folder-layout decision recorded above, which PKG planning decides, or to change any behavior, formula, presentation contract, or public CLI surface. `ian`
-remains the CLI command name regardless of which internal package name is chosen (the two are
-independent: the CLI entry point name and the internal import path do not have to match).
+### A.3 Folder layout (2026-10-03)
+
+Previously a decision item for PKG planning, with the study's figures: about 29 modules to relocate, 76
+importer files beyond the 29 that SWC already rewrites, three re-exporting `__init__.py` files to empty,
+eleven directories per new strategy against eight with a package per strategy, and the cost of one diff
+that is both a move and a rename. The project owner adopted one package per strategy inside SWC on the
+condition that a role-based layering rule be enforceable and the module graph show no new cycle; both held,
+so the question is closed ([§6](#6-folder-layout-outcome)). The study counted nine directories for one
+package per strategy because it included `docs/user`, whose strategy lists are now generated; the adopted
+design's eight matches this plan's earlier figure.
