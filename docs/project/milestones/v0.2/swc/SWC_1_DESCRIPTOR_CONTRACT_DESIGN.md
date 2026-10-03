@@ -277,7 +277,7 @@ MOMENTUM: Final = StrategyDescriptor(
 
 Two points learned from the prototype that SWC.2b must follow:
 
-- Write the type argument explicitly (`EvidenceCodec[MomentumRun](...)`). Without it, mypy infers the
+- Write the type argument explicitly (`EvidenceCodec[MomentumRun]` at the call). Without it, mypy infers the
   whole union from the `Protocol` field's expected type and rejects every declaration.
 - Do not use `assert isinstance` narrowing inside generic consumers. The codec's own `isinstance`
   guard narrows `object` to `ResultT` without a cast.
