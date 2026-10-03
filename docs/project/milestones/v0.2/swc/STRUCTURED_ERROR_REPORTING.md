@@ -1,7 +1,7 @@
 # Structured Error Reporting for Programmatic/Agentic CLI Consumers
 
 **Status:** owned by SWC; envelope contract settled in [SWC.1](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#13-failure-envelope-contract);
-implemented in [SWC.4](SWC_CONTRACT_AND_SLICE_PLAN.md#swc4--reporting-and-typed-json-envelopes).
+implemented in [SWC.4a](SWC_CONTRACT_AND_SLICE_PLAN.md#swc4a--failure-envelope-and-schema-generator).
 **Discovered:** 2026-09-20 (America/Toronto), during Step 3.4 review of the
 `DatabaseReadinessError` message a human sees from
 `ian graham-number ... --save-run` when the local database needs

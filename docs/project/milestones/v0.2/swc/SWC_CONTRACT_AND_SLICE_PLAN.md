@@ -8,9 +8,10 @@ owns its position and work-package status.
 
 - **What this work does:** reduce repeated per-strategy wiring across orchestration, workspace
   selection and execution, evidence codecs, reporting, CLI integration and deterministic
-  evaluation through a closed, statically declared wiring descriptor; give each strategy's JSON
-  output a typed contract and generated schema; give failures a typed envelope on direct and
-  workspace commands; replace Momentum's three profile-composition copies with one; document the
+  evaluation through a closed, statically declared wiring descriptor; give every `--json` document
+  (strategy, workspace, database and failure) a typed model and a generated schema; give failures a
+  typed envelope on direct and workspace commands, per-job refresh failures a stable code and the
+  database report the envelope's field names; replace Momentum's three profile-composition copies with one; document the
   contributor workflow.
 - **What the descriptor means:** one authoritative infrastructure declaration for repeated wiring
   metadata. It is not a representation of strategy behavior. Generic consumers derive their
@@ -38,10 +39,12 @@ document-link check and applicable documentation checks.
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| SWC.1 | [Settle descriptor contract and conformance design](#swc1--descriptor-contract-and-conformance-design) | Complete | 2026-10-02 |
+| SWC.1 | [Settle descriptor contract and conformance design](#swc1--descriptor-contract-and-conformance-design) | Complete | 2026-10-03 |
 | SWC.2 | [Declare and consume wiring in orchestration and evaluation](#swc2--orchestration-and-evaluation-wiring) | Next | |
 | SWC.3 | [Consume wiring in workspace execution and codecs](#swc3--workspace-selection-execution-and-codecs) | Planned | |
-| SWC.4 | [Consume wiring in reporting; typed JSON and failure envelopes](#swc4--reporting-and-typed-json-envelopes) | Planned | |
+| SWC.4a | [Typed failure envelope and schema generator](#swc4a--failure-envelope-and-schema-generator) | Planned | |
+| SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Planned | |
+| SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Planned | |
 | SWC.5 | [Generate schemas, document contribution, and complete conformance](#swc5--schemas-contributor-guide-and-final-conformance) | Planned | |
 
 ## 3. Architectural contract
@@ -196,8 +199,12 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
 - **Scope:** the new `src/strategy_wiring.py`; `src/orchestrator/{analysis_tools,tool_names,analysis_tool_arguments}.py`
   (`ToolName` and the argument models move out of their current modules); `src/workspace/native_evidence.py`
   (the `NativeEvidence` union moves; `src/workspace/execution.py` changes its import only); and
-  `src/evaluation/{models,composition,runner,ollama_runner}.py`. `_require_tool_evidence` and
-  `_native_status` stop treating FCF as the default branch. Replace only descriptor-authoritative metadata and dispatch in Appendix
+  `src/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py`, the six
+  `src/evaluation/cases/*.py` importers, the tests that import the moved symbols, `src/core/constants.py`
+  (the unused `AnalysisType` is deleted) and the docs that name the moved symbols. `ToolName`, the argument
+  models and `NativeEvidence` move with no compatibility re-export; every importer is updated, and the
+  `ToolName` export from `src.evaluation` is removed. `_require_tool_evidence` and `_native_status` become
+  keyed tables instead of defaulting to FCF. Replace only descriptor-authoritative metadata and dispatch in Appendix
   A. Add conformance checks for descriptor completeness and each changed consumer, including an
   incomplete-consumer negative control. Do not change evaluation fixture truth, scoring, formula
   semantics or external-call behavior.
@@ -215,12 +222,16 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
   adapters and codecs. Any stored-shape change increments its relevant version; no migration or
   compatibility code is added during the consolidation period. Dispatch fails closed: evidence or a
   stored run that matches no declared strategy is rejected with an error naming it. No strategy is
-  the default branch. Today `encode_evidence` and `decode_evidence` fall through to Momentum.
+  the default branch. Today only `encode_evidence` falls through to Momentum; `decode_evidence` already
+  rejects an undeclared pair before its Momentum branch, and both become table-driven.
 - **Scope:** `src/strategy_wiring.py`, `src/workspace/requests.py` (`parse_selection`: alias membership from the
-  descriptor and an explicit, fail-closed final branch), `src/workspace/method_aliases.py` (deleted; the
+  descriptor and an alias-keyed table of parsers in place of the chain that ends in an unconditional
+  Momentum return), `src/workspace/method_aliases.py` (deleted; the
   descriptor owns the alias vocabulary), strategy execution adapters, `src/workspace/execution.py`,
   `src/workspace/codecs.py`, per-strategy codec modules, `src/data/repositories/watchlists.py` (alias lookup),
-  `src/cli_workspace.py`, `src/cli.py` (Momentum profile composition only), and focused tests.
+  `src/cli_workspace.py` (including `_build_selection`, whose chain ends in an unconditional FCF return and
+  becomes an alias-keyed table), `src/cli.py` (Momentum profile composition only), the
+  `getattr(selection, "as_of", None)` probe in `execute`, and focused tests.
   Replace Momentum's three profile-composition copies (two in `src/cli.py`'s `momentum` command,
   one in `src/cli_workspace.py`'s `_execute_momentum`) with one `compose_momentum_profile` in `src/workspace/momentum_execution.py`; detail in the
   [Momentum profile composition note](MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) and
@@ -238,37 +249,61 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
 
 ### SWC.4 — Reporting and typed JSON envelopes
 
-- **Problem:** report construction and stored-run replay retain per-method type dispatch, while JSON
-  presentation payloads lack the typed envelope models that IR.5 intended to add.
-- **Decision:** derive generic replay and envelope-model dispatch from the descriptor where it
-  removes repeated routing. Keep each projector, presenter, and envelope model strategy-owned and
-  preserve investor-visible meaning. Generate schemas from the runtime typed models; detached schema
-  snapshots are not sufficient. See the [IR.5 schema decision](#b3-ir5-schemas).
-- **Scope:** `src/reporting/analysis_runs.py`, strategy presentation modules where dispatch changes
-  are necessary, and JSON-mode builders and tests. Include direct/report rendering and stored
-  Analysis Run projection only where Appendix A identifies duplicated dispatch, and the
-  `execution_errors` call sites in `src/cli.py` (identifier literals only). Add typed envelope
-  models for actual output. Keep `projection_version`, method version, and result-schema version
-  distinct; do not silently reinterpret historical runs. IR.5's moved scope remains included: models
-  describe actual `--json` output, preserve each strategy's evidence shape, and validate at the
-  appropriate output boundary. Also in scope: typed failure envelopes for the direct commands
-  (`src/cli_support.py`, `src/reporting/presentation.py`), a `--json`-aware structured error path for
-  the workspace commands (`src/cli_workspace.py`), and their generated schemas, following the
-  contract settled in SWC.1. Failures are reported, never self-remediated. Generate schemas from the runtime typed models rather than detached
-  snapshots; check generated files into a discoverable `schemas/` directory (generated by a new
-  `scripts/generate_schemas.py`) with deterministic generation and a drift test in the standard pytest gate.
-  SWC.4 owns generation and the drift check; layout and failure shape are settled in the
-  [SWC.1 design](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#13-failure-envelope-contract).
-- **Branch:** `feat/swc-4-reporting-json-envelopes`, from `main` after SWC.3 has merged.
-- **Detail:** [SWC.1 design §13](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#13-failure-envelope-contract),
-  [inventory disposition](#4-inventory-disposition), [audited inventory](#appendix-a-proposal-inventory-verified-against-main),
-  [decision record](#appendix-b-decision-records-and-history), and the [structured error reporting note](STRUCTURED_ERROR_REPORTING.md).
+Every `--json` document gets a typed model and a checked-in schema, and failures get one envelope. That
+is three reviewable concerns, so it is three slices, in this order. The contract, the document list,
+the schema layout and the output changes are in the
+[SWC.1 design §11 and §13](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#13-failure-envelope-contract). Keep `projection_version`, method
+version and result-schema version distinct and do not silently reinterpret historical runs. See the
+[IR.5 schema decision](#b3-ir5-schemas).
+
+#### SWC.4a — Failure envelope and schema generator
+
+- **Problem:** failures reach callers in three unrelated shapes, per-job refresh failures have no
+  stable code, and no schema generator or drift check exists.
+- **Decision:** one `FailureEnvelope` and one classifier serve the direct and workspace commands;
+  `refresh --json` jobs carry a `reason_code`; `DatabaseMaintenanceReport` adopts the envelope's field
+  names. Failures are reported, never self-remediated.
+- **Scope:** `src/reporting/documents/{failure,database}.py`, `src/reporting/failure_classification.py`,
+  `src/cli_support.py`, `src/reporting/presentation.py`, the `execution_errors` call sites in `src/cli.py`,
+  `src/cli_workspace.py` (`--json`-aware failures), `src/cli_database.py`, `src/workspace/refresh.py`
+  (injected classifier and per-job code), one `WatchlistNotFoundError` in `src/workspace/watchlists.py`,
+  `docs/user/DATABASE.md`, a new `scripts/generate_schemas.py`, `schemas/` (failure, database report),
+  and tests T18 to T20.
+- **Branch:** `feat/swc-4a-failure-envelope`, from `main` after SWC.3 has merged.
+- **Detail:** [SWC.1 design §13 and §18](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#13-failure-envelope-contract) and the
+  [structured error reporting note](STRUCTURED_ERROR_REPORTING.md).
+
+#### SWC.4b — Typed workspace documents
+
+- **Problem:** the watchlist, delete-outcome, `runs list` and refresh-summary documents are built from
+  hand-written dictionaries with no typed model or schema.
+- **Decision:** one model per document, byte-identical to today's output apart from the changes listed in
+  the design. Selections inside watchlist documents are typed by the `AnalysisSelection` union.
+- **Scope:** `src/reporting/documents/{watchlist,runs,refresh}.py`, the JSON builders in
+  `src/cli_workspace.py`, four schemas, and tests.
+- **Branch:** `feat/swc-4b-workspace-documents`, from `main` after SWC.4a has merged.
+- **Detail:** [SWC.1 design §13.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#136-every-json-document-is-typed).
+
+#### SWC.4c — Typed strategy envelopes and replay dispatch
+
+- **Problem:** report construction and stored-run replay retain per-method type dispatch, and the four
+  strategy documents lack the typed envelope models IR.5 intended to add.
+- **Decision:** typed envelope models back the real builders and are validated at the output boundary;
+  the descriptor gains `json_envelope`; the projector table is keyed by the descriptor's identity and
+  fails closed; the command-coverage test lands last, with no exemption list.
+- **Scope:** `src/strategy_wiring.py`, `src/reporting/envelopes/<strategy>.py`,
+  `src/reporting/json_documents.py`, `src/reporting/{analysis_runs,momentum,graham_number,graham_growth,fcf_earnings_growth}.py`,
+  four schemas, and tests T9, T10, T20, T21 and T24 extended.
+- **Branch:** `feat/swc-4c-strategy-json-envelopes`, from `main` after SWC.4b has merged.
+- **Detail:** [SWC.1 design §6, §10 and §13.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#10-conformance-tests-and-negative-control),
+  [inventory disposition](#4-inventory-disposition) and
+  [audited inventory](#appendix-a-proposal-inventory-verified-against-main).
 
 ### SWC.5 — Schemas, contributor guide, and final conformance
 
 - **Problem:** consumers and contributors need discoverable schemas and a complete, tested account
   of which wiring is automatic and which work remains strategy-specific.
-- **Decision:** verify the published schemas that SWC.4 generates from typed models and document the approved
+- **Decision:** verify the published schemas that SWC.4a to SWC.4c generate from typed models and document the approved
   strategy-addition workflow in one guide. Make the descriptor's authorization permanent before the
   temporary rule that permits it is removed. Challenge the structural checks with independent
   end-to-end review.
@@ -280,12 +315,12 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
     strategy descriptor is permitted in its own right, with dynamic discovery, plugins,
     self-registration and factory hierarchies still prohibited. Step 3.5.1 removes `AGENTS.md` §0,
     which is the descriptor's only authorization today.
-  - Verify that every descriptor has a current published schema (SWC.4 owns generation and the drift
+  - Verify that every descriptor has a current published schema (SWC.4a owns generation and the drift
     check), and verify conformance across all current strategies and generic consumers. Use an independent implementation review or a
     deliberately incomplete consumer fixture to prove that omission fails with a useful diagnostic.
   - Do not pull Step 3.5 strategy implementation into SWC; a later Piotroski addition may exercise
     the documented path when that strategy is implemented.
-- **Branch:** `feat/swc-5-contributor-guide`, from `main` after SWC.4 has merged.
+- **Branch:** `feat/swc-5-contributor-guide`, from `main` after SWC.4c has merged.
 - **Detail:** [acceptance criteria](#7-acceptance-criteria) and [conformance design](#33-static-declaration-typing-and-conformance).
 
 ## 6. Scope limits
@@ -324,12 +359,15 @@ need them. Expanding scope beyond audited wiring requires a documented reason an
   at construction and cross-cutting concerns carried in `AnalysisContext`.
 - **Outcome and provenance:** metrics remain `MetricResult`; unavailable and inapplicable states
   remain explicit; provenance is retained. No silent defaults, `NaN` or `Inf` are introduced.
-- **JSON contract:** typed models back the real JSON builders; generated schemas correspond to the
-  models and a drift check detects stale checked-in output. Existing payload meaning and projection
-  versioning remain explicit.
+- **JSON contract:** every `--json` document (strategy, workspace, database and failure) has a typed
+  model backing its builder and a checked-in generated schema; a drift check detects stale output; and a
+  conformance test enumerates every command offering `--json` from the CLI's own command tree and fails,
+  naming the command, if it lacks either. Existing payload meaning and projection versioning remain
+  explicit except for the output changes the design lists.
 - **Failure envelopes:** direct and workspace commands report failures through typed envelopes with
-  stable `reason_code` values, `--json`-aware on the workspace commands, with generated schemas and a
-  drift check. No command self-remediates (for example by running `db upgrade`).
+  stable `reason_code` values, `--json`-aware on the workspace commands; per-job failures in `refresh --json`
+  carry a `reason_code`; the database report uses the same `reason_code` and `reason` field names;
+  schemas and a drift check cover them. No command self-remediates (for example by running `db upgrade`).
 - **Momentum profile composition:** exactly one implementation remains, used by the direct
   `momentum` command, its `--save-run` branch and the workspace refresh.
 - **Persistence:** any changed stored config/evidence/result shape bumps the relevant version. No
@@ -424,10 +462,13 @@ classified, with its owning slice, in the [SWC.1 design](SWC_1_DESCRIPTOR_CONTRA
 | :--- | :--- | :--- |
 | Alias vocabulary | `src/workspace/method_aliases.py`; `src/cli_workspace.py` alias uses; `src/data/repositories/watchlists.py` alias lookup | SWC.3 |
 | Alias membership and a final unconditional Momentum branch | `src/workspace/requests.py`: `parse_selection` | SWC.3 |
-| Identifier literals in failure calls and JSON builders | `src/cli.py`: six `execution_errors(analysis=, method=)` calls; `src/reporting/{momentum,graham_number,graham_growth}.py` | SWC.4 |
-| Strategy name tested inside generic failure handling | `src/cli_support.py`: `analysis == "momentum"` | SWC.4 |
+| Identifier literals in failure calls and JSON builders | `src/cli.py`: six `execution_errors(analysis=, method=)` calls; `src/reporting/{momentum,graham_number,graham_growth}.py` | SWC.4a (`cli.py` calls), SWC.4c (builders) |
+| Strategy name tested inside generic failure handling | `src/cli_support.py`: `analysis == "momentum"` | SWC.4a |
 | A second `NativeEvidence`-shaped union, and an FCF default branch | `src/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | SWC.2 |
 | An FCF default branch in the fixture capability check | `src/evaluation/composition.py`: `_require_tool_evidence` | SWC.2 |
+| A one-member per-strategy name enum with no reader | `src/core/constants.py`: `AnalysisType` | SWC.2 (deleted) |
+| An unconditional FCF return after a chain of method tests | `src/cli_workspace.py`: `_build_selection` | SWC.3 |
+| A probe for a field every selection defines | `src/workspace/execution.py`: `getattr(selection, "as_of", None)` | SWC.3 |
 | Tool descriptions, schemas and parser registry keyed by tool name | `src/evaluation/ollama_runner.py`: `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser` | SWC.2 |
 
 ## Appendix B: Decision records and history
@@ -461,7 +502,7 @@ Typed envelope models back the actual `--json` payloads, preserve each strategy'
 and generate checked-in schemas in a discoverable `schemas/` directory. Models are authoritative;
 generation and drift checks are deterministic. Exact schema identifiers, filenames, and whether
 publication uses per-envelope files or a top-level discriminated schema depend on the final model
-shape and are settled during contract/implementation design, not left as an architectural choice.
+shape and are settled during contract/implementation design, not left as an architectural choice. SWC.1 settled them: one file per document, listed in the design's section 11.
 
 ### B.4 Pre-implementation review (2026-10-02)
 
@@ -485,7 +526,7 @@ A review before SWC.1 found three gaps in this plan. Each was decided:
 The project owner decided that two items recorded as deferred belong to SWC:
 
 - **Structured error reporting.** SWC.1 settles the typed failure-envelope contract (shape, stable
-  `reason_code` values, whether `DatabaseMaintenanceReport` is the shared shape) and SWC.4
+  `reason_code` values, whether `DatabaseMaintenanceReport` is the shared shape) and SWC.4a
   implements it for direct and workspace commands with generated schemas. The note's non-goal
   stands: failures are reported, never self-remediated. Detail: the [structured error reporting note](STRUCTURED_ERROR_REPORTING.md).
 - **Momentum profile composition.** SWC.3 replaces the three duplicated composition sites with one
@@ -499,5 +540,9 @@ The [SWC.1 design](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md) settles the descriptor, 
 it corrected this plan, the corrections are applied above and listed in
 [the design's section 15](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#15-ir2-and-corrections-to-the-plan): `ToolName` stays hand-written;
 handlers, executors and projectors stay in consumer-owned keyed tables because a wider descriptor
-creates import cycles; schema generation is owned by SWC.4 alone; every slice branches from `main`
-after its predecessor merges. No IR.2 contract change is required.
+creates import cycles; schema generation is owned by SWC.4a; every slice branches from `main`
+after its predecessor merges. No IR.2 contract change is required. The project owner's review of
+the design then decided that every `--json` document is typed, that per-job refresh failures carry
+a `reason_code`, that `DatabaseMaintenanceReport` uses the envelope's field names, and that moved
+symbols keep no compatibility re-export; SWC.4 was split into SWC.4a to SWC.4c to keep each slice
+reviewable.
