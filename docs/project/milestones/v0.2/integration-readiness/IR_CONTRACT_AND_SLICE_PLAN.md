@@ -129,7 +129,7 @@ re-run, [§5](#5-acceptance-criteria)'s last criterion, was accepted by the proj
 ### Moved out: typed JSON envelopes (formerly IR.5)
 
 Typed JSON envelope models and generated JSON Schemas for `--json` payloads moved to the
-[strategy wiring consolidation work package (SWC)](../STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md)
+[strategy wiring consolidation work package (SWC)](../swc/STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md)
 on 2026-09-24. They are per-strategy wiring of the same kind SWC consolidates, so building them on
 SWC's shared strategy descriptor means writing them once instead of once per strategy. Details:
 [A.4](#a4-slice-numbering-history).
@@ -284,7 +284,7 @@ change. Every `--json` payload, including its canonical `method_id`, is unchange
   freed "IR.4" label is reused below for an unrelated slice; that is not this content returning.
 - **IR.5 moved to SWC, 2026-09-24.** Typed JSON envelope models and generated JSON Schemas for
   `--json` payloads (previously item 7 / slice IR.5) are per-strategy wiring in the same shape as
-  everything else `SWC`'s proposal (`../STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md`) catalogs: one
+  everything else `SWC`'s proposal (`../swc/STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md`) catalogs: one
   hand-written builder per strategy today, about to become five more with Step 3.5. Building it on
   `SWC`'s shared strategy descriptor means writing it once, not four (soon nine) times by hand. The
   substance of the original scoping — real typed envelope models backing the payload builders, not a

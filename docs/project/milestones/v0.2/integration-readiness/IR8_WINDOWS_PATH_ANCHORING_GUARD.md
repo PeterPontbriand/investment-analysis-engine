@@ -79,7 +79,7 @@ Parent: [IR contract and slice plan](IR_CONTRACT_AND_SLICE_PLAN.md).
 
 - How an invalid setting is reported at startup. Importing `src.config` raises today, and the
   guard's message will appear in that traceback. Structured error output has its own record:
-  [DEFERRED_STRUCTURED_ERROR_REPORTING.md](../DEFERRED_STRUCTURED_ERROR_REPORTING.md).
+  [DEFERRED_STRUCTURED_ERROR_REPORTING.md](../deferred/DEFERRED_STRUCTURED_ERROR_REPORTING.md).
 - Converting Git Bash paths automatically ([B.1](#b1-decisions), item 1).
 - Any change on Linux or macOS, where `/e/Source` is a valid absolute path.
 - Anything in the IR contract beyond IR.8's sequence row and summary section, which were added on this
