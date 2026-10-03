@@ -1,6 +1,6 @@
-# Deferred — Deduplicate Momentum's Instrument-Profile Composition Sites
+# Deduplicate Momentum's Instrument-Profile Composition Sites
 
-**Status:** deferred; not started; scope/contract review required before implementation.
+**Status:** owned by [SWC.3](SWC_CONTRACT_AND_SLICE_PLAN.md#swc3--workspace-selection-execution-and-codecs).
 **Discovered:** 2026-09-21, during the P2-Profiles Slice D reconnaissance
 ([inventory](../p2-profiles/P2_PROFILES_SLICE_D_INVENTORY.md#2-composition-pattern-map)),
 and raised again during PR #39 review.

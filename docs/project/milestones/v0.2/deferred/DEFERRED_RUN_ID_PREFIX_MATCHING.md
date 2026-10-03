@@ -1,6 +1,7 @@
 # Deferred — Prefix Matching for Analysis Run/Refresh IDs
 
 **Status:** deferred; not started; scope/contract review required before implementation.
+**Reconsider at:** [Step 3.6](../IMPLEMENTATION_PLAN.md#412-step-36--light-mode-support), which must either implement it or drop it and delete this note.
 **Discovered:** 2026-09-20 (America/Toronto), during review of `runs show`'s
 error message for an invalid Analysis Run ID.
 **Not a blocker:** this does not block Step 3.4 acceptance or any other

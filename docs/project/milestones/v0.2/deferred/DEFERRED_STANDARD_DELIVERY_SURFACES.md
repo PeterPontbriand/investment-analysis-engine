@@ -2,6 +2,7 @@
 
 **Status:** deferred; own scoped work package once picked up, but not to be scheduled until
 after [Step 3.5](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status).
+**Reconsider at:** the close of [Step 3.5](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#4-out-of-scope), which links back here.
 **Discovered:** 2026-09, via the [evidence provider roadmap](../../../EVIDENCE_PROVIDER_ROADMAP.md)'s
 "Standard delivery surfaces" candidate.
 **Decision:** the project owner confirmed this becomes its own work package rather than folding

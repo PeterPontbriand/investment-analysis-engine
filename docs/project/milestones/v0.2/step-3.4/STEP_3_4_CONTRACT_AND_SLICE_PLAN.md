@@ -482,7 +482,7 @@ only so this plan's history stays complete:
   `reason_code` exists, but `expected_revision`/`database_path` are not
   exposed as JSON fields, and workspace commands have no JSON error
   envelope at all). Deliberately deferred, not fixed on this branch; see
-  [DEFERRED_STRUCTURED_ERROR_REPORTING.md](../deferred/DEFERRED_STRUCTURED_ERROR_REPORTING.md).
+  [STRUCTURED_ERROR_REPORTING.md](../swc/STRUCTURED_ERROR_REPORTING.md).
 - `refresh` always saved every result with no opt-out, unlike direct
   commands' opt-in `--save-run`. After considering and rejecting the
   reverse change (defaulting direct commands to save, which would leave
