@@ -387,7 +387,7 @@ Current documents:
 - `docs/user/HARDWARE.md`
 
 Planned when their owning work lands:
-- `docs/TOOL_DEVELOPMENT.md`;
+- `docs/TOOL_DEVELOPMENT.md` (replaces `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` when SWC.5 lands);
 - `docs/I18N_GUIDE.md`.
 
 A planned document must not be treated as an existing source of instructions.
