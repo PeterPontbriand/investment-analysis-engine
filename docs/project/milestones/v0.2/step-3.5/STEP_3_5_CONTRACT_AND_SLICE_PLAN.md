@@ -76,11 +76,27 @@ the standard `⚠ no slice plan yet` marker until its handoff is accepted. Here 
 "written immediately before the slice begins", not an omission.
 
 **Every strategy is added the same way.** Each strategy slice adds its strategy through the edit-site table in
-[SWC.1 design §17](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#17-edit-sites-for-a-new-strategy): the analyzer package, the descriptor,
-and every consumer-owned table, union and conformance surface it lists. That includes the orchestrator
-tool (a `ToolName` member, an arguments model, a handler and the `AnalysisToolDependencies` fields), which
-the golden suite needs to select the strategy. Each slice plan names the table's sites it touches. SWC.5
-moves the table into `docs/TOOL_DEVELOPMENT.md`; until then the design is the reference.
+[SWC.1 design §17](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#17-edit-sites-for-a-new-strategy) (18 sites in 21 files; it moves
+into `docs/TOOL_DEVELOPMENT.md`, generated from one site data file, when SWC.7 lands): the analyzer package, the
+descriptor and its behavior bundle, the CLI-tier and evaluation-tier entries, and the strategy-owned files
+each of them references. That includes the orchestrator tool (a `ToolName` member, an arguments model, a
+dependency class and a handler), which the golden suite needs to select the strategy. Once SWC.5 and SWC.6
+land, a slice starts from `scripts/new_strategy.py`, which writes the typed stubs and the five mechanical
+one-line edits, and tracks progress with `scripts/strategy_status.py`. Each slice plan names the table's
+sites it touches. Until SWC.7, the design is the reference.
+
+**Repetition checkpoint.** All seven strategies read SEC annual filings only and share the same selection
+fields, so their wiring is expected to be near-identical. The first strategy slice (3.5.3) owns a review
+before the second strategy starts (3.5.4a):
+
+- **Review:** compare Piotroski's final wiring files with the generator's stubs and list every region that
+  differs only by strategy name, identifier or type.
+- **Extraction:** for exactly that repeated code, extract shared helper functions into the shared module
+  of the layer that owns it, and update the generator's templates to call them. Helpers are functions, not a
+  base class or a registry; existing strategies' behavior and output do not change. Where nothing repeated,
+  record that none was found.
+- **Exit condition:** 3.5.3's implementation record states the regions found and the helpers extracted, or
+  that none was found, and the extraction is merged. The 3.5.4a slice plan is not accepted until it does.
 
 **Mappings are hypotheses until proven.** The taxonomy concepts named in these documents are
 candidates. A mapping becomes a production mapping only after captured filings show its meaning,
@@ -131,8 +147,9 @@ its own quality gate and authorization.
 - **Decision:** it gets a slice of its own. Any envelope change it needs is applied to every
   analyzer in the same slice, never accepted as a Piotroski-only special case.
 - **Scope:** analyzer, SWC descriptor registration (direct command, watchlist selection, refresh,
-  `--json`, and the orchestrator tool: `ToolName` member, arguments model, handler and dependency fields),
-  presenter, tests, user guide, Finance Math and Glossary entries, covering every site in the edit-site table.
+  `--json`, and the orchestrator tool: `ToolName` member, arguments model, dependency class and handler),
+  presenter, tests, user guide, Finance Math and Glossary entries, covering every site in the edit-site table;
+  and the repetition checkpoint above.
 - **Detail:** [Strategy specifications §1](STEP_3_5_STRATEGY_SPECIFICATIONS.md#1-piotroski-f-score)
   the [Piotroski evidence record](STEP_3_5_PIOTROSKI_EVIDENCE.md) and
   [Slice inputs §4](STEP_3_5_SLICE_INPUTS.md#4-353--piotroski-f-score). ⚠ no slice plan yet
@@ -182,8 +199,8 @@ its own quality gate and authorization.
 - **Decision:** a table view, one row per ticker and one column group per strategy, rebuilt from
   the persisted runs of one refresh. It adds no persistence and no new batch mechanism.
 - **Scope:** the view, its command, a typed `--json` model and checked-in schema, an entry for the command in
-  the SWC command test's non-strategy list, the table's per-strategy headline content as a keyed consumer
-  table registered as a conformance surface, tests and `WORKSPACE.md` documentation.
+  the SWC command test's non-strategy list, the table's per-strategy headline content as a new `headline`
+  member of the SWC behavior bundle (the T15 field set is edited in this slice), supplied by every strategy, tests and `WORKSPACE.md` documentation.
 - **Detail:** [Shared definitions §10](STEP_3_5_SHARED_DEFINITIONS.md#10-side-by-side-refresh-table)
   and [Slice inputs §8](STEP_3_5_SLICE_INPUTS.md#8-357--side-by-side-refresh-table).
   ⚠ no slice plan yet

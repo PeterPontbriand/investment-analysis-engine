@@ -59,9 +59,38 @@ harness" goal the IR work package exists to serve, since a Python-based harness 
   anything, which `mypy --strict` will not catch (`unittest.mock.patch` targets are strings) but
   the test suite itself will, if the patched code path is actually exercised.
 
+## Decision for PKG planning: folder layout
+
+**Question.** SWC (design adopted 2026-10-03) leaves each strategy's files in the layer folders they
+already belong to: a new strategy is 21 files across 11 directories, of which 15 are new and strategy-named.
+Those files could be regrouped into one package per strategy (analyzer, arguments, handler, selection,
+codec, adapter, replay, presenter, envelope, CLI and evaluation files together) as a pure move. PKG rewrites
+every import line anyway. **PKG planning must decide whether to combine the regrouping with the rename.**
+This note does not decide it.
+
+**Evidence for the decision** (from the [co-location study](../swc/SWC_COLOCATION_STUDY.md), Appendix H, and the
+adopted design):
+
+| Figure | Value |
+| :--- | :--- |
+| Existing modules that would relocate | About 29 (17 analyzer files across four packages, four codecs, four adapters, four presenters), plus the new strategy files |
+| Importer files whose import lines change because of the move (`src` and `tests`) | 76 beyond the 29 that SWC already rewrites (105 in all: 35 in `src`, 70 in `tests`) |
+| Package `__init__.py` files that would have to be emptied | Three analyzer packages (`fcf_earnings_growth`, `graham_growth`, `graham_number`), with 13 importer files of their re-exports |
+| Directories a new strategy touches | 11 today; 8 with a package per strategy (fixtures and cases stay in `evaluation`) |
+| Saving if combined with PKG | Each of the 76 additional importer files is edited once instead of twice |
+| Cost if combined | One diff that is both a move and a rename, which cannot be reviewed as either; test patch strings (this plan's named risk) change in one pass |
+
+**Layering rule the decision must respect.** SWC's design establishes that no module under `data`,
+`workspace`, `orchestrator`, `reporting`, `analysis`, `core` or `config` imports the composition-root
+descriptor, a tier or a strategy-owned CLI or evaluation file, including through a parent package. A package
+per strategy spans layers, so folder names would stop encoding layers; the layering test (T13) states its
+rule by folder and would have to state it by module role. Shared Graham code (profile composition, the
+two-selection provider tuples, replay helper) would need a family package. Package `__init__.py` files must
+stay empty. The decision must say how each of these is handled, or keep the layer folders.
+
 ## Out of scope for this note
 
 This is not a request to restructure the package's internal module layout beyond the rename
-itself, or to change any behavior, formula, presentation contract, or public CLI surface. `ian`
+itself, apart from the folder-layout decision recorded above, which PKG planning decides, or to change any behavior, formula, presentation contract, or public CLI surface. `ian`
 remains the CLI command name regardless of which internal package name is chosen (the two are
 independent: the CLI entry point name and the internal import path do not have to match).

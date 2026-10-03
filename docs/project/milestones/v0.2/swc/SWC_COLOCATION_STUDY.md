@@ -1,9 +1,18 @@
 # SWC — Co-location Study
 
+**Status: adopted, 2026-10-03.** The project owner chose option D in its two-tier form (§3). The
+[SWC.1 design](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md) now owns the result and does not depend on this study;
+the plan's [decision record](SWC_CONTRACT_AND_SLICE_PLAN.md#b7-co-location-adoption-2026-10-03) lists what the
+owner decided beyond the study's recommendation (scheduled locality moves, further edit-site reductions,
+contributor tooling, a repetition checkpoint and a folder-layout decision). The figures below are the study's
+and describe the form it recommended; the design's final edit-site numbers are in
+[design Appendix E](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#appendix-e-adoption-of-the-co-location-result). This
+document is kept as the evidence record.
+
 A design study, written after the [SWC.1 design](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md) merged. It asks how
 close the SWC design can get to "write one package and one descriptor" when per-strategy behavior moves
-out of generic modules, and what that costs. It changes no design, plan or status; the project owner
-decides first. Nothing under `src/`, `tests/` or `scripts/` was touched; the prototypes are scratch files
+out of generic modules, and what that costs. When written it changed no design, plan or status; the project
+owner then decided (see the status line above). Nothing under `src/`, `tests/` or `scripts/` was touched; the prototypes are scratch files
 under `.tmp/colocation/` and are not committed.
 
 ## 1. At a glance
@@ -532,7 +541,7 @@ them.
 | :--- | :--- | :--- |
 | `ToolName` | No | A functional `StrEnum` from descriptor strings fails `mypy --strict` (SWC.1 §9.1). It must stay an import-free leaf because `evaluation.models` uses it as a field type. |
 | `NativeEvidence` | Not reduced; can share a file with `AnalysisSelection` | It is the bound of `ResultT`. Both are workspace-layer lists, so one file is possible under every option. |
-| `AnalysisSelection` | One list serves two purposes | A single hand-written alias, `SelectionMember = A | B | ...`, is both the pydantic discriminated union (`Annotated[SelectionMember, Field(discriminator="method_id")]`) and the bound of `SelT`. Checked in `.tmp/colocation/proto2/alias_check.py`: the union parses at run time, and `mypy --strict` rejects `Bundle[int]`. |
+| `AnalysisSelection` | One list serves two purposes | A single hand-written alias, `SelectionMember = A \| B \| ...`, is both the pydantic discriminated union (`Annotated[SelectionMember, Field(discriminator="method_id")]`) and the bound of `SelT`. Checked in `.tmp/colocation/proto2/alias_check.py`: the union parses at run time, and `mypy --strict` rejects `Bundle[int]`. |
 | `AnalysisToolArguments` | No | It types `dispatch_fixture_case`; replacing it with `BaseModel` loses the pairing. It cannot join `ToolName` without making that leaf import the argument models. |
 
 No option removes any of the four lists. Under C they cannot move into the package either: `AnalysisRun` is
