@@ -75,6 +75,13 @@ specification is complete now; only the handoff is deferred, on purpose. Each sl
 the standard `⚠ no slice plan yet` marker until its handoff is accepted. Here the marker means
 "written immediately before the slice begins", not an omission.
 
+**Every strategy is added the same way.** Each strategy slice adds its strategy through the edit-site table in
+[SWC.1 design §17](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#17-edit-sites-for-a-new-strategy): the analyzer package, the descriptor,
+and every consumer-owned table, union and conformance surface it lists. That includes the orchestrator
+tool (a `ToolName` member, an arguments model, a handler and the `AnalysisToolDependencies` fields), which
+the golden suite needs to select the strategy. Each slice plan names the table's sites it touches. SWC.5
+moves the table into `docs/TOOL_DEVELOPMENT.md`; until then the design is the reference.
+
 **Mappings are hypotheses until proven.** The taxonomy concepts named in these documents are
 candidates. A mapping becomes a production mapping only after captured filings show its meaning,
 units, period behavior and the filers it holds for. 3.5.1 does that work.
@@ -124,7 +131,8 @@ its own quality gate and authorization.
 - **Decision:** it gets a slice of its own. Any envelope change it needs is applied to every
   analyzer in the same slice, never accepted as a Piotroski-only special case.
 - **Scope:** analyzer, SWC descriptor registration (direct command, watchlist selection, refresh,
-  `--json`), presenter, tests, user guide, Finance Math and Glossary entries.
+  `--json`, and the orchestrator tool: `ToolName` member, arguments model, handler and dependency fields),
+  presenter, tests, user guide, Finance Math and Glossary entries, covering every site in the edit-site table.
 - **Detail:** [Strategy specifications §1](STEP_3_5_STRATEGY_SPECIFICATIONS.md#1-piotroski-f-score)
   the [Piotroski evidence record](STEP_3_5_PIOTROSKI_EVIDENCE.md) and
   [Slice inputs §4](STEP_3_5_SLICE_INPUTS.md#4-353--piotroski-f-score). ⚠ no slice plan yet
@@ -159,7 +167,9 @@ its own quality gate and authorization.
   yield like any other analyzer. Ranking is a separate, deterministic view over the persisted runs
   of one watchlist refresh, built on the 3.5.2 ranking helper and never persisted. The universe is
   always a watchlist.
-- **Scope:** analyzer with the same completeness as 3.5.3; the ranked view and its command.
+- **Scope:** analyzer with the same completeness as 3.5.3; the ranked view and its command, with a typed
+  `--json` model and checked-in schema, and an entry for the command in the SWC command test's
+  non-strategy list.
 - **Detail:** [Strategy specifications §5](STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula),
   [Shared definitions §9](STEP_3_5_SHARED_DEFINITIONS.md#9-ranking-helper) and
   [Slice inputs §7](STEP_3_5_SLICE_INPUTS.md#7-356--magic-formula-and-ranked-refresh-view).
@@ -171,7 +181,9 @@ its own quality gate and authorization.
   `refresh_id`, but its results can only be inspected run by run.
 - **Decision:** a table view, one row per ticker and one column group per strategy, rebuilt from
   the persisted runs of one refresh. It adds no persistence and no new batch mechanism.
-- **Scope:** the view, its command, `--json` output, tests and `WORKSPACE.md` documentation.
+- **Scope:** the view, its command, a typed `--json` model and checked-in schema, an entry for the command in
+  the SWC command test's non-strategy list, the table's per-strategy headline content as a keyed consumer
+  table registered as a conformance surface, tests and `WORKSPACE.md` documentation.
 - **Detail:** [Shared definitions §10](STEP_3_5_SHARED_DEFINITIONS.md#10-side-by-side-refresh-table)
   and [Slice inputs §8](STEP_3_5_SLICE_INPUTS.md#8-357--side-by-side-refresh-table).
   ⚠ no slice plan yet

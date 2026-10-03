@@ -1,6 +1,7 @@
 # Deduplicate Momentum's Instrument-Profile Composition Sites
 
-**Status:** owned by [SWC.3](SWC_CONTRACT_AND_SLICE_PLAN.md#swc3--workspace-selection-execution-and-codecs).
+**Status:** owned by [SWC.3](SWC_CONTRACT_AND_SLICE_PLAN.md#swc3--workspace-selection-execution-and-codecs); helper name, module and signature settled in
+[SWC.1](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#14-momentum-profile-composition-helper).
 **Discovered:** 2026-09-21, during the P2-Profiles Slice D reconnaissance
 ([inventory](../p2-profiles/P2_PROFILES_SLICE_D_INVENTORY.md#2-composition-pattern-map)),
 and raised again during PR #39 review.
