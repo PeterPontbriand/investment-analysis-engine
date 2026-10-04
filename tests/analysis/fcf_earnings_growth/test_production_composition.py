@@ -4,10 +4,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from src.analysis.strategy.fcf_earnings_growth import (
-    FCFEarningsGrowthPolicy,
-    ProductionAnnualGrowthSeriesResolver,
-)
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.facts import FinancialField
 from src.data.financial.production import ProductionFinancialFactsProvider
@@ -17,6 +13,8 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
+from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from tests.analysis.fcf_earnings_growth.test_fcf_earnings_growth_input_resolver import NOW
 
 

@@ -7,14 +7,6 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from src.analysis.strategy.fcf_earnings_growth.models import (
-    FCFClassificationBasis,
-    FCFEarningsGrowthResult,
-    ForwardEvidenceStatus,
-    MetricResult,
-    MetricStatus,
-    TrendClassification,
-)
 from src.data.financial.provenance import ResolvedInput
 from src.data.instrument_profile import (
     InstrumentProfile,
@@ -35,6 +27,14 @@ from src.reporting.presentation import (
     format_money,
     json_document,
     provider_display_name,
+)
+from src.strategies.fcf_growth.models import (
+    FCFClassificationBasis,
+    FCFEarningsGrowthResult,
+    ForwardEvidenceStatus,
+    MetricResult,
+    MetricStatus,
+    TrendClassification,
 )
 
 _LIMITATION = (

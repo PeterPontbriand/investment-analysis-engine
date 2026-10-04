@@ -8,8 +8,10 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.analysis.strategy.fcf_earnings_growth import models as models_module
-from src.analysis.strategy.fcf_earnings_growth.models import (
+from src.core.analysis_status import CalculationStatus
+from src.data.financial.provenance import ResolvedInput, SourceKind
+from src.strategies.fcf_growth import models as models_module
+from src.strategies.fcf_growth.models import (
     AnnualGrowthObservation,
     Classification,
     ClassificationDecision,
@@ -23,8 +25,6 @@ from src.analysis.strategy.fcf_earnings_growth.models import (
     ReasonCode,
     TrendClassification,
 )
-from src.core.analysis_status import CalculationStatus
-from src.data.financial.provenance import ResolvedInput, SourceKind
 
 RESOLVED_AT = datetime(2025, 12, 31, tzinfo=UTC)
 PERIOD_START = datetime(2020, 1, 1, tzinfo=UTC)

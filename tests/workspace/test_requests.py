@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from src.analysis.strategy.fcf_earnings_growth.models import (
+from src.strategies.fcf_growth.models import (
     FCFClassificationBasis,
     FCFEarningsGrowthPolicy,
     ForwardPolicy,

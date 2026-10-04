@@ -14,14 +14,6 @@ import typer
 
 from src.analysis.base_analyzer import require_ticker
 from src.analysis.shared.financial_resolution import PriceComparison
-from src.analysis.strategy.fcf_earnings_growth import (
-    FCFClassificationBasis,
-    FCFEarningsGrowthConfig,
-    FCFEarningsGrowthPolicy,
-    ForwardPolicy,
-    HistoricalHorizon,
-    ProductionAnnualGrowthSeriesResolver,
-)
 from src.cli_composition import build_graham_resolver, build_sec_production_provider, growth_assumptions
 from src.cli_database import app as database_app
 from src.cli_support import (
@@ -74,8 +66,17 @@ from src.evaluation.reporting import EvaluationReport
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.llm.client import LLMClient
 from src.reporting.evidence_presentation import friendly_valuation_failure
-from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.presentation import PresentationMode
+from src.strategies.fcf_growth.execution import execute_fcf_growth
+from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.fcf_growth.models import (
+    FCFClassificationBasis,
+    FCFEarningsGrowthConfig,
+    FCFEarningsGrowthPolicy,
+    ForwardPolicy,
+    HistoricalHorizon,
+)
+from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
 from src.strategies.graham_growth.calculation import (
     GrahamGrowthInputResolver,
     GrowthValueInputAssembly,
@@ -107,7 +108,6 @@ from src.workspace.execution import (
     from_graham_number_capture,
     from_momentum_capture,
 )
-from src.workspace.fcf_growth_execution import execute_fcf_growth
 from src.workspace.requests import (
     AnalysisRequest,
     FCFGrowthSelection,

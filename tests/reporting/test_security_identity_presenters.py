@@ -7,12 +7,6 @@ from dataclasses import replace
 from datetime import UTC, datetime
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.fcf_earnings_growth import (
-    FCFEarningsGrowthAnalyzer,
-    FCFEarningsGrowthPolicy,
-    ProductionAnnualGrowthSeriesResolver,
-)
-from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthResult
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import TrendStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
@@ -29,8 +23,11 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
-from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.presentation import PresentationMode
+from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy, FCFEarningsGrowthResult
+from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
 from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.strategies.graham_growth.presenter import GrahamGrowthPresentation, render_graham_growth
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult

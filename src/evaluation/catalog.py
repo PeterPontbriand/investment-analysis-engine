@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Final
 
-from src.analysis.strategy.fcf_earnings_growth import HistoricalHorizon
 from src.core.telemetry import TrajectoryRecorder
 from src.evaluation.cases import (
     FCF_01,
@@ -45,6 +44,7 @@ from src.orchestrator.analysis_tools import (
     GrahamNumberToolArguments,
     MomentumToolArguments,
 )
+from src.strategies.fcf_growth.models import HistoricalHorizon
 
 DETERMINISTIC_SUITE_ID: Final = "step-2.5-golden-minimum"
 DETERMINISTIC_SUITE_VERSION: Final = "h1-v4"

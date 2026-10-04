@@ -8,11 +8,6 @@ from datetime import UTC, datetime
 import pandas as pd
 import pytest
 
-from src.analysis.strategy.fcf_earnings_growth import (
-    FCFEarningsGrowthAnalyzer,
-    FCFEarningsGrowthResult,
-    ProductionAnnualGrowthSeriesResolver,
-)
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
@@ -47,6 +42,9 @@ from src.orchestrator.analysis_tools import (
 )
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.types import ToolCallRequest
+from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis

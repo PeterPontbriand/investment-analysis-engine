@@ -6,20 +6,6 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from src.analysis.strategy.fcf_earnings_growth.calculators import (
-    compute_cagr,
-    compute_fcf_per_diluted_share,
-    compute_free_cash_flow,
-)
-from src.analysis.strategy.fcf_earnings_growth.models import (
-    AnnualGrowthObservation,
-    FCFClassificationBasis,
-    FCFEarningsGrowthPolicy,
-    HistoricalHorizon,
-    MetricResult,
-    MetricStatus,
-    ReasonCode,
-)
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.cache import (
     ResolvedInputCacheKey,
@@ -54,6 +40,20 @@ from src.data.financial.resolution_trace import (
 from src.data.quality import QualityContext, QualityDecision, QualityOutcome
 from src.data.quality_reporting import publish_quality
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from src.strategies.fcf_growth.calculators import (
+    compute_cagr,
+    compute_fcf_per_diluted_share,
+    compute_free_cash_flow,
+)
+from src.strategies.fcf_growth.models import (
+    AnnualGrowthObservation,
+    FCFClassificationBasis,
+    FCFEarningsGrowthPolicy,
+    HistoricalHorizon,
+    MetricResult,
+    MetricStatus,
+    ReasonCode,
+)
 
 CACHE_SCHEMA_VERSION = 2
 _ANNUAL_FIELDS = (

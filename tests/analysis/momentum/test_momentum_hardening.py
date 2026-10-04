@@ -7,9 +7,9 @@ import pandas as pd
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.fcf_earnings_growth.models import MetricStatus, ReasonCode
 from src.data.quality import HistoricalDataQualityError
 from src.evaluation.fixtures.market_data import FixtureMarketDataProvider
+from src.strategies.fcf_growth.models import MetricStatus, ReasonCode
 from src.strategies.momentum.analyzer import (
     MomentumAnalyzer,
     MomentumConfig,

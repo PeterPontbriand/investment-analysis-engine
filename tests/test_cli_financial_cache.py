@@ -94,7 +94,7 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
         patch("src.cli_composition.build_sec_production_provider", return_value=provider),
         patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
         patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=profile),
-        patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile),
         patch("src.cli_support.SQLiteDatabase", side_effect=database),
         patch("src.cli.utc_now", return_value=NOW),
     ):
@@ -169,7 +169,7 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
         patch("src.cli_composition.build_sec_production_provider", return_value=provider),
         patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
         patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=profile),
-        patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile),
         patch("src.cli_support.ensure_database_ready", side_effect=AssertionError("Database must not be migrated")),
     ):
         result = CliRunner().invoke(app, arguments)

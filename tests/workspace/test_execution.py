@@ -17,6 +17,7 @@ from src.data.repositories.analysis_runs import AnalysisRunConflictError, SQLite
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.evaluation.fixtures.market_data import FixtureDataClient
+from src.strategies.fcf_growth.execution import FCFGrowthCapture
 from src.strategies.graham_growth.execution import GrahamGrowthCapture
 from src.strategies.graham_number.execution import GrahamNumberCapture
 from src.strategies.momentum.analyzer import MomentumRun
@@ -31,7 +32,6 @@ from src.workspace.execution import (
     from_graham_number_capture,
     from_momentum_capture,
 )
-from src.workspace.fcf_growth_execution import FCFGrowthCapture
 from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest, MomentumSelection
 from src.workspace.runs import AnalysisRun

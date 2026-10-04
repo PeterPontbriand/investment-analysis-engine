@@ -8,14 +8,6 @@ from dataclasses import replace
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.fcf_earnings_growth import (
-    FCFEarningsGrowthAnalyzer,
-    FCFEarningsGrowthConfig,
-    FCFEarningsGrowthPolicy,
-    ForwardPolicy,
-    ProductionAnnualGrowthSeriesResolver,
-)
-from src.analysis.strategy.fcf_earnings_growth.models import Classification, MetricStatus, ReasonCode
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
 from src.data.sec_edgar import SEC_PROVIDER_ID
@@ -23,8 +15,18 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
-from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.presentation import PresentationMode
+from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.fcf_growth.models import (
+    Classification,
+    FCFEarningsGrowthConfig,
+    FCFEarningsGrowthPolicy,
+    ForwardPolicy,
+    MetricStatus,
+    ReasonCode,
+)
+from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
 from tests.analysis.fcf_earnings_growth.test_fcf_earnings_growth_input_resolver import NOW
 
 

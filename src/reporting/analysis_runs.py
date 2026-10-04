@@ -19,11 +19,11 @@ rather than guessing or upgrading silently.
 
 from dataclasses import dataclass, replace
 
-from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthResult
 from src.core.analysis_status import CalculationStatus
 from src.reporting.evidence_presentation import friendly_valuation_failure
-from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.presentation import PresentationMode
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
 from src.strategies.graham_growth.calculation import GrowthValueInputAssembly
 from src.strategies.graham_growth.presenter import (
     GrahamGrowthPresentation,

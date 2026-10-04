@@ -27,16 +27,16 @@ from typing import Annotated, Literal, cast
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictFloat, field_validator, model_validator
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.fcf_earnings_growth.models import (
+from src.config import settings
+from src.core.constants import ConfigKeys
+from src.data.instrument_profile import InstrumentProfile
+from src.strategies.fcf_growth.models import (
     FCFClassificationBasis,
     FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     ForwardPolicy,
     HistoricalHorizon,
 )
-from src.config import settings
-from src.core.constants import ConfigKeys
-from src.data.instrument_profile import InstrumentProfile
 from src.strategies.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
 from src.strategies.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
 from src.strategies.momentum.analyzer import MomentumConfig

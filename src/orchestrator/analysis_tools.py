@@ -11,17 +11,17 @@ from typing import Annotated, Final
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.fcf_earnings_growth import (
+from src.data.instrument_profile import InstrumentProfile
+from src.orchestrator.dispatcher import AsyncToolDispatcher
+from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from src.strategies.fcf_growth.models import (
     FCFClassificationBasis,
-    FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardPolicy,
     HistoricalHorizon,
 )
-from src.data.instrument_profile import InstrumentProfile
-from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.strategies.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis

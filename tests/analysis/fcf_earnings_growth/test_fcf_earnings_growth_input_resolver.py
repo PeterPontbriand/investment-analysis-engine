@@ -7,19 +7,6 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.analysis.strategy.fcf_earnings_growth.input_resolver import (
-    CACHE_SCHEMA_VERSION,
-    AnnualGrowthSeriesAssembly,
-    FinancialFieldProvider,
-    resolve_annual_growth_series,
-)
-from src.analysis.strategy.fcf_earnings_growth.models import (
-    FCFClassificationBasis,
-    FCFEarningsGrowthPolicy,
-    HistoricalHorizon,
-    MetricStatus,
-    ReasonCode,
-)
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputSeriesCacheQuery
 from src.data.financial.facts import FinancialField
@@ -29,6 +16,19 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_fact,
     annual_series,
+)
+from src.strategies.fcf_growth.input_resolver import (
+    CACHE_SCHEMA_VERSION,
+    AnnualGrowthSeriesAssembly,
+    FinancialFieldProvider,
+    resolve_annual_growth_series,
+)
+from src.strategies.fcf_growth.models import (
+    FCFClassificationBasis,
+    FCFEarningsGrowthPolicy,
+    HistoricalHorizon,
+    MetricStatus,
+    ReasonCode,
 )
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)

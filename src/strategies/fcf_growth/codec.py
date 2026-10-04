@@ -4,7 +4,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from src.analysis.strategy.fcf_earnings_growth.models import (
+from src.strategies.fcf_growth.models import (
     METHOD_ID,
     METHOD_VERSION,
     SCHEMA_VERSION,

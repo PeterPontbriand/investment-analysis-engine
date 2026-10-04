@@ -9,7 +9,6 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthResult, MetricResult
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
@@ -17,6 +16,7 @@ from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profi
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
 from src.reporting.presentation import PresentationMode
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, MetricResult
 from src.strategies.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
     GrahamGrowthValueResult,
@@ -808,5 +808,5 @@ def test_fcf_project_run_never_calls_a_live_analyzer() -> None:
         raise AssertionError("Replay must not call a live FCF analyzer.")
 
     run = _fcf_run()
-    with patch("src.analysis.strategy.fcf_earnings_growth.analyzer.FCFEarningsGrowthAnalyzer.run_analysis", forbidden):
+    with patch("src.strategies.fcf_growth.analyzer.FCFEarningsGrowthAnalyzer.run_analysis", forbidden):
         assert project_run(run, ReplayOptions(mode=PresentationMode.DIAGNOSTICS))

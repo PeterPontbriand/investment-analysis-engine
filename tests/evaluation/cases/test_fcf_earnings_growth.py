@@ -7,14 +7,6 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.strategy.fcf_earnings_growth.models import (
-    Classification,
-    FCFEarningsGrowthResult,
-    HistoricalHorizon,
-    MetricStatus,
-    ReasonCode,
-    TrendClassification,
-)
 from src.core.analysis_status import CalculationStatus
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
@@ -41,6 +33,14 @@ from src.evaluation.models import (
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.analysis_tools import FCFEarningsGrowthToolArguments
+from src.strategies.fcf_growth.models import (
+    Classification,
+    FCFEarningsGrowthResult,
+    HistoricalHorizon,
+    MetricStatus,
+    ReasonCode,
+    TrendClassification,
+)
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("d0000000-0000-0000-0000-00000000000d")
