@@ -38,13 +38,11 @@ from src.evaluation.fixtures.market_data import MOMENTUM_LONG_WINDOW, MOMENTUM_R
 from src.evaluation.models import Case
 from src.evaluation.reporting import EvaluationReport
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
-from src.orchestrator.analysis_tools import (
-    FCFEarningsGrowthToolArguments,
-    GrahamGrowthValueToolArguments,
-    GrahamNumberToolArguments,
-    MomentumToolArguments,
-)
 from src.strategies.fcf_growth.models import HistoricalHorizon
+from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
+from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
+from src.strategies.graham_number.tool import GrahamNumberToolArguments
+from src.strategies.momentum.tool import MomentumToolArguments
 
 DETERMINISTIC_SUITE_ID: Final = "step-2.5-golden-minimum"
 DETERMINISTIC_SUITE_VERSION: Final = "h1-v4"

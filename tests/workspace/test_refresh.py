@@ -17,9 +17,11 @@ from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.execution import run_momentum
+from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.codecs import encode_evidence
 from src.workspace.execution import ExecutionCapture
 from src.workspace.models import RunOutcome
@@ -31,8 +33,8 @@ from src.workspace.refresh import (
     WatchlistNotFoundError,
     refresh_watchlist,
 )
-from src.workspace.requests import AnalysisSelection, GrahamNumberSelection, MomentumSelection
 from src.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
+from src.workspace.strategy_types import AnalysisSelection
 
 WATCHLIST_ID = UUID("11111111-1111-4111-8111-111111111111")
 NOW = datetime(2026, 9, 19, 12, 0, 0, tzinfo=UTC)

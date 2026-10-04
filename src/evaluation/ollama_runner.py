@@ -28,7 +28,7 @@ from src.evaluation.catalog import (
     DETERMINISTIC_SUITE_VERSION,
     build_deterministic_requests,
 )
-from src.evaluation.composition import AnalysisToolArguments, FixtureCompositionError, compose_fixture_dispatcher
+from src.evaluation.composition import FixtureCompositionError, compose_fixture_dispatcher
 from src.evaluation.evaluator import (
     evaluate_execution_status,
     evaluate_fixture_status,
@@ -41,7 +41,6 @@ from src.evaluation.models import (
     ExecutionMode,
     Observation,
     ToolCallObservation,
-    ToolName,
 )
 from src.evaluation.reporting import (
     CaseEvaluationResult,
@@ -53,18 +52,18 @@ from src.evaluation.reporting import (
 )
 from src.evaluation.runner import DeterministicCaseRequest
 from src.llm.client import LLMClient
-from src.orchestrator.analysis_tools import (
-    ANALYSIS_TOOL_ARGUMENT_MODELS,
-    FCFEarningsGrowthToolArguments,
-    GrahamGrowthValueToolArguments,
-    GrahamNumberToolArguments,
-    MomentumToolArguments,
-)
+from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
+from src.orchestrator.analysis_tools import ANALYSIS_TOOL_ARGUMENT_MODELS
 from src.orchestrator.context import MessageContext
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
 from src.orchestrator.prompts import SystemPromptBuilder
+from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import AgentStepResult, ToolCallRequest, ToolCallResult
 from src.schema.config import SchemaConfig
+from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
+from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
+from src.strategies.graham_number.tool import GrahamNumberToolArguments
+from src.strategies.momentum.tool import MomentumToolArguments
 from src.tools.parser import ToolParser
 from src.tools.schema_generator import ToolRegistry
 

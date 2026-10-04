@@ -33,9 +33,9 @@ from src.strategies.fcf_growth.models import (
     ReasonCode,
     TrendClassification,
 )
+from src.strategies.fcf_growth.selection import FCFGrowthSelection
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
-from src.workspace.requests import FCFGrowthSelection
 from src.workspace.runs import AnalysisRun
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)

@@ -22,7 +22,6 @@ from src.evaluation.models import (
     Observation,
     ToolCallObservation,
     ToolConstraints,
-    ToolName,
 )
 
 __all__ = [
@@ -40,5 +39,4 @@ __all__ = [
     "Observation",
     "ToolCallObservation",
     "ToolConstraints",
-    "ToolName",
 ]

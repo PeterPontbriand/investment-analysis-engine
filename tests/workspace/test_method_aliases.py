@@ -5,7 +5,7 @@ from typing import get_args
 import pytest
 
 from src.workspace.method_aliases import ALIAS_METHOD_IDS, ANALYSIS_ALIASES, METHOD_ID_ALIASES, alias_for_method_id
-from src.workspace.requests import AnalysisSelection
+from src.workspace.strategy_types import AnalysisSelection
 
 
 def _selection_method_ids() -> set[str]:

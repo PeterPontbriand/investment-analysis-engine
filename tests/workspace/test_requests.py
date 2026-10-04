@@ -14,19 +14,15 @@ from src.strategies.fcf_growth.models import (
     ForwardPolicy,
     HistoricalHorizon,
 )
+from src.strategies.fcf_growth.selection import FCFGrowthSelection, FCFPolicySnapshot
 from src.strategies.graham_growth.config import GrahamGrowthConfig
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number.config import GrahamNumberConfig
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.analyzer import MomentumConfig
-from src.workspace.requests import (
-    AnalysisRequest,
-    AnalysisSelection,
-    FCFGrowthSelection,
-    FCFPolicySnapshot,
-    GrahamGrowthSelection,
-    GrahamNumberSelection,
-    MomentumSelection,
-    parse_selection,
-)
+from src.strategies.momentum.selection import MomentumSelection
+from src.workspace.requests import AnalysisRequest, parse_selection
+from src.workspace.strategy_types import AnalysisSelection
 
 
 @pytest.fixture(autouse=True)

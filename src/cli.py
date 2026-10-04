@@ -77,6 +77,7 @@ from src.strategies.fcf_growth.models import (
     HistoricalHorizon,
 )
 from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
+from src.strategies.fcf_growth.selection import FCFGrowthSelection, FCFPolicySnapshot
 from src.strategies.graham_growth.calculation import (
     GrahamGrowthInputResolver,
     GrowthValueInputAssembly,
@@ -88,6 +89,7 @@ from src.strategies.graham_growth.presenter import (
     growth_with_public_quote_reason,
     render_graham_growth,
 )
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
 from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.graham_number.execution import execute_graham_number
@@ -96,9 +98,11 @@ from src.strategies.graham_number.presenter import (
     number_with_public_quote_reason,
     render_graham_number,
 )
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategies.momentum.execution import capture_momentum, run_momentum
 from src.strategies.momentum.presenter import MomentumPresentation, render_momentum
+from src.strategies.momentum.selection import MomentumSelection
 from src.utils import paths
 from src.workspace.execution import (
     ExecutionCapture,
@@ -108,14 +112,7 @@ from src.workspace.execution import (
     from_graham_number_capture,
     from_momentum_capture,
 )
-from src.workspace.requests import (
-    AnalysisRequest,
-    FCFGrowthSelection,
-    FCFPolicySnapshot,
-    GrahamGrowthSelection,
-    GrahamNumberSelection,
-    MomentumSelection,
-)
+from src.workspace.requests import AnalysisRequest
 
 app = typer.Typer(
     help="Analyze financial data with transparent calculations and supporting evidence.", add_completion=False

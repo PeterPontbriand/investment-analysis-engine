@@ -46,19 +46,14 @@ from uuid import UUID, uuid4
 from src.core.clock import utc_now
 from src.data.instrument_profile import InstrumentProfile
 from src.strategies.fcf_growth.execution import FCFGrowthCapture
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from src.strategies.graham_growth.execution import GrahamGrowthCapture
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_number.execution import GrahamNumberCapture
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.execution import MomentumCapture
 from src.workspace.codecs import encode_evidence
 from src.workspace.models import RunOutcome, StrictJsonMapping
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
-
-NativeEvidence = MomentumRun | GrahamNumberAnalysis | GrahamGrowthAnalysis | FCFEarningsGrowthResult
+from src.workspace.strategy_types import NativeEvidence
 
 _METHOD_VERSIONS: dict[tuple[str, str], tuple[int, int]] = {
     ("momentum", "sma_crossover"): (1, 2),

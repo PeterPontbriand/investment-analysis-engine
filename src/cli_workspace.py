@@ -59,12 +59,16 @@ from src.strategies.fcf_growth.models import (
     ForwardPolicy,
     HistoricalHorizon,
 )
+from src.strategies.fcf_growth.selection import FCFGrowthSelection, FCFPolicySnapshot
 from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_growth.execution import execute_graham_growth
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.execution import execute_graham_number
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategies.momentum.execution import capture_momentum, run_momentum
+from src.strategies.momentum.selection import MomentumSelection
 from src.utils.paths import is_windows
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from src.workspace.execution import (
@@ -85,15 +89,8 @@ from src.workspace.refresh import (
 from src.workspace.refresh import (
     WatchlistNotFoundError as RefreshWatchlistNotFoundError,
 )
-from src.workspace.requests import (
-    AnalysisSelection,
-    FCFGrowthSelection,
-    FCFPolicySnapshot,
-    GrahamGrowthSelection,
-    GrahamNumberSelection,
-    MomentumSelection,
-)
 from src.workspace.runs import AnalysisRunSummary, RunQuery, Watchlist, WatchlistEntry, WatchlistSummary
+from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import StoredSelectionError, WatchlistSpec, normalize_ticker
 
 watchlist_app = typer.Typer(help="Manage named watchlists of tickers and their analysis selections.")

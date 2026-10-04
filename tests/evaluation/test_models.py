@@ -21,8 +21,8 @@ from src.evaluation.models import (
     Observation,
     ToolCallObservation,
     ToolConstraints,
-    ToolName,
 )
+from src.orchestrator.tool_names import ToolName
 
 
 @pytest.mark.parametrize(
@@ -603,5 +603,5 @@ def test_public_evaluation_exports_are_deliberate() -> None:
         "Observation",
         "ToolCallObservation",
         "ToolConstraints",
-        "ToolName",
     ]
+    assert not hasattr(evaluation, "ToolName")

@@ -40,8 +40,8 @@ from src.strategies.graham_number.presenter import (
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.presenter import MomentumPresentation, render_momentum
+from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.codecs import decode_evidence
-from src.workspace.requests import MomentumSelection
 from src.workspace.runs import AnalysisRun
 
 # Statuses whose stored `assembly.reason`/`result.reason` is already investor-facing

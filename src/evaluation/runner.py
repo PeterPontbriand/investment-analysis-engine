@@ -16,11 +16,7 @@ from src.core.telemetry import (
     TrajectoryRecord,
     TrajectoryRecorder,
 )
-from src.evaluation.composition import (
-    AnalysisToolArguments,
-    FixtureCompositionError,
-    dispatch_fixture_case,
-)
+from src.evaluation.composition import FixtureCompositionError, dispatch_fixture_case
 from src.evaluation.evaluator import (
     evaluate_domain_outcomes,
     evaluate_fixture_status,
@@ -35,7 +31,6 @@ from src.evaluation.models import (
     ExecutionMode,
     NumericalObservation,
     Observation,
-    ToolName,
 )
 from src.evaluation.reporting import (
     CaseEvaluationResult,
@@ -43,17 +38,17 @@ from src.evaluation.reporting import (
     build_case_result,
     build_evaluation_report,
 )
-from src.orchestrator.analysis_tools import (
-    FCFEarningsGrowthToolArguments,
-    GrahamGrowthValueToolArguments,
-    GrahamNumberToolArguments,
-    MomentumToolArguments,
-)
+from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
+from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import ToolCallResult
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
 from src.strategies.graham_number.service import GrahamNumberAnalysis
+from src.strategies.graham_number.tool import GrahamNumberToolArguments
 from src.strategies.momentum.analyzer import MomentumRun
+from src.strategies.momentum.tool import MomentumToolArguments
 
 logger = logging.getLogger(__name__)
 

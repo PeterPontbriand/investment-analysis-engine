@@ -458,7 +458,7 @@ Do not rewrite the runtime around a model-specific assumption merely to make one
 
 ### Golden-Suite architecture
 
-The production orchestration seam exposes one explicit handler per strategy (see [*Analysis strategies: the boundary*](#6-analysis-strategies-the-boundary)) in `src/orchestrator/analysis_tools.py`. `register_analysis_tools(...)` registers them on the existing `AsyncToolDispatcher` using injected analyzers, resolvers, provider selections, calculation policy, and clock. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. Tool argument schemas are derived from the strict Pydantic models in `ANALYSIS_TOOL_ARGUMENT_MODELS`; successful calls retain each strategy's native typed execution result.
+The production orchestration seam exposes one explicit handler per strategy (see [*Analysis strategies: the boundary*](#6-analysis-strategies-the-boundary)) in `src/orchestrator/analysis_tools.py`. `register_analysis_tools(...)` registers them on the existing `AsyncToolDispatcher` using injected analyzers, resolvers, provider selections, calculation policy, and clock. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. The tool names are the `ToolName` enum in `src/orchestrator/tool_names.py`. Each strategy's strict Pydantic arguments model lives in its `tool.py` under `src/strategies/` and subclasses `AnalysisToolArguments` (`src/orchestrator/analysis_tool_arguments.py`). Tool argument schemas are derived from the models in `ANALYSIS_TOOL_ARGUMENT_MODELS`; successful calls retain each strategy's native typed execution result.
 
 ```text
 Golden Case
@@ -555,7 +555,8 @@ Private model reasoning is never reconstructed.
 
 This is a package-level map, not a generated file listing — it names what each top-level `src/` package owns, not every file in it:
 
-- `src/analysis/` — the generic `BaseAnalyzer`/`AnalysisContext` contract, each strategy's own package under `strategy/`, and strategy-neutral helpers shared across those packages (`shared/financial_resolution.py`: EPS/quote resolution, price-relationship comparison, ticker normalization).
+- `src/analysis/` — the generic `BaseAnalyzer`/`AnalysisContext` contract and strategy-neutral helpers (`shared/financial_resolution.py`: EPS/quote resolution, price-relationship comparison, ticker normalization).
+- `src/strategies/` — one package per strategy, each file named for its role (analyzer modules, `selection.py` for the persisted selection snapshot, `tool.py` for the analysis-tool arguments model, `codec.py`, `execution.py`, `presenter.py`), plus `_shared/` and `_graham/` for code several strategies share.
 - `src/core/` — the shared clock (`clock.py`), core result/status types, and trajectory telemetry.
 - `src/data/` — provider contracts and adapters (`base_client.py`, `market_data.py`, `sec_edgar/`, `massive/`, `yfinance/`), financial provenance and resolution (`financial/`), instrument identity/profiles, and SQLite repositories under `repositories/`.
 - `src/evaluation/` — the Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting.
@@ -565,7 +566,7 @@ This is a package-level map, not a generated file listing — it names what each
 - `src/schema/` — structured-output schema constraints and validation.
 - `src/tools/` — the tool-dispatch protocol and argument-schema generation.
 - `src/utils/` — logging and worker/concurrency helpers.
-- `src/workspace/` — validated selections, strategy execution adapters, run capture, watchlists, and refresh.
+- `src/workspace/` — the selection base and the closed selection and native-evidence unions (`selection_base.py`, `strategy_types.py`), analysis requests, run capture, watchlists, and refresh.
 
 The provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. Production SQLite persistence is implemented under `src/data/repositories/`; callers consume typed domain objects rather than SQL rows.
 

@@ -60,8 +60,9 @@ from uuid import UUID, uuid4
 from src.core.clock import utc_now
 from src.workspace.execution import AnalysisRunSink, BatchContext, ExecutionCapture, execute
 from src.workspace.models import RunOutcome
-from src.workspace.requests import AnalysisRequest, AnalysisSelection
+from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun, Watchlist
+from src.workspace.strategy_types import AnalysisSelection
 
 
 class WatchlistNotFoundError(ValueError):

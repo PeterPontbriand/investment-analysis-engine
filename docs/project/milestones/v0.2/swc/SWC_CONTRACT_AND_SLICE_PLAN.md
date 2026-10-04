@@ -46,8 +46,8 @@ document-link check and applicable documentation checks.
 | :--- | :--- | :--- | :--- |
 | SWC.1 | [Settle descriptor contract and conformance design](#swc1--descriptor-contract-and-conformance-design) | Complete | 2026-10-03 |
 | SWC.2a | [Relocate the existing strategy modules into one package per strategy](#swc2a--strategy-packages) | Complete | 2026-10-04 |
-| SWC.2b | [Move the symbols the descriptor and tiers will reference](#swc2b--symbol-moves) | Next | |
-| SWC.2c | [Declare the descriptor; wire orchestration and evaluation routing](#swc2c--descriptor-and-orchestration-wiring) | Planned | |
+| SWC.2b | [Move the symbols the descriptor and tiers will reference](#swc2b--symbol-moves) | Complete | 2026-10-04 |
+| SWC.2c | [Declare the descriptor; wire orchestration and evaluation routing](#swc2c--descriptor-and-orchestration-wiring) | Next | |
 | SWC.2d | [Move fixture composition into the evaluation tier](#swc2d--evaluation-tier) | Planned | |
 | SWC.3a | [Inject the descriptor into workspace consumers](#swc3a--workspace-consumers) | Planned | |
 | SWC.3b | [CLI tier: selection builders and refresh executors](#swc3b--cli-tier) | Planned | |
@@ -263,14 +263,23 @@ composition into the evaluation tier.
   delete `AnalysisType`. No behavior change, no descriptor.
 - **Scope:** new `src/orchestrator/tool_names.py`, `src/orchestrator/analysis_tool_arguments.py` (the shared
   base renamed `AnalysisToolArguments`, `FiniteFloat`, `PositiveFiniteFloat`), `src/strategies/<strategy>/tool.py`
-  (arguments model only, four files), `src/workspace/selection_base.py`, `src/strategies/<strategy>/selection.py`
-  (four files) and `src/workspace/strategy_types.py` (`NativeEvidence`, `SelectionMember`,
-  `AnalysisSelection`); `src/orchestrator/analysis_tools.py`, `src/workspace/{requests,execution}.py`;
+  (arguments model only, four files; Momentum's `_MOMENTUM_DEFAULTS` goes with its model),
+  `src/workspace/selection_base.py` (the shared selection base, public as `FrozenSelection`, and the two
+  CLI provider tuples both Graham selections read, public as `CLI_SECURITY_PROVIDERS` and `CLI_QUOTE_PROVIDERS`),
+  `src/strategies/<strategy>/selection.py` (four files; `FCFPolicySnapshot` goes with `FCFGrowthSelection`) and
+  `src/workspace/strategy_types.py` (`NativeEvidence`, `SelectionMember`, `AnalysisSelection`);
+  `src/orchestrator/analysis_tools.py`, `src/workspace/{requests,execution}.py` (`AnalysisRequest`,
+  `parse_selection` and its JSON helpers stay in `requests.py`);
   `src/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py` (the
   `src.evaluation` export of `ToolName` is removed); the six `src/evaluation/cases/*.py` importers;
   `src/core/constants.py`; every test that imports a moved symbol; and `docs/EVALUATIONS.md` and
-  `docs/project/ARCHITECTURE.md`. The `ANALYZE_*_TOOL` constants, `ANALYSIS_TOOL_ARGUMENT_MODELS` and the
-  union stay until SWC.2c and SWC.2d.
+  `docs/project/ARCHITECTURE.md`. The four-model `AnalysisToolArguments` union in `composition.py` is
+  replaced by the shared base here, so one name never denotes two things; every consumer reads only
+  `ticker` and `model_dump` and dispatches by `isinstance`. The `ANALYZE_*_TOOL` constants and
+  `ANALYSIS_TOOL_ARGUMENT_MODELS` stay until SWC.2c. The move adds twenty entries to T13's transition
+  allowlist, one for each import of a strategy's `tool` file by `analysis_tools.py`, `runner.py` and
+  `ollama_runner.py` (SWC.2c removes them) and by `composition.py` and `catalog.py` (SWC.2d removes them);
+  [design §4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#4-static-declaration-model) lists them.
 - **Branch:** `feat/swc-2b-symbol-moves`, from `main` after SWC.2a has merged.
 - **Detail:** [SWC.1 design §4 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#11-migration-from-current-declarations).
 
@@ -288,7 +297,8 @@ composition into the evaluation tier.
   (`AnalysisToolDependencies`, `AnalysisToolHandlers`, the `ANALYZE_*_TOOL` constants and
   `ANALYSIS_TOOL_ARGUMENT_MODELS` are deleted; registration receives the injected handler mapping);
   `src/strategies/<strategy>/tool.py` (dependency class and handler);
-  `src/evaluation/{composition,runner,ollama_runner}.py`. `NativeAnalysisResult` is replaced by
+  `src/evaluation/{composition,runner,ollama_runner}.py`; removes its twelve T13 transition entries.
+  `NativeAnalysisResult` is replaced by
   `NativeEvidence`; `_native_status` becomes each behavior's `native_status` (Momentum's returns `None`) and
   stops defaulting to FCF. Fixture composition stays in `composition.py` as per-strategy functions until
   SWC.2d. Do not change evaluation fixture truth, scoring, formula semantics or external-call behavior.
@@ -307,7 +317,14 @@ composition into the evaluation tier.
 - **Scope:** new `src/evaluation/{strategy_fixtures,fixture_context,fixture_ids}.py`,
   `src/strategies/<strategy>/evaluation.py` and `src/strategies/_graham/evaluation.py`;
   `src/evaluation/{composition,catalog}.py`; the case modules (each case's reviewed arguments move beside
-  it); tests and T10's evaluation-tier surface. No fixture value, expected outcome or score changes.
+  it); tests and T10's evaluation-tier surface; removes its eight T13 transition entries. Every case module
+  becomes single-strategy and is named for its strategy package: GRN-04 and GRN-05 move from
+  `graham_resolution.py` into `graham_number.py`; FPI-01, FPI-02 and FPI-04 move from `sec_edgar_fpi.py`
+  into `graham_growth.py` and FPI-03 into the FCF module, which is renamed `fcf_growth.py`. T13 gains the
+  clause that `src.evaluation.cases.<strategy>` may import the tool role of `src.strategies.<strategy>` and
+  of no other strategy, because the moved arguments make that import permanent. Case ids, the order of
+  `DETERMINISTIC_CASES`, the suite version and the fixture modules do not change. No fixture value,
+  expected outcome or score changes.
 - **Branch:** `feat/swc-2d-evaluation-tier`, from `main` after SWC.2c has merged.
 - **Detail:** [SWC.1 design §3.3 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers).
 
@@ -535,9 +552,10 @@ version and result-schema version distinct and do not silently reinterpret histo
   another; foundation, reporting and the other generic modules import only analyzer and selection roles and
   never the composition root, a tier or a strategy's CLI or evaluation file; no module under `src` imports
   `tests`. The layering test counts parent-package initialization, and `src/workspace/__init__.py` is empty.
-- **Transition closure:** the exact T13 transition allowlist in SWC.1 design §4 shrinks only when its owning
-  slice removes the corresponding import edge; it is empty when SWC.4c merges. SWC.7's final conformance
-  verifies that it remains empty.
+- **Transition closure:** the exact T13 transition allowlist in SWC.1 design §4 grew once, in SWC.2b, by the
+  twenty edges to the new `tool` files; from then on it shrinks only when its owning slice removes the
+  corresponding import edge, and it is empty when SWC.4c merges. SWC.7's final conformance verifies that it
+  remains empty.
 - **Invocation contract:** production callers continue to invoke analyzers only through
   `BaseAnalyzer[ConfigT, ResultT].run_analysis(ticker, config, context)` with dependencies injected
   at construction and cross-cutting concerns carried in `AnalysisContext`.

@@ -39,10 +39,11 @@ from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFa
 from src.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
 from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
+from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.models import RunOutcome
-from src.workspace.requests import GrahamGrowthSelection, MomentumSelection
 from src.workspace.runs import RunQuery
 from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_cli_output  # noqa: F401
 

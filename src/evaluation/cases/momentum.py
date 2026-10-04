@@ -7,14 +7,8 @@ from src.evaluation.composition import (
     MOMENTUM_BOUNDARY_FIXTURE_ID,
     MOMENTUM_SUCCESS_FIXTURE_ID,
 )
-from src.evaluation.models import (
-    Case,
-    DomainOutcomeExpectation,
-    Expectation,
-    NumericalExpectation,
-    ToolConstraints,
-    ToolName,
-)
+from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, NumericalExpectation, ToolConstraints
+from src.orchestrator.tool_names import ToolName
 
 _MOMENTUM_TOOL_CONSTRAINTS: Final = ToolConstraints(
     permitted=(ToolName.ANALYZE_MOMENTUM,),

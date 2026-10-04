@@ -34,10 +34,11 @@ from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 from src.reporting.analysis_runs import ReplayOptions, project_run
 from src.reporting.presentation import PresentationMode
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.workspace.execution import ExecutionCapture, execute
 from src.workspace.models import RunOutcome
-from src.workspace.requests import AnalysisRequest, GrahamNumberSelection
+from src.workspace.requests import AnalysisRequest
 
 NOW = datetime(2026, 9, 22, 12, 0, 0, tzinfo=UTC)
 LATER = NOW + timedelta(days=31)

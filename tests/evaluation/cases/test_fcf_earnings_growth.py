@@ -28,11 +28,10 @@ from src.evaluation.models import (
     ExecutionMode,
     Observation,
     ToolCallObservation,
-    ToolName,
 )
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
-from src.orchestrator.analysis_tools import FCFEarningsGrowthToolArguments
+from src.orchestrator.tool_names import ToolName
 from src.strategies.fcf_growth.models import (
     Classification,
     FCFEarningsGrowthResult,
@@ -41,6 +40,7 @@ from src.strategies.fcf_growth.models import (
     ReasonCode,
     TrendClassification,
 )
+from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("d0000000-0000-0000-0000-00000000000d")
