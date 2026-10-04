@@ -21,11 +21,11 @@ from src.analysis.base_analyzer import AnalysisContext
 from src.core.analysis_status import CalculationStatus
 from src.data.instrument_profile import InstrumentProfile
 from src.data.instrument_profile_cache import InstrumentProfileResolver
+from src.strategies._shared.profile import compose_graham_profile
 from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.workspace.graham_shared import compose_graham_profile
 from src.workspace.models import RunOutcome
 
 

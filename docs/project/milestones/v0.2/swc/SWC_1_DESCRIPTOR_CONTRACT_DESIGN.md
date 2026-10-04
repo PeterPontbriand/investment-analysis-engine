@@ -228,7 +228,8 @@ Fixture values, expected outcomes and case truth stay hand-written and reviewed.
   1. *Within a strategy*, a role file may import another file of the same package only if the imported
      role ranks lower. Order, lowest first: envelope and analyzer modules; selection and codec; tool and
      execution; presenter; replay; cli and evaluation. Analyzer modules may import each other. A file never
-     imports a role of equal or higher rank.
+     imports a role of equal or higher rank, so two different roles of one rank (selection and codec, tool
+     and execution, cli and evaluation, and the envelope leaf and an analyzer module) never import each other.
   2. *Between strategies*, no package imports another. `_shared` imports no strategy or family module.
      `_graham` imports only the analyzer modules of its two members, and only they import it.
   3. *From outside `src/strategies`*, foundation modules (`data`, `workspace`, `orchestrator`, `reporting`,
@@ -237,6 +238,42 @@ Fixture values, expected outcomes and case truth stay hand-written and reviewed.
      tier. The root `src/strategy_wiring.py` may import analyzer, codec, envelope, replay, selection and tool
      roles; the CLI tier only `cli`; the evaluation tier only `evaluation`.
   4. No module under `src` imports `tests`.
+
+  **SWC.2a transition allowlist:** Until its owning slice removes it, T13 permits only the exact importer-to-module
+  edges below. Each row is one edge; no wildcard, strategy-wide or role-wide exception is permitted. T13 fails if
+  an entry is stale or if any unlisted forbidden edge appears. The owning slice removes its entry in the same
+  change that rewires the importer. The within-strategy role rule, cross-strategy rule, no-import-of-tests rule,
+  and parent-package cycle rule remain strict throughout.
+
+  | Importer module | Imported module | Removes entry |
+  | :--- | :--- | :--- |
+  | `src.workspace.codecs` | `src.strategies.fcf_growth.codec` | SWC.3a |
+  | `src.workspace.codecs` | `src.strategies.graham_growth.codec` | SWC.3a |
+  | `src.workspace.codecs` | `src.strategies.graham_number.codec` | SWC.3a |
+  | `src.workspace.codecs` | `src.strategies.momentum.codec` | SWC.3a |
+  | `src.workspace.execution` | `src.strategies.fcf_growth.execution` | SWC.3a |
+  | `src.workspace.execution` | `src.strategies.graham_growth.execution` | SWC.3a |
+  | `src.workspace.execution` | `src.strategies.graham_number.execution` | SWC.3a |
+  | `src.workspace.execution` | `src.strategies.momentum.execution` | SWC.3a |
+  | `src.cli_workspace` | `src.strategies.fcf_growth.execution` | SWC.3b |
+  | `src.cli_workspace` | `src.strategies.graham_growth.execution` | SWC.3b |
+  | `src.cli_workspace` | `src.strategies.graham_number.execution` | SWC.3b |
+  | `src.cli_workspace` | `src.strategies.momentum.execution` | SWC.3b |
+  | `src.cli` | `src.strategies.fcf_growth.execution` | SWC.3c |
+  | `src.cli` | `src.strategies.fcf_growth.presenter` | SWC.3c |
+  | `src.cli` | `src.strategies.graham_growth.execution` | SWC.3c |
+  | `src.cli` | `src.strategies.graham_growth.presenter` | SWC.3c |
+  | `src.cli` | `src.strategies.graham_number.execution` | SWC.3c |
+  | `src.cli` | `src.strategies.graham_number.presenter` | SWC.3c |
+  | `src.cli` | `src.strategies.momentum.execution` | SWC.3c |
+  | `src.cli` | `src.strategies.momentum.presenter` | SWC.3c |
+  | `src.reporting.analysis_runs` | `src.strategies.fcf_growth.presenter` | SWC.4c |
+  | `src.reporting.analysis_runs` | `src.strategies.graham_growth.presenter` | SWC.4c |
+  | `src.reporting.analysis_runs` | `src.strategies.graham_number.presenter` | SWC.4c |
+  | `src.reporting.analysis_runs` | `src.strategies.momentum.presenter` | SWC.4c |
+
+  Counts by owner: SWC.3a, 8; SWC.3b, 4; SWC.3c, 8; SWC.4c, 4. The list must be empty when
+  SWC.4c merges, and SWC.7 verifies final conformance.
 
   The rule was prototyped in the import-graph model: the real graph has no violation and thirteen
   deliberate violations are each rejected ([Appendix C](#appendix-c-import-cycle-evidence)). The existing
@@ -262,13 +299,15 @@ Fixture values, expected outcomes and case truth stay hand-written and reviewed.
   the identity as arguments.
 - **Parent-package initialization:** Python runs a package's `__init__.py` before any module in it, so an
   import graph that ignores parent packages misses cycles. `src/workspace/__init__.py` re-exports names
-  from `requests`; no module in `src/` or `tests/` imports those names from the package. SWC.2b empties it,
-  and SWC.2a empties the three re-exporting analyzer-package `__init__.py` files as it moves the analyzers.
-  Test T13 builds its graph with an edge from each module to every parent `__init__.py` that exists. Eight
-  re-exporting package `__init__.py` files take part in benign cycles on `main` once those are gone
-  (`data.sec_edgar`, `data.massive`, `data.yfinance`, `schema`, `core.telemetry`, `evaluation`,
-  `evaluation.fixtures` and `evaluation.cases`); T13 records exactly those package names and fails for any
-  other package whose `__init__.py` imports a module and sits in a cycle.
+  from `requests`; no module in `src/` or `tests/` imports those names from the package. SWC.2a empties it
+  and the three re-exporting analyzer-package `__init__.py` files as it moves the analyzers.
+  Test T13 builds its graph with an edge from each module to every parent `__init__.py` that exists. Ten
+  re-exporting package `__init__.py` files take part in benign cycles once those are gone, in eight cycle
+  components (`data.sec_edgar`, `data.massive`, `data.yfinance`, `schema`, `evaluation`, `evaluation.fixtures`,
+  `evaluation.cases`, and one component holding `core.telemetry`, `core.telemetry.sinks` and
+  `data.repositories`). T13 records exactly those ten package names, fails for any other package whose
+  `__init__.py` imports a module and sits in a cycle, and fails for a recorded name that no longer does.
+  Earlier drafts named one initializer per component and so listed eight; the telemetry component holds three.
 - **Prerequisite moves, with no compatibility re-exports.** SWC.2a relocates the existing strategy modules
   into `src/strategies/` (analyzers, codecs, adapters, presenters, shared profile composition) and
   retargets 101 importer files. SWC.2b then moves the symbols: `ToolName` to
@@ -494,7 +533,7 @@ parameterized over the production tuples and over the specimen tuples ([§19.5](
 | T10 `consumers_cover_every_descriptor` | The key set of each remaining consumer surface: CLI tier, evaluation tier, JSON ids, published schemas, generated strategy lists | The tiers' own tuples and the files on disk | Fails when a descriptor has no entry in a tier, naming the surface and the strategy. The surfaces that became derived (tool registration, evaluation routing, native status, codecs, aliases, selection parsing, builders, refresh executors, projectors) are no longer tables, so they are no longer compared. |
 | T11 `undeclared_inputs_fail_closed` | Every dispatcher in [§9.2](#92-fail-closed-dispatch) with an undeclared type, key, alias or arguments, and a bundle given another strategy's object | The behavior of the dispatchers over injected mappings, including the specimen | Proves no consumer routes an unknown input to Momentum or FCF. |
 | T12 `incomplete_strategy_negative_control` | A deliberately incomplete specimen ([§10.2](#102-negative-control)) | See below | Proves T10 and T11 can fail. |
-| T13 `import_layering` (parent-aware graph and role rule from SWC.2a; root rule from SWC.2c) | The import graph of `src`, with an edge from every module to each parent `__init__.py` | The source files | The role rule in [§4](#4-static-declaration-model): within a strategy only a higher-ranked role file imports a lower one; no strategy imports another; `_shared` and `_graham` follow their own rules; foundation, reporting and the other generic modules import only analyzer and selection roles and never the root or a tier; no module imports `tests`; no cycle outside the recorded benign package set. |
+| T13 `import_layering` (parent-aware graph and role rule from SWC.2a; root rule from SWC.2c) | The import graph of `src`, with an edge from every module to each parent `__init__.py` | The source files | Enforces the full role and parent-package rules in [§4](#4-static-declaration-model). During migration it permits only the exact transition edges listed there, checks each entry still exists, and rejects every unlisted forbidden edge. The transition list shrinks with its owning consumer move and is empty at SWC.4c; SWC.7 verifies final conformance. |
 | T14 `no_discovery_or_registration` | The AST of `src/strategy_wiring.py`, both tier modules and every strategy-owned file | The source files | See [§12](#12-framework-drift-checks). |
 | T15 `descriptor_is_closed` | Field names, types, frozen-ness, non-generic-ness and tuple-ness of the descriptor; member names of the behavior bundle and both tier compositions | `dataclasses.fields` | Adding a field or member forces a reviewed edit to the documented set. |
 | T16 `no_unused_field` | Each field and member name against attribute reads on descriptor-typed expressions in `src/` and `scripts/` outside the defining module | The source files, read with a conservative type resolver | A bare name match would be satisfied by an unrelated attribute. The resolver counts `X.field` only when `X` is a loop variable over `STRATEGIES` or `BY_*.values()`, the result of `require(...)`, `find(...)` or `BY_*[...]`, a parameter annotated `StrategyDescriptor`, or one of the module's descriptor constants. A self-test with snippets proves that `descriptor.alias` counts and `selection.alias` does not. |
@@ -913,7 +952,7 @@ reason:
 | Finding | Decision | Slice |
 | :--- | :--- | :--- |
 | `AnalysisType` in `src/core/constants.py` has one member (`MOMENTUM`) and no reader in `src/` or `tests/` (a repository search for the name finds only its definition). | Delete it. It is a dead per-strategy name list, and SWC.2b is where per-strategy name declarations are removed. | SWC.2b |
-| `src/workspace/__init__.py` re-exports names that no module in `src/` or `tests/` imports from the package, and takes part in an initialization cycle once `requests.py` imports the descriptor machinery. | Empty it. | SWC.2b |
+| `src/workspace/__init__.py` re-exports names that no module in `src/` or `tests/` imports from the package, and takes part in an initialization cycle once `requests.py` imports the descriptor machinery. | Empty it. | SWC.2a |
 | Two classes named `WatchlistNotFoundError`, in `src/data/repositories/watchlists.py` and `src/workspace/refresh.py`. | One class, defined in `src/workspace/watchlists.py` next to `StoredSelectionError`; the repository and `refresh.py` import it; the duplicate and the aliased import in `cli_workspace.py` go. The classifier maps one class to `watchlist_not_found`, and no handler can miss the other. Tests in `tests/data` and `tests/workspace` import the single class. | SWC.4a |
 | `analysis_failure_document`'s docstring says the failure document uses "the analysis presentation version", but its `schema_version` is 5 for every strategy while the Graham success documents carry 6. | The docstring is removed with the hand-built dict. `FailureEnvelope` documents that its `schema_version` is its own lineage, independent of every success document's. | SWC.4a |
 | The failure envelope and the Graham success documents would share `schema_version` 6. | Acceptable. A `schema_version` identifies a shape only within its own schema file; consumers dispatch on `status` and `result` first, then on `analysis`. The generated schema's description says so, the contributor guide states it, and renumbering the failure lineage to avoid a coincidence would be a second, arbitrary output change. | SWC.4a, SWC.7 |
@@ -1097,7 +1136,7 @@ Classification: **D** is duplicated wiring (descriptor-authoritative or consumer
 | `src/evaluation/ollama_runner.py`: `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser`, `_selection_observation` | D | Per-tool description and model; private `_value2member_map_` use. | SWC.2c |
 | `src/evaluation/catalog.py`, `src/evaluation/cases/*.py` | S | Reviewed case arguments and `ToolConstraints`; the independent truth for T5 and T6. | none (kept) |
 | `src/workspace/{graham_number,graham_growth}.py`: string checks of `method` inside the codecs | S | Each codec's own wire integrity check; the descriptor cannot be imported there without a cycle. | none (kept) |
-| `src/workspace/__init__.py` re-exports | D (cycle) | No module imports them from the package, and they make an initialization cycle once `requests.py` imports descriptor machinery. | SWC.2b (emptied) |
+| `src/workspace/__init__.py` re-exports | D (cycle) | No module imports them from the package, and they make an initialization cycle once `requests.py` imports descriptor machinery. | SWC.2a (emptied) |
 | `src/core/constants.py::AnalysisType` | D (dead) | A one-member per-strategy name enum with no reader in `src/` or `tests/`. | SWC.2b (deleted) |
 
 ## Appendix B: Typing form comparison and prototype evidence
@@ -1229,7 +1268,7 @@ The adopted shape was re-modelled with every strategy-owned file at `src/strateg
 | Check | Result |
 | :--- | :--- |
 | Modules | 208, no module-level cycle. The graph is the layer-folder graph with new paths. |
-| Initialization-aware components | Eight, all through the re-exporting `__init__.py` of `data.sec_edgar`, `data.massive`, `data.yfinance`, `schema`, `core.telemetry`, `evaluation`, `evaluation.fixtures` and `evaluation.cases`; none contains the root, a tier or any `src/strategies` module. On `main` there are twelve; emptying `workspace` and the three analyzer packages removes four. |
+| Initialization-aware components | Eight components, through ten re-exporting `__init__.py` files: `data.sec_edgar`, `data.massive`, `data.yfinance`, `schema`, `evaluation`, `evaluation.fixtures`, `evaluation.cases`, and the one component that holds `core.telemetry`, `core.telemetry.sinks` and `data.repositories`; none contains the root, a tier or any `src/strategies` module. On `main` there are twelve components; emptying `workspace` and the three analyzer packages removes four. The first count of eight initializers named one per component. |
 | Edges between strategy packages | None. |
 | Role-to-role edges observed inside packages | `cli` to execution, presenter, selection and analyzer; `execution` to selection and analyzer; `replay` to presenter, selection and analyzer; `presenter` to envelope and analyzer; `tool`, `codec` and `selection` to analyzer; `evaluation` to tool and analyzer. All go from a higher rank to a lower one, so the ranks in [§4](#4-static-declaration-model) are a total order the real graph already obeys. |
 | Edges from outside into `src/strategies` | Foundation, `cli_composition` and generic evaluation import analyzer and selection roles only; `cli_workspace` imports analyzer and selection; the root imports analyzer, codec, envelope, replay, selection and tool; the CLI tier imports `cli`; the evaluation tier imports `evaluation`. |

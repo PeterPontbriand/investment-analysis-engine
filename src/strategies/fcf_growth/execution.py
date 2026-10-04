@@ -34,10 +34,10 @@ from src.analysis.base_analyzer import AnalysisContext
 from src.core.analysis_status import CalculationStatus
 from src.data.instrument_profile import InstrumentProfile
 from src.data.instrument_profile_cache import InstrumentProfileResolver
+from src.strategies._shared.profile import compose_graham_profile
 from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthResult
-from src.workspace.graham_shared import compose_graham_profile
 from src.workspace.models import RunOutcome
 
 

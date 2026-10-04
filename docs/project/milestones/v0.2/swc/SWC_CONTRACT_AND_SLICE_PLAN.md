@@ -45,8 +45,8 @@ document-link check and applicable documentation checks.
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | SWC.1 | [Settle descriptor contract and conformance design](#swc1--descriptor-contract-and-conformance-design) | Complete | 2026-10-03 |
-| SWC.2a | [Relocate the existing strategy modules into one package per strategy](#swc2a--strategy-packages) | Next | |
-| SWC.2b | [Move the symbols the descriptor and tiers will reference](#swc2b--symbol-moves) | Planned | |
+| SWC.2a | [Relocate the existing strategy modules into one package per strategy](#swc2a--strategy-packages) | Complete | 2026-10-04 |
+| SWC.2b | [Move the symbols the descriptor and tiers will reference](#swc2b--symbol-moves) | Next | |
 | SWC.2c | [Declare the descriptor; wire orchestration and evaluation routing](#swc2c--descriptor-and-orchestration-wiring) | Planned | |
 | SWC.2d | [Move fixture composition into the evaluation tier](#swc2d--evaluation-tier) | Planned | |
 | SWC.3a | [Inject the descriptor into workspace consumers](#swc3a--workspace-consumers) | Planned | |
@@ -222,22 +222,27 @@ composition into the evaluation tier.
 - **Problem:** each strategy's files are spread across `analysis`, `workspace`, `reporting`,
   `orchestrator`, the CLI and `evaluation`, and the slices that follow create more of them. The layout has to
   be settled before they do, because SWC.5 and SWC.6 build tooling around file locations.
+  `src/workspace/__init__.py` re-exports names no module imports from the package and, once `requests.py`
+  imports descriptor machinery, creates an initialization cycle ([design §4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#4-static-declaration-model)); it is emptied here, with the layering test that counts parent packages.
 - **Decision:** one package per strategy, `src/strategies/<strategy>/`, with each file named for its role,
   shared code in `src/strategies/_shared/` and the Graham family package `src/strategies/_graham/`, and every
   `__init__.py` under `src/strategies/` empty. A role-based layering test (T13) replaces the folder rule.
   Every later slice creates its files in their final place. The layout and the rule are in the
   [SWC.1 design §4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#4-static-declaration-model); the evidence is in
   [Appendix C.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#c6-one-package-per-strategy).
-- **Scope:** `git mv` of the 17 analyzer files from `src/analysis/strategy/<package>/` (Momentum's
+- **Scope:** `git mv` of the 13 analyzer files from `src/analysis/strategy/<package>/` (Momentum's
   `momentum_analyzer.py` becomes `analyzer.py`; the `fcf_earnings_growth` package becomes `fcf_growth`), the
   four codecs, four adapters and four presenters, and `src/workspace/graham_shared.py` to
-  `src/strategies/_shared/profile.py`; removal of `src/analysis/strategy/` and its three re-exporting
-  `__init__.py` files; the 101 importer files (33 in `src`, 68 in `tests`, among them 15 tests whose patch
+  `src/strategies/_shared/profile.py`; removal of `src/analysis/strategy/` and its five `__init__.py` files
+  (three of them re-exporting), replaced by empty ones under `src/strategies/`; emptying
+  `src/workspace/__init__.py`; the 101 importer files (33 in `src`, 68 in `tests`, among them 15 tests whose patch
   strings name moved modules); `tests/analysis/test_base_analyzer_conformance.py`, whose boundary constants
   name the strategy package; the living guide `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`; the
   layering test with the role rule and parent-package initialization; and the patch-target resolution test,
   a test that every string patch target in `tests/` (the dotted target of `patch(...)`, `patch.object` by name and `monkeypatch.setattr(...)`) resolves to an existing attribute, which proves the
-  retargeted strings point at moved names and which the package-rename plan reuses. No behavior change and
+  retargeted strings point at moved names and which the package-rename plan reuses. T13 records the exact
+  24-edge transition allowlist and its owner counts in [SWC.1 design §4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#4-static-declaration-model).
+  No behavior change and
   no new symbol except that test.
 - **Branch:** `feat/swc-2a-strategy-packages`, from `main` after SWC.1 has merged.
 - **Detail:** [SWC.1 design §4 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#11-migration-from-current-declarations).
@@ -249,15 +254,14 @@ composition into the evaluation tier.
   the argument models and their shared base in `src/orchestrator/analysis_tools.py`, the selection classes
   and `AnalysisSelection` in `src/workspace/requests.py`, and `NativeEvidence` in
   `src/workspace/execution.py`. `AnalysisType` in `src/core/constants.py` is a per-strategy name list with
-  no reader. `src/workspace/__init__.py` re-exports names no module imports from the package and, once
-  `requests.py` imports descriptor machinery, creates an initialization cycle ([design §4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#4-static-declaration-model)).
+  no reader.
 - **Decision:** move each symbol to its final home with one import path and no compatibility re-export;
-  empty `src/workspace/__init__.py`; delete `AnalysisType`. No behavior change, no descriptor.
+  delete `AnalysisType`. No behavior change, no descriptor.
 - **Scope:** new `src/orchestrator/tool_names.py`, `src/orchestrator/analysis_tool_arguments.py` (the shared
   base renamed `AnalysisToolArguments`, `FiniteFloat`, `PositiveFiniteFloat`), `src/strategies/<strategy>/tool.py`
   (arguments model only, four files), `src/workspace/selection_base.py`, `src/strategies/<strategy>/selection.py`
   (four files) and `src/workspace/strategy_types.py` (`NativeEvidence`, `SelectionMember`,
-  `AnalysisSelection`); `src/orchestrator/analysis_tools.py`, `src/workspace/{requests,execution,__init__}.py`;
+  `AnalysisSelection`); `src/orchestrator/analysis_tools.py`, `src/workspace/{requests,execution}.py`;
   `src/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py` (the
   `src.evaluation` export of `ToolName` is removed); the six `src/evaluation/cases/*.py` importers;
   `src/core/constants.py`; every test that imports a moved symbol; and `docs/EVALUATIONS.md` and
@@ -334,7 +338,8 @@ changes in thirteen test modules.
   the `AnalysisSelection` union, conversion methods, adapter behavior, `NativeEvidence` union,
   `AnalysisRun` replay guarantees and refresh isolation. No financial or outcome classification changes.
   Add tests that an undeclared evidence type and an undeclared `(analysis_id, method_id)` are rejected
-  rather than handled as Momentum; every valid input encodes and decodes exactly as before.
+  rather than handled as Momentum; every valid input encodes and decodes exactly as before. Removes its eight
+  T13 transition entries.
 - **Branch:** `feat/swc-3a-workspace-consumers`, from `main` after SWC.2d has merged.
 - **Detail:** [SWC.1 design §6 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#11-migration-from-current-declarations),
   [inventory disposition](#4-inventory-disposition), [audited inventory](#appendix-a-proposal-inventory-verified-against-main),
@@ -350,7 +355,7 @@ changes in thirteen test modules.
   raises `UndeclaredStrategyError`.
 - **Scope:** new `src/cli_strategy_wiring.py` and four `src/strategies/<strategy>/cli.py`; `src/cli_workspace.py`
   (`_parse_analysis`, the `--analysis` help, `_build_selection`, `_refresh_executor`, the four `_execute_*`
-  and their option converters); tests and T10's CLI-tier surface.
+  and their option converters); tests and T10's CLI-tier surface; removes its four T13 transition entries.
 - **Branch:** `feat/swc-3b-cli-tier`, from `main` after SWC.3a has merged.
 - **Detail:** [SWC.1 design §3.3, §6 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers).
 
@@ -362,7 +367,7 @@ changes in thirteen test modules.
   commands by iterating `CLI_STRATEGIES` through `add_strategy_commands`. A strategy file never registers
   itself. `_maybe_save_run` and `get_cli_run_context` move to `src/cli_run_support.py`.
 - **Scope:** `src/cli.py`, new `src/cli_run_support.py`, the four `src/strategies/<strategy>/cli.py`, the
-  thirteen test modules that patch `src.cli.` names (76 patch strings, retargeted), T7 and T22.
+  thirteen test modules that patch `src.cli.` names (76 patch strings, retargeted), T7 and T22; removes its eight T13 transition entries.
 - **Branch:** `feat/swc-3c-direct-commands`, from `main` after SWC.3b has merged.
 - **Detail:** [SWC.1 design §6, §11 and §12](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#12-framework-drift-checks).
 
@@ -417,7 +422,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   (`ReplayOptions` and `UnsupportedProjectionError` move here), `src/reporting/json_documents.py` (the
   failure, workspace and database documents; the generator and tests add each descriptor's `json_envelope`
   from the root), `src/reporting/analysis_runs.py`, the four `presenter.py` files, four schemas, and tests
-  T9, T10, T20, T21 and T24 extended.
+  T9, T10, T20, T21 and T24 extended; removes its four T13 transition entries.
 - **Branch:** `feat/swc-4c-strategy-json-envelopes`, from `main` after SWC.4b has merged.
 - **Detail:** [SWC.1 design §6, §10 and §13.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#10-conformance-tests-and-negative-control),
   [inventory disposition](#4-inventory-disposition) and
@@ -526,6 +531,9 @@ version and result-schema version distinct and do not silently reinterpret histo
   another; foundation, reporting and the other generic modules import only analyzer and selection roles and
   never the composition root, a tier or a strategy's CLI or evaluation file; no module under `src` imports
   `tests`. The layering test counts parent-package initialization, and `src/workspace/__init__.py` is empty.
+- **Transition closure:** the exact T13 transition allowlist in SWC.1 design §4 shrinks only when its owning
+  slice removes the corresponding import edge; it is empty when SWC.4c merges. SWC.7's final conformance
+  verifies that it remains empty.
 - **Invocation contract:** production callers continue to invoke analyzers only through
   `BaseAnalyzer[ConfigT, ResultT].run_analysis(ticker, config, context)` with dependencies injected
   at construction and cross-cutting concerns carried in `AnalysisContext`.

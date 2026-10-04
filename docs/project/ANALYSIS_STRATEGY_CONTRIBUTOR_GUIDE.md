@@ -160,7 +160,7 @@ The adapter is strategy-specific integration work. The workspace execution servi
 | Investor-facing rendering and strategy guide | Shared presentation vocabulary and financial conventions |
 | Strategy-specific execution adapter integration | CLI/workspace composition and persistence boundaries |
 
-This is a responsibility map. Each strategy-owned file lives in one role-named package under `src/strategies/`. Keep method semantics in the strategy layer, provider composition at application boundaries, and common execution capture/persistence in the workspace layer.
+This is a responsibility map. A strategy's analyzer, codec, execution adapter and presenter live in `src/strategies/<strategy>/`, in files named for their role. Keep method semantics in the strategy layer, provider composition at application boundaries, and common execution capture/persistence in the workspace layer.
 
 ## Existing strategy reference: FCF & Earnings Growth
 
