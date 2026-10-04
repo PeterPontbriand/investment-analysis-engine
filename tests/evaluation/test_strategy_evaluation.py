@@ -6,7 +6,9 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.core.analysis_status import CalculationStatus
 from src.data.quality import HistoricalDataQualityError
+from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixture_context import (
     FixtureCompositionError,
     FixtureContext,
@@ -15,16 +17,27 @@ from src.evaluation.fixture_context import (
 )
 from src.evaluation.fixture_ids import (
     GRAHAM_FACTS_FIXTURE_ID,
+    GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
     KNOWN_ETF_PROFILE_FIXTURE_ID,
     MOMENTUM_BOUNDARY_FIXTURE_ID,
     MOMENTUM_SUCCESS_FIXTURE_ID,
 )
+from src.evaluation.fixtures.graham import (
+    GOLDEN_PRECEDENCE_EPS_OVERRIDE,
+    NOW,
+    SECURITY_ID,
+)
+from src.evaluation.fixtures.graham import PROVIDER_ID as GRAHAM_PROVIDER_ID
 from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER
+from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_ASML_FIXTURE_ID, SEC_FPI_FIXTURE_IDS
 from src.evaluation.models import Case, Expectation
 from src.orchestrator.tool_runtime import ToolRuntime
+from src.strategies.graham_number import evaluation as graham_number_evaluation
+from src.strategies.graham_number.service import GrahamNumberAnalysis
+from src.strategies.graham_number.tool import GrahamNumberToolArguments
 from src.strategies.momentum import evaluation as momentum_evaluation
 from src.strategies.momentum.analyzer import MomentumRun
-from src.strategy_wiring import MOMENTUM
+from src.strategy_wiring import GRAHAM_NUMBER, MOMENTUM
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 
@@ -87,3 +100,55 @@ def test_momentum_requires_a_price_fixture_and_has_no_etf_exemption() -> None:
     assert requirement.etf_profile_exempt is False
     with pytest.raises(FixtureCompositionError, match="has no selected Momentum price fixture"):
         require_fixture_evidence(_case(KNOWN_ETF_PROFILE_FIXTURE_ID), requirement, ticker=GOLDEN_ETF_TICKER)
+
+
+def _graham_number(context: FixtureContext, arguments: GrahamNumberToolArguments) -> GrahamNumberAnalysis:
+    """Run the real Graham Number handler over the composed dependencies."""
+    handler = GRAHAM_NUMBER.behavior.bind_handler(graham_number_evaluation.compose(context), _runtime())
+    result = handler(**arguments.model_dump(mode="python"))
+    assert isinstance(result, GrahamNumberAnalysis)
+    return result
+
+
+def test_graham_number_composes_the_selected_facts() -> None:
+    """Selected synthetic facts resolve; the provider identity is the fixture's."""
+    context = _context(GRAHAM_FACTS_FIXTURE_ID)
+    dependencies = graham_number_evaluation.compose(context)
+    assert dependencies.security_provider_id == GRAHAM_PROVIDER_ID
+    assert dependencies.quote_provider_id == GRAHAM_PROVIDER_ID
+    result = _graham_number(context, GrahamNumberToolArguments(ticker=SECURITY_ID))
+    assert result.result.status is CalculationStatus.OK
+
+
+def test_graham_number_without_selected_facts_reports_every_fact_as_absent() -> None:
+    """An unselected facts fixture is explicit absence, never default data."""
+    result = _graham_number(_context(MOMENTUM_SUCCESS_FIXTURE_ID), GrahamNumberToolArguments(ticker=SECURITY_ID))
+    assert result.result.status is CalculationStatus.INPUT_UNAVAILABLE
+
+
+def test_graham_number_uses_the_foreign_private_issuer_provider_and_identity() -> None:
+    """Selected SEC evidence replaces the synthetic provider and carries the SEC provider identity."""
+    dependencies = graham_number_evaluation.compose(_context(SEC_FPI_ASML_FIXTURE_ID))
+    assert dependencies.security_provider_id == SEC_PROVIDER_ID
+    assert dependencies.quote_provider_id == SEC_PROVIDER_ID
+
+
+def test_graham_number_reads_the_precedence_cache_only_when_selected() -> None:
+    """The cached book value is the reviewed one when selected and the provider's otherwise."""
+    arguments = GrahamNumberToolArguments(ticker=SECURITY_ID, as_of=NOW, eps_override=GOLDEN_PRECEDENCE_EPS_OVERRIDE)
+    cached = _graham_number(_context(GRAHAM_FACTS_FIXTURE_ID, GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID), arguments)
+    uncached = _graham_number(_context(GRAHAM_FACTS_FIXTURE_ID), arguments)
+    assert cached.result.maximum_indicated_price == pytest.approx(47.43416490252569, abs=1e-9)
+    assert uncached.result.maximum_indicated_price != cached.result.maximum_indicated_price
+
+
+def test_graham_number_requires_company_facts_with_the_etf_exemption() -> None:
+    """The requirement lists the synthetic and SEC fact fixtures and exempts a profiled ETF ticker."""
+    requirement = graham_number_evaluation.REQUIREMENT
+    assert requirement.required_ids == {GRAHAM_FACTS_FIXTURE_ID, *SEC_FPI_FIXTURE_IDS}
+    assert requirement.label == "Graham financial-fact"
+    assert requirement.etf_profile_exempt is True
+    etf_case = _case(KNOWN_ETF_PROFILE_FIXTURE_ID)
+    require_fixture_evidence(etf_case, requirement, ticker=GOLDEN_ETF_TICKER)
+    with pytest.raises(FixtureCompositionError, match="has no selected Graham financial-fact fixture"):
+        require_fixture_evidence(etf_case, requirement, ticker=SECURITY_ID)
