@@ -16,7 +16,7 @@ from src.analysis.strategy.fcf_earnings_growth.models import (
 )
 from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
+from src.strategies.momentum.analyzer import MomentumConfig
 from src.workspace.requests import (
     AnalysisRequest,
     AnalysisSelection,

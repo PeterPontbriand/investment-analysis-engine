@@ -26,13 +26,13 @@ from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
 from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
-from src.analysis.strategy.momentum.momentum_analyzer import (
+from src.data.instrument_profile import InstrumentProfile
+from src.orchestrator.dispatcher import AsyncToolDispatcher
+from src.strategies.momentum.analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
     MomentumRun,
 )
-from src.data.instrument_profile import InstrumentProfile
-from src.orchestrator.dispatcher import AsyncToolDispatcher
 
 ANALYZE_MOMENTUM_TOOL: Final = "analyze_momentum"
 ANALYZE_GRAHAM_NUMBER_TOOL: Final = "analyze_graham_number"

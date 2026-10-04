@@ -36,10 +36,10 @@ from src.analysis.strategy.fcf_earnings_growth.models import (
 )
 from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
 from src.config import settings
 from src.core.constants import ConfigKeys
 from src.data.instrument_profile import InstrumentProfile
+from src.strategies.momentum.analyzer import MomentumConfig
 
 # Provider identifiers supported by the current CLI composition. These mirror the
 # stable IDs declared in ``src.data.massive.constants``,

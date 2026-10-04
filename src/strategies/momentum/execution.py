@@ -20,9 +20,9 @@ evidence for a later execution service to assemble.
 from dataclasses import dataclass
 from datetime import datetime
 
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumMetrics, MomentumRun
 from src.data.instrument_profile import InstrumentProfile
 from src.data.market_data import MarketDataProvider
+from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumMetrics, MomentumRun
 from src.workspace.models import StrictJsonMapping
 from src.workspace.requests import MomentumSelection
 

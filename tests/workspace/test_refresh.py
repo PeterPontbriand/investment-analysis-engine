@@ -12,17 +12,17 @@ from alembic.config import Config
 from alembic import command
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
 from src.config import ProjectSettings
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.market_data import FixtureDataClient
+from src.strategies.momentum.analyzer import MomentumRun
+from src.strategies.momentum.execution import run_momentum
 from src.workspace.codecs import encode_evidence
 from src.workspace.execution import ExecutionCapture
 from src.workspace.models import RunOutcome
-from src.workspace.momentum_execution import run_momentum
 from src.workspace.refresh import (
     EmptyRefreshTargetError,
     RefreshJobResult,

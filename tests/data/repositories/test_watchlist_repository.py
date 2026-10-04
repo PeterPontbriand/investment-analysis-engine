@@ -24,9 +24,9 @@ from src.data.repositories.watchlists import (
     WatchlistNotFoundError,
 )
 from src.evaluation.fixtures.market_data import FixtureDataClient
+from src.strategies.momentum.execution import run_momentum
 from src.workspace.execution import ExecutionCapture
 from src.workspace.models import RunOutcome
-from src.workspace.momentum_execution import run_momentum
 from src.workspace.refresh import refresh_watchlist
 from src.workspace.requests import AnalysisSelection, GrahamGrowthSelection, GrahamNumberSelection, MomentumSelection
 from src.workspace.runs import Watchlist

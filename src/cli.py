@@ -29,7 +29,6 @@ from src.analysis.strategy.graham_growth.calculation import (
 from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
 from src.cli_composition import build_graham_resolver, build_sec_production_provider, growth_assumptions
 from src.cli_database import app as database_app
 from src.cli_support import (
@@ -85,8 +84,10 @@ from src.reporting.evidence_presentation import friendly_valuation_failure
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.graham_growth import GrahamGrowthPresentation, growth_with_public_quote_reason, render_graham_growth
 from src.reporting.graham_number import GrahamNumberPresentation, number_with_public_quote_reason, render_graham_number
-from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
+from src.strategies.momentum.analyzer import MomentumConfig
+from src.strategies.momentum.execution import capture_momentum, run_momentum
+from src.strategies.momentum.presenter import MomentumPresentation, render_momentum
 from src.utils import paths
 from src.workspace.execution import (
     ExecutionCapture,
@@ -99,7 +100,6 @@ from src.workspace.execution import (
 from src.workspace.fcf_growth_execution import execute_fcf_growth
 from src.workspace.graham_growth_execution import execute_graham_growth
 from src.workspace.graham_number_execution import execute_graham_number
-from src.workspace.momentum_execution import capture_momentum, run_momentum
 from src.workspace.requests import (
     AnalysisRequest,
     FCFGrowthSelection,

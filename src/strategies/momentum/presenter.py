@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
 from src.core.metric_result import MetricResult
 from src.data.financial.resolution_trace import ResolutionTrace
 from src.data.instrument_profile import InstrumentProfile, instrument_kind_evidence_payload, profile_identity_resolution
@@ -26,6 +25,7 @@ from src.reporting.presentation import (
     json_document,
     provider_display_name,
 )
+from src.strategies.momentum.analyzer import MomentumConfig, MomentumMetrics
 
 _SCHEMA_VERSION = 5
 _LIMITATION = (

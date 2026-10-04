@@ -7,12 +7,12 @@ import re
 from dataclasses import replace
 from datetime import UTC, date, datetime
 
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
 from src.core.constants import TrendStatus
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.data.market_data import MarketDataContext
-from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode, ResolutionDiagnostic
+from src.strategies.momentum.analyzer import MomentumConfig, MomentumMetrics
+from src.strategies.momentum.presenter import MomentumPresentation, render_momentum
 
 NOW = datetime(2026, 8, 22, 4, 0, tzinfo=UTC)
 DATA_AS_OF = date(2026, 8, 21)

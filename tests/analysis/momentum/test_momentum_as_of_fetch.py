@@ -17,13 +17,13 @@ from alembic.config import Config
 
 from alembic import command
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
 from src.config import ProjectSettings
 from src.data.base_client import BaseDataClient
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
 from src.data.quality import HistoricalDataQualityError
 from src.data.repositories import MarketDataCacheKey, SQLiteDatabase, SQLiteMarketDataRepository
+from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
 
 START = "2026-01-01"
 VARIANT = "1d:adjusted"

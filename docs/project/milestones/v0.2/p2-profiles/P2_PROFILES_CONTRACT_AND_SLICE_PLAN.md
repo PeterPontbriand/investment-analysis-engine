@@ -47,7 +47,7 @@ repository/data-quality boundary:
   raises bare `DataFetchError(error)` where `error` is itself a quality-decision
   reason string produced by `evaluate_historical_quality`/`evaluate_freshness`,
   not a provider/network failure.
-- [`src/analysis/strategy/momentum/momentum_analyzer.py:198,333`](../../../../../src/analysis/strategy/momentum/momentum_analyzer.py)
+- [`src/strategies/momentum/analyzer.py:198,333`](../../../../../src/strategies/momentum/analyzer.py)
   raises `HistoricalDataQualityError` for the same reason, inheriting the same
   mis-based hierarchy.
 - `src/data/financial/quality.py`'s `financial_quality_error` already returns a

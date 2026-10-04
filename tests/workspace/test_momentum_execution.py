@@ -8,19 +8,19 @@ from unittest.mock import patch
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.momentum.momentum_analyzer import (
-    MomentumAnalyzer,
-    MomentumConfig,
-    MomentumMetrics,
-    MomentumRun,
-)
 from src.core.constants import TrendStatus
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 from src.data.market_data import MarketDataContext
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.evaluation.fixtures.market_data import FixtureDataClient
-from src.reporting.momentum import _sma_spread, _sma_spread_percent
-from src.workspace.momentum_execution import capture_momentum, run_momentum
+from src.strategies.momentum.analyzer import (
+    MomentumAnalyzer,
+    MomentumConfig,
+    MomentumMetrics,
+    MomentumRun,
+)
+from src.strategies.momentum.execution import capture_momentum, run_momentum
+from src.strategies.momentum.presenter import _sma_spread, _sma_spread_percent
 from src.workspace.requests import MomentumSelection
 
 STAMP = datetime(2026, 9, 18, 12, tzinfo=UTC)

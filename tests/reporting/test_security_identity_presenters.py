@@ -15,7 +15,6 @@ from src.analysis.strategy.fcf_earnings_growth import (
 from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthResult
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import TrendStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
@@ -35,8 +34,9 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.graham_growth import GrahamGrowthPresentation, render_graham_growth
 from src.reporting.graham_number import GrahamNumberPresentation, render_graham_number
-from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
+from src.strategies.momentum.analyzer import MomentumConfig, MomentumMetrics
+from src.strategies.momentum.presenter import MomentumPresentation, render_momentum
 
 NOW = datetime(2026, 8, 29, 20, 0, tzinfo=UTC)
 

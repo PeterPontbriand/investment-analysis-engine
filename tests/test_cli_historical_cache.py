@@ -14,7 +14,6 @@ from typer.testing import CliRunner
 
 from alembic import command
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
 from src.cli import app
 from src.cli_support import _production_historical_client
 from src.config import ProjectSettings
@@ -24,6 +23,7 @@ from src.data.market_data import HistoricalMarketData, MarketDataContext
 from src.data.repositories import SQLiteDatabase, SQLiteMarketDataRepository
 from src.data.yfinance import YFinanceClient
 from src.evaluation.fixtures.market_data import FixtureDataClient, momentum_success_frame
+from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
 
 NOW = datetime(2026, 9, 6, tzinfo=UTC)
 

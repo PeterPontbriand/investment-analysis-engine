@@ -8,14 +8,14 @@ import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.fcf_earnings_growth.models import MetricStatus, ReasonCode
-from src.analysis.strategy.momentum.momentum_analyzer import (
+from src.data.quality import HistoricalDataQualityError
+from src.evaluation.fixtures.market_data import FixtureMarketDataProvider
+from src.strategies.momentum.analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
     MomentumInputResolver,
     compute_momentum_metrics,
 )
-from src.data.quality import HistoricalDataQualityError
-from src.evaluation.fixtures.market_data import FixtureMarketDataProvider
 
 
 def test_resolver_truncates_future_bars_and_retains_provenance() -> None:

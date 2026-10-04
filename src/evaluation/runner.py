@@ -13,7 +13,6 @@ from uuid import UUID
 from src.analysis.strategy.fcf_earnings_growth import FCFEarningsGrowthResult
 from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
 from src.core.telemetry import (
     TrajectoryErrorRecord,
     TrajectoryEventType,
@@ -54,6 +53,7 @@ from src.orchestrator.analysis_tools import (
     MomentumToolArguments,
 )
 from src.orchestrator.types import ToolCallResult
+from src.strategies.momentum.analyzer import MomentumRun
 
 logger = logging.getLogger(__name__)
 

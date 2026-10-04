@@ -19,7 +19,6 @@ from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumRun
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
@@ -54,6 +53,7 @@ from src.orchestrator.analysis_tools import (
 )
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.types import ToolCallRequest
+from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumRun
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 

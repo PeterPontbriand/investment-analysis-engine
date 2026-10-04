@@ -9,7 +9,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
+from src.strategies.momentum.analyzer import MomentumRun
 from src.workspace.models import StrictJsonMapping, _validate_json_value
 
 

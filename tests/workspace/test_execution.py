@@ -11,13 +11,14 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
 from src.config import ProjectSettings
 from src.data.instrument_profile import InstrumentKind
 from src.data.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.evaluation.fixtures.market_data import FixtureDataClient
+from src.strategies.momentum.analyzer import MomentumRun
+from src.strategies.momentum.execution import capture_momentum, run_momentum
 from src.workspace.codecs import decode_evidence
 from src.workspace.execution import (
     BatchContext,
@@ -32,7 +33,6 @@ from src.workspace.fcf_growth_execution import FCFGrowthCapture
 from src.workspace.graham_growth_execution import GrahamGrowthCapture
 from src.workspace.graham_number_execution import GrahamNumberCapture
 from src.workspace.models import RunOutcome
-from src.workspace.momentum_execution import capture_momentum, run_momentum
 from src.workspace.requests import AnalysisRequest, MomentumSelection
 from src.workspace.runs import AnalysisRun
 

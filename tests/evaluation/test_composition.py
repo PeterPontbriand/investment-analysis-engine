@@ -9,7 +9,6 @@ import pytest
 from src.analysis.strategy.fcf_earnings_growth import FCFEarningsGrowthResult
 from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
 from src.core.analysis_status import CalculationStatus
 from src.evaluation.composition import (
     FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
@@ -45,6 +44,7 @@ from src.orchestrator.analysis_tools import (
     MomentumToolArguments,
 )
 from src.orchestrator.types import ToolCallRequest
+from src.strategies.momentum.analyzer import MomentumRun
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 
