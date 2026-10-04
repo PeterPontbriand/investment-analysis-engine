@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import UTC, datetime
 from typing import Any
 
@@ -9,6 +11,7 @@ import pytest
 from pydantic import BaseModel
 
 from src.core.telemetry import RunContext, TrajectoryEvent, TrajectoryEventType, TrajectoryRecorder
+from src.evaluation import ollama_runner
 from src.evaluation.catalog import build_deterministic_requests
 from src.evaluation.models import ComponentKind, ComponentOutcome, ComponentResult
 from src.evaluation.ollama_runner import (
@@ -20,7 +23,10 @@ from src.evaluation.ollama_runner import (
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest
 from src.llm.client import LLMClient, LLMGenerateResult
+from src.orchestrator.tool_names import ToolName
+from src.orchestrator.types import ToolCallRequest
 from src.schema.config import SchemaConfig
+from src.tools.parser import ToolNotFoundError
 
 EXECUTED_AT = datetime(2026, 8, 31, 20, 0, tzinfo=UTC)
 
@@ -348,3 +354,63 @@ async def test_empirical_runner_records_model_failure_as_execution_failure() -> 
     assert execution.failure_reason is not None
     assert "mock local model unavailable" in execution.failure_reason
     assert factory.sinks[0].closed is True
+
+
+# SHA-256 of the serialized tool schemas as produced before the descriptor declared them. The prompt and the
+# recorded ``tool_schemas_sha256`` must not change when the same four contracts are declared elsewhere.
+_PRE_DESCRIPTOR_TOOL_SCHEMAS_SHA256 = "ce7d879a55d3e1670730d26cbc39325217642e1581753306edbf4d45b6c23a43"
+
+
+def test_tool_schemas_are_the_four_declared_contracts_in_declaration_order() -> None:
+    """The model prompt advertises each declared tool with its description and strict argument schema."""
+    serialized = ollama_runner._tool_schemas_json()
+    tools = json.loads(serialized)["tools"]
+    assert [tool["name"] for tool in tools] == [tool.value for tool in ToolName]
+    assert all(tool["parameters"]["additionalProperties"] is False for tool in tools)
+    assert hashlib.sha256(serialized.encode("utf-8")).hexdigest() == _PRE_DESCRIPTOR_TOOL_SCHEMAS_SHA256
+
+
+def test_tool_parser_accepts_exactly_the_declared_tool_names() -> None:
+    """Only declared tools are parsed as tool calls."""
+    parser = ollama_runner._tool_parser()
+    for tool in ToolName:
+        call = parser.parse(json.dumps({"name": tool.value, "parameters": {"ticker": "ACME"}}))
+        assert call.tool_name == tool.value
+    with pytest.raises(ToolNotFoundError, match="analyze_invented"):
+        parser.parse(json.dumps({"name": "analyze_invented", "parameters": {}}))
+
+
+def test_only_approved_tool_names_are_declared_tools() -> None:
+    """Ordinary enum lookup recognizes an approved name and nothing else."""
+    assert ollama_runner._declared_tool("analyze_momentum") is ToolName.ANALYZE_MOMENTUM
+    assert ollama_runner._declared_tool("ANALYZE_MOMENTUM") is None
+    assert ollama_runner._declared_tool("analyze_invented") is None
+
+
+def test_selection_observation_keeps_only_declared_tools_in_order() -> None:
+    """Unregistered tool names are not turned into observations."""
+    requests = (
+        ToolCallRequest(tool_name="analyze_graham_number", arguments={}),
+        ToolCallRequest(tool_name="analyze_invented", arguments={}),
+        ToolCallRequest(tool_name="analyze_momentum", arguments={}),
+    )
+    observation = ollama_runner._selection_observation(requests, observed_at=EXECUTED_AT)
+    assert [call.tool_name for call in observation.tool_calls] == [
+        ToolName.ANALYZE_GRAHAM_NUMBER,
+        ToolName.ANALYZE_MOMENTUM,
+    ]
+
+
+def test_an_unregistered_tool_fails_strategy_selection_and_names_it() -> None:
+    """Calling a tool outside the declared set fails selection, whatever else was observed."""
+    request = _request("GRN-01")
+    calls = (
+        ToolCallRequest(tool_name="analyze_graham_number", arguments={"ticker": "SYNTH"}),
+        ToolCallRequest(tool_name="analyze_invented", arguments={}),
+    )
+    observation = ollama_runner._selection_observation(calls, observed_at=EXECUTED_AT)
+
+    result = ollama_runner._evaluate_tool_and_argument_selection(request, calls, observation)
+
+    assert result.outcome is ComponentOutcome.FAIL
+    assert result.failure_reason == "Observed unregistered tools: analyze_invented."

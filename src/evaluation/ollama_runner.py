@@ -13,6 +13,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
+from src.core.strategy_errors import require
 from src.core.telemetry import (
     RunContext,
     TelemetryMode,
@@ -52,18 +53,13 @@ from src.evaluation.reporting import (
 )
 from src.evaluation.runner import DeterministicCaseRequest
 from src.llm.client import LLMClient
-from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
-from src.orchestrator.analysis_tools import ANALYSIS_TOOL_ARGUMENT_MODELS
 from src.orchestrator.context import MessageContext
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
 from src.orchestrator.prompts import SystemPromptBuilder
 from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import AgentStepResult, ToolCallRequest, ToolCallResult
 from src.schema.config import SchemaConfig
-from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
-from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
-from src.strategies.graham_number.tool import GrahamNumberToolArguments
-from src.strategies.momentum.tool import MomentumToolArguments
+from src.strategy_wiring import BY_TOOL, STRATEGIES, tool_for_arguments
 from src.tools.parser import ToolParser
 from src.tools.schema_generator import ToolRegistry
 
@@ -74,13 +70,6 @@ OLLAMA_REQUIRED_COMPONENT_KINDS: Final = (
     ComponentKind.FIXTURE_STATUS,
     ComponentKind.EXECUTION_STATUS,
 )
-
-_TOOL_DESCRIPTIONS: Final = {
-    ToolName.ANALYZE_MOMENTUM.value: "Analyze historical price momentum with structured SMA and RSI metrics.",
-    ToolName.ANALYZE_GRAHAM_NUMBER.value: "Calculate the Graham Number company-level valuation ceiling.",
-    ToolName.ANALYZE_GRAHAM_GROWTH_VALUE.value: "Calculate the explicit Graham growth-value method.",
-    ToolName.ANALYZE_FCF_EARNINGS_GROWTH.value: "Analyze company free-cash-flow and diluted-EPS growth.",
-}
 
 type RecorderFactory = Callable[[RunContext, str], TrajectoryRecorder]
 
@@ -374,9 +363,9 @@ def _selection_observation(
 ) -> Observation:
     """Build typed selection evidence from observable parsed tool requests only."""
     recognized = tuple(
-        ToolCallObservation(tool_name=ToolName(request.tool_name))
-        for request in tool_requests
-        if request.tool_name in ToolName._value2member_map_
+        ToolCallObservation(tool_name=tool)
+        for tool in (_declared_tool(request.tool_name) for request in tool_requests)
+        if tool is not None
     )
     return Observation(
         execution_mode=ExecutionMode.REAL_LOCAL_OLLAMA,
@@ -392,9 +381,7 @@ def _evaluate_tool_and_argument_selection(
 ) -> ComponentResult:
     """Evaluate tool identity plus strict, case-corresponding normalized arguments."""
     base = evaluate_tool_selection(request.case.expectation.tool_constraints, observation)
-    unknown_tools = tuple(
-        item.tool_name for item in tool_requests if item.tool_name not in ANALYSIS_TOOL_ARGUMENT_MODELS
-    )
+    unknown_tools = tuple(item.tool_name for item in tool_requests if _declared_tool(item.tool_name) is None)
     if unknown_tools:
         return ComponentResult(
             kind=ComponentKind.STRATEGY_SELECTION,
@@ -405,11 +392,11 @@ def _evaluate_tool_and_argument_selection(
     if base.outcome is not ComponentOutcome.PASS:
         return base
 
-    expected_tool = _tool_name(request.arguments).value
+    expected_tool = tool_for_arguments(request.arguments).value
     failures: list[str] = []
     matching_calls = tuple(item for item in tool_requests if item.tool_name == expected_tool)
     for index, item in enumerate(matching_calls, start=1):
-        argument_model = ANALYSIS_TOOL_ARGUMENT_MODELS[item.tool_name]
+        argument_model = require(BY_TOOL, ToolName(item.tool_name), what="tool").tool_arguments
         try:
             observed_arguments = argument_model.model_validate(item.arguments)
         except ValidationError as exc:
@@ -461,28 +448,23 @@ def _terminal_failure(steps: list[AgentStepResult]) -> str | None:
     return None if failure is None else failure.message
 
 
-def _tool_name(arguments: AnalysisToolArguments) -> ToolName:
-    """Return the production tool represented by one strict argument model."""
-    if isinstance(arguments, MomentumToolArguments):
-        return ToolName.ANALYZE_MOMENTUM
-    if isinstance(arguments, GrahamNumberToolArguments):
-        return ToolName.ANALYZE_GRAHAM_NUMBER
-    if isinstance(arguments, GrahamGrowthValueToolArguments):
-        return ToolName.ANALYZE_GRAHAM_GROWTH_VALUE
-    if isinstance(arguments, FCFEarningsGrowthToolArguments):
-        return ToolName.ANALYZE_FCF_EARNINGS_GROWTH
-    raise TypeError(f"Unsupported analysis-tool argument model: {type(arguments).__name__}.")
+def _declared_tool(name: str) -> ToolName | None:
+    """Return the approved tool with this exact name, or ``None`` for any other name."""
+    try:
+        return ToolName(name)
+    except ValueError:
+        return None
 
 
 def _tool_schemas_json() -> str:
-    """Serialize the four existing production argument contracts for the model prompt."""
+    """Serialize the declared production argument contracts for the model prompt."""
     tools = tuple(
         {
-            "name": name,
-            "description": _TOOL_DESCRIPTIONS[name],
-            "parameters": argument_model.model_json_schema(),
+            "name": descriptor.tool.value,
+            "description": descriptor.tool_description,
+            "parameters": descriptor.tool_arguments.model_json_schema(),
         }
-        for name, argument_model in ANALYSIS_TOOL_ARGUMENT_MODELS.items()
+        for descriptor in STRATEGIES
     )
     return json.dumps({"tools": tools}, sort_keys=True, separators=(",", ":"))
 
@@ -494,8 +476,8 @@ def _tool_parser() -> ToolParser:
     def parser_placeholder() -> None:
         """Placeholder used only to register an approved model-visible tool name."""
 
-    for name in ANALYSIS_TOOL_ARGUMENT_MODELS:
-        registry.register(parser_placeholder, name=name, description=_TOOL_DESCRIPTIONS[name])
+    for descriptor in STRATEGIES:
+        registry.register(parser_placeholder, name=descriptor.tool.value, description=descriptor.tool_description)
     return ToolParser(registry)
 
 

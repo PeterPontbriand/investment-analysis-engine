@@ -10,6 +10,7 @@ from enum import Enum
 from typing import Final
 from uuid import UUID
 
+from src.core.strategy_errors import UndeclaredStrategyError, require, undeclared
 from src.core.telemetry import (
     TrajectoryErrorRecord,
     TrajectoryEventType,
@@ -39,16 +40,9 @@ from src.evaluation.reporting import (
     build_evaluation_report,
 )
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
-from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import ToolCallResult
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategies.graham_number.tool import GrahamNumberToolArguments
-from src.strategies.momentum.analyzer import MomentumRun
-from src.strategies.momentum.tool import MomentumToolArguments
+from src.strategy_wiring import BY_RESULT_TYPE, tool_for_arguments
+from src.workspace.strategy_types import NativeEvidence
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +51,6 @@ DETERMINISTIC_REQUIRED_COMPONENT_KINDS: Final = (
     ComponentKind.EXECUTION_STATUS,
     ComponentKind.NUMERICAL_CORRECTNESS,
 )
-
-type NativeAnalysisResult = MomentumRun | GrahamNumberAnalysis | GrahamGrowthAnalysis | FCFEarningsGrowthResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -191,7 +183,7 @@ async def _run_case(
     """Execute and evaluate one supplied deterministic case."""
     case_span_id = recorder.start_span(parent_span_id=run_span_id)
     tool_span_id = recorder.start_span(parent_span_id=case_span_id)
-    tool_name = _tool_name(request.arguments)
+    tool_name = tool_for_arguments(request.arguments)
     arguments = request.arguments.model_dump(mode="json")
     _record(
         recorder,
@@ -329,7 +321,7 @@ async def _execute(request: DeterministicCaseRequest, *, executed_at: datetime) 
         )
     try:
         native_result = _native_result(dispatch_result)
-    except TypeError as exc:
+    except UndeclaredStrategyError as exc:
         return _ExecutionEvidence(
             numerical_observations=(),
             domain_outcome_observations=(),
@@ -363,24 +355,20 @@ async def _execute(request: DeterministicCaseRequest, *, executed_at: datetime) 
     )
 
 
-def _native_result(dispatch_result: ToolCallResult) -> NativeAnalysisResult:
-    """Require one of the four existing native production result types."""
+def _native_result(dispatch_result: ToolCallResult) -> NativeEvidence:
+    """Require exactly one of the declared native production result types."""
     result = dispatch_result.result
-    if isinstance(result, (MomentumRun, GrahamNumberAnalysis, GrahamGrowthAnalysis, FCFEarningsGrowthResult)):
+    if isinstance(result, NativeEvidence) and type(result) in BY_RESULT_TYPE:
         return result
-    raise TypeError(f"Production dispatcher returned unsupported result type {type(result).__name__!r}.")
+    raise undeclared("production result type", type(result), BY_RESULT_TYPE)
 
 
-def _native_status(result: NativeAnalysisResult) -> str | None:
-    """Return one native calculation-status value for telemetry evidence."""
-    if isinstance(result, MomentumRun):
-        return None
-    if isinstance(result, (GrahamNumberAnalysis, GrahamGrowthAnalysis)):
-        return result.result.status.value
-    return result.execution_status.value
+def _native_status(result: NativeEvidence) -> str | None:
+    """Return the result-level status that the result's own strategy declares, for telemetry evidence."""
+    return require(BY_RESULT_TYPE, type(result), what="production result type").behavior.native_status_of(result)
 
 
-def _numerical_observations(case: Case, result: NativeAnalysisResult) -> tuple[NumericalObservation, ...]:
+def _numerical_observations(case: Case, result: NativeEvidence) -> tuple[NumericalObservation, ...]:
     """Extract only explicitly expected finite numerical result fields."""
     observations: list[NumericalObservation] = []
     for expectation in case.expectation.numerical_expectations:
@@ -398,7 +386,7 @@ def _numerical_observations(case: Case, result: NativeAnalysisResult) -> tuple[N
 
 def _domain_outcome_observations(
     case: Case,
-    result: NativeAnalysisResult,
+    result: NativeEvidence,
 ) -> tuple[DomainOutcomeObservation, ...]:
     """Extract only explicitly expected scalar native-result outcome fields."""
     observations: list[DomainOutcomeObservation] = []
@@ -414,13 +402,13 @@ def _domain_outcome_observations(
     return tuple(observations)
 
 
-def _field_value(result: NativeAnalysisResult, field_path: str) -> object | None:
+def _field_value(result: NativeEvidence, field_path: str) -> object | None:
     """Resolve one reviewed dotted field path from a native typed result."""
     found, value = _resolved_field_value(result, field_path)
     return value if found else None
 
 
-def _resolved_field_value(result: NativeAnalysisResult, field_path: str) -> tuple[bool, object | None]:
+def _resolved_field_value(result: NativeEvidence, field_path: str) -> tuple[bool, object | None]:
     """Resolve one dotted field path while distinguishing missing fields from explicit nulls."""
     current: object = result
     segments = field_path.split(".")
@@ -431,19 +419,6 @@ def _resolved_field_value(result: NativeAnalysisResult, field_path: str) -> tupl
         if current is None:
             return index == len(segments) - 1, None
     return True, current
-
-
-def _tool_name(arguments: AnalysisToolArguments) -> ToolName:
-    """Return the production tool identity represented by strict arguments."""
-    if isinstance(arguments, MomentumToolArguments):
-        return ToolName.ANALYZE_MOMENTUM
-    if isinstance(arguments, GrahamNumberToolArguments):
-        return ToolName.ANALYZE_GRAHAM_NUMBER
-    if isinstance(arguments, GrahamGrowthValueToolArguments):
-        return ToolName.ANALYZE_GRAHAM_GROWTH_VALUE
-    if isinstance(arguments, FCFEarningsGrowthToolArguments):
-        return ToolName.ANALYZE_FCF_EARNINGS_GROWTH
-    raise TypeError(f"Unsupported analysis-tool argument model: {type(arguments).__name__}.")
 
 
 def _reject_duplicate_cases(requests: tuple[DeterministicCaseRequest, ...]) -> None:

@@ -47,8 +47,8 @@ document-link check and applicable documentation checks.
 | SWC.1 | [Settle descriptor contract and conformance design](#swc1--descriptor-contract-and-conformance-design) | Complete | 2026-10-03 |
 | SWC.2a | [Relocate the existing strategy modules into one package per strategy](#swc2a--strategy-packages) | Complete | 2026-10-04 |
 | SWC.2b | [Move the symbols the descriptor and tiers will reference](#swc2b--symbol-moves) | Complete | 2026-10-04 |
-| SWC.2c | [Declare the descriptor; wire orchestration and evaluation routing](#swc2c--descriptor-and-orchestration-wiring) | Next | |
-| SWC.2d | [Move fixture composition into the evaluation tier](#swc2d--evaluation-tier) | Planned | |
+| SWC.2c | [Declare the descriptor; wire orchestration and evaluation routing](#swc2c--descriptor-and-orchestration-wiring) | Complete | 2026-10-04 |
+| SWC.2d | [Move fixture composition into the evaluation tier](#swc2d--evaluation-tier) | Next | |
 | SWC.3a | [Inject the descriptor into workspace consumers](#swc3a--workspace-consumers) | Planned | |
 | SWC.3b | [CLI tier: selection builders and refresh executors](#swc3b--cli-tier) | Planned | |
 | SWC.3c | [Move the direct commands into strategy files](#swc3c--direct-commands) | Planned | |
@@ -324,7 +324,8 @@ composition into the evaluation tier.
   clause that `src.evaluation.cases.<strategy>` may import the tool role of `src.strategies.<strategy>` and
   of no other strategy, because the moved arguments make that import permanent. Case ids, the order of
   `DETERMINISTIC_CASES`, the suite version and the fixture modules do not change. No fixture value,
-  expected outcome or score changes.
+  expected outcome or score changes. T13 also gains the rule that only generic evaluation modules import the
+  evaluation tier, with the tier module's entry in the root-importer list, a staleness check and a negative test.
 - **Branch:** `feat/swc-2d-evaluation-tier`, from `main` after SWC.2c has merged.
 - **Detail:** [SWC.1 design §3.3 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers).
 
@@ -376,7 +377,9 @@ changes in thirteen test modules.
   raises `UndeclaredStrategyError`.
 - **Scope:** new `src/cli_strategy_wiring.py` and four `src/strategies/<strategy>/cli.py`; `src/cli_workspace.py`
   (`_parse_analysis`, the `--analysis` help, `_build_selection`, `_refresh_executor`, the four `_execute_*`
-  and their option converters); tests and T10's CLI-tier surface; removes its four T13 transition entries.
+  and their option converters); tests and T10's CLI-tier surface; removes its four T13 transition entries. T13 also
+  gains the rule that only `src.cli` and `src.cli_workspace` import the CLI tier, with the entries those modules need
+  in the root-importer list, a staleness check and a negative test.
 - **Branch:** `feat/swc-3b-cli-tier`, from `main` after SWC.3a has merged.
 - **Detail:** [SWC.1 design §3.3, §6 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers).
 

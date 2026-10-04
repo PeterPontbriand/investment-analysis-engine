@@ -90,3 +90,8 @@ def decode_graham_growth(payload: StrictJsonMapping) -> GrahamGrowthAnalysis:
         analysis[name] = {key: item for key, item in section.items() if key != "method"}
     wire = {**payload, "analysis": analysis}
     return _GrowthEvidence.model_validate_json(json.dumps(wire, allow_nan=False)).analysis
+
+
+def graham_growth_native_status(result: GrahamGrowthAnalysis, /) -> str:
+    """Return the native calculation-status value recorded as telemetry evidence."""
+    return result.result.status.value
