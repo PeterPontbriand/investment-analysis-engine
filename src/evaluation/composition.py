@@ -13,9 +13,25 @@ from src.core.constants import ConfigKeys
 from src.core.strategy_errors import require
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactRequest, FinancialFactsProvider, ProviderFact
-from src.data.instrument_profile import InstrumentProfile
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
+from src.evaluation.fixture_context import (
+    FixtureContext,
+    FixtureRequirement,
+    build_fixture_context,
+    profile_resolver,
+    require_fixture_evidence,
+    selected_variant,
+)
+from src.evaluation.fixture_ids import (
+    FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
+    FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
+    FCF_GROWTH_SUCCESS_FIXTURE_ID,
+    GRAHAM_FACTS_FIXTURE_ID,
+    GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
+    MOMENTUM_BOUNDARY_FIXTURE_ID,
+    MOMENTUM_SUCCESS_FIXTURE_ID,
+)
 from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     fcf_growth_nonmeaningful_facts,
@@ -32,18 +48,12 @@ from src.evaluation.fixtures.graham import (
 from src.evaluation.fixtures.graham import (
     PROVIDER_ID as GRAHAM_PROVIDER_ID,
 )
-from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER, fixture_known_etf_profile
 from src.evaluation.fixtures.market_data import (
     FixtureMarketDataProvider,
     momentum_boundary_frame,
     momentum_success_frame,
 )
-from src.evaluation.fixtures.sec_edgar_fpi import (
-    SEC_FPI_FIXTURE_IDS,
-    SEC_FPI_NVO_FIXTURE_ID,
-    fixture_nvo_security_unit_profile,
-    fixture_sec_fpi_adapter,
-)
+from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_FIXTURE_IDS
 from src.evaluation.models import Case
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.orchestrator.analysis_tools import register_analysis_tools
@@ -64,29 +74,6 @@ from src.strategies.momentum.analyzer import MomentumAnalyzer
 from src.strategies.momentum.tool import MomentumToolDependencies
 from src.strategy_wiring import STRATEGIES, bind_handlers, tool_for_arguments
 
-MOMENTUM_SUCCESS_FIXTURE_ID: Final = "momentum_success"
-MOMENTUM_BOUNDARY_FIXTURE_ID: Final = "momentum_boundary"
-GRAHAM_FACTS_FIXTURE_ID: Final = "graham_facts"
-GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID: Final = "graham_precedence_cache"
-FCF_GROWTH_SUCCESS_FIXTURE_ID: Final = "fcf_growth_success"
-FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID: Final = "fcf_growth_nonmeaningful"
-FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID: Final = "fcf_growth_period_as_of"
-KNOWN_ETF_PROFILE_FIXTURE_ID: Final = "known_etf_profile"
-
-SUPPORTED_FIXTURE_IDS: Final = frozenset(
-    {
-        MOMENTUM_SUCCESS_FIXTURE_ID,
-        MOMENTUM_BOUNDARY_FIXTURE_ID,
-        GRAHAM_FACTS_FIXTURE_ID,
-        GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
-        FCF_GROWTH_SUCCESS_FIXTURE_ID,
-        FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
-        FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
-        KNOWN_ETF_PROFILE_FIXTURE_ID,
-        *SEC_FPI_FIXTURE_IDS,
-    }
-)
-
 _MOMENTUM_FIXTURE_IDS: Final = frozenset({MOMENTUM_SUCCESS_FIXTURE_ID, MOMENTUM_BOUNDARY_FIXTURE_ID})
 _FCF_FIXTURE_IDS: Final = frozenset(
     {
@@ -95,10 +82,6 @@ _FCF_FIXTURE_IDS: Final = frozenset(
         FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
     }
 )
-
-
-class FixtureCompositionError(ValueError):
-    """Raised when a case cannot be composed from approved fixture evidence."""
 
 
 class _UnavailableFinancialFactsProvider:
@@ -156,42 +139,34 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> FixtureDe
             supplied clock is ambiguous.
         UndeclaredStrategyError: If a declared tool has no fixture composition below.
     """
-    context = _fixture_context(case, clock_at=clock_at)
+    shared = build_fixture_context(case, clock_at=clock_at)
+    context = _fixture_context(shared)
     dependencies = {
         descriptor.tool: require(_COMPOSERS_BY_TOOL, descriptor.tool, what="fixture composition for tool")(context)
         for descriptor in STRATEGIES
     }
     runtime = ToolRuntime(
         clock=lambda: clock_at,
-        profile_resolver=_profile_resolver(context.fixture_ids, clock_at=clock_at),
+        profile_resolver=profile_resolver(shared),
     )
     return FixtureDependencies(dependencies=MappingProxyType(dependencies), runtime=runtime)
 
 
-def _fixture_context(case: Case, *, clock_at: datetime) -> _FixtureContext:
-    """Validate the case's fixture selections and build the providers shared across strategies."""
-    _validate_clock(clock_at)
-    fixture_ids = frozenset(case.fixture_ids)
-    unknown_ids = fixture_ids - SUPPORTED_FIXTURE_IDS
-    if unknown_ids:
-        joined = ", ".join(sorted(unknown_ids))
-        raise FixtureCompositionError(f"Unsupported fixture IDs: {joined}.")
-
-    momentum_fixture_id = _selected_variant(
+def _fixture_context(shared: FixtureContext) -> _FixtureContext:
+    """Build the providers shared across strategies from the cross-strategy context."""
+    fixture_ids = shared.fixture_ids
+    clock_at = shared.clock_at
+    momentum_fixture_id = selected_variant(
         fixture_ids,
         _MOMENTUM_FIXTURE_IDS,
         label="Momentum price",
     )
-    fcf_fixture_id = _selected_variant(
+    fcf_fixture_id = selected_variant(
         fixture_ids,
         _FCF_FIXTURE_IDS,
         label="FCF/Earnings Growth facts",
     )
-    sec_fpi_fixture_id = _selected_variant(fixture_ids, SEC_FPI_FIXTURE_IDS, label="SEC FPI evidence")
-
-    sec_fpi_provider = (
-        fixture_sec_fpi_adapter(sec_fpi_fixture_id, clock_at=clock_at) if sec_fpi_fixture_id is not None else None
-    )
+    sec_fpi_provider = shared.sec_fpi_provider
     graham_provider: FinancialFactsProvider = (
         sec_fpi_provider
         if sec_fpi_provider is not None
@@ -322,18 +297,19 @@ async def dispatch_fixture_case(
     return await dispatcher.dispatch(request)
 
 
-def _selected_variant(
-    fixture_ids: frozenset[str],
-    candidates: frozenset[str],
-    *,
-    label: str,
-) -> str | None:
-    """Return one selected variant while rejecting ambiguous fixture evidence."""
-    selected = fixture_ids & candidates
-    if len(selected) > 1:
-        joined = ", ".join(sorted(selected))
-        raise FixtureCompositionError(f"Conflicting {label} fixture IDs: {joined}.")
-    return next(iter(selected), None)
+def _require_tool_evidence(case: Case, *, tool_name: ToolName, ticker: str) -> None:
+    """Require the selected tool's fixture capability before registration."""
+    if tool_name is ToolName.ANALYZE_MOMENTUM:
+        requirement = FixtureRequirement(_MOMENTUM_FIXTURE_IDS, "Momentum price", etf_profile_exempt=False)
+    elif tool_name in (ToolName.ANALYZE_GRAHAM_NUMBER, ToolName.ANALYZE_GRAHAM_GROWTH_VALUE):
+        requirement = FixtureRequirement(
+            frozenset({GRAHAM_FACTS_FIXTURE_ID, *SEC_FPI_FIXTURE_IDS}), "Graham financial-fact", etf_profile_exempt=True
+        )
+    else:
+        requirement = FixtureRequirement(
+            _FCF_FIXTURE_IDS | SEC_FPI_FIXTURE_IDS, "FCF/Earnings Growth fact", etf_profile_exempt=True
+        )
+    require_fixture_evidence(case, requirement, ticker=ticker)
 
 
 def _annual_facts(fixture_id: str | None) -> tuple[ProviderFact, ...]:
@@ -345,54 +321,3 @@ def _annual_facts(fixture_id: str | None) -> tuple[ProviderFact, ...]:
     if fixture_id == FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID:
         return fcf_growth_period_as_of_facts()
     return ()
-
-
-def _profile_resolver(fixture_ids: frozenset[str], *, clock_at: datetime) -> Callable[[str], InstrumentProfile] | None:
-    """Build an exact-ticker profile resolver without any provider fallback."""
-    profile = (
-        fixture_known_etf_profile()
-        if KNOWN_ETF_PROFILE_FIXTURE_ID in fixture_ids
-        else fixture_nvo_security_unit_profile(resolved_at=clock_at)
-        if SEC_FPI_NVO_FIXTURE_ID in fixture_ids
-        else None
-    )
-    if profile is None:
-        return None
-
-    def resolve(ticker: str) -> InstrumentProfile:
-        if ticker.strip().upper() != profile.ticker:
-            raise FixtureCompositionError(
-                f"Profile fixture for {profile.ticker!r} cannot satisfy ticker {ticker.strip().upper()!r}."
-            )
-        return profile
-
-    return resolve
-
-
-def _require_tool_evidence(case: Case, *, tool_name: ToolName, ticker: str) -> None:
-    """Require the selected tool's fixture capability before registration."""
-    fixture_ids = frozenset(case.fixture_ids)
-    has_matching_etf_profile = (
-        KNOWN_ETF_PROFILE_FIXTURE_ID in fixture_ids and ticker.strip().upper() == GOLDEN_ETF_TICKER
-    )
-    if tool_name is ToolName.ANALYZE_MOMENTUM:
-        required = _MOMENTUM_FIXTURE_IDS
-        label = "Momentum price"
-    elif tool_name in (ToolName.ANALYZE_GRAHAM_NUMBER, ToolName.ANALYZE_GRAHAM_GROWTH_VALUE):
-        if has_matching_etf_profile:
-            return
-        required = frozenset({GRAHAM_FACTS_FIXTURE_ID, *SEC_FPI_FIXTURE_IDS})
-        label = "Graham financial-fact"
-    else:
-        if has_matching_etf_profile:
-            return
-        required = _FCF_FIXTURE_IDS | SEC_FPI_FIXTURE_IDS
-        label = "FCF/Earnings Growth fact"
-    if not fixture_ids & required:
-        raise FixtureCompositionError(f"Case {case.case_id!r} has no selected {label} fixture.")
-
-
-def _validate_clock(clock_at: datetime) -> None:
-    """Reject an ambiguous deterministic execution clock."""
-    if clock_at.tzinfo is None or clock_at.utcoffset() is None:
-        raise FixtureCompositionError("Fixture composition clock must be timezone-aware.")

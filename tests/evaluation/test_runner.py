@@ -11,7 +11,7 @@ from src.core.strategy_errors import UndeclaredStrategyError
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent, TrajectoryEventType
 from src.evaluation import runner
-from src.evaluation.composition import (
+from src.evaluation.fixture_ids import (
     KNOWN_ETF_PROFILE_FIXTURE_ID,
     MOMENTUM_BOUNDARY_FIXTURE_ID,
     MOMENTUM_SUCCESS_FIXTURE_ID,

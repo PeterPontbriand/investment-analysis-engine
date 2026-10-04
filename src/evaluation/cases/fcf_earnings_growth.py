@@ -2,7 +2,7 @@
 
 from typing import Final
 
-from src.evaluation.composition import (
+from src.evaluation.fixture_ids import (
     FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
     FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
     FCF_GROWTH_SUCCESS_FIXTURE_ID,

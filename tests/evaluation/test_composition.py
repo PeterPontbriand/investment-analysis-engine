@@ -10,6 +10,12 @@ from src.core.analysis_status import CalculationStatus
 from src.core.strategy_errors import UndeclaredStrategyError
 from src.evaluation import composition
 from src.evaluation.composition import (
+    compose_fixture_dependencies,
+    compose_fixture_dispatcher,
+    dispatch_fixture_case,
+)
+from src.evaluation.fixture_context import FixtureCompositionError
+from src.evaluation.fixture_ids import (
     FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
     FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
     FCF_GROWTH_SUCCESS_FIXTURE_ID,
@@ -17,10 +23,6 @@ from src.evaluation.composition import (
     KNOWN_ETF_PROFILE_FIXTURE_ID,
     MOMENTUM_BOUNDARY_FIXTURE_ID,
     MOMENTUM_SUCCESS_FIXTURE_ID,
-    FixtureCompositionError,
-    compose_fixture_dependencies,
-    compose_fixture_dispatcher,
-    dispatch_fixture_case,
 )
 from src.evaluation.fixtures.graham import (
     GOLDEN_EXPECTED_GROWTH,

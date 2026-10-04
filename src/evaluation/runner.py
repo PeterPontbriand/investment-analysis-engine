@@ -17,13 +17,14 @@ from src.core.telemetry import (
     TrajectoryRecord,
     TrajectoryRecorder,
 )
-from src.evaluation.composition import FixtureCompositionError, dispatch_fixture_case
+from src.evaluation.composition import dispatch_fixture_case
 from src.evaluation.evaluator import (
     evaluate_domain_outcomes,
     evaluate_fixture_status,
     evaluate_numerical_correctness,
     evaluate_tool_selection,
 )
+from src.evaluation.fixture_context import FixtureCompositionError
 from src.evaluation.models import (
     Case,
     ComponentKind,

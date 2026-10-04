@@ -2,7 +2,7 @@
 
 from typing import Final
 
-from src.evaluation.composition import GRAHAM_FACTS_FIXTURE_ID, KNOWN_ETF_PROFILE_FIXTURE_ID
+from src.evaluation.fixture_ids import GRAHAM_FACTS_FIXTURE_ID, KNOWN_ETF_PROFILE_FIXTURE_ID
 from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, NumericalExpectation, ToolConstraints
 from src.orchestrator.tool_names import ToolName
 

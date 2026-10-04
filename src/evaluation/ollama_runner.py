@@ -29,12 +29,13 @@ from src.evaluation.catalog import (
     DETERMINISTIC_SUITE_VERSION,
     build_deterministic_requests,
 )
-from src.evaluation.composition import FixtureCompositionError, compose_fixture_dispatcher
+from src.evaluation.composition import compose_fixture_dispatcher
 from src.evaluation.evaluator import (
     evaluate_execution_status,
     evaluate_fixture_status,
     evaluate_tool_selection,
 )
+from src.evaluation.fixture_context import FixtureCompositionError
 from src.evaluation.models import (
     ComponentKind,
     ComponentOutcome,

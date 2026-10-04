@@ -2,7 +2,7 @@
 
 from typing import Final
 
-from src.evaluation.composition import (
+from src.evaluation.fixture_ids import (
     KNOWN_ETF_PROFILE_FIXTURE_ID,
     MOMENTUM_BOUNDARY_FIXTURE_ID,
     MOMENTUM_SUCCESS_FIXTURE_ID,
