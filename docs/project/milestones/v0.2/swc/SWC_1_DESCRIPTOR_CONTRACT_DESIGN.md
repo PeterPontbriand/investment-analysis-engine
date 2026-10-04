@@ -793,7 +793,7 @@ def compose_momentum_profile(
   and a separate Yahoo provider, with a precedence rule that adds Yahoo only when the primary is
   another provider. Momentum has one client that is both identity and kind candidate. Calling the
   Graham helper would need the same client passed twice and a Graham-named import in Momentum code,
-  which treats Graham as the template (`AGENTS.md` §9). `graham_shared.py` is not edited.
+  which treats Graham as the template (`AGENTS.md` §9). `src/strategies/_shared/profile.py` is not edited.
 - **Behavior preserved exactly:** one identity candidate and one kind candidate, both
   `InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)`; `profile_cache.resolve(...)` when a
   cache is given, otherwise `compose_instrument_profile(...)`. The two `src/cli.py` sites and

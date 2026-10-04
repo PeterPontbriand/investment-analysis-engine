@@ -240,7 +240,11 @@ composition into the evaluation tier.
   name the strategy package; the living guide `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`; the
   layering test with the role rule and parent-package initialization; and the patch-target resolution test,
   a test that every string patch target in `tests/` (the dotted target of `patch(...)`, `patch.object` by name and `monkeypatch.setattr(...)`) resolves to an existing attribute, which proves the
-  retargeted strings point at moved names and which the package-rename plan reuses. T13 records the exact
+  retargeted strings point at moved names and which the package-rename plan reuses; and the
+  direct-command output test, which runs `momentum`, `graham-number`, `graham-growth` and `fcf-growth` (text
+  and `--json`) against fixtures and compares byte for byte with stored output generated from `main`
+  (`tests/expected_output/direct_commands/`, regenerated with `uv run python -m tests._direct_command_output`,
+  normalizing only four wall-clock JSON fields and line endings). T13 records the exact
   24-edge transition allowlist and its owner counts in [SWC.1 design §4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#4-static-declaration-model).
   No behavior change and
   no new symbol except that test.
@@ -557,6 +561,9 @@ version and result-schema version distinct and do not silently reinterpret histo
   in the slice contract.
 - **Patch targets resolve:** after SWC.2a, a test resolves every string patch target in `tests/` to an
   existing attribute, and it keeps passing in every later slice.
+- **No output change:** the direct-command output test passes unchanged in every later slice that claims no
+  output change. A slice that changes output regenerates the stored files in the same change, and the diff to
+  them is what the review approves.
 - **Edit sites:** adding a strategy takes the 18 sites in the design's edit-site table, in 21 files across 8
   directories, six of them existing files; five of those are edited by the generator, and the sixth (the catalog) is reviewed
   truth.
