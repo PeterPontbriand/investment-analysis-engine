@@ -276,7 +276,7 @@ def _expect_undeclared(gaps: list[str], probe: str, action: Callable[[], object]
     except UndeclaredStrategyError as error:
         if names not in str(error):
             gaps.append(f"{probe}: the error does not name {names!r}: {error}")
-    except Exception as error:  # noqa: BLE001 - any other exception type is itself the gap being reported
+    except Exception as error:
         gaps.append(f"{probe}: raised {type(error).__name__} instead of UndeclaredStrategyError")
     else:
         gaps.append(f"{probe}: accepted an undeclared input")

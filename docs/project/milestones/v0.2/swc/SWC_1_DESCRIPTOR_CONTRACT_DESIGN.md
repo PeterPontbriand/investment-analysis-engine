@@ -129,7 +129,9 @@ anything.
 
 `StrategyBehavior[SelT, ResultT, DepsT]` pairs the selection type, the result type and the handler's
 dependency type with every function that mentions them, so pairing one strategy's function with another
-strategy's type is a type error. Each member is introduced by the slice whose consumer needs it.
+strategy's type is a type error. Each member is introduced by the slice whose consumer needs it. SWC.2c
+declares `StrategyBehavior[ResultT, DepsT]` because no member it introduces mentions the selection type;
+SWC.3a adds `SelT` as the first parameter with its first member ([F.4](#f4-selection-type-parameter)).
 
 | Member | Type | Introduced | Consumer |
 | :--- | :--- | :--- | :--- |
@@ -242,7 +244,7 @@ Fixture values, expected outcomes and case truth stay hand-written and reviewed.
      arguments are built with that strategy's arguments model, so the import is permanent.
   4. No module under `src` imports `tests`.
 
-  **Transition allowlist:** SWC.2a recorded 24 edges and SWC.2b adds the 20 edges below to the `tool` files. Until
+  **Transition allowlist:** SWC.2a recorded 24 edges and SWC.2b added 20 edges to the `tool` files; SWC.2c removed the 12 it owned, leaving the 32 edges below. Until
   its owning slice removes it, T13 permits only the exact importer-to-module edges below. Each row is one edge; no wildcard, strategy-wide or role-wide exception is permitted. T13 fails if
   an entry is stale or if any unlisted forbidden edge appears. The owning slice removes its entry in the same
   change that rewires the importer. The within-strategy role rule, cross-strategy rule, no-import-of-tests rule,
@@ -250,18 +252,6 @@ Fixture values, expected outcomes and case truth stay hand-written and reviewed.
 
   | Importer module | Imported module | Removes entry |
   | :--- | :--- | :--- |
-  | `src.orchestrator.analysis_tools` | `src.strategies.fcf_growth.tool` | SWC.2c |
-  | `src.orchestrator.analysis_tools` | `src.strategies.graham_growth.tool` | SWC.2c |
-  | `src.orchestrator.analysis_tools` | `src.strategies.graham_number.tool` | SWC.2c |
-  | `src.orchestrator.analysis_tools` | `src.strategies.momentum.tool` | SWC.2c |
-  | `src.evaluation.runner` | `src.strategies.fcf_growth.tool` | SWC.2c |
-  | `src.evaluation.runner` | `src.strategies.graham_growth.tool` | SWC.2c |
-  | `src.evaluation.runner` | `src.strategies.graham_number.tool` | SWC.2c |
-  | `src.evaluation.runner` | `src.strategies.momentum.tool` | SWC.2c |
-  | `src.evaluation.ollama_runner` | `src.strategies.fcf_growth.tool` | SWC.2c |
-  | `src.evaluation.ollama_runner` | `src.strategies.graham_growth.tool` | SWC.2c |
-  | `src.evaluation.ollama_runner` | `src.strategies.graham_number.tool` | SWC.2c |
-  | `src.evaluation.ollama_runner` | `src.strategies.momentum.tool` | SWC.2c |
   | `src.evaluation.composition` | `src.strategies.fcf_growth.tool` | SWC.2d |
   | `src.evaluation.composition` | `src.strategies.graham_growth.tool` | SWC.2d |
   | `src.evaluation.composition` | `src.strategies.graham_number.tool` | SWC.2d |
@@ -295,13 +285,13 @@ Fixture values, expected outcomes and case truth stay hand-written and reviewed.
   | `src.reporting.analysis_runs` | `src.strategies.graham_number.presenter` | SWC.4c |
   | `src.reporting.analysis_runs` | `src.strategies.momentum.presenter` | SWC.4c |
 
-  Counts by owner: SWC.2c, 12; SWC.2d, 8; SWC.3a, 8; SWC.3b, 4; SWC.3c, 8; SWC.4c, 4 (44 in all). The list must
+  Counts by owner: SWC.2d, 8; SWC.3a, 8; SWC.3b, 4; SWC.3c, 8; SWC.4c, 4 (32 in all; 44 before SWC.2c). The list must
   be empty when SWC.4c merges, and SWC.7 verifies final conformance.
 
-  The 20 edges SWC.2b adds exist because the arguments models move into the `tool` role, which generic
-  modules may not import, while their importers are rewired only by later slices. SWC.2c removes the
-  edges of `analysis_tools.py`, `runner.py` and `ollama_runner.py`: the handlers move into
-  `tool.py`, and the argument-type mappings become injected lookups. SWC.2d owns the `composition.py` edges,
+  The 20 edges SWC.2b added exist because the arguments models move into the `tool` role, which generic
+  modules may not import, while their importers are rewired only by later slices. SWC.2c removed the
+  edges of `analysis_tools.py`, `runner.py` and `ollama_runner.py`: the handlers moved into
+  `tool.py`, and the argument-type mappings became lookups through the root. SWC.2d owns the `composition.py` edges,
   because the per-strategy dependency classes SWC.2c puts in `tool.py` are still built there until the fixture
   composition moves, and the `catalog.py` edges, because the reviewed case arguments move out of the catalog.
   SWC.2b is the one slice that adds entries; every later slice only removes them.
@@ -1457,3 +1447,76 @@ renumbering table in [E.3](#e3-renumbering) uses the numbers in force when it wa
 Directory count. The study's figure of nine directories for one package per strategy counted `docs/user`,
 whose strategy lists are now generated, so no hand edit remains there; the adopted design's figure is eight,
 the same as the package-rename plan's.
+
+## Appendix F: Decisions recorded while implementing SWC.2c
+
+Each entry is a point the design left open, or a place where the implementation differs from the text above,
+with the decision and its reason.
+
+### F.1 No specimen yet
+
+The specimen strategy arrives in SWC.6. Every check body in `scripts/strategy_conformance.py` takes the tuple
+as a parameter, so SWC.6 passes a second tuple without editing the bodies; the tests pass the production
+tuple, and T1 to T6, T11 and T24 are challenged with incomplete copies of it. T11 uses undeclared types
+defined inside the check (an arguments subclass and a subclass of each result type) and no strategy fixture.
+
+### F.2 Binding handlers needs instances
+
+`HANDLERS_BY_TOOL` cannot be a static view, because a handler is built from injected dependency instances.
+The root exposes the pure function `bind_handlers(descriptors, dependencies, runtime)`, which maps each
+descriptor's tool to `behavior.bind_handler(dependencies[tool], runtime)` and raises
+`UndeclaredStrategyError` for a descriptor tool with no dependencies entry, for an entry that belongs to no
+descriptor, and (through the exact-type guard) for a dependency instance of another strategy's class.
+Until SWC.2d, `src/evaluation/composition.py` pairs each per-strategy composition function with its tool in
+`_COMPOSERS_BY_TOOL` and looks each descriptor's tool up through `require`, so a declared tool with no pair
+fails closed. SWC.2d replaces that pairing with the evaluation tier.
+
+### F.3 Reads of members inside the root (T16)
+
+`deps_type`, `handler` and `native_status` are read by `StrategyBehavior`'s own methods, so no attribute read of
+those names exists outside the module that defines them, and none was added. T16 therefore checks the surface
+generic consumers can reach: the six descriptor fields and the three accessors of `BehaviorView`
+(`result_type`, `native_status_of`, `bind_handler`). `native_status_of` is read by the evaluation runner,
+`result_type` by T2, T3 and the index builder, and `bind_handler` by T11, whose probes call it with another
+strategy's object. T16 does not name the three members and keeps no exemption list. **Proposed resolution for
+the project owner:** accept this scope, or amend the T16 row so that its rule reads "every descriptor field and
+every `BehaviorView` accessor", which is what the test checks. The alternative, an attribute read of each
+member outside the root, would be an artificial read.
+
+### F.4 Selection type parameter
+
+SWC.2c declares `StrategyBehavior[ResultT, DepsT]`. A type parameter that no member mentions cannot be
+checked: `mypy` cannot reject a mispairing through it and no test can see it, so it would be a dead
+declaration of the kind T16 exists to prevent. SWC.3a adds `selection_type` and `parse` and adds `SelT` as the
+first type parameter in the same change, which edits the four declarations (each already writes its type
+arguments explicitly, [§8](#8-typing-form)).
+
+### F.5 Argument subclasses in T4
+
+`AnalysisToolArguments.__subclasses__()` returns every subclass that exists in the process, including one
+defined by a test, so comparing it with the descriptors would depend on which tests ran first. T4 counts only
+classes whose module starts with `src.`; a class defined by a test or a script can neither satisfy nor
+break the comparison.
+
+### F.6 Other differences from the text above
+
+- **`ToolHandlerFactory` is named `ToolHandlerBinder`.** The sketch in [§8](#8-typing-form) used a name that
+  ends in `Factory`, which check A2 forbids in the root and in strategy-owned files.
+- **`BehaviorView` has three accessors.** `result_type`, `native_status_of(result, /)` and
+  `bind_handler(dependencies, runtime, /)` are the erased accessors; the exact-type guard in each raises
+  `UndeclaredStrategyError` for another strategy's object or for a subclass.
+- **`tool_for_arguments(arguments, by_arguments=BY_ARGUMENTS)`.** The index is a defaulted parameter so a check
+  can route against a modified copy of the tuple.
+- **`by_result_type` is keyed by `type`.** Lookup of an arbitrary object by `type(object)` must type-check
+  without a cast, so the index key is the bare `type`; the values and the guard are unchanged.
+- **`register_analysis_tools` returns `None`.** It returned the handlers object when it built it; the caller now
+  builds the mapping, so there is nothing to return.
+- **Provider-ID validation is per strategy.** The shared `AnalysisToolDependencies` validated all three
+  provider selections together, so a Momentum-only caller had to supply Graham and FCF provider IDs. Each
+  dependency class now validates its own with the same message.
+- **T6 dispatches every catalog case** through the fixture composition and checks the result type each
+  descriptor declares, instead of running the whole suite and its report: the suite's own tests already
+  cover scoring, and this check owns only the descriptor-to-case coverage.
+- **T11 covers `register_analysis_tools`, `bind_handlers`, `tool_for_arguments` and the behavior guards.**
+  The runner's private `_native_result` and `_native_status` are covered in `tests/evaluation/test_runner.py`,
+  because a check body in `scripts/` should not import another layer's private functions.

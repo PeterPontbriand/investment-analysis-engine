@@ -47,8 +47,8 @@ document-link check and applicable documentation checks.
 | SWC.1 | [Settle descriptor contract and conformance design](#swc1--descriptor-contract-and-conformance-design) | Complete | 2026-10-03 |
 | SWC.2a | [Relocate the existing strategy modules into one package per strategy](#swc2a--strategy-packages) | Complete | 2026-10-04 |
 | SWC.2b | [Move the symbols the descriptor and tiers will reference](#swc2b--symbol-moves) | Complete | 2026-10-04 |
-| SWC.2c | [Declare the descriptor; wire orchestration and evaluation routing](#swc2c--descriptor-and-orchestration-wiring) | Next | |
-| SWC.2d | [Move fixture composition into the evaluation tier](#swc2d--evaluation-tier) | Planned | |
+| SWC.2c | [Declare the descriptor; wire orchestration and evaluation routing](#swc2c--descriptor-and-orchestration-wiring) | Complete | 2026-10-04 |
+| SWC.2d | [Move fixture composition into the evaluation tier](#swc2d--evaluation-tier) | Next | |
 | SWC.3a | [Inject the descriptor into workspace consumers](#swc3a--workspace-consumers) | Planned | |
 | SWC.3b | [CLI tier: selection builders and refresh executors](#swc3b--cli-tier) | Planned | |
 | SWC.3c | [Move the direct commands into strategy files](#swc3c--direct-commands) | Planned | |
