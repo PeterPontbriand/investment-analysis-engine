@@ -16,12 +16,16 @@ from src.evaluation.fixture_context import (
     require_fixture_evidence,
 )
 from src.evaluation.fixture_ids import (
+    FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
+    FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
+    FCF_GROWTH_SUCCESS_FIXTURE_ID,
     GRAHAM_FACTS_FIXTURE_ID,
     GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
     KNOWN_ETF_PROFILE_FIXTURE_ID,
     MOMENTUM_BOUNDARY_FIXTURE_ID,
     MOMENTUM_SUCCESS_FIXTURE_ID,
 )
+from src.evaluation.fixtures.fcf_earnings_growth import FCF_GROWTH_HISTORICAL_AS_OF
 from src.evaluation.fixtures.graham import (
     GOLDEN_PRECEDENCE_EPS_OVERRIDE,
     NOW,
@@ -29,9 +33,12 @@ from src.evaluation.fixtures.graham import (
 )
 from src.evaluation.fixtures.graham import PROVIDER_ID as GRAHAM_PROVIDER_ID
 from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER
-from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_ASML_FIXTURE_ID, SEC_FPI_FIXTURE_IDS
+from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_ASML_FIXTURE_ID, SEC_FPI_FIXTURE_IDS, SEC_FPI_SAP_FIXTURE_ID
 from src.evaluation.models import Case, Expectation
 from src.orchestrator.tool_runtime import ToolRuntime
+from src.strategies.fcf_growth import evaluation as fcf_growth_evaluation
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, HistoricalHorizon
+from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
 from src.strategies.graham_growth import evaluation as graham_growth_evaluation
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
@@ -40,7 +47,7 @@ from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.graham_number.tool import GrahamNumberToolArguments
 from src.strategies.momentum import evaluation as momentum_evaluation
 from src.strategies.momentum.analyzer import MomentumRun
-from src.strategy_wiring import GRAHAM_GROWTH, GRAHAM_NUMBER, MOMENTUM
+from src.strategy_wiring import FCF_GROWTH, GRAHAM_GROWTH, GRAHAM_NUMBER, MOMENTUM
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 
@@ -198,3 +205,83 @@ def test_graham_growth_uses_the_foreign_private_issuer_identity() -> None:
 def test_graham_growth_shares_the_graham_requirement() -> None:
     """Both Graham strategies state the same capability, label and ETF exemption."""
     assert graham_growth_evaluation.REQUIREMENT == graham_number_evaluation.REQUIREMENT
+
+
+def _fcf_growth(context: FixtureContext, arguments: FCFEarningsGrowthToolArguments) -> FCFEarningsGrowthResult:
+    """Run the real FCF & Earnings Growth handler over the composed dependencies."""
+    handler = FCF_GROWTH.behavior.bind_handler(fcf_growth_evaluation.compose(context), _runtime())
+    result = handler(**arguments.model_dump(mode="python"))
+    assert isinstance(result, FCFEarningsGrowthResult)
+    return result
+
+
+@pytest.mark.parametrize(
+    ("fixture_id", "arguments", "status", "observations"),
+    [
+        (FCF_GROWTH_SUCCESS_FIXTURE_ID, FCFEarningsGrowthToolArguments(ticker="ACME"), CalculationStatus.OK, 6),
+        (FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID, FCFEarningsGrowthToolArguments(ticker="ACME"), CalculationStatus.OK, 6),
+        (
+            FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
+            FCFEarningsGrowthToolArguments(
+                ticker="ACME",
+                historical_horizon=HistoricalHorizon.FOUR_YEARS,
+                as_of=FCF_GROWTH_HISTORICAL_AS_OF,
+            ),
+            CalculationStatus.INPUT_UNAVAILABLE,
+            0,
+        ),
+    ],
+)
+def test_fcf_growth_composes_each_selected_annual_fixture(
+    fixture_id: str,
+    arguments: FCFEarningsGrowthToolArguments,
+    status: CalculationStatus,
+    observations: int,
+) -> None:
+    """Each annual variant supplies its own reviewed evidence for the subject."""
+    result = _fcf_growth(_context(fixture_id), arguments)
+    assert result.execution_status is status
+    assert len(result.annual_observations) == observations
+
+
+def test_fcf_growth_without_an_annual_fixture_has_explicitly_empty_history() -> None:
+    """An unselected annual variant is an empty series, never default data."""
+    result = _fcf_growth(_context(GRAHAM_FACTS_FIXTURE_ID), FCFEarningsGrowthToolArguments(ticker="ACME"))
+    assert result.execution_status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.annual_observations == ()
+
+
+def test_fcf_growth_prefers_the_foreign_private_issuer_provider() -> None:
+    """Selected SEC evidence replaces the annual fixture provider."""
+    result = _fcf_growth(_context(SEC_FPI_SAP_FIXTURE_ID), FCFEarningsGrowthToolArguments(ticker="SAP", currency="EUR"))
+    assert result.execution_status is CalculationStatus.INPUT_UNAVAILABLE
+
+
+@pytest.mark.parametrize(
+    "fixture_ids",
+    [
+        (FCF_GROWTH_SUCCESS_FIXTURE_ID, FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID),
+        (FCF_GROWTH_SUCCESS_FIXTURE_ID, FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID),
+    ],
+)
+def test_fcf_growth_rejects_two_annual_variants(fixture_ids: tuple[str, ...]) -> None:
+    """Conflicting annual fixtures fail closed in FCF's own composition."""
+    with pytest.raises(FixtureCompositionError, match="Conflicting FCF/Earnings Growth facts fixture IDs"):
+        fcf_growth_evaluation.compose(_context(*fixture_ids))
+
+
+def test_fcf_growth_requirement_is_its_own_fail_closed_statement() -> None:
+    """FCF names its annual and SEC fixtures, its label and the ETF exemption; nothing is inherited."""
+    requirement = fcf_growth_evaluation.REQUIREMENT
+    assert requirement.required_ids == {
+        FCF_GROWTH_SUCCESS_FIXTURE_ID,
+        FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
+        FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
+        *SEC_FPI_FIXTURE_IDS,
+    }
+    assert requirement.label == "FCF/Earnings Growth fact"
+    assert requirement.etf_profile_exempt is True
+    etf_case = _case(KNOWN_ETF_PROFILE_FIXTURE_ID)
+    require_fixture_evidence(etf_case, requirement, ticker=GOLDEN_ETF_TICKER)
+    with pytest.raises(FixtureCompositionError, match="has no selected FCF/Earnings Growth fact fixture"):
+        require_fixture_evidence(etf_case, requirement, ticker="ACME")
