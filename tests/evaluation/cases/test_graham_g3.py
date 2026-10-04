@@ -29,11 +29,12 @@ from src.evaluation.fixtures.graham import (
 from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
-from src.orchestrator.analysis_tools import GrahamGrowthValueToolArguments, GrahamNumberToolArguments
 from src.orchestrator.tool_names import ToolName
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
+from src.strategies.graham_number.tool import GrahamNumberToolArguments
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("b0000000-0000-0000-0000-00000000000b")

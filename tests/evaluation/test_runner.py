@@ -27,8 +27,8 @@ from src.evaluation.models import (
 )
 from src.evaluation.reporting import CaseOutcome, EvaluationReport
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
-from src.orchestrator.analysis_tools import MomentumToolArguments
 from src.orchestrator.tool_names import ToolName
+from src.strategies.momentum.tool import MomentumToolArguments
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("10000000-0000-0000-0000-000000000001")

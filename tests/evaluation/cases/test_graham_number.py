@@ -16,9 +16,9 @@ from src.evaluation.composition import dispatch_fixture_case
 from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
-from src.orchestrator.analysis_tools import GrahamNumberToolArguments
 from src.orchestrator.tool_names import ToolName
 from src.strategies.graham_number.service import GrahamNumberAnalysis
+from src.strategies.graham_number.tool import GrahamNumberToolArguments
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("70000000-0000-0000-0000-000000000007")

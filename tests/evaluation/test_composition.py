@@ -15,7 +15,6 @@ from src.evaluation.composition import (
     KNOWN_ETF_PROFILE_FIXTURE_ID,
     MOMENTUM_BOUNDARY_FIXTURE_ID,
     MOMENTUM_SUCCESS_FIXTURE_ID,
-    AnalysisToolArguments,
     FixtureCompositionError,
     compose_fixture_dependencies,
     compose_fixture_dispatcher,
@@ -33,18 +32,17 @@ from src.evaluation.fixtures.graham import (
 from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER
 from src.evaluation.fixtures.market_data import MOMENTUM_LONG_WINDOW, MOMENTUM_RSI_PERIOD, MOMENTUM_SHORT_WINDOW
 from src.evaluation.models import Case, Expectation
-from src.orchestrator.analysis_tools import (
-    ANALYZE_GRAHAM_NUMBER_TOOL,
-    FCFEarningsGrowthToolArguments,
-    GrahamGrowthValueToolArguments,
-    GrahamNumberToolArguments,
-    MomentumToolArguments,
-)
+from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
+from src.orchestrator.analysis_tools import ANALYZE_GRAHAM_NUMBER_TOOL
 from src.orchestrator.types import ToolCallRequest
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
 from src.strategies.graham_number.service import GrahamNumberAnalysis
+from src.strategies.graham_number.tool import GrahamNumberToolArguments
 from src.strategies.momentum.analyzer import MomentumRun
+from src.strategies.momentum.tool import MomentumToolArguments
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 

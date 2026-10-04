@@ -41,24 +41,22 @@ from src.evaluation.fixtures.sec_edgar_fpi import (
     fixture_sec_fpi_adapter,
 )
 from src.evaluation.models import Case
-from src.orchestrator.analysis_tools import (
-    AnalysisToolDependencies,
-    FCFEarningsGrowthToolArguments,
-    GrahamGrowthValueToolArguments,
-    GrahamNumberToolArguments,
-    MomentumToolArguments,
-    register_analysis_tools,
-)
+from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
+from src.orchestrator.analysis_tools import AnalysisToolDependencies, register_analysis_tools
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import ToolCallRequest, ToolCallResult
 from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
 from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
 from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.graham_number.tool import GrahamNumberToolArguments
 from src.strategies.momentum.analyzer import MomentumAnalyzer
+from src.strategies.momentum.tool import MomentumToolArguments
 
 MOMENTUM_SUCCESS_FIXTURE_ID: Final = "momentum_success"
 MOMENTUM_BOUNDARY_FIXTURE_ID: Final = "momentum_boundary"
@@ -90,10 +88,6 @@ _FCF_FIXTURE_IDS: Final = frozenset(
         FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
         FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
     }
-)
-
-type AnalysisToolArguments = (
-    MomentumToolArguments | GrahamNumberToolArguments | GrahamGrowthValueToolArguments | FCFEarningsGrowthToolArguments
 )
 
 

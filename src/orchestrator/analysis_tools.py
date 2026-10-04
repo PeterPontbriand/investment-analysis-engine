@@ -6,128 +6,39 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
-from typing import Annotated, Final
+from typing import Final
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.data.instrument_profile import InstrumentProfile
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.models import (
-    FCFClassificationBasis,
     FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
-    ForwardPolicy,
-    HistoricalHorizon,
 )
+from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
 from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
-from src.strategies.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
+from src.strategies.graham_growth.config import GrahamGrowthConfig
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
 from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
-from src.strategies.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
+from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.graham_number.service import GrahamNumberAnalysis
+from src.strategies.graham_number.tool import GrahamNumberToolArguments
 from src.strategies.momentum.analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
     MomentumRun,
 )
+from src.strategies.momentum.tool import MomentumToolArguments
 
 ANALYZE_MOMENTUM_TOOL: Final = "analyze_momentum"
 ANALYZE_GRAHAM_NUMBER_TOOL: Final = "analyze_graham_number"
 ANALYZE_GRAHAM_GROWTH_VALUE_TOOL: Final = "analyze_graham_growth_value"
 ANALYZE_FCF_EARNINGS_GROWTH_TOOL: Final = "analyze_fcf_earnings_growth"
-
-FiniteFloat = Annotated[float, Field(allow_inf_nan=False)]
-PositiveFiniteFloat = Annotated[float, Field(gt=0, allow_inf_nan=False)]
-
-
-class _AnalysisToolArguments(BaseModel):
-    """Shared validation for production analysis-tool arguments."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    ticker: str
-    as_of: datetime | None = None
-
-    @field_validator("ticker")
-    @classmethod
-    def normalize_ticker(cls, value: str) -> str:
-        """Normalize and require a non-empty ticker symbol."""
-        normalized = value.strip().upper()
-        if not normalized:
-            raise ValueError("ticker must be a non-empty string.")
-        return normalized
-
-    @field_validator("as_of")
-    @classmethod
-    def require_aware_as_of(cls, value: datetime | None) -> datetime | None:
-        """Reject ambiguous point-in-time boundaries."""
-        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
-            raise ValueError("as_of must be timezone-aware.")
-        return value
-
-
-_MOMENTUM_DEFAULTS = MomentumConfig()
-
-
-class MomentumToolArguments(_AnalysisToolArguments):
-    """Validated arguments for Momentum analysis."""
-
-    short_window: int = Field(default=_MOMENTUM_DEFAULTS.short_window, gt=0)
-    long_window: int = Field(default=_MOMENTUM_DEFAULTS.long_window, gt=0)
-    rsi_period: int = Field(default=_MOMENTUM_DEFAULTS.rsi_period, gt=0)
-    use_cache: bool = True
-
-    @model_validator(mode="after")
-    def require_ordered_windows(self) -> MomentumToolArguments:
-        """Require the short window to precede the long window."""
-        if self.short_window >= self.long_window:
-            raise ValueError("short_window must be smaller than long_window.")
-        return self
-
-
-class GrahamNumberToolArguments(_AnalysisToolArguments):
-    """Validated arguments for Graham Number analysis."""
-
-    eps_basis: GrahamNumberEPSBasis = "three_year_average"
-    eps_override: FiniteFloat | None = None
-    bvps_override: FiniteFloat | None = None
-    current_price_override: FiniteFloat | None = None
-    use_cache: bool = True
-
-
-class GrahamGrowthValueToolArguments(_AnalysisToolArguments):
-    """Validated arguments for Graham growth-value analysis."""
-
-    eps_basis: GrahamGrowthEPSBasis = "three_year_average"
-    expected_growth: FiniteFloat
-    current_aaa_yield: PositiveFiniteFloat
-    eps_override: FiniteFloat | None = None
-    current_price_override: FiniteFloat | None = None
-    use_cache: bool = True
-
-
-class FCFEarningsGrowthToolArguments(_AnalysisToolArguments):
-    """Validated arguments for Free Cash Flow & Earnings Growth analysis."""
-
-    historical_horizon: HistoricalHorizon = HistoricalHorizon.LONGEST_AVAILABLE
-    classification_basis: FCFClassificationBasis = FCFClassificationBasis.TOTAL_FCF
-    forward_policy: ForwardPolicy = ForwardPolicy.DISPLAY_ONLY
-    include_fcf_yield: bool = True
-    currency: str = "USD"
-    use_cache: bool = True
-
-    @field_validator("currency")
-    @classmethod
-    def normalize_currency(cls, value: str) -> str:
-        """Normalize and require a non-empty currency identifier."""
-        normalized = value.strip().upper()
-        if not normalized:
-            raise ValueError("currency must be a non-empty string.")
-        return normalized
-
 
 ANALYSIS_TOOL_ARGUMENT_MODELS: Final[Mapping[str, type[BaseModel]]] = MappingProxyType(
     {
