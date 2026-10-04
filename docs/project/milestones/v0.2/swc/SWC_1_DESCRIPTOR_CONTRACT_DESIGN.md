@@ -236,17 +236,40 @@ Fixture values, expected outcomes and case truth stay hand-written and reviewed.
      `analysis`, `core`, `config`), `cli_support`, `cli_composition`, the other CLI helpers and the generic
      evaluation modules may import only analyzer and selection roles, and none of them imports the root or a
      tier. The root `src/strategy_wiring.py` may import analyzer, codec, envelope, replay, selection and tool
-     roles; the CLI tier only `cli`; the evaluation tier only `evaluation`.
+     roles; the CLI tier only `cli`; the evaluation tier only `evaluation`. One further clause, implemented in T13 by
+     SWC.2d: `src.evaluation.cases.<strategy>` may import the tool role of `src.strategies.<strategy>` and
+     of no other strategy. A case module is single-strategy and named for its strategy package; its reviewed
+     arguments are built with that strategy's arguments model, so the import is permanent.
   4. No module under `src` imports `tests`.
 
-  **SWC.2a transition allowlist:** Until its owning slice removes it, T13 permits only the exact importer-to-module
-  edges below. Each row is one edge; no wildcard, strategy-wide or role-wide exception is permitted. T13 fails if
+  **Transition allowlist:** SWC.2a recorded 24 edges and SWC.2b adds the 20 edges below to the `tool` files. Until
+  its owning slice removes it, T13 permits only the exact importer-to-module edges below. Each row is one edge; no wildcard, strategy-wide or role-wide exception is permitted. T13 fails if
   an entry is stale or if any unlisted forbidden edge appears. The owning slice removes its entry in the same
   change that rewires the importer. The within-strategy role rule, cross-strategy rule, no-import-of-tests rule,
   and parent-package cycle rule remain strict throughout.
 
   | Importer module | Imported module | Removes entry |
   | :--- | :--- | :--- |
+  | `src.orchestrator.analysis_tools` | `src.strategies.fcf_growth.tool` | SWC.2c |
+  | `src.orchestrator.analysis_tools` | `src.strategies.graham_growth.tool` | SWC.2c |
+  | `src.orchestrator.analysis_tools` | `src.strategies.graham_number.tool` | SWC.2c |
+  | `src.orchestrator.analysis_tools` | `src.strategies.momentum.tool` | SWC.2c |
+  | `src.evaluation.runner` | `src.strategies.fcf_growth.tool` | SWC.2c |
+  | `src.evaluation.runner` | `src.strategies.graham_growth.tool` | SWC.2c |
+  | `src.evaluation.runner` | `src.strategies.graham_number.tool` | SWC.2c |
+  | `src.evaluation.runner` | `src.strategies.momentum.tool` | SWC.2c |
+  | `src.evaluation.ollama_runner` | `src.strategies.fcf_growth.tool` | SWC.2c |
+  | `src.evaluation.ollama_runner` | `src.strategies.graham_growth.tool` | SWC.2c |
+  | `src.evaluation.ollama_runner` | `src.strategies.graham_number.tool` | SWC.2c |
+  | `src.evaluation.ollama_runner` | `src.strategies.momentum.tool` | SWC.2c |
+  | `src.evaluation.composition` | `src.strategies.fcf_growth.tool` | SWC.2d |
+  | `src.evaluation.composition` | `src.strategies.graham_growth.tool` | SWC.2d |
+  | `src.evaluation.composition` | `src.strategies.graham_number.tool` | SWC.2d |
+  | `src.evaluation.composition` | `src.strategies.momentum.tool` | SWC.2d |
+  | `src.evaluation.catalog` | `src.strategies.fcf_growth.tool` | SWC.2d |
+  | `src.evaluation.catalog` | `src.strategies.graham_growth.tool` | SWC.2d |
+  | `src.evaluation.catalog` | `src.strategies.graham_number.tool` | SWC.2d |
+  | `src.evaluation.catalog` | `src.strategies.momentum.tool` | SWC.2d |
   | `src.workspace.codecs` | `src.strategies.fcf_growth.codec` | SWC.3a |
   | `src.workspace.codecs` | `src.strategies.graham_growth.codec` | SWC.3a |
   | `src.workspace.codecs` | `src.strategies.graham_number.codec` | SWC.3a |
@@ -272,8 +295,23 @@ Fixture values, expected outcomes and case truth stay hand-written and reviewed.
   | `src.reporting.analysis_runs` | `src.strategies.graham_number.presenter` | SWC.4c |
   | `src.reporting.analysis_runs` | `src.strategies.momentum.presenter` | SWC.4c |
 
-  Counts by owner: SWC.3a, 8; SWC.3b, 4; SWC.3c, 8; SWC.4c, 4. The list must be empty when
-  SWC.4c merges, and SWC.7 verifies final conformance.
+  Counts by owner: SWC.2c, 12; SWC.2d, 8; SWC.3a, 8; SWC.3b, 4; SWC.3c, 8; SWC.4c, 4 (44 in all). The list must
+  be empty when SWC.4c merges, and SWC.7 verifies final conformance.
+
+  The 20 edges SWC.2b adds exist because the arguments models move into the `tool` role, which generic
+  modules may not import, while their importers are rewired only by later slices. SWC.2c removes the
+  edges of `analysis_tools.py`, `runner.py` and `ollama_runner.py`: the handlers move into
+  `tool.py`, and the argument-type mappings become injected lookups. SWC.2d owns the `composition.py` edges,
+  because the per-strategy dependency classes SWC.2c puts in `tool.py` are still built there until the fixture
+  composition moves, and the `catalog.py` edges, because the reviewed case arguments move out of the catalog.
+  SWC.2b is the one slice that adds entries; every later slice only removes them.
+
+  **Where the `catalog.py` edges end up.** SWC.2d moves each case's reviewed arguments beside its case, so the
+  case modules import the tool role permanently. It makes every case module single-strategy and named for its
+  strategy package: GRN-04 and GRN-05 move from `graham_resolution.py` into `graham_number.py`; FPI-01, FPI-02
+  and FPI-04 move from `sec_edgar_fpi.py` into `graham_growth.py` and FPI-03 into the FCF module, which is
+  renamed `fcf_growth.py`. Case ids, the order of `DETERMINISTIC_CASES`, the suite version and the fixture
+  modules do not change. Rule 3's last clause permits exactly these imports.
 
   The rule was prototyped in the import-graph model: the real graph has no violation and thirteen
   deliberate violations are each rejected ([Appendix C](#appendix-c-import-cycle-evidence)). The existing
@@ -316,8 +354,16 @@ Fixture values, expected outcomes and case truth stay hand-written and reviewed.
   arguments model to its `tool.py`; the five selection classes to each strategy's `selection.py` and their
   shared base to `src/workspace/selection_base.py`; the `NativeEvidence` union, the new `SelectionMember`
   union and the `AnalysisSelection` union to `src/workspace/strategy_types.py`. The importers are updated in
-  the same slice: seventeen modules import `ToolName`, eleven the argument models, six in `src` and sixteen
-  under `tests` the selection classes, one `NativeEvidence`. No public package export has to stay:
+  the same slice. Importer modules, counted on `main` after SWC.2a: 18 import `ToolName` (11 in `src`, one of
+  them the `src.evaluation` package re-export, and 7 in `tests`); 10 the argument models (4, 6); 20 the
+  selection classes (4, 16); 10 `AnalysisSelection` (5, 5); none `NativeEvidence`, whose one user is
+  `execution.py`, which defined it; 3 the evaluation `AnalysisToolArguments` union (2, 1). The shared
+  selection base is public as `FrozenSelection` because four strategy packages and `requests.py` import it,
+  and it also holds the two CLI provider tuples both Graham selections read, public as
+  `CLI_SECURITY_PROVIDERS` and `CLI_QUOTE_PROVIDERS`: they describe the CLI composition's supported
+  providers, not Graham logic, and a shared home keeps one copy without one strategy importing another. The
+  same slice replaces the four-model `AnalysisToolArguments` union in `composition.py` with the shared base
+  class, so one name never denotes two things. No public package export has to stay:
   `src/evaluation/__init__.py` exports `ToolName`, but nothing imports it from the package, so that export
   is removed. `docs/EVALUATIONS.md` and `docs/project/ARCHITECTURE.md` name the moved symbols and are
   updated in SWC.2b.
@@ -349,7 +395,7 @@ T10 or T11.
 | SWC.2c | `src/orchestrator/analysis_tools.py`: `register_analysis_tools(dispatcher, handlers)` | A mapping from tool name to bound handler, checked against `ToolName`; `AnalysisToolDependencies`, `AnalysisToolHandlers` and the four `ANALYZE_*_TOOL` constants are deleted. | Each handler and its dependency bundle, in `src/strategies/<strategy>/tool.py`; `ToolRuntime` (clock and profile resolver) is shared. |
 | SWC.2c | `src/evaluation/{composition,runner,ollama_runner}.py` (three `_tool_name`, `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser`, `_selection_observation`) | Imports the root: `BY_ARGUMENTS` through one `tool_for_arguments`; `tool_description` and `tool_arguments` per tool; ordinary enum lookup replaces the private `_value2member_map_`. | Prompt construction, observation evidence, fixture composition and requirement (moved by SWC.2d). |
 | SWC.2c | `src/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | `BY_RESULT_TYPE` membership; each behavior's `native_status` (Momentum's returns `None`, [§7](#7-strategy-specific-escape-hatches)); the duplicate union becomes `NativeEvidence`; the FCF default is gone. | The status function of each strategy. |
-| SWC.2d | `src/evaluation/composition.py`: `compose_fixture_dependencies`, `_require_tool_evidence`, `AnalysisToolArguments` union | Evaluation tier: per-strategy `compose` and `requirement`; the union is deleted for the shared base. | Fixture values, expected outcomes and case truth, in `src/strategies/<strategy>/evaluation.py`, `fixtures/` and `cases/`. |
+| SWC.2d | `src/evaluation/composition.py`: `compose_fixture_dependencies`, `_require_tool_evidence` | Evaluation tier: per-strategy `compose` and `requirement`. The `AnalysisToolArguments` union was replaced by the shared base in SWC.2b. | Fixture values, expected outcomes and case truth, in `src/strategies/<strategy>/evaluation.py`, `fixtures/` and `cases/`. |
 | SWC.2b, SWC.3a | `src/workspace/execution.py`: `NativeEvidence` move; `_METHOD_VERSIONS`, `execute`; `ExecutionCapture` and the four `from_*_capture` | `execute(request, ..., spec)` receives the strategy's versions and `encode_object`; `getattr(selection, "as_of", None)` becomes `selection.as_of`. | `ExecutionCapture` (moved to `src/workspace/capture.py`), each normalizer in its adapter, `NativeEvidence`. |
 | SWC.3a | `src/workspace/codecs.py`: `encode_evidence`, `decode_evidence`, `_EXPECTED_VERSIONS` | `encode_evidence(evidence, codecs)` and `decode_evidence(run, codecs)` look up the injected codec by exact type or key; expected versions, label, ticker identity. | Each strategy's `encode_*`/`decode_*`, validation and provenance rules. |
 | SWC.3a | `src/workspace/requests.py`: `parse_selection`; `src/workspace/method_aliases.py` | `parse_selection(alias, config_json, parsers)`; the alias vocabulary is the descriptors' `alias`, and `method_aliases.py` is deleted. | Each selection class and parser, in `src/strategies/<strategy>/selection.py`. |
@@ -477,9 +523,10 @@ strings is rejected by `mypy --strict` (`StrEnum() must be ... literal ... to de
 Evidence: Appendix B, form C.
 
 **`AnalysisToolArguments`:** the shared base class that every arguments model already inherits becomes the
-public `AnalysisToolArguments`; the four-model union in `evaluation/composition.py` is deleted. Every
-consumer reads only `ticker`, `as_of` and `model_dump`, which the base defines, and `tool_for_arguments`
-routes by exact type, so no typing is lost. `tool_arguments` is typed `type[AnalysisToolArguments]`, which
+public `AnalysisToolArguments`; the four-model union in `evaluation/composition.py` is deleted, in SWC.2b.
+Every consumer reads only `ticker` and `model_dump`, which the base defines, and dispatches by exact
+`isinstance` on the four concrete models (checked in SWC.2b across `composition.py`, `runner.py`,
+`ollama_runner.py` and the tests), and `tool_for_arguments` routes by exact type, so no typing is lost. `tool_arguments` is typed `type[AnalysisToolArguments]`, which
 rejects a class that is not an analysis-tool arguments model.
 
 **What changes in practice:** the second mapping is removed. The four `ANALYZE_*_TOOL` constants,
@@ -585,9 +632,9 @@ approval. Each slice makes its moves in the same change as the consumer it serve
 | Slice | Branch | Files touched | Declarations removed | Order of work |
 | :--- | :--- | :--- | :--- | :--- |
 | SWC.2a | `feat/swc-2a-strategy-packages` | New: `src/strategies/` with an empty `__init__.py` in it and in each strategy package, the layering test (T13: role rule and parent-package initialization), `src/strategies/_shared/profile.py`. Moved with `git mv` and no content change beyond imports: the 17 analyzer files from `src/analysis/strategy/<package>/` (Momentum's `momentum_analyzer.py` becomes `analyzer.py`), the four codecs (`src/workspace/<strategy>.py` to `codec.py`), the four adapters (`<strategy>_execution.py` to `execution.py`), the four presenters (`src/reporting/<strategy>.py` to `presenter.py`) and `src/workspace/graham_shared.py`. Edited: the 101 importer files (33 in `src`, 68 in `tests`; 15 tests name moved modules in patch strings), `tests/analysis/test_base_analyzer_conformance.py` (the strategy-boundary constants now name `src/strategies`), `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` (paths). Also new: the patch-target resolution test, a test that every string patch target in `tests/` (the dotted target of `patch(...)`, `patch.object` by name and `monkeypatch.setattr(...)`) resolves to an existing attribute; it runs before the importer rewrite is accepted and the package-rename plan reuses it. | `src/analysis/strategy/` and its three re-exporting `__init__.py` files; the old module paths. | Package skeleton and T13 first, then one strategy at a time (analyzer files, then codec, adapter and presenter), then `_shared/profile.py`, then the importers and the boundary test, then the patch-target resolution test, which must pass over every `tests/` string target. No behavior change and no new symbol. |
-| SWC.2b | `feat/swc-2b-symbol-moves` | New: `src/orchestrator/tool_names.py`, `src/orchestrator/analysis_tool_arguments.py`, `src/strategies/<strategy>/tool.py` (arguments only), `src/workspace/selection_base.py`, `src/strategies/<strategy>/selection.py`, `src/workspace/strategy_types.py`. Edited: `src/orchestrator/analysis_tools.py`, `src/workspace/{requests,execution,__init__}.py`, `src/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py`, the six `src/evaluation/cases/*.py` importers, `src/core/constants.py`, the importers of every moved symbol (tests included), `docs/EVALUATIONS.md`, `docs/project/ARCHITECTURE.md`. | The old definitions of every moved symbol; the `ToolName` export from `src.evaluation`; the `src.workspace` re-exports; `AnalysisType`. | One symbol group at a time (`ToolName`, arguments, selection classes, unions), updating importers and running the gate after each; then `AnalysisType`. No behavior change and no descriptor. |
-| SWC.2c | `feat/swc-2c-descriptor-orchestration-wiring` | New: `src/strategy_wiring.py`, `src/core/strategy_errors.py`, `src/orchestrator/tool_runtime.py`, conformance tests and `scripts/strategy_conformance.py`. Edited: `src/orchestrator/analysis_tools.py`, `src/strategies/<strategy>/tool.py` (dependency classes and handlers), `src/evaluation/{composition,runner,ollama_runner}.py`, affected tests. | `AnalysisToolDependencies`, `AnalysisToolHandlers`; the four `ANALYZE_*_TOOL` constants; `ANALYSIS_TOOL_ARGUMENT_MODELS`; three `_tool_name`; `_TOOL_DESCRIPTIONS`; the duplicate `NativeAnalysisResult`; the FCF default in `_native_status`; the private `_value2member_map_` use. | Add the descriptor with T1 (ids), T2 to T6, T11, T13 (root rule), T14 to T17, T24, then move each handler and switch each consumer. Fixture composition stays in `composition.py` as per-strategy functions until SWC.2d. |
-| SWC.2d | `feat/swc-2d-evaluation-tier` | New: `src/evaluation/strategy_fixtures.py`, `src/evaluation/fixture_context.py`, `src/evaluation/fixture_ids.py`, `src/strategies/<strategy>/evaluation.py` and `src/strategies/_graham/evaluation.py`. Edited: `src/evaluation/{composition,catalog}.py`, the case modules (reviewed arguments move beside their cases), affected tests. | The per-strategy composition functions and `_require_tool_evidence` in `composition.py`; the `_arguments` chain in `catalog.py`. | Fixture identifiers and shared context first, then one strategy at a time into its evaluation file, then the tier tuple and T10's evaluation-tier surface. No fixture value, expected outcome or score changes. |
+| SWC.2b | `feat/swc-2b-symbol-moves` | New: `src/orchestrator/tool_names.py`, `src/orchestrator/analysis_tool_arguments.py`, `src/strategies/<strategy>/tool.py` (arguments only), `src/workspace/selection_base.py`, `src/strategies/<strategy>/selection.py`, `src/workspace/strategy_types.py`. Edited: `src/orchestrator/analysis_tools.py`, `src/workspace/{requests,execution}.py`, `src/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py`, the six `src/evaluation/cases/*.py` importers, `src/core/constants.py`, the importers of every moved symbol (tests included), `tests/test_strategy_import_layering.py` (twenty transition entries), `docs/EVALUATIONS.md`, `docs/project/ARCHITECTURE.md`. | The old definitions of every moved symbol; the `ToolName` export from `src.evaluation`; the four-model `AnalysisToolArguments` union in `composition.py`; `AnalysisType`. | One symbol group at a time (`ToolName`, arguments, selection classes, unions), updating importers and running the gate after each; then `AnalysisType`. No behavior change and no descriptor. |
+| SWC.2c | `feat/swc-2c-descriptor-orchestration-wiring` | New: `src/strategy_wiring.py`, `src/core/strategy_errors.py`, `src/orchestrator/tool_runtime.py`, conformance tests and `scripts/strategy_conformance.py`. Edited: `src/orchestrator/analysis_tools.py`, `src/strategies/<strategy>/tool.py` (dependency classes and handlers), `src/evaluation/{composition,runner,ollama_runner}.py`, affected tests; removes its twelve T13 transition entries. | `AnalysisToolDependencies`, `AnalysisToolHandlers`; the four `ANALYZE_*_TOOL` constants; `ANALYSIS_TOOL_ARGUMENT_MODELS`; three `_tool_name`; `_TOOL_DESCRIPTIONS`; the duplicate `NativeAnalysisResult`; the FCF default in `_native_status`; the private `_value2member_map_` use. | Add the descriptor with T1 (ids), T2 to T6, T11, T13 (root rule), T14 to T17, T24, then move each handler and switch each consumer. Fixture composition stays in `composition.py` as per-strategy functions until SWC.2d. |
+| SWC.2d | `feat/swc-2d-evaluation-tier` | New: `src/evaluation/strategy_fixtures.py`, `src/evaluation/fixture_context.py`, `src/evaluation/fixture_ids.py`, `src/strategies/<strategy>/evaluation.py` and `src/strategies/_graham/evaluation.py`. Edited: `src/evaluation/{composition,catalog}.py`, the case modules (reviewed arguments move beside their cases; each case module becomes single-strategy and named for its strategy package, [§4](#4-static-declaration-model)), T13's rule 3 clause for `src.evaluation.cases.<strategy>`, affected tests; removes its eight T13 transition entries. | The per-strategy composition functions and `_require_tool_evidence` in `composition.py`; the `_arguments` chain in `catalog.py`. | Fixture identifiers and shared context first, then one strategy at a time into its evaluation file, then the tier tuple and T10's evaluation-tier surface. No fixture value, expected outcome or score changes. |
 | SWC.3a | `feat/swc-3a-workspace-consumers` | `src/strategy_wiring.py`, `src/workspace/{codecs,execution,requests,refresh,capture}.py` (`capture.py` new), the four `src/strategies/<strategy>/execution.py` adapters (each gains its normalizer; Momentum's gains `compose_momentum_profile`), delete `src/workspace/method_aliases.py`, `src/data/repositories/watchlists.py`, `src/cli_workspace.py` (the repository helper), `src/cli.py` (Momentum composition only), tests (T1, T8, T10, T11 extended; `test_method_aliases.py` folded in). | `_METHOD_VERSIONS`; `_EXPECTED_VERSIONS`; both label chains; both codec isinstance chains; `method_aliases.py`; the `parse_selection` alias tuple and Momentum fall-through; the `getattr(selection, "as_of", None)` probe; the Momentum composition copies. | Momentum helper first (independent), then descriptor fields and the `selection_type`, `parse`, `encode`, `decode`, `ticker_of` members, then codecs and execution, then aliases and `parse_selection`, then the repository alias resolver and `refresh_watchlist`. `ExecutionCapture` and the normalizers move here. |
 | SWC.3b | `feat/swc-3b-cli-tier` | New: `src/cli_strategy_wiring.py`, `src/strategies/<strategy>/cli.py`. Edited: `src/cli_workspace.py`, tests (T10 CLI-tier surface). | `_build_selection` and its helpers; `_refresh_executor`; the four `_execute_*`; the `--analysis` help literals. | One strategy at a time: selection builder and refresh executor into its `cli.py`, then the tier tuple, then the lookups in `cli_workspace.py`. |
 | SWC.3c | `feat/swc-3c-direct-commands` | `src/cli.py`, `src/cli_run_support.py` (new), the four `src/strategies/<strategy>/cli.py`, tests (T7, T22; retargeted patch strings in 13 test modules). | The four `@app.command` functions and their helpers in `cli.py`; `_maybe_save_run` and `get_cli_run_context` leave it. | Shared run helpers first, then one command at a time, then `cli.py` iterating `CLI_STRATEGIES`, then T7 and T22. |
@@ -826,7 +873,7 @@ Where the audit disagreed with the plan, and what changed:
 | 8 | The plan makes SWC.4 one slice covering strategy envelopes and the failure envelope. | With every `--json` document typed, the refresh and database output changes and a schema generator, it is three reviewable concerns. | SWC.4 is split into SWC.4a, SWC.4b and SWC.4c ([§11](#11-migration-from-current-declarations)). |
 | 9 | The plan's JSON scope is the strategies' output and the failure envelope. | The project owner's review decided that every `--json` document is typed. | The plan's At a glance, SWC.4 scope and acceptance criteria are widened ([§13.6](#136-every-json-document-is-typed)). |
 | 10 | SWC.3's Decision says today `encode_evidence` and `decode_evidence` both fall through to Momentum. | Item 1 above. | The sentence is corrected in the plan. |
-| 11 | The design (as merged) and test T13 treated each import statement as an edge to the named module only. | Python runs a package's `__init__.py` first. `src/workspace/__init__.py` imports `requests`, which imports the descriptor, which imports `src.workspace.*`: an initialization cycle of nine modules that makes importing the descriptor first fail with `ImportError`. | `src/workspace/__init__.py` is emptied in SWC.2b and T13 counts parent packages ([§4](#4-static-declaration-model), [Appendix C](#appendix-c-import-cycle-evidence)). |
+| 11 | The design (as merged) and test T13 treated each import statement as an edge to the named module only. | Python runs a package's `__init__.py` first. `src/workspace/__init__.py` imports `requests`, which imports the descriptor, which imports `src.workspace.*`: an initialization cycle of nine modules that makes importing the descriptor first fail with `ImportError`. | `src/workspace/__init__.py` is emptied in SWC.2a and T13 counts parent packages ([§4](#4-static-declaration-model), [Appendix C](#appendix-c-import-cycle-evidence)). |
 | 12 | The design (as merged) kept handlers, executors and projectors in consumer-owned tables because a descriptor they reference creates import cycles. | The cycles come from the direction (consumers import the descriptor), not from where the functions live. With the descriptor at the composition root and each layer's slice injected, the references are acyclic and no foundation layer imports upward. | D5 is reversed: the references are used ([Appendix E](#appendix-e-adoption-of-the-co-location-result)). |
 | 13 | Plan §3.2 permits references to strategy-owned encoding, decoding, presentation, selection-conversion and execution functions. | The design used fewer than §3.2 allows. | The design now uses handlers, selection parsers, replay projectors and native-status functions in the core bundle, and selection builders, refresh executors and commands in the CLI tier. |
 | 14 | The plan has one SWC.2, one SWC.3 and a final SWC.5 that holds the guide. | The adopted shape makes SWC.2 and SWC.3 too large to review, relocates the existing strategy modules, and adds contributor tooling that the guide's table is generated from. | SWC.2 is four slices, SWC.3 is three, tooling is SWC.5 and SWC.6, and the guide is SWC.7 ([§11](#11-migration-from-current-declarations)). |

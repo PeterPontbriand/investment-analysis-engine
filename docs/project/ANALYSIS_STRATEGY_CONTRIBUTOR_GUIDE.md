@@ -24,7 +24,7 @@ All current strategy analyzers inherit from `BaseAnalyzer` with their own config
 
 For the full clock model — which instant each kind of check compares against, the decision-clock/event-clock distinction, `utc_now()`, and why frozen-clock skew is tolerated only for live runs — see ARCHITECTURE.md's [*Time and the analysis boundary*](ARCHITECTURE.md#5-time-and-the-analysis-boundary) rather than this guide; duplicating those rules here would let the two drift.
 
-The workspace selections expose `to_analysis_context(executed_at, instrument_profile)` alongside method-specific config conversion. Direct execution adapters and orchestrator handlers construct this context at their execution boundary. See [`AnalysisSelection` and its method-specific request models](../../src/workspace/requests.py) for the workspace request boundary. The [Architecture](ARCHITECTURE.md) documents broader boundaries and rationale.
+The workspace selections expose `to_analysis_context(executed_at, instrument_profile)` alongside method-specific config conversion. Direct execution adapters and orchestrator handlers construct this context at their execution boundary. See [`AnalysisSelection`](../../src/workspace/strategy_types.py) and each strategy's `selection.py` under `src/strategies/` for its method-specific request model, and [`AnalysisRequest`](../../src/workspace/requests.py) for the workspace request boundary. The [Architecture](ARCHITECTURE.md) documents broader boundaries and rationale.
 
 ## How a strategy runs
 
@@ -168,14 +168,14 @@ FCF growth is a useful end-to-end example because its resolver, calculation, pre
 
 | Generic concept | FCF & Earnings Growth implementation |
 | --- | --- |
-| Strategy configuration | `FCFEarningsGrowthConfig` in [`models.py`](../../src/strategies/fcf_growth/models.py), built from `FCFGrowthSelection.to_fcf_config()` in [`requests.py`](../../src/workspace/requests.py) |
+| Strategy configuration | `FCFEarningsGrowthConfig` in [`models.py`](../../src/strategies/fcf_growth/models.py), built from `FCFGrowthSelection.to_fcf_config()` in [`selection.py`](../../src/strategies/fcf_growth/selection.py) |
 | Strategy policy | `FCFEarningsGrowthPolicy` in [`models.py`](../../src/strategies/fcf_growth/models.py), held by the config |
 | Strategy analyzer | `FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarningsGrowthResult])` in [`analyzer.py`](../../src/strategies/fcf_growth/analyzer.py) |
 | Strategy result | `FCFEarningsGrowthResult` in [`models.py`](../../src/strategies/fcf_growth/models.py) |
 | Input resolution | `ProductionAnnualGrowthSeriesResolver` in [`input_resolver.py`](../../src/strategies/fcf_growth/input_resolver.py) |
 | Execution adapter | `execute_fcf_growth` and `FCFGrowthCapture` in [`execution.py`](../../src/strategies/fcf_growth/execution.py) |
 | Common execution context | `AnalysisContext` from [`base_analyzer.py`](../../src/analysis/base_analyzer.py), constructed by the adapter from the run boundary, cache choice, and profile |
-| Common request boundary | `AnalysisRequest` / `FCFGrowthSelection` and `to_fcf_config()` in [`requests.py`](../../src/workspace/requests.py) |
+| Common request boundary | `AnalysisRequest` in [`requests.py`](../../src/workspace/requests.py); `FCFGrowthSelection` and `to_fcf_config()` in [`selection.py`](../../src/strategies/fcf_growth/selection.py) |
 | Common execution and persistence | [`workspace.execute()`](../../src/workspace/execution.py), [`AnalysisRun`](../../src/workspace/runs.py), and the Analysis Run repository |
 | Strategy presentation | `render_fcf_earnings_growth` in [`presenter.py`](../../src/strategies/fcf_growth/presenter.py) |
 
