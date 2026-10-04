@@ -310,7 +310,10 @@ Fixture values, expected outcomes and case truth stay hand-written and reviewed.
 - **Who imports what:** the root imports the tool, selection, codec, replay, envelope and analyzer roles.
   The CLI tier imports the root and the `cli` files. The evaluation tier imports the root and the
   `evaluation` files. The only importers of the root and the tiers are `cli`, `cli_workspace`,
-  `evaluation` and the tiers themselves.
+  the generic `evaluation` modules and the tiers themselves. T13 holds the importers of the root as an exact
+  list of modules, each of which must exist and import the root; a slice adds an entry in the change that
+  first makes its module import the root. Today the list is `src.evaluation.composition`,
+  `src.evaluation.runner` and `src.evaluation.ollama_runner`.
 - **Injection:** the root builds read-only `Mapping`s from the tuple (`BY_KEY`, `BY_METHOD_ID`, `BY_ALIAS`,
   `BY_TOOL`, `BY_ARGUMENTS`, `BY_RESULT_TYPE`, and from SWC.4c `BY_ENVELOPE`) and one narrow view per layer,
   for example `EVIDENCE_BY_KEY`, `PARSERS_BY_ALIAS`, `REPLAYS_BY_KEY`, `HANDLERS_BY_TOOL`. Each consuming
