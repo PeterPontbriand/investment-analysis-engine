@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from scripts import strategy_conformance as conformance
+from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.strategy_wiring import (
     BY_ARGUMENTS,
@@ -26,9 +27,12 @@ from src.strategy_wiring import (
     GRAHAM_NUMBER,
     MOMENTUM,
     STRATEGIES,
+    StrategyDescriptor,
 )
 
-_WIRING = Path(__file__).resolve().parents[1] / "src" / "strategy_wiring.py"
+_SRC = Path(__file__).resolve().parents[1] / "src"
+_WIRING = _SRC / "strategy_wiring.py"
+_TIER = _SRC / "evaluation" / "strategy_fixtures.py"
 
 
 def test_t1_selection_union_ids_match_the_descriptors() -> None:
@@ -99,6 +103,35 @@ def test_t6_every_tool_has_a_golden_case_and_every_case_is_served() -> None:
     assert any("tool analyze_fcf_earnings_growth" not in gap and "FCF-" in gap for gap in gaps)
 
 
+def test_t10_the_evaluation_tier_covers_every_descriptor() -> None:
+    """Every descriptor has exactly one evaluation-tier entry and every entry serves a descriptor."""
+    assert conformance.evaluation_tier_gaps(STRATEGIES) == []
+    assert len(EVALUATION_STRATEGIES) == len(STRATEGIES)
+
+
+@pytest.mark.parametrize("descriptor", [MOMENTUM, GRAHAM_NUMBER, GRAHAM_GROWTH, FCF_GROWTH])
+def test_t10_a_removed_tier_entry_yields_exactly_one_gap_naming_the_tier_and_the_strategy(
+    descriptor: StrategyDescriptor,
+) -> None:
+    """Challenged with an incomplete copy of the production tuple, the check names the one uncovered strategy."""
+    incomplete = tuple(entry for entry in EVALUATION_STRATEGIES if entry.behavior is not descriptor.behavior)
+    assert len(incomplete) == len(STRATEGIES) - 1
+    gaps = conformance.evaluation_tier_gaps(STRATEGIES, incomplete)
+    assert gaps == [f"strategy ({descriptor.analysis_id!r}, {descriptor.method_id!r}) is not wired in: evaluation tier"]
+
+
+def test_t10_reports_a_duplicate_entry_and_an_entry_serving_no_descriptor() -> None:
+    """The tier and the descriptors are compared in both directions."""
+    duplicated = (*EVALUATION_STRATEGIES, EVALUATION_STRATEGIES[0])
+    assert conformance.evaluation_tier_gaps(STRATEGIES, duplicated) == [
+        "strategy ('momentum', 'sma_crossover') has 2 entries in the evaluation tier"
+    ]
+    stray = replace(EVALUATION_STRATEGIES[0], behavior=object())
+    assert conformance.evaluation_tier_gaps(STRATEGIES, (stray, *EVALUATION_STRATEGIES)) == [
+        "an evaluation tier entry is paired with a bundle that no descriptor holds"
+    ]
+
+
 def test_t11_undeclared_inputs_fail_closed() -> None:
     """Every dispatcher rejects an input that matches no declared strategy and names it."""
     assert conformance.undeclared_input_gaps(STRATEGIES) == []
@@ -115,13 +148,37 @@ def test_t11_reports_a_dispatcher_that_accepts_an_undeclared_input(monkeypatch: 
     assert gaps == ["tool_for_arguments(undeclared model): accepted an undeclared input"]
 
 
+def test_t11_reports_an_evaluation_tier_that_accepts_a_missing_entry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tier probes can fail: a composition that ignores the supplied tier is reported for every tool."""
+    real = conformance.compose_fixture_dependencies
+
+    def ignore_the_tier(case: object, *, clock_at: object, tier: object) -> object:
+        del tier
+        return real(case, clock_at=clock_at)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(conformance, "compose_fixture_dependencies", ignore_the_tier)
+    gaps = conformance.undeclared_input_gaps(STRATEGIES)
+    assert len(gaps) == len(STRATEGIES)
+    assert all("tier entry: accepted an undeclared input" in gap for gap in gaps)
+
+
 def test_t14_wiring_files_declare_no_discovery_or_registration() -> None:
     """The root and every strategy-owned file have no discovery, self-registration or registry-like name."""
     files = conformance.wiring_files()
     assert _WIRING in files
+    assert _TIER in files
+    evaluation_files = {path for path in files if path.name == "evaluation.py"}
+    assert {path.parent.name for path in evaluation_files} == {
+        "momentum",
+        "graham_number",
+        "graham_growth",
+        "fcf_growth",
+        "_graham",
+    }
     assert len(files) > 30
     assert conformance.discovery_gaps(files) == []
     assert conformance.closed_tuple_gaps(_WIRING, ["STRATEGIES"]) == []
+    assert conformance.closed_tuple_gaps(_TIER, ["EVALUATION_STRATEGIES"]) == []
     assert (
         conformance.read_only_index_gaps(
             {
@@ -192,6 +249,40 @@ def test_t14_reports_a_closed_tuple_that_is_not_a_literal_of_constants(tmp_path:
         "wiring.py: MISSING is not declared",
     ]
     assert conformance.read_only_index_gaps({"BY_X": {}}) == ["BY_X is not a read-only mapping"]
+
+
+def test_t14_accepts_pair_calls_and_rejects_other_elements_in_the_tier_tuple(tmp_path: Path) -> None:
+    """The tier tuple holds module constants or ``pair_*`` calls and nothing else."""
+    source = tmp_path / "strategy_fixtures.py"
+    source.write_text(
+        "ONE = 1\nEVALUATION_STRATEGIES = (pair_evaluation(ONE, ONE), ONE, build(ONE))\n", encoding="utf-8"
+    )
+    assert conformance.closed_tuple_gaps(source, ["EVALUATION_STRATEGIES"]) == [
+        "strategy_fixtures.py: EVALUATION_STRATEGIES holds an element that is not a module constant or pair_* call"
+    ]
+
+
+def test_t15_the_evaluation_tier_types_are_closed() -> None:
+    """The composition and the tier entry have the documented members, are frozen and are not subclassed."""
+    assert conformance.evaluation_tier_is_closed_gaps() == []
+    assert conformance.evaluation_tier_is_closed_gaps(()) == []
+
+
+def test_t15_reports_an_undocumented_evaluation_tier_member(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Adding a member or a field without a reviewed edit to the documented sets fails."""
+    monkeypatch.setattr(conformance, "EVAL_COMPOSITION_MEMBERS", frozenset({"compose"}))
+    monkeypatch.setattr(conformance, "EVALUATION_ENTRY_FIELDS", frozenset({"behavior"}))
+    gaps = conformance.evaluation_tier_is_closed_gaps()
+    assert len(gaps) == 2
+    assert gaps[0].startswith("evaluation composition members differ from the documented set")
+    assert gaps[1].startswith("evaluation tier entry fields differ from the documented set")
+
+
+def test_t15_reports_a_tier_that_is_not_a_tuple() -> None:
+    """The closed tier is a tuple, so a list is reported."""
+    assert conformance.evaluation_tier_is_closed_gaps(list(EVALUATION_STRATEGIES)) == [  # type: ignore[arg-type]
+        "EVALUATION_STRATEGIES is not a tuple"
+    ]
 
 
 def test_t15_the_descriptor_and_its_behavior_are_closed() -> None:
