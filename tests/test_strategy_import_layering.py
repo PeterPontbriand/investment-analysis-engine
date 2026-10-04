@@ -3,8 +3,10 @@
 The role rule is design §4: a file's role is its file name inside its strategy package; within a
 package a file may import only a lower-ranked role, except that analyzer-level files may import each
 other; no strategy imports another; code outside ``src/strategies`` may import only analyzer and
-selection roles. Imports of ``__init__.py`` files count, and every ``__init__.py`` under
-``src/strategies`` must be empty.
+selection roles, except that a case module under ``src/evaluation/cases`` may also import the tool role
+of the strategy package it is named for. Only a strategy's ``evaluation`` file imports from
+``src/evaluation``, and only the fixture-id, fixture-context and fixture modules. Imports of ``__init__.py``
+files count, and every ``__init__.py`` under ``src/strategies`` must be empty.
 """
 
 from __future__ import annotations
@@ -264,6 +266,13 @@ def _boundary_error(
         and not _strategy_evaluation_may_import(target)
     ):
         return f"strategy evaluation file imports beyond the fixture modules: {source} -> {target}"
+    if (
+        len(source_parts) >= 4
+        and source_parts[:2] == ["src", "strategies"]
+        and source_parts[3] != "evaluation"
+        and target_parts[:2] == ["src", "evaluation"]
+    ):
+        return f"strategy file other than evaluation imports the evaluation package: {source} -> {target}"
     return None
 
 
@@ -680,4 +689,17 @@ def test_t13_permits_a_case_module_to_import_only_its_own_strategys_tool_role() 
     assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set()) == [
         f"external import exceeds analyzer/selection roles: {source} -> {target}"
         for source, target in sorted(forbidden)
+    ]
+
+
+def test_t13_keeps_every_other_strategy_file_out_of_the_evaluation_package() -> None:
+    """Only a strategy's evaluation file may import from ``src.evaluation``; no other role may."""
+    edges = {
+        ("src.strategies.momentum.analyzer", "src.evaluation.fixture_ids"),
+        ("src.strategies.momentum.tool", "src.evaluation.composition"),
+        ("src.strategies._shared.profile", "src.evaluation.models"),
+    }
+    assert _edge_violations(edges, _SAMPLE_STRATEGIES, set()) == [
+        f"strategy file other than evaluation imports the evaluation package: {source} -> {target}"
+        for source, target in sorted(edges)
     ]
