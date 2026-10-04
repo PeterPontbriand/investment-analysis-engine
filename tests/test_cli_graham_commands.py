@@ -8,10 +8,10 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
-from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
 from src.cli import app
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
+from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from src.strategies.graham_growth.config import GrahamGrowthConfig
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.config import GrahamNumberConfig
 from tests._cli_helpers import normalize_cli_output

@@ -4,8 +4,8 @@ import json
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.core.analysis_status import CalculationStatus
+from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.workspace.models import StrictJsonMapping, _validate_json_value
 
 

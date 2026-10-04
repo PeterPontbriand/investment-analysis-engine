@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Any
 
 from src.analysis.shared.financial_resolution import PriceComparison
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import SourceKind
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
@@ -46,6 +45,7 @@ from src.reporting.valuation_presentation import (
     quote_warnings,
     validate_margin,
 )
+from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 
 _SCHEMA_VERSION = 6
 _GROWTH_LIMITATION = (

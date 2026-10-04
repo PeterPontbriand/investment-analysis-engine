@@ -20,11 +20,11 @@ from src.analysis.strategy.fcf_earnings_growth import (
     ForwardPolicy,
     HistoricalHorizon,
 )
-from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
-from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
-from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.data.instrument_profile import InstrumentProfile
 from src.orchestrator.dispatcher import AsyncToolDispatcher
+from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
+from src.strategies.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
+from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
 from src.strategies.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
 from src.strategies.graham_number.service import GrahamNumberAnalysis

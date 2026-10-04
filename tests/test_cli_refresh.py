@@ -29,7 +29,6 @@ import pytest
 from typer.testing import CliRunner
 
 import src.cli_workspace
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
 from src.cli import app
 from src.core.constants import TrendStatus
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
@@ -42,6 +41,7 @@ from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, SUBJECT_MISSING, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
+from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.workspace.requests import (

@@ -10,8 +10,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
-from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
 from src.cli import app
 from src.cli_composition import build_graham_resolver
 from src.config import settings
@@ -28,6 +26,8 @@ from src.evaluation.fixtures.graham import (
     FixtureFinancialFactsProvider,
 )
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from src.strategies.graham_growth.config import GrahamGrowthConfig
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
@@ -503,7 +503,7 @@ def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resoluti
             return_value=growth_fixture_resolver if method_arguments else fixture_resolver,
         ),
         patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
-        patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=profile),
         patch.object(
             fixture_resolver,
             "assemble_graham_number",

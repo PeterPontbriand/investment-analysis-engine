@@ -7,12 +7,6 @@ from uuid import UUID
 import pytest
 
 from src.analysis.shared.financial_resolution import PriceComparison
-from src.analysis.strategy.graham_growth.calculation import (
-    GrahamGrowthCalculationPolicy,
-    GrahamGrowthValueResult,
-    GrowthValueInputAssembly,
-)
-from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from src.data.financial.quote_freshness import QuoteFreshnessEvidence
@@ -27,6 +21,12 @@ from src.data.security_unit import (
     SecurityUnitResolution,
     SecurityUnitResolutionReason,
 )
+from src.strategies.graham_growth.calculation import (
+    GrahamGrowthCalculationPolicy,
+    GrahamGrowthValueResult,
+    GrowthValueInputAssembly,
+)
+from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.requests import GrahamGrowthSelection
@@ -294,11 +294,11 @@ def test_decode_does_not_recalculate_and_preserves_payload(monkeypatch: pytest.M
         raise AssertionError("Stored evidence must not trigger execution or calculation.")
 
     for target in (
-        "src.analysis.strategy.graham_growth.calculation.compute_graham_growth_value",
-        "src.analysis.strategy.graham_growth.service.compute_graham_growth_value",
-        "src.analysis.strategy.graham_growth.service.run_graham_growth_analysis",
-        "src.analysis.strategy.graham_growth.service.evaluate_price_comparison",
-        "src.analysis.strategy.graham_growth.service.complete_security_unit_profile",
+        "src.strategies.graham_growth.calculation.compute_graham_growth_value",
+        "src.strategies.graham_growth.service.compute_graham_growth_value",
+        "src.strategies.graham_growth.service.run_graham_growth_analysis",
+        "src.strategies.graham_growth.service.evaluate_price_comparison",
+        "src.strategies.graham_growth.service.complete_security_unit_profile",
     ):
         monkeypatch.setattr(target, unexpected_call)
     restored = decode_evidence(run)

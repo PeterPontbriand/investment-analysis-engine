@@ -18,7 +18,6 @@ from typing import Any
 
 import pytest
 
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import (
@@ -52,6 +51,7 @@ from src.evaluation.fixtures.graham import (
     SUBJECT_MISSING,
     FixtureFinancialFactsProvider,
 )
+from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 # ---------------------------------------------------------------------------

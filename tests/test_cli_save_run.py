@@ -25,7 +25,6 @@ from typer.testing import CliRunner
 
 import src.cli
 from alembic import command
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
 from src.cli import app
 from src.config import ProjectSettings
 from src.config import settings as real_settings
@@ -39,6 +38,7 @@ from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
+from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.workspace.models import RunOutcome

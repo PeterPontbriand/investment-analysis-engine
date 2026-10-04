@@ -9,7 +9,6 @@ from typing import Any
 
 import pytest
 
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.cache import (
     InMemoryResolvedInputCache,
@@ -33,6 +32,7 @@ from src.data.financial.provenance import (
     SourceKind,
 )
 from src.data.financial.resolver import InputResolutionResult, InputResolver
+from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 # ---------------------------------------------------------------------------

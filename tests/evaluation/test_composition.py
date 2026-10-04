@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 import pytest
 
 from src.analysis.strategy.fcf_earnings_growth import FCFEarningsGrowthResult
-from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.core.analysis_status import CalculationStatus
 from src.evaluation.composition import (
     FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
@@ -43,6 +42,7 @@ from src.orchestrator.analysis_tools import (
     MomentumToolArguments,
 )
 from src.orchestrator.types import ToolCallRequest
+from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumRun
 

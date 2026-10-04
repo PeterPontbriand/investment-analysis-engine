@@ -23,8 +23,8 @@ import sys
 
 import pytest
 
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, compute_graham_growth_value
 from src.core.analysis_status import CalculationStatus
+from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, compute_graham_growth_value
 from src.strategies.graham_number.calculation import GrahamNumberResult, compute_graham_number
 
 # ─────────────────────────────────────────────────────────────────────────────

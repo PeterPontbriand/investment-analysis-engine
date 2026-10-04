@@ -13,7 +13,6 @@ from src.analysis.strategy.fcf_earnings_growth import (
     ProductionAnnualGrowthSeriesResolver,
 )
 from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthResult
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import TrendStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
@@ -31,8 +30,9 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
     annual_series,
 )
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
-from src.reporting.graham_growth import GrahamGrowthPresentation, render_graham_growth
 from src.reporting.presentation import PresentationMode
+from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
+from src.strategies.graham_growth.presenter import GrahamGrowthPresentation, render_graham_growth
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.strategies.graham_number.presenter import GrahamNumberPresentation, render_graham_number
 from src.strategies.momentum.analyzer import MomentumConfig, MomentumMetrics

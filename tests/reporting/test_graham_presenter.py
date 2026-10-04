@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import (
@@ -17,8 +16,9 @@ from src.data.financial.resolution_trace import (
     ResolutionStage,
     ResolutionTrace,
 )
-from src.reporting.graham_growth import GrahamGrowthPresentation, render_graham_growth
 from src.reporting.presentation import PresentationMode
+from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
+from src.strategies.graham_growth.presenter import GrahamGrowthPresentation, render_graham_growth
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.strategies.graham_number.presenter import GrahamNumberPresentation, render_graham_number
 

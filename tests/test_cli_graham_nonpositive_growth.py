@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
 from src.cli import app
 from src.evaluation.fixtures.graham import (
     NOW,
@@ -12,6 +11,7 @@ from src.evaluation.fixtures.graham import (
     SECURITY_ID,
     FixtureFinancialFactsProvider,
 )
+from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from tests._cli_helpers import isolated_cli_database  # noqa: F401
 
 runner = CliRunner()

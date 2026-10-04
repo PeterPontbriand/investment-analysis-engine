@@ -23,13 +23,13 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
-from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
-from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.core.analysis_status import CalculationStatus
 from src.data.instrument_profile import InstrumentProfile
 from src.data.instrument_profile_cache import InstrumentProfileResolver
+from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
+from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.strategies.graham_growth.config import GrahamGrowthConfig
+from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.workspace.graham_shared import compose_graham_profile
 from src.workspace.models import RunOutcome
 

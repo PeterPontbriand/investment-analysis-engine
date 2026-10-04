@@ -10,12 +10,6 @@ from uuid import UUID
 import pytest
 
 from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthResult, MetricResult
-from src.analysis.strategy.graham_growth.calculation import (
-    GrahamGrowthCalculationPolicy,
-    GrahamGrowthValueResult,
-    GrowthValueInputAssembly,
-)
-from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
@@ -23,6 +17,12 @@ from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profi
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
 from src.reporting.presentation import PresentationMode
+from src.strategies.graham_growth.calculation import (
+    GrahamGrowthCalculationPolicy,
+    GrahamGrowthValueResult,
+    GrowthValueInputAssembly,
+)
+from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumRun
@@ -697,7 +697,7 @@ def test_growth_project_run_never_calls_the_live_analyzer_or_settings() -> None:
 
     run = _growth_run()
     with (
-        patch("src.analysis.strategy.graham_growth.analyzer.GrahamGrowthAnalyzer.run_analysis", forbidden),
+        patch("src.strategies.graham_growth.analyzer.GrahamGrowthAnalyzer.run_analysis", forbidden),
         patch("src.config.ProjectSettings.get_graham_value_analysis", forbidden),
     ):
         assert project_run(run, ReplayOptions(mode=PresentationMode.DETAILS))

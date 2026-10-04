@@ -34,10 +34,10 @@ from src.analysis.strategy.fcf_earnings_growth.models import (
     ForwardPolicy,
     HistoricalHorizon,
 )
-from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
 from src.config import settings
 from src.core.constants import ConfigKeys
 from src.data.instrument_profile import InstrumentProfile
+from src.strategies.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
 from src.strategies.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
 from src.strategies.momentum.analyzer import MomentumConfig
 
