@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 import pytest
 
 from src.evaluation.fixture_context import (
-    SUPPORTED_FIXTURE_IDS,
+    CONTEXT_FIXTURE_IDS,
     FixtureCompositionError,
     FixtureContext,
     FixtureRequirement,
@@ -18,13 +18,9 @@ from src.evaluation.fixture_context import (
     selected_variant,
     validate_clock,
 )
-from src.evaluation.fixture_ids import (
-    GRAHAM_FACTS_FIXTURE_ID,
-    KNOWN_ETF_PROFILE_FIXTURE_ID,
-    MOMENTUM_BOUNDARY_FIXTURE_ID,
-    MOMENTUM_SUCCESS_FIXTURE_ID,
-)
-from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER
+from src.evaluation.fixtures.graham import GRAHAM_FACTS_FIXTURE_ID
+from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER, KNOWN_ETF_PROFILE_FIXTURE_ID
+from src.evaluation.fixtures.market_data import MOMENTUM_BOUNDARY_FIXTURE_ID, MOMENTUM_SUCCESS_FIXTURE_ID
 from src.evaluation.fixtures.sec_edgar_fpi import (
     SEC_FPI_ASML_FIXTURE_ID,
     SEC_FPI_FIXTURE_IDS,
@@ -71,7 +67,6 @@ def test_a_selected_sec_fpi_fixture_builds_the_frozen_provider() -> None:
 @pytest.mark.parametrize(
     ("fixture_ids", "message"),
     [
-        (("unknown_fixture",), "Unsupported fixture IDs: unknown_fixture."),
         (
             (SEC_FPI_ASML_FIXTURE_ID, SEC_FPI_NTR_FIXTURE_ID),
             "Conflicting SEC FPI evidence fixture IDs: sec_fpi_asml_us_gaap_20f, sec_fpi_ntr_ifrs.",
@@ -86,9 +81,9 @@ def test_unsupported_or_conflicting_shared_evidence_fails_closed(fixture_ids: tu
 
 
 def test_a_naive_clock_is_rejected_before_any_fixture_is_read() -> None:
-    """The clock is validated first, so an unsupported id does not mask an ambiguous clock."""
+    """The clock is validated before the shared evidence is built."""
     with pytest.raises(FixtureCompositionError, match="timezone-aware"):
-        build_fixture_context(_case("unknown_fixture"), clock_at=EXECUTION_TIME.replace(tzinfo=None))
+        build_fixture_context(_case(GRAHAM_FACTS_FIXTURE_ID), clock_at=EXECUTION_TIME.replace(tzinfo=None))
     validate_clock(EXECUTION_TIME)
 
 
@@ -104,9 +99,9 @@ def test_selected_variant_returns_none_one_or_rejects_several() -> None:
         selected_variant(frozenset(candidates), candidates, label="Momentum price")
 
 
-def test_every_sec_fpi_identifier_is_supported() -> None:
-    """The supported set covers the identifiers whose evidence stays with the FPI fixtures."""
-    assert SEC_FPI_FIXTURE_IDS <= SUPPORTED_FIXTURE_IDS
+def test_the_context_declares_exactly_the_identifiers_it_consumes_itself() -> None:
+    """The SEC evidence and the known-ETF profile are the context's own; every other identifier is a strategy's."""
+    assert {KNOWN_ETF_PROFILE_FIXTURE_ID, *SEC_FPI_FIXTURE_IDS} == CONTEXT_FIXTURE_IDS
 
 
 def test_the_profile_resolver_is_exact_ticker_and_absent_without_profile_evidence() -> None:

@@ -17,10 +17,17 @@ from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactRequest, FinancialFactsProvider, ProviderFact
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixture_context import FixtureContext, FixtureRequirement, SharedKey
-from src.evaluation.fixture_ids import GRAHAM_FACTS_FIXTURE_ID, GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID
+from src.evaluation.fixtures.graham import (
+    GRAHAM_FACTS_FIXTURE_ID,
+    GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
+    FixtureFinancialFactsProvider,
+    precedence_bvps_cache,
+)
 from src.evaluation.fixtures.graham import PROVIDER_ID as GRAHAM_PROVIDER_ID
-from src.evaluation.fixtures.graham import FixtureFinancialFactsProvider, precedence_bvps_cache
 from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_FIXTURE_IDS
+
+FIXTURE_IDS: Final = frozenset({GRAHAM_FACTS_FIXTURE_ID, GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID})
+"""The identifiers both Graham compositions understand, apart from the SEC evidence the context consumes."""
 
 REQUIREMENT: Final = FixtureRequirement(
     frozenset({GRAHAM_FACTS_FIXTURE_ID, *SEC_FPI_FIXTURE_IDS}),

@@ -10,12 +10,14 @@ from src.evaluation.fixtures.graham import (
     GOLDEN_GROWTH_BASE_PE,
     GOLDEN_GROWTH_MULTIPLIER,
 )
+from src.strategies._graham.evaluation import FIXTURE_IDS as GRAHAM_FIXTURE_IDS
 from src.strategies._graham.evaluation import REQUIREMENT as GRAHAM_REQUIREMENT
 from src.strategies._graham.evaluation import graham_clock, graham_inputs
 from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
 from src.strategies.graham_growth.tool import GrahamGrowthToolDependencies
 
+FIXTURE_IDS: Final[frozenset[str]] = GRAHAM_FIXTURE_IDS
 REQUIREMENT: Final[FixtureRequirement] = GRAHAM_REQUIREMENT
 
 

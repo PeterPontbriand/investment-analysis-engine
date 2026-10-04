@@ -11,16 +11,10 @@ import pytest
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
 from src.evaluation import catalog
-from src.evaluation.cases import (
-    FCF_GROWTH_ARGUMENTS,
-    FCF_GROWTH_CASES,
-    GRAHAM_GROWTH_ARGUMENTS,
-    GRAHAM_GROWTH_CASES,
-    GRAHAM_NUMBER_ARGUMENTS,
-    GRAHAM_NUMBER_CASES,
-    MOMENTUM_ARGUMENTS,
-    MOMENTUM_CASES,
-)
+from src.evaluation.cases.fcf_growth import FCF_GROWTH_ARGUMENTS, FCF_GROWTH_CASES
+from src.evaluation.cases.graham_growth import GRAHAM_GROWTH_ARGUMENTS, GRAHAM_GROWTH_CASES
+from src.evaluation.cases.graham_number import GRAHAM_NUMBER_ARGUMENTS, GRAHAM_NUMBER_CASES
+from src.evaluation.cases.momentum import MOMENTUM_ARGUMENTS, MOMENTUM_CASES
 from src.evaluation.catalog import (
     DETERMINISTIC_CASES,
     DETERMINISTIC_FIXTURE_SET_VERSION,

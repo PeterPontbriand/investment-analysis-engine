@@ -15,24 +15,22 @@ from src.evaluation.fixture_context import (
     build_fixture_context,
     require_fixture_evidence,
 )
-from src.evaluation.fixture_ids import (
+from src.evaluation.fixtures.fcf_earnings_growth import (
+    FCF_GROWTH_HISTORICAL_AS_OF,
     FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
     FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
     FCF_GROWTH_SUCCESS_FIXTURE_ID,
-    GRAHAM_FACTS_FIXTURE_ID,
-    GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
-    KNOWN_ETF_PROFILE_FIXTURE_ID,
-    MOMENTUM_BOUNDARY_FIXTURE_ID,
-    MOMENTUM_SUCCESS_FIXTURE_ID,
 )
-from src.evaluation.fixtures.fcf_earnings_growth import FCF_GROWTH_HISTORICAL_AS_OF
 from src.evaluation.fixtures.graham import (
     GOLDEN_PRECEDENCE_EPS_OVERRIDE,
+    GRAHAM_FACTS_FIXTURE_ID,
+    GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
     NOW,
     SECURITY_ID,
 )
 from src.evaluation.fixtures.graham import PROVIDER_ID as GRAHAM_PROVIDER_ID
-from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER
+from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER, KNOWN_ETF_PROFILE_FIXTURE_ID
+from src.evaluation.fixtures.market_data import MOMENTUM_BOUNDARY_FIXTURE_ID, MOMENTUM_SUCCESS_FIXTURE_ID
 from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_ASML_FIXTURE_ID, SEC_FPI_FIXTURE_IDS, SEC_FPI_SAP_FIXTURE_ID
 from src.evaluation.models import Case, Expectation
 from src.orchestrator.tool_runtime import ToolRuntime

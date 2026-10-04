@@ -4,12 +4,15 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
-from src.evaluation.fixture_ids import (
+from src.evaluation.fixtures.graham import (
+    GOLDEN_HISTORICAL_AS_OF,
+    GOLDEN_PRECEDENCE_EPS_OVERRIDE,
     GRAHAM_FACTS_FIXTURE_ID,
     GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
-    KNOWN_ETF_PROFILE_FIXTURE_ID,
+    NOW,
+    SECURITY_ID,
 )
-from src.evaluation.fixtures.graham import GOLDEN_HISTORICAL_AS_OF, GOLDEN_PRECEDENCE_EPS_OVERRIDE, NOW, SECURITY_ID
+from src.evaluation.fixtures.instrument_profiles import KNOWN_ETF_PROFILE_FIXTURE_ID
 from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, NumericalExpectation, ToolConstraints
 from src.orchestrator.tool_names import ToolName
 from src.strategies.graham_number.tool import GrahamNumberToolArguments

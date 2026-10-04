@@ -8,12 +8,10 @@ from typing import Final
 from src.data.financial.facts import ProviderFact
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixture_context import FixtureContext, FixtureRequirement, selected_variant
-from src.evaluation.fixture_ids import (
+from src.evaluation.fixtures.fcf_earnings_growth import (
     FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
     FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
     FCF_GROWTH_SUCCESS_FIXTURE_ID,
-)
-from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     fcf_growth_nonmeaningful_facts,
     fcf_growth_period_as_of_facts,
@@ -24,7 +22,7 @@ from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolDependencies
 
-FCF_FIXTURE_IDS: Final = frozenset(
+FIXTURE_IDS: Final = frozenset(
     {
         FCF_GROWTH_SUCCESS_FIXTURE_ID,
         FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
@@ -33,7 +31,7 @@ FCF_FIXTURE_IDS: Final = frozenset(
 )
 
 REQUIREMENT: Final = FixtureRequirement(
-    FCF_FIXTURE_IDS | SEC_FPI_FIXTURE_IDS,
+    FIXTURE_IDS | SEC_FPI_FIXTURE_IDS,
     "FCF/Earnings Growth fact",
     etf_profile_exempt=True,
 )
@@ -54,7 +52,7 @@ def _annual_facts(fixture_id: str | None) -> tuple[ProviderFact, ...]:
 def compose(context: FixtureContext) -> FCFEarningsGrowthToolDependencies:
     """Build FCF & Earnings Growth's dependencies from the selected annual facts."""
     clock_at = context.clock_at
-    fixture_id = selected_variant(context.fixture_ids, FCF_FIXTURE_IDS, label="FCF/Earnings Growth facts")
+    fixture_id = selected_variant(context.fixture_ids, FIXTURE_IDS, label="FCF/Earnings Growth facts")
     annual_facts = _annual_facts(fixture_id)
     annual_provider = context.sec_fpi_provider or FixtureAnnualFinancialFactsProvider(
         tuple(replace(fact, provider_id=SEC_PROVIDER_ID) for fact in annual_facts)

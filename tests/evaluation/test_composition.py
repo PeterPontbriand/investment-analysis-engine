@@ -15,19 +15,16 @@ from src.evaluation.composition import (
     compose_fixture_dispatcher,
     dispatch_fixture_case,
 )
-from src.evaluation.fixture_context import FixtureCompositionError
-from src.evaluation.fixture_ids import (
+from src.evaluation.fixture_context import CONTEXT_FIXTURE_IDS, FixtureCompositionError
+from src.evaluation.fixtures.fcf_earnings_growth import (
     FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
     FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
     FCF_GROWTH_SUCCESS_FIXTURE_ID,
-    GRAHAM_FACTS_FIXTURE_ID,
-    GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
-    KNOWN_ETF_PROFILE_FIXTURE_ID,
-    MOMENTUM_BOUNDARY_FIXTURE_ID,
-    MOMENTUM_SUCCESS_FIXTURE_ID,
 )
 from src.evaluation.fixtures.graham import (
     GOLDEN_EXPECTED_GROWTH,
+    GRAHAM_FACTS_FIXTURE_ID,
+    GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
 )
 from src.evaluation.fixtures.graham import (
     NOW as GRAHAM_NOW,
@@ -35,10 +32,17 @@ from src.evaluation.fixtures.graham import (
 from src.evaluation.fixtures.graham import (
     SECURITY_ID as GRAHAM_SECURITY_ID,
 )
-from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER
-from src.evaluation.fixtures.market_data import MOMENTUM_LONG_WINDOW, MOMENTUM_RSI_PERIOD, MOMENTUM_SHORT_WINDOW
+from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER, KNOWN_ETF_PROFILE_FIXTURE_ID
+from src.evaluation.fixtures.market_data import (
+    MOMENTUM_BOUNDARY_FIXTURE_ID,
+    MOMENTUM_LONG_WINDOW,
+    MOMENTUM_RSI_PERIOD,
+    MOMENTUM_SHORT_WINDOW,
+    MOMENTUM_SUCCESS_FIXTURE_ID,
+)
+from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_ASML_FIXTURE_ID, SEC_FPI_NTR_FIXTURE_ID
 from src.evaluation.models import Case, Expectation
-from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy
+from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy, supported_fixture_ids
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import ToolCallRequest
@@ -411,3 +415,34 @@ def test_a_tier_entry_for_a_strategy_missing_from_the_descriptors_fails_closed()
         compose_fixture_dispatcher(
             _case("copy", MOMENTUM_SUCCESS_FIXTURE_ID), clock_at=EXECUTION_TIME, descriptors=descriptors
         )
+
+
+def test_the_supported_ids_are_the_contexts_own_plus_those_the_tier_declares() -> None:
+    """The set is derived from the tier entries that serve a descriptor, not kept by hand."""
+    supported = supported_fixture_ids(STRATEGIES)
+    assert supported == CONTEXT_FIXTURE_IDS.union(*(entry.fixture_ids for entry in EVALUATION_STRATEGIES))
+    assert {MOMENTUM_SUCCESS_FIXTURE_ID, GRAHAM_FACTS_FIXTURE_ID, FCF_GROWTH_SUCCESS_FIXTURE_ID} <= supported
+
+
+def test_an_id_declared_by_no_entry_is_rejected_once_its_entry_is_removed_from_an_injected_tier() -> None:
+    """Dropping Momentum from both injected tuples makes its identifiers unsupported, with the same message."""
+    momentum = BY_TOOL[ToolName.ANALYZE_MOMENTUM]
+    descriptors = tuple(item for item in STRATEGIES if item is not momentum)
+    tier = _tier_without(ToolName.ANALYZE_MOMENTUM)
+    case = _case("dropped", MOMENTUM_SUCCESS_FIXTURE_ID)
+    compose_fixture_dependencies(case, clock_at=EXECUTION_TIME)
+    with pytest.raises(FixtureCompositionError) as raised:
+        compose_fixture_dependencies(case, clock_at=EXECUTION_TIME, descriptors=descriptors, tier=tier)
+    assert str(raised.value) == "Unsupported fixture IDs: momentum_success."
+
+
+def test_the_checks_run_in_order_clock_then_unknown_ids_then_conflicting_shared_evidence() -> None:
+    """A naive clock outranks an unknown id, which outranks an SEC FPI conflict."""
+    conflicting = (SEC_FPI_ASML_FIXTURE_ID, SEC_FPI_NTR_FIXTURE_ID)
+    naive = EXECUTION_TIME.replace(tzinfo=None)
+    with pytest.raises(FixtureCompositionError, match="timezone-aware"):
+        compose_fixture_dependencies(_case("order", "unknown_fixture", *conflicting), clock_at=naive)
+    with pytest.raises(FixtureCompositionError, match="Unsupported fixture IDs: unknown_fixture"):
+        compose_fixture_dependencies(_case("order", "unknown_fixture", *conflicting), clock_at=EXECUTION_TIME)
+    with pytest.raises(FixtureCompositionError, match="Conflicting SEC FPI evidence"):
+        compose_fixture_dependencies(_case("order", *conflicting), clock_at=EXECUTION_TIME)

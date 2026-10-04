@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Final
 
 from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
 from src.data.security_identity import SecurityIdentity
+
+KNOWN_ETF_PROFILE_FIXTURE_ID: Final = "known_etf_profile"
 
 FIXTURE_PROFILE_RESOLVED_AT = datetime(2026, 8, 30, 18, 0, tzinfo=UTC)
 GOLDEN_ETF_TICKER = "FLSW"

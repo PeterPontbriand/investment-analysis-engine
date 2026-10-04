@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime
+from typing import Final
 
 from src.data.financial.facts import (
     FinancialFactRequest,
@@ -18,6 +19,10 @@ from src.data.financial.provenance import (
     FinancialSubjectKind,
     PeriodKind,
 )
+
+FCF_GROWTH_SUCCESS_FIXTURE_ID: Final = "fcf_growth_success"
+FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID: Final = "fcf_growth_nonmeaningful"
+FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID: Final = "fcf_growth_period_as_of"
 
 PROVIDER_ID = "annual-fixture"
 RETRIEVED_AT = datetime(2026, 2, 1, tzinfo=UTC)

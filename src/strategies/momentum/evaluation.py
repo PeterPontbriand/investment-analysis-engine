@@ -7,8 +7,9 @@ from typing import Final
 from src.config import settings
 from src.core.constants import ConfigKeys
 from src.evaluation.fixture_context import FixtureContext, FixtureRequirement, selected_variant
-from src.evaluation.fixture_ids import MOMENTUM_BOUNDARY_FIXTURE_ID, MOMENTUM_SUCCESS_FIXTURE_ID
 from src.evaluation.fixtures.market_data import (
+    MOMENTUM_BOUNDARY_FIXTURE_ID,
+    MOMENTUM_SUCCESS_FIXTURE_ID,
     FixtureMarketDataProvider,
     momentum_boundary_frame,
     momentum_success_frame,
@@ -16,16 +17,16 @@ from src.evaluation.fixtures.market_data import (
 from src.strategies.momentum.analyzer import MomentumAnalyzer
 from src.strategies.momentum.tool import MomentumToolDependencies
 
-MOMENTUM_FIXTURE_IDS: Final = frozenset({MOMENTUM_SUCCESS_FIXTURE_ID, MOMENTUM_BOUNDARY_FIXTURE_ID})
+FIXTURE_IDS: Final = frozenset({MOMENTUM_SUCCESS_FIXTURE_ID, MOMENTUM_BOUNDARY_FIXTURE_ID})
 _LABEL: Final = "Momentum price"
 
-REQUIREMENT: Final = FixtureRequirement(MOMENTUM_FIXTURE_IDS, _LABEL, etf_profile_exempt=False)
+REQUIREMENT: Final = FixtureRequirement(FIXTURE_IDS, _LABEL, etf_profile_exempt=False)
 """Momentum needs a selected price fixture; an ETF profile does not stand in for price history."""
 
 
 def compose(context: FixtureContext) -> MomentumToolDependencies:
     """Build Momentum's dependencies from the selected price fixture."""
-    fixture_id = selected_variant(context.fixture_ids, MOMENTUM_FIXTURE_IDS, label=_LABEL)
+    fixture_id = selected_variant(context.fixture_ids, FIXTURE_IDS, label=_LABEL)
     momentum_frame = (
         momentum_success_frame()
         if fixture_id == MOMENTUM_SUCCESS_FIXTURE_ID

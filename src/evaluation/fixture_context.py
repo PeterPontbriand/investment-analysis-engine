@@ -16,17 +16,11 @@ from typing import Final
 
 from src.data.instrument_profile import InstrumentProfile
 from src.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
-from src.evaluation.fixture_ids import (
-    FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
-    FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
-    FCF_GROWTH_SUCCESS_FIXTURE_ID,
-    GRAHAM_FACTS_FIXTURE_ID,
-    GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
+from src.evaluation.fixtures.instrument_profiles import (
+    GOLDEN_ETF_TICKER,
     KNOWN_ETF_PROFILE_FIXTURE_ID,
-    MOMENTUM_BOUNDARY_FIXTURE_ID,
-    MOMENTUM_SUCCESS_FIXTURE_ID,
+    fixture_known_etf_profile,
 )
-from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER, fixture_known_etf_profile
 from src.evaluation.fixtures.sec_edgar_fpi import (
     SEC_FPI_FIXTURE_IDS,
     SEC_FPI_NVO_FIXTURE_ID,
@@ -35,19 +29,11 @@ from src.evaluation.fixtures.sec_edgar_fpi import (
 )
 from src.evaluation.models import Case
 
-SUPPORTED_FIXTURE_IDS: Final = frozenset(
-    {
-        MOMENTUM_SUCCESS_FIXTURE_ID,
-        MOMENTUM_BOUNDARY_FIXTURE_ID,
-        GRAHAM_FACTS_FIXTURE_ID,
-        GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
-        FCF_GROWTH_SUCCESS_FIXTURE_ID,
-        FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
-        FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
-        KNOWN_ETF_PROFILE_FIXTURE_ID,
-        *SEC_FPI_FIXTURE_IDS,
-    }
-)
+CONTEXT_FIXTURE_IDS: Final = frozenset({KNOWN_ETF_PROFILE_FIXTURE_ID, *SEC_FPI_FIXTURE_IDS})
+"""The identifiers this module consumes itself: the known-ETF profile and the SEC foreign-private-issuer evidence.
+
+Every other identifier belongs to a strategy, which declares it on its evaluation-tier entry.
+"""
 
 
 class FixtureCompositionError(ValueError):
@@ -141,7 +127,10 @@ def selected_variant(
 
 
 def build_fixture_context(case: Case, *, clock_at: datetime) -> FixtureContext:
-    """Validate the clock and the case's fixture identifiers and build the cross-strategy context.
+    """Validate the clock and the shared evidence and build the cross-strategy context.
+
+    The caller checks that every identifier is supported, because only the evaluation tier knows the
+    identifiers each strategy declares.
 
     Args:
         case: Typed case containing only explicitly selected fixture identifiers.
@@ -151,15 +140,11 @@ def build_fixture_context(case: Case, *, clock_at: datetime) -> FixtureContext:
         The context every strategy's fixture composition receives.
 
     Raises:
-        FixtureCompositionError: If the clock is naive, an identifier is unsupported, or the case selects
+        FixtureCompositionError: If the clock is naive or the case selects
             conflicting foreign-private-issuer evidence.
     """
     validate_clock(clock_at)
     fixture_ids = frozenset(case.fixture_ids)
-    unknown_ids = fixture_ids - SUPPORTED_FIXTURE_IDS
-    if unknown_ids:
-        joined = ", ".join(sorted(unknown_ids))
-        raise FixtureCompositionError(f"Unsupported fixture IDs: {joined}.")
     sec_fpi_fixture_id = selected_variant(fixture_ids, SEC_FPI_FIXTURE_IDS, label="SEC FPI evidence")
     sec_fpi_provider = (
         fixture_sec_fpi_adapter(sec_fpi_fixture_id, clock_at=clock_at) if sec_fpi_fixture_id is not None else None

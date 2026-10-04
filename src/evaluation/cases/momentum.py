@@ -4,12 +4,14 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
-from src.evaluation.fixture_ids import (
-    KNOWN_ETF_PROFILE_FIXTURE_ID,
+from src.evaluation.fixtures.instrument_profiles import KNOWN_ETF_PROFILE_FIXTURE_ID
+from src.evaluation.fixtures.market_data import (
     MOMENTUM_BOUNDARY_FIXTURE_ID,
+    MOMENTUM_LONG_WINDOW,
+    MOMENTUM_RSI_PERIOD,
+    MOMENTUM_SHORT_WINDOW,
     MOMENTUM_SUCCESS_FIXTURE_ID,
 )
-from src.evaluation.fixtures.market_data import MOMENTUM_LONG_WINDOW, MOMENTUM_RSI_PERIOD, MOMENTUM_SHORT_WINDOW
 from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, NumericalExpectation, ToolConstraints
 from src.orchestrator.tool_names import ToolName
 from src.strategies.momentum.tool import MomentumToolArguments

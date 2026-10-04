@@ -13,12 +13,16 @@ from types import MappingProxyType
 
 from src.core.strategy_errors import require
 from src.evaluation.fixture_context import (
-    build_fixture_context,
     profile_resolver,
     require_fixture_evidence,
 )
 from src.evaluation.models import Case
-from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy, evaluation_by_tool
+from src.evaluation.strategy_fixtures import (
+    EVALUATION_STRATEGIES,
+    EvaluationStrategy,
+    build_case_context,
+    evaluation_by_tool,
+)
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.orchestrator.analysis_tools import register_analysis_tools
 from src.orchestrator.dispatcher import AsyncToolDispatcher
@@ -60,7 +64,7 @@ def compose_fixture_dependencies(
         UndeclaredStrategyError: If a declared tool has no evaluation-tier entry.
     """
     entries = evaluation_by_tool(descriptors, tier)
-    context = build_fixture_context(case, clock_at=clock_at)
+    context = build_case_context(case, clock_at=clock_at, descriptors=descriptors, tier=tier)
     dependencies = {descriptor.tool: entries[descriptor.tool].compose(context) for descriptor in descriptors}
     runtime = ToolRuntime(clock=lambda: clock_at, profile_resolver=profile_resolver(context))
     return FixtureDependencies(dependencies=MappingProxyType(dependencies), runtime=runtime)

@@ -11,12 +11,14 @@ from src.core.strategy_errors import UndeclaredStrategyError
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent, TrajectoryEventType
 from src.evaluation import runner
-from src.evaluation.fixture_ids import (
-    KNOWN_ETF_PROFILE_FIXTURE_ID,
+from src.evaluation.fixtures.instrument_profiles import KNOWN_ETF_PROFILE_FIXTURE_ID
+from src.evaluation.fixtures.market_data import (
     MOMENTUM_BOUNDARY_FIXTURE_ID,
+    MOMENTUM_LONG_WINDOW,
+    MOMENTUM_RSI_PERIOD,
+    MOMENTUM_SHORT_WINDOW,
     MOMENTUM_SUCCESS_FIXTURE_ID,
 )
-from src.evaluation.fixtures.market_data import MOMENTUM_LONG_WINDOW, MOMENTUM_RSI_PERIOD, MOMENTUM_SHORT_WINDOW
 from src.evaluation.models import (
     Case,
     ComponentKind,

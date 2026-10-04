@@ -4,13 +4,13 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
-from src.evaluation.fixture_ids import (
+from src.evaluation.fixtures.fcf_earnings_growth import (
+    FCF_GROWTH_HISTORICAL_AS_OF,
     FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
     FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
     FCF_GROWTH_SUCCESS_FIXTURE_ID,
-    KNOWN_ETF_PROFILE_FIXTURE_ID,
 )
-from src.evaluation.fixtures.fcf_earnings_growth import FCF_GROWTH_HISTORICAL_AS_OF
+from src.evaluation.fixtures.instrument_profiles import KNOWN_ETF_PROFILE_FIXTURE_ID
 from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_SAP_FIXTURE_ID
 from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, NumericalExpectation, ToolConstraints
 from src.orchestrator.tool_names import ToolName

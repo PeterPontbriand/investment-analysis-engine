@@ -39,9 +39,9 @@ _ROOT_IMPORTERS = frozenset(
 _TIER = "src.evaluation.strategy_fixtures"
 _TIER_IMPORTERS = frozenset({"src.evaluation.composition"})
 # A strategy's ``evaluation`` file (and ``_graham/evaluation.py``) may import exactly these modules from
-# ``src.evaluation``: the fixture identifiers, the case-level context and its checks, and the fixture
-# providers. It never imports the composition, the tier, the catalog, the cases or the runners.
-_STRATEGY_EVALUATION_IMPORTS = frozenset({"src.evaluation.fixture_context", "src.evaluation.fixture_ids"})
+# ``src.evaluation``: the case-level context and its checks, and the fixture modules, which also hold the
+# fixture identifiers. It never imports the composition, the tier, the catalog, the cases or the runners.
+_STRATEGY_EVALUATION_IMPORTS = frozenset({"src.evaluation.fixture_context"})
 _FIXTURE_MODULE_PREFIX = "src.evaluation.fixtures."
 _TRANSITIONS = {
     ("src.workspace.codecs", "src.strategies.fcf_growth.codec", "SWC.3a"),
@@ -82,7 +82,6 @@ _BENIGN_CYCLE_PACKAGES = frozenset(
         "src.data.repositories",
         "src.evaluation",
         "src.evaluation.fixtures",
-        "src.evaluation.cases",
     }
 )
 _SAMPLE_STRATEGIES = frozenset({"momentum", "graham_number", "graham_growth"})
@@ -646,7 +645,6 @@ def test_t13_limits_what_a_strategy_evaluation_file_imports_from_the_evaluation_
     for source in ("src.strategies.momentum.evaluation", "src.strategies._graham.evaluation"):
         allowed = {
             (source, "src.evaluation.fixture_context"),
-            (source, "src.evaluation.fixture_ids"),
             (source, "src.evaluation.fixtures.graham"),
             (source, "src.evaluation.fixtures.market_data"),
         }
@@ -695,7 +693,7 @@ def test_t13_permits_a_case_module_to_import_only_its_own_strategys_tool_role() 
 def test_t13_keeps_every_other_strategy_file_out_of_the_evaluation_package() -> None:
     """Only a strategy's evaluation file may import from ``src.evaluation``; no other role may."""
     edges = {
-        ("src.strategies.momentum.analyzer", "src.evaluation.fixture_ids"),
+        ("src.strategies.momentum.analyzer", "src.evaluation.fixture_context"),
         ("src.strategies.momentum.tool", "src.evaluation.composition"),
         ("src.strategies._shared.profile", "src.evaluation.models"),
     }

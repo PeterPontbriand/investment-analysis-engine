@@ -4,8 +4,8 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
-from src.evaluation.fixture_ids import GRAHAM_FACTS_FIXTURE_ID, KNOWN_ETF_PROFILE_FIXTURE_ID
-from src.evaluation.fixtures.graham import SECURITY_ID
+from src.evaluation.fixtures.graham import GRAHAM_FACTS_FIXTURE_ID, SECURITY_ID
+from src.evaluation.fixtures.instrument_profiles import KNOWN_ETF_PROFILE_FIXTURE_ID
 from src.evaluation.fixtures.sec_edgar_fpi import (
     SEC_FPI_ASML_FIXTURE_ID,
     SEC_FPI_NTR_FIXTURE_ID,

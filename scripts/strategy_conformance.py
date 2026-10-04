@@ -28,6 +28,7 @@ from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
 from src.core.strategy_errors import UndeclaredStrategyError
 from src.evaluation.catalog import DETERMINISTIC_CASES, build_deterministic_requests
 from src.evaluation.composition import compose_fixture_dependencies, compose_fixture_dispatcher, dispatch_fixture_case
+from src.evaluation.fixture_context import CONTEXT_FIXTURE_IDS
 from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvalComposition, EvaluationStrategy
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.orchestrator.analysis_tools import register_analysis_tools
@@ -62,10 +63,10 @@ DESCRIPTOR_FIELDS: dict[str, object] = {
 BEHAVIOR_MEMBERS: frozenset[str] = frozenset({"result_type", "deps_type", "handler", "native_status"})
 """The documented members of a strategy's behavior bundle."""
 
-EVAL_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"requirement", "compose"})
+EVAL_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"requirement", "fixture_ids", "compose"})
 """The documented members of a strategy's evaluation-tier composition."""
 
-EVALUATION_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "requirement", "compose"})
+EVALUATION_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "requirement", "fixture_ids", "compose"})
 """The documented fields of an evaluation-tier entry: the paired core bundle and the erased composition."""
 
 VIEW_ACCESSORS: frozenset[str] = frozenset({"result_type", "native_status_of", "bind_handler"})
@@ -294,6 +295,33 @@ def evaluation_tier_gaps(
         for entry in tier
         if id(entry.behavior) not in declared
     )
+    return gaps
+
+
+def evaluation_fixture_id_gaps(
+    descriptors: tuple[StrategyDescriptor, ...],
+    tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
+) -> list[str]:
+    """T10 (evaluation tier ids): each requirement's identifiers are declared, and no entry redeclares the context's.
+
+    A requirement may name only identifiers its entry declares or the context consumes itself, so a case that
+    selects a required identifier is never rejected as unsupported, and an identifier has one declaring owner.
+    """
+    gaps: list[str] = []
+    for item in descriptors:
+        for entry in (entry for entry in tier if entry.behavior is item.behavior):
+            undeclared_ids = entry.requirement.required_ids - entry.fixture_ids - CONTEXT_FIXTURE_IDS
+            if undeclared_ids:
+                gaps.append(
+                    f"strategy {label(item)} requires fixture ids that its evaluation tier entry and the context "
+                    f"do not declare: {', '.join(sorted(undeclared_ids))}"
+                )
+            redeclared = entry.fixture_ids & CONTEXT_FIXTURE_IDS
+            if redeclared:
+                gaps.append(
+                    f"strategy {label(item)} declares fixture ids that the context consumes itself: "
+                    f"{', '.join(sorted(redeclared))}"
+                )
     return gaps
 
 
@@ -546,7 +574,10 @@ def evaluation_tier_is_closed_gaps(tier: Sequence[EvaluationStrategy] = EVALUATI
         entry = tier[0]
         if not _is_frozen(entry, "requirement"):
             gaps.append("EvaluationStrategy is not frozen")
-        if not _is_frozen(EvalComposition(requirement=entry.requirement, compose=entry.compose), "requirement"):
+        composition = EvalComposition(
+            requirement=entry.requirement, fixture_ids=entry.fixture_ids, compose=entry.compose
+        )
+        if not _is_frozen(composition, "requirement"):
             gaps.append("EvalComposition is not frozen")
     return gaps
 
