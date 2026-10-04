@@ -65,3 +65,8 @@ def decode_fcf_growth(payload: StrictJsonMapping) -> FCFEarningsGrowthResult:
     native = {key: value for key, value in result.items() if key not in identifiers and key not in versions}
     wire = {**payload, "result": native}
     return _FCFEvidence.model_validate_json(json.dumps(wire, allow_nan=False)).result
+
+
+def fcf_growth_native_status(result: FCFEarningsGrowthResult, /) -> str:
+    """Return the native execution-status value recorded as telemetry evidence."""
+    return result.execution_status.value

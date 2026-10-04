@@ -85,3 +85,8 @@ def decode_graham_number(payload: StrictJsonMapping) -> GrahamNumberAnalysis:
         analysis[name] = {key: item for key, item in section.items() if key != "method"}
     wire = {**payload, "analysis": analysis}
     return _NumberEvidence.model_validate_json(json.dumps(wire, allow_nan=False)).analysis
+
+
+def graham_number_native_status(result: GrahamNumberAnalysis, /) -> str:
+    """Return the native calculation-status value recorded as telemetry evidence."""
+    return result.result.status.value
