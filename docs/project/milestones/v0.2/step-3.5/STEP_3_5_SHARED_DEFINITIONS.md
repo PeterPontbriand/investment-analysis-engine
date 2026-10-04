@@ -73,6 +73,30 @@ introduced.
   field that is itself a number with its own availability (the Piotroski score) is the one case
   that is also a `MetricResult`.
 
+### Result-level status
+
+Every strategy result carries one explicit `execution_status`, a `CalculationStatus` (no new status is
+introduced), as `FCFEarningsGrowthResult` does. It is the software outcome of the run, independent of any
+band, zone or score, and it is what the strategy's native-status function returns and what its execution
+adapter maps to the workspace outcome (`ok` is completed, `not_applicable` is not applicable,
+`input_unavailable` is unavailable). No strategy reports a missing status because of how many numbers it
+displays. A calculation that cannot run for a reason outside the inputs raises, as today; it is not a
+status.
+
+| Strategy | `ok` | `input_unavailable` | `not_applicable` |
+| :--- | :--- | :--- | :--- |
+| Piotroski F-Score | The score is `ok`: nine tests available (complete) or six to eight (partial). | Fewer than six tests available. An unknown industry class does not change the status: Piotroski is not sector-gated, runs, and states the class is unknown. | None: financial issuers are applicable with a warning. |
+| Altman Z / Z″ | The score is `ok` for the selected model. | The score is `unavailable`, including total assets or total liabilities not positive, or an unknown industry class. | A financial issuer. |
+| Beneish M-Score | All eight indices computed and the score is `ok`. There is no partial score. | Any index cannot be computed, including DEPI with neither basis and TATA with discontinued operations and no continuing income, or an unknown industry class. | A financial issuer. |
+| Cash-Flow Valuation Multiples | At least one of EV/EBITDA and FCF yield is `ok`. | Neither is `ok` and at least one is `unavailable`, or an unknown industry class. | A financial issuer, or both metrics `not_applicable`. |
+| Interest Coverage | A band is assigned, including "no material interest expense". | Interest expense is not reported while total debt is positive, only net interest is reported, EBIT is missing, or an unknown industry class. | A financial issuer. |
+| ROIC and Incremental ROIC | Trailing ROIC is `ok`; incremental ROIC's own availability is reported separately. | Trailing ROIC is `unavailable`, or an unknown industry class. | A financial issuer, or average invested capital not positive. |
+| Greenblatt Magic Formula | Return on capital and earnings yield are both `ok`. | Either is `unavailable`, or an unknown industry class. | A financial issuer or a utility, or either metric `not_applicable` with neither `unavailable`. |
+
+The outcome that decides each row is the one the strategy specification already states for its metrics;
+the table adds no formula, threshold or classification. Momentum's analyzer has no status and its native
+status stays `None`.
+
 ## 3. Data sources, periods and point-in-time
 
 - **Fundamentals:** SEC EDGAR XBRL annual filings only (10-K, 20-F, 40-F; us-gaap and ifrs-full),
@@ -303,14 +327,20 @@ The ranked view (3.5.6) applies the helper to the persisted runs of one watchlis
 Built on the existing watchlist refresh, which already runs every enabled strategy for every
 member and records one `refresh_id` on each run.
 
-- **Rows and columns:** one row per ticker. Each strategy contributes its headline values and
-  outcome, the fiscal period end used, the taxonomy, and the run ID for drill-down.
+- **Rows and columns:** one row per ticker. Each strategy contributes its headline cells and outcome,
+  the fiscal period end used, the taxonomy, and the run ID for drill-down.
+- **Headline cells:** each strategy supplies one pure `headline` function over its decoded result, in the
+  SWC behavior bundle. A cell is a fixed-order entry with a stable key, a label, a number or a text, an
+  explicit unit and the metric's own status; the period end and taxonomy are fields of the whole headline.
+  A strategy with no fiscal period or no filing taxonomy (Momentum) shows "not recorded" for them.
+- **Build order:** the table is built first, over the four existing strategies; every new strategy
+  supplies `headline` from its own slice. It needs nothing from the new data mappings or shared metrics.
 - **One run per cell:** a refresh executes (ticker, selection) pairs, so the table requires at most
   one run per ticker and strategy. If the refresh holds more, the table refuses and names the
   duplicates. It never picks one silently.
 - **Rebuilt from storage:** the table is recomputed from the persisted runs of one `refresh_id`,
   with no recalculation, provider access or clock reads.
 - **Fiscal year-ends** that differ across members are displayed, not normalized.
-- **Ranking:** the table can sort by the [ranked refresh view](#ranked-refresh-view) for any strategy
-  in the refresh.
+- **Ranking:** once the [ranked refresh view](#ranked-refresh-view) exists (3.5.6), the table can sort by
+  it for any strategy in the refresh.
 - **No new persistence:** no batch ID, schema field or run type is added.
