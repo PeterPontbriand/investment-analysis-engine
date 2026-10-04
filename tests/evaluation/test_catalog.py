@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -9,6 +10,17 @@ import pytest
 
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
+from src.evaluation import catalog
+from src.evaluation.cases import (
+    FCF_GROWTH_ARGUMENTS,
+    FCF_GROWTH_CASES,
+    GRAHAM_GROWTH_ARGUMENTS,
+    GRAHAM_GROWTH_CASES,
+    GRAHAM_NUMBER_ARGUMENTS,
+    GRAHAM_NUMBER_CASES,
+    MOMENTUM_ARGUMENTS,
+    MOMENTUM_CASES,
+)
 from src.evaluation.catalog import (
     DETERMINISTIC_CASES,
     DETERMINISTIC_FIXTURE_SET_VERSION,
@@ -17,9 +29,14 @@ from src.evaluation.catalog import (
     build_deterministic_requests,
     run_minimum_deterministic_suite,
 )
-from src.evaluation.models import ComponentKind, ComponentOutcome, ComponentResult, DomainOutcomeExpectation
+from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult, DomainOutcomeExpectation
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
+from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
+from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
+from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
+from src.strategies.graham_number.tool import GrahamNumberToolArguments
+from src.strategies.momentum.tool import MomentumToolArguments
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("f0000000-0000-0000-0000-00000000000f")
@@ -142,3 +159,48 @@ async def test_canonical_runner_detects_mutated_domain_outcomes(
     assert execution.outcome is ComponentOutcome.FAIL
     assert execution.failure_reason is not None
     assert field_path in execution.failure_reason
+
+
+@pytest.mark.parametrize(
+    ("cases", "arguments", "model"),
+    [
+        (MOMENTUM_CASES, MOMENTUM_ARGUMENTS, MomentumToolArguments),
+        (GRAHAM_NUMBER_CASES, GRAHAM_NUMBER_ARGUMENTS, GrahamNumberToolArguments),
+        (GRAHAM_GROWTH_CASES, GRAHAM_GROWTH_ARGUMENTS, GrahamGrowthValueToolArguments),
+        (FCF_GROWTH_CASES, FCF_GROWTH_ARGUMENTS, FCFEarningsGrowthToolArguments),
+    ],
+)
+def test_each_case_module_declares_arguments_for_exactly_its_cases_with_its_own_model(
+    cases: tuple[Case, ...],
+    arguments: Mapping[str, AnalysisToolArguments],
+    model: type[AnalysisToolArguments],
+) -> None:
+    """A module's tuple lists every case in it, and its arguments table covers those cases and no others."""
+    assert tuple(case.case_id for case in cases) == tuple(arguments)
+    assert all(type(item) is model for item in arguments.values())
+    assert all(case.expectation.tool_constraints.required for case in cases)
+
+
+def test_the_case_modules_together_hold_the_catalog_cases_exactly_once() -> None:
+    """Every deterministic case is in exactly one case module, and no module holds another case."""
+    module_ids = [
+        case.case_id
+        for cases in (MOMENTUM_CASES, GRAHAM_NUMBER_CASES, GRAHAM_GROWTH_CASES, FCF_GROWTH_CASES)
+        for case in cases
+    ]
+    assert sorted(module_ids) == sorted(case.case_id for case in DETERMINISTIC_CASES)
+    assert len(module_ids) == len(set(module_ids)) == 19
+
+
+def test_a_case_with_no_reviewed_arguments_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A catalog case no case module has arguments for is rejected, never given default arguments."""
+    stray = DETERMINISTIC_CASES[0].model_copy(update={"case_id": "STRAY-01"})
+    monkeypatch.setattr(catalog, "DETERMINISTIC_CASES", (*DETERMINISTIC_CASES, stray))
+    with pytest.raises(ValueError, match="Case 'STRAY-01' is not part of the canonical deterministic catalog"):
+        build_deterministic_requests()
+
+
+def test_two_case_modules_may_not_claim_one_case_id() -> None:
+    """Merging the modules' arguments rejects a case id that two of them declare."""
+    with pytest.raises(ValueError, match="Case 'MOM-01' has reviewed arguments in more than one case module"):
+        catalog._merge_arguments(MOMENTUM_ARGUMENTS, MOMENTUM_ARGUMENTS)

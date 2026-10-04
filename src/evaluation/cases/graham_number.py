@@ -1,10 +1,18 @@
-"""The reviewed minimum Graham Number Golden-Suite cases."""
+"""The reviewed Graham Number Golden-Suite cases and their production arguments."""
 
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Final
 
-from src.evaluation.fixture_ids import GRAHAM_FACTS_FIXTURE_ID, KNOWN_ETF_PROFILE_FIXTURE_ID
+from src.evaluation.fixture_ids import (
+    GRAHAM_FACTS_FIXTURE_ID,
+    GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
+    KNOWN_ETF_PROFILE_FIXTURE_ID,
+)
+from src.evaluation.fixtures.graham import GOLDEN_HISTORICAL_AS_OF, GOLDEN_PRECEDENCE_EPS_OVERRIDE, NOW, SECURITY_ID
 from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, NumericalExpectation, ToolConstraints
 from src.orchestrator.tool_names import ToolName
+from src.strategies.graham_number.tool import GrahamNumberToolArguments
 
 _GRAHAM_NUMBER_TOOL_CONSTRAINTS: Final = ToolConstraints(
     permitted=(ToolName.ANALYZE_GRAHAM_NUMBER,),
@@ -126,6 +134,85 @@ GRN_03: Final = Case(
 )
 
 
-GRAHAM_NUMBER_CASES: Final[tuple[Case, ...]] = (GRN_01, GRN_02, GRA_ETF_01, GRN_03)
+GRN_04: Final = Case(
+    case_id="GRN-04",
+    description=(
+        "Proves override, cache, and provider precedence without allowing lower-precedence values to alter the "
+        "Graham Number result."
+    ),
+    task=(
+        "Analyze SYNTH with Graham Number at as_of 2025-07-01T12:00:00Z using EPS override 5.00, cached BVPS "
+        "20.00, and the provider current price."
+    ),
+    fixture_ids=(GRAHAM_FACTS_FIXTURE_ID, GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID),
+    expectation=Expectation(
+        tool_constraints=_GRAHAM_NUMBER_TOOL_CONSTRAINTS,
+        numerical_expectations=(
+            NumericalExpectation(
+                field_path="result.maximum_indicated_price",
+                expected_value=47.43416490252569,
+                absolute_tolerance=1e-9,
+            ),
+            NumericalExpectation(
+                field_path="margin_of_safety_percent",
+                expected_value=-10.258081084537493,
+                absolute_tolerance=1e-9,
+            ),
+        ),
+    ),
+    tags=("graham_number", "precedence", "resolution"),
+)
 
-__all__ = ["GRA_ETF_01", "GRAHAM_NUMBER_CASES", "GRN_01", "GRN_02", "GRN_03"]
+
+GRN_05: Final = Case(
+    case_id="GRN-05",
+    description=(
+        "Detects look-ahead bias at a historical as_of boundary and distinguishes unavailable evidence from zero "
+        "or an invalid ticker."
+    ),
+    task="Analyze SYNTH with default Graham Number inputs at as_of 2024-08-01T12:00:00Z.",
+    fixture_ids=(GRAHAM_FACTS_FIXTURE_ID,),
+    expectation=Expectation(
+        tool_constraints=_GRAHAM_NUMBER_TOOL_CONSTRAINTS,
+        domain_outcome_expectations=(
+            DomainOutcomeExpectation(field_path="assembly.bvps", expected_value=None),
+            DomainOutcomeExpectation(field_path="assembly.current_price", expected_value=None),
+            DomainOutcomeExpectation(field_path="assembly.eps", expected_value=None),
+            DomainOutcomeExpectation(field_path="assembly.status", expected_value="input_unavailable"),
+            DomainOutcomeExpectation(field_path="margin_of_safety_percent", expected_value=None),
+            DomainOutcomeExpectation(field_path="result.maximum_indicated_price", expected_value=None),
+            DomainOutcomeExpectation(field_path="result.status", expected_value="input_unavailable"),
+        ),
+    ),
+    tags=("as_of", "graham_number", "input_unavailable", "resolution"),
+)
+
+
+GRAHAM_NUMBER_CASES: Final[tuple[Case, ...]] = (GRN_01, GRN_02, GRA_ETF_01, GRN_03, GRN_04, GRN_05)
+
+GRAHAM_NUMBER_ARGUMENTS: Final[Mapping[str, GrahamNumberToolArguments]] = MappingProxyType(
+    {
+        "GRN-01": GrahamNumberToolArguments(ticker=SECURITY_ID, eps_basis="three_year_average"),
+        "GRN-02": GrahamNumberToolArguments(ticker=SECURITY_ID, eps_basis="ttm"),
+        "GRA-ETF-01": GrahamNumberToolArguments(ticker="FLSW", eps_basis="three_year_average"),
+        "GRN-03": GrahamNumberToolArguments(ticker="MISSING_QUOTE", eps_basis="three_year_average"),
+        "GRN-04": GrahamNumberToolArguments(
+            ticker=SECURITY_ID,
+            as_of=NOW,
+            eps_override=GOLDEN_PRECEDENCE_EPS_OVERRIDE,
+        ),
+        "GRN-05": GrahamNumberToolArguments(ticker=SECURITY_ID, as_of=GOLDEN_HISTORICAL_AS_OF),
+    }
+)
+"""The reviewed production arguments of each Graham Number case, keyed by case id."""
+
+__all__ = [
+    "GRAHAM_NUMBER_ARGUMENTS",
+    "GRAHAM_NUMBER_CASES",
+    "GRA_ETF_01",
+    "GRN_01",
+    "GRN_02",
+    "GRN_03",
+    "GRN_04",
+    "GRN_05",
+]

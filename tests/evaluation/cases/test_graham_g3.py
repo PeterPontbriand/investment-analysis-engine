@@ -14,7 +14,7 @@ from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCa
 from src.data.financial.facts import FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from src.evaluation.cases.graham_growth import GRG_01, GRG_ETF_01
-from src.evaluation.cases.graham_resolution import GRN_04, GRN_05
+from src.evaluation.cases.graham_number import GRN_04, GRN_05
 from src.evaluation.composition import dispatch_fixture_case
 from src.evaluation.fixtures.graham import (
     BVPS_AVAIL,

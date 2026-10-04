@@ -10,12 +10,13 @@ import pytest
 from src.core.analysis_status import CalculationStatus
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
-from src.evaluation.cases.fcf_earnings_growth import (
+from src.evaluation.cases.fcf_growth import (
     FCF_01,
     FCF_02,
     FCF_03,
-    FCF_EARNINGS_GROWTH_CASES,
     FCF_ETF_01,
+    FCF_GROWTH_CASES,
+    FPI_03,
 )
 from src.evaluation.composition import dispatch_fixture_case
 from src.evaluation.evaluator import evaluate_tool_selection
@@ -77,6 +78,10 @@ def _arguments(case: Case) -> FCFEarningsGrowthToolArguments:
     )
 
 
+_G4_CASES = (FCF_01, FCF_02, FCF_03, FCF_ETF_01)
+"""The four reviewed FCF cases this module exercises; the module's tuple also holds the SEC FPI case."""
+
+
 def _component(result: CaseEvaluationResult, kind: ComponentKind) -> ComponentResult:
     """Return one component from a case result."""
     return next(component for component in result.components if component.kind is kind)
@@ -84,22 +89,25 @@ def _component(result: CaseEvaluationResult, kind: ComponentKind) -> ComponentRe
 
 def test_reviewed_fcf_catalog_contains_the_corrected_minimum_cases() -> None:
     """Catalog IDs, fixtures, tool constraints, signals, and truth are explicit."""
-    assert tuple(case.case_id for case in FCF_EARNINGS_GROWTH_CASES) == (
+    assert tuple(case.case_id for case in FCF_GROWTH_CASES) == (
         "FCF-01",
         "FCF-02",
         "FCF-03",
         "FCF-ETF-01",
+        "FPI-03",
     )
-    assert tuple(case.fixture_ids for case in FCF_EARNINGS_GROWTH_CASES) == (
+    assert tuple(case.fixture_ids for case in FCF_GROWTH_CASES) == (
         ("fcf_growth_success",),
         ("fcf_growth_nonmeaningful",),
         ("fcf_growth_period_as_of",),
         ("known_etf_profile",),
+        ("sec_fpi_sap_exact_capex_absent",),
     )
+    assert FCF_GROWTH_CASES[-1] is FPI_03
     assert all(
         case.expectation.tool_constraints.permitted == (ToolName.ANALYZE_FCF_EARNINGS_GROWTH,)
         and case.expectation.tool_constraints.required == (ToolName.ANALYZE_FCF_EARNINGS_GROWTH,)
-        for case in FCF_EARNINGS_GROWTH_CASES
+        for case in FCF_GROWTH_CASES
     )
 
 
@@ -133,7 +141,7 @@ def test_fcf_case_discriminates_momentum_tool_selection() -> None:
     assert FCF_03.expectation.numerical_expectations == ()
     assert all(
         item.absolute_tolerance in (0.0, 1e-12) and item.relative_tolerance is None
-        for case in FCF_EARNINGS_GROWTH_CASES
+        for case in FCF_GROWTH_CASES
         for item in case.expectation.numerical_expectations
     )
 
@@ -142,7 +150,7 @@ def test_fcf_case_discriminates_momentum_tool_selection() -> None:
 async def test_reviewed_fcf_cases_run_deterministically_with_expected_boundary_category() -> None:
     """All four cases pass when their exact native domain outcomes match."""
     report = await run_deterministic_suite(
-        tuple(DeterministicCaseRequest(case=case, arguments=_arguments(case)) for case in FCF_EARNINGS_GROWTH_CASES),
+        tuple(DeterministicCaseRequest(case=case, arguments=_arguments(case)) for case in _G4_CASES),
         suite_id="step-2.5-fcf-g4",
         suite_version="g4-v1",
         fixture_set_version="step-2.5-b2-v1",

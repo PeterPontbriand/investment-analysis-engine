@@ -42,10 +42,6 @@ _TIER_IMPORTERS = frozenset({"src.evaluation.composition"})
 _STRATEGY_EVALUATION_IMPORTS = frozenset({"src.evaluation.fixture_context", "src.evaluation.fixture_ids"})
 _FIXTURE_MODULE_PREFIX = "src.evaluation.fixtures."
 _TRANSITIONS = {
-    ("src.evaluation.catalog", "src.strategies.fcf_growth.tool", "SWC.2d"),
-    ("src.evaluation.catalog", "src.strategies.graham_growth.tool", "SWC.2d"),
-    ("src.evaluation.catalog", "src.strategies.graham_number.tool", "SWC.2d"),
-    ("src.evaluation.catalog", "src.strategies.momentum.tool", "SWC.2d"),
     ("src.workspace.codecs", "src.strategies.fcf_growth.codec", "SWC.3a"),
     ("src.workspace.codecs", "src.strategies.graham_growth.codec", "SWC.3a"),
     ("src.workspace.codecs", "src.strategies.graham_number.codec", "SWC.3a"),
@@ -230,6 +226,16 @@ def _strategy_edge_error(source: str, target: str, strategies: frozenset[str]) -
     return None
 
 
+def _is_own_case_tool(source_parts: list[str], target_parts: list[str]) -> bool:
+    """Return whether a case module imports the tool role of the strategy package it is named for."""
+    return (
+        len(source_parts) == 4
+        and source_parts[:3] == ["src", "evaluation", "cases"]
+        and target_parts[2] == source_parts[3]
+        and _role(target_parts) == "tool"
+    )
+
+
 def _is_strategy_evaluation(source_parts: list[str]) -> bool:
     """Return whether a module is the ``evaluation`` file of a strategy or family package."""
     return len(source_parts) == 4 and source_parts[:2] == ["src", "strategies"] and source_parts[3] == "evaluation"
@@ -292,6 +298,7 @@ def _edge_violations(
             target_parts[2] in strategies
             and _role(target_parts) not in {*ANALYZER_ROLES, "selection"}
             and (source, target) not in permitted
+            and not _is_own_case_tool(source_parts, target_parts)
         ):
             errors.append(f"external import exceeds analyzer/selection roles: {source} -> {target}")
     errors.extend(f"stale T13 transition entry: {source} -> {target}" for source, target in sorted(permitted - edges))
@@ -567,8 +574,14 @@ def test_t13_fails_when_the_root_is_in_an_import_cycle() -> None:
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_wiring_slice() -> None:
     """The twelve entries owned by the orchestration slice are gone; every remaining owner is a later slice."""
-    assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.2d", "SWC.3a", "SWC.3b", "SWC.3c", "SWC.4c"}
-    assert len(_TRANSITIONS) == 28
+    assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.3a", "SWC.3b", "SWC.3c", "SWC.4c"}
+    assert len(_TRANSITIONS) == 24
+
+
+def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_evaluation_slice() -> None:
+    """The eight evaluation-slice entries are gone: no transition names an evaluation module or SWC.2d."""
+    assert not [entry for entry in _TRANSITIONS if entry[2] == "SWC.2d" or entry[0].startswith("src.evaluation")]
+    assert not {entry for entry in _TRANSITIONS if entry[0] in {"src.evaluation.composition", "src.evaluation.catalog"}}
 
 
 def test_t13_fails_for_a_root_importer_entry_that_is_missing_or_does_not_import_the_root() -> None:
@@ -643,4 +656,28 @@ def test_t13_limits_what_a_strategy_evaluation_file_imports_from_the_evaluation_
         ]
     assert _edge_violations({("src.strategies.momentum.evaluation", _TIER)}, _SAMPLE_STRATEGIES, set()) == [
         f"module imports the evaluation tier: src.strategies.momentum.evaluation -> {_TIER}"
+    ]
+
+
+def test_t13_permits_a_case_module_to_import_only_its_own_strategys_tool_role() -> None:
+    """A case module is single-strategy: it may import the tool role of the package it is named for, and no more."""
+    cases = "src.evaluation.cases"
+    allowed = {
+        (f"{cases}.momentum", "src.strategies.momentum.tool"),
+        (f"{cases}.graham_number", "src.strategies.graham_number.tool"),
+        (f"{cases}.momentum", "src.strategies.momentum.analyzer"),
+    }
+    assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set()) == []
+    forbidden = {
+        (f"{cases}.momentum", "src.strategies.graham_number.tool"),
+        (f"{cases}.momentum", "src.strategies.momentum.codec"),
+        (f"{cases}.momentum", "src.strategies.momentum.evaluation"),
+        (f"{cases}.graham_number", "src.strategies.graham_growth.tool"),
+        (f"{cases}.helpers", "src.strategies.momentum.tool"),
+        ("src.evaluation.catalog", "src.strategies.momentum.tool"),
+        ("src.evaluation.composition", "src.strategies.momentum.tool"),
+    }
+    assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set()) == [
+        f"external import exceeds analyzer/selection roles: {source} -> {target}"
+        for source, target in sorted(forbidden)
     ]

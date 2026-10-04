@@ -11,7 +11,15 @@ import pytest
 from src.core.analysis_status import CalculationStatus
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
-from src.evaluation.cases.graham_number import GRA_ETF_01, GRAHAM_NUMBER_CASES, GRN_01, GRN_02, GRN_03
+from src.evaluation.cases.graham_number import (
+    GRA_ETF_01,
+    GRAHAM_NUMBER_CASES,
+    GRN_01,
+    GRN_02,
+    GRN_03,
+    GRN_04,
+    GRN_05,
+)
 from src.evaluation.composition import dispatch_fixture_case
 from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
@@ -85,9 +93,17 @@ def test_reviewed_graham_number_catalog_is_explicit(
     assert arguments.eps_basis == eps_basis
 
 
-def test_reviewed_graham_number_catalog_contains_only_the_four_cases() -> None:
-    """G2 contributes exactly the reviewed Graham Number IDs in dossier order."""
-    assert tuple(case.case_id for case in GRAHAM_NUMBER_CASES) == ("GRN-01", "GRN-02", "GRA-ETF-01", "GRN-03")
+def test_reviewed_graham_number_catalog_contains_every_graham_number_case() -> None:
+    """The module lists the four G2 cases and the two resolution cases, in definition order."""
+    assert tuple(case.case_id for case in GRAHAM_NUMBER_CASES) == (
+        "GRN-01",
+        "GRN-02",
+        "GRA-ETF-01",
+        "GRN-03",
+        "GRN-04",
+        "GRN-05",
+    )
+    assert GRAHAM_NUMBER_CASES[4:] == (GRN_04, GRN_05)
     assert "three-completed-fiscal-year" in GRN_01.description
     assert "TTM fact" in GRN_02.description
     assert "not applicable directly" in GRA_ETF_01.description
@@ -112,7 +128,7 @@ def test_reviewed_graham_number_catalog_contains_only_the_four_cases() -> None:
 async def test_reviewed_graham_number_cases_run_deterministically_and_pass() -> None:
     """All four reviewed cases pass through fixture composition and deterministic evaluation."""
     report = await run_deterministic_suite(
-        tuple(_request(case) for case in GRAHAM_NUMBER_CASES),
+        tuple(_request(case) for case in GRAHAM_NUMBER_CASES[:4]),
         suite_id="step-2.5-graham-number-g2",
         suite_version="g2-v1",
         fixture_set_version="step-2.5-b2-v1",

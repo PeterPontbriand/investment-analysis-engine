@@ -1,5 +1,7 @@
-"""The reviewed minimum FCF/Earnings Growth Golden-Suite cases."""
+"""The reviewed FCF/Earnings Growth Golden-Suite cases and their production arguments."""
 
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Final
 
 from src.evaluation.fixture_ids import (
@@ -9,8 +11,11 @@ from src.evaluation.fixture_ids import (
     KNOWN_ETF_PROFILE_FIXTURE_ID,
 )
 from src.evaluation.fixtures.fcf_earnings_growth import FCF_GROWTH_HISTORICAL_AS_OF
+from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_SAP_FIXTURE_ID
 from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, NumericalExpectation, ToolConstraints
 from src.orchestrator.tool_names import ToolName
+from src.strategies.fcf_growth.models import HistoricalHorizon
+from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
 
 _FCF_TOOL_CONSTRAINTS: Final = ToolConstraints(
     permitted=(ToolName.ANALYZE_FCF_EARNINGS_GROWTH,),
@@ -159,6 +164,57 @@ FCF_ETF_01: Final = Case(
 )
 
 
-FCF_EARNINGS_GROWTH_CASES: Final[tuple[Case, ...]] = (FCF_01, FCF_02, FCF_03, FCF_ETF_01)
+FPI_03: Final = Case(
+    case_id="FPI-03",
+    description="Proves SAP's broader combined investing concept does not substitute for exact physical-PP&E CapEx.",
+    task="Evaluate SAP FCF growth without substituting its broader near-miss CapEx concept.",
+    fixture_ids=(SEC_FPI_SAP_FIXTURE_ID,),
+    expectation=Expectation(
+        tool_constraints=_FCF_TOOL_CONSTRAINTS,
+        domain_outcome_expectations=(
+            DomainOutcomeExpectation(field_path="execution_status", expected_value="input_unavailable"),
+            DomainOutcomeExpectation(field_path="classification", expected_value="indeterminate"),
+        ),
+    ),
+    tags=("fpi", "ifrs", "exact_concept_negative", "sec_edgar"),
+)
 
-__all__ = ["FCF_01", "FCF_02", "FCF_03", "FCF_EARNINGS_GROWTH_CASES", "FCF_ETF_01"]
+
+FCF_GROWTH_CASES: Final[tuple[Case, ...]] = (FCF_01, FCF_02, FCF_03, FCF_ETF_01, FPI_03)
+
+FCF_GROWTH_ARGUMENTS: Final[Mapping[str, FCFEarningsGrowthToolArguments]] = MappingProxyType(
+    {
+        "FCF-01": FCFEarningsGrowthToolArguments(
+            ticker="ACME",
+            historical_horizon=HistoricalHorizon.LONGEST_AVAILABLE,
+            as_of=None,
+        ),
+        "FCF-02": FCFEarningsGrowthToolArguments(
+            ticker="ACME",
+            historical_horizon=HistoricalHorizon.LONGEST_AVAILABLE,
+            as_of=None,
+        ),
+        "FCF-03": FCFEarningsGrowthToolArguments(
+            ticker="ACME",
+            historical_horizon=HistoricalHorizon.FOUR_YEARS,
+            as_of=FCF_GROWTH_HISTORICAL_AS_OF,
+        ),
+        "FCF-ETF-01": FCFEarningsGrowthToolArguments(
+            ticker="FLSW",
+            historical_horizon=HistoricalHorizon.LONGEST_AVAILABLE,
+            as_of=None,
+        ),
+        "FPI-03": FCFEarningsGrowthToolArguments(ticker="SAP", currency="EUR"),
+    }
+)
+"""The reviewed production arguments of each FCF & Earnings Growth case, keyed by case id."""
+
+__all__ = [
+    "FCF_01",
+    "FCF_02",
+    "FCF_03",
+    "FCF_ETF_01",
+    "FCF_GROWTH_ARGUMENTS",
+    "FCF_GROWTH_CASES",
+    "FPI_03",
+]
