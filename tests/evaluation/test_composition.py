@@ -50,7 +50,7 @@ from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.graham_number.tool import GrahamNumberToolArguments
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.tool import MomentumToolArguments
-from src.strategy_wiring import BY_TOOL
+from src.strategy_wiring import BY_TOOL, STRATEGIES
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 
@@ -375,3 +375,39 @@ async def test_one_dispatcher_lets_the_second_graham_call_read_what_the_first_ca
     assert number.result.assembly.current_price.source_kind is SourceKind.PROVIDER
     assert growth.result.assembly.current_price is not None
     assert growth.result.assembly.current_price.source_kind is SourceKind.CACHE
+
+
+def test_a_modified_copy_of_both_descriptors_and_tier_is_composed_as_given() -> None:
+    """Dropping a strategy from both tuples composes only the rest; the production tuples are not consulted."""
+    fcf = BY_TOOL[ToolName.ANALYZE_FCF_EARNINGS_GROWTH]
+    descriptors = tuple(item for item in STRATEGIES if item is not fcf)
+    tier = _tier_without(ToolName.ANALYZE_FCF_EARNINGS_GROWTH)
+    fixtures = compose_fixture_dependencies(
+        _case("copy", MOMENTUM_SUCCESS_FIXTURE_ID), clock_at=EXECUTION_TIME, descriptors=descriptors, tier=tier
+    )
+    assert set(fixtures.dependencies) == {item.tool for item in descriptors}
+
+
+@pytest.mark.asyncio
+async def test_a_descriptor_copy_without_the_called_strategy_fails_closed() -> None:
+    """Arguments of a strategy absent from the supplied descriptors raise the typed error, naming the model."""
+    fcf = BY_TOOL[ToolName.ANALYZE_FCF_EARNINGS_GROWTH]
+    descriptors = tuple(item for item in STRATEGIES if item is not fcf)
+    with pytest.raises(UndeclaredStrategyError, match="FCFEarningsGrowthToolArguments"):
+        await dispatch_fixture_case(
+            _case("copy", FCF_GROWTH_SUCCESS_FIXTURE_ID),
+            FCFEarningsGrowthToolArguments(ticker="ACME"),
+            clock_at=EXECUTION_TIME,
+            descriptors=descriptors,
+            tier=_tier_without(ToolName.ANALYZE_FCF_EARNINGS_GROWTH),
+        )
+
+
+def test_a_tier_entry_for_a_strategy_missing_from_the_descriptors_fails_closed() -> None:
+    """The tier and the descriptors are compared as supplied: an entry with no descriptor is rejected."""
+    fcf = BY_TOOL[ToolName.ANALYZE_FCF_EARNINGS_GROWTH]
+    descriptors = tuple(item for item in STRATEGIES if item is not fcf)
+    with pytest.raises(UndeclaredStrategyError, match="evaluation tier entry for bundle"):
+        compose_fixture_dispatcher(
+            _case("copy", MOMENTUM_SUCCESS_FIXTURE_ID), clock_at=EXECUTION_TIME, descriptors=descriptors
+        )

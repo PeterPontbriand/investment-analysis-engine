@@ -1540,9 +1540,12 @@ with the decision and its reason.
 the frozen SEC foreign-private-issuer provider, and no strategy-specific field. Momentum and FCF-Growth select
 their own variant from the identifiers in their `evaluation.py`; the Graham strategies read their provider,
 cache and provider identity from `_graham/evaluation.py`. Which inputs raise and every message are unchanged.
-The one observable difference is the order of two simultaneous faults: the foreign-private-issuer conflict is
-now detected when the context is built, before a Momentum or FCF conflict in the same case, which used to be
-reported first. No case or test selects two conflicting groups at once.
+The one observable difference is the order in which simultaneous conflicts are reported. Before, the context
+reported a Momentum conflict, then an FCF conflict, then a foreign-private-issuer conflict. Now the
+foreign-private-issuer conflict is reported when the context is built, and the Momentum and FCF conflicts are
+reported when each strategy composes, in declaration order. A case that selects conflicting groups of two
+kinds gets the foreign-private-issuer message where it used to get the Momentum or FCF one; a case with one
+conflict gets the same message as before. No case or test selects conflicting groups of two kinds.
 
 ### G.2 How a tier entry finds its descriptor
 
@@ -1617,9 +1620,10 @@ T13 gains one rule beyond the design text: no strategy file other than an `evalu
 unchecked. No file violates it. `src.evaluation.strategy_fixtures` joins the root's importer list, and the tier's
 own importer list holds `src.evaluation.composition`.
 
-### G.8 Limits left for later slices
+### G.8 Descriptors and tier are both parameters
 
-`compose_fixture_dependencies` still binds the declared `STRATEGIES`; the checks accept a modified `tier` but
-not a second descriptor tuple. The specimen slice extends the composition functions to take the descriptors,
-because only a specimen needs them.
-
+`compose_fixture_dependencies`, `compose_fixture_dispatcher` and `dispatch_fixture_case` take `descriptors`
+(default `STRATEGIES`) beside `tier`, and route arguments through `build_indexes(descriptors)`. A check can
+therefore pass a modified copy of both, and the tier and the descriptors are compared as supplied: a
+descriptor without an entry and an entry without a descriptor each raise `UndeclaredStrategyError`. The
+specimen slice passes its own tuples through the same parameters and edits no composition code.

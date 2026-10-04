@@ -15,7 +15,7 @@ import importlib
 import inspect
 import pkgutil
 import re
-from collections.abc import Callable, Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
@@ -331,7 +331,7 @@ def _evaluation_tier_probes(
         _expect_undeclared(
             gaps,
             f"compose_fixture_dependencies without the {item.tool.value} tier entry",
-            partial(compose_fixture_dependencies, case, clock_at=_FIXTURE_CLOCK, tier=without),
+            partial(compose_fixture_dependencies, case, clock_at=_FIXTURE_CLOCK, descriptors=descriptors, tier=without),
             names=item.tool.value,
         )
     request = build_deterministic_requests()[0]
@@ -342,7 +342,13 @@ def _evaluation_tier_probes(
             gaps,
             f"dispatch_fixture_case without the {first.tool.value} tier entry",
             lambda: asyncio.run(
-                dispatch_fixture_case(request.case, request.arguments, clock_at=_FIXTURE_CLOCK, tier=without_first)
+                dispatch_fixture_case(
+                    request.case,
+                    request.arguments,
+                    clock_at=_FIXTURE_CLOCK,
+                    descriptors=descriptors,
+                    tier=without_first,
+                )
             ),
             names=first.tool.value,
         )
@@ -352,7 +358,13 @@ def _evaluation_tier_probes(
         _expect_undeclared(
             gaps,
             "compose_fixture_dispatcher with another strategy's dependency object",
-            partial(compose_fixture_dispatcher, case, clock_at=_FIXTURE_CLOCK, tier=(mispaired, *tier[1:])),
+            partial(
+                compose_fixture_dispatcher,
+                case,
+                clock_at=_FIXTURE_CLOCK,
+                descriptors=descriptors,
+                tier=(mispaired, *tier[1:]),
+            ),
         )
 
 
@@ -364,7 +376,9 @@ def undeclared_input_gaps(
     gaps: list[str] = []
     indexes = build_indexes(descriptors)
     _evaluation_tier_probes(gaps, descriptors, tier)
-    fixtures = compose_fixture_dependencies(DETERMINISTIC_CASES[0], clock_at=_FIXTURE_CLOCK, tier=tier)
+    fixtures = compose_fixture_dependencies(
+        DETERMINISTIC_CASES[0], clock_at=_FIXTURE_CLOCK, descriptors=descriptors, tier=tier
+    )
     dependencies = dict(fixtures.dependencies)
     runtime = fixtures.runtime
     _expect_undeclared(
@@ -505,7 +519,7 @@ def descriptor_is_closed_gaps() -> list[str]:
     return gaps
 
 
-def evaluation_tier_is_closed_gaps(tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES) -> list[str]:
+def evaluation_tier_is_closed_gaps(tier: Sequence[EvaluationStrategy] = EVALUATION_STRATEGIES) -> list[str]:
     """T15 (evaluation tier): the composition and the tier entry have exactly the documented members."""
     gaps: list[str] = []
     members = {field.name for field in dataclasses.fields(EvalComposition)}

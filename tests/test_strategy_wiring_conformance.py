@@ -154,9 +154,15 @@ def test_t11_reports_a_dispatcher_that_accepts_an_undeclared_input(monkeypatch: 
 def test_t11_reports_an_evaluation_tier_that_accepts_a_missing_entry(monkeypatch: pytest.MonkeyPatch) -> None:
     """The tier probes can fail: a composition that ignores the supplied tier is reported for every tool."""
 
-    def ignore_the_tier(case: Case, *, clock_at: datetime, tier: tuple[EvaluationStrategy, ...]) -> FixtureDependencies:
+    def ignore_the_tier(
+        case: Case,
+        *,
+        clock_at: datetime,
+        descriptors: tuple[StrategyDescriptor, ...],
+        tier: tuple[EvaluationStrategy, ...],
+    ) -> FixtureDependencies:
         del tier
-        return compose_fixture_dependencies(case, clock_at=clock_at)
+        return compose_fixture_dependencies(case, clock_at=clock_at, descriptors=descriptors)
 
     monkeypatch.setattr(conformance, "compose_fixture_dependencies", ignore_the_tier)
     gaps = conformance.undeclared_input_gaps(STRATEGIES)
@@ -282,7 +288,7 @@ def test_t15_reports_an_undocumented_evaluation_tier_member(monkeypatch: pytest.
 
 def test_t15_reports_a_tier_that_is_not_a_tuple() -> None:
     """The closed tier is a tuple, so a list is reported."""
-    assert conformance.evaluation_tier_is_closed_gaps(list(EVALUATION_STRATEGIES)) == [  # type: ignore[arg-type]
+    assert conformance.evaluation_tier_is_closed_gaps(list(EVALUATION_STRATEGIES)) == [
         "EVALUATION_STRATEGIES is not a tuple"
     ]
 
