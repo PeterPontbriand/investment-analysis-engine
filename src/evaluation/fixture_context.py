@@ -10,7 +10,7 @@ requirement with its ETF-profile exemption, and the exact-ticker profile resolve
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Final
 
@@ -55,8 +55,25 @@ class FixtureCompositionError(ValueError):
 
 
 @dataclass(frozen=True)
+class SharedKey[T]:
+    """Names one object that several strategies' compositions share within a single case.
+
+    Attributes:
+        name: Identifies the shared object; unique across the keys in use.
+        type: The exact class of the shared object, so a lookup returns it without a cast.
+    """
+
+    name: str
+    type: type[T]
+
+
+@dataclass(frozen=True, eq=False)
 class FixtureContext:
     """The case-level selections and providers that more than one strategy can use.
+
+    A context belongs to one case composition and is compared by identity. Strategies of one family that
+    must read the same provider and cache instances within a case ask for them through ``shared``; the
+    context itself names no strategy.
 
     Attributes:
         fixture_ids: Every fixture identifier the case selected.
@@ -67,6 +84,24 @@ class FixtureContext:
     fixture_ids: frozenset[str]
     clock_at: datetime
     sec_fpi_provider: SecEdgarFinancialFactsAdapter | None
+    _shared: dict[str, object] = field(default_factory=dict, init=False, repr=False)
+
+    def shared[T](self, key: SharedKey[T], build: Callable[[], T]) -> T:
+        """Return the object ``key`` names in this case, building it on first use.
+
+        Raises:
+            FixtureCompositionError: If the name is already bound to an object of another class.
+        """
+        existing = self._shared.get(key.name)
+        if existing is None:
+            built = build()
+            self._shared[key.name] = built
+            return built
+        if not isinstance(existing, key.type):
+            raise FixtureCompositionError(
+                f"Shared fixture {key.name!r} holds a {type(existing).__name__}, not a {key.type.__name__}."
+            )
+        return existing
 
 
 @dataclass(frozen=True)

@@ -9,6 +9,7 @@ import pytest
 
 from src.core.analysis_status import CalculationStatus
 from src.core.strategy_errors import UndeclaredStrategyError
+from src.data.financial.provenance import SourceKind
 from src.evaluation.composition import (
     compose_fixture_dependencies,
     compose_fixture_dispatcher,
@@ -20,6 +21,7 @@ from src.evaluation.fixture_ids import (
     FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
     FCF_GROWTH_SUCCESS_FIXTURE_ID,
     GRAHAM_FACTS_FIXTURE_ID,
+    GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
     KNOWN_ETF_PROFILE_FIXTURE_ID,
     MOMENTUM_BOUNDARY_FIXTURE_ID,
     MOMENTUM_SUCCESS_FIXTURE_ID,
@@ -338,3 +340,38 @@ def test_each_strategy_receives_its_own_dependency_class() -> None:
     }
     assert fixtures.runtime.validated_clock_value() == EXECUTION_TIME
     assert fixtures.runtime.profile_resolver is None
+
+
+@pytest.mark.asyncio
+async def test_one_dispatcher_lets_the_second_graham_call_read_what_the_first_cached() -> None:
+    """Both Graham resolvers share the case's cache, so a later call in one dispatcher sees earlier entries."""
+    dispatcher = compose_fixture_dispatcher(
+        _case("shared-cache", GRAHAM_FACTS_FIXTURE_ID, GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID),
+        clock_at=EXECUTION_TIME,
+    )
+    as_of = GRAHAM_NOW
+    number = await dispatcher.dispatch(
+        ToolCallRequest(
+            call_id="number",
+            tool_name=ToolName.ANALYZE_GRAHAM_NUMBER.value,
+            arguments={"ticker": GRAHAM_SECURITY_ID, "as_of": as_of, "eps_override": 5.0},
+        )
+    )
+    growth = await dispatcher.dispatch(
+        ToolCallRequest(
+            call_id="growth",
+            tool_name=ToolName.ANALYZE_GRAHAM_GROWTH_VALUE.value,
+            arguments={
+                "ticker": GRAHAM_SECURITY_ID,
+                "as_of": as_of,
+                "expected_growth": GOLDEN_EXPECTED_GROWTH,
+                "current_aaa_yield": 4.15,
+            },
+        )
+    )
+    assert isinstance(number.result, GrahamNumberAnalysis)
+    assert isinstance(growth.result, GrahamGrowthAnalysis)
+    assert number.result.assembly.current_price is not None
+    assert number.result.assembly.current_price.source_kind is SourceKind.PROVIDER
+    assert growth.result.assembly.current_price is not None
+    assert growth.result.assembly.current_price.source_kind is SourceKind.CACHE

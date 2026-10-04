@@ -36,6 +36,7 @@ from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER
 from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_ASML_FIXTURE_ID, SEC_FPI_FIXTURE_IDS, SEC_FPI_SAP_FIXTURE_ID
 from src.evaluation.models import Case, Expectation
 from src.orchestrator.tool_runtime import ToolRuntime
+from src.strategies._graham.evaluation import graham_inputs
 from src.strategies.fcf_growth import evaluation as fcf_growth_evaluation
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, HistoricalHorizon
 from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
@@ -285,3 +286,17 @@ def test_fcf_growth_requirement_is_its_own_fail_closed_statement() -> None:
     require_fixture_evidence(etf_case, requirement, ticker=GOLDEN_ETF_TICKER)
     with pytest.raises(FixtureCompositionError, match="has no selected FCF/Earnings Growth fact fixture"):
         require_fixture_evidence(etf_case, requirement, ticker="ACME")
+
+
+def test_both_graham_strategies_read_the_same_provider_and_cache_within_a_case() -> None:
+    """The family's provider and precedence cache are one instance per case, as before the tier existed."""
+    context = _context(GRAHAM_FACTS_FIXTURE_ID, GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID)
+    inputs = graham_inputs(context)
+    assert inputs.cache is not None
+    assert graham_inputs(context) is inputs
+    graham_number_evaluation.compose(context)
+    graham_growth_evaluation.compose(context)
+    assert graham_inputs(context) is inputs
+    other = graham_inputs(_context(GRAHAM_FACTS_FIXTURE_ID, GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID))
+    assert other is not inputs
+    assert other.cache is not inputs.cache

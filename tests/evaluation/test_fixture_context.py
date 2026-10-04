@@ -11,6 +11,7 @@ from src.evaluation.fixture_context import (
     FixtureCompositionError,
     FixtureContext,
     FixtureRequirement,
+    SharedKey,
     build_fixture_context,
     profile_resolver,
     require_fixture_evidence,
@@ -54,7 +55,11 @@ def test_the_context_holds_only_cross_strategy_state() -> None:
     assert context.fixture_ids == {MOMENTUM_SUCCESS_FIXTURE_ID}
     assert context.clock_at == EXECUTION_TIME
     assert context.sec_fpi_provider is None
-    assert set(FixtureContext.__dataclass_fields__) == {"fixture_ids", "clock_at", "sec_fpi_provider"}
+    assert {name for name in FixtureContext.__dataclass_fields__ if not name.startswith("_")} == {
+        "fixture_ids",
+        "clock_at",
+        "sec_fpi_provider",
+    }
 
 
 def test_a_selected_sec_fpi_fixture_builds_the_frozen_provider() -> None:
@@ -136,3 +141,32 @@ def test_the_etf_exemption_applies_only_when_declared_and_only_to_the_profiled_t
     not_exempt = FixtureRequirement(_REQUIREMENT.required_ids, "Sample", etf_profile_exempt=False)
     with pytest.raises(FixtureCompositionError, match="has no selected Sample fixture"):
         require_fixture_evidence(etf_case, not_exempt, ticker=GOLDEN_ETF_TICKER)
+
+
+class _Marker:
+    """A shared object for the memo checks."""
+
+
+def test_a_shared_object_is_built_once_per_context_and_not_across_contexts() -> None:
+    """Strategies of a family read the same instance within a case; a new case gets a new one."""
+    key = SharedKey("marker", _Marker)
+    first = build_fixture_context(_case(GRAHAM_FACTS_FIXTURE_ID), clock_at=EXECUTION_TIME)
+    second = build_fixture_context(_case(GRAHAM_FACTS_FIXTURE_ID), clock_at=EXECUTION_TIME)
+    built: list[_Marker] = []
+
+    def build() -> _Marker:
+        built.append(_Marker())
+        return built[-1]
+
+    assert first.shared(key, build) is first.shared(key, build)
+    assert len(built) == 1
+    assert second.shared(key, build) is not first.shared(key, build)
+    assert len(built) == 2
+
+
+def test_a_shared_name_bound_to_another_class_fails_closed() -> None:
+    """A name cannot be reused for an object of a different class."""
+    context = build_fixture_context(_case(GRAHAM_FACTS_FIXTURE_ID), clock_at=EXECUTION_TIME)
+    context.shared(SharedKey("clash", _Marker), _Marker)
+    with pytest.raises(FixtureCompositionError, match="Shared fixture 'clash' holds a _Marker, not a str"):
+        context.shared(SharedKey("clash", str), lambda: "text")

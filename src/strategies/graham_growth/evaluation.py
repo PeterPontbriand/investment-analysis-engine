@@ -11,7 +11,7 @@ from src.evaluation.fixtures.graham import (
     GOLDEN_GROWTH_MULTIPLIER,
 )
 from src.strategies._graham.evaluation import REQUIREMENT as GRAHAM_REQUIREMENT
-from src.strategies._graham.evaluation import graham_cache, graham_clock, graham_provider, graham_provider_id
+from src.strategies._graham.evaluation import graham_clock, graham_inputs
 from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
 from src.strategies.graham_growth.tool import GrahamGrowthToolDependencies
@@ -21,10 +21,9 @@ REQUIREMENT: Final[FixtureRequirement] = GRAHAM_REQUIREMENT
 
 def compose(context: FixtureContext) -> GrahamGrowthToolDependencies:
     """Build Graham growth-value's dependencies from the selected Graham facts."""
-    resolver = GrahamGrowthInputResolver(
-        provider=graham_provider(context), cache=graham_cache(context), clock=graham_clock(context)
-    )
-    provider_id = graham_provider_id(context)
+    inputs = graham_inputs(context)
+    resolver = GrahamGrowthInputResolver(provider=inputs.provider, cache=inputs.cache, clock=graham_clock(context))
+    provider_id = inputs.provider_id
     return GrahamGrowthToolDependencies(
         analyzer=GrahamGrowthAnalyzer(
             resolver,

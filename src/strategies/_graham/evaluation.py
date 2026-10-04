@@ -9,13 +9,14 @@ helpers, so this module imports no strategy.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Final
 
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactRequest, FinancialFactsProvider, ProviderFact
 from src.data.sec_edgar import SEC_PROVIDER_ID
-from src.evaluation.fixture_context import FixtureContext, FixtureRequirement
+from src.evaluation.fixture_context import FixtureContext, FixtureRequirement, SharedKey
 from src.evaluation.fixture_ids import GRAHAM_FACTS_FIXTURE_ID, GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID
 from src.evaluation.fixtures.graham import PROVIDER_ID as GRAHAM_PROVIDER_ID
 from src.evaluation.fixtures.graham import FixtureFinancialFactsProvider, precedence_bvps_cache
@@ -43,23 +44,43 @@ class _UnavailableFinancialFactsProvider:
         return ()
 
 
-def graham_provider(context: FixtureContext) -> FinancialFactsProvider:
-    """Return the facts provider the case selected, or one that reports every fact as absent."""
+@dataclass(frozen=True)
+class GrahamFixtureInputs:
+    """The provider, precedence cache and provider identity both Graham strategies read within one case.
+
+    Attributes:
+        provider: The company-facts provider the case selected, or one that reports every fact as absent.
+        cache: The reviewed precedence cache when the case selected it.
+        provider_id: The provider identity both strategies are configured with.
+    """
+
+    provider: FinancialFactsProvider
+    cache: InMemoryResolvedInputCache | None
+    provider_id: str
+
+
+_INPUTS_KEY: Final = SharedKey("graham_inputs", GrahamFixtureInputs)
+
+
+def _build_inputs(context: FixtureContext) -> GrahamFixtureInputs:
+    """Build the case's Graham inputs from the selected fixtures."""
+    provider: FinancialFactsProvider
     if context.sec_fpi_provider is not None:
-        return context.sec_fpi_provider
-    if GRAHAM_FACTS_FIXTURE_ID in context.fixture_ids:
-        return FixtureFinancialFactsProvider(quote_retrieved_at=context.clock_at)
-    return _UnavailableFinancialFactsProvider()
+        provider = context.sec_fpi_provider
+    elif GRAHAM_FACTS_FIXTURE_ID in context.fixture_ids:
+        provider = FixtureFinancialFactsProvider(quote_retrieved_at=context.clock_at)
+    else:
+        provider = _UnavailableFinancialFactsProvider()
+    return GrahamFixtureInputs(
+        provider=provider,
+        cache=precedence_bvps_cache() if GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID in context.fixture_ids else None,
+        provider_id=SEC_PROVIDER_ID if context.sec_fpi_provider is not None else GRAHAM_PROVIDER_ID,
+    )
 
 
-def graham_cache(context: FixtureContext) -> InMemoryResolvedInputCache | None:
-    """Return the reviewed precedence cache when the case selected it."""
-    return precedence_bvps_cache() if GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID in context.fixture_ids else None
-
-
-def graham_provider_id(context: FixtureContext) -> str:
-    """Return the provider identity a Graham strategy is configured with."""
-    return SEC_PROVIDER_ID if context.sec_fpi_provider is not None else GRAHAM_PROVIDER_ID
+def graham_inputs(context: FixtureContext) -> GrahamFixtureInputs:
+    """Return the case's Graham inputs, the same instances for both Graham strategies."""
+    return context.shared(_INPUTS_KEY, lambda: _build_inputs(context))
 
 
 def graham_clock(context: FixtureContext) -> Callable[[], datetime]:
