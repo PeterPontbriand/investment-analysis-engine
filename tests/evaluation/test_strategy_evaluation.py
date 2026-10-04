@@ -32,12 +32,15 @@ from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER
 from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_ASML_FIXTURE_ID, SEC_FPI_FIXTURE_IDS
 from src.evaluation.models import Case, Expectation
 from src.orchestrator.tool_runtime import ToolRuntime
+from src.strategies.graham_growth import evaluation as graham_growth_evaluation
+from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
 from src.strategies.graham_number import evaluation as graham_number_evaluation
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.graham_number.tool import GrahamNumberToolArguments
 from src.strategies.momentum import evaluation as momentum_evaluation
 from src.strategies.momentum.analyzer import MomentumRun
-from src.strategy_wiring import GRAHAM_NUMBER, MOMENTUM
+from src.strategy_wiring import GRAHAM_GROWTH, GRAHAM_NUMBER, MOMENTUM
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 
@@ -152,3 +155,46 @@ def test_graham_number_requires_company_facts_with_the_etf_exemption() -> None:
     require_fixture_evidence(etf_case, requirement, ticker=GOLDEN_ETF_TICKER)
     with pytest.raises(FixtureCompositionError, match="has no selected Graham financial-fact fixture"):
         require_fixture_evidence(etf_case, requirement, ticker=SECURITY_ID)
+
+
+def _graham_growth(context: FixtureContext, arguments: GrahamGrowthValueToolArguments) -> GrahamGrowthAnalysis:
+    """Run the real Graham growth-value handler over the composed dependencies."""
+    handler = GRAHAM_GROWTH.behavior.bind_handler(graham_growth_evaluation.compose(context), _runtime())
+    result = handler(**arguments.model_dump(mode="python"))
+    assert isinstance(result, GrahamGrowthAnalysis)
+    return result
+
+
+def _growth_arguments() -> GrahamGrowthValueToolArguments:
+    """Build the reviewed growth-value arguments for the synthetic security."""
+    return GrahamGrowthValueToolArguments(
+        ticker=SECURITY_ID, eps_basis="ttm", expected_growth=6.5, current_aaa_yield=4.15
+    )
+
+
+def test_graham_growth_composes_the_selected_facts_with_the_reviewed_policy() -> None:
+    """Selected facts resolve and the reviewed policy yields the reviewed growth value."""
+    context = _context(GRAHAM_FACTS_FIXTURE_ID)
+    dependencies = graham_growth_evaluation.compose(context)
+    assert dependencies.security_provider_id == GRAHAM_PROVIDER_ID
+    assert dependencies.quote_provider_id == GRAHAM_PROVIDER_ID
+    result = _graham_growth(context, _growth_arguments())
+    assert result.result.growth_value == pytest.approx(109.41686746987952, abs=1e-9)
+
+
+def test_graham_growth_without_selected_facts_reports_every_fact_as_absent() -> None:
+    """An unselected facts fixture is explicit absence, never default data."""
+    result = _graham_growth(_context(MOMENTUM_SUCCESS_FIXTURE_ID), _growth_arguments())
+    assert result.result.status is CalculationStatus.INPUT_UNAVAILABLE
+
+
+def test_graham_growth_uses_the_foreign_private_issuer_identity() -> None:
+    """Selected SEC evidence carries the SEC provider identity for both providers."""
+    dependencies = graham_growth_evaluation.compose(_context(SEC_FPI_ASML_FIXTURE_ID))
+    assert dependencies.security_provider_id == SEC_PROVIDER_ID
+    assert dependencies.quote_provider_id == SEC_PROVIDER_ID
+
+
+def test_graham_growth_shares_the_graham_requirement() -> None:
+    """Both Graham strategies state the same capability, label and ETF exemption."""
+    assert graham_growth_evaluation.REQUIREMENT == graham_number_evaluation.REQUIREMENT
