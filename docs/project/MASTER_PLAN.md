@@ -350,7 +350,7 @@ Documentation lives in the repository and is updated with the code:
 - **`docs/project/milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`:** Compact approved Step 2.3 method, resolution, provenance, CLI, fixture, and review record.
 - **`docs/project/milestones/v0.2/step-2.4/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`:** Initial Step 2.4 financial, data, CLI, presentation, and review design.
 - **`docs/EVALUATIONS.md`:** Step 2.5 Golden Suite status, usage target, scoring, fixtures, reporting, and extension policy.
-- **`docs/TOOL_DEVELOPMENT.md`:** **Planned (SWC.5).** The single contributor guide for adding an analysis strategy. It will replace `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`, which remains the guide until then.
+- **`docs/TOOL_DEVELOPMENT.md`:** **Planned (SWC.7).** The single contributor guide for adding an analysis strategy. It will replace `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`, which remains the guide until then.
 - **`docs/I18N_GUIDE.md`:** **Planned for localization work.** Translation/report-localization procedures.
 
 Do not assume a planned guide already exists. During implementation, create/update planned documents only in the step that explicitly owns them.

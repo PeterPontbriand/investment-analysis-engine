@@ -11,10 +11,12 @@ Definitions live in [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md) (SD) an
   non-goals. These follow from the definitions and do not change with the code layout.
 - **What this is not:** a slice plan. File lists, interfaces, wiring and CLI integration are
   written after SWC and PKG land, against the `main` of that day.
-- **Every strategy slice also delivers:** analyzer, descriptor wiring, presenter with concise,
-  details, diagnostics and JSON views, stored-run replay, user guide, `FINANCE_MATH.md` and
-  `GLOSSARY.md` entries. This is not repeated per slice below.
-- **Every strategy slice also tests:** a financial issuer, an unknown industry class, a missing
+- **Every strategy slice also delivers:** analyzer, descriptor wiring including its `headline`
+  function, presenter with concise, details, diagnostics and JSON views, stored-run replay, user guide,
+  `FINANCE_MATH.md` and `GLOSSARY.md` entries, and a result carrying the result-level `execution_status`
+  that [Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status) defines. This is not
+  repeated per slice below.
+- **Every strategy slice also tests:** a financial issuer, an unknown industry class (`input_unavailable` for a sector-gated strategy; Piotroski runs and states it), a missing
   critical input, a boundary before the filing, stored-run replay with provider, cache, clock and
   calculator disabled, and unchanged output of the four existing strategies.
 - **Candidate mappings are hypotheses.** A concept named here becomes a production mapping only
@@ -22,7 +24,50 @@ Definitions live in [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md) (SD) an
 - **No open decisions.** Decisions and their reasons are in the contract's
   [Appendix A](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#appendix-a-decision-records-and-history).
 
-## 2. 3.5.1 — Data mappings and applicability
+## 2. 3.5.0 — Side-by-side refresh table
+
+**Starting points in the code and the dependency check**
+
+- It reads the persisted runs of one `refresh_id` and the four existing strategies' decoded evidence, so
+  it needs no new data (3.5.1) and no shared metric or ranking helper (3.5.2). Its only forward
+  reference is the sort option over the ranked view, which arrives with 3.5.6.
+- It depends on the finished SWC work: the behavior bundle, the CLI tier and the injected replay and codec
+  mappings.
+- The fiscal period end comes from each result: FCF-Growth records its period span; the Graham results
+  expose it through their resolved-input provenance; Momentum has none. The taxonomy is shown where a
+  result names one (the new strategies all do, per SD §3) and is "not recorded" otherwise.
+
+**New data:** none.
+
+**Result shape:** one row per ticker; per strategy, the headline cells, the run outcome, the fiscal period
+end, the taxonomy and the run ID; text and `--json` forms. The `headline` member returns a `Headline`: a
+fixed-order tuple of cells, a period end and a taxonomy. A cell has a stable key, a label, a kind (number
+or text), a finite number or a text, an explicit unit, the metric's own status and, when that is not `ok`,
+its reason code. On paper the eleven strategies need only these shapes:
+
+| Strategy | Cells |
+| :--- | :--- |
+| Momentum | trend (text), RSI (number, points) |
+| Graham Number | maximum indicated price (number, USD per share), margin of safety (number, percent) |
+| Graham Growth | intrinsic value (number, USD per share), margin of safety (number, percent) |
+| FCF-Growth | FCF CAGR (percent), EPS CAGR (percent), classification (text) |
+| Piotroski | score (number, points), completeness (text: "x of n") |
+| Altman | score (number), zone (text), model (text) |
+| Beneish | score (number), threshold flag (text) |
+| Valuation Multiples | EV/EBITDA (number, multiple), FCF yield (number, percent) |
+| Interest Coverage | EBIT coverage (number, multiple), band (text) |
+| ROIC | trailing ROIC (percent), incremental ROIC (percent) |
+| Magic Formula (analyzer) | return on capital (percent), earnings yield (percent) |
+
+**Tests:** built from one `refresh_id` with provider, cache, clock and calculator disabled; each of the
+four existing strategies' headline equals the reviewed cells for a stored run; differing fiscal year-ends
+shown, not normalized; a strategy with no fiscal period shows "not recorded"; a failed or unavailable run
+shows its outcome and does not drop the row; two runs for one ticker and strategy refuse and name the
+duplicates. The sort option is tested in 3.5.6.
+
+**Non-goals:** no new persistence, batch ID or run type; no composite column; no ranking in this slice.
+
+## 3. 3.5.1 — Data mappings and applicability
 
 **Starting points in the code (verified on `main`, 2026-10-02)**
 
@@ -139,7 +184,7 @@ An unsupported field makes its consumers `unavailable`. It is never approximated
 **Non-goals:** no strategy calculation; no change to Graham's latest-only balance-sheet
 selection; no SIC in the instrument profile; no schema migration.
 
-## 3. 3.5.2 — Shared metrics and ranking helper
+## 4. 3.5.2 — Shared metrics and ranking helper
 
 **New data:** none beyond 3.5.1.
 
@@ -170,14 +215,14 @@ taken as zero.
 **Non-goals:** no weights; no persistence; no knowledge of strategies or runs in the helper; no
 change to the FCF or FCF-yield formulas.
 
-## 4. 3.5.3 — Piotroski F-Score
+## 5. 3.5.3 — Piotroski F-Score
 
 **New data:** none beyond 3.5.1. Needs total assets at three year-ends and the other inputs SS §1
 lists.
 
 **Result shape:** nine test results in fixed order, each with status (pass, fail, unavailable),
 operands, ratios and provenance; the score as a `MetricResult`; completeness (complete or
-partial); the count of available tests; the industry class and its warning; the method version.
+partial); the count of available tests; the result-level `execution_status`; the industry class and its warning; the method version.
 
 **Tests**
 
@@ -197,7 +242,7 @@ partial); the count of available tests; the industry class and its warning; the 
 **Non-goals:** no issuance-proceeds reading; no user-selectable denominators or income basis; no
 ranking of partial scores. An envelope change Piotroski needs is applied to every analyzer.
 
-## 5. 3.5.4 — Altman and Beneish
+## 6. 3.5.4 — Altman and Beneish
 
 Two sub-slices: 3.5.4a Altman, 3.5.4b Beneish.
 
@@ -205,10 +250,10 @@ Two sub-slices: 3.5.4a Altman, 3.5.4b Beneish.
 
 **Result shape**
 
-- Altman: the model used (Z or Z″), each variable as a `MetricResult`, the score, and the zone as
-  a result field.
+- Altman: the model used (Z or Z″), each variable as a `MetricResult`, the score, the zone as
+  a result field, and the result-level `execution_status`.
 - Beneish: eight indices as `MetricResult`s, the score, the threshold flag, the income basis TATA
-  used and the DEPI basis.
+  used, the DEPI basis and the result-level `execution_status`.
 
 **Tests**
 
@@ -229,7 +274,7 @@ against one captured filing.
 **Non-goals:** no imputation; no probability; no partial Beneish score; Z′ (the private-firm
 model) is not offered.
 
-## 6. 3.5.5 — Valuation multiples, Interest Coverage and ROIC
+## 7. 3.5.5 — Valuation multiples, Interest Coverage and ROIC
 
 Three sub-slices: 3.5.5a Valuation Multiples, 3.5.5b Interest Coverage, 3.5.5c ROIC.
 
@@ -238,10 +283,10 @@ Three sub-slices: 3.5.5a Valuation Multiples, 3.5.5b Interest Coverage, 3.5.5c R
 **Result shape**
 
 - Valuation Multiples: EV/EBITDA and FCF yield as `MetricResult`s, with EV's components and both
-  market-cap dates.
-- Interest Coverage: EBIT and EBITDA coverage as `MetricResult`s; the band as a result field.
+  market-cap dates, and the result-level `execution_status`.
+- Interest Coverage: EBIT and EBITDA coverage as `MetricResult`s; the band as a result field and the result-level `execution_status`.
 - ROIC: trailing ROIC and incremental ROIC as `MetricResult`s; per year, the reported tax rate,
-  the rate used and whether it was clamped.
+  the rate used and whether it was clamped, and the result-level `execution_status`.
 
 **Tests**
 
@@ -258,7 +303,7 @@ Three sub-slices: 3.5.5a Valuation Multiples, 3.5.5b Interest Coverage, 3.5.5c R
 **Non-goals:** no FCF / EV; no fixed-charge coverage; no non-recurring adjustments; no lease
 normalization; no EBIT-only ROIC variant.
 
-## 7. 3.5.6 — Magic Formula and ranked refresh view
+## 8. 3.5.6 — Magic Formula and ranked refresh view
 
 Two sub-slices: 3.5.6a the analyzer, 3.5.6b the ranked view.
 
@@ -266,7 +311,7 @@ Two sub-slices: 3.5.6a the analyzer, 3.5.6b the ranked view.
 
 **Result shape**
 
-- Analyzer: return on capital and earnings yield as `MetricResult`s, with their operands. No rank.
+- Analyzer: return on capital and earnings yield as `MetricResult`s, with their operands and the result-level `execution_status`. No rank.
 - Ranked view: per member, each metric's rank and percentile, the rank sum, the position and the
   taxonomy; the excluded members with reasons; the duplicate-issuer and mixed-framework
   diagnostics. Nothing is persisted.
@@ -280,24 +325,12 @@ Two sub-slices: 3.5.6a the analyzer, 3.5.6b the ranked view.
   the strategy for one ticker refuse and name the duplicates; two share classes of one issuer keep
   one member; mixed taxonomies rank with the diagnostic; the same refresh always gives the same
   view.
+- Side-by-side table: its sort option over this view gives the view's order, and a refresh with
+  no Magic Formula runs refuses the option and says why.
 
 **Non-goals:** no ad-hoc ticker list; no persisted ranks; no market-wide universe; no weights.
 
-## 8. 3.5.7 — Side-by-side refresh table
-
-**New data:** none.
-
-**Result shape:** one row per ticker; per strategy, the headline values and outcome, fiscal period
-end, taxonomy and run ID; text and `--json` forms.
-
-**Tests:** built from one `refresh_id` with provider, cache, clock and calculator disabled;
-differing fiscal year-ends shown, not normalized; a failed or unavailable run shows its outcome
-and does not drop the row; two runs for one ticker and strategy refuse and name the duplicates;
-sorting by a ranked view matches that view.
-
-**Non-goals:** no new persistence, batch ID or run type; no composite column.
-
-## 9. 3.5.8 — Golden suite and cross-cutting docs
+## 9. 3.5.7 — Golden suite and cross-cutting docs
 
 **New data:** captured fixtures for the regression issuer set in the contract's acceptance
 criteria.
