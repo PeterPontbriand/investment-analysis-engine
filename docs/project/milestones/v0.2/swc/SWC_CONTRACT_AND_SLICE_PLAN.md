@@ -639,21 +639,19 @@ per-strategy wiring remains; “Changed” means its shape, location or behavior
 proposal; “Gone” means the named wiring no longer exists. These classifications do not imply that a
 row is in scope for removal; they identify what the implementation plan must account for.
 
-SWC.2b updated the locations of the symbols it moved; every other row is as audited.
-
 | Original wiring point | Status | Current file and symbol(s) | Verification note |
 | :--- | :--- | :--- | :--- |
-| Per-strategy `*ToolArguments` Pydantic models | Still present | `src/strategies/<strategy>/tool.py` (moved by SWC.2b): `MomentumToolArguments`, `GrahamNumberToolArguments`, `GrahamGrowthValueToolArguments`, `FCFEarningsGrowthToolArguments` | One strict model per strategy; shared `AnalysisToolArguments` base in `src/orchestrator/analysis_tool_arguments.py`. |
+| Per-strategy `*ToolArguments` Pydantic models | Still present | `src/orchestrator/analysis_tools.py`: `MomentumToolArguments`, `GrahamNumberToolArguments`, `GrahamGrowthValueToolArguments`, `FCFEarningsGrowthToolArguments` | One strict model per strategy; shared `_AnalysisToolArguments` base. |
 | Per-strategy `ANALYZE_*_TOOL` constants | Still present | `src/orchestrator/analysis_tools.py`: four `ANALYZE_*_TOOL` constants | Each method still has its own name constant. |
 | `ANALYSIS_TOOL_ARGUMENT_MODELS` entries | Still present | `src/orchestrator/analysis_tools.py`: `ANALYSIS_TOOL_ARGUMENT_MODELS` | Mapping remains consumed by the local Ollama runner. |
 | Flat strategy-specific dependency fields | Changed | `src/orchestrator/analysis_tools.py`: `AnalysisToolDependencies` | Still strategy-specific analyzer/provider fields, but IR.2 standardized invocation and injected context; `profile_resolver` is shared/optional. |
 | Per-strategy handler methods | Still present | `src/orchestrator/analysis_tools.py`: `AnalysisToolHandlers.analyze_momentum`, `.analyze_graham_number`, `.analyze_graham_growth_value`, `.analyze_fcf_earnings_growth` | All validate strategy arguments, build owned config and invoke the shared analyzer envelope. |
 | Per-strategy registration calls | Still present | `src/orchestrator/analysis_tools.py`: `register_analysis_tools` | Four explicit `register_tool` calls remain. |
-| Per-strategy persisted selection models | Still present | `src/strategies/<strategy>/selection.py` (moved by SWC.2b): `MomentumSelection`, `GrahamNumberSelection`, `GrahamGrowthSelection`, `FCFGrowthSelection` | Strategy-specific config persistence remains; shared base is `FrozenSelection` in `src/workspace/selection_base.py`. |
-| `AnalysisSelection` discriminated union | Still present | `src/workspace/strategy_types.py` (moved by SWC.2b): `AnalysisSelection` | Union has four strategy members and remains the request/watchlist/run boundary. |
-| Per-selection `to_*_config()` methods | Still present | `src/strategies/<strategy>/selection.py` (moved by SWC.2b): `to_momentum_config`, `to_graham_number_config`, `to_graham_growth_config`, `to_fcf_config` | Each typed selection converts to its own analyzer config. |
+| Per-strategy persisted selection models | Still present | `src/workspace/requests.py`: `MomentumSelection`, `GrahamNumberSelection`, `GrahamGrowthSelection`, `FCFGrowthSelection` | Strategy-specific config persistence remains; shared base is `_FrozenSelection`. |
+| `AnalysisSelection` discriminated union | Still present | `src/workspace/requests.py`: `AnalysisSelection` | Union has four strategy members and remains the request/watchlist/run boundary. |
+| Per-selection `to_*_config()` methods | Still present | `src/workspace/requests.py`: `to_momentum_config`, `to_graham_number_config`, `to_graham_growth_config`, `to_fcf_config` | Each typed selection converts to its own analyzer config. |
 | One workspace execution adapter per strategy | Still present | `src/strategies/momentum/execution.py`: `MomentumCapture`, `run_momentum`; `graham_number_execution.py`: `GrahamNumberCapture`, `execute_graham_number`; `graham_growth_execution.py`: `GrahamGrowthCapture`, `execute_graham_growth`; `fcf_growth_execution.py`: `FCFGrowthCapture`, `execute_fcf_growth` | Files also retain strategy-specific outcome classification where applicable. Momentum has no native failure status classifier. |
-| `NativeEvidence` result union | Still present | `src/workspace/strategy_types.py` (moved by SWC.2b): `NativeEvidence` | Four heterogeneous native results remain explicitly unioned. |
+| `NativeEvidence` result union | Still present | `src/workspace/execution.py`: `NativeEvidence` | Four heterogeneous native results remain explicitly unioned. |
 | Per-strategy capture normalizers | Still present | `src/workspace/execution.py`: `from_momentum_capture`, `from_graham_number_capture`, `from_graham_growth_capture`, `from_fcf_growth_capture` | Still normalize strategy capture fields into `ExecutionCapture`. |
 | `_METHOD_VERSIONS` metadata | Still present | `src/workspace/execution.py`: `_METHOD_VERSIONS` | One pair per method; IR changed persisted envelope versions and added `config_schema_version` alignment. |
 | Refresh `isinstance` dispatch | Changed | `src/cli_workspace.py`: `_refresh_executor` | Still four explicit selection branches; current function is at a different location and composes per-method adapters. |
@@ -664,8 +662,8 @@ SWC.2b updated the locations of the symbols it moved; every other row is as audi
 | Per-strategy evidence codec modules | Still present | `src/workspace/momentum.py`, `graham_number.py`, `graham_growth.py`, `fcf_growth.py`: `encode_*`, `decode_*` | One pair remains per strategy. |
 | Per-strategy report construction functions | Changed | `src/reporting/analysis_runs.py`: `_project_momentum_v1`, `_project_graham_number_v1`, `_project_graham_growth_v1`, `_project_fcf_growth_v1` | Projection is now explicit versioned replay over persisted Analysis Runs, decodes stored evidence and retains type assertions; original line references no longer apply. |
 | Strategy presentation modules | Still present | `src/reporting/momentum.py`, `graham_number.py`, `graham_growth.py`, `fcf_earnings_growth.py` | Each retains method-specific presentation and rendering. |
-| `ToolName` enum | Still present | `src/orchestrator/tool_names.py` (moved by SWC.2b): `ToolName` | One enum member per tool remains. |
-| Evaluation `AnalysisToolArguments` union | Still present | `src/evaluation/composition.py`: `AnalysisToolArguments` (replaced by the shared base in SWC.2b) | The four-model union was replaced by the shared base class for typed fixture dispatch. |
+| `ToolName` enum | Still present | `src/evaluation/models.py`: `ToolName` | One enum member per tool remains. |
+| Evaluation `AnalysisToolArguments` union | Still present | `src/evaluation/composition.py`: `AnalysisToolArguments` | Four model union remains for typed fixture dispatch. |
 | Fixture dependency composition per strategy | Still present | `src/evaluation/composition.py`: `compose_fixture_dependencies` | Independently builds Momentum, Graham Number, Graham Growth and FCF analyzers/resolvers and assembles `AnalysisToolDependencies`. |
 | Evaluation `_tool_name` isinstance dispatch | Still present | `src/evaluation/composition.py`: `_tool_name`; also `src/evaluation/runner.py` and `src/evaluation/ollama_runner.py`: `_tool_name` | Current main repeats argument-type mapping in three modules, not only the single location listed in the proposal. |
 
