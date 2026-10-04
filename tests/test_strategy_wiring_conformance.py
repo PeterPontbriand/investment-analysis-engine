@@ -9,12 +9,15 @@ provider or LLM call.
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from scripts import strategy_conformance as conformance
-from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES
+from src.evaluation.composition import FixtureDependencies, compose_fixture_dependencies
+from src.evaluation.models import Case
+from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.strategy_wiring import (
     BY_ARGUMENTS,
@@ -150,11 +153,10 @@ def test_t11_reports_a_dispatcher_that_accepts_an_undeclared_input(monkeypatch: 
 
 def test_t11_reports_an_evaluation_tier_that_accepts_a_missing_entry(monkeypatch: pytest.MonkeyPatch) -> None:
     """The tier probes can fail: a composition that ignores the supplied tier is reported for every tool."""
-    real = conformance.compose_fixture_dependencies
 
-    def ignore_the_tier(case: object, *, clock_at: object, tier: object) -> object:
+    def ignore_the_tier(case: Case, *, clock_at: datetime, tier: tuple[EvaluationStrategy, ...]) -> FixtureDependencies:
         del tier
-        return real(case, clock_at=clock_at)  # type: ignore[arg-type]
+        return compose_fixture_dependencies(case, clock_at=clock_at)
 
     monkeypatch.setattr(conformance, "compose_fixture_dependencies", ignore_the_tier)
     gaps = conformance.undeclared_input_gaps(STRATEGIES)
