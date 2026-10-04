@@ -336,12 +336,9 @@ def test_each_strategy_receives_its_own_dependency_class() -> None:
     fixtures = compose_fixture_dependencies(
         _case("shared", GRAHAM_FACTS_FIXTURE_ID, MOMENTUM_SUCCESS_FIXTURE_ID), clock_at=EXECUTION_TIME
     )
-    assert {tool: type(value).__name__ for tool, value in fixtures.dependencies.items()} == {
-        ToolName.ANALYZE_MOMENTUM: "MomentumToolDependencies",
-        ToolName.ANALYZE_GRAHAM_NUMBER: "GrahamNumberToolDependencies",
-        ToolName.ANALYZE_GRAHAM_GROWTH_VALUE: "GrahamGrowthToolDependencies",
-        ToolName.ANALYZE_FCF_EARNINGS_GROWTH: "FCFEarningsGrowthToolDependencies",
-    }
+    assert list(fixtures.dependencies) == [item.tool for item in STRATEGIES]
+    for item in STRATEGIES:
+        item.behavior.bind_handler(fixtures.dependencies[item.tool], fixtures.runtime)
     assert fixtures.runtime.validated_clock_value() == EXECUTION_TIME
     assert fixtures.runtime.profile_resolver is None
 

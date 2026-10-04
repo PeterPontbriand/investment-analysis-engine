@@ -112,7 +112,7 @@ def test_t10_the_evaluation_tier_covers_every_descriptor() -> None:
     assert len(EVALUATION_STRATEGIES) == len(STRATEGIES)
 
 
-@pytest.mark.parametrize("descriptor", [MOMENTUM, GRAHAM_NUMBER, GRAHAM_GROWTH, FCF_GROWTH])
+@pytest.mark.parametrize("descriptor", STRATEGIES, ids=lambda item: item.method_id)
 def test_t10_a_removed_tier_entry_yields_exactly_one_gap_naming_the_tier_and_the_strategy(
     descriptor: StrategyDescriptor,
 ) -> None:
@@ -176,13 +176,9 @@ def test_t14_wiring_files_declare_no_discovery_or_registration() -> None:
     assert _WIRING in files
     assert _TIER in files
     evaluation_files = {path for path in files if path.name == "evaluation.py"}
-    assert {path.parent.name for path in evaluation_files} == {
-        "momentum",
-        "graham_number",
-        "graham_growth",
-        "fcf_growth",
-        "_graham",
-    }
+    assert evaluation_files == set((_SRC / "strategies").rglob("evaluation.py"))
+    strategy_packages = {path.name for path in (_SRC / "strategies").iterdir() if path.is_dir() and path.name[0] != "_"}
+    assert strategy_packages <= {path.parent.name for path in evaluation_files}
     assert len(files) > 30
     assert conformance.discovery_gaps(files) == []
     assert conformance.closed_tuple_gaps(_WIRING, ["STRATEGIES"]) == []
