@@ -570,10 +570,10 @@ parameterized over the production tuples and over the specimen tuples ([§19.5](
 | T10 `consumers_cover_every_descriptor` | The key set of each remaining consumer surface: CLI tier, evaluation tier, JSON ids, published schemas, generated strategy lists | The tiers' own tuples and the files on disk | Fails when a descriptor has no entry in a tier, naming the surface and the strategy. The surfaces that became derived (tool registration, evaluation routing, native status, codecs, aliases, selection parsing, builders, refresh executors, projectors) are no longer tables, so they are no longer compared. |
 | T11 `undeclared_inputs_fail_closed` | Every dispatcher in [§9.2](#92-fail-closed-dispatch) with an undeclared type, key, alias or arguments, and a bundle given another strategy's object | The behavior of the dispatchers over injected mappings, including the specimen | Proves no consumer routes an unknown input to Momentum or FCF. |
 | T12 `incomplete_strategy_negative_control` | A deliberately incomplete specimen ([§10.2](#102-negative-control)) | See below | Proves T10 and T11 can fail. |
-| T13 `import_layering` (parent-aware graph and role rule from SWC.2a; root rule from SWC.2c) | The import graph of `src`, with an edge from every module to each parent `__init__.py` | The source files | Enforces the full role and parent-package rules in [§4](#4-static-declaration-model). During migration it permits only the exact transition edges listed there, checks each entry still exists, and rejects every unlisted forbidden edge. The transition list shrinks with its owning consumer move and is empty at SWC.4c; SWC.7 verifies final conformance. |
+| T13 `import_layering` (parent-aware graph and role rule from SWC.2a; root rule from SWC.2c) | The import graph of `src`, with an edge from every module to each parent `__init__.py` | The source files | Enforces the full role and parent-package rules in [§4](#4-static-declaration-model). During migration it permits only the exact transition edges listed there, checks each entry still exists, and rejects every unlisted forbidden edge. The transition list shrinks with its owning consumer move and is empty at SWC.4c; SWC.7 verifies final conformance. The importers of the root are an exact list, and each entry must exist and import the root; a slice adds an entry in the change that first makes its module import the root. SWC.2d adds the rule that only generic evaluation modules import the evaluation tier, and SWC.3b the rule that only `src.cli` and `src.cli_workspace` import the CLI tier, each with a staleness check and a negative test. |
 | T14 `no_discovery_or_registration` | The AST of `src/strategy_wiring.py`, both tier modules and every strategy-owned file | The source files | See [§12](#12-framework-drift-checks). |
 | T15 `descriptor_is_closed` | Field names, types, frozen-ness, non-generic-ness and tuple-ness of the descriptor; member names of the behavior bundle and both tier compositions | `dataclasses.fields` | Adding a field or member forces a reviewed edit to the documented set. |
-| T16 `no_unused_field` | Each field and member name against attribute reads on descriptor-typed expressions in `src/` and `scripts/` outside the defining module | The source files, read with a conservative type resolver | A bare name match would be satisfied by an unrelated attribute. The resolver counts `X.field` only when `X` is a loop variable over `STRATEGIES` or `BY_*.values()`, the result of `require(...)`, `find(...)` or `BY_*[...]`, a parameter annotated `StrategyDescriptor`, or one of the module's descriptor constants. A self-test with snippets proves that `descriptor.alias` counts and `selection.alias` does not. |
+| T16 `no_unused_field` | Each descriptor field and each `BehaviorView` accessor (`result_type`, `native_status_of`, `bind_handler`) against attribute reads on descriptor-typed expressions in `src/` and `scripts/` outside the defining module | The source files, read with a conservative type resolver | A bare name match would be satisfied by an unrelated attribute. The resolver counts `X.field` only when `X` is a loop variable over `STRATEGIES` or `BY_*.values()`, the result of `require(...)`, `find(...)` or `BY_*[...]`, a parameter annotated `StrategyDescriptor`, or one of the module's descriptor constants. A self-test with snippets proves that `descriptor.alias` counts and `selection.alias` does not. The behavior members `deps_type`, `handler` and `native_status` are reached only through the accessors, so they have no read of their own; T15 pins the member set, so a member cannot be added or left unreachable without a reviewed edit. |
 | T17 `analyzer_envelope_unchanged` | `inspect.signature(BaseAnalyzer.run_analysis)` and `AnalysisContext` fields | The base module | The descriptor work cannot alter the envelope unnoticed. |
 | T18 `failure_codes` (SWC.4a) | `FailureReasonCode` against every `ReadinessReason`, every exception `reason_code` attribute, and every code the classifier can return | The source exceptions and enums | A new source code with no envelope code fails. |
 | T19 `failure_envelope_closed` (SWC.4a) | Envelope fields against the documented set; no remediation-shaped field | The model | Enforces the report-never-remediate rule. |
@@ -1473,6 +1473,8 @@ fails closed. SWC.2d replaces that pairing with the evaluation tier.
 
 ### F.3 Reads of members inside the root (T16)
 
+The project owner accepted this resolution: the T16 row now reads "fields and accessors" and states that T15 pins the member set.
+
 `deps_type`, `handler` and `native_status` are read by `StrategyBehavior`'s own methods, so no attribute read of
 those names exists outside the module that defines them, and none was added. T16 therefore checks the surface
 generic consumers can reach: the six descriptor fields and the three accessors of `BehaviorView`
@@ -1514,9 +1516,12 @@ break the comparison.
 - **Provider-ID validation is per strategy.** The shared `AnalysisToolDependencies` validated all three
   provider selections together, so a Momentum-only caller had to supply Graham and FCF provider IDs. Each
   dependency class now validates its own with the same message.
-- **T6 dispatches every catalog case** through the fixture composition and checks the result type each
-  descriptor declares, instead of running the whole suite and its report: the suite's own tests already
-  cover scoring, and this check owns only the descriptor-to-case coverage.
+- **T6 does not re-run the suite.** It dispatches every catalog case through the fixture composition and
+  checks the result type each descriptor declares. The half of the design's independent surface that says "the
+  deterministic suite runs every case" is proved by the existing
+  `test_canonical_nineteen_case_suite_produces_one_passing_versioned_report` in
+  `tests/evaluation/test_catalog.py`, which runs all nineteen cases through the runner and requires one passing
+  report; repeating it inside the check would only duplicate that test.
 - **T11 covers `register_analysis_tools`, `bind_handlers`, `tool_for_arguments` and the behavior guards.**
   The runner's private `_native_result` and `_native_status` are covered in `tests/evaluation/test_runner.py`,
   because a check body in `scripts/` should not import another layer's private functions.

@@ -20,9 +20,10 @@ _ROOT = "src.strategy_wiring"
 # The composition root may import these strategy roles and no others: not execution, presenter, cli or
 # evaluation files, which belong to the layers below it and to the tiers.
 _ROOT_ROLES = ANALYZER_ROLES | {"codec", "envelope", "replay", "selection", "tool"}
-# The only importers of the root: the CLI modules, every evaluation module and, from the slices that add
-# them, the tier modules (which sit in those two groups).
-_ROOT_IMPORTERS = frozenset({"src.cli", "src.cli_workspace", "src.cli_strategy_wiring"})
+# The only importers of the root, listed exactly. An entry must exist and import the root, so a slice adds
+# its module here in the change that first makes it import the root (the tier modules and the CLI modules
+# are added by the slices that create or rewire them).
+_ROOT_IMPORTERS = frozenset({"src.evaluation.composition", "src.evaluation.runner", "src.evaluation.ollama_runner"})
 _TRANSITIONS = {
     ("src.evaluation.composition", "src.strategies.fcf_growth.tool", "SWC.2d"),
     ("src.evaluation.composition", "src.strategies.graham_growth.tool", "SWC.2d"),
@@ -220,6 +221,7 @@ def _edge_violations(
     edges: set[tuple[str, str]],
     strategies: frozenset[str],
     transitions: set[tuple[str, str, str]] = _TRANSITIONS,
+    root_importers: frozenset[str] = _ROOT_IMPORTERS,
 ) -> list[str]:
     """Check strategy boundaries, role order, the exact transition edges and imports of ``tests``."""
     errors: list[str] = []
@@ -229,7 +231,7 @@ def _edge_violations(
         if target_parts[0] == "tests":
             errors.append(f"{source} imports tests module {target}")
         elif target == _ROOT:
-            if source not in _ROOT_IMPORTERS and not source.startswith("src.evaluation"):
+            if source not in root_importers:
                 errors.append(f"module imports the composition root: {source} -> {target}")
         elif len(target_parts) < 3 or target_parts[:2] != ["src", "strategies"]:
             continue
@@ -278,6 +280,18 @@ def _cycle_violations(
     ]
 
 
+def _root_importer_violations(
+    edges: set[tuple[str, str]], files: set[str], importers: frozenset[str] = _ROOT_IMPORTERS
+) -> list[str]:
+    """Report each listed root importer that no longer exists or no longer imports the root."""
+    return [
+        f"stale composition-root importer entry: {importer} "
+        + ("does not exist" if importer not in files else "does not import the root")
+        for importer in sorted(importers)
+        if (importer, _ROOT) not in edges
+    ]
+
+
 def _root_cycle_violations(graph: dict[str, set[str]]) -> list[str]:
     """Report the composition root if it sits in any import cycle."""
     return [
@@ -295,6 +309,7 @@ def test_strategy_import_layering_and_parent_package_cycles() -> None:
         *_file_violations(_SRC),
         *_cycle_violations(graph, init_modules),
         *_root_cycle_violations(graph),
+        *_root_importer_violations(edges, set(graph)),
     ]
     assert not errors, "Import-layer violations:\n" + "\n".join(errors)
 
@@ -470,13 +485,14 @@ def test_t13_permits_the_root_to_import_only_its_strategy_roles() -> None:
 
 
 def test_t13_restricts_the_importers_of_the_root() -> None:
-    """Only the CLI modules and the evaluation modules import the root; foundation modules never do."""
-    allowed = {(importer, _ROOT) for importer in ("src.cli", "src.cli_workspace", "src.evaluation.runner")}
-    assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set()) == []
+    """Only the listed modules import the root; foundation modules never do."""
+    listed = frozenset({"src.evaluation.runner", "src.cli"})
+    allowed = {(importer, _ROOT) for importer in listed}
+    assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set(), listed) == []
     forbidden = {
         (importer, _ROOT) for importer in ("src.workspace.codecs", "src.reporting.analysis_runs", "src.data.x")
     }
-    assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set()) == [
+    assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set(), listed) == [
         f"module imports the composition root: {importer} -> {_ROOT}"
         for importer in ("src.data.x", "src.reporting.analysis_runs", "src.workspace.codecs")
     ]
@@ -495,3 +511,15 @@ def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_wiring_s
     """The twelve entries owned by the orchestration slice are gone; every remaining owner is a later slice."""
     assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.2d", "SWC.3a", "SWC.3b", "SWC.3c", "SWC.4c"}
     assert len(_TRANSITIONS) == 32
+
+
+def test_t13_fails_for_a_root_importer_entry_that_is_missing_or_does_not_import_the_root() -> None:
+    """Every listed importer must exist and import the root, so an entry cannot be added ahead of its module."""
+    entries = frozenset({"src.evaluation.runner", "src.cli_strategy_wiring", "src.cli"})
+    edges = {("src.evaluation.runner", _ROOT), ("src.cli", "src.core.strategy_errors")}
+    files = {"src.evaluation.runner", "src.cli"}
+    assert _root_importer_violations(edges, files, entries) == [
+        "stale composition-root importer entry: src.cli does not import the root",
+        "stale composition-root importer entry: src.cli_strategy_wiring does not exist",
+    ]
+    assert _root_importer_violations(edges, files, frozenset({"src.evaluation.runner"})) == []
