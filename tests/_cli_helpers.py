@@ -29,9 +29,10 @@ run-storage database locally instead — see ``tests/test_cli_save_run.py``.
 """
 
 import re
+from collections.abc import Iterator
 from dataclasses import replace
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from alembic.config import Config
@@ -70,6 +71,21 @@ def isolated_cli_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     isolated = ProjectSettings(database_url=url)
     monkeypatch.setattr("src.cli_support.settings", isolated)
     monkeypatch.setattr("src.cli_workspace.settings", isolated)
+
+
+@pytest.fixture(autouse=True)
+def stub_yahoo_identity_metadata() -> Iterator[None]:
+    """Stub the optional Yahoo identity and instrument-kind metadata lookups.
+
+    Importing this fixture's name into a test module activates it for every test in that module. Without it the
+    CLI reaches ``YFinanceClient``'s live metadata fetch, which the suite-wide guard in ``tests/conftest.py``
+    rejects.
+    """
+    with (
+        patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None),
+        patch("src.cli.YFinanceClient.resolve_instrument_kind", return_value=None),
+    ):
+        yield
 
 
 def carry_profile(mock_run: MagicMock) -> None:

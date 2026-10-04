@@ -23,6 +23,7 @@ from src.core.telemetry.run_context import RunContext
 from src.core.telemetry.sinks import SQLiteTrajectorySink
 from src.data.repositories import SQLiteDatabase, migrations, readiness
 from src.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from tests._cli_helpers import stub_yahoo_identity_metadata  # noqa: F401
 
 COMMANDS = ["momentum", "graham-number", "graham-growth", "fcf-growth"]
 

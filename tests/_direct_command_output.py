@@ -15,6 +15,7 @@ from collections.abc import Iterator
 from contextlib import ExitStack, nullcontext
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import cast
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -25,6 +26,8 @@ from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.market_data import HistoricalMarketData
 from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.yfinance import YFinanceFinancialFactsAdapter
+from src.data.yfinance.client import YFinanceClient
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.market_data import FixtureMarketDataProvider, momentum_success_frame
@@ -80,7 +83,10 @@ def _fcf_provider() -> ProductionFinancialFactsProvider:
         replace(fact, provider_id=SEC_PROVIDER_ID, provider_fact_id=f"fy-{fact.fiscal_year}:{fact.field_name.value}")
         for fact in annual_series(range(2020, 2026))
     )
-    return ProductionFinancialFactsProvider(sec_edgar=FixtureAnnualFinancialFactsProvider(facts))
+    return ProductionFinancialFactsProvider(
+        sec_edgar=FixtureAnnualFinancialFactsProvider(facts),
+        yfinance=YFinanceFinancialFactsAdapter(client=cast(YFinanceClient, _FixtureYahoo())),
+    )
 
 
 def normalize(stdout: bytes) -> bytes:
