@@ -28,11 +28,11 @@ from src.evaluation.models import (
     ExecutionMode,
     Observation,
     ToolCallObservation,
-    ToolName,
 )
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.analysis_tools import FCFEarningsGrowthToolArguments
+from src.orchestrator.tool_names import ToolName
 from src.strategies.fcf_growth.models import (
     Classification,
     FCFEarningsGrowthResult,

@@ -41,7 +41,6 @@ from src.evaluation.models import (
     ExecutionMode,
     Observation,
     ToolCallObservation,
-    ToolName,
 )
 from src.evaluation.reporting import (
     CaseEvaluationResult,
@@ -63,6 +62,7 @@ from src.orchestrator.analysis_tools import (
 from src.orchestrator.context import MessageContext
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
 from src.orchestrator.prompts import SystemPromptBuilder
+from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import AgentStepResult, ToolCallRequest, ToolCallResult
 from src.schema.config import SchemaConfig
 from src.tools.parser import ToolParser

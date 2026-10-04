@@ -40,7 +40,7 @@ from src.evaluation.fixtures.sec_edgar_fpi import (
     fixture_nvo_security_unit_profile,
     fixture_sec_fpi_adapter,
 )
-from src.evaluation.models import Case, ToolName
+from src.evaluation.models import Case
 from src.orchestrator.analysis_tools import (
     AnalysisToolDependencies,
     FCFEarningsGrowthToolArguments,
@@ -50,6 +50,7 @@ from src.orchestrator.analysis_tools import (
     register_analysis_tools,
 )
 from src.orchestrator.dispatcher import AsyncToolDispatcher
+from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import ToolCallRequest, ToolCallResult
 from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver

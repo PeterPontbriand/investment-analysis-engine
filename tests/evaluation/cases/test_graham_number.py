@@ -13,10 +13,11 @@ from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
 from src.evaluation.cases.graham_number import GRA_ETF_01, GRAHAM_NUMBER_CASES, GRN_01, GRN_02, GRN_03
 from src.evaluation.composition import dispatch_fixture_case
-from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult, ToolName
+from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.analysis_tools import GrahamNumberToolArguments
+from src.orchestrator.tool_names import ToolName
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)

@@ -3,14 +3,8 @@
 from typing import Final
 
 from src.evaluation.composition import GRAHAM_FACTS_FIXTURE_ID, KNOWN_ETF_PROFILE_FIXTURE_ID
-from src.evaluation.models import (
-    Case,
-    DomainOutcomeExpectation,
-    Expectation,
-    NumericalExpectation,
-    ToolConstraints,
-    ToolName,
-)
+from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, NumericalExpectation, ToolConstraints
+from src.orchestrator.tool_names import ToolName
 
 _GRAHAM_NUMBER_TOOL_CONSTRAINTS: Final = ToolConstraints(
     permitted=(ToolName.ANALYZE_GRAHAM_NUMBER,),

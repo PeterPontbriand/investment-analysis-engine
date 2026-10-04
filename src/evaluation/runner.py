@@ -35,7 +35,6 @@ from src.evaluation.models import (
     ExecutionMode,
     NumericalObservation,
     Observation,
-    ToolName,
 )
 from src.evaluation.reporting import (
     CaseEvaluationResult,
@@ -49,6 +48,7 @@ from src.orchestrator.analysis_tools import (
     GrahamNumberToolArguments,
     MomentumToolArguments,
 )
+from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import ToolCallResult
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis

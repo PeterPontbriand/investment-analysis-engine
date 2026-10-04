@@ -8,21 +8,14 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator, model_validator
 
+from src.orchestrator.tool_names import ToolName
+
 
 class ExecutionMode(StrEnum):
     """Supported Golden-Suite execution modes."""
 
     DETERMINISTIC_NO_LLM = "deterministic_no_llm"
     REAL_LOCAL_OLLAMA = "real_local_ollama"
-
-
-class ToolName(StrEnum):
-    """Approved production analysis-tool identifiers."""
-
-    ANALYZE_MOMENTUM = "analyze_momentum"
-    ANALYZE_GRAHAM_NUMBER = "analyze_graham_number"
-    ANALYZE_GRAHAM_GROWTH_VALUE = "analyze_graham_growth_value"
-    ANALYZE_FCF_EARNINGS_GROWTH = "analyze_fcf_earnings_growth"
 
 
 class ComponentKind(StrEnum):

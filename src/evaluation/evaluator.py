@@ -12,8 +12,8 @@ from src.evaluation.models import (
     NumericalExpectation,
     Observation,
     ToolConstraints,
-    ToolName,
 )
+from src.orchestrator.tool_names import ToolName
 
 type ConstraintValue = ToolName | str
 

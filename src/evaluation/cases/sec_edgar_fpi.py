@@ -8,7 +8,8 @@ from src.evaluation.fixtures.sec_edgar_fpi import (
     SEC_FPI_NVO_FIXTURE_ID,
     SEC_FPI_SAP_FIXTURE_ID,
 )
-from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, ToolConstraints, ToolName
+from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, ToolConstraints
+from src.orchestrator.tool_names import ToolName
 
 _GROWTH = ToolConstraints(
     permitted=(ToolName.ANALYZE_GRAHAM_GROWTH_VALUE,),

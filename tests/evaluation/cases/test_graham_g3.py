@@ -26,10 +26,11 @@ from src.evaluation.fixtures.graham import (
     SECURITY_ID,
     FixtureFinancialFactsProvider,
 )
-from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult, ToolName
+from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.analysis_tools import GrahamGrowthValueToolArguments, GrahamNumberToolArguments
+from src.orchestrator.tool_names import ToolName
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis

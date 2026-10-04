@@ -9,14 +9,8 @@ from src.evaluation.composition import (
     KNOWN_ETF_PROFILE_FIXTURE_ID,
 )
 from src.evaluation.fixtures.fcf_earnings_growth import FCF_GROWTH_HISTORICAL_AS_OF
-from src.evaluation.models import (
-    Case,
-    DomainOutcomeExpectation,
-    Expectation,
-    NumericalExpectation,
-    ToolConstraints,
-    ToolName,
-)
+from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, NumericalExpectation, ToolConstraints
+from src.orchestrator.tool_names import ToolName
 
 _FCF_TOOL_CONSTRAINTS: Final = ToolConstraints(
     permitted=(ToolName.ANALYZE_FCF_EARNINGS_GROWTH,),

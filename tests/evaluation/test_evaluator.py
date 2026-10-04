@@ -25,8 +25,8 @@ from src.evaluation.models import (
     Observation,
     ToolCallObservation,
     ToolConstraints,
-    ToolName,
 )
+from src.orchestrator.tool_names import ToolName
 
 OBSERVED_AT = datetime(2026, 8, 31, 15, 0, tzinfo=UTC)
 
