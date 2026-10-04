@@ -5,7 +5,10 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from src.workspace.requests import FCFGrowthSelection, GrahamGrowthSelection, GrahamNumberSelection, MomentumSelection
+from src.strategies.fcf_growth.selection import FCFGrowthSelection
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
+from src.strategies.graham_number.selection import GrahamNumberSelection
+from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.watchlists import (
     StoredSelectionError,
     WatchlistSpec,

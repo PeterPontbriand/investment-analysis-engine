@@ -17,26 +17,24 @@ from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
 from src.reporting.presentation import PresentationMode
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, MetricResult
+from src.strategies.fcf_growth.selection import FCFGrowthSelection
 from src.strategies.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
     GrahamGrowthValueResult,
     GrowthValueInputAssembly,
 )
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumRun
 from src.strategies.momentum.execution import run_momentum
+from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.codecs import decode_evidence, encode_evidence
 from src.workspace.execution import ExecutionCapture, execute
 from src.workspace.models import RunOutcome
-from src.workspace.requests import (
-    AnalysisRequest,
-    FCFGrowthSelection,
-    GrahamGrowthSelection,
-    GrahamNumberSelection,
-    MomentumSelection,
-)
+from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
 from tests.workspace.test_fcf_growth_codec import _result as _fcf_codec_result
 

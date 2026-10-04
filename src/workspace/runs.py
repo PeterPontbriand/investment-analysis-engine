@@ -18,7 +18,7 @@ from pydantic import AwareDatetime, Field, field_validator, model_validator
 from src.core.analysis_status import CalculationStatus
 from src.data.instrument_profile import InstrumentProfile
 from src.workspace.models import EffectiveBoundary, RunOutcome, StrictJsonMapping, _FrozenModel
-from src.workspace.requests import AnalysisSelection
+from src.workspace.strategy_types import AnalysisSelection
 
 
 class AnalysisRun(_FrozenModel):

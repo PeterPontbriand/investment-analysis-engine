@@ -26,10 +26,10 @@ from src.strategies.graham_growth.calculation import (
     GrahamGrowthValueResult,
     GrowthValueInputAssembly,
 )
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
-from src.workspace.requests import GrahamGrowthSelection
 from src.workspace.runs import AnalysisRun
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)

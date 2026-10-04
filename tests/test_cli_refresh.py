@@ -41,16 +41,14 @@ from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, SUBJECT_MISSING, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
+from src.strategies.fcf_growth.selection import FCFGrowthSelection
 from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
-from src.workspace.requests import (
-    AnalysisSelection,
-    FCFGrowthSelection,
-    GrahamGrowthSelection,
-    GrahamNumberSelection,
-    MomentumSelection,
-)
+from src.strategies.momentum.selection import MomentumSelection
+from src.workspace.strategy_types import AnalysisSelection
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 
 runner = CliRunner()

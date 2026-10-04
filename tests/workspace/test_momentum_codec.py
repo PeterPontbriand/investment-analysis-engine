@@ -30,9 +30,9 @@ from src.data.security_unit import (
     SecurityUnitResolutionReason,
 )
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
+from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
-from src.workspace.requests import MomentumSelection
 from src.workspace.runs import AnalysisRun
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)

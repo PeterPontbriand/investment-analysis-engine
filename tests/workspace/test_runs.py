@@ -8,8 +8,9 @@ from pydantic import ValidationError
 
 from src.data.instrument_profile import InstrumentKind
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.workspace.models import RunOutcome
-from src.workspace.requests import GrahamGrowthSelection, GrahamNumberSelection
 from src.workspace.runs import (
     AnalysisRun,
     AnalysisRunSummary,

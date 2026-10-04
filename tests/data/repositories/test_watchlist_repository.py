@@ -24,12 +24,15 @@ from src.data.repositories.watchlists import (
     WatchlistNotFoundError,
 )
 from src.evaluation.fixtures.market_data import FixtureDataClient
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.execution import run_momentum
+from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.execution import ExecutionCapture
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import refresh_watchlist
-from src.workspace.requests import AnalysisSelection, GrahamGrowthSelection, GrahamNumberSelection, MomentumSelection
 from src.workspace.runs import Watchlist
+from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import StoredSelectionError, WatchlistSpec
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)

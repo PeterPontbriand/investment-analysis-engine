@@ -11,7 +11,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from src.workspace.requests import AnalysisSelection
+from src.workspace.strategy_types import AnalysisSelection
 
 _SELECTION_ADAPTER: TypeAdapter[AnalysisSelection] = TypeAdapter(AnalysisSelection)
 

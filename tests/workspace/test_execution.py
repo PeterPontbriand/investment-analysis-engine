@@ -22,6 +22,7 @@ from src.strategies.graham_growth.execution import GrahamGrowthCapture
 from src.strategies.graham_number.execution import GrahamNumberCapture
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.execution import capture_momentum, run_momentum
+from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.codecs import decode_evidence
 from src.workspace.execution import (
     BatchContext,
@@ -33,7 +34,7 @@ from src.workspace.execution import (
     from_momentum_capture,
 )
 from src.workspace.models import RunOutcome
-from src.workspace.requests import AnalysisRequest, MomentumSelection
+from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)

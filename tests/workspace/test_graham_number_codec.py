@@ -22,10 +22,10 @@ from src.data.security_unit import (
     SecurityUnitResolutionReason,
 )
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
-from src.workspace.requests import GrahamNumberSelection
 from src.workspace.runs import AnalysisRun
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)

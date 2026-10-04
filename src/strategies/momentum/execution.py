@@ -23,8 +23,8 @@ from datetime import datetime
 from src.data.instrument_profile import InstrumentProfile
 from src.data.market_data import MarketDataProvider
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumMetrics, MomentumRun
+from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.models import StrictJsonMapping
-from src.workspace.requests import MomentumSelection
 
 
 @dataclass(frozen=True)

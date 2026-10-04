@@ -21,7 +21,7 @@ from src.strategies.momentum.analyzer import (
 )
 from src.strategies.momentum.execution import capture_momentum, run_momentum
 from src.strategies.momentum.presenter import _sma_spread, _sma_spread_percent
-from src.workspace.requests import MomentumSelection
+from src.strategies.momentum.selection import MomentumSelection
 
 STAMP = datetime(2026, 9, 18, 12, tzinfo=UTC)
 

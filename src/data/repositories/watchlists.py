@@ -28,8 +28,8 @@ from src.core.clock import utc_now
 from src.data.repositories.schema import watchlist_entries, watchlists
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.workspace.method_aliases import METHOD_ID_ALIASES
-from src.workspace.requests import AnalysisSelection
 from src.workspace.runs import Watchlist, WatchlistEntry, WatchlistSummary
+from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import (
     StoredSelectionError,
     WatchlistSpec,
