@@ -16,8 +16,6 @@ from src.analysis.strategy.graham_growth.calculation import (
     GrowthValueInputAssembly,
 )
 from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
-from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
@@ -25,6 +23,8 @@ from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profi
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
 from src.reporting.presentation import PresentationMode
+from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
+from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumRun
 from src.strategies.momentum.execution import run_momentum
 from src.workspace.codecs import decode_evidence, encode_evidence

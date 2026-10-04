@@ -8,7 +8,6 @@ from typing import Any
 
 import pytest
 
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.facts import (
     FinancialFactRequest,
@@ -28,6 +27,7 @@ from src.data.sec_edgar.financial_facts import (
     SEC_STOCKHOLDERS_EQUITY_FIELD,
     SecEdgarFinancialFactsAdapter,
 )
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 NOW = datetime(2026, 8, 21, 18, 0, tzinfo=UTC)
 

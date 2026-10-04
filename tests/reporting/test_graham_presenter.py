@@ -9,7 +9,6 @@ from datetime import UTC, datetime
 import pytest
 
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import (
@@ -19,8 +18,9 @@ from src.data.financial.resolution_trace import (
     ResolutionTrace,
 )
 from src.reporting.graham_growth import GrahamGrowthPresentation, render_graham_growth
-from src.reporting.graham_number import GrahamNumberPresentation, render_graham_number
 from src.reporting.presentation import PresentationMode
+from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
+from src.strategies.graham_number.presenter import GrahamNumberPresentation, render_graham_number
 
 NOW = datetime(2026, 8, 22, 4, 0, tzinfo=UTC)
 AVAILABLE = datetime(2026, 2, 12, 21, 29, 7, tzinfo=UTC)

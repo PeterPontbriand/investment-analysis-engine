@@ -2,12 +2,12 @@
 
 from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthResult
 from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
-from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
+from src.strategies.graham_number.codec import decode_graham_number, encode_graham_number
+from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.codec import decode_momentum, encode_momentum
 from src.workspace.fcf_growth import decode_fcf_growth, encode_fcf_growth
 from src.workspace.graham_growth import decode_graham_growth, encode_graham_growth
-from src.workspace.graham_number import decode_graham_number, encode_graham_number
 from src.workspace.models import StrictJsonMapping
 from src.workspace.runs import AnalysisRun
 

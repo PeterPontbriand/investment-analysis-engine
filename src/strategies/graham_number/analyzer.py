@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.analysis.strategy.graham_number.config import GrahamNumberConfig
-from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.graham_number.config import GrahamNumberConfig
+from src.strategies.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
 
 
 class GrahamNumberAnalyzer(BaseAnalyzer[GrahamNumberConfig, GrahamNumberAnalysis]):

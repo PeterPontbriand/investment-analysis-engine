@@ -31,7 +31,6 @@ from src.analysis.strategy.fcf_earnings_growth import (
     ProductionAnnualGrowthSeriesResolver,
 )
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.cli_composition import build_graham_resolver, build_sec_production_provider, growth_assumptions
 from src.cli_support import (
     _canonical_provider_id,
@@ -60,6 +59,8 @@ from src.data.repositories.watchlists import (
 from src.data.yfinance import YFinanceClient
 from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
 from src.reporting.presentation import PresentationMode
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.graham_number.execution import execute_graham_number
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategies.momentum.execution import capture_momentum, run_momentum
 from src.utils.paths import is_windows
@@ -73,7 +74,6 @@ from src.workspace.execution import (
 )
 from src.workspace.fcf_growth_execution import execute_fcf_growth
 from src.workspace.graham_growth_execution import execute_graham_growth
-from src.workspace.graham_number_execution import execute_graham_number
 from src.workspace.method_aliases import ALIAS_METHOD_IDS, ANALYSIS_ALIASES, alias_for_method_id
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import (

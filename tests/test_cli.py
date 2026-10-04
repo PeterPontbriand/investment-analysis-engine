@@ -12,8 +12,6 @@ from typer.testing import CliRunner
 
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
 from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.cli import app
 from src.cli_composition import build_graham_resolver
 from src.config import settings
@@ -30,6 +28,8 @@ from src.evaluation.fixtures.graham import (
     FixtureFinancialFactsProvider,
 )
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_cli_output  # noqa: F401
 
@@ -502,7 +502,7 @@ def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resoluti
             "src.cli.build_graham_resolver",
             return_value=growth_fixture_resolver if method_arguments else fixture_resolver,
         ),
-        patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
         patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=profile),
         patch.object(
             fixture_resolver,

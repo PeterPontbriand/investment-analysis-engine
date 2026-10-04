@@ -16,9 +16,6 @@ from src.analysis.strategy.fcf_earnings_growth import (
 from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
 from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
-from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
@@ -53,6 +50,9 @@ from src.orchestrator.analysis_tools import (
 )
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.types import ToolCallRequest
+from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumRun
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)

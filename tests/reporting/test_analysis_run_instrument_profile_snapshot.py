@@ -17,8 +17,6 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
-from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.config import ProjectSettings
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
@@ -35,6 +33,8 @@ from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 from src.reporting.analysis_runs import ReplayOptions, project_run
 from src.reporting.presentation import PresentationMode
+from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
+from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.workspace.execution import ExecutionCapture, execute
 from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest, GrahamNumberSelection

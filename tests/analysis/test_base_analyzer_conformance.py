@@ -24,14 +24,14 @@ from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthCo
 from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
 from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
-from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.market_data import FixtureDataClient
+from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]

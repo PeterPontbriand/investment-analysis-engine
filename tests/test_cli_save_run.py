@@ -26,7 +26,6 @@ from typer.testing import CliRunner
 import src.cli
 from alembic import command
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.cli import app
 from src.config import ProjectSettings
 from src.config import settings as real_settings
@@ -40,6 +39,7 @@ from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.workspace.models import RunOutcome
 from src.workspace.requests import GrahamGrowthSelection, MomentumSelection
@@ -238,7 +238,7 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome() -> None:
     profile = fixture_known_etf_profile()
     with (
         patch("src.cli.build_graham_resolver", return_value=_graham_resolver()),
-        patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
     ):
         result = runner.invoke(
             app,

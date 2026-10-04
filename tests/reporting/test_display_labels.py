@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import TrendStatus
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
@@ -28,8 +27,9 @@ from src.reporting.evidence_presentation import (
     field_display_name,
     units_display_name,
 )
-from src.reporting.graham_number import GrahamNumberPresentation, render_graham_number
 from src.reporting.presentation import PROVIDER_DISPLAY_NAMES, PresentationMode, provider_display_name
+from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
+from src.strategies.graham_number.presenter import GrahamNumberPresentation, render_graham_number
 from src.strategies.momentum.analyzer import MomentumConfig, MomentumMetrics
 from src.strategies.momentum.presenter import MomentumPresentation, render_momentum
 

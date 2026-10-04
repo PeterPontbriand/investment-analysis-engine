@@ -23,11 +23,11 @@ from src.analysis.strategy.fcf_earnings_growth import (
 from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
 from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
-from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
-from src.analysis.strategy.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
-from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.data.instrument_profile import InstrumentProfile
 from src.orchestrator.dispatcher import AsyncToolDispatcher
+from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
+from src.strategies.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
+from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import (
     MomentumAnalyzer,
     MomentumConfig,

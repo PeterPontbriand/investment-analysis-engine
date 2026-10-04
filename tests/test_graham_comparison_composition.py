@@ -11,13 +11,13 @@ from typer.testing import CliRunner
 
 from src.analysis.shared.financial_resolution import evaluate_price_comparison
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.cli import app
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactRequest, FinancialUnit, ProviderFact
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
 from src.data.security_unit import SecurityUnitEvidence, SecurityUnitKind
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from tests.data.test_sec_security_unit import NOW, FilingFixture, eps_input
 
 
