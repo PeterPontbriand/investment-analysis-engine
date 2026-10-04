@@ -20,22 +20,6 @@ from enum import StrEnum
 from typing import Final, Literal, TypedDict
 
 
-class AnalysisType(StrEnum):
-    """
-    Analysis types for financial data agents.
-
-    Attributes:
-        MOMENTUM: Momentum Indicator technical analysis
-
-    """
-
-    MOMENTUM = "momentum"
-    # BOLLINGER_BAND = "bollinger-band" # Future expansion hook
-    # VALUE = "value"                   # Future expansion hook
-    # RSI = "rsi"                       # Future expansion hook
-    # MEAN_REVERSION = "mean-reversion" # Future expansion hook
-
-
 class LocaleDictionary(TypedDict):
     """
     Typed dictionary mapping locales to translation dictionaries.
