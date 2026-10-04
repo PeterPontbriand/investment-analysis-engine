@@ -19,19 +19,27 @@ rather than guessing or upgrading silently.
 
 from dataclasses import dataclass, replace
 
-from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthResult
-from src.analysis.strategy.graham_growth.calculation import GrowthValueInputAssembly
-from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly
-from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
 from src.core.analysis_status import CalculationStatus
 from src.reporting.evidence_presentation import friendly_valuation_failure
-from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
-from src.reporting.graham_growth import GrahamGrowthPresentation, growth_with_public_quote_reason, render_graham_growth
-from src.reporting.graham_number import GrahamNumberPresentation, number_with_public_quote_reason, render_graham_number
-from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
+from src.strategies.graham_growth.calculation import GrowthValueInputAssembly
+from src.strategies.graham_growth.presenter import (
+    GrahamGrowthPresentation,
+    growth_with_public_quote_reason,
+    render_graham_growth,
+)
+from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from src.strategies.graham_number.calculation import GrahamNumberInputAssembly
+from src.strategies.graham_number.presenter import (
+    GrahamNumberPresentation,
+    number_with_public_quote_reason,
+    render_graham_number,
+)
+from src.strategies.graham_number.service import GrahamNumberAnalysis
+from src.strategies.momentum.analyzer import MomentumRun
+from src.strategies.momentum.presenter import MomentumPresentation, render_momentum
 from src.workspace.codecs import decode_evidence
 from src.workspace.requests import MomentumSelection
 from src.workspace.runs import AnalysisRun

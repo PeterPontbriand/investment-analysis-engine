@@ -29,9 +29,6 @@ import pytest
 from typer.testing import CliRunner
 
 import src.cli_workspace
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumMetrics, MomentumRun
 from src.cli import app
 from src.core.constants import TrendStatus
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
@@ -44,6 +41,9 @@ from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, SUBJECT_MISSING, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
+from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.workspace.requests import (
     AnalysisSelection,
     FCFGrowthSelection,
@@ -155,7 +155,7 @@ def test_refresh_rejects_an_out_of_range_worker_count() -> None:
     assert result.exit_code == 2
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_sequential_persists_every_member_and_exits_0(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("My Watch", ["AAPL", "MSFT"])
@@ -310,7 +310,7 @@ def test_remove_by_method_commits_when_another_entry_is_unreadable() -> None:
     assert _stored_tickers() == ["AAPL"]
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_reuses_a_momentum_selections_as_of_and_no_cache(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     boundary = datetime(2026, 8, 1, tzinfo=UTC)
@@ -325,7 +325,7 @@ def test_refresh_reuses_a_momentum_selections_as_of_and_no_cache(mock_run: Magic
     assert context.use_cache is False
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_json_emits_one_stable_final_document(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("My Watch", ["AAPL"])
@@ -348,7 +348,7 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0() -> No
 
     with (
         patch("src.cli_workspace.build_graham_resolver", return_value=_graham_resolver()),
-        patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
     ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
@@ -358,7 +358,7 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0() -> No
     assert payload[0]["status"] == "not_applicable"
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_storage_failure_is_visible_and_nonzero_exit(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("My Watch", ["AAPL"])
@@ -372,7 +372,7 @@ def test_refresh_storage_failure_is_visible_and_nonzero_exit(mock_run: MagicMock
     assert "error=1" in output or "error" in output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_interrupted_stops_admission_persists_completed_and_exits_130(mock_run: MagicMock) -> None:
     """Simulates Ctrl+C by invoking the installed handler directly (portable, no OS signal)."""
     _create_momentum_only("My Watch", ["AAPL", "MSFT"])
@@ -446,7 +446,7 @@ def test_refresh_unavailable_outcome_still_persists_and_exits_1() -> None:
     assert "unavailable" in output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_no_save_executes_but_persists_nothing(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("My Watch", ["AAPL", "MSFT"])
@@ -465,7 +465,7 @@ def test_refresh_no_save_executes_but_persists_nothing(mock_run: MagicMock) -> N
     assert payload == []
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_no_save_json_reports_saved_false_and_a_null_run_id(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("My Watch", ["AAPL"])
@@ -496,7 +496,7 @@ def test_refresh_no_save_unavailable_outcome_still_exits_1() -> None:
     assert payload == []
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_text_shows_the_alias_and_json_keeps_the_canonical_method_id(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("My Watch", ["AAPL"])
@@ -519,7 +519,7 @@ def test_runs_list_by_alias_does_not_decode_a_watchlists_unreadable_entries() ->
     assert "No matching runs." in result.output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_delete_keeps_saved_runs_browsable_and_replayable(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("Scratch", ["AAPL"])
@@ -575,7 +575,7 @@ def test_delete_json_with_an_unreadable_entry_deletes_prints_no_stdout_and_exits
     assert _stored_tickers() == []
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_rename_leaves_a_saved_run_showing_the_name_the_watchlist_had_when_it_ran(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("Before", ["AAPL"])

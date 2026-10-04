@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from src.data.financial.providers import SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
 from src.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate
-from src.workspace.graham_shared import compose_graham_profile
+from src.strategies._shared.profile import compose_graham_profile
 
 
 def test_yahoo_is_appended_as_a_second_identity_candidate_when_primary_differs() -> None:
@@ -18,7 +18,7 @@ def test_yahoo_is_appended_as_a_second_identity_candidate_when_primary_differs()
         captured["kind_candidate"] = kind_candidate
         return "sentinel"
 
-    with patch("src.workspace.graham_shared.compose_instrument_profile", fake_compose):
+    with patch("src.strategies._shared.profile.compose_instrument_profile", fake_compose):
         compose_graham_profile(
             "KO", primary_provider=primary, primary_provider_id=SEC_PROVIDER_ID, yahoo_provider=yahoo
         )
@@ -40,7 +40,7 @@ def test_yahoo_is_not_duplicated_when_it_is_already_the_primary_provider() -> No
         captured["identity_candidates"] = identity_candidates
         return "sentinel"
 
-    with patch("src.workspace.graham_shared.compose_instrument_profile", fake_compose):
+    with patch("src.strategies._shared.profile.compose_instrument_profile", fake_compose):
         compose_graham_profile(
             "KO", primary_provider=yahoo, primary_provider_id=YFINANCE_PROVIDER_ID, yahoo_provider=yahoo
         )
@@ -69,7 +69,7 @@ def test_profile_cache_is_used_instead_of_live_composition_when_supplied() -> No
             captured["kind_candidate"] = kind_candidate
             return sentinel
 
-    with patch("src.workspace.graham_shared.compose_instrument_profile") as fake_compose:
+    with patch("src.strategies._shared.profile.compose_instrument_profile") as fake_compose:
         result = compose_graham_profile(
             "KO",
             primary_provider=primary,

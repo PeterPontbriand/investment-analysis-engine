@@ -1,0 +1,11 @@
+SYNTH — Graham Growth Value: 86.83 USD
+Expected growth assumption: 5.00 percentage points
+Latest available quote: 52.30 USD
+Quote retrieved: 2025-07-01 12:00 UTC
+Quote response age: 0 seconds
+Market observation: 2025-06-30 16:00 UTC
+Price comparison: unavailable (share-unit evidence is unsupported by this provider)
+
+Sources / freshness: EPS — provider (fixture-synth) (available 2025-06-30); Current AAA yield — user override (user supplied; not provider verified)
+Warning: AAA yield is user-supplied rather than provider-verified.
+Limitation: The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation.

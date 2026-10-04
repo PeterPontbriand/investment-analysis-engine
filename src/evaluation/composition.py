@@ -7,12 +7,6 @@ from dataclasses import replace
 from datetime import datetime
 from typing import Final
 
-from src.analysis.strategy.fcf_earnings_growth import FCFEarningsGrowthAnalyzer, ProductionAnnualGrowthSeriesResolver
-from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
-from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer
 from src.config import settings
 from src.core.constants import ConfigKeys
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
@@ -57,6 +51,13 @@ from src.orchestrator.analysis_tools import (
 )
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.types import ToolCallRequest, ToolCallResult
+from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
+from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.momentum.analyzer import MomentumAnalyzer
 
 MOMENTUM_SUCCESS_FIXTURE_ID: Final = "momentum_success"
 MOMENTUM_BOUNDARY_FIXTURE_ID: Final = "momentum_boundary"

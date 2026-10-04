@@ -13,7 +13,6 @@ from alembic.config import Config
 from typer.testing import CliRunner
 
 from alembic import command
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.cli import app
 from src.cli_composition import build_graham_resolver
 from src.cli_support import _production_financial_cache
@@ -26,6 +25,7 @@ from src.data.repositories import SQLiteDatabase
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, FixtureFinancialFactsProvider
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 
 class GrahamProvider:
@@ -92,9 +92,9 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
     with (
         patch("src.cli.build_sec_production_provider", return_value=provider),
         patch("src.cli_composition.build_sec_production_provider", return_value=provider),
-        patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=profile),
-        patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=profile),
-        patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile),
         patch("src.cli_support.SQLiteDatabase", side_effect=database),
         patch("src.cli.utc_now", return_value=NOW),
     ):
@@ -167,9 +167,9 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
         patch("src.cli_support.settings", ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")),
         patch("src.cli.build_sec_production_provider", return_value=provider),
         patch("src.cli_composition.build_sec_production_provider", return_value=provider),
-        patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=profile),
-        patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=profile),
-        patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile),
         patch("src.cli_support.ensure_database_ready", side_effect=AssertionError("Database must not be migrated")),
     ):
         result = CliRunner().invoke(app, arguments)

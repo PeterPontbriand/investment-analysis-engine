@@ -20,10 +20,10 @@ from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.schema import analysis_runs
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.market_data import FixtureDataClient
+from src.strategies.momentum.execution import run_momentum
 from src.workspace.codecs import encode_evidence
 from src.workspace.execution import ExecutionCapture, execute
 from src.workspace.models import RunOutcome
-from src.workspace.momentum_execution import run_momentum
 from src.workspace.requests import AnalysisRequest, MomentumSelection
 from src.workspace.runs import AnalysisRun
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401

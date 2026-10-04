@@ -160,7 +160,7 @@ The adapter is strategy-specific integration work. The workspace execution servi
 | Investor-facing rendering and strategy guide | Shared presentation vocabulary and financial conventions |
 | Strategy-specific execution adapter integration | CLI/workspace composition and persistence boundaries |
 
-This is a responsibility map, not a prescribed file layout. Keep method semantics in the strategy layer, provider composition at application boundaries, and common execution capture/persistence in the workspace layer.
+This is a responsibility map. A strategy's analyzer, codec, execution adapter and presenter live in `src/strategies/<strategy>/`, in files named for their role. Keep method semantics in the strategy layer, provider composition at application boundaries, and common execution capture/persistence in the workspace layer.
 
 ## Existing strategy reference: FCF & Earnings Growth
 
@@ -168,16 +168,16 @@ FCF growth is a useful end-to-end example because its resolver, calculation, pre
 
 | Generic concept | FCF & Earnings Growth implementation |
 | --- | --- |
-| Strategy configuration | `FCFEarningsGrowthConfig` in [`models.py`](../../src/analysis/strategy/fcf_earnings_growth/models.py), built from `FCFGrowthSelection.to_fcf_config()` in [`requests.py`](../../src/workspace/requests.py) |
-| Strategy policy | `FCFEarningsGrowthPolicy` in [`models.py`](../../src/analysis/strategy/fcf_earnings_growth/models.py), held by the config |
-| Strategy analyzer | `FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarningsGrowthResult])` in [`analyzer.py`](../../src/analysis/strategy/fcf_earnings_growth/analyzer.py) |
-| Strategy result | `FCFEarningsGrowthResult` in [`models.py`](../../src/analysis/strategy/fcf_earnings_growth/models.py) |
-| Input resolution | `ProductionAnnualGrowthSeriesResolver` in [`input_resolver.py`](../../src/analysis/strategy/fcf_earnings_growth/input_resolver.py) |
-| Execution adapter | `execute_fcf_growth` and `FCFGrowthCapture` in [`fcf_growth_execution.py`](../../src/workspace/fcf_growth_execution.py) |
+| Strategy configuration | `FCFEarningsGrowthConfig` in [`models.py`](../../src/strategies/fcf_growth/models.py), built from `FCFGrowthSelection.to_fcf_config()` in [`requests.py`](../../src/workspace/requests.py) |
+| Strategy policy | `FCFEarningsGrowthPolicy` in [`models.py`](../../src/strategies/fcf_growth/models.py), held by the config |
+| Strategy analyzer | `FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarningsGrowthResult])` in [`analyzer.py`](../../src/strategies/fcf_growth/analyzer.py) |
+| Strategy result | `FCFEarningsGrowthResult` in [`models.py`](../../src/strategies/fcf_growth/models.py) |
+| Input resolution | `ProductionAnnualGrowthSeriesResolver` in [`input_resolver.py`](../../src/strategies/fcf_growth/input_resolver.py) |
+| Execution adapter | `execute_fcf_growth` and `FCFGrowthCapture` in [`execution.py`](../../src/strategies/fcf_growth/execution.py) |
 | Common execution context | `AnalysisContext` from [`base_analyzer.py`](../../src/analysis/base_analyzer.py), constructed by the adapter from the run boundary, cache choice, and profile |
 | Common request boundary | `AnalysisRequest` / `FCFGrowthSelection` and `to_fcf_config()` in [`requests.py`](../../src/workspace/requests.py) |
 | Common execution and persistence | [`workspace.execute()`](../../src/workspace/execution.py), [`AnalysisRun`](../../src/workspace/runs.py), and the Analysis Run repository |
-| Strategy presentation | `render_fcf_earnings_growth` in [`fcf_earnings_growth.py`](../../src/reporting/fcf_earnings_growth.py) |
+| Strategy presentation | `render_fcf_earnings_growth` in [`presenter.py`](../../src/strategies/fcf_growth/presenter.py) |
 
 The policy remains strategy-owned. `FCFGrowthSelection` is the validated, persisted/request-facing snapshot and converts to the analyzer's `FCFEarningsGrowthConfig`; the adapter supplies the separate common `AnalysisContext`. See the [FCF & Earnings Growth user guide](../user/strategies/FCF_EARNINGS_GROWTH.md) for method semantics and limitations.
 

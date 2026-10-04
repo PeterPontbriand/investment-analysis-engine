@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import (
@@ -23,6 +22,7 @@ from src.data.financial.resolution_trace import (
     ResolutionStage,
     ResolutionTrace,
 )
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 NOW = datetime(2026, 8, 22, 16, 0, tzinfo=UTC)
 PERIOD_END = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)

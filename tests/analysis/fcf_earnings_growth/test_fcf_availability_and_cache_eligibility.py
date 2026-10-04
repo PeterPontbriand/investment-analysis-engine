@@ -21,13 +21,6 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from src.analysis.strategy.fcf_earnings_growth.input_resolver import (
-    CACHE_SCHEMA_VERSION,
-    AnnualGrowthSeriesAssembly,
-    FinancialFieldProvider,
-    resolve_annual_growth_series,
-)
-from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthPolicy
 from src.config import ProjectSettings
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.cache import (
@@ -45,6 +38,13 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
     annual_fact,
     annual_series,
 )
+from src.strategies.fcf_growth.input_resolver import (
+    CACHE_SCHEMA_VERSION,
+    AnnualGrowthSeriesAssembly,
+    FinancialFieldProvider,
+    resolve_annual_growth_series,
+)
+from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
 BOUNDARY = datetime(2026, 2, 15, tzinfo=UTC)

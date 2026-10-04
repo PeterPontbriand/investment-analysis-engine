@@ -25,9 +25,6 @@ from typer.testing import CliRunner
 
 import src.cli
 from alembic import command
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumMetrics, MomentumRun
 from src.cli import app
 from src.config import ProjectSettings
 from src.config import settings as real_settings
@@ -41,6 +38,9 @@ from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
+from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.workspace.models import RunOutcome
 from src.workspace.requests import GrahamGrowthSelection, MomentumSelection
 from src.workspace.runs import RunQuery
@@ -153,7 +153,7 @@ def _fcf_provider() -> ProductionFinancialFactsProvider:
 # ---------------------------------------------------------------------------
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_momentum_default_call_saves_nothing(mock_run: MagicMock) -> None:
     mock_run.return_value = _mock_momentum_run()
     carry_profile(mock_run)
@@ -165,7 +165,7 @@ def test_momentum_default_call_saves_nothing(mock_run: MagicMock) -> None:
     assert _repository().list(RunQuery()) == ()
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_momentum_save_run_persists_and_reports_id_on_stderr(mock_run: MagicMock) -> None:
     mock_run.return_value = _mock_momentum_run()
     carry_profile(mock_run)
@@ -190,7 +190,7 @@ def test_momentum_save_run_persists_and_reports_id_on_stderr(mock_run: MagicMock
     assert all(item.method_id == "sma_crossover" for item in saved)
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_momentum_save_run_persists_as_of_and_no_cache_on_the_selection(mock_run: MagicMock) -> None:
     mock_run.return_value = _mock_momentum_run()
     carry_profile(mock_run)
@@ -238,7 +238,7 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome() -> None:
     profile = fixture_known_etf_profile()
     with (
         patch("src.cli.build_graham_resolver", return_value=_graham_resolver()),
-        patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=profile),
+        patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
     ):
         result = runner.invoke(
             app,

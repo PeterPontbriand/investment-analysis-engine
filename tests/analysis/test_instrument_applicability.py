@@ -8,12 +8,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.fcf_earnings_growth import FCFEarningsGrowthAnalyzer, FCFEarningsGrowthPolicy
-from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthConfig
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy
-from src.analysis.strategy.graham_growth.service import run_graham_growth_analysis
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly
-from src.analysis.strategy.graham_number.service import run_graham_number_analysis
 from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import MetricStatus, ReasonCode
 from src.data.instrument_profile import (
@@ -25,6 +19,12 @@ from src.data.instrument_profile import (
     InstrumentProfileResolutionStatus,
 )
 from src.data.security_identity import SecurityIdentity
+from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
+from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy
+from src.strategies.graham_growth.service import run_graham_growth_analysis
+from src.strategies.graham_number.calculation import GrahamNumberInputAssembly
+from src.strategies.graham_number.service import run_graham_number_analysis
 
 NOW = datetime(2026, 8, 30, 18, 0, tzinfo=UTC)
 

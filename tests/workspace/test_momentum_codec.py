@@ -7,7 +7,6 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumMetrics, MomentumRun
 from src.core.constants import TrendStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
@@ -30,6 +29,7 @@ from src.data.security_unit import (
     SecurityUnitResolution,
     SecurityUnitResolutionReason,
 )
+from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.requests import MomentumSelection

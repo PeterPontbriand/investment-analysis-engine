@@ -15,7 +15,7 @@ P2-Profiles Slice D needed a complete inventory of every production
 instrument-profile composition call site before it could wire the durable
 cache into any of them. That inventory found Graham Number/Growth and FCF
 Growth already share exactly one composition helper
-(`src.workspace.graham_shared.compose_graham_profile`), reached from both
+(`src.strategies._shared.profile.compose_graham_profile`), reached from both
 their direct CLI commands and watchlist refresh — but Momentum has never had
 an equivalent shared helper, and now has three independently duplicated
 inline copies of the same `_identity_candidate()`-closure-over-a-fresh-
@@ -42,8 +42,8 @@ wiring is complete and correct with the duplication left in place.
 ## Likely scope, once picked up
 
 - Extract a `compose_momentum_profile`-style helper (naming TBD) into a
-  shared module — most naturally alongside `src/workspace/graham_shared.py`,
-  or its own `src/workspace/momentum_shared.py` if Momentum's identity/kind
+  shared module — most naturally alongside `src/strategies/_shared/profile.py`,
+  or in Momentum's own package if Momentum's identity/kind
   candidate construction doesn't fit Graham's helper signature cleanly
   (Momentum uses one `YFinanceClient` as both the identity and kind
   candidate; Graham's helper supports a primary/Yahoo precedence split that

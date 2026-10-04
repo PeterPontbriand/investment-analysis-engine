@@ -13,10 +13,10 @@ import pandas as pd
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
 from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
 from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
 from src.data.quality import HistoricalDataQualityError, QualityOutcome
+from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
 
 FIRST_BAR = datetime(2026, 1, 1, 12, tzinfo=UTC)
 EXECUTED_AT = datetime(2026, 2, 1, tzinfo=UTC)

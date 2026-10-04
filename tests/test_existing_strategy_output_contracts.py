@@ -6,18 +6,18 @@ from datetime import UTC, datetime
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.fcf_earnings_growth.analyzer import FCFEarningsGrowthAnalyzer
-from src.analysis.strategy.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.analysis.strategy.fcf_earnings_growth.models import (
+from src.data.financial.facts import FinancialField
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
+from src.reporting.presentation import PresentationMode
+from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.fcf_growth.models import (
     FCFClassificationBasis,
     FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
 )
-from src.data.financial.facts import FinancialField
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
-from src.reporting.presentation import PresentationMode
+from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
 
 
 @pytest.mark.parametrize("basis", list(FCFClassificationBasis))

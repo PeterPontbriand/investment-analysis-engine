@@ -8,17 +8,6 @@ from unittest.mock import patch
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.fcf_earnings_growth.analyzer import FCFEarningsGrowthAnalyzer
-from src.analysis.strategy.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.analysis.strategy.fcf_earnings_growth.models import (
-    Classification,
-    FCFEarningsGrowthConfig,
-    FCFEarningsGrowthPolicy,
-    FCFEarningsGrowthResult,
-    ForwardEvidence,
-    ForwardEvidenceStatus,
-    TrendClassification,
-)
 from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.instrument_profile import InstrumentKind
@@ -29,7 +18,18 @@ from src.evaluation.fixtures.instrument_profiles import (
     fixture_instrument_profile,
     fixture_known_etf_profile,
 )
-from src.workspace.fcf_growth_execution import FCFGrowthCapture, classify_fcf_growth_outcome, execute_fcf_growth
+from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from src.strategies.fcf_growth.execution import FCFGrowthCapture, classify_fcf_growth_outcome, execute_fcf_growth
+from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.fcf_growth.models import (
+    Classification,
+    FCFEarningsGrowthConfig,
+    FCFEarningsGrowthPolicy,
+    FCFEarningsGrowthResult,
+    ForwardEvidence,
+    ForwardEvidenceStatus,
+    TrendClassification,
+)
 from src.workspace.models import RunOutcome
 
 NOW = datetime(2026, 9, 18, 12, tzinfo=UTC)
@@ -142,7 +142,7 @@ def test_execute_fcf_growth_delegates_with_the_composed_profile() -> None:
         return canned
 
     with (
-        patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=composed),
+        patch("src.strategies.fcf_growth.execution.compose_graham_profile", return_value=composed),
         patch.object(FCFEarningsGrowthAnalyzer, "run_analysis", fake_run_analysis),
     ):
         capture = execute_fcf_growth(
@@ -170,7 +170,7 @@ def test_known_etf_profile_is_not_applicable_through_the_real_analyzer() -> None
     resolver = _resolver()
     etf_profile = fixture_known_etf_profile()
 
-    with patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=etf_profile):
+    with patch("src.strategies.fcf_growth.execution.compose_graham_profile", return_value=etf_profile):
         capture = execute_fcf_growth(
             resolver,
             GOLDEN_ETF_TICKER,
@@ -192,7 +192,7 @@ def test_partial_forward_evidence_is_preserved_unmodified() -> None:
     resolver = _resolver()
 
     with patch(
-        "src.workspace.fcf_growth_execution.compose_graham_profile",
+        "src.strategies.fcf_growth.execution.compose_graham_profile",
         return_value=fixture_instrument_profile("ACME", kind=InstrumentKind.EQUITY, provider_value="EQUITY"),
     ):
         capture = execute_fcf_growth(
@@ -219,7 +219,7 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(socket.socket, "connect", reject_network)
 
     with patch(
-        "src.workspace.fcf_growth_execution.compose_graham_profile",
+        "src.strategies.fcf_growth.execution.compose_graham_profile",
         return_value=fixture_instrument_profile("ACME", kind=InstrumentKind.EQUITY, provider_value="EQUITY"),
     ):
         capture = execute_fcf_growth(

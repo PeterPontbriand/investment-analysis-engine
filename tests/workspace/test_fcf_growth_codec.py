@@ -6,20 +6,6 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.strategy.fcf_earnings_growth.models import (
-    AnnualGrowthObservation,
-    Classification,
-    FCFClassificationBasis,
-    FCFEarningsGrowthPolicy,
-    FCFEarningsGrowthResult,
-    ForwardEvidence,
-    ForwardEvidenceStatus,
-    ForwardPolicy,
-    MetricResult,
-    MetricStatus,
-    ReasonCode,
-    TrendClassification,
-)
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
@@ -32,6 +18,20 @@ from src.data.security_unit import (
     SecurityUnitProvenance,
     SecurityUnitResolution,
     SecurityUnitResolutionReason,
+)
+from src.strategies.fcf_growth.models import (
+    AnnualGrowthObservation,
+    Classification,
+    FCFClassificationBasis,
+    FCFEarningsGrowthPolicy,
+    FCFEarningsGrowthResult,
+    ForwardEvidence,
+    ForwardEvidenceStatus,
+    ForwardPolicy,
+    MetricResult,
+    MetricStatus,
+    ReasonCode,
+    TrendClassification,
 )
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
@@ -386,9 +386,7 @@ def test_decoding_is_pure_and_does_not_mutate_payload(monkeypatch: pytest.Monkey
     def unexpected(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("Replay must not execute analysis")
 
-    monkeypatch.setattr(
-        "src.analysis.strategy.fcf_earnings_growth.analyzer.FCFEarningsGrowthAnalyzer.run_analysis", unexpected
-    )
+    monkeypatch.setattr("src.strategies.fcf_growth.analyzer.FCFEarningsGrowthAnalyzer.run_analysis", unexpected)
     for name in (
         "compute_free_cash_flow",
         "compute_fcf_per_diluted_share",
@@ -397,7 +395,7 @@ def test_decoding_is_pure_and_does_not_mutate_payload(monkeypatch: pytest.Monkey
         "compute_fcf_yield",
         "classify_fcf_earnings_growth",
     ):
-        monkeypatch.setattr(f"src.analysis.strategy.fcf_earnings_growth.calculators.{name}", unexpected)
+        monkeypatch.setattr(f"src.strategies.fcf_growth.calculators.{name}", unexpected)
     restored = decode_evidence(run)
     assert isinstance(restored, FCFEarningsGrowthResult)
     assert restored.fcf_cagr.value == 0.0

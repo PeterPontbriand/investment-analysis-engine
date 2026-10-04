@@ -18,25 +18,26 @@ from typing import Any, get_args, get_origin
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
-from src.analysis.strategy.fcf_earnings_growth.analyzer import FCFEarningsGrowthAnalyzer
-from src.analysis.strategy.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
-from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
-from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
-from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.analysis.strategy.graham_number.config import GrahamNumberConfig
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.market_data import FixtureDataClient
+from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
+from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
+from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.strategies.graham_growth.config import GrahamGrowthConfig
+from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.graham_number.config import GrahamNumberConfig
+from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
+from tests._strategy_roles import ANALYZER_ROLES
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src"
-_STRATEGY_PACKAGE = _SRC_ROOT / "analysis" / "strategy"
+_STRATEGY_PACKAGE = _SRC_ROOT / "strategies"
 
 _GROWTH_POLICY = GrahamGrowthCalculationPolicy(base_pe=8.5, growth_multiplier=2.0, baseline_aaa_yield=4.4)
 
@@ -158,23 +159,33 @@ def test_run_analysis_returns_its_declared_result_type(case: _Case) -> None:
     assert isinstance(result, result_type)
 
 
-def _python_files_outside_strategy_package() -> Iterator[Path]:
+def _python_files_outside_analyzer_modules() -> Iterator[Path]:
+    """Yield every source file except the analyzer-level files and package initializers of a strategy.
+
+    Before the strategy packages existed the analyzer modules were the only files in the strategy package, so
+    the codecs, adapters and presenters were "outside" it. They sit in the package now and stay checked.
+    """
     for path in sorted(_SRC_ROOT.rglob("*.py")):
-        try:
-            path.relative_to(_STRATEGY_PACKAGE)
-        except ValueError:
+        in_package = _STRATEGY_PACKAGE in path.parents
+        if not (in_package and (path.stem in ANALYZER_ROLES or path.stem == "__init__")):
             yield path
+
+
+def _is_analyzer_boundary(module: str) -> bool:
+    """Return whether a module is a strategy package or one of its analyzer-level files."""
+    parts = module.split(".")
+    return parts[:2] == ["src", "strategies"] and (len(parts) <= 3 or (len(parts) == 4 and parts[3] in ANALYZER_ROLES))
 
 
 def _strategy_boundary_function_imports() -> list[str]:
     """Return one ``module:qualified_name`` entry per plain-function import crossing the boundary."""
     violations: list[str] = []
-    for path in _python_files_outside_strategy_package():
+    for path in _python_files_outside_analyzer_modules():
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             if not isinstance(node, ast.ImportFrom) or node.module is None:
                 continue
-            if node.module != "src.analysis.strategy" and not node.module.startswith("src.analysis.strategy."):
+            if not _is_analyzer_boundary(node.module):
                 continue
             module = importlib.import_module(node.module)
             for alias in node.names:
@@ -186,7 +197,7 @@ def _strategy_boundary_function_imports() -> list[str]:
 
 
 def test_no_plain_function_imports_cross_the_strategy_boundary() -> None:
-    """Item 4: only classes may be imported from ``src.analysis.strategy.**`` outside that package."""
+    """Item 4: only classes may be imported from the strategy analyzer modules by any other file."""
     violations = _strategy_boundary_function_imports()
     assert not violations, "Plain-function imports crossing the strategy boundary:\n" + "\n".join(violations)
 

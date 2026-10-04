@@ -14,22 +14,6 @@ import typer
 
 from src.analysis.base_analyzer import require_ticker
 from src.analysis.shared.financial_resolution import PriceComparison
-from src.analysis.strategy.fcf_earnings_growth import (
-    FCFClassificationBasis,
-    FCFEarningsGrowthConfig,
-    FCFEarningsGrowthPolicy,
-    ForwardPolicy,
-    HistoricalHorizon,
-    ProductionAnnualGrowthSeriesResolver,
-)
-from src.analysis.strategy.graham_growth.calculation import (
-    GrahamGrowthInputResolver,
-    GrowthValueInputAssembly,
-)
-from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
-from src.analysis.strategy.graham_number.config import GrahamNumberConfig
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
 from src.cli_composition import build_graham_resolver, build_sec_production_provider, growth_assumptions
 from src.cli_database import app as database_app
 from src.cli_support import (
@@ -82,11 +66,39 @@ from src.evaluation.reporting import EvaluationReport
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.llm.client import LLMClient
 from src.reporting.evidence_presentation import friendly_valuation_failure
-from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
-from src.reporting.graham_growth import GrahamGrowthPresentation, growth_with_public_quote_reason, render_graham_growth
-from src.reporting.graham_number import GrahamNumberPresentation, number_with_public_quote_reason, render_graham_number
-from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
+from src.strategies.fcf_growth.execution import execute_fcf_growth
+from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.fcf_growth.models import (
+    FCFClassificationBasis,
+    FCFEarningsGrowthConfig,
+    FCFEarningsGrowthPolicy,
+    ForwardPolicy,
+    HistoricalHorizon,
+)
+from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
+from src.strategies.graham_growth.calculation import (
+    GrahamGrowthInputResolver,
+    GrowthValueInputAssembly,
+)
+from src.strategies.graham_growth.config import GrahamGrowthConfig
+from src.strategies.graham_growth.execution import execute_graham_growth
+from src.strategies.graham_growth.presenter import (
+    GrahamGrowthPresentation,
+    growth_with_public_quote_reason,
+    render_graham_growth,
+)
+from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
+from src.strategies.graham_number.config import GrahamNumberConfig
+from src.strategies.graham_number.execution import execute_graham_number
+from src.strategies.graham_number.presenter import (
+    GrahamNumberPresentation,
+    number_with_public_quote_reason,
+    render_graham_number,
+)
+from src.strategies.momentum.analyzer import MomentumConfig
+from src.strategies.momentum.execution import capture_momentum, run_momentum
+from src.strategies.momentum.presenter import MomentumPresentation, render_momentum
 from src.utils import paths
 from src.workspace.execution import (
     ExecutionCapture,
@@ -96,10 +108,6 @@ from src.workspace.execution import (
     from_graham_number_capture,
     from_momentum_capture,
 )
-from src.workspace.fcf_growth_execution import execute_fcf_growth
-from src.workspace.graham_growth_execution import execute_graham_growth
-from src.workspace.graham_number_execution import execute_graham_number
-from src.workspace.momentum_execution import capture_momentum, run_momentum
 from src.workspace.requests import (
     AnalysisRequest,
     FCFGrowthSelection,

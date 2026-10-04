@@ -7,9 +7,6 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
 from src.core.analysis_status import CalculationStatus
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
@@ -33,6 +30,9 @@ from src.evaluation.models import Case, ComponentKind, ComponentOutcome, Compone
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.analysis_tools import GrahamGrowthValueToolArguments, GrahamNumberToolArguments
+from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("b0000000-0000-0000-0000-00000000000b")

@@ -8,14 +8,6 @@ from unittest.mock import patch
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
-from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
-from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
-from src.analysis.strategy.graham_growth.service import run_graham_growth_analysis
-from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.analysis.strategy.graham_number.config import GrahamNumberConfig
-from src.analysis.strategy.graham_number.service import run_graham_number_analysis
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
@@ -28,6 +20,14 @@ from src.evaluation.fixtures.graham import (
     SUBJECT_MISSING,
     FixtureFinancialFactsProvider,
 )
+from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
+from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.strategies.graham_growth.config import GrahamGrowthConfig
+from src.strategies.graham_growth.service import run_graham_growth_analysis
+from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.graham_number.config import GrahamNumberConfig
+from src.strategies.graham_number.service import run_graham_number_analysis
 
 POLICY = GrahamGrowthCalculationPolicy(base_pe=8.5, growth_multiplier=2.0, baseline_aaa_yield=4.4)
 

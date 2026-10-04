@@ -9,13 +9,13 @@ import pandas as pd
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig, compute_momentum_metrics
 from src.core.constants import TrendStatus
 from src.data.base_client import DataFetchError
 from src.data.instrument_profile import InstrumentKind
 from src.data.market_data import HistoricalMarketData, MarketDataContext
 from src.data.yfinance import YFinanceClient
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, compute_momentum_metrics
 
 _CONTEXT = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 20, tzinfo=UTC), use_cache=True)
 

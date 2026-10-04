@@ -6,8 +6,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.analysis.strategy.fcf_earnings_growth.calculators import classify_fcf_earnings_growth
-from src.analysis.strategy.fcf_earnings_growth.models import (
+from src.data.financial.provenance import ResolvedInput, SourceKind
+from src.strategies.fcf_growth.calculators import classify_fcf_earnings_growth
+from src.strategies.fcf_growth.models import (
     Classification,
     ClassificationDecision,
     FCFClassificationBasis,
@@ -20,7 +21,6 @@ from src.analysis.strategy.fcf_earnings_growth.models import (
     ReasonCode,
     TrendClassification,
 )
-from src.data.financial.provenance import ResolvedInput, SourceKind
 
 RESOLVED_AT = datetime(2025, 12, 31, tzinfo=UTC)
 

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from src.analysis.strategy.graham_number.calculation import _with_semantic_bvps_basis
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
+from src.strategies.graham_number.calculation import _with_semantic_bvps_basis
 
 NOW = datetime(2026, 8, 24, 2, 50, tzinfo=UTC)
 

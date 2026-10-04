@@ -6,11 +6,11 @@ from collections.abc import Mapping
 from datetime import UTC, date, datetime
 from typing import Any
 
-from src.analysis.strategy.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthPolicy, ReasonCode
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
+from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy, ReasonCode
 
 NOW = datetime(2026, 8, 29, 16, 0, tzinfo=UTC)
 CIK = 789019

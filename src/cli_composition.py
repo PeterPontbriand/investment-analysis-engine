@@ -24,8 +24,6 @@ provider/resolver composition here always reads the real settings singleton.
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.cli_support import AnalysisConfigurationError
 from src.config import settings
 from src.core.constants import ConfigKeys
@@ -39,6 +37,8 @@ from src.data.financial.providers import (
     SecEdgarFinancialFactsAdapter,
 )
 from src.data.financial.quote_freshness import QuoteFreshnessPolicy
+from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 
 def build_sec_production_provider() -> ProductionFinancialFactsProvider:

@@ -1,0 +1,14 @@
+ACME — Free Cash Flow & Earnings Growth
+
+Screen: PASS
+Classification basis: Total company free cash flow
+Period: FY2020–FY2025 (5 elapsed years; 6 annual observations)
+Free cash flow (FY2025): 130.00 USD
+FCF per diluted share (FY2025): 1.30 USD
+Free cash flow CAGR: +10.20%
+FCF per diluted share CAGR: +10.20%
+Diluted EPS CAGR: +17.61%
+Trend: Both free cash flow and diluted EPS increased over the measured period.
+Source: SEC EDGAR; latest evidence available 2025-02-01
+Warning: No evidence-approved market-capitalization provider mapping is available.
+Limitation: Historical financial strength does not establish market opportunity, scarcity, durability of moat, or an investment recommendation.

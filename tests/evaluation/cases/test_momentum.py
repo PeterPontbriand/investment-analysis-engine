@@ -7,7 +7,6 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
 from src.core.constants import TrendStatus
 from src.core.metric_result import MetricStatus, ReasonCode
 from src.core.telemetry import RunContext, TrajectoryRecorder
@@ -30,6 +29,7 @@ from src.evaluation.models import Case, ComponentKind, ComponentOutcome, Compone
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.analysis_tools import MomentumToolArguments
+from src.strategies.momentum.analyzer import MomentumRun
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("30000000-0000-0000-0000-000000000003")

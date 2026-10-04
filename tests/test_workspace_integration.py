@@ -24,14 +24,14 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
-from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
-from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumMetrics, MomentumRun
 from src.cli import app
 from src.core.constants import TrendStatus
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
 from src.data.market_data import MarketDataContext
 from src.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
+from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 
 runner = CliRunner()
@@ -80,7 +80,7 @@ def _mock_momentum_run(ticker: str) -> MomentumRun:
     )
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(str(kwargs["ticker"]))
 
