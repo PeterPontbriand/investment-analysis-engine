@@ -7,8 +7,10 @@ from uuid import UUID
 
 import pytest
 
+from src.core.strategy_errors import UndeclaredStrategyError
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent, TrajectoryEventType
+from src.evaluation import runner
 from src.evaluation.composition import (
     KNOWN_ETF_PROFILE_FIXTURE_ID,
     MOMENTUM_BOUNDARY_FIXTURE_ID,
@@ -28,6 +30,8 @@ from src.evaluation.models import (
 from src.evaluation.reporting import CaseOutcome, EvaluationReport
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.tool_names import ToolName
+from src.orchestrator.types import ToolCallResult
+from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.tool import MomentumToolArguments
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
@@ -274,3 +278,48 @@ async def test_telemetry_sink_failure_does_not_change_case_or_report_outcome() -
     assert report.failed_cases == 0
     assert report.case_results[0].outcome is CaseOutcome.PASS
     assert report.run_id == str(RUN_ID)
+
+
+class _SubclassedMomentumRun(MomentumRun):
+    """A subclass of a declared native result, which must not be treated as its parent."""
+
+
+def _tool_result(result: object) -> ToolCallResult:
+    """Wrap a value as a successful dispatch result."""
+    return ToolCallResult(call_id="synthetic", tool_name=ToolName.ANALYZE_MOMENTUM.value, success=True, result=result)
+
+
+@pytest.mark.parametrize("undeclared", [object(), "not a result", None])
+def test_native_result_rejects_a_result_no_strategy_declares(undeclared: object) -> None:
+    """An undeclared result type fails closed with the typed error, not a default strategy."""
+    with pytest.raises(UndeclaredStrategyError, match="production result type"):
+        runner._native_result(_tool_result(undeclared))
+
+
+def test_native_result_rejects_a_subclass_of_a_declared_result() -> None:
+    """Result lookup is by exact type, so a subclass cannot be routed as its parent."""
+    subclassed = object.__new__(_SubclassedMomentumRun)
+    with pytest.raises(UndeclaredStrategyError, match="_SubclassedMomentumRun"):
+        runner._native_result(_tool_result(subclassed))
+    with pytest.raises(UndeclaredStrategyError, match="_SubclassedMomentumRun"):
+        runner._native_status(subclassed)
+
+
+@pytest.mark.asyncio
+async def test_an_undeclared_result_is_reported_as_a_result_contract_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The runner records the typed failure at the result-contract stage instead of raising."""
+
+    async def dispatch_undeclared(*args: object, **kwargs: object) -> ToolCallResult:
+        del args, kwargs
+        return _tool_result(object())
+
+    monkeypatch.setattr(runner, "dispatch_fixture_case", dispatch_undeclared)
+    sink = RecordingSink()
+
+    report = await _run(_recorder(sink), _request(MOMENTUM_SUCCESS_FIXTURE_ID))
+
+    assert _component(report, ComponentKind.EXECUTION_STATUS).outcome is ComponentOutcome.FAIL
+    tool_result = next(event for event in sink.events if event.event_type is TrajectoryEventType.TOOL_RESULT)
+    assert tool_result.tool_result_summary == {"success": False, "stage": "result_contract"}

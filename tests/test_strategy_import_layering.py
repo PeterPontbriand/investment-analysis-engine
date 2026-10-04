@@ -16,19 +16,14 @@ from tests._strategy_roles import ANALYZER_ROLES, ROLE_RANK
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
 _GRAHAM_MEMBERS = frozenset({"graham_number", "graham_growth"})
+_ROOT = "src.strategy_wiring"
+# The composition root may import these strategy roles and no others: not execution, presenter, cli or
+# evaluation files, which belong to the layers below it and to the tiers.
+_ROOT_ROLES = ANALYZER_ROLES | {"codec", "envelope", "replay", "selection", "tool"}
+# The only importers of the root: the CLI modules, every evaluation module and, from the slices that add
+# them, the tier modules (which sit in those two groups).
+_ROOT_IMPORTERS = frozenset({"src.cli", "src.cli_workspace", "src.cli_strategy_wiring"})
 _TRANSITIONS = {
-    ("src.orchestrator.analysis_tools", "src.strategies.fcf_growth.tool", "SWC.2c"),
-    ("src.orchestrator.analysis_tools", "src.strategies.graham_growth.tool", "SWC.2c"),
-    ("src.orchestrator.analysis_tools", "src.strategies.graham_number.tool", "SWC.2c"),
-    ("src.orchestrator.analysis_tools", "src.strategies.momentum.tool", "SWC.2c"),
-    ("src.evaluation.runner", "src.strategies.fcf_growth.tool", "SWC.2c"),
-    ("src.evaluation.runner", "src.strategies.graham_growth.tool", "SWC.2c"),
-    ("src.evaluation.runner", "src.strategies.graham_number.tool", "SWC.2c"),
-    ("src.evaluation.runner", "src.strategies.momentum.tool", "SWC.2c"),
-    ("src.evaluation.ollama_runner", "src.strategies.fcf_growth.tool", "SWC.2c"),
-    ("src.evaluation.ollama_runner", "src.strategies.graham_growth.tool", "SWC.2c"),
-    ("src.evaluation.ollama_runner", "src.strategies.graham_number.tool", "SWC.2c"),
-    ("src.evaluation.ollama_runner", "src.strategies.momentum.tool", "SWC.2c"),
     ("src.evaluation.composition", "src.strategies.fcf_growth.tool", "SWC.2d"),
     ("src.evaluation.composition", "src.strategies.graham_growth.tool", "SWC.2d"),
     ("src.evaluation.composition", "src.strategies.graham_number.tool", "SWC.2d"),
@@ -233,8 +228,14 @@ def _edge_violations(
         source_parts, target_parts = source.split("."), target.split(".")
         if target_parts[0] == "tests":
             errors.append(f"{source} imports tests module {target}")
+        elif target == _ROOT:
+            if source not in _ROOT_IMPORTERS and not source.startswith("src.evaluation"):
+                errors.append(f"module imports the composition root: {source} -> {target}")
         elif len(target_parts) < 3 or target_parts[:2] != ["src", "strategies"]:
             continue
+        elif source == _ROOT:
+            if target_parts[2] in strategies and _role(target_parts) not in _ROOT_ROLES:
+                errors.append(f"composition root imports a role it may not: {source} -> {target}")
         elif len(source_parts) >= 3 and source_parts[:2] == ["src", "strategies"]:
             if error := _strategy_edge_error(source, target, strategies):
                 errors.append(error)
@@ -277,6 +278,15 @@ def _cycle_violations(
     ]
 
 
+def _root_cycle_violations(graph: dict[str, set[str]]) -> list[str]:
+    """Report the composition root if it sits in any import cycle."""
+    return [
+        f"composition root is in an import cycle: {sorted(component)}"
+        for component in _cycles(graph)
+        if _ROOT in component
+    ]
+
+
 def test_strategy_import_layering_and_parent_package_cycles() -> None:
     """Enforce the role graph, exact temporary transitions, file roles and the parent-aware cycle allowlist."""
     graph, edges, init_modules = _source_graph()
@@ -284,6 +294,7 @@ def test_strategy_import_layering_and_parent_package_cycles() -> None:
         *_edge_violations(edges, _strategy_packages(_SRC)),
         *_file_violations(_SRC),
         *_cycle_violations(graph, init_modules),
+        *_root_cycle_violations(graph),
     ]
     assert not errors, "Import-layer violations:\n" + "\n".join(errors)
 
@@ -445,3 +456,42 @@ def test_t13_fails_for_a_stale_benign_cycle_entry() -> None:
     """An allowlisted package that no longer sits in a cycle must leave the list."""
     errors = _cycle_violations({"src.gone": set()}, {"src.gone"}, frozenset({"src.gone"}))
     assert errors == ["stale benign-cycle entry: src.gone"]
+
+
+def test_t13_permits_the_root_to_import_only_its_strategy_roles() -> None:
+    """The composition root imports analyzer, codec, envelope, replay, selection and tool files and nothing above."""
+    package = "src.strategies.momentum"
+    for role in sorted(_ROOT_ROLES):
+        assert _edge_violations({(_ROOT, f"{package}.{role}")}, _SAMPLE_STRATEGIES, set()) == []
+    for role in ("execution", "presenter", "cli", "evaluation"):
+        assert _edge_violations({(_ROOT, f"{package}.{role}")}, _SAMPLE_STRATEGIES, set()) == [
+            f"composition root imports a role it may not: {_ROOT} -> {package}.{role}"
+        ]
+
+
+def test_t13_restricts_the_importers_of_the_root() -> None:
+    """Only the CLI modules and the evaluation modules import the root; foundation modules never do."""
+    allowed = {(importer, _ROOT) for importer in ("src.cli", "src.cli_workspace", "src.evaluation.runner")}
+    assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set()) == []
+    forbidden = {
+        (importer, _ROOT) for importer in ("src.workspace.codecs", "src.reporting.analysis_runs", "src.data.x")
+    }
+    assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set()) == [
+        f"module imports the composition root: {importer} -> {_ROOT}"
+        for importer in ("src.data.x", "src.reporting.analysis_runs", "src.workspace.codecs")
+    ]
+
+
+def test_t13_fails_when_the_root_is_in_an_import_cycle() -> None:
+    """A module the root imports must never import the root back, directly or through others."""
+    graph = {_ROOT: {"src.a"}, "src.a": {"src.b"}, "src.b": {_ROOT}, "src.c": set()}
+    assert _root_cycle_violations(graph) == [
+        f"composition root is in an import cycle: {sorted({_ROOT, 'src.a', 'src.b'})}"
+    ]
+    assert _root_cycle_violations({_ROOT: {"src.a"}, "src.a": set()}) == []
+
+
+def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_wiring_slice() -> None:
+    """The twelve entries owned by the orchestration slice are gone; every remaining owner is a later slice."""
+    assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.2d", "SWC.3a", "SWC.3b", "SWC.3c", "SWC.4c"}
+    assert len(_TRANSITIONS) == 32
