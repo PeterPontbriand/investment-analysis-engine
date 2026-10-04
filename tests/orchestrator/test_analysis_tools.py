@@ -311,7 +311,7 @@ async def test_handler_validation_fails_closed_before_analysis() -> None:
 
 def test_registration_exposes_strict_argument_contracts_and_rejects_duplicates() -> None:
     """Stable names have discoverable schemas and cannot be silently replaced."""
-    assert tuple(descriptor.tool.value for descriptor in STRATEGIES) == (
+    assert tuple(descriptor.tool.value for descriptor in STRATEGIES[:4]) == (
         ANALYZE_MOMENTUM_TOOL,
         ANALYZE_GRAHAM_NUMBER_TOOL,
         ANALYZE_GRAHAM_GROWTH_VALUE_TOOL,

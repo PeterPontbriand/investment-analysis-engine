@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 
 from src.cli import app
 from src.core.telemetry import RunContext, TrajectoryEvent, TrajectoryRecorder
+from src.evaluation.catalog import DETERMINISTIC_CASES
 from src.evaluation.models import ComponentKind, ComponentOutcome, ComponentResult, ExecutionMode
 from src.evaluation.reporting import EvaluationReport, build_case_result, build_evaluation_report
 from src.evaluation.runner import DETERMINISTIC_REQUIRED_COMPONENT_KINDS
@@ -98,10 +99,10 @@ def test_evaluate_cli_runs_full_deterministic_suite_and_writes_report(tmp_path: 
     assert result.exit_code == 0
     payload = json.loads(target.read_text(encoding="utf-8"))
     assert payload["execution_mode"] == "deterministic_no_llm"
-    assert payload["total_cases"] == 19
-    assert payload["passed_cases"] == 19
+    assert payload["total_cases"] == len(DETERMINISTIC_CASES)
+    assert payload["passed_cases"] == len(DETERMINISTIC_CASES)
     assert payload["failed_cases"] == 0
-    assert "19 passed, 0 failed, 0 skipped" in result.output
+    assert f"{len(DETERMINISTIC_CASES)} passed, 0 failed, 0 skipped" in result.output
 
 
 def test_evaluate_cli_selects_one_named_case_case_insensitively(tmp_path: Path) -> None:

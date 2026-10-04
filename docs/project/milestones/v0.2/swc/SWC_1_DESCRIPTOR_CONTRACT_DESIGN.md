@@ -29,8 +29,8 @@ owns that result and is complete without the study.
   below the composition root imports a descriptor module; strategy-owned files live in one package per
   strategy and obey a role-based layering rule; every design question ends in a decision.
 - **Fit and cost:** the design holds for all seven Step 3.5 strategies; one behavior member, `headline`, is added by
-  Step 3.5 slice 3.5.0, before any new strategy slice ([§16](#16-step-35-fit-check)). Adding a strategy takes 18 hand-edit sites in 24
-  files across 9 directories, nine of them files that already exist and five of those edited by a generator
+  Step 3.5 slice 3.5.0, before any new strategy slice ([§16](#16-step-35-fit-check)). Adding a strategy takes 18 hand-edit sites in 22
+  files across 9 directories, seven of them files that already exist and five of those edited by a generator
   ([§17](#17-edit-sites-for-a-new-strategy)); a site-status command reports what is missing
   ([§19](#19-contributor-tooling)).
 - **Corrections to the plan:** [§15](#15-ir2-and-corrections-to-the-plan) lists where the audit disagreed
@@ -945,7 +945,7 @@ dataclass is built at run time.
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | 1 | Analyzer modules: config, result, analyzer | `src/strategies/<s>/` (new; analyzer-role files such as `analyzer.py`, `models.py`) | G | stub | T3: `analyzer X (result Y) has no descriptor`. |
 | 2 | Descriptor constant, `StrategyBehavior` declaration and `STRATEGIES` entry | `src/strategy_wiring.py` | G+R | edit | T1, T2, T3; **type**. |
-| 3 | `ToolName` member; the tool-schema hash pin | `src/orchestrator/tool_names.py`, `tests/evaluation/test_ollama_runner.py` | R | edit (member only) | T4: `ToolName member X has no descriptor`; the schema-hash test. |
+| 3 | `ToolName` member | `src/orchestrator/tool_names.py` | R | edit | T4: `ToolName member X has no descriptor`. |
 | 4 | Arguments model, dependency class, handler | `src/strategies/<s>/tool.py` (new) | G | stub | **type** (`tool_arguments`, `deps_type`, `handler`); T4: `tool-argument model X has no descriptor`. |
 | 5 | `NativeEvidence` and `SelectionMember` entries | `src/workspace/strategy_types.py` | R | edit | **type** (both bounds); T1, T2. |
 | 6 | Selection class and parser | `src/strategies/<s>/selection.py` (new) | G | stub | **type** (`selection_type`, `parse`); T1: `descriptor X has no selection member`. |
@@ -959,7 +959,7 @@ dataclass is built at run time.
 | 14 | Evaluation file: fixture composition, requirement and the fixture ids it understands | `src/strategies/<s>/evaluation.py` (new) | G | stub | **type** (the evaluation-tier pairing); T6; T10 `evaluation tier ids`. |
 | 15 | Evaluation-tier entry: the bundle paired with the requirement, the ids and the composition | `src/evaluation/strategy_fixtures.py` | G+R | edit | T10 `evaluation tier`: `strategy X is not wired in: evaluation tier`; an id no entry declares is rejected as unsupported; T6. |
 | 16 | Fixtures with their fixture ids, and cases with their reviewed arguments table | `src/evaluation/fixtures/<s>.py`, `src/evaluation/cases/<s>.py` (new) | G | reviewed | T5, T6. |
-| 17 | Catalog: the case-module imports, the arguments-table merge, the case tuple entries and the suite version bump; the pinned ids and counts in the catalog and evaluate-command tests | `src/evaluation/catalog.py`, `tests/evaluation/test_catalog.py`, `tests/evaluation/test_cli.py` | G | reviewed | T6: `tool X is required by no golden case`; the catalog test. |
+| 17 | Catalog: the case-module imports, the arguments-table merge, the case tuple entries and the suite version bump; the pinned id list and count in the catalog test | `src/evaluation/catalog.py`, `tests/evaluation/test_catalog.py` | G | reviewed | T6: `tool X is required by no golden case`; the catalog test. |
 | 18 | User guide with `FINANCE_MATH.md` and `GLOSSARY.md` links | `docs/user/strategies/<ALIAS>.md` (new) | G | reviewed | T23: `no guide for alias X`; the doc link check for a missing anchor. |
 
 Two commands, not edits: `scripts/generate_schemas.py` (a stale schema fails T20 with `schema
@@ -967,12 +967,12 @@ schemas/<alias>.schema.json is missing or out of date; run scripts/generate_sche
 `scripts/generate_strategy_docs.py` (a stale strategy list fails T26 the same way). The generator also
 writes the empty `src/strategies/<s>/__init__.py`, which has no content to review.
 
-**Total: 18 hand-edit sites, in 24 files (15 new, 9 existing) across 9 directories** (`src`,
+**Total: 18 hand-edit sites, in 22 files (15 new, 7 existing) across 9 directories** (`src`,
 `src/strategies/<s>`, `src/orchestrator`, `src/workspace`, `src/evaluation`, `src/evaluation/fixtures`,
 `src/evaluation/cases`, `tests/evaluation`, `docs/user/strategies`). Against the earlier design's 23 sites, 25 files (10 new, 15
-existing) across 11 directories. Five of the nine existing files are edited by the generator (rows 2, 3, 5,
-10, 15); the other four stay by hand because they pin reviewed truth: `catalog.py` and the two tests that pin the
-nineteen case ids and counts (row 17), and the test that pins the tool-schema hash (row 3). A strategy's fixture identifiers are
+existing) across 11 directories. Five of the seven existing files are edited by the generator (rows 2, 3, 5,
+10, 15); the other two, `catalog.py` and the catalog test that pins the case ids and count, stay by hand because
+the case tuple, the suite version and the pinned ids are reviewed truth. A strategy's fixture identifiers are
 declared in its own fixtures file and on its own tier entry, and the supported set is derived from the tier, so
 no shared identifier list, supported-id set or case-package export needs an edit. Twelve of the 15 new files are generated as typed stubs (rows 1, 4, 6 to 9 and 11 to 14); fixtures,
 cases and the guide are hand-written. One-line restatements in files owned by generic code fall from 11 to
@@ -1668,12 +1668,10 @@ the two unions, the CLI-tier entry, the evaluation-tier entry and the catalog wi
 
 
 Existing tests pin the four strategies' identity, tool names, descriptions and order as a prefix of
-`STRATEGIES`, compare index sizes with `len(STRATEGIES)`, and build their incomplete copies by removing a named
-descriptor rather than by position, so appending a fifth strategy fails none of them while a change to an
-existing identifier, tool name, description or order still does. The tests that pin reviewed truth stay exact and
-are edited with the suite version when a case is added: the nineteen case identifiers and counts in
-`tests/evaluation/test_catalog.py` and `tests/evaluation/test_cli.py`, and the tool-schema hash in
-`tests/evaluation/test_ollama_runner.py`, all counted in rows 3 and 17 of §17. One further test enumerates the four tool names for equality,
-`test_registration_exposes_strict_argument_contracts_and_rejects_duplicates` in
-`tests/orchestrator/test_analysis_tools.py`; it belongs to an earlier slice's files and a fifth strategy would
-fail it until it becomes a prefix pin.
+`STRATEGIES` (and of the registered tool names), compare index sizes and the evaluate command's case count with
+`len(STRATEGIES)` and `len(DETERMINISTIC_CASES)`, hash the tool schemas of the four existing tools only, and build
+their incomplete copies by removing a named descriptor rather than by position, so appending a fifth strategy
+fails none of them while a change to an existing identifier, tool name, description, order or schema still does.
+The one place that writes the number of cases is the catalog test, which pins the nineteen case identifiers and
+counts and is edited with the suite version when a case is added (row 17 of §17). The pins were checked by reading
+them; a real fifth strategy first runs through them in the specimen and generator test.
