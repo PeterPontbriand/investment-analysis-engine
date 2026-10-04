@@ -16,7 +16,7 @@ Definitions live in [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md) (SD) an
   `FINANCE_MATH.md` and `GLOSSARY.md` entries, and a result carrying the result-level `execution_status`
   that [Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status) defines. This is not
   repeated per slice below.
-- **Every strategy slice also tests:** a financial issuer, an unknown industry class, a missing
+- **Every strategy slice also tests:** a financial issuer, an unknown industry class (`input_unavailable` for a sector-gated strategy; Piotroski runs and states it), a missing
   critical input, a boundary before the filing, stored-run replay with provider, cache, clock and
   calculator disabled, and unchanged output of the four existing strategies.
 - **Candidate mappings are hypotheses.** A concept named here becomes a production mapping only

@@ -234,8 +234,11 @@ composition into the evaluation tier.
   `src/strategies/_shared/profile.py`; removal of `src/analysis/strategy/` and its three re-exporting
   `__init__.py` files; the 101 importer files (33 in `src`, 68 in `tests`, among them 15 tests whose patch
   strings name moved modules); `tests/analysis/test_base_analyzer_conformance.py`, whose boundary constants
-  name the strategy package; the living guide `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`; and the
-  layering test with the role rule and parent-package initialization. No behavior change and no new symbol.
+  name the strategy package; the living guide `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`; the
+  layering test with the role rule and parent-package initialization; and the patch-target resolution test,
+  a test that every string patch target in `tests/` (the dotted target of `patch(...)`, `patch.object` by name and `monkeypatch.setattr(...)`) resolves to an existing attribute, which proves the
+  retargeted strings point at moved names and which the package-rename plan reuses. No behavior change and
+  no new symbol except that test.
 - **Branch:** `feat/swc-2a-strategy-packages`, from `main` after SWC.1 has merged.
 - **Detail:** [SWC.1 design §4 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#11-migration-from-current-declarations).
 
@@ -544,6 +547,8 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **No semantic change:** no analyzer formula, classification, result meaning, or evaluation
   expectation changes. Report/CLI output may change only where specifically identified and approved
   in the slice contract.
+- **Patch targets resolve:** after SWC.2a, a test resolves every string patch target in `tests/` to an
+  existing attribute, and it keeps passing in every later slice.
 - **Edit sites:** adding a strategy takes the 18 sites in the design's edit-site table, in 21 files across 8
   directories, six of them existing files; five of those are edited by the generator, and the sixth (the catalog) is reviewed
   truth.

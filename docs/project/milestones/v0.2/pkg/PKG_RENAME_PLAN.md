@@ -41,9 +41,9 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
   the IR work package serves: a Python-based harness would import this project's modules directly.
 - **Decision:** the new top-level package is `investment_analysis_engine`, the conventional choice (a
   distribution name, already `investment-analysis-engine`, normalizes into its import name) and
-  self-describing. Test patch targets are rewritten by the same mechanical rewrite, and a check resolves
-  every dotted `patch(...)` and `monkeypatch.setattr(...)` target string to an importable object, so none
-  silently points at a name that no longer exists.
+  self-describing. Test patch targets are rewritten by the same mechanical rewrite and verified by the
+  patch-target resolution test that SWC.2a adds, which resolves every string patch target in `tests/` to an
+  existing attribute, so none silently points at a name that no longer exists.
 - **Scope:**
   - move `src/` to `investment_analysis_engine/`;
   - update every absolute import (`from src.xxx import ...` and `import src.xxx`) across the package,
@@ -52,7 +52,8 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
     (`ian = "src.main:main"` becomes `ian = "investment_analysis_engine.main:main"`) and any other literal
     `src` reference;
   - update `AGENTS.md`'s `uv run ...` examples and the layering test's package name;
-  - the patch-target resolution check above.
+  - run the SWC.2a patch-target resolution test unchanged against the new package name; PKG adds no check
+    of its own.
 - **Branch:** `feat/pkg-rename`, from `main` after SWC.7 has merged.
 - **Detail:** ⚠ no slice plan yet
 
@@ -68,7 +69,7 @@ Acceptance criteria:
 
 - **No stale import path:** no `src.` import or dotted string target remains in the package, `tests/`,
   `scripts/`, `pyproject.toml` or the living documents.
-- **Patch targets resolve:** the check in the decision above passes for every target string.
+- **Patch targets resolve:** the SWC.2a patch-target resolution test passes for every target string.
 - **Entry point works:** `ian` runs from the installed package.
 - **Layering rule intact:** the SWC layering test, renamed to the new package, passes unchanged.
 - **Quality gate:** the complete managed quality gate passes, including the link check.
@@ -119,7 +120,7 @@ entry point name.
 ### A.2 Test patch targets
 
 Previously left to PKG planning. Decided here: rewrite them mechanically with the import rewrite, and prove
-none dangles with a resolution check, because `mypy --strict` cannot see a string target and a patch of an
+none dangles with a resolution test, because `mypy --strict` cannot see a string target and a patch of an
 unexercised path would otherwise pass silently.
 
 ### A.3 Folder layout (2026-10-03)
@@ -132,3 +133,8 @@ condition that a role-based layering rule be enforceable and the module graph sh
 so the question is closed ([§6](#6-folder-layout-outcome)). The study counted nine directories for one
 package per strategy because it included `docs/user`, whose strategy lists are now generated; the adopted
 design's eight matches this plan's earlier figure.
+
+### A.4 Patch-target check moves to SWC.2a (2026-10-03)
+
+The resolution test is built in SWC.2a, not here, because SWC.2a relocates modules across 101 importer files
+and carries the same risk of a string target left pointing at a moved name. PKG reuses the test and adds none.

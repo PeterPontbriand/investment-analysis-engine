@@ -85,13 +85,13 @@ status.
 
 | Strategy | `ok` | `input_unavailable` | `not_applicable` |
 | :--- | :--- | :--- | :--- |
-| Piotroski F-Score | The score is `ok`: nine tests available (complete) or six to eight (partial). | Fewer than six tests available, or an unknown industry class. | None: financial issuers are applicable with a warning. |
-| Altman Z / Z″ | The score is `ok` for the selected model. | The score is `unavailable`, including total assets or total liabilities not positive. | A financial issuer. |
-| Beneish M-Score | All eight indices computed and the score is `ok`. There is no partial score. | Any index cannot be computed, including DEPI with neither basis and TATA with discontinued operations and no continuing income. | A financial issuer. |
-| Cash-Flow Valuation Multiples | At least one of EV/EBITDA and FCF yield is `ok`. | Neither is `ok` and at least one is `unavailable`. | A financial issuer, or both metrics `not_applicable`. |
-| Interest Coverage | A band is assigned, including "no material interest expense". | Interest expense is not reported while total debt is positive, only net interest is reported, or EBIT is missing. | A financial issuer. |
-| ROIC and Incremental ROIC | Trailing ROIC is `ok`; incremental ROIC's own availability is reported separately. | Trailing ROIC is `unavailable`. | A financial issuer, or average invested capital not positive. |
-| Greenblatt Magic Formula | Return on capital and earnings yield are both `ok`. | Either is `unavailable`. | A financial issuer or a utility, or either metric `not_applicable` with neither `unavailable`. |
+| Piotroski F-Score | The score is `ok`: nine tests available (complete) or six to eight (partial). | Fewer than six tests available. An unknown industry class does not change the status: Piotroski is not sector-gated, runs, and states the class is unknown. | None: financial issuers are applicable with a warning. |
+| Altman Z / Z″ | The score is `ok` for the selected model. | The score is `unavailable`, including total assets or total liabilities not positive, or an unknown industry class. | A financial issuer. |
+| Beneish M-Score | All eight indices computed and the score is `ok`. There is no partial score. | Any index cannot be computed, including DEPI with neither basis and TATA with discontinued operations and no continuing income, or an unknown industry class. | A financial issuer. |
+| Cash-Flow Valuation Multiples | At least one of EV/EBITDA and FCF yield is `ok`. | Neither is `ok` and at least one is `unavailable`, or an unknown industry class. | A financial issuer, or both metrics `not_applicable`. |
+| Interest Coverage | A band is assigned, including "no material interest expense". | Interest expense is not reported while total debt is positive, only net interest is reported, EBIT is missing, or an unknown industry class. | A financial issuer. |
+| ROIC and Incremental ROIC | Trailing ROIC is `ok`; incremental ROIC's own availability is reported separately. | Trailing ROIC is `unavailable`, or an unknown industry class. | A financial issuer, or average invested capital not positive. |
+| Greenblatt Magic Formula | Return on capital and earnings yield are both `ok`. | Either is `unavailable`, or an unknown industry class. | A financial issuer or a utility, or either metric `not_applicable` with neither `unavailable`. |
 
 The outcome that decides each row is the one the strategy specification already states for its metrics;
 the table adds no formula, threshold or classification. Momentum's analyzer has no status and its native

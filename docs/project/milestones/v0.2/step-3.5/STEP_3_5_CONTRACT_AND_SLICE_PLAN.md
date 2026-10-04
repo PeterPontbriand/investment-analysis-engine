@@ -254,8 +254,9 @@ its own quality gate and authorization.
   one issuer with multiple share classes.
 - **Applicability:** each strategy applies, applies with a warning, or returns `not_applicable`
   exactly as the matrix in [Shared definitions §1](STEP_3_5_SHARED_DEFINITIONS.md#1-applicability)
-  states for the issuer's industry class. An unknown industry class produces the `unavailable`
-  outcome that section specifies.
+  states for the issuer's industry class. An unknown industry class makes a sector-gated
+  strategy's result `input_unavailable` with a reason code saying so, and Piotroski, which is not
+  sector-gated, runs and states the class is unknown, as that section specifies.
 - **Point-in-time:** a run with a requested `as_of` uses no evidence filed, priced or classified
   after that boundary, including the industry class and the share count.
 - **No imputation:** no metric is zero, neutral, `NaN` or `Inf` because an input was missing.
