@@ -586,9 +586,9 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **No output change:** the direct-command output test passes unchanged in every later slice that claims no
   output change. A slice that changes output regenerates the stored files in the same change, and the diff to
   them is what the review approves.
-- **Edit sites:** adding a strategy takes the 18 sites in the design's edit-site table, in 22 files across 9
-  directories, seven of them existing files; five of those are edited by the generator, and the other two (the catalog
-  and its test) are reviewed truth.
+- **Edit sites:** adding a strategy takes the 18 sites in the design's edit-site table, in 24 files across 9
+  directories, nine of them existing files; five of those are edited by the generator, and the other four (the catalog,
+  the two tests that pin its cases and the tool-schema hash test) are reviewed truth.
 - **Contributor tooling:** one site data file is the source of the guide's table, the status command, the
   generator and the specimen's completeness test; the status command and the conformance tests share their
   check bodies; the generator writes wiring only and refuses to overwrite; a test runs it in a temporary
@@ -788,7 +788,7 @@ injected is acyclic and changes no layering rule. The project owner decided:
 - **Schedule the locality moves** in the slice that owns each; none is deferred.
 - **Fix the package-initialization cycle** in SWC.2a by emptying `src/workspace/__init__.py`, and make the
   layering test count parent packages.
-- **Reduce the edit sites** to 18, in 22 files of which seven already exist: commands in strategy files, an
+- **Reduce the edit sites** to 18, in 24 files of which nine already exist: commands in strategy files, an
   evaluation tier, per-strategy dependency classes, one types file and the shared arguments base class in
   place of the union. The catalog's case tuple and suite version stay by hand because they are reviewed
   truth; `ToolName` stays a separate leaf for layering.

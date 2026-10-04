@@ -36,6 +36,7 @@ from src.strategy_wiring import (
 _SRC = Path(__file__).resolve().parents[1] / "src"
 _WIRING = _SRC / "strategy_wiring.py"
 _TIER = _SRC / "evaluation" / "strategy_fixtures.py"
+_WITHOUT_FCF = tuple(item for item in STRATEGIES if item is not FCF_GROWTH)
 
 
 def test_t1_selection_union_ids_match_the_descriptors() -> None:
@@ -45,7 +46,7 @@ def test_t1_selection_union_ids_match_the_descriptors() -> None:
 
 def test_t1_names_a_selection_class_with_no_descriptor() -> None:
     """A strategy added to the selection union only is reported by name."""
-    gaps = conformance.selection_union_gaps(STRATEGIES[:-1])
+    gaps = conformance.selection_union_gaps(_WITHOUT_FCF)
     assert gaps == [
         "selection class FCFGrowthSelection with ids ('fcf_earnings_growth', 'reported_fcf_eps_cagr') has no descriptor"
     ]
@@ -69,14 +70,14 @@ def test_t3_result_types_match_the_analyzers_found_by_package_walk() -> None:
     """Each descriptor's result type is the ``ResultT`` of exactly one analyzer, and every analyzer has a descriptor."""
     assert conformance.analyzer_generics_gaps(STRATEGIES) == []
     gaps = conformance.analyzer_generics_gaps(STRATEGIES[:1])
-    assert len(gaps) == 3
+    assert len(gaps) == len(STRATEGIES) - 1
     assert all("which no descriptor declares" in gap for gap in gaps)
 
 
 def test_t4_tool_surfaces_agree() -> None:
-    """``ToolName``, the descriptors and the src-defined argument models name the same four tools."""
+    """``ToolName``, the descriptors and the src-defined argument models name the same tools."""
     assert conformance.tool_surface_gaps(STRATEGIES) == []
-    gaps = conformance.tool_surface_gaps(STRATEGIES[:-1])
+    gaps = conformance.tool_surface_gaps(_WITHOUT_FCF)
     assert any("ANALYZE_FCF_EARNINGS_GROWTH is in ToolName but no descriptor binds it" in gap for gap in gaps)
     assert any("FCFEarningsGrowthToolArguments subclasses AnalysisToolArguments" in gap for gap in gaps)
 
@@ -102,7 +103,7 @@ def test_t5_every_catalog_case_routes_to_the_tool_its_constraints_require() -> N
 def test_t6_every_tool_has_a_golden_case_and_every_case_is_served() -> None:
     """The fixture composition serves each catalog case with the result type its descriptor declares."""
     assert conformance.evaluation_coverage_gaps(STRATEGIES) == []
-    gaps = conformance.evaluation_coverage_gaps(STRATEGIES[:-1])
+    gaps = conformance.evaluation_coverage_gaps(_WITHOUT_FCF)
     assert any("tool analyze_fcf_earnings_growth" not in gap and "FCF-" in gap for gap in gaps)
 
 

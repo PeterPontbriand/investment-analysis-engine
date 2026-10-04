@@ -45,14 +45,17 @@ class _SubclassedMomentumArguments(MomentumToolArguments):
 
 
 def test_the_declared_identifiers_are_the_existing_ones() -> None:
-    """Identity, tool names and descriptions are unchanged from the declarations they replace."""
-    assert [(d.analysis_id, d.method_id, d.tool.value) for d in STRATEGIES] == [
+    """Identity, tool names and descriptions of the four existing strategies are unchanged, in this order.
+
+    A later strategy is appended after them, so only the first four declarations are pinned.
+    """
+    assert [(d.analysis_id, d.method_id, d.tool.value) for d in STRATEGIES[:4]] == [
         ("momentum", "sma_crossover", "analyze_momentum"),
         ("graham_number", "graham_number", "analyze_graham_number"),
         ("graham_growth_value", "graham_growth_value", "analyze_graham_growth_value"),
         ("fcf_earnings_growth", "reported_fcf_eps_cagr", "analyze_fcf_earnings_growth"),
     ]
-    assert [d.tool_description for d in STRATEGIES] == [
+    assert [d.tool_description for d in STRATEGIES[:4]] == [
         "Analyze historical price momentum with structured SMA and RSI metrics.",
         "Calculate the Graham Number company-level valuation ceiling.",
         "Calculate the explicit Graham growth-value method.",
@@ -97,7 +100,7 @@ def test_build_indexes_is_a_pure_function_of_its_tuple() -> None:
     """A modified copy builds its own indexes and leaves the declared ones untouched."""
     subset = build_indexes(STRATEGIES[:2])
     assert list(subset.by_tool) == [ToolName.ANALYZE_MOMENTUM, ToolName.ANALYZE_GRAHAM_NUMBER]
-    assert len(BY_TOOL) == 4
+    assert len(BY_TOOL) == len(STRATEGIES)
     assert build_indexes(()).by_key == {}
 
 
@@ -117,11 +120,10 @@ def test_native_status_comes_from_each_strategys_own_function() -> None:
             assert status is None
         elif isinstance(result, (GrahamNumberAnalysis, GrahamGrowthAnalysis)):
             assert status == result.result.status.value
-        else:
-            assert isinstance(result, FCFEarningsGrowthResult)
+        elif isinstance(result, FCFEarningsGrowthResult):
             assert status == result.execution_status.value
         seen[type(result)] = status
-    assert set(seen) == {MomentumRun, GrahamNumberAnalysis, GrahamGrowthAnalysis, FCFEarningsGrowthResult}
+    assert set(seen) == set(BY_RESULT_TYPE)
 
 
 def test_a_behavior_rejects_another_strategys_object() -> None:
