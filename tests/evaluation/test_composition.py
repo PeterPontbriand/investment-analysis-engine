@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
 
 from src.core.analysis_status import CalculationStatus
 from src.core.strategy_errors import UndeclaredStrategyError
-from src.evaluation import composition
 from src.evaluation.composition import (
     compose_fixture_dependencies,
     compose_fixture_dispatcher,
@@ -36,6 +36,7 @@ from src.evaluation.fixtures.graham import (
 from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER
 from src.evaluation.fixtures.market_data import MOMENTUM_LONG_WINDOW, MOMENTUM_RSI_PERIOD, MOMENTUM_SHORT_WINDOW
 from src.evaluation.models import Case, Expectation
+from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import ToolCallRequest
@@ -47,6 +48,7 @@ from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.graham_number.tool import GrahamNumberToolArguments
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.tool import MomentumToolArguments
+from src.strategy_wiring import BY_TOOL
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 
@@ -263,20 +265,68 @@ async def test_arguments_of_an_undeclared_strategy_fail_closed_before_dispatch()
         )
 
 
-def test_a_declared_tool_without_a_fixture_composition_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Every declared tool must be paired with the function that builds its dependencies."""
-    without_fcf = {
-        tool: build
-        for tool, build in composition._COMPOSERS_BY_TOOL.items()
-        if tool is not ToolName.ANALYZE_FCF_EARNINGS_GROWTH
-    }
-    monkeypatch.setattr(composition, "_COMPOSERS_BY_TOOL", without_fcf)
-    with pytest.raises(UndeclaredStrategyError, match="fixture composition for tool .*ANALYZE_FCF_EARNINGS_GROWTH"):
-        compose_fixture_dependencies(_case("unpaired", MOMENTUM_SUCCESS_FIXTURE_ID), clock_at=EXECUTION_TIME)
+def _tier_without(tool: ToolName) -> tuple[EvaluationStrategy, ...]:
+    """Return a copy of the production tier that lacks the entry serving ``tool``."""
+    descriptor = BY_TOOL[tool]
+    return tuple(entry for entry in EVALUATION_STRATEGIES if entry.behavior is not descriptor.behavior)
 
 
-def test_each_strategy_receives_its_own_dependency_class_and_graham_shares_providers() -> None:
-    """Fixture composition builds one dependency class per tool; both Graham resolvers share one provider."""
+def test_a_declared_tool_without_a_tier_entry_fails_closed() -> None:
+    """Every declared tool must have an evaluation-tier entry; the error names the tool."""
+    tier = _tier_without(ToolName.ANALYZE_FCF_EARNINGS_GROWTH)
+    assert len(tier) == len(EVALUATION_STRATEGIES) - 1
+    with pytest.raises(UndeclaredStrategyError, match="evaluation tier entry for tool .*ANALYZE_FCF_EARNINGS_GROWTH"):
+        compose_fixture_dependencies(_case("unpaired", MOMENTUM_SUCCESS_FIXTURE_ID), clock_at=EXECUTION_TIME, tier=tier)
+    with pytest.raises(UndeclaredStrategyError, match="evaluation tier entry for tool .*ANALYZE_FCF_EARNINGS_GROWTH"):
+        compose_fixture_dispatcher(_case("unpaired", MOMENTUM_SUCCESS_FIXTURE_ID), clock_at=EXECUTION_TIME, tier=tier)
+
+
+@pytest.mark.asyncio
+async def test_a_tool_without_a_tier_entry_is_not_given_a_default_requirement() -> None:
+    """No branch defaults a tool's requirement to FCF's: the missing entry fails before any fixture check."""
+    tier = _tier_without(ToolName.ANALYZE_FCF_EARNINGS_GROWTH)
+    with pytest.raises(UndeclaredStrategyError, match="ANALYZE_FCF_EARNINGS_GROWTH"):
+        await dispatch_fixture_case(
+            _case("unpaired", KNOWN_ETF_PROFILE_FIXTURE_ID),
+            FCFEarningsGrowthToolArguments(ticker="ACME"),
+            clock_at=EXECUTION_TIME,
+            tier=tier,
+        )
+
+
+def test_an_entry_serving_no_declared_strategy_fails_closed() -> None:
+    """A tier entry paired with a bundle no descriptor holds is rejected rather than ignored."""
+    stray = replace(EVALUATION_STRATEGIES[0], behavior=object())
+    with pytest.raises(UndeclaredStrategyError, match="evaluation tier entry for bundle"):
+        compose_fixture_dependencies(
+            _case("stray", MOMENTUM_SUCCESS_FIXTURE_ID), clock_at=EXECUTION_TIME, tier=(stray, *EVALUATION_STRATEGIES)
+        )
+
+
+def test_two_entries_for_one_strategy_are_rejected() -> None:
+    """A strategy has exactly one evaluation-tier entry."""
+    with pytest.raises(ValueError, match="Duplicate evaluation tier entry for tool 'analyze_momentum'"):
+        compose_fixture_dependencies(
+            _case("duplicate", MOMENTUM_SUCCESS_FIXTURE_ID),
+            clock_at=EXECUTION_TIME,
+            tier=(EVALUATION_STRATEGIES[0], *EVALUATION_STRATEGIES),
+        )
+
+
+def test_another_strategys_dependency_object_fails_closed_at_binding() -> None:
+    """An entry whose composition builds another strategy's dependency class cannot bind to its handler."""
+    momentum, graham_number, *rest = EVALUATION_STRATEGIES
+    mispaired = replace(momentum, compose=graham_number.compose)
+    with pytest.raises(UndeclaredStrategyError, match="handler dependencies"):
+        compose_fixture_dispatcher(
+            _case("mispaired", MOMENTUM_SUCCESS_FIXTURE_ID),
+            clock_at=EXECUTION_TIME,
+            tier=(mispaired, graham_number, *rest),
+        )
+
+
+def test_each_strategy_receives_its_own_dependency_class() -> None:
+    """Fixture composition builds exactly one dependency class per declared tool, in declaration order."""
     fixtures = compose_fixture_dependencies(
         _case("shared", GRAHAM_FACTS_FIXTURE_ID, MOMENTUM_SUCCESS_FIXTURE_ID), clock_at=EXECUTION_TIME
     )

@@ -23,12 +23,25 @@ _ROOT_ROLES = ANALYZER_ROLES | {"codec", "envelope", "replay", "selection", "too
 # The only importers of the root, listed exactly. An entry must exist and import the root, so a slice adds
 # its module here in the change that first makes it import the root (the tier modules and the CLI modules
 # are added by the slices that create or rewire them).
-_ROOT_IMPORTERS = frozenset({"src.evaluation.composition", "src.evaluation.runner", "src.evaluation.ollama_runner"})
+_ROOT_IMPORTERS = frozenset(
+    {
+        "src.evaluation.composition",
+        "src.evaluation.runner",
+        "src.evaluation.ollama_runner",
+        "src.evaluation.strategy_fixtures",
+    }
+)
+# The evaluation tier pairs each strategy's fixture composition with its core bundle. It may import the root
+# and the ``evaluation`` file of each strategy package, and only the generic evaluation modules listed here
+# import it. As for the root, an entry must exist and import the tier.
+_TIER = "src.evaluation.strategy_fixtures"
+_TIER_IMPORTERS = frozenset({"src.evaluation.composition"})
+# A strategy's ``evaluation`` file (and ``_graham/evaluation.py``) may import exactly these modules from
+# ``src.evaluation``: the fixture identifiers, the case-level context and its checks, and the fixture
+# providers. It never imports the composition, the tier, the catalog, the cases or the runners.
+_STRATEGY_EVALUATION_IMPORTS = frozenset({"src.evaluation.fixture_context", "src.evaluation.fixture_ids"})
+_FIXTURE_MODULE_PREFIX = "src.evaluation.fixtures."
 _TRANSITIONS = {
-    ("src.evaluation.composition", "src.strategies.fcf_growth.tool", "SWC.2d"),
-    ("src.evaluation.composition", "src.strategies.graham_growth.tool", "SWC.2d"),
-    ("src.evaluation.composition", "src.strategies.graham_number.tool", "SWC.2d"),
-    ("src.evaluation.composition", "src.strategies.momentum.tool", "SWC.2d"),
     ("src.evaluation.catalog", "src.strategies.fcf_growth.tool", "SWC.2d"),
     ("src.evaluation.catalog", "src.strategies.graham_growth.tool", "SWC.2d"),
     ("src.evaluation.catalog", "src.strategies.graham_number.tool", "SWC.2d"),
@@ -217,27 +230,59 @@ def _strategy_edge_error(source: str, target: str, strategies: frozenset[str]) -
     return None
 
 
+def _is_strategy_evaluation(source_parts: list[str]) -> bool:
+    """Return whether a module is the ``evaluation`` file of a strategy or family package."""
+    return len(source_parts) == 4 and source_parts[:2] == ["src", "strategies"] and source_parts[3] == "evaluation"
+
+
+def _strategy_evaluation_may_import(target: str) -> bool:
+    """Return whether a strategy's ``evaluation`` file may import ``target`` from ``src.evaluation``."""
+    return target in _STRATEGY_EVALUATION_IMPORTS or target.startswith(_FIXTURE_MODULE_PREFIX)
+
+
+def _boundary_error(
+    source: str, target: str, root_importers: frozenset[str], tier_importers: frozenset[str]
+) -> str | None:
+    """Report an import of ``tests``, of the root or the tier by a module not listed, or beyond the fixture modules."""
+    source_parts, target_parts = source.split("."), target.split(".")
+    if target_parts[0] == "tests":
+        return f"{source} imports tests module {target}"
+    if target == _ROOT and source not in root_importers:
+        return f"module imports the composition root: {source} -> {target}"
+    if target == _TIER and source not in tier_importers:
+        return f"module imports the evaluation tier: {source} -> {target}"
+    if (
+        _is_strategy_evaluation(source_parts)
+        and target_parts[:2] == ["src", "evaluation"]
+        and target != _TIER
+        and not _strategy_evaluation_may_import(target)
+    ):
+        return f"strategy evaluation file imports beyond the fixture modules: {source} -> {target}"
+    return None
+
+
 def _edge_violations(
     edges: set[tuple[str, str]],
     strategies: frozenset[str],
     transitions: set[tuple[str, str, str]] = _TRANSITIONS,
     root_importers: frozenset[str] = _ROOT_IMPORTERS,
+    tier_importers: frozenset[str] = _TIER_IMPORTERS,
 ) -> list[str]:
     """Check strategy boundaries, role order, the exact transition edges and imports of ``tests``."""
     errors: list[str] = []
     permitted = {(source, target) for source, target, _ in transitions}
     for source, target in sorted(edges):
         source_parts, target_parts = source.split("."), target.split(".")
-        if target_parts[0] == "tests":
-            errors.append(f"{source} imports tests module {target}")
-        elif target == _ROOT:
-            if source not in root_importers:
-                errors.append(f"module imports the composition root: {source} -> {target}")
+        if error := _boundary_error(source, target, root_importers, tier_importers):
+            errors.append(error)
         elif len(target_parts) < 3 or target_parts[:2] != ["src", "strategies"]:
             continue
         elif source == _ROOT:
             if target_parts[2] in strategies and _role(target_parts) not in _ROOT_ROLES:
                 errors.append(f"composition root imports a role it may not: {source} -> {target}")
+        elif source == _TIER:
+            if target_parts[2] not in strategies or _role(target_parts) != "evaluation":
+                errors.append(f"evaluation tier imports a role it may not: {source} -> {target}")
         elif len(source_parts) >= 3 and source_parts[:2] == ["src", "strategies"]:
             if error := _strategy_edge_error(source, target, strategies):
                 errors.append(error)
@@ -292,6 +337,18 @@ def _root_importer_violations(
     ]
 
 
+def _tier_importer_violations(
+    edges: set[tuple[str, str]], files: set[str], importers: frozenset[str] = _TIER_IMPORTERS
+) -> list[str]:
+    """Report each listed evaluation-tier importer that no longer exists or no longer imports the tier."""
+    return [
+        f"stale evaluation-tier importer entry: {importer} "
+        + ("does not exist" if importer not in files else "does not import the tier")
+        for importer in sorted(importers)
+        if (importer, _TIER) not in edges
+    ]
+
+
 def _root_cycle_violations(graph: dict[str, set[str]]) -> list[str]:
     """Report the composition root if it sits in any import cycle."""
     return [
@@ -310,6 +367,7 @@ def test_strategy_import_layering_and_parent_package_cycles() -> None:
         *_cycle_violations(graph, init_modules),
         *_root_cycle_violations(graph),
         *_root_importer_violations(edges, set(graph)),
+        *_tier_importer_violations(edges, set(graph)),
     ]
     assert not errors, "Import-layer violations:\n" + "\n".join(errors)
 
@@ -510,7 +568,7 @@ def test_t13_fails_when_the_root_is_in_an_import_cycle() -> None:
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_wiring_slice() -> None:
     """The twelve entries owned by the orchestration slice are gone; every remaining owner is a later slice."""
     assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.2d", "SWC.3a", "SWC.3b", "SWC.3c", "SWC.4c"}
-    assert len(_TRANSITIONS) == 32
+    assert len(_TRANSITIONS) == 28
 
 
 def test_t13_fails_for_a_root_importer_entry_that_is_missing_or_does_not_import_the_root() -> None:
@@ -523,3 +581,66 @@ def test_t13_fails_for_a_root_importer_entry_that_is_missing_or_does_not_import_
         "stale composition-root importer entry: src.cli_strategy_wiring does not exist",
     ]
     assert _root_importer_violations(edges, files, frozenset({"src.evaluation.runner"})) == []
+
+
+def test_t13_restricts_the_importers_of_the_evaluation_tier() -> None:
+    """Only the listed generic evaluation modules import the tier; nothing else does."""
+    listed = frozenset({"src.evaluation.composition"})
+    allowed = {("src.evaluation.composition", _TIER)}
+    assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set(), tier_importers=listed) == []
+    importers = ("src.cli", "src.evaluation.catalog", "src.strategies.momentum.cli")
+    forbidden = {(importer, _TIER) for importer in importers}
+    assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set(), tier_importers=listed) == [
+        f"module imports the evaluation tier: {importer} -> {_TIER}" for importer in importers
+    ]
+
+
+def test_t13_fails_for_a_tier_importer_entry_that_is_missing_or_does_not_import_the_tier() -> None:
+    """Every listed tier importer must exist and import the tier, so an entry cannot outlive its import."""
+    entries = frozenset({"src.evaluation.composition", "src.evaluation.gone", "src.evaluation.catalog"})
+    edges = {("src.evaluation.composition", _TIER), ("src.evaluation.catalog", "src.core.strategy_errors")}
+    files = {"src.evaluation.composition", "src.evaluation.catalog"}
+    assert _tier_importer_violations(edges, files, entries) == [
+        "stale evaluation-tier importer entry: src.evaluation.catalog does not import the tier",
+        "stale evaluation-tier importer entry: src.evaluation.gone does not exist",
+    ]
+    assert _tier_importer_violations(edges, files, frozenset({"src.evaluation.composition"})) == []
+
+
+def test_t13_permits_the_tier_to_import_only_the_root_and_strategy_evaluation_files() -> None:
+    """The tier imports the root and a strategy's evaluation file; no other role and not the family package."""
+    package = "src.strategies.momentum"
+    ok = {(_TIER, _ROOT), (_TIER, f"{package}.evaluation")}
+    assert _edge_violations(ok, _SAMPLE_STRATEGIES, set()) == []
+    bad = {(_TIER, f"{package}.tool"), (_TIER, f"{package}.analyzer"), (_TIER, "src.strategies._graham.evaluation")}
+    assert _edge_violations(bad, _SAMPLE_STRATEGIES, set()) == [
+        f"evaluation tier imports a role it may not: {_TIER} -> {target}"
+        for target in ("src.strategies._graham.evaluation", f"{package}.analyzer", f"{package}.tool")
+    ]
+
+
+def test_t13_limits_what_a_strategy_evaluation_file_imports_from_the_evaluation_package() -> None:
+    """A strategy's evaluation file (and the family's) imports the fixture modules and context, nothing else."""
+    for source in ("src.strategies.momentum.evaluation", "src.strategies._graham.evaluation"):
+        allowed = {
+            (source, "src.evaluation.fixture_context"),
+            (source, "src.evaluation.fixture_ids"),
+            (source, "src.evaluation.fixtures.graham"),
+            (source, "src.evaluation.fixtures.market_data"),
+        }
+        assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set()) == []
+        forbidden = [
+            "src.evaluation",
+            "src.evaluation.cases.momentum",
+            "src.evaluation.catalog",
+            "src.evaluation.composition",
+            "src.evaluation.fixtures",
+            "src.evaluation.models",
+            "src.evaluation.runner",
+        ]
+        assert _edge_violations({(source, target) for target in forbidden}, _SAMPLE_STRATEGIES, set()) == [
+            f"strategy evaluation file imports beyond the fixture modules: {source} -> {target}" for target in forbidden
+        ]
+    assert _edge_violations({("src.strategies.momentum.evaluation", _TIER)}, _SAMPLE_STRATEGIES, set()) == [
+        f"module imports the evaluation tier: src.strategies.momentum.evaluation -> {_TIER}"
+    ]
