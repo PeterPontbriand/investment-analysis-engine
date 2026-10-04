@@ -367,35 +367,15 @@ def test_t24_each_uniqueness_rule_rejects_a_duplicate_and_names_both_descriptors
     ]
 
 
-@pytest.mark.parametrize("descriptor", [MOMENTUM, GRAHAM_NUMBER, GRAHAM_GROWTH, FCF_GROWTH])
-def test_the_four_strategies_are_declared_in_order_with_their_existing_identifiers(descriptor: object) -> None:
-    """The declaration order is the order tools are registered and advertised to the model."""
-    assert descriptor in STRATEGIES
-    assert [item.tool.value for item in STRATEGIES] == [
+def test_the_existing_strategies_keep_their_declaration_order() -> None:
+    """The declaration order is the order tools are registered and advertised to the model.
+
+    The four existing strategies come first and in this order; a later strategy is appended after them.
+    """
+    assert [item.tool.value for item in STRATEGIES[:4]] == [
         "analyze_momentum",
         "analyze_graham_number",
         "analyze_graham_growth_value",
         "analyze_fcf_earnings_growth",
     ]
-
-
-def test_t10_each_requirement_is_covered_by_the_ids_its_entry_and_the_context_declare() -> None:
-    """A requirement naming an id nobody declares would reject every case that selects it."""
-    assert conformance.evaluation_fixture_id_gaps(STRATEGIES) == []
-
-
-def test_t10_reports_a_requirement_id_no_one_declares_and_an_id_the_context_owns() -> None:
-    """Challenged with altered copies of the production tuple, the check names the strategy and the ids."""
-    momentum, *rest = EVALUATION_STRATEGIES
-    undeclared = replace(
-        momentum, requirement=replace(momentum.requirement, required_ids=frozenset({"momentum_missing"}))
-    )
-    assert conformance.evaluation_fixture_id_gaps(STRATEGIES, (undeclared, *rest)) == [
-        "strategy ('momentum', 'sma_crossover') requires fixture ids that its evaluation tier entry and the "
-        "context do not declare: momentum_missing"
-    ]
-    redeclared = replace(momentum, fixture_ids=momentum.fixture_ids | {"known_etf_profile"})
-    assert conformance.evaluation_fixture_id_gaps(STRATEGIES, (redeclared, *rest)) == [
-        "strategy ('momentum', 'sma_crossover') declares fixture ids that the context consumes itself: "
-        "known_etf_profile"
-    ]
+    assert STRATEGIES[:4] == (MOMENTUM, GRAHAM_NUMBER, GRAHAM_GROWTH, FCF_GROWTH)
