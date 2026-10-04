@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Literal
 from uuid import UUID
 
 import pytest
@@ -11,14 +10,22 @@ import pytest
 from src.core.analysis_status import CalculationStatus
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
-from src.evaluation.cases.graham_number import GRA_ETF_01, GRAHAM_NUMBER_CASES, GRN_01, GRN_02, GRN_03
+from src.evaluation.cases.graham_number import (
+    GRA_ETF_01,
+    GRAHAM_NUMBER_ARGUMENTS,
+    GRAHAM_NUMBER_CASES,
+    GRN_01,
+    GRN_02,
+    GRN_03,
+    GRN_04,
+    GRN_05,
+)
 from src.evaluation.composition import dispatch_fixture_case
 from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.tool_names import ToolName
 from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategies.graham_number.tool import GrahamNumberToolArguments
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("70000000-0000-0000-0000-000000000007")
@@ -44,16 +51,9 @@ def _recorder() -> TrajectoryRecorder:
     return TrajectoryRecorder(RunContext(run_id=RUN_ID, session_id=SESSION_ID), RecordingSink())
 
 
-def _arguments(case: Case) -> GrahamNumberToolArguments:
-    """Build reviewed Graham Number arguments for one catalog case."""
-    eps_basis: Literal["three_year_average", "ttm"] = "ttm" if case.case_id == "GRN-02" else "three_year_average"
-    ticker = "FLSW" if case.case_id == "GRA-ETF-01" else "MISSING_QUOTE" if case.case_id == "GRN-03" else "SYNTH"
-    return GrahamNumberToolArguments(ticker=ticker, eps_basis=eps_basis)
-
-
 def _request(case: Case) -> DeterministicCaseRequest:
     """Pair one reviewed case with its reviewed production arguments."""
-    return DeterministicCaseRequest(case=case, arguments=_arguments(case))
+    return DeterministicCaseRequest(case=case, arguments=GRAHAM_NUMBER_ARGUMENTS[case.case_id])
 
 
 def _component(result: CaseEvaluationResult, kind: ComponentKind) -> ComponentResult:
@@ -80,14 +80,22 @@ def test_reviewed_graham_number_catalog_is_explicit(
     assert case.fixture_ids == (fixture_id,)
     assert case.expectation.tool_constraints.permitted == (ToolName.ANALYZE_GRAHAM_NUMBER,)
     assert case.expectation.tool_constraints.required == (ToolName.ANALYZE_GRAHAM_NUMBER,)
-    arguments = _arguments(case)
+    arguments = GRAHAM_NUMBER_ARGUMENTS[case.case_id]
     assert arguments.ticker == ticker
     assert arguments.eps_basis == eps_basis
 
 
-def test_reviewed_graham_number_catalog_contains_only_the_four_cases() -> None:
-    """G2 contributes exactly the reviewed Graham Number IDs in dossier order."""
-    assert tuple(case.case_id for case in GRAHAM_NUMBER_CASES) == ("GRN-01", "GRN-02", "GRA-ETF-01", "GRN-03")
+def test_reviewed_graham_number_catalog_contains_every_graham_number_case() -> None:
+    """The module lists the four G2 cases and the two resolution cases, in definition order."""
+    assert tuple(case.case_id for case in GRAHAM_NUMBER_CASES) == (
+        "GRN-01",
+        "GRN-02",
+        "GRA-ETF-01",
+        "GRN-03",
+        "GRN-04",
+        "GRN-05",
+    )
+    assert GRAHAM_NUMBER_CASES[4:] == (GRN_04, GRN_05)
     assert "three-completed-fiscal-year" in GRN_01.description
     assert "TTM fact" in GRN_02.description
     assert "not applicable directly" in GRA_ETF_01.description
@@ -110,7 +118,7 @@ def test_reviewed_graham_number_catalog_contains_only_the_four_cases() -> None:
 
 @pytest.mark.asyncio
 async def test_reviewed_graham_number_cases_run_deterministically_and_pass() -> None:
-    """All four reviewed cases pass through fixture composition and deterministic evaluation."""
+    """Every Graham Number case passes through fixture composition and deterministic evaluation."""
     report = await run_deterministic_suite(
         tuple(_request(case) for case in GRAHAM_NUMBER_CASES),
         suite_id="step-2.5-graham-number-g2",
@@ -120,8 +128,8 @@ async def test_reviewed_graham_number_cases_run_deterministically_and_pass() -> 
         recorder=_recorder(),
     )
 
-    assert report.total_cases == 4
-    assert report.passed_cases == 4
+    assert report.total_cases == len(GRAHAM_NUMBER_CASES) == 6
+    assert report.passed_cases == 6
     assert report.failed_cases == 0
     assert report.overall_pass_rate == 1.0
     assert all(result.outcome is CaseOutcome.PASS for result in report.case_results)
@@ -137,7 +145,7 @@ async def test_reviewed_graham_number_cases_run_deterministically_and_pass() -> 
 @pytest.mark.parametrize("case", [GRN_01, GRN_02, GRN_03, GRA_ETF_01])
 async def test_reviewed_graham_number_native_outcomes_are_exact(case: Case) -> None:
     """Native status, basis, price-comparison, and applicability outcomes match the dossier."""
-    dispatch_result = await dispatch_fixture_case(case, _arguments(case), clock_at=EXECUTED_AT)
+    dispatch_result = await dispatch_fixture_case(case, GRAHAM_NUMBER_ARGUMENTS[case.case_id], clock_at=EXECUTED_AT)
     assert isinstance(dispatch_result.result, GrahamNumberAnalysis)
     analysis = dispatch_result.result
 

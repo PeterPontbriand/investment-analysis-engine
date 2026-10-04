@@ -48,8 +48,8 @@ document-link check and applicable documentation checks.
 | SWC.2a | [Relocate the existing strategy modules into one package per strategy](#swc2a--strategy-packages) | Complete | 2026-10-04 |
 | SWC.2b | [Move the symbols the descriptor and tiers will reference](#swc2b--symbol-moves) | Complete | 2026-10-04 |
 | SWC.2c | [Declare the descriptor; wire orchestration and evaluation routing](#swc2c--descriptor-and-orchestration-wiring) | Complete | 2026-10-04 |
-| SWC.2d | [Move fixture composition into the evaluation tier](#swc2d--evaluation-tier) | Next | |
-| SWC.3a | [Inject the descriptor into workspace consumers](#swc3a--workspace-consumers) | Planned | |
+| SWC.2d | [Move fixture composition into the evaluation tier](#swc2d--evaluation-tier) | Complete | 2026-10-04 |
+| SWC.3a | [Inject the descriptor into workspace consumers](#swc3a--workspace-consumers) | Next | |
 | SWC.3b | [CLI tier: selection builders and refresh executors](#swc3b--cli-tier) | Planned | |
 | SWC.3c | [Move the direct commands into strategy files](#swc3c--direct-commands) | Planned | |
 | SWC.4a | [Typed failure envelope and schema generator](#swc4a--failure-envelope-and-schema-generator) | Planned | |
@@ -314,7 +314,8 @@ composition into the evaluation tier.
   closed tuple `EVALUATION_STRATEGIES` in `src/evaluation/strategy_fixtures.py` pairs each with its core
   bundle by dependency type. Fixture truth stays hand-written and reviewed. The catalog's case tuple and
   suite version stay explicit.
-- **Scope:** new `src/evaluation/{strategy_fixtures,fixture_context,fixture_ids}.py`,
+- **Scope:** new `src/evaluation/{strategy_fixtures,fixture_context}.py` (each fixture identifier is defined in
+  the fixture module of its evidence),
   `src/strategies/<strategy>/evaluation.py` and `src/strategies/_graham/evaluation.py`;
   `src/evaluation/{composition,catalog}.py`; the case modules (each case's reviewed arguments move beside
   it); tests and T10's evaluation-tier surface; removes its eight T13 transition entries. Every case module
@@ -585,9 +586,9 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **No output change:** the direct-command output test passes unchanged in every later slice that claims no
   output change. A slice that changes output regenerates the stored files in the same change, and the diff to
   them is what the review approves.
-- **Edit sites:** adding a strategy takes the 18 sites in the design's edit-site table, in 21 files across 8
-  directories, six of them existing files; five of those are edited by the generator, and the sixth (the catalog) is reviewed
-  truth.
+- **Edit sites:** adding a strategy takes the 18 sites in the design's edit-site table, in 22 files across 9
+  directories, seven of them existing files; five of those are edited by the generator, and the other two (the catalog
+  and its test) are reviewed truth.
 - **Contributor tooling:** one site data file is the source of the guide's table, the status command, the
   generator and the specimen's completeness test; the status command and the conformance tests share their
   check bodies; the generator writes wiring only and refuses to overwrite; a test runs it in a temporary
@@ -787,7 +788,7 @@ injected is acyclic and changes no layering rule. The project owner decided:
 - **Schedule the locality moves** in the slice that owns each; none is deferred.
 - **Fix the package-initialization cycle** in SWC.2a by emptying `src/workspace/__init__.py`, and make the
   layering test count parent packages.
-- **Reduce the edit sites** to 18, in 21 files of which six already exist: commands in strategy files, an
+- **Reduce the edit sites** to 18, in 22 files of which seven already exist: commands in strategy files, an
   evaluation tier, per-strategy dependency classes, one types file and the shared arguments base class in
   place of the union. The catalog's case tuple and suite version stay by hand because they are reviewed
   truth; `ToolName` stays a separate leaf for layering.

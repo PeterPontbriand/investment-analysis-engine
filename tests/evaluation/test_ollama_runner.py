@@ -356,8 +356,9 @@ async def test_empirical_runner_records_model_failure_as_execution_failure() -> 
     assert factory.sinks[0].closed is True
 
 
-# SHA-256 of the serialized tool schemas as produced before the descriptor declared them. The prompt and the
-# recorded ``tool_schemas_sha256`` must not change when the same four contracts are declared elsewhere.
+# SHA-256 of the serialized schemas of the four existing tools as produced before the descriptor declared them.
+# The prompt must not change for these four contracts when they are declared elsewhere; a strategy appended
+# after them adds its own schema and leaves this hash alone.
 _PRE_DESCRIPTOR_TOOL_SCHEMAS_SHA256 = "ce7d879a55d3e1670730d26cbc39325217642e1581753306edbf4d45b6c23a43"
 
 
@@ -367,7 +368,8 @@ def test_tool_schemas_are_the_four_declared_contracts_in_declaration_order() -> 
     tools = json.loads(serialized)["tools"]
     assert [tool["name"] for tool in tools] == [tool.value for tool in ToolName]
     assert all(tool["parameters"]["additionalProperties"] is False for tool in tools)
-    assert hashlib.sha256(serialized.encode("utf-8")).hexdigest() == _PRE_DESCRIPTOR_TOOL_SCHEMAS_SHA256
+    existing = json.dumps({"tools": tools[:4]}, sort_keys=True, separators=(",", ":"))
+    assert hashlib.sha256(existing.encode("utf-8")).hexdigest() == _PRE_DESCRIPTOR_TOOL_SCHEMAS_SHA256
 
 
 def test_tool_parser_accepts_exactly_the_declared_tool_names() -> None:

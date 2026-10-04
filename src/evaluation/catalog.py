@@ -2,47 +2,33 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime
+from types import MappingProxyType
 from typing import Final
 
 from src.core.telemetry import TrajectoryRecorder
-from src.evaluation.cases import (
-    FCF_01,
-    FCF_02,
-    FCF_03,
-    FCF_ETF_01,
-    FPI_01,
-    FPI_02,
-    FPI_03,
-    FPI_04,
+from src.evaluation.cases.fcf_growth import FCF_01, FCF_02, FCF_03, FCF_ETF_01, FCF_GROWTH_ARGUMENTS, FPI_03
+from src.evaluation.cases.graham_growth import FPI_01, FPI_02, FPI_04, GRAHAM_GROWTH_ARGUMENTS, GRG_01, GRG_ETF_01
+from src.evaluation.cases.graham_number import (
     GRA_ETF_01,
-    GRG_01,
-    GRG_ETF_01,
+    GRAHAM_NUMBER_ARGUMENTS,
     GRN_01,
     GRN_02,
     GRN_03,
     GRN_04,
     GRN_05,
+)
+from src.evaluation.cases.momentum import (
+    MOMENTUM_ARGUMENTS,
     MOMENTUM_BOUNDARY_CASE,
     MOMENTUM_ETF_CASE,
     MOMENTUM_SUCCESS_CASE,
 )
-from src.evaluation.fixtures.fcf_earnings_growth import FCF_GROWTH_HISTORICAL_AS_OF
-from src.evaluation.fixtures.graham import (
-    GOLDEN_HISTORICAL_AS_OF,
-    GOLDEN_PRECEDENCE_EPS_OVERRIDE,
-    NOW,
-    SECURITY_ID,
-)
-from src.evaluation.fixtures.market_data import MOMENTUM_LONG_WINDOW, MOMENTUM_RSI_PERIOD, MOMENTUM_SHORT_WINDOW
 from src.evaluation.models import Case
 from src.evaluation.reporting import EvaluationReport
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
-from src.strategies.fcf_growth.models import HistoricalHorizon
-from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
-from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
-from src.strategies.graham_number.tool import GrahamNumberToolArguments
-from src.strategies.momentum.tool import MomentumToolArguments
+from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 
 DETERMINISTIC_SUITE_ID: Final = "step-2.5-golden-minimum"
 DETERMINISTIC_SUITE_VERSION: Final = "h1-v4"
@@ -71,9 +57,38 @@ DETERMINISTIC_CASES: Final[tuple[Case, ...]] = (
 )
 
 
+def _merge_arguments(*tables: Mapping[str, AnalysisToolArguments]) -> Mapping[str, AnalysisToolArguments]:
+    """Combine the case modules' reviewed arguments, rejecting a case id that two modules both claim."""
+    merged: dict[str, AnalysisToolArguments] = {}
+    for table in tables:
+        for case_id, arguments in table.items():
+            if case_id in merged:
+                raise ValueError(f"Case {case_id!r} has reviewed arguments in more than one case module.")
+            merged[case_id] = arguments
+    return MappingProxyType(merged)
+
+
+_REVIEWED_ARGUMENTS: Final = _merge_arguments(
+    MOMENTUM_ARGUMENTS,
+    GRAHAM_NUMBER_ARGUMENTS,
+    GRAHAM_GROWTH_ARGUMENTS,
+    FCF_GROWTH_ARGUMENTS,
+)
+
+
+def _reviewed_arguments(case: Case) -> AnalysisToolArguments:
+    """Return the reviewed production arguments one case module declares for ``case``."""
+    try:
+        return _REVIEWED_ARGUMENTS[case.case_id]
+    except KeyError:
+        raise ValueError(f"Case {case.case_id!r} is not part of the canonical deterministic catalog.") from None
+
+
 def build_deterministic_requests() -> tuple[DeterministicCaseRequest, ...]:
     """Build the exact production arguments for all nineteen reviewed cases."""
-    return tuple(DeterministicCaseRequest(case=case, arguments=_arguments(case)) for case in DETERMINISTIC_CASES)
+    return tuple(
+        DeterministicCaseRequest(case=case, arguments=_reviewed_arguments(case)) for case in DETERMINISTIC_CASES
+    )
 
 
 async def run_minimum_deterministic_suite(
@@ -90,62 +105,6 @@ async def run_minimum_deterministic_suite(
         executed_at=executed_at,
         recorder=recorder,
     )
-
-
-def _arguments(  # noqa: PLR0911
-    case: Case,
-) -> (
-    MomentumToolArguments | GrahamNumberToolArguments | GrahamGrowthValueToolArguments | FCFEarningsGrowthToolArguments
-):
-    """Return the reviewed strict production arguments for one canonical case."""
-    if case.case_id in {"MOM-01", "MOM-02", "MOM-ETF-01"}:
-        return MomentumToolArguments(
-            ticker="FLSW" if case.case_id == "MOM-ETF-01" else "MOM",
-            short_window=MOMENTUM_SHORT_WINDOW,
-            long_window=MOMENTUM_LONG_WINDOW,
-            rsi_period=MOMENTUM_RSI_PERIOD,
-        )
-    if case.case_id in {"GRN-01", "GRN-02", "GRA-ETF-01", "GRN-03"}:
-        return GrahamNumberToolArguments(
-            ticker=(
-                "FLSW" if case.case_id == "GRA-ETF-01" else "MISSING_QUOTE" if case.case_id == "GRN-03" else SECURITY_ID
-            ),
-            eps_basis="ttm" if case.case_id == "GRN-02" else "three_year_average",
-        )
-    if case.case_id in {"GRG-01", "GRG-ETF-01"}:
-        return GrahamGrowthValueToolArguments(
-            ticker="FLSW" if case.case_id == "GRG-ETF-01" else SECURITY_ID,
-            eps_basis="ttm",
-            expected_growth=6.5,
-            current_aaa_yield=4.15,
-        )
-    if case.case_id == "GRN-04":
-        return GrahamNumberToolArguments(
-            ticker=SECURITY_ID,
-            as_of=NOW,
-            eps_override=GOLDEN_PRECEDENCE_EPS_OVERRIDE,
-        )
-    if case.case_id == "GRN-05":
-        return GrahamNumberToolArguments(ticker=SECURITY_ID, as_of=GOLDEN_HISTORICAL_AS_OF)
-    if case.case_id in {"FCF-01", "FCF-02", "FCF-03", "FCF-ETF-01"}:
-        return FCFEarningsGrowthToolArguments(
-            ticker="FLSW" if case.case_id == "FCF-ETF-01" else "ACME",
-            historical_horizon=(
-                HistoricalHorizon.FOUR_YEARS if case.case_id == "FCF-03" else HistoricalHorizon.LONGEST_AVAILABLE
-            ),
-            as_of=FCF_GROWTH_HISTORICAL_AS_OF if case.case_id == "FCF-03" else None,
-        )
-    if case.case_id in {"FPI-01", "FPI-02", "FPI-04"}:
-        return GrahamGrowthValueToolArguments(
-            ticker={"FPI-01": "ASML", "FPI-02": "NTR", "FPI-04": "NVO"}[case.case_id],
-            eps_basis="fiscal_year",
-            expected_growth=6.5,
-            current_aaa_yield=4.15,
-            current_price_override=100.0 if case.case_id == "FPI-04" else None,
-        )
-    if case.case_id == "FPI-03":
-        return FCFEarningsGrowthToolArguments(ticker="SAP", currency="EUR")
-    raise ValueError(f"Case {case.case_id!r} is not part of the canonical deterministic catalog.")
 
 
 __all__ = [

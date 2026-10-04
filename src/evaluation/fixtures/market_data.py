@@ -11,6 +11,9 @@ import pandas as pd
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.market_data import HistoricalMarketData, MarketDataContext, latest_observation_date
 
+MOMENTUM_SUCCESS_FIXTURE_ID: Final = "momentum_success"
+MOMENTUM_BOUNDARY_FIXTURE_ID: Final = "momentum_boundary"
+
 MOMENTUM_SHORT_WINDOW: Final = 2
 MOMENTUM_LONG_WINDOW: Final = 3
 MOMENTUM_RSI_PERIOD: Final = 3

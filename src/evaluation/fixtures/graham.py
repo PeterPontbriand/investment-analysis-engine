@@ -29,6 +29,9 @@ from src.data.financial.facts import (
 )
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 
+GRAHAM_FACTS_FIXTURE_ID: Final = "graham_facts"
+GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID: Final = "graham_precedence_cache"
+
 # ---------------------------------------------------------------------------
 # Synthetic identity constants (NOT production mappings)
 # ---------------------------------------------------------------------------

@@ -15,7 +15,7 @@ import importlib
 import inspect
 import pkgutil
 import re
-from collections.abc import Callable, Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
@@ -27,7 +27,9 @@ from pydantic import BaseModel
 from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
 from src.core.strategy_errors import UndeclaredStrategyError
 from src.evaluation.catalog import DETERMINISTIC_CASES, build_deterministic_requests
-from src.evaluation.composition import compose_fixture_dependencies, dispatch_fixture_case
+from src.evaluation.composition import compose_fixture_dependencies, compose_fixture_dispatcher, dispatch_fixture_case
+from src.evaluation.fixture_context import CONTEXT_FIXTURE_IDS
+from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvalComposition, EvaluationStrategy
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.orchestrator.analysis_tools import register_analysis_tools
 from src.orchestrator.dispatcher import AsyncToolDispatcher
@@ -60,6 +62,12 @@ DESCRIPTOR_FIELDS: dict[str, object] = {
 
 BEHAVIOR_MEMBERS: frozenset[str] = frozenset({"result_type", "deps_type", "handler", "native_status"})
 """The documented members of a strategy's behavior bundle."""
+
+EVAL_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"requirement", "fixture_ids", "compose"})
+"""The documented members of a strategy's evaluation-tier composition."""
+
+EVALUATION_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "requirement", "fixture_ids", "compose"})
+"""The documented fields of an evaluation-tier entry: the paired core bundle and the erased composition."""
 
 VIEW_ACCESSORS: frozenset[str] = frozenset({"result_type", "native_status_of", "bind_handler"})
 """The behavior members that generic consumers can reach, through the erased view."""
@@ -261,6 +269,63 @@ def evaluation_coverage_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> lis
 
 
 # ---------------------------------------------------------------------------
+# T10: the evaluation tier covers every descriptor
+# ---------------------------------------------------------------------------
+
+
+def evaluation_tier_gaps(
+    descriptors: tuple[StrategyDescriptor, ...],
+    tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
+) -> list[str]:
+    """T10 (evaluation tier): every descriptor has exactly one tier entry, and every entry serves a descriptor.
+
+    An entry belongs to the descriptor whose core bundle it was paired with, so the tier and the descriptors are
+    compared as separate declarations: a strategy added to one only is reported by its identity.
+    """
+    gaps: list[str] = []
+    for item in descriptors:
+        entries = [entry for entry in tier if entry.behavior is item.behavior]
+        if not entries:
+            gaps.append(f"strategy {label(item)} is not wired in: evaluation tier")
+        elif len(entries) > 1:
+            gaps.append(f"strategy {label(item)} has {len(entries)} entries in the evaluation tier")
+    declared = {id(item.behavior) for item in descriptors}
+    gaps.extend(
+        "an evaluation tier entry is paired with a bundle that no descriptor holds"
+        for entry in tier
+        if id(entry.behavior) not in declared
+    )
+    return gaps
+
+
+def evaluation_fixture_id_gaps(
+    descriptors: tuple[StrategyDescriptor, ...],
+    tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
+) -> list[str]:
+    """T10 (evaluation tier ids): each requirement's identifiers are declared, and no entry redeclares the context's.
+
+    A requirement may name only identifiers its entry declares or the context consumes itself, so a case that
+    selects a required identifier is never rejected as unsupported, and an identifier has one declaring owner.
+    """
+    gaps: list[str] = []
+    for item in descriptors:
+        for entry in (entry for entry in tier if entry.behavior is item.behavior):
+            undeclared_ids = entry.requirement.required_ids - entry.fixture_ids - CONTEXT_FIXTURE_IDS
+            if undeclared_ids:
+                gaps.append(
+                    f"strategy {label(item)} requires fixture ids that its evaluation tier entry and the context "
+                    f"do not declare: {', '.join(sorted(undeclared_ids))}"
+                )
+            redeclared = entry.fixture_ids & CONTEXT_FIXTURE_IDS
+            if redeclared:
+                gaps.append(
+                    f"strategy {label(item)} declares fixture ids that the context consumes itself: "
+                    f"{', '.join(sorted(redeclared))}"
+                )
+    return gaps
+
+
+# ---------------------------------------------------------------------------
 # T11: undeclared inputs fail closed
 # ---------------------------------------------------------------------------
 
@@ -282,11 +347,66 @@ def _expect_undeclared(gaps: list[str], probe: str, action: Callable[[], object]
         gaps.append(f"{probe}: accepted an undeclared input")
 
 
-def undeclared_input_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
+def _evaluation_tier_probes(
+    gaps: list[str],
+    descriptors: tuple[StrategyDescriptor, ...],
+    tier: tuple[EvaluationStrategy, ...],
+) -> None:
+    """Record a gap unless a missing tier entry and another strategy's dependency object both fail closed."""
+    case = DETERMINISTIC_CASES[0]
+    for item in descriptors:
+        without = tuple(entry for entry in tier if entry.behavior is not item.behavior)
+        _expect_undeclared(
+            gaps,
+            f"compose_fixture_dependencies without the {item.tool.value} tier entry",
+            partial(compose_fixture_dependencies, case, clock_at=_FIXTURE_CLOCK, descriptors=descriptors, tier=without),
+            names=item.tool.value,
+        )
+    request = build_deterministic_requests()[0]
+    first = next((item for item in descriptors if item.tool is tool_for_arguments(request.arguments)), None)
+    if first is not None:
+        without_first = tuple(entry for entry in tier if entry.behavior is not first.behavior)
+        _expect_undeclared(
+            gaps,
+            f"dispatch_fixture_case without the {first.tool.value} tier entry",
+            lambda: asyncio.run(
+                dispatch_fixture_case(
+                    request.case,
+                    request.arguments,
+                    clock_at=_FIXTURE_CLOCK,
+                    descriptors=descriptors,
+                    tier=without_first,
+                )
+            ),
+            names=first.tool.value,
+        )
+    if len(tier) > 1:
+        paired, other = tier[0], tier[1]
+        mispaired = dataclasses.replace(paired, compose=other.compose)
+        _expect_undeclared(
+            gaps,
+            "compose_fixture_dispatcher with another strategy's dependency object",
+            partial(
+                compose_fixture_dispatcher,
+                case,
+                clock_at=_FIXTURE_CLOCK,
+                descriptors=descriptors,
+                tier=(mispaired, *tier[1:]),
+            ),
+        )
+
+
+def undeclared_input_gaps(
+    descriptors: tuple[StrategyDescriptor, ...],
+    tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
+) -> list[str]:
     """T11: every dispatcher rejects an input that matches no declared strategy, naming it."""
     gaps: list[str] = []
     indexes = build_indexes(descriptors)
-    fixtures = compose_fixture_dependencies(DETERMINISTIC_CASES[0], clock_at=_FIXTURE_CLOCK)
+    _evaluation_tier_probes(gaps, descriptors, tier)
+    fixtures = compose_fixture_dependencies(
+        DETERMINISTIC_CASES[0], clock_at=_FIXTURE_CLOCK, descriptors=descriptors, tier=tier
+    )
     dependencies = dict(fixtures.dependencies)
     runtime = fixtures.runtime
     _expect_undeclared(
@@ -424,6 +544,41 @@ def descriptor_is_closed_gaps() -> list[str]:
         behavior = STRATEGIES[0].behavior
         if not isinstance(behavior, StrategyBehavior) or not _is_frozen(behavior, "result_type"):
             gaps.append("StrategyBehavior is not frozen")
+    return gaps
+
+
+def evaluation_tier_is_closed_gaps(tier: Sequence[EvaluationStrategy] = EVALUATION_STRATEGIES) -> list[str]:
+    """T15 (evaluation tier): the composition and the tier entry have exactly the documented members."""
+    gaps: list[str] = []
+    members = {field.name for field in dataclasses.fields(EvalComposition)}
+    if members != EVAL_COMPOSITION_MEMBERS:
+        gaps.append(
+            f"evaluation composition members differ from the documented set: {sorted(members)} != "
+            f"{sorted(EVAL_COMPOSITION_MEMBERS)}"
+        )
+    fields = {field.name for field in dataclasses.fields(EvaluationStrategy)}
+    if fields != EVALUATION_ENTRY_FIELDS:
+        gaps.append(
+            f"evaluation tier entry fields differ from the documented set: {sorted(fields)} != "
+            f"{sorted(EVALUATION_ENTRY_FIELDS)}"
+        )
+    if len(getattr(EvalComposition, "__parameters__", ())) != 1:
+        gaps.append("EvalComposition does not take exactly one type parameter, the dependency type")
+    if getattr(EvaluationStrategy, "__parameters__", ()):
+        gaps.append("EvaluationStrategy is generic")
+    if EvaluationStrategy.__subclasses__() or EvalComposition.__subclasses__():
+        gaps.append("an evaluation tier type is subclassed")
+    if not isinstance(tier, tuple):
+        gaps.append("EVALUATION_STRATEGIES is not a tuple")
+    elif tier:
+        entry = tier[0]
+        if not _is_frozen(entry, "requirement"):
+            gaps.append("EvaluationStrategy is not frozen")
+        composition = EvalComposition(
+            requirement=entry.requirement, fixture_ids=entry.fixture_ids, compose=entry.compose
+        )
+        if not _is_frozen(composition, "requirement"):
+            gaps.append("EvalComposition is not frozen")
     return gaps
 
 

@@ -1,14 +1,20 @@
 """The reviewed minimum Momentum Golden-Suite cases."""
 
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Final
 
-from src.evaluation.composition import (
-    KNOWN_ETF_PROFILE_FIXTURE_ID,
+from src.evaluation.fixtures.instrument_profiles import KNOWN_ETF_PROFILE_FIXTURE_ID
+from src.evaluation.fixtures.market_data import (
     MOMENTUM_BOUNDARY_FIXTURE_ID,
+    MOMENTUM_LONG_WINDOW,
+    MOMENTUM_RSI_PERIOD,
+    MOMENTUM_SHORT_WINDOW,
     MOMENTUM_SUCCESS_FIXTURE_ID,
 )
 from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, NumericalExpectation, ToolConstraints
 from src.orchestrator.tool_names import ToolName
+from src.strategies.momentum.tool import MomentumToolArguments
 
 _MOMENTUM_TOOL_CONSTRAINTS: Final = ToolConstraints(
     permitted=(ToolName.ANALYZE_MOMENTUM,),
@@ -125,7 +131,32 @@ MOMENTUM_CASES: Final[tuple[Case, ...]] = (
     MOMENTUM_ETF_CASE,
 )
 
+MOMENTUM_ARGUMENTS: Final[Mapping[str, MomentumToolArguments]] = MappingProxyType(
+    {
+        "MOM-01": MomentumToolArguments(
+            ticker="MOM",
+            short_window=MOMENTUM_SHORT_WINDOW,
+            long_window=MOMENTUM_LONG_WINDOW,
+            rsi_period=MOMENTUM_RSI_PERIOD,
+        ),
+        "MOM-02": MomentumToolArguments(
+            ticker="MOM",
+            short_window=MOMENTUM_SHORT_WINDOW,
+            long_window=MOMENTUM_LONG_WINDOW,
+            rsi_period=MOMENTUM_RSI_PERIOD,
+        ),
+        "MOM-ETF-01": MomentumToolArguments(
+            ticker="FLSW",
+            short_window=MOMENTUM_SHORT_WINDOW,
+            long_window=MOMENTUM_LONG_WINDOW,
+            rsi_period=MOMENTUM_RSI_PERIOD,
+        ),
+    }
+)
+"""The reviewed production arguments of each Momentum case, keyed by case id."""
+
 __all__ = [
+    "MOMENTUM_ARGUMENTS",
     "MOMENTUM_BOUNDARY_CASE",
     "MOMENTUM_CASES",
     "MOMENTUM_ETF_CASE",
