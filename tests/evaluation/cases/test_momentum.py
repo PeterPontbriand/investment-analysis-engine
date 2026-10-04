@@ -12,6 +12,7 @@ from src.core.metric_result import MetricStatus, ReasonCode
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
 from src.evaluation.cases.momentum import (
+    MOMENTUM_ARGUMENTS,
     MOMENTUM_BOUNDARY_CASE,
     MOMENTUM_CASES,
     MOMENTUM_ETF_CASE,
@@ -68,16 +69,8 @@ def _recorder() -> TrajectoryRecorder:
 
 
 def _request(case: Case) -> DeterministicCaseRequest:
-    """Pair one reviewed Momentum case with its reviewed configuration."""
-    return DeterministicCaseRequest(
-        case=case,
-        arguments=MomentumToolArguments(
-            ticker="FLSW" if case.case_id == "MOM-ETF-01" else "MOM",
-            short_window=MOMENTUM_SHORT_WINDOW,
-            long_window=MOMENTUM_LONG_WINDOW,
-            rsi_period=MOMENTUM_RSI_PERIOD,
-        ),
-    )
+    """Pair one reviewed Momentum case with its reviewed arguments."""
+    return DeterministicCaseRequest(case=case, arguments=MOMENTUM_ARGUMENTS[case.case_id])
 
 
 def _component(result: CaseEvaluationResult, kind: ComponentKind) -> ComponentResult:

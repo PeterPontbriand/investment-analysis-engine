@@ -15,12 +15,12 @@ from src.evaluation.cases.fcf_growth import (
     FCF_02,
     FCF_03,
     FCF_ETF_01,
+    FCF_GROWTH_ARGUMENTS,
     FCF_GROWTH_CASES,
     FPI_03,
 )
 from src.evaluation.composition import dispatch_fixture_case
 from src.evaluation.evaluator import evaluate_tool_selection
-from src.evaluation.fixtures.fcf_earnings_growth import FCF_GROWTH_HISTORICAL_AS_OF
 from src.evaluation.models import (
     Case,
     ComponentKind,
@@ -36,12 +36,10 @@ from src.orchestrator.tool_names import ToolName
 from src.strategies.fcf_growth.models import (
     Classification,
     FCFEarningsGrowthResult,
-    HistoricalHorizon,
     MetricStatus,
     ReasonCode,
     TrendClassification,
 )
-from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("d0000000-0000-0000-0000-00000000000d")
@@ -65,21 +63,6 @@ class RecordingSink:
 def _recorder() -> TrajectoryRecorder:
     """Build a recorder with stable test identity."""
     return TrajectoryRecorder(RunContext(run_id=RUN_ID, session_id=SESSION_ID), RecordingSink())
-
-
-def _arguments(case: Case) -> FCFEarningsGrowthToolArguments:
-    """Build the reviewed arguments for one FCF case."""
-    return FCFEarningsGrowthToolArguments(
-        ticker="FLSW" if case.case_id == "FCF-ETF-01" else "ACME",
-        historical_horizon=(
-            HistoricalHorizon.FOUR_YEARS if case.case_id == "FCF-03" else HistoricalHorizon.LONGEST_AVAILABLE
-        ),
-        as_of=FCF_GROWTH_HISTORICAL_AS_OF if case.case_id == "FCF-03" else None,
-    )
-
-
-_G4_CASES = (FCF_01, FCF_02, FCF_03, FCF_ETF_01)
-"""The four reviewed FCF cases this module exercises; the module's tuple also holds the SEC FPI case."""
 
 
 def _component(result: CaseEvaluationResult, kind: ComponentKind) -> ComponentResult:
@@ -148,9 +131,12 @@ def test_fcf_case_discriminates_momentum_tool_selection() -> None:
 
 @pytest.mark.asyncio
 async def test_reviewed_fcf_cases_run_deterministically_with_expected_boundary_category() -> None:
-    """All four cases pass when their exact native domain outcomes match."""
+    """Every FCF case passes when its exact native domain outcomes match."""
     report = await run_deterministic_suite(
-        tuple(DeterministicCaseRequest(case=case, arguments=_arguments(case)) for case in _G4_CASES),
+        tuple(
+            DeterministicCaseRequest(case=case, arguments=FCF_GROWTH_ARGUMENTS[case.case_id])
+            for case in FCF_GROWTH_CASES
+        ),
         suite_id="step-2.5-fcf-g4",
         suite_version="g4-v1",
         fixture_set_version="step-2.5-b2-v1",
@@ -158,14 +144,15 @@ async def test_reviewed_fcf_cases_run_deterministically_with_expected_boundary_c
         recorder=_recorder(),
     )
 
-    assert report.total_cases == 4
-    assert report.passed_cases == 4
+    assert report.total_cases == len(FCF_GROWTH_CASES) == 5
+    assert report.passed_cases == 5
     assert report.failed_cases == 0
     assert tuple(result.case_id for result in report.case_results) == (
         "FCF-01",
         "FCF-02",
         "FCF-03",
         "FCF-ETF-01",
+        "FPI-03",
     )
     assert all(result.outcome is CaseOutcome.PASS for result in report.case_results)
     boundary = report.case_results[2]
@@ -179,7 +166,7 @@ async def test_reviewed_fcf_cases_run_deterministically_with_expected_boundary_c
 @pytest.mark.parametrize("case", [FCF_01, FCF_02, FCF_03])
 async def test_reviewed_fcf_native_outputs_match_dossier(case: Case) -> None:
     """Native statuses, metrics, classifications, and boundary reasons remain exact."""
-    dispatch_result = await dispatch_fixture_case(case, _arguments(case), clock_at=EXECUTED_AT)
+    dispatch_result = await dispatch_fixture_case(case, FCF_GROWTH_ARGUMENTS[case.case_id], clock_at=EXECUTED_AT)
     assert isinstance(dispatch_result.result, FCFEarningsGrowthResult)
     result = dispatch_result.result
 
@@ -231,7 +218,7 @@ async def test_reviewed_fcf_native_outputs_match_dossier(case: Case) -> None:
 @pytest.mark.asyncio
 async def test_reviewed_fcf_etf_native_outcome_is_not_applicable() -> None:
     """The ETF case completes normally without requesting company facts."""
-    dispatch_result = await dispatch_fixture_case(FCF_ETF_01, _arguments(FCF_ETF_01), clock_at=EXECUTED_AT)
+    dispatch_result = await dispatch_fixture_case(FCF_ETF_01, FCF_GROWTH_ARGUMENTS["FCF-ETF-01"], clock_at=EXECUTED_AT)
     assert isinstance(dispatch_result.result, FCFEarningsGrowthResult)
     result = dispatch_result.result
 
