@@ -127,9 +127,10 @@ def test_configured_sec_identity_composes_a_transport_with_the_stripped_identity
 def test_health_is_listed_among_the_commands_and_has_no_json_option() -> None:
     result = runner.invoke(app, ["health", "--help"])
 
+    help_text = normalize_cli_output(result.output)
     assert result.exit_code == 0
-    assert "--provider" in result.output
-    assert "--json" not in result.output
+    assert "--provider" in help_text
+    assert "--json" not in help_text
 
 
 _HUNG_ADAPTER_SCRIPT = textwrap.dedent(
