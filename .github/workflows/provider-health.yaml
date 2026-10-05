@@ -1,0 +1,68 @@
+name: Provider Health
+
+# Checks that Yahoo and SEC EDGAR still answer in the shape the adapters read. It makes real requests, so it is
+# separate from Continuous Integration, which never runs live tests. A failing run fails this workflow, and
+# GitHub notifies the repository owner. The date of the last scheduled run is the health signal: GitHub disables
+# scheduled workflows after 60 days without repository activity (see docs/project/PROVIDER_DEBUGGING.md).
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      selector:
+        description: "Optional pytest -k expression to run a subset, for example yahoo or sec_edgar"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  provider-health:
+    name: Check provider response shape
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      UV_PYTHON: "3.14"
+
+    steps:
+      - name: Check out Repository Code
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install Project and Dependencies
+        run: uv sync --frozen
+
+      - name: Run Live Provider Checks
+        shell: bash
+        env:
+          # The declared SEC identity is a repository secret and is never printed. When it is missing the
+          # SEC check fails with a "not configured" message; it is never skipped.
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          SELECTOR: ${{ inputs.selector }}
+        run: |
+          arguments=()
+          if [ -n "${SELECTOR}" ]; then
+            arguments+=(-k "${SELECTOR}")
+          fi
+          bash scripts/run-live-checks.sh "${arguments[@]}"
+
+      - name: Keep Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-health-results
+          path: .tmp/live-runs/**/live-results.xml
+          if-no-files-found: warn
+          retention-days: 90
