@@ -16,6 +16,7 @@ from src.analysis.base_analyzer import require_ticker
 from src.analysis.shared.financial_resolution import PriceComparison
 from src.cli_composition import build_graham_resolver, build_sec_production_provider, growth_assumptions
 from src.cli_database import app as database_app
+from src.cli_health import register as register_health_command
 from src.cli_support import (
     _canonical_provider_id,
     _default_history_start_date,
@@ -119,6 +120,7 @@ app = typer.Typer(
 )
 app.add_typer(database_app, name="db", hidden=True)
 register_workspace_commands(app)
+register_health_command(app)
 
 _MOMENTUM_CLI_DEFAULTS = MomentumConfig()
 
