@@ -30,7 +30,7 @@ before the next begins. A prose-only documentation slice follows the documentati
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| PH.1 | [Live suite, health command and scheduled run](#ph1--live-suite-health-command-and-scheduled-run) | In progress | |
+| PH.1 | [Live suite, health command and scheduled run](#ph1--live-suite-health-command-and-scheduled-run) | Complete | 2026-10-05 |
 | PH.2 | [Provider failure classification](#ph2--provider-failure-classification) | Planned | |
 | PH.3 | [Automatic canary and health JSON](#ph3--automatic-canary-and-health-json) | Planned | |
 
