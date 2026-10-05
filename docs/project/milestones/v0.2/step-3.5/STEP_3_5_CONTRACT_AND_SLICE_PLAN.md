@@ -293,10 +293,10 @@ Kept for the record. Nothing here is needed to understand what Step 3.5 does or 
 
 ### A.1 Milestone-plan entry condition
 
-Moved here from `IMPLEMENTATION_PLAN.md` row 14, which carries only status and date: this plan is
+Moved here from `IMPLEMENTATION_PLAN.md` row 15, which carries only status and date: this plan is
 accepted, but implementation waits for integration readiness (IR), strategy wiring consolidation
-(SWC), the dead code audit (R3), and the package rename (PKG). See the
-[milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status) for why those four run first.
+(SWC), the dead code audit (R3), provider health (PH) and the package rename (PKG). See the
+[milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status) for why those five run first.
 Module paths in this plan's detail documents use the current `src` layout; they follow PKG's rename.
 
 ### A.2 Strategy set expanded from five to seven (2026-09-30)
