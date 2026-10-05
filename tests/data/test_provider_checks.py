@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Callable, Iterator, Mapping
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pandas as pd
@@ -20,6 +22,9 @@ from src.data.provider_checks import (
     SecTransport,
     SecUnavailable,
     YahooCheckSpec,
+    _call_with_timeout,
+    _CheckFailureError,
+    _Deadline,
     check_sec_edgar,
     check_yfinance,
 )
@@ -29,6 +34,7 @@ from src.data.yfinance.client import YFinanceQuote
 _NOW = datetime(2026, 10, 5, tzinfo=UTC)
 _COLUMNS = ("Open", "High", "Low", "Close", "Volume")
 _SHORT_TIMEOUT = 0.2
+_DEADLINE = 0.9
 
 
 def _frame(columns: tuple[str, ...] = _COLUMNS, index: pd.Index | None = None) -> pd.DataFrame:
@@ -49,7 +55,11 @@ class _FakeYahoo:
         history: object | None = None,
         quote: float | Exception = 190.0,
         block: threading.Event | None = None,
+        history_delay: float = 0.0,
+        block_quote: threading.Event | None = None,
     ) -> None:
+        self.history_delay = history_delay
+        self.block_quote = block_quote
         self.history = _frame() if history is None else history
         self.quote = quote
         self.block = block
@@ -63,6 +73,7 @@ class _FakeYahoo:
         end_date: str | None = None,  # noqa: ARG002
     ) -> pd.DataFrame:
         self.history_calls.append((ticker, start_date))
+        time.sleep(self.history_delay)
         if self.block is not None:
             self.block.wait()
         if isinstance(self.history, Exception):
@@ -71,6 +82,8 @@ class _FakeYahoo:
 
     def fetch_current_quote(self, ticker: str) -> YFinanceQuote:
         self.quote_calls.append(ticker)
+        if self.block_quote is not None:
+            self.block_quote.wait()
         if isinstance(self.quote, Exception):
             raise self.quote
         return YFinanceQuote(price=self.quote, currency="USD")
@@ -152,6 +165,22 @@ def test_yahoo_quote_exception_fails_the_check() -> None:
     assert result.detail == "ValueError: no quote"
 
 
+def test_yahoo_timeout_is_a_deadline_for_the_whole_check() -> None:
+    release = threading.Event()
+    spec = replace(YAHOO_SPEC, timeout_seconds=_DEADLINE)
+    client = _FakeYahoo(history_delay=_DEADLINE * 2 / 3, block_quote=release)
+    try:
+        started = time.monotonic()
+        result = _yahoo(client, spec)
+        waited = time.monotonic() - started
+
+        assert result.detail == f"timed out after {_DEADLINE:g} s"
+        assert client.quote_calls == ["AAPL"]
+        assert waited < _DEADLINE * 1.5
+    finally:
+        release.set()
+
+
 def test_yahoo_hung_adapter_times_out_on_a_daemon_worker_thread() -> None:
     release = threading.Event()
     spec = YahooCheckSpec("AAPL", 30, _COLUMNS, _SHORT_TIMEOUT)
@@ -168,13 +197,25 @@ def test_yahoo_hung_adapter_times_out_on_a_daemon_worker_thread() -> None:
 
 
 class _FakeSec:
-    def __init__(self, documents: Mapping[str, object], block: threading.Event | None = None) -> None:
+    def __init__(
+        self,
+        documents: Mapping[str, object],
+        block: threading.Event | None = None,
+        first_delay: float = 0.0,
+        block_facts: threading.Event | None = None,
+    ) -> None:
         self.documents = documents
         self.block = block
+        self.first_delay = first_delay
+        self.block_facts = block_facts
         self.requests: list[tuple[str, Mapping[str, str]]] = []
 
     def __call__(self, url: str, *, headers: Mapping[str, str]) -> object:
         self.requests.append((url, headers))
+        if len(self.requests) == 1:
+            time.sleep(self.first_delay)
+        elif self.block_facts is not None:
+            self.block_facts.wait()
         if self.block is not None:
             self.block.wait()
         document = self.documents[url]
@@ -295,6 +336,31 @@ def test_sec_hung_adapter_times_out_on_a_daemon_worker_thread() -> None:
         assert all(thread.daemon for thread in workers)
     finally:
         release.set()
+
+
+def test_sec_timeout_is_a_deadline_for_the_whole_check() -> None:
+    release = threading.Event()
+    spec = replace(SEC_EDGAR_SPEC, timeout_seconds=_DEADLINE)
+    fetcher = _FakeSec(_documents(), first_delay=_DEADLINE * 2 / 3, block_facts=release)
+    try:
+        started = time.monotonic()
+        result = _sec(fetcher, spec)
+        waited = time.monotonic() - started
+
+        assert result.detail == f"timed out after {_DEADLINE:g} s"
+        assert len(fetcher.requests) == 2
+        assert waited < _DEADLINE * 1.5  # a fresh per-request allowance would wait about 1.67 x the deadline
+    finally:
+        release.set()
+
+
+def test_a_request_is_never_started_once_the_deadline_has_passed() -> None:
+    calls: list[str] = []
+
+    with pytest.raises(_CheckFailureError, match="timed out after 0 s"):
+        _call_with_timeout(lambda: calls.append("made"), _Deadline(0.0))
+
+    assert calls == []
 
 
 def test_sec_urls_match_the_adapter_constants() -> None:

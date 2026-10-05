@@ -32,8 +32,8 @@ and 1 otherwise; an unknown `--provider` value exits 2 and lists the valid ids.
 The wrappers write each run to its own new directory under the ignored `.tmp/live-runs/`, never delete earlier
 runs, and return pytest's exit status. The results file is `live-results.xml` in the run directory.
 
-A check that does not answer within its timeout (20 seconds per request) fails with `timed out after 20 s`; the
-process still exits normally.
+A check has a 20-second deadline for the whole check, not per request: each request gets the time remaining. A check
+that has not finished by then fails with `timed out after 20 s`, and the process still exits normally.
 
 The SEC check needs the declared identity in the `SEC_USER_AGENT` setting. When it is missing, the check fails with
 "SEC EDGAR access is not configured"; it is never skipped.
@@ -92,6 +92,11 @@ The check downloads about 30 days of daily history for the probe ticker and read
 | `history is empty` or `DataFetchError: No market data was returned` | Yahoo answered with nothing. Retry once and try a second ticker with `ian momentum`; a persistent empty answer for a liquid ticker points to a block or an upstream change. |
 | `quote last price is not a positive finite number` or a quote error | The quote read (`fast_info`) changed or was refused. Read `fetch_current_quote` in the same module. |
 | `timed out after 20 s` or a transport error | The network, a proxy, or throttling. |
+
+Until failure classification lands, a failed Yahoo check's detail cannot distinguish an unreachable service from no
+data. Offline, the check reports `No market data was returned` because yfinance returns an empty result instead of
+raising. Before concluding that Yahoo has no data, confirm the machine's connection (for example with a browser or
+`ian health --provider sec_edgar`, which does distinguish a transport error).
 
 Yahoo may throttle or block shared cloud addresses. If only the cloud run fails and `ian health` passes on your
 machine, the failure says little about what users see; see the fallback below.

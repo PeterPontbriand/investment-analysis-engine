@@ -5,7 +5,8 @@ of what comes back, never a value: the fields and columns an adapter reads are p
 The live test suite and the ``ian health`` command call the same functions, so a probe is written once.
 
 The adapter (or transport) and the monotonic clock are injected, so every body is testable against fakes. Each
-provider call runs in a daemon worker thread and the check stops waiting at the spec's timeout; the thread cannot
+provider call runs in a daemon worker thread, and the spec's timeout is a deadline for the whole check: each request
+is given the time remaining and the check never waits longer than the timeout in total. The thread cannot
 keep the process alive if the call never returns. A check never raises for a provider fault: it returns a failed
 :class:`ProviderCheckResult` whose detail names the missing field or the transport error.
 """
@@ -27,7 +28,7 @@ from src.data.http_json import JsonFetcher
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceQuote
 
-DEFAULT_TIMEOUT_SECONDS = 20.0  # Matches the transport timeout in src/data/http_json.py.
+DEFAULT_TIMEOUT_SECONDS = 20.0  # Whole-check deadline; equals the per-request transport timeout in http_json.py.
 MAX_REQUESTS_PER_CHECK = 3  # SEC fair-access and guarded-egress budget; a fourth request needs project-owner review.
 
 
@@ -129,8 +130,19 @@ class _CheckFailureError(Exception):
     """Internal: a shape mismatch or timeout, carrying the failure detail."""
 
 
-def _call_with_timeout[ResultT](call: Callable[[], ResultT], timeout_seconds: float) -> ResultT:
-    """Run *call* in a daemon thread and stop waiting at the timeout."""
+class _Deadline:
+    """The whole-check time budget: every request gets what remains of it, never a fresh allowance."""
+
+    def __init__(self, timeout_seconds: float) -> None:
+        self.timeout_seconds = timeout_seconds
+        self._expires_at = time.monotonic() + timeout_seconds
+
+    def remaining(self) -> float:
+        return max(0.0, self._expires_at - time.monotonic())
+
+
+def _call_with_timeout[ResultT](call: Callable[[], ResultT], deadline: _Deadline) -> ResultT:
+    """Run *call* in a daemon thread and stop waiting when the check's deadline passes."""
     results: list[ResultT] = []
     errors: list[Exception] = []
 
@@ -140,11 +152,14 @@ def _call_with_timeout[ResultT](call: Callable[[], ResultT], timeout_seconds: fl
         except Exception as exc:
             errors.append(exc)
 
+    timed_out = f"timed out after {deadline.timeout_seconds:g} s"
+    if deadline.remaining() <= 0:
+        raise _CheckFailureError(timed_out)
     thread = threading.Thread(target=worker, name="provider-check", daemon=True)
     thread.start()
-    thread.join(timeout_seconds)
+    thread.join(deadline.remaining())
     if thread.is_alive():
-        msg = f"timed out after {timeout_seconds:g} s"
+        msg = timed_out
         raise _CheckFailureError(msg)
     if errors:
         raise errors[0]
@@ -188,10 +203,11 @@ def check_yfinance(
     """Check that a short daily history and a current quote come back in the shape the adapter reads."""
 
     def body() -> None:
+        deadline = _Deadline(spec.timeout_seconds)
         start_date = (now() - timedelta(days=spec.history_days)).date().isoformat()
-        frame = _call_with_timeout(lambda: client.fetch_data(spec.probe_ticker, start_date), spec.timeout_seconds)
+        frame = _call_with_timeout(lambda: client.fetch_data(spec.probe_ticker, start_date), deadline)
         _require_history_shape(frame, spec)
-        quote = _call_with_timeout(lambda: client.fetch_current_quote(spec.probe_ticker), spec.timeout_seconds)
+        quote = _call_with_timeout(lambda: client.fetch_current_quote(spec.probe_ticker), deadline)
         price = quote.price
         if not math.isfinite(price) or price <= 0:
             msg = f"quote last price is not a positive finite number (received {price!r})"
@@ -227,13 +243,12 @@ def check_sec_edgar(
     def body() -> None:
         if isinstance(transport, SecUnavailable):
             raise _CheckFailureError(transport.detail)
+        deadline = _Deadline(spec.timeout_seconds)
         headers = {"User-Agent": transport.user_agent, "Accept": "application/json"}
-        ticker_map = _call_with_timeout(
-            lambda: transport.json_fetcher(spec.ticker_map_url, headers=headers), spec.timeout_seconds
-        )
+        ticker_map = _call_with_timeout(lambda: transport.json_fetcher(spec.ticker_map_url, headers=headers), deadline)
         cik = _probe_cik(ticker_map, spec)
         url = spec.company_facts_url.format(cik=cik)
-        company_facts = _call_with_timeout(lambda: transport.json_fetcher(url, headers=headers), spec.timeout_seconds)
+        company_facts = _call_with_timeout(lambda: transport.json_fetcher(url, headers=headers), deadline)
         _require_company_facts_shape(company_facts, spec)
 
     return _finish(SEC_PROVIDER_ID, sec_edgar_probe_description(spec), clock, body)
