@@ -82,6 +82,8 @@ bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"
 
 The wrappers run the same five gates with `uv run --no-sync` and isolate writable pytest, coverage, mypy, Ruff, and UV artifacts under a unique ignored `/.tmp/quality-runs/` directory. They are safe for concurrent managed-agent runs and contain no machine-specific repository path. Developers with normal user-directory access do not need the wrappers.
 
+The wrappers set `FORCE_COLOR=1` for the pytest step only, so CLI output carries the same ANSI styling as on CI runners. CLI help and output assertions must therefore go through `normalize_cli_output` (`tests/_cli_helpers.py`) rather than compare raw text.
+
 When local repair is required, the recommended order is:
 
 ```bash

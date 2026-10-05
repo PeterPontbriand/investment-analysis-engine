@@ -54,7 +54,8 @@ fi
 uv run --no-sync ruff check --no-cache .
 uv run --no-sync ruff format --check .
 uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" src tests scripts
-uv run --no-sync pytest \
+# Force colour for this step only so CLI output carries the same ANSI styling as CI runners.
+FORCE_COLOR=1 uv run --no-sync pytest \
     -o addopts= \
     -p no:cacheprovider \
     --cov=src \
