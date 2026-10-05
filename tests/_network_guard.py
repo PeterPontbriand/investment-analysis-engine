@@ -11,7 +11,8 @@ Two layers are needed because the project reaches the network two ways:
 
 Each blocked call raises at the call site and is also recorded, and the fixture re-raises at teardown, so the test
 still fails when production code catches the raised error. A test marked ``live_network`` is exempt from both
-guards; the marker is not registered or used yet.
+guards. The marker is registered, and the live tests are selected, by ``tests/_live_selection.py``; only the
+tests under ``tests/live/`` carry it.
 """
 
 from __future__ import annotations

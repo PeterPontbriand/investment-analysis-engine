@@ -5,9 +5,17 @@ from collections.abc import Generator
 
 import pytest
 
+from tests._live_selection import pytest_addoption, pytest_collection_modifyitems, pytest_configure
 from tests._network_guard import block_external_sockets, block_live_yahoo
 
-__all__ = ["block_external_sockets", "block_live_yahoo", "cleanup_logging_handlers"]
+__all__ = [
+    "block_external_sockets",
+    "block_live_yahoo",
+    "cleanup_logging_handlers",
+    "pytest_addoption",
+    "pytest_collection_modifyitems",
+    "pytest_configure",
+]
 
 
 @pytest.fixture(autouse=True)
