@@ -34,6 +34,11 @@ current codes:
   IR.2 itself removes dead code and the per-strategy dispatch shape both of those packages would
   otherwise have to audit or delete separately; see the
   [milestone-plan status history](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#a6-milestone-plan-status-history).
+- `PH` — short for "Provider Health"
+  ([contract](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md)): an opt-in live suite, scheduled run and
+  failure classification so that a broken or changed online service (Yahoo, SEC EDGAR) is visible to the
+  project owner from a scheduled run and to a user from the first line of the error message. PH.1 runs now;
+  PH.2 and PH.3 follow SWC.4a; all three finish before Step 3.5 begins.
 - `PKG` — the `src` → real top-level package rename ([plan](pkg/PKG_RENAME_PLAN.md)), split out of `IR`
   given its scale. Not `R4`, deliberately: that code is already used as a document-local
   requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted
@@ -66,9 +71,10 @@ sequencing meaning.
 | 10 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-01 |
 | 11 | [Repository-wide dead code audit (R3)](r3/R3_DEAD_CODE_AUDIT_PLAN.md) | Complete | 2026-10-01 |
 | 12 | [Strategy wiring consolidation (SWC)](swc/SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
-| 13 | [`src` package rename (PKG)](pkg/PKG_RENAME_PLAN.md) | Planned | |
-| 14 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
-| 15 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
+| 13 | [Provider health (PH)](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
+| 14 | [`src` package rename (PKG)](pkg/PKG_RENAME_PLAN.md) | Planned | |
+| 15 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
+| 16 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
 | Deferred | [ETF aggregation (P2-ETF)](#47a-p2--durable-instrument-profiles--etf-aggregate-fcf-growth) | Deferred | |
 | Deferred | [Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export)](deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Deferred | |
 | Deferred | [Prefix matching for Analysis Run/refresh IDs](deferred/DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Deferred | |
