@@ -49,7 +49,7 @@ the broad handlers PH.2 replaces are inventoried by file and symbol.
 - **Problem:** nothing tells anyone that Yahoo or SEC EDGAR changed; the suite is fully stubbed and a shape
   change surfaces only as a traceback.
 - **Decision:** opt-in `live_network` marker, shared check bodies, a text-only `ian health`, a daily and
-  on-demand run with kept results, an `AGENTS.md` amendment and a runbook.
+  on-demand run with kept results, an `AGENTS.md` amendment (at most three requests per check) and a runbook.
 - **Scope:** test configuration, `src/data/provider_checks.py`, `src/cli_health.py`, a workflow and wrappers,
   `AGENTS.md`, `docs/project/PROVIDER_DEBUGGING.md`; no adapter change.
 - **Branch:** `feat/ph-1-live-suite`, from `main`.

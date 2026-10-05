@@ -48,12 +48,15 @@ filer, a typed constant. Massive is not checked: its adapter is a placeholder wi
 ([inventory](PH2_HANDLER_INVENTORY.md#3-massive)).
 
 **Timeout.** Each body runs the adapter call in a worker thread and stops waiting at the spec's timeout,
-reporting a failed check "timed out after N s". A thread that cannot be interrupted ends with the process.
+reporting a failed check "timed out after N s". The worker is a daemon thread, so a call that never returns
+cannot keep the process alive: the command and the pytest session exit after a timed-out check.
 The default is 20 seconds, matching the transport timeout in `src/data/http_json.py`; PH.3's canary passes a
 shorter one. Making the timeout a parameter now means PH.3 adds a caller, not a second body.
 
-**Request budget.** At most three requests per check run (history, quote, and for SEC the map and one
-document), which respects SEC's fair-access limit and the project's guarded-egress rule.
+**Request budget.** At most three requests per check. Both checks make two today: Yahoo one history download
+and one quote read, SEC EDGAR the ticker map and one company-facts document. The cap respects SEC's fair-access
+limit and the project's guarded-egress rule, and a check that needs a fourth request needs project-owner
+review.
 
 ## 4. The `ian health` command
 
@@ -87,12 +90,13 @@ assert shape only. A failure prints the check's failure detail as the assertion 
 **Offline, in the default suite:**
 
 - Each check body against fake adapters: a well-formed response passes; each missing field or column fails and
-  names it; an adapter exception fails the check; a hung adapter times out with a short test timeout; elapsed
-  comes from the injected clock.
+  names it; an adapter exception fails the check; a hung adapter times out with a short test timeout and the worker is a daemon thread; elapsed comes
+  from the injected clock.
 - The selection hook, driven in a sub-session over a synthetic marked test: the default run deselects it,
   `--live` selects only marked tests, and a marked test is exempt from both guards while an unmarked one is not
   (the existing guard tests already cover the exemption; this one covers the hook).
-- `ian health`: all passing exits 0, one failing exits 1, `--provider` selects one, an unknown id exits 2, and
+- `ian health`: all passing exits 0, the process exits after a timed-out check (a subprocess run against a
+  fake adapter that never returns), one failing exits 1, `--provider` selects one, an unknown id exits 2, and
   the output has one line per provider. The adapters are injected fakes; no test calls a real service.
 - The command-table entry, when the T7 test exists.
 
@@ -132,9 +136,9 @@ GitHub disables scheduled workflows in a public repository after 60 days without
 disabled schedule produces no run and no failure, so silence would look like health. The runbook
 (`docs/project/PROVIDER_DEBUGGING.md`) tells the project owner:
 
-1. Treat the date of the last scheduled run as the health signal: open the workflow's run list in the Actions
-   tab at the start of each working session. A last scheduled run older than two days means the check is not
-   running.
+1. Treat the date of the last scheduled run as the health signal. When work resumes after a pause of several
+   weeks, open the workflow's run list in the Actions tab; a last scheduled run older than two days means the
+   check is not running.
 2. The Actions tab shows a banner on a disabled workflow stating that it was disabled for inactivity.
 3. Re-enable it with the **Enable workflow** button, or `gh workflow enable provider-health.yaml`, then start
    an on-demand run to confirm it executes.
@@ -147,7 +151,7 @@ disabled schedule produces no run and no failure, so silence would look like hea
 `docs/project/README.md` repeats the rule. PH.1 amends all three so none contradicts another while §0 is in
 force ([A.4](PH_CONTRACT_AND_SLICE_PLAN.md#a4-placement-of-the-policy-amendment)). The text is: *real provider
 calls are permitted only in tests marked `live_network`, which are excluded from the default run and the
-managed gate, make one bounded request per check, assert response shape and never values, and never log or
+managed gate, make at most three requests per check, assert response shape and never values, and never log or
 persist secrets.* Deterministic tests keep the existing prohibition unchanged. Outside `docs/project/` and
 `.github/`, the amendment uses no planning labels ([`AGENTS.md`](../../../../../AGENTS.md) §4).
 
