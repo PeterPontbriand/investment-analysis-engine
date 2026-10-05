@@ -11,7 +11,7 @@ Until Step 3.5 implementation begins, the project's priority is making the exist
 - The approved work package's plan defines the file scope; scope extensions within that plan's stated goals need no separate authorization.
 - An explicit, statically declared list of strategies with shared generic wiring is permitted where it removes per-strategy duplication. Discovery-based plugin loading and speculative frameworks remain prohibited.
 
-Unchanged during this period: no formula or classification changes (correctness issues go through the existing-strategy correctness process), no NaN/Inf, no network or LLM calls in tests, the full managed quality gate on every slice, and no AI/tool attribution. "Open items" are not an acceptable outcome of a design decision in this period; decide, or escalate to the project owner.
+Unchanged during this period: no formula or classification changes (correctness issues go through the existing-strategy correctness process), no NaN/Inf, no network or LLM calls in tests other than those marked `live_network`, which §3 permits under its conditions, the full managed quality gate on every slice, and no AI/tool attribution. "Open items" are not an acceptable outcome of a design decision in this period; decide, or escalate to the project owner.
 
 Remove this section when Step 3.5 implementation begins.
 
@@ -50,7 +50,7 @@ that must be preserved.
 - NEVER install dependencies or edit `pyproject.toml` / `uv.lock` without explicit user permission.
 - NEVER introduce `print()` statements, bare `except:`, or silently propagate NaN/Inf values in production code.
 - NEVER bury financial assumptions as unexplained magic constants in calculation bodies. Intentional defaults belong in typed configuration/models and must be documented.
-- NEVER make real external API or LLM calls during deterministic unit tests.
+- NEVER make real external API or LLM calls during deterministic unit tests. Real provider calls are permitted only in tests marked `live_network`, which are excluded from the default run and the managed gate, make at most three requests per check, assert response shape and never values, and never log or persist secrets.
 - NEVER leave partial files, placeholder comments, or truncated snippets.
 - NEVER delete or remove existing public interfaces or behavior unless the task explicitly requires it.
 - NEVER create a generic strategy/plugin/registry/factory hierarchy merely because two analyzers differ. Prefer existing `BaseAnalyzer`, tool dispatch, and dependency-injection patterns unless the active plan proves they are insufficient.
