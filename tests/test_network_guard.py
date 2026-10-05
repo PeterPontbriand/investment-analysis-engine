@@ -4,6 +4,8 @@ Each case runs a tiny inner test session that loads the real guard fixtures, so 
 as every other test sees them. No live call is made: the guards reject it before it leaves the process.
 """
 
+from pathlib import Path
+
 import pytest
 
 from tests._network_guard import is_loopback_address
@@ -11,6 +13,7 @@ from tests._network_guard import is_loopback_address
 pytest_plugins = ["pytester"]
 
 _INNER_CONFTEST = "from tests._network_guard import block_external_sockets, block_live_yahoo  # noqa: F401\n"
+_REPOSITORY_ROOT = Path(__file__).resolve().parent.parent.as_posix()
 _EXTERNAL_ADDRESS = "('203.0.113.1', 80)"
 
 
@@ -135,6 +138,103 @@ def test_explicit_socket_stub_overrides_the_guard(pytester: pytest.Pytester) -> 
     result.assert_outcomes(passed=1)
 
 
+def test_external_host_lookup_fails_the_test_before_a_dns_query_even_when_swallowed(
+    pytester: pytest.Pytester,
+) -> None:
+    result = _run(
+        pytester,
+        """
+        import socket
+        from urllib.request import urlopen
+
+        def test_lookup() -> None:
+            try:
+                socket.getaddrinfo("unstubbed.example.invalid", 443)
+            except Exception:
+                pass
+
+        def test_urllib_host_name() -> None:
+            try:
+                urlopen("http://unstubbed.example.invalid/", timeout=1)
+            except Exception:
+                pass
+        """,
+    )
+    result.assert_outcomes(passed=2, errors=2)
+    result.stdout.fnmatch_lines(["*socket.getaddrinfo*unstubbed.example.invalid*"])
+
+
+def test_loopback_and_literal_lookups_and_asyncio_stay_allowed(pytester: pytest.Pytester) -> None:
+    result = _run(
+        pytester,
+        """
+        import asyncio
+        import socket
+
+        def test_lookups() -> None:
+            assert socket.getaddrinfo("localhost", 80)
+            assert socket.getaddrinfo("127.0.0.1", 80)
+            assert socket.getaddrinfo(None, 80)
+
+        def test_event_loop_lookup() -> None:
+            async def lookup() -> None:
+                assert await asyncio.get_running_loop().getaddrinfo("localhost", 80)
+
+            asyncio.run(lookup())
+        """,
+    )
+    result.assert_outcomes(passed=2)
+
+
+def test_explicit_lookup_stub_overrides_the_guard(pytester: pytest.Pytester) -> None:
+    result = _run(
+        pytester,
+        """
+        import socket
+        from unittest.mock import patch
+
+        def test_stubbed() -> None:
+            with patch.object(socket, "getaddrinfo", return_value=[]):
+                assert socket.getaddrinfo("unstubbed.example.invalid", 443) == []
+        """,
+    )
+    result.assert_outcomes(passed=1)
+
+
+def test_live_network_marker_exempts_both_guards(pytester: pytest.Pytester) -> None:
+    pytester.makeini(
+        "[pytest]\nasyncio_default_fixture_loop_scope = function\n"
+        f"pythonpath = {_REPOSITORY_ROOT}\n"
+        "markers =\n    live_network: exempt from the guards\n"
+    )
+    pytester.makeconftest(_INNER_CONFTEST)
+    pytester.makepyfile(
+        """
+        import socket
+
+        import pytest
+
+        from src.data.yfinance import client
+
+        @pytest.mark.live_network
+        def test_marked() -> None:
+            assert not hasattr(client.yf, "blocked_calls")
+            assert "guarded" not in socket.socket.connect.__qualname__
+            assert "guarded" not in socket.socket.connect_ex.__qualname__
+            assert "guarded" not in socket.getaddrinfo.__qualname__
+
+        def test_unmarked() -> None:
+            try:
+                client.yf.download("ACME")
+            except Exception:
+                pass
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "no:cacheprovider", "--strict-markers")
+    result.assert_outcomes(passed=2, errors=1)
+    result.stdout.fnmatch_lines(["*ERROR at teardown of test_unmarked*"])
+
+
 @pytest.mark.parametrize(
     ("address", "expected"),
     [
@@ -142,6 +242,7 @@ def test_explicit_socket_stub_overrides_the_guard(pytester: pytest.Pytester) -> 
         (("::1", 80, 0, 0), True),
         (("localhost", 80), True),
         (("::ffff:127.0.0.1", 80), True),
+        (("::ffff:203.0.113.1", 80), False),
         ("/tmp/socket", True),
         (("203.0.113.1", 80), False),
         (("example.com", 443), False),

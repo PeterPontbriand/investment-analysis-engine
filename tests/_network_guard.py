@@ -5,8 +5,9 @@ Two layers are needed because the project reaches the network two ways:
 * yfinance performs its requests through ``curl_cffi``, which bypasses Python's ``socket`` module, so it is
   guarded at the only module that imports it (``src/data/yfinance/client.py``) by replacing its ``yf`` name.
 * ``urllib`` and ``httpx`` go through Python sockets, so ``socket.socket.connect`` and ``connect_ex`` are guarded for
-  every non-loopback address. Loopback (and ``AF_UNIX``) stays allowed: the Windows asyncio event loop connects a
-  local socket pair.
+  every non-loopback address, and ``socket.getaddrinfo`` is guarded for every non-loopback host name so the call
+  fails before a DNS lookup. Loopback (and ``AF_UNIX``) stays allowed: the Windows asyncio event loop connects a
+  local socket pair. IP literals are not looked up, so ``getaddrinfo`` lets them through and ``connect`` judges them.
 
 Each blocked call raises at the call site and is also recorded, and the fixture re-raises at teardown, so the test
 still fails when production code catches the raised error. A test marked ``live_network`` is exempt from both
@@ -83,9 +84,21 @@ def is_loopback_address(address: object) -> bool:
     if host.lower() in _LOOPBACK_NAMES:
         return True
     try:
-        return ipaddress.ip_address(host.split("%", 1)[0]).is_loopback
+        ip = ipaddress.ip_address(host.split("%", 1)[0])
     except ValueError:
         return False
+    # IPv6Address.is_loopback ignores IPv4-mapped addresses before later 3.12 patch releases; unwrap explicitly.
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return ip.is_loopback
+
+
+def _is_ip_literal(host: str) -> bool:
+    try:
+        ipaddress.ip_address(host.split("%", 1)[0])
+    except ValueError:
+        return False
+    return True
 
 
 class SocketGuard:
@@ -95,11 +108,13 @@ class SocketGuard:
         self.blocked_calls: list[str] = []
         self._connect = socket.socket.connect
         self._connect_ex = socket.socket.connect_ex
+        self._getaddrinfo = socket.getaddrinfo
 
     def install(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Replace the socket connect methods for the current test."""
         monkeypatch.setattr(socket.socket, "connect", self._guarded(self._connect, "connect"))
         monkeypatch.setattr(socket.socket, "connect_ex", self._guarded(self._connect_ex, "connect_ex"))
+        monkeypatch.setattr(socket, "getaddrinfo", self._guarded_lookup(self._getaddrinfo))
 
     def _guarded(self, original: Any, name: str) -> Any:
         def guarded(sock: socket.socket, address: Any) -> Any:
@@ -111,6 +126,20 @@ class SocketGuard:
                 )
                 raise SocketNetworkAccessError(msg)
             return original(sock, address)
+
+        return guarded
+
+    def _guarded_lookup(self, original: Any) -> Any:
+        def guarded(host: Any, *arguments: Any, **keywords: Any) -> Any:
+            name = host.decode("ascii", "replace") if isinstance(host, bytes) else host
+            if isinstance(name, str) and name and not _is_ip_literal(name) and not is_loopback_address((name,)):
+                self.blocked_calls.append(f"socket.getaddrinfo({name!r}) (from {_caller(4)})")
+                msg = (
+                    f"socket.getaddrinfo for {name!r} was reached without a stub, which would make a live DNS "
+                    "lookup. Inject a fake transport or patch the calling module for this test."
+                )
+                raise SocketNetworkAccessError(msg)
+            return original(host, *arguments, **keywords)
 
         return guarded
 
