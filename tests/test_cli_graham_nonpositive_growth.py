@@ -12,7 +12,7 @@ from src.evaluation.fixtures.graham import (
     FixtureFinancialFactsProvider,
 )
 from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from tests._cli_helpers import isolated_cli_database  # noqa: F401
+from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 
 runner = CliRunner()
 

@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 from src.cli import app
 from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
 from src.data.quality import HistoricalDataQualityError, QualityContext, evaluate_historical_quality
+from tests._cli_helpers import stub_yahoo_identity_metadata  # noqa: F401
 
 
 @pytest.mark.parametrize("command", ["momentum", "graham-number", "graham-growth", "fcf-growth"])
