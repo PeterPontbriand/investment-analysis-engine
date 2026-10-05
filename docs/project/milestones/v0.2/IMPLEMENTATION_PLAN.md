@@ -71,7 +71,7 @@ sequencing meaning.
 | 10 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-01 |
 | 11 | [Repository-wide dead code audit (R3)](r3/R3_DEAD_CODE_AUDIT_PLAN.md) | Complete | 2026-10-01 |
 | 12 | [Strategy wiring consolidation (SWC)](swc/SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
-| 13 | [Provider health (PH)](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
+| 13 | [Provider health (PH)](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
 | 14 | [`src` package rename (PKG)](pkg/PKG_RENAME_PLAN.md) | Planned | |
 | 15 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
 | 16 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
