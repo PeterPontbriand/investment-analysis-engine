@@ -269,8 +269,8 @@ Momentum, Graham, Free Cash Flow & Earnings Growth, and the Step 3.5 quantitativ
 
 Every Pull Request must pass the following automated GitHub Actions pipeline before merge approval:
 
-1. **Lint & Code Style:** `ruff check . && ruff format --check .`
-2. **Strict Static Analysis:** `mypy --strict src tests`
+1. **Lint & Code Style:** `ruff check . && ruff format --check .`, plus the Markdown checks `scripts/check_doc_links.py` and `scripts/check_sequence_tables.py`
+2. **Strict Static Analysis:** `mypy --strict src tests scripts`
 3. **Unit Tests & Coverage:** `pytest --cov=src --cov-report=term-missing`
 4. **Security & Dependency Audit:** `uv audit` / `pip-audit` for known vulnerabilities.
 5. **Golden Agent Evaluation:** Headless deterministic execution of the Step 2.5 Golden Suite in its no-LLM/test mode. Optional real-local-Ollama evaluation is recorded separately and is not a mandatory CI dependency unless explicitly configured.

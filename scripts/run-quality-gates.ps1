@@ -82,28 +82,20 @@ try {
         "tests",
         "scripts"
     )
-    # Force colour for this step only so CLI output carries the same ANSI styling as CI runners.
-    $originalForceColor = $env:FORCE_COLOR
-    $env:FORCE_COLOR = "1"
-    try {
-        Invoke-QualityCommand -Arguments @(
-            "run",
-            "--no-sync",
-            "pytest",
-            "-o",
-            "addopts=",
-            "-p",
-            "no:cacheprovider",
-            "--cov=src",
-            "--cov-report=term-missing",
-            "--cov-report=html:$coverageHtml",
-            "--basetemp=$pytestRoot",
-            "tests"
-        )
-    }
-    finally {
-        if ($null -eq $originalForceColor) { Remove-Item Env:FORCE_COLOR -ErrorAction SilentlyContinue } else { $env:FORCE_COLOR = $originalForceColor }
-    }
+    Invoke-QualityCommand -Arguments @(
+        "run",
+        "--no-sync",
+        "pytest",
+        "-o",
+        "addopts=",
+        "-p",
+        "no:cacheprovider",
+        "--cov=src",
+        "--cov-report=term-missing",
+        "--cov-report=html:$coverageHtml",
+        "--basetemp=$pytestRoot",
+        "tests"
+    )
 }
 finally {
     Set-Location $originalLocation
