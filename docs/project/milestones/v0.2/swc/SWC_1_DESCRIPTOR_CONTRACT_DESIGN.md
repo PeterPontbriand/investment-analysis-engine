@@ -1922,12 +1922,18 @@ as SEC EDGAR because a saved run's selection admits only the providers the CLI s
 ### H.19 The help output is pinned
 
 No test pinned the text or order of `--help`. `tests/test_cli_help_output.py` compares the application's help and each
-direct command's help with files under `tests/expected_output/cli_help/`, rendered at a fixed width of 80 columns
-(`TERMINAL_WIDTH`, because Rich otherwise narrows the width by one on a Windows console, so the files would differ
-between running the regeneration command and running pytest). The files were generated from `main` before the change and the
-change leaves them identical, so the commands, options, help text and order of `ian --help` (`refresh`, `health`,
-`momentum`, `graham-number`, `graham-growth`, `fcf-growth`, `evaluate`, then the groups) are unchanged. A second test
-pins the command order.
+direct command's help with files under `tests/expected_output/cli_help/`. The terminal width is set explicitly to 80
+columns by patching `typer.rich_utils.MAX_WIDTH`, the value Typer passes to every Rich console it builds; the
+`TERMINAL_WIDTH` variable is read once at import, so it cannot fix the width for a test, and the wrapping would otherwise
+depend on the runner and on what imported Typer first. Each output line goes through `normalize_cli_output` (`tests/_cli_helpers.py`, as
+`docs/project/README.md` requires for CLI assertions) before it is compared and stored: that removes ANSI styling and the
+box-drawing characters, whose corner style differs between a Windows console and other platforms, and collapses
+spacing, while the lines, their wrapping, their text and their order are kept. `tests/test_cli_output_normalization.py`
+feeds the helper both corner styles and ANSI styling and requires equal results. The files were generated from `main`
+and the change leaves them identical, so the commands, options, help text and order of `ian --help` (`refresh`,
+`health`, `momentum`, `graham-number`, `graham-growth`, `fcf-growth`, `evaluate`, then the groups) are unchanged. A
+second test pins the command order. Moving the `add_strategy_commands` call after `evaluate`, and rewording one option's
+help text, each fail the comparison.
 
 ### H.20 Retargeted patch strings
 

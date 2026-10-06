@@ -1,30 +1,24 @@
-                                                                                
- Usage: root momentum [OPTIONS] [ticker]                                        
-                                                                                
- Execute SMA crossover momentum analysis over daily historical market prices.   
-                                                                                
-┌─ Arguments ──────────────────────────────────────────────────────────────────┐
-│   ticker      <str>  Target stock/asset ticker symbol (e.g., AAPL, BTC-USD)  │
-└──────────────────────────────────────────────────────────────────────────────┘
-┌─ Options ────────────────────────────────────────────────────────────────────┐
-│ --ticker        -t      <str>  Legacy ticker option; prefer the positional   │
-│                                TICKER argument                               │
-│ --short-window  -s      <int>  Short SMA window in daily market observations │
-│                                [default: 50]                                 │
-│ --long-window   -l      <int>  Long SMA window in daily market observations  │
-│                                [default: 200]                                │
-│ --rsi-period            <int>  RSI lookback period in daily market           │
-│                                observations                                  │
-│                                [default: 14]                                 │
-│ --as-of                 <str>  Point-in-time boundary as YYYY-MM-DD or       │
-│                                timezone-aware ISO-8601 timestamp             │
-│ --no-cache                     Bypass historical price cache reads and       │
-│                                writes                                        │
-│ --details                      Show calculation and data-context details     │
-│ --diagnostics                  Show retained execution diagnostics           │
-│ --json                         Emit stable machine-readable JSON             │
-│ --save-run                     Persist this attempt as a durable Analysis    │
-│                                Run                                           │
-│ --help                         Show this message and exit.                   │
-└──────────────────────────────────────────────────────────────────────────────┘
-
+Usage: root momentum [OPTIONS] [ticker]
+Execute SMA crossover momentum analysis over daily historical market prices.
+Arguments
+ticker <str> Target stock/asset ticker symbol (e.g., AAPL, BTC-USD)
+Options
+--ticker -t <str> Legacy ticker option; prefer the positional
+TICKER argument
+--short-window -s <int> Short SMA window in daily market observations
+[default: 50]
+--long-window -l <int> Long SMA window in daily market observations
+[default: 200]
+--rsi-period <int> RSI lookback period in daily market
+observations
+[default: 14]
+--as-of <str> Point-in-time boundary as YYYY-MM-DD or
+timezone-aware ISO-8601 timestamp
+--no-cache Bypass historical price cache reads and
+writes
+--details Show calculation and data-context details
+--diagnostics Show retained execution diagnostics
+--json Emit stable machine-readable JSON
+--save-run Persist this attempt as a durable Analysis
+Run
+--help Show this message and exit.

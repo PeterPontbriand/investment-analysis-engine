@@ -1,27 +1,21 @@
-                                                                                
- Usage: root [OPTIONS] COMMAND [ARGS]...                                        
-                                                                                
- Analyze financial data with transparent calculations and supporting evidence.  
-                                                                                
-┌─ Options ────────────────────────────────────────────────────────────────────┐
-│ --help          Show this message and exit.                                  │
-└──────────────────────────────────────────────────────────────────────────────┘
-┌─ Commands ───────────────────────────────────────────────────────────────────┐
-│ refresh        Execute every entry in a watchlist and, by default, persist   │
-│                each result.                                                  │
-│ health         Check that Yahoo and SEC EDGAR still answer in the shape the  │
-│                adapters read.                                                │
-│ momentum       Execute SMA crossover momentum analysis over daily historical │
-│                market prices.                                                │
-│ graham-number  Execute the Graham Number earnings-and-book-value screen.     │
-│ graham-growth  Execute Graham Growth Value with explicit growth and          │
-│                AAA-yield assumptions.                                        │
-│ fcf-growth     Execute the historical free-cash-flow and diluted-EPS growth  │
-│                screen.                                                       │
-│ evaluate       Run the versioned Golden Suite and write one machine-readable │
-│                report.                                                       │
-│ watchlist      Manage named watchlists of tickers and their analysis         │
-│                selections.                                                   │
-│ runs           Browse persisted Analysis Run history.                        │
-└──────────────────────────────────────────────────────────────────────────────┘
-
+Usage: root [OPTIONS] COMMAND [ARGS]...
+Analyze financial data with transparent calculations and supporting evidence.
+Options
+--help Show this message and exit.
+Commands
+refresh Execute every entry in a watchlist and, by default, persist
+each result.
+health Check that Yahoo and SEC EDGAR still answer in the shape the
+adapters read.
+momentum Execute SMA crossover momentum analysis over daily historical
+market prices.
+graham-number Execute the Graham Number earnings-and-book-value screen.
+graham-growth Execute Graham Growth Value with explicit growth and
+AAA-yield assumptions.
+fcf-growth Execute the historical free-cash-flow and diluted-EPS growth
+screen.
+evaluate Run the versioned Golden Suite and write one machine-readable
+report.
+watchlist Manage named watchlists of tickers and their analysis
+selections.
+runs Browse persisted Analysis Run history.

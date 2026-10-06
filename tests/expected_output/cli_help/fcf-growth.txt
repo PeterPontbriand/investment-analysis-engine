@@ -1,37 +1,31 @@
-                                                                                
- Usage: root fcf-growth [OPTIONS] {ticker}                                      
-                                                                                
- Execute the historical free-cash-flow and diluted-EPS growth screen.           
-                                                                                
-┌─ Arguments ──────────────────────────────────────────────────────────────────┐
-│ *    ticker      <str>  Target stock ticker symbol (e.g., AAPL, KO)          │
-│                         [required]                                           │
-└──────────────────────────────────────────────────────────────────────────────┘
-┌─ Options ────────────────────────────────────────────────────────────────────┐
-│ --growth-years                <int>  Strict elapsed-year horizon (3, 4, or   │
-│                                      5); omit for automatic 5 → 4 → 3        │
-│                                      selection                               │
-│ --forward-policy              <str>  Forward evidence policy: display-only,  │
-│                                      confirmation, or hard-gate              │
-│                                      [default: display-only]                 │
-│ --classification-basis        <str>  Classification basis: total-fcf or      │
-│                                      fcf-per-share                           │
-│                                      [default: total-fcf]                    │
-│ --as-of                       <str>  Point-in-time boundary as YYYY-MM-DD or │
-│                                      timezone-aware ISO-8601 timestamp       │
-│ --data-provider               <str>  Defaults to SEC EDGAR                   │
-│ --currency                    <str>  ISO 4217 reporting currency for         │
-│                                      compatible annual facts                 │
-│                                      [default: USD]                          │
-│ --no-cache                           Bypass resolved-input cache reads and   │
-│                                      writes                                  │
-│ --details                            Show annual facts, provenance, and      │
-│                                      derivation lineage                      │
-│ --diagnostics                        Show resolver execution trace           │
-│ --json                               Emit the complete versioned typed       │
-│                                      result                                  │
-│ --save-run                           Persist this attempt as a durable       │
-│                                      Analysis Run                            │
-│ --help                               Show this message and exit.             │
-└──────────────────────────────────────────────────────────────────────────────┘
-
+Usage: root fcf-growth [OPTIONS] {ticker}
+Execute the historical free-cash-flow and diluted-EPS growth screen.
+Arguments
+* ticker <str> Target stock ticker symbol (e.g., AAPL, KO)
+[required]
+Options
+--growth-years <int> Strict elapsed-year horizon (3, 4, or
+5); omit for automatic 5 → 4 → 3
+selection
+--forward-policy <str> Forward evidence policy: display-only,
+confirmation, or hard-gate
+[default: display-only]
+--classification-basis <str> Classification basis: total-fcf or
+fcf-per-share
+[default: total-fcf]
+--as-of <str> Point-in-time boundary as YYYY-MM-DD or
+timezone-aware ISO-8601 timestamp
+--data-provider <str> Defaults to SEC EDGAR
+--currency <str> ISO 4217 reporting currency for
+compatible annual facts
+[default: USD]
+--no-cache Bypass resolved-input cache reads and
+writes
+--details Show annual facts, provenance, and
+derivation lineage
+--diagnostics Show resolver execution trace
+--json Emit the complete versioned typed
+result
+--save-run Persist this attempt as a durable
+Analysis Run
+--help Show this message and exit.

@@ -1,36 +1,30 @@
-                                                                                
- Usage: root graham-number [OPTIONS] [ticker]                                   
-                                                                                
- Execute the Graham Number earnings-and-book-value screen.                      
-                                                                                
-┌─ Arguments ──────────────────────────────────────────────────────────────────┐
-│   ticker      <str>  Target stock ticker symbol (e.g., AAPL, KO)             │
-└──────────────────────────────────────────────────────────────────────────────┘
-┌─ Options ────────────────────────────────────────────────────────────────────┐
-│ --ticker         -t      <str>    Legacy ticker option; prefer the           │
-│                                   positional TICKER argument                 │
-│ --as-of                  <str>    Point-in-time boundary as YYYY-MM-DD or    │
-│                                   timezone-aware ISO-8601 timestamp          │
-│ --data-provider          <str>    Security-fact provider override; defaults  │
-│                                   to SEC EDGAR                               │
-│ --no-cache                        Bypass resolved-input cache reads and      │
-│                                   writes                                     │
-│ --eps            -e      <float>  Explicit EPS override                      │
-│ --eps-basis              <str>    EPS basis; Number defaults to              │
-│                                   three_year_average and accepts ttm with    │
-│                                   Massive; Growth defaults to                │
-│                                   three_year_average with SEC EDGAR (also    │
-│                                   accepts an explicit fiscal_year basis for  │
-│                                   reviewed workflows) and ttm with Massive   │
-│ --bvps                   <float>  Explicit book value per common share       │
-│                                   override (Number only)                     │
-│ --current-price  -p      <float>  Optional explicit current-price override   │
-│ --details                         Show resolved inputs and financial         │
-│                                   provenance                                 │
-│ --diagnostics                     Show resolver execution trace              │
-│ --json                            Emit stable machine-readable JSON          │
-│ --save-run                        Persist this attempt as a durable Analysis │
-│                                   Run                                        │
-│ --help                            Show this message and exit.                │
-└──────────────────────────────────────────────────────────────────────────────┘
-
+Usage: root graham-number [OPTIONS] [ticker]
+Execute the Graham Number earnings-and-book-value screen.
+Arguments
+ticker <str> Target stock ticker symbol (e.g., AAPL, KO)
+Options
+--ticker -t <str> Legacy ticker option; prefer the
+positional TICKER argument
+--as-of <str> Point-in-time boundary as YYYY-MM-DD or
+timezone-aware ISO-8601 timestamp
+--data-provider <str> Security-fact provider override; defaults
+to SEC EDGAR
+--no-cache Bypass resolved-input cache reads and
+writes
+--eps -e <float> Explicit EPS override
+--eps-basis <str> EPS basis; Number defaults to
+three_year_average and accepts ttm with
+Massive; Growth defaults to
+three_year_average with SEC EDGAR (also
+accepts an explicit fiscal_year basis for
+reviewed workflows) and ttm with Massive
+--bvps <float> Explicit book value per common share
+override (Number only)
+--current-price -p <float> Optional explicit current-price override
+--details Show resolved inputs and financial
+provenance
+--diagnostics Show resolver execution trace
+--json Emit stable machine-readable JSON
+--save-run Persist this attempt as a durable Analysis
+Run
+--help Show this message and exit.

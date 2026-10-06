@@ -24,17 +24,7 @@ def test_help_matches_the_stored_output(target: str) -> None:
 
 def test_application_help_lists_the_commands_in_the_documented_order() -> None:
     """The strategy commands follow ``refresh`` and ``health``, in declaration order, before ``evaluate``."""
+    expected = ["refresh", "health", "momentum", "graham-number", "graham-growth", "fcf-growth", "evaluate"]
+    expected += ["watchlist", "runs"]
     lines = render_help("").decode("utf-8").splitlines()
-    names = [line.split()[1] for line in lines if line.startswith("│ ") and not line.startswith("│  ")]
-    commands = [name for name in names if not name.startswith("-")]
-    assert commands == [
-        "refresh",
-        "health",
-        "momentum",
-        "graham-number",
-        "graham-growth",
-        "fcf-growth",
-        "evaluate",
-        "watchlist",
-        "runs",
-    ]
+    assert [line.split()[0] for line in lines if line.split()[0] in expected] == expected
