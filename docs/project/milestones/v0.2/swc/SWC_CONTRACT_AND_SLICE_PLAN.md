@@ -351,9 +351,16 @@ changes in thirteen test modules.
   `src/workspace/requests.py` (`parse_selection(alias, config_json, parsers)`), `src/workspace/method_aliases.py`
   (deleted; the descriptor owns the alias vocabulary), `src/workspace/execution.py`, `src/workspace/codecs.py`,
   `src/workspace/refresh.py`, the strategy execution adapters (each gains its normalizer), `src/workspace/capture.py`
-  (`ExecutionCapture`), per-strategy codec modules, `src/data/repositories/watchlists.py` (alias resolver at
-  construction, through one helper in `src/cli_workspace.py`), `src/cli.py` (Momentum profile composition only),
-  the `getattr(selection, "as_of", None)` probe in `execute`, and focused tests. Replace Momentum's three
+  (`ExecutionCapture`), `src/workspace/selection_base.py` (the shared `config` body rules), per-strategy
+  codec modules (each gains its `ticker_of` function) and selection modules (each gains its parser),
+  `src/data/repositories/watchlists.py` (alias resolver at construction, through one helper in
+  `src/cli_workspace.py`), `src/cli.py` (Momentum profile composition, the `execute` calls and the normalizer
+  imports), `src/cli_workspace.py` (the repository helper, the Momentum composition copy, and the alias lookups
+  that read the root's `BY_ALIAS` and `BY_METHOD_ID` now that `method_aliases.py` is gone),
+  `src/reporting/analysis_runs.py` (`project_run` receives the injected codecs), the `getattr(selection, "as_of",
+  None)` probe in `execute`, the evaluation tier (`src/evaluation/strategy_fixtures.py` and the four strategy
+  `evaluation.py` files gain the required typed `sample_selection`, [design H.8](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h8-the-evaluation-tier-holds-a-sample-selection)),
+  the root-importer list in T13, `scripts/strategy_conformance.py` (T1, T8, T11, T15 and T24), and focused tests. Replace Momentum's three
   profile-composition copies (two in `src/cli.py`'s `momentum` command, one in `src/cli_workspace.py`'s
   `_execute_momentum`) with one `compose_momentum_profile` in `src/strategies/momentum/execution.py`; detail in the
   [Momentum profile composition note](MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) and
@@ -685,7 +692,7 @@ classified, with its owning slice, in the [SWC.1 design](SWC_1_DESCRIPTOR_CONTRA
 
 | Additional wiring point | Current file and symbol(s) | Owner |
 | :--- | :--- | :--- |
-| Alias vocabulary | `src/workspace/method_aliases.py`; `src/cli_workspace.py` alias uses; `src/data/repositories/watchlists.py` alias lookup | SWC.3a (`method_aliases.py`, repository), SWC.3b (`cli_workspace.py`) |
+| Alias vocabulary | `src/workspace/method_aliases.py`; `src/cli_workspace.py` alias uses; `src/data/repositories/watchlists.py` alias lookup | SWC.3a (`method_aliases.py`, the repository and the `cli_workspace.py` alias lookups, which now read the root's `BY_ALIAS` and `BY_METHOD_ID`); SWC.3b (the `--analysis` help text and the CLI tier's own use of the vocabulary) |
 | Alias membership and a final unconditional Momentum branch | `src/workspace/requests.py`: `parse_selection` | SWC.3a |
 | Identifier literals in failure calls and JSON builders | `src/cli.py`: six `execution_errors(analysis=, method=)` calls; `src/reporting/{momentum,graham_number,graham_growth}.py` | SWC.4a (`cli.py` calls), SWC.4c (builders) |
 | Strategy name tested inside generic failure handling | `src/cli_support.py`: `analysis == "momentum"` | SWC.4a |

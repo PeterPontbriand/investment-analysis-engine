@@ -20,7 +20,11 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
 from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_FIXTURE_IDS
 from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.strategies.fcf_growth.selection import FCFGrowthSelection
 from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolDependencies
+
+SAMPLE_SELECTION: Final = FCFGrowthSelection()
+"""A valid persisted selection: FCF Growth's defaults need no required field."""
 
 FIXTURE_IDS: Final = frozenset(
     {

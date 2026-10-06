@@ -132,6 +132,24 @@ def test_t8_reports_a_decoder_that_does_not_return_what_was_stored(monkeypatch: 
     assert all("decode_evidence does not return the result execute stored" in gap for gap in gaps)
 
 
+def test_t8_reports_a_strategy_whose_evaluation_tier_entry_is_missing() -> None:
+    """A strategy with no tier entry has no sample selection to store a run under, and is named."""
+    without = tuple(entry for entry in EVALUATION_STRATEGIES if entry.behavior is not FCF_GROWTH.behavior)
+    gaps = conformance.versions_and_round_trip_gaps(STRATEGIES, without)
+    assert gaps == [
+        "strategy ('fcf_earnings_growth', 'reported_fcf_eps_cagr') has no golden fixture result "
+        "or evaluation-tier sample selection to store"
+    ]
+
+
+def test_t8_stores_each_run_under_the_sample_selection_its_tier_entry_declares() -> None:
+    """The stored selection is the entry's own typed instance, of exactly the strategy's selection class."""
+    by_behavior = {id(entry.behavior): entry for entry in EVALUATION_STRATEGIES}
+    for stored in conformance.stored_runs(STRATEGIES):
+        assert stored.selection is by_behavior[id(stored.descriptor.behavior)].sample_selection
+        assert stored.run.requested_config == stored.selection
+
+
 def test_t10_the_evaluation_tier_covers_every_descriptor() -> None:
     """Every descriptor has exactly one evaluation-tier entry and every entry serves a descriptor."""
     assert conformance.evaluation_tier_gaps(STRATEGIES) == []

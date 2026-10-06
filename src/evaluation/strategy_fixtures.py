@@ -28,15 +28,19 @@ from src.evaluation.models import Case
 from src.orchestrator.tool_names import ToolName
 from src.strategies.fcf_growth.evaluation import FIXTURE_IDS as FCF_GROWTH_FIXTURE_IDS
 from src.strategies.fcf_growth.evaluation import REQUIREMENT as FCF_GROWTH_REQUIREMENT
+from src.strategies.fcf_growth.evaluation import SAMPLE_SELECTION as FCF_GROWTH_SAMPLE_SELECTION
 from src.strategies.fcf_growth.evaluation import compose as compose_fcf_growth
 from src.strategies.graham_growth.evaluation import FIXTURE_IDS as GRAHAM_GROWTH_FIXTURE_IDS
 from src.strategies.graham_growth.evaluation import REQUIREMENT as GRAHAM_GROWTH_REQUIREMENT
+from src.strategies.graham_growth.evaluation import SAMPLE_SELECTION as GRAHAM_GROWTH_SAMPLE_SELECTION
 from src.strategies.graham_growth.evaluation import compose as compose_graham_growth
 from src.strategies.graham_number.evaluation import FIXTURE_IDS as GRAHAM_NUMBER_FIXTURE_IDS
 from src.strategies.graham_number.evaluation import REQUIREMENT as GRAHAM_NUMBER_REQUIREMENT
+from src.strategies.graham_number.evaluation import SAMPLE_SELECTION as GRAHAM_NUMBER_SAMPLE_SELECTION
 from src.strategies.graham_number.evaluation import compose as compose_graham_number
 from src.strategies.momentum.evaluation import FIXTURE_IDS as MOMENTUM_FIXTURE_IDS
 from src.strategies.momentum.evaluation import REQUIREMENT as MOMENTUM_REQUIREMENT
+from src.strategies.momentum.evaluation import SAMPLE_SELECTION as MOMENTUM_SAMPLE_SELECTION
 from src.strategies.momentum.evaluation import compose as compose_momentum
 from src.strategy_wiring import (
     FCF_GROWTH_BEHAVIOR,
@@ -50,19 +54,22 @@ from src.workspace.strategy_types import NativeEvidence, SelectionMember
 
 
 @dataclass(frozen=True)
-class EvalComposition[DepsT]:
-    """One strategy's fixture requirement and the function that builds its dependency class.
+class EvalComposition[SelT: SelectionMember, DepsT]:
+    """One strategy's fixture requirement, sample selection and the function that builds its dependency class.
 
     Attributes:
         requirement: The fixture capability the strategy's tool needs before it can be dispatched.
         fixture_ids: Every identifier the strategy's composition understands, apart from the ones the context
             consumes itself.
         compose: Builds the strategy's own dependency class from the case-level fixture context.
+        sample_selection: A valid persisted selection of exactly the strategy's own selection class, which the
+            conformance round trip stores a real result under.
     """
 
     requirement: FixtureRequirement
     fixture_ids: frozenset[str]
     compose: Callable[[FixtureContext], DepsT]
+    sample_selection: SelT
 
 
 @dataclass(frozen=True)
@@ -76,42 +83,58 @@ class EvaluationStrategy:
     requirement: FixtureRequirement
     fixture_ids: frozenset[str]
     compose: Callable[[FixtureContext], object]
+    sample_selection: SelectionMember
 
 
 def pair_evaluation[SelT: SelectionMember, ResultT: NativeEvidence, DepsT](
     behavior: StrategyBehavior[SelT, ResultT, DepsT],
-    composition: EvalComposition[DepsT],
+    composition: EvalComposition[SelT, DepsT],
 ) -> EvaluationStrategy:
-    """Pair a strategy's core bundle with a composition that builds exactly its dependency class."""
+    """Pair a strategy's core bundle with a composition for exactly its selection and dependency classes."""
     return EvaluationStrategy(
         behavior=behavior,
         requirement=composition.requirement,
         fixture_ids=composition.fixture_ids,
         compose=composition.compose,
+        sample_selection=composition.sample_selection,
     )
 
 
 EVALUATION_STRATEGIES: Final = (
     pair_evaluation(
         MOMENTUM_BEHAVIOR,
-        EvalComposition(requirement=MOMENTUM_REQUIREMENT, fixture_ids=MOMENTUM_FIXTURE_IDS, compose=compose_momentum),
+        EvalComposition(
+            requirement=MOMENTUM_REQUIREMENT,
+            fixture_ids=MOMENTUM_FIXTURE_IDS,
+            compose=compose_momentum,
+            sample_selection=MOMENTUM_SAMPLE_SELECTION,
+        ),
     ),
     pair_evaluation(
         GRAHAM_NUMBER_BEHAVIOR,
         EvalComposition(
-            requirement=GRAHAM_NUMBER_REQUIREMENT, fixture_ids=GRAHAM_NUMBER_FIXTURE_IDS, compose=compose_graham_number
+            requirement=GRAHAM_NUMBER_REQUIREMENT,
+            fixture_ids=GRAHAM_NUMBER_FIXTURE_IDS,
+            compose=compose_graham_number,
+            sample_selection=GRAHAM_NUMBER_SAMPLE_SELECTION,
         ),
     ),
     pair_evaluation(
         GRAHAM_GROWTH_BEHAVIOR,
         EvalComposition(
-            requirement=GRAHAM_GROWTH_REQUIREMENT, fixture_ids=GRAHAM_GROWTH_FIXTURE_IDS, compose=compose_graham_growth
+            requirement=GRAHAM_GROWTH_REQUIREMENT,
+            fixture_ids=GRAHAM_GROWTH_FIXTURE_IDS,
+            compose=compose_graham_growth,
+            sample_selection=GRAHAM_GROWTH_SAMPLE_SELECTION,
         ),
     ),
     pair_evaluation(
         FCF_GROWTH_BEHAVIOR,
         EvalComposition(
-            requirement=FCF_GROWTH_REQUIREMENT, fixture_ids=FCF_GROWTH_FIXTURE_IDS, compose=compose_fcf_growth
+            requirement=FCF_GROWTH_REQUIREMENT,
+            fixture_ids=FCF_GROWTH_FIXTURE_IDS,
+            compose=compose_fcf_growth,
+            sample_selection=FCF_GROWTH_SAMPLE_SELECTION,
         ),
     ),
 )
