@@ -58,6 +58,7 @@ Run the complete non-mutating repository gate from the repository root before re
 
 ```bash
 python3 scripts/check_doc_links.py
+python3 scripts/check_sequence_tables.py
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy --strict src tests scripts
@@ -66,9 +67,9 @@ uv run pytest
 
 Standard-library-only gate scripts run with system Python (`py -3` on Windows), not through `uv run` or the project virtualenv.
 
-These commands verify that every local link and heading anchor across every tracked Markdown file resolves, lint, formatting, strict typing (including the `scripts/` developer tooling, not only `src`/`tests`), deterministic unit/integration behavior, and the pytest-cov configuration in `pyproject.toml`. The project target is at least 85% aggregate line coverage; new financial-analysis code should directly cover meaningful branches and edge cases. Automated tests must not make real external API or LLM calls. Real provider calls are permitted only in tests marked `live_network`, which are excluded from the default run and the managed gate, make at most three requests per check, assert response shape and never values, and never log or persist secrets.
+These commands verify that every local link and heading anchor across every tracked Markdown file resolves, that every planning sequence table is well formed and correctly ordered, lint, formatting, strict typing (including the `scripts/` developer tooling, not only `src`/`tests`), deterministic unit/integration behavior, and the pytest-cov configuration in `pyproject.toml`. The project target is at least 85% aggregate line coverage; new financial-analysis code should directly cover meaningful branches and edge cases. Automated tests must not make real external API or LLM calls. Real provider calls are permitted only in tests marked `live_network`, which are excluded from the default run and the managed gate, make at most three requests per check, assert response shape and never values, and never log or persist secrets.
 
-A documentation-only change must pass `python scripts/check_doc_links.py` and both Ruff checks (`uv run ruff check .` and `uv run ruff format --check .`). Ruff lints and formats Python code blocks in Markdown, so prose-only edits can still affect Ruff results. CI runs MyPy and pytest for every pull request; those checks remain part of CI, but a documentation-only local gate may omit them unless the change also affects code or test behavior. A change confined to non-executable declarative metadata with no import-time or runtime effect — for example, a single project-metadata field such as `license` — does not require the full pytest run. Confirm the file still parses (e.g. the relevant `uv`/build command succeeds) and note in the record that no source changed; that is sufficient. If there is any doubt whether a change is actually confined in this sense, run the full gate.
+A documentation-only change must pass `python scripts/check_doc_links.py`, `python scripts/check_sequence_tables.py`, and both Ruff checks (`uv run ruff check .` and `uv run ruff format --check .`). Ruff lints and formats Python code blocks in Markdown, so prose-only edits can still affect Ruff results. CI runs MyPy and pytest for every pull request; those checks remain part of CI, but a documentation-only local gate may omit them unless the change also affects code or test behavior. A change confined to non-executable declarative metadata with no import-time or runtime effect — for example, a single project-metadata field such as `license` — does not require the full pytest run. Confirm the file still parses (e.g. the relevant `uv`/build command succeeds) and note in the record that no source changed; that is sufficient. If there is any doubt whether a change is actually confined in this sense, run the full gate.
 
 The commands above are the ordinary developer and CI interface. Managed agents whose sandbox cannot write to Windows user-profile temp/cache directories should run the portable wrapper for their active shell instead:
 
@@ -80,9 +81,9 @@ The commands above are the ordinary developer and CI interface. Managed agents w
 bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"
 ```
 
-The wrappers run the same five gates with `uv run --no-sync` and isolate writable pytest, coverage, mypy, Ruff, and UV artifacts under a unique ignored `/.tmp/quality-runs/` directory. They are safe for concurrent managed-agent runs and contain no machine-specific repository path. Developers with normal user-directory access do not need the wrappers.
+The wrappers run the same six gates with `uv run --no-sync` and isolate writable pytest, coverage, mypy, Ruff, and UV artifacts under a unique ignored `/.tmp/quality-runs/` directory. They are safe for concurrent managed-agent runs and contain no machine-specific repository path. Developers with normal user-directory access do not need the wrappers.
 
-The wrappers set `FORCE_COLOR=1` for the pytest step only, so CLI output carries the same ANSI styling as on CI runners. CLI help and output assertions must therefore go through `normalize_cli_output` (`tests/_cli_helpers.py`) rather than compare raw text.
+The test suite forces coloured CLI output itself (`tests/conftest.py` sets `FORCE_COLOR=1`), so every pytest run sees the same ANSI styling as a CI runner. CLI help and output assertions must therefore go through `normalize_cli_output` (`tests/_cli_helpers.py`) rather than compare raw text.
 
 When local repair is required, the recommended order is:
 

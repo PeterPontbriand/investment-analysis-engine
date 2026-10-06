@@ -7,6 +7,25 @@ on:
     branches: [main, master, develop]
 
 jobs:
+  markdown-checks:
+    name: Check Markdown links and sequence tables
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Repository Code
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Check Markdown Links and Anchors
+        run: python scripts/check_doc_links.py
+
+      - name: Check Planning Sequence Tables
+        run: python scripts/check_sequence_tables.py
+
   quality-and-test:
     name: Validate on ${{ matrix.os }} (Python ${{ matrix.python-version }})
     strategy:
@@ -49,7 +68,7 @@ jobs:
         run: uv run ruff check .
 
       - name: Enforce Static Type Safety (MyPy)
-        run: uv run mypy --strict src tests
+        run: uv run mypy --strict src tests scripts
 
       - name: Execute Cross-Platform Test Suite with Coverage
         run: uv run pytest

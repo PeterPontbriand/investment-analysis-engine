@@ -1,7 +1,13 @@
 """Global pytest configurations and safety cleanups."""
 
-import logging
-from collections.abc import Generator
+import os
+
+# Force styled CLI output for every pytest run, before anything imports Typer or Rich, so a raw
+# CLI-text assertion fails locally exactly as it would on a CI runner.
+os.environ["FORCE_COLOR"] = "1"
+
+import logging  # noqa: E402
+from collections.abc import Generator  # noqa: E402
 
 import pytest
 
