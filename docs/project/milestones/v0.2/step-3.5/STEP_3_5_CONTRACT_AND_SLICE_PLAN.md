@@ -79,7 +79,7 @@ the standard `⚠ no slice plan yet` marker until its handoff is accepted. Here 
 "written immediately before the slice begins", not an omission.
 
 **Every strategy is added the same way.** Each strategy slice adds its strategy through the edit-site table in
-[SWC.1 design §17](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#17-edit-sites-for-a-new-strategy) (18 sites in 21 files; it moves
+[SWC.1 design §17](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#17-edit-sites-for-a-new-strategy) (the table lists every site and file; it moves
 into `docs/TOOL_DEVELOPMENT.md`, generated from one site data file, when SWC.7 lands): the analyzer package, the
 descriptor and its behavior bundle, the CLI-tier and evaluation-tier entries, and the strategy-owned files
 each of them references. That includes the orchestrator tool (a `ToolName` member, an arguments model, a
@@ -94,6 +94,9 @@ before the second strategy starts (3.5.4a):
 
 - **Review:** compare Piotroski's final wiring files with the generator's stubs and list every region that
   differs only by strategy name, identifier or type.
+- **Site 19:** weigh moving the watchlist options into strategy files, as one watchlist subcommand per
+  strategy added by iterating `CLI_STRATEGIES` ([SWC.1 design H.10](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)).
+  The change alters the command syntax users type, so it needs its own decision.
 - **Extraction:** for exactly that repeated code, extract shared helper functions into the shared module
   of the layer that owns it, and update the generator's templates to call them. Helpers are functions, not a
   base class or a registry; existing strategies' behavior and output do not change. Where nothing repeated,

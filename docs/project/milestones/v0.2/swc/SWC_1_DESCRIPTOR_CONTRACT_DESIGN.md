@@ -1818,16 +1818,19 @@ When a new strategy adds a watchlist option, three places change, all in existin
 was already so before SWC.3b, when the same sixteen options were `_build_selection`'s keyword parameters; the
 audit never listed it, so it is row 19 of the [edit-site table](#17-edit-sites-for-a-new-strategy).
 
-Why it is not restructured here. Typer reads a command's options from its function signature, so the options
-cannot move into a strategy file without building the two commands dynamically from per-strategy declarations,
-which is a new generic mechanism and out of this slice's scope. The alternatives that stop the class growing move the
-growth, not remove it: a mapping of option name to value makes the field a runtime lookup the type check no longer
-covers, and per-strategy bundles built in `cli_workspace.py` need that module to import each strategy's `cli`
-file, which the layering rule forbids. The type-checked bundle is kept; its fields are typed and each is read by
-one builder. Revisit when a strategy needs options and the contributor guide (SWC.7) is written; the option rows
-move into the strategy guides in SWC.5, not into code.
+Why it is not restructured here. The options could move into strategy files statically: one watchlist
+subcommand per strategy, added by iterating `CLI_STRATEGIES` as the direct commands will be, with each strategy's
+own options declared in its `cli.py`. That alternative was considered and is not adopted in SWC, because it changes
+the command syntax users type (`watchlist create --analysis X` would become a per-strategy subcommand), and SWC's
+no-output-change contract excludes that. It is to be weighed at Step 3.5's repetition checkpoint, where site 19 is on
+the review list ([Step 3.5 plan](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md)).
 
-Recorded at the project owner's review of SWC.3b, as an exception to be confirmed or replaced at that review.
+Two other alternatives move the growth without removing it. A mapping of option name to value makes the field a
+runtime lookup the type check no longer covers. Per-strategy bundles built in `cli_workspace.py` need that module to
+import each strategy's `cli` file, which the layering rule forbids. The type-checked bundle is kept: its fields are
+typed and each is read by one builder. The option rows move into the strategy guides in SWC.5, not into code.
+
+Confirmed by the project owner at the SWC.3b review as an exception to the plan's §3.2 rule.
 
 ### H.11 The CLI-tier importer lists
 

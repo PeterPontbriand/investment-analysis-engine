@@ -804,8 +804,7 @@ injected is acyclic and changes no layering rule. The project owner decided:
 - **Schedule the locality moves** in the slice that owns each; none is deferred.
 - **Fix the package-initialization cycle** in SWC.2a by emptying `src/workspace/__init__.py`, and make the
   layering test count parent packages.
-- **Reduce the edit sites** to 19, in 24 files of which nine already exist (the design's SWC.3b audit added the
-  watchlist-option site): commands in strategy files, an
+- **Reduce the edit sites** to 18, in 22 files of which seven already exist: commands in strategy files, an
   evaluation tier, per-strategy dependency classes, one types file and the shared arguments base class in
   place of the union. The catalog's case tuple and suite version stay by hand because they are reviewed
   truth; `ToolName` stays a separate leaf for layering.
@@ -829,3 +828,13 @@ Three decisions made while finalizing the design, recorded in the [design's Appe
   outcome and no longer holds an open layout decision.
 - **Step 3.5 renumbering:** the side-by-side table is Step 3.5 slice 3.5.0, so Step 3.5.0 (the first
   implementation slice) removes `AGENTS.md` §0, and the golden suite is 3.5.7.
+
+### B.9 SWC.3b audit: the watchlist-option site (2026-10-06)
+
+- The SWC.3b audit found a per-strategy edit site the earlier audits missed: the watchlist options, declared per
+  strategy in `src/cli_workspace.py` and carried by the new `WatchlistFlags` bundle in `src/cli_watchlist_flags.py`.
+  It is row 19 of the design's edit-site table.
+- Adding a strategy now takes 19 sites in 24 files, nine of them existing, across 9 directories; the figures in
+  B.7 are the count at that date.
+- The project owner confirmed the `WatchlistFlags` exception to §3.2 ([design Appendix
+  H.10](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)).
