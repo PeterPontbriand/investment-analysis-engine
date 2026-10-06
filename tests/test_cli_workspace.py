@@ -728,6 +728,42 @@ def test_runs_list_rejects_a_canonical_method_id_or_unknown_alias_as_a_usage_err
         )
 
 
+_ALIAS_VOCABULARY = "momentum, graham-number, graham-growth, or fcf-growth"
+
+
+@pytest.mark.parametrize(
+    ("args", "help_text"),
+    [
+        (["watchlist", "create", "--help"], f"Method to seed: {_ALIAS_VOCABULARY}."),
+        (["watchlist", "add-selection", "--help"], f"Method: {_ALIAS_VOCABULARY}."),
+        (["runs", "list", "--help"], f"Filter by method: {_ALIAS_VOCABULARY}."),
+    ],
+)
+def test_the_analysis_help_text_names_every_declared_alias_as_before(args: list[str], help_text: str) -> None:
+    """The ``--analysis`` help is generated from the CLI tier but reads exactly as the hand-written literal did."""
+    result = runner.invoke(app, args, env={"COLUMNS": "200"})
+    assert result.exit_code == 0, result.output
+    assert help_text in normalize_cli_output(result.output)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["watchlist", "create", "W", "AAPL", "--analysis", "bogus"],
+        ["watchlist", "add-selection", "W", "AAPL", "--analysis", "bogus"],
+        ["watchlist", "remove-method", "W", "--analysis", "bogus"],
+        ["runs", "list", "--analysis", "bogus"],
+    ],
+)
+def test_every_analysis_option_rejects_an_unknown_alias_with_the_same_usage_error(args: list[str]) -> None:
+    """The validation error lists the declared aliases, in declaration order, with no ``or``."""
+    result = runner.invoke(app, args, env={"COLUMNS": "200"})
+    assert result.exit_code == 2, result.output
+    assert "Invalid value: --analysis must be one of: momentum, graham-number, graham-growth, fcf-growth." in (
+        normalize_cli_output(result.output)
+    )
+
+
 def test_runs_list_text_shows_the_alias_and_json_keeps_the_canonical_method_id() -> None:
     _insert_momentum_run()
 

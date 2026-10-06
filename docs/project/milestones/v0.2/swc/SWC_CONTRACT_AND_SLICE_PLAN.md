@@ -383,13 +383,17 @@ changes in thirteen test modules.
   `src/strategies/<strategy>/cli.py`; the closed tuple `CLI_STRATEGIES` in `src/cli_strategy_wiring.py`
   pairs them with the core bundle by selection type, and `cli_workspace.py` looks them up. A missing key
   raises `UndeclaredStrategyError`.
-- **Scope:** new `src/cli_strategy_wiring.py` and four `src/strategies/<strategy>/cli.py`; `src/cli_workspace.py`
-  (`_parse_analysis`, the `--analysis` help, `_build_selection`, `_refresh_executor`, the four `_execute_*`
-  and their option converters); tests and T10's CLI-tier surface; removes its four T13 transition entries. T13 also
-  gains the rule that only `src.cli` and `src.cli_workspace` import the CLI tier, with the entries those modules need
-  in the root-importer list, a staleness check and a negative test.
+- **Scope:** new `src/cli_strategy_wiring.py`, `src/cli_watchlist_flags.py` (the flag bundle every builder reads) and
+  four `src/strategies/<strategy>/cli.py`; `src/cli_workspace.py` (`_parse_analysis`, the `--analysis` help,
+  `_build_selection`, `_refresh_executor`, the four `_execute_*` and their option converters);
+  `scripts/strategy_conformance.py`; tests and T10's CLI-tier surface, including the patch strings in
+  `tests/test_cli_refresh.py` and `tests/test_workspace_integration.py` that name the moved provider
+  composition; removes its four T13 transition entries. T13 also gains the rule that only listed CLI modules
+  import the CLI tier (`src.cli_workspace`; SWC.3c adds `src.cli`), with the tier's entry in the root-importer
+  list, a staleness check and a negative test.
 - **Branch:** `feat/swc-3b-cli-tier`, from `main` after SWC.3a has merged.
-- **Detail:** [SWC.1 design §3.3, §6 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers).
+- **Detail:** [SWC.1 design §3.3, §6 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers)
+  and [Appendix H.9 to H.13](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h9-the-cli-tiers-shape-and-lookups).
 
 #### SWC.3c — Direct commands
 
@@ -400,6 +404,10 @@ changes in thirteen test modules.
   itself. `_maybe_save_run` and `get_cli_run_context` move to `src/cli_run_support.py`.
 - **Scope:** `src/cli.py`, new `src/cli_run_support.py`, the four `src/strategies/<strategy>/cli.py`, the
   thirteen test modules that patch `src.cli.` names (76 patch strings, retargeted), T7 and T22; removes its eight T13 transition entries.
+  Removes `src/cli.py`'s copies of the three FCF option converters (`_historical_horizon`, `_forward_policy`,
+  `_fcf_classification_basis`), which are the same code as the ones SWC.3b moved to `src/strategies/fcf_growth/cli.py`,
+  and moves its Momentum window check (`_validate_momentum_windows`, which exits with code 2 and so differs from the
+  builder's `BadParameter` check) into `src/strategies/momentum/cli.py`.
 - **Branch:** `feat/swc-3c-direct-commands`, from `main` after SWC.3b has merged.
 - **Detail:** [SWC.1 design §6, §11 and §12](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#12-framework-drift-checks).
 
@@ -593,9 +601,10 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **No output change:** the direct-command output test passes unchanged in every later slice that claims no
   output change. A slice that changes output regenerates the stored files in the same change, and the diff to
   them is what the review approves.
-- **Edit sites:** adding a strategy takes the 18 sites in the design's edit-site table, in 22 files across 9
-  directories, seven of them existing files; five of those are edited by the generator, and the other two (the catalog
-  and its test) are reviewed truth.
+- **Edit sites:** adding a strategy takes the 19 sites in the design's edit-site table, in 24 files across 9
+  directories, nine of them existing files; five of those are edited by the generator, and the other four (the catalog,
+  its test, and the two watchlist-option files of site 19, edited only by a strategy with options of its own) are
+  reviewed.
 - **Contributor tooling:** one site data file is the source of the guide's table, the status command, the
   generator and the specimen's completeness test; the status command and the conformance tests share their
   check bodies; the generator writes wiring only and refuses to overwrite; a test runs it in a temporary
@@ -819,3 +828,13 @@ Three decisions made while finalizing the design, recorded in the [design's Appe
   outcome and no longer holds an open layout decision.
 - **Step 3.5 renumbering:** the side-by-side table is Step 3.5 slice 3.5.0, so Step 3.5.0 (the first
   implementation slice) removes `AGENTS.md` §0, and the golden suite is 3.5.7.
+
+### B.9 SWC.3b audit: the watchlist-option site (2026-10-06)
+
+- The SWC.3b audit found a per-strategy edit site the earlier audits missed: the watchlist options, declared per
+  strategy in `src/cli_workspace.py` and carried by the new `WatchlistFlags` bundle in `src/cli_watchlist_flags.py`.
+  It is row 19 of the design's edit-site table.
+- Adding a strategy now takes 19 sites in 24 files, nine of them existing, across 9 directories; the figures in
+  B.7 are the count at that date.
+- The project owner confirmed the `WatchlistFlags` exception to §3.2 ([design Appendix
+  H.10](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)).

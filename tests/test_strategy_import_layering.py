@@ -5,14 +5,17 @@ package a file may import only a lower-ranked role, except that analyzer-level f
 other; no strategy imports another; code outside ``src/strategies`` may import only analyzer and
 selection roles, except that a case module under ``src/evaluation/cases`` may also import the tool role
 of the strategy package it is named for. Only a strategy's ``evaluation`` file imports from
-``src/evaluation``, and only the fixture-id, fixture-context and fixture modules. Imports of ``__init__.py``
+``src/evaluation``, and only the fixture-id, fixture-context and fixture modules. The CLI tier imports only the
+``cli`` role of a strategy package, and only the listed CLI modules import the tier. Imports of ``__init__.py``
 files count, and every ``__init__.py`` under ``src/strategies`` must be empty.
 """
 
 from __future__ import annotations
 
 import ast
+from collections.abc import Mapping
 from pathlib import Path
+from types import MappingProxyType
 
 from tests._strategy_roles import ANALYZER_ROLES, ROLE_RANK
 
@@ -31,6 +34,7 @@ _ROOT_IMPORTERS = frozenset(
         "src.evaluation.runner",
         "src.evaluation.ollama_runner",
         "src.evaluation.strategy_fixtures",
+        "src.cli_strategy_wiring",
         "src.cli",
         "src.cli_workspace",
     }
@@ -45,11 +49,19 @@ _TIER_IMPORTERS = frozenset({"src.evaluation.composition"})
 # fixture identifiers. It never imports the composition, the tier, the catalog, the cases or the runners.
 _STRATEGY_EVALUATION_IMPORTS = frozenset({"src.evaluation.fixture_context"})
 _FIXTURE_MODULE_PREFIX = "src.evaluation.fixtures."
+# The CLI tier pairs each strategy's watchlist selection builder and refresh executor with its core bundle. It
+# may import the root and the ``cli`` file of each strategy package, and only the CLI modules listed here import
+# it. As for the root, an entry must exist and import the tier; the direct-command slice adds ``src.cli``.
+_CLI_TIER = "src.cli_strategy_wiring"
+_CLI_TIER_IMPORTERS = frozenset({"src.cli_workspace"})
+# The modules only listed importers may import: the root and the two tiers, with the name each is reported by.
+_IMPORTERS = MappingProxyType({_ROOT: _ROOT_IMPORTERS, _TIER: _TIER_IMPORTERS, _CLI_TIER: _CLI_TIER_IMPORTERS})
+_RESTRICTED_MODULES = MappingProxyType(
+    {_ROOT: "the composition root", _TIER: "the evaluation tier", _CLI_TIER: "the CLI tier"}
+)
+# Each tier's report name and the one strategy role it may import.
+_TIER_ROLES = MappingProxyType({_TIER: ("evaluation tier", "evaluation"), _CLI_TIER: ("CLI tier", "cli")})
 _TRANSITIONS = {
-    ("src.cli_workspace", "src.strategies.fcf_growth.execution", "SWC.3b"),
-    ("src.cli_workspace", "src.strategies.graham_growth.execution", "SWC.3b"),
-    ("src.cli_workspace", "src.strategies.graham_number.execution", "SWC.3b"),
-    ("src.cli_workspace", "src.strategies.momentum.execution", "SWC.3b"),
     ("src.cli", "src.strategies.fcf_growth.execution", "SWC.3c"),
     ("src.cli", "src.strategies.fcf_growth.presenter", "SWC.3c"),
     ("src.cli", "src.strategies.graham_growth.execution", "SWC.3c"),
@@ -241,17 +253,13 @@ def _strategy_evaluation_may_import(target: str) -> bool:
     return target in _STRATEGY_EVALUATION_IMPORTS or target.startswith(_FIXTURE_MODULE_PREFIX)
 
 
-def _boundary_error(
-    source: str, target: str, root_importers: frozenset[str], tier_importers: frozenset[str]
-) -> str | None:
-    """Report an import of ``tests``, of the root or the tier by a module not listed, or beyond the fixture modules."""
+def _boundary_error(source: str, target: str, importers: Mapping[str, frozenset[str]]) -> str | None:
+    """Report an import of ``tests``, of the root or a tier by a module not listed, or beyond the fixture modules."""
     source_parts, target_parts = source.split("."), target.split(".")
     if target_parts[0] == "tests":
         return f"{source} imports tests module {target}"
-    if target == _ROOT and source not in root_importers:
-        return f"module imports the composition root: {source} -> {target}"
-    if target == _TIER and source not in tier_importers:
-        return f"module imports the evaluation tier: {source} -> {target}"
+    if target in importers and source not in importers[target]:
+        return f"module imports {_RESTRICTED_MODULES[target]}: {source} -> {target}"
     if (
         _is_strategy_evaluation(source_parts)
         and target_parts[:2] == ["src", "evaluation"]
@@ -273,24 +281,24 @@ def _edge_violations(
     edges: set[tuple[str, str]],
     strategies: frozenset[str],
     transitions: set[tuple[str, str, str]] = _TRANSITIONS,
-    root_importers: frozenset[str] = _ROOT_IMPORTERS,
-    tier_importers: frozenset[str] = _TIER_IMPORTERS,
+    importers: Mapping[str, frozenset[str]] = _IMPORTERS,
 ) -> list[str]:
     """Check strategy boundaries, role order, the exact transition edges and imports of ``tests``."""
     errors: list[str] = []
     permitted = {(source, target) for source, target, _ in transitions}
     for source, target in sorted(edges):
         source_parts, target_parts = source.split("."), target.split(".")
-        if error := _boundary_error(source, target, root_importers, tier_importers):
+        if error := _boundary_error(source, target, importers):
             errors.append(error)
         elif len(target_parts) < 3 or target_parts[:2] != ["src", "strategies"]:
             continue
         elif source == _ROOT:
             if target_parts[2] in strategies and _role(target_parts) not in _ROOT_ROLES:
                 errors.append(f"composition root imports a role it may not: {source} -> {target}")
-        elif source == _TIER:
-            if target_parts[2] not in strategies or _role(target_parts) != "evaluation":
-                errors.append(f"evaluation tier imports a role it may not: {source} -> {target}")
+        elif source in _TIER_ROLES:
+            name, role = _TIER_ROLES[source]
+            if target_parts[2] not in strategies or _role(target_parts) != role:
+                errors.append(f"{name} imports a role it may not: {source} -> {target}")
         elif len(source_parts) >= 3 and source_parts[:2] == ["src", "strategies"]:
             if error := _strategy_edge_error(source, target, strategies):
                 errors.append(error)
@@ -358,6 +366,18 @@ def _tier_importer_violations(
     ]
 
 
+def _cli_tier_importer_violations(
+    edges: set[tuple[str, str]], files: set[str], importers: frozenset[str] = _CLI_TIER_IMPORTERS
+) -> list[str]:
+    """Report each listed CLI-tier importer that no longer exists or no longer imports the tier."""
+    return [
+        f"stale CLI-tier importer entry: {importer} "
+        + ("does not exist" if importer not in files else "does not import the tier")
+        for importer in sorted(importers)
+        if (importer, _CLI_TIER) not in edges
+    ]
+
+
 def _root_cycle_violations(graph: dict[str, set[str]]) -> list[str]:
     """Report the composition root if it sits in any import cycle."""
     return [
@@ -377,6 +397,7 @@ def test_strategy_import_layering_and_parent_package_cycles() -> None:
         *_root_cycle_violations(graph),
         *_root_importer_violations(edges, set(graph)),
         *_tier_importer_violations(edges, set(graph)),
+        *_cli_tier_importer_violations(edges, set(graph)),
     ]
     assert not errors, "Import-layer violations:\n" + "\n".join(errors)
 
@@ -555,11 +576,11 @@ def test_t13_restricts_the_importers_of_the_root() -> None:
     """Only the listed modules import the root; foundation modules never do."""
     listed = frozenset({"src.evaluation.runner", "src.cli"})
     allowed = {(importer, _ROOT) for importer in listed}
-    assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set(), listed) == []
+    assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set(), {_ROOT: listed}) == []
     forbidden = {
         (importer, _ROOT) for importer in ("src.workspace.codecs", "src.reporting.analysis_runs", "src.data.x")
     }
-    assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set(), listed) == [
+    assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set(), {_ROOT: listed}) == [
         f"module imports the composition root: {importer} -> {_ROOT}"
         for importer in ("src.data.x", "src.reporting.analysis_runs", "src.workspace.codecs")
     ]
@@ -576,8 +597,14 @@ def test_t13_fails_when_the_root_is_in_an_import_cycle() -> None:
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_wiring_slice() -> None:
     """The twelve entries owned by the orchestration slice are gone; every remaining owner is a later slice."""
-    assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.3b", "SWC.3c", "SWC.4c"}
-    assert len(_TRANSITIONS) == 16
+    assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.3c", "SWC.4c"}
+    assert len(_TRANSITIONS) == 12
+
+
+def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_cli_tier_slice() -> None:
+    """The four CLI-tier entries are gone: the workspace CLI module imports no strategy execution adapter."""
+    assert not [entry for entry in _TRANSITIONS if entry[2] == "SWC.3b"]
+    assert not [entry for entry in _TRANSITIONS if entry[0] == "src.cli_workspace"]
 
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_workspace_consumers_slice() -> None:
@@ -608,10 +635,10 @@ def test_t13_restricts_the_importers_of_the_evaluation_tier() -> None:
     """Only the listed generic evaluation modules import the tier; nothing else does."""
     listed = frozenset({"src.evaluation.composition"})
     allowed = {("src.evaluation.composition", _TIER)}
-    assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set(), tier_importers=listed) == []
+    assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set(), {_TIER: listed}) == []
     importers = ("src.cli", "src.evaluation.catalog", "src.strategies.momentum.cli")
     forbidden = {(importer, _TIER) for importer in importers}
-    assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set(), tier_importers=listed) == [
+    assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set(), {_TIER: listed}) == [
         f"module imports the evaluation tier: {importer} -> {_TIER}" for importer in importers
     ]
 
@@ -700,4 +727,59 @@ def test_t13_keeps_every_other_strategy_file_out_of_the_evaluation_package() -> 
     assert _edge_violations(edges, _SAMPLE_STRATEGIES, set()) == [
         f"strategy file other than evaluation imports the evaluation package: {source} -> {target}"
         for source, target in sorted(edges)
+    ]
+
+
+def test_t13_restricts_the_importers_of_the_cli_tier() -> None:
+    """Only the listed CLI modules import the CLI tier; nothing else does, not even a strategy's own cli file."""
+    listed = frozenset({"src.cli_workspace"})
+    allowed = {("src.cli_workspace", _CLI_TIER)}
+    assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set(), {_CLI_TIER: listed}) == []
+    importers = ("src.evaluation.composition", "src.reporting.analysis_runs", "src.strategies.momentum.cli")
+    forbidden = {(importer, _CLI_TIER) for importer in importers}
+    assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set(), {_CLI_TIER: listed}) == [
+        f"module imports the CLI tier: {importer} -> {_CLI_TIER}" for importer in importers
+    ]
+
+
+def test_t13_fails_for_a_cli_tier_importer_entry_that_is_missing_or_does_not_import_the_tier() -> None:
+    """Every listed CLI-tier importer must exist and import the tier, so an entry cannot outlive its import."""
+    entries = frozenset({"src.cli", "src.cli_gone", "src.cli_workspace"})
+    edges = {("src.cli_workspace", _CLI_TIER), ("src.cli", "src.cli_support")}
+    files = {"src.cli", "src.cli_workspace"}
+    assert _cli_tier_importer_violations(edges, files, entries) == [
+        "stale CLI-tier importer entry: src.cli does not import the tier",
+        "stale CLI-tier importer entry: src.cli_gone does not exist",
+    ]
+    assert _cli_tier_importer_violations(edges, files, frozenset({"src.cli_workspace"})) == []
+
+
+def test_t13_permits_the_cli_tier_to_import_only_the_root_and_strategy_cli_files() -> None:
+    """The CLI tier imports the root and a strategy's cli file; no other role and not the family package."""
+    package = "src.strategies.momentum"
+    ok = {(_CLI_TIER, _ROOT), (_CLI_TIER, f"{package}.cli")}
+    assert _edge_violations(ok, _SAMPLE_STRATEGIES, set()) == []
+    bad = {
+        (_CLI_TIER, f"{package}.execution"),
+        (_CLI_TIER, f"{package}.analyzer"),
+        (_CLI_TIER, f"{package}.evaluation"),
+        (_CLI_TIER, "src.strategies._graham.replay"),
+    }
+    assert _edge_violations(bad, _SAMPLE_STRATEGIES, set()) == [
+        f"CLI tier imports a role it may not: {_CLI_TIER} -> {target}"
+        for target in (
+            "src.strategies._graham.replay",
+            f"{package}.analyzer",
+            f"{package}.evaluation",
+            f"{package}.execution",
+        )
+    ]
+
+
+def test_t13_lists_the_cli_tier_as_an_importer_of_the_root() -> None:
+    """The CLI tier pairs its entries with the core bundles, so it is a listed root importer; a stray module is not."""
+    assert _CLI_TIER in _ROOT_IMPORTERS
+    assert _edge_violations({(_CLI_TIER, _ROOT)}, _SAMPLE_STRATEGIES, set()) == []
+    assert _edge_violations({("src.strategies.momentum.cli", _ROOT)}, _SAMPLE_STRATEGIES, set()) == [
+        f"module imports the composition root: src.strategies.momentum.cli -> {_ROOT}"
     ]
