@@ -64,10 +64,12 @@ def test_verified_comparison_reaches_cli_and_cache(command: str, mode: str, bypa
     if command == "graham-growth":
         arguments.extend(["--expected-growth", "5", "--aaa-yield", "4.5"])
     with (
-        patch("src.cli.build_graham_resolver", return_value=resolver),
-        patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None),
-        patch("src.cli.YFinanceClient.resolve_instrument_kind", return_value=None),
-        patch("src.cli._production_financial_cache", return_value=_cache_context()),
+        patch(f"src.strategies.{command.replace('-', '_')}.cli.build_graham_resolver", return_value=resolver),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None),
+        patch(
+            f"src.strategies.{command.replace('-', '_')}.cli._production_financial_cache", return_value=_cache_context()
+        ),
         patch("socket.socket.connect", side_effect=AssertionError("Network forbidden")),
     ):
         for _ in range(2):
@@ -112,9 +114,9 @@ def test_bad_filing_preserves_value_and_reports_reason() -> None:
     provider = ProductionFinancialFactsProvider(sec_edgar=sec, yfinance=QuoteProvider())
     resolver = GrahamNumberInputResolver(provider, clock=lambda: NOW)
     with (
-        patch("src.cli.build_graham_resolver", return_value=resolver),
-        patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None),
-        patch("src.cli.YFinanceClient.resolve_instrument_kind", return_value=None),
+        patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=resolver),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None),
         patch("socket.socket.connect", side_effect=AssertionError("Network forbidden")),
     ):
         result = CliRunner().invoke(app, ["graham-number", "KO", "--no-cache", "--json"])

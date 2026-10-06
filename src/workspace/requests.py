@@ -11,7 +11,7 @@ types with their original semantics; they never construct data providers, fetch 
 analysis work.
 
 Provider choices are restricted at the selection boundary to those supported by the current CLI composition
-(see ``src/cli.py`` provider resolution): the security-fact provider must be SEC EDGAR (``sec_edgar``) or
+(see the strategies' ``cli.py`` provider resolution): the security-fact provider must be SEC EDGAR (``sec_edgar``) or
 Massive (``massive``), even though the base analyzer configs permit arbitrary identifiers for dependency
 injection. The quote provider resolves from the security provider using the existing Graham semantics.
 

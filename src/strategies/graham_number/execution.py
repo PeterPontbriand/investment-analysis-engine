@@ -1,10 +1,10 @@
 """Graham Number execution adapter: borrow dependencies, call the existing analyzer.
 
 This adapter extracts the profile composition and analyzer invocation
-currently inlined in ``src.cli``'s ``_run_graham_number`` helper so both the
+formerly inlined in the ``_run_graham_number`` helper so both the
 direct command and a future save/refresh service call identical code.
 Presentation, exit-code selection, and friendly failure rendering stay in
-``src.cli``; this module captures execution evidence only.
+the command (``src.strategies.graham_number.cli``); this module captures execution evidence only.
 
 ``classify_graham_number_outcome`` freezes the exact native-status mapping
 required before any run is persisted: native ``NOT_APPLICABLE`` maps to

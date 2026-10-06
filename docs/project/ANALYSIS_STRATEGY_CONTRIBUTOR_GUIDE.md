@@ -34,7 +34,7 @@ The adapter connects a method to execution capture; it does not duplicate its fi
 
 ### Strategy integration architecture
 
-The diagram shows current FCF-growth wiring as a concrete path through the common analyzer contract. The strategy supplies its own config, resolver, calculations, and result; composition supplies the context and shared infrastructure. Persistence is conditional, not automatic: `_maybe_save_run` (`src/cli.py`) is the one place shared by all four direct commands that decides whether a run reaches `workspace.execute()` at all, based on `--save-run`; a watchlist refresh reaches the same `execute()` through its own composition in `src/workspace/refresh.py` instead.
+The diagram shows current FCF-growth wiring as a concrete path through the common analyzer contract. The strategy supplies its own config, resolver, calculations, and result; composition supplies the context and shared infrastructure. Persistence is conditional, not automatic: `maybe_save_run` (`src/cli_run_support.py`) is the one place shared by all four direct commands that decides whether a run reaches `workspace.execute()` at all, based on `--save-run`; a watchlist refresh reaches the same `execute()` through its own composition in `src/workspace/refresh.py` instead.
 
 ```mermaid
 flowchart LR
@@ -50,7 +50,7 @@ flowchart LR
     Resolver -->|"observations + trace"| Analyzer
     Analyzer -->|"deterministic calculation"| Result["FCFEarningsGrowthResult<br/>+ ResolvedInput provenance"]
     Result -->|"direct command rendering"| Presentation["Strategy presentation"]
-    Adapter -->|"FCFGrowthCapture"| SaveDecision{"_maybe_save_run<br/>--save-run?"}
+    Adapter -->|"FCFGrowthCapture"| SaveDecision{"maybe_save_run<br/>--save-run?"}
     SaveDecision -->|"no (default): stop here"| Presentation
     SaveDecision -->|"yes"| Normalize["Capture normalization<br/>from_fcf_growth_capture()"]
     Normalize -->|"ExecutionCapture"| Workspace["Common workspace.execute()"]
@@ -58,17 +58,17 @@ flowchart LR
     Result -.->|"native evidence in capture"| Workspace
 ```
 
-**What the contributor owns:** strategy policy/configuration, required input semantics and resolution, deterministic calculations, typed result, tests, user-facing presentation where needed, and its execution-adapter integration. **What is shared:** provider/cache contracts, provenance values, the `_maybe_save_run`/refresh persistence decision, workspace execution, run persistence, and shared financial conventions. Reuse the shared boundaries instead of rebuilding them inside a strategy.
+**What the contributor owns:** strategy policy/configuration, required input semantics and resolution, deterministic calculations, typed result, tests, user-facing presentation where needed, and its execution-adapter integration. **What is shared:** provider/cache contracts, provenance values, the `maybe_save_run`/refresh persistence decision, workspace execution, run persistence, and shared financial conventions. Reuse the shared boundaries instead of rebuilding them inside a strategy.
 
 ### What happens during an FCF & Earnings Growth run
 
-`_maybe_save_run` (`src/cli.py`) is a pure passthrough to the adapter when `--save-run` is not given — the default direct-command path never touches `workspace.execute()`, opens no database, and builds no durable profile cache. Only when `--save-run` is set does it open a database, build the capture closure, and call `execute()`. A watchlist refresh never goes through `_maybe_save_run`; it reaches `workspace.execute()` through its own composition in `src/workspace/refresh.py`, following the same adapter/normalize contract.
+`maybe_save_run` (`src/cli_run_support.py`) is a pure passthrough to the adapter when `--save-run` is not given — the default direct-command path never touches `workspace.execute()`, opens no database, and builds no durable profile cache. Only when `--save-run` is set does it open a database, build the capture closure, and call `execute()`. A watchlist refresh never goes through `maybe_save_run`; it reaches `workspace.execute()` through its own composition in `src/workspace/refresh.py`, following the same adapter/normalize contract.
 
 ```mermaid
 sequenceDiagram
     actor User
     participant CLI as CLI / composition
-    participant SaveDecision as _maybe_save_run
+    participant SaveDecision as maybe_save_run
     participant Adapter as FCF execution adapter
     participant Context as AnalysisContext
     participant Analyzer as FCFEarningsGrowthAnalyzer

@@ -22,7 +22,9 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import cast, get_args, get_origin
 
+import typer
 from pydantic import BaseModel
+from typer.core import TyperGroup
 
 from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
 from src.cli_strategy_wiring import (
@@ -112,10 +114,13 @@ EVALUATION_ENTRY_FIELDS: frozenset[str] = frozenset(
 )
 """The documented fields of an evaluation-tier entry: the paired core bundle and the erased composition."""
 
-CLI_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"build", "refresh"})
+CLI_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"build", "refresh", "command"})
 """The documented members of a strategy's CLI-tier composition."""
 
-CLI_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "build", "refresh"})
+NON_STRATEGY_COMMANDS: frozenset[str] = frozenset({"evaluate", "health", "refresh"})
+"""The top-level commands that are not a strategy's direct command; command groups are recognized by type."""
+
+CLI_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "build", "refresh", "command"})
 """The documented fields of a CLI-tier entry: the paired core bundle and the erased composition."""
 
 VIEW_ACCESSORS: frozenset[str] = frozenset(
@@ -130,6 +135,9 @@ _FORBIDDEN_IMPORTS = frozenset({"importlib", "pkgutil", "inspect", "entry_points
 _FORBIDDEN_CALLS = frozenset({"globals", "locals", "get_type_hints"})
 _FORBIDDEN_ATTRIBUTES = frozenset({"__subclasses__", "__init_subclass__"})
 _FORBIDDEN_NAME = re.compile(r"^(register|unregister|load_|discover)|(Registry|Factory|Plugin)$")
+_COMMAND_ADDER = "add_strategy_commands"
+_COMMAND_ADDER_FILE = "cli_strategy_wiring.py"
+_COMMAND_REGISTRATION = "registers a command on the Typer app"
 
 
 def label(descriptor: StrategyDescriptor) -> str:
@@ -780,7 +788,9 @@ def _cli_tier_probes(
             if isinstance(behavior, StrategyBehavior):
                 wrong = pair_cli(
                     behavior,
-                    CliComposition(build=lambda _flags: second.selection, refresh=paired.refresh),
+                    CliComposition(
+                        build=lambda _flags: second.selection, refresh=paired.refresh, command=paired.command
+                    ),
                 )
                 _expect_undeclared(
                     gaps,
@@ -982,6 +992,75 @@ def evaluation_tier_is_closed_gaps(tier: Sequence[EvaluationStrategy] = EVALUATI
     return gaps
 
 
+def command_table_gaps(descriptors: tuple[StrategyDescriptor, ...], app: typer.Typer) -> list[str]:
+    """T7: the real Typer app's top-level commands against the descriptors' aliases.
+
+    Every top-level command is a descriptor alias, a command group (hidden ones included) or listed in
+    ``NON_STRATEGY_COMMANDS``; no alias equals a group or non-strategy name; and each strategy command offers
+    ``--save-run`` and ``--json``. That every alias is a command is derived from the CLI tier and is checked by
+    T10's CLI-tier surface.
+    """
+    gaps: list[str] = []
+    root = typer.main.get_command(app)
+    commands = root.commands if isinstance(root, TyperGroup) else {}
+    groups = {name for name, command in commands.items() if isinstance(command, TyperGroup)}
+    aliases = {item.alias for item in descriptors}
+    gaps.extend(
+        f"alias {alias!r} is also a command group or non-strategy command name"
+        for alias in sorted(aliases & (groups | NON_STRATEGY_COMMANDS))
+    )
+    for name in sorted(set(commands) - aliases - groups - NON_STRATEGY_COMMANDS):
+        gaps.append(
+            f"top-level command {name!r} is neither a strategy alias, a command group nor a listed non-strategy command"
+        )
+    for alias in sorted((aliases & set(commands)) - groups):
+        offered = {option for parameter in commands[alias].params for option in getattr(parameter, "opts", ())}
+        gaps.extend(
+            f"strategy command {alias!r} does not offer {flag}"
+            for flag in ("--save-run", "--json")
+            if flag not in offered
+        )
+    return gaps
+
+
+def save_run_gaps(
+    descriptors: tuple[StrategyDescriptor, ...],
+    stored: Mapping[str, Callable[[], Sequence[AnalysisRun]]],
+) -> list[str]:
+    """T22: each alias's real command, run with ``--save-run``, stores exactly one run its codec accepts.
+
+    ``stored`` maps an alias to a function that runs that alias's command against a temporary database and
+    fixture providers, then returns the runs the database holds. The per-alias fixture setup is hand-written
+    test data; a missing entry is a gap.
+    """
+    gaps: list[str] = []
+    codecs = evidence_by_key(descriptors)
+    for item in descriptors:
+        run_alias = stored.get(item.alias)
+        if run_alias is None:
+            gaps.append(f"no save-run fixture for alias {item.alias!r}")
+            continue
+        runs = tuple(run_alias())
+        if not runs:
+            gaps.append(f"alias {item.alias!r} stored no run")
+            continue
+        if len(runs) > 1:
+            gaps.append(f"alias {item.alias!r} stored {len(runs)} runs, not one")
+            continue
+        run = runs[0]
+        if (run.analysis_id, run.method_id) != (item.analysis_id, item.method_id):
+            gaps.append(
+                f"alias {item.alias!r} stored a run keyed {(run.analysis_id, run.method_id)!r}, "
+                f"not {(item.analysis_id, item.method_id)!r}"
+            )
+            continue
+        try:
+            decode_evidence(run, codecs)
+        except Exception as error:  # noqa: BLE001 - any rejection is the gap being reported
+            gaps.append(f"alias {item.alias!r} stored a run its codec rejects: {error}")
+    return gaps
+
+
 def cli_tier_is_closed_gaps(tier: Sequence[CliStrategy] = CLI_STRATEGIES) -> list[str]:
     """T15 (CLI tier): the composition and the tier entry have exactly the documented members."""
     gaps: list[str] = []
@@ -1008,7 +1087,7 @@ def cli_tier_is_closed_gaps(tier: Sequence[CliStrategy] = CLI_STRATEGIES) -> lis
         entry = tier[0]
         if not _is_frozen(entry, "behavior"):
             gaps.append("CliStrategy is not frozen")
-        composition = CliComposition(build=entry.build, refresh=entry.refresh)
+        composition = CliComposition(build=entry.build, refresh=entry.refresh, command=entry.command)
         if not _is_frozen(composition, "build"):
             gaps.append("CliComposition is not frozen")
     return gaps
@@ -1078,15 +1157,19 @@ def _attribute_problems(node: ast.Attribute) -> Iterator[str]:
     if node.attr == "register_tool":
         yield "registers a tool"
     if node.attr == "command" and owner == "app":
-        yield "registers a command on the Typer app"
-    if node.attr == "Typer" and owner == "typer":
-        yield "constructs a Typer app"
+        yield _COMMAND_REGISTRATION
 
 
 def _call_problems(node: ast.Call) -> Iterator[str]:
     """Yield what is wrong, if anything, with one call."""
+    if isinstance(node.func, ast.Attribute) and node.func.attr == "Typer":
+        owner = node.func.value.id if isinstance(node.func.value, ast.Name) else ""
+        if owner == "typer":
+            yield "constructs a Typer app"
     if not isinstance(node.func, ast.Name):
         return
+    if node.func.id == "Typer":
+        yield "constructs a Typer app"
     if node.func.id in _FORBIDDEN_CALLS:
         yield f"calls {node.func.id}"
     if node.func.id == "getattr" and not (len(node.args) > 1 and isinstance(node.args[1], ast.Constant)):
@@ -1103,15 +1186,34 @@ def _node_problems(node: ast.AST) -> Iterator[str]:
         yield from _call_problems(node)
 
 
+def _command_adder_lines(path: Path, tree: ast.Module) -> range:
+    """Return the lines of the one permitted command registration: ``add_strategy_commands`` in the CLI tier."""
+    if path.name != _COMMAND_ADDER_FILE:
+        return range(0)
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == _COMMAND_ADDER:
+            return range(node.lineno, (node.end_lineno or node.lineno) + 1)
+    return range(0)
+
+
 def discovery_gaps(files: Iterable[Path], root: Path = _REPO_ROOT) -> list[str]:
-    """T14: no discovery, registration side effect, self-registration or registry-like name in ``files``."""
+    """T14: no discovery, registration side effect, self-registration or registry-like name in ``files``.
+
+    The one permitted ``app.command`` call is the one in ``add_strategy_commands`` in the CLI tier, which adds
+    each strategy's command by iterating the closed tuple.
+    """
     gaps: list[str] = []
     for path in files:
         where = path.relative_to(root).as_posix() if path.is_relative_to(root) else path.as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        permitted = _command_adder_lines(path, tree)
         for node in ast.walk(tree):
             line = getattr(node, "lineno", 0)
-            gaps.extend(f"{where}:{line}: {problem}" for problem in _node_problems(node))
+            gaps.extend(
+                f"{where}:{line}: {problem}"
+                for problem in _node_problems(node)
+                if not (problem == _COMMAND_REGISTRATION and line in permitted)
+            )
         gaps.extend(
             f"{where}:{line}: defines {name}, a registration or discovery name"
             for name, line in _defined_names(tree)

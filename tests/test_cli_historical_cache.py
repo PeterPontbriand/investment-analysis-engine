@@ -71,7 +71,7 @@ def test_momentum_cli_reuses_history_and_preserves_profile_provider(
     profile = InstrumentProfile(ticker="ACME", identity=None, kind_evidence=None, diagnostics=())
     args = ["momentum", "ACME", "--short-window", "2", "--long-window", "3", "--rsi-period", "3", "--json"]
     with (
-        patch("src.cli.YFinanceClient", return_value=provider),
+        patch("src.strategies.momentum.cli.YFinanceClient", return_value=provider),
         patch.object(
             provider, "fetch_historical_data", side_effect=[history, AssertionError("Unexpected refetch")]
         ) as fetch,
@@ -203,7 +203,7 @@ def _momentum_options_run(
         stack.enter_context(
             patch("src.cli_support.settings", ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
         )
-        stack.enter_context(patch("src.cli.YFinanceClient", return_value=provider))
+        stack.enter_context(patch("src.strategies.momentum.cli.YFinanceClient", return_value=provider))
         fetch = stack.enter_context(patch.object(provider, "fetch_historical_data", return_value=history))
         stack.enter_context(patch("src.strategies.momentum.execution.compose_instrument_profile", return_value=profile))
         if guard_readiness:

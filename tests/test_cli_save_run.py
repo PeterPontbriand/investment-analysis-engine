@@ -1,11 +1,11 @@
 """Direct-command `--save-run` (F3) tests: opt-in Analysis Run persistence.
 
-Isolation note: `src.cli`'s own `settings` binding is deliberately NOT
+Isolation note: the `settings` bindings of `src.cli_run_support` and Momentum's `cli` module are deliberately NOT
 covered by the shared `isolated_cli_database` fixture (see
 `tests/_cli_helpers.py`'s docstring) because that name is shared for
 configuration well beyond database access, and other already-accepted tests
 rely on mutating the real shared settings singleton directly. This module
-isolates `src.cli.settings` locally instead, preserving every other field
+isolates them locally instead, preserving every other field
 from the real settings (built the same way `src.cli_database`'s own
 maintenance commands already do: `ProjectSettings(**(settings.model_dump() |
 {"database_url": ...}))`) so only the run-storage database target changes.
@@ -23,7 +23,7 @@ import pytest
 from alembic.config import Config
 from typer.testing import CliRunner
 
-import src.cli
+import src.cli_run_support
 from alembic import command
 from src.cli import app
 from src.config import ProjectSettings
@@ -52,7 +52,7 @@ runner = CliRunner()
 
 @pytest.fixture(autouse=True)
 def isolated_save_run_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Point `src.cli.settings`'s run-storage database at a disposable, migrated file.
+    """Point the run helpers' and Momentum's `settings` run-storage database at a disposable, migrated file.
 
     Every other field (SEC identity, etc.) is preserved from the real settings,
     so this module's tests do not disturb unrelated already-accepted behavior.
@@ -62,28 +62,29 @@ def isolated_save_run_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
-    monkeypatch.setattr("src.cli.settings", isolated)
+    monkeypatch.setattr("src.cli_run_support.settings", isolated)
+    monkeypatch.setattr("src.strategies.momentum.cli.settings", isolated)
 
 
 @pytest.fixture(autouse=True)
 def disable_live_yfinance_identity_resolution() -> Iterator[None]:
     """Keep these CLI tests deterministic, matching test_cli.py's own convention."""
     with (
-        patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None),
-        patch("src.cli.YFinanceClient.resolve_instrument_kind", return_value=None),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None),
     ):
         yield
 
 
 def _cli_settings() -> ProjectSettings:
-    """Read `src.cli`'s current (possibly monkeypatched) settings binding.
+    """Read `src.cli_run_support`'s current (possibly monkeypatched) settings binding.
 
     `getattr` avoids requiring `cli.py` (a large, heavily-used entry-point
     module with no existing `__all__`) to declare a broader public export
     contract than it already has, purely for this test module's own need to
     reach the live attribute after `isolated_save_run_database` patches it.
     """
-    return cast(ProjectSettings, getattr(src.cli, "settings"))  # noqa: B009
+    return cast(ProjectSettings, getattr(src.cli_run_support, "settings"))  # noqa: B009
 
 
 def _repository() -> SQLiteAnalysisRunRepository:
@@ -223,7 +224,7 @@ def test_momentum_save_run_without_explicit_ticker_is_a_usage_error() -> None:
 
 
 def test_graham_number_save_run_persists_a_completed_run() -> None:
-    with patch("src.cli.build_graham_resolver", return_value=_graham_resolver()):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()):
         result = runner.invoke(app, ["graham-number", "SYNTH", "--data-provider", "sec_edgar", "--save-run"])
 
     assert result.exit_code == 0
@@ -238,7 +239,7 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome() -> None:
     """A typed not_applicable/unavailable outcome must still be persisted, not skipped."""
     profile = fixture_known_etf_profile()
     with (
-        patch("src.cli.build_graham_resolver", return_value=_graham_resolver()),
+        patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()),
         patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
     ):
         result = runner.invoke(
@@ -255,7 +256,7 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome() -> None:
 
 
 def test_graham_number_no_cache_plus_save_run_still_saves() -> None:
-    with patch("src.cli.build_graham_resolver", return_value=_graham_resolver()):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()):
         result = runner.invoke(
             app,
             ["graham-number", "SYNTH", "--data-provider", "sec_edgar", "--no-cache", "--save-run"],
@@ -269,7 +270,7 @@ def test_graham_number_no_cache_plus_save_run_still_saves() -> None:
 
 
 def test_graham_number_default_call_saves_nothing() -> None:
-    with patch("src.cli.build_graham_resolver", return_value=_graham_resolver()):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()):
         result = runner.invoke(app, ["graham-number", "SYNTH", "--data-provider", "sec_edgar"])
 
     assert result.exit_code == 0
@@ -280,7 +281,7 @@ def test_graham_number_default_call_saves_nothing() -> None:
 
 def test_graham_number_save_run_storage_failure_is_visible_and_nonzero_exit() -> None:
     with (
-        patch("src.cli.build_graham_resolver", return_value=_graham_resolver()),
+        patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()),
         patch.object(SQLiteAnalysisRunRepository, "insert", side_effect=AnalysisRunConflictError("duplicate")),
     ):
         result = runner.invoke(app, ["graham-number", "SYNTH", "--data-provider", "sec_edgar", "--save-run"])
@@ -296,7 +297,7 @@ def test_graham_number_save_run_storage_failure_is_visible_and_nonzero_exit() ->
 
 
 def test_graham_growth_save_run_persists_with_stored_assumptions() -> None:
-    with patch("src.cli.build_graham_resolver", return_value=_graham_growth_resolver()):
+    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=_graham_growth_resolver()):
         result = runner.invoke(
             app,
             [
@@ -330,7 +331,7 @@ def test_graham_growth_save_run_persists_with_stored_assumptions() -> None:
 
 
 def test_fcf_growth_save_run_persists() -> None:
-    with patch("src.cli.build_sec_production_provider", return_value=_fcf_provider()):
+    with patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_fcf_provider()):
         result = runner.invoke(app, ["fcf-growth", "ACME", "--save-run"])
 
     assert result.exit_code == 0
@@ -342,7 +343,7 @@ def test_fcf_growth_save_run_persists() -> None:
 
 
 def test_fcf_growth_default_call_saves_nothing() -> None:
-    with patch("src.cli.build_sec_production_provider", return_value=_fcf_provider()):
+    with patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_fcf_provider()):
         result = runner.invoke(app, ["fcf-growth", "ACME"])
 
     assert result.exit_code == 0

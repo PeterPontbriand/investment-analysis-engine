@@ -113,7 +113,9 @@ def test_an_entry_rejects_another_strategys_selection() -> None:
     wrong = pair_cli(
         MOMENTUM_BEHAVIOR,
         CliComposition(
-            build=lambda _flags: cast("MomentumSelection", GrahamNumberSelection()), refresh=refresh_momentum
+            build=lambda _flags: cast("MomentumSelection", GrahamNumberSelection()),
+            refresh=refresh_momentum,
+            command=momentum.command,
         ),
     )
     with pytest.raises(UndeclaredStrategyError, match="selection type"):

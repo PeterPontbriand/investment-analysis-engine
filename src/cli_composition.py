@@ -1,7 +1,7 @@
 """Production provider/resolver composition shared by CLI entry points.
 
 These functions build the SEC EDGAR/Massive financial-fact providers and the
-Graham input resolvers used by the direct commands (``src.cli``) and by the
+Graham input resolvers used by the direct commands (``src.strategies.<strategy>.cli``) and by the
 refresh service's dispatch executor (``src.cli_workspace``). They read
 declared application identity and growth-assumption constants from
 ``settings`` — configuration entirely independent of database access.
@@ -12,7 +12,7 @@ test fixture ``isolated_cli_database`` (``tests/_cli_helpers.py``) rebinds
 disposable, isolated instance so tests never depend on a developer machine's
 real local database being migrated. Several already-accepted tests also rely
 on ``patch.object(settings, "sec_user_agent", value)`` mutating the one real
-shared settings singleton that ``src.cli`` reads. If these functions lived in
+shared settings singleton that the direct commands read. If these functions lived in
 ``src.cli_support`` or ``src.cli_workspace``, that database-only isolation
 would silently defeat the SEC-identity/growth-assumption patches too, since
 both concerns would share one rebindable module-level name. Keeping this

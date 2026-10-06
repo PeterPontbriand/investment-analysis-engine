@@ -82,8 +82,8 @@ def stub_yahoo_identity_metadata() -> Iterator[None]:
     rejects.
     """
     with (
-        patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None),
-        patch("src.cli.YFinanceClient.resolve_instrument_kind", return_value=None),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None),
     ):
         yield
 

@@ -1,7 +1,7 @@
 """Momentum execution adapter: borrow dependencies, call the existing analyzer.
 
 This adapter extracts the analyzer invocation and captured-evidence assembly
-currently inlined in ``src.cli``'s ``momentum`` command so both the direct
+formerly inlined in the ``momentum`` command so both the direct
 command and a future save/refresh service call identical code. It owns no
 provider, cache, or database lifecycle: the historical provider is borrowed,
 never constructed or closed here, and instrument-profile composition stays
