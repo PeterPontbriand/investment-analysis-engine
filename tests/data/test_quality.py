@@ -20,6 +20,7 @@ from src.data.quality import (
     QualityDecision,
     QualityOutcome,
     evaluate_freshness,
+    evaluate_future_observation,
     evaluate_historical_quality,
 )
 
@@ -110,12 +111,73 @@ def test_invalid_date_order_and_missing_dates_fail(index: pd.DatetimeIndex) -> N
     assert outcomes(evaluate_historical_quality(data, context=CONTEXT))["historical.index"] is QualityOutcome.FAIL
 
 
-def test_non_date_index_is_unverified_without_coercion() -> None:
+@pytest.mark.parametrize(
+    "index",
+    [
+        pd.Index(["first", "second"]),
+        pd.Index([0.0, 1.0]),
+        pd.Index([0, 1]),
+        pd.RangeIndex(2),
+        pd.period_range("2026-09-03", periods=2, freq="D"),
+        pd.TimedeltaIndex(["1 days", "2 days"]),
+        pd.Index([datetime(2026, 9, 3), datetime(2026, 9, 4)], dtype="object"),
+        pd.Index([date(2026, 9, 3), "2026-09-04"], dtype="object"),
+    ],
+    ids=["string", "float", "integer", "range", "period", "timedelta", "object_datetimes", "mixed_objects"],
+)
+def test_non_date_index_fails_the_index_rule_without_coercion(index: pd.Index) -> None:
+    """ESC-25: an index that is not on the date-like allowlist fails and is never coerced to dates."""
     data = history()
-    data.frame.index = pd.Index(["first", "second"])
-    result = outcomes(evaluate_historical_quality(data, context=CONTEXT))
-    assert result["historical.index"] is QualityOutcome.INSUFFICIENT_EVIDENCE
-    assert result["historical.context"] is QualityOutcome.INSUFFICIENT_EVIDENCE
+    data.frame.index = index
+    decisions = evaluate_historical_quality(data, context=CONTEXT)
+    failures = [item for item in decisions if item.outcome is QualityOutcome.FAIL]
+
+    assert [item.rule_id for item in failures] == ["historical.index"]
+    assert "date-like index" in failures[0].reason
+    assert outcomes(decisions)["historical.context"] is QualityOutcome.INSUFFICIENT_EVIDENCE
+    assert type(data.frame.index) is type(index)
+
+
+@pytest.mark.parametrize(
+    "index",
+    [
+        pd.to_datetime(["2026-09-03", "2026-09-04"]),
+        pd.to_datetime(["2026-09-03", "2026-09-04"]).tz_localize("UTC"),
+        pd.to_datetime(["2026-09-03", "2026-09-04"]).tz_localize("America/Toronto"),
+        pd.to_datetime(["2026-09-03", "2026-09-04"]).as_unit("s"),
+        pd.to_datetime(["2026-09-03", "2026-09-04"]).as_unit("ms"),
+        pd.to_datetime(["2026-09-03", "2026-09-04"]).as_unit("us"),
+        pd.to_datetime(["2026-09-03", "2026-09-04"]).as_unit("ns"),
+        pd.Index([date(2026, 9, 3), date(2026, 9, 4)]),
+    ],
+    ids=["naive", "utc", "zoned", "unit_s", "unit_ms", "unit_us", "unit_ns", "python_dates"],
+)
+def test_every_allowlisted_index_kind_passes_from_daily_history(index: pd.Index) -> None:
+    data = history()
+    data.frame.index = index
+    decisions = evaluate_historical_quality(data, context=CONTEXT)
+    result = outcomes(decisions)
+
+    assert QualityOutcome.FAIL not in result.values()
+    assert result["historical.index"] is QualityOutcome.PASS
+    assert result["historical.context"] is QualityOutcome.PASS
+
+
+def test_python_date_index_is_checked_for_order_duplicates_and_sessions() -> None:
+    data = history()
+    data.frame.index = pd.Index([date(2026, 9, 4), date(2026, 9, 3)])
+    assert outcomes(evaluate_historical_quality(data, context=CONTEXT))["historical.index"] is QualityOutcome.FAIL
+
+    data.frame.index = pd.Index([date(2026, 9, 3), date(2026, 9, 4)])
+    policy = HistoricalQualityPolicy(expected_sessions=(date(2026, 9, 3), date(2026, 9, 5)))
+    result = outcomes(evaluate_historical_quality(data, context=CONTEXT, policy=policy))
+    assert result["historical.sessions"] is QualityOutcome.FAIL
+
+
+def test_python_date_index_is_compared_with_the_execution_time() -> None:
+    frame = pd.DataFrame({"Close": [1.0]}, index=pd.Index([date(2099, 1, 1)]))
+    future = evaluate_future_observation(frame, context=CONTEXT)
+    assert future.outcome is QualityOutcome.FAIL
 
 
 @pytest.mark.parametrize(

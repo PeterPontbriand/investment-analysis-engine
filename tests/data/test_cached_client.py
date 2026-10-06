@@ -189,6 +189,32 @@ def test_hit_all_boundaries_and_reopen(database: SQLiteDatabase, tmp_path: Path)
     assert len(provider.calls) == 1
 
 
+def test_python_date_index_passes_quality_and_round_trips_through_the_cache(database: SQLiteDatabase) -> None:
+    """ESC-25: a Python-date index is on the date-like allowlist, so it is cached and read back unchanged."""
+    provider = FakeProvider()
+    provider.data.frame.index = pd.Index([date(2025, 1, 1), date(2025, 1, 2)], name="calendar_date")
+    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    client = CachedHistoricalDataClient(provider, repository, request_variant="daily", ttl=None, clock=lambda: NOW)
+
+    first = client.fetch_data("ABC", START)
+    second = client.fetch_data("ABC", START)
+
+    assert len(provider.calls) == 1
+    assert_frame_equal(first, provider.data.frame)
+    assert_frame_equal(second, provider.data.frame)
+
+
+def test_non_date_index_is_rejected_before_it_is_cached_or_returned(database: SQLiteDatabase) -> None:
+    provider = FakeProvider()
+    provider.data.frame.index = pd.RangeIndex(2)
+    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    client = CachedHistoricalDataClient(provider, repository, request_variant="daily", ttl=None, clock=lambda: NOW)
+
+    with pytest.raises(HistoricalDataQualityError, match="date-like index"):
+        client.fetch_data("ABC", START)
+    assert repository.get(MarketDataCacheKey("ABC", "Fixture", date(2025, 1, 1), None, "daily")) is None
+
+
 def test_disabled_cache_never_reads_or_writes_the_repository(database: SQLiteDatabase) -> None:
     provider = FakeProvider()
     repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
