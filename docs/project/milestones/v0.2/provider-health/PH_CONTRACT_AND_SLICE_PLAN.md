@@ -37,6 +37,10 @@ before the next begins. A prose-only documentation slice follows the documentati
 PH.2 does not start before [SWC.4a](../swc/SWC_CONTRACT_AND_SLICE_PLAN.md#swc4a--failure-envelope-and-schema-generator)
 has merged. PH.3 does not start before PH.2 has merged. PH.1 has no dependency and may run alongside SWC.
 
+[Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) (orchestrator
+classification of `DataQualityError` in trajectory events) lands with or immediately after PH.2, because it
+reuses the SWC.4a reason codes and PH.2's failure kinds. It is complete before Step 3.5 begins.
+
 ## 3. The slices
 
 Settled across slices: the live suite, `ian health` and the canary share one set of check bodies; the canary
