@@ -51,8 +51,8 @@ document-link check and applicable documentation checks.
 | SWC.2d | [Move fixture composition into the evaluation tier](#swc2d--evaluation-tier) | Complete | 2026-10-04 |
 | SWC.3a | [Inject the descriptor into workspace consumers](#swc3a--workspace-consumers) | Complete | 2026-10-06 |
 | SWC.3b | [CLI tier: selection builders and refresh executors](#swc3b--cli-tier) | Complete | 2026-10-06 |
-| SWC.3c | [Move the direct commands into strategy files](#swc3c--direct-commands) | Next | |
-| SWC.4a | [Typed failure envelope and schema generator](#swc4a--failure-envelope-and-schema-generator) | Planned | |
+| SWC.3c | [Move the direct commands into strategy files](#swc3c--direct-commands) | Complete | 2026-10-06 |
+| SWC.4a | [Typed failure envelope and schema generator](#swc4a--failure-envelope-and-schema-generator) | Next | |
 | SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Planned | |
 | SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Planned | |
 | SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
@@ -389,7 +389,7 @@ changes in thirteen test modules.
   `scripts/strategy_conformance.py`; tests and T10's CLI-tier surface, including the patch strings in
   `tests/test_cli_refresh.py` and `tests/test_workspace_integration.py` that name the moved provider
   composition; removes its four T13 transition entries. T13 also gains the rule that only listed CLI modules
-  import the CLI tier (`src.cli_workspace`; SWC.3c adds `src.cli`), with the tier's entry in the root-importer
+  import the CLI tier (`src.cli_workspace` in SWC.3b and `src.cli` in SWC.3c), with the tier's entry in the root-importer
   list, a staleness check and a negative test.
 - **Branch:** `feat/swc-3b-cli-tier`, from `main` after SWC.3a has merged.
 - **Detail:** [SWC.1 design §3.3, §6 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers)
@@ -404,6 +404,13 @@ changes in thirteen test modules.
   itself. `_maybe_save_run` and `get_cli_run_context` move to `src/cli_run_support.py`.
 - **Scope:** `src/cli.py`, new `src/cli_run_support.py`, the four `src/strategies/<strategy>/cli.py`, the
   thirteen test modules that patch `src.cli.` names (76 patch strings, retargeted), T7 and T22; removes its eight T13 transition entries.
+  The new `command` member of the CLI tier and `add_strategy_commands` also change `src/cli_strategy_wiring.py`,
+  `scripts/strategy_conformance.py` (T7, T14, T15, T22) and `tests/test_cli_strategy_wiring.py`; the
+  help-output pin adds `tests/_cli_help_output.py`, `tests/test_cli_help_output.py` and
+  `tests/expected_output/cli_help/`; T22 adds `tests/test_save_run_every_direct_command.py` and a provider
+  helper in `tests/_direct_command_output.py`; the layering and conformance tests are updated; and the
+  docstrings and two guides that named `src/cli.py` for moved code are corrected
+  ([design H.15 to H.22](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h15-the-command-member-and-add_strategy_commands)).
   Removes `src/cli.py`'s copies of the three FCF option converters (`_historical_horizon`, `_forward_policy`,
   `_fcf_classification_basis`), which are the same code as the ones SWC.3b moved to `src/strategies/fcf_growth/cli.py`,
   and moves its Momentum window check (`_validate_momentum_windows`, which exits with code 2 and so differs from the

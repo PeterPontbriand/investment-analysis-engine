@@ -10,11 +10,15 @@ from typer.testing import CliRunner
 
 from src.cli import app
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
+from src.strategies.graham_growth import cli as graham_growth_cli
 from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_growth.config import GrahamGrowthConfig
+from src.strategies.graham_number import cli as graham_number_cli
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.config import GrahamNumberConfig
 from tests._cli_helpers import normalize_cli_output
+
+_STRATEGY_CLI = {"graham-number": graham_number_cli, "graham-growth": graham_growth_cli}
 
 
 def _arguments(command: str) -> list[str]:
@@ -32,10 +36,14 @@ def _arguments(command: str) -> list[str]:
     ],
 )
 def test_removed_commands_and_options_fail_before_composition(arguments: list[str]) -> None:
-    with patch("src.cli.build_graham_resolver") as build:
+    with (
+        patch("src.strategies.graham_number.cli.build_graham_resolver") as build_number,
+        patch("src.strategies.graham_growth.cli.build_graham_resolver") as build_growth,
+    ):
         result = CliRunner().invoke(app, arguments)
     assert result.exit_code == 2
-    build.assert_not_called()
+    build_number.assert_not_called()
+    build_growth.assert_not_called()
 
 
 @pytest.mark.parametrize("command", ["graham-number", "graham-growth"])
@@ -52,9 +60,10 @@ def test_help_exposes_only_applicable_options(command: str) -> None:
 
 @pytest.mark.parametrize("command", ["graham-number", "graham-growth"])
 def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
+    module = _STRATEGY_CLI[command]
     with (
-        patch("src.cli.build_graham_resolver") as build,
-        patch("src.cli._run_" + command.replace("-", "_"), return_value=("ok", 0)) as run,
+        patch.object(module, "build_graham_resolver") as build,
+        patch.object(module, f"_run_{command.replace('-', '_')}", return_value=("ok", 0)) as run,
         patch("src.cli_support.ensure_database_ready", side_effect=AssertionError("cache bypass")),
     ):
         result = CliRunner().invoke(
@@ -97,9 +106,9 @@ def test_both_commands_execute_real_analyzers_with_fixture_evidence(command: str
     resolver_type = GrahamGrowthInputResolver if command == "graham-growth" else GrahamNumberInputResolver
     resolver = resolver_type(FixtureFinancialFactsProvider(), clock=lambda: NOW)
     with (
-        patch("src.cli.build_graham_resolver", return_value=resolver),
-        patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None),
-        patch("src.cli.YFinanceClient.resolve_instrument_kind", return_value=None),
+        patch(f"src.strategies.{command.replace('-', '_')}.cli.build_graham_resolver", return_value=resolver),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None),
     ):
         result = CliRunner().invoke(app, [*_arguments(command), "--data-provider", PROVIDER_ID, "--no-cache", *mode])
     assert result.exit_code == 0, result.output
@@ -120,7 +129,7 @@ def test_command_exception_closes_cache_and_preserves_exit(command: str, error: 
     with (
         patch("src.cli_support.SQLiteDatabase", return_value=database),
         patch("src.cli_support.ensure_database_ready"),
-        patch("src.cli.build_graham_resolver", side_effect=error),
+        patch(f"src.strategies.{command.replace('-', '_')}.cli.build_graham_resolver", side_effect=error),
     ):
         result = CliRunner().invoke(app, _arguments(command))
     assert result.exit_code == (2 if isinstance(error, (typer.Exit, typer.BadParameter)) else 1)
@@ -133,7 +142,10 @@ def test_command_exception_closes_cache_and_preserves_exit(command: str, error: 
     "options", [["--eps-basis", "unknown"], ["--eps-basis", "ttm"], ["--details", "--json"], ["--as-of", "bad"]]
 )
 def test_usage_validation_precedes_resources(command: str, options: list[str]) -> None:
-    with patch("src.cli_support.SQLiteDatabase") as database, patch("src.cli.build_graham_resolver") as build:
+    with (
+        patch("src.cli_support.SQLiteDatabase") as database,
+        patch(f"src.strategies.{command.replace('-', '_')}.cli.build_graham_resolver") as build,
+    ):
         result = CliRunner().invoke(app, [*_arguments(command), *options])
     assert result.exit_code == 2
     assert "input_value" not in result.output
@@ -149,9 +161,9 @@ def test_nonfinite_inputs_keep_typed_financial_outcomes(command: str, value: str
     resolver_type = GrahamGrowthInputResolver if command == "graham-growth" else GrahamNumberInputResolver
     resolver = resolver_type(FixtureFinancialFactsProvider(), clock=lambda: NOW)
     with (
-        patch("src.cli.build_graham_resolver", return_value=resolver),
-        patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None),
-        patch("src.cli.YFinanceClient.resolve_instrument_kind", return_value=None),
+        patch(f"src.strategies.{command.replace('-', '_')}.cli.build_graham_resolver", return_value=resolver),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None),
     ):
         result = CliRunner().invoke(
             app,

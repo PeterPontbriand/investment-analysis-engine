@@ -20,7 +20,7 @@ runner = CliRunner()
 def test_cli_growth_non_positive_value_explains_omitted_price_comparison() -> None:
     resolver = GrahamGrowthInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
 
-    with patch("src.cli.build_graham_resolver", return_value=resolver):
+    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=resolver):
         result = runner.invoke(
             app,
             [

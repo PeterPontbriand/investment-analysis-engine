@@ -1,10 +1,10 @@
 """Graham Growth execution adapter: borrow dependencies, call the existing analyzer.
 
 This adapter extracts the profile composition and analyzer invocation
-currently inlined in ``src.cli``'s ``_run_graham_growth`` helper so both the
+formerly inlined in the ``_run_graham_growth`` helper so both the
 direct command and a future save/refresh service call identical code.
 Presentation, exit-code selection, and friendly failure rendering stay in
-``src.cli``; this module captures execution evidence only. The effective
+the command (``src.strategies.graham_growth.cli``); this module captures execution evidence only. The effective
 calculation policy (base P/E, growth multiplier, baseline AAA yield) is
 supplied by the caller — exactly as ``src.cli_composition``'s
 ``growth_assumptions`` already resolves it — and retained unmodified inside the native

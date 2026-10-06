@@ -14,6 +14,7 @@ import re
 from collections.abc import Iterator
 from contextlib import ExitStack, nullcontext
 from dataclasses import dataclass, replace
+from datetime import datetime
 from pathlib import Path
 from typing import cast
 from unittest.mock import patch
@@ -23,6 +24,7 @@ from typer.testing import CliRunner
 from src.cli import app
 from src.core.clock import utc_now
 from src.data.financial.cache import InMemoryResolvedInputCache
+from src.data.financial.facts import FinancialFactRequest, ProviderFact
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.market_data import HistoricalMarketData
 from src.data.sec_edgar import SEC_PROVIDER_ID
@@ -94,22 +96,55 @@ def normalize(stdout: bytes) -> bytes:
     return _WALL_CLOCK_FIELDS.sub(rb"\1<wall-clock>", stdout.replace(b"\r\n", b"\n"))
 
 
-def run_command(command: str, mode: str) -> CommandOutput:
-    """Run one direct command in one output mode against its fixtures; no network, provider or model call."""
-    resolver_type = GrahamGrowthInputResolver if command == "graham-growth" else GrahamNumberInputResolver
-    resolver = resolver_type(FixtureFinancialFactsProvider(), clock=lambda: NOW)
-    with ExitStack() as stack:
-        stack.enter_context(patch("src.cli.build_graham_resolver", return_value=resolver))
-        stack.enter_context(
-            patch("src.cli.build_sec_production_provider", side_effect=lambda *_a, **_k: _fcf_provider())
+class SecLabeledGrahamProvider:
+    """The Graham fixture provider with its facts relabeled as SEC EDGAR.
+
+    A saved run's selection admits only the providers the CLI supports, so ``--save-run`` needs the resolved
+    facts' own provider id to agree with the ``sec_edgar`` value requested on the command line.
+    """
+
+    def __init__(self) -> None:
+        self._delegate = FixtureFinancialFactsProvider()
+
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
+        """Return the fixture facts, each relabeled with the SEC EDGAR provider id."""
+        return tuple(
+            replace(fact, provider_id=SEC_PROVIDER_ID)
+            for fact in self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
         )
+
+
+def enter_fixture_providers(stack: ExitStack, command: str, *, sec_labeled: bool = False) -> None:
+    """Replace each direct command's providers with deterministic fixtures for the life of ``stack``.
+
+    ``sec_labeled`` relabels the Graham facts as SEC EDGAR, which the commands need when they save a run.
+    """
+    resolver_type = GrahamGrowthInputResolver if command == "graham-growth" else GrahamNumberInputResolver
+    provider = SecLabeledGrahamProvider() if sec_labeled else FixtureFinancialFactsProvider()
+    resolver = resolver_type(provider, clock=lambda: NOW)
+    for graham in ("graham_number", "graham_growth"):
+        stack.enter_context(patch(f"src.strategies.{graham}.cli.build_graham_resolver", return_value=resolver))
+    stack.enter_context(
+        patch(
+            "src.strategies.fcf_growth.cli.build_sec_production_provider",
+            side_effect=lambda *_a, **_k: _fcf_provider(),
+        )
+    )
+    for cached in ("graham_number", "graham_growth", "fcf_growth"):
         stack.enter_context(
             patch(
-                "src.cli._production_financial_cache",
+                f"src.strategies.{cached}.cli._production_financial_cache",
                 side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache(clock=utc_now)),
             )
         )
-        stack.enter_context(patch("src.cli.YFinanceClient", _FixtureYahoo))
+    for yahoo in ("momentum", "graham_number", "graham_growth"):
+        stack.enter_context(patch(f"src.strategies.{yahoo}.cli.YFinanceClient", _FixtureYahoo))
+
+
+def run_command(command: str, mode: str) -> CommandOutput:
+    """Run one direct command in one output mode against its fixtures; no network, provider or model call."""
+    with ExitStack() as stack:
+        enter_fixture_providers(stack, command)
         result = CliRunner().invoke(app, [*_COMMANDS[command], *_MODES[mode]])
     return CommandOutput(result.exit_code, normalize(result.stdout_bytes), result.stderr_bytes)
 

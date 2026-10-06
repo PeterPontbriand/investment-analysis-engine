@@ -35,7 +35,7 @@ _ROOT_IMPORTERS = frozenset(
         "src.evaluation.ollama_runner",
         "src.evaluation.strategy_fixtures",
         "src.cli_strategy_wiring",
-        "src.cli",
+        "src.cli_run_support",
         "src.cli_workspace",
     }
 )
@@ -51,9 +51,9 @@ _STRATEGY_EVALUATION_IMPORTS = frozenset({"src.evaluation.fixture_context"})
 _FIXTURE_MODULE_PREFIX = "src.evaluation.fixtures."
 # The CLI tier pairs each strategy's watchlist selection builder and refresh executor with its core bundle. It
 # may import the root and the ``cli`` file of each strategy package, and only the CLI modules listed here import
-# it. As for the root, an entry must exist and import the tier; the direct-command slice adds ``src.cli``.
+# it. As for the root, an entry must exist and import the tier.
 _CLI_TIER = "src.cli_strategy_wiring"
-_CLI_TIER_IMPORTERS = frozenset({"src.cli_workspace"})
+_CLI_TIER_IMPORTERS = frozenset({"src.cli", "src.cli_workspace"})
 # The modules only listed importers may import: the root and the two tiers, with the name each is reported by.
 _IMPORTERS = MappingProxyType({_ROOT: _ROOT_IMPORTERS, _TIER: _TIER_IMPORTERS, _CLI_TIER: _CLI_TIER_IMPORTERS})
 _RESTRICTED_MODULES = MappingProxyType(
@@ -62,14 +62,6 @@ _RESTRICTED_MODULES = MappingProxyType(
 # Each tier's report name and the one strategy role it may import.
 _TIER_ROLES = MappingProxyType({_TIER: ("evaluation tier", "evaluation"), _CLI_TIER: ("CLI tier", "cli")})
 _TRANSITIONS = {
-    ("src.cli", "src.strategies.fcf_growth.execution", "SWC.3c"),
-    ("src.cli", "src.strategies.fcf_growth.presenter", "SWC.3c"),
-    ("src.cli", "src.strategies.graham_growth.execution", "SWC.3c"),
-    ("src.cli", "src.strategies.graham_growth.presenter", "SWC.3c"),
-    ("src.cli", "src.strategies.graham_number.execution", "SWC.3c"),
-    ("src.cli", "src.strategies.graham_number.presenter", "SWC.3c"),
-    ("src.cli", "src.strategies.momentum.execution", "SWC.3c"),
-    ("src.cli", "src.strategies.momentum.presenter", "SWC.3c"),
     ("src.reporting.analysis_runs", "src.strategies.fcf_growth.presenter", "SWC.4c"),
     ("src.reporting.analysis_runs", "src.strategies.graham_growth.presenter", "SWC.4c"),
     ("src.reporting.analysis_runs", "src.strategies.graham_number.presenter", "SWC.4c"),
@@ -420,17 +412,22 @@ def test_strategy_set_is_derived_from_the_package_directories(tmp_path: Path) ->
 def test_t13_fails_when_a_transition_entry_is_stale() -> None:
     """The transition list must shrink in the same change that removes an edge."""
     errors = _edge_violations(set(), _SAMPLE_STRATEGIES)
-    assert "stale T13 transition entry: src.cli -> src.strategies.momentum.presenter" in errors
+    assert "stale T13 transition entry: src.reporting.analysis_runs -> src.strategies.momentum.presenter" in errors
     assert len(errors) == len(_TRANSITIONS)
 
 
 def test_t13_permits_only_the_listed_transition_edges() -> None:
     """A listed edge passes; the same importer reaching an unlisted role of that strategy fails."""
-    listed = {("src.cli", "src.strategies.momentum.presenter")}
-    assert _edge_violations(listed, _SAMPLE_STRATEGIES, {("src.cli", "src.strategies.momentum.presenter", "X")}) == []
-    unlisted = {("src.cli", "src.strategies.momentum.cli")}
+    listed = {("src.reporting.analysis_runs", "src.strategies.momentum.presenter")}
+    assert (
+        _edge_violations(
+            listed, _SAMPLE_STRATEGIES, {("src.reporting.analysis_runs", "src.strategies.momentum.presenter", "X")}
+        )
+        == []
+    )
+    unlisted = {("src.reporting.analysis_runs", "src.strategies.momentum.cli")}
     assert _edge_violations(unlisted, _SAMPLE_STRATEGIES, set()) == [
-        "external import exceeds analyzer/selection roles: src.cli -> src.strategies.momentum.cli"
+        "external import exceeds analyzer/selection roles: src.reporting.analysis_runs -> src.strategies.momentum.cli"
     ]
 
 
@@ -597,8 +594,14 @@ def test_t13_fails_when_the_root_is_in_an_import_cycle() -> None:
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_wiring_slice() -> None:
     """The twelve entries owned by the orchestration slice are gone; every remaining owner is a later slice."""
-    assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.3c", "SWC.4c"}
-    assert len(_TRANSITIONS) == 12
+    assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.4c"}
+    assert len(_TRANSITIONS) == 4
+
+
+def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_direct_commands_slice() -> None:
+    """The eight direct-command entries are gone: ``src.cli`` imports no strategy execution adapter or presenter."""
+    assert not [entry for entry in _TRANSITIONS if entry[2] == "SWC.3c"]
+    assert not [entry for entry in _TRANSITIONS if entry[0] == "src.cli"]
 
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_cli_tier_slice() -> None:

@@ -6,7 +6,7 @@ own short-lived, readiness-checked :class:`SQLiteDatabase`, borrows it for
 one repository call, and closes it before returning — mirroring the existing
 ``_production_historical_client``/``_production_financial_cache`` pattern in
 ``src.cli_support``. Direct-command saving (``--save-run``) lives in
-``src.cli``; this module's own provider/analyzer composition exists solely
+``src.cli_run_support``; this module's own provider/analyzer composition exists solely
 to dispatch one refresh job per stored selection.
 """
 
@@ -849,8 +849,8 @@ def _refresh_executor(
 
     Each executor composes entirely fresh provider/resolver/cache dependencies
     per call — job-scoped, exactly as ``refresh_watchlist``'s own contract
-    requires for safe concurrent use — mirroring precisely how each direct
-    command in ``src.cli`` composes the same dependencies for one invocation.
+    requires for safe concurrent use — mirroring precisely how each strategy's direct
+    command (``src.strategies.<strategy>.cli``) composes the same dependencies for one invocation.
     The durable instrument-profile cache is the one exception: it is built
     once per refresh (over the refresh command's own database) and shared
     across concurrent jobs, exactly like the Analysis Run repository already

@@ -90,13 +90,15 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
         return instance
 
     with (
-        patch("src.cli.build_sec_production_provider", return_value=provider),
+        patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=provider),
         patch("src.cli_composition.build_sec_production_provider", return_value=provider),
         patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
         patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=profile),
         patch("src.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile),
         patch("src.cli_support.SQLiteDatabase", side_effect=database),
-        patch("src.cli.utc_now", return_value=NOW),
+        patch("src.strategies.graham_number.cli.utc_now", return_value=NOW),
+        patch("src.strategies.graham_growth.cli.utc_now", return_value=NOW),
+        patch("src.strategies.fcf_growth.cli.utc_now", return_value=NOW),
     ):
         first = CliRunner().invoke(app, arguments)
         assert first.exit_code == 0, first.output
@@ -165,7 +167,7 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
     profile = InstrumentProfile(ticker=ticker, identity=None, kind_evidence=None, diagnostics=())
     with (
         patch("src.cli_support.settings", ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")),
-        patch("src.cli.build_sec_production_provider", return_value=provider),
+        patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=provider),
         patch("src.cli_composition.build_sec_production_provider", return_value=provider),
         patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
         patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=profile),

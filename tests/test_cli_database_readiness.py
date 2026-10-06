@@ -46,9 +46,13 @@ def test_typed_readiness_failure_preserves_envelope_and_closes_storage(
     with (
         patch("src.cli_support.SQLiteDatabase", return_value=database),
         patch("src.cli_support.ensure_database_ready", side_effect=error),
-        patch("src.cli.build_sec_production_provider", side_effect=AssertionError("Provider must not run")) as facts,
         patch(
-            "src.cli.YFinanceClient.fetch_historical_data", side_effect=AssertionError("Provider must not run")
+            "src.strategies.fcf_growth.cli.build_sec_production_provider",
+            side_effect=AssertionError("Provider must not run"),
+        ) as facts,
+        patch(
+            "src.data.yfinance.client.YFinanceClient.fetch_historical_data",
+            side_effect=AssertionError("Provider must not run"),
         ) as history,
     ):
         result = CliRunner().invoke(app, [*arguments(command), *mode])
@@ -103,9 +107,13 @@ def test_real_rejected_storage_precedes_provider_calls(
     before = path.read_bytes()
     with (
         patch("src.cli_support.settings", selected),
-        patch("src.cli.build_sec_production_provider", side_effect=AssertionError("Provider must not run")) as facts,
         patch(
-            "src.cli.YFinanceClient.fetch_historical_data", side_effect=AssertionError("Provider must not run")
+            "src.strategies.fcf_growth.cli.build_sec_production_provider",
+            side_effect=AssertionError("Provider must not run"),
+        ) as facts,
+        patch(
+            "src.data.yfinance.client.YFinanceClient.fetch_historical_data",
+            side_effect=AssertionError("Provider must not run"),
         ) as history,
     ):
         result = CliRunner().invoke(app, [*arguments(command), "--json"])

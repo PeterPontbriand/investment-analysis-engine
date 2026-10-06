@@ -8,14 +8,17 @@ provider or LLM call.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
 import pytest
+import typer
 
 from scripts import strategy_conformance as conformance
-from src.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy
+from src.cli import app
+from src.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy, add_strategy_commands
 from src.core.strategy_errors import UndeclaredStrategyError, require
 from src.evaluation.composition import FixtureDependencies, compose_fixture_dependencies
 from src.evaluation.models import Case
@@ -524,3 +527,106 @@ def test_the_existing_strategies_keep_their_declaration_order() -> None:
         "analyze_fcf_earnings_growth",
     ]
     assert STRATEGIES[:4] == (MOMENTUM, GRAHAM_NUMBER, GRAHAM_GROWTH, FCF_GROWTH)
+
+
+def test_t7_every_top_level_command_is_an_alias_a_group_or_a_listed_non_strategy_command() -> None:
+    """The real Typer app's command table agrees with the descriptors' aliases."""
+    assert conformance.command_table_gaps(STRATEGIES, app) == []
+
+
+def _offers_both(
+    save_run: bool = typer.Option(False, "--save-run"), json_output: bool = typer.Option(False, "--json")
+) -> None:
+    """A command with the two options every strategy command offers."""
+
+
+def _offers_save_run_only(save_run: bool = typer.Option(False, "--save-run")) -> None:
+    """A command that lacks ``--json``."""
+
+
+def _tiny_app(commands: dict[str, Callable[..., None]], groups: tuple[str, ...] = ()) -> typer.Typer:
+    """Build a Typer app with the given top-level commands and command groups."""
+    application = typer.Typer()
+
+    @application.callback()
+    def root() -> None:
+        """Hold the commands."""
+
+    for name, function in commands.items():
+        application.command(name=name)(function)
+    for name in groups:
+        group = typer.Typer()
+        group.command(name="inner")(_offers_both)
+        application.add_typer(group, name=name)
+    return application
+
+
+def _alias_commands() -> dict[str, Callable[..., None]]:
+    """One well-formed command per declared alias."""
+    return {item.alias: _offers_both for item in STRATEGIES}
+
+
+def test_t7_reports_a_command_that_is_not_an_alias_a_group_or_a_listed_non_strategy_command() -> None:
+    """A top-level command nothing accounts for is named."""
+    application = _tiny_app({**_alias_commands(), "stray": _offers_both})
+    assert conformance.command_table_gaps(STRATEGIES, application) == [
+        "top-level command 'stray' is neither a strategy alias, a command group nor a listed non-strategy command"
+    ]
+
+
+def test_t7_reports_an_alias_that_equals_a_group_or_a_non_strategy_name() -> None:
+    """An alias may not collide with a command group or a non-strategy command."""
+    commands = {name: function for name, function in _alias_commands().items() if name != MOMENTUM.alias}
+    gaps = conformance.command_table_gaps(STRATEGIES, _tiny_app(commands, groups=(MOMENTUM.alias,)))
+    assert gaps == [f"alias {MOMENTUM.alias!r} is also a command group or non-strategy command name"]
+    colliding = replace(MOMENTUM, alias="evaluate")
+    gaps = conformance.command_table_gaps((colliding,), _tiny_app({"evaluate": _offers_both, "other": _offers_both}))
+    assert gaps[0] == "alias 'evaluate' is also a command group or non-strategy command name"
+
+
+def test_t7_reports_a_strategy_command_without_save_run_or_json() -> None:
+    """Each strategy command must offer both flags."""
+    application = _tiny_app({**_alias_commands(), FCF_GROWTH.alias: _offers_save_run_only})
+    assert conformance.command_table_gaps(STRATEGIES, application) == [
+        f"strategy command {FCF_GROWTH.alias!r} does not offer --json"
+    ]
+
+
+def test_add_strategy_commands_adds_each_alias_in_declaration_order_and_nothing_else() -> None:
+    """The tier adds one command per descriptor, in declaration order, under the descriptor's alias."""
+    application = typer.Typer()
+
+    @application.callback()
+    def root() -> None:
+        """Hold the commands."""
+
+    add_strategy_commands(application)
+    assert [info.name for info in application.registered_commands] == [item.alias for item in STRATEGIES]
+    assert [info.callback for info in application.registered_commands] == [entry.command for entry in CLI_STRATEGIES]
+
+
+def test_add_strategy_commands_fails_closed_for_a_descriptor_with_no_entry() -> None:
+    """A strategy without a CLI-tier entry is rejected, naming it, and no command is added for the others."""
+    application = typer.Typer()
+    incomplete = tuple(entry for entry in CLI_STRATEGIES if entry.behavior is not FCF_GROWTH.behavior)
+    with pytest.raises(UndeclaredStrategyError, match=FCF_GROWTH.method_id):
+        add_strategy_commands(application, STRATEGIES, incomplete)
+    assert application.registered_commands == []
+
+
+def test_t14_permits_the_command_registration_in_add_strategy_commands_only(tmp_path: Path) -> None:
+    """``app.command`` is allowed in the CLI tier's ``add_strategy_commands`` and nowhere else."""
+    adder = "def add_strategy_commands(app):\n    app.command(name='x')(None)\n"
+    elsewhere = "def other(app):\n    app.command(name='x')(None)\n"
+    tier = tmp_path / "cli_strategy_wiring.py"
+    tier.write_text(adder, encoding="utf-8")
+    assert conformance.discovery_gaps([tier], root=tmp_path) == []
+    tier.write_text(elsewhere, encoding="utf-8")
+    assert conformance.discovery_gaps([tier], root=tmp_path) == [
+        "cli_strategy_wiring.py:2: registers a command on the Typer app"
+    ]
+    other = tmp_path / "strategy_cli.py"
+    other.write_text(adder, encoding="utf-8")
+    assert conformance.discovery_gaps([other], root=tmp_path) == [
+        "strategy_cli.py:2: registers a command on the Typer app"
+    ]

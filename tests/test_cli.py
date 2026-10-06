@@ -61,8 +61,8 @@ def test_shell_setup_options_are_not_public_commands(option: str) -> None:
 def disable_live_yfinance_identity_resolution() -> Iterator[None]:
     """Keep CLI tests deterministic by stubbing optional Yahoo identity metadata."""
     with (
-        patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None),
-        patch("src.cli.YFinanceClient.resolve_instrument_kind", return_value=None),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None),
+        patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None),
     ):
         yield
 
@@ -440,7 +440,7 @@ def test_graham_growth_default_uses_configured_sec_identity(mock_sec_adapter: Ma
 
 
 def test_cli_graham_number_is_default_ticker_analysis(fixture_resolver: GrahamNumberInputResolver) -> None:
-    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID])
 
     assert result.exit_code == 0
@@ -452,7 +452,7 @@ def test_cli_graham_number_is_default_ticker_analysis(fixture_resolver: GrahamNu
 
 
 def test_cli_graham_legacy_ticker_option_still_routes(fixture_resolver: GrahamNumberInputResolver) -> None:
-    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", "--ticker", SECURITY_ID, "--data-provider", PROVIDER_ID])
 
     assert result.exit_code == 0
@@ -460,7 +460,7 @@ def test_cli_graham_legacy_ticker_option_still_routes(fixture_resolver: GrahamNu
 
 
 def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: GrahamNumberInputResolver) -> None:
-    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID, "--json"])
 
     assert result.exit_code == 0
@@ -499,7 +499,11 @@ def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resoluti
     )
     with (
         patch(
-            "src.cli.build_graham_resolver",
+            "src.strategies.graham_number.cli.build_graham_resolver",
+            return_value=growth_fixture_resolver if method_arguments else fixture_resolver,
+        ),
+        patch(
+            "src.strategies.graham_growth.cli.build_graham_resolver",
             return_value=growth_fixture_resolver if method_arguments else fixture_resolver,
         ),
         patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
@@ -534,7 +538,7 @@ def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resoluti
 
 
 def test_cli_graham_number_eps_override_inherits_default_basis(fixture_resolver: GrahamNumberInputResolver) -> None:
-    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(
             app,
             ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID, "--eps", "4.0", "--json"],
@@ -550,7 +554,7 @@ def test_cli_graham_number_eps_override_inherits_default_basis(fixture_resolver:
 def test_cli_graham_number_optional_quote_failure_preserves_value() -> None:
     resolver = GrahamNumberInputResolver(QuoteUnavailableProvider(), clock=lambda: NOW)
 
-    with patch("src.cli.build_graham_resolver", return_value=resolver):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=resolver):
         result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID])
 
     assert result.exit_code == 0
@@ -604,7 +608,7 @@ def test_cli_graham_growth_rejects_bvps() -> None:
 def test_cli_graham_growth_override_heavy_analysis_is_conspicuous(
     growth_fixture_resolver: GrahamGrowthInputResolver,
 ) -> None:
-    with patch("src.cli.build_graham_resolver", return_value=growth_fixture_resolver):
+    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=growth_fixture_resolver):
         result = runner.invoke(
             app,
             [
@@ -633,7 +637,7 @@ def test_cli_graham_growth_override_heavy_analysis_is_conspicuous(
 def test_cli_graham_fully_override_driven_unverified_ticker_is_rejected(
     growth_fixture_resolver: GrahamGrowthInputResolver,
 ) -> None:
-    with patch("src.cli.build_graham_resolver", return_value=growth_fixture_resolver):
+    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=growth_fixture_resolver):
         result = runner.invoke(
             app,
             [
@@ -662,7 +666,7 @@ def test_cli_graham_fully_override_driven_unverified_ticker_is_rejected(
 def test_cli_graham_invalid_or_unavailable_ticker_has_one_clean_failure(
     fixture_resolver: GrahamNumberInputResolver,
 ) -> None:
-    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", SUBJECT_MISSING, "--data-provider", PROVIDER_ID])
 
     assert result.exit_code == 1
@@ -676,7 +680,7 @@ def test_cli_graham_invalid_or_unavailable_ticker_has_one_clean_failure(
 
 
 def test_cli_graham_diagnostics_exposes_trace_only_when_requested(fixture_resolver: GrahamNumberInputResolver) -> None:
-    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver):
         concise = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID])
         diagnostics = runner.invoke(
             app,
@@ -692,7 +696,7 @@ def test_cli_graham_diagnostics_exposes_trace_only_when_requested(fixture_resolv
 
 
 def test_cli_graham_details_shows_financial_provenance(fixture_resolver: GrahamNumberInputResolver) -> None:
-    with patch("src.cli.build_graham_resolver", return_value=fixture_resolver):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID, "--details"])
 
     assert result.exit_code == 0
@@ -723,7 +727,7 @@ def test_cli_graham_unexpected_failure_does_not_leak_exception_text() -> None:
     resolver = MagicMock(spec=GrahamNumberInputResolver)
     resolver.assemble_graham_number.side_effect = RuntimeError("secret provider implementation detail")
 
-    with patch("src.cli.build_graham_resolver", return_value=resolver):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=resolver):
         result = runner.invoke(app, ["graham-number", "AAPL"])
 
     assert result.exit_code == 1
@@ -735,7 +739,7 @@ def test_cli_graham_unexpected_failure_does_not_leak_exception_text() -> None:
 def test_cli_graham_transitional_growth_flag_aliases_remain_supported(
     growth_fixture_resolver: GrahamGrowthInputResolver,
 ) -> None:
-    with patch("src.cli.build_graham_resolver", return_value=growth_fixture_resolver):
+    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=growth_fixture_resolver):
         result = runner.invoke(
             app,
             [
@@ -755,7 +759,7 @@ def test_cli_graham_transitional_growth_flag_aliases_remain_supported(
 
 
 def test_cli_graham_growth_eps_override_inherits_ttm_basis(growth_fixture_resolver: GrahamGrowthInputResolver) -> None:
-    with patch("src.cli.build_graham_resolver", return_value=growth_fixture_resolver):
+    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=growth_fixture_resolver):
         result = runner.invoke(
             app,
             [
