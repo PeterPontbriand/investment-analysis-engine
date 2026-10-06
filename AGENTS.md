@@ -114,7 +114,7 @@ When editing a legacy file that currently uses a different logging pattern, do n
 - Mock external APIs and local LLM endpoints in deterministic tests.
 - Project target: ≥85% line coverage overall; new financial-analysis code should directly exercise meaningful branches and edge cases.
 - Run the complete quality gate specified by the active milestone plan before completion of any change that touches Python source, tests, or a file the tooling actually parses/executes. A change confined to non-executable declarative metadata (e.g. a single `pyproject.toml` project-metadata field such as `license`) or a prose-only documentation edit does not require the full pytest run — see `docs/project/README.md`'s Quality gates section for the exact boundary. When in doubt, run the full gate.
-- For a documentation-only change, run `python scripts/check_doc_links.py` and both Ruff checks (`uv run ruff check .` and `uv run ruff format --check .`). Ruff also lints and formats Python code blocks in Markdown. CI runs MyPy and pytest for every pull request; the documentation-only local gate may omit those unless the change also affects code or test behavior.
+- For a documentation-only change, run `python scripts/check_doc_links.py`, `python scripts/check_sequence_tables.py`, and both Ruff checks (`uv run ruff check .` and `uv run ruff format --check .`). Ruff also lints and formats Python code blocks in Markdown. CI runs MyPy and pytest for every pull request; the documentation-only local gate may omit those unless the change also affects code or test behavior.
 
 ## 8. Financial-analysis guardrails
 

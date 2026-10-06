@@ -362,8 +362,9 @@ The model may summarize, compare, flag tensions, and suggest what the investor m
 
 The following quality checks must pass on every pull request within this milestone:
 
+* `python scripts/check_doc_links.py` and `python scripts/check_sequence_tables.py`
 * `ruff check . && ruff format --check .`
-* `mypy --strict src tests`
+* `mypy --strict src tests scripts`
 * `pytest` (unit and integration) with monitored coverage trends
 * Zero untyped public interfaces
 * Zero secret or API key leaks in trajectory outputs
