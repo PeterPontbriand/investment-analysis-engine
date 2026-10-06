@@ -1,6 +1,6 @@
 """Exercise durable historical reuse with deterministic providers and clocks."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -14,7 +14,7 @@ from alembic import command
 from src.config import ProjectSettings
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
-from src.data.market_data import HistoricalMarketData, MarketDataContext
+from src.data.market_data import HistoricalMarketData, MarketDataContext, historical_index_kind
 from src.data.quality import HistoricalDataQualityError, HistoricalQualityPolicy, QualityDecision
 from src.data.quality_reporting import quality_observer
 from src.data.repositories import MarketDataCacheKey, SQLiteDatabase, SQLiteMarketDataRepository
@@ -187,6 +187,88 @@ def test_hit_all_boundaries_and_reopen(database: SQLiteDatabase, tmp_path: Path)
     finally:
         reopened.close()
     assert len(provider.calls) == 1
+
+
+def test_python_date_index_passes_quality_and_round_trips_through_the_cache(database: SQLiteDatabase) -> None:
+    """ESC-25: a Python-date index is on the date-like allowlist, so it is cached and read back unchanged."""
+    provider = FakeProvider()
+    provider.data.frame.index = pd.Index([date(2025, 1, 1), date(2025, 1, 2)], name="calendar_date")
+    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    client = CachedHistoricalDataClient(provider, repository, request_variant="daily", ttl=None, clock=lambda: NOW)
+
+    first = client.fetch_data("ABC", START)
+    second = client.fetch_data("ABC", START)
+
+    assert len(provider.calls) == 1
+    assert_frame_equal(first, provider.data.frame)
+    assert_frame_equal(second, provider.data.frame)
+
+
+_NON_DATE_INDEXES = [
+    pd.RangeIndex(2),
+    pd.Index([0.5, 1.5]),
+    pd.Index(["a", "b"]),
+    pd.Index([datetime(2025, 1, 1), datetime(2025, 1, 2)], dtype=object),
+    pd.Index([date(2025, 1, 1), datetime(2025, 1, 2)], dtype=object),
+]
+_NON_DATE_IDS = ["integer", "float", "string", "object_datetimes", "mixed_objects"]
+
+
+@pytest.mark.parametrize("index", _NON_DATE_INDEXES, ids=_NON_DATE_IDS)
+def test_non_date_index_is_rejected_before_it_is_cached_or_returned(database: SQLiteDatabase, index: pd.Index) -> None:
+    provider = FakeProvider()
+    provider.data.frame.index = index
+    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    client = CachedHistoricalDataClient(provider, repository, request_variant="daily", ttl=None, clock=lambda: NOW)
+
+    with pytest.raises(HistoricalDataQualityError, match="date-like index"):
+        client.fetch_data("ABC", START)
+    assert repository.get(MarketDataCacheKey("ABC", "Fixture", date(2025, 1, 1), None, "daily")) is None
+
+
+def _extra_column(frame: pd.DataFrame) -> None:
+    frame["Dividends"] = 0.0
+
+
+def _frame_attrs(frame: pd.DataFrame) -> None:
+    frame.attrs["source"] = "provider"
+
+
+def _float32_close(frame: pd.DataFrame) -> None:
+    frame["Close"] = frame["Close"].astype("float32")
+
+
+@pytest.mark.parametrize("unsupported_shape", [_extra_column, _frame_attrs, _float32_close])
+@pytest.mark.parametrize("index", [pd.date_range(START, periods=2), pd.Index([date(2025, 1, 1), date(2025, 1, 2)])])
+def test_the_unsupported_representation_fall_through_only_delivers_date_like_indexes(
+    database: SQLiteDatabase, index: pd.Index, unsupported_shape: Callable[[pd.DataFrame], None]
+) -> None:
+    """The fall-through is still reachable, for columns, attrs and dtypes; the index rule runs before it."""
+    provider = FakeProvider()
+    provider.data.frame.index = index
+    unsupported_shape(provider.data.frame)
+    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    client = CachedHistoricalDataClient(provider, repository, request_variant="daily", ttl=None, clock=lambda: NOW)
+
+    delivered = client.fetch_data("ABC", START)
+
+    assert historical_index_kind(delivered.index) is not None
+    assert repository.get(MarketDataCacheKey("ABC", "Fixture", date(2025, 1, 1), None, "daily")) is None
+
+
+@pytest.mark.parametrize("unsupported_shape", [_extra_column, _frame_attrs, _float32_close])
+@pytest.mark.parametrize("index", _NON_DATE_INDEXES, ids=_NON_DATE_IDS)
+def test_an_unsupported_representation_never_lets_a_non_date_index_through(
+    database: SQLiteDatabase, index: pd.Index, unsupported_shape: Callable[[pd.DataFrame], None]
+) -> None:
+    provider = FakeProvider()
+    provider.data.frame.index = index
+    unsupported_shape(provider.data.frame)
+    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    client = CachedHistoricalDataClient(provider, repository, request_variant="daily", ttl=None, clock=lambda: NOW)
+
+    with pytest.raises(HistoricalDataQualityError, match="date-like index"):
+        client.fetch_data("ABC", START)
 
 
 def test_disabled_cache_never_reads_or_writes_the_repository(database: SQLiteDatabase) -> None:

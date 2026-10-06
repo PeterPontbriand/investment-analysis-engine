@@ -4,11 +4,27 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 import pandas as pd
 
 from src.data.financial.provenance import SourceKind
+
+HistoricalIndexKind = Literal["datetime", "date"]
+
+
+def historical_index_kind(index: pd.Index[Any]) -> HistoricalIndexKind | None:
+    """Classify a historical frame index against the one allowlist of date-like index kinds.
+
+    The allowlist is exactly what providers return and the historical cache stores and restores:
+    a ``DatetimeIndex`` (naive or timezone-aware, any resolution) and an index of Python ``date``
+    values. Anything else, including values that merely parse as dates, is not date-like.
+    """
+    if isinstance(index, pd.DatetimeIndex):
+        return "datetime"
+    if len(index) > 0 and all(type(value) is date for value in index):
+        return "date"
+    return None
 
 
 class NoEligibleObservationsError(ValueError):
