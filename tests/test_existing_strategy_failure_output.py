@@ -1,8 +1,10 @@
 """Execution failures remain nonzero and machine-readable without leaking exceptions."""
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -64,6 +66,37 @@ def test_missing_ohlc_error_retains_field_and_date() -> None:
     payload = json.loads(result.stdout)
     assert "Close at 2026-09-10" in payload["reason"]
     assert payload["diagnostics"][0]["rule"] == "historical.numeric"
+
+
+@contextmanager
+def _provider_returning(data: HistoricalMarketData) -> Iterator[MagicMock]:
+    provider = MagicMock()
+    provider.provider_id = "fixture"
+    provider.fetch_historical_data.return_value = data
+    yield provider
+
+
+@pytest.mark.parametrize(
+    "index",
+    [pd.RangeIndex(5), pd.Index([0.5, 1.5, 2.5, 3.5, 4.5]), pd.Index(["a", "b", "c", "d", "e"])],
+    ids=["integer", "float", "string"],
+)
+def test_momentum_non_date_index_fails_as_historical_quality_naming_the_index_rule(index: pd.Index) -> None:
+    """ESC-25 (D3): the existing reason code, with diagnostics identifying the index rule."""
+    frame = pd.DataFrame({"Close": [100.0, 101.0, 102.0, 103.0, 104.0]}, index=index)
+    data = HistoricalMarketData(frame, MarketDataContext(provider_id="fixture", observation_interval="1d"))
+    with patch(
+        "src.strategies.momentum.cli._production_historical_client",
+        side_effect=lambda *_args, **_kwargs: _provider_returning(data),
+    ):
+        result = CliRunner().invoke(app, ["momentum", "ACME", "--json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["reason_code"] == "historical_quality"
+    assert payload["result"] is None
+    assert [item["rule"] for item in payload["diagnostics"]] == ["historical.index"]
+    assert "date-like index" in payload["diagnostics"][0]["reason"]
 
 
 _NO_HISTORY_REASON = "No price history is available at or before the requested --as-of boundary."

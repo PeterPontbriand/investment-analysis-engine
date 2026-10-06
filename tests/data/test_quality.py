@@ -10,7 +10,7 @@ from pandas.testing import assert_frame_equal
 
 from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
 from src.data.base_client import DataFetchError
-from src.data.market_data import HistoricalMarketData, MarketDataContext
+from src.data.market_data import HistoricalMarketData, MarketDataContext, historical_index_kind
 from src.data.quality import (
     DataQualityError,
     FreshnessPolicy,
@@ -432,3 +432,34 @@ def test_naive_decision_evidence_is_rejected() -> None:
 def test_duplicate_expected_dates_are_rejected() -> None:
     with pytest.raises(ValueError, match="sessions"):
         HistoricalQualityPolicy(expected_sessions=(date(2026, 9, 3), date(2026, 9, 3)))
+
+
+_DAY_ONE, _DAY_TWO = date(2026, 9, 3), date(2026, 9, 4)
+
+
+@pytest.mark.parametrize(
+    ("values", "kind"),
+    [
+        ([_DAY_ONE, _DAY_TWO], "date"),
+        ([datetime(2026, 9, 3), datetime(2026, 9, 4)], None),
+        ([pd.Timestamp("2026-09-03"), pd.Timestamp("2026-09-04")], None),
+        ([_DAY_ONE, datetime(2026, 9, 4)], None),
+        ([datetime(2026, 9, 3), _DAY_TWO], None),
+        ([_DAY_ONE, pd.Timestamp("2026-09-04")], None),
+    ],
+    ids=["dates", "datetimes", "timestamps", "date_then_datetime", "datetime_then_date", "date_then_timestamp"],
+)
+def test_object_index_kind_separates_dates_from_datetimes_by_exact_type(values: list[object], kind: str | None) -> None:
+    """``datetime`` subclasses ``date``; the allowlist compares the exact type so only pure dates qualify."""
+    index = pd.Index(values, dtype=object)
+
+    assert historical_index_kind(index) == kind
+    data = history()
+    data.frame.index = index
+    result = outcomes(evaluate_historical_quality(data, context=CONTEXT))
+    assert result["historical.index"] is (QualityOutcome.PASS if kind else QualityOutcome.FAIL)
+
+
+def test_empty_and_datetime_index_kinds() -> None:
+    assert historical_index_kind(pd.DatetimeIndex(["2026-09-03"])) == "datetime"
+    assert historical_index_kind(pd.Index([], dtype=object)) is None

@@ -530,3 +530,25 @@ def test_frame_metadata_resolves_postponed_field_types() -> None:
                 "index_frequency": None,
             }
         )
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        [datetime(2025, 3, 8), datetime(2025, 3, 10)],
+        [pd.Timestamp("2025-03-08"), pd.Timestamp("2025-03-10")],
+        [date(2025, 3, 8), datetime(2025, 3, 10)],
+        [datetime(2025, 3, 8), date(2025, 3, 10)],
+    ],
+    ids=["datetimes", "timestamps", "date_then_datetime", "datetime_then_date"],
+)
+def test_object_index_that_is_not_purely_python_dates_is_not_stored(
+    database: SQLiteDatabase, key: MarketDataCacheKey, values: list[object]
+) -> None:
+    """The cache shares the quality allowlist: ``datetime`` subclasses ``date`` but is not a date-only index."""
+    frame = pd.DataFrame({"Close": [1.5, 2.5]}, index=pd.Index(values, dtype=object))
+    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+
+    with pytest.raises(UnsupportedHistoricalDataError):
+        repository.put(key, HistoricalMarketData(frame, MarketDataContext()))
+    assert repository.get(key) is None
