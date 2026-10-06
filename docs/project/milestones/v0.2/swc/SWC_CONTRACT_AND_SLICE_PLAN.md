@@ -404,6 +404,10 @@ changes in thirteen test modules.
   itself. `_maybe_save_run` and `get_cli_run_context` move to `src/cli_run_support.py`.
 - **Scope:** `src/cli.py`, new `src/cli_run_support.py`, the four `src/strategies/<strategy>/cli.py`, the
   thirteen test modules that patch `src.cli.` names (76 patch strings, retargeted), T7 and T22; removes its eight T13 transition entries.
+  Removes `src/cli.py`'s copies of the three FCF option converters (`_historical_horizon`, `_forward_policy`,
+  `_fcf_classification_basis`), which are the same code as the ones SWC.3b moved to `src/strategies/fcf_growth/cli.py`,
+  and moves its Momentum window check (`_validate_momentum_windows`, which exits with code 2 and so differs from the
+  builder's `BadParameter` check) into `src/strategies/momentum/cli.py`.
 - **Branch:** `feat/swc-3c-direct-commands`, from `main` after SWC.3b has merged.
 - **Detail:** [SWC.1 design §6, §11 and §12](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#12-framework-drift-checks).
 
@@ -597,9 +601,10 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **No output change:** the direct-command output test passes unchanged in every later slice that claims no
   output change. A slice that changes output regenerates the stored files in the same change, and the diff to
   them is what the review approves.
-- **Edit sites:** adding a strategy takes the 18 sites in the design's edit-site table, in 22 files across 9
-  directories, seven of them existing files; five of those are edited by the generator, and the other two (the catalog
-  and its test) are reviewed truth.
+- **Edit sites:** adding a strategy takes the 19 sites in the design's edit-site table, in 24 files across 9
+  directories, nine of them existing files; five of those are edited by the generator, and the other four (the catalog,
+  its test, and the two watchlist-option files of site 19, edited only by a strategy with options of its own) are
+  reviewed.
 - **Contributor tooling:** one site data file is the source of the guide's table, the status command, the
   generator and the specimen's completeness test; the status command and the conformance tests share their
   check bodies; the generator writes wiring only and refuses to overwrite; a test runs it in a temporary
@@ -799,7 +804,8 @@ injected is acyclic and changes no layering rule. The project owner decided:
 - **Schedule the locality moves** in the slice that owns each; none is deferred.
 - **Fix the package-initialization cycle** in SWC.2a by emptying `src/workspace/__init__.py`, and make the
   layering test count parent packages.
-- **Reduce the edit sites** to 18, in 22 files of which seven already exist: commands in strategy files, an
+- **Reduce the edit sites** to 19, in 24 files of which nine already exist (the design's SWC.3b audit added the
+  watchlist-option site): commands in strategy files, an
   evaluation tier, per-strategy dependency classes, one types file and the shared arguments base class in
   place of the union. The catalog's case tuple and suite version stay by hand because they are reviewed
   truth; `ToolName` stays a separate leaf for layering.

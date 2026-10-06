@@ -29,8 +29,8 @@ owns that result and is complete without the study.
   below the composition root imports a descriptor module; strategy-owned files live in one package per
   strategy and obey a role-based layering rule; every design question ends in a decision.
 - **Fit and cost:** the design holds for all seven Step 3.5 strategies; one behavior member, `headline`, is added by
-  Step 3.5 slice 3.5.0, before any new strategy slice ([§16](#16-step-35-fit-check)). Adding a strategy takes 18 hand-edit sites in 22
-  files across 9 directories, seven of them files that already exist and five of those edited by a generator
+  Step 3.5 slice 3.5.0, before any new strategy slice ([§16](#16-step-35-fit-check)). Adding a strategy takes 19 hand-edit sites in 24
+  files across 9 directories, nine of them files that already exist and five of those edited by a generator
   ([§17](#17-edit-sites-for-a-new-strategy)); a site-status command reports what is missing
   ([§19](#19-contributor-tooling)).
 - **Corrections to the plan:** [§15](#15-ir2-and-corrections-to-the-plan) lists where the audit disagreed
@@ -953,24 +953,25 @@ dataclass is built at run time.
 | 16 | Fixtures with their fixture ids, and cases with their reviewed arguments table | `src/evaluation/fixtures/<s>.py`, `src/evaluation/cases/<s>.py` (new) | G | reviewed | T5, T6. |
 | 17 | Catalog: the case-module imports, the arguments-table merge, the case tuple entries and the suite version bump; the pinned id list and count in the catalog test | `src/evaluation/catalog.py`, `tests/evaluation/test_catalog.py` | G | reviewed | T6: `tool X is required by no golden case`; the catalog test. |
 | 18 | User guide with `FINANCE_MATH.md` and `GLOSSARY.md` links | `docs/user/strategies/<ALIAS>.md` (new) | G | reviewed | T23: `no guide for alias X`; the doc link check for a missing anchor. |
+| 19 | Watchlist options of the strategy, only when it has any beyond the shared ones: the typed field in `WatchlistFlags`, the option in the `watchlist create` and `watchlist add-selection` commands, and the `_build_selection` parameter ([H.10](#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)) | `src/cli_watchlist_flags.py`, `src/cli_workspace.py` | G | reviewed | **type** (the builder reads the field; the command constructs the bundle); the watchlist command tests. |
 
 Two commands, not edits: `scripts/generate_schemas.py` (a stale schema fails T20 with `schema
 schemas/<alias>.schema.json is missing or out of date; run scripts/generate_schemas.py`) and
 `scripts/generate_strategy_docs.py` (a stale strategy list fails T26 the same way). The generator also
 writes the empty `src/strategies/<s>/__init__.py`, which has no content to review.
 
-**Total: 18 hand-edit sites, in 22 files (15 new, 7 existing) across 9 directories** (`src`,
+**Total: 19 hand-edit sites, in 24 files (15 new, 9 existing) across 9 directories** (`src`,
 `src/strategies/<s>`, `src/orchestrator`, `src/workspace`, `src/evaluation`, `src/evaluation/fixtures`,
 `src/evaluation/cases`, `tests/evaluation`, `docs/user/strategies`). Against the earlier design's 23 sites, 25 files (10 new, 15
-existing) across 11 directories. Five of the seven existing files are edited by the generator (rows 2, 3, 5,
-10, 15); the other two, `catalog.py` and the catalog test that pins the case ids and count, stay by hand because
-the case tuple, the suite version and the pinned ids are reviewed truth. A strategy's fixture identifiers are
+existing) across 11 directories. Five of the nine existing files are edited by the generator (rows 2, 3, 5,
+10, 15); the other four stay by hand: `catalog.py` and the catalog test that pins the case ids and count, because
+the case tuple, the suite version and the pinned ids are reviewed truth, and the two row 19 files, which only a strategy with watchlist options of its own edits. A strategy's fixture identifiers are
 declared in its own fixtures file and on its own tier entry, and the supported set is derived from the tier, so
 no shared identifier list, supported-id set or case-package export needs an edit. Twelve of the 15 new files are generated as typed stubs (rows 1, 4, 6 to 9 and 11 to 14); fixtures,
 cases and the guide are hand-written. One-line restatements in files owned by generic code fall from 11 to
 5 (rows 3, 5 twice, 10, 15). Eight omissions are type errors rather than test failures (rows 4 to 7, 9, 10,
 13, 14). Every file a strategy owns except its fixtures and cases is in its own package, so a contributor
-works in one strategy directory plus five one-line edits.
+works in one strategy directory plus five one-line edits, and the two row 19 files when the strategy has watchlist options of its own.
 
 **What could still be removed.** Nothing within the contract. Each remaining existing-file edit has a
 reason:
@@ -996,7 +997,7 @@ reason:
 | `evaluation.runner.NativeAnalysisResult` duplicates `NativeEvidence`. | Remove it and use `NativeEvidence`. | SWC.2c |
 | Each strategy's codec checks its own `method` string inside `workspace/{graham_number,graham_growth}.py`. | Kept: wire-integrity checks that stay with the codec. | none |
 | `refresh --json` per-job `error` text is `str(exception)`. | Unchanged. The new `reason_code` is classified from the same exception. | SWC.4a |
-| `cli.py` and `cli_workspace.py` each hold a Momentum window check and three FCF option converters that look duplicated. | Kept as separate functions. They differ in behavior: the direct command exits with code 2 after an echoed message, the workspace builder raises `typer.BadParameter`. Each moves into its strategy CLI file unchanged. | SWC.3b, SWC.3c |
+| `cli.py` and `cli_workspace.py` each hold a Momentum window check and three FCF option converters that look duplicated. | The two Momentum window checks differ in behavior: the direct command echoes a message and exits with code 2, the workspace builder raises `typer.BadParameter`. They stay two functions, and both end in `src/strategies/momentum/cli.py`. The three FCF converters are the same code with the same messages, so there is one set: SWC.3b moved the workspace copies to `src/strategies/fcf_growth/cli.py`, and SWC.3c deletes `cli.py`'s copies and calls those. | SWC.3b, SWC.3c |
 
 ## 19. Contributor tooling
 
@@ -1408,6 +1409,10 @@ descriptor at the composition root with each layer's slice injected. The project
 | Omissions that are type errors | 0 | 7 | 8 |
 | Existing-file edits made by a generator | 0 | 0 | 5 |
 
+SWC.3b found one site the audit missed: the watchlist options, which have always been declared per strategy in
+`src/cli_workspace.py`. They are row 19 of [§17](#17-edit-sites-for-a-new-strategy), so the adopted column reads
+19 sites, 9 existing files edited and 24 distinct files; the other rows are unchanged.
+
 ### E.3 Renumbering
 
 | Before | After | Why |
@@ -1655,7 +1660,7 @@ builds the context, which rejects conflicting SEC evidence, so the order is unch
 `descriptors` and `tier`, and `fixture_context.py` does not import the tier. Removing an entry from an injected
 tier therefore makes the identifiers only it declared unsupported.
 
-Adding a fifth strategy on paper touches rows 1 to 18 of [§17](#17-edit-sites-for-a-new-strategy) and nothing else
+Adding a fifth strategy on paper touches rows 1 to 18 of [§17](#17-edit-sites-for-a-new-strategy), plus row 19 if it has watchlist options of its own, and nothing else
 in production code: its analyzer, tool, selection, codec, execution, CLI, presenter, envelope and replay files; its
 `evaluation.py` (the composition, the requirement and its identifiers); its fixtures and cases files (the
 identifiers, the values, the cases and the arguments table); and, in existing files, the descriptor, `ToolName`,
@@ -1792,14 +1797,37 @@ text are the keys of `CLI_BUILDERS`, in declaration order; the help text is gene
 `_build_selection` stays in `src/cli_workspace.py` as the one place that turns the command's options into the flag
 bundle and calls the lookup.
 
-### H.10 The watchlist flag bundle
+### H.10 The watchlist flag bundle: an approved exception to the no-growing-shared-class rule
 
-The design's [§6](#6-generic-consumers) says each builder is "over one frozen flag bundle" without placing it.
-It is `WatchlistFlags` in the new `src/cli_watchlist_flags.py`: the strategy `cli.py` files and the tier both need
-the type, a strategy file may not import the tier, and `src/cli_workspace.py` imports the tier, so the type needs a
-module below all three. It holds the sixteen flags `_build_selection` already took, unchanged. A strategy with a new
-watchlist flag adds a field there and an option in `src/cli_workspace.py`, as it did before; the options themselves
-move into the strategy guides in SWC.5.
+[Plan §3.2](SWC_CONTRACT_AND_SLICE_PLAN.md#32-descriptor-responsibilities-and-exclusions) says no shared dataclass
+grows with the strategy count. `WatchlistFlags` in the new `src/cli_watchlist_flags.py` does: it is the one
+bundle every builder reads, and it holds the sixteen flags `_build_selection` already took.
+
+| Fields | Shared or strategy-owned |
+| :--- | :--- |
+| `as_of`, `data_provider`, `no_cache` | Shared by all four strategies |
+| `eps`, `eps_basis`, `current_price` | Shared by the two Graham strategies |
+| `bvps` | Graham Number only |
+| `expected_growth`, `aaa_yield` | Graham Growth only |
+| `short_window`, `long_window`, `rsi_period` | Momentum only |
+| `growth_years`, `forward_policy`, `classification_basis`, `currency` | FCF Growth only |
+
+When a new strategy adds a watchlist option, three places change, all in existing files: a field in
+`WatchlistFlags`, the option in both `watchlist create` and `watchlist add-selection`, and the matching parameter of
+`_build_selection` in `src/cli_workspace.py`. A strategy with only shared options changes none of them. This
+was already so before SWC.3b, when the same sixteen options were `_build_selection`'s keyword parameters; the
+audit never listed it, so it is row 19 of the [edit-site table](#17-edit-sites-for-a-new-strategy).
+
+Why it is not restructured here. Typer reads a command's options from its function signature, so the options
+cannot move into a strategy file without building the two commands dynamically from per-strategy declarations,
+which is a new generic mechanism and out of this slice's scope. The alternatives that stop the class growing move the
+growth, not remove it: a mapping of option name to value makes the field a runtime lookup the type check no longer
+covers, and per-strategy bundles built in `cli_workspace.py` need that module to import each strategy's `cli`
+file, which the layering rule forbids. The type-checked bundle is kept; its fields are typed and each is read by
+one builder. Revisit when a strategy needs options and the contributor guide (SWC.7) is written; the option rows
+move into the strategy guides in SWC.5, not into code.
+
+Recorded at the project owner's review of SWC.3b, as an exception to be confirmed or replaced at that review.
 
 ### H.11 The CLI-tier importer lists
 
@@ -1811,7 +1839,7 @@ imports neither the root nor the tier. The four SWC.3b transition entries are re
 
 ### H.12 Files outside the plan's scope list, and why
 
-- `src/cli_watchlist_flags.py` (new): [H.10](#h10-the-watchlist-flag-bundle).
+- `src/cli_watchlist_flags.py` (new): [H.10](#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule).
 - `scripts/strategy_conformance.py`: the T10 check body for the CLI tier lives here, with the T11 probes and the T15
   closure check for the tier's members; the T14 check already walks `src/cli_strategy_wiring.py` and every strategy
   file.
@@ -1827,5 +1855,13 @@ imports neither the root nor the tier. The four SWC.3b transition entries are re
 The four selection builders and refresh executors keep their bodies, error order and messages. The only edits are
 mechanical: a builder reads its options from `WatchlistFlags` instead of keyword arguments, and Graham Number and
 Graham Growth no longer share one local `base` mapping, so each builds its own. `_check_momentum_windows` and the three
-FCF option converters moved with their strategy. `src/cli.py`'s copies stay until SWC.3c, because the direct commands
-differ in behavior, which the design records as the reason to keep two sets of functions.
+FCF option converters moved with their strategy. `src/cli.py`'s copies stay until SWC.3c; see the converters row in
+the [duplicated-code table](#18-findings-assigned-to-a-slice) for what SWC.3c removes.
+
+### H.14 The `--analysis` text is unchanged
+
+The three help strings and the unknown-alias error are generated from the tier's keys and are identical to `main`'s.
+This was checked by running `watchlist create --help`, `watchlist add-selection --help`, `runs list --help` and the
+unknown-alias error of `watchlist create`, `watchlist add-selection`, `runs list` and `watchlist remove-method` on
+both and diffing the output (no difference). `tests/test_cli_workspace.py` now pins the three help strings and
+the error for all four commands.
