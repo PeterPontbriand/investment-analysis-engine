@@ -8,12 +8,13 @@ their method-specific requirements for using an input.
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import StrEnum
+from typing import cast
 
 import numpy as np
 import pandas as pd
 
 from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
-from src.data.market_data import HistoricalMarketData
+from src.data.market_data import HistoricalMarketData, historical_index_kind
 
 
 class QualityOutcome(StrEnum):
@@ -179,10 +180,28 @@ def _numeric_error(frame: pd.DataFrame) -> str | None:
     return None
 
 
+def _date_index(frame: pd.DataFrame) -> pd.DatetimeIndex | None:
+    """Return the frame's observation dates as a ``DatetimeIndex``, or ``None`` if the index is not date-like.
+
+    Only the allowlist in ``historical_index_kind`` qualifies; an index of Python dates is read as
+    midnight of each date. No other index is ever coerced to dates.
+    """
+    kind = historical_index_kind(frame.index)
+    if kind == "datetime":
+        return cast(pd.DatetimeIndex, frame.index)
+    if kind == "date":
+        return pd.DatetimeIndex(list(frame.index))
+    return None
+
+
 def _index_result(frame: pd.DataFrame) -> tuple[QualityOutcome, str]:
-    if not isinstance(frame.index, pd.DatetimeIndex):
-        return QualityOutcome.INSUFFICIENT_EVIDENCE, "No supported DatetimeIndex is available."
-    if frame.empty or frame.index.hasnans or not frame.index.is_unique or not frame.index.is_monotonic_increasing:
+    dates = _date_index(frame)
+    if dates is None:
+        return (
+            QualityOutcome.FAIL,
+            "Historical observations require a date-like index (a DatetimeIndex or Python dates).",
+        )
+    if frame.empty or dates.hasnans or not dates.is_unique or not dates.is_monotonic_increasing:
         return QualityOutcome.FAIL, "Historical dates must be present, unique and increasing."
     return QualityOutcome.PASS, "Historical timestamps are present, unique and increasing."
 
@@ -193,7 +212,10 @@ def _context_result(data: HistoricalMarketData) -> tuple[QualityOutcome, str]:
         return QualityOutcome.FAIL, "Retained observation count differs from the frame."
     if _index_result(data.frame)[0] is not QualityOutcome.PASS:
         return QualityOutcome.INSUFFICIENT_EVIDENCE, "Observation date cannot be verified against the frame."
-    if metadata.data_as_of is not None and metadata.data_as_of != data.frame.index[-1].date():
+    dates = _date_index(data.frame)
+    if dates is None:
+        return QualityOutcome.INSUFFICIENT_EVIDENCE, "Observation date cannot be verified against the frame."
+    if metadata.data_as_of is not None and metadata.data_as_of != dates[-1].date():
         return QualityOutcome.FAIL, "Retained observation date differs from the final bar."
     if metadata.observation_count is None or metadata.data_as_of is None:
         return QualityOutcome.INSUFFICIENT_EVIDENCE, "Observation count or date metadata is missing."
@@ -213,7 +235,10 @@ def _sessions_result(data: HistoricalMarketData, policy: HistoricalQualityPolicy
         return QualityOutcome.INSUFFICIENT_EVIDENCE, "No supported daily session schedule is available."
     if _index_result(data.frame)[0] is not QualityOutcome.PASS:
         return QualityOutcome.INSUFFICIENT_EVIDENCE, "Session coverage requires valid historical dates."
-    observed = tuple(timestamp.date() for timestamp in data.frame.index)
+    dates = _date_index(data.frame)
+    if dates is None:
+        return QualityOutcome.INSUFFICIENT_EVIDENCE, "Session coverage requires valid historical dates."
+    observed = tuple(timestamp.date() for timestamp in dates)
     if len(set(observed)) != len(observed):
         return QualityOutcome.FAIL, "Daily data contains more than one bar for a session date."
     if set(policy.expected_sessions) - set(observed):
@@ -232,14 +257,15 @@ def evaluate_future_observation(frame: pd.DataFrame, *, context: QualityContext)
     never dropped: the decision fails and callers reject the frame. Not for ``--as-of`` runs, whose
     truncation already excludes later observations.
     """
-    if not isinstance(frame.index, pd.DatetimeIndex) or frame.empty or frame.index.hasnans:
+    dates = _date_index(frame)
+    if dates is None or frame.empty or dates.hasnans:
         return QualityDecision(
             "historical.future_observation",
             QualityOutcome.INSUFFICIENT_EVIDENCE,
             "Observation dates cannot be compared with the execution time.",
             context,
         )
-    latest = pd.Timestamp(frame.index.max())
+    latest = pd.Timestamp(dates.max())
     latest = latest.tz_localize("UTC") if latest.tzinfo is None else latest
     if latest.to_pydatetime() - context.evaluated_at > FROZEN_CLOCK_SKEW_TOLERANCE:
         return QualityDecision(

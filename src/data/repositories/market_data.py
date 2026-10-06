@@ -17,7 +17,7 @@ from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Connection
 
 from src.core.clock import utc_now
-from src.data.market_data import HistoricalMarketData, MarketDataContext
+from src.data.market_data import HistoricalMarketData, MarketDataContext, historical_index_kind
 from src.data.repositories.schema import market_data_cache_entries, market_price_observations, schema_metadata
 from src.data.repositories.sqlite import SQLiteDatabase
 
@@ -144,13 +144,12 @@ def _index_storage(index: pd.Index[Any]) -> tuple[dict[str, Any], list[str]]:
         raise UnsupportedHistoricalDataError("Historical index must be single-level.")
     if not index.is_unique or not index.is_monotonic_increasing or index.hasnans:
         raise UnsupportedHistoricalDataError("Historical index must be unique, ascending, and non-null.")
+    index_kind = historical_index_kind(index)
     if isinstance(index, pd.DatetimeIndex):
-        index_kind = "datetime"
         ticks = [str(value) for value in index.view("int64")]
         zone = None if index.tz is None else str(index.tz)
         frequency = index.freqstr
-    elif all(type(value) is date for value in index):
-        index_kind = "date"
+    elif index_kind == "date":
         ticks = [value.isoformat() for value in index]
         zone = None
         frequency = None
