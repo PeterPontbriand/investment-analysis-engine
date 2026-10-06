@@ -346,7 +346,7 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0() -> No
     _seed("My Watch", [("FLSW", GrahamNumberSelection())])
 
     with (
-        patch("src.cli_workspace.build_graham_resolver", return_value=_graham_resolver()),
+        patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()),
         patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
     ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
@@ -409,7 +409,7 @@ def test_refresh_graham_growth_selection_persists_with_configured_assumptions() 
     growth = GrahamGrowthSelection(expected_growth=6.0, aaa_yield_override=4.4)
     _seed("My Watch", [("SYNTH", growth)])
 
-    with patch("src.cli_workspace.build_graham_resolver", return_value=_graham_growth_resolver()):
+    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=_graham_growth_resolver()):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 0, result.output
@@ -423,7 +423,7 @@ def test_refresh_fcf_growth_selection_persists() -> None:
     """Exercises the FCF/Earnings Growth dispatch branch."""
     _seed("My Watch", [("ACME", FCFGrowthSelection())])
 
-    with patch("src.cli_workspace.build_sec_production_provider", return_value=_fcf_provider()):
+    with patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_fcf_provider()):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 0, result.output
@@ -437,7 +437,7 @@ def test_refresh_unavailable_outcome_still_persists_and_exits_1() -> None:
     """An unavailable (not failed-to-execute) financial outcome still triggers exit 1."""
     _seed("My Watch", [(SUBJECT_MISSING, GrahamNumberSelection())])
 
-    with patch("src.cli_workspace.build_graham_resolver", return_value=_graham_resolver()):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 1
@@ -483,7 +483,7 @@ def test_refresh_no_save_unavailable_outcome_still_exits_1() -> None:
     """--no-save still reflects a real financial outcome in the exit code, not just storage failures."""
     _seed("My Watch", [(SUBJECT_MISSING, GrahamNumberSelection())])
 
-    with patch("src.cli_workspace.build_graham_resolver", return_value=_graham_resolver()):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1", "--no-save"])
 
     assert result.exit_code == 1

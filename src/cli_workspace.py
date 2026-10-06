@@ -22,21 +22,12 @@ from uuid import UUID
 
 import typer
 
-from src.analysis.base_analyzer import require_ticker
-from src.cli_composition import build_graham_resolver, build_sec_production_provider, growth_assumptions
-from src.cli_support import (
-    _canonical_provider_id,
-    _default_history_start_date,
-    _parse_as_of,
-    _production_financial_cache,
-    _production_historical_client,
-    _production_instrument_profile_cache,
-    config_usage_errors,
-)
+from src.cli_strategy_wiring import CLI_BUILDERS, build_selection_for, refresh_executor_for
+from src.cli_support import _production_instrument_profile_cache
+from src.cli_watchlist_flags import WatchlistFlags
 from src.config import settings
 from src.core.clock import utc_now
 from src.core.strategy_errors import find, require
-from src.data.financial.providers import SEC_PROVIDER_ID
 from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.readiness import DatabaseReadinessError, ensure_database_ready
@@ -48,32 +39,9 @@ from src.data.repositories.watchlists import (
     WatchlistEntryNotFoundError,
     WatchlistNotFoundError,
 )
-from src.data.yfinance import YFinanceClient
 from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
 from src.reporting.presentation import PresentationMode
-from src.strategies.fcf_growth.execution import execute_fcf_growth, from_fcf_growth_capture
-from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.strategies.fcf_growth.models import (
-    FCFClassificationBasis,
-    FCFEarningsGrowthPolicy,
-    ForwardPolicy,
-    HistoricalHorizon,
-)
-from src.strategies.fcf_growth.selection import FCFGrowthSelection, FCFPolicySnapshot
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from src.strategies.graham_growth.execution import execute_graham_growth, from_graham_growth_capture
-from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
-from src.strategies.graham_number.execution import execute_graham_number, from_graham_number_capture
-from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.analyzer import MomentumConfig
-from src.strategies.momentum.execution import (
-    capture_momentum,
-    compose_momentum_profile,
-    from_momentum_capture,
-    run_momentum,
-)
-from src.strategies.momentum.selection import MomentumSelection
 from src.strategy_wiring import BY_ALIAS, BY_METHOD_ID, EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
 from src.utils.paths import is_windows
 from src.workspace.capture import ExecutionCapture
@@ -96,6 +64,15 @@ watchlist_app = typer.Typer(help="Manage named watchlists of tickers and their a
 runs_app = typer.Typer(help="Browse persisted Analysis Run history.")
 
 _MOMENTUM_CLI_DEFAULTS = MomentumConfig()
+
+
+def _alias_choices() -> str:
+    """Return the CLI tier's alias vocabulary as help text: ``a, b, or c``."""
+    aliases = list(CLI_BUILDERS)
+    return f"{', '.join(aliases[:-1])}, or {aliases[-1]}"
+
+
+_ANALYSIS_CHOICES = _alias_choices()
 
 
 @contextmanager
@@ -222,53 +199,10 @@ def _summary_line(summary: WatchlistSummary) -> str:
 def _parse_analysis(value: str) -> str:
     """Normalize and validate a watchlist ``--analysis`` alias."""
     normalized = value.strip().lower()
-    if normalized not in BY_ALIAS:
-        allowed = ", ".join(BY_ALIAS)
+    if normalized not in CLI_BUILDERS:
+        allowed = ", ".join(CLI_BUILDERS)
         raise typer.BadParameter(f"--analysis must be one of: {allowed}.")
     return normalized
-
-
-def _check_momentum_windows(short_window: int, long_window: int, rsi_period: int) -> None:
-    """Reject invalid SMA/RSI periods exactly as the direct ``momentum`` command does."""
-    if short_window <= 0:
-        raise typer.BadParameter(
-            f"short window must be positive (received {short_window}).", param_hint="--short-window"
-        )
-    if long_window <= 0:
-        raise typer.BadParameter(f"long window must be positive (received {long_window}).", param_hint="--long-window")
-    if rsi_period <= 0:
-        raise typer.BadParameter(f"RSI period must be positive (received {rsi_period}).", param_hint="--rsi-period")
-    if short_window >= long_window:
-        raise typer.BadParameter(f"short window ({short_window}) must be smaller than long window ({long_window}).")
-
-
-def _fcf_historical_horizon(growth_years: int | None) -> HistoricalHorizon:
-    """Convert the optional CLI horizon to the typed strict/automatic policy."""
-    if growth_years is None:
-        return HistoricalHorizon.LONGEST_AVAILABLE
-    mapping = {3: HistoricalHorizon.THREE_YEARS, 4: HistoricalHorizon.FOUR_YEARS, 5: HistoricalHorizon.FIVE_YEARS}
-    try:
-        return mapping[growth_years]
-    except KeyError as exc:
-        raise typer.BadParameter("--growth-years must be 3, 4, or 5.") from exc
-
-
-def _fcf_forward_policy(value: str) -> ForwardPolicy:
-    """Map the hyphenated investor-facing CLI value to the normative enum."""
-    normalized = value.strip().lower().replace("-", "_")
-    try:
-        return ForwardPolicy(normalized)
-    except ValueError as exc:
-        raise typer.BadParameter("--forward-policy must be display-only, confirmation, or hard-gate.") from exc
-
-
-def _fcf_classification_basis(value: str) -> FCFClassificationBasis:
-    """Map the investor-facing CLI value to the typed FCF basis policy."""
-    normalized = value.strip().lower().replace("-", "_")
-    try:
-        return FCFClassificationBasis(normalized)
-    except ValueError as exc:
-        raise typer.BadParameter("--classification-basis must be total-fcf or fcf-per-share.") from exc
 
 
 def _build_selection(  # noqa: PLR0913
@@ -291,64 +225,31 @@ def _build_selection(  # noqa: PLR0913
     classification_basis: str,
     currency: str,
 ) -> AnalysisSelection:
-    """Build one validated selection from watchlist CLI flags.
+    """Build one validated selection from watchlist CLI flags with the selection builder of ``method``.
 
-    Mirrors the matching direct command's own flags and validation exactly
-    (Amendment A1, §12's "Creation"/"Editing" sections), so a watchlist entry
-    behaves identically to running that method directly. Only the flags
-    relevant to ``method`` are consulted; the rest are ignored. ``fcf-growth``
-    always executes against SEC EDGAR regardless of ``--data-provider``,
-    exactly as the direct ``fcf-growth`` command's own persisted selection
-    does; the flag is still validated for a consistent error experience.
+    The builder belongs to the strategy and mirrors its direct command's own flags and validation exactly
+    (Amendment A1, §12's "Creation"/"Editing" sections), so a watchlist entry behaves identically to running
+    that method directly. Only the flags relevant to ``method`` are consulted; the rest are ignored.
     """
-    if method == "momentum":
-        _check_momentum_windows(short_window, long_window, rsi_period)
-        return MomentumSelection(
-            short_window=short_window,
-            long_window=long_window,
-            rsi_period=rsi_period,
-            as_of=_parse_as_of(as_of),
-            use_cache=not no_cache,
-        )
-
-    boundary = _parse_as_of(as_of)
-    if method in ("graham-number", "graham-growth"):
-        provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
-        base = {
-            "security_provider_id": provider_id,
-            "eps_basis": eps_basis,
-            "eps_override": eps,
-            "quote_override": current_price,
-            "as_of": boundary,
-            "use_cache": not no_cache,
-        }
-        with config_usage_errors():
-            if method == "graham-number":
-                return GrahamNumberSelection.model_validate({**base, "bvps_override": bvps})
-            if expected_growth is None:
-                raise typer.BadParameter("Required when --analysis is graham-growth.", param_hint="--expected-growth")
-            if aaa_yield is None:
-                raise typer.BadParameter("Required when --analysis is graham-growth.", param_hint="--aaa-yield")
-            return GrahamGrowthSelection.model_validate(
-                {**base, "expected_growth": expected_growth, "aaa_yield_override": aaa_yield}
-            )
-
-    _canonical_provider_id(data_provider)
-    normalized_currency = currency.strip().upper()
-    if len(normalized_currency) != 3 or not normalized_currency.isalpha():
-        raise typer.BadParameter("--currency must be a three-letter ISO 4217 code.")
-    policy = FCFEarningsGrowthPolicy(
-        historical_horizon=_fcf_historical_horizon(growth_years),
-        classification_basis=_fcf_classification_basis(classification_basis),
-        forward_policy=_fcf_forward_policy(forward_policy),
+    flags = WatchlistFlags(
+        short_window=short_window,
+        long_window=long_window,
+        rsi_period=rsi_period,
+        as_of=as_of,
+        data_provider=data_provider,
+        no_cache=no_cache,
+        eps=eps,
+        eps_basis=eps_basis,
+        bvps=bvps,
+        current_price=current_price,
+        expected_growth=expected_growth,
+        aaa_yield=aaa_yield,
+        growth_years=growth_years,
+        forward_policy=forward_policy,
+        classification_basis=classification_basis,
+        currency=currency,
     )
-    return FCFGrowthSelection(
-        policy=FCFPolicySnapshot.model_validate(policy),
-        currency=normalized_currency,
-        provider_id="sec_edgar",
-        as_of=boundary,
-        use_cache=not no_cache,
-    )
+    return build_selection_for(method, flags)
 
 
 @watchlist_app.command("create")
@@ -361,7 +262,7 @@ def watchlist_create(  # noqa: PLR0913
     *,
     analysis: Annotated[
         str | None,
-        typer.Option("--analysis", "-a", help="Method to seed: momentum, graham-number, graham-growth, or fcf-growth."),
+        typer.Option("--analysis", "-a", help=f"Method to seed: {_ANALYSIS_CHOICES}."),
     ] = None,
     short_window: Annotated[
         int, typer.Option("--short-window", "-s", help="Short SMA window in daily observations (momentum).")
@@ -500,7 +401,7 @@ def watchlist_add_selection(  # noqa: PLR0913
     *,
     analysis: Annotated[
         str,
-        typer.Option("--analysis", "-a", help="Method: momentum, graham-number, graham-growth, or fcf-growth."),
+        typer.Option("--analysis", "-a", help=f"Method: {_ANALYSIS_CHOICES}."),
     ],
     short_window: Annotated[
         int, typer.Option("--short-window", "-s", help="Short SMA window in daily observations (momentum).")
@@ -843,9 +744,7 @@ def runs_list(  # noqa: PLR0913
     ticker: Annotated[str | None, typer.Option("--ticker", help="Filter by exact normalized ticker.")] = None,
     analysis: Annotated[
         str | None,
-        typer.Option(
-            "--analysis", "-a", help="Filter by method: momentum, graham-number, graham-growth, or fcf-growth."
-        ),
+        typer.Option("--analysis", "-a", help=f"Filter by method: {_ANALYSIS_CHOICES}."),
     ] = None,
     status: Annotated[str | None, typer.Option("--status", help="Filter by outcome.")] = None,
     refresh_id: Annotated[
@@ -943,106 +842,12 @@ def _run_summary_line(summary: AnalysisRunSummary) -> str:
     )
 
 
-def _execute_momentum(
-    ticker: str, selection: MomentumSelection, *, profile_cache: InstrumentProfileResolver | None
-) -> ExecutionCapture:
-    data_client = YFinanceClient()
-    executed_at = utc_now()
-    normalized_ticker = require_ticker(ticker)
-    profile = compose_momentum_profile(normalized_ticker, data_client=data_client, profile_cache=profile_cache)
-    with _production_historical_client(
-        data_client, use_cache=selection.use_cache, clock=lambda: executed_at
-    ) as historical_client:
-        run = run_momentum(
-            selection,
-            normalized_ticker,
-            historical_client,
-            start_date=_default_history_start_date(),
-            executed_at=executed_at,
-            instrument_profile=profile,
-        )
-    return from_momentum_capture(capture_momentum(run))
-
-
-def _execute_graham_number(
-    ticker: str, selection: GrahamNumberSelection, *, profile_cache: InstrumentProfileResolver | None
-) -> ExecutionCapture:
-    config = selection.to_graham_number_config()
-    executed_at = utc_now()
-    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
-        resolver = build_graham_resolver(
-            resolver_type=GrahamNumberInputResolver,
-            data_provider=config.security_provider_id,
-            cache=cache,
-            clock=lambda: executed_at,
-        )
-        capture = execute_graham_number(
-            resolver,
-            ticker,
-            config,
-            YFinanceClient(),
-            as_of=selection.as_of,
-            executed_at=executed_at,
-            use_cache=selection.use_cache,
-            profile_cache=profile_cache,
-        )
-    return from_graham_number_capture(capture)
-
-
-def _execute_graham_growth(
-    ticker: str, selection: GrahamGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
-) -> ExecutionCapture:
-    config = selection.to_graham_growth_config()
-    policy = growth_assumptions()
-    executed_at = utc_now()
-    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
-        resolver = build_graham_resolver(
-            resolver_type=GrahamGrowthInputResolver,
-            data_provider=config.security_provider_id,
-            cache=cache,
-            clock=lambda: executed_at,
-        )
-        capture = execute_graham_growth(
-            resolver,
-            ticker,
-            config,
-            policy,
-            YFinanceClient(),
-            as_of=selection.as_of,
-            executed_at=executed_at,
-            use_cache=selection.use_cache,
-            profile_cache=profile_cache,
-        )
-    return from_graham_growth_capture(capture)
-
-
-def _execute_fcf_growth(
-    ticker: str, selection: FCFGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
-) -> ExecutionCapture:
-    config = selection.to_fcf_config()
-    executed_at = utc_now()
-    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
-        provider = build_sec_production_provider()
-        resolver = ProductionAnnualGrowthSeriesResolver(provider, cache=cache, clock=lambda: executed_at)
-        capture = execute_fcf_growth(
-            resolver,
-            ticker,
-            config=config,
-            as_of=selection.as_of,
-            executed_at=executed_at,
-            use_cache=selection.use_cache,
-            provider=provider,
-            profile_cache=profile_cache,
-        )
-    return from_fcf_growth_capture(capture)
-
-
 def _refresh_executor(
     ticker: str, selection: AnalysisSelection, *, profile_cache: InstrumentProfileResolver
 ) -> ExecutionCapture:
-    """Dispatch one (ticker, selection) job to its method's production adapter.
+    """Dispatch one (ticker, selection) job to its strategy's refresh executor.
 
-    Each branch composes entirely fresh provider/resolver/cache dependencies
+    Each executor composes entirely fresh provider/resolver/cache dependencies
     per call — job-scoped, exactly as ``refresh_watchlist``'s own contract
     requires for safe concurrent use — mirroring precisely how each direct
     command in ``src.cli`` composes the same dependencies for one invocation.
@@ -1052,16 +857,10 @@ def _refresh_executor(
     is. ``CachedInstrumentProfileResolver`` serializes its own per-ticker
     critical section (P2-Profiles contract §13.6), so sharing it across
     worker threads is safe by the resolver's own contract, not by accident.
+    A selection of a strategy with no CLI-tier entry raises
+    ``UndeclaredStrategyError``; no strategy is a default.
     """
-    if isinstance(selection, MomentumSelection):
-        return _execute_momentum(ticker, selection, profile_cache=profile_cache)
-    if isinstance(selection, GrahamNumberSelection):
-        return _execute_graham_number(ticker, selection, profile_cache=profile_cache)
-    if isinstance(selection, GrahamGrowthSelection):
-        return _execute_graham_growth(ticker, selection, profile_cache=profile_cache)
-    if isinstance(selection, FCFGrowthSelection):
-        return _execute_fcf_growth(ticker, selection, profile_cache=profile_cache)
-    raise AssertionError(f"Unhandled analysis selection type: {type(selection)!r}")  # pragma: no cover
+    return refresh_executor_for(selection)(ticker, selection, profile_cache=profile_cache)
 
 
 def _refresh_has_failure(summary: RefreshSummary) -> bool:

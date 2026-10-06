@@ -383,13 +383,17 @@ changes in thirteen test modules.
   `src/strategies/<strategy>/cli.py`; the closed tuple `CLI_STRATEGIES` in `src/cli_strategy_wiring.py`
   pairs them with the core bundle by selection type, and `cli_workspace.py` looks them up. A missing key
   raises `UndeclaredStrategyError`.
-- **Scope:** new `src/cli_strategy_wiring.py` and four `src/strategies/<strategy>/cli.py`; `src/cli_workspace.py`
-  (`_parse_analysis`, the `--analysis` help, `_build_selection`, `_refresh_executor`, the four `_execute_*`
-  and their option converters); tests and T10's CLI-tier surface; removes its four T13 transition entries. T13 also
-  gains the rule that only `src.cli` and `src.cli_workspace` import the CLI tier, with the entries those modules need
-  in the root-importer list, a staleness check and a negative test.
+- **Scope:** new `src/cli_strategy_wiring.py`, `src/cli_watchlist_flags.py` (the flag bundle every builder reads) and
+  four `src/strategies/<strategy>/cli.py`; `src/cli_workspace.py` (`_parse_analysis`, the `--analysis` help,
+  `_build_selection`, `_refresh_executor`, the four `_execute_*` and their option converters);
+  `scripts/strategy_conformance.py`; tests and T10's CLI-tier surface, including the patch strings in
+  `tests/test_cli_refresh.py` and `tests/test_workspace_integration.py` that name the moved provider
+  composition; removes its four T13 transition entries. T13 also gains the rule that only listed CLI modules
+  import the CLI tier (`src.cli_workspace`; SWC.3c adds `src.cli`), with the tier's entry in the root-importer
+  list, a staleness check and a negative test.
 - **Branch:** `feat/swc-3b-cli-tier`, from `main` after SWC.3a has merged.
-- **Detail:** [SWC.1 design §3.3, §6 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers).
+- **Detail:** [SWC.1 design §3.3, §6 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers)
+  and [Appendix H.9 to H.13](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h9-the-cli-tiers-shape-and-lookups).
 
 #### SWC.3c — Direct commands
 

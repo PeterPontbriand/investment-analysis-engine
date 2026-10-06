@@ -134,7 +134,10 @@ def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMoc
     assert "Entries (3)" in shown
 
     # 4. Refresh the whole watchlist in one command.
-    with patch("src.cli_workspace.build_graham_resolver", side_effect=_resolver_side_effect):
+    with (
+        patch("src.strategies.graham_number.cli.build_graham_resolver", side_effect=_resolver_side_effect),
+        patch("src.strategies.graham_growth.cli.build_graham_resolver", side_effect=_resolver_side_effect),
+    ):
         result = runner.invoke(app, ["refresh", "Core Holdings", "--workers", "1"])
     assert result.exit_code == 0, result.output
     refreshed = normalize_cli_output(result.output)

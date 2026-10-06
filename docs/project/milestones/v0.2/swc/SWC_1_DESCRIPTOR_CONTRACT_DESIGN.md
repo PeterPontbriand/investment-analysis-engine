@@ -253,7 +253,7 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
      strategy file imports `src.evaluation` at all.
   4. No module under `src` imports `tests`.
 
-  **Transition allowlist:** SWC.2a recorded 24 edges and SWC.2b added 20 edges to the `tool` files; SWC.2c removed the 12 it owned, SWC.2d the 8 it owned and SWC.3a the 8 it owned, leaving the 16 edges below. Until
+  **Transition allowlist:** SWC.2a recorded 24 edges and SWC.2b added 20 edges to the `tool` files; SWC.2c removed the 12 it owned, SWC.2d the 8 it owned, SWC.3a the 8 it owned and SWC.3b the 4 it owned, leaving the 12 edges below. Until
   its owning slice removes it, T13 permits only the exact importer-to-module edges below. Each row is one edge; no wildcard, strategy-wide or role-wide exception is permitted. T13 fails if
   an entry is stale or if any unlisted forbidden edge appears. The owning slice removes its entry in the same
   change that rewires the importer. The within-strategy role rule, cross-strategy rule, no-import-of-tests rule,
@@ -261,10 +261,6 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
 
   | Importer module | Imported module | Removes entry |
   | :--- | :--- | :--- |
-  | `src.cli_workspace` | `src.strategies.fcf_growth.execution` | SWC.3b |
-  | `src.cli_workspace` | `src.strategies.graham_growth.execution` | SWC.3b |
-  | `src.cli_workspace` | `src.strategies.graham_number.execution` | SWC.3b |
-  | `src.cli_workspace` | `src.strategies.momentum.execution` | SWC.3b |
   | `src.cli` | `src.strategies.fcf_growth.execution` | SWC.3c |
   | `src.cli` | `src.strategies.fcf_growth.presenter` | SWC.3c |
   | `src.cli` | `src.strategies.graham_growth.execution` | SWC.3c |
@@ -278,7 +274,7 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
   | `src.reporting.analysis_runs` | `src.strategies.graham_number.presenter` | SWC.4c |
   | `src.reporting.analysis_runs` | `src.strategies.momentum.presenter` | SWC.4c |
 
-  Counts by owner: SWC.3b, 4; SWC.3c, 8; SWC.4c, 4 (16 in all; 24 before SWC.3a, 32 before SWC.2d and 44
+  Counts by owner: SWC.3c, 8; SWC.4c, 4 (12 in all; 16 before SWC.3b, 24 before SWC.3a, 32 before SWC.2d and 44
   before SWC.2c). The list must
   be empty when SWC.4c merges, and SWC.7 verifies final conformance.
 
@@ -570,7 +566,7 @@ parameterized over the production tuples and over the specimen tuples ([§19.5](
 | T10 `consumers_cover_every_descriptor` | The key set of each remaining consumer surface: CLI tier, evaluation tier, JSON ids, published schemas, generated strategy lists | The tiers' own tuples and the files on disk | Fails when a descriptor has no entry in a tier, naming the surface and the strategy. The surfaces that became derived (tool registration, evaluation routing, native status, codecs, aliases, selection parsing, builders, refresh executors, projectors) are no longer tables, so they are no longer compared. |
 | T11 `undeclared_inputs_fail_closed` | Every dispatcher in [§9.2](#92-fail-closed-dispatch) with an undeclared type, key, alias or arguments, and a bundle given another strategy's object | The behavior of the dispatchers over injected mappings, including the specimen | Proves no consumer routes an unknown input to Momentum or FCF. |
 | T12 `incomplete_strategy_negative_control` | A deliberately incomplete specimen ([§10.2](#102-negative-control)) | See below | Proves T10 and T11 can fail. |
-| T13 `import_layering` (parent-aware graph and role rule from SWC.2a; root rule from SWC.2c) | The import graph of `src`, with an edge from every module to each parent `__init__.py` | The source files | Enforces the full role and parent-package rules in [§4](#4-static-declaration-model). During migration it permits only the exact transition edges listed there, checks each entry still exists, and rejects every unlisted forbidden edge. The transition list shrinks with its owning consumer move and is empty at SWC.4c; SWC.7 verifies final conformance. The importers of the root are an exact list, and each entry must exist and import the root; a slice adds an entry in the change that first makes its module import the root. SWC.2d added the rule that only generic evaluation modules import the evaluation tier (an exact list with a staleness check), the clause for the case modules, and the rule on what a strategy's `evaluation` file may import, each with a negative test; SWC.3b adds the rule that only `src.cli` and `src.cli_workspace` import the CLI tier, with a staleness check and a negative test. |
+| T13 `import_layering` (parent-aware graph and role rule from SWC.2a; root rule from SWC.2c) | The import graph of `src`, with an edge from every module to each parent `__init__.py` | The source files | Enforces the full role and parent-package rules in [§4](#4-static-declaration-model). During migration it permits only the exact transition edges listed there, checks each entry still exists, and rejects every unlisted forbidden edge. The transition list shrinks with its owning consumer move and is empty at SWC.4c; SWC.7 verifies final conformance. The importers of the root are an exact list, and each entry must exist and import the root; a slice adds an entry in the change that first makes its module import the root. SWC.2d added the rule that only generic evaluation modules import the evaluation tier (an exact list with a staleness check), the clause for the case modules, and the rule on what a strategy's `evaluation` file may import, each with a negative test; SWC.3b adds the rule that only listed CLI modules import the CLI tier (an exact list with a staleness check; `src.cli_workspace` in SWC.3b, and SWC.3c adds `src.cli`), the rule that the tier imports only the root and the `cli` role of a strategy package, and the tier module's entry in the root-importer list, each with a negative test ([H.11](#h11-the-cli-tier-importer-lists)). |
 | T14 `no_discovery_or_registration` | The AST of `src/strategy_wiring.py`, both tier modules and every strategy-owned file | The source files | See [§12](#12-framework-drift-checks). |
 | T15 `descriptor_is_closed` | Field names, types, frozen-ness, non-generic-ness and tuple-ness of the descriptor; member names of the behavior bundle and both tier compositions | `dataclasses.fields` | Adding a field or member forces a reviewed edit to the documented set. |
 | T16 `no_unused_field` | Each descriptor field and each `BehaviorView` accessor (`result_type`, `native_status_of`, `bind_handler`) against attribute reads on descriptor-typed expressions in `src/` and `scripts/` outside the defining module | The source files, read with a conservative type resolver | A bare name match would be satisfied by an unrelated attribute. The resolver counts `X.field` only when `X` is a loop variable over `STRATEGIES` or `BY_*.values()`, the result of `require(...)`, `find(...)` or `BY_*[...]`, a parameter annotated `StrategyDescriptor`, or one of the module's descriptor constants. A self-test with snippets proves that `descriptor.alias` counts and `selection.alias` does not. The behavior members `deps_type`, `handler` and `native_status` are reached only through the accessors, so they have no read of their own; T15 pins the member set, so a member cannot be added or left unreachable without a reviewed edit. |
@@ -626,7 +622,7 @@ approval. Each slice makes its moves in the same change as the consumer it serve
 | SWC.2c | `feat/swc-2c-descriptor-orchestration-wiring` | New: `src/strategy_wiring.py`, `src/core/strategy_errors.py`, `src/orchestrator/tool_runtime.py`, conformance tests and `scripts/strategy_conformance.py`. Edited: `src/orchestrator/analysis_tools.py`, `src/strategies/<strategy>/tool.py` (dependency classes and handlers), `src/evaluation/{composition,runner,ollama_runner}.py`, affected tests; removes its twelve T13 transition entries. | `AnalysisToolDependencies`, `AnalysisToolHandlers`; the four `ANALYZE_*_TOOL` constants; `ANALYSIS_TOOL_ARGUMENT_MODELS`; three `_tool_name`; `_TOOL_DESCRIPTIONS`; the duplicate `NativeAnalysisResult`; the FCF default in `_native_status`; the private `_value2member_map_` use. | Add the descriptor with T1 (ids), T2 to T6, T11, T13 (root rule), T14 to T17, T24, then move each handler and switch each consumer. Fixture composition stays in `composition.py` as per-strategy functions until SWC.2d. |
 | SWC.2d | `feat/swc-2d-evaluation-tier` | New: `src/evaluation/strategy_fixtures.py`, `src/evaluation/fixture_context.py`, `src/strategies/<strategy>/evaluation.py` and `src/strategies/_graham/evaluation.py`. Edited: `src/evaluation/{composition,catalog}.py`, the fixture modules (each gains the fixture ids of its evidence), `src/evaluation/cases/__init__.py` (emptied), the case modules (reviewed arguments move beside their cases; each case module becomes single-strategy and named for its strategy package, [§4](#4-static-declaration-model)), T13's rule 3 clause for `src.evaluation.cases.<strategy>`, affected tests; removes its eight T13 transition entries. | The per-strategy composition functions and `_require_tool_evidence` in `composition.py`; the `_arguments` chain in `catalog.py`. | Fixture identifiers into their fixture modules and the shared context first, then one strategy at a time into its evaluation file, then the tier tuple and T10's evaluation-tier surface. No fixture value, expected outcome or score changes. |
 | SWC.3a | `feat/swc-3a-workspace-consumers` | `src/strategy_wiring.py`, `src/workspace/{codecs,execution,requests,refresh,capture}.py` (`capture.py` new), the four `src/strategies/<strategy>/execution.py` adapters (each gains its normalizer; Momentum's gains `compose_momentum_profile`), delete `src/workspace/method_aliases.py`, `src/data/repositories/watchlists.py`, `src/cli_workspace.py` (the repository helper), `src/cli.py` (Momentum composition only), tests (T1, T8, T10, T11 extended; `test_method_aliases.py` folded in). | `_METHOD_VERSIONS`; `_EXPECTED_VERSIONS`; both label chains; both codec isinstance chains; `method_aliases.py`; the `parse_selection` alias tuple and Momentum fall-through; the `getattr(selection, "as_of", None)` probe; the Momentum composition copies. | Momentum helper first (independent), then descriptor fields and the `selection_type`, `parse`, `encode`, `decode`, `ticker_of` members, then codecs and execution, then aliases and `parse_selection`, then the repository alias resolver and `refresh_watchlist`. `ExecutionCapture` and the normalizers move here. |
-| SWC.3b | `feat/swc-3b-cli-tier` | New: `src/cli_strategy_wiring.py`, `src/strategies/<strategy>/cli.py`. Edited: `src/cli_workspace.py`, tests (T10 CLI-tier surface). | `_build_selection` and its helpers; `_refresh_executor`; the four `_execute_*`; the `--analysis` help literals. | One strategy at a time: selection builder and refresh executor into its `cli.py`, then the tier tuple, then the lookups in `cli_workspace.py`. |
+| SWC.3b | `feat/swc-3b-cli-tier` | New: `src/cli_strategy_wiring.py`, `src/cli_watchlist_flags.py`, `src/strategies/<strategy>/cli.py`. Edited: `src/cli_workspace.py`, `scripts/strategy_conformance.py`, tests (T10 CLI-tier surface; two patch-target retargets). | `_build_selection` and its helpers; `_refresh_executor`; the four `_execute_*`; the `--analysis` help literals. | One strategy at a time: selection builder and refresh executor into its `cli.py`, then the tier tuple, then the lookups in `cli_workspace.py`. |
 | SWC.3c | `feat/swc-3c-direct-commands` | `src/cli.py`, `src/cli_run_support.py` (new), the four `src/strategies/<strategy>/cli.py`, tests (T7, T22; retargeted patch strings in 13 test modules). | The four `@app.command` functions and their helpers in `cli.py`; `_maybe_save_run` and `get_cli_run_context` leave it. | Shared run helpers first, then one command at a time, then `cli.py` iterating `CLI_STRATEGIES`, then T7 and T22. |
 | SWC.4a | `feat/swc-4a-failure-envelope` | New `src/reporting/documents/{__init__,failure,database}.py`, `src/reporting/failure_classification.py`, `scripts/generate_schemas.py`, `schemas/` (failure, database report). Edited: `src/cli_support.py`, `src/reporting/presentation.py`, the `execution_errors` call sites in the strategy `cli.py` files, `src/cli_workspace.py`, `src/cli_database.py`, `src/workspace/refresh.py`, `src/workspace/watchlists.py`, `src/data/repositories/watchlists.py`, `docs/user/DATABASE.md`, tests (T18 to T20). | `analysis_failure_document`'s hand-built dict and its wrong docstring; the `analysis == "momentum"` test; the six literal id pairs in `execution_errors` calls; the duplicate `WatchlistNotFoundError` in `refresh.py`. | Failure model and classifier, then direct commands, then workspace `--json` paths, then `refresh_watchlist`'s injected classifier and per-job codes, then the database report rename, then the generator and T20. |
 | SWC.4b | `feat/swc-4b-workspace-documents` | New `src/reporting/documents/{watchlist,runs,refresh}.py`; `src/cli_workspace.py` JSON builders; `schemas/` (watchlist, watchlist delete, runs list, refresh summary); tests (T20 extended). | The hand-built dicts in `_watchlist_payload`, the delete outcome and `_refresh_json`; the `model_dump` list in `runs list`. | One model per document, each proved byte-identical to the current output except the listed changes, then the schemas. |
@@ -1675,7 +1671,7 @@ The one place that writes the number of cases is the catalog test, which pins th
 counts and is edited with the suite version when a case is added (row 17 of §17). The pins were checked by reading
 them; a real fifth strategy first runs through them in the specimen and generator test.
 
-## Appendix H: Decisions recorded while implementing SWC.3a
+## Appendix H: Decisions recorded while implementing SWC.3a and SWC.3b
 
 Each entry is a point the design left open, or a place where the implementation differs from the text above,
 with the decision and its reason.
@@ -1777,3 +1773,59 @@ differ from the selection's fields (Graham Growth's `current_aaa_yield` is the s
   body no strategy accepts, and its mispairing probe returns another strategy's sample from a replaced parser.
 - **Edit sites:** still 18, in 22 files. The sample selection is written in the evaluation file (row 14) and
   passed in the tier entry (row 15), both already counted, so no row and no file is added.
+
+### H.9 The CLI tier's shape and lookups
+
+`src/cli_strategy_wiring.py` follows the evaluation tier's pattern. `CliComposition[SelT]` has exactly `build` and
+`refresh`; `pair_cli(behavior, composition)` ties them to the core bundle by selection type and returns the erased
+`CliStrategy` (`behavior`, `build`, `refresh`). The erased entry's two functions each check that the selection
+they return or receive is exactly the paired bundle's selection class, so a mispairing that survives the type
+check still raises `UndeclaredStrategyError`. `RefreshExecutor[SelT]` is a protocol with the keyword-only
+`profile_cache`, which the four moved executors satisfy unchanged.
+
+`cli_entries(descriptors, tier)` pairs each descriptor with its entry and raises `UndeclaredStrategyError` naming
+the strategy when an entry is missing or serves no descriptor (and `ValueError` for a duplicate). `builders_by_alias`
+and `refreshers_by_key` are pure functions over it, published as `CLI_BUILDERS` and `CLI_REFRESHERS`; the lookups
+`build_selection_for(alias, flags, builders)` and `refresh_executor_for(selection, refreshers)` use `require`, so a
+missing key raises `UndeclaredStrategyError` and no strategy is a default. The `--analysis` vocabulary and its help
+text are the keys of `CLI_BUILDERS`, in declaration order; the help text is generated, so the three literals are gone.
+`_build_selection` stays in `src/cli_workspace.py` as the one place that turns the command's options into the flag
+bundle and calls the lookup.
+
+### H.10 The watchlist flag bundle
+
+The design's [§6](#6-generic-consumers) says each builder is "over one frozen flag bundle" without placing it.
+It is `WatchlistFlags` in the new `src/cli_watchlist_flags.py`: the strategy `cli.py` files and the tier both need
+the type, a strategy file may not import the tier, and `src/cli_workspace.py` imports the tier, so the type needs a
+module below all three. It holds the sixteen flags `_build_selection` already took, unchanged. A strategy with a new
+watchlist flag adds a field there and an option in `src/cli_workspace.py`, as it did before; the options themselves
+move into the strategy guides in SWC.5.
+
+### H.11 The CLI-tier importer lists
+
+T13's root-importer list gains `src.cli_strategy_wiring`, which imports the root to pair its entries. The new
+CLI-tier importer list holds `src.cli_workspace` only: the staleness rule requires each entry to import the tier,
+and `src.cli` does not until SWC.3c iterates `CLI_STRATEGIES`, which adds the entry in that change. The tier may
+import the root and the `cli` role of a declared strategy package and nothing else, and a strategy's own `cli.py`
+imports neither the root nor the tier. The four SWC.3b transition entries are removed.
+
+### H.12 Files outside the plan's scope list, and why
+
+- `src/cli_watchlist_flags.py` (new): [H.10](#h10-the-watchlist-flag-bundle).
+- `scripts/strategy_conformance.py`: the T10 check body for the CLI tier lives here, with the T11 probes and the T15
+  closure check for the tier's members; the T14 check already walks `src/cli_strategy_wiring.py` and every strategy
+  file.
+- `tests/test_cli_refresh.py` and `tests/test_workspace_integration.py`: five and one patch strings named
+  `src.cli_workspace.build_graham_resolver` and `src.cli_workspace.build_sec_production_provider`. Those names are
+  now used in the strategy `cli.py` files, so the strings name `src.strategies.<strategy>.cli.<name>`; the Graham
+  Number and Graham Growth modules each import `build_graham_resolver`, so the integration test, which refreshes both,
+  patches both. The patch-target resolution test and the direct-command output test are unchanged and pass.
+- `tests/test_cli_strategy_wiring.py` (new): the fail-closed lookups for the builder and the refresh executor.
+
+### H.13 Moved code is unchanged
+
+The four selection builders and refresh executors keep their bodies, error order and messages. The only edits are
+mechanical: a builder reads its options from `WatchlistFlags` instead of keyword arguments, and Graham Number and
+Graham Growth no longer share one local `base` mapping, so each builds its own. `_check_momentum_windows` and the three
+FCF option converters moved with their strategy. `src/cli.py`'s copies stay until SWC.3c, because the direct commands
+differ in behavior, which the design records as the reason to keep two sets of functions.

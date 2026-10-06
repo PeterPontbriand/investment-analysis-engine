@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from scripts import strategy_conformance as conformance
+from src.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy
 from src.core.strategy_errors import UndeclaredStrategyError, require
 from src.evaluation.composition import FixtureDependencies, compose_fixture_dependencies
 from src.evaluation.models import Case
@@ -38,6 +39,7 @@ from src.strategy_wiring import (
 _SRC = Path(__file__).resolve().parents[1] / "src"
 _WIRING = _SRC / "strategy_wiring.py"
 _TIER = _SRC / "evaluation" / "strategy_fixtures.py"
+_CLI_TIER = _SRC / "cli_strategy_wiring.py"
 _WITHOUT_FCF = tuple(item for item in STRATEGIES if item is not FCF_GROWTH)
 
 
@@ -179,6 +181,35 @@ def test_t10_reports_a_duplicate_entry_and_an_entry_serving_no_descriptor() -> N
     ]
 
 
+def test_t10_the_cli_tier_covers_every_descriptor() -> None:
+    """Every descriptor has exactly one CLI-tier entry and every entry serves a descriptor."""
+    assert conformance.cli_tier_gaps(STRATEGIES) == []
+    assert len(CLI_STRATEGIES) == len(STRATEGIES)
+
+
+@pytest.mark.parametrize("descriptor", STRATEGIES, ids=lambda item: item.method_id)
+def test_t10_a_removed_cli_tier_entry_yields_exactly_one_gap_naming_the_tier_and_the_strategy(
+    descriptor: StrategyDescriptor,
+) -> None:
+    """Challenged with an incomplete copy of the production tuple, the check names the one uncovered strategy."""
+    incomplete = tuple(entry for entry in CLI_STRATEGIES if entry.behavior is not descriptor.behavior)
+    assert len(incomplete) == len(STRATEGIES) - 1
+    gaps = conformance.cli_tier_gaps(STRATEGIES, incomplete)
+    assert gaps == [f"strategy ({descriptor.analysis_id!r}, {descriptor.method_id!r}) is not wired in: CLI tier"]
+
+
+def test_t10_reports_a_duplicate_cli_tier_entry_and_an_entry_serving_no_descriptor() -> None:
+    """The CLI tier and the descriptors are compared in both directions."""
+    duplicated = (*CLI_STRATEGIES, CLI_STRATEGIES[0])
+    assert conformance.cli_tier_gaps(STRATEGIES, duplicated) == [
+        "strategy ('momentum', 'sma_crossover') has 2 entries in the CLI tier"
+    ]
+    stray = replace(CLI_STRATEGIES[0], behavior=object())
+    assert conformance.cli_tier_gaps(STRATEGIES, (stray, *CLI_STRATEGIES)) == [
+        "a CLI tier entry is paired with a bundle that no descriptor holds"
+    ]
+
+
 def test_t11_undeclared_inputs_fail_closed() -> None:
     """Every dispatcher rejects an input that matches no declared strategy and names it."""
     assert conformance.undeclared_input_gaps(STRATEGIES) == []
@@ -234,11 +265,27 @@ def test_t11_reports_an_evaluation_tier_that_accepts_a_missing_entry(monkeypatch
     assert all("tier entry: accepted an undeclared input" in gap for gap in gaps)
 
 
+def test_t11_reports_a_cli_tier_whose_lookups_ignore_a_missing_entry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The CLI-tier probes can fail: lookups that accept every key and entry are reported."""
+    monkeypatch.setattr(conformance, "builders_by_alias", lambda *_: {})
+    monkeypatch.setattr(conformance, "refreshers_by_key", lambda *_: {})
+    monkeypatch.setattr(conformance, "build_selection_for", lambda *_: object())
+    monkeypatch.setattr(conformance, "refresh_executor_for", lambda *_: object())
+    gaps = conformance.undeclared_input_gaps(STRATEGIES)
+    assert any("build_selection_for(undeclared alias): accepted an undeclared input" in gap for gap in gaps)
+    assert any("refresh_executor_for without" in gap and "accepted an undeclared input" in gap for gap in gaps)
+    assert any("builders_by_alias without" in gap and "accepted an undeclared input" in gap for gap in gaps)
+    assert any("refreshers_by_key without" in gap and "accepted an undeclared input" in gap for gap in gaps)
+
+
 def test_t14_wiring_files_declare_no_discovery_or_registration() -> None:
     """The root and every strategy-owned file have no discovery, self-registration or registry-like name."""
     files = conformance.wiring_files()
     assert _WIRING in files
     assert _TIER in files
+    assert _CLI_TIER in files
+    cli_files = {path for path in files if path.name == "cli.py" and path.parent.parent.name == "strategies"}
+    assert cli_files == set((_SRC / "strategies").rglob("cli.py"))
     evaluation_files = {path for path in files if path.name == "evaluation.py"}
     assert evaluation_files == set((_SRC / "strategies").rglob("evaluation.py"))
     strategy_packages = {path.name for path in (_SRC / "strategies").iterdir() if path.is_dir() and path.name[0] != "_"}
@@ -247,6 +294,7 @@ def test_t14_wiring_files_declare_no_discovery_or_registration() -> None:
     assert conformance.discovery_gaps(files) == []
     assert conformance.closed_tuple_gaps(_WIRING, ["STRATEGIES"]) == []
     assert conformance.closed_tuple_gaps(_TIER, ["EVALUATION_STRATEGIES"]) == []
+    assert conformance.closed_tuple_gaps(_CLI_TIER, ["CLI_STRATEGIES"]) == []
     assert (
         conformance.read_only_index_gaps(
             {
@@ -352,6 +400,28 @@ def test_t15_reports_a_tier_that_is_not_a_tuple() -> None:
     assert conformance.evaluation_tier_is_closed_gaps(list(EVALUATION_STRATEGIES)) == [
         "EVALUATION_STRATEGIES is not a tuple"
     ]
+
+
+def test_t15_the_cli_tier_types_are_closed() -> None:
+    """The composition and the tier entry have the documented members, are frozen and are not subclassed."""
+    assert conformance.cli_tier_is_closed_gaps() == []
+    assert conformance.cli_tier_is_closed_gaps(()) == []
+
+
+def test_t15_reports_an_undocumented_cli_tier_member(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Adding a member or a field without a reviewed edit to the documented sets fails."""
+    monkeypatch.setattr(conformance, "CLI_COMPOSITION_MEMBERS", frozenset({"build"}))
+    monkeypatch.setattr(conformance, "CLI_ENTRY_FIELDS", frozenset({"behavior"}))
+    gaps = conformance.cli_tier_is_closed_gaps()
+    assert len(gaps) == 2
+    assert gaps[0].startswith("CLI composition members differ from the documented set")
+    assert gaps[1].startswith("CLI tier entry fields differ from the documented set")
+
+
+def test_t15_reports_a_cli_tier_that_is_not_a_tuple() -> None:
+    """The closed tier is a tuple, so a list is reported."""
+    tier: list[CliStrategy] = list(CLI_STRATEGIES)
+    assert conformance.cli_tier_is_closed_gaps(tier) == ["CLI_STRATEGIES is not a tuple"]
 
 
 def test_t15_the_descriptor_and_its_behavior_are_closed() -> None:
