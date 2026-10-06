@@ -24,9 +24,11 @@ from src.data.security_unit import (
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.graham_number.service import GrahamNumberAnalysis
+from src.strategy_wiring import EVIDENCE_BY_KEY, EVIDENCE_BY_TYPE
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun
+from tests._wiring import codecs_with_decode
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
 
@@ -120,20 +122,20 @@ def _run(analysis: GrahamNumberAnalysis | None = None) -> AnalysisRun:
         result_schema_version=1,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
-        result_evidence=encode_evidence(analysis or _analysis()),
+        result_evidence=encode_evidence(analysis or _analysis(), EVIDENCE_BY_TYPE),
     )
 
 
 def test_full_number_evidence_round_trip() -> None:
     original = _analysis()
     run = _run(original)
-    restored = decode_evidence(AnalysisRun.model_validate_json(run.model_dump_json()))
+    restored = decode_evidence(AnalysisRun.model_validate_json(run.model_dump_json()), EVIDENCE_BY_KEY)
     assert isinstance(restored, GrahamNumberAnalysis)
     assert restored == original
     # Native assembly equality deliberately excludes the resolver trace.
     assert restored.assembly.resolution_trace == original.assembly.resolution_trace
     assert restored.assembly.eps is not original.assembly.eps
-    assert encode_evidence(restored) == run.result_evidence
+    assert encode_evidence(restored, EVIDENCE_BY_TYPE) == run.result_evidence
 
 
 @pytest.mark.parametrize(
@@ -155,7 +157,7 @@ def test_non_success_keeps_reason_and_partial_evidence(status: CalculationStatus
         margin_of_safety_percent=None,
         price_comparison=PriceComparison("unavailable", "calculation_unavailable"),
     )
-    assert decode_evidence(_run(analysis)) == analysis
+    assert decode_evidence(_run(analysis), EVIDENCE_BY_KEY) == analysis
 
 
 def test_etf_and_missing_profile_round_trip() -> None:
@@ -171,9 +173,9 @@ def test_etf_and_missing_profile_round_trip() -> None:
         price_comparison=None,
         instrument_profile=profile,
     )
-    assert decode_evidence(_run(analysis)) == analysis
+    assert decode_evidence(_run(analysis), EVIDENCE_BY_KEY) == analysis
     analysis = replace(analysis, instrument_profile=None)
-    assert decode_evidence(_run(analysis)) == analysis
+    assert decode_evidence(_run(analysis), EVIDENCE_BY_KEY) == analysis
 
 
 def test_valid_result_survives_missing_quote() -> None:
@@ -190,7 +192,7 @@ def test_valid_result_survives_missing_quote() -> None:
         price_comparison=PriceComparison("unavailable", "missing_quote"),
         margin_of_safety_percent=None,
     )
-    assert decode_evidence(_run(analysis)) == analysis
+    assert decode_evidence(_run(analysis), EVIDENCE_BY_KEY) == analysis
 
 
 @pytest.mark.parametrize(
@@ -204,15 +206,14 @@ def test_valid_result_survives_missing_quote() -> None:
         "projection_version",
     ],
 )
-def test_all_versions_rejected_before_decoding(field: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_all_versions_rejected_before_decoding(field: str) -> None:
     run = _run().model_copy(update={field: 99})
 
-    def unexpected_decode(_payload: object) -> GrahamNumberAnalysis:
+    def unexpected_decode(_payload: object, _ticker: str) -> GrahamNumberAnalysis:
         raise AssertionError("Decoder must not be called.")
 
-    monkeypatch.setattr("src.workspace.codecs.decode_graham_number", unexpected_decode)
     with pytest.raises(UnsupportedRunVersionError):
-        decode_evidence(run)
+        decode_evidence(run, codecs_with_decode(unexpected_decode))
 
 
 @pytest.mark.parametrize(
@@ -236,19 +237,19 @@ def test_corrupt_nested_evidence_is_classified(section: str, field: str, value: 
     assert run.result_evidence is not None
     run.result_evidence["analysis"][section][field] = value
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)
 
 
 def test_ticker_mismatch_wrong_payload_and_absent_evidence() -> None:
     run = _run()
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run.model_copy(update={"ticker": "MSFT"}))
+        decode_evidence(run.model_copy(update={"ticker": "MSFT"}), EVIDENCE_BY_KEY)
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run.model_copy(update={"result_evidence": {"run": {}}}))
+        decode_evidence(run.model_copy(update={"result_evidence": {"run": {}}}), EVIDENCE_BY_KEY)
     failed = AnalysisRun.model_validate(
         {**run.model_dump(), "status": "failed", "failure_reason_code": "provider_error", "result_evidence": None}
     )
-    assert decode_evidence(failed) is None
+    assert decode_evidence(failed, EVIDENCE_BY_KEY) is None
 
 
 @pytest.mark.parametrize("location", ["as_of", "freshness", "document", "analysis_ticker", "method_missing"])
@@ -268,14 +269,14 @@ def test_context_corruption_is_rejected(location: str) -> None:
     else:
         del payload["result"]["method"]
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)
 
 
 def test_invalid_native_result_is_rejected() -> None:
     original = _analysis()
     invalid = replace(original, result=GrahamNumberResult(CalculationStatus.OK, float("nan")))
     with pytest.raises(InvalidStoredRunError):
-        encode_evidence(invalid)
+        encode_evidence(invalid, EVIDENCE_BY_TYPE)
 
 
 def test_decode_does_not_recalculate_and_preserves_payload(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -293,7 +294,7 @@ def test_decode_does_not_recalculate_and_preserves_payload(monkeypatch: pytest.M
         "src.strategies.graham_number.service.complete_security_unit_profile",
     ):
         monkeypatch.setattr(target, unexpected_call)
-    restored = decode_evidence(run)
+    restored = decode_evidence(run, EVIDENCE_BY_KEY)
     assert isinstance(restored, GrahamNumberAnalysis)
     assert restored.result.maximum_indicated_price == 30.0
     assert restored.margin_of_safety_percent == 20.0
@@ -305,4 +306,4 @@ def test_failed_assembly_requires_reason_and_consistent_result() -> None:
     assert run.result_evidence is not None
     run.result_evidence["analysis"]["assembly"]["status"] = "input_unavailable"
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)

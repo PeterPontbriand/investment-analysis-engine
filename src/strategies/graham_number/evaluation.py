@@ -10,10 +10,13 @@ from src.strategies._graham.evaluation import REQUIREMENT as GRAHAM_REQUIREMENT
 from src.strategies._graham.evaluation import graham_clock, graham_inputs
 from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.graham_number.tool import GrahamNumberToolDependencies
 
 FIXTURE_IDS: Final[frozenset[str]] = GRAHAM_FIXTURE_IDS
 REQUIREMENT: Final[FixtureRequirement] = GRAHAM_REQUIREMENT
+SAMPLE_SELECTION: Final = GrahamNumberSelection()
+"""A valid persisted selection: Graham Number's defaults need no required field."""
 
 
 def compose(context: FixtureContext) -> GrahamNumberToolDependencies:

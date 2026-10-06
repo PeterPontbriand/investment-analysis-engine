@@ -1,6 +1,7 @@
 """Graham Number's immutable workspace selection snapshot."""
 
 import math
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Literal
 
@@ -9,7 +10,12 @@ from pydantic import AwareDatetime, Field, StrictFloat, field_validator, model_v
 from src.analysis.base_analyzer import AnalysisContext
 from src.data.instrument_profile import InstrumentProfile
 from src.strategies.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
-from src.workspace.selection_base import CLI_QUOTE_PROVIDERS, CLI_SECURITY_PROVIDERS, FrozenSelection
+from src.workspace.selection_base import (
+    CLI_QUOTE_PROVIDERS,
+    CLI_SECURITY_PROVIDERS,
+    FrozenSelection,
+    config_object,
+)
 
 
 class GrahamNumberSelection(FrozenSelection):
@@ -104,3 +110,8 @@ class GrahamNumberSelection(FrozenSelection):
             use_cache=self.use_cache,
             instrument_profile=instrument_profile,
         )
+
+
+def parse_graham_number_selection(body: Mapping[str, object]) -> GrahamNumberSelection:
+    """Parse a decoded configuration body that holds only an optional ``config`` object."""
+    return GrahamNumberSelection.model_validate(config_object(body))

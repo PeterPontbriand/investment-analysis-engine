@@ -50,6 +50,7 @@ from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.strategy_types import AnalysisSelection
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
+from tests._wiring import alias_for
 
 runner = CliRunner()
 
@@ -72,7 +73,7 @@ def _seed(name: str, entries: list[tuple[str, AnalysisSelection]]) -> None:
     if entries:
         database = SQLiteDatabase(src.cli_workspace.settings)
         try:
-            SQLiteWatchlistRepository(database).add_entries(name, entries)
+            SQLiteWatchlistRepository(database, alias_for=alias_for).add_entries(name, entries)
         finally:
             database.close()
 

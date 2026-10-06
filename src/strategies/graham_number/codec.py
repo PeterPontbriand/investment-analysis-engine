@@ -90,3 +90,8 @@ def decode_graham_number(payload: StrictJsonMapping) -> GrahamNumberAnalysis:
 def graham_number_native_status(result: GrahamNumberAnalysis, /) -> str:
     """Return the native calculation-status value recorded as telemetry evidence."""
     return result.result.status.value
+
+
+def graham_number_ticker(result: GrahamNumberAnalysis, /) -> str:
+    """Return the ticker the evidence is about, which must equal its run envelope's ticker."""
+    return result.ticker

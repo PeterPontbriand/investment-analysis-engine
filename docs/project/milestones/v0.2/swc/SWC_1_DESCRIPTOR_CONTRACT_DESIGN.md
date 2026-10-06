@@ -191,12 +191,16 @@ bundle by selection type. It exists because those functions import `cli_support`
 production provider composition, which neither the descriptor module nor `evaluation` may import. Members
 are introduced by SWC.3b (`build`, `refresh`) and SWC.3c (`command`).
 
-The evaluation tier (`src/evaluation/strategy_fixtures.py`) holds, per strategy, an `EvalComposition[DepsT]`
-with the fixture `requirement` and the `compose` function that builds that strategy's dependency bundle
-from the case's fixtures, paired with the core bundle by dependency type. It was introduced by SWC.2d.
-Fixture values, expected outcomes and case truth stay hand-written and reviewed. The tier entry holds the
-paired core bundle, the requirement, the fixture ids and the erased `compose`; `EvalComposition` has exactly
-the members `requirement`, `fixture_ids` and `compose` ([Appendix G](#appendix-g-decisions-recorded-while-implementing-swc2d)).
+The evaluation tier (`src/evaluation/strategy_fixtures.py`) holds, per strategy, an `EvalComposition[SelT, DepsT]`
+with the fixture `requirement`, the `compose` function that builds that strategy's dependency bundle
+from the case's fixtures and a `sample_selection`, paired with the core bundle by selection and dependency
+type. It was introduced by SWC.2d; SWC.3a added the sample selection. Fixture values, expected outcomes and
+case truth stay hand-written and reviewed. The tier entry holds the paired core bundle, the requirement, the
+fixture ids, the erased `compose` and the sample selection; `EvalComposition` has exactly the members
+`requirement`, `fixture_ids`, `compose` and `sample_selection`
+([Appendix G](#appendix-g-decisions-recorded-while-implementing-swc2d), [H.8](#h8-the-evaluation-tier-holds-a-sample-selection)).
+The sample selection is a required member, a typed instance of the strategy's own selection class that
+the strategy's `evaluation.py` declares: the conformance round trip (T8) stores a real result under it.
 
 ## 4. Static declaration model
 
@@ -249,7 +253,7 @@ the members `requirement`, `fixture_ids` and `compose` ([Appendix G](#appendix-g
      strategy file imports `src.evaluation` at all.
   4. No module under `src` imports `tests`.
 
-  **Transition allowlist:** SWC.2a recorded 24 edges and SWC.2b added 20 edges to the `tool` files; SWC.2c removed the 12 it owned and SWC.2d the 8 it owned, leaving the 24 edges below. Until
+  **Transition allowlist:** SWC.2a recorded 24 edges and SWC.2b added 20 edges to the `tool` files; SWC.2c removed the 12 it owned, SWC.2d the 8 it owned and SWC.3a the 8 it owned, leaving the 16 edges below. Until
   its owning slice removes it, T13 permits only the exact importer-to-module edges below. Each row is one edge; no wildcard, strategy-wide or role-wide exception is permitted. T13 fails if
   an entry is stale or if any unlisted forbidden edge appears. The owning slice removes its entry in the same
   change that rewires the importer. The within-strategy role rule, cross-strategy rule, no-import-of-tests rule,
@@ -257,14 +261,6 @@ the members `requirement`, `fixture_ids` and `compose` ([Appendix G](#appendix-g
 
   | Importer module | Imported module | Removes entry |
   | :--- | :--- | :--- |
-  | `src.workspace.codecs` | `src.strategies.fcf_growth.codec` | SWC.3a |
-  | `src.workspace.codecs` | `src.strategies.graham_growth.codec` | SWC.3a |
-  | `src.workspace.codecs` | `src.strategies.graham_number.codec` | SWC.3a |
-  | `src.workspace.codecs` | `src.strategies.momentum.codec` | SWC.3a |
-  | `src.workspace.execution` | `src.strategies.fcf_growth.execution` | SWC.3a |
-  | `src.workspace.execution` | `src.strategies.graham_growth.execution` | SWC.3a |
-  | `src.workspace.execution` | `src.strategies.graham_number.execution` | SWC.3a |
-  | `src.workspace.execution` | `src.strategies.momentum.execution` | SWC.3a |
   | `src.cli_workspace` | `src.strategies.fcf_growth.execution` | SWC.3b |
   | `src.cli_workspace` | `src.strategies.graham_growth.execution` | SWC.3b |
   | `src.cli_workspace` | `src.strategies.graham_number.execution` | SWC.3b |
@@ -282,8 +278,8 @@ the members `requirement`, `fixture_ids` and `compose` ([Appendix G](#appendix-g
   | `src.reporting.analysis_runs` | `src.strategies.graham_number.presenter` | SWC.4c |
   | `src.reporting.analysis_runs` | `src.strategies.momentum.presenter` | SWC.4c |
 
-  Counts by owner: SWC.3a, 8; SWC.3b, 4; SWC.3c, 8; SWC.4c, 4 (24 in all; 32 before SWC.2d and 44 before
-  SWC.2c). The list must
+  Counts by owner: SWC.3b, 4; SWC.3c, 8; SWC.4c, 4 (16 in all; 24 before SWC.3a, 32 before SWC.2d and 44
+  before SWC.2c). The list must
   be empty when SWC.4c merges, and SWC.7 verifies final conformance.
 
   The 20 edges SWC.2b added exist because the arguments models move into the `tool` role, which generic
@@ -311,8 +307,8 @@ the members `requirement`, `fixture_ids` and `compose` ([Appendix G](#appendix-g
   the generic `evaluation` modules and the tiers themselves. T13 holds the importers of the root as an exact
   list of modules, each of which must exist and import the root; a slice adds an entry in the change that
   first makes its module import the root. Today the list is `src.evaluation.composition`,
-  `src.evaluation.runner`, `src.evaluation.ollama_runner` and the evaluation tier
-  `src.evaluation.strategy_fixtures`. The importers of the evaluation tier are a second exact list held the same
+  `src.evaluation.runner`, `src.evaluation.ollama_runner`, the evaluation tier
+  `src.evaluation.strategy_fixtures`, `src.cli` and `src.cli_workspace`. The importers of the evaluation tier are a second exact list held the same
   way, today `src.evaluation.composition` alone.
 - **Injection:** the root builds read-only `Mapping`s from the tuple (`BY_KEY`, `BY_METHOD_ID`, `BY_ALIAS`,
   `BY_TOOL`, `BY_ARGUMENTS`, `BY_RESULT_TYPE`, and from SWC.4c `BY_ENVELOPE`) and one narrow view per layer,
@@ -396,7 +392,7 @@ T10 or T11.
 | SWC.3a | `src/data/repositories/watchlists.py`: alias lookup in the unreadable-entry message | The repository receives an alias resolver at construction (ten constructions in `src`, through one helper in `cli_workspace.py`); an unknown stored method falls back to its method id. | The message wording. |
 | SWC.3a | `src/workspace/refresh.py` | `refresh_watchlist` receives the run-spec lookup for `execute`, beside the executor it already receives. | Job scheduling and isolation. |
 | SWC.3a | `src/cli.py`, `src/cli_workspace.py`: three Momentum composition copies | None. | One `compose_momentum_profile` ([§14](#14-momentum-profile-composition-helper)). |
-| SWC.3b | `src/cli_workspace.py`: `_parse_analysis`, `ALIAS_METHOD_IDS` and `alias_for_method_id` uses, `--analysis` help, `_build_selection`, `_refresh_executor`, the four `_execute_*` | The CLI tier supplies the alias vocabulary, `build` and `refresh`; a missing key raises `UndeclaredStrategyError`, replacing the `AssertionError` fallthrough. | The selection builder and refresh executor of each strategy, in `src/strategies/<strategy>/cli.py`. |
+| SWC.3b | `src/cli_workspace.py`: `_parse_analysis`, the alias lookups SWC.3a rewired to the root, `--analysis` help, `_build_selection`, `_refresh_executor`, the four `_execute_*` | The CLI tier supplies the alias vocabulary, `build` and `refresh`; a missing key raises `UndeclaredStrategyError`, replacing the `AssertionError` fallthrough. | The selection builder and refresh executor of each strategy, in `src/strategies/<strategy>/cli.py`. |
 | SWC.3c | `src/cli.py`: the four direct commands and their helpers | `cli.py` adds the commands by iterating `CLI_STRATEGIES`. `_maybe_save_run` and `get_cli_run_context` move to `src/cli_run_support.py`. | Each command, in `src/strategies/<strategy>/cli.py`; it uses no decorator and does not import the Typer app. |
 | SWC.4a | `src/cli_support.py`: `execution_errors`; `src/reporting/presentation.py`: `analysis_failure_document`; the `execution_errors(analysis=, method=)` calls in the strategy command files | Identity for the envelope (`analysis`, `method`), read from the strategy's identity leaf. | Failure classification. The `analysis == "momentum"` string test becomes an explicit parameter passed by the Momentum command. |
 | SWC.4a | `src/cli_workspace.py`: `_fail` and its `--json` call sites; `src/workspace/refresh.py` | None. | One exception-to-code classifier in `src/reporting/failure_classification.py` ([§13](#13-failure-envelope-contract)); `refresh_watchlist` receives it as a parameter. |
@@ -956,8 +952,8 @@ dataclass is built at run time.
 | 11 | Presenter and JSON builder | `src/strategies/<s>/presenter.py` (new) | G | stub | T9: `rendered document ids differ from selection X`. |
 | 12 | Envelope model and identity constants | `src/strategies/<s>/envelope.py` (new) | G | stub | T21: `command X offers --json but has no typed document model`. |
 | 13 | Replay projector and `headline` function | `src/strategies/<s>/replay.py` (new) | G | stub | **type** (`project`; `headline` from Step 3.5 slice 3.5.0); T8 replay. |
-| 14 | Evaluation file: fixture composition, requirement and the fixture ids it understands | `src/strategies/<s>/evaluation.py` (new) | G | stub | **type** (the evaluation-tier pairing); T6; T10 `evaluation tier ids`. |
-| 15 | Evaluation-tier entry: the bundle paired with the requirement, the ids and the composition | `src/evaluation/strategy_fixtures.py` | G+R | edit | T10 `evaluation tier`: `strategy X is not wired in: evaluation tier`; an id no entry declares is rejected as unsupported; T6. |
+| 14 | Evaluation file: fixture composition, requirement, the fixture ids it understands and a sample selection | `src/strategies/<s>/evaluation.py` (new) | G | stub | **type** (the evaluation-tier pairing); T6; T10 `evaluation tier ids`. |
+| 15 | Evaluation-tier entry: the bundle paired with the requirement, the ids, the sample selection and the composition | `src/evaluation/strategy_fixtures.py` | G+R | edit | T10 `evaluation tier`: `strategy X is not wired in: evaluation tier`; an id no entry declares is rejected as unsupported; T6. |
 | 16 | Fixtures with their fixture ids, and cases with their reviewed arguments table | `src/evaluation/fixtures/<s>.py`, `src/evaluation/cases/<s>.py` (new) | G | reviewed | T5, T6. |
 | 17 | Catalog: the case-module imports, the arguments-table merge, the case tuple entries and the suite version bump; the pinned id list and count in the catalog test | `src/evaluation/catalog.py`, `tests/evaluation/test_catalog.py` | G | reviewed | T6: `tool X is required by no golden case`; the catalog test. |
 | 18 | User guide with `FINANCE_MATH.md` and `GLOSSARY.md` links | `docs/user/strategies/<ALIAS>.md` (new) | G | reviewed | T23: `no guide for alias X`; the doc link check for a missing anchor. |
@@ -1051,6 +1047,8 @@ defaults to the module name with hyphens). It writes wiring only:
   `BaseAnalyzer[ConfigT, ResultT]`, the arguments model with the shared fields, the dependency class, the
   selection class with its identity `Literal`s, and the bundle's functions. Bodies call
   `unfilled_stub("<site id>")`, which returns `NoReturn` and raises `UnfilledStubError`.
+- **Evaluation file:** its template declares `SAMPLE_SELECTION`, an instance of the generated selection class
+  built with trivial values, and the row 15 insertion passes it as `sample_selection`.
 - **Edits to existing files:** five one-line insertions (rows 2, 3, 5, 10 and 15 of §17), each located by
   the AST of the target file, asserting that the file parses before and after and that the entry count
   rose by one.
@@ -1095,7 +1093,8 @@ records the measured time.
 
 A checked-in specimen, not the generator's output. `tests/specimen/` holds a complete trivial strategy
 (identity `specimen`, `specimen_method`, alias `specimen-test`) wired through every layer with
-deterministic bodies and no providers, plus its own CLI-tier and evaluation-tier entries. Decision and
+deterministic bodies and no providers, plus its own CLI-tier and evaluation-tier entries (its evaluation file
+declares a sample selection like every strategy's, and T8 stores the specimen's result under it). Decision and
 reasons:
 
 - The generator's output exists only inside a temporary copy and takes tens of seconds, so it cannot back
@@ -1675,3 +1674,106 @@ fails none of them while a change to an existing identifier, tool name, descript
 The one place that writes the number of cases is the catalog test, which pins the nineteen case identifiers and
 counts and is edited with the suite version when a case is added (row 17 of §17). The pins were checked by reading
 them; a real fifth strategy first runs through them in the specimen and generator test.
+
+## Appendix H: Decisions recorded while implementing SWC.3a
+
+Each entry is a point the design left open, or a place where the implementation differs from the text above,
+with the decision and its reason.
+
+### H.1 The injected views are consumer-owned dataclasses
+
+`EvidenceCodec` (label, the four versions, `encode`, `decode`) is defined in `src/workspace/codecs.py` and
+`RunSpec` (the three versions `execute` writes and its `encode`) in `src/workspace/execution.py`, so each
+generic consumer owns the shape it receives and names no strategy. The root builds them with pure functions
+(`evidence_by_type`, `evidence_by_key`, `run_specs_by_key`, `parsers_by_alias`) and publishes
+`EVIDENCE_BY_TYPE`, `EVIDENCE_BY_KEY`, `RUN_SPECS_BY_KEY` and `PARSERS_BY_ALIAS`. `RunSpec.encode` is bound to the
+same codec, so a schema failure is still reported as `InvalidStoredRunError` with the strategy's label.
+`run_spec_for(selection, run_specs=RUN_SPECS_BY_KEY)` is the one lookup `src.cli` and `src.cli_workspace` use.
+
+### H.2 Behavior members and accessors
+
+`StrategyBehavior` gains `selection_type`, `parse`, `encode`, `decode` and `ticker_of`, with `SelT` as its first
+type parameter ([F.4](#f4-selection-type-parameter)). `BehaviorView` gains `parse_for`, `encode_object` and
+`decode_for`. `decode_for(payload, ticker)` decodes and then compares `ticker_of(result)` with the run
+envelope's ticker, so `ticker_of` is reached only through that accessor, as `deps_type`, `handler` and
+`native_status` are ([F.3](#f3-reads-of-members-inside-the-root-t16)). Each accessor guards with an exact type
+check and raises `UndeclaredStrategyError` otherwise. `pair_evaluation` in `src/evaluation/strategy_fixtures.py`
+takes the new first type parameter; this is the only edit that file needed.
+
+### H.3 Selection parsing
+
+`parse_selection(alias, config_json, parsers)` keeps the JSON decoding rules (duplicate keys, non-finite numbers,
+object body) and raises `ValueError("Unknown analysis alias: ...")` when the injected mapping has no parser.
+Each strategy's `selection.py` gains its parser; the `config` body rules shared by Momentum and both Graham
+strategies are `config_object` in `src/workspace/selection_base.py`. The parsers' behavior is unchanged,
+including Momentum's materialization of omitted windows from configured policy.
+
+### H.4 Files outside the plan's list, and why
+
+- `src/reporting/analysis_runs.py`: `decode_evidence` takes the injected codecs, so `project_run` takes them as
+  the keyword-only `codecs`. SWC.4c adds `replays` beside it.
+- `src/cli.py`: `execute` takes `spec`, and the normalizers moved to the adapters, so the two `execute` calls and
+  the imports changed beside the Momentum composition.
+- `src/cli_workspace.py`: besides the repository helper, the alias vocabulary is read from the root now that
+  `method_aliases.py` is deleted (`BY_ALIAS`, `BY_METHOD_ID`). SWC.3b still owns the selection builder, the
+  refresh executor and the `--analysis` help text.
+- `src/evaluation/strategy_fixtures.py`: the type parameter above.
+
+### H.5 Watchlist repository alias resolver
+
+`SQLiteWatchlistRepository(database, *, alias_for, ...)` requires the resolver; `alias_for` returns `None` for a
+method this version does not declare, and the unreadable-entry message then shows the stored method
+identifier as written. `src/cli_workspace.py` composes the repository in one helper over `BY_METHOD_ID`.
+
+### H.6 Refresh and fail-closed lookups
+
+`refresh_watchlist` takes `run_specs`; a job whose selection has no entry fails as that job's error, naming the
+key, because refresh isolates every job's failure. `execute` takes its `spec` directly. T8 stores one real
+golden-fixture result per strategy through `execute` and `decode_evidence` and requires equality; its
+sample selection comes from the strategy's evaluation-tier entry ([H.8](#h8-the-evaluation-tier-holds-a-sample-selection)). T11
+adds the undeclared evidence type, subclass, key, alias, run spec and mispaired-bundle probes. T1 also compares
+`config_schema_version`, and T24 the `alias` uniqueness rule.
+
+### H.7 Stored shapes
+
+No stored shape changed, so no version changed: `config_schema_version`, `method_version`,
+`result_schema_version` and `evidence_codec_version` carry the values the removed tables held (Momentum
+2, 1, 2, 1; Graham Number and Graham Growth 1, 1, 1, 1; FCF Growth 1, 2, 3, 1, the last three read from the
+analyzer's own constants). T8 records them against the stored run.
+
+### H.8 The evaluation tier holds a sample selection
+
+Decided 2026-10-06, with the project owner's approval of this design change. T8 first read each strategy's sample
+configuration from a hand-written table in `scripts/strategy_conformance.py`, which was a per-strategy edit
+site in generic tooling outside the table in [§17](#17-edit-sites-for-a-new-strategy). No strategy-owned source
+could serve: an evaluation file held no selection, and a reviewed case's arguments are tool arguments, which
+differ from the selection's fields (Graham Growth's `current_aaa_yield` is the selection's
+`aaa_yield_override`) with no conversion anywhere.
+
+- **Decision:** `EvalComposition` gains the required member `sample_selection`, and becomes
+  `EvalComposition[SelT, DepsT]`.
+
+  ```python
+  class EvalComposition[SelT: SelectionMember, DepsT]:
+      requirement: FixtureRequirement
+      fixture_ids: frozenset[str]
+      compose: Callable[[FixtureContext], DepsT]
+      sample_selection: SelT
+  ```
+
+  `pair_evaluation[SelT, ResultT, DepsT](behavior: StrategyBehavior[SelT, ResultT, DepsT], composition:
+  EvalComposition[SelT, DepsT])` ties the selection type to the core bundle's. The erased `EvaluationStrategy`
+  holds `sample_selection: SelectionMember`.
+- **Typed, required:** the member is a typed instance of the strategy's own selection class, never a raw body, and
+  every strategy declares it, including the three whose selection parses from an empty body. Omitting it, or
+  passing another strategy's selection, fails `mypy --strict` (`Missing positional argument "sample_selection"`
+  and `Value of type variable "SelT" of "pair_evaluation" cannot be ...`); both were tried.
+- **Where:** each strategy's `evaluation.py` declares `SAMPLE_SELECTION`, built from values its fixtures or its
+  reviewed cases already use (Momentum's windows from `src.evaluation.fixtures.market_data`; Graham Growth's
+  `6.5` and `4.15` from case GRG-01).
+- **T8 and T15:** T8 stores the real result under the entry's instance; `execute` serializes it, so T8 needs no
+  body. A descriptor with no tier entry is reported by T8 as having no sample selection to store. T15 pins four
+  composition members, five entry fields and two type parameters. T11's parser probe reads `parse_for` with a
+  body no strategy accepts, and its mispairing probe returns another strategy's sample from a replaced parser.
+- **Edit sites:** still 18, in 22 files. The sample selection is written in the evaluation file (row 14) and
+  passed in the tier entry (row 15), both already counted, so no row and no file is added.

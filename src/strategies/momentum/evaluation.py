@@ -9,12 +9,16 @@ from src.core.constants import ConfigKeys
 from src.evaluation.fixture_context import FixtureContext, FixtureRequirement, selected_variant
 from src.evaluation.fixtures.market_data import (
     MOMENTUM_BOUNDARY_FIXTURE_ID,
+    MOMENTUM_LONG_WINDOW,
+    MOMENTUM_RSI_PERIOD,
+    MOMENTUM_SHORT_WINDOW,
     MOMENTUM_SUCCESS_FIXTURE_ID,
     FixtureMarketDataProvider,
     momentum_boundary_frame,
     momentum_success_frame,
 )
 from src.strategies.momentum.analyzer import MomentumAnalyzer
+from src.strategies.momentum.selection import MomentumSelection
 from src.strategies.momentum.tool import MomentumToolDependencies
 
 FIXTURE_IDS: Final = frozenset({MOMENTUM_SUCCESS_FIXTURE_ID, MOMENTUM_BOUNDARY_FIXTURE_ID})
@@ -22,6 +26,11 @@ _LABEL: Final = "Momentum price"
 
 REQUIREMENT: Final = FixtureRequirement(FIXTURE_IDS, _LABEL, etf_profile_exempt=False)
 """Momentum needs a selected price fixture; an ETF profile does not stand in for price history."""
+
+SAMPLE_SELECTION: Final = MomentumSelection(
+    short_window=MOMENTUM_SHORT_WINDOW, long_window=MOMENTUM_LONG_WINDOW, rsi_period=MOMENTUM_RSI_PERIOD
+)
+"""A valid persisted selection with the windows the reviewed Momentum cases use."""
 
 
 def compose(context: FixtureContext) -> MomentumToolDependencies:

@@ -15,10 +15,14 @@ from src.strategies._graham.evaluation import REQUIREMENT as GRAHAM_REQUIREMENT
 from src.strategies._graham.evaluation import graham_clock, graham_inputs
 from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_growth.tool import GrahamGrowthToolDependencies
 
 FIXTURE_IDS: Final[frozenset[str]] = GRAHAM_FIXTURE_IDS
 REQUIREMENT: Final[FixtureRequirement] = GRAHAM_REQUIREMENT
+
+SAMPLE_SELECTION: Final = GrahamGrowthSelection(expected_growth=6.5, aaa_yield_override=4.15)
+"""A valid persisted selection with the explicit assumptions of reviewed case GRG-01."""
 
 
 def compose(context: FixtureContext) -> GrahamGrowthToolDependencies:

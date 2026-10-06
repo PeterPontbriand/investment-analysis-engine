@@ -31,6 +31,7 @@ from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
 from src.strategies.graham_growth.config import GrahamGrowthConfig
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from src.workspace.capture import ExecutionCapture
 from src.workspace.models import RunOutcome
 
 
@@ -119,7 +120,13 @@ def execute_graham_growth(  # noqa: PLR0913
     return GrahamGrowthCapture(analysis=analysis, profile=profile, outcome=classify_graham_growth_outcome(analysis))
 
 
+def from_graham_growth_capture(capture: GrahamGrowthCapture) -> ExecutionCapture:
+    """Normalize a Graham Growth capture."""
+    return ExecutionCapture(native_evidence=capture.analysis, profile=capture.profile, outcome=capture.outcome)
+
+
 __all__ = [
+    "from_graham_growth_capture",
     "GrahamGrowthCapture",
     "classify_graham_growth_outcome",
     "execute_graham_growth",

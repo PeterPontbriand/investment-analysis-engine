@@ -27,7 +27,6 @@ from sqlalchemy.exc import IntegrityError
 from src.core.clock import utc_now
 from src.data.repositories.schema import watchlist_entries, watchlists
 from src.data.repositories.sqlite import SQLiteDatabase
-from src.workspace.method_aliases import METHOD_ID_ALIASES
 from src.workspace.runs import Watchlist, WatchlistEntry, WatchlistSummary
 from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import (
@@ -85,6 +84,10 @@ def _utc(value: datetime) -> str:
     return value.astimezone(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
+type AliasResolver = Callable[[str], str | None]
+"""Maps a stored method identifier to its CLI alias, or ``None`` when this version declares none."""
+
+
 class SQLiteWatchlistRepository:
     """Persist watchlist aggregates in a borrowed migrated database."""
 
@@ -92,11 +95,13 @@ class SQLiteWatchlistRepository:
         self,
         database: SQLiteDatabase,
         *,
+        alias_for: AliasResolver,
         clock: Callable[[], datetime] | None = None,
         id_factory: Callable[[], UUID] | None = None,
     ) -> None:
-        """Retain a caller-owned database and injected clock/ID generator."""
+        """Retain a caller-owned database, the alias resolver and the injected clock/ID generator."""
         self._database = database
+        self._alias_for = alias_for
         self._clock = clock if clock is not None else utc_now
         self._id_factory = id_factory if id_factory is not None else uuid4
 
@@ -406,8 +411,7 @@ class SQLiteWatchlistRepository:
                 ],
             )
 
-    @staticmethod
-    def _decode_entry(display_name: str, index: int, entry_row: RowMapping) -> WatchlistEntry:
+    def _decode_entry(self, display_name: str, index: int, entry_row: RowMapping) -> WatchlistEntry:
         """Decode one stored entry, naming it and the command that removes it if it cannot be read.
 
         The entry is named by its method alias when it has one. An entry stored by an earlier
@@ -419,7 +423,7 @@ class SQLiteWatchlistRepository:
                 entry_row["method_id"], entry_row["config_schema_version"], entry_row["selection_json"]
             )
         except StoredSelectionError as exc:
-            method = METHOD_ID_ALIASES.get(entry_row["method_id"], entry_row["method_id"])
+            method = self._alias_for(entry_row["method_id"]) or entry_row["method_id"]
             raise StoredSelectionError(
                 f"Watchlist {display_name!r}, entry {index} ({entry_row['ticker']}, {method}): "
                 f'{exc}. Remove it with: ian watchlist remove-entry "{display_name}" {index}'

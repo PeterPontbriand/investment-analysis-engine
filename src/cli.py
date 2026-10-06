@@ -38,12 +38,9 @@ from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.run_context import get_current_run_context, set_current_run_context
 from src.data.financial.providers import (
     SEC_PROVIDER_ID,
-    YFINANCE_PROVIDER_ID,
 )
 from src.data.instrument_profile import (
     InstrumentProfile,
-    InstrumentProfileCandidate,
-    compose_instrument_profile,
     profile_identity_resolution,
 )
 from src.data.instrument_profile_cache import InstrumentProfileResolver
@@ -68,7 +65,7 @@ from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_su
 from src.llm.client import LLMClient
 from src.reporting.evidence_presentation import friendly_valuation_failure
 from src.reporting.presentation import PresentationMode
-from src.strategies.fcf_growth.execution import execute_fcf_growth
+from src.strategies.fcf_growth.execution import execute_fcf_growth, from_fcf_growth_capture
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from src.strategies.fcf_growth.models import (
     FCFClassificationBasis,
@@ -84,7 +81,7 @@ from src.strategies.graham_growth.calculation import (
     GrowthValueInputAssembly,
 )
 from src.strategies.graham_growth.config import GrahamGrowthConfig
-from src.strategies.graham_growth.execution import execute_graham_growth
+from src.strategies.graham_growth.execution import execute_graham_growth, from_graham_growth_capture
 from src.strategies.graham_growth.presenter import (
     GrahamGrowthPresentation,
     growth_with_public_quote_reason,
@@ -93,7 +90,7 @@ from src.strategies.graham_growth.presenter import (
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
 from src.strategies.graham_number.config import GrahamNumberConfig
-from src.strategies.graham_number.execution import execute_graham_number
+from src.strategies.graham_number.execution import execute_graham_number, from_graham_number_capture
 from src.strategies.graham_number.presenter import (
     GrahamNumberPresentation,
     number_with_public_quote_reason,
@@ -101,18 +98,18 @@ from src.strategies.graham_number.presenter import (
 )
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.analyzer import MomentumConfig
-from src.strategies.momentum.execution import capture_momentum, run_momentum
+from src.strategies.momentum.execution import (
+    capture_momentum,
+    compose_momentum_profile,
+    from_momentum_capture,
+    run_momentum,
+)
 from src.strategies.momentum.presenter import MomentumPresentation, render_momentum
 from src.strategies.momentum.selection import MomentumSelection
+from src.strategy_wiring import run_spec_for
 from src.utils import paths
-from src.workspace.execution import (
-    ExecutionCapture,
-    execute,
-    from_fcf_growth_capture,
-    from_graham_growth_capture,
-    from_graham_number_capture,
-    from_momentum_capture,
-)
+from src.workspace.capture import ExecutionCapture
+from src.workspace.execution import execute
 from src.workspace.requests import AnalysisRequest
 
 app = typer.Typer(
@@ -214,7 +211,7 @@ def _maybe_save_run[RawCaptureT](
             holder.append(raw)
             return normalize(raw)
 
-        run = execute(request, capture=capture, repository=repository)
+        run = execute(request, spec=run_spec_for(request.selection), capture=capture, repository=repository)
         typer.echo(f"Saved Analysis Run: {run.analysis_run_id}", err=True)
         return holder[0]
     finally:
@@ -295,9 +292,6 @@ def momentum(  # noqa: PLR0913
         # executed_at is the run's own execution clock, distinct from the requested as_of boundary.
         executed_at = utc_now()
 
-        def _identity_candidate() -> InstrumentProfileCandidate:
-            return InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
-
         if save_run:
             # Momentum's profile is composed CLI-side (outside the D1 adapter). Readiness is
             # checked before the historical-data provider call, matching every other
@@ -306,11 +300,7 @@ def momentum(  # noqa: PLR0913
             try:
                 ensure_database_ready(database)
                 profile_cache = _production_instrument_profile_cache(database, clock=lambda: executed_at)
-                profile = profile_cache.resolve(
-                    target_ticker,
-                    identity_candidates=(_identity_candidate(),),
-                    kind_candidate=_identity_candidate(),
-                )
+                profile = compose_momentum_profile(target_ticker, data_client=data_client, profile_cache=profile_cache)
                 with _production_historical_client(
                     data_client, use_cache=selection.use_cache, clock=lambda: executed_at
                 ) as historical_client:
@@ -325,6 +315,7 @@ def momentum(  # noqa: PLR0913
                 momentum_capture = capture_momentum(run)
                 saved = execute(
                     AnalysisRequest(ticker=target_ticker, selection=selection),
+                    spec=run_spec_for(selection),
                     capture=lambda: from_momentum_capture(momentum_capture),
                     repository=SQLiteAnalysisRunRepository(database),
                 )
@@ -332,11 +323,7 @@ def momentum(  # noqa: PLR0913
             finally:
                 database.close()
         else:
-            profile = compose_instrument_profile(
-                target_ticker,
-                identity_candidates=(_identity_candidate(),),
-                kind_candidate=_identity_candidate(),
-            )
+            profile = compose_momentum_profile(target_ticker, data_client=data_client)
             with _production_historical_client(
                 data_client, use_cache=selection.use_cache, clock=lambda: executed_at
             ) as historical_client:

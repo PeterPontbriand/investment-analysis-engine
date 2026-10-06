@@ -42,8 +42,19 @@ from src.strategy_wiring import (
     StrategyDescriptor,
     bind_handlers,
     build_indexes,
+    evidence_by_key,
+    evidence_by_type,
+    parsers_by_alias,
+    run_spec_for,
+    run_specs_by_key,
     tool_for_arguments,
 )
+from src.workspace.capture import ExecutionCapture
+from src.workspace.codecs import UnsupportedRunVersionError, decode_evidence, encode_evidence
+from src.workspace.execution import execute
+from src.workspace.models import RunOutcome
+from src.workspace.requests import AnalysisRequest, parse_selection
+from src.workspace.runs import AnalysisRun
 from src.workspace.strategy_types import NativeEvidence, SelectionMember
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -53,23 +64,45 @@ _FIXTURE_CLOCK = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 DESCRIPTOR_FIELDS: dict[str, object] = {
     "analysis_id": str,
     "method_id": str,
+    "alias": str,
+    "label": str,
     "tool": ToolName,
     "tool_arguments": type[AnalysisToolArguments],
     "tool_description": str,
     "behavior": BehaviorView,
+    "config_schema_version": int,
+    "method_version": int,
+    "result_schema_version": int,
+    "evidence_codec_version": int,
 }
 """The documented descriptor fields and their types; a change here is a reviewed change to the contract."""
 
-BEHAVIOR_MEMBERS: frozenset[str] = frozenset({"result_type", "deps_type", "handler", "native_status"})
+BEHAVIOR_MEMBERS: frozenset[str] = frozenset(
+    {
+        "selection_type",
+        "result_type",
+        "deps_type",
+        "parse",
+        "encode",
+        "decode",
+        "ticker_of",
+        "handler",
+        "native_status",
+    }
+)
 """The documented members of a strategy's behavior bundle."""
 
-EVAL_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"requirement", "fixture_ids", "compose"})
+EVAL_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"requirement", "fixture_ids", "compose", "sample_selection"})
 """The documented members of a strategy's evaluation-tier composition."""
 
-EVALUATION_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "requirement", "fixture_ids", "compose"})
+EVALUATION_ENTRY_FIELDS: frozenset[str] = frozenset(
+    {"behavior", "requirement", "fixture_ids", "compose", "sample_selection"}
+)
 """The documented fields of an evaluation-tier entry: the paired core bundle and the erased composition."""
 
-VIEW_ACCESSORS: frozenset[str] = frozenset({"result_type", "native_status_of", "bind_handler"})
+VIEW_ACCESSORS: frozenset[str] = frozenset(
+    {"result_type", "parse_for", "encode_object", "decode_for", "native_status_of", "bind_handler"}
+)
 """The behavior members that generic consumers can reach, through the erased view."""
 
 ANALYZER_ENVELOPE_PARAMETERS: tuple[str, ...] = ("self", "ticker", "config", "context")
@@ -116,9 +149,15 @@ def selection_union_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[st
         for member in get_args(SelectionMember)
     }
     gaps = [
+        f"descriptor {label(declared[key])} declares config_schema_version {declared[key].config_schema_version}, "
+        f"but {selections[key].__name__} defaults to {selections[key].model_fields['config_schema_version'].default}"
+        for key in sorted(declared.keys() & selections.keys())
+        if declared[key].config_schema_version != selections[key].model_fields["config_schema_version"].default
+    ]
+    gaps.extend(
         f"selection class {selections[key].__name__} with ids {key} has no descriptor"
         for key in sorted(selections.keys() - declared.keys())
-    ]
+    )
     gaps.extend(
         f"descriptor {label(declared[key])} has no selection class in SelectionMember"
         for key in sorted(declared.keys() - selections.keys())
@@ -326,6 +365,108 @@ def evaluation_fixture_id_gaps(
 
 
 # ---------------------------------------------------------------------------
+# T8: versions and the stored round trip
+# ---------------------------------------------------------------------------
+
+
+class _MemorySink:
+    """An in-memory run sink: the terminal insertion ``execute`` needs, with no database."""
+
+    def __init__(self) -> None:
+        self.inserted: list[AnalysisRun] = []
+
+    def insert(self, run: AnalysisRun) -> None:
+        """Retain ``run`` as stored."""
+        self.inserted.append(run)
+
+
+def _capture_of(result: NativeEvidence) -> Callable[[], ExecutionCapture]:
+    """Return a capture callable that yields ``result`` as a completed, profile-less capture."""
+    return lambda: ExecutionCapture(native_evidence=result, profile=None, outcome=RunOutcome.COMPLETED)
+
+
+@dataclasses.dataclass(frozen=True)
+class StoredRun:
+    """One descriptor's real golden-fixture result and the run ``execute`` stored for it."""
+
+    descriptor: StrategyDescriptor
+    selection: SelectionMember
+    result: NativeEvidence
+    ticker: str
+    run: AnalysisRun
+
+
+def stored_runs(
+    descriptors: tuple[StrategyDescriptor, ...],
+    tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
+) -> list[StoredRun]:
+    """Execute and store one real fixture result per descriptor, as the terminal service would.
+
+    The result is the first golden case routed to the descriptor's tool; the selection is the sample its
+    evaluation-tier entry declares; the run goes through the real ``execute`` and ``AnalysisRun`` validation.
+    A descriptor with no tier entry has no stored run, and the checks report it.
+    """
+    indexes = build_indexes(descriptors)
+    specs = run_specs_by_key(descriptors)
+    stored: dict[str, StoredRun] = {}
+    for request in build_deterministic_requests():
+        item = indexes.by_tool[tool_for_arguments(request.arguments, indexes.by_arguments)]
+        entry = next((entry for entry in tier if entry.behavior is item.behavior), None)
+        if item.alias in stored or entry is None:
+            continue
+        dispatched = asyncio.run(dispatch_fixture_case(request.case, request.arguments, clock_at=_FIXTURE_CLOCK))
+        result = cast("NativeEvidence", dispatched.result)
+        selection = entry.sample_selection
+        sink = _MemorySink()
+        run = execute(
+            AnalysisRequest(ticker=request.arguments.ticker, selection=selection),
+            spec=run_spec_for(selection, specs),
+            capture=_capture_of(result),
+            repository=sink,
+            clock=lambda: _FIXTURE_CLOCK,
+        )
+        stored[item.alias] = StoredRun(item, selection, result, run.ticker, sink.inserted[0])
+    return [stored[item.alias] for item in descriptors if item.alias in stored]
+
+
+def versions_and_round_trip_gaps(
+    descriptors: tuple[StrategyDescriptor, ...],
+    tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
+) -> list[str]:
+    """T8: a stored run carries the descriptor's versions and decodes back to exactly the result stored."""
+    codecs = evidence_by_key(descriptors)
+    gaps: list[str] = []
+    stored = stored_runs(descriptors, tier)
+    gaps.extend(
+        f"strategy {label(item)} has no golden fixture result or evaluation-tier sample selection to store"
+        for item in descriptors
+        if item.alias not in {entry.descriptor.alias for entry in stored}
+    )
+    for entry in stored:
+        item, run = entry.descriptor, entry.run
+        recorded = (
+            run.config_schema_version,
+            run.method_version,
+            run.result_schema_version,
+            run.evidence_codec_version,
+        )
+        declared = (
+            item.config_schema_version,
+            item.method_version,
+            item.result_schema_version,
+            item.evidence_codec_version,
+        )
+        if recorded != declared:
+            gaps.append(f"{item.label}: the stored run records versions {recorded}, the descriptor declares {declared}")
+        payload = item.behavior.encode_object(entry.result)
+        if item.behavior.decode_for(payload, entry.ticker) != entry.result:
+            gaps.append(f"{item.label}: the behavior's decode does not return the result its encode stored")
+        if decode_evidence(run, codecs) != entry.result:
+            gaps.append(f"{item.label}: decode_evidence does not return the result execute stored")
+    return gaps
+
+
+# ---------------------------------------------------------------------------
 # T11: undeclared inputs fail closed
 # ---------------------------------------------------------------------------
 
@@ -345,6 +486,107 @@ def _expect_undeclared(gaps: list[str], probe: str, action: Callable[[], object]
         gaps.append(f"{probe}: raised {type(error).__name__} instead of UndeclaredStrategyError")
     else:
         gaps.append(f"{probe}: accepted an undeclared input")
+
+
+def _expect_error(
+    gaps: list[str], probe: str, action: Callable[[], object], error_type: type[Exception], *, names: str = ""
+) -> None:
+    """Record a gap unless ``action`` raises exactly ``error_type`` and the error mentions ``names``."""
+    try:
+        action()
+    except Exception as error:
+        if type(error) is not error_type:
+            gaps.append(f"{probe}: raised {type(error).__name__} instead of {error_type.__name__}")
+        elif names not in str(error):
+            gaps.append(f"{probe}: the error does not name {names!r}: {error}")
+    else:
+        gaps.append(f"{probe}: accepted an undeclared input")
+
+
+def _workspace_probes(
+    gaps: list[str], descriptors: tuple[StrategyDescriptor, ...], tier: tuple[EvaluationStrategy, ...]
+) -> None:
+    """Record a gap for each workspace dispatcher that accepts an undeclared input or another strategy's object."""
+    by_type = evidence_by_type(descriptors)
+    by_key = evidence_by_key(descriptors)
+    parsers = parsers_by_alias(descriptors)
+    _expect_error(
+        gaps,
+        "parse_selection(undeclared alias)",
+        partial(parse_selection, "undeclared-alias", "{}", parsers),
+        ValueError,
+        names="undeclared-alias",
+    )
+    stored = stored_runs(descriptors, tier)
+    for entry in stored:
+        item, run = entry.descriptor, entry.run
+        subclass_instance = cast(
+            "NativeEvidence", object.__new__(type("_Subclassed", (item.behavior.result_type,), {}))
+        )
+        _expect_undeclared(
+            gaps,
+            f"{label(item)} encode_evidence(subclass of its result type)",
+            partial(encode_evidence, subclass_instance, by_type),
+            names="_Subclassed",
+        )
+        without_own_type = {key: value for key, value in by_type.items() if key is not type(entry.result)}
+        _expect_undeclared(
+            gaps,
+            f"{label(item)} encode_evidence without its codec",
+            partial(encode_evidence, entry.result, without_own_type),
+            names=type(entry.result).__name__,
+        )
+        _expect_undeclared(gaps, f"{label(item)} encode_object(object)", partial(item.behavior.encode_object, object()))
+        _expect_error(
+            gaps,
+            f"{label(item)} parse_for(a body with an unknown key)",
+            partial(item.behavior.parse_for, {"undeclared_key": 1}),
+            ValueError,
+        )
+        _expect_error(
+            gaps,
+            f"{label(item)} decode_evidence without its codec",
+            partial(
+                decode_evidence,
+                run,
+                {key: value for key, value in by_key.items() if key != (item.analysis_id, item.method_id)},
+            ),
+            UnsupportedRunVersionError,
+        )
+        _expect_undeclared(
+            gaps,
+            f"{label(item)} run_spec_for without its run spec",
+            partial(
+                run_spec_for,
+                entry.selection,
+                {
+                    key: value
+                    for key, value in run_specs_by_key(descriptors).items()
+                    if key != (item.analysis_id, item.method_id)
+                },
+            ),
+            names=item.method_id,
+        )
+    if len(stored) > 1 and all(isinstance(entry.descriptor.behavior, StrategyBehavior) for entry in stored):
+        first, second = stored[0], stored[1]
+        paired = first.descriptor.behavior
+        if isinstance(paired, StrategyBehavior):
+            other_result = second.result
+            other_selection = second.selection
+            _expect_undeclared(
+                gaps,
+                "decode_for with another strategy's result",
+                partial(
+                    dataclasses.replace(paired, decode=lambda _payload: other_result).decode_for,
+                    {},
+                    first.ticker,
+                ),
+            )
+            _expect_undeclared(
+                gaps,
+                "parse_for with another strategy's selection",
+                partial(dataclasses.replace(paired, parse=lambda _body: other_selection).parse_for, {}),
+            )
 
 
 def _evaluation_tier_probes(
@@ -404,6 +646,7 @@ def undeclared_input_gaps(
     gaps: list[str] = []
     indexes = build_indexes(descriptors)
     _evaluation_tier_probes(gaps, descriptors, tier)
+    _workspace_probes(gaps, descriptors, tier)
     fixtures = compose_fixture_dependencies(
         DETERMINISTIC_CASES[0], clock_at=_FIXTURE_CLOCK, descriptors=descriptors, tier=tier
     )
@@ -488,6 +731,7 @@ def uniqueness_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
     duplicates: dict[str, StrategyDescriptor] = {
         "analysis_id+method_id": dataclasses.replace(second, analysis_id=first.analysis_id, method_id=first.method_id),
         "method_id": dataclasses.replace(second, method_id=first.method_id),
+        "alias": dataclasses.replace(second, alias=first.alias),
         "tool": dataclasses.replace(second, tool=first.tool),
         "tool_arguments": dataclasses.replace(second, tool_arguments=first.tool_arguments),
         "result_type": dataclasses.replace(second, behavior=first.behavior),
@@ -562,8 +806,8 @@ def evaluation_tier_is_closed_gaps(tier: Sequence[EvaluationStrategy] = EVALUATI
             f"evaluation tier entry fields differ from the documented set: {sorted(fields)} != "
             f"{sorted(EVALUATION_ENTRY_FIELDS)}"
         )
-    if len(getattr(EvalComposition, "__parameters__", ())) != 1:
-        gaps.append("EvalComposition does not take exactly one type parameter, the dependency type")
+    if len(getattr(EvalComposition, "__parameters__", ())) != 2:
+        gaps.append("EvalComposition does not take exactly two type parameters, the selection and dependency types")
     if getattr(EvaluationStrategy, "__parameters__", ()):
         gaps.append("EvaluationStrategy is generic")
     if EvaluationStrategy.__subclasses__() or EvalComposition.__subclasses__():
@@ -575,7 +819,10 @@ def evaluation_tier_is_closed_gaps(tier: Sequence[EvaluationStrategy] = EVALUATI
         if not _is_frozen(entry, "requirement"):
             gaps.append("EvaluationStrategy is not frozen")
         composition = EvalComposition(
-            requirement=entry.requirement, fixture_ids=entry.fixture_ids, compose=entry.compose
+            requirement=entry.requirement,
+            fixture_ids=entry.fixture_ids,
+            compose=entry.compose,
+            sample_selection=entry.sample_selection,
         )
         if not _is_frozen(composition, "requirement"):
             gaps.append("EvalComposition is not frozen")

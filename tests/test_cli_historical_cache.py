@@ -76,7 +76,7 @@ def test_momentum_cli_reuses_history_and_preserves_profile_provider(
             provider, "fetch_historical_data", side_effect=[history, AssertionError("Unexpected refetch")]
         ) as fetch,
         patch.object(provider, "fetch_current_price", side_effect=AssertionError("Historical analysis needs no quote")),
-        patch("src.cli.compose_instrument_profile", return_value=profile) as compose,
+        patch("src.strategies.momentum.execution.compose_instrument_profile", return_value=profile) as compose,
         patch("src.cli_support.SQLiteDatabase", side_effect=database),
     ):
         first = CliRunner().invoke(app, args)
@@ -205,7 +205,7 @@ def _momentum_options_run(
         )
         stack.enter_context(patch("src.cli.YFinanceClient", return_value=provider))
         fetch = stack.enter_context(patch.object(provider, "fetch_historical_data", return_value=history))
-        stack.enter_context(patch("src.cli.compose_instrument_profile", return_value=profile))
+        stack.enter_context(patch("src.strategies.momentum.execution.compose_instrument_profile", return_value=profile))
         if guard_readiness:
             stack.enter_context(
                 patch(

@@ -65,3 +65,8 @@ def decode_momentum(payload: StrictJsonMapping) -> MomentumRun:
 def momentum_native_status(result: MomentumRun, /) -> None:
     """Return no result-level status: Momentum's analyzer declares none, so telemetry records ``None``."""
     del result
+
+
+def momentum_ticker(result: MomentumRun, /) -> str:
+    """Return the ticker the evidence is about, which must equal its run envelope's ticker."""
+    return result.metrics.ticker

@@ -50,7 +50,7 @@ control only.
 """
 
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime
@@ -58,7 +58,9 @@ from typing import Protocol
 from uuid import UUID, uuid4
 
 from src.core.clock import utc_now
-from src.workspace.execution import AnalysisRunSink, BatchContext, ExecutionCapture, execute
+from src.core.strategy_errors import require
+from src.workspace.capture import ExecutionCapture
+from src.workspace.execution import AnalysisRunSink, BatchContext, RunSpec, execute
 from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun, Watchlist
@@ -172,6 +174,7 @@ def refresh_watchlist(  # noqa: PLR0913
     watchlists: WatchlistLookup,
     repository: AnalysisRunSink,
     executor: Callable[[str, AnalysisSelection], ExecutionCapture],
+    run_specs: Mapping[tuple[str, str], RunSpec],
     save: bool = True,
     policy: RefreshPolicy = _SEQUENTIAL_POLICY,
     refresh_id_factory: Callable[[], UUID] = uuid4,
@@ -196,6 +199,8 @@ def refresh_watchlist(  # noqa: PLR0913
             ``policy.workers > 1`` it may be called concurrently from
             multiple worker threads, so this job-scoping requirement is load
             -bearing, not merely a style preference.
+        run_specs: The versions and evidence encoder of each declared strategy, keyed by
+            ``(analysis_id, method_id)``; a job whose selection has no entry fails closed as that job's error.
         save: When ``True`` (the default), every finished job is persisted
             exactly as before. When ``False``, every entry still executes
             but no job is persisted and no :class:`AnalysisRun` is ever
@@ -269,6 +274,7 @@ def refresh_watchlist(  # noqa: PLR0913
             try:
                 run = execute(
                     AnalysisRequest(ticker=ticker, selection=selection),
+                    spec=_spec_for(run_specs, selection),
                     capture=capture,
                     repository=repository,
                     id_factory=id_factory,
@@ -293,11 +299,17 @@ def refresh_watchlist(  # noqa: PLR0913
         workers=policy.workers,
         repository=repository,
         executor=executor,
+        run_specs=run_specs,
         save=save,
         id_factory=id_factory,
         clock=resolved_clock,
         cancellation=cancellation,
     )
+
+
+def _spec_for(run_specs: Mapping[tuple[str, str], RunSpec], selection: AnalysisSelection) -> RunSpec:
+    """Return the run spec of the selection's strategy, or raise ``UndeclaredStrategyError`` naming its key."""
+    return require(run_specs, (selection.analysis_id, selection.method_id), what="run spec")
 
 
 @dataclass(frozen=True)
@@ -342,6 +354,7 @@ def _refresh_concurrently(  # noqa: PLR0913
     workers: int,
     repository: AnalysisRunSink,
     executor: Callable[[str, AnalysisSelection], ExecutionCapture],
+    run_specs: Mapping[tuple[str, str], RunSpec],
     save: bool,
     id_factory: Callable[[], UUID],
     clock: Callable[[], datetime],
@@ -406,6 +419,7 @@ def _refresh_concurrently(  # noqa: PLR0913
                     selection=selection,
                     batch=batch,
                     repository=repository,
+                    run_specs=run_specs,
                     save=save,
                     id_factory=id_factory,
                 )
@@ -430,6 +444,7 @@ def _settle(  # noqa: PLR0913
     selection: AnalysisSelection,
     batch: BatchContext,
     repository: AnalysisRunSink,
+    run_specs: Mapping[tuple[str, str], RunSpec],
     save: bool,
     id_factory: Callable[[], UUID],
 ) -> RefreshJobResult:
@@ -448,6 +463,7 @@ def _settle(  # noqa: PLR0913
     try:
         run = execute(
             AnalysisRequest(ticker=ticker, selection=selection),
+            spec=_spec_for(run_specs, selection),
             capture=lambda: captured,
             repository=repository,
             id_factory=id_factory,

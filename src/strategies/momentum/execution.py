@@ -20,11 +20,14 @@ evidence for a later execution service to assemble.
 from dataclasses import dataclass
 from datetime import datetime
 
-from src.data.instrument_profile import InstrumentProfile
+from src.data.financial.providers import YFINANCE_PROVIDER_ID
+from src.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate, compose_instrument_profile
+from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.data.market_data import MarketDataProvider
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumMetrics, MomentumRun
 from src.strategies.momentum.selection import MomentumSelection
-from src.workspace.models import StrictJsonMapping
+from src.workspace.capture import ExecutionCapture
+from src.workspace.models import RunOutcome, StrictJsonMapping
 
 
 @dataclass(frozen=True)
@@ -104,8 +107,39 @@ def capture_momentum(run: MomentumRun) -> MomentumCapture:
     return MomentumCapture(run=run, presentation_inputs=presentation_inputs)
 
 
+def compose_momentum_profile(
+    ticker: str,
+    *,
+    data_client: object,
+    profile_cache: InstrumentProfileResolver | None = None,
+) -> InstrumentProfile:
+    """Compose Momentum's current instrument profile from its one market-data client.
+
+    The client is both the identity candidate and the kind candidate. ``profile_cache``, when supplied,
+    resolves through the durable cache instead of composing live; candidate construction is identical
+    either way.
+    """
+    identity_candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
+    kind_candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
+    if profile_cache is not None:
+        return profile_cache.resolve(ticker, identity_candidates=(identity_candidate,), kind_candidate=kind_candidate)
+    return compose_instrument_profile(ticker, identity_candidates=(identity_candidate,), kind_candidate=kind_candidate)
+
+
+def from_momentum_capture(capture: MomentumCapture) -> ExecutionCapture:
+    """Normalize a Momentum capture; Momentum has no native failure status."""
+    return ExecutionCapture(
+        native_evidence=capture.run,
+        profile=capture.run.instrument_profile,
+        outcome=RunOutcome.COMPLETED,
+        presentation_inputs=capture.presentation_inputs,
+    )
+
+
 __all__ = [
     "MomentumCapture",
     "capture_momentum",
+    "compose_momentum_profile",
+    "from_momentum_capture",
     "run_momentum",
 ]

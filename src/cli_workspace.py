@@ -35,8 +35,8 @@ from src.cli_support import (
 )
 from src.config import settings
 from src.core.clock import utc_now
-from src.data.financial.providers import SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
-from src.data.instrument_profile import InstrumentProfileCandidate, compose_instrument_profile
+from src.core.strategy_errors import find, require
+from src.data.financial.providers import SEC_PROVIDER_ID
 from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.readiness import DatabaseReadinessError, ensure_database_ready
@@ -51,7 +51,7 @@ from src.data.repositories.watchlists import (
 from src.data.yfinance import YFinanceClient
 from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
 from src.reporting.presentation import PresentationMode
-from src.strategies.fcf_growth.execution import execute_fcf_growth
+from src.strategies.fcf_growth.execution import execute_fcf_growth, from_fcf_growth_capture
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from src.strategies.fcf_growth.models import (
     FCFClassificationBasis,
@@ -61,24 +61,23 @@ from src.strategies.fcf_growth.models import (
 )
 from src.strategies.fcf_growth.selection import FCFGrowthSelection, FCFPolicySnapshot
 from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from src.strategies.graham_growth.execution import execute_graham_growth
+from src.strategies.graham_growth.execution import execute_graham_growth, from_graham_growth_capture
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
-from src.strategies.graham_number.execution import execute_graham_number
+from src.strategies.graham_number.execution import execute_graham_number, from_graham_number_capture
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.analyzer import MomentumConfig
-from src.strategies.momentum.execution import capture_momentum, run_momentum
-from src.strategies.momentum.selection import MomentumSelection
-from src.utils.paths import is_windows
-from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
-from src.workspace.execution import (
-    ExecutionCapture,
-    from_fcf_growth_capture,
-    from_graham_growth_capture,
-    from_graham_number_capture,
+from src.strategies.momentum.execution import (
+    capture_momentum,
+    compose_momentum_profile,
     from_momentum_capture,
+    run_momentum,
 )
-from src.workspace.method_aliases import ALIAS_METHOD_IDS, ANALYSIS_ALIASES, alias_for_method_id
+from src.strategies.momentum.selection import MomentumSelection
+from src.strategy_wiring import BY_ALIAS, BY_METHOD_ID, EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
+from src.utils.paths import is_windows
+from src.workspace.capture import ExecutionCapture
+from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import (
     EmptyRefreshTargetError,
@@ -126,6 +125,27 @@ def _fail(message: str) -> NoReturn:
     raise typer.Exit(code=1)
 
 
+def _alias_for_method_id(method_id: str) -> str:
+    """Return the CLI alias of a declared method; an undeclared one is a programming error, not a fallback."""
+    return require(BY_METHOD_ID, method_id, what="method id").alias
+
+
+def _method_id_for_alias(alias: str) -> str:
+    """Return the canonical method identifier of a validated CLI alias."""
+    return require(BY_ALIAS, alias, what="alias").method_id
+
+
+def _stored_method_alias(method_id: str) -> str | None:
+    """Return the alias of a stored method identifier, or ``None`` if this version declares no such method."""
+    descriptor = find(BY_METHOD_ID, method_id)
+    return None if descriptor is None else descriptor.alias
+
+
+def _watchlist_repository(database: SQLiteDatabase) -> SQLiteWatchlistRepository:
+    """Compose the watchlist repository with the declared strategies' alias vocabulary."""
+    return SQLiteWatchlistRepository(database, alias_for=_stored_method_alias)
+
+
 def _selection_detail_text(selection: AnalysisSelection) -> str:
     """Render a selection's distinguishing fields, excluding its own identifiers."""
     payload = selection.model_dump(mode="json")
@@ -138,7 +158,7 @@ def _selection_detail_text(selection: AnalysisSelection) -> str:
 def _selection_summary(selection: AnalysisSelection) -> str:
     """Render one selection's method alias and distinguishing fields, compactly."""
     detail = _selection_detail_text(selection)
-    alias = alias_for_method_id(selection.method_id)
+    alias = _alias_for_method_id(selection.method_id)
     return f"{alias}: {detail}" if detail else alias
 
 
@@ -162,7 +182,7 @@ def _watchlist_text(watchlist: Watchlist, *, group_by: str = "ticker") -> str:
         return "\n".join(lines)
 
     key_of: Callable[[WatchlistEntry], str] = (
-        (lambda entry: alias_for_method_id(entry.selection.method_id))
+        (lambda entry: _alias_for_method_id(entry.selection.method_id))
         if group_by == "method"
         else (lambda entry: entry.ticker)
     )
@@ -202,8 +222,8 @@ def _summary_line(summary: WatchlistSummary) -> str:
 def _parse_analysis(value: str) -> str:
     """Normalize and validate a watchlist ``--analysis`` alias."""
     normalized = value.strip().lower()
-    if normalized not in ANALYSIS_ALIASES:
-        allowed = ", ".join(ANALYSIS_ALIASES)
+    if normalized not in BY_ALIAS:
+        allowed = ", ".join(BY_ALIAS)
         raise typer.BadParameter(f"--analysis must be one of: {allowed}.")
     return normalized
 
@@ -458,7 +478,7 @@ def watchlist_create(  # noqa: PLR0913
         entries = [(ticker, selection) for ticker in seed_tickers]
 
     with _workspace_database() as database:
-        repository = SQLiteWatchlistRepository(database)
+        repository = _watchlist_repository(database)
         try:
             watchlist = repository.create(WatchlistSpec(display_name=name))
         except WatchlistConflictError as exc:
@@ -584,7 +604,7 @@ def watchlist_add_selection(  # noqa: PLR0913
     )
     entries = [(ticker, selection) for ticker in tickers]
     with _workspace_database() as database:
-        repository = SQLiteWatchlistRepository(database)
+        repository = _watchlist_repository(database)
         try:
             watchlist = repository.add_entries(name, entries)
         except WatchlistNotFoundError as exc:
@@ -633,7 +653,7 @@ def watchlist_remove_entry(
     if index < 1:
         raise typer.BadParameter("INDEX must be 1 or greater.")
     with _workspace_database() as database:
-        repository = SQLiteWatchlistRepository(database)
+        repository = _watchlist_repository(database)
         try:
             removed = repository.remove_entry(name, index - 1)
         except WatchlistNotFoundError as exc:
@@ -651,7 +671,7 @@ def watchlist_remove_ticker(
 ) -> None:
     """Remove every entry for the given ticker(s), across every method (bulk, idempotent)."""
     with _workspace_database() as database:
-        repository = SQLiteWatchlistRepository(database)
+        repository = _watchlist_repository(database)
         try:
             removed = repository.remove_entries_for_ticker(name, tickers)
         except WatchlistNotFoundError as exc:
@@ -673,9 +693,9 @@ def watchlist_remove_method(
     """Remove every entry for the given method, across every ticker (bulk, idempotent)."""
     method = _parse_analysis(analysis)
     with _workspace_database() as database:
-        repository = SQLiteWatchlistRepository(database)
+        repository = _watchlist_repository(database)
         try:
-            removed = repository.remove_entries_for_method(name, ALIAS_METHOD_IDS[method])
+            removed = repository.remove_entries_for_method(name, _method_id_for_alias(method))
         except WatchlistNotFoundError as exc:
             _fail(str(exc))
         watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, method))
@@ -720,7 +740,7 @@ def watchlist_delete(
         raise typer.BadParameter("--yes is required when input is not interactive.", param_hint="--yes")
     deleted: DeletedWatchlist | None = None
     with _workspace_database() as database:
-        repository = SQLiteWatchlistRepository(database)
+        repository = _watchlist_repository(database)
         try:
             if not yes:
                 summary = repository.summary(name)
@@ -764,7 +784,7 @@ def watchlist_rename(
 ) -> None:
     """Rename a watchlist. Saved Analysis Runs keep the name it had when they ran."""
     with _workspace_database() as database:
-        repository = SQLiteWatchlistRepository(database)
+        repository = _watchlist_repository(database)
         try:
             repository.rename(name, new_name)
         except (WatchlistNotFoundError, WatchlistConflictError) as exc:
@@ -789,7 +809,7 @@ def watchlist_rename(
 def watchlist_list() -> None:
     """List every watchlist with its entry count."""
     with _workspace_database() as database:
-        summaries = SQLiteWatchlistRepository(database).list()
+        summaries = _watchlist_repository(database).list()
     if not summaries:
         typer.echo("No watchlists exist yet.")
         return
@@ -811,7 +831,7 @@ def watchlist_show(
     if normalized_group_by not in ("ticker", "method"):
         raise typer.BadParameter("--group-by must be 'ticker' or 'method'.")
     with _workspace_database() as database:
-        watchlist = SQLiteWatchlistRepository(database).get(name)
+        watchlist = _watchlist_repository(database).get(name)
     if watchlist is None:
         _fail(f"No watchlist named {name!r} exists.")
     typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist, group_by=normalized_group_by))
@@ -839,7 +859,7 @@ def runs_list(  # noqa: PLR0913
     try:
         query = RunQuery(
             ticker=None if ticker is None else normalize_ticker(ticker),
-            method_id=None if analysis is None else ALIAS_METHOD_IDS[_parse_analysis(analysis)],
+            method_id=None if analysis is None else _method_id_for_alias(_parse_analysis(analysis)),
             status=None if status is None else _parse_status(status),
             refresh_id=None if refresh_id is None else _parse_run_id(refresh_id, field="--refresh-id"),
             limit=limit,
@@ -891,7 +911,7 @@ def runs_show(
     if run is None:
         _fail(f"No Analysis Run with ID {parsed_id} exists.")
     try:
-        rendered = project_run(run, ReplayOptions(mode=mode))
+        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY)
     except (UnsupportedProjectionError, UnsupportedRunVersionError, InvalidStoredRunError) as exc:
         _fail(str(exc))
     typer.echo(rendered)
@@ -918,7 +938,7 @@ def _parse_status(value: str) -> RunOutcome:
 
 def _run_summary_line(summary: AnalysisRunSummary) -> str:
     return (
-        f"{summary.analysis_run_id}  {summary.ticker:<10} {alias_for_method_id(summary.method_id):<24} "
+        f"{summary.analysis_run_id}  {summary.ticker:<10} {_alias_for_method_id(summary.method_id):<24} "
         f"{summary.status.value:<14} {summary.completed_at.isoformat()}"
     )
 
@@ -929,19 +949,7 @@ def _execute_momentum(
     data_client = YFinanceClient()
     executed_at = utc_now()
     normalized_ticker = require_ticker(ticker)
-
-    def _identity_candidate() -> InstrumentProfileCandidate:
-        return InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
-
-    identity_candidates = (_identity_candidate(),)
-    kind_candidate = _identity_candidate()
-    profile = (
-        profile_cache.resolve(normalized_ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate)
-        if profile_cache is not None
-        else compose_instrument_profile(
-            normalized_ticker, identity_candidates=identity_candidates, kind_candidate=kind_candidate
-        )
-    )
+    profile = compose_momentum_profile(normalized_ticker, data_client=data_client, profile_cache=profile_cache)
     with _production_historical_client(
         data_client, use_cache=selection.use_cache, clock=lambda: executed_at
     ) as historical_client:
@@ -1070,7 +1078,7 @@ def _refresh_has_failure(summary: RefreshSummary) -> bool:
 def _refresh_text(summary: RefreshSummary) -> str:
     lines = [f"Refresh {summary.refresh_id} for {summary.watchlist_name!r}:"]
     for result in summary.results:
-        method = alias_for_method_id(result.method_id)
+        method = _alias_for_method_id(result.method_id)
         if result.run is not None:
             lines.append(f"  {result.run.analysis_run_id}  {result.ticker:<10} {method:<24} {result.run.status.value}")
         elif result.outcome is not None:
@@ -1147,11 +1155,12 @@ def refresh(
                 profile_cache = _production_instrument_profile_cache(database, clock=utc_now)
                 summary = refresh_watchlist(
                     name,
-                    watchlists=SQLiteWatchlistRepository(database),
+                    watchlists=_watchlist_repository(database),
                     repository=SQLiteAnalysisRunRepository(database),
                     executor=lambda ticker, selection: _refresh_executor(
                         ticker, selection, profile_cache=profile_cache
                     ),
+                    run_specs=RUN_SPECS_BY_KEY,
                     save=not no_save,
                     policy=policy,
                     cancellation=cancellation,

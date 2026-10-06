@@ -22,18 +22,14 @@ validation time.
 
 import json
 import math
+from collections.abc import Callable, Mapping
 from typing import cast
 
 from pydantic import field_validator
 
-from src.config import settings
-from src.core.constants import ConfigKeys
-from src.strategies.fcf_growth.selection import FCFGrowthSelection
-from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_number.selection import GrahamNumberSelection
-from src.strategies.momentum.selection import MomentumSelection
+from src.core.strategy_errors import find
 from src.workspace.selection_base import FrozenSelection
-from src.workspace.strategy_types import AnalysisSelection
+from src.workspace.strategy_types import AnalysisSelection, SelectionMember
 
 
 class AnalysisRequest(FrozenSelection):
@@ -73,17 +69,20 @@ def _reject_json_constant(text: str) -> object:
     raise ValueError(f"Nonfinite JSON constant is not allowed: {text}.")
 
 
-def parse_selection(alias: str, config_json: str) -> AnalysisSelection:
+type SelectionParser = Callable[[dict[str, object]], SelectionMember]
+
+
+def parse_selection(alias: str, config_json: str, parsers: Mapping[str, SelectionParser]) -> AnalysisSelection:
     """Parse one exact CLI alias and its method-specific JSON configuration.
 
-    Momentum and Graham bodies contain only an optional `config` object.
-    FCF bodies contain policy, currency, provider, as_of and cache options.
-    Omitted defaults are resolved once; explicit null does not mean omission
-    for required scalar fields or configuration objects.
+    The JSON decoding rules are shared here; the alias's own parser, injected by the caller, validates the
+    decoded object. Omitted defaults are resolved once; explicit null does not mean omission for required
+    scalar fields or configuration objects.
 
     Args:
-        alias: One of momentum, graham-number, graham-growth or fcf-growth.
+        alias: A declared analysis alias.
         config_json: A JSON object containing request configuration only.
+        parsers: The selection parser of each declared alias.
 
     Returns:
         A validated immutable selection with canonical identifiers.
@@ -91,7 +90,8 @@ def parse_selection(alias: str, config_json: str) -> AnalysisSelection:
     Raises:
         ValueError: The alias, JSON representation or configuration is invalid.
     """
-    if alias not in ("momentum", "graham-number", "graham-growth", "fcf-growth"):
+    parser = find(parsers, alias)
+    if parser is None:
         raise ValueError(f"Unknown analysis alias: {alias!r}.")
     decoded: object = json.loads(
         config_json,
@@ -101,30 +101,4 @@ def parse_selection(alias: str, config_json: str) -> AnalysisSelection:
     )
     if not isinstance(decoded, dict):
         raise ValueError("Configuration must be a JSON object.")
-    body = cast(dict[str, object], decoded)
-    if alias == "fcf-growth":
-        if body.keys() - {"policy", "currency", "provider_id", "as_of", "use_cache"}:
-            raise ValueError("FCF configuration contains unknown or reserved fields.")
-        return FCFGrowthSelection.model_validate(body)
-
-    if body.keys() - {"config"}:
-        raise ValueError("Configuration body may contain only 'config'.")
-    supplied = body.get("config", {})
-    if not isinstance(supplied, dict):
-        raise ValueError("'config' must be a JSON object.")
-    config = cast(dict[str, object], supplied)
-    if config.keys() & {"analysis_id", "method_id", "config_schema_version"}:
-        raise ValueError("Selection identifiers and version cannot be supplied in configuration.")
-    if alias == "graham-number":
-        return GrahamNumberSelection.model_validate(config)
-    if alias == "graham-growth":
-        return GrahamGrowthSelection.model_validate(config)
-
-    values = dict(config)
-    if "short_window" not in values or "long_window" not in values:
-        windows = settings.get_momentum_analysis()[ConfigKeys.WINDOW_SIZES]
-        if "short_window" not in values:
-            values["short_window"] = int(windows[ConfigKeys.SHORT_WINDOW])
-        if "long_window" not in values:
-            values["long_window"] = int(windows[ConfigKeys.LONG_WINDOW])
-    return MomentumSelection.model_validate(values)
+    return parser(cast(dict[str, object], decoded))

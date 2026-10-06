@@ -1,5 +1,6 @@
 """Momentum's immutable workspace selection snapshot."""
 
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Literal
 
@@ -10,7 +11,7 @@ from src.config import settings
 from src.core.constants import ConfigKeys
 from src.data.instrument_profile import InstrumentProfile
 from src.strategies.momentum.analyzer import MomentumConfig
-from src.workspace.selection_base import FrozenSelection
+from src.workspace.selection_base import FrozenSelection, config_object
 
 
 class MomentumSelection(FrozenSelection):
@@ -94,3 +95,15 @@ class MomentumSelection(FrozenSelection):
             use_cache=self.use_cache,
             instrument_profile=instrument_profile,
         )
+
+
+def parse_momentum_selection(body: Mapping[str, object]) -> MomentumSelection:
+    """Parse a decoded Momentum configuration body, materializing omitted windows from configured policy."""
+    values = dict(config_object(body))
+    if "short_window" not in values or "long_window" not in values:
+        windows = settings.get_momentum_analysis()[ConfigKeys.WINDOW_SIZES]
+        if "short_window" not in values:
+            values["short_window"] = int(windows[ConfigKeys.SHORT_WINDOW])
+        if "long_window" not in values:
+            values["long_window"] = int(windows[ConfigKeys.LONG_WINDOW])
+    return MomentumSelection.model_validate(values)

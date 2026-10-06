@@ -95,3 +95,8 @@ def decode_graham_growth(payload: StrictJsonMapping) -> GrahamGrowthAnalysis:
 def graham_growth_native_status(result: GrahamGrowthAnalysis, /) -> str:
     """Return the native calculation-status value recorded as telemetry evidence."""
     return result.result.status.value
+
+
+def graham_growth_ticker(result: GrahamGrowthAnalysis, /) -> str:
+    """Return the ticker the evidence is about, which must equal its run envelope's ticker."""
+    return result.ticker
