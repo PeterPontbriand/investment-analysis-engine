@@ -21,6 +21,7 @@ EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "cli_
 # The application itself, then each direct strategy command; "" is the application's own help.
 HELP_TARGETS: tuple[str, ...] = ("", "momentum", "graham-number", "graham-growth", "fcf-growth")
 
+_SQUARE_CORNERS = str.maketrans("╭╮╰╯", "┌┐└┘")
 _ENVIRONMENT = {"COLUMNS": "80", "TERMINAL_WIDTH": "80", "NO_COLOR": "1", "TERM": "dumb"}
 
 
@@ -30,7 +31,8 @@ def render_help(target: str) -> bytes:
     result = CliRunner().invoke(app, arguments, env=_ENVIRONMENT)
     if result.exit_code != 0:
         raise RuntimeError(f"--help for {target or 'the application'} exited with {result.exit_code}")
-    return result.stdout_bytes.replace(b"\r\n", b"\n")
+    # Rich draws square panel corners on a Windows console and rounded ones elsewhere; the text is otherwise the same.
+    return result.stdout_bytes.replace(b"\r\n", b"\n").decode("utf-8").translate(_SQUARE_CORNERS).encode("utf-8")
 
 
 def expected_path(target: str) -> Path:
