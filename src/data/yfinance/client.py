@@ -80,6 +80,7 @@ class YFinanceClient(BaseDataClient):
                     start=start_date,
                     end=end_date,
                     interval=YFINANCE_HISTORICAL_INTERVAL,
+                    ignore_tz=True,
                     auto_adjust=True,
                     progress=False,
                     threads=False,

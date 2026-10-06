@@ -89,7 +89,7 @@ def test_zoned_frame_and_naive_frame_with_the_same_local_dates_give_identical_re
 
 @pytest.mark.parametrize("zone", ZONES)
 def test_frame_crossing_a_daylight_saving_change_is_still_all_local_midnight(zone: str) -> None:
-    for start in (date(2026, 3, 6), date(2026, 10, 30), date(2026, 11, 1)):
+    for start in (date(2026, 3, 6), date(2025, 10, 31), date(2025, 11, 1)):
         days = [date.fromordinal(start.toordinal() + offset) for offset in range(5)]
         index = pd.date_range(start.isoformat(), periods=5, freq="D", tz=zone)
 

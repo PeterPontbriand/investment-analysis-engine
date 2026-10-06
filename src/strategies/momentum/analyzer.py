@@ -6,7 +6,7 @@ import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from typing import Final
+from typing import Any, Final
 
 import numpy as np
 import pandas as pd
@@ -287,6 +287,21 @@ class MomentumResolution:
     resolution_trace: ResolutionTrace
 
 
+def _observation_instants(index: pd.Index[Any]) -> pd.DatetimeIndex:
+    """Return each bar's UTC instant, reading a zoned daily index by its local trading dates.
+
+    A timezone-aware index whose every bar is at local midnight in its own zone is a daily series
+    dated by local calendar day, so the zone is dropped, not converted: each bar becomes midnight UTC
+    of its local date, exactly as a naive index with those dates does. Any other index (naive, or with
+    any bar not at local midnight) is converted to UTC unchanged. Limit: a daily bar stamped as the UTC
+    instant of a non-UTC local midnight is not corrected, because the frame does not carry the
+    exchange's zone.
+    """
+    if isinstance(index, pd.DatetimeIndex) and index.tz is not None and bool((index == index.normalize()).all()):
+        index = index.tz_localize(None)
+    return pd.to_datetime(index, utc=True)
+
+
 class MomentumInputResolver:
     """Resolve and strictly truncate historical prices before calculation."""
 
@@ -342,7 +357,7 @@ class MomentumInputResolver:
             raise HistoricalDataQualityError(decisions, data.frame)
         frame = data.frame
         if as_of is not None:
-            timestamps = pd.to_datetime(frame.index, utc=True)
+            timestamps = _observation_instants(frame.index)
             frame = frame.loc[timestamps <= pd.Timestamp(as_of)]
         if as_of is None:
             future = evaluate_future_observation(
@@ -361,7 +376,7 @@ class MomentumInputResolver:
         provider_id = data.context.provider_id or self._provider.provider_id
         if provider_id is None:
             raise ValueError("Momentum market-data provider identity is required.")
-        timestamps = pd.to_datetime(frame.index, utc=True)
+        timestamps = _observation_instants(frame.index)
         prices = tuple(
             ResolvedInput(
                 field_name="historical_close",
