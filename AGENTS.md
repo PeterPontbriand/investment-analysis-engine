@@ -273,6 +273,8 @@ Require explicit user confirmation before:
 - opening or merging PRs;
 - structural repository changes not already authorized by the active implementation plan.
 
+Dependabot pull requests are never merged: reapply the same version bump on a project branch, and Dependabot then closes its own pull request. Commits on `main` are authored by project contributors only.
+
 ## 12. Context index
 
 - To find current or next work, start at the sequence table in

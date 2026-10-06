@@ -267,7 +267,7 @@ Momentum, Graham, Free Cash Flow & Earnings Growth, and the Step 3.5 quantitativ
 
 ## 11. CI/CD Pipeline & Automated Quality Gates
 
-Every Pull Request must pass the following automated GitHub Actions pipeline before merge approval:
+Every Pull Request must pass the following automated GitHub Actions pipeline before merge approval. Dependabot pull requests are never merged: reapply the same version bump on a project branch, and Dependabot then closes its own pull request. Commits on `main` are authored by project contributors only.
 
 1. **Lint & Code Style:** `ruff check . && ruff format --check .`, plus the Markdown checks `scripts/check_doc_links.py` and `scripts/check_sequence_tables.py`
 2. **Strict Static Analysis:** `mypy --strict src tests scripts`

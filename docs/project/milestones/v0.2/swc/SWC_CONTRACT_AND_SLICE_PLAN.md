@@ -49,8 +49,8 @@ document-link check and applicable documentation checks.
 | SWC.2b | [Move the symbols the descriptor and tiers will reference](#swc2b--symbol-moves) | Complete | 2026-10-04 |
 | SWC.2c | [Declare the descriptor; wire orchestration and evaluation routing](#swc2c--descriptor-and-orchestration-wiring) | Complete | 2026-10-04 |
 | SWC.2d | [Move fixture composition into the evaluation tier](#swc2d--evaluation-tier) | Complete | 2026-10-04 |
-| SWC.3a | [Inject the descriptor into workspace consumers](#swc3a--workspace-consumers) | Next | |
-| SWC.3b | [CLI tier: selection builders and refresh executors](#swc3b--cli-tier) | Planned | |
+| SWC.3a | [Inject the descriptor into workspace consumers](#swc3a--workspace-consumers) | Complete | 2026-10-06 |
+| SWC.3b | [CLI tier: selection builders and refresh executors](#swc3b--cli-tier) | Next | |
 | SWC.3c | [Move the direct commands into strategy files](#swc3c--direct-commands) | Planned | |
 | SWC.4a | [Typed failure envelope and schema generator](#swc4a--failure-envelope-and-schema-generator) | Planned | |
 | SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Planned | |
