@@ -186,7 +186,7 @@ def test_cli_momentum_known_etf_remains_applicable_and_retains_kind(
         instrument_name="Franklin FTSE Switzerland ETF",
     )
 
-    with patch("src.cli.compose_instrument_profile", return_value=profile):
+    with patch("src.strategies.momentum.execution.compose_instrument_profile", return_value=profile):
         result = runner.invoke(app, ["momentum", "FLSW", "--json"])
 
     assert result.exit_code == 0

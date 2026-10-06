@@ -28,9 +28,11 @@ from src.strategies.graham_growth.calculation import (
 )
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from src.strategy_wiring import EVIDENCE_BY_KEY, EVIDENCE_BY_TYPE
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun
+from tests._wiring import codecs_with_decode
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
 
@@ -128,20 +130,20 @@ def _run(analysis: GrahamGrowthAnalysis | None = None) -> AnalysisRun:
         result_schema_version=1,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
-        result_evidence=encode_evidence(analysis or _analysis()),
+        result_evidence=encode_evidence(analysis or _analysis(), EVIDENCE_BY_TYPE),
     )
 
 
 def test_full_growth_evidence_round_trip() -> None:
     original = _analysis()
     run = _run(original)
-    restored = decode_evidence(AnalysisRun.model_validate_json(run.model_dump_json()))
+    restored = decode_evidence(AnalysisRun.model_validate_json(run.model_dump_json()), EVIDENCE_BY_KEY)
     assert isinstance(restored, GrahamGrowthAnalysis)
     assert restored == original
     # Native assembly equality deliberately excludes the resolver trace.
     assert restored.assembly.resolution_trace == original.assembly.resolution_trace
     assert restored.assembly.eps is not original.assembly.eps
-    assert encode_evidence(restored) == run.result_evidence
+    assert encode_evidence(restored, EVIDENCE_BY_TYPE) == run.result_evidence
 
 
 @pytest.mark.parametrize(
@@ -163,7 +165,7 @@ def test_non_success_keeps_reason_and_partial_evidence(status: CalculationStatus
         margin_of_safety_percent=None,
         price_comparison=PriceComparison("unavailable", "calculation_unavailable"),
     )
-    assert decode_evidence(_run(analysis)) == analysis
+    assert decode_evidence(_run(analysis), EVIDENCE_BY_KEY) == analysis
 
 
 def test_etf_and_missing_profile_round_trip() -> None:
@@ -179,9 +181,9 @@ def test_etf_and_missing_profile_round_trip() -> None:
         price_comparison=None,
         instrument_profile=profile,
     )
-    assert decode_evidence(_run(analysis)) == analysis
+    assert decode_evidence(_run(analysis), EVIDENCE_BY_KEY) == analysis
     analysis = replace(analysis, instrument_profile=None)
-    assert decode_evidence(_run(analysis)) == analysis
+    assert decode_evidence(_run(analysis), EVIDENCE_BY_KEY) == analysis
 
 
 def test_valid_result_survives_missing_quote() -> None:
@@ -198,7 +200,7 @@ def test_valid_result_survives_missing_quote() -> None:
         price_comparison=PriceComparison("unavailable", "missing_quote"),
         margin_of_safety_percent=None,
     )
-    assert decode_evidence(_run(analysis)) == analysis
+    assert decode_evidence(_run(analysis), EVIDENCE_BY_KEY) == analysis
 
 
 @pytest.mark.parametrize(
@@ -212,15 +214,14 @@ def test_valid_result_survives_missing_quote() -> None:
         "projection_version",
     ],
 )
-def test_all_versions_rejected_before_decoding(field: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_all_versions_rejected_before_decoding(field: str) -> None:
     run = _run().model_copy(update={field: 99})
 
-    def unexpected_decode(_payload: object) -> GrahamGrowthAnalysis:
+    def unexpected_decode(_payload: object, _ticker: str) -> GrahamGrowthAnalysis:
         raise AssertionError("Decoder must not be called.")
 
-    monkeypatch.setattr("src.workspace.codecs.decode_graham_growth", unexpected_decode)
     with pytest.raises(UnsupportedRunVersionError):
-        decode_evidence(run)
+        decode_evidence(run, codecs_with_decode(unexpected_decode))
 
 
 @pytest.mark.parametrize(
@@ -244,19 +245,19 @@ def test_corrupt_nested_evidence_is_classified(section: str, field: str, value: 
     assert run.result_evidence is not None
     run.result_evidence["analysis"][section][field] = value
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)
 
 
 def test_ticker_mismatch_wrong_payload_and_absent_evidence() -> None:
     run = _run()
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run.model_copy(update={"ticker": "MSFT"}))
+        decode_evidence(run.model_copy(update={"ticker": "MSFT"}), EVIDENCE_BY_KEY)
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run.model_copy(update={"result_evidence": {"run": {}}}))
+        decode_evidence(run.model_copy(update={"result_evidence": {"run": {}}}), EVIDENCE_BY_KEY)
     failed = AnalysisRun.model_validate(
         {**run.model_dump(), "status": "failed", "failure_reason_code": "provider_error", "result_evidence": None}
     )
-    assert decode_evidence(failed) is None
+    assert decode_evidence(failed, EVIDENCE_BY_KEY) is None
 
 
 @pytest.mark.parametrize("location", ["as_of", "freshness", "document", "analysis_ticker", "method_missing"])
@@ -276,14 +277,14 @@ def test_context_corruption_is_rejected(location: str) -> None:
     else:
         del payload["result"]["method"]
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)
 
 
 def test_invalid_native_result_is_rejected() -> None:
     original = _analysis()
     invalid = replace(original, result=GrahamGrowthValueResult(CalculationStatus.OK, float("nan")))
     with pytest.raises(InvalidStoredRunError):
-        encode_evidence(invalid)
+        encode_evidence(invalid, EVIDENCE_BY_TYPE)
 
 
 def test_decode_does_not_recalculate_and_preserves_payload(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -301,7 +302,7 @@ def test_decode_does_not_recalculate_and_preserves_payload(monkeypatch: pytest.M
         "src.strategies.graham_growth.service.complete_security_unit_profile",
     ):
         monkeypatch.setattr(target, unexpected_call)
-    restored = decode_evidence(run)
+    restored = decode_evidence(run, EVIDENCE_BY_KEY)
     assert isinstance(restored, GrahamGrowthAnalysis)
     assert restored.result.growth_value == 30.0
     assert restored.margin_of_safety_percent == 20.0
@@ -313,7 +314,7 @@ def test_failed_assembly_requires_reason_and_consistent_result() -> None:
     assert run.result_evidence is not None
     run.result_evidence["analysis"]["assembly"]["status"] = "input_unavailable"
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)
 
 
 @pytest.mark.parametrize(("growth", "eps", "value"), [(0.0, 4.0, 6.0), (-1.0, 4.0, 2.0), (6.0, -4.0, -30.0)])
@@ -332,7 +333,7 @@ def test_signed_assumptions_and_results_are_preserved(growth: float, eps: float,
         margin_of_safety_percent=None,
         price_comparison=None,
     )
-    restored = decode_evidence(_run(analysis))
+    restored = decode_evidence(_run(analysis), EVIDENCE_BY_KEY)
     assert isinstance(restored, GrahamGrowthAnalysis)
     assert restored == analysis
     assert restored.policy == GrahamGrowthCalculationPolicy(1.5, 1.0, 4.4)
@@ -359,7 +360,7 @@ def test_growth_specific_corruption(section: str, field: str, value: object) -> 
     assert run.result_evidence is not None
     run.result_evidence["analysis"][section][field] = value
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)
 
 
 def test_successful_assembly_can_retain_invalid_calculation() -> None:
@@ -372,16 +373,15 @@ def test_successful_assembly_can_retain_invalid_calculation() -> None:
         margin_of_safety_percent=None,
         price_comparison=PriceComparison("unavailable", "calculation_unavailable"),
     )
-    assert decode_evidence(_run(analysis)) == analysis
+    assert decode_evidence(_run(analysis), EVIDENCE_BY_KEY) == analysis
 
 
-def test_mismatched_dispatch_pair_is_unsupported(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_mismatched_dispatch_pair_is_unsupported() -> None:
     # Both identifiers are supported individually, but this combination is not.
     run = _run().model_copy(update={"analysis_id": "momentum"})
 
-    def unexpected_decode(_payload: object) -> GrahamGrowthAnalysis:
+    def unexpected_decode(_payload: object, _ticker: str) -> GrahamGrowthAnalysis:
         raise AssertionError("Mismatched identifiers must fail before decoding.")
 
-    monkeypatch.setattr("src.workspace.codecs.decode_graham_growth", unexpected_decode)
     with pytest.raises(UnsupportedRunVersionError):
-        decode_evidence(run)
+        decode_evidence(run, codecs_with_decode(unexpected_decode))

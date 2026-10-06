@@ -28,12 +28,14 @@ from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
-from src.workspace.execution import ExecutionCapture
+from src.strategy_wiring import RUN_SPECS_BY_KEY
+from src.workspace.capture import ExecutionCapture
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import refresh_watchlist
 from src.workspace.runs import Watchlist
 from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import StoredSelectionError, WatchlistSpec
+from tests._wiring import alias_for
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)
 LATER = datetime(2026, 9, 18, 12, 5, 0, tzinfo=UTC)
@@ -57,7 +59,7 @@ def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
 @pytest.fixture
 def repository(database: SQLiteDatabase) -> SQLiteWatchlistRepository:
     ids = iter([FIRST_ID, SECOND_ID])
-    return SQLiteWatchlistRepository(database, clock=lambda: NOW, id_factory=lambda: next(ids))
+    return SQLiteWatchlistRepository(database, clock=lambda: NOW, id_factory=lambda: next(ids), alias_for=alias_for)
 
 
 def test_create_materializes_no_entries(repository: SQLiteWatchlistRepository) -> None:
@@ -76,10 +78,12 @@ def test_create_rejects_blank_display_name(repository: SQLiteWatchlistRepository
 
 
 def test_touch_rejects_a_naive_clock(database: SQLiteDatabase) -> None:
-    aware_repository = SQLiteWatchlistRepository(database, clock=lambda: NOW, id_factory=lambda: FIRST_ID)
+    aware_repository = SQLiteWatchlistRepository(
+        database, clock=lambda: NOW, id_factory=lambda: FIRST_ID, alias_for=alias_for
+    )
     watchlist = aware_repository.create(WatchlistSpec(display_name="Watch"))
     naive_clock = lambda: datetime(2026, 9, 18, 12, 5, 0)  # noqa: E731
-    naive_repository = SQLiteWatchlistRepository(database, clock=naive_clock)
+    naive_repository = SQLiteWatchlistRepository(database, clock=naive_clock, alias_for=alias_for)
     with pytest.raises(ValueError, match="timezone-aware"):
         naive_repository.add_entries(watchlist.display_name, [("KO", GrahamNumberSelection())])
 
@@ -279,7 +283,9 @@ def test_mutations_bump_updated_at_only_when_something_changes(
 ) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
     assert watchlist.updated_at is None
-    clocked = SQLiteWatchlistRepository(database, clock=lambda: LATER, id_factory=lambda: SECOND_ID)
+    clocked = SQLiteWatchlistRepository(
+        database, clock=lambda: LATER, id_factory=lambda: SECOND_ID, alias_for=alias_for
+    )
     clocked.remove_entries_for_ticker(watchlist.display_name, ["NOTHERE"])
     assert _read(clocked, watchlist.display_name).updated_at is None
     changed = clocked.add_entries(watchlist.display_name, [("KO", GrahamNumberSelection())])
@@ -294,7 +300,9 @@ def test_reopen_preserves_full_watchlist_state(tmp_path: Path) -> None:
 
     first_database = SQLiteDatabase(ProjectSettings(database_url=url))
     try:
-        repository = SQLiteWatchlistRepository(first_database, clock=lambda: NOW, id_factory=lambda: FIRST_ID)
+        repository = SQLiteWatchlistRepository(
+            first_database, clock=lambda: NOW, id_factory=lambda: FIRST_ID, alias_for=alias_for
+        )
         created = repository.create(WatchlistSpec(display_name="Persisted"))
         repository.add_entries(
             created.display_name,
@@ -305,7 +313,7 @@ def test_reopen_preserves_full_watchlist_state(tmp_path: Path) -> None:
 
     second_database = SQLiteDatabase(ProjectSettings(database_url=url))
     try:
-        reopened = SQLiteWatchlistRepository(second_database).get("persisted")
+        reopened = SQLiteWatchlistRepository(second_database, alias_for=alias_for).get("persisted")
         assert reopened is not None
         assert reopened.watchlist_id == FIRST_ID
         assert [entry.ticker for entry in reopened.entries] == ["KO", "PFE"]
@@ -328,7 +336,9 @@ def test_no_network_access(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))
     try:
-        repository = SQLiteWatchlistRepository(database, clock=lambda: NOW, id_factory=lambda: FIRST_ID)
+        repository = SQLiteWatchlistRepository(
+            database, clock=lambda: NOW, id_factory=lambda: FIRST_ID, alias_for=alias_for
+        )
         watchlist = repository.create(WatchlistSpec(display_name="Offline"))
         repository.add_entries(watchlist.display_name, [("KO", GrahamNumberSelection())])
         repository.list()
@@ -473,7 +483,9 @@ def test_delete_keeps_saved_runs_loadable_and_the_name_is_reusable(
 ) -> None:
     watchlist = _seed_momentum(repository, "Doomed", ["AAPL"])
     runs = SQLiteAnalysisRunRepository(database)
-    summary = refresh_watchlist("Doomed", watchlists=repository, repository=runs, executor=_momentum_executor)
+    summary = refresh_watchlist(
+        "Doomed", watchlists=repository, repository=runs, executor=_momentum_executor, run_specs=RUN_SPECS_BY_KEY
+    )
     saved = summary.results[0].run
     assert saved is not None
     assert _row_counts(database)[2] == 1
@@ -545,7 +557,7 @@ def test_rename_changes_the_name_keeps_the_id_and_entries_and_bumps_updated_at(
     database: SQLiteDatabase, repository: SQLiteWatchlistRepository
 ) -> None:
     watchlist = _seed_momentum(repository, "Old Name", ["AAPL", "MSFT"])
-    clocked = SQLiteWatchlistRepository(database, clock=lambda: LATER)
+    clocked = SQLiteWatchlistRepository(database, clock=lambda: LATER, alias_for=alias_for)
 
     clocked.rename("  old name ", "  New Name ")
 
@@ -564,7 +576,7 @@ def test_rename_to_a_different_casing_of_its_own_name_changes_only_the_display_n
     database: SQLiteDatabase, repository: SQLiteWatchlistRepository
 ) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="core holdings"))
-    clocked = SQLiteWatchlistRepository(database, clock=lambda: LATER)
+    clocked = SQLiteWatchlistRepository(database, clock=lambda: LATER, alias_for=alias_for)
 
     clocked.rename("core holdings", "Core Holdings")
 
@@ -579,7 +591,7 @@ def test_rename_to_the_identical_display_name_is_a_no_op_that_does_not_bump_upda
     database: SQLiteDatabase, repository: SQLiteWatchlistRepository
 ) -> None:
     repository.create(WatchlistSpec(display_name="Same"))
-    clocked = SQLiteWatchlistRepository(database, clock=lambda: LATER)
+    clocked = SQLiteWatchlistRepository(database, clock=lambda: LATER, alias_for=alias_for)
 
     clocked.rename("same", " Same ")
 
@@ -625,7 +637,9 @@ def test_rename_keeps_a_saved_runs_snapshot_name(
 ) -> None:
     _seed_momentum(repository, "Before", ["AAPL"])
     runs = SQLiteAnalysisRunRepository(database)
-    summary = refresh_watchlist("Before", watchlists=repository, repository=runs, executor=_momentum_executor)
+    summary = refresh_watchlist(
+        "Before", watchlists=repository, repository=runs, executor=_momentum_executor, run_specs=RUN_SPECS_BY_KEY
+    )
     saved = summary.results[0].run
     assert saved is not None
 

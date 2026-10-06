@@ -1,15 +1,17 @@
-"""Explicit version dispatch and safe errors for stored workspace evidence."""
+"""Version dispatch and safe errors for stored workspace evidence, over injected codecs.
 
-from src.strategies.fcf_growth.codec import decode_fcf_growth, encode_fcf_growth
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from src.strategies.graham_growth.codec import decode_graham_growth, encode_graham_growth
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategies.graham_number.codec import decode_graham_number, encode_graham_number
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategies.momentum.analyzer import MomentumRun
-from src.strategies.momentum.codec import decode_momentum, encode_momentum
+Each strategy's codec arrives as an :class:`EvidenceCodec` in a mapping the composition root builds, so
+this module names no strategy. A result or stored run that matches no injected codec is rejected, never
+handled as another strategy's.
+"""
+
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+
+from src.core.strategy_errors import find, require
 from src.workspace.models import StrictJsonMapping
 from src.workspace.runs import AnalysisRun
+from src.workspace.strategy_types import NativeEvidence
 
 
 class UnsupportedRunVersionError(ValueError):
@@ -24,95 +26,67 @@ class InvalidStoredRunError(ValueError):
     reason_code = "invalid_stored_run"
 
 
-def encode_evidence(
-    evidence: MomentumRun | GrahamNumberAnalysis | GrahamGrowthAnalysis | FCFEarningsGrowthResult,
-) -> StrictJsonMapping:
-    """Encode the supported native evidence into an envelope-ready mapping."""
+@dataclass(frozen=True)
+class EvidenceCodec:
+    """One strategy's evidence codec, its display label and the versions it writes and accepts.
+
+    ``encode`` raises for an object that is not exactly the strategy's result type. ``decode`` receives the
+    stored payload and the run envelope's ticker, and raises ``ValueError`` when the evidence is about
+    another ticker.
+    """
+
+    label: str
+    config_schema_version: int
+    method_version: int
+    result_schema_version: int
+    evidence_codec_version: int
+    encode: Callable[[object], StrictJsonMapping]
+    decode: Callable[[StrictJsonMapping, str], NativeEvidence]
+
+
+def encode_with(codec: EvidenceCodec, evidence: NativeEvidence) -> StrictJsonMapping:
+    """Encode ``evidence`` with ``codec``, wrapping a schema failure as :class:`InvalidStoredRunError`."""
     try:
-        if isinstance(evidence, FCFEarningsGrowthResult):
-            return encode_fcf_growth(evidence)
-        if isinstance(evidence, GrahamGrowthAnalysis):
-            return encode_graham_growth(evidence)
-        if isinstance(evidence, GrahamNumberAnalysis):
-            return encode_graham_number(evidence)
-        return encode_momentum(evidence)
+        return codec.encode(evidence)
     except (ValueError, TypeError) as exc:
-        label = (
-            "FCF Growth"
-            if isinstance(evidence, FCFEarningsGrowthResult)
-            else "Graham Growth"
-            if isinstance(evidence, GrahamGrowthAnalysis)
-            else "Graham Number"
-            if isinstance(evidence, GrahamNumberAnalysis)
-            else "Momentum"
-        )
-        raise InvalidStoredRunError(f"Invalid {label} evidence.") from exc
+        raise InvalidStoredRunError(f"Invalid {codec.label} evidence.") from exc
 
 
-# Expected (config_schema_version, method_version, result_schema_version) per supported method.
-_EXPECTED_VERSIONS: dict[tuple[str, str], tuple[int, int, int]] = {
-    ("momentum", "sma_crossover"): (2, 1, 2),
-    ("graham_number", "graham_number"): (1, 1, 1),
-    ("graham_growth_value", "graham_growth_value"): (1, 1, 1),
-    ("fcf_earnings_growth", "reported_fcf_eps_cagr"): (1, 2, 3),
-}
+def encode_evidence(evidence: NativeEvidence, codecs: Mapping[type, EvidenceCodec]) -> StrictJsonMapping:
+    """Encode native evidence into an envelope-ready mapping with the codec for its exact type.
+
+    Raises:
+        UndeclaredStrategyError: ``evidence`` is not exactly the result type of an injected codec.
+        InvalidStoredRunError: The codec rejects the evidence.
+    """
+    return encode_with(require(codecs, type(evidence), what="evidence type"), evidence)
 
 
-def decode_evidence(
-    run: AnalysisRun,
-) -> MomentumRun | GrahamNumberAnalysis | GrahamGrowthAnalysis | FCFEarningsGrowthResult | None:
+def decode_evidence(run: AnalysisRun, codecs: Mapping[tuple[str, str], EvidenceCodec]) -> NativeEvidence | None:
     """Decode supported evidence using the envelope's explicit version tuple.
 
     Attempts that ended before resolution may have no result. Version checks
     still apply; unsupported records must never trigger recomputation.
     """
-    fcf_pair = (run.analysis_id, run.method_id) == ("fcf_earnings_growth", "reported_fcf_eps_cagr")
-    expected = _EXPECTED_VERSIONS.get((run.analysis_id, run.method_id))
+    codec = find(codecs, (run.analysis_id, run.method_id))
     if (
-        expected is None
-        or any(
-            type(version) is not int or version != 1
-            for version in (run.run_schema_version, run.evidence_codec_version, run.projection_version)
-        )
+        codec is None
+        or any(type(version) is not int or version != 1 for version in (run.run_schema_version, run.projection_version))
+        or type(run.evidence_codec_version) is not int
+        or run.evidence_codec_version != codec.evidence_codec_version
         or (
             type(run.config_schema_version),
             type(run.method_version),
             type(run.result_schema_version),
         )
         != (int, int, int)
-        or (run.config_schema_version, run.method_version, run.result_schema_version) != expected
+        or (run.config_schema_version, run.method_version, run.result_schema_version)
+        != (codec.config_schema_version, codec.method_version, codec.result_schema_version)
     ):
         raise UnsupportedRunVersionError("Unsupported Analysis Run method or version.")
     if run.result_evidence is None:
         return None
     try:
-        if fcf_pair:
-            fcf = decode_fcf_growth(run.result_evidence)
-            if fcf.ticker != run.ticker:
-                raise ValueError("Ticker mismatch.")
-            return fcf
-        if run.method_id == "graham_growth_value":
-            growth = decode_graham_growth(run.result_evidence)
-            if growth.ticker != run.ticker:
-                raise ValueError("Ticker mismatch.")
-            return growth
-        if run.method_id == "graham_number":
-            number = decode_graham_number(run.result_evidence)
-            if number.ticker != run.ticker:
-                raise ValueError("Ticker mismatch.")
-            return number
-        evidence = decode_momentum(run.result_evidence)
-        if evidence.metrics.ticker != run.ticker:
-            raise ValueError("Ticker mismatch.")
-        return evidence
+        return codec.decode(run.result_evidence, run.ticker)
     except (ValueError, TypeError) as exc:
-        label = (
-            "FCF Growth"
-            if fcf_pair
-            else "Graham Growth"
-            if run.method_id == "graham_growth_value"
-            else "Graham Number"
-            if run.method_id == "graham_number"
-            else "Momentum"
-        )
-        raise InvalidStoredRunError(f"Invalid stored {label} evidence.") from exc
+        raise InvalidStoredRunError(f"Invalid stored {codec.label} evidence.") from exc

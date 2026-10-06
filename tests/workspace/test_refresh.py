@@ -22,8 +22,9 @@ from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
+from src.strategy_wiring import EVIDENCE_BY_TYPE, RUN_SPECS_BY_KEY
+from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import encode_evidence
-from src.workspace.execution import ExecutionCapture
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import (
     EmptyRefreshTargetError,
@@ -112,6 +113,7 @@ def test_refresh_watchlist_raises_for_missing_watchlist() -> None:
             watchlists=_FakeWatchlists({}),
             repository=_FakeSink(),
             executor=_momentum_only_executor,
+            run_specs=RUN_SPECS_BY_KEY,
         )
 
 
@@ -123,6 +125,7 @@ def test_refresh_watchlist_raises_for_empty_membership() -> None:
             watchlists=_FakeWatchlists({"my watch": watchlist}),
             repository=_FakeSink(),
             executor=_momentum_only_executor,
+            run_specs=RUN_SPECS_BY_KEY,
         )
 
 
@@ -134,6 +137,7 @@ def test_refresh_watchlist_raises_for_zero_selections() -> None:
             watchlists=_FakeWatchlists({"my watch": watchlist}),
             repository=_FakeSink(),
             executor=_momentum_only_executor,
+            run_specs=RUN_SPECS_BY_KEY,
         )
 
 
@@ -164,6 +168,7 @@ def test_refresh_watchlist_iterates_member_then_selection_position_order() -> No
         repository=sink,
         executor=executor,
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     assert [(r.ticker, r.method_id) for r in summary.results] == [
@@ -184,6 +189,7 @@ def test_refresh_watchlist_stamps_shared_refresh_and_watchlist_identity() -> Non
         executor=_momentum_only_executor,
         refresh_id_factory=lambda: UUID("22222222-2222-4222-8222-222222222222"),
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     assert summary.refresh_id == UUID("22222222-2222-4222-8222-222222222222")
@@ -211,6 +217,7 @@ def test_refresh_watchlist_isolates_one_jobs_executor_exception() -> None:
         repository=sink,
         executor=executor,
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     assert [r.ticker for r in summary.results] == ["AAPL", "BROKEN", "MSFT"]
@@ -234,6 +241,7 @@ def test_refresh_watchlist_isolates_one_jobs_persistence_failure() -> None:
         repository=sink,
         executor=_momentum_only_executor,
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     failed, succeeded = summary.results
@@ -256,6 +264,7 @@ def test_refresh_watchlist_repeated_calls_produce_distinct_runs() -> None:
         repository=sink,
         executor=_momentum_only_executor,
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
     second = refresh_watchlist(
         "My Watch",
@@ -263,6 +272,7 @@ def test_refresh_watchlist_repeated_calls_produce_distinct_runs() -> None:
         repository=sink,
         executor=_momentum_only_executor,
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     assert first.refresh_id != second.refresh_id
@@ -294,6 +304,7 @@ def test_refresh_watchlist_persists_each_job_before_the_next_executes() -> None:
         repository=_RecordingSink(),
         executor=executor,
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     assert events == [
@@ -318,6 +329,7 @@ def test_refresh_watchlist_with_save_false_executes_but_persists_nothing() -> No
         executor=_momentum_only_executor,
         save=False,
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     assert [r.ticker for r in summary.results] == ["AAPL", "MSFT"]
@@ -345,6 +357,7 @@ def test_refresh_watchlist_with_save_false_still_isolates_one_jobs_executor_exce
         executor=executor,
         save=False,
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     assert [r.ticker for r in summary.results] == ["AAPL", "BROKEN", "MSFT"]
@@ -398,7 +411,7 @@ def _build_run(*, status: RunOutcome, failure_reason_code: str | None = None) ->
         evidence_codec_version=1,
         status=status,
         failure_reason_code=failure_reason_code,
-        result_evidence=encode_evidence(native) if status is not RunOutcome.FAILED else None,
+        result_evidence=encode_evidence(native, EVIDENCE_BY_TYPE) if status is not RunOutcome.FAILED else None,
     )
 
 
@@ -500,6 +513,7 @@ def test_g2_bounds_admission_and_gates_replacement_on_persisted_completion() -> 
                 executor=gated,
                 policy=RefreshPolicy(workers=2),
                 clock=lambda: NOW,
+                run_specs=RUN_SPECS_BY_KEY,
             )
         )
     )
@@ -553,6 +567,7 @@ def test_g2_preserves_snapshot_order_despite_out_of_order_completion() -> None:
                 executor=executor,
                 policy=RefreshPolicy(workers=2),
                 clock=lambda: NOW,
+                run_specs=RUN_SPECS_BY_KEY,
             )
         )
     )
@@ -598,6 +613,7 @@ def test_g2_repository_insert_always_runs_on_the_calling_thread_not_a_worker() -
         executor=executor,
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     assert insert_thread_ids == {caller_thread_id}
@@ -621,6 +637,7 @@ def test_g2_persists_worker_measured_timing_via_replay_clock() -> None:
         executor=_momentum_only_executor,
         policy=RefreshPolicy(workers=2),
         clock=clock,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     run = summary.results[0].run
@@ -645,6 +662,7 @@ def test_g2_isolates_one_jobs_executor_exception() -> None:
         executor=executor,
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     assert [r.ticker for r in summary.results] == ["AAPL", "BROKEN", "MSFT"]
@@ -668,6 +686,7 @@ def test_g2_isolates_one_jobs_persistence_failure() -> None:
         executor=_momentum_only_executor,
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     results_by_ticker = {r.ticker: r for r in summary.results}
@@ -687,6 +706,7 @@ def test_g2_workers_greater_than_job_count_runs_every_job_without_error() -> Non
         executor=_momentum_only_executor,
         policy=RefreshPolicy(workers=4),
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
     assert len(summary.results) == 1
     assert summary.results[0].run is not None
@@ -705,6 +725,7 @@ def test_g2_with_save_false_executes_but_persists_nothing() -> None:
         save=False,
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     assert {r.ticker for r in summary.results} == {"AAPL", "MSFT"}
@@ -780,6 +801,7 @@ def test_g2_concurrent_refresh_saves_are_visible_to_another_connection_before_th
                     executor=_gated_two_ticker_executor(admitted, release),
                     policy=RefreshPolicy(workers=2),
                     clock=lambda: NOW,
+                    run_specs=RUN_SPECS_BY_KEY,
                 )
             )
         )
@@ -828,6 +850,7 @@ def test_g3_sequential_refresh_admits_nothing_when_already_cancelled() -> None:
         executor=_momentum_only_executor,
         clock=lambda: NOW,
         cancellation=already_cancelled,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     assert summary.results == ()
@@ -849,6 +872,7 @@ def test_g3_sequential_refresh_stops_admitting_once_cancelled_mid_batch() -> Non
         executor=executor,
         clock=lambda: NOW,
         cancellation=cancellation,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     # AAPL was already admitted when cancellation fired inside its own executor
@@ -870,6 +894,7 @@ def test_g3_concurrent_refresh_admits_nothing_when_already_cancelled() -> None:
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
         cancellation=already_cancelled,
+        run_specs=RUN_SPECS_BY_KEY,
     )
 
     assert summary.results == ()
@@ -894,6 +919,7 @@ def test_g3_concurrent_refresh_stops_admitting_and_lets_running_jobs_settle() ->
                 policy=RefreshPolicy(workers=2),
                 clock=lambda: NOW,
                 cancellation=cancellation,
+                run_specs=RUN_SPECS_BY_KEY,
             )
         )
     )

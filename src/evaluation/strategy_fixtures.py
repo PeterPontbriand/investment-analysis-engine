@@ -46,7 +46,7 @@ from src.strategy_wiring import (
     StrategyBehavior,
     StrategyDescriptor,
 )
-from src.workspace.strategy_types import NativeEvidence
+from src.workspace.strategy_types import NativeEvidence, SelectionMember
 
 
 @dataclass(frozen=True)
@@ -78,8 +78,8 @@ class EvaluationStrategy:
     compose: Callable[[FixtureContext], object]
 
 
-def pair_evaluation[ResultT: NativeEvidence, DepsT](
-    behavior: StrategyBehavior[ResultT, DepsT],
+def pair_evaluation[SelT: SelectionMember, ResultT: NativeEvidence, DepsT](
+    behavior: StrategyBehavior[SelT, ResultT, DepsT],
     composition: EvalComposition[DepsT],
 ) -> EvaluationStrategy:
     """Pair a strategy's core bundle with a composition that builds exactly its dependency class."""

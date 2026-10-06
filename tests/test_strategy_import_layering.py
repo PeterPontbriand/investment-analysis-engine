@@ -31,6 +31,8 @@ _ROOT_IMPORTERS = frozenset(
         "src.evaluation.runner",
         "src.evaluation.ollama_runner",
         "src.evaluation.strategy_fixtures",
+        "src.cli",
+        "src.cli_workspace",
     }
 )
 # The evaluation tier pairs each strategy's fixture composition with its core bundle. It may import the root
@@ -44,14 +46,6 @@ _TIER_IMPORTERS = frozenset({"src.evaluation.composition"})
 _STRATEGY_EVALUATION_IMPORTS = frozenset({"src.evaluation.fixture_context"})
 _FIXTURE_MODULE_PREFIX = "src.evaluation.fixtures."
 _TRANSITIONS = {
-    ("src.workspace.codecs", "src.strategies.fcf_growth.codec", "SWC.3a"),
-    ("src.workspace.codecs", "src.strategies.graham_growth.codec", "SWC.3a"),
-    ("src.workspace.codecs", "src.strategies.graham_number.codec", "SWC.3a"),
-    ("src.workspace.codecs", "src.strategies.momentum.codec", "SWC.3a"),
-    ("src.workspace.execution", "src.strategies.fcf_growth.execution", "SWC.3a"),
-    ("src.workspace.execution", "src.strategies.graham_growth.execution", "SWC.3a"),
-    ("src.workspace.execution", "src.strategies.graham_number.execution", "SWC.3a"),
-    ("src.workspace.execution", "src.strategies.momentum.execution", "SWC.3a"),
     ("src.cli_workspace", "src.strategies.fcf_growth.execution", "SWC.3b"),
     ("src.cli_workspace", "src.strategies.graham_growth.execution", "SWC.3b"),
     ("src.cli_workspace", "src.strategies.graham_number.execution", "SWC.3b"),
@@ -582,8 +576,14 @@ def test_t13_fails_when_the_root_is_in_an_import_cycle() -> None:
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_wiring_slice() -> None:
     """The twelve entries owned by the orchestration slice are gone; every remaining owner is a later slice."""
-    assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.3a", "SWC.3b", "SWC.3c", "SWC.4c"}
-    assert len(_TRANSITIONS) == 24
+    assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.3b", "SWC.3c", "SWC.4c"}
+    assert len(_TRANSITIONS) == 16
+
+
+def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_workspace_consumers_slice() -> None:
+    """The eight workspace-consumer entries are gone: neither workspace module imports a strategy codec or adapter."""
+    assert not [entry for entry in _TRANSITIONS if entry[2] == "SWC.3a"]
+    assert not [entry for entry in _TRANSITIONS if entry[0] in {"src.workspace.codecs", "src.workspace.execution"}]
 
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_evaluation_slice() -> None:

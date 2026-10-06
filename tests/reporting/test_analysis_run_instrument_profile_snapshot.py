@@ -36,7 +36,9 @@ from src.reporting.presentation import PresentationMode
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.workspace.execution import ExecutionCapture, execute
+from src.strategy_wiring import EVIDENCE_BY_KEY, run_spec_for
+from src.workspace.capture import ExecutionCapture
+from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
 
@@ -153,6 +155,7 @@ def test_a_ticker_reuse_supersession_never_relabels_a_previously_persisted_run(
         repository=run_repository,
         id_factory=lambda: FIRST_RUN_ID,
         clock=lambda: NOW,
+        spec=run_spec_for(AnalysisRequest(ticker="RENU", selection=GrahamNumberSelection()).selection),
     )
 
     # --- Ticker reuse: the same ticker now resolves to a different entity, past the TTL ---
@@ -178,6 +181,7 @@ def test_a_ticker_reuse_supersession_never_relabels_a_previously_persisted_run(
         repository=run_repository,
         id_factory=lambda: SECOND_RUN_ID,
         clock=lambda: LATER,
+        spec=run_spec_for(AnalysisRequest(ticker="RENU", selection=GrahamNumberSelection()).selection),
     )
 
     # The durable "current" profile has moved on to Generation B.
@@ -192,7 +196,7 @@ def test_a_ticker_reuse_supersession_never_relabels_a_previously_persisted_run(
     assert reopened_first.instrument_profile.identity is not None
     assert reopened_first.instrument_profile.identity.instrument_name == "Generation A Inc."
     assert reopened_first.instrument_profile.identity.issuer_identifier == "0000011111"
-    rendered_first = project_run(reopened_first, ReplayOptions(mode=PresentationMode.DETAILS))
+    rendered_first = project_run(reopened_first, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY)
     assert "Generation A Inc." in rendered_first
     assert "Generation B Corp." not in rendered_first
 
@@ -202,7 +206,7 @@ def test_a_ticker_reuse_supersession_never_relabels_a_previously_persisted_run(
     assert reopened_second.instrument_profile is not None
     assert reopened_second.instrument_profile.identity is not None
     assert reopened_second.instrument_profile.identity.instrument_name == "Generation B Corp."
-    rendered_second = project_run(reopened_second, ReplayOptions(mode=PresentationMode.DETAILS))
+    rendered_second = project_run(reopened_second, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY)
     assert "Generation B Corp." in rendered_second
     assert "Generation A Inc." not in rendered_second
 
@@ -229,6 +233,7 @@ def test_repeated_execution_within_ttl_reuses_the_cache_and_each_run_keeps_its_o
         repository=run_repository,
         id_factory=lambda: FIRST_RUN_ID,
         clock=lambda: NOW,
+        spec=run_spec_for(AnalysisRequest(ticker="RENU", selection=GrahamNumberSelection()).selection),
     )
     second_run = execute(
         AnalysisRequest(ticker="RENU", selection=GrahamNumberSelection()),
@@ -236,6 +241,7 @@ def test_repeated_execution_within_ttl_reuses_the_cache_and_each_run_keeps_its_o
         repository=run_repository,
         id_factory=lambda: SECOND_RUN_ID,
         clock=lambda: NOW,
+        spec=run_spec_for(AnalysisRequest(ticker="RENU", selection=GrahamNumberSelection()).selection),
     )
 
     assert identity_provider.calls == 1  # the second execution reused the durable cache

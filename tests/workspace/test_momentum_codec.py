@@ -31,9 +31,11 @@ from src.data.security_unit import (
 )
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.strategies.momentum.selection import MomentumSelection
+from src.strategy_wiring import EVIDENCE_BY_KEY, EVIDENCE_BY_TYPE
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun
+from tests._wiring import codecs_with_decode
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
 
@@ -108,14 +110,14 @@ def _run(evidence: MomentumRun | None = None) -> AnalysisRun:
         result_schema_version=2,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
-        result_evidence=encode_evidence(evidence or _evidence()),
+        result_evidence=encode_evidence(evidence or _evidence(), EVIDENCE_BY_TYPE),
     )
 
 
 def test_full_typed_round_trip_through_json_envelope() -> None:
     expected = _evidence()
     run = _run(expected)
-    restored = decode_evidence(AnalysisRun.model_validate_json(run.model_dump_json()))
+    restored = decode_evidence(AnalysisRun.model_validate_json(run.model_dump_json()), EVIDENCE_BY_KEY)
     assert restored == expected
     assert restored is not expected
     assert isinstance(restored, MomentumRun)
@@ -146,7 +148,7 @@ def test_optional_metrics_and_missing_profile_remain_explicit(retained: bool) ->
         price_inputs=(),
         resolution_trace=ResolutionTrace(),
     )
-    assert decode_evidence(_run(evidence)) == evidence
+    assert decode_evidence(_run(evidence), EVIDENCE_BY_KEY) == evidence
 
 
 @pytest.mark.parametrize(
@@ -160,28 +162,26 @@ def test_optional_metrics_and_missing_profile_remain_explicit(retained: bool) ->
         "projection_version",
     ],
 )
-def test_unknown_version_is_classified(field: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    def unexpected_decode(_payload: object) -> MomentumRun:
+def test_unknown_version_is_classified(field: str) -> None:
+    def unexpected_decode(_payload: object, _ticker: str) -> MomentumRun:
         raise AssertionError("Unsupported versions must be rejected before evidence decoding.")
 
-    monkeypatch.setattr("src.workspace.codecs.decode_momentum", unexpected_decode)
     # Bypass envelope validation deliberately to exercise the decoder's own guard,
     # including version fields normally rejected by the envelope's Literal types.
     run = _run().model_copy(update={field: 99})
     with pytest.raises(UnsupportedRunVersionError, match="Unsupported") as error:
-        decode_evidence(run)
+        decode_evidence(run, codecs_with_decode(unexpected_decode))
     assert error.value.reason_code == "unsupported_run_version"
 
 
-def test_previous_result_schema_version_is_rejected_before_decoding(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_previous_result_schema_version_is_rejected_before_decoding() -> None:
     """A run stored before the profile was embedded in the result is unsupported, not re-read."""
 
-    def unexpected_decode(_payload: object) -> MomentumRun:
+    def unexpected_decode(_payload: object, _ticker: str) -> MomentumRun:
         raise AssertionError("Unsupported versions must be rejected before evidence decoding.")
 
-    monkeypatch.setattr("src.workspace.codecs.decode_momentum", unexpected_decode)
     with pytest.raises(UnsupportedRunVersionError, match="Unsupported"):
-        decode_evidence(_run().model_copy(update={"result_schema_version": 1}))
+        decode_evidence(_run().model_copy(update={"result_schema_version": 1}), codecs_with_decode(unexpected_decode))
 
 
 @pytest.mark.parametrize(
@@ -202,7 +202,7 @@ def test_corrupt_metric_fields_fail_safely(field: str, value: object) -> None:
     assert run.result_evidence is not None
     run.result_evidence["run"]["metrics"][field] = value
     with pytest.raises(InvalidStoredRunError, match="Invalid stored Momentum evidence") as error:
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)
     assert error.value.reason_code == "invalid_stored_run"
 
 
@@ -212,25 +212,27 @@ def test_nested_unknown_fields_are_rejected(section: str) -> None:
     assert run.result_evidence is not None
     run.result_evidence["run"][section]["unexpected"] = "data"
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)
 
 
 def test_mismatched_envelope_and_missing_payload() -> None:
     run = _run()
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run.model_copy(update={"ticker": "MSFT"}))
+        decode_evidence(run.model_copy(update={"ticker": "MSFT"}), EVIDENCE_BY_KEY)
     with pytest.raises(UnsupportedRunVersionError):
-        decode_evidence(run.model_copy(update={"method_id": "graham_number"}))
+        decode_evidence(run.model_copy(update={"method_id": "graham_number"}), EVIDENCE_BY_KEY)
     failed = AnalysisRun.model_validate(
         {**run.model_dump(), "status": "failed", "failure_reason_code": "provider_error", "result_evidence": None}
     )
-    assert decode_evidence(failed) is None
+    assert decode_evidence(failed, EVIDENCE_BY_KEY) is None
 
 
 def test_invalid_native_instance_cannot_bypass_validation() -> None:
     evidence = _evidence()
     with pytest.raises(InvalidStoredRunError):
-        encode_evidence(replace(evidence, metrics=replace(evidence.metrics, current_price=float("inf"))))
+        encode_evidence(
+            replace(evidence, metrics=replace(evidence.metrics, current_price=float("inf"))), EVIDENCE_BY_TYPE
+        )
 
 
 def test_security_unit_documents_round_trip_and_reject_naive_dates() -> None:
@@ -257,14 +259,14 @@ def test_security_unit_documents_round_trip_and_reject_naive_dates() -> None:
     )
     evidence = replace(evidence, instrument_profile=profile)
     run = _run(evidence)
-    assert decode_evidence(run) == evidence
+    assert decode_evidence(run, EVIDENCE_BY_KEY) == evidence
     assert run.result_evidence is not None
     document = run.result_evidence["run"]["instrument_profile"]["security_unit_resolution"]["provenance"]["documents"][
         0
     ]
     document["available_at"] = "2026-09-10T12:00:00"
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)
 
 
 @pytest.mark.parametrize("location", ["input", "lineage", "trace", "metric", "profile"])
@@ -283,4 +285,4 @@ def test_nested_corrupt_evidence_is_rejected(location: str) -> None:
     else:
         payload["instrument_profile"]["identity"]["ticker"] = "MSFT"
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)

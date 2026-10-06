@@ -34,9 +34,11 @@ from src.strategies.fcf_growth.models import (
     TrendClassification,
 )
 from src.strategies.fcf_growth.selection import FCFGrowthSelection
+from src.strategy_wiring import EVIDENCE_BY_KEY, EVIDENCE_BY_TYPE
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun
+from tests._wiring import codecs_with_decode
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
 
@@ -178,20 +180,20 @@ def _run(result: FCFEarningsGrowthResult | None = None) -> AnalysisRun:
         result_schema_version=3,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
-        result_evidence=encode_evidence(result or _result()),
+        result_evidence=encode_evidence(result or _result(), EVIDENCE_BY_TYPE),
     )
 
 
 def test_full_native_result_round_trip() -> None:
     original = _result()
     run = _run(original)
-    restored = decode_evidence(AnalysisRun.model_validate_json(run.model_dump_json()))
+    restored = decode_evidence(AnalysisRun.model_validate_json(run.model_dump_json()), EVIDENCE_BY_KEY)
     assert isinstance(restored, FCFEarningsGrowthResult)
     assert restored == original
     assert restored.diagnostics == original.diagnostics
     assert restored.annual_observations[0].free_cash_flow is not original.annual_observations[0].free_cash_flow
     assert (restored.method_version, restored.schema_version) == (2, 3)
-    assert encode_evidence(restored) == run.result_evidence
+    assert encode_evidence(restored, EVIDENCE_BY_TYPE) == run.result_evidence
 
 
 def test_per_share_policy_and_missing_optional_metrics_round_trip() -> None:
@@ -210,7 +212,7 @@ def test_per_share_policy_and_missing_optional_metrics_round_trip() -> None:
         ),
         fcf_yield=MetricResult.failure(MetricStatus.NOT_APPLICABLE, ReasonCode.NOT_REQUESTED, "Not requested"),
     )
-    assert decode_evidence(_run(result)) == result
+    assert decode_evidence(_run(result), EVIDENCE_BY_KEY) == result
 
 
 @pytest.mark.parametrize(
@@ -252,7 +254,7 @@ def test_non_success_preserves_explicit_reasons_and_profile(status: CalculationS
             "KO", None, InstrumentKindEvidence("KO", InstrumentKind.ETF, "ETF", "yfinance", STAMP), ()
         ),
     )
-    assert decode_evidence(_run(result)) == result
+    assert decode_evidence(_run(result), EVIDENCE_BY_KEY) == result
 
 
 @pytest.mark.parametrize("status", [ForwardEvidenceStatus.PARTIAL, ForwardEvidenceStatus.COMPLETE])
@@ -269,7 +271,7 @@ def test_forward_evidence_round_trip(status: ForwardEvidenceStatus) -> None:
         confirms_positive_growth=True if complete else None,
     )
     result = replace(original, forward_evidence=forward)
-    assert decode_evidence(_run(result)) == result
+    assert decode_evidence(_run(result), EVIDENCE_BY_KEY) == result
 
 
 @pytest.mark.parametrize(
@@ -283,13 +285,12 @@ def test_forward_evidence_round_trip(status: ForwardEvidenceStatus) -> None:
         "projection_version",
     ],
 )
-def test_versions_rejected_before_decoding(field: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    def unexpected(_payload: object) -> FCFEarningsGrowthResult:
+def test_versions_rejected_before_decoding(field: str) -> None:
+    def unexpected(_payload: object, _ticker: str) -> FCFEarningsGrowthResult:
         raise AssertionError("Unsupported versions must fail before decoding")
 
-    monkeypatch.setattr("src.workspace.codecs.decode_fcf_growth", unexpected)
     with pytest.raises(UnsupportedRunVersionError):
-        decode_evidence(_run().model_copy(update={field: 99}))
+        decode_evidence(_run().model_copy(update={field: 99}), codecs_with_decode(unexpected))
 
 
 @pytest.mark.parametrize(
@@ -313,7 +314,7 @@ def test_corrupt_result_is_classified(field: str, value: object) -> None:
     assert run.result_evidence is not None
     run.result_evidence["result"][field] = value
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)
 
 
 @pytest.mark.parametrize(
@@ -358,22 +359,23 @@ def test_corrupt_nested_evidence(location: str) -> None:
     else:
         result["policy"]["classification_basis"] = "unknown"
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)
 
 
 def test_pairing_missing_metadata_and_absent_evidence() -> None:
     run = _run()
     with pytest.raises(UnsupportedRunVersionError):
-        decode_evidence(run.model_copy(update={"analysis_id": "momentum"}))
+        decode_evidence(run.model_copy(update={"analysis_id": "momentum"}), EVIDENCE_BY_KEY)
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run.model_copy(update={"result_evidence": {"result": {}}}))
+        decode_evidence(run.model_copy(update={"result_evidence": {"result": {}}}), EVIDENCE_BY_KEY)
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run.model_copy(update={"ticker": "MSFT"}))
+        decode_evidence(run.model_copy(update={"ticker": "MSFT"}), EVIDENCE_BY_KEY)
     assert (
         decode_evidence(
             run.model_copy(
                 update={"status": RunOutcome.FAILED, "failure_reason_code": "provider_error", "result_evidence": None}
-            )
+            ),
+            EVIDENCE_BY_KEY,
         )
         is None
     )
@@ -396,7 +398,7 @@ def test_decoding_is_pure_and_does_not_mutate_payload(monkeypatch: pytest.Monkey
         "classify_fcf_earnings_growth",
     ):
         monkeypatch.setattr(f"src.strategies.fcf_growth.calculators.{name}", unexpected)
-    restored = decode_evidence(run)
+    restored = decode_evidence(run, EVIDENCE_BY_KEY)
     assert isinstance(restored, FCFEarningsGrowthResult)
     assert restored.fcf_cagr.value == 0.0
     assert run.model_dump_json() == before
@@ -407,7 +409,7 @@ def test_invalid_native_evidence_is_revalidated() -> None:
     # A frozen native instance can still be corrupted by explicit low-level mutation.
     object.__setattr__(original, "effective_as_of", STAMP.replace(tzinfo=None))
     with pytest.raises(InvalidStoredRunError):
-        encode_evidence(original)
+        encode_evidence(original, EVIDENCE_BY_TYPE)
 
 
 @pytest.mark.parametrize("field", ["strategy_id", "method_id", "method_version", "schema_version"])
@@ -416,7 +418,7 @@ def test_missing_native_metadata_rejected(field: str) -> None:
     assert run.result_evidence is not None
     del run.result_evidence["result"][field]
     with pytest.raises(InvalidStoredRunError):
-        decode_evidence(run)
+        decode_evidence(run, EVIDENCE_BY_KEY)
 
 
 @pytest.mark.parametrize(
@@ -425,7 +427,7 @@ def test_missing_native_metadata_rejected(field: str) -> None:
 )
 def test_fcf_envelope_requires_native_version_types(field: str, value: object) -> None:
     with pytest.raises(UnsupportedRunVersionError):
-        decode_evidence(_run().model_copy(update={field: value}))
+        decode_evidence(_run().model_copy(update={field: value}), EVIDENCE_BY_KEY)
 
 
 def test_cached_history_and_absent_per_share_evidence_round_trip() -> None:
@@ -452,4 +454,4 @@ def test_cached_history_and_absent_per_share_evidence_round_trip() -> None:
             MetricStatus.UNAVAILABLE, ReasonCode.MISSING_FACT, "Shares unavailable"
         ),
     )
-    assert decode_evidence(_run(result)) == result
+    assert decode_evidence(_run(result), EVIDENCE_BY_KEY) == result

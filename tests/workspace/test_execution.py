@@ -17,21 +17,18 @@ from src.data.repositories.analysis_runs import AnalysisRunConflictError, SQLite
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.evaluation.fixtures.market_data import FixtureDataClient
-from src.strategies.fcf_growth.execution import FCFGrowthCapture
-from src.strategies.graham_growth.execution import GrahamGrowthCapture
-from src.strategies.graham_number.execution import GrahamNumberCapture
+from src.strategies.fcf_growth.execution import FCFGrowthCapture, from_fcf_growth_capture
+from src.strategies.graham_growth.execution import GrahamGrowthCapture, from_graham_growth_capture
+from src.strategies.graham_number.execution import GrahamNumberCapture, from_graham_number_capture
 from src.strategies.momentum.analyzer import MomentumRun
-from src.strategies.momentum.execution import capture_momentum, run_momentum
+from src.strategies.momentum.execution import capture_momentum, from_momentum_capture, run_momentum
 from src.strategies.momentum.selection import MomentumSelection
+from src.strategy_wiring import EVIDENCE_BY_KEY, run_spec_for
+from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import decode_evidence
 from src.workspace.execution import (
     BatchContext,
-    ExecutionCapture,
     execute,
-    from_fcf_growth_capture,
-    from_graham_growth_capture,
-    from_graham_number_capture,
-    from_momentum_capture,
 )
 from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
@@ -109,6 +106,7 @@ def test_execute_assembles_and_inserts_a_completed_run() -> None:
         repository=sink,
         id_factory=lambda: RUN_ID,
         clock=lambda: next(clock_values),
+        spec=run_spec_for(_momentum_request().selection),
     )
 
     assert sink.inserted == [run]
@@ -128,7 +126,7 @@ def test_execute_assembles_and_inserts_a_completed_run() -> None:
     assert run.failure_reason_code is None
     assert run.requested_config == run.effective_config == MomentumSelection(short_window=2, long_window=3)
     assert run.result_evidence is not None
-    assert decode_evidence(run) is not None
+    assert decode_evidence(run, EVIDENCE_BY_KEY) is not None
     assert run.refresh_id is None
     assert run.batch_position is None
     assert run.watchlist_id is None
@@ -143,6 +141,7 @@ def test_execute_without_batch_leaves_refresh_and_watchlist_fields_null() -> Non
         repository=_FakeSink(),
         id_factory=lambda: RUN_ID,
         clock=lambda: NOW,
+        spec=run_spec_for(_momentum_request().selection),
     )
     assert run.refresh_id is None
     assert run.batch_position is None
@@ -162,6 +161,7 @@ def test_execute_with_batch_context_stamps_refresh_and_watchlist_identity() -> N
         id_factory=lambda: RUN_ID,
         clock=lambda: NOW,
         batch=batch,
+        spec=run_spec_for(_momentum_request().selection),
     )
 
     assert run.refresh_id == refresh_id
@@ -178,6 +178,7 @@ def test_execute_only_sets_failure_reason_code_for_failed(outcome: RunOutcome) -
         repository=_FakeSink(),
         id_factory=lambda: RUN_ID,
         clock=lambda: NOW,
+        spec=run_spec_for(_momentum_request().selection),
     )
     assert run.status is outcome
     assert run.failure_reason_code is None
@@ -190,6 +191,7 @@ def test_execute_sets_a_stable_failure_reason_code_when_failed() -> None:
         repository=_FakeSink(),
         id_factory=lambda: RUN_ID,
         clock=lambda: NOW,
+        spec=run_spec_for(_momentum_request().selection),
     )
     assert run.status is RunOutcome.FAILED
     assert run.failure_reason_code == "execution_failed"
@@ -202,7 +204,14 @@ def test_execute_does_not_insert_when_capture_raises() -> None:
         raise RuntimeError("simulated adapter failure")
 
     with pytest.raises(RuntimeError, match="simulated adapter failure"):
-        execute(_momentum_request(), capture=raiser, repository=sink, id_factory=lambda: RUN_ID, clock=lambda: NOW)
+        execute(
+            _momentum_request(),
+            capture=raiser,
+            repository=sink,
+            id_factory=lambda: RUN_ID,
+            clock=lambda: NOW,
+            spec=run_spec_for(_momentum_request().selection),
+        )
 
     assert sink.inserted == []
 
@@ -217,12 +226,20 @@ def test_execute_propagates_persistence_errors_without_masking_them() -> None:
             repository=sink,
             id_factory=lambda: RUN_ID,
             clock=lambda: NOW,
+            spec=run_spec_for(_momentum_request().selection),
         )
 
 
 def test_execute_calls_capture_exactly_once() -> None:
     calls = Mock(wraps=lambda: _fake_capture(RunOutcome.COMPLETED))
-    execute(_momentum_request(), capture=calls, repository=_FakeSink(), id_factory=lambda: RUN_ID, clock=lambda: NOW)
+    execute(
+        _momentum_request(),
+        capture=calls,
+        repository=_FakeSink(),
+        id_factory=lambda: RUN_ID,
+        clock=lambda: NOW,
+        spec=run_spec_for(_momentum_request().selection),
+    )
     assert calls.call_count == 1
 
 
@@ -302,6 +319,7 @@ def test_execute_persists_through_a_real_repository_and_reopens(tmp_path: Path) 
             repository=repository,
             id_factory=lambda: RUN_ID,
             clock=lambda: NOW,
+            spec=run_spec_for(_momentum_request().selection),
         )
     finally:
         first_database.close()
@@ -329,5 +347,6 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
         repository=_FakeSink(),
         id_factory=lambda: RUN_ID,
         clock=lambda: NOW,
+        spec=run_spec_for(_momentum_request().selection),
     )
     assert run.ticker == "AAPL"

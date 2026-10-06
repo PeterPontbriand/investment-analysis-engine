@@ -249,7 +249,7 @@ the members `requirement`, `fixture_ids` and `compose` ([Appendix G](#appendix-g
      strategy file imports `src.evaluation` at all.
   4. No module under `src` imports `tests`.
 
-  **Transition allowlist:** SWC.2a recorded 24 edges and SWC.2b added 20 edges to the `tool` files; SWC.2c removed the 12 it owned and SWC.2d the 8 it owned, leaving the 24 edges below. Until
+  **Transition allowlist:** SWC.2a recorded 24 edges and SWC.2b added 20 edges to the `tool` files; SWC.2c removed the 12 it owned, SWC.2d the 8 it owned and SWC.3a the 8 it owned, leaving the 16 edges below. Until
   its owning slice removes it, T13 permits only the exact importer-to-module edges below. Each row is one edge; no wildcard, strategy-wide or role-wide exception is permitted. T13 fails if
   an entry is stale or if any unlisted forbidden edge appears. The owning slice removes its entry in the same
   change that rewires the importer. The within-strategy role rule, cross-strategy rule, no-import-of-tests rule,
@@ -257,14 +257,6 @@ the members `requirement`, `fixture_ids` and `compose` ([Appendix G](#appendix-g
 
   | Importer module | Imported module | Removes entry |
   | :--- | :--- | :--- |
-  | `src.workspace.codecs` | `src.strategies.fcf_growth.codec` | SWC.3a |
-  | `src.workspace.codecs` | `src.strategies.graham_growth.codec` | SWC.3a |
-  | `src.workspace.codecs` | `src.strategies.graham_number.codec` | SWC.3a |
-  | `src.workspace.codecs` | `src.strategies.momentum.codec` | SWC.3a |
-  | `src.workspace.execution` | `src.strategies.fcf_growth.execution` | SWC.3a |
-  | `src.workspace.execution` | `src.strategies.graham_growth.execution` | SWC.3a |
-  | `src.workspace.execution` | `src.strategies.graham_number.execution` | SWC.3a |
-  | `src.workspace.execution` | `src.strategies.momentum.execution` | SWC.3a |
   | `src.cli_workspace` | `src.strategies.fcf_growth.execution` | SWC.3b |
   | `src.cli_workspace` | `src.strategies.graham_growth.execution` | SWC.3b |
   | `src.cli_workspace` | `src.strategies.graham_number.execution` | SWC.3b |
@@ -282,8 +274,8 @@ the members `requirement`, `fixture_ids` and `compose` ([Appendix G](#appendix-g
   | `src.reporting.analysis_runs` | `src.strategies.graham_number.presenter` | SWC.4c |
   | `src.reporting.analysis_runs` | `src.strategies.momentum.presenter` | SWC.4c |
 
-  Counts by owner: SWC.3a, 8; SWC.3b, 4; SWC.3c, 8; SWC.4c, 4 (24 in all; 32 before SWC.2d and 44 before
-  SWC.2c). The list must
+  Counts by owner: SWC.3b, 4; SWC.3c, 8; SWC.4c, 4 (16 in all; 24 before SWC.3a, 32 before SWC.2d and 44
+  before SWC.2c). The list must
   be empty when SWC.4c merges, and SWC.7 verifies final conformance.
 
   The 20 edges SWC.2b added exist because the arguments models move into the `tool` role, which generic
@@ -311,8 +303,8 @@ the members `requirement`, `fixture_ids` and `compose` ([Appendix G](#appendix-g
   the generic `evaluation` modules and the tiers themselves. T13 holds the importers of the root as an exact
   list of modules, each of which must exist and import the root; a slice adds an entry in the change that
   first makes its module import the root. Today the list is `src.evaluation.composition`,
-  `src.evaluation.runner`, `src.evaluation.ollama_runner` and the evaluation tier
-  `src.evaluation.strategy_fixtures`. The importers of the evaluation tier are a second exact list held the same
+  `src.evaluation.runner`, `src.evaluation.ollama_runner`, the evaluation tier
+  `src.evaluation.strategy_fixtures`, `src.cli` and `src.cli_workspace`. The importers of the evaluation tier are a second exact list held the same
   way, today `src.evaluation.composition` alone.
 - **Injection:** the root builds read-only `Mapping`s from the tuple (`BY_KEY`, `BY_METHOD_ID`, `BY_ALIAS`,
   `BY_TOOL`, `BY_ARGUMENTS`, `BY_RESULT_TYPE`, and from SWC.4c `BY_ENVELOPE`) and one narrow view per layer,
@@ -1675,3 +1667,69 @@ fails none of them while a change to an existing identifier, tool name, descript
 The one place that writes the number of cases is the catalog test, which pins the nineteen case identifiers and
 counts and is edited with the suite version when a case is added (row 17 of §17). The pins were checked by reading
 them; a real fifth strategy first runs through them in the specimen and generator test.
+
+## Appendix H: Decisions recorded while implementing SWC.3a
+
+Each entry is a point the design left open, or a place where the implementation differs from the text above,
+with the decision and its reason.
+
+### H.1 The injected views are consumer-owned dataclasses
+
+`EvidenceCodec` (label, the four versions, `encode`, `decode`) is defined in `src/workspace/codecs.py` and
+`RunSpec` (the three versions `execute` writes and its `encode`) in `src/workspace/execution.py`, so each
+generic consumer owns the shape it receives and names no strategy. The root builds them with pure functions
+(`evidence_by_type`, `evidence_by_key`, `run_specs_by_key`, `parsers_by_alias`) and publishes
+`EVIDENCE_BY_TYPE`, `EVIDENCE_BY_KEY`, `RUN_SPECS_BY_KEY` and `PARSERS_BY_ALIAS`. `RunSpec.encode` is bound to the
+same codec, so a schema failure is still reported as `InvalidStoredRunError` with the strategy's label.
+`run_spec_for(selection, run_specs=RUN_SPECS_BY_KEY)` is the one lookup `src.cli` and `src.cli_workspace` use.
+
+### H.2 Behavior members and accessors
+
+`StrategyBehavior` gains `selection_type`, `parse`, `encode`, `decode` and `ticker_of`, with `SelT` as its first
+type parameter ([F.4](#f4-selection-type-parameter)). `BehaviorView` gains `parse_for`, `encode_object` and
+`decode_for`. `decode_for(payload, ticker)` decodes and then compares `ticker_of(result)` with the run
+envelope's ticker, so `ticker_of` is reached only through that accessor, as `deps_type`, `handler` and
+`native_status` are ([F.3](#f3-reads-of-members-inside-the-root-t16)). Each accessor guards with an exact type
+check and raises `UndeclaredStrategyError` otherwise. `pair_evaluation` in `src/evaluation/strategy_fixtures.py`
+takes the new first type parameter; this is the only edit that file needed.
+
+### H.3 Selection parsing
+
+`parse_selection(alias, config_json, parsers)` keeps the JSON decoding rules (duplicate keys, non-finite numbers,
+object body) and raises `ValueError("Unknown analysis alias: ...")` when the injected mapping has no parser.
+Each strategy's `selection.py` gains its parser; the `config` body rules shared by Momentum and both Graham
+strategies are `config_object` in `src/workspace/selection_base.py`. The parsers' behavior is unchanged,
+including Momentum's materialization of omitted windows from configured policy.
+
+### H.4 Files outside the plan's list, and why
+
+- `src/reporting/analysis_runs.py`: `decode_evidence` takes the injected codecs, so `project_run` takes them as
+  the keyword-only `codecs`. SWC.4c adds `replays` beside it.
+- `src/cli.py`: `execute` takes `spec`, and the normalizers moved to the adapters, so the two `execute` calls and
+  the imports changed beside the Momentum composition.
+- `src/cli_workspace.py`: besides the repository helper, the alias vocabulary is read from the root now that
+  `method_aliases.py` is deleted (`BY_ALIAS`, `BY_METHOD_ID`). SWC.3b still owns the selection builder, the
+  refresh executor and the `--analysis` help text.
+- `src/evaluation/strategy_fixtures.py`: the type parameter above.
+
+### H.5 Watchlist repository alias resolver
+
+`SQLiteWatchlistRepository(database, *, alias_for, ...)` requires the resolver; `alias_for` returns `None` for a
+method this version does not declare, and the unreadable-entry message then shows the stored method
+identifier as written. `src/cli_workspace.py` composes the repository in one helper over `BY_METHOD_ID`.
+
+### H.6 Refresh and fail-closed lookups
+
+`refresh_watchlist` takes `run_specs`; a job whose selection has no entry fails as that job's error, naming the
+key, because refresh isolates every job's failure. `execute` takes its `spec` directly. T8 stores one real
+golden-fixture result per strategy through `execute` and `decode_evidence` and requires equality; its
+hand-written `SELECTION_BODIES` holds the one strategy (Graham Growth) whose selection has required fields. T11
+adds the undeclared evidence type, subclass, key, alias, run spec and mispaired-bundle probes. T1 also compares
+`config_schema_version`, and T24 the `alias` uniqueness rule.
+
+### H.7 Stored shapes
+
+No stored shape changed, so no version changed: `config_schema_version`, `method_version`,
+`result_schema_version` and `evidence_codec_version` carry the values the removed tables held (Momentum
+2, 1, 2, 1; Graham Number and Graham Growth 1, 1, 1, 1; FCF Growth 1, 2, 3, 1, the last three read from the
+analyzer's own constants). T8 records them against the stored run.

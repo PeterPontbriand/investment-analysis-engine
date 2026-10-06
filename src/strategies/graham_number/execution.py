@@ -26,6 +26,7 @@ from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.graham_number.service import GrahamNumberAnalysis
+from src.workspace.capture import ExecutionCapture
 from src.workspace.models import RunOutcome
 
 
@@ -104,7 +105,13 @@ def execute_graham_number(  # noqa: PLR0913
     return GrahamNumberCapture(analysis=analysis, profile=profile, outcome=classify_graham_number_outcome(analysis))
 
 
+def from_graham_number_capture(capture: GrahamNumberCapture) -> ExecutionCapture:
+    """Normalize a Graham Number capture."""
+    return ExecutionCapture(native_evidence=capture.analysis, profile=capture.profile, outcome=capture.outcome)
+
+
 __all__ = [
+    "from_graham_number_capture",
     "GrahamNumberCapture",
     "classify_graham_number_outcome",
     "execute_graham_number",

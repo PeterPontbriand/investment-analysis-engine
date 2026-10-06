@@ -15,11 +15,13 @@ from pathlib import Path
 import pytest
 
 from scripts import strategy_conformance as conformance
+from src.core.strategy_errors import UndeclaredStrategyError, require
 from src.evaluation.composition import FixtureDependencies, compose_fixture_dependencies
 from src.evaluation.models import Case
 from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.strategy_wiring import (
+    BY_ALIAS,
     BY_ARGUMENTS,
     BY_KEY,
     BY_METHOD_ID,
@@ -57,6 +59,15 @@ def test_t1_names_a_descriptor_with_no_selection_class() -> None:
     stray = replace(MOMENTUM, analysis_id="stray", method_id="stray")
     gaps = conformance.selection_union_gaps((*STRATEGIES, stray))
     assert gaps == ["descriptor ('stray', 'stray') has no selection class in SelectionMember"]
+
+
+def test_t1_reports_a_config_schema_version_that_differs_from_the_selection_class() -> None:
+    """The descriptor's configuration version is compared with the selection class's own literal default."""
+    drifted = replace(MOMENTUM, config_schema_version=9)
+    gaps = conformance.selection_union_gaps((drifted, *STRATEGIES[1:]))
+    assert gaps == [
+        "descriptor ('momentum', 'sma_crossover') declares config_schema_version 9, but MomentumSelection defaults to 2"
+    ]
 
 
 def test_t2_native_evidence_union_matches_the_descriptors() -> None:
@@ -107,6 +118,20 @@ def test_t6_every_tool_has_a_golden_case_and_every_case_is_served() -> None:
     assert any("tool analyze_fcf_earnings_growth" not in gap and "FCF-" in gap for gap in gaps)
 
 
+def test_t8_every_strategy_stores_its_declared_versions_and_decodes_what_it_stored() -> None:
+    """A real result per strategy goes through ``execute`` and ``decode_evidence`` and comes back equal."""
+    assert conformance.versions_and_round_trip_gaps(STRATEGIES) == []
+    assert [entry.descriptor for entry in conformance.stored_runs(STRATEGIES)] == list(STRATEGIES)
+
+
+def test_t8_reports_a_decoder_that_does_not_return_what_was_stored(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The round trip can fail: a decoder that returns nothing is reported for every strategy."""
+    monkeypatch.setattr(conformance, "decode_evidence", lambda *_: None)
+    gaps = conformance.versions_and_round_trip_gaps(STRATEGIES)
+    assert len(gaps) == len(STRATEGIES)
+    assert all("decode_evidence does not return the result execute stored" in gap for gap in gaps)
+
+
 def test_t10_the_evaluation_tier_covers_every_descriptor() -> None:
     """Every descriptor has exactly one evaluation-tier entry and every entry serves a descriptor."""
     assert conformance.evaluation_tier_gaps(STRATEGIES) == []
@@ -152,6 +177,26 @@ def test_t11_reports_a_dispatcher_that_accepts_an_undeclared_input(monkeypatch: 
     assert gaps == ["tool_for_arguments(undeclared model): accepted an undeclared input"]
 
 
+def test_t11_reports_an_encoder_that_handles_an_undeclared_evidence_type_as_a_declared_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The workspace probes can fail: an encoder with a fall-through branch is reported for every strategy."""
+    monkeypatch.setattr(conformance, "encode_evidence", lambda *_: {})
+    gaps = conformance.undeclared_input_gaps(STRATEGIES)
+    assert len(gaps) == 2 * len(STRATEGIES)
+    assert all("encode_evidence" in gap and "accepted an undeclared input" in gap for gap in gaps)
+
+
+def test_t11_reports_an_undeclared_pair_that_a_decoder_accepts(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A decoder that accepts a run whose key has no codec is reported for every strategy."""
+    monkeypatch.setattr(conformance, "decode_evidence", lambda *_: None)
+    gaps = conformance.undeclared_input_gaps(STRATEGIES)
+    assert gaps == [
+        f"{conformance.label(item)} decode_evidence without its codec: accepted an undeclared input"
+        for item in STRATEGIES
+    ]
+
+
 def test_t11_reports_an_evaluation_tier_that_accepts_a_missing_entry(monkeypatch: pytest.MonkeyPatch) -> None:
     """The tier probes can fail: a composition that ignores the supplied tier is reported for every tool."""
 
@@ -189,6 +234,7 @@ def test_t14_wiring_files_declare_no_discovery_or_registration() -> None:
             {
                 "BY_KEY": BY_KEY,
                 "BY_METHOD_ID": BY_METHOD_ID,
+                "BY_ALIAS": BY_ALIAS,
                 "BY_TOOL": BY_TOOL,
                 "BY_ARGUMENTS": BY_ARGUMENTS,
                 "BY_RESULT_TYPE": BY_RESULT_TYPE,
@@ -366,6 +412,16 @@ def test_t24_each_uniqueness_rule_rejects_a_duplicate_and_names_both_descriptors
     assert conformance.uniqueness_gaps(STRATEGIES[:1]) == [
         "uniqueness rules cannot be challenged with fewer than two descriptors"
     ]
+
+
+def test_aliases_and_method_ids_round_trip_and_an_unknown_one_is_not_a_fallback() -> None:
+    """Each descriptor is reachable by its alias and by its method id; an undeclared key raises, naming it."""
+    assert [item.alias for item in STRATEGIES] == ["momentum", "graham-number", "graham-growth", "fcf-growth"]
+    for item in STRATEGIES:
+        assert BY_ALIAS[item.alias] is item
+        assert BY_METHOD_ID[item.method_id] is item
+    with pytest.raises(UndeclaredStrategyError, match="not_a_method"):
+        require(BY_METHOD_ID, "not_a_method", what="method id")
 
 
 def test_the_existing_strategies_keep_their_declaration_order() -> None:

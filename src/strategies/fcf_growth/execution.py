@@ -38,6 +38,7 @@ from src.strategies._shared.profile import compose_graham_profile
 from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthResult
+from src.workspace.capture import ExecutionCapture
 from src.workspace.models import RunOutcome
 
 
@@ -110,7 +111,13 @@ def execute_fcf_growth(  # noqa: PLR0913
     return FCFGrowthCapture(result=result, profile=profile, outcome=classify_fcf_growth_outcome(result))
 
 
+def from_fcf_growth_capture(capture: FCFGrowthCapture) -> ExecutionCapture:
+    """Normalize a FCF/Earnings Growth capture."""
+    return ExecutionCapture(native_evidence=capture.result, profile=capture.profile, outcome=capture.outcome)
+
+
 __all__ = [
+    "from_fcf_growth_capture",
     "FCFGrowthCapture",
     "classify_fcf_growth_outcome",
     "execute_fcf_growth",

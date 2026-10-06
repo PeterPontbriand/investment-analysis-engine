@@ -70,3 +70,8 @@ def decode_fcf_growth(payload: StrictJsonMapping) -> FCFEarningsGrowthResult:
 def fcf_growth_native_status(result: FCFEarningsGrowthResult, /) -> str:
     """Return the native execution-status value recorded as telemetry evidence."""
     return result.execution_status.value
+
+
+def fcf_growth_ticker(result: FCFEarningsGrowthResult, /) -> str:
+    """Return the ticker the evidence is about, which must equal its run envelope's ticker."""
+    return result.ticker

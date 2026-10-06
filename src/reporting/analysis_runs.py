@@ -1,6 +1,6 @@
 """Pure report replay for stored Analysis Runs (projection v1).
 
-``project_run(run, options)`` renders an already-persisted ``AnalysisRun``
+``project_run(run, options, codecs=...)`` renders an already-persisted ``AnalysisRun``
 using only evidence captured when the run executed. It must never call
 analyzers, financial calculators, providers, profile resolvers, mutable
 caches, settings defaults, LLMs, or the current time: every value it shows
@@ -17,6 +17,7 @@ an unsupported version or an unimplemented method/analysis pair raises
 rather than guessing or upgrading silently.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
 from src.core.analysis_status import CalculationStatus
@@ -41,7 +42,7 @@ from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.presenter import MomentumPresentation, render_momentum
 from src.strategies.momentum.selection import MomentumSelection
-from src.workspace.codecs import decode_evidence
+from src.workspace.codecs import EvidenceCodec, decode_evidence
 from src.workspace.runs import AnalysisRun
 
 # Statuses whose stored `assembly.reason`/`result.reason` is already investor-facing
@@ -70,7 +71,12 @@ class ReplayOptions:
     mode: PresentationMode = PresentationMode.CONCISE
 
 
-def project_run(run: AnalysisRun, options: ReplayOptions | None = None) -> str:
+def project_run(
+    run: AnalysisRun,
+    options: ReplayOptions | None = None,
+    *,
+    codecs: Mapping[tuple[str, str], EvidenceCodec],
+) -> str:
     """Render one stored run using only its own captured evidence.
 
     Uses the run's own stored ``projection_version``; there is no automatic
@@ -79,6 +85,7 @@ def project_run(run: AnalysisRun, options: ReplayOptions | None = None) -> str:
     Args:
         run: An already-persisted, reopened `AnalysisRun`.
         options: The requested view; defaults to the concise mode.
+        codecs: The evidence codec of each declared strategy, keyed by ``(analysis_id, method_id)``.
 
     Returns:
         The rendered text (or JSON document, when `options.mode` is JSON).
@@ -92,19 +99,21 @@ def project_run(run: AnalysisRun, options: ReplayOptions | None = None) -> str:
     if run.projection_version != _SUPPORTED_PROJECTION_VERSION:
         raise UnsupportedProjectionError(f"Unsupported projection version: {run.projection_version}.")
     if (run.analysis_id, run.method_id) == ("momentum", "sma_crossover"):
-        return _project_momentum_v1(run, resolved_options)
+        return _project_momentum_v1(run, resolved_options, codecs)
     if (run.analysis_id, run.method_id) == ("graham_number", "graham_number"):
-        return _project_graham_number_v1(run, resolved_options)
+        return _project_graham_number_v1(run, resolved_options, codecs)
     if (run.analysis_id, run.method_id) == ("graham_growth_value", "graham_growth_value"):
-        return _project_graham_growth_v1(run, resolved_options)
+        return _project_graham_growth_v1(run, resolved_options, codecs)
     if (run.analysis_id, run.method_id) == ("fcf_earnings_growth", "reported_fcf_eps_cagr"):
-        return _project_fcf_growth_v1(run, resolved_options)
+        return _project_fcf_growth_v1(run, resolved_options, codecs)
     raise UnsupportedProjectionError(
         f"No v1 replay is implemented for analysis={run.analysis_id!r}, method={run.method_id!r}."
     )
 
 
-def _project_momentum_v1(run: AnalysisRun, options: ReplayOptions) -> str:
+def _project_momentum_v1(
+    run: AnalysisRun, options: ReplayOptions, codecs: Mapping[tuple[str, str], EvidenceCodec]
+) -> str:
     """Reconstruct a Momentum presentation from stored evidence only.
 
     Identity/kind evidence comes from the envelope's own ``instrument_profile``
@@ -118,7 +127,7 @@ def _project_momentum_v1(run: AnalysisRun, options: ReplayOptions) -> str:
     # guarantees requested_config/effective_config match that same pair. Neither
     # assertion below is user-facing validation — both are internal invariants
     # already enforced elsewhere, asserted here only so mypy can narrow the type.
-    evidence = decode_evidence(run)
+    evidence = decode_evidence(run, codecs)
     assert isinstance(evidence, MomentumRun)
     selection = run.effective_config if run.effective_config is not None else run.requested_config
     assert isinstance(selection, MomentumSelection)
@@ -148,7 +157,9 @@ def _project_momentum_v1(run: AnalysisRun, options: ReplayOptions) -> str:
     return render_momentum(presentation, options.mode)
 
 
-def _project_graham_number_v1(run: AnalysisRun, options: ReplayOptions) -> str:
+def _project_graham_number_v1(
+    run: AnalysisRun, options: ReplayOptions, codecs: Mapping[tuple[str, str], EvidenceCodec]
+) -> str:
     """Reconstruct a Graham Number presentation from stored evidence only.
 
     Identity/kind evidence comes from the envelope's own ``instrument_profile``
@@ -159,7 +170,7 @@ def _project_graham_number_v1(run: AnalysisRun, options: ReplayOptions) -> str:
     # decode_evidence dispatches on (run.analysis_id, run.method_id), which project_run
     # already confirmed is Graham Number's pair; neither assertion below is user-facing
     # validation — both are internal invariants asserted here only so mypy can narrow the type.
-    evidence = decode_evidence(run)
+    evidence = decode_evidence(run, codecs)
     assert isinstance(evidence, GrahamNumberAnalysis)
 
     presentation = GrahamNumberPresentation(
@@ -174,7 +185,9 @@ def _project_graham_number_v1(run: AnalysisRun, options: ReplayOptions) -> str:
     return render_graham_number(presentation, options.mode)
 
 
-def _project_graham_growth_v1(run: AnalysisRun, options: ReplayOptions) -> str:
+def _project_graham_growth_v1(
+    run: AnalysisRun, options: ReplayOptions, codecs: Mapping[tuple[str, str], EvidenceCodec]
+) -> str:
     """Reconstruct a Graham Growth presentation from stored evidence only.
 
     ``base_pe``/``growth_multiplier``/``baseline_aaa_yield`` come from the
@@ -183,7 +196,7 @@ def _project_graham_growth_v1(run: AnalysisRun, options: ReplayOptions) -> str:
     `growth_assumptions()` settings lookup — a future change to those
     defaults must never alter what an old run replays as.
     """
-    evidence = decode_evidence(run)
+    evidence = decode_evidence(run, codecs)
     assert isinstance(evidence, GrahamGrowthAnalysis)
 
     presentation = GrahamGrowthPresentation(
@@ -201,7 +214,9 @@ def _project_graham_growth_v1(run: AnalysisRun, options: ReplayOptions) -> str:
     return render_graham_growth(presentation, options.mode)
 
 
-def _project_fcf_growth_v1(run: AnalysisRun, options: ReplayOptions) -> str:
+def _project_fcf_growth_v1(
+    run: AnalysisRun, options: ReplayOptions, codecs: Mapping[tuple[str, str], EvidenceCodec]
+) -> str:
     """Reconstruct an FCF/Earnings Growth presentation from stored evidence only.
 
     Unlike Graham, the live command applies no presentation-time label
@@ -211,7 +226,7 @@ def _project_fcf_growth_v1(run: AnalysisRun, options: ReplayOptions) -> str:
     envelope's own ``instrument_profile`` (the adapter never reads the
     analyzer's own ``result.instrument_profile`` back for rendering either).
     """
-    evidence = decode_evidence(run)
+    evidence = decode_evidence(run, codecs)
     assert isinstance(evidence, FCFEarningsGrowthResult)
     return render_fcf_earnings_growth(evidence, options.mode, instrument_profile=run.instrument_profile)
 

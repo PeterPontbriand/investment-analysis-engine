@@ -9,7 +9,8 @@ import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.core.constants import TrendStatus
-from src.data.instrument_profile import InstrumentKind, InstrumentProfile
+from src.data.financial.providers import YFINANCE_PROVIDER_ID
+from src.data.instrument_profile import InstrumentKind, InstrumentProfile, InstrumentProfileCandidate
 from src.data.market_data import MarketDataContext
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.evaluation.fixtures.market_data import FixtureDataClient
@@ -19,7 +20,7 @@ from src.strategies.momentum.analyzer import (
     MomentumMetrics,
     MomentumRun,
 )
-from src.strategies.momentum.execution import capture_momentum, run_momentum
+from src.strategies.momentum.execution import capture_momentum, compose_momentum_profile, run_momentum
 from src.strategies.momentum.presenter import _sma_spread, _sma_spread_percent
 from src.strategies.momentum.selection import MomentumSelection
 
@@ -161,3 +162,42 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     capture = capture_momentum(run)
     assert capture.run.metrics.ticker == "AAPL"
+
+
+class _RecordingCache:
+    """An instrument-profile resolver that records its arguments and returns a fixed profile."""
+
+    def __init__(self, profile: InstrumentProfile) -> None:
+        self.profile = profile
+        self.calls: list[tuple[str, tuple[InstrumentProfileCandidate, ...], InstrumentProfileCandidate | None]] = []
+
+    def resolve(
+        self,
+        ticker: str,
+        *,
+        identity_candidates: tuple[InstrumentProfileCandidate, ...],
+        kind_candidate: InstrumentProfileCandidate | None,
+        force_refresh: bool = False,
+    ) -> InstrumentProfile:
+        del force_refresh
+        self.calls.append((ticker, identity_candidates, kind_candidate))
+        return self.profile
+
+
+def test_compose_momentum_profile_uses_one_client_as_both_identity_and_kind_candidate_live() -> None:
+    client = object()
+    profile = _profile("AAPL")
+    with patch("src.strategies.momentum.execution.compose_instrument_profile", return_value=profile) as compose:
+        assert compose_momentum_profile("AAPL", data_client=client) is profile
+    candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, client)
+    compose.assert_called_once_with("AAPL", identity_candidates=(candidate,), kind_candidate=candidate)
+
+
+def test_compose_momentum_profile_resolves_through_the_cache_with_identical_candidates() -> None:
+    client = object()
+    cache = _RecordingCache(_profile("AAPL"))
+    with patch("src.strategies.momentum.execution.compose_instrument_profile") as compose:
+        assert compose_momentum_profile("AAPL", data_client=client, profile_cache=cache) is cache.profile
+    compose.assert_not_called()
+    candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, client)
+    assert cache.calls == [("AAPL", (candidate,), candidate)]

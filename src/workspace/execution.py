@@ -8,9 +8,9 @@ it does not construct or close their dependencies. A caller-composed
 or ``execute_fcf_growth``), already bound to its borrowed provider/client
 dependencies — does that. This keeps :func:`execute` identical regardless
 of which of the four methods is being run: it only needs a normalized
-:class:`ExecutionCapture` back from that callable, and dispatches evidence
-encoding through the existing :func:`src.workspace.codecs.encode_evidence`,
-which already distinguishes native result types by ``isinstance``.
+:class:`~src.workspace.capture.ExecutionCapture` back from that callable, and
+takes its versions and evidence encoder from the injected :class:`RunSpec`, so
+this module names no strategy.
 
 Ordering and error-visibility guarantees:
 
@@ -38,29 +38,30 @@ Ordering and error-visibility guarantees:
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID, uuid4
 
 from src.core.clock import utc_now
-from src.data.instrument_profile import InstrumentProfile
-from src.strategies.fcf_growth.execution import FCFGrowthCapture
-from src.strategies.graham_growth.execution import GrahamGrowthCapture
-from src.strategies.graham_number.execution import GrahamNumberCapture
-from src.strategies.momentum.execution import MomentumCapture
-from src.workspace.codecs import encode_evidence
+from src.workspace.capture import ExecutionCapture
 from src.workspace.models import RunOutcome, StrictJsonMapping
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
 from src.workspace.strategy_types import NativeEvidence
 
-_METHOD_VERSIONS: dict[tuple[str, str], tuple[int, int]] = {
-    ("momentum", "sma_crossover"): (1, 2),
-    ("graham_number", "graham_number"): (1, 1),
-    ("graham_growth_value", "graham_growth_value"): (1, 1),
-    ("fcf_earnings_growth", "reported_fcf_eps_cagr"): (2, 3),
-}
+
+@dataclass(frozen=True)
+class RunSpec:
+    """What :func:`execute` needs from one strategy: the versions it writes and its evidence encoder.
+
+    The composition root builds one per declared strategy; this module names none of them.
+    """
+
+    method_version: int
+    result_schema_version: int
+    evidence_codec_version: int
+    encode: Callable[[NativeEvidence], StrictJsonMapping]
 
 
 @dataclass(frozen=True)
@@ -79,21 +80,6 @@ class BatchContext:
     watchlist_name: str
 
 
-@dataclass(frozen=True)
-class ExecutionCapture:
-    """One method adapter's capture, normalized for envelope assembly.
-
-    ``native_evidence`` is the method's own typed result, encoded by the
-    existing :func:`~src.workspace.codecs.encode_evidence` dispatch
-    unmodified by this service.
-    """
-
-    native_evidence: NativeEvidence
-    profile: InstrumentProfile | None
-    outcome: RunOutcome
-    presentation_inputs: StrictJsonMapping = field(default_factory=dict)
-
-
 class AnalysisRunSink(Protocol):
     """The one repository capability this service needs: terminal insertion."""
 
@@ -102,34 +88,10 @@ class AnalysisRunSink(Protocol):
         ...
 
 
-def from_momentum_capture(capture: MomentumCapture) -> ExecutionCapture:
-    """Normalize a Momentum capture; Momentum has no native failure status."""
-    return ExecutionCapture(
-        native_evidence=capture.run,
-        profile=capture.run.instrument_profile,
-        outcome=RunOutcome.COMPLETED,
-        presentation_inputs=capture.presentation_inputs,
-    )
-
-
-def from_graham_number_capture(capture: GrahamNumberCapture) -> ExecutionCapture:
-    """Normalize a Graham Number capture."""
-    return ExecutionCapture(native_evidence=capture.analysis, profile=capture.profile, outcome=capture.outcome)
-
-
-def from_graham_growth_capture(capture: GrahamGrowthCapture) -> ExecutionCapture:
-    """Normalize a Graham Growth capture."""
-    return ExecutionCapture(native_evidence=capture.analysis, profile=capture.profile, outcome=capture.outcome)
-
-
-def from_fcf_growth_capture(capture: FCFGrowthCapture) -> ExecutionCapture:
-    """Normalize an FCF/Earnings Growth capture."""
-    return ExecutionCapture(native_evidence=capture.result, profile=capture.profile, outcome=capture.outcome)
-
-
 def execute(  # noqa: PLR0913
     request: AnalysisRequest,
     *,
+    spec: RunSpec,
     capture: Callable[[], ExecutionCapture],
     repository: AnalysisRunSink,
     id_factory: Callable[[], UUID] = uuid4,
@@ -140,6 +102,7 @@ def execute(  # noqa: PLR0913
 
     Args:
         request: The normalized ticker and validated method selection.
+        spec: The selection's strategy's versions and evidence encoder, from the composition root.
         capture: A zero-argument callable that runs the method adapter and
             returns its normalized capture. Invoked exactly once, timed by
             ``clock`` on both sides.
@@ -164,7 +127,6 @@ def execute(  # noqa: PLR0913
     completed_at = resolved_clock()
 
     selection = request.selection
-    method_version, result_schema_version = _METHOD_VERSIONS[(selection.analysis_id, selection.method_id)]
 
     run = AnalysisRun(
         analysis_run_id=id_factory(),
@@ -180,13 +142,13 @@ def execute(  # noqa: PLR0913
         effective_config=selection,
         started_at=started_at,
         completed_at=completed_at,
-        requested_as_of=getattr(selection, "as_of", None),
-        method_version=method_version,
-        result_schema_version=result_schema_version,
-        evidence_codec_version=1,
+        requested_as_of=selection.as_of,
+        method_version=spec.method_version,
+        result_schema_version=spec.result_schema_version,
+        evidence_codec_version=spec.evidence_codec_version,
         status=result.outcome,
         failure_reason_code="execution_failed" if result.outcome is RunOutcome.FAILED else None,
-        result_evidence=encode_evidence(result.native_evidence),
+        result_evidence=spec.encode(result.native_evidence),
         presentation_inputs=result.presentation_inputs or None,
         instrument_profile=result.profile,
     )
@@ -197,10 +159,6 @@ def execute(  # noqa: PLR0913
 __all__ = [
     "AnalysisRunSink",
     "BatchContext",
-    "ExecutionCapture",
+    "RunSpec",
     "execute",
-    "from_fcf_growth_capture",
-    "from_graham_growth_capture",
-    "from_graham_number_capture",
-    "from_momentum_capture",
 ]

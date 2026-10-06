@@ -26,6 +26,7 @@ from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profi
 from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun, RunQuery
 from src.workspace.watchlists import WatchlistSpec
+from tests._wiring import alias_for
 from tests.workspace.test_fcf_growth_codec import _run as _fcf_run
 from tests.workspace.test_graham_growth_codec import _run as _graham_growth_run
 from tests.workspace.test_graham_number_codec import _run as _graham_number_run
@@ -228,7 +229,7 @@ def test_independent_cache_and_telemetry_deletion_cannot_erase_runs(
 ) -> None:
     run = _momentum_run().model_copy(update={"analysis_run_id": MOMENTUM_ID})
     repository.insert(run)
-    watchlist_repository = SQLiteWatchlistRepository(database)
+    watchlist_repository = SQLiteWatchlistRepository(database, alias_for=alias_for)
     watchlist_repository.create(WatchlistSpec(display_name="Unrelated Watchlist"))
 
     with database.transaction() as connection:

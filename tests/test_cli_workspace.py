@@ -22,8 +22,10 @@ from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
+from src.strategy_wiring import EVIDENCE_BY_TYPE, run_spec_for
+from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import encode_evidence
-from src.workspace.execution import ExecutionCapture, execute
+from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
@@ -533,6 +535,7 @@ def _insert_momentum_run(
             repository=repository,
             id_factory=lambda: resolved_run_id,
             clock=lambda: datetime(2026, 9, 19, 12, tzinfo=UTC),
+            spec=run_spec_for(request.selection),
         )
     finally:
         database.close()
@@ -609,7 +612,7 @@ def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
         result_schema_version=1,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
-        result_evidence=encode_evidence(native),
+        result_evidence=encode_evidence(native, EVIDENCE_BY_TYPE),
     )
     database = SQLiteDatabase(src.cli_workspace.settings)
     try:
