@@ -19,6 +19,7 @@ MOMENTUM_LONG_WINDOW: Final = 3
 MOMENTUM_RSI_PERIOD: Final = 3
 MOMENTUM_SUCCESS_CLOSES: Final = (100.0, 101.0, 102.0, 103.0, 104.0)
 MOMENTUM_BOUNDARY_CLOSES: Final = MOMENTUM_SUCCESS_CLOSES[:2]
+MOMENTUM_FIRST_OBSERVATION: Final = "2026-01-02"
 
 
 def momentum_success_frame() -> pd.DataFrame:
@@ -33,8 +34,12 @@ def momentum_boundary_frame() -> pd.DataFrame:
 
 def _momentum_frame(closes: tuple[float, ...]) -> pd.DataFrame:
     """Build a fresh UTC-indexed close-price frame from immutable fixture values."""
-    index = pd.date_range("2026-01-02", periods=len(closes), freq="D", tz="UTC", name="Timestamp")
-    return pd.DataFrame({"Close": closes}, index=index)
+    return pd.DataFrame({"Close": closes}, index=_daily_utc_index(MOMENTUM_FIRST_OBSERVATION, len(closes)))
+
+
+def _daily_utc_index(start: str, periods: int) -> pd.DatetimeIndex:
+    """Return a UTC daily index of ``periods`` dates beginning on ``start``."""
+    return pd.date_range(start, periods=periods, freq="D", tz="UTC", name="Timestamp")
 
 
 class FixtureMarketDataProvider:
@@ -75,7 +80,8 @@ class FixtureDataClient(BaseDataClient):
 
         The series starts at 100.0 and grows 1 % per period, producing a
         stable rising trend for analyzer calculations. The date arguments are
-        accepted for interface compatibility; the fixture always returns 5 rows.
+        accepted for interface compatibility, except that ``start_date`` anchors the first
+        observation; the fixture always returns 5 rows on a UTC daily index.
 
         Args:
             ticker: Symbol under test.
@@ -104,7 +110,8 @@ class FixtureDataClient(BaseDataClient):
                 "Low": [close * 0.995 for close in closes],
                 "Close": closes,
                 "Volume": [1_000_000] * len(closes),
-            }
+            },
+            index=_daily_utc_index(start_date, len(closes)),
         )
 
     def fetch_current_price(self, ticker: str) -> float:
