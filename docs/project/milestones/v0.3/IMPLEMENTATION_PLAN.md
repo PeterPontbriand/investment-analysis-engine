@@ -290,7 +290,8 @@ results.
 
 ## 5. Acceptance criteria
 
-The numbers are proposed starting bars for the project owner to confirm once ASK.0 has results.
+The project owner approved these bars, and the held-out set sizes in ASK.0, on 2026-10-06. They are
+fixed before any measured run; changing one afterwards needs a new decision record.
 
 - **Traceable:** every sentence in every answer on the question set names stored evidence. Target:
   all of them.
@@ -336,4 +337,10 @@ The numbers are proposed starting bars for the project owner to confirm once ASK
 
 ## Appendix A: Decision records and history
 
-None yet.
+### A.1 Acceptance bars and set sizes approved
+
+On 2026-10-06 the project owner approved the acceptance bars in
+[Acceptance criteria](#5-acceptance-criteria) and the held-out set sizes in
+[ASK.0](#ask0--feasibility-checks): about 100 questions, 200 relevance pairs, 100 passages per
+filing question, and 200 correct plus 200 planted-error sentences. The labelling effort this implies
+was accepted. The rest of this plan remains a draft until Milestone v0.2 closes.

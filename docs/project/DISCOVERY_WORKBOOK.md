@@ -797,6 +797,7 @@ complete. See the
 | Start forecast-ledger recording in v0.3, after Step 3.5; never show entries to an investor | The evidence takes a year or more to build and nothing builds until recording starts; a prediction beside a ticker would read as advice |
 | Define the fixed-question reader's interface and measuring harness once; defer only its extraction into a package | Three jobs share it, and one definition prevents three slightly different ones |
 | Treat the no-model floor as a planned, complete outcome of v0.3 | The milestone's value should not depend on a result nobody has measured yet |
+| Approve the v0.3 acceptance bars and held-out set sizes before any measuring (2026-10-06) | A bar agreed after seeing results is not a bar |
 | A model's role over already-computed results is limited to relevance and sentence checking; revisit when the ledger has scored entries | Makes the narrowing an explicit decision with a stated trigger, not a side effect of the redesign |
 
 ---
