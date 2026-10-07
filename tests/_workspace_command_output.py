@@ -49,6 +49,7 @@ _TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[
 _TIMESTAMP_DIGITS = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?=Z|[+-]\d{2}:\d{2})")
 
 _FAILING_TICKER = "BAD"
+_ADD_DATED = ["watchlist", "add-selection", "Dated", "KO", "--as-of", "2026-08-01"]
 
 _MOMENTUM = ["--analysis", "momentum", "--short-window", "2", "--long-window", "3", "--rsi-period", "3", "--no-cache"]
 _GRAHAM_GROWTH = ["--analysis", "graham-growth", "--expected-growth", "5", "--aaa-yield", "4.5"]
@@ -105,6 +106,11 @@ _STEPS: tuple[tuple[str, list[str]], ...] = (
     ("refresh-failed-job-json", ["refresh", "Failing", "--workers", "1", "--json"]),
     ("refresh-failed-job", ["refresh", "Failing", "--workers", "1"]),
     ("runs-list-json-timestamps", ["runs", "list", "--ticker", "AAPL", "--limit", "1", "--json"]),
+    ("watchlist-create-as-of", ["watchlist", "create", "Dated", "AAPL", *_MOMENTUM, "--as-of", "2026-08-01"]),
+    ("watchlist-add-selection-as-of-graham-number", [*_ADD_DATED, "-a", "graham-number"]),
+    ("watchlist-add-selection-as-of-graham-growth", [*_ADD_DATED, *_GRAHAM_GROWTH]),
+    ("watchlist-add-selection-as-of-fcf-growth", [*_ADD_DATED, "-a", "fcf-growth"]),
+    ("watchlist-show-json-as-of-timestamps", ["watchlist", "show", "Dated", "--json"]),
     ("watchlist-rename-json-timestamps", ["watchlist", "rename", "Fresh", "Fresh Renamed", "--json"]),
     ("watchlist-delete-json-timestamps", ["watchlist", "delete", "Fresh Renamed", "--yes", "--json"]),
 )
