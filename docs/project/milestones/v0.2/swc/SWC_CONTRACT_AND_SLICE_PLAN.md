@@ -52,8 +52,8 @@ document-link check and applicable documentation checks.
 | SWC.3a | [Inject the descriptor into workspace consumers](#swc3a--workspace-consumers) | Complete | 2026-10-06 |
 | SWC.3b | [CLI tier: selection builders and refresh executors](#swc3b--cli-tier) | Complete | 2026-10-06 |
 | SWC.3c | [Move the direct commands into strategy files](#swc3c--direct-commands) | Complete | 2026-10-06 |
-| SWC.4a | [Typed failure envelope and schema generator](#swc4a--failure-envelope-and-schema-generator) | Next | |
-| SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Planned | |
+| SWC.4a | [Typed failure envelope and schema generator](#swc4a--failure-envelope-and-schema-generator) | Complete | 2026-10-06 |
+| SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Next | |
 | SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Planned | |
 | SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
@@ -433,13 +433,20 @@ version and result-schema version distinct and do not silently reinterpret histo
   stable code, and no schema generator or drift check exists.
 - **Decision:** one `FailureEnvelope` and one classifier serve the direct and workspace commands;
   `refresh --json` jobs carry a `reason_code`; `DatabaseMaintenanceReport` adopts the envelope's field
-  names. Failures are reported, never self-remediated.
-- **Scope:** `src/reporting/documents/{failure,database}.py`, `src/reporting/failure_classification.py`,
+  names. Failures are reported, never self-remediated. Momentum's window validation, which exited with code 2
+  on the direct command and raised a parameter error on the watchlist commands, reports one
+  `invalid_parameter` failure through the envelope on both ([B.10](#b10-swc4a-momentum-window-failure-2026-10-06)).
+- **Scope:** `src/reporting/documents/{__init__,failure,database}.py`, `src/reporting/failure_classification.py`,
   `src/cli_support.py`, `src/reporting/presentation.py`, the `execution_errors` call sites in the strategy
-  command files, `src/cli_workspace.py` (`--json`-aware failures), `src/cli_database.py`, `src/workspace/refresh.py`
-  (injected classifier and per-job code), one `WatchlistNotFoundError` in `src/workspace/watchlists.py`,
-  `docs/user/DATABASE.md`, a new `scripts/generate_schemas.py`, `schemas/` (failure, database report),
-  and tests T18 to T20.
+  command files (the Momentum file also holds the window check), `src/cli_workspace.py` (`--json`-aware failures),
+  `src/cli_database.py`, `src/workspace/refresh.py` (injected classifier and per-job code), one
+  `WatchlistNotFoundError` in `src/workspace/watchlists.py` and its two importers
+  (`src/data/repositories/watchlists.py`, `src/workspace/refresh.py`), `AnalysisConfigurationError` moved to the
+  classifier module with its two importers (`src/cli_composition.py`, `src/cli_health.py`),
+  `docs/user/DATABASE.md`, `docs/user/USAGE.md` and `docs/user/WORKSPACE.md` (prose that described the
+  old failure output), a new `scripts/generate_schemas.py`, `schemas/` (failure, database report), tests T18 to
+  T20 and the existing tests whose expectations the listed output changes alter
+  ([design H.23 to H.27](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h23-failure-model-classifier-and-module-homes-2026-10-06)).
 - **Branch:** `feat/swc-4a-failure-envelope`, from `main` after SWC.3c has merged.
 - **Detail:** [SWC.1 design §13 and §18](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#13-failure-envelope-contract) and the
   [structured error reporting note](STRUCTURED_ERROR_REPORTING.md).
@@ -845,3 +852,29 @@ Three decisions made while finalizing the design, recorded in the [design's Appe
   B.7 are the count at that date.
 - The project owner confirmed the `WatchlistFlags` exception to §3.2 ([design Appendix
   H.10](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)).
+
+### B.10 SWC.4a: Momentum window failure (2026-10-06)
+
+The project owner approved a scope extension to SWC.4a. Momentum's window validation reached a caller in two
+unrelated ways: the direct command echoed a message and exited with code 2 (and wrote no JSON under `--json`),
+and the watchlist builder raised a parameter error, a usage error rendered with a usage box. Both are now one
+failure:
+
+- **One check, one code.** A single function in `src/strategies/momentum/cli.py` raises `InvalidParameterError`,
+  and the shared classifier maps it to the new stable `reason_code` `invalid_parameter` with status `error`. The
+  code names a command option value rejected before any work, so it is not Momentum-specific and adds no
+  per-strategy entry to generic tooling.
+- **One sentence.** Both commands use the direct command's investor-readable wording. The watchlist builder's
+  option-named wording is removed.
+- **One report.** The failure is reported through the envelope on the direct command (`--json`: the envelope on
+  standard output; otherwise the sentence on standard error) and as the sentence on standard error from
+  `watchlist create` and `watchlist add-selection`, which have no `--json`. The exit code is 1.
+- **Order kept.** The check still runs before the `--as-of` check, and the other usage errors of the command stay
+  usage errors (exit 2).
+
+Resulting output change, in addition to [design §13.4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#134-what-changes):
+
+| Command | Before | After |
+| :--- | :--- | :--- |
+| `momentum` with an invalid window or RSI period | Message on standard error, exit 2, no JSON under `--json` | Envelope (`--json`) or the same message on standard error, exit 1, `reason_code` `invalid_parameter` |
+| `watchlist create` and `watchlist add-selection` with the same values | Usage error naming the option, exit 2 | The direct command's sentence on standard error, exit 1 |

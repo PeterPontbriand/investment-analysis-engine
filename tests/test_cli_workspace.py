@@ -195,7 +195,7 @@ def test_watchlist_create_rejects_invalid_momentum_windows() -> None:
     ]
     for flags, expected_message in cases:
         result = runner.invoke(app, ["watchlist", "create", "Bad Windows", "--analysis", "momentum", *flags, "AAPL"])
-        assert result.exit_code == 2, result.output
+        assert result.exit_code == 1, result.output
         assert expected_message in normalize_cli_output(result.output)
 
 

@@ -31,6 +31,7 @@ from src.workspace.runs import Watchlist, WatchlistEntry, WatchlistSummary
 from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import (
     StoredSelectionError,
+    WatchlistNotFoundError,
     WatchlistSpec,
     decode_selection,
     encode_selection,
@@ -40,10 +41,6 @@ from src.workspace.watchlists import (
 
 class WatchlistConflictError(ValueError):
     """A watchlist with the same normalized name already exists."""
-
-
-class WatchlistNotFoundError(ValueError):
-    """No watchlist exists with the requested name."""
 
 
 class WatchlistEntryNotFoundError(ValueError):
@@ -453,5 +450,4 @@ __all__ = [
     "SQLiteWatchlistRepository",
     "WatchlistConflictError",
     "WatchlistEntryNotFoundError",
-    "WatchlistNotFoundError",
 ]

@@ -27,6 +27,7 @@ from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.readiness import ensure_database_ready
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.yfinance import YFinanceClient
+from src.reporting.failure_classification import InvalidParameterError
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategies.momentum.execution import (
     capture_momentum,
@@ -40,18 +41,24 @@ from src.workspace.capture import ExecutionCapture
 from src.workspace.requests import AnalysisRequest
 
 
-def _check_momentum_windows(short_window: int, long_window: int, rsi_period: int) -> None:
-    """Reject invalid SMA/RSI periods exactly as the direct ``momentum`` command does."""
+def _validate_momentum_windows(short_window: int, long_window: int, rsi_period: int) -> None:
+    """Reject invalid SMA/RSI periods with investor-readable domain language.
+
+    The direct command and the watchlist builder share this check, so both report the same
+    ``invalid_parameter`` failure with the same sentence.
+    """
     if short_window <= 0:
-        raise typer.BadParameter(
-            f"short window must be positive (received {short_window}).", param_hint="--short-window"
+        raise InvalidParameterError(
+            f"Invalid momentum window: short window must be positive (received {short_window})."
         )
     if long_window <= 0:
-        raise typer.BadParameter(f"long window must be positive (received {long_window}).", param_hint="--long-window")
+        raise InvalidParameterError(f"Invalid momentum window: long window must be positive (received {long_window}).")
     if rsi_period <= 0:
-        raise typer.BadParameter(f"RSI period must be positive (received {rsi_period}).", param_hint="--rsi-period")
+        raise InvalidParameterError(f"Invalid momentum period: RSI period must be positive (received {rsi_period}).")
     if short_window >= long_window:
-        raise typer.BadParameter(f"short window ({short_window}) must be smaller than long window ({long_window}).")
+        raise InvalidParameterError(
+            f"Invalid momentum windows: short window ({short_window}) must be smaller than long window ({long_window})."
+        )
 
 
 def build_selection(flags: WatchlistFlags) -> MomentumSelection:
@@ -60,7 +67,7 @@ def build_selection(flags: WatchlistFlags) -> MomentumSelection:
     Mirrors the direct ``momentum`` command's own flags and validation exactly, so a watchlist entry behaves
     identically to running the method directly.
     """
-    _check_momentum_windows(flags.short_window, flags.long_window, flags.rsi_period)
+    _validate_momentum_windows(flags.short_window, flags.long_window, flags.rsi_period)
     return MomentumSelection(
         short_window=flags.short_window,
         long_window=flags.long_window,
@@ -135,17 +142,13 @@ def command(  # noqa: PLR0913
     """Execute SMA crossover momentum analysis over daily historical market prices."""
     requested_ticker = _resolve_ticker(ticker, ticker_option, required=False, command="momentum")
     mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
-    _validate_momentum_windows(short_window, long_window, rsi_period)
-    boundary = _parse_as_of(as_of)
-    if save_run and requested_ticker is None:
-        raise typer.BadParameter("--save-run requires an explicit ticker; the configured default ticker is not saved.")
 
     label = requested_ticker or "the configured default ticker"
     with execution_errors(
         mode=mode,
-        analysis="momentum",
-        method="sma_crossover",
+        selection_type=MomentumSelection,
         ticker=requested_ticker,
+        invalid_detail=True,
         data_error=lambda _exc: (
             f"Unable to analyze {label}: the configured market-data provider returned no usable price history."
         ),
@@ -154,6 +157,12 @@ def command(  # noqa: PLR0913
         ),
         unexpected=lambda _exc: f"Momentum analysis failed unexpectedly for {label}.",
     ):
+        _validate_momentum_windows(short_window, long_window, rsi_period)
+        boundary = _parse_as_of(as_of)
+        if save_run and requested_ticker is None:
+            raise typer.BadParameter(
+                "--save-run requires an explicit ticker; the configured default ticker is not saved."
+            )
         target_ticker = require_ticker(requested_ticker if requested_ticker is not None else _default_ticker())
         start_date = _default_history_start_date()
         data_client = YFinanceClient()
@@ -223,23 +232,3 @@ def command(  # noqa: PLR0913
             instrument_profile=embedded_profile,
         )
         typer.echo(render_momentum(presentation, mode))
-
-
-def _validate_momentum_windows(short_window: int, long_window: int, rsi_period: int) -> None:
-    """Reject invalid SMA/RSI periods with investor-readable domain language."""
-    if short_window <= 0:
-        typer.echo(f"Invalid momentum window: short window must be positive (received {short_window}).", err=True)
-        raise typer.Exit(code=2)
-    if long_window <= 0:
-        typer.echo(f"Invalid momentum window: long window must be positive (received {long_window}).", err=True)
-        raise typer.Exit(code=2)
-    if rsi_period <= 0:
-        typer.echo(f"Invalid momentum period: RSI period must be positive (received {rsi_period}).", err=True)
-        raise typer.Exit(code=2)
-    if short_window >= long_window:
-        typer.echo(
-            "Invalid momentum windows: "
-            f"short window ({short_window}) must be smaller than long window ({long_window}).",
-            err=True,
-        )
-        raise typer.Exit(code=2)

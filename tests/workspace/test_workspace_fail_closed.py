@@ -17,6 +17,7 @@ from src.workspace.refresh import refresh_watchlist
 from src.workspace.requests import parse_selection
 from src.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
 from src.workspace.strategy_types import NativeEvidence
+from tests._wiring import failure_code
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
 RUN_ID = UUID("11111111-1111-4111-8111-111111111111")
@@ -135,7 +136,9 @@ def test_a_refresh_job_whose_strategy_has_no_run_spec_fails_as_that_jobs_error()
         del ticker, chosen
         return ExecutionCapture(native_evidence=object.__new__(MomentumRun), profile=None, outcome=RunOutcome.COMPLETED)
 
-    summary = refresh_watchlist("W", watchlists=_Lookup(watchlist), repository=_Sink(), executor=executor, run_specs={})
+    summary = refresh_watchlist(
+        "W", watchlists=_Lookup(watchlist), repository=_Sink(), executor=executor, run_specs={}, classify=failure_code
+    )
     assert [result.error for result in summary.results] == [
         "No declared strategy for run spec ('momentum', 'sma_crossover')."
     ]

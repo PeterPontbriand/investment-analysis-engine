@@ -168,8 +168,7 @@ def command(  # noqa: PLR0913
     with (
         execution_errors(
             mode=mode,
-            analysis="fcf_earnings_growth",
-            method="reported_fcf_eps_cagr",
+            selection_type=FCFGrowthSelection,
             ticker=target_ticker,
             invalid=lambda exc: f"Unable to start FCF & earnings-growth analysis: {exc}",
             unexpected=lambda _exc: f"FCF & earnings-growth analysis failed unexpectedly for {target_ticker}.",

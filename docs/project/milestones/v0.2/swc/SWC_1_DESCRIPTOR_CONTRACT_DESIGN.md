@@ -733,9 +733,10 @@ key order does not matter.
 | Group | Codes | Source |
 | :--- | :--- | :--- |
 | Direct execution | `execution_error`, `historical_quality`, `provider_error`, `configuration_error`, `no_eligible_observations`, `invalid_input` | Existing, unchanged strings from `execution_errors`. `execution_error` is also the classifier's result for an exception it does not recognize. |
+| Direct execution, new | `invalid_parameter` | A command option value rejected before any work, raised as `InvalidParameterError`. Momentum's window check is its first user ([H.24](#h24-codes-beyond-this-table-2026-10-06)). |
 | Database readiness | `database_upgrade_required`, `database_incompatible_schema`, `database_busy`, `database_permission_denied`, `database_invalid_file`, `database_io_error`, `database_resources_unavailable`, `database_initialization_failed`, `database_migration_failed` | Existing `ReadinessReason` values, unchanged. |
 | Workspace, existing | `invalid_stored_run`, `unsupported_run_version` | Existing `reason_code` attributes on `InvalidStoredRunError` and `UnsupportedRunVersionError`. |
-| Workspace, new | `watchlist_not_found`, `watchlist_name_conflict`, `analysis_run_not_found`, `stored_selection_unreadable`, `unsupported_projection` | New, for the `--json` failure paths listed in [§13.4](#134-what-changes). |
+| Workspace, new | `watchlist_not_found`, `watchlist_name_conflict`, `analysis_run_not_found`, `stored_selection_unreadable`, `unsupported_projection`, `watchlist_entry_not_found` | New, for the `--json` failure paths listed in [§13.4](#134-what-changes) and for `watchlist remove-entry`, which has no `--json` ([H.24](#h24-codes-beyond-this-table-2026-10-06)). |
 
 **Stability guarantee.** A `reason_code` value is never renamed, repurposed or removed within the
 project's public contract. New values may be added; a caller must treat an unrecognised value as a
@@ -758,6 +759,7 @@ all use it, so the families cannot diverge. The model and enumeration live in th
 | 2 | `watchlist show`, `watchlist rename`, `watchlist delete`, `runs list`, `runs show`, `refresh` with `--json`, on a failure that today calls `_fail` | The `FailureEnvelope` is written to stdout and nothing to stderr (as the direct commands do in JSON mode). Exit code stays 1. For `watchlist delete`, the deletion confirmation already printed on stderr stays. |
 | 3 | `refresh --json`, each element of `results` | New key `reason_code`: a `FailureReasonCode` when `error` is set, otherwise `null`. `error` keeps its text exactly. The existing rule that exactly one of the run, the outcome and the error is set gains a fourth statement: `reason_code` is set if and only if `error` is. |
 | 4 | `db status --json` and `db upgrade --json` | `reason` (the code) is renamed `reason_code`; `message` (the prose) is renamed `reason`; `schema_version` 1 to 2. The text rendering is unchanged. |
+| 5 | `momentum` with an invalid window or RSI period; `watchlist create` and `watchlist add-selection` with the same values | One `invalid_parameter` failure with one sentence, reported through the envelope on `momentum` and as that sentence on the watchlist commands, which have no `--json`. Exit code 2 becomes 1 on both ([plan B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-momentum-window-failure-2026-10-06)). |
 
 Unchanged: every strategy success document; the watchlist, delete-outcome, `runs list` and `runs show`
 success documents; text modes of every command; commands without `--json`; usage errors (exit 2,
@@ -1966,3 +1968,86 @@ imports, the removed decorator, the name `command`, and `maybe_save_run` for `_m
 converters are deleted and the FCF command calls the ones SWC.3b moved. `_validate_momentum_windows` moved to
 `src/strategies/momentum/cli.py` beside the builder's `_check_momentum_windows`, which it keeps apart (it echoes and
 exits with code 2). The edit-site count is unchanged at 19: the `command` member and its tier entry are inside rows 9 and 10.
+
+### H.23 Failure model, classifier and module homes (2026-10-06)
+
+Decided while implementing SWC.4a.
+
+- **Homes.** `FailureReasonCode`, `FailureEnvelope` and its two nested models are in the leaf module
+  `src/reporting/documents/failure.py`, with `status_for`, the one function that derives a status from a code. The
+  envelope's validator rejects a status that does not follow from its code and `database` on a code that is not a
+  `database_*` code. `DatabaseMaintenanceReport` is a frozen pydantic model in `src/reporting/documents/database.py`,
+  with the field order of the dataclass it replaces, so `db status --json` keeps its key order.
+- **The classifier** is `classify_failure` in `src/reporting/failure_classification.py`: a closed, ordered tuple of
+  `(exception type, code)` rules (most specific first, `ValueError` last) plus the readiness branch, which maps
+  `ReadinessReason` by value. `failure_envelope` builds the envelope from a code, a sentence and the exception that
+  caused it, which is where the diagnostics and the `database` facts come from.
+- **Two exceptions live beside the table.** `AnalysisConfigurationError` moved from `src/cli_support.py` to the classifier
+  module, because a classifier under `src/reporting` cannot import the CLI layer without a cycle, and
+  `InvalidParameterError` is new there. `src/cli_composition.py` and `src/cli_health.py` import the first from its new
+  home; no re-export is left behind.
+- **`refresh_watchlist` takes the classifier as the required keyword `classify`,** a `Callable[[BaseException], str]`,
+  so `src/workspace` imports nothing from `src/reporting`. `RefreshJobResult.reason_code` is a string, set if and only if
+  `error` is; `error` keeps `str(exception)`, and the code is classified from the same object.
+- **`execution_errors` takes the command's selection class** (`selection_type`) in place of the `analysis` and `method` strings, and
+  reads the two fixed identifiers the class already declares. The six literal id pairs are gone; no edit site is added, because a
+  strategy already writes its selection class. The `analysis == "momentum"` test is replaced by the keyword
+  `invalid_detail`, which only the Momentum call passes.
+- **Direct-command behavior is preserved exactly.** The classifier maps every provider failure to `provider_error` and every
+  plain `ValueError` to `invalid_input`; `execution_errors` then applies the rules it always applied: a provider failure
+  without a `data_error` callback falls through to the `ValueError` case, a `ValueError` without an `invalid` callback is an
+  unexpected failure, and a workspace code raised inside a direct command (an `InvalidStoredRunError` while saving a run)
+  is still reported as `invalid_input`. A plain `ValueError` shows the generic sentence unless `invalid_detail` is set or
+  no `mode` is given.
+
+### H.24 Codes beyond this table (2026-10-06)
+
+Two codes were added to [§13.3](#133-reason-codes-and-stability), by addition only, which its stability guarantee permits:
+
+- `invalid_parameter`, approved by the project owner with the Momentum scope extension ([plan B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-momentum-window-failure-2026-10-06)).
+- `watchlist_entry_not_found`, a gap in the slice: `watchlist remove-entry` reports `WatchlistEntryNotFoundError`
+  through the same classifier, and no listed code described it. The command has no `--json`, so only the classifier and the
+  enumeration are affected.
+
+`analysis_run_not_found` and a stored run's malformed envelope (`invalid_stored_run` from a plain `ValueError`) have no
+exception type of their own to classify, so `runs show` states the code at the failure site; T18 lists
+`analysis_run_not_found` as the one code raised only from command context.
+
+### H.25 The schema generator (2026-10-06)
+
+`scripts/generate_schemas.py` holds a two-entry table of file name and model, because the shared table `JSON_DOCUMENTS`
+in `src/reporting/json_documents.py` is SWC.4c's; SWC.4b and SWC.4c extend this table and SWC.4c may move it. `--check`
+reports each missing or stale file with the T20 sentence and writes nothing. The comparison is by bytes; `.gitattributes`
+stores the files with line feeds on every platform.
+
+### H.26 Files outside the plan's original scope list, and why (2026-10-06)
+
+The plan's SWC.4a scope now lists each of these.
+
+- `src/data/repositories/watchlists.py` and `src/workspace/refresh.py`: import the one `WatchlistNotFoundError` and drop their
+  own, and `src/workspace/refresh.py` stops exporting it.
+- `src/cli_composition.py`, `src/cli_health.py`: [H.23](#h23-failure-model-classifier-and-module-homes-2026-10-06).
+- `src/strategies/momentum/cli.py`: holds the one window check.
+- `docs/user/USAGE.md`, `docs/user/WORKSPACE.md`: stated the old failure output (stdout empty on a `--json` failure of
+  `watchlist rename` and `watchlist delete`; one failure document for the direct commands only).
+- Tests that asserted the old output: `tests/test_cli.py`, `tests/test_cli_workspace.py`, `tests/test_cli_database.py`,
+  `tests/test_cli_database_readiness.py`, `tests/test_cli_refresh.py`, `tests/test_existing_strategy_failure_output.py`,
+  and the callers of `refresh_watchlist` (`tests/workspace/test_refresh.py`, `tests/workspace/test_workspace_fail_closed.py`,
+  `tests/data/repositories/test_watchlist_repository.py`) through the new `failure_code` helper in `tests/_wiring.py`.
+
+### H.27 Output changes and the check that success output is unchanged (2026-10-06)
+
+Changed output, all of it a failure document or the database report; each is listed in [§13.4](#134-what-changes) or
+[plan B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-momentum-window-failure-2026-10-06):
+
+1. A direct command's `--json` failure: `schema_version` 6, new key `database` (`null` unless a `database_*` code).
+2. `watchlist show`, `rename`, `delete`, `runs list`, `runs show` and `refresh` with `--json`, on a failure: the envelope on
+   standard output and nothing on standard error (the delete and rename confirmations stay on standard error).
+3. `refresh --json`: new key `reason_code` in every result (`null` on success).
+4. `db status --json` and `db upgrade --json`: `reason` is `reason_code`, `message` is `reason`, `schema_version` 2.
+5. Momentum's window check, on `momentum`, `watchlist create` and `watchlist add-selection`: exit 1, one sentence.
+
+No stored output file changed: the eight files under `tests/expected_output/direct_commands/` and the five under
+`tests/expected_output/cli_help/` are byte-identical, and none was regenerated. Both comparisons run in the default test
+run and pass unchanged, which is the check that no success document and no help text changed. Text modes of every command,
+usage errors other than Momentum's window check, and every strategy success document are unchanged.

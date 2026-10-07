@@ -1,0 +1,134 @@
+{
+  "$defs": {
+    "FailureReasonCode": {
+      "description": "Stable failure categories a caller may branch on.\n\nA value is never renamed, repurposed or removed within the public contract. New values may be\nadded, so a caller must treat an unrecognized value as a generic failure and use ``status`` for the\ncategory.",
+      "enum": [
+        "execution_error",
+        "historical_quality",
+        "provider_error",
+        "configuration_error",
+        "no_eligible_observations",
+        "invalid_input",
+        "invalid_parameter",
+        "database_upgrade_required",
+        "database_incompatible_schema",
+        "database_busy",
+        "database_permission_denied",
+        "database_invalid_file",
+        "database_io_error",
+        "database_resources_unavailable",
+        "database_initialization_failed",
+        "database_migration_failed",
+        "invalid_stored_run",
+        "unsupported_run_version",
+        "watchlist_not_found",
+        "watchlist_entry_not_found",
+        "watchlist_name_conflict",
+        "analysis_run_not_found",
+        "stored_selection_unreadable",
+        "unsupported_projection"
+      ],
+      "title": "FailureReasonCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Versioned maintenance evidence independent of analysis-result documents.\n\nVersion 2 renamed the stable code from ``reason`` to ``reason_code`` and the sentence from\n``message`` to ``reason``. A reader of version 1 that branches on ``reason`` would silently read a\nsentence, so check ``schema_version`` first.",
+  "properties": {
+    "command": {
+      "enum": [
+        "db status",
+        "db upgrade"
+      ],
+      "title": "Command",
+      "type": "string"
+    },
+    "current_revision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Current Revision"
+    },
+    "database_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Database Path"
+    },
+    "expected_revision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Expected Revision"
+    },
+    "reason": {
+      "description": "A sentence for people; not stable.",
+      "title": "Reason",
+      "type": "string"
+    },
+    "reason_code": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FailureReasonCode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The stable code, or null when there is none."
+    },
+    "schema_version": {
+      "const": 2,
+      "default": 2,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "state": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "State"
+    },
+    "status": {
+      "description": "Whether the operation ran, not whether it succeeded.",
+      "enum": [
+        "success",
+        "error"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "command",
+    "status",
+    "database_path",
+    "state",
+    "current_revision",
+    "expected_revision",
+    "reason_code",
+    "reason"
+  ],
+  "title": "DatabaseMaintenanceReport",
+  "type": "object"
+}

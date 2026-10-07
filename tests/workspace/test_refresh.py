@@ -31,11 +31,12 @@ from src.workspace.refresh import (
     RefreshJobResult,
     RefreshPolicy,
     RefreshSummary,
-    WatchlistNotFoundError,
     refresh_watchlist,
 )
 from src.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
 from src.workspace.strategy_types import AnalysisSelection
+from src.workspace.watchlists import WatchlistNotFoundError
+from tests._wiring import failure_code
 
 WATCHLIST_ID = UUID("11111111-1111-4111-8111-111111111111")
 NOW = datetime(2026, 9, 19, 12, 0, 0, tzinfo=UTC)
@@ -114,6 +115,7 @@ def test_refresh_watchlist_raises_for_missing_watchlist() -> None:
             repository=_FakeSink(),
             executor=_momentum_only_executor,
             run_specs=RUN_SPECS_BY_KEY,
+            classify=failure_code,
         )
 
 
@@ -126,6 +128,7 @@ def test_refresh_watchlist_raises_for_empty_membership() -> None:
             repository=_FakeSink(),
             executor=_momentum_only_executor,
             run_specs=RUN_SPECS_BY_KEY,
+            classify=failure_code,
         )
 
 
@@ -138,6 +141,7 @@ def test_refresh_watchlist_raises_for_zero_selections() -> None:
             repository=_FakeSink(),
             executor=_momentum_only_executor,
             run_specs=RUN_SPECS_BY_KEY,
+            classify=failure_code,
         )
 
 
@@ -169,6 +173,7 @@ def test_refresh_watchlist_iterates_member_then_selection_position_order() -> No
         executor=executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     assert [(r.ticker, r.method_id) for r in summary.results] == [
@@ -190,6 +195,7 @@ def test_refresh_watchlist_stamps_shared_refresh_and_watchlist_identity() -> Non
         refresh_id_factory=lambda: UUID("22222222-2222-4222-8222-222222222222"),
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     assert summary.refresh_id == UUID("22222222-2222-4222-8222-222222222222")
@@ -218,6 +224,7 @@ def test_refresh_watchlist_isolates_one_jobs_executor_exception() -> None:
         executor=executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     assert [r.ticker for r in summary.results] == ["AAPL", "BROKEN", "MSFT"]
@@ -242,6 +249,7 @@ def test_refresh_watchlist_isolates_one_jobs_persistence_failure() -> None:
         executor=_momentum_only_executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     failed, succeeded = summary.results
@@ -265,6 +273,7 @@ def test_refresh_watchlist_repeated_calls_produce_distinct_runs() -> None:
         executor=_momentum_only_executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
     second = refresh_watchlist(
         "My Watch",
@@ -273,6 +282,7 @@ def test_refresh_watchlist_repeated_calls_produce_distinct_runs() -> None:
         executor=_momentum_only_executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     assert first.refresh_id != second.refresh_id
@@ -305,6 +315,7 @@ def test_refresh_watchlist_persists_each_job_before_the_next_executes() -> None:
         executor=executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     assert events == [
@@ -330,6 +341,7 @@ def test_refresh_watchlist_with_save_false_executes_but_persists_nothing() -> No
         save=False,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     assert [r.ticker for r in summary.results] == ["AAPL", "MSFT"]
@@ -358,6 +370,7 @@ def test_refresh_watchlist_with_save_false_still_isolates_one_jobs_executor_exce
         save=False,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     assert [r.ticker for r in summary.results] == ["AAPL", "BROKEN", "MSFT"]
@@ -381,7 +394,7 @@ def test_refresh_summary_counts_by_outcome() -> None:
         results=(
             RefreshJobResult(ticker="AAPL", method_id="sma_crossover", run=completed_run),
             RefreshJobResult(ticker="MSFT", method_id="sma_crossover", run=failed_run),
-            RefreshJobResult(ticker="KO", method_id="sma_crossover", error="boom"),
+            RefreshJobResult(ticker="KO", method_id="sma_crossover", error="boom", reason_code="execution_error"),
             RefreshJobResult(ticker="GE", method_id="sma_crossover", outcome=RunOutcome.UNAVAILABLE),
         ),
     )
@@ -514,6 +527,7 @@ def test_g2_bounds_admission_and_gates_replacement_on_persisted_completion() -> 
                 policy=RefreshPolicy(workers=2),
                 clock=lambda: NOW,
                 run_specs=RUN_SPECS_BY_KEY,
+                classify=failure_code,
             )
         )
     )
@@ -568,6 +582,7 @@ def test_g2_preserves_snapshot_order_despite_out_of_order_completion() -> None:
                 policy=RefreshPolicy(workers=2),
                 clock=lambda: NOW,
                 run_specs=RUN_SPECS_BY_KEY,
+                classify=failure_code,
             )
         )
     )
@@ -614,6 +629,7 @@ def test_g2_repository_insert_always_runs_on_the_calling_thread_not_a_worker() -
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     assert insert_thread_ids == {caller_thread_id}
@@ -638,6 +654,7 @@ def test_g2_persists_worker_measured_timing_via_replay_clock() -> None:
         policy=RefreshPolicy(workers=2),
         clock=clock,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     run = summary.results[0].run
@@ -663,6 +680,7 @@ def test_g2_isolates_one_jobs_executor_exception() -> None:
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     assert [r.ticker for r in summary.results] == ["AAPL", "BROKEN", "MSFT"]
@@ -687,6 +705,7 @@ def test_g2_isolates_one_jobs_persistence_failure() -> None:
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     results_by_ticker = {r.ticker: r for r in summary.results}
@@ -707,6 +726,7 @@ def test_g2_workers_greater_than_job_count_runs_every_job_without_error() -> Non
         policy=RefreshPolicy(workers=4),
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
     assert len(summary.results) == 1
     assert summary.results[0].run is not None
@@ -726,6 +746,7 @@ def test_g2_with_save_false_executes_but_persists_nothing() -> None:
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     assert {r.ticker for r in summary.results} == {"AAPL", "MSFT"}
@@ -802,6 +823,7 @@ def test_g2_concurrent_refresh_saves_are_visible_to_another_connection_before_th
                     policy=RefreshPolicy(workers=2),
                     clock=lambda: NOW,
                     run_specs=RUN_SPECS_BY_KEY,
+                    classify=failure_code,
                 )
             )
         )
@@ -851,6 +873,7 @@ def test_g3_sequential_refresh_admits_nothing_when_already_cancelled() -> None:
         clock=lambda: NOW,
         cancellation=already_cancelled,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     assert summary.results == ()
@@ -873,6 +896,7 @@ def test_g3_sequential_refresh_stops_admitting_once_cancelled_mid_batch() -> Non
         clock=lambda: NOW,
         cancellation=cancellation,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     # AAPL was already admitted when cancellation fired inside its own executor
@@ -895,6 +919,7 @@ def test_g3_concurrent_refresh_admits_nothing_when_already_cancelled() -> None:
         clock=lambda: NOW,
         cancellation=already_cancelled,
         run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
 
     assert summary.results == ()
@@ -920,6 +945,7 @@ def test_g3_concurrent_refresh_stops_admitting_and_lets_running_jobs_settle() ->
                 clock=lambda: NOW,
                 cancellation=cancellation,
                 run_specs=RUN_SPECS_BY_KEY,
+                classify=failure_code,
             )
         )
     )
