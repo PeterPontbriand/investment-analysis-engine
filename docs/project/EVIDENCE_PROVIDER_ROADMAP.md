@@ -42,7 +42,7 @@ originally raised (see "Suggested priorities" below) — all three before
 [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)'s
 seven new analyzers land. Step 3.5 (plan accepted) covers Piotroski F-Score, Altman Z-Score and Z'',
 Beneish M-Score, EV/EBITDA and FCF yield, the Greenblatt Magic Formula ranking, Interest Coverage,
-and ROIC / incremental ROIC. [Step 4.1](MASTER_PLAN.md#milestone-v03-analytics-expansion--canadian-localization)
+and ROIC / incremental ROIC. [Step 4.1](MASTER_PLAN.md#milestone-v04-analytics-expansion--canadian-localization)
 lists price-to-cash-flow/price-to-free-cash-flow screens as committed scope, with cash-conversion
 quality, point-in-time estimate revisions, growth-adjusted cash-flow valuation, and leverage
 and earnings stability named as candidates subject to separate approval; Step 4.2 covers further
@@ -139,7 +139,7 @@ inputs.
 | Price and market structure | Momentum variants | 12-minus-1-month momentum, 52-week-high proximity, time-series momentum, trend with hysteresis | Step 4.2 is the general "additional technical indicators" step (its own named examples are RSI/EMA/MACD); these specific variants are not separately named and would need their own specification under 4.2's "only when explicitly selected and specified" gate | Yes |
 | Price and market structure | Abnormal events | Price gaps and volume spikes vs. the stock's own history | New | Yes |
 | Price and market structure | Momentum series API | A pure, vectorized function returning the full computed series (SMA short/long, RSI, crossover) beneath the existing snapshot API; Momentum only | New — formerly IR.3, moved out of [IR](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#moved-out-momentum-series-api-formerly-ir3) on 2026-09-30. Trigger to revisit: a consumer that needs Momentum at many dates in one series; per-date `--as-of` evaluation re-reads the cached history, re-runs the quality checks and rebuilds per-observation provenance on every call, so its cost grows roughly with the square of the history length. That consumer's needs must answer four questions first: how warm-up rows are represented without NaN; whether quality checks apply per row or once; whether rows carry provenance; and the output shape | Yes |
-| Filing behavior and ownership | Filing red flags | Late-filing notices, 8-K Item 4.01 auditor changes, Item 5.02 departures, going-concern language, amendment frequency | New | Yes |
+| Filing behavior and ownership | Filing red flags | Late-filing notices, 8-K Item 4.01 auditor changes, Item 5.02 departures, going-concern language, amendment frequency | Drafted for Milestone v0.3: the [v0.3 plan](milestones/v0.3/IMPLEMENTATION_PLAN.md#fr1--filing-events) covers the record-based checks as FR.1 and going-concern language as FR.2; not approved until that plan is | Yes |
 | Filing behavior and ownership | Insider activity (Form 4) | Net insider buying, cluster buys, purchases vs. option exercises | New | Yes |
 | Filing behavior and ownership | Large holders (13D/13G, 13F) | Activist stakes; institutional changes with the 45-day 13F lag encoded | New | Partial |
 | Filing behavior and ownership | Buybacks executed vs. authorized | Whether announced programs happen | New | Partial |
