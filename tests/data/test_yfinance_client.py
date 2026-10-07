@@ -30,6 +30,14 @@ class TestFetchData:
 
         assert not any(record.levelno >= logging.ERROR for record in caplog.records)
 
+    def test_daily_download_passes_ignore_tz_explicitly(self) -> None:
+        """ESC-26: daily frames must not depend on the library's default for dropping the timezone."""
+        frame = pd.DataFrame({"Close": [100.0]}, index=pd.to_datetime(["2026-08-19"]))
+        with patch("src.data.yfinance.client.yf.download", return_value=frame) as mock_download:
+            YFinanceClient().fetch_data("TEST", "2026-01-01")
+
+        assert mock_download.call_args.kwargs["ignore_tz"] is True
+
     def test_context_retains_daily_interval_date_currency_and_observation_count(self) -> None:
         frame = pd.DataFrame(
             {"Close": [100.0, 101.0, 102.0]},

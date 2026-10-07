@@ -68,6 +68,8 @@ uv run ian momentum AAPL --no-cache
 
 The result reports the latest observation that remained after the boundary was applied, not the boundary you requested. A date-only boundary includes that whole day.
 
+`data_as_of` and each price observation's `observed_at` are exchange-local trading dates. A daily series stamped at local midnight in its own timezone is read by those local calendar dates, so each observation is reported as that date at 00:00 UTC, the same form a timezone-naive series produces, and a date-only `--as-of` includes the bars dated on or before that date in the exchange's calendar. A series with any bar at another time of day keeps the exact instants its provider supplied. One case is not corrected: a daily bar stamped as the UTC instant of a non-UTC local midnight (for example 15:00 UTC for a Tokyo date), because the series does not carry the exchange's timezone.
+
 `--as-of` runs fetch history only up to the boundary, so they are cached separately from live runs, and an invalid price dated after the boundary does not affect them. The one exception is a provider that stamps a daily price later in its date than the boundary time; Yahoo stamps daily prices at midnight, so it does not apply to them.
 
 Provider-adjusted prices are revised retroactively: splits and dividends restate history. An `--as-of` result is therefore filtered to a date but reflects today's adjusted view of the prices on that date, not the prices as they would have looked then. See [look-ahead bias](../GLOSSARY.md#look-ahead-bias).

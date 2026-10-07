@@ -119,3 +119,16 @@ the last run: `.tmp/quality-runs/20261001105634-1675-8783/`.
   when the data was valid. The failure path was exercised identically on both revisions during the bad
   window.
 - Momentum on the Canadian and crypto tickers is covered by pairs, not by arithmetic checks.
+
+## 7. Date semantics of zoned daily frames — 2026-10-06
+
+Decisions by the project owner for [ESC-26](ESC_A_DEFECT_LEDGER.md#esc-26--momentum-reports-the-utc-date-of-a-zoned-daily-bar-not-its-local-calendar-date) (issue #87). They replace the two options the ledger entry proposed; this section records what was decided and leaves section 3 as written.
+
+- **D1.** In `MomentumInputResolver`, a timezone-aware index whose every bar is at local midnight in its own zone is reduced to its local calendar dates by dropping the zone, not converting it, before the `--as-of` truncation and before provenance is built. Any other index (naive, or with any bar not at local midnight) keeps its converted instants. A zoned daily frame then behaves exactly as a naive frame with the same local dates.
+- **D2.** `data_as_of` is the frame's last local calendar date. `observed_at` for a reduced frame is that local date at 00:00 UTC, the form naive frames already produce. This change to `observed_at` is intended.
+- **D3.** `yf.download` passes `ignore_tz=True` explicitly, so daily frames do not depend on the library's default. Checked before the change: yfinance 1.3.0 (the project floor; wheel read in the scratchpad, not installed) and the locked 1.6.0 both accept `ignore_tz` and default it to true for daily intervals, so the explicit argument is defensive and changes no behaviour at either version.
+- **D4.** `AnalysisContext` and the CLI's handling of `--as-of` are unchanged.
+- **D5.** The Momentum user documentation states that `data_as_of` and `observed_at` are exchange-local trading dates; this section is the decision record.
+- **D6.** The repair closes issue #87 and ESC-26.
+
+Remaining limit: a daily bar stamped as the UTC instant of a non-UTC local midnight (for example 15:00 UTC for a Tokyo date) is not corrected, because the frame does not carry the exchange's zone. Production daily frames are timezone-naive (`ignore_tz=True`), so the limit applies only to a custom provider or stored frame that stamps bars that way.
