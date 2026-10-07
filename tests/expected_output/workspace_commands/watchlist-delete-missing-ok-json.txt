@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+{"requested_name": "Nowhere", "deleted": false, "watchlist": null}
+--- stderr
+

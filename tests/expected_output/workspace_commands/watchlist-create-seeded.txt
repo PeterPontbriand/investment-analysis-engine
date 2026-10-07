@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+Watchlist: Seeded ID: <uuid> Entries (2): AAPL: [1] momentum: as_of=None, long_window=3, rsi_period=3, short_window=2, use_cache=False MSFT: [2] momentum: as_of=None, long_window=3, rsi_period=3, short_window=2, use_cache=False
+--- stderr
+

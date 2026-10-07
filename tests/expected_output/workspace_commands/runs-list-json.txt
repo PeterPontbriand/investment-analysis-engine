@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+[{"analysis_run_id": "<uuid>", "ticker": "MSFT", "method_id": "sma_crossover", "status": "completed", "completed_at": "<time>", "refresh_id": "<uuid>"}, {"analysis_run_id": "<uuid>", "ticker": "AAPL", "method_id": "sma_crossover", "status": "completed", "completed_at": "<time>", "refresh_id": "<uuid>"}, {"analysis_run_id": "<uuid>", "ticker": "MSFT", "method_id": "sma_crossover", "status": "completed", "completed_at": "<time>", "refresh_id": "<uuid>"}, {"analysis_run_id": "<uuid>", "ticker": "AAPL", "method_id": "sma_crossover", "status": "completed", "completed_at": "<time>", "refresh_id": "<uuid>"}]
+--- stderr
+

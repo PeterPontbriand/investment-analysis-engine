@@ -373,16 +373,16 @@ def test_cli_momentum_analysis_failure_does_not_expose_internal_text(mock_run: M
 def test_cli_momentum_rejects_reversed_windows_specifically() -> None:
     result = runner.invoke(app, ["momentum", "AAPL", "--short-window", "30", "--long-window", "10"])
 
-    assert result.exit_code == 2
-    assert "short window (30) must be smaller than long window (10)" in result.output
+    assert result.exit_code == 1
+    assert "--short-window (30) must be smaller than --long-window (10)" in result.output
     assert "available price history" not in result.output
 
 
 def test_cli_momentum_rejects_non_positive_window_specifically() -> None:
     result = runner.invoke(app, ["momentum", "AAPL", "--short-window", "0", "--long-window", "30"])
 
-    assert result.exit_code == 2
-    assert "short window must be positive (received 0)" in result.output
+    assert result.exit_code == 1
+    assert "--short-window must be positive (received 0)" in result.output
 
 
 def test_cli_momentum_help_explains_daily_windows_and_defaults() -> None:

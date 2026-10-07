@@ -140,12 +140,13 @@ def test_refresh_missing_watchlist_exits_1() -> None:
     assert "No watchlist named" in normalize_cli_output(result.output)
 
 
-def test_refresh_empty_target_is_a_usage_error() -> None:
+def test_refresh_empty_target_is_a_failure_exiting_1() -> None:
     _create("My Watch")
 
     result = runner.invoke(app, ["refresh", "My Watch"])
-    assert result.exit_code == 2
-    assert "nothing to refresh" in normalize_cli_output(result.output)
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert "nothing to refresh" in normalize_cli_output(result.stderr)
 
 
 def test_refresh_rejects_an_out_of_range_worker_count() -> None:
@@ -338,6 +339,8 @@ def test_refresh_json_emits_one_stable_final_document(mock_run: MagicMock) -> No
     assert payload["results"][0]["ticker"] == "AAPL"
     assert payload["results"][0]["status"] == "completed"
     assert payload["results"][0]["analysis_run_id"] is not None
+    assert payload["results"][0]["error"] is None
+    assert payload["results"][0]["reason_code"] is None
     assert payload["counts"] == {"completed": 1}
 
 
@@ -476,6 +479,7 @@ def test_refresh_no_save_json_reports_saved_false_and_a_null_run_id(mock_run: Ma
     assert payload["results"][0]["saved"] is False
     assert payload["results"][0]["analysis_run_id"] is None
     assert payload["results"][0]["status"] == "completed"
+    assert payload["results"][0]["reason_code"] is None
     assert payload["counts"] == {"completed": 1}
 
 
@@ -560,17 +564,19 @@ def test_delete_prompt_shows_the_entry_count_without_decoding_unreadable_entries
     assert _stored_tickers() == ["AAPL", "MSFT"]
 
 
-def test_delete_json_with_an_unreadable_entry_deletes_prints_no_stdout_and_exits_1() -> None:
+def test_delete_json_with_an_unreadable_entry_deletes_reports_the_failure_envelope_and_exits_1() -> None:
     _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
 
     result = runner.invoke(app, ["watchlist", "delete", "Old Watch", "--yes", "--json"])
 
     assert result.exit_code == 1
-    assert result.stdout == ""
-    message = normalize_cli_output(result.stderr)
-    assert message.startswith("Deleted watchlist 'Old Watch' (ID ")
-    assert "2 entries). Saved Analysis Runs are kept." in message
-    assert "entry 2 (MSFT, momentum): saved by an earlier version" in message
+    confirmation = normalize_cli_output(result.stderr)
+    assert confirmation.startswith("Deleted watchlist 'Old Watch' (ID ")
+    assert confirmation.endswith("2 entries). Saved Analysis Runs are kept.")
+    envelope = json.loads(result.stdout)
+    assert envelope["reason_code"] == "stored_selection_unreadable"
+    assert envelope["status"] == "error"
+    assert "entry 2 (MSFT, momentum): saved by an earlier version" in normalize_cli_output(envelope["reason"])
     assert _stored_tickers() == []
 
 
@@ -615,13 +621,13 @@ def test_rename_commits_when_an_entry_is_unreadable_and_remove_entry_then_restor
     assert "MSFT" not in shown.output
 
 
-def test_rename_json_with_an_unreadable_entry_renames_prints_no_stdout_and_exits_1() -> None:
+def test_rename_json_with_an_unreadable_entry_renames_reports_the_failure_envelope_and_exits_1() -> None:
     _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
 
     result = runner.invoke(app, ["watchlist", "rename", "Old Watch", "Renamed", "--json"])
 
     assert result.exit_code == 1
-    assert result.stdout == ""
-    message = normalize_cli_output(result.stderr)
-    assert message.startswith("Renamed watchlist 'Old Watch' to 'Renamed'.")
-    assert "entry 2 (MSFT, momentum): saved by an earlier version" in message
+    assert normalize_cli_output(result.stderr) == "Renamed watchlist 'Old Watch' to 'Renamed'."
+    envelope = json.loads(result.stdout)
+    assert envelope["reason_code"] == "stored_selection_unreadable"
+    assert "entry 2 (MSFT, momentum): saved by an earlier version" in normalize_cli_output(envelope["reason"])

@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+Core (<uuid>): 4 entries Seeded (<uuid>): 2 entries
+--- stderr
+

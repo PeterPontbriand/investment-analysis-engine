@@ -15,22 +15,42 @@ from src.data.base_client import DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.financial.cache import ResolvedInputSeriesCacheProtocol
 from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
-from src.data.market_data import NoEligibleObservationsError
-from src.data.quality import DataQualityError, HistoricalDataQualityError, HistoricalQualityPolicy, QualityOutcome
+from src.data.quality import DataQualityError, HistoricalQualityPolicy
 from src.data.repositories import (
     SQLiteDatabase,
     SQLiteInstrumentProfileRepository,
     SQLiteMarketDataRepository,
     SQLiteResolvedInputCache,
 )
-from src.data.repositories.readiness import DatabaseReadinessError, ensure_database_ready
+from src.data.repositories.readiness import ensure_database_ready
 from src.data.yfinance import YFinanceClient
 from src.data.yfinance.client import YFINANCE_HISTORICAL_INTERVAL, YFINANCE_PRICE_ADJUSTMENT
-from src.reporting.presentation import PresentationMode, analysis_failure_document
+from src.reporting.documents.failure import FailureReasonCode
+from src.reporting.failure_classification import classify_failure, failure_envelope
+from src.reporting.presentation import PresentationMode, failure_document
+from src.workspace.selection_base import FrozenSelection
 
+_DIRECT_CODES = frozenset(
+    {
+        FailureReasonCode.EXECUTION_ERROR,
+        FailureReasonCode.HISTORICAL_QUALITY,
+        FailureReasonCode.PROVIDER_ERROR,
+        FailureReasonCode.CONFIGURATION_ERROR,
+        FailureReasonCode.NO_ELIGIBLE_OBSERVATIONS,
+        FailureReasonCode.INVALID_INPUT,
+        FailureReasonCode.INVALID_PARAMETER,
+    }
+)
 
-class AnalysisConfigurationError(ValueError):
-    """Safe operator-facing configuration guidance authored by the application."""
+# Failures whose own message was written to be shown: the database and quality sentences, and the
+# command's own parameter guidance. No other exception's text is shown by default.
+_SHOWN_AS_RAISED = frozenset(
+    {
+        FailureReasonCode.HISTORICAL_QUALITY,
+        FailureReasonCode.NO_ELIGIBLE_OBSERVATIONS,
+        FailureReasonCode.INVALID_PARAMETER,
+    }
+)
 
 
 @contextmanager
@@ -176,37 +196,53 @@ def _parse_as_of(value: str | None) -> datetime | None:
     return parsed
 
 
+def _selection_identity(selection_type: type[FrozenSelection] | None) -> tuple[str | None, str | None]:
+    """Return the fixed analysis and method identifiers a selection class declares, or ``None`` for both."""
+    if selection_type is None:
+        return None, None
+    fields = selection_type.model_fields
+    return str(fields["analysis_id"].default), str(fields["method_id"].default)
+
+
 @contextmanager
 def execution_errors(  # noqa: PLR0912, PLR0913
     *,
     unexpected: Callable[[Exception], str],
     invalid: Callable[[ValueError], str] | None = None,
+    invalid_detail: bool = False,
     data_error: Callable[[DataFetchError | DataQualityError], str] | None = None,
     mode: PresentationMode | None = None,
-    analysis: str = "unknown",
-    method: str = "unknown",
+    selection_type: type[FrozenSelection] | None = None,
     ticker: str | None = None,
 ) -> Iterator[None]:
-    """Translate execution failures while preserving deliberate CLI exits."""
+    """Translate execution failures while preserving deliberate CLI exits.
+
+    The code and status of a failure come from :func:`classify_failure`, shared with the workspace
+    commands. The callbacks only choose the sentence shown: ``data_error`` for provider failures and
+    ``invalid`` for configuration guidance and, when ``invalid_detail`` is true or no ``mode`` is given,
+    for a plain ``ValueError``. A plain ``ValueError`` otherwise reports the generic sentence, so
+    exception text from provider data is not exposed. A failure whose callback is absent is reported
+    as an unexpected one, exactly as before. ``selection_type`` is the command's own selection class,
+    whose fixed ``analysis_id`` and ``method_id`` name the analysis in the failure document.
+    """
     try:
         with record_cli_quality():
             yield
     except (typer.Exit, UsageError):
         raise
     except Exception as exc:
-        diagnostics: list[dict[str, str]] = []
-        code = "execution_error"
-        if isinstance(exc, DatabaseReadinessError):
+        analysis, method = _selection_identity(selection_type)
+        code = classify_failure(exc).reason_code
+        if code not in _DIRECT_CODES and not code.value.startswith("database_"):
+            # A workspace code (for example a stored-run error raised while saving a run) is reported
+            # by the direct commands as it always was: a plain invalid input, or an unexpected failure.
+            code = FailureReasonCode.INVALID_INPUT if isinstance(exc, ValueError) else FailureReasonCode.EXECUTION_ERROR
+        if code is FailureReasonCode.PROVIDER_ERROR and data_error is None:
+            code = FailureReasonCode.INVALID_INPUT  # provider errors are ValueErrors, so they fall through to that case
+        if code is FailureReasonCode.INVALID_INPUT and invalid is None:
+            code = FailureReasonCode.EXECUTION_ERROR
+        if code.value.startswith("database_") or code in _SHOWN_AS_RAISED:
             message = str(exc)
-            code = exc.reason.value
-        elif isinstance(exc, HistoricalDataQualityError):
-            message = str(exc)
-            code = "historical_quality"
-            diagnostics = [
-                {"rule": item.rule_id, "reason": item.reason}
-                for item in exc.decisions
-                if item.outcome is QualityOutcome.FAIL
-            ]
         elif isinstance(exc, DataFetchError | DataQualityError) and data_error is not None:
             # A non-historical DataQualityError (retrieved data failed a quality rule) is folded
             # into the same CLI-facing "provider_error" classification as DataFetchError (provider
@@ -214,36 +250,21 @@ def execution_errors(  # noqa: PLR0912, PLR0913
             # users. HistoricalDataQualityError, handled above, is excluded from this branch and
             # keeps its own dedicated code because it already exposes structured rule diagnostics.
             message = data_error(exc)
-            code = "provider_error"
-        elif isinstance(exc, AnalysisConfigurationError):
-            message = invalid(exc) if invalid is not None else str(exc)
-            code = "configuration_error"
-        elif isinstance(exc, NoEligibleObservationsError):
-            message = str(exc)
-            code = "no_eligible_observations"
-        elif isinstance(exc, ValueError) and invalid is not None:
-            message = (
-                invalid(exc) if mode is None or analysis == "momentum" else "Invalid analysis inputs or provider data."
-            )
-            code = "invalid_input"
+        elif code is FailureReasonCode.CONFIGURATION_ERROR:
+            message = invalid(exc) if invalid is not None and isinstance(exc, ValueError) else str(exc)
+        elif code is FailureReasonCode.INVALID_INPUT and invalid is not None and isinstance(exc, ValueError):
+            message = invalid(exc) if mode is None or invalid_detail else "Invalid analysis inputs or provider data."
         else:
+            code = FailureReasonCode.EXECUTION_ERROR
             message = unexpected(exc)
+        envelope = failure_envelope(code, message, cause=exc, analysis=analysis, method=method, ticker=ticker)
         if mode is PresentationMode.JSON:
-            typer.echo(
-                analysis_failure_document(
-                    analysis=analysis,
-                    method=method,
-                    ticker=ticker,
-                    reason_code=code,
-                    reason=message,
-                    diagnostics=diagnostics,
-                )
-            )
+            typer.echo(failure_document(envelope))
         else:
             typer.echo(message, err=True)
             if mode is PresentationMode.DIAGNOSTICS:
-                for diagnostic in diagnostics:
-                    typer.echo(f"{diagnostic['rule']}: {diagnostic['reason']}", err=True)
+                for diagnostic in envelope.diagnostics:
+                    typer.echo(f"{diagnostic.rule}: {diagnostic.reason}", err=True)
         raise typer.Exit(code=1) from exc
 
 

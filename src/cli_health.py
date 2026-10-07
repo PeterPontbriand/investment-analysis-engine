@@ -12,7 +12,6 @@ from typing import Annotated
 import typer
 
 from src.cli_composition import build_sec_production_provider
-from src.cli_support import AnalysisConfigurationError
 from src.config import settings
 from src.data.http_json import fetch_json
 from src.data.provider_checks import (
@@ -24,6 +23,7 @@ from src.data.provider_checks import (
     SecUnavailable,
 )
 from src.data.yfinance import YFinanceClient
+from src.reporting.failure_classification import AnalysisConfigurationError
 
 
 def build_provider_clients() -> ProviderClients:

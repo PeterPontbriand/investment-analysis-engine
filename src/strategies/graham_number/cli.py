@@ -162,8 +162,7 @@ def command(  # noqa: PLR0913
     with (
         execution_errors(
             mode=mode,
-            analysis="graham_number",
-            method="graham_number",
+            selection_type=GrahamNumberSelection,
             ticker=target_ticker,
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ),
@@ -171,8 +170,7 @@ def command(  # noqa: PLR0913
     ):
         with execution_errors(
             mode=mode,
-            analysis="graham_number",
-            method="graham_number",
+            selection_type=GrahamNumberSelection,
             ticker=target_ticker,
             invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",

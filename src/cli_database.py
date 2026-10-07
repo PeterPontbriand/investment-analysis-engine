@@ -1,7 +1,6 @@
 """Hidden technical commands for inspecting and migrating configured storage."""
 
 import json
-from dataclasses import asdict, dataclass
 from typing import Literal
 
 import typer
@@ -16,23 +15,10 @@ from src.data.repositories.readiness import (
     upgrade_database,
 )
 from src.data.repositories.sqlite import SQLiteDatabase
+from src.reporting.documents.database import DatabaseMaintenanceReport
+from src.reporting.documents.failure import FailureReasonCode
 
 app = typer.Typer(help="Inspect or explicitly migrate application storage.", add_completion=False)
-
-
-@dataclass(frozen=True)
-class DatabaseMaintenanceReport:
-    """Versioned maintenance evidence independent of analysis-result documents."""
-
-    command: str
-    status: Literal["success", "error"]
-    database_path: str | None
-    state: str | None
-    current_revision: str | None
-    expected_revision: str | None
-    reason: str | None
-    message: str
-    schema_version: int = 1
 
 
 def _first_reason(error: ValidationError) -> str:
@@ -60,19 +46,19 @@ def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
             raise typer.BadParameter(
                 "Database maintenance requires a file-backed target; private memory is not supported."
             )
-        command = "db upgrade" if upgrade else "db status"
+        command: Literal["db upgrade", "db status"] = "db upgrade" if upgrade else "db status"
         try:
             if upgrade:
                 outcome, revision = upgrade_database(database)
                 report = DatabaseMaintenanceReport(
-                    command,
-                    "success",
-                    str(path),
-                    outcome.value,
-                    revision,
-                    revision,
-                    None,
-                    "Database is ready.",
+                    command=command,
+                    status="success",
+                    database_path=str(path),
+                    state=outcome.value,
+                    current_revision=revision,
+                    expected_revision=revision,
+                    reason_code=None,
+                    reason="Database is ready.",
                 )
             else:
                 inspection = inspect_database(database)
@@ -81,7 +67,7 @@ def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
                     DatabaseState.UPGRADE_REQUIRED: ReadinessReason.UPGRADE_REQUIRED,
                     DatabaseState.INCOMPATIBLE: ReadinessReason.INCOMPATIBLE_SCHEMA,
                 }.get(state)
-                message = (
+                reason_text = (
                     str(DatabaseReadinessError(reason, path, inspection.expected_revision))
                     if reason is not None
                     else "Database is ready."
@@ -89,36 +75,36 @@ def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
                     else ("Database is not initialized. Run ian db upgrade with this same target to initialize it.")
                 )
                 report = DatabaseMaintenanceReport(
-                    command,
-                    "success",
-                    str(path),
-                    state.value,
-                    inspection.current_revision,
-                    inspection.expected_revision,
-                    reason.value if reason else None,
-                    message,
+                    command=command,
+                    status="success",
+                    database_path=str(path),
+                    state=state.value,
+                    current_revision=inspection.current_revision,
+                    expected_revision=inspection.expected_revision,
+                    reason_code=FailureReasonCode(reason.value) if reason else None,
+                    reason=reason_text,
                 )
                 code = 0 if state is DatabaseState.READY else 1
         except DatabaseReadinessError as exc:
             report = DatabaseMaintenanceReport(
-                command,
-                "error",
-                str(path),
-                None,
-                None,
-                exc.expected_revision,
-                exc.reason.value,
-                str(exc),
+                command=command,
+                status="error",
+                database_path=str(path),
+                state=None,
+                current_revision=None,
+                expected_revision=exc.expected_revision,
+                reason_code=FailureReasonCode(exc.reason.value),
+                reason=str(exc),
             )
             code = 1
         if json_output:
-            typer.echo(json.dumps(asdict(report), ensure_ascii=True, allow_nan=False))
+            typer.echo(json.dumps(report.model_dump(mode="json"), ensure_ascii=True, allow_nan=False))
         else:
             typer.echo(
                 f"Database: {json.dumps(report.database_path, ensure_ascii=True)}\n"
                 f"State: {report.state or 'unavailable'}\n"
                 f"Revision: {report.current_revision or 'unknown'}; expected: {report.expected_revision or 'unknown'}\n"
-                f"{report.message}",
+                f"{report.reason}",
                 err=report.status == "error",
             )
     finally:

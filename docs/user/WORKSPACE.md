@@ -109,11 +109,11 @@ Every command that removes entries starts with `remove-`, and text output names 
 uv run ian watchlist rename "Core Holdings" "Long-Term Holdings"
 ```
 
-Renaming is not destructive, so it never asks for confirmation. It prints `Renamed watchlist 'Core Holdings' to 'Long-Term Holdings'.` and then the renamed watchlist as `watchlist show` would. With `--json` it prints only the `watchlist show --json` document. The watchlist keeps its ID and its entries. Changing only the capitalization (`core holdings` to `Core Holdings`) is allowed; renaming to another watchlist's name is exit `1`, and a blank new name is a usage error (exit `2`).
+Renaming is not destructive, so it never asks for confirmation. It prints `Renamed watchlist 'Core Holdings' to 'Long-Term Holdings'.` and then the renamed watchlist as `watchlist show` would. With `--json` it prints only the `watchlist show --json` document, or on a failure the failure document described in [USAGE](USAGE.md#--json--machine-readable-output). The watchlist keeps its ID and its entries. Changing only the capitalization (`core holdings` to `Core Holdings`) is allowed; renaming to another watchlist's name is exit `1`, and a blank new name is a usage error (exit `2`).
 
 Saved Analysis Runs keep the name the watchlist had when they ran, by design: each run stores its own snapshot of the watchlist's name and ID, and a rename changes neither the snapshot nor anything else about a saved run. Today `runs list` and `runs show` do not print that snapshot.
 
-If the watchlist holds an entry saved by an earlier version that this version can no longer read, the rename still happens. The command then prints the confirmation, followed by the one-line error that names the unreadable entry and the `remove-entry` command that removes it, and exits `1`; with `--json`, stdout is empty and both lines go to stderr.
+If the watchlist holds an entry saved by an earlier version that this version can no longer read, the rename still happens. The command then prints the confirmation, followed by the one-line error that names the unreadable entry and the `remove-entry` command that removes it, and exits `1`; with `--json`, the confirmation goes to stderr and stdout holds the failure document (`reason_code` `stored_selection_unreadable`) in place of the error line.
 
 ### Deleting a watchlist
 
@@ -142,7 +142,7 @@ uv run ian watchlist delete "Scratch" --yes --missing-ok
 {"requested_name": "Nonexistent", "deleted": false, "watchlist": null}
 ```
 
-A watchlist holding an entry saved by an earlier version, which this version can no longer read, is still deleted. In text mode that succeeds quietly. With `--json` there is no entry document to print, so stdout stays empty, the confirmation and the one-line error naming the unreadable entry go to stderr, and the exit code is `1`.
+A watchlist holding an entry saved by an earlier version, which this version can no longer read, is still deleted. In text mode that succeeds quietly. With `--json` there is no entry document to print, so the confirmation goes to stderr, stdout holds the failure document (`reason_code` `stored_selection_unreadable`, its `reason` naming the unreadable entry) and the exit code is `1`.
 
 ### Method-specific flags
 
@@ -191,13 +191,15 @@ Nothing is printed until the whole refresh finishes (or is interrupted) — ther
 uv run ian refresh "Core Holdings" --json
 ```
 
+Each result carries `error` (the failure's own text, or `null`) and `reason_code`: the stable code of the failure when `error` is set, otherwise `null`. Branch on `reason_code`; `error` is for people. The codes are the ones in the [failure document](USAGE.md#--json--machine-readable-output). A refresh that cannot start at all (an unknown watchlist, a watchlist with no entries, an unreadable stored entry, storage that needs attention) writes that failure document instead of this summary and exits `1`; without `--json` it prints the sentence on standard error.
+
 One ticker's failure never stops the rest of the watchlist: a method that could not calculate (or a storage hiccup for that one attempt) is recorded as an error for that ticker only, and every other ticker in the watchlist still runs. The exit code reflects the whole batch:
 
 | Exit code | Meaning |
 |---|---|
 | `0` | Every attempt completed, or did not apply (a known ETF, and similar). |
-| `1` | At least one attempt was unavailable, failed, or could not be saved. |
-| `2` | A usage error — an unknown watchlist argument, or a watchlist with no entries to refresh. |
+| `1` | At least one attempt was unavailable, failed, or could not be saved; or the refresh could not start: the watchlist does not exist, or it has no entries (`watchlist_empty`). |
+| `2` | A usage error, such as an invalid `--workers`. |
 | `130` | You interrupted the refresh (Ctrl+C). |
 
 ### Concurrency and interruption

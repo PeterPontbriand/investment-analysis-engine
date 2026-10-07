@@ -37,10 +37,11 @@ from src.data.repositories.watchlists import (
     SQLiteWatchlistRepository,
     WatchlistConflictError,
     WatchlistEntryNotFoundError,
-    WatchlistNotFoundError,
 )
 from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
-from src.reporting.presentation import PresentationMode
+from src.reporting.documents.failure import FailureEnvelope, FailureReasonCode
+from src.reporting.failure_classification import InvalidParameterError, classify_failure, failure_envelope
+from src.reporting.presentation import PresentationMode, failure_document
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategy_wiring import BY_ALIAS, BY_METHOD_ID, EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
 from src.utils.paths import is_windows
@@ -53,12 +54,9 @@ from src.workspace.refresh import (
     RefreshSummary,
     refresh_watchlist,
 )
-from src.workspace.refresh import (
-    WatchlistNotFoundError as RefreshWatchlistNotFoundError,
-)
 from src.workspace.runs import AnalysisRunSummary, RunQuery, Watchlist, WatchlistEntry, WatchlistSummary
 from src.workspace.strategy_types import AnalysisSelection
-from src.workspace.watchlists import StoredSelectionError, WatchlistSpec, normalize_ticker
+from src.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError, WatchlistSpec, normalize_ticker
 
 watchlist_app = typer.Typer(help="Manage named watchlists of tickers and their analysis selections.")
 runs_app = typer.Typer(help="Browse persisted Analysis Run history.")
@@ -76,29 +74,48 @@ _ANALYSIS_CHOICES = _alias_choices()
 
 
 @contextmanager
-def _workspace_database() -> Iterator[SQLiteDatabase]:
+def _workspace_database(*, json_output: bool = False) -> Iterator[SQLiteDatabase]:
     """Own one invocation's readiness-checked database connection.
 
     A readiness failure is reported as a sanitized message and exit 1 here,
     at the one place every command shares, rather than repeated per command.
+    ``json_output`` selects the failure envelope on standard output instead of text on standard error.
     """
     database = SQLiteDatabase(settings)
     try:
         try:
             ensure_database_ready(database)
         except DatabaseReadinessError as exc:
-            _fail(str(exc))
+            _fail_with(exc, json_output=json_output)
         try:
             yield database
         except StoredSelectionError as exc:
-            _fail(str(exc))
+            _fail_with(exc, json_output=json_output)
     finally:
         database.close()
 
 
-def _fail(message: str) -> NoReturn:
-    """Report a sanitized storage/readiness/lookup error and exit 1."""
-    typer.echo(message, err=True)
+def _fail(reason_code: FailureReasonCode, message: str, *, json_output: bool = False) -> NoReturn:
+    """Report a sanitized lookup or storage failure under ``reason_code`` and exit 1.
+
+    With ``json_output`` the failure envelope is written to standard output and nothing to standard
+    error, as the direct commands do; otherwise the sentence goes to standard error.
+    """
+    _report(failure_envelope(reason_code, message), json_output=json_output)
+
+
+def _fail_with(exception: Exception, *, json_output: bool = False) -> NoReturn:
+    """Report a classified failure with the exception's own sanitized message and exit 1."""
+    classification = classify_failure(exception)
+    _report(failure_envelope(classification.reason_code, str(exception), cause=exception), json_output=json_output)
+
+
+def _report(envelope: FailureEnvelope, *, json_output: bool) -> NoReturn:
+    """Write one failure envelope or its sentence and exit 1."""
+    if json_output:
+        typer.echo(failure_document(envelope))
+    else:
+        typer.echo(envelope.reason, err=True)
     raise typer.Exit(code=1)
 
 
@@ -249,7 +266,10 @@ def _build_selection(  # noqa: PLR0913
         classification_basis=classification_basis,
         currency=currency,
     )
-    return build_selection_for(method, flags)
+    try:
+        return build_selection_for(method, flags)
+    except InvalidParameterError as exc:
+        _fail_with(exc)
 
 
 @watchlist_app.command("create")
@@ -383,7 +403,7 @@ def watchlist_create(  # noqa: PLR0913
         try:
             watchlist = repository.create(WatchlistSpec(display_name=name))
         except WatchlistConflictError as exc:
-            _fail(str(exc))
+            _fail_with(exc)
         except ValueError as exc:
             raise typer.BadParameter(str(exc)) from exc
         if entries:
@@ -509,7 +529,7 @@ def watchlist_add_selection(  # noqa: PLR0913
         try:
             watchlist = repository.add_entries(name, entries)
         except WatchlistNotFoundError as exc:
-            _fail(str(exc))
+            _fail_with(exc)
         except ValueError as exc:
             raise typer.BadParameter(str(exc)) from exc
     typer.echo(_watchlist_text(watchlist))
@@ -539,9 +559,9 @@ def _read_back_after_removal(repository: SQLiteWatchlistRepository, name: str, c
     try:
         watchlist = repository.get(name)
     except StoredSelectionError as exc:
-        _fail(str(exc))
+        _fail_with(exc)
     if watchlist is None:
-        _fail(f"No watchlist named {name!r} exists.")
+        _fail(FailureReasonCode.WATCHLIST_NOT_FOUND, f"No watchlist named {name!r} exists.")
     return watchlist
 
 
@@ -557,10 +577,8 @@ def watchlist_remove_entry(
         repository = _watchlist_repository(database)
         try:
             removed = repository.remove_entry(name, index - 1)
-        except WatchlistNotFoundError as exc:
-            _fail(str(exc))
-        except WatchlistEntryNotFoundError as exc:
-            _fail(str(exc))
+        except (WatchlistNotFoundError, WatchlistEntryNotFoundError) as exc:
+            _fail_with(exc)
         watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, None))
     typer.echo(_watchlist_text(watchlist))
 
@@ -576,7 +594,7 @@ def watchlist_remove_ticker(
         try:
             removed = repository.remove_entries_for_ticker(name, tickers)
         except WatchlistNotFoundError as exc:
-            _fail(str(exc))
+            _fail_with(exc)
         except ValueError as exc:
             raise typer.BadParameter(str(exc)) from exc
         watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, ", ".join(tickers)))
@@ -598,7 +616,7 @@ def watchlist_remove_method(
         try:
             removed = repository.remove_entries_for_method(name, _method_id_for_alias(method))
         except WatchlistNotFoundError as exc:
-            _fail(str(exc))
+            _fail_with(exc)
         watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, method))
     typer.echo(_watchlist_text(watchlist))
 
@@ -640,7 +658,7 @@ def watchlist_delete(
     if not yes and not _stdin_is_interactive():
         raise typer.BadParameter("--yes is required when input is not interactive.", param_hint="--yes")
     deleted: DeletedWatchlist | None = None
-    with _workspace_database() as database:
+    with _workspace_database(json_output=json_output) as database:
         repository = _watchlist_repository(database)
         try:
             if not yes:
@@ -655,7 +673,7 @@ def watchlist_delete(
             deleted = repository.delete(name)
         except WatchlistNotFoundError as exc:
             if not missing_ok:
-                _fail(str(exc))
+                _fail_with(exc, json_output=json_output)
     if deleted is None:
         if json_output:
             typer.echo(json.dumps({"requested_name": name, "deleted": False, "watchlist": None}, ensure_ascii=False))
@@ -671,7 +689,8 @@ def watchlist_delete(
         return
     if deleted.watchlist is None:
         typer.echo(confirmation, err=True)
-        _fail(str(deleted.unreadable))
+        assert deleted.unreadable is not None  # exactly one of watchlist and unreadable is set
+        _fail_with(deleted.unreadable, json_output=json_output)
     document = {"requested_name": name, "deleted": True, "watchlist": _watchlist_payload(deleted.watchlist)}
     typer.echo(json.dumps(document, ensure_ascii=False, allow_nan=False))
 
@@ -684,12 +703,12 @@ def watchlist_rename(
     json_output: Annotated[bool, typer.Option("--json", help="Emit the renamed watchlist document.")] = False,
 ) -> None:
     """Rename a watchlist. Saved Analysis Runs keep the name it had when they ran."""
-    with _workspace_database() as database:
+    with _workspace_database(json_output=json_output) as database:
         repository = _watchlist_repository(database)
         try:
             repository.rename(name, new_name)
         except (WatchlistNotFoundError, WatchlistConflictError) as exc:
-            _fail(str(exc))
+            _fail_with(exc, json_output=json_output)
         except ValueError as exc:
             raise typer.BadParameter(str(exc)) from exc
         confirmation = f"Renamed watchlist {name!r} to {new_name.strip()!r}."
@@ -700,9 +719,11 @@ def watchlist_rename(
         except StoredSelectionError as exc:
             if json_output:
                 typer.echo(confirmation, err=True)
-            _fail(str(exc))
+            _fail_with(exc, json_output=json_output)
     if watchlist is None:
-        _fail(f"No watchlist named {new_name!r} exists.")
+        _fail(
+            FailureReasonCode.WATCHLIST_NOT_FOUND, f"No watchlist named {new_name!r} exists.", json_output=json_output
+        )
     typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist))
 
 
@@ -731,10 +752,10 @@ def watchlist_show(
     normalized_group_by = group_by.strip().lower()
     if normalized_group_by not in ("ticker", "method"):
         raise typer.BadParameter("--group-by must be 'ticker' or 'method'.")
-    with _workspace_database() as database:
+    with _workspace_database(json_output=json_output) as database:
         watchlist = _watchlist_repository(database).get(name)
     if watchlist is None:
-        _fail(f"No watchlist named {name!r} exists.")
+        _fail(FailureReasonCode.WATCHLIST_NOT_FOUND, f"No watchlist named {name!r} exists.", json_output=json_output)
     typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist, group_by=normalized_group_by))
 
 
@@ -766,7 +787,7 @@ def runs_list(  # noqa: PLR0913
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    with _workspace_database() as database:
+    with _workspace_database(json_output=json_output) as database:
         summaries = SQLiteAnalysisRunRepository(database).list(query)
     if json_output:
         payload = [item.model_dump(mode="json") for item in summaries]
@@ -800,19 +821,23 @@ def runs_show(
         if details
         else PresentationMode.CONCISE
     )
-    with _workspace_database() as database:
+    with _workspace_database(json_output=json_output) as database:
         try:
             run = SQLiteAnalysisRunRepository(database).get(parsed_id)
         except ValueError as exc:
             # The repository's own documented contract: a malformed or internally
             # inconsistent stored envelope raises a plain ValueError from get().
-            _fail(str(exc))
+            _fail(FailureReasonCode.INVALID_STORED_RUN, str(exc), json_output=json_output)
     if run is None:
-        _fail(f"No Analysis Run with ID {parsed_id} exists.")
+        _fail(
+            FailureReasonCode.ANALYSIS_RUN_NOT_FOUND,
+            f"No Analysis Run with ID {parsed_id} exists.",
+            json_output=json_output,
+        )
     try:
         rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY)
     except (UnsupportedProjectionError, UnsupportedRunVersionError, InvalidStoredRunError) as exc:
-        _fail(str(exc))
+        _fail_with(exc, json_output=json_output)
     typer.echo(rendered)
 
 
@@ -908,6 +933,7 @@ def _refresh_json(summary: RefreshSummary) -> str:
                     else None
                 ),
                 "error": result.error,
+                "reason_code": result.reason_code,
             }
             for result in summary.results
         ],
@@ -949,7 +975,7 @@ def refresh(
 
     signal.signal(signal.SIGINT, _handle_sigint)
     try:
-        with _workspace_database() as database:
+        with _workspace_database(json_output=json_output) as database:
             try:
                 profile_cache = _production_instrument_profile_cache(database, clock=utc_now)
                 summary = refresh_watchlist(
@@ -960,14 +986,15 @@ def refresh(
                         ticker, selection, profile_cache=profile_cache
                     ),
                     run_specs=RUN_SPECS_BY_KEY,
+                    classify=lambda exception: classify_failure(exception).reason_code.value,
                     save=not no_save,
                     policy=policy,
                     cancellation=cancellation,
                 )
-            except RefreshWatchlistNotFoundError as exc:
-                _fail(str(exc))
+            except WatchlistNotFoundError as exc:
+                _fail_with(exc, json_output=json_output)
             except EmptyRefreshTargetError as exc:
-                raise typer.BadParameter(str(exc)) from exc
+                _fail_with(exc, json_output=json_output)
     finally:
         signal.signal(signal.SIGINT, previous_handler)
 

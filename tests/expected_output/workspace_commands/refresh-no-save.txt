@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+Refresh <uuid> for 'Seeded': (not saved) AAPL momentum completed (not saved) MSFT momentum completed Counts: completed=2
+--- stderr
+

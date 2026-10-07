@@ -25,6 +25,10 @@ class StoredSelectionError(ValueError):
     """
 
 
+class WatchlistNotFoundError(ValueError):
+    """No watchlist exists with the requested name."""
+
+
 class WatchlistSpec(BaseModel):
     """Creation input for a new watchlist: a display name, nothing else.
 

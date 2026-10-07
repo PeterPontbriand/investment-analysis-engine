@@ -1,0 +1,189 @@
+{
+  "$defs": {
+    "FailureDatabase": {
+      "additionalProperties": false,
+      "description": "Facts about the database a ``database_*`` failure concerns, taken from the readiness error.",
+      "properties": {
+        "database_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The configured target; null for an in-memory database.",
+          "title": "Database Path"
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The bundled schema revision, when it could be determined.",
+          "title": "Expected Revision"
+        }
+      },
+      "required": [
+        "database_path",
+        "expected_revision"
+      ],
+      "title": "FailureDatabase",
+      "type": "object"
+    },
+    "FailureDiagnostic": {
+      "additionalProperties": false,
+      "description": "One failed historical-quality rule and its sanitized reason.",
+      "properties": {
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "rule": {
+          "title": "Rule",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule",
+        "reason"
+      ],
+      "title": "FailureDiagnostic",
+      "type": "object"
+    },
+    "FailureReasonCode": {
+      "description": "Stable failure categories a caller may branch on.\n\nA value is never renamed, repurposed or removed within the public contract. New values may be\nadded, so a caller must treat an unrecognized value as a generic failure and use ``status`` for the\ncategory.",
+      "enum": [
+        "execution_error",
+        "historical_quality",
+        "provider_error",
+        "configuration_error",
+        "no_eligible_observations",
+        "invalid_input",
+        "invalid_parameter",
+        "database_upgrade_required",
+        "database_incompatible_schema",
+        "database_busy",
+        "database_permission_denied",
+        "database_invalid_file",
+        "database_io_error",
+        "database_resources_unavailable",
+        "database_initialization_failed",
+        "database_migration_failed",
+        "invalid_stored_run",
+        "unsupported_run_version",
+        "watchlist_not_found",
+        "watchlist_entry_not_found",
+        "watchlist_empty",
+        "watchlist_name_conflict",
+        "analysis_run_not_found",
+        "stored_selection_unreadable",
+        "unsupported_projection"
+      ],
+      "title": "FailureReasonCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The one JSON document written to standard output when a command with ``--json`` fails.\n\n``schema_version`` is this document's own lineage: it identifies a shape only within this schema\nand is independent of the ``schema_version`` of every success document. A consumer dispatches on\n``status`` and ``result`` first, then on ``analysis``. ``reason_code`` is stable; ``reason`` and\n``diagnostics[].reason`` are sentences for people and carry no guarantee.",
+  "properties": {
+    "analysis": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The analysis of a direct command; null otherwise.",
+      "title": "Analysis"
+    },
+    "database": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FailureDatabase"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Set only for a database_* code; null otherwise."
+    },
+    "diagnostics": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/FailureDiagnostic"
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "method": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The method of a direct command; null otherwise.",
+      "title": "Method"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    },
+    "reason_code": {
+      "$ref": "#/$defs/FailureReasonCode"
+    },
+    "result": {
+      "default": null,
+      "description": "Always null, so success and failure share top-level keys.",
+      "title": "Result",
+      "type": "null"
+    },
+    "schema_version": {
+      "const": 6,
+      "default": 6,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status": {
+      "enum": [
+        "error",
+        "input_unavailable"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "ticker": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The requested ticker of a direct command; null otherwise.",
+      "title": "Ticker"
+    }
+  },
+  "required": [
+    "status",
+    "reason_code",
+    "reason"
+  ],
+  "title": "FailureEnvelope",
+  "type": "object"
+}

@@ -21,7 +21,6 @@ from src.data.repositories.watchlists import (
     SQLiteWatchlistRepository,
     WatchlistConflictError,
     WatchlistEntryNotFoundError,
-    WatchlistNotFoundError,
 )
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
@@ -34,8 +33,8 @@ from src.workspace.models import RunOutcome
 from src.workspace.refresh import refresh_watchlist
 from src.workspace.runs import Watchlist
 from src.workspace.strategy_types import AnalysisSelection
-from src.workspace.watchlists import StoredSelectionError, WatchlistSpec
-from tests._wiring import alias_for
+from src.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError, WatchlistSpec
+from tests._wiring import alias_for, failure_code
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)
 LATER = datetime(2026, 9, 18, 12, 5, 0, tzinfo=UTC)
@@ -484,7 +483,12 @@ def test_delete_keeps_saved_runs_loadable_and_the_name_is_reusable(
     watchlist = _seed_momentum(repository, "Doomed", ["AAPL"])
     runs = SQLiteAnalysisRunRepository(database)
     summary = refresh_watchlist(
-        "Doomed", watchlists=repository, repository=runs, executor=_momentum_executor, run_specs=RUN_SPECS_BY_KEY
+        "Doomed",
+        watchlists=repository,
+        repository=runs,
+        executor=_momentum_executor,
+        run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
     saved = summary.results[0].run
     assert saved is not None
@@ -638,7 +642,12 @@ def test_rename_keeps_a_saved_runs_snapshot_name(
     _seed_momentum(repository, "Before", ["AAPL"])
     runs = SQLiteAnalysisRunRepository(database)
     summary = refresh_watchlist(
-        "Before", watchlists=repository, repository=runs, executor=_momentum_executor, run_specs=RUN_SPECS_BY_KEY
+        "Before",
+        watchlists=repository,
+        repository=runs,
+        executor=_momentum_executor,
+        run_specs=RUN_SPECS_BY_KEY,
+        classify=failure_code,
     )
     saved = summary.results[0].run
     assert saved is not None

@@ -65,10 +65,7 @@ from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun, Watchlist
 from src.workspace.strategy_types import AnalysisSelection
-
-
-class WatchlistNotFoundError(ValueError):
-    """No watchlist exists with the requested name."""
+from src.workspace.watchlists import WatchlistNotFoundError
 
 
 class EmptyRefreshTargetError(ValueError):
@@ -129,6 +126,8 @@ class RefreshJobResult:
     not persisted anywhere, and any user-facing sanitization is the
     caller's (eventual CLI) responsibility, mirroring how ``execution_errors``
     sanitizes at the presentation boundary rather than deep in a service.
+    ``reason_code`` is the stable code the caller's classifier assigned to the
+    same exception; it is set if and only if ``error`` is.
     """
 
     ticker: str
@@ -136,12 +135,15 @@ class RefreshJobResult:
     run: AnalysisRun | None = None
     outcome: RunOutcome | None = None
     error: str | None = None
+    reason_code: str | None = None
 
     def __post_init__(self) -> None:
-        """Enforce the run-xor-outcome-xor-error invariant."""
+        """Enforce the run-xor-outcome-xor-error invariant and that ``reason_code`` accompanies ``error``."""
         set_count = sum(value is not None for value in (self.run, self.outcome, self.error))
         if set_count != 1:
             raise ValueError("Exactly one of run, outcome, or error must be set.")
+        if (self.reason_code is None) != (self.error is None):
+            raise ValueError("reason_code is set if and only if error is set.")
 
 
 @dataclass(frozen=True)
@@ -175,6 +177,7 @@ def refresh_watchlist(  # noqa: PLR0913
     repository: AnalysisRunSink,
     executor: Callable[[str, AnalysisSelection], ExecutionCapture],
     run_specs: Mapping[tuple[str, str], RunSpec],
+    classify: Callable[[BaseException], str],
     save: bool = True,
     policy: RefreshPolicy = _SEQUENTIAL_POLICY,
     refresh_id_factory: Callable[[], UUID] = uuid4,
@@ -201,6 +204,8 @@ def refresh_watchlist(  # noqa: PLR0913
             -bearing, not merely a style preference.
         run_specs: The versions and evidence encoder of each declared strategy, keyed by
             ``(analysis_id, method_id)``; a job whose selection has no entry fails closed as that job's error.
+        classify: Maps the exception of a failed job to its stable reason code. The caller supplies it, so
+            this module imports nothing from the reporting layer; ``error`` keeps the exception's own text.
         save: When ``True`` (the default), every finished job is persisted
             exactly as before. When ``False``, every entry still executes
             but no job is persisted and no :class:`AnalysisRun` is ever
@@ -262,7 +267,7 @@ def refresh_watchlist(  # noqa: PLR0913
                         RefreshJobResult(ticker=ticker, method_id=selection.method_id, outcome=result.outcome)
                     )
                 except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
-                    results.append(RefreshJobResult(ticker=ticker, method_id=selection.method_id, error=str(exc)))
+                    results.append(_failed(ticker, selection, exc, classify))
                 continue
 
             batch = BatchContext(
@@ -283,7 +288,7 @@ def refresh_watchlist(  # noqa: PLR0913
                 )
                 results.append(RefreshJobResult(ticker=ticker, method_id=selection.method_id, run=run))
             except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
-                results.append(RefreshJobResult(ticker=ticker, method_id=selection.method_id, error=str(exc)))
+                results.append(_failed(ticker, selection, exc, classify))
 
         return RefreshSummary(
             refresh_id=refresh_id,
@@ -300,10 +305,20 @@ def refresh_watchlist(  # noqa: PLR0913
         repository=repository,
         executor=executor,
         run_specs=run_specs,
+        classify=classify,
         save=save,
         id_factory=id_factory,
         clock=resolved_clock,
         cancellation=cancellation,
+    )
+
+
+def _failed(
+    ticker: str, selection: AnalysisSelection, exception: BaseException, classify: Callable[[BaseException], str]
+) -> RefreshJobResult:
+    """Record one job's failure: the exception's own text and the code classified from the same exception."""
+    return RefreshJobResult(
+        ticker=ticker, method_id=selection.method_id, error=str(exception), reason_code=classify(exception)
     )
 
 
@@ -355,6 +370,7 @@ def _refresh_concurrently(  # noqa: PLR0913
     repository: AnalysisRunSink,
     executor: Callable[[str, AnalysisSelection], ExecutionCapture],
     run_specs: Mapping[tuple[str, str], RunSpec],
+    classify: Callable[[BaseException], str],
     save: bool,
     id_factory: Callable[[], UUID],
     clock: Callable[[], datetime],
@@ -420,6 +436,7 @@ def _refresh_concurrently(  # noqa: PLR0913
                     batch=batch,
                     repository=repository,
                     run_specs=run_specs,
+                    classify=classify,
                     save=save,
                     id_factory=id_factory,
                 )
@@ -445,6 +462,7 @@ def _settle(  # noqa: PLR0913
     batch: BatchContext,
     repository: AnalysisRunSink,
     run_specs: Mapping[tuple[str, str], RunSpec],
+    classify: Callable[[BaseException], str],
     save: bool,
     id_factory: Callable[[], UUID],
 ) -> RefreshJobResult:
@@ -455,7 +473,7 @@ def _settle(  # noqa: PLR0913
     calling :func:`execute`/``repository.insert``.
     """
     if outcome.error is not None:
-        return RefreshJobResult(ticker=ticker, method_id=selection.method_id, error=str(outcome.error))
+        return _failed(ticker, selection, outcome.error, classify)
     captured = outcome.capture
     assert captured is not None  # enforced by _JobOutcome's own capture-xor-error invariant
     if not save:
@@ -472,7 +490,7 @@ def _settle(  # noqa: PLR0913
         )
         return RefreshJobResult(ticker=ticker, method_id=selection.method_id, run=run)
     except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
-        return RefreshJobResult(ticker=ticker, method_id=selection.method_id, error=str(exc))
+        return _failed(ticker, selection, exc, classify)
 
 
 __all__ = [
@@ -481,6 +499,5 @@ __all__ = [
     "RefreshPolicy",
     "RefreshSummary",
     "WatchlistLookup",
-    "WatchlistNotFoundError",
     "refresh_watchlist",
 ]

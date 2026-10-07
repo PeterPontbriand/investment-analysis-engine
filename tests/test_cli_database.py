@@ -61,7 +61,7 @@ def test_hidden_help_and_read_only_missing_status(target: Path) -> None:
     assert report["state"] == "missing"
     assert report["status"] == "success"
     assert report["database_path"] == str(target)
-    assert report["schema_version"] == 1
+    assert report["schema_version"] == 2
     assert not target.parent.exists()
     assert not result.stderr
 
@@ -104,7 +104,7 @@ def test_incompatible_status_and_upgrade_preserve_storage(target: Path) -> None:
     assert not Path(str(target) + ".readiness.lock").exists()
     upgrade = CliRunner().invoke(app, ["db", "upgrade", "--json"])
     assert upgrade.exit_code == 1
-    assert json.loads(upgrade.stdout)["reason"] == "database_incompatible_schema"
+    assert json.loads(upgrade.stdout)["reason_code"] == "database_incompatible_schema"
     assert "secret-payload" not in status.output + upgrade.output
     assert target.read_bytes() == before
 
@@ -116,7 +116,7 @@ def test_corruption_is_sanitized(target: Path, json_output: bool) -> None:
     result = CliRunner().invoke(app, ["db", "status", *(["--json"] if json_output else [])])
     assert result.exit_code == 1
     if json_output:
-        assert json.loads(result.stdout)["reason"] == "database_invalid_file"
+        assert json.loads(result.stdout)["reason_code"] == "database_invalid_file"
         assert not result.stderr
     else:
         assert not result.stdout
@@ -152,7 +152,7 @@ def test_db_upgrade_command_busy_lock(target: Path, monkeypatch: pytest.MonkeyPa
     assert result.exit_code == 1
     report = json.loads(result.stdout)
     assert report["status"] == "error"
-    assert report["reason"] == "database_busy"
+    assert report["reason_code"] == "database_busy"
     assert report["state"] is None
     assert report["database_path"] == str(target)
     assert report["expected_revision"] == "0004_instrument_profiles"
@@ -176,7 +176,7 @@ def test_empty_status_is_fresh_and_does_not_create_sidecars(target: Path, json_o
         assert report["current_revision"] is None
         assert report["expected_revision"] == "0004_instrument_profiles"
         assert report["database_path"] == str(target)
-        assert "db upgrade" in report["message"]
+        assert "db upgrade" in report["reason"]
     else:
         assert "State: fresh" in result.stdout
 
@@ -242,7 +242,7 @@ def test_missing_resources_emit_one_safe_report(target: Path, command: str) -> N
         result = CliRunner().invoke(app, ["db", command, "--json"])
     assert result.exit_code == 1
     report = json.loads(result.stdout)
-    assert report["reason"] == "database_resources_unavailable"
+    assert report["reason_code"] == "database_resources_unavailable"
     assert report["expected_revision"] is None
     assert not result.stderr
     assert "private-resources" not in result.output
