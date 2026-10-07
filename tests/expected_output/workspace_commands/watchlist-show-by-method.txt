@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+Watchlist: Core ID: <uuid> Entries (4): graham-number: [1] KO: as_of=None, bvps_override=None, eps_basis=three_year_average, eps_override=None, quote_override=None, quote_provider_id=yfinance, security_provider_id=sec_edgar, use_cache=True graham-growth: [2] KO: aaa_yield_override=4.5, as_of=None, eps_basis=three_year_average, eps_override=None, expected_growth=5.0, quote_override=None, quote_provider_id=yfinance, security_provider_id=sec_edgar, use_cache=True fcf-growth: [3] MSFT: as_of=None, currency=USD, policy={'historical_horizon': 'longest_available', 'classification_basis': 'total_fcf', 'forward_policy': 'display_only', 'include_fcf_yield': True}, provider_id=sec_edgar, use_cache=True momentum: [4] AAPL: as_of=None, long_window=3, rsi_period=3, short_window=2, use_cache=False
+--- stderr
+

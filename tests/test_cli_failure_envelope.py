@@ -52,15 +52,15 @@ def _create(name: str) -> None:
 
 
 _MOMENTUM_WINDOW_CASES = [
-    (["--short-window", "0"], "Invalid momentum window: short window must be positive (received 0)."),
+    (["--short-window", "0"], "Invalid momentum window: --short-window must be positive (received 0)."),
     (
         ["--long-window", "0", "--short-window", "1"],
-        "Invalid momentum window: long window must be positive (received 0).",
+        "Invalid momentum window: --long-window must be positive (received 0).",
     ),
-    (["--rsi-period", "0"], "Invalid momentum period: RSI period must be positive (received 0)."),
+    (["--rsi-period", "0"], "Invalid momentum period: --rsi-period must be positive (received 0)."),
     (
         ["--short-window", "30", "--long-window", "10"],
-        "Invalid momentum windows: short window (30) must be smaller than long window (10).",
+        "Invalid momentum windows: --short-window (30) must be smaller than --long-window (10).",
     ),
 ]
 
@@ -239,3 +239,39 @@ def test_refresh_json_gives_each_failed_job_a_stable_code_and_keeps_its_text() -
         assert item["saved"] is False
     assert "error: provider down" in normalize_cli_output(text.stdout)
     assert "reason_code" not in text.stdout
+
+
+@pytest.mark.parametrize(
+    ("flag", "value"),
+    [("--short-window", "0"), ("--long-window", "0"), ("--rsi-period", "0")],
+)
+def test_the_window_failure_names_the_offending_option_on_all_three_commands(flag: str, value: str) -> None:
+    arguments = [flag, value] if flag != "--long-window" else [flag, value, "--short-window", "1"]
+    direct = runner.invoke(app, ["momentum", "ACME", *arguments, "--json"])
+    _create("Both")
+    created = runner.invoke(app, ["watchlist", "create", "Bad", "--analysis", "momentum", *arguments, "AAPL"])
+    added = runner.invoke(app, ["watchlist", "add-selection", "Both", "--analysis", "momentum", *arguments, "AAPL"])
+
+    assert flag in str(_envelope(direct.stdout)["reason"])
+    assert flag in normalize_cli_output(created.stderr)
+    assert flag in normalize_cli_output(added.stderr)
+
+
+def test_the_reversed_window_failure_names_both_options() -> None:
+    result = runner.invoke(app, ["momentum", "ACME", "--short-window", "30", "--long-window", "10", "--json"])
+
+    reason = str(_envelope(result.stdout)["reason"])
+    assert "--short-window" in reason
+    assert "--long-window" in reason
+
+
+def test_a_value_error_from_the_analysis_is_invalid_input_not_invalid_parameter() -> None:
+    """The same command reports a bad option and bad data under different codes."""
+    with patch(
+        "src.strategies.momentum.execution.MomentumAnalyzer.run_analysis", side_effect=ValueError("internal detail")
+    ):
+        data = runner.invoke(app, ["momentum", "ACME", "--json"])
+    option = runner.invoke(app, ["momentum", "ACME", "--short-window", "0", "--json"])
+
+    assert _envelope(data.stdout)["reason_code"] == "invalid_input"
+    assert _envelope(option.stdout)["reason_code"] == "invalid_parameter"

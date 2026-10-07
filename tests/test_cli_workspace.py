@@ -188,10 +188,10 @@ def test_watchlist_create_momentum_persists_as_of_and_no_cache() -> None:
 def test_watchlist_create_rejects_invalid_momentum_windows() -> None:
     """Mirrors the direct ``momentum`` command's own window/RSI validation exactly."""
     cases = [
-        (["--short-window", "0"], "short window must be positive"),
-        (["--long-window", "0"], "long window must be positive"),
-        (["--rsi-period", "0"], "RSI period must be positive"),
-        (["--short-window", "30", "--long-window", "10"], "must be smaller than long window"),
+        (["--short-window", "0"], "--short-window must be positive"),
+        (["--long-window", "0"], "--long-window must be positive"),
+        (["--rsi-period", "0"], "--rsi-period must be positive"),
+        (["--short-window", "30", "--long-window", "10"], "must be smaller than --long-window"),
     ]
     for flags, expected_message in cases:
         result = runner.invoke(app, ["watchlist", "create", "Bad Windows", "--analysis", "momentum", *flags, "AAPL"])

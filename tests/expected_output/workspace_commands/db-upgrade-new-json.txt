@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+{"command": "db upgrade", "status": "success", "database_path": "<database>", "state": "initialized", "current_revision": "0004_instrument_profiles", "expected_revision": "0004_instrument_profiles", "reason_code": null, "reason": "Database is ready.", "schema_version": 2}
+--- stderr
+

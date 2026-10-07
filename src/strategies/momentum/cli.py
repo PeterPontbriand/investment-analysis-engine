@@ -45,19 +45,23 @@ def _validate_momentum_windows(short_window: int, long_window: int, rsi_period: 
     """Reject invalid SMA/RSI periods with investor-readable domain language.
 
     The direct command and the watchlist builder share this check, so both report the same
-    ``invalid_parameter`` failure with the same sentence.
+    ``invalid_parameter`` failure with the same sentence, which names the offending option. The option
+    names are the ones both commands declare; this function, not generic tooling, supplies them.
     """
     if short_window <= 0:
         raise InvalidParameterError(
-            f"Invalid momentum window: short window must be positive (received {short_window})."
+            f"Invalid momentum window: --short-window must be positive (received {short_window})."
         )
     if long_window <= 0:
-        raise InvalidParameterError(f"Invalid momentum window: long window must be positive (received {long_window}).")
+        raise InvalidParameterError(
+            f"Invalid momentum window: --long-window must be positive (received {long_window})."
+        )
     if rsi_period <= 0:
-        raise InvalidParameterError(f"Invalid momentum period: RSI period must be positive (received {rsi_period}).")
+        raise InvalidParameterError(f"Invalid momentum period: --rsi-period must be positive (received {rsi_period}).")
     if short_window >= long_window:
         raise InvalidParameterError(
-            f"Invalid momentum windows: short window ({short_window}) must be smaller than long window ({long_window})."
+            f"Invalid momentum windows: --short-window ({short_window}) "
+            f"must be smaller than --long-window ({long_window})."
         )
 
 

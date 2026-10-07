@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+Deleted watchlist 'Core Renamed' (ID <uuid>, 1 entry). Saved Analysis Runs are kept.
+--- stderr
+

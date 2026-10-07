@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+Database: "<database>" State: initialized Revision: 0004_instrument_profiles; expected: 0004_instrument_profiles Database is ready.
+--- stderr
+

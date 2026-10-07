@@ -265,3 +265,18 @@ def test_no_command_remediates_for_the_caller(monkeypatch: pytest.MonkeyPatch) -
     result = CliRunner().invoke(src.cli.app, ["graham-number", "ACME", "--json"])
     assert result.exit_code == 1
     assert json.loads(result.stdout)["reason_code"] == "database_upgrade_required"
+
+
+def test_invalid_parameter_and_invalid_input_stay_distinct() -> None:
+    """``invalid_parameter`` is an option the command rejected itself; ``invalid_input`` is bad data.
+
+    ``InvalidParameterError`` is a ``ValueError``, so only its place in the ordered rules keeps it from being reported
+    as ``invalid_input``. Pinning both directions keeps a caller able to tell a mistake in its own request (fix the
+    option) from invalid data (retry later or report it).
+    """
+    assert issubclass(InvalidParameterError, ValueError)
+    assert classify_failure(InvalidParameterError("x")).reason_code is FailureReasonCode.INVALID_PARAMETER
+    assert classify_failure(ValueError("x")).reason_code is FailureReasonCode.INVALID_INPUT
+    parameter_position = [exception_type for exception_type, _code in CLASSIFICATION_RULES].index(InvalidParameterError)
+    value_error_position = [exception_type for exception_type, _code in CLASSIFICATION_RULES].index(ValueError)
+    assert parameter_position < value_error_position

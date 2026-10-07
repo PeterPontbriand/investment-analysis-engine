@@ -751,6 +751,19 @@ exception to a code and a status. `execution_errors`, the workspace commands and
 all use it, so the families cannot diverge. The model and enumeration live in the separate leaf module
 `src/reporting/documents/failure.py`. There is one `WatchlistNotFoundError` ([§18](#18-findings-assigned-to-a-slice)).
 
+**`invalid_input` versus `invalid_parameter`.** Both mean the request cannot proceed, but they tell a caller
+different things to do, so they stay separate codes.
+
+| Code | Covers | Exceptions that map to it | What the caller does |
+| :--- | :--- | :--- | :--- |
+| `invalid_input` | Data or inputs the analysis rejected: a plain `ValueError` raised below the command (provider data, a resolver, a codec, a calculation). The sentence is generic on every direct command except Momentum, because exception text from provider data is not shown. | Any `ValueError` not matched by a more specific rule | Treat it as a problem with the data or the environment; retrying the same request may or may not help. |
+| `invalid_parameter` | A command option value the command itself rejected before any work began. The sentence is authored by the command, names the offending option and is shown as written. | `InvalidParameterError` (a `ValueError` subtype, matched before the `ValueError` rule) | Correct the option and retry; the same request will always fail. |
+
+Momentum's window check is `invalid_parameter` because it rejects `--short-window`, `--long-window` and `--rsi-period` values,
+not data, and its sentence is built from the option names. It cannot be folded into `invalid_input`: that would hide from a
+caller that its own request is at fault, and would show or suppress the sentence by an unrelated rule. T18 pins the
+distinction in both directions and the order of the two rules.
+
 ### 13.4 What changes
 
 | # | Existing output | Change |
@@ -2045,9 +2058,46 @@ Changed output, all of it a failure document or the database report; each is lis
    standard output and nothing on standard error (the delete and rename confirmations stay on standard error).
 3. `refresh --json`: new key `reason_code` in every result (`null` on success).
 4. `db status --json` and `db upgrade --json`: `reason` is `reason_code`, `message` is `reason`, `schema_version` 2.
-5. Momentum's window check, on `momentum`, `watchlist create` and `watchlist add-selection`: exit 1, one sentence.
+5. Momentum's window check, on `momentum`, `watchlist create` and `watchlist add-selection`: exit 1, one sentence that
+   names the offending option (`--short-window`, `--long-window` or `--rsi-period`), supplied by Momentum's own check.
 
-No stored output file changed: the eight files under `tests/expected_output/direct_commands/` and the five under
-`tests/expected_output/cli_help/` are byte-identical, and none was regenerated. Both comparisons run in the default test
-run and pass unchanged, which is the check that no success document and no help text changed. Text modes of every command,
-usage errors other than Momentum's window check, and every strategy success document are unchanged.
+No stored output file of the direct commands changed: the eight files under `tests/expected_output/direct_commands/` and the
+five under `tests/expected_output/cli_help/` are byte-identical, and none was regenerated.
+
+**Workspace and database success output, compared with `main` (2026-10-06).** The same 40-step scenario ran against a
+`main` worktree and this branch, through `normalize_cli_output` and a mask for UUIDs, timestamps and the database path:
+`db status` and `db upgrade` (text and `--json`, ready, missing and newly initialized targets), `watchlist create`
+(empty and seeded), `add-selection` (all four strategies), `list`, `show` (text, `--group-by method`, `--json`),
+`remove-entry`, `remove-ticker`, `remove-method`, `rename` (text, `--json`), `delete` (text, `--json`, `--missing-ok`),
+`refresh` (text, `--json`, each with and without `--no-save`), `runs list` (text, `--json`, filtered, empty) and `runs show`
+(concise, `--details`, `--diagnostics`, `--json`). Thirty-four steps are identical, including the exit code. The six that
+differ are exactly the approved changes: `db status --json` (two steps) and `db upgrade --json` (two steps) for the renamed
+fields and version 2, and `refresh --json` (two steps, saved and `--no-save`) for the new `reason_code` key, `null` on every
+success. The scenario is stored under `tests/expected_output/workspace_commands/` and compared by
+`tests/test_workspace_command_output.py`, which also requires the scenario to be deterministic, every stored file to belong
+to a step and every `watchlist`, `runs` and `db` subcommand to appear in a step.
+
+The refresh summary has no `schema_version`, so the new key bumps no version. The design requires the key on every result
+(`null` when `error` is not set), so it is not absent on success. Text modes of every command, usage errors other than
+Momentum's window check, and every strategy success document are unchanged.
+
+### H.28 Commands, `--json` and failure reporting (2026-10-06)
+
+| Command | Offers `--json` | Failures that are reported | Failure output |
+| :--- | :--- | :--- | :--- |
+| `momentum`, `graham-number`, `graham-growth`, `fcf-growth` | Yes | Execution failures, including readiness | Envelope on stdout with `--json`; the sentence on stderr otherwise. |
+| `watchlist show`, `rename`, `delete` | Yes | Not found, name conflict, unreadable stored selection, readiness | Envelope on stdout, nothing on stderr (the rename and delete confirmations stay on stderr). |
+| `runs list`, `runs show` | Yes | Not found, invalid or unsupported stored run, unsupported projection, readiness | Envelope on stdout, nothing on stderr. |
+| `refresh` | Yes | Unknown watchlist, unreadable stored selection, readiness; each failed job | Envelope on stdout; each failed job carries `reason_code` in the summary. |
+| `db status`, `db upgrade` | Yes | Readiness and maintenance failures | The maintenance report (its own shape), with `reason_code`. |
+| `watchlist create`, `add-selection` | No | Name conflict, not found, unreadable selection, readiness, Momentum window check | The sentence on stderr, exit 1. |
+| `watchlist remove-entry`, `remove-ticker`, `remove-method` | No | Not found, entry not found, unreadable selection, readiness | The sentence on stderr, exit 1. |
+| `watchlist list` | No | Readiness, unreadable selection | The sentence on stderr, exit 1. |
+
+A command without `--json` has no channel for a code, so `reason_code` does not reach its user; the sentence does, and the
+classifier still assigns the code so the command can offer `--json` later without a second vocabulary. Text on stderr
+remains for failures that are not execution failures: usage errors (exit 2) on every command, including a blank watchlist
+name, an invalid `--status` or run ID, `--yes` missing without a terminal, `refresh` of a watchlist with no entries, and an
+unusable `--database-url`; and the declined confirmation of `watchlist delete` ("Nothing was deleted.", exit 1). The first
+group is unchanged by the contract ("usage errors (exit 2, text)"); the second is named as unchanged in
+[§13.4](#134-what-changes). They are reported to the project owner, not changed here.

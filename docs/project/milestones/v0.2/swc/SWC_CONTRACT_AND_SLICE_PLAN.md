@@ -864,8 +864,9 @@ failure:
   and the shared classifier maps it to the new stable `reason_code` `invalid_parameter` with status `error`. The
   code names a command option value rejected before any work, so it is not Momentum-specific and adds no
   per-strategy entry to generic tooling.
-- **One sentence.** Both commands use the direct command's investor-readable wording. The watchlist builder's
-  option-named wording is removed.
+- **One sentence.** Both commands use the direct command's investor-readable wording, and it names the offending
+  option (`--short-window`, `--long-window`, `--rsi-period`); Momentum's own check supplies the names, not generic
+  tooling. The watchlist builder's earlier wording is removed.
 - **One report.** The failure is reported through the envelope on the direct command (`--json`: the envelope on
   standard output; otherwise the sentence on standard error) and as the sentence on standard error from
   `watchlist create` and `watchlist add-selection`, which have no `--json`. The exit code is 1.
@@ -877,4 +878,7 @@ Resulting output change, in addition to [design §13.4](SWC_1_DESCRIPTOR_CONTRAC
 | Command | Before | After |
 | :--- | :--- | :--- |
 | `momentum` with an invalid window or RSI period | Message on standard error, exit 2, no JSON under `--json` | Envelope (`--json`) or the same message on standard error, exit 1, `reason_code` `invalid_parameter` |
-| `watchlist create` and `watchlist add-selection` with the same values | Usage error naming the option, exit 2 | The direct command's sentence on standard error, exit 1 |
+| `watchlist create` and `watchlist add-selection` with the same values | Usage error naming the option, exit 2 | The same sentence on standard error, exit 1 |
+
+The sentence changed from the direct command's earlier wording only by naming the option (`--short-window` for "short window"
+and so on). The reason `invalid_parameter` is not `invalid_input` is in [design §13.3](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#133-reason-codes-and-stability).
