@@ -23,6 +23,7 @@
         "unsupported_run_version",
         "watchlist_not_found",
         "watchlist_entry_not_found",
+        "watchlist_empty",
         "watchlist_name_conflict",
         "analysis_run_not_found",
         "stored_selection_unreadable",

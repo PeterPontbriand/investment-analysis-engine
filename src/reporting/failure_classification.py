@@ -26,6 +26,7 @@ from src.reporting.documents.failure import (
     status_for,
 )
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
+from src.workspace.refresh import EmptyRefreshTargetError
 from src.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError
 
 
@@ -58,6 +59,7 @@ CLASSIFICATION_RULES: tuple[tuple[type[BaseException], FailureReasonCode], ...] 
     (UnsupportedProjectionError, FailureReasonCode.UNSUPPORTED_PROJECTION),
     (StoredSelectionError, FailureReasonCode.STORED_SELECTION_UNREADABLE),
     (WatchlistNotFoundError, FailureReasonCode.WATCHLIST_NOT_FOUND),
+    (EmptyRefreshTargetError, FailureReasonCode.WATCHLIST_EMPTY),
     (WatchlistEntryNotFoundError, FailureReasonCode.WATCHLIST_ENTRY_NOT_FOUND),
     (WatchlistConflictError, FailureReasonCode.WATCHLIST_NAME_CONFLICT),
     (ValueError, FailureReasonCode.INVALID_INPUT),

@@ -275,3 +275,26 @@ def test_a_value_error_from_the_analysis_is_invalid_input_not_invalid_parameter(
 
     assert _envelope(data.stdout)["reason_code"] == "invalid_input"
     assert _envelope(option.stdout)["reason_code"] == "invalid_parameter"
+
+
+def test_refreshing_an_empty_watchlist_is_a_watchlist_empty_failure_in_json() -> None:
+    _create("Empty")
+
+    result = runner.invoke(app, ["refresh", "Empty", "--json"])
+
+    assert result.exit_code == 1
+    assert not result.stderr
+    envelope = _envelope(result.stdout)
+    assert envelope["reason_code"] == "watchlist_empty"
+    assert envelope["status"] == "error"
+    assert "nothing to refresh" in normalize_cli_output(str(envelope["reason"]))
+
+
+def test_refreshing_an_empty_watchlist_in_text_is_the_sentence_on_standard_error() -> None:
+    _create("Empty")
+
+    result = runner.invoke(app, ["refresh", "Empty"])
+
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert "Watchlist 'Empty' has no entries; there is nothing to refresh." in normalize_cli_output(result.stderr)

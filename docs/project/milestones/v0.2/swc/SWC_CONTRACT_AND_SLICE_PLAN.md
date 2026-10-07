@@ -444,7 +444,8 @@ version and result-schema version distinct and do not silently reinterpret histo
   (`src/data/repositories/watchlists.py`, `src/workspace/refresh.py`), `AnalysisConfigurationError` moved to the
   classifier module with its two importers (`src/cli_composition.py`, `src/cli_health.py`),
   `docs/user/DATABASE.md`, `docs/user/USAGE.md` and `docs/user/WORKSPACE.md` (prose that described the
-  old failure output), a new `scripts/generate_schemas.py`, `schemas/` (failure, database report), tests T18 to
+  old failure output), `refresh` of an empty watchlist as a `watchlist_empty` failure
+  ([B.11](#b11-swc4a-an-empty-watchlist-is-a-refresh-failure-2026-10-06)), a new `scripts/generate_schemas.py`, `schemas/` (failure, database report), tests T18 to
   T20 and the existing tests whose expectations the listed output changes alter
   ([design H.23 to H.27](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h23-failure-model-classifier-and-module-homes-2026-10-06)).
 - **Branch:** `feat/swc-4a-failure-envelope`, from `main` after SWC.3c has merged.
@@ -459,6 +460,10 @@ version and result-schema version distinct and do not silently reinterpret histo
   the design. Selections inside watchlist documents are typed by the `AnalysisSelection` union.
 - **Scope:** `src/reporting/documents/{watchlist,runs,refresh}.py`, the JSON builders in
   `src/cli_workspace.py`, four schemas, and tests.
+- **Known at SWC.4a:** the `refresh --json` document has no `schema_version`, so SWC.4a's new `reason_code` key on
+  each result bumped no version ([design H.27](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h27-output-changes-and-the-check-that-success-output-is-unchanged-2026-10-06)).
+  SWC.4b publishes the refresh summary schema and states, in the schema and the design, that the document is unversioned
+  or what version it carries; adding a version is an output change it lists.
 - **Branch:** `feat/swc-4b-workspace-documents`, from `main` after SWC.4a has merged.
 - **Detail:** [SWC.1 design §13.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#136-every-json-document-is-typed).
 
@@ -882,3 +887,20 @@ Resulting output change, in addition to [design §13.4](SWC_1_DESCRIPTOR_CONTRAC
 
 The sentence changed from the direct command's earlier wording only by naming the option (`--short-window` for "short window"
 and so on). The reason `invalid_parameter` is not `invalid_input` is in [design §13.3](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#133-reason-codes-and-stability).
+
+### B.11 SWC.4a: an empty watchlist is a refresh failure (2026-10-06)
+
+The project owner decided, during the SWC.4a review:
+
+- **`refresh` of a watchlist with no entries is a failure, not a usage error.** It reports the new stable `reason_code`
+  `watchlist_empty` through the envelope and exits 1, in text and with `--json` (the envelope on standard output and
+  nothing on standard error). It was a usage error with exit 2. The code is added by addition only; the classifier maps
+  `EmptyRefreshTargetError` to it. Detail: [design H.29](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h29-an-empty-watchlist-is-a-refresh-failure-2026-10-06).
+- **Every other usage error and the declined confirmation of `watchlist delete` stay as they are.** The design's §13.3
+  states exactly which rejected option values are `invalid_parameter` today and which remain exit-2 usage errors.
+
+Resulting output change, in addition to [B.10](#b10-swc4a-momentum-window-failure-2026-10-06):
+
+| Command | Before | After |
+| :--- | :--- | :--- |
+| `refresh` of a watchlist with no entries | Usage error on standard error, exit 2, with or without `--json` | `watchlist_empty`: envelope on standard output (`--json`) or the sentence on standard error, exit 1 |

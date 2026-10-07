@@ -733,10 +733,10 @@ key order does not matter.
 | Group | Codes | Source |
 | :--- | :--- | :--- |
 | Direct execution | `execution_error`, `historical_quality`, `provider_error`, `configuration_error`, `no_eligible_observations`, `invalid_input` | Existing, unchanged strings from `execution_errors`. `execution_error` is also the classifier's result for an exception it does not recognize. |
-| Direct execution, new | `invalid_parameter` | A command option value rejected before any work, raised as `InvalidParameterError`. Momentum's window check is its first user ([H.24](#h24-codes-beyond-this-table-2026-10-06)). |
+| Direct execution, new | `invalid_parameter` | A command option value rejected before any work, raised as `InvalidParameterError`. Today only Momentum's three window and period options use it ([below](#which-option-values-are-invalid-parameter-today), [H.24](#h24-codes-beyond-this-table-2026-10-06)). |
 | Database readiness | `database_upgrade_required`, `database_incompatible_schema`, `database_busy`, `database_permission_denied`, `database_invalid_file`, `database_io_error`, `database_resources_unavailable`, `database_initialization_failed`, `database_migration_failed` | Existing `ReadinessReason` values, unchanged. |
 | Workspace, existing | `invalid_stored_run`, `unsupported_run_version` | Existing `reason_code` attributes on `InvalidStoredRunError` and `UnsupportedRunVersionError`. |
-| Workspace, new | `watchlist_not_found`, `watchlist_name_conflict`, `analysis_run_not_found`, `stored_selection_unreadable`, `unsupported_projection`, `watchlist_entry_not_found` | New, for the `--json` failure paths listed in [§13.4](#134-what-changes) and for `watchlist remove-entry`, which has no `--json` ([H.24](#h24-codes-beyond-this-table-2026-10-06)). |
+| Workspace, new | `watchlist_not_found`, `watchlist_name_conflict`, `analysis_run_not_found`, `stored_selection_unreadable`, `unsupported_projection`, `watchlist_entry_not_found`, `watchlist_empty` | New, for the `--json` failure paths listed in [§13.4](#134-what-changes), for `watchlist remove-entry`, which has no `--json` ([H.24](#h24-codes-beyond-this-table-2026-10-06)), and for `refresh` of a watchlist with no entries ([H.29](#h29-an-empty-watchlist-is-a-refresh-failure-2026-10-06)). |
 
 **Stability guarantee.** A `reason_code` value is never renamed, repurposed or removed within the
 project's public contract. New values may be added; a caller must treat an unrecognised value as a
@@ -757,7 +757,22 @@ different things to do, so they stay separate codes.
 | Code | Covers | Exceptions that map to it | What the caller does |
 | :--- | :--- | :--- | :--- |
 | `invalid_input` | Data or inputs the analysis rejected: a plain `ValueError` raised below the command (provider data, a resolver, a codec, a calculation). The sentence is generic on every direct command except Momentum, because exception text from provider data is not shown. | Any `ValueError` not matched by a more specific rule | Treat it as a problem with the data or the environment; retrying the same request may or may not help. |
-| `invalid_parameter` | A command option value the command itself rejected before any work began. The sentence is authored by the command, names the offending option and is shown as written. | `InvalidParameterError` (a `ValueError` subtype, matched before the `ValueError` rule) | Correct the option and retry; the same request will always fail. |
+| `invalid_parameter` | An option value that the command's own code rejects, as a raised `InvalidParameterError`, before any work begins. The sentence is authored by the command, names the offending option and is shown as written. It is not the code for every rejected option value ([below](#which-option-values-are-invalid-parameter-today)). | `InvalidParameterError` (a `ValueError` subtype, matched before the `ValueError` rule) | Correct the option and retry; the same request will always fail. |
+
+#### Which option values are invalid parameter today
+
+Exactly three: Momentum's
+`--short-window`, `--long-window` and `--rsi-period` (each must be positive and the short window smaller than the long one),
+on `momentum`, `watchlist create` and `watchlist add-selection`. Every other rejected option value is still a usage error:
+exit 2, text on standard error, no envelope, even under `--json`. That covers anything Typer or Click rejects while parsing
+(an unknown option, a wrong type) and every check the commands raise as `typer.BadParameter`: the ticker, `--as-of`,
+`--data-provider`, the exclusive `--details`, `--diagnostics` and `--json`, `--group-by`, `--status`, a run or refresh ID,
+`--workers`, `--yes` without a terminal, `--analysis`, a blank watchlist name, `--database-url`, and the Graham and FCF
+option checks. The reason is mechanical, not a judgement: `execution_errors` and the workspace helpers re-raise a
+`typer.Exit` or usage error untouched, so those rejections never reach the classifier. Whether they move into the envelope is
+undecided and outside SWC.4a; this slice moved only the check the project owner approved ([plan B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-momentum-window-failure-2026-10-06)).
+A code is therefore `invalid_parameter` because the command's own code raised `InvalidParameterError`, not because the
+cause is an option value; a caller must not infer that a failure with another code was not caused by an option.
 
 Momentum's window check is `invalid_parameter` because it rejects `--short-window`, `--long-window` and `--rsi-period` values,
 not data, and its sentence is built from the option names. It cannot be folded into `invalid_input`: that would hide from a
@@ -2058,7 +2073,9 @@ Changed output, all of it a failure document or the database report; each is lis
    standard output and nothing on standard error (the delete and rename confirmations stay on standard error).
 3. `refresh --json`: new key `reason_code` in every result (`null` on success).
 4. `db status --json` and `db upgrade --json`: `reason` is `reason_code`, `message` is `reason`, `schema_version` 2.
-5. Momentum's window check, on `momentum`, `watchlist create` and `watchlist add-selection`: exit 1, one sentence that
+5. `refresh` of a watchlist with no entries: `watchlist_empty`, exit 1, the envelope on standard output (`--json`) or the
+   sentence on standard error; it was exit 2 with a usage error ([H.29](#h29-an-empty-watchlist-is-a-refresh-failure-2026-10-06)).
+6. Momentum's window check, on `momentum`, `watchlist create` and `watchlist add-selection`: exit 1, one sentence that
    names the offending option (`--short-window`, `--long-window` or `--rsi-period`), supplied by Momentum's own check.
 
 No stored output file of the direct commands changed: the eight files under `tests/expected_output/direct_commands/` and the
@@ -2083,12 +2100,15 @@ Momentum's window check, and every strategy success document are unchanged.
 
 ### H.28 Commands, `--json` and failure reporting (2026-10-06)
 
+Amended by [H.29](#h29-an-empty-watchlist-is-a-refresh-failure-2026-10-06): `refresh` of a watchlist with no entries is a
+`watchlist_empty` failure, not a usage error.
+
 | Command | Offers `--json` | Failures that are reported | Failure output |
 | :--- | :--- | :--- | :--- |
 | `momentum`, `graham-number`, `graham-growth`, `fcf-growth` | Yes | Execution failures, including readiness | Envelope on stdout with `--json`; the sentence on stderr otherwise. |
 | `watchlist show`, `rename`, `delete` | Yes | Not found, name conflict, unreadable stored selection, readiness | Envelope on stdout, nothing on stderr (the rename and delete confirmations stay on stderr). |
 | `runs list`, `runs show` | Yes | Not found, invalid or unsupported stored run, unsupported projection, readiness | Envelope on stdout, nothing on stderr. |
-| `refresh` | Yes | Unknown watchlist, unreadable stored selection, readiness; each failed job | Envelope on stdout; each failed job carries `reason_code` in the summary. |
+| `refresh` | Yes | Unknown watchlist, empty watchlist, unreadable stored selection, readiness; each failed job | Envelope on stdout; each failed job carries `reason_code` in the summary. |
 | `db status`, `db upgrade` | Yes | Readiness and maintenance failures | The maintenance report (its own shape), with `reason_code`. |
 | `watchlist create`, `add-selection` | No | Name conflict, not found, unreadable selection, readiness, Momentum window check | The sentence on stderr, exit 1. |
 | `watchlist remove-entry`, `remove-ticker`, `remove-method` | No | Not found, entry not found, unreadable selection, readiness | The sentence on stderr, exit 1. |
@@ -2097,7 +2117,23 @@ Momentum's window check, and every strategy success document are unchanged.
 A command without `--json` has no channel for a code, so `reason_code` does not reach its user; the sentence does, and the
 classifier still assigns the code so the command can offer `--json` later without a second vocabulary. Text on stderr
 remains for failures that are not execution failures: usage errors (exit 2) on every command, including a blank watchlist
-name, an invalid `--status` or run ID, `--yes` missing without a terminal, `refresh` of a watchlist with no entries, and an
+name, an invalid `--status` or run ID, `--yes` missing without a terminal, an invalid `--workers`, and an
 unusable `--database-url`; and the declined confirmation of `watchlist delete` ("Nothing was deleted.", exit 1). The first
 group is unchanged by the contract ("usage errors (exit 2, text)"); the second is named as unchanged in
-[§13.4](#134-what-changes). They are reported to the project owner, not changed here.
+[§13.4](#134-what-changes). The project owner decided both stay as they are in SWC.4a.
+
+### H.29 An empty watchlist is a refresh failure (2026-10-06)
+
+Decided by the project owner during the SWC.4a review.
+
+- **Decision.** `refresh` of a watchlist with no entries is a failure, not a usage error. It reports the new stable
+  `reason_code` `watchlist_empty` (status `error`) and exits 1, in text and with `--json`; with `--json` the envelope goes
+  to standard output and nothing to standard error. The exit code was 2 and the report was a usage error in both modes.
+- **Why.** The command line is correct and the watchlist exists; what is wrong is the state of the stored data, which a
+  caller fixes by adding an entry. That is the same kind of condition as an unknown watchlist, which already exits 1.
+- **Mechanism.** `EmptyRefreshTargetError`, raised by `refresh_watchlist` before any job runs, is a rule in the classifier;
+  `refresh` reports it as it reports `WatchlistNotFoundError`. The code is added by addition only
+  ([§13.3](#133-reason-codes-and-stability)); `failure.schema.json` and `database-maintenance-report.schema.json` list it,
+  and the drift check shows the change.
+- **Unchanged.** Every other usage error, and the declined confirmation of `watchlist delete`, stay as they are
+  ([H.28](#h28-commands---json-and-failure-reporting-2026-10-06)).

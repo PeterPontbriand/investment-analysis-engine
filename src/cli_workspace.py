@@ -994,7 +994,7 @@ def refresh(
             except WatchlistNotFoundError as exc:
                 _fail_with(exc, json_output=json_output)
             except EmptyRefreshTargetError as exc:
-                raise typer.BadParameter(str(exc)) from exc
+                _fail_with(exc, json_output=json_output)
     finally:
         signal.signal(signal.SIGINT, previous_handler)
 

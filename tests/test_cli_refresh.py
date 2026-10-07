@@ -140,12 +140,13 @@ def test_refresh_missing_watchlist_exits_1() -> None:
     assert "No watchlist named" in normalize_cli_output(result.output)
 
 
-def test_refresh_empty_target_is_a_usage_error() -> None:
+def test_refresh_empty_target_is_a_failure_exiting_1() -> None:
     _create("My Watch")
 
     result = runner.invoke(app, ["refresh", "My Watch"])
-    assert result.exit_code == 2
-    assert "nothing to refresh" in normalize_cli_output(result.output)
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert "nothing to refresh" in normalize_cli_output(result.stderr)
 
 
 def test_refresh_rejects_an_out_of_range_worker_count() -> None:

@@ -42,6 +42,7 @@ class FailureReasonCode(StrEnum):
     UNSUPPORTED_RUN_VERSION = "unsupported_run_version"
     WATCHLIST_NOT_FOUND = "watchlist_not_found"
     WATCHLIST_ENTRY_NOT_FOUND = "watchlist_entry_not_found"
+    WATCHLIST_EMPTY = "watchlist_empty"
     WATCHLIST_NAME_CONFLICT = "watchlist_name_conflict"
     ANALYSIS_RUN_NOT_FOUND = "analysis_run_not_found"
     STORED_SELECTION_UNREADABLE = "stored_selection_unreadable"

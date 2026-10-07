@@ -191,15 +191,15 @@ Nothing is printed until the whole refresh finishes (or is interrupted) — ther
 uv run ian refresh "Core Holdings" --json
 ```
 
-Each result carries `error` (the failure's own text, or `null`) and `reason_code`: the stable code of the failure when `error` is set, otherwise `null`. Branch on `reason_code`; `error` is for people. The codes are the ones in the [failure document](USAGE.md#--json--machine-readable-output). A refresh that cannot start at all (an unknown watchlist, an unreadable stored entry, storage that needs attention) writes that failure document instead of this summary.
+Each result carries `error` (the failure's own text, or `null`) and `reason_code`: the stable code of the failure when `error` is set, otherwise `null`. Branch on `reason_code`; `error` is for people. The codes are the ones in the [failure document](USAGE.md#--json--machine-readable-output). A refresh that cannot start at all (an unknown watchlist, a watchlist with no entries, an unreadable stored entry, storage that needs attention) writes that failure document instead of this summary and exits `1`; without `--json` it prints the sentence on standard error.
 
 One ticker's failure never stops the rest of the watchlist: a method that could not calculate (or a storage hiccup for that one attempt) is recorded as an error for that ticker only, and every other ticker in the watchlist still runs. The exit code reflects the whole batch:
 
 | Exit code | Meaning |
 |---|---|
 | `0` | Every attempt completed, or did not apply (a known ETF, and similar). |
-| `1` | At least one attempt was unavailable, failed, or could not be saved. |
-| `2` | A usage error — an unknown watchlist argument, or a watchlist with no entries to refresh. |
+| `1` | At least one attempt was unavailable, failed, or could not be saved; or the refresh could not start: the watchlist does not exist, or it has no entries (`watchlist_empty`). |
+| `2` | A usage error, such as an invalid `--workers`. |
 | `130` | You interrupted the refresh (Ctrl+C). |
 
 ### Concurrency and interruption

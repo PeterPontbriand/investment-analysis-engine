@@ -37,6 +37,7 @@ from src.reporting.failure_classification import (
 )
 from src.reporting.presentation import failure_document
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
+from src.workspace.refresh import EmptyRefreshTargetError
 from src.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 
@@ -132,6 +133,7 @@ def test_a_more_specific_exception_is_never_shadowed_by_its_base() -> None:
         (InvalidParameterError("x"), "invalid_parameter", "error"),
         (WatchlistNotFoundError("x"), "watchlist_not_found", "error"),
         (WatchlistEntryNotFoundError("x"), "watchlist_entry_not_found", "error"),
+        (EmptyRefreshTargetError("x"), "watchlist_empty", "error"),
         (WatchlistConflictError("x"), "watchlist_name_conflict", "error"),
         (StoredSelectionError("x"), "stored_selection_unreadable", "error"),
         (UnsupportedProjectionError("x"), "unsupported_projection", "error"),
