@@ -764,13 +764,17 @@ different things to do, so they stay separate codes.
 Exactly three: Momentum's
 `--short-window`, `--long-window` and `--rsi-period` (each must be positive and the short window smaller than the long one),
 on `momentum`, `watchlist create` and `watchlist add-selection`. Every other rejected option value is still a usage error:
-exit 2, text on standard error, no envelope, even under `--json`. That covers anything Typer or Click rejects while parsing
-(an unknown option, a wrong type) and every check the commands raise as `typer.BadParameter`: the ticker, `--as-of`,
+exit 2, text on standard error, no envelope, even under `--json`. That covers two groups. Anything Typer or Click rejects
+while parsing (an unknown option, a wrong type, a missing argument) stays a usage error by decision
+([plan B.12](SWC_CONTRACT_AND_SLICE_PLAN.md#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06)). Every check the
+commands raise themselves as `typer.BadParameter` is also still a usage error, and whether those move is the open question: the ticker, `--as-of`,
 `--data-provider`, the exclusive `--details`, `--diagnostics` and `--json`, `--group-by`, `--status`, a run or refresh ID,
 `--workers`, `--yes` without a terminal, `--analysis`, a blank watchlist name, `--database-url`, and the Graham and FCF
 option checks. The reason is mechanical, not a judgement: `execution_errors` and the workspace helpers re-raise a
-`typer.Exit` or usage error untouched, so those rejections never reach the classifier. Whether they move into the envelope is
-undecided and outside SWC.4a; this slice moved only the check the project owner approved ([plan B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-momentum-window-failure-2026-10-06)).
+`typer.Exit` or usage error untouched, so those rejections never reach the classifier. Whether the command-raised checks move into the envelope is
+owned by [SWC.4d](SWC_CONTRACT_AND_SLICE_PLAN.md#swc4d--command-validation-failures-and-the-failure-envelope), which starts with the Graham and
+FCF parameter checks; until it runs nothing changes, and SWC.4a moved only the check the project owner approved
+([plan B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-momentum-window-failure-2026-10-06)).
 A code is therefore `invalid_parameter` because the command's own code raised `InvalidParameterError`, not because the
 cause is an option value; a caller must not infer that a failure with another code was not caused by an option.
 

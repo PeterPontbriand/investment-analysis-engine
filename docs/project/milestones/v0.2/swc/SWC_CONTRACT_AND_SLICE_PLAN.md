@@ -55,6 +55,7 @@ document-link check and applicable documentation checks.
 | SWC.4a | [Typed failure envelope and schema generator](#swc4a--failure-envelope-and-schema-generator) | Complete | 2026-10-06 |
 | SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Next | |
 | SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Planned | |
+| SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Planned | |
 | SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
@@ -421,7 +422,8 @@ changes in thirteen test modules.
 ### SWC.4 — Reporting and typed JSON envelopes
 
 Every `--json` document gets a typed model and a checked-in schema, and failures get one envelope. That
-is three reviewable concerns, so it is three slices, in this order. The contract, the document list,
+is three reviewable concerns, so it is three slices, in this order; SWC.4d follows them to decide one failure-reporting
+question the first three leave open. The contract, the document list,
 the schema layout and the output changes are in the
 [SWC.1 design §11 and §13](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#13-failure-envelope-contract). Keep `projection_version`, method
 version and result-schema version distinct and do not silently reinterpret historical runs. See the
@@ -486,6 +488,21 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Detail:** [SWC.1 design §6, §10 and §13.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#10-conformance-tests-and-negative-control),
   [inventory disposition](#4-inventory-disposition) and
   [audited inventory](#appendix-a-proposal-inventory-verified-against-main).
+
+#### SWC.4d — Command validation failures and the failure envelope
+
+- **Problem:** a validation failure that a command raises itself reaches the caller in one of two ways. Momentum's window
+  check is an `invalid_parameter` failure through the envelope with exit 1 ([B.10](#b10-swc4a-momentum-window-failure-2026-10-06)),
+  while the Graham and FCF parameter checks, and the other checks raised as `typer.BadParameter`, exit 2 as plain text, even
+  under `--json`.
+- **Decision:** SWC.4d decides whether those validation failures move into the failure envelope, starting with the Graham and
+  FCF parameter checks, and which of the rest follow. It does not revisit failures the parser rejects before a command runs,
+  which are decided ([B.12](#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06)). SWC.4d lists its own output
+  changes, by command, when it is planned. No behavior changes until it runs.
+- **Scope:** to be set by the SWC.4d plan; the question and the current behavior are in
+  [design §13.3](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#which-option-values-are-invalid-parameter-today).
+- **Branch:** `feat/swc-4d-command-validation-failures`, from `main` after SWC.4c has merged.
+- **Detail:** ⚠ no slice plan yet.
 
 ### SWC.5 — Site data, status command and generated lists
 
@@ -904,3 +921,16 @@ Resulting output change, in addition to [B.10](#b10-swc4a-momentum-window-failur
 | Command | Before | After |
 | :--- | :--- | :--- |
 | `refresh` of a watchlist with no entries | Usage error on standard error, exit 2, with or without `--json` | `watchlist_empty`: envelope on standard output (`--json`) or the sentence on standard error, exit 1 |
+
+### B.12 SWC.4a: parser-rejected failures stay usage errors (2026-10-06)
+
+The project owner decided, during the SWC.4a review:
+
+- **A failure the parser rejects before a command runs remains an exit-2 usage error in plain text, including under
+  `--json`.** This covers what Typer and Click reject while parsing the command line: an unknown option, a value of the wrong
+  type, a missing argument, a value outside a declared choice. No command code has run, so there is no failure to classify
+  and no envelope. This is decided, not open.
+- **Validation failures that a command raises itself are a separate question,** which is not decided. They are a check the
+  command's own code makes after parsing and raises as `typer.BadParameter`, for example the Graham and FCF parameter checks,
+  which exit 2 as text, against Momentum's window check, which reports `invalid_parameter` with exit 1. The new slice SWC.4d
+  owns that question ([SWC.4d](#swc4d--command-validation-failures-and-the-failure-envelope)). Until it runs, no behavior changes.
