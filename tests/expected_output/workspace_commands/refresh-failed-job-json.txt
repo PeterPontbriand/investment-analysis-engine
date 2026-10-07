@@ -1,0 +1,5 @@
+exit 1
+--- stdout
+{"refresh_id": "<uuid>", "watchlist_id": "<uuid>", "watchlist_name": "Failing", "results": [{"ticker": "AAPL", "method_id": "sma_crossover", "analysis_run_id": "<uuid>", "saved": true, "status": "completed", "error": null, "reason_code": null}, {"ticker": "BAD", "method_id": "sma_crossover", "analysis_run_id": null, "saved": false, "status": null, "error": "fixture provider failure", "reason_code": "execution_error"}], "counts": {"completed": 1, "error": 1}}
+--- stderr
+
