@@ -7,10 +7,10 @@ timestamp spelling is a listed output change in the slice that makes it, and the
 from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, field_serializer, model_validator
 
-from src.reporting.documents.timestamp import DocumentTimestamp
-from src.workspace.strategy_types import AnalysisSelection
+from src.reporting.documents.timestamp import DocumentTimestamp, document_json_value
+from src.workspace.strategy_types import AnalysisSelection, SelectionMember
 
 
 class WatchlistEntryDocument(BaseModel):
@@ -20,7 +20,19 @@ class WatchlistEntryDocument(BaseModel):
 
     index: int = Field(description="The 1-based position a user sees and passes to 'remove-entry'.")
     ticker: str
-    selection: AnalysisSelection = Field(description="The stored selection; its method_id says which strategy.")
+    selection: AnalysisSelection = Field(
+        description="The stored selection; its method_id says which strategy. Its instants (as_of) carry a UTC offset."
+    )
+
+    @field_serializer("selection", mode="wrap", when_used="json")
+    def _serialize_selection(self, value: SelectionMember, handler: SerializerFunctionWrapHandler):  # type: ignore[no-untyped-def]  # noqa: ANN202
+        """Write the selection's instants as every other document does, leaving the selection model unchanged.
+
+        The return type is left unannotated so the generated schema keeps the selection union; the value is the
+        selection's JSON data, a dictionary.
+        """
+        del handler
+        return document_json_value(value)
 
 
 class WatchlistDocument(BaseModel):

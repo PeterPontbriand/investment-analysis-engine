@@ -68,7 +68,7 @@ Add `--json` to `watchlist show` for the complete, machine-readable document —
 uv run ian watchlist show "Core Holdings" --json
 ```
 
-The document is described by `schemas/watchlist.schema.json`, which `watchlist rename --json` shares. It has no `schema_version`: a change to its keys or types shows in the schema. Its `created_at` and `updated_at` (`null` until the watchlist is first changed) are written with their UTC offset, as `+00:00`. Each entry's `selection` is the stored selection of that entry's method, told apart by its `method_id`.
+The document is described by `schemas/watchlist.schema.json`, which `watchlist rename --json` shares. It has no `schema_version`: a change to its keys or types shows in the schema. Its `created_at` and `updated_at` (`null` until the watchlist is first changed) are written with their UTC offset, as `+00:00`. Each entry's `selection` is the stored selection of that entry's method, told apart by its `method_id`; its `as_of`, when set, is written the same way (`+00:00`; it was `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
 
 List every watchlist you have:
 

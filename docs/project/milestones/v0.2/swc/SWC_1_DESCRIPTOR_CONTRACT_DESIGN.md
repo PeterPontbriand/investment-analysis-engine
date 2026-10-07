@@ -641,7 +641,7 @@ values unchanged and changes no selection, evidence or result shape, so no `conf
 that change are listed in [§13.4](#134-what-changes): the failure document `schema_version` 5 to 6 and the
 database report `schema_version` 1 to 2. Strategy success documents stay byte-identical, so their versions do not
 change. The workspace success documents change only in the one timestamp spelling listed in
-[§13.4](#134-what-changes) row 6, and none of the four carries a version ([H.30](#h30-typed-workspace-documents-2026-10-07)).
+[§13.4](#134-what-changes) rows 6 and 7, and none of the four carries a version ([H.30](#h30-typed-workspace-documents-2026-10-07)).
 `projection_version` stays 1. A slice that finds it must change a stored
 shape bumps the version and records it.
 
@@ -795,9 +795,10 @@ distinction in both directions and the order of the two rules.
 | 4 | `db status --json` and `db upgrade --json` | `reason` (the code) is renamed `reason_code`; `message` (the prose) is renamed `reason`; `schema_version` 1 to 2. The text rendering is unchanged. |
 | 5 | `momentum` with an invalid window or RSI period; `watchlist create` and `watchlist add-selection` with the same values | One `invalid_parameter` failure with one sentence, reported through the envelope on `momentum` and as that sentence on the watchlist commands, which have no `--json`. Exit code 2 becomes 1 on both ([plan B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-momentum-window-failure-2026-10-06)). |
 | 6 | `runs list --json`, each `completed_at` (SWC.4b) | The UTC offset is written `+00:00` instead of `Z`, the spelling every other document uses; a non-UTC offset is written as the value carries it ([H.30](#h30-typed-workspace-documents-2026-10-07)). |
+| 7 | `watchlist show`, `watchlist rename` and `watchlist delete` with `--json`, each entry's `selection.as_of` (SWC.4b) | The same change: `+00:00` instead of `Z`. No selection model or stored shape changes ([H.30](#h30-typed-workspace-documents-2026-10-07)). |
 
 Unchanged: every strategy success document; the watchlist, delete-outcome and `runs show` success
-documents, and `runs list` apart from row 6; text modes of every command; commands without `--json`; usage errors (exit 2,
+documents, and `runs list` and the watchlist documents apart from rows 6 and 7; text modes of every command; commands without `--json`; usage errors (exit 2,
 text); the declined-confirmation message in `watchlist delete`.
 
 Per-job failures keep their existing text. `RefreshJobResult.error` is `str(exception)` today and
@@ -832,7 +833,8 @@ commands offer `--json` today (`momentum`, `graham-number`, `graham-growth`, `fc
 are unversioned: none carries a `schema_version`, each schema's description says so, and a test checks that. A
 document model declares every instant as `DocumentTimestamp` (`src/reporting/documents/timestamp.py`), which writes
 `datetime.isoformat()` spelling, so a UTC instant is `+00:00` and any other offset is written as the value carries
-it; a test fails, naming the model and field, when a document model declares a datetime without it. SWC.4c's
+it; a test fails, naming the model and field, when a document model declares a datetime without it, and the watchlist document spells a selection's `as_of` the same way
+without changing the selection model ([H.30](#h30-typed-workspace-documents-2026-10-07)). SWC.4c's
 envelope models use the same type.
 
 **Coverage test.** T21 enumerates the commands from the CLI's own parameter declarations, recursing
@@ -2169,17 +2171,21 @@ Decided while implementing SWC.4b.
 - **One timestamp type.** Pydantic writes a UTC instant as `Z`; `datetime.isoformat()` writes `+00:00`. Before this slice
   `runs list` wrote `Z` (`completed_at`) while the watchlist, `runs show` and the strategy documents wrote `+00:00`, so
   `+00:00` was the majority. `DocumentTimestamp` writes the `isoformat()` spelling for every document model, and a
-  non-UTC offset is emitted as it is. The one change is `runs list` `completed_at`, `Z` to `+00:00`
+  non-UTC offset is emitted as it is. The first change is `runs list` `completed_at`, `Z` to `+00:00`
   ([§13.4](#134-what-changes) row 6); the project owner approved it.
-- **Selections keep their own spelling.** An `as_of` inside a watchlist entry's `selection` is a field of the stored
-  selection model, not of a document model. It is written by the selection's own serialization (`Z` for UTC); this slice does not change
-  a selection model, and a test pins that the document's selection equals the selection's own `model_dump`. Giving
-  selections the document spelling is a decision for the project owner.
+- **Selections follow the same rule.** An `as_of` inside a watchlist entry's `selection` is the only instant in any
+  selection model (a test guards that). The document's `selection` field serializes the selection through
+  `document_json_value`, which dumps the selection unchanged and re-spells each instant with `isoformat()`, so `as_of` is
+  `+00:00` for UTC like every other document instant, and the selection models, their stored shape and the schema (still
+  a `oneOf` over the four selection models) are untouched. The second output change
+  ([§13.4](#134-what-changes) row 7): `watchlist show`, `watchlist rename` and `watchlist delete` write `selection.as_of`
+  as `+00:00` instead of `Z`. A test pins the rule and that an emitted selection parses back to the same selection.
 - **Checks.** The stored scenario in `tests/expected_output/workspace_commands/` gained steps captured from `main` before
   any builder changed: a refresh with one failed job (exit 1, `reason_code` set), watchlists with no entries and with a
-  null `updated_at`, and steps whose names end in `-timestamps`, which keep each timestamp's offset suffix (only the
-  digits are masked, so the output is deterministic without a fixed clock). The only stored file that changed is
-  `runs-list-json-timestamps.txt`, `Z` to `+00:00`. The generator's table gained four entries, and the drift check covers
+  null `updated_at`, watchlists whose four selections carry a real `as_of`, and steps whose names end in `-timestamps`,
+  which keep each timestamp's offset suffix (only the digits are masked, so the output is deterministic without a fixed
+  clock). The stored files that changed are `runs-list-json-timestamps.txt` and
+  `watchlist-show-json-as-of-timestamps.txt`, each `Z` to `+00:00`. The generator's table gained four entries, and the drift check covers
   the four new schemas.
 - **Files outside the plan's scope list.** `src/reporting/documents/timestamp.py` (the shared type), `scripts/generate_schemas.py`
   (four table entries), `tests/_workspace_command_output.py` and its stored files, and `docs/user/WORKSPACE.md` (the schema

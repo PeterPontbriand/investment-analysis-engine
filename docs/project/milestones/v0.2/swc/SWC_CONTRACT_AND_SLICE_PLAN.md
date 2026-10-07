@@ -463,8 +463,9 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Scope:** `src/reporting/documents/{timestamp,watchlist,runs,refresh}.py` (`timestamp.py` is the one instant type every
   document model uses), the JSON builders in `src/cli_workspace.py`, four schemas and their entries in
   `scripts/generate_schemas.py`, tests and the stored workspace scenario (`tests/_workspace_command_output.py` and
-  `tests/expected_output/workspace_commands/`), and `docs/user/WORKSPACE.md`. One output change, listed in
-  [design §13.4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#134-what-changes) row 6: `runs list` `completed_at` is written `+00:00`, not `Z`.
+  `tests/expected_output/workspace_commands/`), and `docs/user/WORKSPACE.md`. Two output changes, listed in
+  [design §13.4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#134-what-changes) rows 6 and 7: `runs list` `completed_at` and a watchlist
+  selection's `as_of` are written `+00:00`, not `Z`.
 - **Known at SWC.4a:** the `refresh --json` document has no `schema_version`, so SWC.4a's new `reason_code` key on
   each result bumped no version ([design H.27](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h27-output-changes-and-the-check-that-success-output-is-unchanged-2026-10-06)).
   SWC.4b publishes the refresh summary schema and states, in the schema and the design, that the document is unversioned

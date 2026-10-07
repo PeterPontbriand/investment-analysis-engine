@@ -180,7 +180,7 @@ def test_watchlist_create_momentum_persists_as_of_and_no_cache() -> None:
     assert result.exit_code == 0, result.output
     payload = json.loads(runner.invoke(app, ["watchlist", "show", "Point In Time", "--json"]).output)
     selection = payload["entries"][0]["selection"]
-    assert selection["as_of"] == "2026-08-01T23:59:59.999999Z"
+    assert selection["as_of"] == "2026-08-01T23:59:59.999999+00:00"
     assert selection["use_cache"] is False
     assert selection["config_schema_version"] == 2
 

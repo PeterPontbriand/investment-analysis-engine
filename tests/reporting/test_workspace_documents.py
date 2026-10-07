@@ -8,7 +8,7 @@ from typing import Annotated, Any, get_args, get_origin
 from uuid import UUID, uuid4
 
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.types import AwareDatetime, FutureDatetime, NaiveDatetime, PastDatetime
 
 from scripts.generate_schemas import DOCUMENTS, expected_schemas
@@ -25,7 +25,7 @@ from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import RefreshJobResult, RefreshSummary
 from src.workspace.runs import Watchlist, WatchlistEntry
-from src.workspace.strategy_types import SelectionMember
+from src.workspace.strategy_types import AnalysisSelection, SelectionMember
 
 _DATETIME_LEAVES: tuple[Any, ...] = (datetime, AwareDatetime, NaiveDatetime, PastDatetime, FutureDatetime)
 _TIMESTAMP_METADATA: tuple[Any, ...] = get_args(DocumentTimestamp)[1:]
@@ -41,7 +41,8 @@ _WORKSPACE_FILES = (
 def _untyped_datetime_fields(model: type[BaseModel], seen: set[type[BaseModel]]) -> list[str]:
     """Return ``Model.field`` for every datetime field below ``model`` that does not use ``DocumentTimestamp``.
 
-    A selection member is a stored selection owned by its strategy, not a document model, so the walk stops there.
+    A selection member is a stored selection owned by its strategy, not a document model, so the walk stops there; the
+    document's selection field spells their instants itself, and the emitted-output tests below check that.
     """
     if model in seen or model in _SELECTION_MEMBERS:
         return []
@@ -135,21 +136,96 @@ def _watchlist(*, updated_at: datetime | None) -> Watchlist:
     )
 
 
+def _selection_datetime_fields() -> set[str]:
+    """Return ``Model.field`` for every datetime field of a selection member, nested models included."""
+    found: set[str] = set()
+    seen: set[type[BaseModel]] = set()
+
+    def visit(model: type[BaseModel]) -> None:
+        if model in seen:
+            return
+        seen.add(model)
+        for name, field in model.model_fields.items():
+            stack: list[Any] = [field.annotation]
+            while stack:
+                node = stack.pop()
+                if get_origin(node) is Annotated:
+                    stack.append(get_args(node)[0])
+                elif isinstance(node, type) and issubclass(node, BaseModel):
+                    visit(node)
+                elif node in _DATETIME_LEAVES:
+                    found.add(f"{model.__name__}.{name}")
+                else:
+                    stack.extend(get_args(node))
+
+    for member in _SELECTION_MEMBERS:
+        visit(member)
+    return found
+
+
+def test_as_of_is_the_only_instant_in_any_selection_model() -> None:
+    """The document re-spells every instant of a selection; a new one must be reviewed with the document."""
+    assert _selection_datetime_fields() == {f"{member.__name__}.as_of" for member in _SELECTION_MEMBERS}
+
+
+def _document_selections(watchlist: Watchlist) -> list[dict[str, Any]]:
+    document = json.loads(_watchlist_json(watchlist))
+    selections: list[dict[str, Any]] = [entry["selection"] for entry in document["entries"]]
+    return selections
+
+
 def test_the_watchlist_document_matches_what_the_hand_built_dictionary_wrote() -> None:
-    """Each selection is its own ``model_dump``, byte for byte; a non-UTC offset is emitted as it is."""
+    """Apart from the spelling of ``as_of``, each selection is its own ``model_dump``; a non-UTC offset is kept."""
     watchlist = _watchlist(updated_at=datetime(2026, 3, 5, tzinfo=timezone(timedelta(hours=-4))))
+    expected_selections = []
+    for entry in watchlist.entries:
+        dumped = entry.selection.model_dump(mode="json")
+        assert dumped["as_of"] is None or dumped["as_of"].endswith("Z")  # the selection model itself is unchanged
+        if dumped["as_of"] is not None:
+            dumped["as_of"] = entry.selection.as_of.isoformat()  # type: ignore[union-attr]
+        expected_selections.append(dumped)
     expected = {
         "watchlist_id": str(watchlist.watchlist_id),
         "display_name": "Core",
         "created_at": watchlist.created_at.isoformat(),
         "updated_at": "2026-03-05T00:00:00-04:00",
         "entries": [
-            {"index": index, "ticker": entry.ticker, "selection": entry.selection.model_dump(mode="json")}
-            for index, entry in enumerate(watchlist.entries, start=1)
+            {"index": index, "ticker": entry.ticker, "selection": selection}
+            for index, (entry, selection) in enumerate(
+                zip(watchlist.entries, expected_selections, strict=True), start=1
+            )
         ],
     }
     assert _watchlist_json(watchlist) == json.dumps(expected, ensure_ascii=False, allow_nan=False)
-    assert _watchlist_json(watchlist).count('"as_of": "2026-01-02T00:00:00Z"') == 1
+
+
+@pytest.mark.parametrize("offset", [UTC, timezone(timedelta(hours=5, minutes=30))])
+def test_a_selection_instant_is_written_with_its_offset_and_parses_back_to_the_same_selection(offset: timezone) -> None:
+    """The rule: every instant in a document, a selection's ``as_of`` included, is ``isoformat()`` text."""
+    instant = datetime(2026, 8, 1, 23, 59, 59, 999999, tzinfo=offset)
+    selections: tuple[SelectionMember, ...] = (
+        MomentumSelection(short_window=2, long_window=3, rsi_period=3, as_of=instant),
+        GrahamNumberSelection(as_of=instant),
+        GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5, as_of=instant),
+        FCFGrowthSelection(as_of=instant),
+    )
+    watchlist = Watchlist(
+        watchlist_id=uuid4(),
+        display_name="Core",
+        normalized_name="core",
+        created_at=datetime(2026, 3, 4, tzinfo=UTC),
+        entries=tuple(WatchlistEntry(ticker="A", selection=item) for item in selections),
+    )
+    emitted = _document_selections(watchlist)
+    assert [item["as_of"] for item in emitted] == [instant.isoformat()] * 4
+    assert not any(str(item["as_of"]).endswith("Z") for item in emitted)
+    adapter: TypeAdapter[SelectionMember] = TypeAdapter(AnalysisSelection)
+    assert [adapter.validate_python(item) for item in emitted] == list(selections)
+
+
+def test_an_absent_as_of_stays_null() -> None:
+    emitted = {item["as_of"] for item in _document_selections(_watchlist(updated_at=None))}
+    assert emitted == {None, "2026-01-02T00:00:00+00:00"}
 
 
 def test_a_watchlist_never_changed_has_a_null_updated_at() -> None:

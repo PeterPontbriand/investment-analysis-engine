@@ -414,7 +414,7 @@
           "type": "integer"
         },
         "selection": {
-          "description": "The stored selection; its method_id says which strategy.",
+          "description": "The stored selection; its method_id says which strategy. Its instants (as_of) carry a UTC offset.",
           "discriminator": {
             "mapping": {
               "graham_growth_value": "#/$defs/GrahamGrowthSelection",
