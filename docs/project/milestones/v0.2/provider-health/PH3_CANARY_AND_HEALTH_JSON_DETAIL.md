@@ -2,7 +2,7 @@
 
 Owned by [PH](PH_CONTRACT_AND_SLICE_PLAN.md#ph3--automatic-canary-and-health-json). It holds the PH.3
 decisions settled at planning time. The slice plan proper is written after
-[PH.2](PH_CONTRACT_AND_SLICE_PLAN.md#ph2--provider-failure-classification) merges, against that day's `main`,
+[PH.2](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md) merges, against that day's `main`,
 and may refine files and tests but not these decisions without project-owner review.
 
 ## 1. What PH.1 and PH.2 leave
