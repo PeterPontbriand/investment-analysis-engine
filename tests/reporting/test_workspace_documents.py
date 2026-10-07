@@ -114,6 +114,11 @@ def test_the_refresh_summary_reuses_the_failure_envelopes_reason_codes() -> None
 def test_the_watchlist_selection_is_the_analysis_selection_union() -> None:
     schema = json.loads(expected_schemas()["watchlist.schema.json"])
     selection = schema["$defs"]["WatchlistEntryDocument"]["properties"]["selection"]
+    assert "oneOf" in selection, (
+        "the entry selection lost its oneOf over the selection models: the selection serializer in "
+        "src/reporting/documents/watchlist.py must stay unannotated, because any return annotation "
+        "makes pydantic drop the union from the generated schema"
+    )
     members = {reference["$ref"].rsplit("/", 1)[1] for reference in selection["oneOf"]}
     assert members == {member.__name__ for member in _SELECTION_MEMBERS}
     assert selection["discriminator"]["propertyName"] == "method_id"
