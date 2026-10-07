@@ -104,6 +104,17 @@ class Step:
         return f"exit {self.exit_code}\n--- stdout\n{self.stdout}\n--- stderr\n{self.stderr}\n"
 
 
+def scenario_root(directory: Path) -> Path:
+    """Return ``directory`` in the one spelling the commands print, resolved once before any command runs.
+
+    The commands report the database path they resolved, so the temporary directory must already be in that form:
+    Windows temp folders are created under an 8.3 short name (``RUNNER~1``) that resolves to the long name, and macOS
+    temp folders are under ``/var``, a link to ``/private/var``. Masking the unresolved spelling leaves the other
+    spelling, or a leftover prefix such as ``/private``, in the output.
+    """
+    return directory.resolve()
+
+
 def _mask(text: str, paths: list[Path]) -> str:
     """Normalize CLI styling, then replace the values that differ between runs."""
     text = normalize_cli_output(text)
@@ -126,7 +137,7 @@ def run_scenario() -> list[Step]:
     """Run every step against a fresh migrated database and fixture providers; no network call is made."""
     steps: list[Step] = []
     with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
-        root = Path(directory)
+        root = scenario_root(Path(directory))
         settings = _migrated_settings(root / "workspace.sqlite3")
         for module in ("src.cli_support", "src.cli_workspace", "src.cli_database"):
             stack.enter_context(patch(f"{module}.settings", settings))
