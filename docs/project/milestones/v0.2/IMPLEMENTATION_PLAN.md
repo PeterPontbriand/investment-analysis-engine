@@ -92,10 +92,10 @@ SQLite repositories and caches, data quality, watchlists, Analysis Runs,
 quantitative screens and Light Mode verification.
 
 **Out of scope (explicit)**
-- Milestone v0.2.5 real-user validation activities (recruitment, feedback sessions)
-- Milestone v0.3 analytics expansion or localization
+- Milestone v0.3 plain-English questions and evidence-backed answers
+- Milestone v0.4 analytics expansion or localization
 - Unattended scheduling, proactive monitoring/notifications, autonomous multi-step research, and executive reporting (Milestone v1.0)
-- Graphical UI/dashboard and full-screen TUI work. Rich terminal presentation, CLI workspace commands, and persistent run browsing are in scope where required for v0.2.5 validation.
+- Graphical UI/dashboard and full-screen TUI work. Rich terminal presentation, CLI workspace commands, and persistent run browsing are in scope.
 
 **Success definition for the milestone**<br/>
 A clean, Light-Mode-capable analysis workflow exists that:
@@ -268,7 +268,7 @@ See the [readiness contract](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) and
 The [approved contract and 25 Cline slices](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) define request/storage/replay/refresh interfaces, file scopes and focused verification. Gate A and Slice B1 were accepted on 2026-09-13, with [completion evidence](step-3.4/SLICE_B1_COMPLETION_EVIDENCE.md). Slices B2–B4 are also accepted; B4 acceptance and B5 implementation authorization were granted on 2026-09-15. B5 was accepted on 2026-09-15 against its [completion evidence](step-3.4/SLICE_B5_COMPLETION_EVIDENCE.md). B6 was accepted on 2026-09-15 against its [completion evidence](step-3.4/SLICE_B6_COMPLETION_EVIDENCE.md). C1 was accepted on 2026-09-16 against its [completion evidence](step-3.4/SLICE_C1_COMPLETION_EVIDENCE.md); C2 is the next slice and has not been started.
 
 **Goal**
-Turn the command-line program into a small local research workbench before real-user validation: users maintain ticker/analysis lists, initiate a refresh, and revisit durable completed results without requiring a GUI or unattended service.
+Turn the command-line program into a small local research workbench: users maintain ticker/analysis lists, initiate a refresh, and revisit durable completed results without requiring a GUI or unattended service.
 
 **Product model**
 - A **watchlist** is a named local collection of tickers plus supported requested analysis types/configuration.
@@ -374,7 +374,7 @@ The following quality checks must pass on every pull request within this milesto
 
 ## 7. Exit Criteria for Milestone v0.2
 
-All of the following must be true before declaring the milestone complete and opening the v0.2.5 validation window:
+All of the following must be true before declaring the milestone complete and starting Milestone v0.3:
 
 1. Steps 2.1–2.6 and 3.1–3.6, including the Step 3.4 research workspace and the Step 3.5 quantitative screening suite, are fully implemented and merged.
 2. Step 2.5 Golden-test suite exists, runs headlessly, exercises Momentum, Graham Number, Graham Growth Value, and Free Cash Flow & Earnings Growth as independent strategies, and reports strategy-selection, numerical-correctness, and overall pass rates against the ≥ 90 % target.

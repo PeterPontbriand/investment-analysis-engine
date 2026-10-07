@@ -33,6 +33,7 @@ Git history is the authoritative revision history. When this workbook conflicts 
 22. Architectural Regrets to Avoid
 23. Open Questions & Future Decisions
 24. Glossary
+25. Rationale Notes from Completed Work
 26. Appendix A: Decision Log
 
 ---
@@ -43,7 +44,7 @@ Git history is the authoritative revision history. When this workbook conflicts 
 `investment-analysis-engine` is a local-first investment-analysis project combining deterministic financial software with locally hosted LLM orchestration.
 
 ## Scope
-The project covers local Ollama orchestration, typed deterministic tools/analyzers, market-data access, SQLite/Alembic persistence, evaluation, Canadian localization, and report generation. Full GUI/frontend integration belongs to separate projects.
+The project covers local Ollama orchestration, typed deterministic tools/analyzers, market-data access, SQLite/Alembic persistence, evaluation, Canadian localization, and report generation. Planned for v0.3: plain-English questions answered from stored evidence. Full GUI/frontend integration belongs to separate projects.
 
 ---
 
@@ -65,18 +66,20 @@ Do not infer implementation scope from this workbook when the active milestone p
 Deliver reliable local quantitative investment analysis and research briefs for serious retail investors and investment professionals.
 
 ### 3.2 Long-Term Vision
-A self-contained, local-first financial reasoning hub with controlled external market-data access, deterministic analytics, durable local persistence, and auditable reports.
+A self-contained, local-first financial reasoning hub with controlled external market-data access, deterministic analytics, durable local persistence, auditable reports, and plain-English answers a reader can check.
 
 ### 3.3 Mission
-Use local LLMs for planning/tool selection/synthesis while deterministic Python owns financial calculations, validation, data handling, and persistence.
+Let a person ask about an investment in ordinary words and get an answer they can check.
+
+- Deterministic Python owns financial calculations, validation, data handling, and persistence.
+- Local models understand the question, read named parts of filings, and write and check sentences. Nothing else.
 
 ### 3.4 Definition of Success
 - ≥90% aggregate Golden Benchmark pass rate with strategy/tool selection and numerical correctness reported separately.
 - Zero `mypy --strict` errors in supported source and tests.
 - Zero unhandled exceptions in required deterministic Golden tests.
-- Light Mode usable before real-user validation.
-- At least 3 external Light Mode testers before v1.0 autonomy work.
-- At least 1 tester confirms a genuinely useful output.
+- Light Mode usable for the whole investor workflow.
+- A plain-English question gets a plain-English answer in which every sentence traces to stored evidence and no number was typed by a model.
 
 ### 3.5 Values
 - Determinism over speculation.
@@ -85,6 +88,8 @@ Use local LLMs for planning/tool selection/synthesis while deterministic Python 
 - Usefulness over portfolio optics.
 - Accessible default experience; heavier capability is optional.
 - Heterogeneous strategies over analytical monoculture.
+- Evidence a reader can check over fluent answers.
+- A plain rule over a model, wherever the rule does the job.
 
 ---
 
@@ -109,8 +114,12 @@ Use local LLMs for planning/tool selection/synthesis while deterministic Python 
 - Production persistence, telemetry, fixtures, and evaluation artifacts are separate concerns.
 
 ### 4.3 AI
-- The model selects deterministic capabilities; it does not perform financial arithmetic.
+- Today the model selects among registered tools inside the evaluation harness. From v0.3 it chooses question topics from a fixed list, and rules decide which analyses apply. Either way it performs no financial arithmetic.
+- A model never types a number into an answer. The engine places every number from stored evidence.
+- A model never advises, scores, ranks or predicts.
 - LLM output is untrusted and schema validated.
+- Text from outside the engine, filings included, is data and never instructions.
+- A model-based step is measured against known answers before it is relied on, and it must beat a plain rule.
 - Hard execution bounds are preferable to open-ended autonomy.
 - The model must not default to Momentum when a different registered strategy is appropriate.
 
@@ -130,10 +139,12 @@ Use local LLMs for planning/tool selection/synthesis while deterministic Python 
 - Deterministic numerical-correctness score reported separately.
 - Benchmark criteria are not weakened to obtain the target.
 
-### User Validation
-- Light Mode is documented and usable before Milestone v0.2.5.
-- ≥3 external tester sessions before v1.0.
-- Findings influence v0.3 scope.
+### Plain-English answers (v0.3)
+- Light Mode is documented and usable before Milestone v0.3.
+- Every sentence in an answer traces to stored evidence.
+- No number in an answer was typed by a model.
+- Requests for advice are declined with an explanation.
+- Each model-based step meets its measured bar and beats a keyword rule. The bars live in the [v0.3 plan](milestones/v0.3/IMPLEMENTATION_PLAN.md#5-acceptance-criteria).
 
 ---
 
@@ -160,21 +171,75 @@ Cash conversion is important to stakeholders but remains only a future candidate
 
 # 7. AI Philosophy
 
-### Role of the LLM
-Planning, capability selection, structured parameter extraction, bounded recovery, and narrative synthesis.
+### What a model may do
+
+| Job | Goes in | Comes out | How it is kept honest |
+| :--- | :--- | :--- | :--- |
+| **Understand a question** | The user's words | A typed research plan chosen from fixed menus, a filter built only from conditions the user stated, or a decline | Schema validation; the filter is shown back before use; measured on a fixed question set |
+| **Judge relevance** (v0.3) | One stored result and the question | *Bears on the question* or *does not* | Decides order in the answer only; measured on labelled pairs |
+| **Read a filing** (v0.3) | A named part of a filing and one fixed question | *Found*, *not found* or *not determined*, plus the quoted passage | Measured on hand-labelled passages; must beat a keyword rule |
+| **Write an answer** (v0.3) | Typed evidence | Sentences that name their evidence and leave slots for numbers | The engine fills every number; a typed digit is rejected |
+| **Check an answer** (v0.3) | One sentence and its evidence | *Supported*, *not supported* or *unclear* | Rules run first; measured with planted errors |
+
+Planning, structured parameter extraction and bounded recovery remain part of the first job.
+
+### What a model may never do
+
+- Calculate.
+- Type a number into an answer.
+- Advise anyone to buy, sell or hold.
+- Score, rank or predict anything about an instrument.
+- Fill in evidence that is missing.
+- Decide how much weight a figure deserves.
+- Add a condition to a filter that the investor did not state.
+- Follow instructions found in filing text or provider data.
+
+**The test.** A model may judge how text relates to evidence. It may not judge which instrument looks better. If a model's answer would change that, the job belongs to a rule or to the investor.
 
 ### Role of deterministic software
-Market-data handling, Momentum/Graham/risk calculations, caching, persistence, validation, evaluation, and rendering.
+Market-data handling, Momentum/Graham/risk calculations, caching, persistence, validation, evaluation, and rendering. From v0.3 it also decides which analyses apply to a question's topics, places every number in an answer, and runs the rule-based part of the answer check.
+
+### Why not a "decision layer"
+
+An earlier proposal (October 2026) put a model after the analyses to choose strategies, judge evidence quality, rank results across strategies and build short-lists. It was modelled on a commercial product, Jev from TypeSafe AI, which answers fixed questions with probabilities instead of text. It was not adopted:
+
+- **No local version exists.** The product is hosted and proprietary, and no open equivalent was identified. Local-first rules out a hosted model for core work.
+- **"Calibrated" has to be earned.** Stated odds mean something only after they have been compared with known answers on the same kind of question. Nothing supplied known answers for "which result is better".
+- **Ranking is a composite screen under another name.** Ordering results from different strategies needs the comparison universe, weights and backtest evidence that Step 4.3 already demands.
+- **The other jobs already belong to rules.** Which analyses apply to an instrument, whether evidence is fresh and complete, and how numbers compare with thresholds are all decided without a model.
+- **A probability beside a ticker reads as odds of making money**, whatever question produced it.
+
+What survived is the useful core: ask a model one fixed question with a few fixed answers, and measure how often it is right. That is applied where the engine has text and no structure: SEC filings, and its own draft sentences.
+
+**What was kept from it.** Two narrow jobs over already-computed results remain, because each concerns how text relates to evidence: judging whether a result bears on the question, and checking a written sentence against the result it cites. Selecting, gating and ranking by a model's own sense of merit were dropped.
+
+**What would reopen the question.** This is a decision to revisit, not a permanent ban. All three would need to hold:
+
+- the forecast ledger has at least a year of scored entries, so there are known answers to measure against;
+- a local, open model of this kind exists and fits Light Mode;
+- a specific job is named that passes the test above and beats a plain rule.
+
+**Naming.** The engine supplies evidence and the investor decides, so "decision" is avoided. "Judgment layer" and "assessment layer" were considered and dropped: a newcomer hears the system judging the investment, and "assessment" echoes credit and suitability assessments. The jobs carry plain names: *ask*, *filing reading*, *answer check*. A model's output is a *reading*. Where one umbrella term is needed, it is *evidence reader*.
+
+### Where judgment is genuinely soft
+
+Three jobs looked rule-based at first and are not entirely. Each has a soft part, and in each the soft part is the investor's words, not the evidence.
+
+| Soft question | Who settles it | How |
+| :--- | :--- | :--- |
+| Which analyses matter most for a vague goal? | A rule first; a model only if it wins | Every applicable analysis runs. A topic rule orders what is shown by relevance to the question. A model replaces the rule only after beating it on labelled pairs |
+| How far should an average be trusted when one year is unusual? | A rule | The engine flags the unusual year as a warning; the number does not change; the filing may state the cause |
+| Which instruments suit this investor's preferences? | The investor | Their stated conditions become a visible filter that the engine applies by rule. They may name one measure to sort by. Weighing several measures against each other stays with Step 4.3 |
 
 ### Autonomy
 The product distinguishes **bounded agentic workflow** from **unattended autonomy**.
 
-Before v0.2.5, the system may respond to an explicit user request by queuing/fanning out independent deterministic analyses, executing them concurrently within bounded process/resource limits, retaining completed Analysis Runs, and using the local LLM to synthesize already-computed typed evidence.
+Through v0.3, the system may respond to an explicit user request, including a plain-English question, by queuing/fanning out independent deterministic analyses, executing them concurrently within bounded process/resource limits, retaining completed Analysis Runs, and using the local LLM to synthesize already-computed typed evidence.
 
-Unattended scheduling, proactive monitoring, notifications, self-initiated multi-step research, and long-lived background services remain v1.0 work and require evidence from real users before investment. Configured steps/retries/timeouts remain hard boundaries for any LLM orchestration.
+Unattended scheduling, proactive monitoring, notifications, self-initiated multi-step research, and long-lived background services remain v1.0 work. Configured steps/retries/timeouts remain hard boundaries for any LLM orchestration.
 
 ### Explainability
-Capture observable execution evidence through structured trajectory telemetry. Never infer private model reasoning.
+Capture observable execution evidence through structured trajectory telemetry. Never infer private model reasoning. An answer's sources are its explanation: each sentence lists the evidence it rests on.
 
 ---
 
@@ -203,6 +268,8 @@ CLI / bounded orchestrator
 The initial Momentum and Graham pair is deliberately heterogeneous. Their coexistence tests whether the architecture is genuinely general rather than Momentum-specific.
 
  Step 2.5 consumes their stable strategy contracts. Step 3.5 later adds the deterministic quantitative screening suite (Piotroski, Altman Z, Beneish M, valuation multiples, Magic Formula, Interest Coverage, ROIC).
+
+Planned for v0.3, a question passes through five fixed stages: understand, gather, write, check, store. The [Master Plan](MASTER_PLAN.md#planned-for-v03-asking-in-plain-english) has the diagram.
 
 ### Current package intent
 
@@ -252,6 +319,19 @@ Step 2.1 established structured trajectory telemetry separately from operational
 ### Structured output
 Step 2.2 prefers native schema constraints when supported, retains Pydantic validation, and uses configured fallbacks. Model/schema compatibility needs direct empirical evidence.
 
+### Measuring model-based steps (v0.3)
+- The answer key comes from SEC records or review by hand, never from a model. This is the same rule that keeps Golden expectations independent of the code under test.
+- Every model-based reader is compared with a keyword rule on the same passages. If it does not win, the rule ships.
+- Wrong "found" and wrong "not found" answers are counted separately. "Not determined" is counted too, not hidden.
+- Results are recorded with the model's name and version, and measured again when the model changes.
+- Sets and bars are fixed before the first measured run. Prompts are tuned on separate examples, and only the held-out set counts.
+- Rare facts need a balanced set: as many passages where the fact is present as absent, including hard cases where the key words appear without the fact.
+- One person's preferences are never an answer key. They record taste, not fact.
+- Every model-based job gets the same treatment: a labelled set of stated size, a rule to beat, and a bar. That includes relevance, where the rule to beat is the topic rule.
+- The jobs share one narrow reader interface and one measuring harness, defined once.
+- Where a model exposes a probability for each fixed choice, it is stored and used only to set a measured cut-off below which the reading becomes *not determined*. Results report the share answered alongside how often those answers were right.
+- A reader that passes is "validated at its threshold". "Calibrated" needs far more cases than a personal project can label.
+
 ---
 
 # 10. Security
@@ -262,6 +342,8 @@ Step 2.2 prefers native schema constraints when supported, retains Pydantic vali
 - Secrets from environment/settings only.
 - Outbound provider access is controlled by application/data boundaries.
 - No cloud LLM dependency for core reasoning.
+- Filing text is untrusted. A model reading a filing may answer only fixed questions with fixed choices.
+- The model that writes an answer sees findings and short quoted passages, never a whole filing.
 
 ---
 
@@ -287,6 +369,10 @@ Step 2.2 prefers native schema constraints when supported, retains Pydantic vali
 - **Step 3.4 Analysis Run persistence:** durable investor-domain history of requested analyses, configs, typed results, provenance, warnings, and timestamps; distinct from execution telemetry.
 - **Step 3.4 watchlists/refresh:** named ticker/analysis collections and user-initiated concurrent refresh; no daemon or unattended scheduler.
 - **Report/view semantics:** a report is a deterministic, explicitly versioned projection of an Analysis Run. v0.2 does not create a second canonical report object. The projection version evolves independently from calculation method and result-schema versions, and replay uses persisted evidence plus explicit rendering options rather than provider/LLM calls, recalculation, mutable cache state, current identity lookup, or current-clock enrichment.
+- **Filing events (v0.3):** dated facts taken from SEC filing records with no model, such as a late-filing notice or an auditor change. Each carries its form type, filing date and acceptance time, so a historical `as_of` never sees a later filing.
+- **Filing readings (v0.3):** a model's answer to one fixed question about a named part of a filing. Stored with the quoted passage, the filing's identity and dates, the model's name and version, and the version of the question. A reading never contains a number. Where the model exposes its probability for the chosen answer, that is stored with the reading for measurement and is never shown to an investor.
+- **Forecast-ledger entries (v0.3):** dated questions stored with an Analysis Run, each with a prediction from a trivial rule, to be settled by later facts. They measure methods over time. They are not evidence about an instrument and never appear in an investor view.
+- **Answer Records (v0.3):** one question, its research plan, the evidence used, the sentences shown, and the check results. Written once; showing it again never calls a model. Asking again creates a new record.
 - **Provenance:** stored/fixture data carries enough source/date/schema information to audit its origin.
 - **Separation:** market-data persistence, trajectory telemetry, Analysis Runs, Golden fixtures, rendered views, and evaluation results are distinct concerns.
 
@@ -311,11 +397,16 @@ Step 2.5 measures:
 
 Real-model evaluation is empirical and separate from deterministic regression infrastructure.
 
+v0.3 adds three measured sets, each with its own answer key:
+- questions and the research plan each should produce, including questions that must be declined;
+- filing passages and the correct reading of each;
+- correct sentences and copies with a planted error.
+
 ---
 
 # 13. User Experience Philosophy
 
-The pre-v0.2.5 product is a **terminal-first local investor research workbench**, not merely a collection of calculator commands and not yet a GUI/dashboard.
+The product through v0.2 is a **terminal-first local investor research workbench**, not merely a collection of calculator commands and not yet a GUI/dashboard.
 
 ### Default interaction
 An ordinary investor should be able to analyze a ticker directly or maintain a small watchlist, ask the system to perform the repetitive quantitative work, then revisit completed results without needing to understand provider APIs, cache keys, or Python internals.
@@ -347,8 +438,61 @@ Step 3.4 should let a user maintain ticker/analysis lists, start a refresh, and 
 
  The LLM may explain and compare evidence or suggest what to inspect next; it never invents financial facts, performs the deterministic calculation, or supplies an unrequested growth assumption.
 
-### Real-user validation priority
-Rich terminal presentation and the workspace/run-history workflow are intentionally pulled forward because v0.2.5 must test whether the tool is useful, not merely whether testers can execute a developer-oriented command. Graphical UI, full-screen TUI, high-fidelity charts, and executive report generation remain deferred until validation provides evidence.
+### Asking in plain English (v0.3)
+
+The example below is illustrative. The company and figures are invented, and two of the analyses arrive with Step 3.5.
+
+```text
+$ ian ask "Is Example Corp's financial position getting weaker?"
+
+Example Corp (EXMP) — as of 2026-10-06
+
+Two of the three checks I could run point to a weaker position than a year ago.
+  - Altman Z-Score fell from 3.1 to 2.4, from the "safe" zone into the "grey" zone. [1]
+  - Interest coverage fell from 6.2 to 3.8 times. [2]
+  - The auditor's report in the latest annual filing raises no going-concern doubt. [3]
+I could not check free-cash-flow growth: only three annual periods are available. [4]
+
+This is evidence for your own research, not a recommendation.
+
+Sources
+[1] Altman Z-Score: runs as of 2025-10-06 and 2026-10-06 (SEC EDGAR annual facts)
+[2] Interest Coverage: runs as of 2025-10-06 and 2026-10-06 (SEC EDGAR annual facts)
+[3] Filing reading: Form 10-K filed 2026-02-19, auditor's report
+[4] FCF & Earnings Growth: run as of 2026-10-06, not enough history
+```
+
+What the example shows:
+
+- **The answer comes first**, as in every other view.
+- **Every statement has a source.** `--details` shows the evidence behind each number and the passage behind each reading.
+- **The engine placed every figure.** The model wrote the words around them.
+- **Missing evidence is said out loud**, with its reason.
+- **No score, no odds, no verdict.**
+
+Declining is a normal answer, not an error:
+
+```text
+$ ian ask "Should I buy EXMP?"
+
+I can't tell you whether to buy. I can show what the evidence says about its valuation,
+financial strength, earnings quality, price trend and recent filings. Ask about any of these.
+```
+
+If a model is unavailable or too many sentences fail the check, the user gets the ordinary result views. Nothing depends on a model to see a result.
+
+### If no local model is good enough
+
+That outcome is planned for and is not a failure. The milestone then delivers its floor:
+
+- a fixed menu of question types, with free text matched to the menu by keywords;
+- answers assembled by rule from templates, with the same sources and the same engine-placed numbers;
+- filing events, plus keyword rules for facts that exist only as prose.
+
+A newcomer still asks a question and gets a sourced answer. What is lost is free phrasing on the way in and fluent phrasing on the way out.
+
+### Presentation priority
+Rich terminal presentation and the workspace/run-history workflow come first because plain-English answers are built on them and fall back to them. Graphical UI, full-screen TUI, high-fidelity charts, and executive report generation remain deferred.
 
 # 14. Performance & Scalability
 
@@ -377,6 +521,7 @@ Current documents:
 - `RUNTIME_AGENTS.md`
 - `docs/project/MASTER_PLAN.md`
 - `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`
+- `docs/project/milestones/v0.3/IMPLEMENTATION_PLAN.md` — draft scope for plain-English questions and evidence-backed answers;
 - `docs/project/milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md` — active compact specification for Step 2.3;
 - `docs/project/milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_SLICE_PLAN.md` — live slice-status tracker and completion gate;
 - `docs/project/ARCHITECTURE.md`
@@ -421,11 +566,37 @@ The repository naturally demonstrates local-LLM orchestration, strict Python eng
 
 Finance remains primary. Core layers remain modular enough for possible later reuse, but the project does not commit to becoming a generic agent framework.
 
+Four directions are in view. Only the first has a scheduled start.
+
+### Forecast ledger
+With each Analysis Run, record a few dated questions that time will settle, such as "will next fiscal year's diluted EPS be higher than this year's?" Score them when the answer is known.
+
+- It turns "is this method any good?" into a record that grows by itself.
+- It is the evidence Step 4.3 requires before any composite screen or ranking.
+- It works with any predictor, including a trivial one, so it does not depend on a model.
+- It pays off slowly: a year or more of recorded questions before the scores mean much. Recording therefore starts in v0.3 (FL.1); scoring waits until entries can be settled.
+- Entries are measurement records and are never shown to an investor.
+- A faster start exists for rule-based predictors: pose the question as of a past date and score it against later facts already on hand. This is unsound for a language model, which may already know what happened.
+
+### Outside assistants
+The same evidence and Answer Record shape could serve an assistant the user already has, through the deferred MCP server. The local `ian ask` path and an outside assistant would then be two ways to reach the same evidence.
+
+### Screening and portfolio construction
+An earlier vision had a loop: select analyses, run them, rank and gate the results with a model, then let the person decide. The project no longer plans to own the ranking step. The loop can still be served: a screening or portfolio-construction workflow could consume the same evidence, stated-preference filters and Answer Records, with the project staying the evidence provider and the person, or their own tool, deciding.
+
+### A shared fixed-question reader
+The reader behind filing reading and the answer check (text in, one of a few fixed answers out, with measured accuracy) is not specific to finance. Its interface and measuring harness are defined once in v0.3. It could become its own package if a second user appears.
+
 ---
 
 # 21. Non-Goals
 
-- Full GUI/frontend or full-screen TUI before real-user validation evidence justifies it.
+- Full GUI/frontend or full-screen TUI.
+- Investment advice, or any score, rank or probability about an instrument's prospects.
+- A model ranking or comparing instruments by its own judgment.
+- Filters that carry weights or scores, or conditions the investor did not state.
+- A hosted model in the core path, including for reading filings.
+- Reading news, web pages or call transcripts.
 - Cloud LLM dependency for core reasoning.
 - Automated order execution/HFT.
 - Real-time websocket market data in the current milestone.
@@ -457,7 +628,16 @@ Finance remains primary. Core layers remain modular enough for possible later re
 - Requiring workstation-class dual-tier hardware for basic use.
 - Using operational log lines as the investor-facing result UI.
 - Building a separate canonical “report” object when the durable Analysis Run already contains the result/evidence.
-- Building a full-screen TUI or GUI before the v0.2.5 checkpoint proves the workflow is useful.
+- Building a full-screen TUI or GUI before the terminal workflow and plain-English answers are solid.
+- A model typing a number into an answer.
+- A score or probability shown beside a ticker.
+- Designing around a model before measuring whether a local one can do the job.
+- Shipping a model-based reader that a keyword rule matches.
+- Using a model's output as the answer key for measuring a model.
+- Using one person's preferences as the answer key for measuring a model.
+- Calling a model "calibrated" on the strength of a few hundred cases.
+- A model deciding how much weight a figure deserves.
+- Regenerating a stored answer when it is shown again.
 - Introducing a long-running background daemon before scheduling, freshness, recovery, rate-budget, and notification semantics are justified by user evidence.
 
 ---
@@ -465,12 +645,18 @@ Finance remains primary. Core layers remain modular enough for possible later re
 # 23. Open Questions & Future Decisions
 
 1. Will WAL + connection discipline remain sufficient for future denser multi-tool/multi-agent workloads?
-2. Does `fr-CA` localization remain in v0.3 after v0.2.5 user feedback?
+2. Does `fr-CA` localization remain in v0.4?
 3. Do future additional strategies reveal a genuine need for a richer analyzer registry/plugin mechanism? This remains intentionally unresolved until concrete repetition justifies it.
 4. Which exact AAA corporate-bond-yield series, frequency, provider, retrieval mechanism, and licensing terms should `graham_growth_value` eventually use instead of the current explicit user override?
 5. Which future provider capabilities can honor historical `as_of` without look-ahead bias, especially for point-in-time quotes and later financial facts not yet represented by the current SEC integration?
-6. At v0.2.5, do real investors prefer direct one-off analysis, watchlist/refresh/run-history workflow, or both—and which information belongs in the concise default versus details?
-7. Does real-user feedback justify adding a deterministic historical-EPS-growth proxy, or should Growth remain assumption-only until analyst-consensus semantics are evidence-approved?
+6. Do investors prefer direct one-off analysis, the watchlist/refresh/run-history workflow, plain-English questions, or a mix—and which information belongs in the concise default versus details?
+7. Does later experience justify adding a deterministic historical-EPS-growth proxy, or should Growth remain assumption-only until analyst-consensus semantics are evidence-approved?
+8. Which local models, if any, meet the v0.3 bars under Light Mode? ASK.0 answers this before any design work.
+9. Should the deferred MCP server move into v0.3? For someone who already uses a capable assistant it is the cheapest route to plain-English answers, but it puts the language work outside the local-first boundary.
+10. Must plain-English answers work in `fr-CA` from the start, given that a small local model writes the sentences?
+11. Should each strategy declare the question topics it speaks to in its descriptor, or should that mapping live in one separate table?
+12. Once the forecast ledger has scored entries, is there a measured job for a model over already-computed results, beyond relevance and sentence checking, that still passes the test in §7?
+13. Should an investor be able to state a preference across several measures ("prefer higher FCF yield, then lower debt")? Applied by rule it needs no model, but it is a weighting, so it would go through Step 4.3.
 
 ---
 
@@ -493,59 +679,19 @@ Finance remains primary. Core layers remain modular enough for possible later re
 - **Light Mode** — Default single-tier/modest-hardware mode.
 - **Full Dual-Tier Mode** — Optional fast+deep local-model mode.
 - **WAL** — SQLite Write-Ahead Logging.
+- **Research plan** — Typed result of understanding a question: which instrument, which topics, which date. Chosen from fixed menus.
+- **Filing event** — Dated fact taken from SEC filing records with no model, such as a late-filing notice or an auditor change.
+- **Filing reading** — A model's *found*, *not found* or *not determined* answer to one fixed question about a named part of a filing, stored with the quoted passage.
+- **Reading** — A model's answer to one fixed question, chosen from a few fixed answers. Never a number, a score or a summary.
+- **Stated-preference filter** — Conditions the investor stated in words, turned into a typed filter, shown back, and applied by rule. Unavailable results stay unavailable.
+- **Forecast-ledger entry** — Dated question stored with an Analysis Run, with a prediction from a trivial rule, to be settled by later facts. A measurement record; never shown to an investor.
+- **Floor** — What v0.3 delivers if no local model meets its bars: a fixed question menu, answers assembled by rule, filing events and keyword filing rules.
+- **Answer check** — Test of each written sentence against the evidence it names, by rules first and a model second, before the answer is shown.
+- **Answer Record** — Stored record of one question, its research plan, the evidence used, the sentences shown and the check results.
 
 ---
 
-# 26. Appendix A: Decision Log
-
-| Decision | Rationale |
-| :--- | :--- |
-| 100% local LLM orchestration; no cloud LLM in core loop | Privacy, local control, zero cloud dependency |
-| Dual-tier model option | Preserves higher-capability local configuration |
-| All quantitative work in deterministic Python | Eliminates LLM arithmetic hallucination class |
-| SQLite + WAL + Alembic | Zero-ops local persistence |
-| Strict mypy + typed/Pydantic boundaries | Maintainability and reliability |
-| Prefer native Ollama JSON-schema constraints | Reduces structured-output drift |
-| Canadian localization as a first-class roadmap concern | Matches target network; timing still feedback-sensitive |
-| Full GUI out of scope | Keeps repository focused |
-| Deep-tier model remains configurable | Avoid premature model lock-in |
-| Investment-analysis positioning primary | Aligns with user value |
-| Finance-first scope with modular core | Optional future reuse without premature framework extraction |
-| Prefer configuration/abstraction over brittle dependencies | Reduces long-term fragility |
-| Real-user validation gate before expensive v1.0 work | Build autonomy on evidence of usefulness |
-| User usefulness wins over portfolio optics | Product-purpose priority |
-| Make hardware adoption constraints explicit | Prevent persona/hardware mismatch |
-| Let v0.2.5 feedback decide `fr-CA` timing | Avoid premature localization investment |
-| Light Mode is default; dual-tier optional | Makes project accessible to intended users |
-| Rationalized module layout, including `src/data/repositories/` | Clear ownership for data and telemetry layers |
-| JSONL-first telemetry; deterministic fixture-backed market-data abstraction before production SQLite | Unblocks reliability/evaluation while preserving determinism |
-| Use Momentum + Graham as intentionally heterogeneous early strategies | Tests whether architecture generalizes beyond Momentum |
-| Current quote is a first-class market-data capability distinct from historical series | Avoids one-day-history workaround; supports valuation cleanly |
-| Separate the Graham/data foundation from Golden evaluation; later sequencing places the Step 2.4 strategy addition before Golden evaluation in 2.5 and circuit breakers in 2.6; reject a speculative strategy registry | Gives humans an explicit review gate and limits scope creep while allowing one additional heterogeneous strategy before fixtures freeze public behavior |
-| Implement two explicit Graham methods: default `graham_number` and secondary `graham_growth_value` | Avoids conflating a defensive screening ceiling with a forecast-dependent growth estimate |
-| Use Option A: keep `BaseDataClient` historical-price focused and add a dedicated financial-facts provider boundary, cache seam, resolver, and provenance models | Keeps materially different quote/fundamental/macro inputs out of a price-history-shaped interface while preserving narrow contracts |
-| Resolve each valuation input through override → valid cache → provider → unavailable with strict `as_of` and availability-date rules | Makes results reproducible, auditable, and resistant to silent look-ahead bias |
-| Use one `graham` CLI with an explicit method discriminator; omitted method selects the Graham Number | Keeps the user-facing strategy coherent while preventing silent method substitution |
-| Treat the pre-validation product as a terminal-first investor research workbench with concise/default and detailed/diagnostic/JSON views | Real-user validation must test usefulness and trust, not merely command execution |
-| Add Slice E3 before CLI polish to close the production BVPS/default-Graham viability gap | A default command that routinely lacks a required input is a product blocker, not a presentation issue |
-| Persist Analysis Runs in Step 3.4; treat reports as renderings of runs | Avoids duplicate canonical result artifacts and supports later terminal/Markdown/PDF views |
-| Add watchlists and user-initiated concurrent refresh in v0.2, but defer daemons/unattended scheduling/proactive monitoring/notifications to v1.0 | Delivers useful agentic legwork before validation without prematurely owning long-running-service semantics |
-| Permit explicitly human-approved intermediate checkpoint commits/pushes after review/gates | Protects substantial reviewed work and improves history without weakening step-completion review gates |
-| Default production Graham routing uses SEC EDGAR financial facts plus Yahoo current quote; explicit Massive Growth uses TTM EPS/current quote | Keeps default analysis usable without Massive credentials while preserving provider-specific EPS semantics and narrow capabilities |
-| Keep Growth's AAA yield as an explicit user input until a production series passes the evidence gate | Avoids inventing macro provenance or treating an arbitrary finance ticker as a documented AAA corporate-bond series |
-| Require provider-backed security evidence before authoritative direct Graham output | Prevents fully override-driven arithmetic from falsely validating an arbitrary ticker identity |
-| Use result-first concise success output and avoid redundant assumption/warning repetition | Prioritizes the investor's financial question while retaining progressive disclosure and material caveats |
-| Treat investor reports as deterministic, independently versioned projections of persisted Analysis Runs | Preserves one canonical financial record, makes historical rendering reproducible, and prevents current provider/LLM/cache/clock state from silently changing old reports |
-| Durable instrument profiles persist only identity-anchored resolutions, keyed by a minted `profile_id` rather than ticker; a ticker reuse supersedes rather than overwrites | Prevents treating a reused ticker's historical Analysis Runs as if they described today's entity, while avoiding cache/refresh bookkeeping for tickers that never earn a verified anchor |
-| Enforce durable-profile ticker-reuse serialization with an in-process per-ticker lock rather than a database-level partial unique index | The project's own readiness contract (Step 3.3A) rejects partial/expression indexes as unsupported schema signatures; discovered only once the cache was shared across watchlist refresh's concurrent workers |
-
----
-
-### Document Versioning Policy
-
-The Master Plan and Discovery Workbook are versioned through Git. Embedded document version numbers are intentionally avoided.
-
-*End of Discovery Workbook*
+# 25. Rationale Notes from Completed Work
 
 ## Fresh database readiness
 
@@ -589,3 +735,74 @@ Neither was visible from the schema/repository design alone; both were found by
 actually wiring the primitive into a concurrent caller before declaring it
 complete. See the
 [P2-Profiles contract](milestones/v0.2/p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md).
+
+---
+
+# 26. Appendix A: Decision Log
+
+| Decision | Rationale |
+| :--- | :--- |
+| 100% local LLM orchestration; no cloud LLM in core loop | Privacy, local control, zero cloud dependency |
+| Dual-tier model option | Preserves higher-capability local configuration |
+| All quantitative work in deterministic Python | Eliminates LLM arithmetic hallucination class |
+| SQLite + WAL + Alembic | Zero-ops local persistence |
+| Strict mypy + typed/Pydantic boundaries | Maintainability and reliability |
+| Prefer native Ollama JSON-schema constraints | Reduces structured-output drift |
+| Canadian localization as a first-class roadmap concern | Matches target network; timing still feedback-sensitive |
+| Full GUI out of scope | Keeps repository focused |
+| Deep-tier model remains configurable | Avoid premature model lock-in |
+| Investment-analysis positioning primary | Aligns with user value |
+| Finance-first scope with modular core | Optional future reuse without premature framework extraction |
+| Prefer configuration/abstraction over brittle dependencies | Reduces long-term fragility |
+| Real-user validation checkpoint (formerly v0.2.5) deferred; it no longer gates v0.3, v0.4 or v1.0 | Project-owner decision, 2026-10-06 |
+| User usefulness wins over portfolio optics | Product-purpose priority |
+| Make hardware adoption constraints explicit | Prevent persona/hardware mismatch |
+| `fr-CA` timing stays an open question for v0.4 | Avoid premature localization investment |
+| Light Mode is default; dual-tier optional | Makes project accessible to intended users |
+| Rationalized module layout, including `src/data/repositories/` | Clear ownership for data and telemetry layers |
+| JSONL-first telemetry; deterministic fixture-backed market-data abstraction before production SQLite | Unblocks reliability/evaluation while preserving determinism |
+| Use Momentum + Graham as intentionally heterogeneous early strategies | Tests whether architecture generalizes beyond Momentum |
+| Current quote is a first-class market-data capability distinct from historical series | Avoids one-day-history workaround; supports valuation cleanly |
+| Separate the Graham/data foundation from Golden evaluation; later sequencing places the Step 2.4 strategy addition before Golden evaluation in 2.5 and circuit breakers in 2.6; reject a speculative strategy registry | Gives humans an explicit review gate and limits scope creep while allowing one additional heterogeneous strategy before fixtures freeze public behavior |
+| Implement two explicit Graham methods: default `graham_number` and secondary `graham_growth_value` | Avoids conflating a defensive screening ceiling with a forecast-dependent growth estimate |
+| Use Option A: keep `BaseDataClient` historical-price focused and add a dedicated financial-facts provider boundary, cache seam, resolver, and provenance models | Keeps materially different quote/fundamental/macro inputs out of a price-history-shaped interface while preserving narrow contracts |
+| Resolve each valuation input through override → valid cache → provider → unavailable with strict `as_of` and availability-date rules | Makes results reproducible, auditable, and resistant to silent look-ahead bias |
+| Use one `graham` CLI with an explicit method discriminator; omitted method selects the Graham Number | Keeps the user-facing strategy coherent while preventing silent method substitution |
+| Treat the product through v0.2 as a terminal-first investor research workbench with concise/default and detailed/diagnostic/JSON views | Results must be easy to inspect; plain-English answers are built on these views and fall back to them |
+| Add Slice E3 before CLI polish to close the production BVPS/default-Graham viability gap | A default command that routinely lacks a required input is a product blocker, not a presentation issue |
+| Persist Analysis Runs in Step 3.4; treat reports as renderings of runs | Avoids duplicate canonical result artifacts and supports later terminal/Markdown/PDF views |
+| Add watchlists and user-initiated concurrent refresh in v0.2, but defer daemons/unattended scheduling/proactive monitoring/notifications to v1.0 | Delivers useful agentic legwork without prematurely owning long-running-service semantics |
+| Permit explicitly human-approved intermediate checkpoint commits/pushes after review/gates | Protects substantial reviewed work and improves history without weakening step-completion review gates |
+| Default production Graham routing uses SEC EDGAR financial facts plus Yahoo current quote; explicit Massive Growth uses TTM EPS/current quote | Keeps default analysis usable without Massive credentials while preserving provider-specific EPS semantics and narrow capabilities |
+| Keep Growth's AAA yield as an explicit user input until a production series passes the evidence gate | Avoids inventing macro provenance or treating an arbitrary finance ticker as a documented AAA corporate-bond series |
+| Require provider-backed security evidence before authoritative direct Graham output | Prevents fully override-driven arithmetic from falsely validating an arbitrary ticker identity |
+| Use result-first concise success output and avoid redundant assumption/warning repetition | Prioritizes the investor's financial question while retaining progressive disclosure and material caveats |
+| Treat investor reports as deterministic, independently versioned projections of persisted Analysis Runs | Preserves one canonical financial record, makes historical rendering reproducible, and prevents current provider/LLM/cache/clock state from silently changing old reports |
+| Durable instrument profiles persist only identity-anchored resolutions, keyed by a minted `profile_id` rather than ticker; a ticker reuse supersedes rather than overwrites | Prevents treating a reused ticker's historical Analysis Runs as if they described today's entity, while avoiding cache/refresh bookkeeping for tickers that never earn a verified anchor |
+| Enforce durable-profile ticker-reuse serialization with an in-process per-ticker lock rather than a database-level partial unique index | The project's own readiness contract (Step 3.3A) rejects partial/expression indexes as unsupported schema signatures; discovered only once the cache was shared across watchlist refresh's concurrent workers |
+| Make plain-English questions and evidence-backed answers the next milestone (v0.3) | Shortest path from stored evidence to something a newcomer can use; reuses the runs and views already built |
+| A model may understand, read, write and check; it may never calculate, type a number, advise, score or rank | Keeps every figure and every judgment about an instrument traceable to deterministic evidence |
+| The engine places every number in an answer | Removes wrong figures from model-written text by construction |
+| Do not adopt a model-based "decision layer" for selecting, gating and ranking results | No local open model was identified, nothing supplied known answers to measure it against, and ranking is an unvalidated composite; see §7 |
+| Take filing events from SEC records with no model; use a model only for facts that exist only as prose | A rule is cheaper, repeatable and easier to check |
+| Measure every model-based step against a hand-labelled answer key and a keyword rule before relying on it | A stated confidence means nothing until it has been compared with outcomes |
+| Store each answer once and never regenerate it on display | Keeps history reproducible, in line with the report-projection rule |
+| A model may order results by relevance to the question, never by merit | Relevance is about the question and can be labelled; merit is a composite screen under another name |
+| A preference the investor states becomes a visible filter applied by rule; the model adds no conditions or weights | Keeps the short-list the investor's own and makes no claim the project has not validated |
+| An unusual year in a multi-year average is flagged by a rule; no model weighs it | Deciding weight changes the result, which only a specified method may do |
+| Fix every test set and bar before measuring, hold half of each set out of prompt tuning, and never use preference labels as an answer key | Prevents a bar from being met by tuning to the test or by agreeing with one person |
+| Say "validated at its threshold", not "calibrated" | The sample a personal project can label supports the first claim and not the second |
+| Relevance is decided by a topic rule; a model replaces it only after beating it on labelled pairs | Gives relevance the same measurement discipline as every other model-based job |
+| The investor may name one measure to sort filtered results by; weighing several measures stays with Step 4.3 | One named measure is the investor's own ordering; several measures are a weighting that needs validation |
+| Start forecast-ledger recording in v0.3, after Step 3.5; never show entries to an investor | The evidence takes a year or more to build and nothing builds until recording starts; a prediction beside a ticker would read as advice |
+| Define the fixed-question reader's interface and measuring harness once; defer only its extraction into a package | Three jobs share it, and one definition prevents three slightly different ones |
+| Treat the no-model floor as a planned, complete outcome of v0.3 | The milestone's value should not depend on a result nobody has measured yet |
+| A model's role over already-computed results is limited to relevance and sentence checking; revisit when the ledger has scored entries | Makes the narrowing an explicit decision with a stated trigger, not a side effect of the redesign |
+
+---
+
+### Document Versioning Policy
+
+The Master Plan and Discovery Workbook are versioned through Git. Embedded document version numbers are intentionally avoided.
+
+*End of Discovery Workbook*

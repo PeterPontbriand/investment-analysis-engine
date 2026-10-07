@@ -274,7 +274,7 @@ its own quality gate and authorization.
 ## 6. Background
 
 Step 3.5 was accepted with five strategies: Piotroski, Altman, Beneish, unlevered valuation
-multiples and Magic Formula. ROIC and interest coverage were deferred to Milestone v0.3 Step 4.
+multiples and Magic Formula. ROIC and interest coverage were deferred to Step 4 (then Milestone v0.3, now v0.4).
 
 On 2026-09-30 the project owner revised the step:
 
@@ -306,7 +306,7 @@ Module paths in this plan's detail documents use the current `src` layout; they 
 
 - **Interest Coverage added:** a direct, intuitive solvency companion to Altman, with low
   incremental data cost once EBIT, EBITDA and interest-expense mappings exist.
-- **ROIC / Incremental ROIC added:** previously a Milestone v0.3 Step 4.1 candidate. Kept as a
+- **ROIC / Incremental ROIC added:** previously a Step 4.1 candidate. Kept as a
   full peer strategy after review: trailing ROIC differs from Magic Formula's return on capital in
   being after tax and using average capital, and incremental ROIC asks whether new capital still
   earns an attractive return, which no other strategy asks.

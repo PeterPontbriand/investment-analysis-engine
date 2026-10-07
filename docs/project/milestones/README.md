@@ -5,6 +5,7 @@ This index is the entry point for project sequence, status, implementation plans
 ## Milestones
 
 - [Milestone v0.2](v0.2/IMPLEMENTATION_PLAN.md) — active milestone plan and sequence/status table. Its step directories contain method designs, implementation contracts, slice plans, evidence, reviews, closeout records, and deferred-work decisions.
+- [Milestone v0.3](v0.3/IMPLEMENTATION_PLAN.md) — draft plan for plain-English questions and evidence-backed answers. Not approved or scheduled until Milestone v0.2 closes.
 
 The implementation plan answers what work exists and its current status. Companion plans own the details and local acceptance criteria. Review and closeout records preserve evidence and decisions; Git history preserves approval and publication history. Update the authoritative owner instead of copying status into other indexes.
 
