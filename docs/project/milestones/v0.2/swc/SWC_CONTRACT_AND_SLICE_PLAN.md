@@ -53,8 +53,8 @@ document-link check and applicable documentation checks.
 | SWC.3b | [CLI tier: selection builders and refresh executors](#swc3b--cli-tier) | Complete | 2026-10-06 |
 | SWC.3c | [Move the direct commands into strategy files](#swc3c--direct-commands) | Complete | 2026-10-06 |
 | SWC.4a | [Typed failure envelope and schema generator](#swc4a--failure-envelope-and-schema-generator) | Complete | 2026-10-06 |
-| SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Next | |
-| SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Planned | |
+| SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Complete | 2026-10-07 |
+| SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Next | |
 | SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Planned | |
 | SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
