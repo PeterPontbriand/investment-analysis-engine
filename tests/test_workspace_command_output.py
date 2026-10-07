@@ -5,7 +5,9 @@
 model call is made. Output goes through ``normalize_cli_output`` and a mask for UUIDs, timestamps and the database
 path, and the exit code is stored with it. The stored files differ from the output of ``main`` only in the six
 ``--json`` files listed in the SWC design (H.27), so this is the check that a later change alters no success output
-beyond the changes it lists.
+beyond the changes it lists. The steps whose names end in ``-timestamps`` keep each timestamp's offset suffix, so
+they pin the spelling (``Z`` or ``+00:00``) that the masked steps hide; the failed-job refresh and the watchlist edge
+cases were captured from ``main`` before any document builder changed.
 
 To change the expected output deliberately, regenerate the files and review the diff::
 

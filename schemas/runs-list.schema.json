@@ -1,0 +1,73 @@
+{
+  "$defs": {
+    "RunOutcome": {
+      "description": "Terminal outcome of a workspace analysis run.\n\nOnly terminal states exist; there is deliberately no in-progress value because\nthe envelope records an immutable completed attempt rather than live state.",
+      "enum": [
+        "completed",
+        "unavailable",
+        "not_applicable",
+        "failed",
+        "cancelled"
+      ],
+      "title": "RunOutcome",
+      "type": "string"
+    },
+    "RunSummaryDocument": {
+      "additionalProperties": false,
+      "description": "One saved run, summarized.",
+      "properties": {
+        "analysis_run_id": {
+          "format": "uuid",
+          "title": "Analysis Run Id",
+          "type": "string"
+        },
+        "completed_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Completed At",
+          "type": "string"
+        },
+        "method_id": {
+          "title": "Method Id",
+          "type": "string"
+        },
+        "refresh_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The refresh that saved the run; null for a run saved by a direct command.",
+          "title": "Refresh Id"
+        },
+        "status": {
+          "$ref": "#/$defs/RunOutcome"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "analysis_run_id",
+        "ticker",
+        "method_id",
+        "status",
+        "completed_at",
+        "refresh_id"
+      ],
+      "title": "RunSummaryDocument",
+      "type": "object"
+    }
+  },
+  "description": "The whole ``runs list --json`` output: an array of run summaries, most recently completed first.\n\nThis document is unversioned: it has no ``schema_version``.",
+  "items": {
+    "$ref": "#/$defs/RunSummaryDocument"
+  },
+  "title": "RunsListDocument",
+  "type": "array"
+}

@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+{"watchlist_id": "<uuid>", "display_name": "Fresh Renamed", "created_at": "<time>+00:00", "updated_at": "<time>+00:00", "entries": [{"index": 1, "ticker": "AAPL", "selection": {"analysis_id": "momentum", "method_id": "sma_crossover", "config_schema_version": 2, "short_window": 2, "long_window": 3, "rsi_period": 3, "as_of": null, "use_cache": false}}]}
+--- stderr
+

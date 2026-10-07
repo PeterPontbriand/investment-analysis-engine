@@ -53,8 +53,8 @@ document-link check and applicable documentation checks.
 | SWC.3b | [CLI tier: selection builders and refresh executors](#swc3b--cli-tier) | Complete | 2026-10-06 |
 | SWC.3c | [Move the direct commands into strategy files](#swc3c--direct-commands) | Complete | 2026-10-06 |
 | SWC.4a | [Typed failure envelope and schema generator](#swc4a--failure-envelope-and-schema-generator) | Complete | 2026-10-06 |
-| SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Next | |
-| SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Planned | |
+| SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Complete | 2026-10-07 |
+| SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Next | |
 | SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Planned | |
 | SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
@@ -460,8 +460,12 @@ version and result-schema version distinct and do not silently reinterpret histo
   hand-written dictionaries with no typed model or schema.
 - **Decision:** one model per document, byte-identical to today's output apart from the changes listed in
   the design. Selections inside watchlist documents are typed by the `AnalysisSelection` union.
-- **Scope:** `src/reporting/documents/{watchlist,runs,refresh}.py`, the JSON builders in
-  `src/cli_workspace.py`, four schemas, and tests.
+- **Scope:** `src/reporting/documents/{timestamp,watchlist,runs,refresh}.py` (`timestamp.py` is the one instant type every
+  document model uses), the JSON builders in `src/cli_workspace.py`, four schemas and their entries in
+  `scripts/generate_schemas.py`, tests and the stored workspace scenario (`tests/_workspace_command_output.py` and
+  `tests/expected_output/workspace_commands/`), and `docs/user/WORKSPACE.md`. Two output changes, listed in
+  [design §13.4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#134-what-changes) rows 6 and 7: `runs list` `completed_at` and a watchlist
+  selection's `as_of` are written `+00:00`, not `Z`.
 - **Known at SWC.4a:** the `refresh --json` document has no `schema_version`, so SWC.4a's new `reason_code` key on
   each result bumped no version ([design H.27](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h27-output-changes-and-the-check-that-success-output-is-unchanged-2026-10-06)).
   SWC.4b publishes the refresh summary schema and states, in the schema and the design, that the document is unversioned

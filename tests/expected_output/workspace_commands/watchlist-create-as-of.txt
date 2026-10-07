@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+Watchlist: Dated ID: <uuid> Entries (1): AAPL: [1] momentum: as_of=<time>, long_window=3, rsi_period=3, short_window=2, use_cache=False
+--- stderr
+

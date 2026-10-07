@@ -23,6 +23,9 @@ from pydantic import BaseModel
 
 from src.reporting.documents.database import DatabaseMaintenanceReport
 from src.reporting.documents.failure import FailureEnvelope
+from src.reporting.documents.refresh import RefreshSummaryDocument
+from src.reporting.documents.runs import RunsListDocument
+from src.reporting.documents.watchlist import WatchlistDeleteDocument, WatchlistDocument
 
 SCHEMA_DIRECTORY = Path(__file__).resolve().parent.parent / "schemas"
 
@@ -30,6 +33,10 @@ SCHEMA_DIRECTORY = Path(__file__).resolve().parent.parent / "schemas"
 DOCUMENTS: tuple[tuple[str, type[BaseModel]], ...] = (
     ("failure.schema.json", FailureEnvelope),
     ("database-maintenance-report.schema.json", DatabaseMaintenanceReport),
+    ("watchlist.schema.json", WatchlistDocument),
+    ("watchlist-delete.schema.json", WatchlistDeleteDocument),
+    ("runs-list.schema.json", RunsListDocument),
+    ("refresh-summary.schema.json", RefreshSummaryDocument),
 )
 
 
