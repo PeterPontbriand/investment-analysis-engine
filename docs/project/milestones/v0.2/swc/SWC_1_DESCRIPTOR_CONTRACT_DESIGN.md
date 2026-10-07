@@ -639,8 +639,10 @@ Stored-shape version bumps expected: **none.** No slice touches a stored shape. 
 values unchanged and changes no selection, evidence or result shape, so no `config_schema_version`,
 `method_version`, `result_schema_version` or `evidence_codec_version` changes. The `--json` output versions
 that change are listed in [§13.4](#134-what-changes): the failure document `schema_version` 5 to 6 and the
-database report `schema_version` 1 to 2. Strategy and workspace success documents stay byte-identical, so
-their versions do not change. `projection_version` stays 1. A slice that finds it must change a stored
+database report `schema_version` 1 to 2. Strategy success documents stay byte-identical, so their versions do not
+change. The workspace success documents change only in the one timestamp spelling listed in
+[§13.4](#134-what-changes) row 6, and none of the four carries a version ([H.30](#h30-typed-workspace-documents-2026-10-07)).
+`projection_version` stays 1. A slice that finds it must change a stored
 shape bumps the version and records it.
 
 Schema layout, settled here per the plan: one file per document under `schemas/`, with no combined
@@ -792,9 +794,10 @@ distinction in both directions and the order of the two rules.
 | 3 | `refresh --json`, each element of `results` | New key `reason_code`: a `FailureReasonCode` when `error` is set, otherwise `null`. `error` keeps its text exactly. The existing rule that exactly one of the run, the outcome and the error is set gains a fourth statement: `reason_code` is set if and only if `error` is. |
 | 4 | `db status --json` and `db upgrade --json` | `reason` (the code) is renamed `reason_code`; `message` (the prose) is renamed `reason`; `schema_version` 1 to 2. The text rendering is unchanged. |
 | 5 | `momentum` with an invalid window or RSI period; `watchlist create` and `watchlist add-selection` with the same values | One `invalid_parameter` failure with one sentence, reported through the envelope on `momentum` and as that sentence on the watchlist commands, which have no `--json`. Exit code 2 becomes 1 on both ([plan B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-momentum-window-failure-2026-10-06)). |
+| 6 | `runs list --json`, each `completed_at` (SWC.4b) | The UTC offset is written `+00:00` instead of `Z`, the spelling every other document uses; a non-UTC offset is written as the value carries it ([H.30](#h30-typed-workspace-documents-2026-10-07)). |
 
-Unchanged: every strategy success document; the watchlist, delete-outcome, `runs list` and `runs show`
-success documents; text modes of every command; commands without `--json`; usage errors (exit 2,
+Unchanged: every strategy success document; the watchlist, delete-outcome and `runs show` success
+documents, and `runs list` apart from row 6; text modes of every command; commands without `--json`; usage errors (exit 2,
 text); the declined-confirmation message in `watchlist delete`.
 
 Per-job failures keep their existing text. `RefreshJobResult.error` is `str(exception)` today and
@@ -824,6 +827,13 @@ commands offer `--json` today (`momentum`, `graham-number`, `graham-growth`, `fc
 | `watchlist show`, `watchlist rename`, and the watchlist embedded in `watchlist delete` | `entries[].selection`, the `model_dump` of an `AnalysisSelection` member (windows for Momentum, EPS basis and overrides for Graham, the policy snapshot for FCF) | By the `AnalysisSelection` discriminated union itself, discriminated on `method_id`. The generated schema is a `oneOf` over the four selection models, so a strategy added to the union appears in the schema automatically and T1 keeps the union equal to the descriptors. No second typing of selections is written. |
 | `runs show` | The whole document: it is the strategy's own replay document | By the strategy envelope model of the run's strategy; the command lists all strategy schemas in `JSON_DOCUMENTS`. |
 | `runs list`, `refresh`, `db status`, `db upgrade` | None. `method_id` appears only as a string, typed `str` (a `Literal` cannot be built from the descriptors under `mypy --strict`, and T10 covers the identifiers). | Plain fields. |
+
+**Versioning and timestamps.** The four workspace documents (watchlist, delete outcome, `runs list`, refresh summary)
+are unversioned: none carries a `schema_version`, each schema's description says so, and a test checks that. A
+document model declares every instant as `DocumentTimestamp` (`src/reporting/documents/timestamp.py`), which writes
+`datetime.isoformat()` spelling, so a UTC instant is `+00:00` and any other offset is written as the value carries
+it; a test fails, naming the model and field, when a document model declares a datetime without it. SWC.4c's
+envelope models use the same type.
 
 **Coverage test.** T21 enumerates the commands from the CLI's own parameter declarations, recursing
 the real Typer command tree through every group including hidden ones and keeping each command with a
@@ -2141,3 +2151,36 @@ Decided by the project owner during the SWC.4a review.
   and the drift check shows the change.
 - **Unchanged.** Every other usage error, and the declined confirmation of `watchlist delete`, stay as they are
   ([H.28](#h28-commands---json-and-failure-reporting-2026-10-06)).
+
+### H.30 Typed workspace documents (2026-10-07)
+
+Decided while implementing SWC.4b.
+
+- **Models.** `WatchlistDocument`, `WatchlistDeleteDocument` (embedding the watchlist document), `RunsListDocument` (a
+  root model over `RunSummaryDocument`, so the generator's signature is unchanged) and `RefreshSummaryDocument` are frozen
+  pydantic models with the key order of the dictionaries they replace. The builders in `src/cli_workspace.py` construct
+  them and serialize with one helper (`json.dumps` of `model_dump(mode="json")`, `ensure_ascii=False`, `allow_nan=False`),
+  so the `--missing-ok` delete outcome, which was dumped without `allow_nan=False`, now follows the same rule; it has no
+  floats, so its text is unchanged. Selections inside a watchlist are typed by the `AnalysisSelection` union; no second
+  typing is written. `FailureReasonCode` types each refresh result's `reason_code`; no second list of codes exists, and
+  `RefreshJobResult.reason_code` stays the string the injected classifier returns.
+- **Unversioned.** The four documents carry no `schema_version`, and each schema's description says so. The refresh
+  summary has never carried one; SWC.4a's new `reason_code` key bumped nothing, and this slice adds none.
+- **One timestamp type.** Pydantic writes a UTC instant as `Z`; `datetime.isoformat()` writes `+00:00`. Before this slice
+  `runs list` wrote `Z` (`completed_at`) while the watchlist, `runs show` and the strategy documents wrote `+00:00`, so
+  `+00:00` was the majority. `DocumentTimestamp` writes the `isoformat()` spelling for every document model, and a
+  non-UTC offset is emitted as it is. The one change is `runs list` `completed_at`, `Z` to `+00:00`
+  ([§13.4](#134-what-changes) row 6); the project owner approved it.
+- **Selections keep their own spelling.** An `as_of` inside a watchlist entry's `selection` is a field of the stored
+  selection model, not of a document model. It is written by the selection's own serialization (`Z` for UTC); this slice does not change
+  a selection model, and a test pins that the document's selection equals the selection's own `model_dump`. Giving
+  selections the document spelling is a decision for the project owner.
+- **Checks.** The stored scenario in `tests/expected_output/workspace_commands/` gained steps captured from `main` before
+  any builder changed: a refresh with one failed job (exit 1, `reason_code` set), watchlists with no entries and with a
+  null `updated_at`, and steps whose names end in `-timestamps`, which keep each timestamp's offset suffix (only the
+  digits are masked, so the output is deterministic without a fixed clock). The only stored file that changed is
+  `runs-list-json-timestamps.txt`, `Z` to `+00:00`. The generator's table gained four entries, and the drift check covers
+  the four new schemas.
+- **Files outside the plan's scope list.** `src/reporting/documents/timestamp.py` (the shared type), `scripts/generate_schemas.py`
+  (four table entries), `tests/_workspace_command_output.py` and its stored files, and `docs/user/WORKSPACE.md` (the schema
+  files, the unversioned statement and the `+00:00` spelling; the project owner pre-approved this file).

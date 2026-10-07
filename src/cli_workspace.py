@@ -21,6 +21,7 @@ from typing import Annotated, NoReturn
 from uuid import UUID
 
 import typer
+from pydantic import BaseModel
 
 from src.cli_strategy_wiring import CLI_BUILDERS, build_selection_for, refresh_executor_for
 from src.cli_support import _production_instrument_profile_cache
@@ -40,6 +41,9 @@ from src.data.repositories.watchlists import (
 )
 from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
 from src.reporting.documents.failure import FailureEnvelope, FailureReasonCode
+from src.reporting.documents.refresh import RefreshResultDocument, RefreshSummaryDocument
+from src.reporting.documents.runs import RunsListDocument, RunSummaryDocument
+from src.reporting.documents.watchlist import WatchlistDeleteDocument, WatchlistDocument, WatchlistEntryDocument
 from src.reporting.failure_classification import InvalidParameterError, classify_failure, failure_envelope
 from src.reporting.presentation import PresentationMode, failure_document
 from src.strategies.momentum.analyzer import MomentumConfig
@@ -50,6 +54,7 @@ from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionErr
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import (
     EmptyRefreshTargetError,
+    RefreshJobResult,
     RefreshPolicy,
     RefreshSummary,
     refresh_watchlist,
@@ -189,23 +194,28 @@ def _watchlist_text(watchlist: Watchlist, *, group_by: str = "ticker") -> str:
     return "\n".join(lines)
 
 
-def _watchlist_payload(watchlist: Watchlist) -> dict[str, object]:
-    """Build the flat, ordered entry list, each carrying the same 1-based index a user sees."""
-    return {
-        "watchlist_id": str(watchlist.watchlist_id),
-        "display_name": watchlist.display_name,
-        "created_at": watchlist.created_at.isoformat(),
-        "updated_at": None if watchlist.updated_at is None else watchlist.updated_at.isoformat(),
-        "entries": [
-            {"index": index, "ticker": entry.ticker, "selection": entry.selection.model_dump(mode="json")}
+def _document_json(document: BaseModel) -> str:
+    """Serialize a typed document as the one line of JSON a command writes."""
+    return json.dumps(document.model_dump(mode="json"), ensure_ascii=False, allow_nan=False)
+
+
+def _watchlist_document(watchlist: Watchlist) -> WatchlistDocument:
+    """Build the watchlist document: the flat, ordered entry list, each carrying the 1-based index a user sees."""
+    return WatchlistDocument(
+        watchlist_id=watchlist.watchlist_id,
+        display_name=watchlist.display_name,
+        created_at=watchlist.created_at,
+        updated_at=watchlist.updated_at,
+        entries=tuple(
+            WatchlistEntryDocument(index=index, ticker=entry.ticker, selection=entry.selection)
             for index, entry in enumerate(watchlist.entries, start=1)
-        ],
-    }
+        ),
+    )
 
 
 def _watchlist_json(watchlist: Watchlist) -> str:
     """Emit the complete watchlist document."""
-    return json.dumps(_watchlist_payload(watchlist), ensure_ascii=False, allow_nan=False)
+    return _document_json(_watchlist_document(watchlist))
 
 
 def _summary_line(summary: WatchlistSummary) -> str:
@@ -676,7 +686,7 @@ def watchlist_delete(
                 _fail_with(exc, json_output=json_output)
     if deleted is None:
         if json_output:
-            typer.echo(json.dumps({"requested_name": name, "deleted": False, "watchlist": None}, ensure_ascii=False))
+            typer.echo(_document_json(WatchlistDeleteDocument(requested_name=name, deleted=False, watchlist=None)))
         else:
             typer.echo(f"No watchlist named {name!r} exists. Nothing was deleted.")
         return
@@ -691,8 +701,10 @@ def watchlist_delete(
         typer.echo(confirmation, err=True)
         assert deleted.unreadable is not None  # exactly one of watchlist and unreadable is set
         _fail_with(deleted.unreadable, json_output=json_output)
-    document = {"requested_name": name, "deleted": True, "watchlist": _watchlist_payload(deleted.watchlist)}
-    typer.echo(json.dumps(document, ensure_ascii=False, allow_nan=False))
+    document = WatchlistDeleteDocument(
+        requested_name=name, deleted=True, watchlist=_watchlist_document(deleted.watchlist)
+    )
+    typer.echo(_document_json(document))
 
 
 @watchlist_app.command("rename")
@@ -790,8 +802,20 @@ def runs_list(  # noqa: PLR0913
     with _workspace_database(json_output=json_output) as database:
         summaries = SQLiteAnalysisRunRepository(database).list(query)
     if json_output:
-        payload = [item.model_dump(mode="json") for item in summaries]
-        typer.echo(json.dumps(payload, ensure_ascii=False, allow_nan=False))
+        runs = RunsListDocument(
+            tuple(
+                RunSummaryDocument(
+                    analysis_run_id=item.analysis_run_id,
+                    ticker=item.ticker,
+                    method_id=item.method_id,
+                    status=item.status,
+                    completed_at=item.completed_at,
+                    refresh_id=item.refresh_id,
+                )
+                for item in summaries
+            )
+        )
+        typer.echo(_document_json(runs))
         return
     if not summaries:
         typer.echo("No matching runs.")
@@ -914,32 +938,31 @@ def _refresh_text(summary: RefreshSummary) -> str:
     return "\n".join(lines)
 
 
+def _refresh_result_document(result: RefreshJobResult) -> RefreshResultDocument:
+    """Build one job's entry; its status is the saved run's, else the unsaved outcome's, else null."""
+    status = result.run.status if result.run is not None else result.outcome
+    return RefreshResultDocument(
+        ticker=result.ticker,
+        method_id=result.method_id,
+        analysis_run_id=None if result.run is None else result.run.analysis_run_id,
+        saved=result.run is not None,
+        status=status,
+        error=result.error,
+        reason_code=None if result.reason_code is None else FailureReasonCode(result.reason_code),
+    )
+
+
 def _refresh_json(summary: RefreshSummary) -> str:
-    payload = {
-        "refresh_id": str(summary.refresh_id),
-        "watchlist_id": str(summary.watchlist_id),
-        "watchlist_name": summary.watchlist_name,
-        "results": [
-            {
-                "ticker": result.ticker,
-                "method_id": result.method_id,
-                "analysis_run_id": (str(result.run.analysis_run_id) if result.run is not None else None),
-                "saved": result.run is not None,
-                "status": (
-                    result.run.status.value
-                    if result.run is not None
-                    else result.outcome.value
-                    if result.outcome is not None
-                    else None
-                ),
-                "error": result.error,
-                "reason_code": result.reason_code,
-            }
-            for result in summary.results
-        ],
-        "counts": summary.counts,
-    }
-    return json.dumps(payload, ensure_ascii=False, allow_nan=False)
+    """Emit the refresh summary document."""
+    return _document_json(
+        RefreshSummaryDocument(
+            refresh_id=summary.refresh_id,
+            watchlist_id=summary.watchlist_id,
+            watchlist_name=summary.watchlist_name,
+            results=tuple(_refresh_result_document(result) for result in summary.results),
+            counts=summary.counts,
+        )
+    )
 
 
 def refresh(

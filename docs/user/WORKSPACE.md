@@ -68,6 +68,8 @@ Add `--json` to `watchlist show` for the complete, machine-readable document —
 uv run ian watchlist show "Core Holdings" --json
 ```
 
+The document is described by `schemas/watchlist.schema.json`, which `watchlist rename --json` shares. It has no `schema_version`: a change to its keys or types shows in the schema. Its `created_at` and `updated_at` (`null` until the watchlist is first changed) are written with their UTC offset, as `+00:00`. Each entry's `selection` is the stored selection of that entry's method, told apart by its `method_id`.
+
 List every watchlist you have:
 
 ```bash
@@ -142,6 +144,8 @@ uv run ian watchlist delete "Scratch" --yes --missing-ok
 {"requested_name": "Nonexistent", "deleted": false, "watchlist": null}
 ```
 
+The document is described by `schemas/watchlist-delete.schema.json` and has no `schema_version`.
+
 A watchlist holding an entry saved by an earlier version, which this version can no longer read, is still deleted. In text mode that succeeds quietly. With `--json` there is no entry document to print, so the confirmation goes to stderr, stdout holds the failure document (`reason_code` `stored_selection_unreadable`, its `reason` naming the unreadable entry) and the exit code is `1`.
 
 ### Method-specific flags
@@ -191,7 +195,7 @@ Nothing is printed until the whole refresh finishes (or is interrupted) — ther
 uv run ian refresh "Core Holdings" --json
 ```
 
-Each result carries `error` (the failure's own text, or `null`) and `reason_code`: the stable code of the failure when `error` is set, otherwise `null`. Branch on `reason_code`; `error` is for people. The codes are the ones in the [failure document](USAGE.md#--json--machine-readable-output). A refresh that cannot start at all (an unknown watchlist, a watchlist with no entries, an unreadable stored entry, storage that needs attention) writes that failure document instead of this summary and exits `1`; without `--json` it prints the sentence on standard error.
+The summary is described by `schemas/refresh-summary.schema.json` and has no `schema_version`. Each result carries `error` (the failure's own text, or `null`) and `reason_code`: the stable code of the failure when `error` is set, otherwise `null`. Branch on `reason_code`; `error` is for people. The codes are the ones in the [failure document](USAGE.md#--json--machine-readable-output). A refresh that cannot start at all (an unknown watchlist, a watchlist with no entries, an unreadable stored entry, storage that needs attention) writes that failure document instead of this summary and exits `1`; without `--json` it prints the sentence on standard error.
 
 One ticker's failure never stops the rest of the watchlist: a method that could not calculate (or a storage hiccup for that one attempt) is recorded as an error for that ticker only, and every other ticker in the watchlist still runs. The exit code reflects the whole batch:
 
@@ -264,6 +268,8 @@ uv run ian runs list --status unavailable
 uv run ian runs list --refresh-id 7c1a...
 uv run ian runs list --json
 ```
+
+`runs list --json` prints one JSON array, described by `schemas/runs-list.schema.json`; it has no `schema_version`. Each `completed_at` is written with its UTC offset, as `+00:00` (it was written as `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
 
 Show one saved run in full, exactly as it was originally captured — replaying a saved run never re-fetches data or recalculates anything, so it always shows the same result it showed the moment it was saved, even if your configuration or a data provider has since changed:
 

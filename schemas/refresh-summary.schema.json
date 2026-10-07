@@ -1,0 +1,166 @@
+{
+  "$defs": {
+    "FailureReasonCode": {
+      "description": "Stable failure categories a caller may branch on.\n\nA value is never renamed, repurposed or removed within the public contract. New values may be\nadded, so a caller must treat an unrecognized value as a generic failure and use ``status`` for the\ncategory.",
+      "enum": [
+        "execution_error",
+        "historical_quality",
+        "provider_error",
+        "configuration_error",
+        "no_eligible_observations",
+        "invalid_input",
+        "invalid_parameter",
+        "database_upgrade_required",
+        "database_incompatible_schema",
+        "database_busy",
+        "database_permission_denied",
+        "database_invalid_file",
+        "database_io_error",
+        "database_resources_unavailable",
+        "database_initialization_failed",
+        "database_migration_failed",
+        "invalid_stored_run",
+        "unsupported_run_version",
+        "watchlist_not_found",
+        "watchlist_entry_not_found",
+        "watchlist_empty",
+        "watchlist_name_conflict",
+        "analysis_run_not_found",
+        "stored_selection_unreadable",
+        "unsupported_projection"
+      ],
+      "title": "FailureReasonCode",
+      "type": "string"
+    },
+    "RefreshResultDocument": {
+      "additionalProperties": false,
+      "description": "One (ticker, selection) job of a refresh.\n\nExactly one of a saved run (``analysis_run_id``), an unsaved outcome (``status`` with no run) and a failure\n(``error``) describes the job, and ``reason_code`` is set if and only if ``error`` is.",
+      "properties": {
+        "analysis_run_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The saved run; null when nothing was saved.",
+          "title": "Analysis Run Id"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The failure's message for people; null unless the job failed.",
+          "title": "Error"
+        },
+        "method_id": {
+          "title": "Method Id",
+          "type": "string"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FailureReasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The stable code of the failure; null unless it failed."
+        },
+        "saved": {
+          "title": "Saved",
+          "type": "boolean"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The run's or the unsaved outcome's status; null for a failed job."
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticker",
+        "method_id",
+        "analysis_run_id",
+        "saved",
+        "status",
+        "error",
+        "reason_code"
+      ],
+      "title": "RefreshResultDocument",
+      "type": "object"
+    },
+    "RunOutcome": {
+      "description": "Terminal outcome of a workspace analysis run.\n\nOnly terminal states exist; there is deliberately no in-progress value because\nthe envelope records an immutable completed attempt rather than live state.",
+      "enum": [
+        "completed",
+        "unavailable",
+        "not_applicable",
+        "failed",
+        "cancelled"
+      ],
+      "title": "RunOutcome",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The one document ``refresh --json`` writes when the refresh completes.\n\nThis document is unversioned: it has no ``schema_version``.",
+  "properties": {
+    "counts": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "description": "Jobs per status; a failed job counts as 'error'.",
+      "title": "Counts",
+      "type": "object"
+    },
+    "refresh_id": {
+      "format": "uuid",
+      "title": "Refresh Id",
+      "type": "string"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/RefreshResultDocument"
+      },
+      "title": "Results",
+      "type": "array"
+    },
+    "watchlist_id": {
+      "format": "uuid",
+      "title": "Watchlist Id",
+      "type": "string"
+    },
+    "watchlist_name": {
+      "title": "Watchlist Name",
+      "type": "string"
+    }
+  },
+  "required": [
+    "refresh_id",
+    "watchlist_id",
+    "watchlist_name",
+    "results",
+    "counts"
+  ],
+  "title": "RefreshSummaryDocument",
+  "type": "object"
+}

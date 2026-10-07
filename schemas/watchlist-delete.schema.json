@@ -1,0 +1,538 @@
+{
+  "$defs": {
+    "FCFClassificationBasis": {
+      "description": "Free-cash-flow measure controlling classification.",
+      "enum": [
+        "total_fcf",
+        "fcf_per_share"
+      ],
+      "title": "FCFClassificationBasis",
+      "type": "string"
+    },
+    "FCFGrowthSelection": {
+      "additionalProperties": false,
+      "description": "Historical FCF/Earnings Growth request options, independent of Graham configs.",
+      "properties": {
+        "analysis_id": {
+          "const": "fcf_earnings_growth",
+          "default": "fcf_earnings_growth",
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "config_schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Config Schema Version",
+          "type": "integer"
+        },
+        "currency": {
+          "default": "USD",
+          "title": "Currency",
+          "type": "string"
+        },
+        "method_id": {
+          "const": "reported_fcf_eps_cagr",
+          "default": "reported_fcf_eps_cagr",
+          "title": "Method Id",
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/$defs/FCFPolicySnapshot"
+        },
+        "provider_id": {
+          "const": "sec_edgar",
+          "default": "sec_edgar",
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "use_cache": {
+          "default": true,
+          "title": "Use Cache",
+          "type": "boolean"
+        }
+      },
+      "title": "FCFGrowthSelection",
+      "type": "object"
+    },
+    "FCFPolicySnapshot": {
+      "additionalProperties": false,
+      "description": "Validated immutable copy of the existing FCF policy and its native enums.",
+      "properties": {
+        "classification_basis": {
+          "$ref": "#/$defs/FCFClassificationBasis",
+          "default": "total_fcf"
+        },
+        "forward_policy": {
+          "$ref": "#/$defs/ForwardPolicy",
+          "default": "display_only"
+        },
+        "historical_horizon": {
+          "$ref": "#/$defs/HistoricalHorizon",
+          "default": "longest_available"
+        },
+        "include_fcf_yield": {
+          "default": true,
+          "title": "Include Fcf Yield",
+          "type": "boolean"
+        }
+      },
+      "title": "FCFPolicySnapshot",
+      "type": "object"
+    },
+    "ForwardPolicy": {
+      "description": "How forward consensus evidence affects the headline result.",
+      "enum": [
+        "display_only",
+        "confirmation",
+        "hard_gate"
+      ],
+      "title": "ForwardPolicy",
+      "type": "string"
+    },
+    "GrahamGrowthSelection": {
+      "additionalProperties": false,
+      "description": "Graham growth-value selection requiring explicit growth and AAA yield percentages.",
+      "properties": {
+        "aaa_yield_override": {
+          "title": "Aaa Yield Override",
+          "type": "number"
+        },
+        "analysis_id": {
+          "const": "graham_growth_value",
+          "default": "graham_growth_value",
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "config_schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Config Schema Version",
+          "type": "integer"
+        },
+        "eps_basis": {
+          "anyOf": [
+            {
+              "enum": [
+                "three_year_average",
+                "ttm",
+                "fiscal_year"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Eps Basis"
+        },
+        "eps_override": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Eps Override"
+        },
+        "expected_growth": {
+          "title": "Expected Growth",
+          "type": "number"
+        },
+        "method_id": {
+          "const": "graham_growth_value",
+          "default": "graham_growth_value",
+          "title": "Method Id",
+          "type": "string"
+        },
+        "quote_override": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Override"
+        },
+        "quote_provider_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Provider Id"
+        },
+        "security_provider_id": {
+          "default": "sec_edgar",
+          "title": "Security Provider Id",
+          "type": "string"
+        },
+        "use_cache": {
+          "default": true,
+          "title": "Use Cache",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "expected_growth",
+        "aaa_yield_override"
+      ],
+      "title": "GrahamGrowthSelection",
+      "type": "object"
+    },
+    "GrahamNumberSelection": {
+      "additionalProperties": false,
+      "description": "Immutable Graham Number selection with an optional book-value override.",
+      "properties": {
+        "analysis_id": {
+          "const": "graham_number",
+          "default": "graham_number",
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "bvps_override": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bvps Override"
+        },
+        "config_schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Config Schema Version",
+          "type": "integer"
+        },
+        "eps_basis": {
+          "anyOf": [
+            {
+              "enum": [
+                "three_year_average",
+                "ttm"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Eps Basis"
+        },
+        "eps_override": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Eps Override"
+        },
+        "method_id": {
+          "const": "graham_number",
+          "default": "graham_number",
+          "title": "Method Id",
+          "type": "string"
+        },
+        "quote_override": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Override"
+        },
+        "quote_provider_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Provider Id"
+        },
+        "security_provider_id": {
+          "default": "sec_edgar",
+          "title": "Security Provider Id",
+          "type": "string"
+        },
+        "use_cache": {
+          "default": true,
+          "title": "Use Cache",
+          "type": "boolean"
+        }
+      },
+      "title": "GrahamNumberSelection",
+      "type": "object"
+    },
+    "HistoricalHorizon": {
+      "description": "Requested historical elapsed-year horizon for classification.",
+      "enum": [
+        "longest_available",
+        "3",
+        "4",
+        "5"
+      ],
+      "title": "HistoricalHorizon",
+      "type": "string"
+    },
+    "MomentumSelection": {
+      "additionalProperties": false,
+      "description": "Immutable snapshot of the effective Momentum configuration.\n\nThe canonical analysis/method identifiers are fixed to the contract matrix values\n(``momentum`` / ``sma_crossover``) and cannot be overridden or made to disagree\nwith one another. Window and RSI values are materialized from explicit inputs or\nthe current configured policy at creation time; later settings changes do not\naffect an existing selection. ``as_of`` and ``use_cache`` are persisted with the\nselection, so a saved or refreshed run reuses the boundary and cache choice it was\ncreated with.",
+      "properties": {
+        "analysis_id": {
+          "const": "momentum",
+          "default": "momentum",
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "config_schema_version": {
+          "const": 2,
+          "default": 2,
+          "title": "Config Schema Version",
+          "type": "integer"
+        },
+        "long_window": {
+          "exclusiveMinimum": 0,
+          "title": "Long Window",
+          "type": "integer"
+        },
+        "method_id": {
+          "const": "sma_crossover",
+          "default": "sma_crossover",
+          "title": "Method Id",
+          "type": "string"
+        },
+        "rsi_period": {
+          "default": 14,
+          "exclusiveMinimum": 0,
+          "title": "Rsi Period",
+          "type": "integer"
+        },
+        "short_window": {
+          "exclusiveMinimum": 0,
+          "title": "Short Window",
+          "type": "integer"
+        },
+        "use_cache": {
+          "default": true,
+          "title": "Use Cache",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "short_window",
+        "long_window"
+      ],
+      "title": "MomentumSelection",
+      "type": "object"
+    },
+    "WatchlistDocument": {
+      "additionalProperties": false,
+      "description": "The complete watchlist, as ``watchlist show`` and ``watchlist rename`` write it with ``--json``.\n\nThis document is unversioned: it has no ``schema_version``.",
+      "properties": {
+        "created_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/WatchlistEntryDocument"
+          },
+          "title": "Entries",
+          "type": "array"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null until the watchlist is first changed.",
+          "title": "Updated At"
+        },
+        "watchlist_id": {
+          "format": "uuid",
+          "title": "Watchlist Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "watchlist_id",
+        "display_name",
+        "created_at",
+        "updated_at",
+        "entries"
+      ],
+      "title": "WatchlistDocument",
+      "type": "object"
+    },
+    "WatchlistEntryDocument": {
+      "additionalProperties": false,
+      "description": "One entry of a watchlist: its 1-based position, its ticker and the selection stored for it.",
+      "properties": {
+        "index": {
+          "description": "The 1-based position a user sees and passes to 'remove-entry'.",
+          "title": "Index",
+          "type": "integer"
+        },
+        "selection": {
+          "description": "The stored selection; its method_id says which strategy.",
+          "discriminator": {
+            "mapping": {
+              "graham_growth_value": "#/$defs/GrahamGrowthSelection",
+              "graham_number": "#/$defs/GrahamNumberSelection",
+              "reported_fcf_eps_cagr": "#/$defs/FCFGrowthSelection",
+              "sma_crossover": "#/$defs/MomentumSelection"
+            },
+            "propertyName": "method_id"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/MomentumSelection"
+            },
+            {
+              "$ref": "#/$defs/GrahamNumberSelection"
+            },
+            {
+              "$ref": "#/$defs/GrahamGrowthSelection"
+            },
+            {
+              "$ref": "#/$defs/FCFGrowthSelection"
+            }
+          ],
+          "title": "Selection"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "index",
+        "ticker",
+        "selection"
+      ],
+      "title": "WatchlistEntryDocument",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The outcome of ``watchlist delete --json``, with the watchlist it removed when there was one.\n\n``deleted`` is false, and ``watchlist`` null, only for ``--missing-ok`` on a name that does not exist.\nThis document is unversioned: it has no ``schema_version``.",
+  "properties": {
+    "deleted": {
+      "title": "Deleted",
+      "type": "boolean"
+    },
+    "requested_name": {
+      "title": "Requested Name",
+      "type": "string"
+    },
+    "watchlist": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WatchlistDocument"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The deleted watchlist; null when nothing was deleted."
+    }
+  },
+  "required": [
+    "requested_name",
+    "deleted",
+    "watchlist"
+  ],
+  "title": "WatchlistDeleteDocument",
+  "type": "object"
+}
