@@ -38,7 +38,7 @@ current codes:
   ([contract](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md)): an opt-in live suite, scheduled run and
   failure classification so that a broken or changed online service (Yahoo, SEC EDGAR) is visible to the
   project owner from a scheduled run and to a user from the first line of the error message. PH.1 runs now;
-  PH.2 and PH.3 follow SWC.4a; all three finish before Step 3.5 begins.
+  PH.2a to PH.2c and PH.3 follow SWC.4c; all finish before Step 3.5 begins.
 - `PKG` — the `src` → real top-level package rename ([plan](pkg/PKG_RENAME_PLAN.md)), split out of `IR`
   given its scale. Not `R4`, deliberately: that code is already used as a document-local
   requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted

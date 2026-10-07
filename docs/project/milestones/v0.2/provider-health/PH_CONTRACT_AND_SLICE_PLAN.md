@@ -8,8 +8,9 @@ packages: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
 - **What this work package does:** adds an opt-in live test suite and a text-only `ian health` command that
   check the shape of what Yahoo (through yfinance) and SEC EDGAR return, run on a schedule and on demand with
-  results kept; gives each provider adapter three distinct, stable failure classes (unreachable, answered in
-  an unexpected shape, answered with no data for this request); adds an automatic, bounded probe that puts a
+  results kept; gives each provider failure one of three distinct, stable classes (unreachable, answered in
+  an unexpected shape, answered with no data for this request), kept in stored evidence and reported by every
+  output that shows the failure; adds an automatic, bounded probe that puts a
   provider verdict on the first line of a provider error, and `ian health --json`.
 - **What it does not do:** retry, back off, repair, switch providers or run anything on the user's behalf. It
   reports a condition; it never remediates one. Full list: [Scope limits](#4-scope-limits).
@@ -17,8 +18,9 @@ packages: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
   canary; live calls only under the `live_network` marker, never in the default run or the managed gate;
   no formula or classification change; no new dependency and no `pyproject.toml` edit; the complete managed
   gate at each slice end; explicit project-owner authorization before the next slice begins.
-- **Sequence:** PH.1 now, independent of SWC. PH.2 and PH.3 after SWC.4a, because they build on its failure
-  envelope. All three finish before Step 3.5 begins.
+- **Sequence:** PH.1 now, independent of SWC. Then, after SWC.4c: PH.2a, PH.2b, PH.2c, issue #40 and PH.3,
+  in that order, because they build on the failure envelope and the typed strategy envelopes. All finish
+  before Step 3.5 begins.
 - **Where the history lives:** why this exists is in [Background](#6-background-origin-of-this-work-package);
   decision records are in [Appendix A](#appendix-a-decision-records-and-history).
 
@@ -31,22 +33,27 @@ before the next begins. A prose-only documentation slice follows the documentati
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | PH.1 | [Live suite, health command and scheduled run](#ph1--live-suite-health-command-and-scheduled-run) | Complete | 2026-10-05 |
-| PH.2 | [Provider failure classification](#ph2--provider-failure-classification) | Planned | |
+| PH.2a | [Kind and raised failures](#ph2a--kind-and-raised-failures) | Planned | |
+| PH.2b | [Yahoo, health and completion](#ph2b--yahoo-health-and-completion) | Planned | |
+| PH.2c | [Stored provider failures](#ph2c--stored-provider-failures) | Planned | |
 | PH.3 | [Automatic canary and health JSON](#ph3--automatic-canary-and-health-json) | Planned | |
 
-PH.2 does not start before [SWC.4a](../swc/SWC_CONTRACT_AND_SLICE_PLAN.md#swc4a--failure-envelope-and-schema-generator)
-has merged. PH.3 does not start before PH.2 has merged. PH.1 has no dependency and may run alongside SWC.
+PH.2a does not start before [SWC.4c](../swc/SWC_CONTRACT_AND_SLICE_PLAN.md#swc4c--typed-strategy-envelopes-and-replay-dispatch)
+has merged. PH.2b follows PH.2a, PH.2c follows PH.2b, and PH.3 does not start before PH.2c has merged. PH.1 has
+no dependency and may run alongside SWC.
 
 [Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) (orchestrator
-classification of `DataQualityError` in trajectory events) lands with or immediately after PH.2, because it
-reuses the SWC.4a reason codes and PH.2's failure kinds. It is complete before Step 3.5 begins.
+classification of `DataQualityError` in trajectory events) comes immediately after PH.2c, as its own small
+change, because it reuses the reason codes and failure kinds PH.2 delivers. It is complete before Step 3.5
+begins.
 
 ## 3. The slices
 
 Settled across slices: the live suite, `ian health` and the canary share one set of check bodies; the canary
 never runs the test suite, never retries the failed call and never remediates, has a timeout and can be
 disabled; the scheduled run executes on a GitHub-hosted runner with a named local fallback (PH.1 slice plan);
-the broad handlers PH.2 replaces are inventoried by file and symbol.
+the broad handlers PH.2 replaces are inventoried by file and symbol; a provider failure stays a recorded, stored
+outcome with its resolution trace, and the existing `PROVIDER_ERROR` status is not split.
 
 ### PH.1 — Live suite, health command and scheduled run
 
@@ -59,15 +66,43 @@ the broad handlers PH.2 replaces are inventoried by file and symbol.
 - **Branch:** `feat/ph-1-live-suite`, from `main`.
 - **Detail:** [PH.1 slice plan](PH1_LIVE_SUITE_SLICE_PLAN.md).
 
-### PH.2 — Provider failure classification
+### PH.2a — Kind and raised failures
 
 - **Problem:** every adapter turns every failure into one error, so "down", "changed" and "no data for this
   ticker" read the same.
-- **Decision:** a typed kind (`unreachable`, `unexpected_response`, `no_data`) on the failure, three new
-  stable reason codes in the SWC.4a envelope, and the broad handlers replaced.
-- **Scope:** the provider adapters and carriers in the inventory, the classifier and the failure document.
-- **Branch:** `feat/ph-2-provider-failure-classification`, from `main` after SWC.4a has merged.
-- **Detail:** [decisions and handler inventory](PH2_HANDLER_INVENTORY.md). ⚠ no slice plan yet.
+- **Decision:** a typed kind (`unreachable`, `unexpected_response`, `no_data`) carried by the existing
+  exceptions, three new stable reason codes, a classifier that classifies both provider exceptions by type for
+  every command, one shared `provider_failure` element in the failure envelope, and the SEC EDGAR and Massive
+  handlers replaced.
+- **Scope:** the exceptions, the classifier and failure document, `fetch_json`, `fetch_filing`, the SEC EDGAR and
+  Massive facts adapters.
+- **Branch:** `feat/ph-2a-kind-and-raised-failures`, from `main` after SWC.4c has merged.
+- **Detail:** [PH.2 slice plan](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#ph2a--kind-and-raised-failures) and the
+  [handler inventory](PH2_HANDLER_INVENTORY.md).
+
+### PH.2b — Yahoo, health and completion
+
+- **Problem:** the Yahoo client turns every exception into one error, and `ian health` can say only `failed`.
+- **Decision:** one library-call helper wraps each third-party call; the Yahoo handlers use it; the check
+  results and `ian health` carry the kind; a completion test keeps broad handlers out of the adapters.
+- **Scope:** `src/data/yfinance/`, `src/data/provider_checks.py`, `src/cli_health.py`, the completion test and
+  `docs/project/PROVIDER_DEBUGGING.md`.
+- **Branch:** `feat/ph-2b-yahoo-and-health-kinds`, from `main` after PH.2a has merged.
+- **Detail:** [PH.2 slice plan](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#ph2b--yahoo-health-and-completion).
+
+### PH.2c — Stored provider failures
+
+- **Problem:** three of four strategies store a provider failure as a result, so the kind never reaches a
+  report, a saved run or a refresh job.
+- **Decision:** the kind and provider identity are typed fields on the stored resolver result and the profile
+  and identity diagnostics; every report derives from them through one kind-to-code mapping with a fixed
+  precedence; every strategy document carries one shared `provider_failure` element; every refresh job that did
+  not succeed carries a `reason_code`.
+- **Scope:** the resolvers and carriers, the four strategy codecs and documents, the run envelope, the
+  profile-cache payload, the saved run's failure code and the refresh job and summary.
+- **Branch:** `feat/ph-2c-stored-provider-failures`, from `main` after PH.2b has merged.
+- **Detail:** [PH.2 slice plan](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#ph2c--stored-provider-failures) and the
+  [handler inventory](PH2_HANDLER_INVENTORY.md#4-carriers-handlers-that-keep-the-class-from-reaching-the-envelope).
 
 ### PH.3 — Automatic canary and health JSON
 
@@ -77,7 +112,7 @@ the broad handlers PH.2 replaces are inventoried by file and symbol.
   health` gains `--json` with a typed document and schema.
 - **Scope:** the canary, the settings, `execution_errors` and `refresh`, the failure and health documents,
   user troubleshooting text.
-- **Branch:** `feat/ph-3-canary-and-health-json`, from `main` after PH.2 has merged.
+- **Branch:** `feat/ph-3-canary-and-health-json`, from `main` after PH.2c has merged.
 - **Detail:** [PH.3 decisions](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md). ⚠ no slice plan yet.
 
 ## 4. Scope limits
@@ -95,7 +130,8 @@ the broad handlers PH.2 replaces are inventoried by file and symbol.
   online dependency.
 - Live calls in the default run, the managed gate or the normal CI workflow.
 - A second logging framework, new dependencies or a `pyproject.toml` edit.
-- Any formula, classification or evidence-shape change.
+- Any formula or classification change, and any evidence-shape change other than the typed provider-failure
+  kind and provider identity PH.2c adds, with the version bumps that change requires and no migration.
 
 ## 5. Acceptance criteria
 
@@ -116,14 +152,15 @@ the broad handlers PH.2 replaces are inventoried by file and symbol.
   `ian health` agrees with it.
 - **Canary bounds:** one probe, implicated provider only, timeout enforced, once per provider per process,
   disabled by setting and by option, never retries, never remediates, fails open; each is tested.
-- **No semantic change:** no analysis result, formula or classification changes; only failure output and the
-  new command differ.
+- **No semantic change:** no analysis result, formula or classification changes; only failure output, stored
+  provider-failure evidence, the saved run's failure code, the refresh job's reason code and the new command
+  differ, and the slice plan lists every output change.
 - **Policy and documentation:** `AGENTS.md` §0 and §3 and `docs/project/README.md` carry the amended rule and
   `docs/project/PROVIDER_DEBUGGING.md` exists and is linked; no planning label appears outside
   `docs/project/` and `.github/` planning artifacts.
-- **Quality gate:** the complete managed gate passes after PH.1, PH.2 and PH.3, with at least 85% coverage;
+- **Quality gate:** the complete managed gate passes after PH.1, PH.2a, PH.2b, PH.2c and PH.3, with at least 85% coverage;
   the final link and sequence-table checks pass.
-- **Before Step 3.5:** all three slices are complete before Step 3.5 begins; the Step 3.5 plan's entry
+- **Before Step 3.5:** every slice and issue #40 are complete before Step 3.5 begins; the Step 3.5 plan's entry
   condition lists PH.
 
 ## 6. Background: origin of this work package
@@ -172,3 +209,12 @@ The `AGENTS.md` prohibition on real calls appears in §0 (as an unchanged rule o
 and §3, and the quality-gate paragraph of `docs/project/README.md` states it again. The amendment is applied
 to all three in PH.1 so that none contradicts another while §0 is in force; the §0 line disappears with §0
 when Step 3.5 begins, and §3 then carries the rule alone.
+
+### A.5 Sequence after SWC.4c (2026-10-07)
+
+PH.2 was split into PH.2a, PH.2b and PH.2c, and PH.2 and PH.3 now wait for SWC.4c instead of SWC.4a. SWC.4c
+moves the failure document and replaces the strategy payload builders and schemas that PH.2a and PH.2c extend,
+so building either earlier would mean editing code that SWC.4c replaces. The project owner chose the order
+SWC.4c, PH.2a, PH.2b, PH.2c, issue #40, PH.3 on 2026-10-07. PH.2c is a third slice because three of four
+strategies store a provider failure as a result: the kind reaches a report only if it is stored, so PH.2c
+changes evidence shapes, which the original scope limits excluded; the scope limits were amended to allow it.

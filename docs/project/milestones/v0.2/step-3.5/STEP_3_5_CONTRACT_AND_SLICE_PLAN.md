@@ -26,7 +26,9 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
   - Fundamentals come from SEC EDGAR annual filings only.
   - Every strategy result carries one explicit result-level status, `execution_status`, defined in
     [Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status); the strategy's native-status
-    function returns it, as FCF-Growth's does.
+    function returns it, as FCF-Growth's does. One question joins that decision: whether Momentum
+    records an unavailable result for a provider failure
+    ([A.8](#a8-momentum-provider-failure-and-result-status-question-from-ph2-2026-10-07)).
   - A strategy slice ships complete: analyzer, wiring (including its `headline` function for the
     side-by-side table), presentation, tests, user guide, and `FINANCE_MATH.md` and `GLOSSARY.md` entries.
   - The managed quality gate after every slice, and explicit authorization before the next begins.
@@ -419,3 +421,13 @@ Two decisions made while finalizing the SWC design, which this step's documents 
 | :--- | :--- | :--- | :--- |
 | Side-by-side table | Slice 3.5.7, after every strategy | Slice 3.5.0, before 3.5.1, over the four existing strategies | The SWC behavior bundle needs a per-strategy `headline` member. Added after the strategy slices it would force a retrofit of eleven strategies and a mid-step edit of the generator, the site list, the specimen and the closed-field test. Built first, every new strategy supplies it from its own slice and the member is added once. The table needs no new data (3.5.1) and no shared metric (3.5.2), so it does not wait for them; only its sort option over the ranked view waits, and moves to 3.5.6. The golden suite is renumbered 3.5.7 and `AGENTS.md` §0 is removed by 3.5.0, the first implementation slice. |
 | Native status | One headline metric reports its status; several report none (a rule proposed in the SWC design) | Every result carries one explicit `execution_status`, and the native-status function returns it for all seven | It is a result-shape decision, so this step owns it ([Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status)). The execution adapter needs the same value to map a run to its workspace outcome, FCF-Growth already works this way, and no strategy specification contradicts it: each row of the table restates an outcome the specification already defines. |
+
+### A.8 Momentum provider failure and result status: question from PH.2 (2026-10-07)
+
+Graham Number, Graham Growth and FCF Growth store a provider failure as an unavailable result with its
+resolution trace. Momentum raises it instead, so it reaches only the failure envelope and is not a stored
+outcome. Provider-failure classification
+([PH.2](../provider-health/PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md)) leaves that difference as it is.
+Whether Momentum should record an unavailable result for a provider failure is decided with the result-level
+status ([Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status)), because the answer fixes
+Momentum's `execution_status` for that case. Decision pending.
