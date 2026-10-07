@@ -23,14 +23,14 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 | # | Decision |
 | :--- | :--- |
 | D1 | Three slices, not one: PH.2a, PH.2b, PH.2c ([§4](#4-slices)). |
-| D2 | One named helper in `src/data/provider_failure.py` wraps a third-party library call, and only that call, never project code that reads its result. Listed transport exception types become `unreachable`; anything else raised inside the call becomes `unexpected_response`. Adapters call the helper and contain no broad handler. |
+| D2 | One named helper in `src/data/provider_failure.py` wraps a third-party library call, and only that call, never project code that reads its result. It classifies an exception raised inside the call in this order: the listed `unreachable` types, the listed `unexpected_response` types, the listed `no_data` types; the listed defect types propagate unchanged; and only an unlisted exception becomes `unexpected_response`. The lists are in [§8](#8-verified-against-main). Adapters call the helper and contain no broad handler. |
 | D3 | `fetch_json` and `fetch_filing` take the kind of an HTTP 404 from the caller through a required keyword, with no default, on the `JsonFetcher` protocol and every fetcher. Per-company documents pass `no_data`; fixed endpoints pass `unexpected_response`. |
 | D4 | The reason-code change for existing failures is an approved output change ([§3](#3-output-changes)). `provider_error` stays valid and stable for failures an adapter cannot classify. |
 | D5 | The kind is stored: typed fields on the resolver result and on the instrument-profile and security-identity diagnostics, beside the unchanged `PROVIDER_ERROR` status. Affected versions are bumped; nothing is migrated. A provider failure is not turned into a raised error. |
 | D6 | Issue #40 is immediately after PH.2c, as its own small change. |
 | D7 | One shared typed element, `provider_failure`, under the same key in every document that reports an analysis outcome ([§5](#5-the-shared-provider_failure-element)). |
 | D8 | One fixed precedence picks the single code when several inputs failed: `unreachable`, then `unexpected_response`, then `no_data` ([§5](#5-the-shared-provider_failure-element)). |
-| D9 | Every refresh job that did not succeed carries a `reason_code`, and a job that succeeded carries none ([§6](#6-refresh-job-reason-codes)). |
+| D9 | A refresh job carries a `reason_code` if and only if it raised, or its run is `failed` or `cancelled`; an `unavailable` run is an analysis outcome, not a failure ([§6](#6-refresh-job-reason_codes)). |
 | D10 | The classifier classifies `FinancialProviderError` and `DataFetchError` by type for every command. The per-command `data_error` callback is removed in favour of one per-kind sentence table. |
 | D11 | `yf.download` cannot be made to raise by any supported setting ([§8](#8-verified-against-main)), so a throttled or unreachable history download is `no_data`, and the sentence says Yahoo returned no rows. |
 
@@ -50,9 +50,9 @@ the same slice and the diff is what the review approves.
 | 7 | `ian health`, failed check | `<provider>: failed (...)` | `<provider>: unreachable`, `unexpected response` or `no data` | PH.2b |
 | 8 | Stored evidence of the three SEC-backed strategies and Momentum | Provider failure has status and prose only | Typed kind and provider identity; evidence and run-envelope versions bumped | PH.2c |
 | 9 | Strategy `--json` documents (Momentum, Graham Number, Graham Growth, FCF Growth), direct and replayed | No code; Graham documents carry `status: provider_error` and a sentence | New nullable `provider_failure` element in every document; each document's `schema_version` bumped | PH.2c |
-| 10 | Saved run, provider failure | `failure_reason_code` `execution_failed` | The mapped provider code | PH.2c |
-| 11 | Refresh job `reason_code` | Set only for a raised exception | Set for every job that did not succeed ([§6](#6-refresh-job-reason-codes)); two new codes | PH.2c |
-| 12 | Refresh summary schema | `reason_code` set if and only if `error` is set | Set if and only if the job did not succeed | PH.2c |
+| 10 | Saved run, every `failed` run | `failure_reason_code` `execution_failed` | A `FailureReasonCode` value: the mapped provider code, `invalid_input` or `execution_error`; `execution_failed` is no longer written | PH.2c |
+| 11 | Refresh job `reason_code` | Set only for a raised exception | Set if and only if the job raised or its run is `failed` or `cancelled`; a failed run's job copies the stored code; one new code, `cancelled` ([§6](#6-refresh-job-reason_codes)) | PH.2c |
+| 12 | Refresh summary schema | `reason_code` set if and only if `error` is set | Set if and only if the job raised or its run is `failed` or `cancelled` | PH.2c |
 | 13 | Profile-cache payload | Unversioned, no kind | Versioned, carries the kind; an old payload is treated as stale | PH.2c |
 
 Text-mode sentences keep their wording except where they state a cause the kind contradicts: the Yahoo
@@ -104,8 +104,8 @@ PH.2c extend.
   `_diagnostics_payload` and `_diagnostics_from_payload` carry the kind, with a test that it round-trips.
   Nothing is migrated; local databases may be discarded.
 - **Derived reports.** Every report derives from the stored kind through the one kind-to-code mapping in
-  `failure_classification.py`: the strategy documents, the saved run's `failure_reason_code` and the refresh
-  job's `reason_code`.
+  `failure_classification.py`: the strategy documents and the saved run's `failure_reason_code`. The refresh
+  job copies the stored code.
 - **Conformance.** The check in [§5](#5-the-shared-provider_failure-element).
 - **Gate.** The complete managed gate.
 
@@ -118,7 +118,7 @@ PH.2c extend.
   diagnostics, which carry the same kind.
 - **Carried by every document that reports an analysis outcome, null when there is none:** the failure envelope
   (PH.2a) and the Momentum, Graham Number, Graham Growth and FCF Growth documents, direct and replayed (PH.2c).
-  The refresh summary does not carry it; a job carries a `reason_code` ([§6](#6-refresh-job-reason-codes)).
+  The refresh summary does not carry it; a job carries a `reason_code` ([§6](#6-refresh-job-reason_codes)).
 - **Precedence.** The single code is derived from the kinds of the listed inputs by one function with a fixed
   order: `unreachable`, then `unexpected_response`, then `no_data`. An outage on any input outranks a shape
   change, which outranks an absent answer, so the code names the condition most likely to need action. The
@@ -131,18 +131,24 @@ PH.2c extend.
 
 ## 6. Refresh job `reason_code`s
 
-Every refresh job that did not succeed carries a `reason_code`, and a job that succeeded carries none; a job
-succeeds when its run or outcome is `completed` or `not_applicable`.
+A refresh job carries a `reason_code` if and only if it raised, or its run is `failed` or `cancelled`. An
+`unavailable` run is an analysis outcome, not a failure, so its job carries none; neither does a `completed` or
+`not_applicable` job.
 
 - A raised exception: the classifier's code, as today.
-- A stored `failed` run: the saved run's `failure_reason_code` when it is a provider code; `invalid_input` when
-  the stored native status is invalid input; otherwise `execution_error`. Non-provider failed runs keep
-  `execution_failed` as their stored `failure_reason_code`.
-- A stored `unavailable` run: the new code `data_unavailable`, status `input_unavailable`.
-- A `cancelled` run: the new code `cancelled`, status `error`.
+- A `failed` run: the run's stored `failure_reason_code`, copied. Every failed run stores a `FailureReasonCode`
+  value (D5, row 10): the mapped provider code when the native status is a provider error, `invalid_input` when
+  it is invalid input, otherwise `execution_error`. There is no translation step in the refresh.
+- A `cancelled` run: the new code `cancelled`, status `error`. A cancelled run is not `failed`, so it has no
+  stored failure code, and the refresh assigns this one.
 
-The two new codes are additions to `FailureReasonCode` and need no `schema_version` bump of their own; the
-regenerated schemas show them. They are the plan's proposal and are flagged for review.
+`cancelled` is an addition to `FailureReasonCode`; the regenerated schemas show it. It is the plan's proposal
+and is flagged for review. `data_unavailable` is not added.
+
+**Safety of replacing `execution_failed`.** Nothing reads it: it is written at `workspace/execution.py:150`
+and validated only as non-empty (`workspace/runs.py:126`), and the tests that assert it
+(`tests/workspace/test_execution.py`, `test_refresh.py`, `test_workspace_fail_closed.py`) are updated in PH.2c.
+Stored data has no compatibility value, so older runs that hold `execution_failed` need no handling.
 
 ## 7. Tests
 
@@ -152,6 +158,8 @@ regenerated schemas show them. They are the plan's proposal and are flagged for 
   `provider_error`; both exception types classify identically in every command family.
 - **Carried, not lost:** a kind raised in an adapter reaches the failure envelope, and a stored kind reaches the
   strategy document, the saved run and the refresh job.
+- **Helper order:** each listed type maps to its kind, a listed defect type propagates, and only an unlisted
+  exception becomes `unexpected_response`.
 - **Precedence:** every ordering of the three kinds yields the §5 code, and the document, the saved run and the
   refresh job agree on it.
 - **Defects propagate:** a non-provider exception raised inside each narrowed handler is not reported as a
@@ -161,7 +169,13 @@ regenerated schemas show them. They are the plan's proposal and are flagged for 
 - **404 by caller:** a per-company 404 is `no_data`; a fixed-endpoint 404 is `unexpected_response`; the keyword
   is required on every fetcher.
 - **Profile cache:** the payload round-trips the kind; an old unversioned payload is stale.
-- **Refresh invariant:** a job carries a code if and only if it did not succeed, for every outcome.
+- **Refresh invariant:** a job carries a code if and only if it raised or its run is `failed` or `cancelled`, for
+  every outcome, including `unavailable`, which carries none; a failed run's job carries exactly the stored
+  `failure_reason_code`.
+- **Stored failure codes:** every `failed` run stores a `FailureReasonCode` value, and `execution_failed` is
+  never written.
+- **Envelope agreement:** the failure envelope's top-level `reason_code` and `provider_failure.reason_code`
+  always agree, for every kind and every precedence ordering.
 - **Conformance and completion:** §5 and inventory §7.
 - **Schema drift:** the regenerated schemas are checked in and the drift check passes.
 - **Existing fakes** that raise a bare `Exception` from a provider are changed to raise a typed failure.
@@ -199,9 +213,12 @@ Checked at `0a615fb` (2026-10-07), before this plan was written.
     `None` into raising.
   - `unreachable` types for the helper: `OSError` (both HTTP backends derive their `RequestException` from it,
     covering connection, timeout, DNS, SSL, proxy, HTTP and chunked-encoding errors) and `YFRateLimitError`.
-    Listed ahead of it, as `unexpected_response`: the backends' `JSONDecodeError` and `ContentDecodingError`
-    and `YFDataException`. `no_data`: `YFTickerMissingError`, `YFPricesMissingError`, `YFTzMissingError`.
-    Defects: `YFInvalidPeriodError`, `YFNotImplementedError`, a bare `YFException` and `InvalidURL`.
+    Checked first, as `unexpected_response`: the backends' `JSONDecodeError` and `ContentDecodingError` and
+    `YFDataException`. `no_data`: `YFTickerMissingError`, `YFPricesMissingError`, `YFTzMissingError`.
+    Defects, which propagate: `YFInvalidPeriodError`, `YFNotImplementedError`, a bare `YFException` and
+    `InvalidURL`. The helper's order is therefore the `unexpected_response` and `no_data` types and the defect
+    types first, then `unreachable` (`OSError`, `YFRateLimitError`), then any unlisted exception as
+    `unexpected_response`.
 - **`fetch_json` call sites.** Per-company: SEC `financial_facts.py` 255, 256, 430, 434; Massive 243; the check
   transport's company-facts call. Fixed: SEC 541 (the ticker map) and the check transport's ticker-map call.
 - **Handlers.** The inventory was re-scanned against `main`; it gained the FCF carrier, `fetch_filing`, the
@@ -212,4 +229,5 @@ Checked at `0a615fb` (2026-10-07), before this plan was written.
 ## 9. Question carried forward
 
 Whether Momentum should record an unavailable result for a provider failure, as the other strategies do, is
-outside PH.2. It belongs to Step 3.5's result-status decision.
+outside PH.2. It is carried as a linked item of Step 3.5's result-status decision:
+[Step 3.5, A.8](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a8-momentum-provider-failure-and-result-status-question-from-ph2-2026-10-07).
