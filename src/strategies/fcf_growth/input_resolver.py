@@ -47,13 +47,12 @@ from src.strategies.fcf_growth.calculators import (
 )
 from src.strategies.fcf_growth.models import (
     AnnualGrowthObservation,
-    FCFClassificationBasis,
     FCFEarningsGrowthPolicy,
-    HistoricalHorizon,
     MetricResult,
     MetricStatus,
     ReasonCode,
 )
+from src.strategies.fcf_growth.vocabulary import FCFClassificationBasis, HistoricalHorizon
 
 CACHE_SCHEMA_VERSION = 2
 _ANNUAL_FIELDS = (

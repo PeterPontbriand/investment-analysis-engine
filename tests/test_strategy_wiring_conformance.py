@@ -671,34 +671,6 @@ def test_t8_reports_a_presenter_that_writes_an_identifier_its_document_model_rej
     )
 
 
-def test_t9_each_envelope_declares_the_identifiers_of_its_selection_class_and_result() -> None:
-    """Envelope, selection class and (FCF Growth) the analyzer's models module declare the same identifiers."""
-    assert conformance.envelope_identity_gaps(STRATEGIES) == []
-
-
-def test_t9_names_the_strategy_and_the_site_that_disagrees_with_the_selection_class() -> None:
-    """An envelope holding another strategy's identifiers is reported with both sites."""
-    mispaired = replace(MOMENTUM, json_envelope=GRAHAM_NUMBER.json_envelope)
-    gaps = conformance.envelope_identity_gaps((mispaired,))
-    assert gaps == [
-        "strategy ('momentum', 'sma_crossover'): src.strategies.graham_number.envelope ANALYSIS_ID and METHOD_ID are "
-        "('graham_number', 'graham_number'), but selection class MomentumSelection declares "
-        "('momentum', 'sma_crossover')"
-    ]
-
-
-def test_t9_names_the_strategy_and_the_site_that_disagrees_with_the_result_models(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """FCF Growth's envelope identifiers are also compared with the analyzer's own constants."""
-    monkeypatch.setattr("src.strategies.fcf_growth.envelope.METHOD_ID", "renamed")
-    gaps = conformance.envelope_identity_gaps(STRATEGIES)
-    assert len(gaps) == 2
-    assert "selection class FCFGrowthSelection declares" in gaps[0]
-    assert "src.strategies.fcf_growth.models declares ('fcf_earnings_growth', 'reported_fcf_eps_cagr')" in gaps[1]
-    assert all(gap.startswith("strategy ('fcf_earnings_growth', 'reported_fcf_eps_cagr'): ") for gap in gaps)
-
-
 def test_t10_every_descriptor_has_a_current_published_schema() -> None:
     """Each descriptor's ``json_envelope`` has its schema file checked in."""
     assert conformance.published_schema_gaps(STRATEGIES) == []

@@ -1,11 +1,11 @@
-"""The Graham Number ``--json`` document: its identity constants, version and typed model.
+"""The Graham Number ``--json`` document: its version and typed model.
 
-This is the strategy's identity leaf: it imports no other Graham Number module, so the presenter writes the
-identifiers from here and the conformance tests compare them with the selection class's own declaration.
+The identifiers and enumerations the document writes are read from the strategy's ``vocabulary.py``, the one place
+they are declared; this module imports nothing else from the package.
 The same model backs a direct command and a ``runs show`` replay, which write the same document.
 """
 
-from typing import Final, Literal
+from typing import Final
 
 from src.core.analysis_status import CalculationStatus
 from src.reporting.documents.shared_parts import (
@@ -18,9 +18,8 @@ from src.reporting.documents.shared_parts import (
     SecurityIdentityPart,
 )
 from src.reporting.documents.timestamp import DocumentTimestamp
+from src.strategies.graham_number.vocabulary import AnalysisId, MethodId
 
-ANALYSIS_ID: Final = "graham_number"
-METHOD_ID: Final = "graham_number"
 DOCUMENT_SCHEMA_VERSION: Final = 6
 
 
@@ -44,11 +43,11 @@ class GrahamNumberDocument(DocumentPart):
 
     schema_version: int
     price_comparison: PriceComparisonPart | None
-    analysis: Literal["graham_number"]
+    analysis: AnalysisId
     ticker: str
     security_identity: SecurityIdentityPart
     instrument_kind: InstrumentKindPart | None
-    method: Literal["graham_number"]
+    method: MethodId
     as_of: DocumentTimestamp | None
     status: CalculationStatus
     reason: str | None
@@ -61,9 +60,7 @@ class GrahamNumberDocument(DocumentPart):
 
 
 __all__ = [
-    "ANALYSIS_ID",
     "DOCUMENT_SCHEMA_VERSION",
-    "METHOD_ID",
     "GrahamNumberDocument",
     "GrahamNumberInputsPart",
     "GrahamNumberResultPart",

@@ -23,13 +23,8 @@ from src.strategies.fcf_growth.input_resolver import (
     FinancialFieldProvider,
     resolve_annual_growth_series,
 )
-from src.strategies.fcf_growth.models import (
-    FCFClassificationBasis,
-    FCFEarningsGrowthPolicy,
-    HistoricalHorizon,
-    MetricStatus,
-    ReasonCode,
-)
+from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy, MetricStatus, ReasonCode
+from src.strategies.fcf_growth.vocabulary import FCFClassificationBasis, HistoricalHorizon
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
 

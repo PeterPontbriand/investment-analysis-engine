@@ -15,7 +15,7 @@ from src.evaluation.composition import compose_fixture_dependencies, dispatch_fi
 from src.evaluation.runner import DeterministicCaseRequest
 from src.orchestrator.tool_names import ToolName
 from src.orchestrator.tool_runtime import ToolRuntime
-from src.strategies.fcf_growth.models import METHOD_ID, STRATEGY_ID, FCFEarningsGrowthResult
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolDependencies, FCFEarningsGrowthToolHandler
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_number.service import GrahamNumberAnalysis
@@ -61,12 +61,6 @@ def test_the_declared_identifiers_are_the_existing_ones() -> None:
         "Calculate the explicit Graham growth-value method.",
         "Analyze company free-cash-flow and diluted-EPS growth.",
     ]
-
-
-def test_the_fcf_descriptor_references_its_existing_identity_constants() -> None:
-    """FCF's identity is declared once, in its models module."""
-    assert FCF_GROWTH.analysis_id is STRATEGY_ID
-    assert FCF_GROWTH.method_id is METHOD_ID
 
 
 def test_every_index_is_read_only_and_in_declaration_order() -> None:

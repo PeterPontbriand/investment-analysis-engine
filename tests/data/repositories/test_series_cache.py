@@ -32,7 +32,8 @@ from src.strategies.fcf_growth.input_resolver import (
     FinancialFieldProvider,
     resolve_annual_growth_series,
 )
-from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy, HistoricalHorizon
+from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
+from src.strategies.fcf_growth.vocabulary import HistoricalHorizon
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
 CacheFactory = Callable[[timedelta | None], ResolvedInputSeriesCacheProtocol]

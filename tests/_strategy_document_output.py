@@ -54,7 +54,8 @@ from src.evaluation.fixtures.graham import PROVIDER_ID, SECURITY_ID
 from src.evaluation.fixtures.instrument_profiles import FIXTURE_PROFILE_RESOLVED_AT, fixture_known_etf_profile
 from src.evaluation.fixtures.market_data import FixtureMarketDataProvider, momentum_boundary_frame
 from src.strategies.fcf_growth.input_resolver import _failure_metric
-from src.strategies.fcf_growth.models import Classification, FCFEarningsGrowthResult, ReasonCode, TrendClassification
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, ReasonCode
+from src.strategies.fcf_growth.vocabulary import Classification, TrendClassification
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.workspace.runs import AnalysisRun, RunQuery

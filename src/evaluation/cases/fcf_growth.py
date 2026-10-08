@@ -14,8 +14,8 @@ from src.evaluation.fixtures.instrument_profiles import KNOWN_ETF_PROFILE_FIXTUR
 from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_SAP_FIXTURE_ID
 from src.evaluation.models import Case, DomainOutcomeExpectation, Expectation, NumericalExpectation, ToolConstraints
 from src.orchestrator.tool_names import ToolName
-from src.strategies.fcf_growth.models import HistoricalHorizon
 from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
+from src.strategies.fcf_growth.vocabulary import HistoricalHorizon
 
 _FCF_TOOL_CONSTRAINTS: Final = ToolConstraints(
     permitted=(ToolName.ANALYZE_FCF_EARNINGS_GROWTH,),

@@ -28,18 +28,14 @@ from src.reporting.presentation import (
 )
 from src.strategies.momentum.analyzer import MomentumConfig, MomentumMetrics
 from src.strategies.momentum.envelope import (
-    ANALYSIS_ID,
     DOCUMENT_SCHEMA_VERSION,
-    METHOD_ID,
-    CrossoverState,
     MomentumDataResolutionPart,
     MomentumDocument,
     MomentumParametersPart,
     MomentumResultPart,
     MomentumSourcePart,
-    PriceBasis,
-    TrendRelationship,
 )
+from src.strategies.momentum.vocabulary import ANALYSIS_ID, METHOD_ID, CrossoverState, PriceBasis, TrendRelationship
 
 _LIMITATION = (
     "SMA momentum describes recent price trend; it is not a valuation, "
@@ -388,8 +384,8 @@ def _price_basis_detail(context: MarketDataContext | None) -> str:
 
 def _json_price_basis(context: MarketDataContext | None) -> PriceBasis:
     if context is not None and context.price_adjustment == "adjusted":
-        return "latest_adjusted_historical_close"
-    return "latest_historical_close"
+        return PriceBasis.LATEST_ADJUSTED_HISTORICAL_CLOSE
+    return PriceBasis.LATEST_HISTORICAL_CLOSE
 
 
 def _currency(p: MomentumPresentation) -> str | None:
@@ -428,20 +424,20 @@ def _trend_relationship(metrics: MomentumMetrics) -> TrendRelationship | None:
     if metrics.short_sma_val is None or metrics.long_sma_val is None:
         return None
     if metrics.short_sma_val > metrics.long_sma_val:
-        return "short_above_long"
+        return TrendRelationship.SHORT_ABOVE_LONG
     if metrics.short_sma_val < metrics.long_sma_val:
-        return "short_below_long"
-    return "short_equal_long"
+        return TrendRelationship.SHORT_BELOW_LONG
+    return TrendRelationship.SHORT_EQUAL_LONG
 
 
 def _crossover_state(signal: float | None) -> CrossoverState | None:
     if signal is None:
         return None
     if signal > 0:
-        return "bullish_crossover"
+        return CrossoverState.BULLISH_CROSSOVER
     if signal < 0:
-        return "bearish_crossover"
-    return "no_new_crossover"
+        return CrossoverState.BEARISH_CROSSOVER
+    return CrossoverState.NO_NEW_CROSSOVER
 
 
 def _document(p: MomentumPresentation) -> MomentumDocument:

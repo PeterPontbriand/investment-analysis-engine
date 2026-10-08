@@ -12,12 +12,9 @@ from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFa
 from src.reporting.presentation import PresentationMode
 from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.strategies.fcf_growth.models import (
-    FCFClassificationBasis,
-    FCFEarningsGrowthConfig,
-    FCFEarningsGrowthPolicy,
-)
+from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
 from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
+from src.strategies.fcf_growth.vocabulary import FCFClassificationBasis
 
 
 @pytest.mark.parametrize("basis", list(FCFClassificationBasis))

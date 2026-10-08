@@ -530,69 +530,13 @@ def versions_and_round_trip_gaps(
 # ---------------------------------------------------------------------------
 
 
-def _envelope_identity_keys(model: type[BaseModel]) -> tuple[str, str] | None:
-    """Return the names of the two identifier keys a strategy document model declares, or ``None`` if neither pair."""
-    for pair in (("analysis", "method"), ("strategy_id", "method_id")):
-        if all(key in model.model_fields for key in pair):
-            return pair
-    return None
-
-
-def _selection_ids(descriptor: StrategyDescriptor) -> tuple[type[BaseModel], str, str] | None:
-    """Return the selection class holding the descriptor's identifiers and the identifiers it declares."""
-    for member in get_args(SelectionMember):
-        ids = (_literal_default(member, "analysis_id"), _literal_default(member, "method_id"))
-        if ids == (descriptor.analysis_id, descriptor.method_id):
-            return member, *ids
-    return None
-
-
-def envelope_identity_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
-    """T9 (declarations): each strategy's envelope identifiers equal the selection class's and the result's own.
-
-    The envelope module holds the identifiers its presenter writes; the selection class and, where the result
-    carries them (FCF Growth's models module), the result type declare them again. A mismatch names the strategy
-    and the site that disagrees.
-    """
-    gaps: list[str] = []
-    for item in descriptors:
-        module = importlib.import_module(item.json_envelope.__module__)
-        envelope_ids = (getattr(module, "ANALYSIS_ID", None), getattr(module, "METHOD_ID", None))
-        site = f"{item.json_envelope.__module__} ANALYSIS_ID and METHOD_ID"
-        selection = _selection_ids(item)
-        if None in envelope_ids:
-            gaps.append(
-                f"strategy {label(item)}: {item.json_envelope.__module__} declares no ANALYSIS_ID and METHOD_ID"
-            )
-            continue
-        if selection is not None:
-            member, analysis_id, method_id = selection
-            if envelope_ids != (analysis_id, method_id):
-                gaps.append(
-                    f"strategy {label(item)}: {site} are {envelope_ids}, but selection class {member.__name__} "
-                    f"declares ({analysis_id!r}, {method_id!r})"
-                )
-        result_fields = {
-            field.name: field.default
-            for field in dataclasses.fields(item.behavior.result_type)
-            if dataclasses.is_dataclass(item.behavior.result_type) and field.name in ("strategy_id", "method_id")
-        }
-        if len(result_fields) == 2 and (result_fields["strategy_id"], result_fields["method_id"]) != envelope_ids:
-            gaps.append(
-                f"strategy {label(item)}: {site} are {envelope_ids}, but {item.behavior.result_type.__module__} "
-                f"declares ({result_fields['strategy_id']!r}, {result_fields['method_id']!r})"
-            )
-    return gaps
-
-
 def replay_gaps(
     descriptors: tuple[StrategyDescriptor, ...],
     tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
 ) -> list[str]:
-    """T8 (replay) and T9 (rendered ids): each stored run replays in every mode and writes its typed document.
+    """T8 (replay): each stored run replays in every mode and writes the document its descriptor declares.
 
-    The JSON replay must validate against the descriptor's ``json_envelope`` and carry the identifiers of the
-    stored selection class, which is declared separately from the envelope. A strategy with no stored run is
+    The JSON replay must validate against the descriptor's ``json_envelope``. A strategy with no stored run is
     reported by T8's round trip, not here.
     """
     gaps: list[str] = []
@@ -613,28 +557,13 @@ def replay_gaps(
             if mode is not PresentationMode.JSON:
                 continue
             try:
-                document = item.json_envelope.model_validate_json(text)
+                item.json_envelope.model_validate_json(text)
             except ValidationError as error:
                 gaps.append(
                     f"strategy {label(item)}: the replayed JSON does not validate as "
                     f"{item.json_envelope.__name__}: {error}"
                 )
                 continue
-            keys = _envelope_identity_keys(item.json_envelope)
-            selection = _selection_ids(item)
-            if keys is None or selection is None:
-                gaps.append(
-                    f"strategy {label(item)}: {item.json_envelope.__name__} declares no identifier keys to compare"
-                )
-                continue
-            member, analysis_id, method_id = selection
-            rendered = (getattr(document, keys[0]), getattr(document, keys[1]))
-            if rendered != (analysis_id, method_id):
-                gaps.append(
-                    f"strategy {label(item)}: the rendered document has {keys[0]}={rendered[0]!r} and "
-                    f"{keys[1]}={rendered[1]!r}, but selection class {member.__name__} declares "
-                    f"({analysis_id!r}, {method_id!r})"
-                )
     return gaps
 
 

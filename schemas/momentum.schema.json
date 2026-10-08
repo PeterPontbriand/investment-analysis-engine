@@ -1,5 +1,15 @@
 {
   "$defs": {
+    "CrossoverState": {
+      "description": "What the latest crossover signal says.",
+      "enum": [
+        "bullish_crossover",
+        "bearish_crossover",
+        "no_new_crossover"
+      ],
+      "title": "CrossoverState",
+      "type": "string"
+    },
     "DiagnosticPart": {
       "additionalProperties": false,
       "description": "One diagnostics entry that names no provider: a resolver event or the legacy identity entry.",
@@ -251,18 +261,12 @@
         "crossover_state": {
           "anyOf": [
             {
-              "enum": [
-                "bullish_crossover",
-                "bearish_crossover",
-                "no_new_crossover"
-              ],
-              "type": "string"
+              "$ref": "#/$defs/CrossoverState"
             },
             {
               "type": "null"
             }
-          ],
-          "title": "Crossover State"
+          ]
         },
         "current_price": {
           "title": "Current Price",
@@ -280,12 +284,7 @@
           "title": "Long Sma"
         },
         "price_basis": {
-          "enum": [
-            "latest_adjusted_historical_close",
-            "latest_historical_close"
-          ],
-          "title": "Price Basis",
-          "type": "string"
+          "$ref": "#/$defs/PriceBasis"
         },
         "rsi": {
           "$ref": "#/$defs/MetricResultPart"
@@ -326,18 +325,12 @@
         "trend_relationship": {
           "anyOf": [
             {
-              "enum": [
-                "short_above_long",
-                "short_below_long",
-                "short_equal_long"
-              ],
-              "type": "string"
+              "$ref": "#/$defs/TrendRelationship"
             },
             {
               "type": "null"
             }
-          ],
-          "title": "Trend Relationship"
+          ]
         }
       },
       "required": [
@@ -438,6 +431,15 @@
       ],
       "title": "MomentumSourcePart",
       "type": "object"
+    },
+    "PriceBasis": {
+      "description": "Which close the current price is.",
+      "enum": [
+        "latest_adjusted_historical_close",
+        "latest_historical_close"
+      ],
+      "title": "PriceBasis",
+      "type": "string"
     },
     "ProviderDiagnosticPart": {
       "additionalProperties": false,
@@ -601,6 +603,16 @@
         "derived"
       ],
       "title": "SourceKind",
+      "type": "string"
+    },
+    "TrendRelationship": {
+      "description": "How the short moving average stands against the long one.",
+      "enum": [
+        "short_above_long",
+        "short_below_long",
+        "short_equal_long"
+      ],
+      "title": "TrendRelationship",
       "type": "string"
     },
     "TrendStatus": {

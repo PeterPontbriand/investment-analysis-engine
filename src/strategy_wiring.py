@@ -28,10 +28,8 @@ from src.strategies.fcf_growth.codec import (
     fcf_growth_ticker,
 )
 from src.strategies.fcf_growth.envelope import FCFDocument
-from src.strategies.fcf_growth.models import METHOD_ID as FCF_GROWTH_METHOD_ID
 from src.strategies.fcf_growth.models import METHOD_VERSION as FCF_GROWTH_METHOD_VERSION
 from src.strategies.fcf_growth.models import SCHEMA_VERSION as FCF_GROWTH_RESULT_SCHEMA_VERSION
-from src.strategies.fcf_growth.models import STRATEGY_ID as FCF_GROWTH_ANALYSIS_ID
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from src.strategies.fcf_growth.replay import project_fcf_growth
 from src.strategies.fcf_growth.selection import FCFGrowthSelection, parse_fcf_growth_selection
@@ -40,6 +38,8 @@ from src.strategies.fcf_growth.tool import (
     FCFEarningsGrowthToolDependencies,
     FCFEarningsGrowthToolHandler,
 )
+from src.strategies.fcf_growth.vocabulary import ANALYSIS_ID as FCF_GROWTH_ANALYSIS_ID
+from src.strategies.fcf_growth.vocabulary import METHOD_ID as FCF_GROWTH_METHOD_ID
 from src.strategies.graham_growth.codec import (
     decode_graham_growth,
     encode_graham_growth,
@@ -55,6 +55,8 @@ from src.strategies.graham_growth.tool import (
     GrahamGrowthToolHandler,
     GrahamGrowthValueToolArguments,
 )
+from src.strategies.graham_growth.vocabulary import ANALYSIS_ID as GRAHAM_GROWTH_ANALYSIS_ID
+from src.strategies.graham_growth.vocabulary import METHOD_ID as GRAHAM_GROWTH_METHOD_ID
 from src.strategies.graham_number.codec import (
     decode_graham_number,
     encode_graham_number,
@@ -70,12 +72,16 @@ from src.strategies.graham_number.tool import (
     GrahamNumberToolDependencies,
     GrahamNumberToolHandler,
 )
+from src.strategies.graham_number.vocabulary import ANALYSIS_ID as GRAHAM_NUMBER_ANALYSIS_ID
+from src.strategies.graham_number.vocabulary import METHOD_ID as GRAHAM_NUMBER_METHOD_ID
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.codec import decode_momentum, encode_momentum, momentum_native_status, momentum_ticker
 from src.strategies.momentum.envelope import MomentumDocument
 from src.strategies.momentum.replay import project_momentum
 from src.strategies.momentum.selection import MomentumSelection, parse_momentum_selection
 from src.strategies.momentum.tool import MomentumToolArguments, MomentumToolDependencies, MomentumToolHandler
+from src.strategies.momentum.vocabulary import ANALYSIS_ID as MOMENTUM_ANALYSIS_ID
+from src.strategies.momentum.vocabulary import METHOD_ID as MOMENTUM_METHOD_ID
 from src.workspace.codecs import EvidenceCodec, encode_with
 from src.workspace.execution import RunSpec
 from src.workspace.models import StrictJsonMapping
@@ -256,8 +262,8 @@ FCF_GROWTH_BEHAVIOR: Final = StrategyBehavior[
 )
 
 MOMENTUM: Final = StrategyDescriptor(
-    analysis_id="momentum",
-    method_id="sma_crossover",
+    analysis_id=MOMENTUM_ANALYSIS_ID,
+    method_id=MOMENTUM_METHOD_ID,
     alias="momentum",
     label="Momentum",
     tool=ToolName.ANALYZE_MOMENTUM,
@@ -271,8 +277,8 @@ MOMENTUM: Final = StrategyDescriptor(
     json_envelope=MomentumDocument,
 )
 GRAHAM_NUMBER: Final = StrategyDescriptor(
-    analysis_id="graham_number",
-    method_id="graham_number",
+    analysis_id=GRAHAM_NUMBER_ANALYSIS_ID,
+    method_id=GRAHAM_NUMBER_METHOD_ID,
     alias="graham-number",
     label="Graham Number",
     tool=ToolName.ANALYZE_GRAHAM_NUMBER,
@@ -286,8 +292,8 @@ GRAHAM_NUMBER: Final = StrategyDescriptor(
     json_envelope=GrahamNumberDocument,
 )
 GRAHAM_GROWTH: Final = StrategyDescriptor(
-    analysis_id="graham_growth_value",
-    method_id="graham_growth_value",
+    analysis_id=GRAHAM_GROWTH_ANALYSIS_ID,
+    method_id=GRAHAM_GROWTH_METHOD_ID,
     alias="graham-growth",
     label="Graham Growth",
     tool=ToolName.ANALYZE_GRAHAM_GROWTH_VALUE,

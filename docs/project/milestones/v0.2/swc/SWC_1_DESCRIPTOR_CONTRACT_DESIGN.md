@@ -29,7 +29,7 @@ owns that result and is complete without the study.
   below the composition root imports a descriptor module; strategy-owned files live in one package per
   strategy and obey a role-based layering rule; every design question ends in a decision.
 - **Fit and cost:** the design holds for all seven Step 3.5 strategies; one behavior member, `headline`, is added by
-  Step 3.5 slice 3.5.0, before any new strategy slice ([§16](#16-step-35-fit-check)). Adding a strategy takes 19 hand-edit sites in 24
+  Step 3.5 slice 3.5.0, before any new strategy slice ([§16](#16-step-35-fit-check)). Adding a strategy takes 20 hand-edit sites in 25
   files across 9 directories, nine of them files that already exist and five of those edited by a generator
   ([§17](#17-edit-sites-for-a-new-strategy)); a site-status command reports what is missing
   ([§19](#19-contributor-tooling)).
@@ -215,13 +215,14 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
 
   | File | Holds | Serves |
   | :--- | :--- | :--- |
+  | `vocabulary.py` | Identity constants and the enumerations more than one role file needs | every role file below |
   | Analyzer modules (`analyzer.py`, `models.py`, `config.py`, `calculation.py` and the like) | Config, result, analyzer, calculators | `analysis` |
   | `selection.py` | Selection class and parser | `workspace` |
   | `codec.py` | Encode, decode, ticker, native-status function | `workspace` |
   | `execution.py` | Execution adapter, capture type, normalizer | `workspace` |
   | `tool.py` | Arguments model, dependency class, handler | `orchestrator` |
   | `presenter.py` | Presenter and JSON builder | `reporting` |
-  | `envelope.py` | Envelope model and identity constants | `reporting` |
+  | `envelope.py` | Envelope model and document version | `reporting` |
   | `replay.py` | Replay projector and `headline` function | `reporting` |
   | `cli.py` | Direct command, selection builder, refresh executor | CLI |
   | `evaluation.py` | Fixture composition and requirement | `evaluation` |
@@ -234,8 +235,8 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
 - **Role rule (test T13):** a file's role is its file name inside the package, so the rule needs no list of
   paths.
   1. *Within a strategy*, a role file may import another file of the same package only if the imported
-     role ranks lower. Order, lowest first: envelope and analyzer modules; selection and codec; tool and
-     execution; presenter; replay; cli and evaluation. Analyzer modules may import each other. A file never
+     role ranks lower. Order, lowest first: vocabulary; envelope and analyzer modules; selection and codec; tool and
+     execution; presenter; replay; cli and evaluation. Analyzer modules may import each other. The vocabulary file imports nothing from its package. A file never
      imports a role of equal or higher rank, so two different roles of one rank (selection and codec, tool
      and execution, cli and evaluation, and the envelope leaf and an analyzer module) never import each other.
   2. *Between strategies*, no package imports another. `_shared` imports no strategy or family module.
@@ -554,7 +555,7 @@ parameterized over the production tuples and over the specimen tuples ([§19.5](
 | T6 `evaluation_coverage` | Every descriptor tool against the union of tools the golden cases require; the deterministic suite runs every case | The case catalog and the suite's own dispatch | A strategy with no deterministic case, or one the fixture composition cannot serve, fails. |
 | T7 `command_table` | Descriptor aliases against the top-level command names of the real Typer app | The CLI's own command table, read from `typer.main.get_command(app)` with hidden groups included | (a) Every top-level command is a descriptor alias, a command group, or listed in the hand-written `NON_STRATEGY_COMMANDS`. (b) An alias never equals a group or non-strategy name. (c) Each strategy command offers `--save-run` and `--json`. Strategy commands are added from the CLI tier, so "every alias is a command" is now derived and is checked through T10's CLI-tier surface instead. |
 | T8 `versions_and_round_trip` (SWC.3a; replay added by SWC.4c) | Run envelope versions, decoded evidence and, from SWC.4c, the replayed text for a real result per strategy | Real analyzer output via the golden fixtures, real `AnalysisRun` validation, the live presenter | Behavior, not metadata: `execute` writes, `decode_evidence` reads, and `decoded == original` must hold; the replay of a stored run equals the live presenter's output. |
-| T9 `rendered_json_ids` (SWC.4c) | The `analysis` and `method` keys (`strategy_id` and `method_id` for FCF Growth) of each rendered `--json` document against the stored selection's `Literal` ids; each envelope module's `ANALYSIS_ID` and `METHOD_ID` against the selection class and, for FCF Growth, the analyzer's models module | Real rendered documents from the golden fixtures against the hand-written selection classes | Presenters and the descriptor read identity from the same leaf, so the document is compared to the selection class, which is a separate declaration. A mismatch names the strategy and the site that disagrees. |
+| ~~T9 `rendered_json_ids`~~ (SWC.4c; removed by [H.32](#h32-one-vocabulary-file-per-strategy-2026-10-07)) | The `analysis` and `method` keys (`strategy_id` and `method_id` for FCF Growth) of each rendered `--json` document against the stored selection's `Literal` ids; each envelope module's `ANALYSIS_ID` and `METHOD_ID` against the selection class and, for FCF Growth, the analyzer's models module | Real rendered documents from the golden fixtures against the hand-written selection classes | Presenters and the descriptor read identity from the same leaf, so the document is compared to the selection class, which is a separate declaration. A mismatch names the strategy and the site that disagrees. H.32 removed the test: identity and the enumerations are declared once, so there is nothing left to compare, and the document's `Literal` identifier fields reject a drifted value at the output boundary, which T8's replay exercises. |
 | T10 `consumers_cover_every_descriptor` | The key set of each remaining consumer surface: CLI tier, evaluation tier, JSON ids, published schemas, generated strategy lists | The tiers' own tuples and the files on disk | Fails when a descriptor has no entry in a tier, naming the surface and the strategy. The surfaces that became derived (tool registration, evaluation routing, native status, codecs, aliases, selection parsing, builders, refresh executors, projectors) are no longer tables, so they are no longer compared. |
 | T11 `undeclared_inputs_fail_closed` | Every dispatcher in [§9.2](#92-fail-closed-dispatch) with an undeclared type, key, alias or arguments, and a bundle given another strategy's object | The behavior of the dispatchers over injected mappings, including the specimen | Proves no consumer routes an unknown input to Momentum or FCF. |
 | T12 `incomplete_strategy_negative_control` | A deliberately incomplete specimen ([§10.2](#102-negative-control)) | See below | Proves T10 and T11 can fail. |
@@ -618,7 +619,7 @@ approval. Each slice makes its moves in the same change as the consumer it serve
 | SWC.3c | `feat/swc-3c-direct-commands` | `src/cli.py`, `src/cli_run_support.py` (new), the four `src/strategies/<strategy>/cli.py`, tests (T7, T22; retargeted patch strings in 13 test modules). | The four `@app.command` functions and their helpers in `cli.py`; `_maybe_save_run` and `get_cli_run_context` leave it. | Shared run helpers first, then one command at a time, then `cli.py` iterating `CLI_STRATEGIES`, then T7 and T22. |
 | SWC.4a | `feat/swc-4a-failure-envelope` | New `src/reporting/documents/{__init__,failure,database}.py`, `src/reporting/failure_classification.py`, `scripts/generate_schemas.py`, `schemas/` (failure, database report). Edited: `src/cli_support.py`, `src/reporting/presentation.py`, the `execution_errors` call sites in the strategy `cli.py` files, `src/cli_workspace.py`, `src/cli_database.py`, `src/workspace/refresh.py`, `src/workspace/watchlists.py`, `src/data/repositories/watchlists.py`, `docs/user/DATABASE.md`, tests (T18 to T20). | `analysis_failure_document`'s hand-built dict and its wrong docstring; the `analysis == "momentum"` test; the six literal id pairs in `execution_errors` calls; the duplicate `WatchlistNotFoundError` in `refresh.py`. | Failure model and classifier, then direct commands, then workspace `--json` paths, then `refresh_watchlist`'s injected classifier and per-job codes, then the database report rename, then the generator and T20. |
 | SWC.4b | `feat/swc-4b-workspace-documents` | New `src/reporting/documents/{watchlist,runs,refresh}.py`; `src/cli_workspace.py` JSON builders; `schemas/` (watchlist, watchlist delete, runs list, refresh summary); tests (T20 extended). | The hand-built dicts in `_watchlist_payload`, the delete outcome and `_refresh_json`; the `model_dump` list in `runs list`. | One model per document, each proved byte-identical to the current output except the listed changes, then the schemas. |
-| SWC.4c | `feat/swc-4c-strategy-json-envelopes` | `src/strategy_wiring.py`; new `src/strategies/<strategy>/envelope.py` and `replay.py` (four each), `src/strategies/_graham/replay.py`, `src/reporting/{json_documents,replay_inputs}.py`; `src/reporting/analysis_runs.py`; `schemas/` (four strategy documents); tests (T9, T10, T20, T21, T24 extended). | Literal ids in three builders; the `project_run` pair chain; the four `_project_*_v1` functions leave `analysis_runs.py`; `ReplayOptions` and `UnsupportedProjectionError` move to `replay_inputs.py`. | Envelope models and `json_envelope`, then the builders' boundary validation, then the projectors and the injected `project_run`, then `JSON_DOCUMENTS` and T21 last, when every command is covered. `json_documents.py` lists the failure, workspace and database documents only; the generator and T20, T21 add each descriptor's `json_envelope` from the root. |
+| SWC.4c | `feat/swc-4c-strategy-json-envelopes` | `src/strategy_wiring.py`; new `src/strategies/<strategy>/envelope.py`, `replay.py` and `vocabulary.py` (four each), `src/strategies/_graham/replay.py`, `src/reporting/{json_documents,replay_inputs}.py`; `src/reporting/analysis_runs.py`; `schemas/` (four strategy documents); tests (T8, T10, T20, T21, T24 extended). | Literal ids in three builders; the `project_run` pair chain; the four `_project_*_v1` functions leave `analysis_runs.py`; `ReplayOptions` and `UnsupportedProjectionError` move to `replay_inputs.py`. | Envelope models and `json_envelope`, then the builders' boundary validation, then the projectors and the injected `project_run`, then `JSON_DOCUMENTS` and T21 last, when every command is covered. `json_documents.py` lists the failure, workspace and database documents only; the generator and T20, T21 add each descriptor's `json_envelope` from the root. |
 | SWC.5 | `feat/swc-5-site-data-and-status` | New: `scripts/strategy_sites.toml`, `scripts/strategy_sites.py`, `scripts/strategy_status.py`, `scripts/generate_strategy_docs.py`; `scripts/strategy_conformance.py` (extended); marked blocks in `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`; the watchlist option rows move into the strategy guides; `FCF_EARNINGS_GROWTH.md` renamed; tests T25, T26. | The hand-written strategy lists and the watchlist option table in the two pages. | Site data and loader, then conformance functions in report mode, then the status command, then the generated lists and their drift test. |
 | SWC.6 | `feat/swc-6-specimen-and-generator` | New: `tests/specimen/` (the specimen strategy and its two tier tuples), `scripts/new_strategy.py`, `scripts/strategy_templates/` (one template per role file), `src/core/strategy_stub.py`, tests T27 to T29 and the generator test fills; `AGENTS.md` §3 (stub exception). | None. | Specimen first, then the generator, then its end-to-end test, then the stub rule. |
 | SWC.7 | `feat/swc-7-contributor-guide` | `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` moved to `docs/TOOL_DEVELOPMENT.md` and extended (including the identifier rules in [§16](#16-step-35-fit-check) and the edit-site table, generated from the site data file); every link to it; the Step 3.5 contract plan's link to the edit-site table; `AGENTS.md` §3; `docs/project/DISCOVERY_WORKBOOK.md` open question 3; final conformance coverage; independent review. | None in code. | Guide, then authorization, then workbook, then final conformance. |
@@ -973,6 +974,7 @@ dataclass is built at run time.
 
 | # | Site | File | Kind | Generated | Check |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| 1a | Vocabulary: the strategy's identity constants and the enumerations several of its files use | `src/strategies/<s>/vocabulary.py` (new) | G | stub | T13: the file imports nothing from its package; the files that read it fail to import without it. |
 | 1 | Analyzer modules: config, result, analyzer | `src/strategies/<s>/` (new; analyzer-role files such as `analyzer.py`, `models.py`) | G | stub | T3: `analyzer X (result Y) has no descriptor`. |
 | 2 | Descriptor constant, `StrategyBehavior` declaration and `STRATEGIES` entry | `src/strategy_wiring.py` | G+R | edit | T1, T2, T3; **type**. |
 | 3 | `ToolName` member | `src/orchestrator/tool_names.py` | R | edit | T4: `ToolName member X has no descriptor`. |
@@ -983,8 +985,8 @@ dataclass is built at run time.
 | 8 | Execution adapter, capture type, normalizer | `src/strategies/<s>/execution.py` (new) | G | stub | T22: `alias X stored no run`. |
 | 9 | CLI file: direct command, selection builder, refresh executor | `src/strategies/<s>/cli.py` (new) | G | stub | **type** (the CLI-tier pairing); T22. |
 | 10 | CLI-tier entry | `src/cli_strategy_wiring.py` | G+R | edit | **type**; T10 `CLI tier`: `strategy X is not wired in: CLI tier`; T7. |
-| 11 | Presenter and JSON builder | `src/strategies/<s>/presenter.py` (new) | G | stub | T9: `rendered document ids differ from selection X`. |
-| 12 | Envelope model and identity constants | `src/strategies/<s>/envelope.py` (new) | G | stub | T21: `command X offers --json but has no typed document model`. |
+| 11 | Presenter and JSON builder | `src/strategies/<s>/presenter.py` (new) | G | stub | T8 replay: `the replayed JSON does not validate as X`. |
+| 12 | Envelope model and document version | `src/strategies/<s>/envelope.py` (new) | G | stub | T21: `command X offers --json but has no typed document model`. |
 | 13 | Replay projector and `headline` function | `src/strategies/<s>/replay.py` (new) | G | stub | **type** (`project`; `headline` from Step 3.5 slice 3.5.0); T8 replay. |
 | 14 | Evaluation file: fixture composition, requirement, the fixture ids it understands and a sample selection | `src/strategies/<s>/evaluation.py` (new) | G | stub | **type** (the evaluation-tier pairing); T6; T10 `evaluation tier ids`. |
 | 15 | Evaluation-tier entry: the bundle paired with the requirement, the ids, the sample selection and the composition | `src/evaluation/strategy_fixtures.py` | G+R | edit | T10 `evaluation tier`: `strategy X is not wired in: evaluation tier`; an id no entry declares is rejected as unsupported; T6. |
@@ -998,14 +1000,14 @@ schemas/<alias>.schema.json is missing or out of date; run scripts/generate_sche
 `scripts/generate_strategy_docs.py` (a stale strategy list fails T26 the same way). The generator also
 writes the empty `src/strategies/<s>/__init__.py`, which has no content to review.
 
-**Total: 19 hand-edit sites, in 24 files (15 new, 9 existing) across 9 directories** (`src`,
+**Total: 20 hand-edit sites (rows 1 to 19 and 1a), in 25 files (16 new, 9 existing) across 9 directories** (`src`,
 `src/strategies/<s>`, `src/orchestrator`, `src/workspace`, `src/evaluation`, `src/evaluation/fixtures`,
 `src/evaluation/cases`, `tests/evaluation`, `docs/user/strategies`). Against the earlier design's 23 sites, 25 files (10 new, 15
 existing) across 11 directories. Five of the nine existing files are edited by the generator (rows 2, 3, 5,
 10, 15); the other four stay by hand: `catalog.py` and the catalog test that pins the case ids and count, because
 the case tuple, the suite version and the pinned ids are reviewed truth, and the two row 19 files, which only a strategy with watchlist options of its own edits. A strategy's fixture identifiers are
 declared in its own fixtures file and on its own tier entry, and the supported set is derived from the tier, so
-no shared identifier list, supported-id set or case-package export needs an edit. Twelve of the 15 new files are generated as typed stubs (rows 1, 4, 6 to 9 and 11 to 14); fixtures,
+no shared identifier list, supported-id set or case-package export needs an edit. Thirteen of the 16 new files are generated as typed stubs (rows 1, 1a, 4, 6 to 9 and 11 to 14); fixtures,
 cases and the guide are hand-written. One-line restatements in files owned by generic code fall from 11 to
 5 (rows 3, 5 twice, 10, 15). Eight omissions are type errors rather than test failures (rows 4 to 7, 9, 10,
 13, 14). Every file a strategy owns except its fixtures and cases is in its own package, so a contributor
@@ -2195,8 +2197,8 @@ Decided while implementing SWC.4b.
 
 Decided while implementing SWC.4c. The project owner approved the shared-parts file, `ReplayInputs`, the `cli_workspace.py` import retarget and the documentation edits; the `failure_classification.py` import retarget is reported for review.
 
-- **Models.** Each strategy's `envelope.py` holds its identity constants (`ANALYSIS_ID`, `METHOD_ID`), its document
-  `schema_version` (`DOCUMENT_SCHEMA_VERSION`) and its frozen document model, and imports no other module of its
+- **Models.** Each strategy's `envelope.py` holds its document `schema_version` (`DOCUMENT_SCHEMA_VERSION`) and its
+  frozen document model (its identity constants moved to `vocabulary.py`, [H.32](#h32-one-vocabulary-file-per-strategy-2026-10-07)), and imports only the vocabulary of its
   package. A presenter builds the model and writes `json_document(model.model_dump(mode="json"))`, so the model is the
   output boundary and `json_document`'s sorted keys, indent and `allow_nan=False` are unchanged. Every field is required:
   an absent value is an explicit `null`, never an omitted key. A test checks that no field has a default.
@@ -2214,7 +2216,7 @@ Decided while implementing SWC.4c. The project owner approved the shared-parts f
 - **Enumerations the envelope cannot import.** An envelope may not import an analyzer module, so FCF Growth's document
   declares the values of its six enumerations as literals; a test compares each set with its enumeration. Momentum and the
   Graham documents use enumerations from `src/core`.
-- **Identity has three declarations.** An envelope's identifiers, the selection class's `Literal` identifiers and, for
+- **Identity has three declarations.** (Superseded by [H.32](#h32-one-vocabulary-file-per-strategy-2026-10-07), which declares it once.) An envelope's identifiers, the selection class's `Literal` identifiers and, for
   FCF Growth, the result's own constants in its models module are separate declarations. T9 compares them, statically and
   through the replayed document, and a mismatch names the strategy and the site that disagrees. The descriptor reads FCF
   Growth's identity from the models module and the others' from its own fields; T1 compares those with the selection
@@ -2242,3 +2244,38 @@ Decided while implementing SWC.4c. The project owner approved the shared-parts f
   `scripts/generate_schemas.py` and `scripts/strategy_conformance.py`; the one-line import retargets in
   `src/cli_workspace.py` and `src/reporting/failure_classification.py`; `docs/user/USAGE.md`, `docs/user/WORKSPACE.md` and
   the Step 3.5 plan's repetition checkpoint (the project owner pre-approved the last three).
+
+### H.32 One vocabulary file per strategy (2026-10-07)
+
+Decided by the project owner during the SWC.4c review, as a change of its own.
+
+- **Problem.** FCF Growth's six enumerations were declared twice (the enums in `models.py`, literals in the envelope),
+  and each strategy's analysis and method identifiers were declared in `selection.py`, the envelope, the analyzer modules
+  and the descriptor, because the role rule gave those files nothing they could all import. A test that compares the
+  copies finds drift but does not prevent it.
+- **Decision.** A new role, `vocabulary.py`, in every strategy including those that hold only identity, so all four
+  have the same layout. It ranks below every other role and imports nothing from its package. Every other role file
+  imports from it. It holds, per strategy: `ANALYSIS_ID` and `METHOD_ID` as constants, with the `AnalysisId` and `MethodId`
+  `Literal` aliases the selection class, the envelope and the result types use, and the enumerations more than one role
+  file needs.
+- **What moved.** FCF Growth: `HistoricalHorizon`, `ForwardPolicy`, `FCFClassificationBasis`, `Classification`,
+  `TrendClassification` and `ForwardEvidenceStatus` (from `models.py`), and `STRATEGY_ID` and `METHOD_ID` (now
+  `ANALYSIS_ID` and `METHOD_ID`). Momentum: the price basis, trend relationship and crossover state, which the presenter
+  returned as strings and the envelope declared as literals; they are `StrEnum`s now. The Graham strategies:
+  identity only; their `method` fields, codec checks, selection fields, envelope fields and the descriptor read it.
+  There are no compatibility re-exports; every importer was updated.
+- **Roles.** T13 ranks `vocabulary` at -1. Another role file importing a vocabulary is permitted (it ranks lower), the
+  vocabulary file importing any other role fails (negative test), and the composition root and the case module named for
+  the strategy (`src/evaluation/cases/fcf_growth.py` reads `HistoricalHorizon`) may import it. No generic module may. The
+  transition allowlist stays empty.
+- **Tests.** The tests that existed only to compare the duplicated declarations are gone: T9 (both parts), the
+  FCF literal-against-enum comparison, the check that the FCF descriptor references the models constants, and the two
+  `models_module` identifier asserts. The result's own contract values stay asserted with literal strings in the FCF model
+  test and the stored documents, and the selection union and descriptor set are still compared by T1.
+- **Schemas.** The enum values are unchanged; Momentum's and FCF Growth's schemas now reference an enumeration definition
+  (`$ref`) where they listed the values inline. The Graham schemas did not change.
+- **Still declared more than once.** The alias `momentum`, `graham-number` and the like (a command name, declared by the
+  descriptor, T7 compares it with the real command table); the case modules' tags (reviewed case truth); the docstrings
+  that quote an identifier; and in the shared document parts, the quote-freshness status and price-comparison status
+  `Literal`s, which mirror the data layer's inline literals and are outside any strategy.
+- **Output.** None: the 73 stored strategy documents and every other stored file are unchanged.

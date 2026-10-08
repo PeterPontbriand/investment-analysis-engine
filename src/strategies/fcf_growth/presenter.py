@@ -23,9 +23,7 @@ from src.reporting.presentation import (
     provider_display_name,
 )
 from src.strategies.fcf_growth.envelope import (
-    ANALYSIS_ID,
     DOCUMENT_SCHEMA_VERSION,
-    METHOD_ID,
     FCFDiagnosticsPart,
     FCFDocument,
     FCFForwardEvidencePart,
@@ -33,12 +31,12 @@ from src.strategies.fcf_growth.envelope import (
     FCFPolicyPart,
     FCFResolvedInputPart,
 )
-from src.strategies.fcf_growth.models import (
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, MetricResult, MetricStatus
+from src.strategies.fcf_growth.vocabulary import (
+    ANALYSIS_ID,
+    METHOD_ID,
     FCFClassificationBasis,
-    FCFEarningsGrowthResult,
     ForwardEvidenceStatus,
-    MetricResult,
-    MetricStatus,
     TrendClassification,
 )
 
@@ -341,7 +339,7 @@ def _document(
         effective_as_of=result.effective_as_of,
         policy=FCFPolicyPart.model_validate(result.policy, from_attributes=True),
         execution_status=result.execution_status,
-        classification=result.classification.value,
+        classification=result.classification,
         classification_reason_code=result.classification_reason_code,
         classification_reason=result.classification_reason,
         selected_horizon_years=result.selected_horizon_years,
@@ -355,7 +353,7 @@ def _document(
         fcf_cagr=metric_result_part(result.fcf_cagr),
         fcf_per_share_cagr=metric_result_part(result.fcf_per_share_cagr),
         eps_cagr=metric_result_part(result.eps_cagr),
-        trend_classification=result.trend_classification.value,
+        trend_classification=result.trend_classification,
         market_capitalization=(
             None
             if result.market_capitalization is None

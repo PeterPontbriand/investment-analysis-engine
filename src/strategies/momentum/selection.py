@@ -11,6 +11,7 @@ from src.config import settings
 from src.core.constants import ConfigKeys
 from src.data.instrument_profile import InstrumentProfile
 from src.strategies.momentum.analyzer import MomentumConfig
+from src.strategies.momentum.vocabulary import ANALYSIS_ID, METHOD_ID, AnalysisId, MethodId
 from src.workspace.selection_base import FrozenSelection, config_object
 
 
@@ -26,8 +27,8 @@ class MomentumSelection(FrozenSelection):
     created with.
     """
 
-    analysis_id: Literal["momentum"] = "momentum"
-    method_id: Literal["sma_crossover"] = "sma_crossover"
+    analysis_id: AnalysisId = ANALYSIS_ID
+    method_id: MethodId = METHOD_ID
     config_schema_version: Literal[2] = 2
     short_window: int = Field(gt=0, strict=True)
     long_window: int = Field(gt=0, strict=True)

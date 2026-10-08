@@ -3,8 +3,9 @@
 The role rule is design §4: a file's role is its file name inside its strategy package; within a
 package a file may import only a lower-ranked role, except that analyzer-level files may import each
 other; no strategy imports another; code outside ``src/strategies`` may import only analyzer and
-selection roles, except that a case module under ``src/evaluation/cases`` may also import the tool role
-of the strategy package it is named for. Only a strategy's ``evaluation`` file imports from
+selection roles, except that a case module under ``src/evaluation/cases`` may also import the tool and vocabulary
+roles of the strategy package it is named for. The vocabulary role ranks below every other and imports nothing
+from its package. Only a strategy's ``evaluation`` file imports from
 ``src/evaluation``, and only the fixture-id, fixture-context and fixture modules. The CLI tier imports only the
 ``cli`` role of a strategy package, and only the listed CLI modules import the tier. Imports of ``__init__.py``
 files count, and every ``__init__.py`` under ``src/strategies`` must be empty.
@@ -24,7 +25,7 @@ _GRAHAM_MEMBERS = frozenset({"graham_number", "graham_growth"})
 _ROOT = "src.strategy_wiring"
 # The composition root may import these strategy roles and no others: not execution, presenter, cli or
 # evaluation files, which belong to the layers below it and to the tiers.
-_ROOT_ROLES = ANALYZER_ROLES | {"codec", "envelope", "replay", "selection", "tool"}
+_ROOT_ROLES = ANALYZER_ROLES | {"codec", "envelope", "replay", "selection", "tool", "vocabulary"}
 # The only importers of the root, listed exactly. An entry must exist and import the root, so a slice adds
 # its module here in the change that first makes it import the root (the tier modules and the CLI modules
 # are added by the slices that create or rewire them).
@@ -221,12 +222,12 @@ def _strategy_edge_error(source: str, target: str, strategies: frozenset[str]) -
 
 
 def _is_own_case_tool(source_parts: list[str], target_parts: list[str]) -> bool:
-    """Return whether a case module imports the tool role of the strategy package it is named for."""
+    """Return whether a case module imports the tool or vocabulary role of the strategy package it is named for."""
     return (
         len(source_parts) == 4
         and source_parts[:3] == ["src", "evaluation", "cases"]
         and target_parts[2] == source_parts[3]
-        and _role(target_parts) == "tool"
+        and _role(target_parts) in {"tool", "vocabulary"}
     )
 
 
@@ -474,6 +475,24 @@ def test_t13_fails_when_two_different_roles_of_equal_rank_import_each_other() ->
         for source, target in ((first, second), (second, first)):
             errors = _edge_violations({(f"{package}.{source}", f"{package}.{target}")}, _SAMPLE_STRATEGIES, set())
             assert errors == [f"same-rank roles may not import each other: {package}.{source} -> {package}.{target}"]
+
+
+def test_t13_fails_when_the_vocabulary_file_imports_another_role_of_its_strategy() -> None:
+    """The vocabulary role ranks below every other and imports nothing from its package."""
+    package = "src.strategies.momentum"
+    for target in ("analyzer", "envelope", "selection", "codec", "tool", "presenter", "replay", "cli"):
+        errors = _edge_violations({(f"{package}.vocabulary", f"{package}.{target}")}, _SAMPLE_STRATEGIES, set())
+        assert errors == [f"role order is not downward: {package}.vocabulary -> {package}.{target}"]
+    for source in ("analyzer", "envelope", "selection", "presenter", "replay", "cli"):
+        assert _edge_violations({(f"{package}.{source}", f"{package}.vocabulary")}, _SAMPLE_STRATEGIES, set()) == []
+
+
+def test_t13_lets_the_root_but_no_generic_module_import_a_vocabulary() -> None:
+    """Generic modules may import only analyzer and selection roles, which excludes the vocabulary role."""
+    target = "src.strategies.momentum.vocabulary"
+    errors = _edge_violations({("src.reporting.generic", target)}, _SAMPLE_STRATEGIES, set())
+    assert errors == [f"external import exceeds analyzer/selection roles: src.reporting.generic -> {target}"]
+    assert _edge_violations({("src.strategy_wiring", target)}, _SAMPLE_STRATEGIES, set()) == []
 
 
 def test_t13_fails_for_a_file_with_an_unrecognized_role(tmp_path: Path) -> None:

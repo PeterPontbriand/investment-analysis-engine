@@ -31,6 +31,16 @@
       "title": "CapitalExpenditureSign",
       "type": "string"
     },
+    "Classification": {
+      "description": "Headline historical screening conclusion.",
+      "enum": [
+        "pass",
+        "fail",
+        "indeterminate"
+      ],
+      "title": "Classification",
+      "type": "string"
+    },
     "DiagnosticPart": {
       "additionalProperties": false,
       "description": "One diagnostics entry that names no provider: a resolver event or the legacy identity entry.",
@@ -60,6 +70,15 @@
       ],
       "title": "DiagnosticPart",
       "type": "object"
+    },
+    "FCFClassificationBasis": {
+      "description": "Free-cash-flow measure controlling classification.",
+      "enum": [
+        "total_fcf",
+        "fcf_per_share"
+      ],
+      "title": "FCFClassificationBasis",
+      "type": "string"
     },
     "FCFDiagnosticsPart": {
       "additionalProperties": false,
@@ -138,13 +157,7 @@
           ]
         },
         "status": {
-          "enum": [
-            "complete",
-            "partial",
-            "unavailable"
-          ],
-          "title": "Status",
-          "type": "string"
+          "$ref": "#/$defs/ForwardEvidenceStatus"
         }
       },
       "required": [
@@ -254,31 +267,13 @@
       "description": "The investor-selected controls of the run.",
       "properties": {
         "classification_basis": {
-          "enum": [
-            "total_fcf",
-            "fcf_per_share"
-          ],
-          "title": "Classification Basis",
-          "type": "string"
+          "$ref": "#/$defs/FCFClassificationBasis"
         },
         "forward_policy": {
-          "enum": [
-            "display_only",
-            "confirmation",
-            "hard_gate"
-          ],
-          "title": "Forward Policy",
-          "type": "string"
+          "$ref": "#/$defs/ForwardPolicy"
         },
         "historical_horizon": {
-          "enum": [
-            "longest_available",
-            "3",
-            "4",
-            "5"
-          ],
-          "title": "Historical Horizon",
-          "type": "string"
+          "$ref": "#/$defs/HistoricalHorizon"
         },
         "include_fcf_yield": {
           "title": "Include Fcf Yield",
@@ -569,6 +564,37 @@
       "title": "FCFResolvedInputPart",
       "type": "object"
     },
+    "ForwardEvidenceStatus": {
+      "description": "Completeness of the forward consensus evidence block.",
+      "enum": [
+        "complete",
+        "partial",
+        "unavailable"
+      ],
+      "title": "ForwardEvidenceStatus",
+      "type": "string"
+    },
+    "ForwardPolicy": {
+      "description": "How forward consensus evidence affects the headline result.",
+      "enum": [
+        "display_only",
+        "confirmation",
+        "hard_gate"
+      ],
+      "title": "ForwardPolicy",
+      "type": "string"
+    },
+    "HistoricalHorizon": {
+      "description": "Requested historical elapsed-year horizon for classification.",
+      "enum": [
+        "longest_available",
+        "3",
+        "4",
+        "5"
+      ],
+      "title": "HistoricalHorizon",
+      "type": "string"
+    },
     "InstrumentKind": {
       "description": "Reviewed provider-neutral instrument classifications.",
       "enum": [
@@ -849,6 +875,18 @@
       ],
       "title": "SourceKind",
       "type": "string"
+    },
+    "TrendClassification": {
+      "description": "Historical relationship between FCF and earnings growth (evidence, not a score).",
+      "enum": [
+        "both_growing",
+        "fcf_growing_earnings_not",
+        "earnings_growing_fcf_not",
+        "neither_growing",
+        "insufficient_or_nonmeaningful_growth"
+      ],
+      "title": "TrendClassification",
+      "type": "string"
     }
   },
   "additionalProperties": false,
@@ -862,13 +900,7 @@
       "type": "array"
     },
     "classification": {
-      "enum": [
-        "pass",
-        "fail",
-        "indeterminate"
-      ],
-      "title": "Classification",
-      "type": "string"
+      "$ref": "#/$defs/Classification"
     },
     "classification_reason": {
       "anyOf": [
@@ -1025,15 +1057,7 @@
       "type": "string"
     },
     "trend_classification": {
-      "enum": [
-        "both_growing",
-        "fcf_growing_earnings_not",
-        "earnings_growing_fcf_not",
-        "neither_growing",
-        "insufficient_or_nonmeaningful_growth"
-      ],
-      "title": "Trend Classification",
-      "type": "string"
+      "$ref": "#/$defs/TrendClassification"
     },
     "used_horizon_fallback": {
       "title": "Used Horizon Fallback",

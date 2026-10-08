@@ -52,13 +52,12 @@ from src.reporting.valuation_presentation import (
 )
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.strategies.graham_number.envelope import (
-    ANALYSIS_ID,
     DOCUMENT_SCHEMA_VERSION,
-    METHOD_ID,
     GrahamNumberDocument,
     GrahamNumberInputsPart,
     GrahamNumberResultPart,
 )
+from src.strategies.graham_number.vocabulary import ANALYSIS_ID, METHOD_ID
 
 _NUMBER_LIMITATION = (
     "The Graham Number is a maximum indicated price / screening ceiling, "

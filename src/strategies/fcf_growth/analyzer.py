@@ -12,17 +12,15 @@ from src.data.instrument_profile import InstrumentProfile
 from src.strategies.fcf_growth.calculators import classify_fcf_earnings_growth
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from src.strategies.fcf_growth.models import (
-    Classification,
     FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
-    ForwardEvidenceStatus,
     MetricResult,
     MetricStatus,
     ReasonCode,
-    TrendClassification,
 )
+from src.strategies.fcf_growth.vocabulary import Classification, ForwardEvidenceStatus, TrendClassification
 
 
 def _unavailable_metric(reason_code: ReasonCode, reason: str) -> MetricResult:

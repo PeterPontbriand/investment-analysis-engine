@@ -36,8 +36,9 @@ from src.evaluation.models import Case, Expectation
 from src.orchestrator.tool_runtime import ToolRuntime
 from src.strategies._graham.evaluation import graham_inputs
 from src.strategies.fcf_growth import evaluation as fcf_growth_evaluation
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, HistoricalHorizon
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
+from src.strategies.fcf_growth.vocabulary import HistoricalHorizon
 from src.strategies.graham_growth import evaluation as graham_growth_evaluation
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments

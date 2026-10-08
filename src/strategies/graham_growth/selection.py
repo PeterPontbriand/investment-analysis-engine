@@ -10,6 +10,7 @@ from pydantic import AwareDatetime, Field, StrictFloat, field_validator, model_v
 from src.analysis.base_analyzer import AnalysisContext
 from src.data.instrument_profile import InstrumentProfile
 from src.strategies.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
+from src.strategies.graham_growth.vocabulary import ANALYSIS_ID, METHOD_ID, AnalysisId, MethodId
 from src.workspace.selection_base import (
     CLI_QUOTE_PROVIDERS,
     CLI_SECURITY_PROVIDERS,
@@ -21,8 +22,8 @@ from src.workspace.selection_base import (
 class GrahamGrowthSelection(FrozenSelection):
     """Graham growth-value selection requiring explicit growth and AAA yield percentages."""
 
-    analysis_id: Literal["graham_growth_value"] = "graham_growth_value"
-    method_id: Literal["graham_growth_value"] = "graham_growth_value"
+    analysis_id: AnalysisId = ANALYSIS_ID
+    method_id: MethodId = METHOD_ID
     config_schema_version: Literal[1] = 1
     security_provider_id: str = "sec_edgar"
     quote_provider_id: str | None = None

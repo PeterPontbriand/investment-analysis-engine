@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from src.core.analysis_status import CalculationStatus
 from src.strategies.graham_number.service import GrahamNumberAnalysis
+from src.strategies.graham_number.vocabulary import METHOD_ID
 from src.workspace.models import StrictJsonMapping, _validate_json_value
 
 
@@ -24,7 +25,7 @@ class _NumberEvidence(BaseModel):
         if analysis.as_of is not None and analysis.as_of.utcoffset() is None:
             raise ValueError("Analysis as_of must be timezone-aware.")
         assembly, result = analysis.assembly, analysis.result
-        if assembly.method != "graham_number" or result.method != "graham_number":
+        if assembly.method != METHOD_ID or result.method != METHOD_ID:
             raise ValueError("Graham Number assembly/result method mismatch.")
         if assembly.status is CalculationStatus.OK:
             if assembly.eps is None or assembly.bvps is None or assembly.reason is not None:
@@ -78,7 +79,7 @@ def decode_graham_number(payload: StrictJsonMapping) -> GrahamNumberAnalysis:
     analysis = dict(analysis)
     for name in ("assembly", "result"):
         section = analysis.get(name)
-        if not isinstance(section, dict) or section.get("method") != "graham_number":
+        if not isinstance(section, dict) or section.get("method") != METHOD_ID:
             raise ValueError("Graham Number assembly/result method mismatch.")
         # Native init=False identifiers are checked, then restored by the native
         # constructor. Copy before removal to leave caller-owned data intact.

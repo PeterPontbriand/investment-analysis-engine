@@ -10,6 +10,7 @@ from pydantic import AwareDatetime, Field, StrictFloat, field_validator, model_v
 from src.analysis.base_analyzer import AnalysisContext
 from src.data.instrument_profile import InstrumentProfile
 from src.strategies.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
+from src.strategies.graham_number.vocabulary import ANALYSIS_ID, METHOD_ID, AnalysisId, MethodId
 from src.workspace.selection_base import (
     CLI_QUOTE_PROVIDERS,
     CLI_SECURITY_PROVIDERS,
@@ -21,8 +22,8 @@ from src.workspace.selection_base import (
 class GrahamNumberSelection(FrozenSelection):
     """Immutable Graham Number selection with an optional book-value override."""
 
-    analysis_id: Literal["graham_number"] = "graham_number"
-    method_id: Literal["graham_number"] = "graham_number"
+    analysis_id: AnalysisId = ANALYSIS_ID
+    method_id: MethodId = METHOD_ID
     config_schema_version: Literal[1] = 1
     security_provider_id: str = "sec_edgar"
     quote_provider_id: str | None = None

@@ -49,14 +49,13 @@ from src.reporting.valuation_presentation import (
 )
 from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.strategies.graham_growth.envelope import (
-    ANALYSIS_ID,
     DOCUMENT_SCHEMA_VERSION,
-    METHOD_ID,
     GrahamGrowthAssumptionsPart,
     GrahamGrowthDocument,
     GrahamGrowthInputsPart,
     GrahamGrowthResultPart,
 )
+from src.strategies.graham_growth.vocabulary import ANALYSIS_ID, METHOD_ID
 
 _GROWTH_LIMITATION = (
     "The Graham growth value is forecast-dependent and sensitive to the "

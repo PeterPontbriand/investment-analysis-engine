@@ -1,12 +1,12 @@
-"""The Momentum ``--json`` document: its identity constants, version and typed model.
+"""The Momentum ``--json`` document: its version and typed model.
 
-This is the strategy's identity leaf: it imports no other Momentum module, so the presenter writes the
-identifiers from here and the conformance tests compare them with the selection class's own declaration.
+The identifiers and enumerations the document writes are read from the strategy's ``vocabulary.py``, the one place
+they are declared; this module imports nothing else from the package.
 The same model backs a direct command and a ``runs show`` replay, which write the same document.
 """
 
 from datetime import date
-from typing import Final, Literal
+from typing import Final
 
 from src.core.constants import TrendStatus
 from src.data.financial.provenance import SourceKind
@@ -18,14 +18,9 @@ from src.reporting.documents.shared_parts import (
     SecurityIdentityPart,
 )
 from src.reporting.documents.timestamp import DocumentTimestamp
+from src.strategies.momentum.vocabulary import AnalysisId, CrossoverState, MethodId, PriceBasis, TrendRelationship
 
-ANALYSIS_ID: Final = "momentum"
-METHOD_ID: Final = "sma_crossover"
 DOCUMENT_SCHEMA_VERSION: Final = 5
-
-PriceBasis = Literal["latest_adjusted_historical_close", "latest_historical_close"]
-TrendRelationship = Literal["short_above_long", "short_below_long", "short_equal_long"]
-CrossoverState = Literal["bullish_crossover", "bearish_crossover", "no_new_crossover"]
 
 
 class MomentumResultPart(DocumentPart):
@@ -77,11 +72,11 @@ class MomentumDocument(DocumentPart):
     """The Momentum document, version 5, as ``momentum --json`` and ``runs show --json`` write it."""
 
     schema_version: int
-    analysis: Literal["momentum"]
+    analysis: AnalysisId
     ticker: str
     security_identity: SecurityIdentityPart
     instrument_kind: InstrumentKindPart | None
-    method: Literal["sma_crossover"]
+    method: MethodId
     as_of: date | None
     analysis_timestamp: DocumentTimestamp
     status: TrendStatus
@@ -95,15 +90,10 @@ class MomentumDocument(DocumentPart):
 
 
 __all__ = [
-    "ANALYSIS_ID",
     "DOCUMENT_SCHEMA_VERSION",
-    "METHOD_ID",
-    "CrossoverState",
     "MomentumDataResolutionPart",
     "MomentumDocument",
     "MomentumParametersPart",
     "MomentumResultPart",
     "MomentumSourcePart",
-    "PriceBasis",
-    "TrendRelationship",
 ]

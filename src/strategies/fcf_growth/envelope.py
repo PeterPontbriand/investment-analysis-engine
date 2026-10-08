@@ -1,19 +1,18 @@
-"""The FCF Growth ``--json`` document: its identity constants, version and typed model.
+"""The FCF Growth ``--json`` document: its version and typed model.
 
-This is the strategy's identity leaf: it imports no other FCF Growth module, so the presenter writes the
-identifiers from here and the conformance tests compare them with the selection class's declaration and with
-the analyzer's own constants. The same model backs a direct command and a ``runs show`` replay.
+The identifiers and enumerations the document writes are read from the strategy's ``vocabulary.py``, the one place
+they are declared; this module imports nothing else from the package.
+The same model backs a direct command and a ``runs show`` replay.
 
 The document is the complete result plus the presentation fields (``schema_version``, ``result_schema_version``,
 ``security_identity`` and ``instrument_kind``). Its resolved inputs are wider than the Graham family's: they
 carry the annual-fact fields (fiscal year, period kind, accounting scope, capital-expenditure sign, provider fact
-id), so the model is this strategy's own. The enumerations the analyzer owns are written here as literals; a test
-compares each set with its enumeration.
+id), so the model is this strategy's own.
 """
 
 from __future__ import annotations
 
-from typing import Final, Literal
+from typing import Final
 
 from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import ReasonCode
@@ -27,23 +26,18 @@ from src.reporting.documents.shared_parts import (
     SecurityIdentityPart,
 )
 from src.reporting.documents.timestamp import DocumentTimestamp
+from src.strategies.fcf_growth.vocabulary import (
+    AnalysisId,
+    Classification,
+    FCFClassificationBasis,
+    ForwardEvidenceStatus,
+    ForwardPolicy,
+    HistoricalHorizon,
+    MethodId,
+    TrendClassification,
+)
 
-ANALYSIS_ID: Final = "fcf_earnings_growth"
-METHOD_ID: Final = "reported_fcf_eps_cagr"
 DOCUMENT_SCHEMA_VERSION: Final = 5
-
-HistoricalHorizonValue = Literal["longest_available", "3", "4", "5"]
-ForwardPolicyValue = Literal["display_only", "confirmation", "hard_gate"]
-ClassificationBasisValue = Literal["total_fcf", "fcf_per_share"]
-ClassificationValue = Literal["pass", "fail", "indeterminate"]
-TrendClassificationValue = Literal[
-    "both_growing",
-    "fcf_growing_earnings_not",
-    "earnings_growing_fcf_not",
-    "neither_growing",
-    "insufficient_or_nonmeaningful_growth",
-]
-ForwardEvidenceStatusValue = Literal["complete", "partial", "unavailable"]
 
 
 class FCFResolvedInputPart(DocumentPart):
@@ -89,9 +83,9 @@ FCFLineagePart.model_rebuild()
 class FCFPolicyPart(DocumentPart):
     """The investor-selected controls of the run."""
 
-    historical_horizon: HistoricalHorizonValue
-    classification_basis: ClassificationBasisValue
-    forward_policy: ForwardPolicyValue
+    historical_horizon: HistoricalHorizon
+    classification_basis: FCFClassificationBasis
+    forward_policy: ForwardPolicy
     include_fcf_yield: bool
 
 
@@ -112,7 +106,7 @@ class FCFObservationPart(DocumentPart):
 class FCFForwardEvidencePart(DocumentPart):
     """The analyst-consensus forward evidence for the next two fiscal years."""
 
-    status: ForwardEvidenceStatusValue
+    status: ForwardEvidenceStatus
     latest_actual_eps: FCFResolvedInputPart | None
     fy1_consensus_eps: FCFResolvedInputPart | None
     fy2_consensus_eps: FCFResolvedInputPart | None
@@ -132,8 +126,8 @@ class FCFDocument(DocumentPart):
 
     schema_version: int
     result_schema_version: int
-    strategy_id: Literal["fcf_earnings_growth"]
-    method_id: Literal["reported_fcf_eps_cagr"]
+    strategy_id: AnalysisId
+    method_id: MethodId
     method_version: int
     ticker: str
     security_identity: SecurityIdentityPart
@@ -142,7 +136,7 @@ class FCFDocument(DocumentPart):
     effective_as_of: DocumentTimestamp
     policy: FCFPolicyPart
     execution_status: CalculationStatus
-    classification: ClassificationValue
+    classification: Classification
     classification_reason_code: ReasonCode | None
     classification_reason: str | None
     selected_horizon_years: int | None
@@ -154,7 +148,7 @@ class FCFDocument(DocumentPart):
     fcf_cagr: MetricResultPart
     fcf_per_share_cagr: MetricResultPart
     eps_cagr: MetricResultPart
-    trend_classification: TrendClassificationValue
+    trend_classification: TrendClassification
     market_capitalization: FCFResolvedInputPart | None
     fcf_yield: MetricResultPart
     forward_evidence: FCFForwardEvidencePart
@@ -163,11 +157,7 @@ class FCFDocument(DocumentPart):
 
 
 __all__ = [
-    "ANALYSIS_ID",
     "DOCUMENT_SCHEMA_VERSION",
-    "METHOD_ID",
-    "ClassificationBasisValue",
-    "ClassificationValue",
     "FCFDiagnosticsPart",
     "FCFDocument",
     "FCFForwardEvidencePart",
@@ -175,8 +165,4 @@ __all__ = [
     "FCFObservationPart",
     "FCFPolicyPart",
     "FCFResolvedInputPart",
-    "ForwardEvidenceStatusValue",
-    "ForwardPolicyValue",
-    "HistoricalHorizonValue",
-    "TrendClassificationValue",
 ]

@@ -13,16 +13,18 @@ from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.strategies.fcf_growth import models as models_module
 from src.strategies.fcf_growth.models import (
     AnnualGrowthObservation,
-    Classification,
     ClassificationDecision,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
-    ForwardEvidenceStatus,
-    HistoricalHorizon,
     MetricResult,
     MetricStatus,
     ReasonCode,
+)
+from src.strategies.fcf_growth.vocabulary import (
+    Classification,
+    ForwardEvidenceStatus,
+    HistoricalHorizon,
     TrendClassification,
 )
 
@@ -399,8 +401,6 @@ class TestFCFEarningsGrowthResult:
         assert result.method_id == "reported_fcf_eps_cagr"
         assert result.method_version == 2
         assert models_module.SCHEMA_VERSION == 3
-        assert models_module.STRATEGY_ID == "fcf_earnings_growth"
-        assert models_module.METHOD_ID == "reported_fcf_eps_cagr"
         assert models_module.METHOD_VERSION == 2
 
     @pytest.mark.parametrize(

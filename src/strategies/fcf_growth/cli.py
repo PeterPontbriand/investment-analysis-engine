@@ -25,15 +25,10 @@ from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.reporting.presentation import PresentationMode
 from src.strategies.fcf_growth.execution import execute_fcf_growth, from_fcf_growth_capture
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.strategies.fcf_growth.models import (
-    FCFClassificationBasis,
-    FCFEarningsGrowthConfig,
-    FCFEarningsGrowthPolicy,
-    ForwardPolicy,
-    HistoricalHorizon,
-)
+from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
 from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
 from src.strategies.fcf_growth.selection import FCFGrowthSelection, FCFPolicySnapshot
+from src.strategies.fcf_growth.vocabulary import FCFClassificationBasis, ForwardPolicy, HistoricalHorizon
 from src.workspace.capture import ExecutionCapture
 from src.workspace.requests import AnalysisRequest
 

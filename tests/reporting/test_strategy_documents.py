@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import math
 from datetime import UTC, datetime
-from enum import StrEnum
 
 import pytest
 from pydantic import BaseModel, ValidationError
@@ -19,14 +18,6 @@ from src.reporting.documents.shared_parts import (
     security_identity_part,
 )
 from src.strategies.fcf_growth import envelope as fcf_envelope
-from src.strategies.fcf_growth.models import (
-    Classification,
-    FCFClassificationBasis,
-    ForwardEvidenceStatus,
-    ForwardPolicy,
-    HistoricalHorizon,
-    TrendClassification,
-)
 from src.strategies.momentum import envelope as momentum_envelope
 from src.strategy_wiring import FCF_GROWTH, STRATEGIES
 from tests._strategy_document_output import expected_path
@@ -60,24 +51,6 @@ def test_every_field_of_a_strategy_document_is_required(descriptor: object) -> N
         if not field.is_required()
     )
     assert optional == []
-
-
-@pytest.mark.parametrize(
-    ("literal", "enumeration"),
-    [
-        (fcf_envelope.HistoricalHorizonValue, HistoricalHorizon),
-        (fcf_envelope.ForwardPolicyValue, ForwardPolicy),
-        (fcf_envelope.ClassificationBasisValue, FCFClassificationBasis),
-        (fcf_envelope.ClassificationValue, Classification),
-        (fcf_envelope.TrendClassificationValue, TrendClassification),
-        (fcf_envelope.ForwardEvidenceStatusValue, ForwardEvidenceStatus),
-    ],
-)
-def test_an_fcf_literal_lists_exactly_the_values_of_its_enumeration(
-    literal: object, enumeration: type[StrEnum]
-) -> None:
-    """The envelope cannot import the analyzer's enumerations, so each literal is compared with its enumeration."""
-    assert set(getattr(literal, "__args__")) == {item.value for item in enumeration}  # noqa: B009
 
 
 def test_a_document_model_rejects_a_key_it_does_not_declare() -> None:

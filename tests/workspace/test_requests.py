@@ -8,13 +8,9 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from src.strategies.fcf_growth.models import (
-    FCFClassificationBasis,
-    FCFEarningsGrowthPolicy,
-    ForwardPolicy,
-    HistoricalHorizon,
-)
+from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from src.strategies.fcf_growth.selection import FCFGrowthSelection, FCFPolicySnapshot
+from src.strategies.fcf_growth.vocabulary import FCFClassificationBasis, ForwardPolicy, HistoricalHorizon
 from src.strategies.graham_growth.config import GrahamGrowthConfig
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number.config import GrahamNumberConfig

@@ -478,16 +478,16 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Problem:** report construction and stored-run replay retain per-method type dispatch, and the four
   strategy documents lack the typed envelope models IR.5 intended to add.
 - **Decision:** typed envelope models back the real builders and are validated at the output boundary; the
-  envelope modules hold each strategy's identity constants, which presenters read instead of the
-  descriptor; the descriptor gains `json_envelope` and the `project` member; `project_run` receives the
+  vocabulary files hold each strategy's identity constants, which presenters and the descriptor
+  read ([design H.32](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h32-one-vocabulary-file-per-strategy-2026-10-07)); the descriptor gains `json_envelope` and the `project` member; `project_run` receives the
   injected projector mapping and fails closed; the command-coverage test lands last, with no exemption list.
-- **Scope:** `src/strategy_wiring.py`, `src/strategies/<strategy>/envelope.py` and `replay.py` (the four
+- **Scope:** `src/strategy_wiring.py`, `src/strategies/<strategy>/envelope.py`, `replay.py` and, by [design H.32](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h32-one-vocabulary-file-per-strategy-2026-10-07), `vocabulary.py` (the four
   projectors leave `analysis_runs.py`; each `replay.py` also holds the strategy's `headline` function only
   from Step 3.5 slice 3.5.0), `src/strategies/_graham/replay.py`, `src/reporting/replay_inputs.py`
   (`ReplayOptions` and `UnsupportedProjectionError` move here), `src/reporting/json_documents.py` (the
   failure, workspace and database documents; the generator and tests add each descriptor's `json_envelope`
   from the root), `src/reporting/analysis_runs.py`, the four `presenter.py` files, four schemas, and tests
-  T8 (replay), T9, T10, T20, T21 and T24 extended; removes its four T13 transition entries. Also in scope, as
+  T8 (replay), T10, T20, T21 and T24 extended; removes its four T13 transition entries. Also in scope, as
   [design H.31](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h31-typed-strategy-documents-and-replay-dispatch-2026-10-07)
   records: `src/reporting/documents/shared_parts.py` (the parts several strategy documents share),
   `scripts/generate_schemas.py` and `scripts/strategy_conformance.py`, the one-line import retargets in
@@ -648,7 +648,7 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **No output change:** the direct-command output test passes unchanged in every later slice that claims no
   output change. A slice that changes output regenerates the stored files in the same change, and the diff to
   them is what the review approves.
-- **Edit sites:** adding a strategy takes the 19 sites in the design's edit-site table, in 24 files across 9
+- **Edit sites:** adding a strategy takes the 20 sites in the design's edit-site table, in 25 files across 9
   directories, nine of them existing files; five of those are edited by the generator, and the other four (the catalog,
   its test, and the two watchlist-option files of site 19, edited only by a strategy with options of its own) are
   reviewed.
