@@ -85,7 +85,7 @@ def _momentum_request() -> AnalysisRequest:
 
 
 def _fake_capture(outcome: RunOutcome) -> ExecutionCapture:
-    """A capture using real native evidence (so encode_evidence works) with a chosen outcome."""
+    """A capture using real native evidence (so encoding works) with a chosen outcome."""
     return ExecutionCapture(
         native_evidence=_momentum_native_evidence(),
         profile=fixture_instrument_profile("AAPL", kind=InstrumentKind.EQUITY, provider_value="EQUITY"),

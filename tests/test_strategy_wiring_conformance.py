@@ -37,6 +37,7 @@ from src.strategy_wiring import (
     STRATEGIES,
     StrategyDescriptor,
     build_indexes,
+    run_specs_by_key,
 )
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
@@ -221,14 +222,15 @@ def test_t11_reports_a_dispatcher_that_accepts_an_undeclared_input(monkeypatch: 
     assert gaps == ["tool_for_arguments(undeclared model): accepted an undeclared input"]
 
 
-def test_t11_reports_an_encoder_that_handles_an_undeclared_evidence_type_as_a_declared_one(
+def test_t11_reports_a_run_spec_that_encodes_an_undeclared_evidence_type_as_a_declared_one(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The workspace probes can fail: an encoder with a fall-through branch is reported for every strategy."""
-    monkeypatch.setattr(conformance, "encode_evidence", lambda *_: {})
+    """The workspace probes can fail: a run spec whose encoder accepts anything is reported for every strategy."""
+    permissive = {key: replace(spec, encode=lambda _evidence: {}) for key, spec in run_specs_by_key(STRATEGIES).items()}
+    monkeypatch.setattr(conformance, "run_specs_by_key", lambda _descriptors: permissive)
     gaps = conformance.undeclared_input_gaps(STRATEGIES)
-    assert len(gaps) == 2 * len(STRATEGIES)
-    assert all("encode_evidence" in gap and "accepted an undeclared input" in gap for gap in gaps)
+    encode_gaps = [gap for gap in gaps if "run spec encode" in gap and "accepted an undeclared input" in gap]
+    assert len(encode_gaps) == len(STRATEGIES) * 3
 
 
 def test_t11_reports_an_undeclared_pair_that_a_decoder_accepts(monkeypatch: pytest.MonkeyPatch) -> None:

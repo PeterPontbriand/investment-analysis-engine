@@ -8,7 +8,7 @@ handled as another strategy's.
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
-from src.core.strategy_errors import find, require
+from src.core.strategy_errors import find
 from src.workspace.models import StrictJsonMapping
 from src.workspace.runs import AnalysisRun
 from src.workspace.strategy_types import NativeEvidence
@@ -50,16 +50,6 @@ def encode_with(codec: EvidenceCodec, evidence: NativeEvidence) -> StrictJsonMap
         return codec.encode(evidence)
     except (ValueError, TypeError) as exc:
         raise InvalidStoredRunError(f"Invalid {codec.label} evidence.") from exc
-
-
-def encode_evidence(evidence: NativeEvidence, codecs: Mapping[type, EvidenceCodec]) -> StrictJsonMapping:
-    """Encode native evidence into an envelope-ready mapping with the codec for its exact type.
-
-    Raises:
-        UndeclaredStrategyError: ``evidence`` is not exactly the result type of an injected codec.
-        InvalidStoredRunError: The codec rejects the evidence.
-    """
-    return encode_with(require(codecs, type(evidence), what="evidence type"), evidence)
 
 
 def decode_evidence(run: AnalysisRun, codecs: Mapping[tuple[str, str], EvidenceCodec]) -> NativeEvidence | None:

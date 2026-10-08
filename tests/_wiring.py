@@ -1,17 +1,20 @@
-"""Shared test access to the declared strategies' alias vocabulary, evidence and selection views, failure classifier."""
+"""Shared test access to the declared strategies' alias vocabulary, evidence encoding and the failure classifier."""
 
 from collections.abc import Callable, Mapping
 from dataclasses import replace
 
 from src.core.strategy_errors import find
 from src.reporting.failure_classification import classify_failure
-from src.strategy_wiring import BY_METHOD_ID, EVIDENCE_BY_KEY, STRATEGIES, evidence_by_type, parsers_by_alias
+from src.strategy_wiring import BY_METHOD_ID, BY_RESULT_TYPE, EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
 from src.workspace.codecs import EvidenceCodec
 from src.workspace.models import StrictJsonMapping
 from src.workspace.strategy_types import NativeEvidence
 
-EVIDENCE_BY_TYPE = evidence_by_type(STRATEGIES)
-PARSERS_BY_ALIAS = parsers_by_alias(STRATEGIES)
+
+def encode_native(evidence: NativeEvidence) -> StrictJsonMapping:
+    """Encode declared evidence as a run would: through its strategy's run spec, found by its exact result type."""
+    descriptor = BY_RESULT_TYPE[type(evidence)]
+    return RUN_SPECS_BY_KEY[(descriptor.analysis_id, descriptor.method_id)].encode(evidence)
 
 
 def alias_for(method_id: str) -> str | None:

@@ -24,7 +24,6 @@ from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
 from src.strategy_wiring import RUN_SPECS_BY_KEY
 from src.workspace.capture import ExecutionCapture
-from src.workspace.codecs import encode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import (
     EmptyRefreshTargetError,
@@ -36,7 +35,7 @@ from src.workspace.refresh import (
 from src.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
 from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import WatchlistNotFoundError
-from tests._wiring import EVIDENCE_BY_TYPE, failure_code
+from tests._wiring import encode_native, failure_code
 
 WATCHLIST_ID = UUID("11111111-1111-4111-8111-111111111111")
 NOW = datetime(2026, 9, 19, 12, 0, 0, tzinfo=UTC)
@@ -424,7 +423,7 @@ def _build_run(*, status: RunOutcome, failure_reason_code: str | None = None) ->
         evidence_codec_version=1,
         status=status,
         failure_reason_code=failure_reason_code,
-        result_evidence=encode_evidence(native, EVIDENCE_BY_TYPE) if status is not RunOutcome.FAILED else None,
+        result_evidence=encode_native(native) if status is not RunOutcome.FAILED else None,
     )
 
 

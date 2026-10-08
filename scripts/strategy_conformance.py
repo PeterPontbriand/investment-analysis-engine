@@ -39,7 +39,7 @@ from src.cli_strategy_wiring import (
     refreshers_by_key,
 )
 from src.cli_watchlist_flags import WatchlistFlags
-from src.core.strategy_errors import UndeclaredStrategyError
+from src.core.strategy_errors import UndeclaredStrategyError, require
 from src.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate
 from src.evaluation.catalog import DETERMINISTIC_CASES, build_deterministic_requests
 from src.evaluation.composition import compose_fixture_dependencies, compose_fixture_dispatcher, dispatch_fixture_case
@@ -62,18 +62,16 @@ from src.strategy_wiring import (
     bind_handlers,
     build_indexes,
     evidence_by_key,
-    evidence_by_type,
-    parsers_by_alias,
     replays_by_key,
     run_spec_for,
     run_specs_by_key,
     tool_for_arguments,
 )
 from src.workspace.capture import ExecutionCapture
-from src.workspace.codecs import UnsupportedRunVersionError, decode_evidence, encode_evidence
+from src.workspace.codecs import UnsupportedRunVersionError, decode_evidence
 from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
-from src.workspace.requests import AnalysisRequest, parse_selection
+from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
 from src.workspace.strategy_types import NativeEvidence, SelectionMember
 
@@ -103,7 +101,6 @@ BEHAVIOR_MEMBERS: frozenset[str] = frozenset(
         "selection_type",
         "result_type",
         "deps_type",
-        "parse",
         "encode",
         "decode",
         "ticker_of",
@@ -132,7 +129,7 @@ CLI_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "build", "refresh", "c
 """The documented fields of a CLI-tier entry: the paired core bundle and the erased composition."""
 
 VIEW_ACCESSORS: frozenset[str] = frozenset(
-    {"result_type", "parse_for", "encode_object", "decode_for", "native_status_of", "bind_handler", "project_for"}
+    {"result_type", "encode_object", "decode_for", "native_status_of", "bind_handler", "project_for"}
 )
 """The behavior members that generic consumers can reach, through the erased view."""
 
@@ -672,42 +669,38 @@ def _workspace_probes(
     gaps: list[str], descriptors: tuple[StrategyDescriptor, ...], tier: tuple[EvaluationStrategy, ...]
 ) -> None:
     """Record a gap for each workspace dispatcher that accepts an undeclared input or another strategy's object."""
-    by_type = evidence_by_type(descriptors)
     by_key = evidence_by_key(descriptors)
-    parsers = parsers_by_alias(descriptors)
-    _expect_error(
+    specs = run_specs_by_key(descriptors)
+    _expect_undeclared(
         gaps,
-        "parse_selection(undeclared alias)",
-        partial(parse_selection, "undeclared-alias", "{}", parsers),
-        ValueError,
+        "alias lookup (undeclared alias)",
+        partial(require, build_indexes(descriptors).by_alias, "undeclared-alias", what="alias"),
         names="undeclared-alias",
     )
     stored = stored_runs(descriptors, tier)
     for entry in stored:
         item, run = entry.descriptor, entry.run
+        spec = specs[(item.analysis_id, item.method_id)]
         subclass_instance = cast(
             "NativeEvidence", object.__new__(type("_Subclassed", (item.behavior.result_type,), {}))
         )
         _expect_undeclared(
             gaps,
-            f"{label(item)} encode_evidence(subclass of its result type)",
-            partial(encode_evidence, subclass_instance, by_type),
+            f"{label(item)} run spec encode(subclass of its result type)",
+            partial(spec.encode, subclass_instance),
             names="_Subclassed",
         )
-        without_own_type = {key: value for key, value in by_type.items() if key is not type(entry.result)}
         _expect_undeclared(
-            gaps,
-            f"{label(item)} encode_evidence without its codec",
-            partial(encode_evidence, entry.result, without_own_type),
-            names=type(entry.result).__name__,
+            gaps, f"{label(item)} run spec encode(object)", partial(spec.encode, cast("NativeEvidence", object()))
         )
-        _expect_undeclared(gaps, f"{label(item)} encode_object(object)", partial(item.behavior.encode_object, object()))
-        _expect_error(
-            gaps,
-            f"{label(item)} parse_for(a body with an unknown key)",
-            partial(item.behavior.parse_for, {"undeclared_key": 1}),
-            ValueError,
-        )
+        other = next((candidate for candidate in stored if candidate.descriptor is not item), None)
+        if other is not None:
+            _expect_undeclared(
+                gaps,
+                f"{label(item)} run spec encode(another strategy's result)",
+                partial(spec.encode, other.result),
+                names=type(other.result).__name__,
+            )
         _expect_error(
             gaps,
             f"{label(item)} decode_evidence without its codec",
@@ -761,7 +754,6 @@ def _workspace_probes(
         paired = first.descriptor.behavior
         if isinstance(paired, StrategyBehavior):
             other_result = second.result
-            other_selection = second.selection
             _expect_undeclared(
                 gaps,
                 "decode_for with another strategy's result",
@@ -770,11 +762,6 @@ def _workspace_probes(
                     {},
                     first.ticker,
                 ),
-            )
-            _expect_undeclared(
-                gaps,
-                "parse_for with another strategy's selection",
-                partial(dataclasses.replace(paired, parse=lambda _body: other_selection).parse_for, {}),
             )
 
 

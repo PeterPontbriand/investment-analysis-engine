@@ -32,7 +32,7 @@ from src.strategies.fcf_growth.models import METHOD_VERSION as FCF_GROWTH_METHOD
 from src.strategies.fcf_growth.models import SCHEMA_VERSION as FCF_GROWTH_RESULT_SCHEMA_VERSION
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from src.strategies.fcf_growth.replay import project_fcf_growth
-from src.strategies.fcf_growth.selection import FCFGrowthSelection, parse_fcf_growth_selection
+from src.strategies.fcf_growth.selection import FCFGrowthSelection
 from src.strategies.fcf_growth.tool import (
     FCFEarningsGrowthToolArguments,
     FCFEarningsGrowthToolDependencies,
@@ -49,7 +49,7 @@ from src.strategies.graham_growth.codec import (
 )
 from src.strategies.graham_growth.envelope import GrahamGrowthDocument
 from src.strategies.graham_growth.replay import project_graham_growth
-from src.strategies.graham_growth.selection import GrahamGrowthSelection, parse_graham_growth_selection
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_growth.tool import (
     GrahamGrowthToolDependencies,
@@ -67,7 +67,7 @@ from src.strategies.graham_number.codec import (
 )
 from src.strategies.graham_number.envelope import GrahamNumberDocument
 from src.strategies.graham_number.replay import project_graham_number
-from src.strategies.graham_number.selection import GrahamNumberSelection, parse_graham_number_selection
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.graham_number.tool import (
     GrahamNumberToolArguments,
@@ -81,7 +81,7 @@ from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.codec import decode_momentum, encode_momentum, momentum_native_status, momentum_ticker
 from src.strategies.momentum.envelope import MomentumDocument
 from src.strategies.momentum.replay import project_momentum
-from src.strategies.momentum.selection import MomentumSelection, parse_momentum_selection
+from src.strategies.momentum.selection import MomentumSelection
 from src.strategies.momentum.tool import MomentumToolArguments, MomentumToolDependencies, MomentumToolHandler
 from src.strategies.momentum.vocabulary import ANALYSIS_ID as MOMENTUM_ANALYSIS_ID
 from src.strategies.momentum.vocabulary import CONFIG_SCHEMA_VERSION as MOMENTUM_CONFIG_SCHEMA_VERSION
@@ -89,7 +89,6 @@ from src.strategies.momentum.vocabulary import METHOD_ID as MOMENTUM_METHOD_ID
 from src.workspace.codecs import EvidenceCodec, encode_with
 from src.workspace.execution import RunSpec
 from src.workspace.models import StrictJsonMapping
-from src.workspace.requests import SelectionParser
 from src.workspace.strategy_types import NativeEvidence, SelectionMember
 
 
@@ -103,10 +102,6 @@ class BehaviorView(Protocol):
     @property
     def result_type(self) -> type[NativeEvidence]:
         """Return the strategy's native result type."""
-        ...
-
-    def parse_for(self, config: dict[str, object], /) -> SelectionMember:
-        """Parse a decoded configuration object into this strategy's selection."""
         ...
 
     def encode_object(self, evidence: object, /) -> StrictJsonMapping:
@@ -140,20 +135,12 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
     selection_type: type[SelT]
     result_type: type[ResultT]
     deps_type: type[DepsT]
-    parse: Callable[[dict[str, object]], SelT]
     encode: Callable[[ResultT], StrictJsonMapping]
     decode: Callable[[StrictJsonMapping], ResultT]
     ticker_of: Callable[[ResultT], str]
     handler: ToolHandlerBinder[DepsT, ResultT]
     native_status: Callable[[ResultT], str | None]
     project: Callable[[ReplayInputs, ResultT, SelT, ReplayOptions], str]
-
-    def parse_for(self, config: dict[str, object], /) -> SelT:
-        """Parse ``config`` with this strategy's parser, which must yield exactly its selection type."""
-        selection = self.parse(config)
-        if type(selection) is not self.selection_type:
-            raise undeclared("selection type", type(selection))
-        return selection
 
     def encode_object(self, evidence: object, /) -> StrictJsonMapping:
         """Encode ``evidence``, which must be exactly this strategy's result type."""
@@ -214,7 +201,6 @@ MOMENTUM_BEHAVIOR: Final = StrategyBehavior[MomentumSelection, MomentumRun, Mome
     selection_type=MomentumSelection,
     result_type=MomentumRun,
     deps_type=MomentumToolDependencies,
-    parse=parse_momentum_selection,
     encode=encode_momentum,
     decode=decode_momentum,
     ticker_of=momentum_ticker,
@@ -228,7 +214,6 @@ GRAHAM_NUMBER_BEHAVIOR: Final = StrategyBehavior[
     selection_type=GrahamNumberSelection,
     result_type=GrahamNumberAnalysis,
     deps_type=GrahamNumberToolDependencies,
-    parse=parse_graham_number_selection,
     encode=encode_graham_number,
     decode=decode_graham_number,
     ticker_of=graham_number_ticker,
@@ -242,7 +227,6 @@ GRAHAM_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     selection_type=GrahamGrowthSelection,
     result_type=GrahamGrowthAnalysis,
     deps_type=GrahamGrowthToolDependencies,
-    parse=parse_graham_growth_selection,
     encode=encode_graham_growth,
     decode=decode_graham_growth,
     ticker_of=graham_growth_ticker,
@@ -256,7 +240,6 @@ FCF_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     selection_type=FCFGrowthSelection,
     result_type=FCFEarningsGrowthResult,
     deps_type=FCFEarningsGrowthToolDependencies,
-    parse=parse_fcf_growth_selection,
     encode=encode_fcf_growth,
     decode=decode_fcf_growth,
     ticker_of=fcf_growth_ticker,
@@ -452,16 +435,6 @@ def evidence_codecs(descriptors: tuple[StrategyDescriptor, ...]) -> tuple[Eviden
     )
 
 
-def evidence_by_type(descriptors: tuple[StrategyDescriptor, ...]) -> Mapping[type, EvidenceCodec]:
-    """Return each descriptor's evidence codec keyed by its exact result type, read-only."""
-    return MappingProxyType(
-        {
-            descriptor.behavior.result_type: codec
-            for descriptor, codec in zip(descriptors, evidence_codecs(descriptors), strict=True)
-        }
-    )
-
-
 def evidence_by_key(descriptors: tuple[StrategyDescriptor, ...]) -> Mapping[tuple[str, str], EvidenceCodec]:
     """Return each descriptor's evidence codec keyed by ``(analysis_id, method_id)``, read-only."""
     return MappingProxyType(
@@ -485,11 +458,6 @@ def run_specs_by_key(descriptors: tuple[StrategyDescriptor, ...]) -> Mapping[tup
             for descriptor, codec in zip(descriptors, evidence_codecs(descriptors), strict=True)
         }
     )
-
-
-def parsers_by_alias(descriptors: tuple[StrategyDescriptor, ...]) -> Mapping[str, SelectionParser]:
-    """Return each descriptor's selection parser keyed by its CLI alias, read-only."""
-    return MappingProxyType({descriptor.alias: descriptor.behavior.parse_for for descriptor in descriptors})
 
 
 def replays_by_key(descriptors: tuple[StrategyDescriptor, ...]) -> Mapping[tuple[str, str], ReplayProjector]:
