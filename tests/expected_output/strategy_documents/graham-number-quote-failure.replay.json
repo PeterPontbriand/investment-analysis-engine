@@ -1,0 +1,81 @@
+{
+  "analysis": "graham_number",
+  "as_of": "2026-09-19T12:00:00+00:00",
+  "diagnostics": [],
+  "inputs": {
+    "bvps": {
+      "as_of": "2026-09-19T12:00:00+00:00",
+      "available_at": null,
+      "basis": null,
+      "cache_schema_version": null,
+      "currency": null,
+      "field_name": "book_value_per_share",
+      "lineage": null,
+      "notes": [],
+      "observation_period_end": null,
+      "observation_period_start": null,
+      "observed_at": null,
+      "origin_source_kind": null,
+      "provider_field": null,
+      "provider_id": null,
+      "resolved_at": "<wall-clock>",
+      "retrieved_at": null,
+      "source_kind": "override",
+      "units": null,
+      "value": 10.0
+    },
+    "current_price": null,
+    "eps": {
+      "as_of": "2026-09-19T12:00:00+00:00",
+      "available_at": null,
+      "basis": null,
+      "cache_schema_version": null,
+      "currency": null,
+      "field_name": "eps",
+      "lineage": null,
+      "notes": [],
+      "observation_period_end": null,
+      "observation_period_start": null,
+      "observed_at": null,
+      "origin_source_kind": null,
+      "provider_field": null,
+      "provider_id": "sec_edgar",
+      "resolved_at": "<wall-clock>",
+      "retrieved_at": null,
+      "source_kind": "provider",
+      "units": null,
+      "value": 4.0
+    }
+  },
+  "instrument_kind": null,
+  "limitations": [
+    "The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation."
+  ],
+  "method": "graham_number",
+  "price_comparison": null,
+  "quote": {
+    "reason": "The configured quote provider could not complete the request.",
+    "status": "provider_error"
+  },
+  "reason": null,
+  "result": {
+    "margin_of_safety_percent": null,
+    "maximum_indicated_price": 42.0
+  },
+  "schema_version": 6,
+  "security_identity": {
+    "instrument_identifier": null,
+    "instrument_name": null,
+    "issuer_identifier": null,
+    "listing_venue": null,
+    "provider_id": null,
+    "resolved_at": null,
+    "ticker": "KO"
+  },
+  "status": "ok",
+  "ticker": "KO",
+  "warnings": [
+    "book_value_per_share is a user override, not provider-verified data.",
+    "Current quote unavailable; price comparison omitted."
+  ]
+}

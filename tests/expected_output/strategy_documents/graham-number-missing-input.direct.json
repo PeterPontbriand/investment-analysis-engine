@@ -1,0 +1,91 @@
+{
+  "analysis": "graham_number",
+  "as_of": null,
+  "diagnostics": [
+    {
+      "field_name": "eps",
+      "message": "No explicit override was supplied.",
+      "outcome": "not_used",
+      "stage": "override"
+    },
+    {
+      "field_name": "eps",
+      "message": "Cache use was disabled for this resolution.",
+      "outcome": "not_used",
+      "stage": "cache"
+    },
+    {
+      "field_name": "eps",
+      "message": "Requested eps from provider 'fixture-synth'.",
+      "outcome": "attempted",
+      "stage": "provider"
+    },
+    {
+      "field_name": "eps",
+      "message": "Provider returned no data for the requested field.",
+      "outcome": "unavailable",
+      "stage": "provider"
+    },
+    {
+      "field_name": "security_identity",
+      "message": "Provider 'fixture-synth' does not expose security identity metadata.",
+      "outcome": "unsupported",
+      "provider_id": "fixture-synth",
+      "stage": "provider"
+    },
+    {
+      "field_name": "security_identity",
+      "message": "Provider 'yfinance' returned no security identity metadata.",
+      "outcome": "unavailable",
+      "provider_id": "yfinance",
+      "stage": "provider"
+    },
+    {
+      "field_name": "instrument_kind",
+      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
+      "outcome": "unavailable",
+      "provider_id": "yfinance",
+      "stage": "provider"
+    }
+  ],
+  "inputs": {
+    "bvps": null,
+    "current_price": null,
+    "eps": null
+  },
+  "instrument_kind": null,
+  "limitations": [
+    "The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation."
+  ],
+  "method": "graham_number",
+  "price_comparison": {
+    "percent": null,
+    "provenance": null,
+    "quote_freshness": null,
+    "reason": "calculation_unavailable",
+    "security_unit_evidence": null,
+    "status": "unavailable"
+  },
+  "quote": {
+    "reason": null,
+    "status": "not_attempted"
+  },
+  "reason": "Eligible earnings per share could not be resolved for the requested basis and analysis date.",
+  "result": {
+    "margin_of_safety_percent": null,
+    "maximum_indicated_price": null
+  },
+  "schema_version": 6,
+  "security_identity": {
+    "instrument_identifier": null,
+    "instrument_name": null,
+    "issuer_identifier": null,
+    "listing_venue": null,
+    "provider_id": null,
+    "resolved_at": null,
+    "ticker": "MISSING"
+  },
+  "status": "input_unavailable",
+  "ticker": "MISSING",
+  "warnings": []
+}

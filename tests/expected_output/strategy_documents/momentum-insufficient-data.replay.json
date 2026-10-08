@@ -1,0 +1,108 @@
+{
+  "analysis": "momentum",
+  "analysis_timestamp": "<wall-clock>",
+  "as_of": "2026-01-03",
+  "data_resolution": {
+    "cache_schema_version": null,
+    "cached_at": null,
+    "resolved_at": "<wall-clock>",
+    "retrieved_at": "<wall-clock>",
+    "source_kind": "provider"
+  },
+  "diagnostics": [
+    {
+      "field_name": "historical_close",
+      "message": "Requested historical market observations from the configured provider.",
+      "outcome": "attempted",
+      "stage": "provider"
+    },
+    {
+      "field_name": "historical_close",
+      "message": "Resolved 2 historical observations with retained source provenance.",
+      "outcome": "success",
+      "stage": "provider"
+    },
+    {
+      "field_name": "historical_close",
+      "message": "Applied the requested point-in-time boundary before calculation.",
+      "outcome": "success",
+      "stage": "validation"
+    },
+    {
+      "field_name": "momentum",
+      "message": "Calculated Momentum metrics from the point-in-time price series.",
+      "outcome": "success",
+      "stage": "derivation"
+    },
+    {
+      "field_name": "security_identity",
+      "message": "Provider 'yfinance' returned no security identity metadata.",
+      "outcome": "unavailable",
+      "provider_id": "yfinance",
+      "stage": "provider"
+    },
+    {
+      "field_name": "instrument_kind",
+      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
+      "outcome": "unavailable",
+      "provider_id": "yfinance",
+      "stage": "provider"
+    }
+  ],
+  "instrument_kind": null,
+  "limitations": [
+    "SMA momentum describes recent price trend; it is not a valuation, fundamental-quality conclusion, or investment recommendation."
+  ],
+  "method": "sma_crossover",
+  "parameters": {
+    "long_window": 3,
+    "rsi_period": 3,
+    "short_window": 2
+  },
+  "result": {
+    "crossover_result": {
+      "reason": "A crossover requires both configured moving averages.",
+      "reason_code": "insufficient_history",
+      "status": "unavailable",
+      "value": null
+    },
+    "crossover_signal": null,
+    "crossover_state": null,
+    "current_price": 101.0,
+    "long_sma": null,
+    "price_basis": "latest_adjusted_historical_close",
+    "rsi": {
+      "reason": "RSI requires at least 4 observations; 2 were available.",
+      "reason_code": "insufficient_history",
+      "status": "unavailable",
+      "value": null
+    },
+    "short_sma": 100.5,
+    "sma_spread": null,
+    "sma_spread_percent": null,
+    "trend_relationship": null
+  },
+  "schema_version": 5,
+  "security_identity": {
+    "instrument_identifier": null,
+    "instrument_name": null,
+    "issuer_identifier": null,
+    "listing_venue": null,
+    "provider_id": null,
+    "resolved_at": null,
+    "ticker": "BTC-USD"
+  },
+  "source": {
+    "currency": "USD",
+    "data_as_of": "2026-01-03",
+    "interval": "1d",
+    "observation_count": 2,
+    "price_adjustment": "adjusted",
+    "provider": "fixture_market"
+  },
+  "status": "UNKNOWN",
+  "ticker": "BTC-USD",
+  "warnings": [
+    "Insufficient history for the configured SMA windows: 2 observations available; 3 required for the long SMA."
+  ]
+}

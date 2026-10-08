@@ -1,0 +1,97 @@
+{
+  "analysis": "graham_growth_value",
+  "as_of": null,
+  "diagnostics": [
+    {
+      "field_name": "eps",
+      "message": "No explicit override was supplied.",
+      "outcome": "not_used",
+      "stage": "override"
+    },
+    {
+      "field_name": "eps",
+      "message": "Cache use was disabled for this resolution.",
+      "outcome": "not_used",
+      "stage": "cache"
+    },
+    {
+      "field_name": "eps",
+      "message": "Requested eps from provider 'fixture-synth'.",
+      "outcome": "attempted",
+      "stage": "provider"
+    },
+    {
+      "field_name": "eps",
+      "message": "Provider returned no data for the requested field.",
+      "outcome": "unavailable",
+      "stage": "provider"
+    },
+    {
+      "field_name": "security_identity",
+      "message": "Provider 'fixture-synth' does not expose security identity metadata.",
+      "outcome": "unsupported",
+      "provider_id": "fixture-synth",
+      "stage": "provider"
+    },
+    {
+      "field_name": "security_identity",
+      "message": "Provider 'yfinance' returned no security identity metadata.",
+      "outcome": "unavailable",
+      "provider_id": "yfinance",
+      "stage": "provider"
+    },
+    {
+      "field_name": "instrument_kind",
+      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
+      "outcome": "unavailable",
+      "provider_id": "yfinance",
+      "stage": "provider"
+    }
+  ],
+  "inputs": {
+    "current_aaa_yield": null,
+    "current_price": null,
+    "eps": null,
+    "expected_growth": null
+  },
+  "instrument_kind": null,
+  "limitations": [
+    "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
+  ],
+  "method": "graham_growth_value",
+  "method_assumptions": {
+    "base_pe": 8.5,
+    "baseline_aaa_yield": 4.4,
+    "growth_multiplier": 2.0
+  },
+  "price_comparison": {
+    "percent": null,
+    "provenance": null,
+    "quote_freshness": null,
+    "reason": "calculation_unavailable",
+    "security_unit_evidence": null,
+    "status": "unavailable"
+  },
+  "quote": {
+    "reason": null,
+    "status": "not_attempted"
+  },
+  "reason": "Unable to analyze MISSING: required financial data is unavailable for the requested method.",
+  "result": {
+    "growth_value": null,
+    "margin_of_safety_percent": null
+  },
+  "schema_version": 6,
+  "security_identity": {
+    "instrument_identifier": null,
+    "instrument_name": null,
+    "issuer_identifier": null,
+    "listing_venue": null,
+    "provider_id": null,
+    "resolved_at": null,
+    "ticker": "MISSING"
+  },
+  "status": "input_unavailable",
+  "ticker": "MISSING",
+  "warnings": []
+}
