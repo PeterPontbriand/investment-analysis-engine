@@ -44,6 +44,8 @@ read by value, protocol and standard-library overrides), a test-only item, a dea
 item. Dead items and approved test-only items were deleted together with the code and tests that existed
 only for them. The items below were reviewed and **deliberately kept**.
 
+The rule applied: code read only by its own tests is dead; code read by the schema generator or the conformance script is in use.
+
 | Item | Reason kept |
 |---|---|
 | `InstrumentProfileRecord.superseded_reason` | Mirrors a stored column that the repository writes and reads back. |
@@ -53,6 +55,8 @@ only for them. The items below were reviewed and **deliberately kept**.
 | `strategies.fcf_growth.calculators.compute_fcf_yield` | Step 3.5's FCF-yield screen either uses it or deletes it (see the Step 3.5 contract's shared-definitions slice). |
 | `RunOutcome.CANCELLED` and the `'cancelled'` value in the analysis-run outcome check constraint | Nothing produces it; removal changes the database schema. |
 | `StrategyIndexes.by_key`, `StrategyIndexes.by_envelope` | Building them enforces key and envelope uniqueness at import; only the conformance tests read them. |
+| `StrategyDescriptor.json_envelope` | Read by the schema generator and the schema drift check. |
+| `EvaluationStrategy.sample_selection` | Read by the conformance script's stored-run probe; each strategy must supply one. |
 | `AccountingScope.SEGMENT` | Member of a closed vocabulary; removing it changes a generated schema. |
 | `exc_val`, `exc_tb` in `LoggerContext.__exit__` | Required context-manager signature (recorded in the first pass). |
 
