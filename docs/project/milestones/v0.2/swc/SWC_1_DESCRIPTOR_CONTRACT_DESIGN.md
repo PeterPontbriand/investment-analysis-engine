@@ -554,7 +554,7 @@ parameterized over the production tuples and over the specimen tuples ([§19.5](
 | T6 `evaluation_coverage` | Every descriptor tool against the union of tools the golden cases require; the deterministic suite runs every case | The case catalog and the suite's own dispatch | A strategy with no deterministic case, or one the fixture composition cannot serve, fails. |
 | T7 `command_table` | Descriptor aliases against the top-level command names of the real Typer app | The CLI's own command table, read from `typer.main.get_command(app)` with hidden groups included | (a) Every top-level command is a descriptor alias, a command group, or listed in the hand-written `NON_STRATEGY_COMMANDS`. (b) An alias never equals a group or non-strategy name. (c) Each strategy command offers `--save-run` and `--json`. Strategy commands are added from the CLI tier, so "every alias is a command" is now derived and is checked through T10's CLI-tier surface instead. |
 | T8 `versions_and_round_trip` (SWC.3a; replay added by SWC.4c) | Run envelope versions, decoded evidence and, from SWC.4c, the replayed text for a real result per strategy | Real analyzer output via the golden fixtures, real `AnalysisRun` validation, the live presenter | Behavior, not metadata: `execute` writes, `decode_evidence` reads, and `decoded == original` must hold; the replay of a stored run equals the live presenter's output. |
-| T9 `rendered_json_ids` (SWC.4c) | The `analysis` and `method` keys of each rendered `--json` document against the stored selection's `Literal` ids | Real rendered documents from the golden fixtures against the hand-written selection classes | Presenters and the descriptor read identity from the same leaf, so the document is compared to the selection class, which is a separate declaration. |
+| T9 `rendered_json_ids` (SWC.4c) | The `analysis` and `method` keys (`strategy_id` and `method_id` for FCF Growth) of each rendered `--json` document against the stored selection's `Literal` ids; each envelope module's `ANALYSIS_ID` and `METHOD_ID` against the selection class and, for FCF Growth, the analyzer's models module | Real rendered documents from the golden fixtures against the hand-written selection classes | Presenters and the descriptor read identity from the same leaf, so the document is compared to the selection class, which is a separate declaration. A mismatch names the strategy and the site that disagrees. |
 | T10 `consumers_cover_every_descriptor` | The key set of each remaining consumer surface: CLI tier, evaluation tier, JSON ids, published schemas, generated strategy lists | The tiers' own tuples and the files on disk | Fails when a descriptor has no entry in a tier, naming the surface and the strategy. The surfaces that became derived (tool registration, evaluation routing, native status, codecs, aliases, selection parsing, builders, refresh executors, projectors) are no longer tables, so they are no longer compared. |
 | T11 `undeclared_inputs_fail_closed` | Every dispatcher in [§9.2](#92-fail-closed-dispatch) with an undeclared type, key, alias or arguments, and a bundle given another strategy's object | The behavior of the dispatchers over injected mappings, including the specimen | Proves no consumer routes an unknown input to Momentum or FCF. |
 | T12 `incomplete_strategy_negative_control` | A deliberately incomplete specimen ([§10.2](#102-negative-control)) | See below | Proves T10 and T11 can fail. |
@@ -566,7 +566,7 @@ parameterized over the production tuples and over the specimen tuples ([§19.5](
 | T18 `failure_codes` (SWC.4a) | `FailureReasonCode` against every `ReadinessReason`, every exception `reason_code` attribute, and every code the classifier can return | The source exceptions and enums | A new source code with no envelope code fails. |
 | T19 `failure_envelope_closed` (SWC.4a) | Envelope fields against the documented set; no remediation-shaped field | The model | Enforces the report-never-remediate rule. |
 | T20 `published_schemas_current` (SWC.4a, extended by 4b and 4c) | Regenerated schema text against `schemas/*.json` | Checked-in files | Drift detection by byte comparison; a missing file fails naming it. |
-| T21 `json_commands_are_typed` (SWC.4c) | Every command offering `--json` against the `JSON_DOCUMENTS` table and the checked-in schemas | The command tree of the real Typer app, recursed through every group including hidden ones | The commands come from the CLI's own parameter declarations, the schemas from files on disk, and the table links them. A new `--json` command with no typed model fails with `command 'x' offers --json but has no typed document model`. Today it finds 12 commands. |
+| T21 `json_commands_are_typed` (SWC.4c) | Every command offering `--json` against the `JSON_DOCUMENTS` table (failure, workspace and database documents), the descriptors' `json_envelope` (the four direct commands, and `runs show` for all of them) and the checked-in schemas | The command tree of the real Typer app, recursed through every group including hidden ones | The commands come from the CLI's own parameter declarations, the schemas from files on disk, and the table and the descriptors link them. A new `--json` command with no typed model fails with `command 'x' offers --json but has no typed document model`. Today it finds 12 commands. |
 | T22 `save_run_through_every_direct_command` (SWC.3c) | For each alias: the real command with `--save-run` against a temporary database and that strategy's fixture providers | The CLI path, real `execute` and the repository | Exactly one stored run whose key equals the descriptor's and which `decode_evidence` accepts. The per-alias fixture setup is hand-written data; a missing entry fails with `no save-run fixture for alias 'x'`. |
 | T23 `user_guides` | For each alias: a guide at `docs/user/strategies/<ALIAS>.md` that links to `FINANCE_MATH.md#...` and `GLOSSARY.md` | The documentation files | Anchor validity is enforced by `check_doc_links.py`; a missing link fails T23. The alias mentions in `USAGE.md` and `WORKSPACE.md` are generated and checked by T26. |
 | T24 `uniqueness_rules` | A copy of the tuple with one duplicated value, for each of `analysis_id`+`method_id`, `method_id`, `alias`, `tool`, `tool_arguments`, `behavior.result_type` and (SWC.4c) `json_envelope` | The index builder | Each duplicate must raise naming the rule and both descriptors. Import-time failure is the same code path. |
@@ -826,7 +826,7 @@ commands offer `--json` today (`momentum`, `graham-number`, `graham-growth`, `fc
 | Document | Strategy-specific content | How it is typed |
 | :--- | :--- | :--- |
 | `watchlist show`, `watchlist rename`, and the watchlist embedded in `watchlist delete` | `entries[].selection`, the `model_dump` of an `AnalysisSelection` member (windows for Momentum, EPS basis and overrides for Graham, the policy snapshot for FCF) | By the `AnalysisSelection` discriminated union itself, discriminated on `method_id`. The generated schema is a `oneOf` over the four selection models, so a strategy added to the union appears in the schema automatically and T1 keeps the union equal to the descriptors. No second typing of selections is written. |
-| `runs show` | The whole document: it is the strategy's own replay document | By the strategy envelope model of the run's strategy; the command lists all strategy schemas in `JSON_DOCUMENTS`. |
+| `runs show` | The whole document: it is the strategy's own replay document | By the strategy envelope model of the run's strategy; the coverage test maps the command to every descriptor's `json_envelope` ([H.31](#h31-typed-strategy-documents-and-replay-dispatch-2026-10-07)). |
 | `runs list`, `refresh`, `db status`, `db upgrade` | None. `method_id` appears only as a string, typed `str` (a `Literal` cannot be built from the descriptors under `mypy --strict`, and T10 covers the identifiers). | Plain fields. |
 
 **Versioning and timestamps.** The four workspace documents (watchlist, delete outcome, `runs list`, refresh summary)
@@ -839,7 +839,7 @@ envelope models use the same type.
 
 **Coverage test.** T21 enumerates the commands from the CLI's own parameter declarations, recursing
 the real Typer command tree through every group including hidden ones and keeping each command with a
-`--json` option. That surface is independent of the `JSON_DOCUMENTS` table and of the files in
+`--json` option. That surface is independent of the `JSON_DOCUMENTS` table, of the descriptors and of the files in
 `schemas/`. It fails, naming the command, when a command is missing from the table or a schema file
 it needs is not checked in.
 
@@ -2190,3 +2190,55 @@ Decided while implementing SWC.4b.
 - **Files outside the plan's scope list.** `src/reporting/documents/timestamp.py` (the shared type), `scripts/generate_schemas.py`
   (four table entries), `tests/_workspace_command_output.py` and its stored files, and `docs/user/WORKSPACE.md` (the schema
   files, the unversioned statement and the `+00:00` spelling; the project owner pre-approved this file).
+
+### H.31 Typed strategy documents and replay dispatch (2026-10-07)
+
+Decided while implementing SWC.4c. The project owner approved the shared-parts file, `ReplayInputs`, the `cli_workspace.py` import retarget and the documentation edits; the `failure_classification.py` import retarget is reported for review.
+
+- **Models.** Each strategy's `envelope.py` holds its identity constants (`ANALYSIS_ID`, `METHOD_ID`), its document
+  `schema_version` (`DOCUMENT_SCHEMA_VERSION`) and its frozen document model, and imports no other module of its
+  package. A presenter builds the model and writes `json_document(model.model_dump(mode="json"))`, so the model is the
+  output boundary and `json_document`'s sorted keys, indent and `allow_nan=False` are unchanged. Every field is required:
+  an absent value is an explicit `null`, never an omitted key. A test checks that no field has a default.
+- **Shared parts.** The sections more than one strategy writes the same way live in
+  `src/reporting/documents/shared_parts.py` (security identity, instrument kind, the two diagnostics-entry shapes, a metric
+  result, and the Graham family's resolved input, quote and price comparison), with the functions that build them from
+  the source objects. FCF Growth's resolved input is wider (fiscal year, period kind, accounting scope, capital-expenditure
+  sign, provider fact id), so its model is in `fcf_growth/envelope.py`. The name says the parts are shared by strategy
+  documents; `evidence` is not used because it means stored evidence in this project.
+- **Numbers.** A pydantic `float` field turns an integer into a float, which would write `5.0` where the builders wrote
+  `5`. The 73 stored documents and the full suite showed one field where a source holds an integer: a resolved input's
+  `value`, which a caller can construct from an integer (a test builds a price of `50`). `ResolvedInputPart.value` and
+  the FCF resolved input's `value`, which read the same source field, are typed `JsonNumber`, which writes an integer as an
+  integer and a float as a float; every other numeric field is `float`.
+- **Enumerations the envelope cannot import.** An envelope may not import an analyzer module, so FCF Growth's document
+  declares the values of its six enumerations as literals; a test compares each set with its enumeration. Momentum and the
+  Graham documents use enumerations from `src/core`.
+- **Identity has three declarations.** An envelope's identifiers, the selection class's `Literal` identifiers and, for
+  FCF Growth, the result's own constants in its models module are separate declarations. T9 compares them, statically and
+  through the replayed document, and a mismatch names the strategy and the site that disagrees. The descriptor reads FCF
+  Growth's identity from the models module and the others' from its own fields; T1 compares those with the selection
+  classes. Weighing whether to reduce the three to one is deferred to Step 3.5's repetition checkpoint.
+- **Replay.** `project_run(run, options, *, codecs, replays)` decodes the run, looks up the injected projector by
+  `(analysis_id, method_id)` and passes it `ReplayInputs` (the run's ticker, instrument profile and presentation
+  inputs), the decoded evidence, the stored selection and the options. An undeclared pair raises
+  `UnsupportedProjectionError` with the unchanged message that names it, so `runs show` still reports
+  `unsupported_projection`; the failure behavior does not change. `ReplayOptions`, `ReplayInputs` and
+  `UnsupportedProjectionError` are in the leaf module `src/reporting/replay_inputs.py`, and `analysis_runs.py` imports no
+  strategy module, which empties the T13 transition list. The projector is the descriptor's `project` member; the view's
+  `project_for` guards that the evidence and selection are exactly the strategy's types. The two Graham projectors share
+  `friendly_graham_assembly` in `_graham/replay.py`.
+- **The table.** `src/reporting/json_documents.py` lists the failure, workspace and database documents with their schema
+  file and commands; a generic module cannot read the descriptors, so the strategy documents are added from the root by
+  `scripts/generate_schemas.py` (file `<alias>.schema.json`) and by the conformance checks. This differs from §13.6's
+  earlier wording, which had the table list the strategy schemas.
+- **Checks.** T8 replays each stored run in every mode and requires the JSON to validate as the descriptor's envelope;
+  T9 as above; T10 gains the published-schema surface; T11 probes `project_for` and `project_run` with undeclared
+  inputs; T20 covers the four new schemas; T21 enumerates the 12 commands from the command tree, with no exemption list;
+  T24 gains the `json_envelope` rule. The stored output in `tests/expected_output/strategy_documents/` was captured
+  from the hand-written builders before any builder changed and is unchanged by this slice.
+- **Output changes.** None.
+- **Files outside the plan's original scope list.** `src/reporting/documents/shared_parts.py`;
+  `scripts/generate_schemas.py` and `scripts/strategy_conformance.py`; the one-line import retargets in
+  `src/cli_workspace.py` and `src/reporting/failure_classification.py`; `docs/user/USAGE.md`, `docs/user/WORKSPACE.md` and
+  the Step 3.5 plan's repetition checkpoint (the project owner pre-approved the last three).

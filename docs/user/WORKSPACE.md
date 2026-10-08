@@ -280,4 +280,6 @@ uv run ian runs show 3f9b... --diagnostics
 uv run ian runs show 3f9b... --json
 ```
 
+`runs show --json` prints the saved run's own strategy document, described by that strategy's schema in `schemas/` (for example `schemas/momentum.schema.json`, or `schemas/graham-number.schema.json`); a failure is the [failure document](USAGE.md#--json--machine-readable-output).
+
 `runs show` exits `0` even for a saved run whose own financial outcome was unavailable or failed — you asked to *see* a record, and it exists; the record's own status tells you what happened when it ran.

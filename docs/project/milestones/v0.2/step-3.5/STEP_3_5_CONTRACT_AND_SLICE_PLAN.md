@@ -99,6 +99,10 @@ before the second strategy starts (3.5.4a):
 - **Site 19:** weigh moving the watchlist options into strategy files, as one watchlist subcommand per
   strategy added by iterating `CLI_STRATEGIES` ([SWC.1 design H.10](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)).
   The change alters the command syntax users type, so it needs its own decision.
+- **Identity declarations:** weigh the three declarations of each strategy's analysis and method identifiers (its
+  `envelope.py`, its selection class and, for FCF Growth, its models module), which
+  [SWC.1 design H.31](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h31-typed-strategy-documents-and-replay-dispatch-2026-10-07)
+  keeps in step with tests and not with a single source.
 - **Extraction:** for exactly that repeated code, extract shared helper functions into the shared module
   of the layer that owns it, and update the generator's templates to call them. Helpers are functions, not a
   base class or a registry; existing strategies' behavior and output do not change. Where nothing repeated,

@@ -487,7 +487,14 @@ version and result-schema version distinct and do not silently reinterpret histo
   (`ReplayOptions` and `UnsupportedProjectionError` move here), `src/reporting/json_documents.py` (the
   failure, workspace and database documents; the generator and tests add each descriptor's `json_envelope`
   from the root), `src/reporting/analysis_runs.py`, the four `presenter.py` files, four schemas, and tests
-  T9, T10, T20, T21 and T24 extended; removes its four T13 transition entries.
+  T8 (replay), T9, T10, T20, T21 and T24 extended; removes its four T13 transition entries. Also in scope, as
+  [design H.31](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h31-typed-strategy-documents-and-replay-dispatch-2026-10-07)
+  records: `src/reporting/documents/shared_parts.py` (the parts several strategy documents share),
+  `scripts/generate_schemas.py` and `scripts/strategy_conformance.py`, the one-line import retargets in
+  `src/cli_workspace.py` and `src/reporting/failure_classification.py`, the stored strategy-document output in
+  `tests/expected_output/strategy_documents/` and its harness (captured from the hand-written builders before any
+  builder changed), `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`, and one line in the Step 3.5 plan's
+  repetition checkpoint.
 - **Branch:** `feat/swc-4c-strategy-json-envelopes`, from `main` after SWC.4b has merged.
 - **Detail:** [SWC.1 design §6, §10 and §13.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#10-conformance-tests-and-negative-control),
   [inventory disposition](#4-inventory-disposition) and
