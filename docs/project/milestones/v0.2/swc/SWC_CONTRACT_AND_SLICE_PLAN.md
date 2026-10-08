@@ -481,7 +481,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   vocabulary files hold each strategy's identity constants, which presenters and the descriptor
   read ([design H.32](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h32-one-vocabulary-file-per-strategy-2026-10-07)); the descriptor gains `json_envelope` and the `project` member; `project_run` receives the
   injected projector mapping and fails closed; the command-coverage test lands last, with no exemption list.
-- **Scope:** `src/strategy_wiring.py`, `src/strategies/<strategy>/envelope.py`, `replay.py` and, by [design H.32](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h32-one-vocabulary-file-per-strategy-2026-10-07), `vocabulary.py` (the four
+- **Scope:** `src/strategy_wiring.py`, `src/strategies/<strategy>/envelope.py`, `replay.py` and, by [design H.32](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h32-one-vocabulary-file-per-strategy-2026-10-07), `vocabulary.py` (identity, the stored-configuration version and shared enumerations; the four
   projectors leave `analysis_runs.py`; each `replay.py` also holds the strategy's `headline` function only
   from Step 3.5 slice 3.5.0), `src/strategies/_graham/replay.py`, `src/reporting/replay_inputs.py`
   (`ReplayOptions` and `UnsupportedProjectionError` move here), `src/reporting/json_documents.py` (the

@@ -11,8 +11,10 @@ from src.data.instrument_profile import InstrumentProfile
 from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
 from src.strategies.fcf_growth.vocabulary import (
     ANALYSIS_ID,
+    CONFIG_SCHEMA_VERSION,
     METHOD_ID,
     AnalysisId,
+    ConfigSchemaVersion,
     FCFClassificationBasis,
     ForwardPolicy,
     HistoricalHorizon,
@@ -56,7 +58,7 @@ class FCFGrowthSelection(FrozenSelection):
 
     analysis_id: AnalysisId = ANALYSIS_ID
     method_id: MethodId = METHOD_ID
-    config_schema_version: Literal[1] = 1
+    config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     policy: FCFPolicySnapshot = Field(default_factory=FCFPolicySnapshot)
     currency: str = "USD"
     provider_id: Literal["sec_edgar"] = "sec_edgar"

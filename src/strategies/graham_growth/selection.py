@@ -3,14 +3,20 @@
 import math
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Literal
 
 from pydantic import AwareDatetime, Field, StrictFloat, field_validator, model_validator
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.data.instrument_profile import InstrumentProfile
 from src.strategies.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
-from src.strategies.graham_growth.vocabulary import ANALYSIS_ID, METHOD_ID, AnalysisId, MethodId
+from src.strategies.graham_growth.vocabulary import (
+    ANALYSIS_ID,
+    CONFIG_SCHEMA_VERSION,
+    METHOD_ID,
+    AnalysisId,
+    ConfigSchemaVersion,
+    MethodId,
+)
 from src.workspace.selection_base import (
     CLI_QUOTE_PROVIDERS,
     CLI_SECURITY_PROVIDERS,
@@ -24,7 +30,7 @@ class GrahamGrowthSelection(FrozenSelection):
 
     analysis_id: AnalysisId = ANALYSIS_ID
     method_id: MethodId = METHOD_ID
-    config_schema_version: Literal[1] = 1
+    config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     security_provider_id: str = "sec_edgar"
     quote_provider_id: str | None = None
     eps_basis: GrahamGrowthEPSBasis | None = None

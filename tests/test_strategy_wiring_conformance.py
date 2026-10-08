@@ -68,15 +68,6 @@ def test_t1_names_a_descriptor_with_no_selection_class() -> None:
     assert gaps == ["descriptor ('stray', 'stray') has no selection class in SelectionMember"]
 
 
-def test_t1_reports_a_config_schema_version_that_differs_from_the_selection_class() -> None:
-    """The descriptor's configuration version is compared with the selection class's own literal default."""
-    drifted = replace(MOMENTUM, config_schema_version=9)
-    gaps = conformance.selection_union_gaps((drifted, *STRATEGIES[1:]))
-    assert gaps == [
-        "descriptor ('momentum', 'sma_crossover') declares config_schema_version 9, but MomentumSelection defaults to 2"
-    ]
-
-
 def test_t2_native_evidence_union_matches_the_descriptors() -> None:
     """The result types the descriptors declare are exactly the ``NativeEvidence`` union."""
     assert conformance.native_evidence_union_gaps(STRATEGIES) == []

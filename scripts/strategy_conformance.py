@@ -182,12 +182,7 @@ def selection_union_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[st
         (_literal_default(member, "analysis_id"), _literal_default(member, "method_id")): member
         for member in get_args(SelectionMember)
     }
-    gaps = [
-        f"descriptor {label(declared[key])} declares config_schema_version {declared[key].config_schema_version}, "
-        f"but {selections[key].__name__} defaults to {selections[key].model_fields['config_schema_version'].default}"
-        for key in sorted(declared.keys() & selections.keys())
-        if declared[key].config_schema_version != selections[key].model_fields["config_schema_version"].default
-    ]
+    gaps: list[str] = []
     gaps.extend(
         f"selection class {selections[key].__name__} with ids {key} has no descriptor"
         for key in sorted(selections.keys() - declared.keys())
@@ -526,7 +521,7 @@ def versions_and_round_trip_gaps(
 
 
 # ---------------------------------------------------------------------------
-# T8 (replay), T9: the typed JSON document of each stored run
+# T8 (replay): the typed JSON document of each stored run
 # ---------------------------------------------------------------------------
 
 

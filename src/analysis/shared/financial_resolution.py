@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal, get_args
 
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
@@ -13,12 +14,15 @@ from src.data.financial.resolver import InputResolutionResult, InputResolver
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 from src.data.security_unit import SecurityUnitEvidence, SecurityUnitResolution, evaluate_security_unit_compatibility
 
+PriceComparisonStatus = Literal["available", "unavailable"]
+"""Whether a price relationship could be calculated."""
+
 
 @dataclass(frozen=True)
 class PriceComparison:
     """Calculated price relationship with a stable reason for every absence."""
 
-    status: str
+    status: PriceComparisonStatus
     reason: str
     percent: float | None = None
     security_unit_resolution: SecurityUnitResolution | None = None
@@ -26,7 +30,7 @@ class PriceComparison:
 
     def __post_init__(self) -> None:
         """Keep percentage and status consistent and finite."""
-        if self.status not in ("available", "unavailable"):
+        if self.status not in get_args(PriceComparisonStatus):
             raise ValueError("Unknown price comparison status.")
         if (self.status == "available") != (self.percent is not None):
             raise ValueError("Price comparison status contradicts its percentage.")

@@ -97,9 +97,9 @@ Notes:
   exist in the FCF analyzer's models module (`src/strategies/fcf_growth/models.py` after SWC.2a). The FCF descriptor references them
   instead of re-declaring them. Momentum and Graham have no such constants, so their descriptors are the
   declaration (and, from SWC.4c, their envelope leaves hold the identity constants).
-- **`config_schema_version` duplicates a selection field on purpose.** Each selection class keeps its
-  own `Literal[...]` identifiers and version, which type the `AnalysisSelection` discriminated union.
-  Conformance test T1 compares them to the descriptor; it does not remove them.
+- **`config_schema_version` is declared once.** Each selection class keeps its own `Literal[...]` identifiers and
+  version fields, which type the `AnalysisSelection` discriminated union, but their values come from the strategy's
+  `vocabulary.py`, which the descriptor reads too ([H.33](#h33-versions-and-the-data-layers-status-types-2026-10-07)).
 - **`json_envelope` is the only field with no replaced declaration.** It stays because SWC.4c's generator
   and conformance test both iterate it; if SWC.4c finds otherwise, the field is dropped in that slice and
   the generator keeps a consumer-side list.
@@ -547,7 +547,7 @@ parameterized over the production tuples and over the specimen tuples ([§19.5](
 
 | Test | Compares the descriptors to | Independent surface | Why it is not tautological |
 | :--- | :--- | :--- | :--- |
-| T1 `selection_union` | `(analysis_id, method_id, config_schema_version)` of each `get_args(SelectionMember)` member | `Literal` field defaults on the hand-written selection classes | Selections and descriptors are separate declarations. A strategy added to one only fails. |
+| T1 `selection_union` | `(analysis_id, method_id)` of each `get_args(SelectionMember)` member | `Literal` field defaults on the hand-written selection classes | Selections and descriptors are separate declarations. A strategy added to one only fails. |
 | T2 `native_evidence_union` | `get_args(NativeEvidence)` against the set of `behavior.result_type` | The hand-written evidence union | Same reasoning; the bundle's bound also fails type-checking on mismatch. |
 | T3 `analyzer_generics` | `behavior.result_type` against `ResultT` of every non-abstract `BaseAnalyzer` subclass found by walking `src.strategies` with `pkgutil` (skipping packages whose name starts with an underscore) | The analyzers' own `BaseAnalyzer[ConfigT, ResultT]` specialization | The analyzer defines its result; the descriptor must agree. Enumeration is by package walk, so a new analyzer needs no edit to the test. It also fails for an analyzer found outside `src/strategies`. It also requires exactly one descriptor per analyzer and one analyzer per descriptor. |
 | T4 `tool_surfaces` | `tool` and `tool_arguments` against `set(ToolName)`, `AnalysisToolArguments.__subclasses__()` and the names bound for a real dispatcher | Two hand-written surfaces and the dispatcher | A tool in the enum or the subclass set and not in the descriptors fails and names it. Registration itself is derived, so it is no longer a compared surface. |
@@ -1154,7 +1154,7 @@ generated from the production `JSON_DOCUMENTS` only, and a test builds its own l
 | :--- | :--- |
 | **Replaces** | The hand-maintained edit-site table in the guide (generated from the site file). The USAGE and WORKSPACE alias half of T23 (T26). The `monkeypatch` of production tables in T12 part 3 (specimen variants instead). |
 | **Strengthens** | T11 and T12: the specimen runs through every dispatcher, both tiers, replay and the real Typer app, so a derived table that silently dropped a strategy would be caught end to end. T7 and T22: a fifth strategy through the real command and `--save-run`. T13: the specimen cannot leak into `src`. |
-| **Makes redundant** | The manual contributor-path rehearsal in the independent review of SWC.7: T28 performs it on every run. No test in T1 to T9 becomes redundant. |
+| **Makes redundant** | The manual contributor-path rehearsal in the independent review of SWC.7: T28 performs it on every run. No test in T1 to T8 becomes redundant. |
 | **Adds** | T25 `site_data_complete`, T26 `generated_lists_current`, T27 `specimen_complete`, T28 `generator_end_to_end`, T29 `no_unfilled_stubs`. |
 
 ## Appendix A: Inventory re-verified at 247ecdf
@@ -2217,7 +2217,7 @@ Decided while implementing SWC.4c. The project owner approved the shared-parts f
   declares the values of its six enumerations as literals; a test compares each set with its enumeration. Momentum and the
   Graham documents use enumerations from `src/core`.
 - **Identity has three declarations.** (Superseded by [H.32](#h32-one-vocabulary-file-per-strategy-2026-10-07), which declares it once.) An envelope's identifiers, the selection class's `Literal` identifiers and, for
-  FCF Growth, the result's own constants in its models module are separate declarations. T9 compares them, statically and
+  FCF Growth, the result's own constants in its models module are separate declarations. a test (T9, since removed) compared them, statically and
   through the replayed document, and a mismatch names the strategy and the site that disagrees. The descriptor reads FCF
   Growth's identity from the models module and the others' from its own fields; T1 compares those with the selection
   classes. Weighing whether to reduce the three to one is deferred to Step 3.5's repetition checkpoint.
@@ -2235,7 +2235,7 @@ Decided while implementing SWC.4c. The project owner approved the shared-parts f
   `scripts/generate_schemas.py` (file `<alias>.schema.json`) and by the conformance checks. This differs from §13.6's
   earlier wording, which had the table list the strategy schemas.
 - **Checks.** T8 replays each stored run in every mode and requires the JSON to validate as the descriptor's envelope;
-  T9 as above; T10 gains the published-schema surface; T11 probes `project_for` and `project_run` with undeclared
+  T10 gains the published-schema surface; T11 probes `project_for` and `project_run` with undeclared
   inputs; T20 covers the four new schemas; T21 enumerates the 12 commands from the command tree, with no exemption list;
   T24 gains the `json_envelope` rule. The stored output in `tests/expected_output/strategy_documents/` was captured
   from the hand-written builders before any builder changed and is unchanged by this slice.
@@ -2279,3 +2279,31 @@ Decided by the project owner during the SWC.4c review, as a change of its own.
   that quote an identifier; and in the shared document parts, the quote-freshness status and price-comparison status
   `Literal`s, which mirror the data layer's inline literals and are outside any strategy.
 - **Output.** None: the 73 stored strategy documents and every other stored file are unchanged.
+
+### H.33 Versions and the data layer's status types (2026-10-07)
+
+Decided by the project owner after H.32, in the same slice.
+
+- **Where each per-strategy version was declared.**
+
+  | Version | Declarations before | Readers | Now |
+  | :--- | :--- | :--- | :--- |
+  | `config_schema_version` | the selection class (`Literal[n] = n`) and the descriptor, per strategy | selection class, descriptor, run envelope (from the selection) | once, in `vocabulary.py` (`CONFIG_SCHEMA_VERSION`, with the `ConfigSchemaVersion` alias); the selection class and the descriptor read it |
+  | `method_version` | the descriptor (Momentum, both Graham); FCF Growth's `models.py` (read by the descriptor, its result and its codec) | descriptor, run envelope, FCF result and codec | unchanged: one declaration each |
+  | `result_schema_version` | the descriptor (Momentum, both Graham); FCF Growth's `models.py` | as above | unchanged: one declaration each |
+  | `evidence_codec_version` | the descriptor | descriptor, run envelope | unchanged |
+  | document `schema_version` | the strategy's `envelope.py` (`DOCUMENT_SCHEMA_VERSION`) | the presenter | unchanged |
+
+  Only `config_schema_version` was declared twice for one reason, so only it moved. The others have one declaration each;
+  moving them to the vocabulary would change where they live without removing a duplicate.
+- **The name.** `vocabulary.py` now holds the strategy's names, the version of its stored configuration and its shared
+  enumerations. The version identifies the shape of the stored configuration the way the identifiers identify the
+  strategy, and the file stays the lowest-ranked file that every reader can import, so the name was kept.
+- **Tests.** T1 no longer compares the descriptor's configuration version with the selection class's default (they are
+  one value), and the test that existed to show that comparison failing is gone. T8 still compares the versions a stored
+  run records with the descriptor's, which are separate declarations.
+- **Status types.** `shared_parts.py` mirrored two inline literals of the data layer. Each is now a named type declared
+  once where it is used: `QuoteFreshnessStatus` in `src/data/financial/quote_freshness.py` and `PriceComparisonStatus` in
+  `src/analysis/shared/financial_resolution.py`, which the dataclass fields, `PriceComparison`'s validation and the
+  document parts all use. Layering permits the import: reporting already imports both modules.
+- **Output.** None. The generated schemas are unchanged.

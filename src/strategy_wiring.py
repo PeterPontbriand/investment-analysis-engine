@@ -39,6 +39,7 @@ from src.strategies.fcf_growth.tool import (
     FCFEarningsGrowthToolHandler,
 )
 from src.strategies.fcf_growth.vocabulary import ANALYSIS_ID as FCF_GROWTH_ANALYSIS_ID
+from src.strategies.fcf_growth.vocabulary import CONFIG_SCHEMA_VERSION as FCF_GROWTH_CONFIG_SCHEMA_VERSION
 from src.strategies.fcf_growth.vocabulary import METHOD_ID as FCF_GROWTH_METHOD_ID
 from src.strategies.graham_growth.codec import (
     decode_graham_growth,
@@ -56,6 +57,7 @@ from src.strategies.graham_growth.tool import (
     GrahamGrowthValueToolArguments,
 )
 from src.strategies.graham_growth.vocabulary import ANALYSIS_ID as GRAHAM_GROWTH_ANALYSIS_ID
+from src.strategies.graham_growth.vocabulary import CONFIG_SCHEMA_VERSION as GRAHAM_GROWTH_CONFIG_SCHEMA_VERSION
 from src.strategies.graham_growth.vocabulary import METHOD_ID as GRAHAM_GROWTH_METHOD_ID
 from src.strategies.graham_number.codec import (
     decode_graham_number,
@@ -73,6 +75,7 @@ from src.strategies.graham_number.tool import (
     GrahamNumberToolHandler,
 )
 from src.strategies.graham_number.vocabulary import ANALYSIS_ID as GRAHAM_NUMBER_ANALYSIS_ID
+from src.strategies.graham_number.vocabulary import CONFIG_SCHEMA_VERSION as GRAHAM_NUMBER_CONFIG_SCHEMA_VERSION
 from src.strategies.graham_number.vocabulary import METHOD_ID as GRAHAM_NUMBER_METHOD_ID
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.codec import decode_momentum, encode_momentum, momentum_native_status, momentum_ticker
@@ -81,6 +84,7 @@ from src.strategies.momentum.replay import project_momentum
 from src.strategies.momentum.selection import MomentumSelection, parse_momentum_selection
 from src.strategies.momentum.tool import MomentumToolArguments, MomentumToolDependencies, MomentumToolHandler
 from src.strategies.momentum.vocabulary import ANALYSIS_ID as MOMENTUM_ANALYSIS_ID
+from src.strategies.momentum.vocabulary import CONFIG_SCHEMA_VERSION as MOMENTUM_CONFIG_SCHEMA_VERSION
 from src.strategies.momentum.vocabulary import METHOD_ID as MOMENTUM_METHOD_ID
 from src.workspace.codecs import EvidenceCodec, encode_with
 from src.workspace.execution import RunSpec
@@ -270,7 +274,7 @@ MOMENTUM: Final = StrategyDescriptor(
     tool_arguments=MomentumToolArguments,
     tool_description="Analyze historical price momentum with structured SMA and RSI metrics.",
     behavior=MOMENTUM_BEHAVIOR,
-    config_schema_version=2,
+    config_schema_version=MOMENTUM_CONFIG_SCHEMA_VERSION,
     method_version=1,
     result_schema_version=2,
     evidence_codec_version=1,
@@ -285,7 +289,7 @@ GRAHAM_NUMBER: Final = StrategyDescriptor(
     tool_arguments=GrahamNumberToolArguments,
     tool_description="Calculate the Graham Number company-level valuation ceiling.",
     behavior=GRAHAM_NUMBER_BEHAVIOR,
-    config_schema_version=1,
+    config_schema_version=GRAHAM_NUMBER_CONFIG_SCHEMA_VERSION,
     method_version=1,
     result_schema_version=1,
     evidence_codec_version=1,
@@ -300,7 +304,7 @@ GRAHAM_GROWTH: Final = StrategyDescriptor(
     tool_arguments=GrahamGrowthValueToolArguments,
     tool_description="Calculate the explicit Graham growth-value method.",
     behavior=GRAHAM_GROWTH_BEHAVIOR,
-    config_schema_version=1,
+    config_schema_version=GRAHAM_GROWTH_CONFIG_SCHEMA_VERSION,
     method_version=1,
     result_schema_version=1,
     evidence_codec_version=1,
@@ -315,7 +319,7 @@ FCF_GROWTH: Final = StrategyDescriptor(
     tool_arguments=FCFEarningsGrowthToolArguments,
     tool_description="Analyze company free-cash-flow and diluted-EPS growth.",
     behavior=FCF_GROWTH_BEHAVIOR,
-    config_schema_version=1,
+    config_schema_version=FCF_GROWTH_CONFIG_SCHEMA_VERSION,
     method_version=FCF_GROWTH_METHOD_VERSION,
     result_schema_version=FCF_GROWTH_RESULT_SCHEMA_VERSION,
     evidence_codec_version=1,

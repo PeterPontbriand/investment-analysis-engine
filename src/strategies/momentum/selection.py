@@ -2,7 +2,6 @@
 
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Literal
 
 from pydantic import AwareDatetime, Field, model_validator
 
@@ -11,7 +10,14 @@ from src.config import settings
 from src.core.constants import ConfigKeys
 from src.data.instrument_profile import InstrumentProfile
 from src.strategies.momentum.analyzer import MomentumConfig
-from src.strategies.momentum.vocabulary import ANALYSIS_ID, METHOD_ID, AnalysisId, MethodId
+from src.strategies.momentum.vocabulary import (
+    ANALYSIS_ID,
+    CONFIG_SCHEMA_VERSION,
+    METHOD_ID,
+    AnalysisId,
+    ConfigSchemaVersion,
+    MethodId,
+)
 from src.workspace.selection_base import FrozenSelection, config_object
 
 
@@ -29,7 +35,7 @@ class MomentumSelection(FrozenSelection):
 
     analysis_id: AnalysisId = ANALYSIS_ID
     method_id: MethodId = METHOD_ID
-    config_schema_version: Literal[2] = 2
+    config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     short_window: int = Field(gt=0, strict=True)
     long_window: int = Field(gt=0, strict=True)
     rsi_period: int = Field(default=14, gt=0, strict=True)

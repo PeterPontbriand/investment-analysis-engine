@@ -23,13 +23,17 @@ class QuoteFreshnessPolicy:
 DEFAULT_QUOTE_FRESHNESS_POLICY = QuoteFreshnessPolicy()
 
 
+QuoteFreshnessStatus = Literal[
+    "recent_retrieval", "expired", "unknown_retrieval_time", "future_timestamp", "user_supplied", "historical"
+]
+"""How a quote's retrieval age compares with the freshness policy."""
+
+
 @dataclass(frozen=True)
 class QuoteFreshnessEvidence:
     """Retain the evaluated response age and independently known market timestamp."""
 
-    status: Literal[
-        "recent_retrieval", "expired", "unknown_retrieval_time", "future_timestamp", "user_supplied", "historical"
-    ]
+    status: QuoteFreshnessStatus
     evaluated_at: datetime
     retrieved_at: datetime | None
     retrieval_age_seconds: float | None

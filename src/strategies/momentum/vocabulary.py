@@ -1,4 +1,4 @@
-"""Momentum's vocabulary: the identifiers and enumerations more than one of its files needs.
+"""Momentum's vocabulary: its names, its stored-configuration version and its shared enumerations.
 
 This is the lowest-ranked role file of the strategy and imports nothing from it, so the selection class, the
 analyzer modules, the document envelope and the composition root all read one declaration. The price basis,
@@ -13,6 +13,9 @@ MethodId = Literal["sma_crossover"]
 
 ANALYSIS_ID: Final[AnalysisId] = "momentum"
 METHOD_ID: Final[MethodId] = "sma_crossover"
+
+ConfigSchemaVersion = Literal[2]
+CONFIG_SCHEMA_VERSION: Final[ConfigSchemaVersion] = 2
 
 
 class PriceBasis(StrEnum):

@@ -12,14 +12,15 @@ Every field is required. An absent value is an explicit ``null``, never an omitt
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, WithJsonSchema
 
-from src.analysis.shared.financial_resolution import PriceComparison
+from src.analysis.shared.financial_resolution import PriceComparison, PriceComparisonStatus
 from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.financial.provenance import ResolvedInput, SourceKind
+from src.data.financial.quote_freshness import QuoteFreshnessStatus
 from src.data.financial.resolution_trace import ResolutionTrace
 from src.data.instrument_profile import (
     InstrumentKind,
@@ -137,9 +138,7 @@ class LineagePart(DocumentPart):
 class QuoteFreshnessPart(DocumentPart):
     """How recent the quote behind a price comparison was."""
 
-    status: Literal[
-        "recent_retrieval", "expired", "unknown_retrieval_time", "future_timestamp", "user_supplied", "historical"
-    ]
+    status: QuoteFreshnessStatus
     evaluated_at: DocumentTimestamp
     retrieved_at: DocumentTimestamp | None
     retrieval_age_seconds: float | None
@@ -181,7 +180,7 @@ class SecurityUnitProvenancePart(DocumentPart):
 class PriceComparisonPart(DocumentPart):
     """The relationship between a method's value and the current price, with the evidence behind it."""
 
-    status: Literal["available", "unavailable"]
+    status: PriceComparisonStatus
     reason: str
     percent: float | None
     quote_freshness: QuoteFreshnessPart | None
@@ -342,7 +341,7 @@ def price_comparison_part(comparison: PriceComparison | None) -> PriceComparison
     provenance = resolution.provenance if resolution is not None else None
     freshness = comparison.quote_freshness
     return PriceComparisonPart(
-        status=comparison.status,  # type: ignore[arg-type]  # validated against the two statuses the model allows
+        status=comparison.status,
         reason=comparison.reason,
         percent=comparison.percent,
         quote_freshness=None
