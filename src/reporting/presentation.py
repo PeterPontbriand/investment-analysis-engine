@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import math
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, datetime, time
 from enum import StrEnum
 from typing import Any, Final
@@ -162,8 +162,3 @@ def json_document(payload: dict[str, Any]) -> str:
 def failure_document(envelope: FailureEnvelope) -> str:
     """Render a failure envelope as the stable JSON document every ``--json`` failure writes to standard output."""
     return json_document(envelope.model_dump(mode="json"))
-
-
-def diagnostic_payload(diagnostic: ResolutionDiagnostic) -> dict[str, str]:
-    """Convert a retained diagnostic to JSON-ready data."""
-    return asdict(diagnostic)
