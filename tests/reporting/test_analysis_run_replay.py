@@ -34,12 +34,12 @@ from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
 from src.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
 from src.workspace.capture import ExecutionCapture
-from src.workspace.codecs import decode_evidence, encode_evidence
+from src.workspace.codecs import decode_evidence
 from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
-from tests._wiring import EVIDENCE_BY_TYPE
+from tests._wiring import encode_native
 from tests.workspace.test_fcf_growth_codec import _result as _fcf_codec_result
 
 NOW = datetime(2026, 9, 19, 12, 0, 0, tzinfo=UTC)
@@ -141,7 +141,7 @@ def _graham_run(
         result_schema_version=1,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
-        result_evidence=encode_evidence(analysis, EVIDENCE_BY_TYPE),
+        result_evidence=encode_native(analysis),
         instrument_profile=profile,
     )
 
@@ -542,7 +542,7 @@ def _growth_run(
         result_schema_version=1,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
-        result_evidence=encode_evidence(analysis, EVIDENCE_BY_TYPE),
+        result_evidence=encode_native(analysis),
         instrument_profile=profile,
     )
 
@@ -784,7 +784,7 @@ def _fcf_run(
         result_schema_version=3,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
-        result_evidence=encode_evidence(result, EVIDENCE_BY_TYPE),
+        result_evidence=encode_native(result),
         instrument_profile=profile,
     )
 

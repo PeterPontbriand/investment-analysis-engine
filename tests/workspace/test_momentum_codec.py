@@ -32,10 +32,10 @@ from src.data.security_unit import (
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.strategies.momentum.selection import MomentumSelection
 from src.strategy_wiring import EVIDENCE_BY_KEY
-from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
+from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun
-from tests._wiring import EVIDENCE_BY_TYPE, codecs_with_decode
+from tests._wiring import codecs_with_decode, encode_native
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
 
@@ -110,7 +110,7 @@ def _run(evidence: MomentumRun | None = None) -> AnalysisRun:
         result_schema_version=2,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
-        result_evidence=encode_evidence(evidence or _evidence(), EVIDENCE_BY_TYPE),
+        result_evidence=encode_native(evidence or _evidence()),
     )
 
 
@@ -230,9 +230,7 @@ def test_mismatched_envelope_and_missing_payload() -> None:
 def test_invalid_native_instance_cannot_bypass_validation() -> None:
     evidence = _evidence()
     with pytest.raises(InvalidStoredRunError):
-        encode_evidence(
-            replace(evidence, metrics=replace(evidence.metrics, current_price=float("inf"))), EVIDENCE_BY_TYPE
-        )
+        encode_native(replace(evidence, metrics=replace(evidence.metrics, current_price=float("inf"))))
 
 
 def test_security_unit_documents_round_trip_and_reject_naive_dates() -> None:

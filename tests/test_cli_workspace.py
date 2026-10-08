@@ -24,13 +24,12 @@ from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
 from src.strategy_wiring import run_spec_for
 from src.workspace.capture import ExecutionCapture
-from src.workspace.codecs import encode_evidence
 from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
-from tests._wiring import EVIDENCE_BY_TYPE
+from tests._wiring import encode_native
 
 runner = CliRunner()
 
@@ -613,7 +612,7 @@ def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
         result_schema_version=1,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
-        result_evidence=encode_evidence(native, EVIDENCE_BY_TYPE),
+        result_evidence=encode_native(native),
     )
     database = SQLiteDatabase(src.cli_workspace.settings)
     try:

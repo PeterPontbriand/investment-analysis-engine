@@ -25,10 +25,10 @@ from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, 
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategy_wiring import EVIDENCE_BY_KEY
-from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
+from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun
-from tests._wiring import EVIDENCE_BY_TYPE, codecs_with_decode
+from tests._wiring import codecs_with_decode, encode_native
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
 
@@ -122,7 +122,7 @@ def _run(analysis: GrahamNumberAnalysis | None = None) -> AnalysisRun:
         result_schema_version=1,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
-        result_evidence=encode_evidence(analysis or _analysis(), EVIDENCE_BY_TYPE),
+        result_evidence=encode_native(analysis or _analysis()),
     )
 
 
@@ -135,7 +135,7 @@ def test_full_number_evidence_round_trip() -> None:
     # Native assembly equality deliberately excludes the resolver trace.
     assert restored.assembly.resolution_trace == original.assembly.resolution_trace
     assert restored.assembly.eps is not original.assembly.eps
-    assert encode_evidence(restored, EVIDENCE_BY_TYPE) == run.result_evidence
+    assert encode_native(restored) == run.result_evidence
 
 
 @pytest.mark.parametrize(
@@ -276,7 +276,7 @@ def test_invalid_native_result_is_rejected() -> None:
     original = _analysis()
     invalid = replace(original, result=GrahamNumberResult(CalculationStatus.OK, float("nan")))
     with pytest.raises(InvalidStoredRunError):
-        encode_evidence(invalid, EVIDENCE_BY_TYPE)
+        encode_native(invalid)
 
 
 def test_decode_does_not_recalculate_and_preserves_payload(monkeypatch: pytest.MonkeyPatch) -> None:

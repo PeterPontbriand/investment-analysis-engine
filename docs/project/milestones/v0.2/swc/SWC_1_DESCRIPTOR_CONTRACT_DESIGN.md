@@ -50,7 +50,7 @@ owns that result and is complete without the study.
 | D2 | Thirteen fields, each with an audited consumer, introduced by the slice whose consumer needs it. The `behavior` field replaces the earlier `evidence` field. | [§3.1](#31-fields) |
 | D3 | `StrategyBehavior[SelT, ResultT, DepsT]` is one generic frozen dataclass, erased behind a `Protocol` view; it replaces `EvidenceCodec`. | [§8](#8-typing-form) |
 | D4 | `ToolName` stays a hand-written `StrEnum`. `AnalysisToolArguments` becomes the existing shared arguments base class and the four-model union is deleted. Moved symbols keep no compatibility re-export. | [§9.1](#91-toolname) |
-| D5 | Handlers, selection parsers, native-status functions and replay projectors are `behavior` members. Selection builders, refresh executors and direct commands are members of a CLI-tier tuple; fixture composition and fixture requirements are members of an evaluation-tier tuple. Generic consumers receive injected mappings. | [§6](#6-generic-consumers), [§4](#4-static-declaration-model) |
+| D5 | Handlers, native-status functions and replay projectors are `behavior` members. Selection builders, refresh executors and direct commands are members of a CLI-tier tuple; fixture composition and fixture requirements are members of an evaluation-tier tuple. Generic consumers receive injected mappings. | [§6](#6-generic-consumers), [§4](#4-static-declaration-model) |
 | D6 | Dispatch fails closed through one `UndeclaredStrategyError`, defined in `src/core/strategy_errors.py` so every layer can raise it; no strategy is a default branch anywhere. | [§9.2](#92-fail-closed-dispatch) |
 | D7 | One shared `FailureEnvelope` for direct and workspace `--json` failures. `DatabaseMaintenanceReport` is a sibling that adopts the envelope's field names. | [§13](#13-failure-envelope-contract) |
 | D8 | Momentum profile composition becomes `compose_momentum_profile` in `src/strategies/momentum/execution.py`. | [§14](#14-momentum-profile-composition-helper) |
@@ -83,8 +83,8 @@ is the slice whose consumer first reads it; a later slice adds the field, not SW
 | `tool_arguments` | `type[AnalysisToolArguments]` | SWC.2c | The argument-model view; Ollama validation, schema and parser; `tool_for_arguments`. | `ANALYSIS_TOOL_ARGUMENT_MODELS`; the three `_tool_name` chains. |
 | `tool_description` | `str` | SWC.2c | Ollama tool-schema JSON and parser registry. | `_TOOL_DESCRIPTIONS`. |
 | `behavior` | `BehaviorView` | SWC.2c (first members) | See [§3.3](#33-behavior-members-and-the-two-tiers). | The `encode_evidence` and `decode_evidence` isinstance chains; four inline ticker-identity blocks; the runner's isinstance tuple and `_native_status`; the handler table; the parse and replay chains. |
-| `alias` | `str` | SWC.3a | `parse_selection`; `_parse_analysis`; alias-to-method lookups; help text; the generated strategy lists. | `method_aliases.py` (three tables); the alias tuple in `parse_selection`. |
-| `label` | `str` | SWC.3a | `encode_evidence` and `decode_evidence` error text; the generated strategy lists. | The two four-way label chains in `codecs.py`. |
+| `alias` | `str` | SWC.3a | `_parse_analysis`; alias-to-method lookups; help text; the generated strategy lists. | `method_aliases.py` (three tables); the alias tuple in `parse_selection`. |
+| `label` | `str` | SWC.3a | `encode_with` and `decode_evidence` error text; the generated strategy lists. | The two four-way label chains in `codecs.py`. |
 | `config_schema_version` | `int` | SWC.3a | `decode_evidence`. | `_EXPECTED_VERSIONS`. |
 | `method_version` | `int` | SWC.3a | `execute`; `decode_evidence`. | `_METHOD_VERSIONS`; `_EXPECTED_VERSIONS`. |
 | `result_schema_version` | `int` | SWC.3a | `execute`; `decode_evidence`. | `_METHOD_VERSIONS`; `_EXPECTED_VERSIONS`. |
@@ -121,7 +121,7 @@ The descriptor must not hold, and no field may be added for:
   `schema_version` of each JSON builder (owned by `AnalysisRun` and by the envelope models);
 - a generic result supertype, a registration function, a discovery hook or a factory.
 
-Handlers, selection parsers, native-status functions and replay projectors are permitted as `behavior`
+Handlers, native-status functions and replay projectors are permitted as `behavior`
 members, because the injected consumers need them and none of them constructs, discovers or registers
 anything.
 
@@ -139,9 +139,8 @@ SWC.3a adds `SelT` as the first parameter with its first member ([F.4](#f4-selec
 | `deps_type` | `type[DepsT]` | SWC.2c | Handler binding (exact-type guard on injected dependencies). |
 | `handler` | factory from `(DepsT, ToolRuntime)` to a handler returning `ResultT` | SWC.2c | Tool registration. |
 | `native_status` | function from `ResultT` to `str \| None` | SWC.2c | The evaluation runner's telemetry status. |
-| `selection_type` | `type[SelT]` | SWC.3a | The selection union bound; `parse_for`. |
-| `parse` | function from a decoded configuration object to `SelT` | SWC.3a | `parse_selection`. |
-| `encode`, `decode`, `ticker_of` | functions over `ResultT` | SWC.3a | `encode_evidence`, `decode_evidence`. |
+| `selection_type` | `type[SelT]` | SWC.3a | The selection union bound; `project_for`; the CLI tier's exact-type checks. |
+| `encode`, `decode`, `ticker_of` | functions over `ResultT` | SWC.3a | `RunSpec.encode` (through `encode_with`), `decode_evidence`. |
 | `project` | function from replay inputs, `ResultT`, `SelT` and options to text | SWC.4c | `project_run`. |
 | `headline` | function from `ResultT` to `Headline` | Step 3.5 slice 3.5.0 | The side-by-side refresh table. |
 
@@ -217,7 +216,7 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
   | :--- | :--- | :--- |
   | `vocabulary.py` | Identity constants and the enumerations more than one role file needs | every role file below |
   | Analyzer modules (`analyzer.py`, `models.py`, `config.py`, `calculation.py` and the like) | Config, result, analyzer, calculators | `analysis` |
-  | `selection.py` | Selection class and parser | `workspace` |
+  | `selection.py` | Selection class | `workspace` |
   | `codec.py` | Encode, decode, ticker, native-status function | `workspace` |
   | `execution.py` | Execution adapter, capture type, normalizer | `workspace` |
   | `tool.py` | Arguments model, dependency class, handler | `orchestrator` |
@@ -377,8 +376,8 @@ T10 or T11.
 | SWC.2c | `src/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | `BY_RESULT_TYPE` membership; each behavior's `native_status` (Momentum's returns `None`, [§7](#7-strategy-specific-escape-hatches)); the duplicate union becomes `NativeEvidence`; the FCF default is gone. | The status function of each strategy. |
 | SWC.2d | `src/evaluation/composition.py`: `compose_fixture_dependencies`, `_require_tool_evidence` | Evaluation tier: per-strategy `compose` and `requirement`, with the tier a defaulted `tier` parameter of `compose_fixture_dependencies`, `compose_fixture_dispatcher` and `dispatch_fixture_case`. The `AnalysisToolArguments` union was replaced by the shared base in SWC.2b. | Fixture values, expected outcomes and case truth, in `src/strategies/<strategy>/evaluation.py`, `fixtures/` and `cases/`. |
 | SWC.2b, SWC.3a | `src/workspace/execution.py`: `NativeEvidence` move; `_METHOD_VERSIONS`, `execute`; `ExecutionCapture` and the four `from_*_capture` | `execute(request, ..., spec)` receives the strategy's versions and `encode_object`; `getattr(selection, "as_of", None)` becomes `selection.as_of`. | `ExecutionCapture` (moved to `src/workspace/capture.py`), each normalizer in its adapter, `NativeEvidence`. |
-| SWC.3a | `src/workspace/codecs.py`: `encode_evidence`, `decode_evidence`, `_EXPECTED_VERSIONS` | `encode_evidence(evidence, codecs)` and `decode_evidence(run, codecs)` look up the injected codec by exact type or key; expected versions, label, ticker identity. | Each strategy's `encode_*`/`decode_*`, validation and provenance rules. |
-| SWC.3a | `src/workspace/requests.py`: `parse_selection`; `src/workspace/method_aliases.py` | `parse_selection(alias, config_json, parsers)`; the alias vocabulary is the descriptors' `alias`, and `method_aliases.py` is deleted. | Each selection class and parser, in `src/strategies/<strategy>/selection.py`. |
+| SWC.3a | `src/workspace/codecs.py`: `decode_evidence`, `encode_with`, `_EXPECTED_VERSIONS` | `decode_evidence(run, codecs)` looks up the injected codec by key, and `RunSpec.encode` is bound to the codec of the run's own `(analysis_id, method_id)` (corrected 2026-10-08: the by-type `encode_evidence` lookup was never called by production and was deleted); expected versions, label, ticker identity. | Each strategy's `encode_*`/`decode_*`, validation and provenance rules. |
+| SWC.3a | `src/workspace/method_aliases.py` | The alias vocabulary is the descriptors' `alias`, and `method_aliases.py` is deleted. (`parse_selection` was also rewritten here, but production never called it; it was deleted 2026-10-08, [H.33](#h33-one-dispatch-path-per-job-2026-10-08).) | Each selection class, in `src/strategies/<strategy>/selection.py`. |
 | SWC.3a | `src/data/repositories/watchlists.py`: alias lookup in the unreadable-entry message | The repository receives an alias resolver at construction (ten constructions in `src`, through one helper in `cli_workspace.py`); an unknown stored method falls back to its method id. | The message wording. |
 | SWC.3a | `src/workspace/refresh.py` | `refresh_watchlist` receives the run-spec lookup for `execute`, beside the executor it already receives. | Job scheduling and isolation. |
 | SWC.3a | `src/cli.py`, `src/cli_workspace.py`: three Momentum composition copies | None. | One `compose_momentum_profile` ([§14](#14-momentum-profile-composition-helper)). |
@@ -441,7 +440,6 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
     selection_type: type[SelT]
     result_type: type[ResultT]
     deps_type: type[DepsT]
-    parse: SelectionParser[SelT]
     encode: EncodeFn[ResultT]
     decode: DecodeFn[ResultT]
     ticker_of: TextFn[ResultT]
@@ -449,7 +447,7 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
     handler: ToolHandlerFactory[DepsT, ResultT]
     project: ReplayFn[ResultT, SelT]
     headline: HeadlineFn[ResultT]  # added by Step 3.5 slice 3.5.0
-    # parse_for, encode_object, decode_for, native_status_of, bind_handler, project_for and headline_of implement
+    # encode_object, decode_for, native_status_of, bind_handler, project_for and headline_of implement
     # BehaviorView; each guards with isinstance against selection_type, result_type or deps_type.
 
 
@@ -522,11 +520,11 @@ has a fall-through branch.
 
 | Consumer | Undeclared input | Result |
 | :--- | :--- | :--- |
-| `encode_evidence` | Evidence whose exact type matches no injected codec. | `UndeclaredStrategyError`. It is a programming error, so it is not wrapped as `InvalidStoredRunError`. |
+| `RunSpec.encode` | Evidence whose exact type is not the result type of the run spec's own strategy: an undeclared type, a subclass of the declared type, or another strategy's result. | `UndeclaredStrategyError`. It is a programming error, so it is not wrapped as `InvalidStoredRunError`. |
 | `decode_evidence` | `(analysis_id, method_id)` with no injected codec. | Existing `UnsupportedRunVersionError`, message and `reason_code` unchanged. |
 | `project_run` | A key with no injected projector. | Existing `UnsupportedProjectionError`, message unchanged. |
 | CLI tier lookups (`build`, `refresh`) | A selection or alias whose key has no entry. | `UndeclaredStrategyError`, replacing the `AssertionError` fallthrough. |
-| `parse_selection` | Unknown alias. | Existing `ValueError("Unknown analysis alias: ...")`, raised when the injected parser mapping has no entry. |
+| Alias lookup (`BY_ALIAS` through `require`) | An alias no descriptor declares. | `UndeclaredStrategyError`. |
 | `tool_for_arguments` | Arguments of an undeclared model type. | `UndeclaredStrategyError`, replacing `TypeError`. |
 | Handler registration | A `ToolName` member with no bound handler, or a handler for no member. | `UndeclaredStrategyError` at registration, naming the tool. |
 | Evaluation binding | A descriptor tool with no evaluation-tier entry. | `UndeclaredStrategyError`, naming the tool. |
@@ -935,7 +933,7 @@ function returns `None`.
 | :--- | :--- | :--- |
 | Arguments model | `ticker` and `as_of` from the shared base, and `use_cache`. The strategy specifications fix every method parameter and state that none is a user option. | A slice plan that adds `currency` follows FCF's field. |
 | `deps_type` and `handler` | A dependency class holding the strategy's analyzer and the SEC provider id (all seven read SEC EDGAR annual filings only), and a handler of FCF's shape. | None. |
-| Selection class, `parse`, `build` | The shared selection fields (`as_of`, `use_cache`) and the strategy's own `analysis_id`, `method_id` and version `Literal`s; parse and build are trivial. | None. |
+| Selection class, `build` | The shared selection fields (`as_of`, `use_cache`) and the strategy's own `analysis_id`, `method_id` and version `Literal`s; build is trivial. | None. |
 | `encode`, `decode`, `ticker_of` | A strict codec over the strategy's result; `.ticker`. | None. |
 | `native_status` | Returns the result's `execution_status` value. | None for the seven. |
 | `project` | Replay over decoded evidence and selection through the strategy's presenter, with no provider, cache, clock or calculator. | None. |
@@ -981,7 +979,7 @@ dataclass is built at run time.
 | 3 | `ToolName` member | `src/orchestrator/tool_names.py` | R | edit | T4: `ToolName member X has no descriptor`. |
 | 4 | Arguments model, dependency class, handler | `src/strategies/<s>/tool.py` (new) | G | stub | **type** (`tool_arguments`, `deps_type`, `handler`); T4: `tool-argument model X has no descriptor`. |
 | 5 | `NativeEvidence` and `SelectionMember` entries | `src/workspace/strategy_types.py` | R | edit | **type** (both bounds); T1, T2. |
-| 6 | Selection class and parser | `src/strategies/<s>/selection.py` (new) | G | stub | **type** (`selection_type`, `parse`); T1: `descriptor X has no selection member`. |
+| 6 | Selection class | `src/strategies/<s>/selection.py` (new) | G | stub | **type** (`selection_type`); T1: `descriptor X has no selection member`. |
 | 7 | Codec and native-status function | `src/strategies/<s>/codec.py` (new) | G | stub | **type** (`encode`, `decode`, `ticker_of`, `native_status`); T8 round trip. |
 | 8 | Execution adapter, capture type, normalizer | `src/strategies/<s>/execution.py` (new) | G | stub | T22: `alias X stored no run`. |
 | 9 | CLI file: direct command, selection builder, refresh executor | `src/strategies/<s>/cli.py` (new) | G | stub | **type** (the CLI-tier pairing); T22. |
@@ -1536,7 +1534,7 @@ member outside the root, would be an artificial read.
 
 SWC.2c declares `StrategyBehavior[ResultT, DepsT]`. A type parameter that no member mentions cannot be
 checked: `mypy` cannot reject a mispairing through it and no test can see it, so it would be a dead
-declaration of the kind T16 exists to prevent. SWC.3a adds `selection_type` and `parse` and adds `SelT` as the
+declaration of the kind T16 exists to prevent. SWC.3a adds `selection_type` (and a `parse` member, removed 2026-10-08 with the dead parse path) and adds `SelT` as the
 first type parameter in the same change, which edits the four declarations (each already writes its type
 arguments explicitly, [§8](#8-typing-form)).
 
@@ -1727,29 +1725,29 @@ with the decision and its reason.
 `EvidenceCodec` (label, the four versions, `encode`, `decode`) is defined in `src/workspace/codecs.py` and
 `RunSpec` (the three versions `execute` writes and its `encode`) in `src/workspace/execution.py`, so each
 generic consumer owns the shape it receives and names no strategy. The root builds them with pure functions
-(`evidence_by_type`, `evidence_by_key`, `run_specs_by_key`, `parsers_by_alias`) and publishes
-`EVIDENCE_BY_KEY`, `RUN_SPECS_BY_KEY` and `REPLAYS_BY_KEY`; the by-type and by-alias views are built on demand by the
-conformance checks and tests, because no production layer reads them. `RunSpec.encode` is bound to the
+(`evidence_by_key`, `run_specs_by_key`, `replays_by_key`) and publishes
+`EVIDENCE_BY_KEY`, `RUN_SPECS_BY_KEY` and `REPLAYS_BY_KEY`; no by-type or by-alias view is built, because no production layer reads one. `RunSpec.encode` is bound to the
 same codec, so a schema failure is still reported as `InvalidStoredRunError` with the strategy's label.
 `run_spec_for(selection, run_specs=RUN_SPECS_BY_KEY)` is the one lookup `src.cli` and `src.cli_workspace` use.
 
 ### H.2 Behavior members and accessors
 
-`StrategyBehavior` gains `selection_type`, `parse`, `encode`, `decode` and `ticker_of`, with `SelT` as its first
-type parameter ([F.4](#f4-selection-type-parameter)). `BehaviorView` gains `parse_for`, `encode_object` and
+`StrategyBehavior` gains `selection_type`, `encode`, `decode` and `ticker_of`, with `SelT` as its first
+type parameter ([F.4](#f4-selection-type-parameter)). `BehaviorView` gains `encode_object` and
 `decode_for`. `decode_for(payload, ticker)` decodes and then compares `ticker_of(result)` with the run
 envelope's ticker, so `ticker_of` is reached only through that accessor, as `deps_type`, `handler` and
 `native_status` are ([F.3](#f3-reads-of-members-inside-the-root-t16)). Each accessor guards with an exact type
 check and raises `UndeclaredStrategyError` otherwise. `pair_evaluation` in `src/evaluation/strategy_fixtures.py`
 takes the new first type parameter; this is the only edit that file needed.
 
-### H.3 Selection parsing
+### H.3 Selection parsing (removed 2026-10-08)
 
-`parse_selection(alias, config_json, parsers)` keeps the JSON decoding rules (duplicate keys, non-finite numbers,
-object body) and raises `ValueError("Unknown analysis alias: ...")` when the injected mapping has no parser.
-Each strategy's `selection.py` gains its parser; the `config` body rules shared by Momentum and both Graham
-strategies are `config_object` in `src/workspace/selection_base.py`. The parsers' behavior is unchanged,
-including Momentum's materialization of omitted windows from configured policy.
+SWC.3a rewrote `parse_selection(alias, config_json, parsers)` over injected parsers and gave each strategy a `parse`
+member, reached through the behavior view as `parse_for`. Production never called any of it: the last command-line
+caller of `parse_selection` was removed before the SWC slices began, and the commands build a selection from their own
+options through the CLI tier's `build`, while a stored watchlist entry is read by `decode_selection`. The path is
+deleted, with `parse_selection` and its JSON helpers, `parse_for`, the `parse` member, `parsers_by_alias`, the per-strategy
+parse functions and `config_object`. See [H.33](#h33-one-dispatch-path-per-job-2026-10-08).
 
 ### H.4 Files outside the plan's list, and why
 
@@ -1816,8 +1814,7 @@ differ from the selection's fields (Graham Growth's `current_aaa_yield` is the s
   `6.5` and `4.15` from case GRG-01).
 - **T8 and T15:** T8 stores the real result under the entry's instance; `execute` serializes it, so T8 needs no
   body. A descriptor with no tier entry is reported by T8 as having no sample selection to store. T15 pins four
-  composition members, five entry fields and two type parameters. T11's parser probe reads `parse_for` with a
-  body no strategy accepts, and its mispairing probe returns another strategy's sample from a replaced parser.
+  composition members, five entry fields and two type parameters. T11's probes exercise only production paths: they encode through each strategy's run spec and look up an undeclared alias in the alias index.
 - **Edit sites:** still 18, in 22 files. The sample selection is written in the evaluation file (row 14) and
   passed in the tier entry (row 15), both already counted, so no row and no file is added.
 
@@ -2309,3 +2306,27 @@ Decided by the project owner after H.32, in the same slice.
   `src/analysis/shared/financial_resolution.py`, which the dataclass fields, `PriceComparison`'s validation and the
   document parts all use. Layering permits the import: reporting already imports both modules.
 - **Output.** None. The generated schemas are unchanged.
+
+### H.33 One dispatch path per job (2026-10-08)
+
+Decided by the project owner after a review of the code that tests and the conformance script exercised but production
+never ran.
+
+- **Selection parsing.** Production turns command-line options into a selection with the CLI tier's `build`, and reads a
+  stored watchlist entry with `decode_selection`, which validates the stored JSON against the selection union and checks
+  the row's identity columns. `parse_selection(alias, config_json, parsers)` and the `parse` member were a third route
+  that nothing called. They are deleted. Two rules existed only on that route and were removed with it: omitted keys were
+  filled from configured policy, and a duplicate JSON key was rejected. A stored selection is written by
+  `encode_selection` and always carries every key, so neither applies; a repeated key in a hand-edited row is accepted
+  with the last value winning, and that is left as it is.
+- **Evidence encoding.** Production encodes through the run spec of the run's own `(analysis_id, method_id)`:
+  `run_spec_for(selection)`, then `RunSpec.encode`, which is `encode_with` over the strategy's `encode_object`, which
+  rejects any object that is not exactly its result type. `encode_evidence`, which found a codec by the evidence's type,
+  and `evidence_by_type` are deleted, and the tests that used them as a builder encode through the run spec.
+- **Fail-closed on the production path.** Each is rejected on the path production runs, with a test: an undeclared evidence
+  type, a subclass of a declared result type, another strategy's result (all in `test_workspace_fail_closed.py`, through
+  `run_spec_for(...).encode`), an undeclared alias (`_method_id_for_alias`), and an undeclared `(analysis_id, method_id)`
+  (`run_spec_for`, `decode_evidence` and the refresh job). The conformance script probes only these paths.
+- **Edit sites.** Unchanged at 20 sites in 25 files: the parser was a function inside the `selection.py` that row 6 already
+  counts, so no row and no file is removed. Row 6 now reads "Selection class".
+- **Output.** None.

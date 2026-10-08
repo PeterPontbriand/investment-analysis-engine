@@ -17,9 +17,9 @@ from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategies.momentum.selection import MomentumSelection
-from src.workspace.requests import AnalysisRequest, parse_selection
+from src.workspace.requests import AnalysisRequest
 from src.workspace.strategy_types import AnalysisSelection
-from tests._wiring import PARSERS_BY_ALIAS
+from src.workspace.watchlists import StoredSelectionError, decode_selection, encode_selection
 
 
 @pytest.fixture(autouse=True)
@@ -478,169 +478,36 @@ def test_union_rejects_bad_identifiers_and_versions(all_selections: tuple[Analys
                 AnalysisRequest.model_validate({"ticker": "KO", "selection": payload})
 
 
-@pytest.mark.parametrize(
-    ("alias", "body", "analysis", "method"),
-    [
-        ("momentum", "{}", "momentum", "sma_crossover"),
-        ("graham-number", "{}", "graham_number", "graham_number"),
-        (
-            "graham-growth",
-            '{"config":{"expected_growth":5,"aaa_yield_override":4.5}}',
-            "graham_growth_value",
-            "graham_growth_value",
+def _stored_examples() -> list[AnalysisSelection]:
+    return [
+        MomentumSelection(short_window=2, long_window=5, rsi_period=1),
+        GrahamNumberSelection(eps_override=-1, bvps_override=0),
+        GrahamGrowthSelection(expected_growth=-5, aaa_yield_override=0),
+        FCFGrowthSelection(
+            policy=FCFPolicySnapshot(forward_policy=ForwardPolicy.CONFIRMATION),
+            as_of=datetime(2025, 1, 1, tzinfo=UTC),
         ),
-        ("fcf-growth", "{}", "fcf_earnings_growth", "reported_fcf_eps_cagr"),
-    ],
-)
-def test_parser_aliases_and_canonical_identifiers(alias: str, body: str, analysis: str, method: str) -> None:
-    selection = parse_selection(alias, body, PARSERS_BY_ALIAS)
-    expected_version = 2 if analysis == "momentum" else 1
-    assert (selection.analysis_id, selection.method_id, selection.config_schema_version) == (
-        analysis,
-        method,
-        expected_version,
-    )
+    ]
 
 
-@pytest.mark.parametrize("alias", ["", "Momentum", " momentum", "graham_number", "sma_crossover", "fcf"])
-def test_parser_rejects_nonexact_aliases(alias: str) -> None:
-    with pytest.raises(ValueError, match="Unknown analysis alias"):
-        parse_selection(alias, "{}", PARSERS_BY_ALIAS)
-
-
-@pytest.mark.parametrize("alias", ["momentum", "graham-number", "graham-growth", "fcf-growth"])
-@pytest.mark.parametrize("body", ["", "{", '{"config":}', "{} trailing", '{"config":{},}', "[]", "null", "5", '"x"'])
-def test_parser_rejects_malformed_or_nonobject_json(alias: str, body: str) -> None:
-    if body in ("[]", "null", "5", '"x"'):
-        with pytest.raises(ValueError, match="must be a JSON object"):
-            parse_selection(alias, body, PARSERS_BY_ALIAS)
-    else:
-        with pytest.raises(json.JSONDecodeError):
-            parse_selection(alias, body, PARSERS_BY_ALIAS)
-
-
-@pytest.mark.parametrize(
-    "body",
-    [
-        '{"config":{},"config":{}}',
-        '{"config":{"eps_override":1,"eps_override":2}}',
-        '{"config":{"unknown":{"same":1,"same":2}}}',
-        '{"config":{"eps_override":1,"eps_\\u006fverride":2}}',
-    ],
-)
-def test_parser_rejects_duplicate_keys_at_every_depth(body: str) -> None:
-    with pytest.raises(ValueError, match="Duplicate configuration key"):
-        parse_selection("graham-number", body, PARSERS_BY_ALIAS)
-
-
-@pytest.mark.parametrize("token", ["NaN", "Infinity", "-Infinity", "1e999", "-1e999"])
-@pytest.mark.parametrize("alias", ["momentum", "graham-number", "graham-growth", "fcf-growth"])
-def test_parser_rejects_nonfinite_json_anywhere(alias: str, token: str) -> None:
-    with pytest.raises(ValueError, match="finite"):
-        parse_selection(
-            alias, '{"unknown":[{"nested":' + token + "}]}", PARSERS_BY_ALIAS
-        )  # rejects before field validation
-
-
-@pytest.mark.parametrize("alias", ["momentum", "graham-number", "graham-growth", "fcf-growth"])
-@pytest.mark.parametrize("field", ["ticker", "method_id", "analysis_id", "config_schema_version", "unknown"])
-def test_parser_rejects_top_level_foreign_fields(alias: str, field: str) -> None:
-    with pytest.raises(ValueError, match="configuration contains|Configuration body"):
-        parse_selection(alias, json.dumps({field: 1}), PARSERS_BY_ALIAS)
-
-
-@pytest.mark.parametrize("alias", ["momentum", "graham-number", "graham-growth"])
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [("analysis_id", "graham"), ("method_id", "graham_number"), ("config_schema_version", 1)],
-)
-def test_parser_rejects_even_matching_identity_fields_in_config(alias: str, field: str, value: object) -> None:
-    with pytest.raises(ValueError, match="identifiers and version"):
-        parse_selection(alias, json.dumps({"config": {field: value}}), PARSERS_BY_ALIAS)
-
-
-@pytest.mark.parametrize("alias", ["momentum", "graham-number", "graham-growth"])
-@pytest.mark.parametrize("value", [None, [], 1, "{}", False])
-def test_parser_requires_config_object_when_present(alias: str, value: object) -> None:
-    with pytest.raises(ValueError, match="must be a JSON object"):
-        parse_selection(alias, json.dumps({"config": value}), PARSERS_BY_ALIAS)
-
-
-@pytest.mark.parametrize(
-    ("alias", "body"),
-    [
-        ("momentum", {"config": {"use_cache": None}}),
-        ("momentum", {"config": {"unknown": 1}}),
-        ("momentum", {"config": {"short_window": None}}),
-        ("momentum", {"config": {"rsi_period": None}}),
-        ("graham-number", {"config": {"expected_growth": 5}}),
-        ("graham-growth", {"config": {"expected_growth": 5, "aaa_yield_override": 4.5, "bvps_override": 2}}),
-        ("graham-growth", {}),
-        ("graham-growth", {"config": {}}),
-        ("fcf-growth", {"policy": {"unknown": 1}}),
-        ("fcf-growth", {"policy": {"method_id": "reported_fcf_eps_cagr"}}),
-        ("fcf-growth", {"policy": None}),
-        ("fcf-growth", {"policy": []}),
-    ],
-)
-def test_parser_enforces_method_and_nested_field_allowlists(alias: str, body: dict[str, object]) -> None:
-    with pytest.raises(ValidationError):
-        parse_selection(alias, json.dumps(body), PARSERS_BY_ALIAS)
-
-
-def test_parser_materializes_omitted_defaults_and_preserves_explicit_fields() -> None:
-    assert tuple(
-        parse_selection(alias, "{}", PARSERS_BY_ALIAS) for alias in ("momentum", "graham-number", "fcf-growth")
-    ) == (
-        MomentumSelection.from_settings(),
-        GrahamNumberSelection(),
-        FCFGrowthSelection(),
-    )
-    momentum = parse_selection("momentum", '{"config":{"short_window":1,"rsi_period":1}}', PARSERS_BY_ALIAS)
-    assert isinstance(momentum, MomentumSelection)
-    assert (momentum.short_window, momentum.long_window, momentum.rsi_period) == (1, 5, 1)
-    number = parse_selection(
-        "graham-number", '{"config":{"security_provider_id":" MASSIVE ","bvps_override":0}}', PARSERS_BY_ALIAS
-    )
-    assert isinstance(number, GrahamNumberSelection)
-    assert number.to_graham_number_config().bvps_override == 0
-    assert (number.eps_basis, number.quote_provider_id) == ("ttm", "massive")
-    fcf = parse_selection(
-        "fcf-growth",
-        '{"policy":{"historical_horizon":"4","include_fcf_yield":false},"currency":" cad ","use_cache":false}',
-        PARSERS_BY_ALIAS,
-    )
-    assert isinstance(fcf, FCFGrowthSelection)
-    assert fcf.currency == "CAD"
-    assert fcf.use_cache is False
-    assert fcf.to_fcf_policy() == FCFEarningsGrowthPolicy(
-        historical_horizon=HistoricalHorizon.FOUR_YEARS, include_fcf_yield=False
-    )
-
-
-def test_explicit_config_round_trips_without_settings_or_external_activity(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_stored_selection_round_trips_without_settings_or_external_activity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def forbidden(*_args: object, **_kwargs: object) -> None:
-        pytest.fail("Parsing explicit request data must not read mutable/external state")
+        pytest.fail("Decoding a stored selection must not read mutable/external state")
 
-    # Imports have already completed; these guards cover the parsing/conversion operation.
+    # Imports have already completed; these guards cover the encode and decode operations.
     monkeypatch.setattr("src.config.ProjectSettings.get_momentum_analysis", forbidden)
     monkeypatch.setattr("builtins.open", forbidden)
     monkeypatch.setattr("pathlib.Path.open", forbidden)
     monkeypatch.setattr("socket.socket", forbidden)
     monkeypatch.setattr("sqlite3.connect", forbidden)
     monkeypatch.setattr("os.getenv", forbidden)
-    examples = [
-        ("momentum", {"config": {"short_window": 2, "long_window": 5, "rsi_period": 1}}),
-        ("graham-number", {"config": {"eps_override": -1, "bvps_override": 0}}),
-        ("graham-growth", {"config": {"expected_growth": -5, "aaa_yield_override": 0}}),
-        ("fcf-growth", {"policy": {"forward_policy": "confirmation"}, "as_of": "2025-01-01T00:00:00Z"}),
-    ]
-    for alias, body in examples:
-        selection = parse_selection(alias, json.dumps(body), PARSERS_BY_ALIAS)
-        values = selection.model_dump(mode="json", exclude={"analysis_id", "method_id", "config_schema_version"})
-        serialized = json.dumps(values if alias == "fcf-growth" else {"config": values}, sort_keys=True)
-        assert parse_selection(alias, serialized, PARSERS_BY_ALIAS) == selection
-        assert parse_selection(alias, serialized, PARSERS_BY_ALIAS).model_dump_json() == selection.model_dump_json()
+    for selection in _stored_examples():
+        stored = encode_selection(selection)
+        restored = decode_selection(selection.method_id, selection.config_schema_version, stored)
+        assert restored == selection
+        assert encode_selection(restored) == stored
         if isinstance(selection, MomentumSelection):
             assert selection.to_momentum_config().rsi_period == 1
         elif isinstance(selection, GrahamNumberSelection):
@@ -649,6 +516,40 @@ def test_explicit_config_round_trips_without_settings_or_external_activity(monke
             assert selection.to_graham_growth_config().expected_growth == -5
         else:
             assert selection.to_fcf_policy().forward_policy is ForwardPolicy.CONFIRMATION
+
+
+@pytest.mark.parametrize("index", range(4))
+def test_stored_selection_rejects_unknown_foreign_and_mistyped_fields(index: int) -> None:
+    selection = _stored_examples()[index]
+    stored = json.loads(encode_selection(selection))
+    mutations: list[dict[str, object]] = [
+        {**stored, "unknown": 1},
+        {**stored, "ticker": "KO"},
+        {**stored, "analysis_id": "wrong"},
+        {**stored, "method_id": "wrong"},
+    ]
+    for key in stored:
+        if key not in {"analysis_id", "method_id", "config_schema_version"}:
+            mutations.append({**stored, key: {"wrong": "type"}})
+    for mutated in mutations:
+        with pytest.raises(StoredSelectionError):
+            decode_selection(selection.method_id, selection.config_schema_version, json.dumps(mutated))
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        {"policy": {"unknown": 1}},
+        {"policy": {"method_id": "reported_fcf_eps_cagr"}},
+        {"policy": None},
+        {"policy": []},
+    ],
+)
+def test_stored_fcf_selection_enforces_the_nested_policy_allowlist(mutation: dict[str, object]) -> None:
+    selection = FCFGrowthSelection()
+    stored = {**json.loads(encode_selection(selection)), **mutation}
+    with pytest.raises(StoredSelectionError):
+        decode_selection(selection.method_id, selection.config_schema_version, json.dumps(stored))
 
 
 @pytest.mark.parametrize("version", [True, False, 1.0, "1", 2.0, "2", 0, 99])

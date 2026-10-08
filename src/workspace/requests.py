@@ -1,4 +1,4 @@
-"""Analysis requests and selection parsing for the local research workspace.
+"""Analysis requests for the local research workspace.
 
 An :class:`AnalysisRequest` binds a normalized ticker to one immutable per-method selection. The
 selection classes live in each strategy's ``selection`` module, their shared base and the provider
@@ -20,16 +20,10 @@ values and cannot be overridden or made to disagree with one another; an unsuppo
 validation time.
 """
 
-import json
-import math
-from collections.abc import Callable, Mapping
-from typing import cast
-
 from pydantic import field_validator
 
-from src.core.strategy_errors import find
 from src.workspace.selection_base import FrozenSelection
-from src.workspace.strategy_types import AnalysisSelection, SelectionMember
+from src.workspace.strategy_types import AnalysisSelection
 
 
 class AnalysisRequest(FrozenSelection):
@@ -45,60 +39,3 @@ class AnalysisRequest(FrozenSelection):
         if not normalized:
             raise ValueError("ticker must not be empty.")
         return normalized
-
-
-def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
-    """Decode each JSON object without silently overwriting duplicate keys."""
-    values: dict[str, object] = {}
-    for key, value in pairs:
-        if key in values:
-            raise ValueError(f"Duplicate configuration key: {key!r}.")
-        values[key] = value
-    return values
-
-
-def _finite_json_float(text: str) -> float:
-    """Reject exponent overflow as well as explicitly nonfinite JSON constants."""
-    value = float(text)
-    if not math.isfinite(value):
-        raise ValueError("Configuration numbers must be finite.")
-    return value
-
-
-def _reject_json_constant(text: str) -> object:
-    raise ValueError(f"Nonfinite JSON constant is not allowed: {text}.")
-
-
-type SelectionParser = Callable[[dict[str, object]], SelectionMember]
-
-
-def parse_selection(alias: str, config_json: str, parsers: Mapping[str, SelectionParser]) -> AnalysisSelection:
-    """Parse one exact CLI alias and its method-specific JSON configuration.
-
-    The JSON decoding rules are shared here; the alias's own parser, injected by the caller, validates the
-    decoded object. Omitted defaults are resolved once; explicit null does not mean omission for required
-    scalar fields or configuration objects.
-
-    Args:
-        alias: A declared analysis alias.
-        config_json: A JSON object containing request configuration only.
-        parsers: The selection parser of each declared alias.
-
-    Returns:
-        A validated immutable selection with canonical identifiers.
-
-    Raises:
-        ValueError: The alias, JSON representation or configuration is invalid.
-    """
-    parser = find(parsers, alias)
-    if parser is None:
-        raise ValueError(f"Unknown analysis alias: {alias!r}.")
-    decoded: object = json.loads(
-        config_json,
-        object_pairs_hook=_unique_json_object,
-        parse_float=_finite_json_float,
-        parse_constant=_reject_json_constant,
-    )
-    if not isinstance(decoded, dict):
-        raise ValueError("Configuration must be a JSON object.")
-    return parser(cast(dict[str, object], decoded))

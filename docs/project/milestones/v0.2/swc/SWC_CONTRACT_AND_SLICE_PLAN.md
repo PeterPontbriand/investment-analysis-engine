@@ -15,7 +15,7 @@ owns its position and work-package status.
   Momentum's three profile-composition copies with one; give contributors a status command, a
   generator and a specimen strategy; document the contributor workflow.
 - **What the descriptor means:** one authoritative declaration, at the composition root, of each
-  strategy's identity, versions and typed behavior (handler, selection parser, evidence codec,
+  strategy's identity, versions and typed behavior (handler, evidence codec,
   native-status function, replay projector). A CLI tier and an evaluation tier add the functions only those
   layers can import. Generic consumers below the root never import any of them; the root passes each layer
   its slice by injection, and independent conformance tests verify complete coverage.
@@ -100,7 +100,7 @@ fields needed by audited consumers:
   the inventory shows repeated declarations that must stay aligned;
 - references to strategy-owned encoding, decoding, presentation, selection-conversion, or execution
   functions when a generic consumer needs to dispatch to that strategy-owned behavior; the design uses
-  this allowance for tool handlers, selection parsers, native-status functions and replay projectors in the
+  this allowance for tool handlers, native-status functions and replay projectors in the
   core bundle, and for selection builders, refresh executors, direct commands, fixture composition and
   fixture requirements in the two tiers; and
 - construction or dependency-wiring information only where the audit proves it removes repeated
@@ -178,7 +178,7 @@ strategy-owned modules that the descriptor and tiers reference.
 | Inventory area | Descriptor-authoritative information and generic consumption | Remains strategy-specific or explicit |
 | :--- | :--- | :--- |
 | Orchestration tools and evaluation mappings | Stable analysis/method/tool identifiers, tool-argument model references, tool-argument-to-tool routing, and the repeated evaluation `_tool_name` mappings. Handler binding is a `behavior` member; registration receives the injected mapping. `ToolName` remains the single hand-written declaration of tool-name strings and each descriptor binds one member, so no second model-to-name mapping exists (settled in SWC.1; a descriptor-built enum fails `mypy --strict`). The four-model `AnalysisToolArguments` union is replaced by the shared base class. | Each strategy's arguments model, dependency class, handler and config construction, in its own `<strategy>_tool.py`. The shared `ToolRuntime` carries only the clock and profile resolver. |
-| Persisted selection and workspace execution | The CLI alias vocabulary, selection parsing, and method/config/result-schema/codec version metadata where currently duplicated across execution and codec tables. The refresh executor and selection builder are CLI-tier members and fail closed. | Each persisted selection/config model and conversion, in its own `<strategy>_selection.py`; the `AnalysisSelection` and `NativeEvidence` unions (one file); analyzer invocation, capture shape, and outcome classification. Adapters remain strategy-owned. |
+| Persisted selection and workspace execution | The CLI alias vocabulary, selection building and decoding, and method/config/result-schema/codec version metadata where currently duplicated across execution and codec tables. The refresh executor and selection builder are CLI-tier members and fail closed. | Each persisted selection/config model and conversion, in its own `<strategy>_selection.py`; the `AnalysisSelection` and `NativeEvidence` unions (one file); analyzer invocation, capture shape, and outcome classification. Adapters remain strategy-owned. |
 | Evidence encoding and decoding | Result/capture type-to-codec dispatch and repeated expected version metadata derive from injected codecs and version fields. | Each strategy's encode/decode implementation, validation rules, evidence shape, ticker checks, and provenance semantics remain owned by its codec and result type. |
 | Reporting, replay, and JSON output | The `(analysis_id, method_id)` route and any genuinely duplicated dispatch key, including the identifier literals in the JSON builders and `execution_errors` calls, derive from the strategy's identity leaf and the descriptor. The injected projector mapping is keyed by that identity and fails closed. Schema generation enumerates the typed strategy envelope models and the failure envelope. | Versioned projection behavior (each projector in `<strategy>_replay.py`), presentation wording, rendering, typed envelope shape, strategy result unions, and historical replay semantics remain strategy-specific and explicit. The failure envelope is one shared shape, not a descriptor field. `projection_version` remains distinct from method and result-schema versions. |
 | Fixture-backed evaluation composition and direct CLI commands | Fixture composition and requirement are evaluation-tier members; each direct command is a CLI-tier member that `cli.py` adds by iterating the tier. The strategy lists in `USAGE.md` and `WORKSPACE.md` are generated from the descriptors. | Fixture values, expected outcomes, scoring, case truth, the catalog's case tuple and suite version, direct CLI command semantics, and any explicit user-facing boundary remain as they are. Momentum's profile composition in `src/cli.py` and `src/cli_workspace.py` is reduced to a single implementation by SWC.3a. |
@@ -270,7 +270,7 @@ composition into the evaluation tier.
   `src/strategies/<strategy>/selection.py` (four files; `FCFPolicySnapshot` goes with `FCFGrowthSelection`) and
   `src/workspace/strategy_types.py` (`NativeEvidence`, `SelectionMember`, `AnalysisSelection`);
   `src/orchestrator/analysis_tools.py`, `src/workspace/{requests,execution}.py` (`AnalysisRequest`,
-  `parse_selection` and its JSON helpers stay in `requests.py`);
+  `parse_selection` and its JSON helpers were deleted 2026-10-08, [B.13](#b13-one-dispatch-path-per-job-2026-10-08));
   `src/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py` (the
   `src.evaluation` export of `ToolName` is removed); the six `src/evaluation/cases/*.py` importers;
   `src/core/constants.py`; every test that imports a moved symbol; and `docs/EVALUATIONS.md` and
@@ -348,12 +348,12 @@ changes in thirteen test modules.
   strategy is rejected with an error naming it. No strategy is the default branch. Today only
   `encode_evidence` falls through to Momentum; `decode_evidence` already rejects an undeclared pair before
   its Momentum branch, and both become injected lookups.
-- **Scope:** `src/strategy_wiring.py` (the selection, parse, codec and version members and fields),
-  `src/workspace/requests.py` (`parse_selection(alias, config_json, parsers)`), `src/workspace/method_aliases.py`
+- **Scope:** `src/strategy_wiring.py` (the selection, codec and version members and fields),
+  `src/workspace/requests.py` (`parse_selection`, deleted 2026-10-08), `src/workspace/method_aliases.py`
   (deleted; the descriptor owns the alias vocabulary), `src/workspace/execution.py`, `src/workspace/codecs.py`,
   `src/workspace/refresh.py`, the strategy execution adapters (each gains its normalizer), `src/workspace/capture.py`
   (`ExecutionCapture`), `src/workspace/selection_base.py` (the shared `config` body rules), per-strategy
-  codec modules (each gains its `ticker_of` function) and selection modules (each gains its parser),
+  codec modules (each gains its `ticker_of` function) and selection modules,
   `src/data/repositories/watchlists.py` (alias resolver at construction, through one helper in
   `src/cli_workspace.py`), `src/cli.py` (Momentum profile composition, the `execute` calls and the normalizer
   imports), `src/cli_workspace.py` (the repository helper, the Momentum composition copy, and the alias lookups
@@ -743,6 +743,9 @@ all current consumer surfaces. Any consolidated dispatch must also account for
 `src/reporting/analysis_runs.py`'s `project_run` `(analysis_id, method_id)` replay selection and the
 repeated evaluation `_tool_name` mappings above.
 
+The `encode_evidence` and `parse_selection` rows describe the code as it stood before SWC.3a; neither function exists any
+more, and production never called either after SWC.3a ([B.13](#b13-one-dispatch-path-per-job-2026-10-08)).
+
 SWC.1's re-verification found further per-strategy sites that this table does not list. Each is
 classified, with its owning slice, in the [SWC.1 design](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#a2-sites-missing-from-the-plans-appendix-a):
 
@@ -945,3 +948,17 @@ The project owner decided, during the SWC.4a review:
   command's own code makes after parsing and raises as `typer.BadParameter`, for example the Graham and FCF parameter checks,
   which exit 2 as text, against Momentum's window check, which reports `invalid_parameter` with exit 1. The new slice SWC.4d
   owns that question ([SWC.4d](#swc4d--command-validation-failures-and-the-failure-envelope)). Until it runs, no behavior changes.
+
+### B.13 One dispatch path per job (2026-10-08)
+
+The project owner decided, after a review of what production calls:
+
+- **Selection parsing.** `parse_selection`, the descriptor `parse` member and `parse_for`, `parsers_by_alias`, the
+  per-strategy parse functions and the JSON helpers they used are deleted. Production builds a selection from command-line
+  options (the CLI tier's `build`) and reads a stored entry with `decode_selection`. Omitted-key defaulting and
+  duplicate-key rejection were rules of a path production never ran and were removed with it; a repeated key in a stored
+  row is still accepted, last value winning, and is left as is.
+- **Evidence encoding.** `encode_evidence` and `evidence_by_type` are deleted. Production encodes through
+  `run_spec_for(selection).encode`.
+- **Edit sites.** Unchanged at 20 sites in 25 files; the SWC.3a scope above no longer lists a parser. Detail:
+  [SWC.1 design H.33](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h33-one-dispatch-path-per-job-2026-10-08).

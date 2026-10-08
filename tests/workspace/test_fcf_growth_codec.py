@@ -37,10 +37,10 @@ from src.strategies.fcf_growth.vocabulary import (
     TrendClassification,
 )
 from src.strategy_wiring import EVIDENCE_BY_KEY
-from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
+from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun
-from tests._wiring import EVIDENCE_BY_TYPE, codecs_with_decode
+from tests._wiring import codecs_with_decode, encode_native
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
 
@@ -182,7 +182,7 @@ def _run(result: FCFEarningsGrowthResult | None = None) -> AnalysisRun:
         result_schema_version=3,
         evidence_codec_version=1,
         status=RunOutcome.COMPLETED,
-        result_evidence=encode_evidence(result or _result(), EVIDENCE_BY_TYPE),
+        result_evidence=encode_native(result or _result()),
     )
 
 
@@ -195,7 +195,7 @@ def test_full_native_result_round_trip() -> None:
     assert restored.diagnostics == original.diagnostics
     assert restored.annual_observations[0].free_cash_flow is not original.annual_observations[0].free_cash_flow
     assert (restored.method_version, restored.schema_version) == (2, 3)
-    assert encode_evidence(restored, EVIDENCE_BY_TYPE) == run.result_evidence
+    assert encode_native(restored) == run.result_evidence
 
 
 def test_per_share_policy_and_missing_optional_metrics_round_trip() -> None:
@@ -410,7 +410,7 @@ def test_invalid_native_evidence_is_revalidated() -> None:
     # A frozen native instance can still be corrupted by explicit low-level mutation.
     object.__setattr__(original, "effective_as_of", STAMP.replace(tzinfo=None))
     with pytest.raises(InvalidStoredRunError):
-        encode_evidence(original, EVIDENCE_BY_TYPE)
+        encode_native(original)
 
 
 @pytest.mark.parametrize("field", ["strategy_id", "method_id", "method_version", "schema_version"])

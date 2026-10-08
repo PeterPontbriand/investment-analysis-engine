@@ -1,6 +1,5 @@
 """Free Cash Flow & Earnings Growth's immutable workspace selection snapshot."""
 
-from collections.abc import Mapping
 from datetime import datetime
 from typing import Literal
 
@@ -98,10 +97,3 @@ class FCFGrowthSelection(FrozenSelection):
             use_cache=self.use_cache,
             instrument_profile=instrument_profile,
         )
-
-
-def parse_fcf_growth_selection(body: Mapping[str, object]) -> FCFGrowthSelection:
-    """Parse a decoded FCF configuration body: policy, currency, provider, as_of and cache options."""
-    if body.keys() - {"policy", "currency", "provider_id", "as_of", "use_cache"}:
-        raise ValueError("FCF configuration contains unknown or reserved fields.")
-    return FCFGrowthSelection.model_validate(body)

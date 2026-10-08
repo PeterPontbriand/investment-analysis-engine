@@ -1,7 +1,6 @@
 """Graham growth-value's immutable workspace selection snapshot."""
 
 import math
-from collections.abc import Mapping
 from datetime import datetime
 
 from pydantic import AwareDatetime, Field, StrictFloat, field_validator, model_validator
@@ -21,7 +20,6 @@ from src.workspace.selection_base import (
     CLI_QUOTE_PROVIDERS,
     CLI_SECURITY_PROVIDERS,
     FrozenSelection,
-    config_object,
 )
 
 
@@ -119,8 +117,3 @@ class GrahamGrowthSelection(FrozenSelection):
             use_cache=self.use_cache,
             instrument_profile=instrument_profile,
         )
-
-
-def parse_graham_growth_selection(body: Mapping[str, object]) -> GrahamGrowthSelection:
-    """Parse a decoded configuration body that holds only an optional ``config`` object."""
-    return GrahamGrowthSelection.model_validate(config_object(body))
