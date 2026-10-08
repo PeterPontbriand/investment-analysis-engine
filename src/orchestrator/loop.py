@@ -28,7 +28,6 @@ from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.reliability import (
     CircuitBreaker,
-    CircuitSnapshot,
     MonotonicClock,
     ReliabilityFailure,
     ReliabilityLimitReachedError,
@@ -174,12 +173,6 @@ class AgentOrchestrator:
         self._schema_capability: bool | None = None
         self._capability_resolved: bool = False
         self._circuit: CircuitBreaker | None = None
-        self.last_reliability_failure: ReliabilityFailure | None = None
-
-    @property
-    def reliability_snapshot(self) -> CircuitSnapshot | None:
-        """Return the current request-scoped circuit state when a run has started."""
-        return self._circuit.snapshot if self._circuit is not None else None
 
     @staticmethod
     def _schema_instruction_message(schema_dict: dict[str, Any]) -> dict[str, Any]:
@@ -241,7 +234,6 @@ class AgentOrchestrator:
         run_span_id = self.recorder.start_span()
         active_step_span_id: UUID | None = None
         self._circuit = CircuitBreaker(self.config.reliability_limits, self.options.clock)
-        self.last_reliability_failure = None
 
         try:
             self._record_run_start(run_span_id, prompt)
@@ -354,7 +346,6 @@ class AgentOrchestrator:
     ) -> AgentStepResult:
         """Record and return the typed terminal view of a reliability trip."""
         failure = self._build_reliability_failure(exc, final_step)
-        self.last_reliability_failure = failure
         self.recorder.record_error(
             TrajectoryErrorRecord(
                 component="circuit_breaker",
@@ -425,24 +416,6 @@ class AgentOrchestrator:
                 payload={"status": terminal_status, "final_step": final_step},
             )
         )
-
-    async def _resolve_schema_capability(self) -> bool:
-        """Determine whether to send the native JSON Schema constraint.
-
-        Resolution order:
-          1. If ``use_native_constraint`` is False → never send (explicit opt-out).
-          2. If ``SchemaConfig.ollama_version`` is set → classify that static value.
-          3. Otherwise → query the configured remote Ollama endpoint once, cache result.
-
-        Policy for unknown capability (version unresolvable):
-          Do NOT send the native constraint.  This is the safe default:
-          an unsupported ``format`` key may cause the server to reject the
-          entire request, whereas omitting it preserves existing behavior.
-
-        Returns:
-            True if the native ``format`` kwarg should be included in the LLM request.
-        """
-        return (await self._resolve_enforcement_mode()) == "native"
 
     async def _resolve_enforcement_mode(self) -> str:
         """Resolve the schema-enforcement mode for the next LLM call.

@@ -67,14 +67,6 @@ class TrajectoryErrorRecord:
     error_type: str | None = None
 
 
-@dataclass(frozen=True, slots=True)
-class _SpanContext:
-    """Internal causal metadata for one active logical operation span."""
-
-    span_id: UUID
-    parent_span_id: UUID | None
-
-
 class TrajectoryRecorder:
     """Best-effort trajectory recorder that never propagates sink failures to the runtime."""
 
@@ -97,7 +89,6 @@ class TrajectoryRecorder:
         self._recent_events: deque[RecentEventSummary] = deque(maxlen=recorder_config.recent_event_limit)
         self._sequence = 0
         self._closed = False
-        self._spans: dict[UUID, _SpanContext] = {}
 
     @classmethod
     def from_settings(
@@ -210,23 +201,12 @@ class TrajectoryRecorder:
         finally:
             self._closed = True
 
-    def start_span(self, *, parent_span_id: UUID | None = None) -> UUID:
-        """Create a logical operation span with an explicit causal parent."""
-        span_id = uuid4()
-        self._spans[span_id] = _SpanContext(
-            span_id=span_id,
-            parent_span_id=parent_span_id,
-        )
-        return span_id
+    def start_span(self, *, parent_span_id: UUID | None = None) -> UUID:  # noqa: ARG002
+        """Create a logical operation span identifier; each recorded event carries its own explicit parent."""
+        return uuid4()
 
     def end_span(self, span_id: UUID) -> None:
-        """Mark a logical operation span inactive without affecting event ordering."""
-        self._spans.pop(span_id, None)
-
-    def get_span_parent(self, span_id: UUID) -> UUID | None:
-        """Return the explicit causal parent for a known span."""
-        span = self._spans.get(span_id)
-        return span.parent_span_id if span is not None else None
+        """Mark a logical operation span finished; spans carry no state, so event ordering is unaffected."""
 
     def record_error(self, error: TrajectoryErrorRecord) -> TrajectoryEvent | None:
         """Record a sanitized runtime error event."""

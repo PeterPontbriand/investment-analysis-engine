@@ -4,14 +4,12 @@ Centralized domain constants and localization registry.
 This module provides strongly-typed constants for financial data agents, including:
 - Locale-specific translations (en/fr)
 - Market trend status vectors
-- Order execution actions
 - Configuration key namespaces
 - Standardized DataFrame column definitions
 
 Classes:
     LocaleDictionary(TypedDict): Dictionary structure for locale-based translations.
     TrendStatus(str, Enum): Strongly-typed market trend indicators.
-    OrderAction(str, Enum): Execution side actions for portfolio tracking.
     ConfigKeys: Namespace for configuration key lookups.
     DataColumns: Standardized pandas DataFrame column definitions.
 """
@@ -84,42 +82,6 @@ class TrendStatus(StrEnum):
         return locale_set.get(self.value, self.value)
 
 
-class OrderAction(StrEnum):
-    """
-    Execution side actions for portfolio tracking and order submission.
-
-    Attributes:
-        BUY: Buy/Long position.
-        SELL: Sell/Short position.
-        HOLD: Hold/Flat position.
-
-    """
-
-    BUY = "BUY"
-    SELL = "SELL"
-    HOLD = "HOLD"
-
-    def display_name(self, locale: str = "en") -> str:
-        """
-        Return localized display name for the order action.
-
-        Args:
-            locale: Language code ("en" or "fr"). Defaults to "en".
-
-        Returns:
-            Localized string representation of the order action.
-
-        """
-        translations: Final[LocaleDictionary] = {
-            "en": {"BUY": "Buy / Long", "SELL": "Sell / Short", "HOLD": "Flat / Hold"},
-            "fr": {"BUY": "Acheter", "SELL": "Vendre", "HOLD": "Conserver"},
-        }
-        # Narrow the dynamic string to a literal valid key to make mypy happy
-        target_locale: Literal["en", "fr"] = "fr" if locale == "fr" else "en"
-        locale_set = translations[target_locale]
-        return locale_set.get(self.value, self.value)
-
-
 class ConfigKeys:
     """
     Namespace for configuration key lookups in pyproject.toml.
@@ -158,11 +120,7 @@ class DataColumns:
 
     Attributes:
         CLOSE: Closing price column.
-        SIGNAL: Signal data column.
-        CROSSOVER: Crossover indicator column.
 
     """
 
     CLOSE: Final[str] = "Close"
-    SIGNAL: Final[str] = "Signal"
-    CROSSOVER: Final[str] = "Crossover"

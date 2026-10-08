@@ -174,26 +174,21 @@ def test_explicit_run_context_is_preserved() -> None:
 
 
 def test_span_parent_relationship_is_explicit_without_stack_semantics() -> None:
-    """Each span retains its own explicit parent independently of creation order."""
+    """Each event carries the explicit parent it was given, independent of span creation order."""
     sink = RecordingSink()
     recorder = TrajectoryRecorder(RunContext.new(), sink)
     parent = recorder.start_span()
     first_child = recorder.start_span(parent_span_id=parent)
     second_child = recorder.start_span(parent_span_id=parent)
 
-    assert recorder.get_span_parent(first_child) == parent
-    assert recorder.get_span_parent(second_child) == parent
-
     recorder.end_span(first_child)
-    assert recorder.get_span_parent(first_child) is None
-    assert recorder.get_span_parent(second_child) == parent
 
     event = recorder.record(
         TrajectoryRecord(
             event_type=TrajectoryEventType.PROMPT_SENT,
             component="llm",
             span_id=second_child,
-            parent_span_id=recorder.get_span_parent(second_child),
+            parent_span_id=parent,
         )
     )
 

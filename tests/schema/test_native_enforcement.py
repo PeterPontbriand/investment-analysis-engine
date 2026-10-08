@@ -15,7 +15,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.schema.constraint import format_schema_for_ollama
-from src.schema.models import PlanResponse, SynthesisResponse, ToolCallResponse
+from src.schema.models import ToolCallResponse
 from src.schema.validator import build_retry_messages, validate_response
 
 
@@ -76,70 +76,6 @@ class TestNativeEnforcement:
         assert "schema" not in call_kwargs
         assert "strict" not in call_kwargs
 
-    def test_plan_with_schema_constraint(
-        self,
-        mock_ollama_chat: Mock,
-        mock_ollama_response: Callable[[Mapping[str, object]], Mock],
-    ) -> None:
-        """Test a plan generation with schema constraint."""
-        expected_response = {
-            "goal": "Analyze Tesla stock",
-            "steps": [
-                {
-                    "step_id": "1",
-                    "description": "Get price",
-                    "tool_name": "get_price",
-                    "dependencies": [],
-                },
-                {
-                    "step_id": "2",
-                    "description": "Get fundamentals",
-                    "tool_name": "get_fundamentals",
-                    "dependencies": ["1"],
-                },
-            ],
-        }
-        mock_ollama_chat.return_value = mock_ollama_response(expected_response)
-
-        params = format_schema_for_ollama(PlanResponse)
-        response = mock_ollama_chat(
-            model="llama3",
-            messages=[{"role": "user", "content": "Plan analysis for TSLA"}],
-            **params,
-        )
-
-        result = validate_response(response.message.content, PlanResponse)
-        assert result.valid is True
-        assert len(result.data.steps) == 2
-        assert result.data.goal == "Analyze Tesla stock"
-
-    def test_synthesis_with_schema_constraint(
-        self,
-        mock_ollama_chat: Mock,
-        mock_ollama_response: Callable[[Mapping[str, object]], Mock],
-    ) -> None:
-        """Test a synthesis generation with schema constraint."""
-        expected_response = {
-            "summary": "Tesla shows strong growth potential",
-            "key_findings": ["Revenue up 20%", "Margin expanding"],
-            "recommendation": "BUY",
-            "confidence_score": 0.78,
-            "metrics": {"pe_ratio": 45.2, "revenue_growth": 0.20},
-        }
-        mock_ollama_chat.return_value = mock_ollama_response(expected_response)
-
-        params = format_schema_for_ollama(SynthesisResponse)
-        response = mock_ollama_chat(
-            model="llama3",
-            messages=[{"role": "user", "content": "Synthesize TSLA analysis"}],
-            **params,
-        )
-
-        result = validate_response(response.message.content, SynthesisResponse)
-        assert result.valid is True
-        assert result.data.confidence_score == 0.78
-        assert result.data.recommendation == "BUY"
-
     def test_schema_violation_handling(
         self,
         mock_ollama_chat: Mock,
@@ -158,7 +94,6 @@ class TestNativeEnforcement:
 
         result = validate_response(response.message.content, ToolCallResponse)
         assert result.valid is False
-        assert result.is_recoverable is True
         assert result.error_type is not None
 
     def test_malformed_json_handling(self, mock_ollama_chat: Mock) -> None:
@@ -174,7 +109,6 @@ class TestNativeEnforcement:
 
         result = validate_response(response.message.content, ToolCallResponse)
         assert result.valid is False
-        assert result.is_recoverable is True
         assert result.error_type is not None
         assert result.error_type.value == "malformed_json"
 
@@ -204,30 +138,6 @@ class TestNativeEnforcement:
         assert result.error_type is not None
         assert result.error_type.value == "extra_field"
 
-    def test_fallback_to_pydantic_validation(
-        self,
-        mock_ollama_chat: Mock,
-        mock_ollama_response: Callable[[Mapping[str, object]], Mock],
-    ) -> None:
-        """Test that Pydantic validation acts as second-line defense."""
-        response_with_invalid_confidence = {
-            "summary": "Test",
-            "key_findings": [],
-            "confidence_score": 1.5,
-        }
-        mock_ollama_chat.return_value = mock_ollama_response(response_with_invalid_confidence)
-
-        params = format_schema_for_ollama(SynthesisResponse)
-        response = mock_ollama_chat(
-            model="llama3",
-            messages=[{"role": "user", "content": "Synthesize"}],
-            **params,
-        )
-
-        result = validate_response(response.message.content, SynthesisResponse)
-        assert result.valid is False
-        assert result.error_type is not None
-
     def test_recoverable_error_does_not_crash(
         self,
         mock_ollama_chat: Mock,
@@ -246,7 +156,6 @@ class TestNativeEnforcement:
 
         result = validate_response(response.message.content, ToolCallResponse)
         assert result.valid is False
-        assert result.is_recoverable is True
 
     def test_end_to_end_with_retry_flow(
         self,

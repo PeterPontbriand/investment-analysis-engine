@@ -22,7 +22,7 @@ from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import EVIDENCE_BY_TYPE, run_spec_for
+from src.strategy_wiring import run_spec_for
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import encode_evidence
 from src.workspace.execution import execute
@@ -30,6 +30,7 @@ from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
+from tests._wiring import EVIDENCE_BY_TYPE
 
 runner = CliRunner()
 

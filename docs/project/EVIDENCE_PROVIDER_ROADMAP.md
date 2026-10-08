@@ -77,6 +77,9 @@ differentiators.
   calendar.
 - **Reproducibility receipts.** Hash inputs, config, code version, and provider responses so a
   stored result can be re-verified later, for audit and client-facing use.
+- **Source-document content hashes in provenance.** Record a content hash of each source document, such as
+  the SEC company-facts and submissions payloads, beside the facts taken from it, so a stored result names
+  the exact document it came from.
 - **Corporate-actions ledger.** Splits, reverse splits, spinoffs, and special dividends with
   provenance, applied when adjusting per-share facts. Completes the security-unit work referenced
   above.

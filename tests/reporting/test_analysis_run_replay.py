@@ -32,13 +32,14 @@ from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumRun
 from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import EVIDENCE_BY_KEY, EVIDENCE_BY_TYPE, REPLAYS_BY_KEY, run_spec_for
+from src.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import decode_evidence, encode_evidence
 from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
+from tests._wiring import EVIDENCE_BY_TYPE
 from tests.workspace.test_fcf_growth_codec import _result as _fcf_codec_result
 
 NOW = datetime(2026, 9, 19, 12, 0, 0, tzinfo=UTC)

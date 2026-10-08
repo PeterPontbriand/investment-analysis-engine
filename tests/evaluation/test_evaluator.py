@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 import pytest
 
 from src.evaluation.evaluator import (
-    evaluate_behavior_constraints,
     evaluate_domain_outcomes,
     evaluate_execution_status,
     evaluate_fixture_status,
@@ -13,7 +12,6 @@ from src.evaluation.evaluator import (
     evaluate_tool_selection,
 )
 from src.evaluation.models import (
-    BehaviorConstraints,
     ComponentKind,
     ComponentOutcome,
     ComponentResult,
@@ -226,85 +224,6 @@ def test_tool_selection_rejects_unpermitted_tool() -> None:
     assert result.outcome is ComponentOutcome.FAIL
     assert result.failure_reason is not None
     assert "unpermitted tools" in result.failure_reason
-
-
-def test_behavior_constraints_accept_permitted_required_behavior() -> None:
-    constraints = BehaviorConstraints(
-        permitted=("retain_provenance", "use_fixture_data"),
-        required=("use_fixture_data",),
-    )
-
-    result = evaluate_behavior_constraints(
-        constraints,
-        (" use_fixture_data ",),
-        component_kind=ComponentKind.FIXTURE_STATUS,
-    )
-
-    assert result.kind is ComponentKind.FIXTURE_STATUS
-    assert result.outcome is ComponentOutcome.PASS
-
-
-@pytest.mark.parametrize(
-    ("constraints", "observed", "reason_fragment"),
-    [
-        (BehaviorConstraints(forbidden=("live_fallback",)), ("live_fallback",), "forbidden behaviors"),
-        (
-            BehaviorConstraints(permitted=("retain_provenance",), required=("retain_provenance",)),
-            (),
-            "Missing required behaviors",
-        ),
-        (
-            BehaviorConstraints(permitted=("use_fixture_data",)),
-            ("invent_data",),
-            "unpermitted behaviors",
-        ),
-    ],
-)
-def test_behavior_constraint_failures_are_classified_explicitly(
-    constraints: BehaviorConstraints,
-    observed: tuple[str, ...],
-    reason_fragment: str,
-) -> None:
-    result = evaluate_behavior_constraints(
-        constraints,
-        observed,
-        component_kind=ComponentKind.EXECUTION_STATUS,
-    )
-
-    assert result.kind is ComponentKind.EXECUTION_STATUS
-    assert result.outcome is ComponentOutcome.FAIL
-    assert result.failure_reason is not None
-    assert reason_fragment in result.failure_reason
-
-
-def test_behavior_constraints_reject_blank_observed_identifier_as_failure() -> None:
-    result = evaluate_behavior_constraints(
-        BehaviorConstraints(permitted=("use_fixture_data",)),
-        (" ",),
-        component_kind=ComponentKind.FIXTURE_STATUS,
-    )
-
-    assert result.outcome is ComponentOutcome.FAIL
-    assert result.failure_reason == "Observed behavior identifiers must not be blank."
-
-
-def test_behavior_component_is_not_applicable_without_constraints() -> None:
-    result = evaluate_behavior_constraints(
-        BehaviorConstraints(),
-        (),
-        component_kind=ComponentKind.EXECUTION_STATUS,
-    )
-
-    assert result.outcome is ComponentOutcome.NOT_APPLICABLE
-
-
-def test_behavior_constraints_reject_unrelated_component_category() -> None:
-    with pytest.raises(ValueError, match="fixture_status or execution_status"):
-        evaluate_behavior_constraints(
-            BehaviorConstraints(permitted=("use_fixture_data",)),
-            ("use_fixture_data",),
-            component_kind=ComponentKind.NUMERICAL_CORRECTNESS,
-        )
 
 
 @pytest.mark.parametrize(

@@ -162,7 +162,6 @@ class SeriesSelection:
     """Deterministic record of annual-history horizon selection."""
 
     requested: HistoricalHorizon
-    candidate_elapsed_years: tuple[int, ...]
     selected_elapsed_years: int | None
     fallback_applied: bool
     common_period_count: int
@@ -191,15 +190,12 @@ class AnnualGrowthSeriesAssembly:
     reason_code: ReasonCode | None
     reason: str | None
     observations: tuple[AnnualGrowthObservation, ...]
-    requested_horizon: HistoricalHorizon
     selected_horizon_years: int | None
     selected_observation_count: int
     used_horizon_fallback: bool
     fcf_cagr: MetricResult
     fcf_per_share_cagr: MetricResult
     eps_cagr: MetricResult
-    span_sign_change_fcf: bool
-    span_sign_change_eps: bool
     selection: SeriesSelection
     resolution_trace: ResolutionTrace
 
@@ -267,7 +263,6 @@ def _failure_assembly(  # noqa: PLR0913
 ) -> AnnualGrowthSeriesAssembly:
     selection = SeriesSelection(
         requested=policy.historical_horizon,
-        candidate_elapsed_years=_candidate_horizons(policy.historical_horizon),
         selected_elapsed_years=None,
         fallback_applied=False,
         common_period_count=common_count,
@@ -279,15 +274,12 @@ def _failure_assembly(  # noqa: PLR0913
         reason_code=code,
         reason=reason,
         observations=(),
-        requested_horizon=policy.historical_horizon,
         selected_horizon_years=None,
         selected_observation_count=0,
         used_horizon_fallback=False,
         fcf_cagr=metric,
         fcf_per_share_cagr=metric,
         eps_cagr=metric,
-        span_sign_change_fcf=False,
-        span_sign_change_eps=False,
         selection=selection,
         resolution_trace=trace,
     )
@@ -968,7 +960,6 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
     fallback = policy.historical_horizon is HistoricalHorizon.LONGEST_AVAILABLE and selected_years < 5
     selection = SeriesSelection(
         requested=policy.historical_horizon,
-        candidate_elapsed_years=candidates,
         selected_elapsed_years=selected_years,
         fallback_applied=fallback,
         common_period_count=len(common),
@@ -979,15 +970,12 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
         reason_code=None,
         reason=None,
         observations=selected,
-        requested_horizon=policy.historical_horizon,
         selected_horizon_years=selected_years,
         selected_observation_count=len(selected),
         used_horizon_fallback=fallback,
         fcf_cagr=fcf_cagr,
         fcf_per_share_cagr=fcf_per_share_cagr,
         eps_cagr=eps_cagr,
-        span_sign_change_fcf=fcf_sign,
-        span_sign_change_eps=eps_sign,
         selection=selection,
         resolution_trace=trace.append(
             _event(

@@ -56,16 +56,6 @@ class MomentumMetrics:
     crossover_result: MetricResult | None = None
 
     @property
-    def sma_50(self) -> MetricResult:
-        """Standard result for the configured short SMA."""
-        return _legacy_metric_result(self.short_sma_val, "Short SMA is unavailable.")
-
-    @property
-    def sma_200(self) -> MetricResult:
-        """Standard result for the configured long SMA."""
-        return _legacy_metric_result(self.long_sma_val, "Long SMA is unavailable.")
-
-    @property
     def rsi_14(self) -> MetricResult:
         """Standard result for the configured RSI period."""
         return self.rsi_result or MetricResult.failure(
@@ -247,13 +237,6 @@ def _metric_or_unavailable(value: float, required: int, actual: int, label: str)
         ReasonCode.INSUFFICIENT_HISTORY,
         f"{label} requires {required} observations; {actual} were available.",
     )
-
-
-def _legacy_metric_result(value: float | None, reason: str) -> MetricResult:
-    """Expose legacy optional metrics through the standard result contract."""
-    if value is not None:
-        return MetricResult.ok(value)
-    return MetricResult.failure(MetricStatus.UNAVAILABLE, ReasonCode.INSUFFICIENT_HISTORY, reason)
 
 
 def _calculate_rsi(close: pd.Series[float], period: int) -> MetricResult:

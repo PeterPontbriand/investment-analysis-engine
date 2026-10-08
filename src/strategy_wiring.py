@@ -380,13 +380,11 @@ def build_indexes(descriptors: tuple[StrategyDescriptor, ...]) -> StrategyIndexe
 
 
 _INDEXES: Final = build_indexes(STRATEGIES)
-BY_KEY: Final = _INDEXES.by_key
 BY_METHOD_ID: Final = _INDEXES.by_method_id
 BY_ALIAS: Final = _INDEXES.by_alias
 BY_TOOL: Final = _INDEXES.by_tool
 BY_ARGUMENTS: Final = _INDEXES.by_arguments
 BY_RESULT_TYPE: Final = _INDEXES.by_result_type
-BY_ENVELOPE: Final = _INDEXES.by_envelope
 
 
 def tool_for_arguments(
@@ -501,10 +499,8 @@ def replays_by_key(descriptors: tuple[StrategyDescriptor, ...]) -> Mapping[tuple
     )
 
 
-EVIDENCE_BY_TYPE: Final = evidence_by_type(STRATEGIES)
 EVIDENCE_BY_KEY: Final = evidence_by_key(STRATEGIES)
 RUN_SPECS_BY_KEY: Final = run_specs_by_key(STRATEGIES)
-PARSERS_BY_ALIAS: Final = parsers_by_alias(STRATEGIES)
 REPLAYS_BY_KEY: Final = replays_by_key(STRATEGIES)
 
 

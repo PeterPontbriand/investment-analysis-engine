@@ -51,13 +51,6 @@ class SchemaConstraint:
         self.model_class = model_class
         self.strict = strict
 
-    def to_ollama_format(self) -> dict[str, Any]:
-        """Return the value that should be passed as the `format` argument.
-
-        Ollama expects the schema object itself (or the string "json").
-        """
-        return self.schema_dict
-
     def to_ollama_params(self) -> dict[str, Any]:
         """Get the keyword arguments to spread into ollama.chat() / ollama.generate().
 

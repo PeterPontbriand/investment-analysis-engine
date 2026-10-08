@@ -23,7 +23,6 @@ from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.tool import MomentumToolArguments, MomentumToolDependencies
 from src.strategy_wiring import (
     BY_ARGUMENTS,
-    BY_KEY,
     BY_METHOD_ID,
     BY_RESULT_TYPE,
     BY_TOOL,
@@ -63,9 +62,12 @@ def test_the_declared_identifiers_are_the_existing_ones() -> None:
     ]
 
 
+_ALL = build_indexes(STRATEGIES)
+
+
 def test_every_index_is_read_only_and_in_declaration_order() -> None:
     """The indexes are read-only mappings that iterate in the order the strategies are declared."""
-    for index in (BY_KEY, BY_METHOD_ID, BY_TOOL, BY_ARGUMENTS, BY_RESULT_TYPE):
+    for index in (_ALL.by_key, BY_METHOD_ID, BY_TOOL, BY_ARGUMENTS, BY_RESULT_TYPE):
         assert isinstance(index, MappingProxyType)
         assert list(index.values()) == list(STRATEGIES)
     assert list(BY_TOOL) == list(ToolName)
@@ -76,7 +78,7 @@ def test_every_index_is_read_only_and_in_declaration_order() -> None:
 def test_lookups_find_each_strategy_by_each_key() -> None:
     """Every key reaches the same descriptor."""
     for descriptor in STRATEGIES:
-        assert BY_KEY[(descriptor.analysis_id, descriptor.method_id)] is descriptor
+        assert _ALL.by_key[(descriptor.analysis_id, descriptor.method_id)] is descriptor
         assert BY_METHOD_ID[descriptor.method_id] is descriptor
         assert BY_TOOL[descriptor.tool] is descriptor
         assert BY_ARGUMENTS[descriptor.tool_arguments] is descriptor

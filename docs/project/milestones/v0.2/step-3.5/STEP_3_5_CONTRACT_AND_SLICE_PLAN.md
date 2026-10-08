@@ -163,7 +163,9 @@ its own quality gate and authorization.
   FCF-Growth's optional FCF yield is always unavailable.
 - **Decision:** define market cap, EBIT, D&A, EBITDA, EV and invested capital once, as pure
   functions over resolved facts, and reuse the existing FCF and FCF-yield definitions. FCF-Growth's
-  FCF yield adopts the shared market cap, with no formula change. The ranking helper is a pure,
+  FCF yield adopts the shared market cap, with no formula change: this slice either wires it through
+  `compute_fcf_yield` in `src/strategies/fcf_growth/calculators.py`, which no production code calls today, or
+  deletes that function. The ranking helper is a pure,
   analysis-agnostic function, tested here on synthetic inputs before Magic Formula consumes it.
 - **Scope:** shared metric functions and their tests; `src/analysis/shared/ranking.py`;
   FCF-Growth's market-cap wiring; `FINANCE_MATH.md` entries for every shared metric.

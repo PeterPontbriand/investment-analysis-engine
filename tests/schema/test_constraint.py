@@ -10,12 +10,20 @@ from src.schema.constraint import (
     format_schema_for_ollama,
 )
 from src.schema.exceptions import SchemaConstraintError
-from src.schema.models import PlanResponse, ToolCallResponse
+from src.schema.models import ToolCallResponse
 
 
 class SimpleModel(BaseModel):
     name: str = Field(..., description="Name field")
     value: int = Field(..., description="Value field")
+
+
+class _Inner(BaseModel):
+    label: str
+
+
+class _Outer(BaseModel):
+    items: list[_Inner]
 
 
 def test_build_schema_constraint() -> None:
@@ -45,17 +53,6 @@ def test_build_schema_constraint_required_fields() -> None:
     assert set(constraint.schema_dict["required"]) == {"name", "value"}
 
 
-def test_schema_constraint_to_ollama_format() -> None:
-    """Test converting to Ollama format value (the schema object itself)."""
-    constraint = build_schema_constraint(SimpleModel)
-    ollama_value = constraint.to_ollama_format()
-
-    assert isinstance(ollama_value, dict)
-    assert ollama_value["type"] == "object"
-    assert "properties" in ollama_value
-    assert ollama_value is constraint.schema_dict or ollama_value == constraint.schema_dict
-
-
 def test_schema_constraint_to_ollama_params() -> None:
     """Test getting full Ollama parameters (correct contract)."""
     constraint = build_schema_constraint(SimpleModel)
@@ -83,10 +80,11 @@ def test_format_schema_for_ollama_convenience() -> None:
 
 def test_nested_additional_properties() -> None:
     """AdditionalProperties is applied to nested object schemas too."""
-    constraint = build_schema_constraint(PlanResponse, additional_properties=False)
+    constraint = build_schema_constraint(_Outer, additional_properties=False)
     schema = constraint.schema_dict
     assert schema.get("additionalProperties") is False
     defs = schema.get("$defs") or schema.get("definitions") or {}
+    assert defs
     for defn in defs.values():
         if defn.get("type") == "object" or "properties" in defn:
             assert defn.get("additionalProperties") is False

@@ -33,8 +33,6 @@ def load_config_file(file_path: str) -> dict[str, Any]:
 class ProjectSettings(BaseSettings):
     """Application configuration loaded from environment variables and config tables."""
 
-    # ProjectSettings
-    project_name: str = "investment-analysis-engine"
     version: str = "0.1.0"
 
     # AI/Agent Settings
@@ -53,7 +51,6 @@ class ProjectSettings(BaseSettings):
     # Human-readable operational logging
     log_level: str = "INFO"
     log_file_name: str = "app.log"
-    log_file_mode: str = "a"
     log_max_bytes: int = 1 * 1024 * 1024  # 1MB per file
     log_backup_count: int = 5
     log_encoding: str = "utf-8"
@@ -102,10 +99,6 @@ class ProjectSettings(BaseSettings):
             "(always reuse the durable profile until an explicit refresh is requested)."
         ),
     )
-
-    # API Settings
-    api_host: str = "0.0.0.0"
-    api_port: int = 8000
 
     # Environment Variables
     environment: str = "development"

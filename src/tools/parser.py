@@ -26,12 +26,6 @@ class ToolNotFoundError(Exception):
     pass
 
 
-class ToolValidationError(Exception):
-    """Raised when the tool arguments fail Pydantic validation."""
-
-    pass
-
-
 class ToolParser:
     """Extracts, cleans, and validates tool execution payloads from raw model outputs."""
 

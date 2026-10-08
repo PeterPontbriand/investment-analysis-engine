@@ -36,11 +36,11 @@ from src.strategies.fcf_growth.vocabulary import (
     ForwardPolicy,
     TrendClassification,
 )
-from src.strategy_wiring import EVIDENCE_BY_KEY, EVIDENCE_BY_TYPE
+from src.strategy_wiring import EVIDENCE_BY_KEY
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun
-from tests._wiring import codecs_with_decode
+from tests._wiring import EVIDENCE_BY_TYPE, codecs_with_decode
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
 
@@ -394,7 +394,6 @@ def test_decoding_is_pure_and_does_not_mutate_payload(monkeypatch: pytest.Monkey
     for name in (
         "compute_free_cash_flow",
         "compute_fcf_per_diluted_share",
-        "compute_growth_percent",
         "compute_cagr",
         "compute_fcf_yield",
         "classify_fcf_earnings_growth",

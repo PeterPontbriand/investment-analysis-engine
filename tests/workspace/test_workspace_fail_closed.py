@@ -9,7 +9,7 @@ import pytest
 from src.core.strategy_errors import UndeclaredStrategyError
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import EVIDENCE_BY_KEY, EVIDENCE_BY_TYPE, PARSERS_BY_ALIAS, RUN_SPECS_BY_KEY, run_spec_for
+from src.strategy_wiring import EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY, run_spec_for
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
@@ -17,7 +17,7 @@ from src.workspace.refresh import refresh_watchlist
 from src.workspace.requests import parse_selection
 from src.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
 from src.workspace.strategy_types import NativeEvidence
-from tests._wiring import failure_code
+from tests._wiring import EVIDENCE_BY_TYPE, PARSERS_BY_ALIAS, failure_code
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
 RUN_ID = UUID("11111111-1111-4111-8111-111111111111")

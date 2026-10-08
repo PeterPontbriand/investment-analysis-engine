@@ -11,7 +11,6 @@ from src.strategies.fcf_growth.calculators import (
     compute_fcf_per_diluted_share,
     compute_fcf_yield,
     compute_free_cash_flow,
-    compute_growth_percent,
 )
 from src.strategies.fcf_growth.models import MetricResult, MetricStatus, ReasonCode
 
@@ -77,40 +76,6 @@ class TestComputeFcfPerDilutedShare:
             MetricStatus.UNAVAILABLE,
             ReasonCode.NONPOSITIVE_ENDING,
         )
-
-
-class TestComputeGrowthPercent:
-    """One-period growth from a strictly positive prior value."""
-
-    def test_positive_growth(self) -> None:
-        _assert_ok(compute_growth_percent(6.0, 5.0), 20.0)
-
-    def test_decline(self) -> None:
-        _assert_ok(compute_growth_percent(4.0, 5.0), -20.0)
-
-    def test_no_change(self) -> None:
-        _assert_ok(compute_growth_percent(5.0, 5.0), 0.0)
-
-    def test_positive_estimate_from_prior_can_still_grow(self) -> None:
-        # A positive estimate is not necessarily positive growth.
-        _assert_ok(compute_growth_percent(1.0, 2.0), -50.0)
-
-    @pytest.mark.parametrize("prior", [0.0, -1.5])
-    def test_nonpositive_prior(self, prior: float) -> None:
-        result = compute_growth_percent(3.0, prior)
-        _assert_failure(result, MetricStatus.UNAVAILABLE, ReasonCode.NONPOSITIVE_BEGINNING)
-
-    @pytest.mark.parametrize(
-        ("current", "prior"),
-        [(float("nan"), 1.0), (1.0, float("nan")), (float("inf"), 1.0)],
-    )
-    def test_non_finite_inputs(self, current: float, prior: float) -> None:
-        result = compute_growth_percent(current, prior)
-        _assert_failure(result, MetricStatus.NOT_APPLICABLE, ReasonCode.INVALID_REQUEST)
-
-    def test_division_overflow(self) -> None:
-        result = compute_growth_percent(1.0e308, 1.0e-308)
-        _assert_failure(result, MetricStatus.NOT_APPLICABLE, ReasonCode.INVALID_REQUEST)
 
 
 class TestComputeCagr:
@@ -198,7 +163,6 @@ def test_calculators_return_finite_values_on_ok() -> None:
     """Returned metric values are always finite floats, never NaN/Inf."""
     for result in (
         compute_free_cash_flow(1.0, 2.0),
-        compute_growth_percent(1.0, 2.0),
         compute_cagr(1.0, 2.0, 3),
         compute_fcf_yield(1.0, 2.0),
     ):

@@ -13,9 +13,6 @@ class ToolDefinition(BaseModel):
     name: str = Field(description="Unique name of the tool.")
     description: str = Field(description="Description of what the tool does.")
     parameters: dict[str, Any] = Field(description="JSON Schema representation of parameters.")
-    callable_func: Callable[..., Any] = Field(description="The actual executable Python callable.")
-
-    model_config = {"arbitrary_types_allowed": True}
 
 
 class ToolRegistry:
@@ -49,7 +46,6 @@ class ToolRegistry:
                 name=tool_name,
                 description=tool_desc,
                 parameters=parameters_schema,
-                callable_func=f,
             )
             self._tools[tool_name] = tool_def
             return f
@@ -61,26 +57,6 @@ class ToolRegistry:
     def get_tool(self, name: str) -> ToolDefinition | None:
         """Retrieve a registered tool by name."""
         return self._tools.get(name)
-
-    def get_all_tools(self) -> list[ToolDefinition]:
-        """Retrieve list of all registered tool definitions."""
-        return list(self._tools.values())
-
-    def to_ollama_tools(self) -> list[dict[str, Any]]:
-        """Export all registered tools formatted specifically for Ollama's tool array."""
-        ollama_tools: list[dict[str, Any]] = []
-        for tool in self._tools.values():
-            ollama_tools.append(
-                {
-                    "type": "function",
-                    "function": {
-                        "name": tool.name,
-                        "description": tool.description,
-                        "parameters": tool.parameters,
-                    },
-                }
-            )
-        return ollama_tools
 
     def _generate_schema_from_callable(self, func: Callable[..., Any]) -> dict[str, Any]:
         """Extract a valid JSON schema from a function using Pydantic dynamic modeling."""

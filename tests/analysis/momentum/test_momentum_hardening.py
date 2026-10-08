@@ -47,7 +47,7 @@ def test_resolver_truncates_future_bars_and_retains_provenance() -> None:
 
 
 def test_metric_results_classify_insufficient_history() -> None:
-    """SMA and RSI gaps use the standard unavailable metric contract."""
+    """A short history leaves the long SMA absent and RSI on the standard unavailable metric contract."""
     metrics = compute_momentum_metrics(
         df=pd.DataFrame({"Close": [10.0, 11.0, 12.0]}),
         config=MomentumConfig(short_window=2, long_window=5, rsi_period=4),
@@ -55,9 +55,8 @@ def test_metric_results_classify_insufficient_history() -> None:
         timestamp=datetime(2026, 1, 20, tzinfo=UTC),
     )
 
-    assert metrics.sma_50.status is MetricStatus.OK
-    assert metrics.sma_200.status is MetricStatus.UNAVAILABLE
-    assert metrics.sma_200.reason_code is ReasonCode.INSUFFICIENT_HISTORY
+    assert metrics.short_sma_val is not None
+    assert metrics.long_sma_val is None
     assert metrics.rsi_14.status is MetricStatus.UNAVAILABLE
     assert metrics.rsi_14.reason_code is ReasonCode.INSUFFICIENT_HISTORY
 

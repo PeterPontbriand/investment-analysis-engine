@@ -58,10 +58,6 @@ class MessageContext:
             self._messages.append(ChatMessage(role=role, content=content, name=name))
         self._truncate_if_needed()
 
-    def get_messages(self) -> list[ChatMessage]:
-        """Returns the current list of messages in the context."""
-        return list(self._messages)
-
     def to_ollama_payload(self) -> list[dict[str, Any]]:
         """Converts the message context to a list of dictionaries suitable for Ollama."""
         return [m.to_ollama_dict() for m in self._messages]

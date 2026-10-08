@@ -6,12 +6,6 @@ from pydantic import BaseModel, Field
 from src.config import settings
 
 
-class LLMResponse(BaseModel):
-    """Response model for the LLM."""
-
-    response: str
-
-
 class LLMGenerateResult(BaseModel):
     """Text plus optional provider usage (never invent token counts)."""
 

@@ -299,9 +299,10 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
   `src.evaluation.runner`, `src.evaluation.ollama_runner`, the evaluation tier
   `src.evaluation.strategy_fixtures`, `src.cli` and `src.cli_workspace`. The importers of the evaluation tier are a second exact list held the same
   way, today `src.evaluation.composition` alone.
-- **Injection:** the root builds read-only `Mapping`s from the tuple (`BY_KEY`, `BY_METHOD_ID`, `BY_ALIAS`,
-  `BY_TOOL`, `BY_ARGUMENTS`, `BY_RESULT_TYPE`, and from SWC.4c `BY_ENVELOPE`) and one narrow view per layer,
-  for example `EVIDENCE_BY_KEY`, `PARSERS_BY_ALIAS`, `REPLAYS_BY_KEY`, `HANDLERS_BY_TOOL`. Each consuming
+- **Injection:** the root builds read-only `Mapping`s from the tuple (`BY_METHOD_ID`, `BY_ALIAS`, `BY_TOOL`,
+  `BY_ARGUMENTS`, `BY_RESULT_TYPE`; `build_indexes` also builds the `analysis_id`+`method_id` and, from SWC.4c,
+  the JSON-envelope uniqueness indexes, which only the conformance checks read) and one narrow view per layer,
+  for example `EVIDENCE_BY_KEY`, `RUN_SPECS_BY_KEY`, `REPLAYS_BY_KEY`, `HANDLERS_BY_TOOL`. Each consuming
   layer declares the `Protocol` it needs; the root's bundle satisfies it. The caller passes the view in as a
   parameter. The builder is a pure function of the tuple, so tests call it on a modified copy, and it
   raises at import if a key repeats. Iteration order is declaration order.
@@ -952,7 +953,7 @@ strategy then supplies it from the start.
 
 | Assumption | Covering test | Result and resolution |
 | :--- | :--- | :--- |
-| One descriptor has exactly one tool, arguments model, evidence type, alias and JSON envelope, each unique across strategies. | T24, through `BY_TOOL`, `BY_ARGUMENTS`, `BY_RESULT_TYPE`, `BY_ALIAS` and (SWC.4c) `BY_ENVELOPE`. | Holds for all seven. **Misfit:** the Step 3.5 slice scopes name "direct command, watchlist selection, refresh, `--json`" and do not name the orchestrator tool, arguments model, `ToolName` member, handler or dependency class. SWC requires them for every strategy, and the golden suite (3.5.7) cannot select a strategy without them. *Design unchanged*: the rule stays; the edit-site table is the handoff, and the Step 3.5 contract plan states that every strategy slice covers it. |
+| One descriptor has exactly one tool, arguments model, evidence type, alias and JSON envelope, each unique across strategies. | T24, through `BY_TOOL`, `BY_ARGUMENTS`, `BY_RESULT_TYPE`, `BY_ALIAS` and (SWC.4c) the envelope index from `build_indexes`. | Holds for all seven. **Misfit:** the Step 3.5 slice scopes name "direct command, watchlist selection, refresh, `--json`" and do not name the orchestrator tool, arguments model, `ToolName` member, handler or dependency class. SWC requires them for every strategy, and the golden suite (3.5.7) cannot select a strategy without them. *Design unchanged*: the rule stays; the edit-site table is the handoff, and the Step 3.5 contract plan states that every strategy slice covers it. |
 | `method_id` is unique across all analyses. | T24, through `BY_METHOD_ID`. | Holds. It is a rule, not an accident, because runs, watchlist removal and CLI filters select by `method_id` alone (`RunQuery`, `remove_entries_for_method`, `--analysis`). It is stated in three places: the import-time error names both descriptors and the rule; the `strategy_wiring` module docstring; and the SWC.7 contributor guide's identifier section. A strategy with several methods needs distinct method ids, one descriptor per method, and so one tool, evidence type and alias per method. |
 | One result concerns one ticker. | `ticker_of`, `decode_for(payload, ticker)`, and the failure envelope's `ticker`. | Holds for all seven analyzers. The ranked view and the side-by-side table concern many tickers but are views over persisted runs, store no evidence and fail with `ticker: null`. |
 | One analyzer class maps to one descriptor. | T3, enumerating analyzers by package walk over `src/strategies`. | Holds; Altman's two models are one analyzer. An enumeration by hand-written list would need an edit for each of seven analyzers; the package walk needs none. |
@@ -1727,7 +1728,8 @@ with the decision and its reason.
 `RunSpec` (the three versions `execute` writes and its `encode`) in `src/workspace/execution.py`, so each
 generic consumer owns the shape it receives and names no strategy. The root builds them with pure functions
 (`evidence_by_type`, `evidence_by_key`, `run_specs_by_key`, `parsers_by_alias`) and publishes
-`EVIDENCE_BY_TYPE`, `EVIDENCE_BY_KEY`, `RUN_SPECS_BY_KEY` and `PARSERS_BY_ALIAS`. `RunSpec.encode` is bound to the
+`EVIDENCE_BY_KEY`, `RUN_SPECS_BY_KEY` and `REPLAYS_BY_KEY`; the by-type and by-alias views are built on demand by the
+conformance checks and tests, because no production layer reads them. `RunSpec.encode` is bound to the
 same codec, so a schema failure is still reported as `InvalidStoredRunError` with the strategy's label.
 `run_spec_for(selection, run_specs=RUN_SPECS_BY_KEY)` is the one lookup `src.cli` and `src.cli_workspace` use.
 

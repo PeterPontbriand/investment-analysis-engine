@@ -58,7 +58,7 @@ def test_put_mints_a_new_profile_on_first_resolution(repository: SQLiteInstrumen
         schema_version=1,
         evidence={"provider_id": "yfinance", "kind": "equity"},
     )
-    assert record.is_current
+    assert record.superseded_at is None
     assert repository.get("KO") == record
     assert repository.get_by_id(FIRST_ID) == record
 
@@ -96,7 +96,7 @@ def test_disagreeing_anchor_supersedes_and_mints_a_new_profile(database: SQLiteD
     assert superseded.superseded_reason is not None
     assert "0000021344" in superseded.superseded_reason
     assert "9999999999" in superseded.superseded_reason
-    assert not superseded.is_current
+    assert superseded.superseded_at is not None
 
     # The superseded row is retained, never deleted, but is no longer current.
     assert repository.get("KO") == second
@@ -158,7 +158,7 @@ def test_reopen_preserves_current_and_superseded_profiles(tmp_path: Path) -> Non
 
         superseded = reopened.get_by_id(FIRST_ID)
         assert superseded is not None
-        assert not superseded.is_current
+        assert superseded.superseded_at is not None
         assert superseded.identity_anchor == "0000021344"
     finally:
         second_database.close()

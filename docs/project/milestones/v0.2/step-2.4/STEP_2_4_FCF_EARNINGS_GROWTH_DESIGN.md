@@ -547,7 +547,6 @@ Financial arithmetic resides in pure Python functions. Candidate functions are:
 ```text
 compute_free_cash_flow(operating_cash_flow, normalized_capital_expenditures)
 compute_fcf_per_diluted_share(free_cash_flow, weighted_average_diluted_shares)
-compute_growth_percent(current, prior)
 compute_cagr(beginning, ending, elapsed_years)
 compute_fcf_yield(free_cash_flow, market_capitalization)
 classify_fcf_earnings_growth(...)

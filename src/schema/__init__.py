@@ -20,12 +20,7 @@ from src.schema.exceptions import (
     SchemaViolationError,
 )
 from src.schema.models import (
-    PlanResponse,
-    PlanStep,
-    StructuredResponse,
-    SynthesisResponse,
     ToolCallResponse,
-    ToolCallStatus,
 )
 from src.schema.validator import (
     ValidationErrorType,
@@ -37,8 +32,6 @@ from src.schema.validator import (
 )
 
 __all__ = [
-    "PlanResponse",
-    "PlanStep",
     "SchemaCompatibilityError",
     "SchemaConfig",
     "SchemaConstraint",
@@ -46,10 +39,7 @@ __all__ = [
     "SchemaError",
     "SchemaValidationError",
     "SchemaViolationError",
-    "StructuredResponse",
-    "SynthesisResponse",
     "ToolCallResponse",
-    "ToolCallStatus",
     "ValidationErrorType",
     "ValidationResult",
     "build_retry_messages",

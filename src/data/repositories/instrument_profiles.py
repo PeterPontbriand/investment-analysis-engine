@@ -59,11 +59,6 @@ class InstrumentProfileRecord:
     superseded_at: datetime | None = None
     superseded_reason: str | None = None
 
-    @property
-    def is_current(self) -> bool:
-        """Return whether this row is the live profile for its ticker."""
-        return self.superseded_at is None
-
 
 def _record_from_row(row: RowMapping) -> InstrumentProfileRecord:
     """Reconstruct one typed record from a stored row, decoding its evidence."""
