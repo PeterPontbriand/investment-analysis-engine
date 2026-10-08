@@ -201,12 +201,9 @@ class TrajectoryRecorder:
         finally:
             self._closed = True
 
-    def start_span(self, *, parent_span_id: UUID | None = None) -> UUID:  # noqa: ARG002
+    def start_span(self) -> UUID:
         """Create a logical operation span identifier; each recorded event carries its own explicit parent."""
         return uuid4()
-
-    def end_span(self, span_id: UUID) -> None:
-        """Mark a logical operation span finished; spans carry no state, so event ordering is unaffected."""
 
     def record_error(self, error: TrajectoryErrorRecord) -> TrajectoryEvent | None:
         """Record a sanitized runtime error event."""

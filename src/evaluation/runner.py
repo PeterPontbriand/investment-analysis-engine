@@ -168,7 +168,6 @@ async def run_deterministic_suite(  # noqa: PLR0913
                 },
             ),
         )
-        recorder.end_span(run_span_id)
         recorder.flush()
         recorder.close()
 
@@ -182,8 +181,8 @@ async def _run_case(
     step_index: int,
 ) -> CaseEvaluationResult:
     """Execute and evaluate one supplied deterministic case."""
-    case_span_id = recorder.start_span(parent_span_id=run_span_id)
-    tool_span_id = recorder.start_span(parent_span_id=case_span_id)
+    case_span_id = recorder.start_span()
+    tool_span_id = recorder.start_span()
     tool_name = tool_for_arguments(request.arguments)
     arguments = request.arguments.model_dump(mode="json")
     _record(
@@ -281,8 +280,6 @@ async def _run_case(
             payload={"case_id": request.case.case_id, "outcome": result.outcome.value},
         ),
     )
-    recorder.end_span(tool_span_id)
-    recorder.end_span(case_span_id)
     return result
 
 
