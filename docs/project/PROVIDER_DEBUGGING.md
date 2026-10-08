@@ -113,7 +113,22 @@ The check reads the ticker map and one company-facts document for the probe tick
 | `company facts document has no 'facts' mapping` or no `'us-gaap'` mapping | The company-facts document changed. Read how the same module parses `facts`. |
 | `timed out after 20 s` | The network, or SEC is slow; retry once. |
 
-## 4. Moving the Yahoo check to the fallback, and back
+## 4. The application log
+
+Every command writes its log records to one file and prints none of them. A record from one of the project's modules
+or from a library such as `yfinance` or `alembic` at the configured level (`log_level`, `INFO` by default) or above
+goes to `logs/app.log` under the project folder. Set `LOG_DIR` to move it, and `log_file_name` to rename it. The
+file rotates daily or at 1 MB, keeps five backups and compresses older ones to `.zip`.
+
+Standard output and standard error carry only the command's own result and messages, so `--json` output is unaffected.
+That means a provider failure's cause may be in the log and not on the screen. For example, a connection failure
+during a history download writes `Low-level connection error during yfinance download for '<ticker>': <error>` to the
+log, while the command prints only that Yahoo returned no usable price history. When a command fails and its message is
+too general, read the last lines of `logs/app.log` first. An unexpected error that a command reports with a generic
+sentence is logged with its traceback, and an exception that no command handled is logged as `CRITICAL` under
+`system.crash`.
+
+## 5. Moving the Yahoo check to the fallback, and back
 
 If the Yahoo check fails on two consecutive scheduled cloud runs while the same check passes on your own machine the
 same day, run the Yahoo check from your machine and leave only the SEC check in the cloud.
@@ -132,7 +147,7 @@ same day, run the Yahoo check from your machine and leave only the SEC check in 
 
 To move back, disable the scheduled task and restore the original `SELECTOR` line.
 
-## 5. Adding a check for a new provider
+## 6. Adding a check for a new provider
 
 1. In `src/data/provider_checks.py`, add a typed, frozen spec (probe ticker or request, the fields the adapter
    reads, the timeout), one check function that takes its adapter or transport and a monotonic clock by injection,

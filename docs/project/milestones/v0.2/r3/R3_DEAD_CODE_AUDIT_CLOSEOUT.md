@@ -58,9 +58,10 @@ The rule applied: code read only by its own tests is dead; code read by the sche
 | `StrategyDescriptor.json_envelope` | Read by the schema generator and the schema drift check. |
 | `EvaluationStrategy.sample_selection` | Read by the conformance script's stored-run probe; each strategy must supply one. |
 | `AccountingScope.SEGMENT` | Member of a closed vocabulary; removing it changes a generated schema. |
-| `exc_val`, `exc_tb` in `LoggerContext.__exit__` | Required context-manager signature (recorded in the first pass). |
 
 A third pass (2026-10-08) deleted the two dispatch routes that only tests and the conformance script ran: `parse_selection`, the descriptor `parse` member, `parse_for` and `parsers_by_alias`, and `encode_evidence` with `evidence_by_type`. Production builds a selection from command-line options and reads a stored one with `decode_selection`, and encodes through the run spec of the run's own strategy. They are no longer on the kept list.
+
+A fourth pass (2026-10-08) made logging reach the log file and deleted what it left without a role: `worker.py`, `setup_logger`, `LoggerContext`, `ContextualAdapter` (with its `context_data` branch) and the console handler with its colour formatter. Nothing from the logging utility is on the kept list.
 
 ## 6. References
 

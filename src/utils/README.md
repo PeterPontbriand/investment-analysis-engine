@@ -2,73 +2,57 @@
 
 ## Overview
 
-This module provides a production-grade, asynchronous, centralized logging architecture optimized for multi-threaded CLI data analysis. It utilizes a completely non-blocking, queue-based approach (`QueueHandler` and `QueueListener`) to offload heavy I/O file writing from your primary data execution threads, ensuring fluid performance across Windows, macOS, and Docker (Linux).
+This module routes every log record the application produces into one rotating log file, through a non-blocking queue (`QueueHandler` and `QueueListener`) so that file writing does not slow the analysis. It installs a single queue handler on the root logger, so records from the project's modules and from third-party libraries (`yfinance`, `alembic` and others) all reach the file at the configured level and above. It has no console handler: nothing is written to standard output or standard error by logging, which keeps `--json` output and the command's own messages untouched.
 
 ## Key Features
 
 - **Asynchronous, Non-Blocking Architecture**: Thread-safe logging that routes records through a central memory queue to keep analytical execution flows fast.
-- **Dual-Output Routing**: Dispatches log entries to both native standard console output (`sys.stdout`) and a dedicated file pipeline concurrently.
+- **File-Only Output**: Writes log entries to `logs/app.log` (set `LOG_DIR` to move it) and never to the terminal.
 - **Enhanced Cross-Platform Rotation**: Subclasses `TimedRotatingFileHandler` to seamlessly enforce *both* time-based (e.g., daily) and size-based limits (`maxBytes`) without filename collisions.
 - **Thread-Safe Log Compression**: Automatically compresses older logs into standard `.zip` files via background threads, strictly avoiding native Windows host file-locking crashes (`PermissionError`).
-- **ANSI Terminal Colorization**: Features high-visibility, color-coded level tags on the console, while maintaining standard plain-text formatting in the log files for seamless log scanning.
-- **Global Failure Interception**: Catches and logs uncaught exceptions with full stack traces across both the main execution flow and secondary worker threads automatically.
+- **Global Failure Interception**: Logs an uncaught exception as `CRITICAL` with its full traceback, from the command-line entry point and from secondary threads, and shows the standard traceback on standard error.
 - **Docker-Safe Graceful Exits**: Hooks directly into Python's `atexit` cycle to fully finish and zip pending log files when receiving container termination signals (`SIGTERM`).
 
 ---
 
-## Architectural Lifecycle Separation
+## Lifecycle
 
-To maintain strict thread-safety and avoid breaking background log queues, this system explicitly separates your lifecycles into two distinct layers:
-1. **Global Logging System**: Started once at application launch and stopped once at application exit. It owns the queue processor, the console streamers, and the background compression worker pools.
-2. **Context Logging Adapters**: Spawned dynamically within structural modules or request handlers to wrap one module logger without altering the core global logging pipes.
+`setup_global_logging()` is called once, by `src/main.py`, before any command runs. It starts the queue listener that writes the log file, attaches one queue handler to the root logger at `settings.log_level`, and installs the uncaught-exception hooks. `teardown_global_logging()` stops the listener, which writes every queued record before it returns. `main()` calls it in a `finally` block and an `atexit` hook calls it again, so a command that exits with a failure status still flushes its records.
 
 ---
 
-## Usage Instructions
+## Usage
 
-### 1. System Initialization (Application Entry Point)
-
-Invoke `setup_global_logging()` exactly **once** at the absolute entry point of your CLI tool (e.g., in `main.py` or `typer_main.py`) before spawning worker threads or initializing specific module loggers.
+Module code logs the usual way, with no setup:
 
 ```python
 import logging
-from src.utils.logger_util import setup_global_logging, setup_logger
 
-# Initialize async message routing pipes and system crash hooks once
-setup_global_logging()
-
-# Fetch your module-level logger wrapper
-logger_context = setup_logger(__name__)
+logger = logging.getLogger(__name__)
+logger.info("Downloading market data for %s", ticker)
 ```
 
-### 2. Standard Logging Operations
+The record goes to `logs/app.log` (or `LOG_DIR/<log_file_name>`) as `timestamp | logger name | LEVEL | message`. Nothing appears on the terminal, so a message the user must see belongs in the command's own output, not in a log call.
 
-To use the logger normally, access its `.logger` property. You do **not** need to wrap routine log lines inside context blocks.
-
-```python
-def process_data_array():
-    logger_context.logger.info("Initializing analytical array workspace...")
-```
-
-### 3. Context Adapters
-
-`with setup_logger(__name__) as adapter` yields a `ContextualAdapter`. A caller may pass `extra={"context_data": ...}` to a log call to append that value inline to the message. Nothing else is appended.
+An exception that a command handler reports with a generic sentence is logged with its traceback by `execution_errors`. An exception that no handler catches is logged as `CRITICAL` under `system.crash` by `main()`, and Typer shows its own traceback on standard error.
 
 ---
 
 ## API Reference
- 
-### `setup_global_logging()`
-Construct the central core logging pipeline. Start the background queue processor, set up plain text file bindings, initialize the ANSI console formatter, and hook up main and thread-level crash interception.
 
-### `setup_logger(logger_name: str) -> LoggerContext`
-Fetch a standard logger by namespace identifier and map its message outputs directly into the global worker queue.
-- **Returns**: A tracking `LoggerContext` container block.
+### `setup_global_logging()`
+Start the background queue processor and file handler, attach the root queue handler, and hook up main-thread and thread-level crash interception. Safe to call twice; the second call does nothing.
+
+### `teardown_global_logging()`
+Stop the listener, flush the queue, close the handlers and wait for background compression. Registered with `atexit`.
+
+### `handle_uncaught_exception(exc_type, exc_value, exc_traceback)`
+Log the exception as `CRITICAL` under `system.crash`, then print the standard traceback on standard error.
 
 ---
 
 ## Best Practices
 
-1. **Let `atexit` Handle the Lifecycle**: Do not call teardown or stop functions manually. Stopping global listeners prematurely permanently breaks the logging architecture for remaining threads.
-2. **Never Instantiate Handlers Manually**: Do not attach custom handlers directly via `logger.addHandler()`. This creates multiple open file descriptors to `app.log`, resulting in severe runtime file-locking failures on Windows. All routing must be handled through `setup_global_logging()`.
-3. **Keep Context Adapters Scoped**: Use the `with setup_logger(...)` pattern only inside local code chunks that need the adapter. Do not leak or re-instantiate the adapter variable outside the block scope.
+1. **Let the entry point own the lifecycle**: Do not call setup or teardown from module code. Stopping the listener early loses later records.
+2. **Never instantiate handlers manually**: Do not attach custom handlers with `logger.addHandler()`. A second handler on the log file causes file-locking failures on Windows.
+3. **Do not print from logging**: There is no console handler by design; standard output carries the command's result and standard error its messages.

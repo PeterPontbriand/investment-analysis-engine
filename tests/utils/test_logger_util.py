@@ -8,10 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from src.utils.logger_util import (
-    ConsoleColorFormatter,
-    LoggerContext,
     ThreadSafeSizeAwareTimedRotatingFileHandler,
-    setup_logger,
     wait_for_log_compression_shutdown,
 )
 
@@ -20,27 +17,6 @@ from src.utils.logger_util import (
 def temp_log_dir(tmp_path: Path) -> Path:
     """Fixture providing an isolated temporary directory for logging tests."""
     return tmp_path
-
-
-def test_console_color_formatter() -> None:
-    """Verify ConsoleColorFormatter wraps log levels with ANSI escape sequences."""
-    formatter = ConsoleColorFormatter(fmt="%(levelname)s | %(message)s")
-    record = logging.LogRecord(
-        name="test_logger",
-        level=logging.INFO,
-        pathname="test.py",
-        lineno=10,
-        msg="Sample log message",
-        args=None,
-        exc_info=None,
-    )
-    formatted = formatter.format(record)
-
-    # Assert color coding wrap on level name
-    assert ConsoleColorFormatter.GREEN in formatted
-    assert ConsoleColorFormatter.RESET in formatted
-    # Check that original levelname state was restored correctly
-    assert record.levelname == "INFO"
 
 
 def test_size_based_rollover_with_zip_compression(temp_log_dir: Path) -> None:
@@ -126,32 +102,3 @@ def test_timed_rollover_at_simulated_interval(temp_log_dir: Path) -> None:
 
     handler.close()
     wait_for_log_compression_shutdown()
-
-
-def test_contextual_adapter_appends_inline_context_data() -> None:
-    """Verify ContextualAdapter appends inline context_data supplied through ``extra`` to the message."""
-    logger = logging.getLogger("test_context")
-    logger.setLevel(logging.INFO)
-
-    with LoggerContext(logger) as adapter:
-        msg, _kwargs = adapter.process("Running momentum backtest", {"extra": {"context_data": "request ABC-123"}})
-
-    assert str(msg) == "Running momentum backtest | request ABC-123"
-
-
-def test_setup_logger_idempotency() -> None:
-    """Verify setup_logger does not stack duplicate QueueHandlers on multiple requests."""
-    logger_name = "test_idempotency_logger"
-
-    # Trigger first config
-    ctx_1 = setup_logger(logger_name)
-    logger_instance = ctx_1.adapter.logger
-    handlers_count_1 = len(logger_instance.handlers)
-
-    # Trigger second config
-    setup_logger(logger_name)
-    handlers_count_2 = len(logger_instance.handlers)
-
-    # Assert handlers count did not change/double
-    assert handlers_count_1 == handlers_count_2
-    assert any(isinstance(h, logging.handlers.QueueHandler) for h in logger_instance.handlers)

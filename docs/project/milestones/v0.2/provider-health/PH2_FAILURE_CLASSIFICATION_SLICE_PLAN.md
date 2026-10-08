@@ -88,6 +88,8 @@ PH.2c extend.
   `unreachable` types are in [§8](#8-verified-against-main).
 - **Checks.** `ProviderCheckResult` gains the kind and `ian health` prints it.
 - **Completion test** (inventory §7) and the runbook, `docs/project/PROVIDER_DEBUGGING.md`.
+- **Connection failure test.** A test that a connection failure during a history download is named in the
+  command's own message, since the log line no longer reaches standard error.
 - **Gate.** The complete managed gate. The live suite still passes on the project owner's machine, since the
   check bodies changed.
 

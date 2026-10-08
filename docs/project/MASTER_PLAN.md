@@ -179,7 +179,7 @@ System settings are managed through the project's centralized `ProjectSettings` 
 - **Execution Limits:** Max planning steps (default: 10), Max transient retries (default: 3); subsequent reliability work may add more explicit timeout/error limits.
 - **Cache & Database:** SQLite connection path and later persistence/cache settings.
 - **Localization:** System default locale (`en-CA` / `fr-CA`), Currency defaults (`CAD`).
-- **Operational Logging:** The existing `src/utils/logger_util.py` uses configurable log level, file name, maximum file size, backup count, encoding, and time-based rotation settings. Structured trajectory telemetry should reuse the existing configuration conventions rather than inventing a separate logging configuration mechanism.
+- **Operational Logging:** `src/utils/logger_util.py` routes every logger's records at the configured level and above to one rotating log file (`logs/app.log` by default) and writes nothing to the terminal. It uses configurable log level, file name, maximum file size, backup count, encoding, and time-based rotation settings. Structured trajectory telemetry should reuse the existing configuration conventions rather than inventing a separate logging configuration mechanism.
 - **Trajectory Telemetry:** Structured telemetry has its own configuration namespace within the same settings system where its storage/retention controls differ materially from human-readable operational logs. Retention and storage limits are configurable, not architectural constants.
 
 ---
@@ -377,7 +377,7 @@ Operational logging remains on the diagnostics/logging subsystem and must not be
 
 The project distinguishes **human-oriented operational logging** from **structured agent trajectory telemetry**.
 
-- `src/utils/logger_util.py` remains the operational logging infrastructure. It already provides asynchronous queue-based logging, console/file routing, time- and size-based rotation, configurable backup counts, background compression, contextual metadata, and graceful shutdown. Its configuration is driven through the existing settings system.
+- `src/utils/logger_util.py` remains the operational logging infrastructure. It provides asynchronous queue-based logging to a file only (a root-logger queue handler, so third-party records are included; there is no console handler), time- and size-based rotation, configurable backup counts, background compression, graceful shutdown that flushes the queue before the process exits, and an uncaught-exception hook that logs a CRITICAL record and shows the traceback on standard error. Its configuration is driven through the existing settings system.
 - Step 2.1 established a separate typed trajectory telemetry model and recorder for machine-readable execution history. Telemetry is observational and must not become a second orchestration engine.
 - The telemetry model records observable execution events such as trajectory/step boundaries, LLM requests and responses, tool calls/results, failures, latency, and token usage when available.
 - Model-emitted auxiliary/reasoning output may be recorded when explicitly exposed to the application. Private/internal model reasoning is never inferred or reconstructed.
