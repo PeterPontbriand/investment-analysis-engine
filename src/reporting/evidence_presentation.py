@@ -13,13 +13,13 @@ valuation-specific concern this module does not assume every strategy shares.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Final
+from typing import Final
 
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionTrace
-from src.data.instrument_profile import InstrumentProfile, instrument_kind_evidence_payload
-from src.data.security_identity import IdentityResolutionStatus, SecurityIdentityResolution, security_display_label
+from src.data.instrument_profile import InstrumentProfile
+from src.data.security_identity import SecurityIdentityResolution, security_display_label
 from src.reporting.input_provenance import financial_basis, input_detail_lines, input_source_label
 from src.reporting.presentation import (
     format_as_of,
@@ -213,49 +213,6 @@ def profile_diagnostic_lines(
     ]
 
 
-def profile_diagnostic_payloads(profile: InstrumentProfile | None) -> list[dict[str, str]]:
-    """Convert ordered profile diagnostics to the stable presentation shape."""
-    if profile is None:
-        return []
-    return [
-        {
-            "field_name": item.capability.value,
-            "stage": "provider",
-            "outcome": item.status.value,
-            "message": item.message,
-            "provider_id": item.provider_id,
-        }
-        for item in profile.diagnostics
-    ]
-
-
-def security_identity_diagnostic_entry(
-    instrument_profile: InstrumentProfile | None, identity_resolution: SecurityIdentityResolution | None
-) -> list[dict[str, str]]:
-    """Return the one-item legacy security-identity diagnostic when no profile diagnostics exist."""
-    if (
-        instrument_profile is None
-        and identity_resolution is not None
-        and identity_resolution.status is not IdentityResolutionStatus.RESOLVED
-    ):
-        return [
-            {
-                "field_name": "security_identity",
-                "stage": "provider",
-                "outcome": identity_resolution.status.value,
-                "message": identity_resolution.message,
-            }
-        ]
-    return []
-
-
-def instrument_kind_payload(instrument_profile: InstrumentProfile | None) -> dict[str, Any] | None:
-    """Return the instrument-kind evidence payload for one presentation's instrument profile."""
-    return instrument_kind_evidence_payload(
-        instrument_profile.kind_evidence if instrument_profile is not None else None
-    )
-
-
 # ---------------------------------------------------------------------------
 # Resolved-input detail / diagnostics / payload
 # ---------------------------------------------------------------------------
@@ -335,52 +292,6 @@ def override_warnings(inputs: tuple[ResolvedInput | None, ...]) -> list[str]:
     return warnings
 
 
-def resolved_input_payload(value: ResolvedInput | None) -> dict[str, Any] | None:
-    """Convert one resolved input to its stable JSON diagnostics shape."""
-    if value is None:
-        return None
-    payload: dict[str, Any] = {
-        "field_name": value.field_name,
-        "value": value.value,
-        "source_kind": value.source_kind.value,
-        "origin_source_kind": (value.origin_source_kind.value if value.origin_source_kind is not None else None),
-        "basis": value.basis,
-        "units": value.units,
-        "currency": value.currency,
-        "provider_id": value.provider_id,
-        "provider_field": value.provider_field,
-        "observation_period_start": json_datetime(value.observation_period_start),
-        "observation_period_end": json_datetime(value.observation_period_end),
-        "observed_at": json_datetime(value.observed_at),
-        "available_at": json_datetime(value.available_at),
-        "as_of": json_datetime(value.as_of),
-        "retrieved_at": json_datetime(value.retrieved_at),
-        "resolved_at": json_datetime(value.resolved_at),
-        "cache_schema_version": value.cache_schema_version,
-        "notes": list(value.notes),
-        "lineage": None,
-    }
-    if value.lineage is not None:
-        payload["lineage"] = {
-            "transformation": value.lineage.transformation,
-            "components": [resolved_input_payload(component) for component in value.lineage.components],
-        }
-    return payload
-
-
-def trace_payload(trace: ResolutionTrace) -> list[dict[str, str]]:
-    """Convert immutable resolver trace events to the JSON diagnostics shape."""
-    return [
-        {
-            "field_name": event.field_name,
-            "stage": event.stage.value,
-            "outcome": event.outcome.value,
-            "message": event.message,
-        }
-        for event in trace.events
-    ]
-
-
 # ---------------------------------------------------------------------------
 # Shared validation helpers
 # ---------------------------------------------------------------------------
@@ -414,8 +325,3 @@ def validate_ticker(ticker: str) -> None:
     if not ticker.strip():
         msg = "ticker must be a non-empty string."
         raise ValueError(msg)
-
-
-def json_datetime(value: datetime | None) -> str | None:
-    """Render an optional datetime as its ISO-8601 string, or None."""
-    return None if value is None else value.isoformat()

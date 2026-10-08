@@ -23,16 +23,18 @@ from __future__ import annotations
 import math
 
 from src.strategies.fcf_growth.models import (
-    Classification,
     ClassificationDecision,
-    FCFClassificationBasis,
     FCFEarningsGrowthPolicy,
     ForwardEvidence,
-    ForwardEvidenceStatus,
-    ForwardPolicy,
     MetricResult,
     MetricStatus,
     ReasonCode,
+)
+from src.strategies.fcf_growth.vocabulary import (
+    Classification,
+    FCFClassificationBasis,
+    ForwardEvidenceStatus,
+    ForwardPolicy,
     TrendClassification,
 )
 

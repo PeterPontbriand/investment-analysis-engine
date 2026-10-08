@@ -1,0 +1,981 @@
+{
+  "$defs": {
+    "CalculationStatus": {
+      "description": "Machine-readable outcome of a calculation attempt.\n\nPure calculators (Slice B) may return:\n\n- ``OK`` — required inputs resolved and calculation completed.\n- ``NOT_APPLICABLE`` — inputs are valid but the selected method is\n  inapplicable (e.g. non-positive EPS or BVPS for the Graham Number).\n- ``INVALID_INPUT`` — supplied value, unit, basis, or method/flag\n  combination is invalid.\n\nResolver/provider layers (Slice C and later) will additionally return:\n\n- ``INPUT_UNAVAILABLE`` — a required input could not be resolved under\n  the requested time boundary.\n- ``PROVIDER_ERROR`` — the configured provider failed in a way that\n  should be distinguished from an absent fact.",
+      "enum": [
+        "ok",
+        "not_applicable",
+        "invalid_input",
+        "input_unavailable",
+        "provider_error"
+      ],
+      "title": "CalculationStatus",
+      "type": "string"
+    },
+    "DiagnosticPart": {
+      "additionalProperties": false,
+      "description": "One diagnostics entry that names no provider: a resolver event or the legacy identity entry.",
+      "properties": {
+        "field_name": {
+          "title": "Field Name",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "outcome": {
+          "title": "Outcome",
+          "type": "string"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_name",
+        "stage",
+        "outcome",
+        "message"
+      ],
+      "title": "DiagnosticPart",
+      "type": "object"
+    },
+    "GrahamNumberInputsPart": {
+      "additionalProperties": false,
+      "description": "The inputs the method needs, each null when it could not be resolved.",
+      "properties": {
+        "bvps": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResolvedInputPart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "current_price": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResolvedInputPart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "eps": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResolvedInputPart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "eps",
+        "bvps",
+        "current_price"
+      ],
+      "title": "GrahamNumberInputsPart",
+      "type": "object"
+    },
+    "GrahamNumberResultPart": {
+      "additionalProperties": false,
+      "description": "The computed ceiling; null unless the calculation succeeded.",
+      "properties": {
+        "margin_of_safety_percent": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Margin Of Safety Percent"
+        },
+        "maximum_indicated_price": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Maximum Indicated Price"
+        }
+      },
+      "required": [
+        "maximum_indicated_price",
+        "margin_of_safety_percent"
+      ],
+      "title": "GrahamNumberResultPart",
+      "type": "object"
+    },
+    "InstrumentKind": {
+      "description": "Reviewed provider-neutral instrument classifications.",
+      "enum": [
+        "equity",
+        "etf",
+        "cryptocurrency"
+      ],
+      "title": "InstrumentKind",
+      "type": "string"
+    },
+    "InstrumentKindPart": {
+      "additionalProperties": false,
+      "description": "The instrument-kind evidence a provider returned: the raw provider value and the reviewed kind it maps to.",
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InstrumentKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "provider_value": {
+          "title": "Provider Value",
+          "type": "string"
+        },
+        "resolved_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Resolved At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "provider_value",
+        "provider_id",
+        "resolved_at"
+      ],
+      "title": "InstrumentKindPart",
+      "type": "object"
+    },
+    "LineagePart": {
+      "additionalProperties": false,
+      "description": "How a derived input was composed from other inputs.",
+      "properties": {
+        "components": {
+          "items": {
+            "$ref": "#/$defs/ResolvedInputPart"
+          },
+          "title": "Components",
+          "type": "array"
+        },
+        "transformation": {
+          "title": "Transformation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "transformation",
+        "components"
+      ],
+      "title": "LineagePart",
+      "type": "object"
+    },
+    "PriceComparisonPart": {
+      "additionalProperties": false,
+      "description": "The relationship between a method's value and the current price, with the evidence behind it.",
+      "properties": {
+        "percent": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Percent"
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SecurityUnitProvenancePart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quote_freshness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuoteFreshnessPart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "security_unit_evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SecurityUnitEvidencePart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "available",
+            "unavailable"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "reason",
+        "percent",
+        "quote_freshness",
+        "security_unit_evidence",
+        "provenance"
+      ],
+      "title": "PriceComparisonPart",
+      "type": "object"
+    },
+    "ProviderDiagnosticPart": {
+      "additionalProperties": false,
+      "description": "One diagnostics entry for an instrument-profile capability, which names the provider consulted.",
+      "properties": {
+        "field_name": {
+          "title": "Field Name",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "outcome": {
+          "title": "Outcome",
+          "type": "string"
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_name",
+        "stage",
+        "outcome",
+        "message",
+        "provider_id"
+      ],
+      "title": "ProviderDiagnosticPart",
+      "type": "object"
+    },
+    "QuoteFreshnessPart": {
+      "additionalProperties": false,
+      "description": "How recent the quote behind a price comparison was.",
+      "properties": {
+        "evaluated_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Evaluated At",
+          "type": "string"
+        },
+        "market_observed_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Market Observed At"
+        },
+        "max_retrieval_age_seconds": {
+          "title": "Max Retrieval Age Seconds",
+          "type": "number"
+        },
+        "retrieval_age_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Retrieval Age Seconds"
+        },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Retrieved At"
+        },
+        "status": {
+          "enum": [
+            "recent_retrieval",
+            "expired",
+            "unknown_retrieval_time",
+            "future_timestamp",
+            "user_supplied",
+            "historical"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "evaluated_at",
+        "retrieved_at",
+        "retrieval_age_seconds",
+        "max_retrieval_age_seconds",
+        "market_observed_at"
+      ],
+      "title": "QuoteFreshnessPart",
+      "type": "object"
+    },
+    "QuotePart": {
+      "additionalProperties": false,
+      "description": "The optional current-quote attempt: ``ok``, ``not_attempted`` or the status of the failed lookup.",
+      "properties": {
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "reason"
+      ],
+      "title": "QuotePart",
+      "type": "object"
+    },
+    "ResolvedInputPart": {
+      "additionalProperties": false,
+      "description": "One method input and where it came from, as the Graham documents write it.",
+      "properties": {
+        "as_of": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "As Of"
+        },
+        "available_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Available At"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Basis"
+        },
+        "cache_schema_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cache Schema Version"
+        },
+        "currency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Currency"
+        },
+        "field_name": {
+          "title": "Field Name",
+          "type": "string"
+        },
+        "lineage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LineagePart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "observation_period_end": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observation Period End"
+        },
+        "observation_period_start": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observation Period Start"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observed At"
+        },
+        "origin_source_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Field"
+        },
+        "provider_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Id"
+        },
+        "resolved_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Resolved At",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Retrieved At"
+        },
+        "source_kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "units": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Units"
+        },
+        "value": {
+          "description": "A finite number, written as the source value was.",
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "field_name",
+        "value",
+        "source_kind",
+        "origin_source_kind",
+        "basis",
+        "units",
+        "currency",
+        "provider_id",
+        "provider_field",
+        "observation_period_start",
+        "observation_period_end",
+        "observed_at",
+        "available_at",
+        "as_of",
+        "retrieved_at",
+        "resolved_at",
+        "cache_schema_version",
+        "notes",
+        "lineage"
+      ],
+      "title": "ResolvedInputPart",
+      "type": "object"
+    },
+    "SecurityIdentityPart": {
+      "additionalProperties": false,
+      "description": "The identity snapshot a run retains; every descriptive field is null when the provider returned none.",
+      "properties": {
+        "instrument_identifier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Instrument Identifier"
+        },
+        "instrument_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Instrument Name"
+        },
+        "issuer_identifier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issuer Identifier"
+        },
+        "listing_venue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Listing Venue"
+        },
+        "provider_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Id"
+        },
+        "resolved_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Resolved At"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticker",
+        "instrument_name",
+        "listing_venue",
+        "issuer_identifier",
+        "instrument_identifier",
+        "provider_id",
+        "resolved_at"
+      ],
+      "title": "SecurityIdentityPart",
+      "type": "object"
+    },
+    "SecurityUnitDocumentPart": {
+      "additionalProperties": false,
+      "description": "One filing document that supports the share-unit evidence.",
+      "properties": {
+        "accession": {
+          "title": "Accession",
+          "type": "string"
+        },
+        "available_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Available At",
+          "type": "string"
+        },
+        "context_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Context Ids",
+          "type": "array"
+        },
+        "listing_venue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Listing Venue"
+        },
+        "retrieved_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "accession",
+        "url",
+        "context_ids",
+        "available_at",
+        "retrieved_at",
+        "listing_venue"
+      ],
+      "title": "SecurityUnitDocumentPart",
+      "type": "object"
+    },
+    "SecurityUnitEvidencePart": {
+      "additionalProperties": false,
+      "description": "The evidence relating the filing's share unit to the quoted one.",
+      "properties": {
+        "filing_unit_kind": {
+          "title": "Filing Unit Kind",
+          "type": "string"
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "quoted_unit_kind": {
+          "title": "Quoted Unit Kind",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        },
+        "underlying_shares_per_quoted_unit": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Underlying Shares Per Quoted Unit"
+        }
+      },
+      "required": [
+        "ticker",
+        "filing_unit_kind",
+        "quoted_unit_kind",
+        "underlying_shares_per_quoted_unit",
+        "provider_id",
+        "source"
+      ],
+      "title": "SecurityUnitEvidencePart",
+      "type": "object"
+    },
+    "SecurityUnitProvenancePart": {
+      "additionalProperties": false,
+      "description": "The reviewed single-class inference behind the share-unit evidence.",
+      "properties": {
+        "cik": {
+          "title": "Cik",
+          "type": "string"
+        },
+        "class_title": {
+          "title": "Class Title",
+          "type": "string"
+        },
+        "documents": {
+          "items": {
+            "$ref": "#/$defs/SecurityUnitDocumentPart"
+          },
+          "title": "Documents",
+          "type": "array"
+        },
+        "mapping_id": {
+          "title": "Mapping Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mapping_id",
+        "cik",
+        "class_title",
+        "documents"
+      ],
+      "title": "SecurityUnitProvenancePart",
+      "type": "object"
+    },
+    "SourceKind": {
+      "description": "How a resolved input value was obtained.",
+      "enum": [
+        "override",
+        "cache",
+        "provider",
+        "derived"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The Graham Number document, version 6, as ``graham-number --json`` and ``runs show --json`` write it.",
+  "properties": {
+    "analysis": {
+      "const": "graham_number",
+      "title": "Analysis",
+      "type": "string"
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "As Of"
+    },
+    "diagnostics": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/DiagnosticPart"
+          },
+          {
+            "$ref": "#/$defs/ProviderDiagnosticPart"
+          }
+        ]
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "inputs": {
+      "$ref": "#/$defs/GrahamNumberInputsPart"
+    },
+    "instrument_kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InstrumentKindPart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "method": {
+      "const": "graham_number",
+      "title": "Method",
+      "type": "string"
+    },
+    "price_comparison": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PriceComparisonPart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "quote": {
+      "$ref": "#/$defs/QuotePart"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reason"
+    },
+    "result": {
+      "$ref": "#/$defs/GrahamNumberResultPart"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "security_identity": {
+      "$ref": "#/$defs/SecurityIdentityPart"
+    },
+    "status": {
+      "$ref": "#/$defs/CalculationStatus"
+    },
+    "ticker": {
+      "title": "Ticker",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "price_comparison",
+    "analysis",
+    "ticker",
+    "security_identity",
+    "instrument_kind",
+    "method",
+    "as_of",
+    "status",
+    "reason",
+    "result",
+    "inputs",
+    "quote",
+    "warnings",
+    "limitations",
+    "diagnostics"
+  ],
+  "title": "GrahamNumberDocument",
+  "type": "object"
+}

@@ -10,6 +10,7 @@ ANALYZER_ROLES: Final = frozenset(
 """Analyzer-level files: calculation code that may import one another but nothing above them."""
 
 ROLE_RANK: Final = {
+    "vocabulary": -1,
     **dict.fromkeys(ANALYZER_ROLES, 0),
     "envelope": 0,
     "selection": 1,

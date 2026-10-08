@@ -14,33 +14,41 @@ from functools import partial
 from types import MappingProxyType
 from typing import Final, Protocol
 
+from pydantic import BaseModel
+
 from src.core.strategy_errors import require, undeclared
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.orchestrator.tool_names import ToolName
 from src.orchestrator.tool_runtime import AnalysisToolHandler, ToolHandlerBinder, ToolRuntime
+from src.reporting.replay_inputs import ReplayInputs, ReplayOptions, ReplayProjector
 from src.strategies.fcf_growth.codec import (
     decode_fcf_growth,
     encode_fcf_growth,
     fcf_growth_native_status,
     fcf_growth_ticker,
 )
-from src.strategies.fcf_growth.models import METHOD_ID as FCF_GROWTH_METHOD_ID
+from src.strategies.fcf_growth.envelope import FCFDocument
 from src.strategies.fcf_growth.models import METHOD_VERSION as FCF_GROWTH_METHOD_VERSION
 from src.strategies.fcf_growth.models import SCHEMA_VERSION as FCF_GROWTH_RESULT_SCHEMA_VERSION
-from src.strategies.fcf_growth.models import STRATEGY_ID as FCF_GROWTH_ANALYSIS_ID
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from src.strategies.fcf_growth.replay import project_fcf_growth
 from src.strategies.fcf_growth.selection import FCFGrowthSelection, parse_fcf_growth_selection
 from src.strategies.fcf_growth.tool import (
     FCFEarningsGrowthToolArguments,
     FCFEarningsGrowthToolDependencies,
     FCFEarningsGrowthToolHandler,
 )
+from src.strategies.fcf_growth.vocabulary import ANALYSIS_ID as FCF_GROWTH_ANALYSIS_ID
+from src.strategies.fcf_growth.vocabulary import CONFIG_SCHEMA_VERSION as FCF_GROWTH_CONFIG_SCHEMA_VERSION
+from src.strategies.fcf_growth.vocabulary import METHOD_ID as FCF_GROWTH_METHOD_ID
 from src.strategies.graham_growth.codec import (
     decode_graham_growth,
     encode_graham_growth,
     graham_growth_native_status,
     graham_growth_ticker,
 )
+from src.strategies.graham_growth.envelope import GrahamGrowthDocument
+from src.strategies.graham_growth.replay import project_graham_growth
 from src.strategies.graham_growth.selection import GrahamGrowthSelection, parse_graham_growth_selection
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_growth.tool import (
@@ -48,12 +56,17 @@ from src.strategies.graham_growth.tool import (
     GrahamGrowthToolHandler,
     GrahamGrowthValueToolArguments,
 )
+from src.strategies.graham_growth.vocabulary import ANALYSIS_ID as GRAHAM_GROWTH_ANALYSIS_ID
+from src.strategies.graham_growth.vocabulary import CONFIG_SCHEMA_VERSION as GRAHAM_GROWTH_CONFIG_SCHEMA_VERSION
+from src.strategies.graham_growth.vocabulary import METHOD_ID as GRAHAM_GROWTH_METHOD_ID
 from src.strategies.graham_number.codec import (
     decode_graham_number,
     encode_graham_number,
     graham_number_native_status,
     graham_number_ticker,
 )
+from src.strategies.graham_number.envelope import GrahamNumberDocument
+from src.strategies.graham_number.replay import project_graham_number
 from src.strategies.graham_number.selection import GrahamNumberSelection, parse_graham_number_selection
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.graham_number.tool import (
@@ -61,10 +74,18 @@ from src.strategies.graham_number.tool import (
     GrahamNumberToolDependencies,
     GrahamNumberToolHandler,
 )
+from src.strategies.graham_number.vocabulary import ANALYSIS_ID as GRAHAM_NUMBER_ANALYSIS_ID
+from src.strategies.graham_number.vocabulary import CONFIG_SCHEMA_VERSION as GRAHAM_NUMBER_CONFIG_SCHEMA_VERSION
+from src.strategies.graham_number.vocabulary import METHOD_ID as GRAHAM_NUMBER_METHOD_ID
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.codec import decode_momentum, encode_momentum, momentum_native_status, momentum_ticker
+from src.strategies.momentum.envelope import MomentumDocument
+from src.strategies.momentum.replay import project_momentum
 from src.strategies.momentum.selection import MomentumSelection, parse_momentum_selection
 from src.strategies.momentum.tool import MomentumToolArguments, MomentumToolDependencies, MomentumToolHandler
+from src.strategies.momentum.vocabulary import ANALYSIS_ID as MOMENTUM_ANALYSIS_ID
+from src.strategies.momentum.vocabulary import CONFIG_SCHEMA_VERSION as MOMENTUM_CONFIG_SCHEMA_VERSION
+from src.strategies.momentum.vocabulary import METHOD_ID as MOMENTUM_METHOD_ID
 from src.workspace.codecs import EvidenceCodec, encode_with
 from src.workspace.execution import RunSpec
 from src.workspace.models import StrictJsonMapping
@@ -104,6 +125,10 @@ class BehaviorView(Protocol):
         """Bind the strategy's handler to its own dependency class and the shared runtime."""
         ...
 
+    def project_for(self, inputs: ReplayInputs, evidence: object, selection: object, options: ReplayOptions, /) -> str:
+        """Render a stored run's decoded ``evidence`` and ``selection``, which must be exactly this strategy's types."""
+        ...
+
 
 @dataclass(frozen=True)
 class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
@@ -121,6 +146,7 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
     ticker_of: Callable[[ResultT], str]
     handler: ToolHandlerBinder[DepsT, ResultT]
     native_status: Callable[[ResultT], str | None]
+    project: Callable[[ReplayInputs, ResultT, SelT, ReplayOptions], str]
 
     def parse_for(self, config: dict[str, object], /) -> SelT:
         """Parse ``config`` with this strategy's parser, which must yield exactly its selection type."""
@@ -156,6 +182,14 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
             raise undeclared("handler dependencies", type(dependencies))
         return self.handler(dependencies, runtime)
 
+    def project_for(self, inputs: ReplayInputs, evidence: object, selection: object, options: ReplayOptions, /) -> str:
+        """Project ``evidence`` and ``selection``, which must be exactly this strategy's result and selection types."""
+        if not isinstance(evidence, self.result_type) or type(evidence) is not self.result_type:
+            raise undeclared("result type", type(evidence))
+        if not isinstance(selection, self.selection_type) or type(selection) is not self.selection_type:
+            raise undeclared("selection type", type(selection))
+        return self.project(inputs, evidence, selection, options)
+
 
 @dataclass(frozen=True)
 class StrategyDescriptor:
@@ -173,6 +207,7 @@ class StrategyDescriptor:
     method_version: int
     result_schema_version: int
     evidence_codec_version: int
+    json_envelope: type[BaseModel]
 
 
 MOMENTUM_BEHAVIOR: Final = StrategyBehavior[MomentumSelection, MomentumRun, MomentumToolDependencies](
@@ -185,6 +220,7 @@ MOMENTUM_BEHAVIOR: Final = StrategyBehavior[MomentumSelection, MomentumRun, Mome
     ticker_of=momentum_ticker,
     handler=MomentumToolHandler,
     native_status=momentum_native_status,
+    project=project_momentum,
 )
 GRAHAM_NUMBER_BEHAVIOR: Final = StrategyBehavior[
     GrahamNumberSelection, GrahamNumberAnalysis, GrahamNumberToolDependencies
@@ -198,6 +234,7 @@ GRAHAM_NUMBER_BEHAVIOR: Final = StrategyBehavior[
     ticker_of=graham_number_ticker,
     handler=GrahamNumberToolHandler,
     native_status=graham_number_native_status,
+    project=project_graham_number,
 )
 GRAHAM_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     GrahamGrowthSelection, GrahamGrowthAnalysis, GrahamGrowthToolDependencies
@@ -211,6 +248,7 @@ GRAHAM_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     ticker_of=graham_growth_ticker,
     handler=GrahamGrowthToolHandler,
     native_status=graham_growth_native_status,
+    project=project_graham_growth,
 )
 FCF_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     FCFGrowthSelection, FCFEarningsGrowthResult, FCFEarningsGrowthToolDependencies
@@ -224,49 +262,53 @@ FCF_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     ticker_of=fcf_growth_ticker,
     handler=FCFEarningsGrowthToolHandler,
     native_status=fcf_growth_native_status,
+    project=project_fcf_growth,
 )
 
 MOMENTUM: Final = StrategyDescriptor(
-    analysis_id="momentum",
-    method_id="sma_crossover",
+    analysis_id=MOMENTUM_ANALYSIS_ID,
+    method_id=MOMENTUM_METHOD_ID,
     alias="momentum",
     label="Momentum",
     tool=ToolName.ANALYZE_MOMENTUM,
     tool_arguments=MomentumToolArguments,
     tool_description="Analyze historical price momentum with structured SMA and RSI metrics.",
     behavior=MOMENTUM_BEHAVIOR,
-    config_schema_version=2,
+    config_schema_version=MOMENTUM_CONFIG_SCHEMA_VERSION,
     method_version=1,
     result_schema_version=2,
     evidence_codec_version=1,
+    json_envelope=MomentumDocument,
 )
 GRAHAM_NUMBER: Final = StrategyDescriptor(
-    analysis_id="graham_number",
-    method_id="graham_number",
+    analysis_id=GRAHAM_NUMBER_ANALYSIS_ID,
+    method_id=GRAHAM_NUMBER_METHOD_ID,
     alias="graham-number",
     label="Graham Number",
     tool=ToolName.ANALYZE_GRAHAM_NUMBER,
     tool_arguments=GrahamNumberToolArguments,
     tool_description="Calculate the Graham Number company-level valuation ceiling.",
     behavior=GRAHAM_NUMBER_BEHAVIOR,
-    config_schema_version=1,
+    config_schema_version=GRAHAM_NUMBER_CONFIG_SCHEMA_VERSION,
     method_version=1,
     result_schema_version=1,
     evidence_codec_version=1,
+    json_envelope=GrahamNumberDocument,
 )
 GRAHAM_GROWTH: Final = StrategyDescriptor(
-    analysis_id="graham_growth_value",
-    method_id="graham_growth_value",
+    analysis_id=GRAHAM_GROWTH_ANALYSIS_ID,
+    method_id=GRAHAM_GROWTH_METHOD_ID,
     alias="graham-growth",
     label="Graham Growth",
     tool=ToolName.ANALYZE_GRAHAM_GROWTH_VALUE,
     tool_arguments=GrahamGrowthValueToolArguments,
     tool_description="Calculate the explicit Graham growth-value method.",
     behavior=GRAHAM_GROWTH_BEHAVIOR,
-    config_schema_version=1,
+    config_schema_version=GRAHAM_GROWTH_CONFIG_SCHEMA_VERSION,
     method_version=1,
     result_schema_version=1,
     evidence_codec_version=1,
+    json_envelope=GrahamGrowthDocument,
 )
 FCF_GROWTH: Final = StrategyDescriptor(
     analysis_id=FCF_GROWTH_ANALYSIS_ID,
@@ -277,10 +319,11 @@ FCF_GROWTH: Final = StrategyDescriptor(
     tool_arguments=FCFEarningsGrowthToolArguments,
     tool_description="Analyze company free-cash-flow and diluted-EPS growth.",
     behavior=FCF_GROWTH_BEHAVIOR,
-    config_schema_version=1,
+    config_schema_version=FCF_GROWTH_CONFIG_SCHEMA_VERSION,
     method_version=FCF_GROWTH_METHOD_VERSION,
     result_schema_version=FCF_GROWTH_RESULT_SCHEMA_VERSION,
     evidence_codec_version=1,
+    json_envelope=FCFDocument,
 )
 
 STRATEGIES: Final = (MOMENTUM, GRAHAM_NUMBER, GRAHAM_GROWTH, FCF_GROWTH)
@@ -296,6 +339,7 @@ class StrategyIndexes:
     by_tool: Mapping[ToolName, StrategyDescriptor]
     by_arguments: Mapping[type[AnalysisToolArguments], StrategyDescriptor]
     by_result_type: Mapping[type, StrategyDescriptor]
+    by_envelope: Mapping[type[BaseModel], StrategyDescriptor]
 
 
 def _label(descriptor: StrategyDescriptor) -> str:
@@ -331,6 +375,7 @@ def build_indexes(descriptors: tuple[StrategyDescriptor, ...]) -> StrategyIndexe
         by_tool=_unique_index(descriptors, "tool", lambda item: item.tool),
         by_arguments=_unique_index(descriptors, "tool_arguments", lambda item: item.tool_arguments),
         by_result_type=_unique_index(descriptors, "result_type", lambda item: item.behavior.result_type),
+        by_envelope=_unique_index(descriptors, "json_envelope", lambda item: item.json_envelope),
     )
 
 
@@ -341,6 +386,7 @@ BY_ALIAS: Final = _INDEXES.by_alias
 BY_TOOL: Final = _INDEXES.by_tool
 BY_ARGUMENTS: Final = _INDEXES.by_arguments
 BY_RESULT_TYPE: Final = _INDEXES.by_result_type
+BY_ENVELOPE: Final = _INDEXES.by_envelope
 
 
 def tool_for_arguments(
@@ -448,10 +494,18 @@ def parsers_by_alias(descriptors: tuple[StrategyDescriptor, ...]) -> Mapping[str
     return MappingProxyType({descriptor.alias: descriptor.behavior.parse_for for descriptor in descriptors})
 
 
+def replays_by_key(descriptors: tuple[StrategyDescriptor, ...]) -> Mapping[tuple[str, str], ReplayProjector]:
+    """Return each descriptor's replay projector keyed by ``(analysis_id, method_id)``, read-only."""
+    return MappingProxyType(
+        {(descriptor.analysis_id, descriptor.method_id): descriptor.behavior.project_for for descriptor in descriptors}
+    )
+
+
 EVIDENCE_BY_TYPE: Final = evidence_by_type(STRATEGIES)
 EVIDENCE_BY_KEY: Final = evidence_by_key(STRATEGIES)
 RUN_SPECS_BY_KEY: Final = run_specs_by_key(STRATEGIES)
 PARSERS_BY_ALIAS: Final = parsers_by_alias(STRATEGIES)
+REPLAYS_BY_KEY: Final = replays_by_key(STRATEGIES)
 
 
 def run_spec_for(

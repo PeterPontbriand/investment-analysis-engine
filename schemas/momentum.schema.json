@@ -1,0 +1,752 @@
+{
+  "$defs": {
+    "CrossoverState": {
+      "description": "What the latest crossover signal says.",
+      "enum": [
+        "bullish_crossover",
+        "bearish_crossover",
+        "no_new_crossover"
+      ],
+      "title": "CrossoverState",
+      "type": "string"
+    },
+    "DiagnosticPart": {
+      "additionalProperties": false,
+      "description": "One diagnostics entry that names no provider: a resolver event or the legacy identity entry.",
+      "properties": {
+        "field_name": {
+          "title": "Field Name",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "outcome": {
+          "title": "Outcome",
+          "type": "string"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_name",
+        "stage",
+        "outcome",
+        "message"
+      ],
+      "title": "DiagnosticPart",
+      "type": "object"
+    },
+    "InstrumentKind": {
+      "description": "Reviewed provider-neutral instrument classifications.",
+      "enum": [
+        "equity",
+        "etf",
+        "cryptocurrency"
+      ],
+      "title": "InstrumentKind",
+      "type": "string"
+    },
+    "InstrumentKindPart": {
+      "additionalProperties": false,
+      "description": "The instrument-kind evidence a provider returned: the raw provider value and the reviewed kind it maps to.",
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InstrumentKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "provider_value": {
+          "title": "Provider Value",
+          "type": "string"
+        },
+        "resolved_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Resolved At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "provider_value",
+        "provider_id",
+        "resolved_at"
+      ],
+      "title": "InstrumentKindPart",
+      "type": "object"
+    },
+    "MetricResultPart": {
+      "additionalProperties": false,
+      "description": "One metric: its status, its value when the status is ok, and the reason it has none otherwise.",
+      "properties": {
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/MetricStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "status",
+        "value",
+        "reason_code",
+        "reason"
+      ],
+      "title": "MetricResultPart",
+      "type": "object"
+    },
+    "MetricStatus": {
+      "description": "Outcome of one calculated metric.",
+      "enum": [
+        "ok",
+        "unavailable",
+        "not_applicable"
+      ],
+      "title": "MetricStatus",
+      "type": "string"
+    },
+    "MomentumDataResolutionPart": {
+      "additionalProperties": false,
+      "description": "Where the historical series came from at execution time.",
+      "properties": {
+        "cache_schema_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cache Schema Version"
+        },
+        "cached_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cached At"
+        },
+        "resolved_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Resolved At",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Retrieved At"
+        },
+        "source_kind": {
+          "$ref": "#/$defs/SourceKind"
+        }
+      },
+      "required": [
+        "source_kind",
+        "retrieved_at",
+        "cached_at",
+        "resolved_at",
+        "cache_schema_version"
+      ],
+      "title": "MomentumDataResolutionPart",
+      "type": "object"
+    },
+    "MomentumParametersPart": {
+      "additionalProperties": false,
+      "description": "The windows and period the analysis used.",
+      "properties": {
+        "long_window": {
+          "title": "Long Window",
+          "type": "integer"
+        },
+        "rsi_period": {
+          "title": "Rsi Period",
+          "type": "integer"
+        },
+        "short_window": {
+          "title": "Short Window",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "short_window",
+        "long_window",
+        "rsi_period"
+      ],
+      "title": "MomentumParametersPart",
+      "type": "object"
+    },
+    "MomentumResultPart": {
+      "additionalProperties": false,
+      "description": "The computed trend metrics; each is null when the available history cannot support it.",
+      "properties": {
+        "crossover_result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MetricResultPart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "crossover_signal": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Crossover Signal"
+        },
+        "crossover_state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CrossoverState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "current_price": {
+          "title": "Current Price",
+          "type": "number"
+        },
+        "long_sma": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Long Sma"
+        },
+        "price_basis": {
+          "$ref": "#/$defs/PriceBasis"
+        },
+        "rsi": {
+          "$ref": "#/$defs/MetricResultPart"
+        },
+        "short_sma": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Short Sma"
+        },
+        "sma_spread": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sma Spread"
+        },
+        "sma_spread_percent": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sma Spread Percent"
+        },
+        "trend_relationship": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrendRelationship"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "current_price",
+        "price_basis",
+        "short_sma",
+        "long_sma",
+        "sma_spread",
+        "sma_spread_percent",
+        "trend_relationship",
+        "crossover_signal",
+        "crossover_result",
+        "crossover_state",
+        "rsi"
+      ],
+      "title": "MomentumResultPart",
+      "type": "object"
+    },
+    "MomentumSourcePart": {
+      "additionalProperties": false,
+      "description": "What the historical market data said about itself; every field is null when it said nothing.",
+      "properties": {
+        "currency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Currency"
+        },
+        "data_as_of": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Data As Of"
+        },
+        "interval": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Interval"
+        },
+        "observation_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observation Count"
+        },
+        "price_adjustment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Price Adjustment"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider"
+        }
+      },
+      "required": [
+        "provider",
+        "data_as_of",
+        "interval",
+        "observation_count",
+        "currency",
+        "price_adjustment"
+      ],
+      "title": "MomentumSourcePart",
+      "type": "object"
+    },
+    "PriceBasis": {
+      "description": "Which close the current price is.",
+      "enum": [
+        "latest_adjusted_historical_close",
+        "latest_historical_close"
+      ],
+      "title": "PriceBasis",
+      "type": "string"
+    },
+    "ProviderDiagnosticPart": {
+      "additionalProperties": false,
+      "description": "One diagnostics entry for an instrument-profile capability, which names the provider consulted.",
+      "properties": {
+        "field_name": {
+          "title": "Field Name",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "outcome": {
+          "title": "Outcome",
+          "type": "string"
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_name",
+        "stage",
+        "outcome",
+        "message",
+        "provider_id"
+      ],
+      "title": "ProviderDiagnosticPart",
+      "type": "object"
+    },
+    "ReasonCode": {
+      "description": "Machine-readable reasons shared by deterministic metric results.",
+      "enum": [
+        "insufficient_history",
+        "non_contiguous_history",
+        "missing_fact",
+        "incompatible_period",
+        "incompatible_units",
+        "incompatible_currency",
+        "incompatible_scope",
+        "ambiguous_fact",
+        "not_available_as_of",
+        "nonpositive_beginning",
+        "nonpositive_ending",
+        "sign_change",
+        "fcf_not_growing",
+        "eps_not_growing",
+        "fcf_and_eps_not_growing",
+        "forward_growth_not_confirmed",
+        "consensus_unavailable",
+        "market_cap_unavailable",
+        "provider_error",
+        "invalid_request",
+        "not_requested",
+        "instrument_kind_not_applicable"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    },
+    "SecurityIdentityPart": {
+      "additionalProperties": false,
+      "description": "The identity snapshot a run retains; every descriptive field is null when the provider returned none.",
+      "properties": {
+        "instrument_identifier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Instrument Identifier"
+        },
+        "instrument_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Instrument Name"
+        },
+        "issuer_identifier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issuer Identifier"
+        },
+        "listing_venue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Listing Venue"
+        },
+        "provider_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Id"
+        },
+        "resolved_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Resolved At"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticker",
+        "instrument_name",
+        "listing_venue",
+        "issuer_identifier",
+        "instrument_identifier",
+        "provider_id",
+        "resolved_at"
+      ],
+      "title": "SecurityIdentityPart",
+      "type": "object"
+    },
+    "SourceKind": {
+      "description": "How a resolved input value was obtained.",
+      "enum": [
+        "override",
+        "cache",
+        "provider",
+        "derived"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    },
+    "TrendRelationship": {
+      "description": "How the short moving average stands against the long one.",
+      "enum": [
+        "short_above_long",
+        "short_below_long",
+        "short_equal_long"
+      ],
+      "title": "TrendRelationship",
+      "type": "string"
+    },
+    "TrendStatus": {
+      "description": "Strongly-typed market trend indicators with localization support.\n\nAttributes:\n    BULLISH: Bullish market trend.\n    BEARISH: Bearish market trend.\n    UNKNOWN: Unknown or neutral market state.",
+      "enum": [
+        "BULLISH",
+        "BEARISH",
+        "UNKNOWN"
+      ],
+      "title": "TrendStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The Momentum document, version 5, as ``momentum --json`` and ``runs show --json`` write it.",
+  "properties": {
+    "analysis": {
+      "const": "momentum",
+      "title": "Analysis",
+      "type": "string"
+    },
+    "analysis_timestamp": {
+      "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+      "format": "date-time",
+      "title": "Analysis Timestamp",
+      "type": "string"
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "As Of"
+    },
+    "data_resolution": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MomentumDataResolutionPart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "diagnostics": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/DiagnosticPart"
+          },
+          {
+            "$ref": "#/$defs/ProviderDiagnosticPart"
+          }
+        ]
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "instrument_kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InstrumentKindPart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "method": {
+      "const": "sma_crossover",
+      "title": "Method",
+      "type": "string"
+    },
+    "parameters": {
+      "$ref": "#/$defs/MomentumParametersPart"
+    },
+    "result": {
+      "$ref": "#/$defs/MomentumResultPart"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "security_identity": {
+      "$ref": "#/$defs/SecurityIdentityPart"
+    },
+    "source": {
+      "$ref": "#/$defs/MomentumSourcePart"
+    },
+    "status": {
+      "$ref": "#/$defs/TrendStatus"
+    },
+    "ticker": {
+      "title": "Ticker",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "analysis",
+    "ticker",
+    "security_identity",
+    "instrument_kind",
+    "method",
+    "as_of",
+    "analysis_timestamp",
+    "status",
+    "result",
+    "parameters",
+    "source",
+    "warnings",
+    "data_resolution",
+    "limitations",
+    "diagnostics"
+  ],
+  "title": "MomentumDocument",
+  "type": "object"
+}

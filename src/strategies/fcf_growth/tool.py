@@ -10,14 +10,8 @@ from src.analysis.base_analyzer import AnalysisContext
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.orchestrator.tool_runtime import ToolRuntime
 from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
-from src.strategies.fcf_growth.models import (
-    FCFClassificationBasis,
-    FCFEarningsGrowthConfig,
-    FCFEarningsGrowthPolicy,
-    FCFEarningsGrowthResult,
-    ForwardPolicy,
-    HistoricalHorizon,
-)
+from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy, FCFEarningsGrowthResult
+from src.strategies.fcf_growth.vocabulary import FCFClassificationBasis, ForwardPolicy, HistoricalHorizon
 
 
 class FCFEarningsGrowthToolArguments(AnalysisToolArguments):

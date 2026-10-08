@@ -2,23 +2,24 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from typing import Any
+from dataclasses import dataclass
 
 from src.core.metric_result import MetricResult
 from src.data.financial.resolution_trace import ResolutionTrace
-from src.data.instrument_profile import InstrumentProfile, instrument_kind_evidence_payload, profile_identity_resolution
+from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from src.data.market_data import HistoricalDataResolution, MarketDataContext
-from src.data.security_identity import (
-    IdentityResolutionStatus,
-    SecurityIdentityResolution,
-    security_display_label,
-    security_identity_payload,
+from src.data.security_identity import SecurityIdentityResolution, security_display_label
+from src.reporting.documents.shared_parts import (
+    DiagnosticPart,
+    identity_diagnostic_parts,
+    instrument_kind_part_of,
+    metric_result_part,
+    profile_diagnostic_parts,
+    security_identity_part,
 )
 from src.reporting.presentation import (
     PresentationMode,
     ResolutionDiagnostic,
-    diagnostic_payload,
     format_datetime,
     format_money,
     format_number,
@@ -26,8 +27,16 @@ from src.reporting.presentation import (
     provider_display_name,
 )
 from src.strategies.momentum.analyzer import MomentumConfig, MomentumMetrics
+from src.strategies.momentum.envelope import (
+    DOCUMENT_SCHEMA_VERSION,
+    MomentumDataResolutionPart,
+    MomentumDocument,
+    MomentumParametersPart,
+    MomentumResultPart,
+    MomentumSourcePart,
+)
+from src.strategies.momentum.vocabulary import ANALYSIS_ID, METHOD_ID, CrossoverState, PriceBasis, TrendRelationship
 
-_SCHEMA_VERSION = 5
 _LIMITATION = (
     "SMA momentum describes recent price trend; it is not a valuation, "
     "fundamental-quality conclusion, or investment recommendation."
@@ -72,7 +81,7 @@ def render_momentum(
 ) -> str:
     """Render Momentum using the same progressive-disclosure grammar as Graham."""
     if mode is PresentationMode.JSON:
-        return json_document(_payload(presentation))
+        return json_document(_document(presentation).model_dump(mode="json"))
 
     lines = _concise_lines(presentation)
     if mode is PresentationMode.DETAILS:
@@ -373,10 +382,10 @@ def _price_basis_detail(context: MarketDataContext | None) -> str:
     return "latest historical Close value"
 
 
-def _json_price_basis(context: MarketDataContext | None) -> str:
+def _json_price_basis(context: MarketDataContext | None) -> PriceBasis:
     if context is not None and context.price_adjustment == "adjusted":
-        return "latest_adjusted_historical_close"
-    return "latest_historical_close"
+        return PriceBasis.LATEST_ADJUSTED_HISTORICAL_CLOSE
+    return PriceBasis.LATEST_HISTORICAL_CLOSE
 
 
 def _currency(p: MomentumPresentation) -> str | None:
@@ -411,115 +420,89 @@ def _sma_spread_percent(metrics: MomentumMetrics) -> float | None:
     return (spread / long_sma) * 100.0
 
 
-def _trend_relationship(metrics: MomentumMetrics) -> str | None:
+def _trend_relationship(metrics: MomentumMetrics) -> TrendRelationship | None:
     if metrics.short_sma_val is None or metrics.long_sma_val is None:
         return None
     if metrics.short_sma_val > metrics.long_sma_val:
-        return "short_above_long"
+        return TrendRelationship.SHORT_ABOVE_LONG
     if metrics.short_sma_val < metrics.long_sma_val:
-        return "short_below_long"
-    return "short_equal_long"
+        return TrendRelationship.SHORT_BELOW_LONG
+    return TrendRelationship.SHORT_EQUAL_LONG
 
 
-def _crossover_state(signal: float | None) -> str | None:
+def _crossover_state(signal: float | None) -> CrossoverState | None:
     if signal is None:
         return None
     if signal > 0:
-        return "bullish_crossover"
+        return CrossoverState.BULLISH_CROSSOVER
     if signal < 0:
-        return "bearish_crossover"
-    return "no_new_crossover"
+        return CrossoverState.BEARISH_CROSSOVER
+    return CrossoverState.NO_NEW_CROSSOVER
 
 
-def _payload(p: MomentumPresentation) -> dict[str, Any]:
+def _document(p: MomentumPresentation) -> MomentumDocument:
+    """Build the typed Momentum document; validation of the model is the output boundary."""
     metrics = p.metrics
     context = p.market_data
     data_as_of = context.data_as_of if context is not None else None
     spread, spread_percent = _effective_spread(p)
+    resolution = p.data_resolution
 
-    return {
-        "schema_version": _SCHEMA_VERSION,
-        "analysis": "momentum",
-        "ticker": metrics.ticker.upper(),
-        "security_identity": security_identity_payload(metrics.ticker, p.identity_resolution),
-        "instrument_kind": instrument_kind_evidence_payload(
-            p.instrument_profile.kind_evidence if p.instrument_profile is not None else None
+    return MomentumDocument(
+        schema_version=DOCUMENT_SCHEMA_VERSION,
+        analysis=ANALYSIS_ID,
+        ticker=metrics.ticker.upper(),
+        security_identity=security_identity_part(metrics.ticker, p.identity_resolution),
+        instrument_kind=instrument_kind_part_of(p.instrument_profile),
+        method=METHOD_ID,
+        as_of=data_as_of,
+        analysis_timestamp=metrics.timestamp,
+        status=metrics.status,
+        result=MomentumResultPart(
+            current_price=metrics.current_price,
+            price_basis=_json_price_basis(context),
+            short_sma=metrics.short_sma_val,
+            long_sma=metrics.long_sma_val,
+            sma_spread=spread,
+            sma_spread_percent=spread_percent,
+            trend_relationship=_trend_relationship(metrics),
+            crossover_signal=metrics.crossover_signal,
+            crossover_result=(
+                metric_result_part(metrics.crossover_result) if metrics.crossover_result is not None else None
+            ),
+            crossover_state=_crossover_state(metrics.crossover_signal),
+            rsi=metric_result_part(metrics.rsi_14),
         ),
-        "method": "sma_crossover",
-        "as_of": data_as_of.isoformat() if data_as_of is not None else None,
-        "analysis_timestamp": metrics.timestamp.isoformat(),
-        "status": metrics.status.value,
-        "result": {
-            "current_price": metrics.current_price,
-            "price_basis": _json_price_basis(context),
-            "short_sma": metrics.short_sma_val,
-            "long_sma": metrics.long_sma_val,
-            "sma_spread": spread,
-            "sma_spread_percent": spread_percent,
-            "trend_relationship": _trend_relationship(metrics),
-            "crossover_signal": metrics.crossover_signal,
-            "crossover_result": asdict(metrics.crossover_result) if metrics.crossover_result is not None else None,
-            "crossover_state": _crossover_state(metrics.crossover_signal),
-            "rsi": {
-                "status": metrics.rsi_14.status.value,
-                "value": metrics.rsi_14.value,
-                "reason_code": metrics.rsi_14.reason_code.value if metrics.rsi_14.reason_code else None,
-                "reason": metrics.rsi_14.reason,
-            },
-        },
-        "parameters": {
-            "short_window": p.config.short_window,
-            "long_window": p.config.long_window,
-            "rsi_period": p.config.rsi_period,
-        },
-        "source": {
-            "provider": context.provider_id if context is not None else None,
-            "data_as_of": data_as_of.isoformat() if data_as_of is not None else None,
-            "interval": context.observation_interval if context is not None else None,
-            "observation_count": context.observation_count if context is not None else None,
-            "currency": context.currency if context is not None else None,
-            "price_adjustment": context.price_adjustment if context is not None else None,
-        },
-        "warnings": _warnings(p),
-        "data_resolution": None
-        if p.data_resolution is None
-        else {
-            "source_kind": p.data_resolution.source_kind.value,
-            "retrieved_at": p.data_resolution.retrieved_at.isoformat() if p.data_resolution.retrieved_at else None,
-            "cached_at": p.data_resolution.cached_at.isoformat() if p.data_resolution.cached_at else None,
-            "resolved_at": p.data_resolution.resolved_at.isoformat(),
-            "cache_schema_version": p.data_resolution.cache_schema_version,
-        },
-        "limitations": [_LIMITATION],
-        "diagnostics": [
-            *[diagnostic_payload(item) for item in _resolution_diagnostics(p)],
-            *(
-                [
-                    {
-                        "field_name": item.capability.value,
-                        "stage": "provider",
-                        "outcome": item.status.value,
-                        "message": item.message,
-                        "provider_id": item.provider_id,
-                    }
-                    for item in p.instrument_profile.diagnostics
-                ]
-                if p.instrument_profile is not None
-                else []
-            ),
-            *(
-                [
-                    {
-                        "field_name": "security_identity",
-                        "stage": "provider",
-                        "outcome": p.identity_resolution.status.value,
-                        "message": p.identity_resolution.message,
-                    }
-                ]
-                if p.instrument_profile is None
-                and p.identity_resolution is not None
-                and p.identity_resolution.status is not IdentityResolutionStatus.RESOLVED
-                else []
-            ),
-        ],
-    }
+        parameters=MomentumParametersPart(
+            short_window=p.config.short_window, long_window=p.config.long_window, rsi_period=p.config.rsi_period
+        ),
+        source=MomentumSourcePart(
+            provider=context.provider_id if context is not None else None,
+            data_as_of=data_as_of,
+            interval=context.observation_interval if context is not None else None,
+            observation_count=context.observation_count if context is not None else None,
+            currency=context.currency if context is not None else None,
+            price_adjustment=context.price_adjustment if context is not None else None,
+        ),
+        warnings=tuple(_warnings(p)),
+        data_resolution=None
+        if resolution is None
+        else MomentumDataResolutionPart(
+            source_kind=resolution.source_kind,
+            retrieved_at=resolution.retrieved_at,
+            cached_at=resolution.cached_at,
+            resolved_at=resolution.resolved_at,
+            cache_schema_version=resolution.cache_schema_version,
+        ),
+        limitations=(_LIMITATION,),
+        diagnostics=(
+            *(_resolution_diagnostic_part(item) for item in _resolution_diagnostics(p)),
+            *profile_diagnostic_parts(p.instrument_profile),
+            *identity_diagnostic_parts(p.instrument_profile, p.identity_resolution),
+        ),
+    )
+
+
+def _resolution_diagnostic_part(item: ResolutionDiagnostic) -> DiagnosticPart:
+    """Return the diagnostics entry for one retained resolution diagnostic."""
+    return DiagnosticPart(field_name=item.field_name, stage=item.stage, outcome=item.outcome, message=item.message)

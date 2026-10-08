@@ -22,14 +22,12 @@ from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.execution import FCFGrowthCapture, classify_fcf_growth_outcome, execute_fcf_growth
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from src.strategies.fcf_growth.models import (
-    Classification,
     FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
-    ForwardEvidenceStatus,
-    TrendClassification,
 )
+from src.strategies.fcf_growth.vocabulary import Classification, ForwardEvidenceStatus, TrendClassification
 from src.workspace.models import RunOutcome
 
 NOW = datetime(2026, 9, 18, 12, tzinfo=UTC)

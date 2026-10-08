@@ -1,0 +1,103 @@
+{
+  "analysis": "graham_growth_value",
+  "as_of": null,
+  "diagnostics": [
+    {
+      "field_name": "eps",
+      "message": "No explicit EPS override was supplied.",
+      "outcome": "not_used",
+      "stage": "override"
+    },
+    {
+      "field_name": "eps",
+      "message": "Cache use was disabled for the derived EPS resolution.",
+      "outcome": "not_used",
+      "stage": "cache"
+    },
+    {
+      "field_name": "eps",
+      "message": "Requested completed fiscal-year EPS observations from the configured provider.",
+      "outcome": "attempted",
+      "stage": "provider"
+    },
+    {
+      "field_name": "eps",
+      "message": "Provider returned 1 fiscal-year EPS candidate(s).",
+      "outcome": "success",
+      "stage": "provider"
+    },
+    {
+      "field_name": "eps",
+      "message": "Rejected provider candidate before composition: Provider fact basis ('mismatched_basis') is not 'fiscal_year'.",
+      "outcome": "rejected",
+      "stage": "provider"
+    },
+    {
+      "field_name": "security_identity",
+      "message": "Provider 'sec_edgar' does not expose security identity metadata.",
+      "outcome": "unsupported",
+      "provider_id": "sec_edgar",
+      "stage": "provider"
+    },
+    {
+      "field_name": "security_identity",
+      "message": "Provider 'yfinance' returned no security identity metadata.",
+      "outcome": "unavailable",
+      "provider_id": "yfinance",
+      "stage": "provider"
+    },
+    {
+      "field_name": "instrument_kind",
+      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
+      "outcome": "unavailable",
+      "provider_id": "yfinance",
+      "stage": "provider"
+    }
+  ],
+  "inputs": {
+    "current_aaa_yield": null,
+    "current_price": null,
+    "eps": null,
+    "expected_growth": null
+  },
+  "instrument_kind": null,
+  "limitations": [
+    "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
+  ],
+  "method": "graham_growth_value",
+  "method_assumptions": {
+    "base_pe": 8.5,
+    "baseline_aaa_yield": 4.4,
+    "growth_multiplier": 2.0
+  },
+  "price_comparison": {
+    "percent": null,
+    "provenance": null,
+    "quote_freshness": null,
+    "reason": "calculation_unavailable",
+    "security_unit_evidence": null,
+    "status": "unavailable"
+  },
+  "quote": {
+    "reason": null,
+    "status": "not_attempted"
+  },
+  "reason": "Unable to analyze INCOMPATIBLE: the configured provider could not retrieve required security data.",
+  "result": {
+    "growth_value": null,
+    "margin_of_safety_percent": null
+  },
+  "schema_version": 6,
+  "security_identity": {
+    "instrument_identifier": null,
+    "instrument_name": null,
+    "issuer_identifier": null,
+    "listing_venue": null,
+    "provider_id": null,
+    "resolved_at": null,
+    "ticker": "INCOMPATIBLE"
+  },
+  "status": "provider_error",
+  "ticker": "INCOMPATIBLE",
+  "warnings": []
+}

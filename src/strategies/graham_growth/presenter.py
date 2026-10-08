@@ -5,13 +5,22 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import Any
 
 from src.analysis.shared.financial_resolution import PriceComparison
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import SourceKind
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
-from src.data.security_identity import SecurityIdentityResolution, security_identity_payload
+from src.data.security_identity import SecurityIdentityResolution
+from src.reporting.documents.shared_parts import (
+    identity_diagnostic_parts,
+    instrument_kind_part_of,
+    price_comparison_part,
+    profile_diagnostic_parts,
+    quote_part,
+    resolved_input_part,
+    security_identity_part,
+    trace_parts,
+)
 from src.reporting.evidence_presentation import (
     analysis_heading,
     common_currency,
@@ -19,17 +28,12 @@ from src.reporting.evidence_presentation import (
     effective_status_and_reason,
     identity_detail_lines,
     input_line,
-    instrument_kind_payload,
     kind_detail_lines,
     override_warnings,
     profile_diagnostic_lines,
-    profile_diagnostic_payloads,
-    resolved_input_payload,
     result_heading,
-    security_identity_diagnostic_entry,
     source_summary,
     status_label,
-    trace_payload,
     validate_presentation_as_of,
     validate_ticker,
 )
@@ -38,16 +42,21 @@ from src.reporting.presentation import PresentationMode, format_money, format_nu
 from src.reporting.valuation_presentation import (
     comparison_details,
     comparison_lines,
-    comparison_payload,
     investor_comparison_evidence,
     public_quote_reason,
-    quote_payload,
     quote_warnings,
     validate_margin,
 )
 from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
+from src.strategies.graham_growth.envelope import (
+    DOCUMENT_SCHEMA_VERSION,
+    GrahamGrowthAssumptionsPart,
+    GrahamGrowthDocument,
+    GrahamGrowthInputsPart,
+    GrahamGrowthResultPart,
+)
+from src.strategies.graham_growth.vocabulary import ANALYSIS_ID, METHOD_ID
 
-_SCHEMA_VERSION = 6
 _GROWTH_LIMITATION = (
     "The Graham growth value is forecast-dependent and sensitive to the "
     "user-supplied growth assumption; it is not an investment recommendation."
@@ -115,7 +124,7 @@ def render_graham_growth(
 ) -> str:
     """Render a Graham growth-value analysis using the approved investor grammar."""
     if mode is PresentationMode.JSON:
-        return json_document(_growth_payload(presentation))
+        return json_document(_growth_document(presentation).model_dump(mode="json"))
 
     lines = _growth_concise_lines(presentation)
     if mode is PresentationMode.DETAILS:
@@ -266,7 +275,8 @@ def _growth_warning_lines(p: GrahamGrowthPresentation) -> list[str]:
     return [f"Warning: {warning}" for warning in _growth_warnings(p)]
 
 
-def _growth_payload(p: GrahamGrowthPresentation) -> dict[str, Any]:
+def _growth_document(p: GrahamGrowthPresentation) -> GrahamGrowthDocument:
+    """Build the typed Graham Growth document; validation of the model is the output boundary."""
     status, reason = effective_status_and_reason(
         p.assembly.status,
         p.assembly.reason,
@@ -274,45 +284,36 @@ def _growth_payload(p: GrahamGrowthPresentation) -> dict[str, Any]:
         p.result.reason if p.result else None,
     )
     result_value = p.result.growth_value if p.result is not None and p.result.status is CalculationStatus.OK else None
-    return {
-        "schema_version": _SCHEMA_VERSION,
-        "price_comparison": comparison_payload(p.price_comparison),
-        "analysis": "graham_growth_value",
-        "ticker": p.ticker.upper(),
-        "security_identity": security_identity_payload(p.ticker, p.identity_resolution),
-        "instrument_kind": instrument_kind_payload(p.instrument_profile),
-        "method": "graham_growth_value",
-        "as_of": None if p.as_of is None else p.as_of.isoformat(),
-        "status": status.value,
-        "reason": reason,
-        "result": {
-            "growth_value": result_value,
-            "margin_of_safety_percent": p.margin_of_safety_percent,
-        },
-        "inputs": {
-            "eps": resolved_input_payload(p.assembly.eps),
-            "expected_growth": resolved_input_payload(p.assembly.expected_growth),
-            "current_aaa_yield": resolved_input_payload(p.assembly.current_aaa_yield),
-            "current_price": resolved_input_payload(p.assembly.current_price),
-        },
-        "method_assumptions": {
-            "base_pe": p.base_pe,
-            "growth_multiplier": p.growth_multiplier,
-            "baseline_aaa_yield": p.baseline_aaa_yield,
-        },
-        "quote": quote_payload(
-            p.assembly.current_price,
-            p.assembly.quote_status,
-            p.assembly.quote_reason,
+    return GrahamGrowthDocument(
+        schema_version=DOCUMENT_SCHEMA_VERSION,
+        price_comparison=price_comparison_part(p.price_comparison),
+        analysis=ANALYSIS_ID,
+        ticker=p.ticker.upper(),
+        security_identity=security_identity_part(p.ticker, p.identity_resolution),
+        instrument_kind=instrument_kind_part_of(p.instrument_profile),
+        method=METHOD_ID,
+        as_of=p.as_of,
+        status=status,
+        reason=reason,
+        result=GrahamGrowthResultPart(growth_value=result_value, margin_of_safety_percent=p.margin_of_safety_percent),
+        inputs=GrahamGrowthInputsPart(
+            eps=resolved_input_part(p.assembly.eps),
+            expected_growth=resolved_input_part(p.assembly.expected_growth),
+            current_aaa_yield=resolved_input_part(p.assembly.current_aaa_yield),
+            current_price=resolved_input_part(p.assembly.current_price),
         ),
-        "warnings": _growth_warnings(p),
-        "limitations": [_GROWTH_LIMITATION],
-        "diagnostics": [
-            *trace_payload(p.assembly.resolution_trace),
-            *profile_diagnostic_payloads(p.instrument_profile),
-            *security_identity_diagnostic_entry(p.instrument_profile, p.identity_resolution),
-        ],
-    }
+        method_assumptions=GrahamGrowthAssumptionsPart(
+            base_pe=p.base_pe, growth_multiplier=p.growth_multiplier, baseline_aaa_yield=p.baseline_aaa_yield
+        ),
+        quote=quote_part(p.assembly.current_price, p.assembly.quote_status, p.assembly.quote_reason),
+        warnings=tuple(_growth_warnings(p)),
+        limitations=(_GROWTH_LIMITATION,),
+        diagnostics=(
+            *trace_parts(p.assembly.resolution_trace),
+            *profile_diagnostic_parts(p.instrument_profile),
+            *identity_diagnostic_parts(p.instrument_profile, p.identity_resolution),
+        ),
+    )
 
 
 __all__ = [

@@ -31,12 +31,13 @@ from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
-from src.reporting.analysis_runs import ReplayOptions, project_run
+from src.reporting.analysis_runs import project_run
 from src.reporting.presentation import PresentationMode
+from src.reporting.replay_inputs import ReplayOptions
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategy_wiring import EVIDENCE_BY_KEY, run_spec_for
+from src.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
 from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
@@ -196,7 +197,9 @@ def test_a_ticker_reuse_supersession_never_relabels_a_previously_persisted_run(
     assert reopened_first.instrument_profile.identity is not None
     assert reopened_first.instrument_profile.identity.instrument_name == "Generation A Inc."
     assert reopened_first.instrument_profile.identity.issuer_identifier == "0000011111"
-    rendered_first = project_run(reopened_first, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY)
+    rendered_first = project_run(
+        reopened_first, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "Generation A Inc." in rendered_first
     assert "Generation B Corp." not in rendered_first
 
@@ -206,7 +209,9 @@ def test_a_ticker_reuse_supersession_never_relabels_a_previously_persisted_run(
     assert reopened_second.instrument_profile is not None
     assert reopened_second.instrument_profile.identity is not None
     assert reopened_second.instrument_profile.identity.instrument_name == "Generation B Corp."
-    rendered_second = project_run(reopened_second, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY)
+    rendered_second = project_run(
+        reopened_second, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "Generation B Corp." in rendered_second
     assert "Generation A Inc." not in rendered_second
 

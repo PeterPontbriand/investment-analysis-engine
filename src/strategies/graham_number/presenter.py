@@ -4,14 +4,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import Any
 
 from src.analysis.shared.financial_resolution import PriceComparison
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput
 from src.data.financial.resolution_trace import ResolutionOutcome
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
-from src.data.security_identity import SecurityIdentityResolution, security_identity_payload
+from src.data.security_identity import SecurityIdentityResolution
+from src.reporting.documents.shared_parts import (
+    identity_diagnostic_parts,
+    instrument_kind_part_of,
+    price_comparison_part,
+    profile_diagnostic_parts,
+    quote_part,
+    resolved_input_part,
+    security_identity_part,
+    trace_parts,
+)
 from src.reporting.evidence_presentation import (
     analysis_heading,
     basis_display_name,
@@ -21,17 +30,12 @@ from src.reporting.evidence_presentation import (
     effective_status_and_reason,
     identity_detail_lines,
     input_line,
-    instrument_kind_payload,
     kind_detail_lines,
     override_warnings,
     profile_diagnostic_lines,
-    profile_diagnostic_payloads,
-    resolved_input_payload,
     result_heading,
-    security_identity_diagnostic_entry,
     source_summary,
     status_label,
-    trace_payload,
     validate_presentation_as_of,
     validate_ticker,
 )
@@ -40,17 +44,21 @@ from src.reporting.presentation import PresentationMode, format_money, json_docu
 from src.reporting.valuation_presentation import (
     comparison_details,
     comparison_lines,
-    comparison_payload,
     eps_basis_label,
     investor_comparison_evidence,
     public_quote_reason,
-    quote_payload,
     quote_warnings,
     validate_margin,
 )
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
+from src.strategies.graham_number.envelope import (
+    DOCUMENT_SCHEMA_VERSION,
+    GrahamNumberDocument,
+    GrahamNumberInputsPart,
+    GrahamNumberResultPart,
+)
+from src.strategies.graham_number.vocabulary import ANALYSIS_ID, METHOD_ID
 
-_SCHEMA_VERSION = 6
 _NUMBER_LIMITATION = (
     "The Graham Number is a maximum indicated price / screening ceiling, "
     "not a complete intrinsic-value conclusion or investment recommendation."
@@ -101,7 +109,7 @@ def render_graham_number(
 ) -> str:
     """Render a Graham Number analysis using the approved investor grammar."""
     if mode is PresentationMode.JSON:
-        return json_document(_number_payload(presentation))
+        return json_document(_number_document(presentation).model_dump(mode="json"))
 
     lines = _number_concise_lines(presentation)
     if mode is PresentationMode.DETAILS:
@@ -308,7 +316,8 @@ def _number_reason(  # noqa: PLR0911
     return fallback
 
 
-def _number_payload(p: GrahamNumberPresentation) -> dict[str, Any]:
+def _number_document(p: GrahamNumberPresentation) -> GrahamNumberDocument:
+    """Build the typed Graham Number document; validation of the model is the output boundary."""
     status, reason = effective_status_and_reason(
         p.assembly.status,
         p.assembly.reason,
@@ -320,39 +329,34 @@ def _number_payload(p: GrahamNumberPresentation) -> dict[str, Any]:
     result_value = (
         p.result.maximum_indicated_price if p.result is not None and p.result.status is CalculationStatus.OK else None
     )
-    return {
-        "schema_version": _SCHEMA_VERSION,
-        "price_comparison": comparison_payload(p.price_comparison),
-        "analysis": "graham_number",
-        "ticker": p.ticker.upper(),
-        "security_identity": security_identity_payload(p.ticker, p.identity_resolution),
-        "instrument_kind": instrument_kind_payload(p.instrument_profile),
-        "method": "graham_number",
-        "as_of": None if p.as_of is None else p.as_of.isoformat(),
-        "status": status.value,
-        "reason": reason,
-        "result": {
-            "maximum_indicated_price": result_value,
-            "margin_of_safety_percent": p.margin_of_safety_percent,
-        },
-        "inputs": {
-            "eps": resolved_input_payload(p.assembly.eps),
-            "bvps": resolved_input_payload(p.assembly.bvps),
-            "current_price": resolved_input_payload(p.assembly.current_price),
-        },
-        "quote": quote_payload(
-            p.assembly.current_price,
-            p.assembly.quote_status,
-            p.assembly.quote_reason,
+    return GrahamNumberDocument(
+        schema_version=DOCUMENT_SCHEMA_VERSION,
+        price_comparison=price_comparison_part(p.price_comparison),
+        analysis=ANALYSIS_ID,
+        ticker=p.ticker.upper(),
+        security_identity=security_identity_part(p.ticker, p.identity_resolution),
+        instrument_kind=instrument_kind_part_of(p.instrument_profile),
+        method=METHOD_ID,
+        as_of=p.as_of,
+        status=status,
+        reason=reason,
+        result=GrahamNumberResultPart(
+            maximum_indicated_price=result_value, margin_of_safety_percent=p.margin_of_safety_percent
         ),
-        "warnings": _number_warnings(p),
-        "limitations": [_NUMBER_LIMITATION],
-        "diagnostics": [
-            *trace_payload(p.assembly.resolution_trace),
-            *profile_diagnostic_payloads(p.instrument_profile),
-            *security_identity_diagnostic_entry(p.instrument_profile, p.identity_resolution),
-        ],
-    }
+        inputs=GrahamNumberInputsPart(
+            eps=resolved_input_part(p.assembly.eps),
+            bvps=resolved_input_part(p.assembly.bvps),
+            current_price=resolved_input_part(p.assembly.current_price),
+        ),
+        quote=quote_part(p.assembly.current_price, p.assembly.quote_status, p.assembly.quote_reason),
+        warnings=tuple(_number_warnings(p)),
+        limitations=(_NUMBER_LIMITATION,),
+        diagnostics=(
+            *trace_parts(p.assembly.resolution_trace),
+            *profile_diagnostic_parts(p.instrument_profile),
+            *identity_diagnostic_parts(p.instrument_profile, p.identity_resolution),
+        ),
+    )
 
 
 __all__ = [

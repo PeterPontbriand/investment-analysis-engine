@@ -1,0 +1,1108 @@
+{
+  "$defs": {
+    "AccountingScope": {
+      "description": "Accounting scope of a financial-statement line item.",
+      "enum": [
+        "consolidated",
+        "parent",
+        "segment"
+      ],
+      "title": "AccountingScope",
+      "type": "string"
+    },
+    "CalculationStatus": {
+      "description": "Machine-readable outcome of a calculation attempt.\n\nPure calculators (Slice B) may return:\n\n- ``OK`` — required inputs resolved and calculation completed.\n- ``NOT_APPLICABLE`` — inputs are valid but the selected method is\n  inapplicable (e.g. non-positive EPS or BVPS for the Graham Number).\n- ``INVALID_INPUT`` — supplied value, unit, basis, or method/flag\n  combination is invalid.\n\nResolver/provider layers (Slice C and later) will additionally return:\n\n- ``INPUT_UNAVAILABLE`` — a required input could not be resolved under\n  the requested time boundary.\n- ``PROVIDER_ERROR`` — the configured provider failed in a way that\n  should be distinguished from an absent fact.",
+      "enum": [
+        "ok",
+        "not_applicable",
+        "invalid_input",
+        "input_unavailable",
+        "provider_error"
+      ],
+      "title": "CalculationStatus",
+      "type": "string"
+    },
+    "CapitalExpenditureSign": {
+      "description": "Sign convention used by a provider when reporting capital expenditures.",
+      "enum": [
+        "positive_expenditure",
+        "negative_cash_outflow"
+      ],
+      "title": "CapitalExpenditureSign",
+      "type": "string"
+    },
+    "Classification": {
+      "description": "Headline historical screening conclusion.",
+      "enum": [
+        "pass",
+        "fail",
+        "indeterminate"
+      ],
+      "title": "Classification",
+      "type": "string"
+    },
+    "DiagnosticPart": {
+      "additionalProperties": false,
+      "description": "One diagnostics entry that names no provider: a resolver event or the legacy identity entry.",
+      "properties": {
+        "field_name": {
+          "title": "Field Name",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "outcome": {
+          "title": "Outcome",
+          "type": "string"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_name",
+        "stage",
+        "outcome",
+        "message"
+      ],
+      "title": "DiagnosticPart",
+      "type": "object"
+    },
+    "FCFClassificationBasis": {
+      "description": "Free-cash-flow measure controlling classification.",
+      "enum": [
+        "total_fcf",
+        "fcf_per_share"
+      ],
+      "title": "FCFClassificationBasis",
+      "type": "string"
+    },
+    "FCFDiagnosticsPart": {
+      "additionalProperties": false,
+      "description": "The ordered diagnostics of the run: resolver events, then the instrument-profile attempts.",
+      "properties": {
+        "events": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DiagnosticPart"
+              },
+              {
+                "$ref": "#/$defs/ProviderDiagnosticPart"
+              }
+            ]
+          },
+          "title": "Events",
+          "type": "array"
+        }
+      },
+      "required": [
+        "events"
+      ],
+      "title": "FCFDiagnosticsPart",
+      "type": "object"
+    },
+    "FCFForwardEvidencePart": {
+      "additionalProperties": false,
+      "description": "The analyst-consensus forward evidence for the next two fiscal years.",
+      "properties": {
+        "actual_to_fy1_growth": {
+          "$ref": "#/$defs/MetricResultPart"
+        },
+        "confirms_positive_growth": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Confirms Positive Growth"
+        },
+        "fy1_consensus_eps": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FCFResolvedInputPart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fy1_to_fy2_growth": {
+          "$ref": "#/$defs/MetricResultPart"
+        },
+        "fy2_consensus_eps": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FCFResolvedInputPart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latest_actual_eps": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FCFResolvedInputPart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/ForwardEvidenceStatus"
+        }
+      },
+      "required": [
+        "status",
+        "latest_actual_eps",
+        "fy1_consensus_eps",
+        "fy2_consensus_eps",
+        "actual_to_fy1_growth",
+        "fy1_to_fy2_growth",
+        "confirms_positive_growth"
+      ],
+      "title": "FCFForwardEvidencePart",
+      "type": "object"
+    },
+    "FCFLineagePart": {
+      "additionalProperties": false,
+      "description": "How a derived input was composed from other inputs.",
+      "properties": {
+        "components": {
+          "items": {
+            "$ref": "#/$defs/FCFResolvedInputPart"
+          },
+          "title": "Components",
+          "type": "array"
+        },
+        "transformation": {
+          "title": "Transformation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "transformation",
+        "components"
+      ],
+      "title": "FCFLineagePart",
+      "type": "object"
+    },
+    "FCFObservationPart": {
+      "additionalProperties": false,
+      "description": "One completed fiscal year with every component preserved.",
+      "properties": {
+        "diluted_eps": {
+          "$ref": "#/$defs/FCFResolvedInputPart"
+        },
+        "fiscal_year": {
+          "title": "Fiscal Year",
+          "type": "integer"
+        },
+        "free_cash_flow": {
+          "$ref": "#/$defs/FCFResolvedInputPart"
+        },
+        "free_cash_flow_per_diluted_share": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FCFResolvedInputPart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "normalized_capital_expenditures": {
+          "$ref": "#/$defs/FCFResolvedInputPart"
+        },
+        "operating_cash_flow": {
+          "$ref": "#/$defs/FCFResolvedInputPart"
+        },
+        "period_end": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Period End",
+          "type": "string"
+        },
+        "period_start": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Period Start",
+          "type": "string"
+        },
+        "weighted_average_diluted_shares": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FCFResolvedInputPart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "fiscal_year",
+        "period_start",
+        "period_end",
+        "operating_cash_flow",
+        "normalized_capital_expenditures",
+        "free_cash_flow",
+        "diluted_eps",
+        "weighted_average_diluted_shares",
+        "free_cash_flow_per_diluted_share"
+      ],
+      "title": "FCFObservationPart",
+      "type": "object"
+    },
+    "FCFPolicyPart": {
+      "additionalProperties": false,
+      "description": "The investor-selected controls of the run.",
+      "properties": {
+        "classification_basis": {
+          "$ref": "#/$defs/FCFClassificationBasis"
+        },
+        "forward_policy": {
+          "$ref": "#/$defs/ForwardPolicy"
+        },
+        "historical_horizon": {
+          "$ref": "#/$defs/HistoricalHorizon"
+        },
+        "include_fcf_yield": {
+          "title": "Include Fcf Yield",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "historical_horizon",
+        "classification_basis",
+        "forward_policy",
+        "include_fcf_yield"
+      ],
+      "title": "FCFPolicyPart",
+      "type": "object"
+    },
+    "FCFResolvedInputPart": {
+      "additionalProperties": false,
+      "description": "One resolved input with its full provenance, including the annual-fact fields.",
+      "properties": {
+        "accounting_scope": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AccountingScope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "As Of"
+        },
+        "available_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Available At"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Basis"
+        },
+        "cache_schema_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cache Schema Version"
+        },
+        "capital_expenditure_sign": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CapitalExpenditureSign"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "currency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Currency"
+        },
+        "field_name": {
+          "title": "Field Name",
+          "type": "string"
+        },
+        "fiscal_year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Fiscal Year"
+        },
+        "lineage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FCFLineagePart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "observation_period_end": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observation Period End"
+        },
+        "observation_period_start": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observation Period Start"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observed At"
+        },
+        "origin_source_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "period_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PeriodKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_fact_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Fact Id"
+        },
+        "provider_field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Field"
+        },
+        "provider_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Id"
+        },
+        "resolved_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Resolved At",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Retrieved At"
+        },
+        "source_kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "units": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Units"
+        },
+        "value": {
+          "description": "A finite number, written as the source value was.",
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "field_name",
+        "value",
+        "source_kind",
+        "resolved_at",
+        "origin_source_kind",
+        "basis",
+        "units",
+        "currency",
+        "provider_id",
+        "provider_field",
+        "observation_period_start",
+        "observation_period_end",
+        "observed_at",
+        "available_at",
+        "as_of",
+        "retrieved_at",
+        "cache_schema_version",
+        "lineage",
+        "notes",
+        "fiscal_year",
+        "period_kind",
+        "accounting_scope",
+        "capital_expenditure_sign",
+        "provider_fact_id"
+      ],
+      "title": "FCFResolvedInputPart",
+      "type": "object"
+    },
+    "ForwardEvidenceStatus": {
+      "description": "Completeness of the forward consensus evidence block.",
+      "enum": [
+        "complete",
+        "partial",
+        "unavailable"
+      ],
+      "title": "ForwardEvidenceStatus",
+      "type": "string"
+    },
+    "ForwardPolicy": {
+      "description": "How forward consensus evidence affects the headline result.",
+      "enum": [
+        "display_only",
+        "confirmation",
+        "hard_gate"
+      ],
+      "title": "ForwardPolicy",
+      "type": "string"
+    },
+    "HistoricalHorizon": {
+      "description": "Requested historical elapsed-year horizon for classification.",
+      "enum": [
+        "longest_available",
+        "3",
+        "4",
+        "5"
+      ],
+      "title": "HistoricalHorizon",
+      "type": "string"
+    },
+    "InstrumentKind": {
+      "description": "Reviewed provider-neutral instrument classifications.",
+      "enum": [
+        "equity",
+        "etf",
+        "cryptocurrency"
+      ],
+      "title": "InstrumentKind",
+      "type": "string"
+    },
+    "InstrumentKindPart": {
+      "additionalProperties": false,
+      "description": "The instrument-kind evidence a provider returned: the raw provider value and the reviewed kind it maps to.",
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InstrumentKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "provider_value": {
+          "title": "Provider Value",
+          "type": "string"
+        },
+        "resolved_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Resolved At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "provider_value",
+        "provider_id",
+        "resolved_at"
+      ],
+      "title": "InstrumentKindPart",
+      "type": "object"
+    },
+    "MetricResultPart": {
+      "additionalProperties": false,
+      "description": "One metric: its status, its value when the status is ok, and the reason it has none otherwise.",
+      "properties": {
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/MetricStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "status",
+        "value",
+        "reason_code",
+        "reason"
+      ],
+      "title": "MetricResultPart",
+      "type": "object"
+    },
+    "MetricStatus": {
+      "description": "Outcome of one calculated metric.",
+      "enum": [
+        "ok",
+        "unavailable",
+        "not_applicable"
+      ],
+      "title": "MetricStatus",
+      "type": "string"
+    },
+    "PeriodKind": {
+      "description": "Classification of the reporting period behind a financial fact.",
+      "enum": [
+        "completed_annual",
+        "quarterly",
+        "ttm"
+      ],
+      "title": "PeriodKind",
+      "type": "string"
+    },
+    "ProviderDiagnosticPart": {
+      "additionalProperties": false,
+      "description": "One diagnostics entry for an instrument-profile capability, which names the provider consulted.",
+      "properties": {
+        "field_name": {
+          "title": "Field Name",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "outcome": {
+          "title": "Outcome",
+          "type": "string"
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_name",
+        "stage",
+        "outcome",
+        "message",
+        "provider_id"
+      ],
+      "title": "ProviderDiagnosticPart",
+      "type": "object"
+    },
+    "ReasonCode": {
+      "description": "Machine-readable reasons shared by deterministic metric results.",
+      "enum": [
+        "insufficient_history",
+        "non_contiguous_history",
+        "missing_fact",
+        "incompatible_period",
+        "incompatible_units",
+        "incompatible_currency",
+        "incompatible_scope",
+        "ambiguous_fact",
+        "not_available_as_of",
+        "nonpositive_beginning",
+        "nonpositive_ending",
+        "sign_change",
+        "fcf_not_growing",
+        "eps_not_growing",
+        "fcf_and_eps_not_growing",
+        "forward_growth_not_confirmed",
+        "consensus_unavailable",
+        "market_cap_unavailable",
+        "provider_error",
+        "invalid_request",
+        "not_requested",
+        "instrument_kind_not_applicable"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    },
+    "SecurityIdentityPart": {
+      "additionalProperties": false,
+      "description": "The identity snapshot a run retains; every descriptive field is null when the provider returned none.",
+      "properties": {
+        "instrument_identifier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Instrument Identifier"
+        },
+        "instrument_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Instrument Name"
+        },
+        "issuer_identifier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issuer Identifier"
+        },
+        "listing_venue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Listing Venue"
+        },
+        "provider_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Id"
+        },
+        "resolved_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Resolved At"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticker",
+        "instrument_name",
+        "listing_venue",
+        "issuer_identifier",
+        "instrument_identifier",
+        "provider_id",
+        "resolved_at"
+      ],
+      "title": "SecurityIdentityPart",
+      "type": "object"
+    },
+    "SourceKind": {
+      "description": "How a resolved input value was obtained.",
+      "enum": [
+        "override",
+        "cache",
+        "provider",
+        "derived"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    },
+    "TrendClassification": {
+      "description": "Historical relationship between FCF and earnings growth (evidence, not a score).",
+      "enum": [
+        "both_growing",
+        "fcf_growing_earnings_not",
+        "earnings_growing_fcf_not",
+        "neither_growing",
+        "insufficient_or_nonmeaningful_growth"
+      ],
+      "title": "TrendClassification",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The FCF Growth document, version 5, as ``fcf-growth --json`` and ``runs show --json`` write it.",
+  "properties": {
+    "annual_observations": {
+      "items": {
+        "$ref": "#/$defs/FCFObservationPart"
+      },
+      "title": "Annual Observations",
+      "type": "array"
+    },
+    "classification": {
+      "$ref": "#/$defs/Classification"
+    },
+    "classification_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Classification Reason"
+    },
+    "classification_reason_code": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReasonCode"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "diagnostics": {
+      "$ref": "#/$defs/FCFDiagnosticsPart"
+    },
+    "effective_as_of": {
+      "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+      "format": "date-time",
+      "title": "Effective As Of",
+      "type": "string"
+    },
+    "eps_cagr": {
+      "$ref": "#/$defs/MetricResultPart"
+    },
+    "execution_status": {
+      "$ref": "#/$defs/CalculationStatus"
+    },
+    "fcf_cagr": {
+      "$ref": "#/$defs/MetricResultPart"
+    },
+    "fcf_per_share_cagr": {
+      "$ref": "#/$defs/MetricResultPart"
+    },
+    "fcf_yield": {
+      "$ref": "#/$defs/MetricResultPart"
+    },
+    "forward_evidence": {
+      "$ref": "#/$defs/FCFForwardEvidencePart"
+    },
+    "instrument_kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InstrumentKindPart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "market_capitalization": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FCFResolvedInputPart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "method_id": {
+      "const": "reported_fcf_eps_cagr",
+      "title": "Method Id",
+      "type": "string"
+    },
+    "method_version": {
+      "title": "Method Version",
+      "type": "integer"
+    },
+    "period_end": {
+      "anyOf": [
+        {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Period End"
+    },
+    "period_start": {
+      "anyOf": [
+        {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Period Start"
+    },
+    "policy": {
+      "$ref": "#/$defs/FCFPolicyPart"
+    },
+    "requested_as_of": {
+      "anyOf": [
+        {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Requested As Of"
+    },
+    "result_schema_version": {
+      "title": "Result Schema Version",
+      "type": "integer"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "security_identity": {
+      "$ref": "#/$defs/SecurityIdentityPart"
+    },
+    "selected_horizon_years": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Selected Horizon Years"
+    },
+    "selected_observation_count": {
+      "title": "Selected Observation Count",
+      "type": "integer"
+    },
+    "strategy_id": {
+      "const": "fcf_earnings_growth",
+      "title": "Strategy Id",
+      "type": "string"
+    },
+    "ticker": {
+      "title": "Ticker",
+      "type": "string"
+    },
+    "trend_classification": {
+      "$ref": "#/$defs/TrendClassification"
+    },
+    "used_horizon_fallback": {
+      "title": "Used Horizon Fallback",
+      "type": "boolean"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "result_schema_version",
+    "strategy_id",
+    "method_id",
+    "method_version",
+    "ticker",
+    "security_identity",
+    "instrument_kind",
+    "requested_as_of",
+    "effective_as_of",
+    "policy",
+    "execution_status",
+    "classification",
+    "classification_reason_code",
+    "classification_reason",
+    "selected_horizon_years",
+    "selected_observation_count",
+    "used_horizon_fallback",
+    "period_start",
+    "period_end",
+    "annual_observations",
+    "fcf_cagr",
+    "fcf_per_share_cagr",
+    "eps_cagr",
+    "trend_classification",
+    "market_capitalization",
+    "fcf_yield",
+    "forward_evidence",
+    "warnings",
+    "diagnostics"
+  ],
+  "title": "FCFDocument",
+  "type": "object"
+}

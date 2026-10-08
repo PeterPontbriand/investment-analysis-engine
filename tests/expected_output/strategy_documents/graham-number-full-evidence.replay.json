@@ -1,0 +1,227 @@
+{
+  "analysis": "graham_number",
+  "as_of": "2026-09-10T12:00:00+00:00",
+  "diagnostics": [
+    {
+      "field_name": "eps",
+      "message": "Resolved EPS.",
+      "outcome": "success",
+      "stage": "provider"
+    },
+    {
+      "field_name": "bvps",
+      "message": "Used override.",
+      "outcome": "success",
+      "stage": "override"
+    }
+  ],
+  "inputs": {
+    "bvps": {
+      "as_of": "2026-09-10T12:00:00+00:00",
+      "available_at": null,
+      "basis": null,
+      "cache_schema_version": null,
+      "currency": null,
+      "field_name": "book_value_per_share",
+      "lineage": null,
+      "notes": [],
+      "observation_period_end": null,
+      "observation_period_start": null,
+      "observed_at": null,
+      "origin_source_kind": null,
+      "provider_field": null,
+      "provider_id": null,
+      "resolved_at": "<wall-clock>",
+      "retrieved_at": null,
+      "source_kind": "override",
+      "units": "currency_per_share",
+      "value": 10.0
+    },
+    "current_price": {
+      "as_of": "2026-09-10T12:00:00+00:00",
+      "available_at": null,
+      "basis": null,
+      "cache_schema_version": 1,
+      "currency": null,
+      "field_name": "current_price",
+      "lineage": null,
+      "notes": [],
+      "observation_period_end": null,
+      "observation_period_start": null,
+      "observed_at": null,
+      "origin_source_kind": "provider",
+      "provider_field": null,
+      "provider_id": "yfinance",
+      "resolved_at": "<wall-clock>",
+      "retrieved_at": "<wall-clock>",
+      "source_kind": "cache",
+      "units": null,
+      "value": 24.0
+    },
+    "eps": {
+      "as_of": "2026-09-10T12:00:00+00:00",
+      "available_at": null,
+      "basis": "three_year_average",
+      "cache_schema_version": null,
+      "currency": null,
+      "field_name": "eps",
+      "lineage": {
+        "components": [
+          {
+            "as_of": null,
+            "available_at": "2026-09-10T12:00:00+00:00",
+            "basis": null,
+            "cache_schema_version": null,
+            "currency": "USD",
+            "field_name": "eps",
+            "lineage": null,
+            "notes": [
+              "First",
+              "Second"
+            ],
+            "observation_period_end": null,
+            "observation_period_start": null,
+            "observed_at": "2026-09-10T12:00:00+00:00",
+            "origin_source_kind": null,
+            "provider_field": null,
+            "provider_id": "sec_edgar",
+            "resolved_at": "<wall-clock>",
+            "retrieved_at": "<wall-clock>",
+            "source_kind": "provider",
+            "units": "currency_per_share",
+            "value": 4.0
+          },
+          {
+            "as_of": null,
+            "available_at": "2026-09-10T12:00:00+00:00",
+            "basis": null,
+            "cache_schema_version": null,
+            "currency": "USD",
+            "field_name": "eps",
+            "lineage": null,
+            "notes": [
+              "First",
+              "Second"
+            ],
+            "observation_period_end": null,
+            "observation_period_start": null,
+            "observed_at": "2026-09-10T12:00:00+00:00",
+            "origin_source_kind": null,
+            "provider_field": null,
+            "provider_id": "sec_edgar",
+            "resolved_at": "<wall-clock>",
+            "retrieved_at": "<wall-clock>",
+            "source_kind": "provider",
+            "units": "currency_per_share",
+            "value": 4.0
+          },
+          {
+            "as_of": null,
+            "available_at": "2026-09-10T12:00:00+00:00",
+            "basis": null,
+            "cache_schema_version": null,
+            "currency": "USD",
+            "field_name": "eps",
+            "lineage": null,
+            "notes": [
+              "First",
+              "Second"
+            ],
+            "observation_period_end": null,
+            "observation_period_start": null,
+            "observed_at": "2026-09-10T12:00:00+00:00",
+            "origin_source_kind": null,
+            "provider_field": null,
+            "provider_id": "sec_edgar",
+            "resolved_at": "<wall-clock>",
+            "retrieved_at": "<wall-clock>",
+            "source_kind": "provider",
+            "units": "currency_per_share",
+            "value": 4.0
+          }
+        ],
+        "transformation": "Average annual EPS"
+      },
+      "notes": [],
+      "observation_period_end": null,
+      "observation_period_start": null,
+      "observed_at": null,
+      "origin_source_kind": null,
+      "provider_field": null,
+      "provider_id": null,
+      "resolved_at": "<wall-clock>",
+      "retrieved_at": null,
+      "source_kind": "derived",
+      "units": null,
+      "value": 4.0
+    }
+  },
+  "instrument_kind": null,
+  "limitations": [
+    "The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation."
+  ],
+  "method": "graham_number",
+  "price_comparison": {
+    "percent": 20.0,
+    "provenance": {
+      "cik": "123",
+      "class_title": "Common stock",
+      "documents": [
+        {
+          "accession": "001",
+          "available_at": "2026-09-10T12:00:00+00:00",
+          "context_ids": [
+            "c1",
+            "c2"
+          ],
+          "listing_venue": null,
+          "retrieved_at": "<wall-clock>",
+          "url": "https://www.sec.gov/example"
+        }
+      ],
+      "mapping_id": "single_common_class"
+    },
+    "quote_freshness": {
+      "evaluated_at": "2026-09-10T12:00:00+00:00",
+      "market_observed_at": null,
+      "max_retrieval_age_seconds": 300.0,
+      "retrieval_age_seconds": 0.0,
+      "retrieved_at": "<wall-clock>",
+      "status": "recent_retrieval"
+    },
+    "reason": "compatible",
+    "security_unit_evidence": {
+      "filing_unit_kind": "ordinary_share",
+      "provider_id": "sec_edgar",
+      "quoted_unit_kind": "ordinary_share",
+      "source": "Annual filing",
+      "ticker": "KO",
+      "underlying_shares_per_quoted_unit": 1.0
+    },
+    "status": "available"
+  },
+  "quote": {
+    "reason": null,
+    "status": "ok"
+  },
+  "reason": null,
+  "result": {
+    "margin_of_safety_percent": 20.0,
+    "maximum_indicated_price": 30.0
+  },
+  "schema_version": 6,
+  "security_identity": {
+    "instrument_identifier": null,
+    "instrument_name": null,
+    "issuer_identifier": null,
+    "listing_venue": null,
+    "provider_id": null,
+    "resolved_at": null,
+    "ticker": "KO"
+  },
+  "status": "ok",
+  "ticker": "KO",
+  "warnings": [
+    "book_value_per_share is a user override, not provider-verified data."
+  ]
+}

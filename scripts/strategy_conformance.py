@@ -23,9 +23,10 @@ from types import MappingProxyType
 from typing import cast, get_args, get_origin
 
 import typer
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from typer.core import TyperGroup
 
+from scripts.generate_schemas import SCHEMA_DIRECTORY, schema_text, strategy_schema_file
 from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
 from src.cli_strategy_wiring import (
     CLI_STRATEGIES,
@@ -49,6 +50,10 @@ from src.orchestrator.analysis_tools import register_analysis_tools
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.tool_names import ToolName
 from src.orchestrator.tool_runtime import AnalysisToolHandler
+from src.reporting.analysis_runs import project_run
+from src.reporting.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
+from src.reporting.presentation import PresentationMode
+from src.reporting.replay_inputs import ReplayInputs, ReplayOptions, UnsupportedProjectionError
 from src.strategy_wiring import (
     STRATEGIES,
     BehaviorView,
@@ -59,6 +64,7 @@ from src.strategy_wiring import (
     evidence_by_key,
     evidence_by_type,
     parsers_by_alias,
+    replays_by_key,
     run_spec_for,
     run_specs_by_key,
     tool_for_arguments,
@@ -88,6 +94,7 @@ DESCRIPTOR_FIELDS: dict[str, object] = {
     "method_version": int,
     "result_schema_version": int,
     "evidence_codec_version": int,
+    "json_envelope": type[BaseModel],
 }
 """The documented descriptor fields and their types; a change here is a reviewed change to the contract."""
 
@@ -102,6 +109,7 @@ BEHAVIOR_MEMBERS: frozenset[str] = frozenset(
         "ticker_of",
         "handler",
         "native_status",
+        "project",
     }
 )
 """The documented members of a strategy's behavior bundle."""
@@ -124,7 +132,7 @@ CLI_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "build", "refresh", "c
 """The documented fields of a CLI-tier entry: the paired core bundle and the erased composition."""
 
 VIEW_ACCESSORS: frozenset[str] = frozenset(
-    {"result_type", "parse_for", "encode_object", "decode_for", "native_status_of", "bind_handler"}
+    {"result_type", "parse_for", "encode_object", "decode_for", "native_status_of", "bind_handler", "project_for"}
 )
 """The behavior members that generic consumers can reach, through the erased view."""
 
@@ -174,12 +182,7 @@ def selection_union_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[st
         (_literal_default(member, "analysis_id"), _literal_default(member, "method_id")): member
         for member in get_args(SelectionMember)
     }
-    gaps = [
-        f"descriptor {label(declared[key])} declares config_schema_version {declared[key].config_schema_version}, "
-        f"but {selections[key].__name__} defaults to {selections[key].model_fields['config_schema_version'].default}"
-        for key in sorted(declared.keys() & selections.keys())
-        if declared[key].config_schema_version != selections[key].model_fields["config_schema_version"].default
-    ]
+    gaps: list[str] = []
     gaps.extend(
         f"selection class {selections[key].__name__} with ids {key} has no descriptor"
         for key in sorted(selections.keys() - declared.keys())
@@ -518,6 +521,117 @@ def versions_and_round_trip_gaps(
 
 
 # ---------------------------------------------------------------------------
+# T8 (replay): the typed JSON document of each stored run
+# ---------------------------------------------------------------------------
+
+
+def replay_gaps(
+    descriptors: tuple[StrategyDescriptor, ...],
+    tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
+) -> list[str]:
+    """T8 (replay): each stored run replays in every mode and writes the document its descriptor declares.
+
+    The JSON replay must validate against the descriptor's ``json_envelope``. A strategy with no stored run is
+    reported by T8's round trip, not here.
+    """
+    gaps: list[str] = []
+    codecs = evidence_by_key(descriptors)
+    replays = replays_by_key(descriptors)
+    for entry in stored_runs(descriptors, tier):
+        item = entry.descriptor
+        for mode in PresentationMode:
+            try:
+                text = project_run(entry.run, ReplayOptions(mode=mode), codecs=codecs, replays=replays)
+            except Exception as error:
+                gaps.append(
+                    f"strategy {label(item)}: replay in {mode.value} mode raised {type(error).__name__}: {error}"
+                )
+                continue
+            if not text.strip():
+                gaps.append(f"strategy {label(item)}: replay in {mode.value} mode is empty")
+            if mode is not PresentationMode.JSON:
+                continue
+            try:
+                item.json_envelope.model_validate_json(text)
+            except ValidationError as error:
+                gaps.append(
+                    f"strategy {label(item)}: the replayed JSON does not validate as "
+                    f"{item.json_envelope.__name__}: {error}"
+                )
+                continue
+    return gaps
+
+
+# ---------------------------------------------------------------------------
+# T10 (schemas), T21: every strategy document and every --json command has a model and a schema
+# ---------------------------------------------------------------------------
+
+
+def published_schema_gaps(descriptors: tuple[StrategyDescriptor, ...], directory: Path = SCHEMA_DIRECTORY) -> list[str]:
+    """T10 (published schemas): each descriptor's ``json_envelope`` has a checked-in, current schema file."""
+    gaps: list[str] = []
+    for item in descriptors:
+        path = directory / strategy_schema_file(item)
+        if not path.is_file():
+            gaps.append(f"strategy {label(item)} is not wired in: published schemas (schemas/{path.name} is missing)")
+        elif path.read_bytes() != schema_text(item.json_envelope).encode("utf-8"):
+            gaps.append(
+                f"strategy {label(item)} is not wired in: published schemas (schemas/{path.name} is out of date)"
+            )
+    return gaps
+
+
+def json_command_paths(app: typer.Typer) -> list[str]:
+    """Return the space-separated path of every command offering ``--json``, recursing every group, hidden ones too."""
+    paths: list[str] = []
+
+    def walk(command: object, path: list[str]) -> None:
+        children = getattr(command, "commands", None)
+        if isinstance(children, dict):
+            for name, child in children.items():
+                walk(child, [*path, name])
+        elif any("--json" in getattr(parameter, "opts", ()) for parameter in getattr(command, "params", ())):
+            paths.append(" ".join(path))
+
+    walk(typer.main.get_command(app), [])
+    return paths
+
+
+def json_command_gaps(
+    descriptors: tuple[StrategyDescriptor, ...],
+    app: typer.Typer,
+    directory: Path = SCHEMA_DIRECTORY,
+) -> list[str]:
+    """T21: every command offering ``--json`` has a typed document model and a current checked-in schema.
+
+    The commands come from the CLI's own parameter declarations; the models from ``JSON_DOCUMENTS`` (workspace,
+    database) and the descriptors (a strategy's direct command writes its ``json_envelope``; a replay command
+    writes any of them); the schemas from the files on disk. There is no exemption list.
+    """
+    gaps: list[str] = []
+    by_alias = {item.alias: item for item in descriptors}
+    for command in json_command_paths(app):
+        models: list[tuple[str, type[BaseModel]]]
+        if command in JSON_DOCUMENTS:
+            document = JSON_DOCUMENTS[command]
+            models = [(document.schema_file, document.model)]
+        elif command in by_alias:
+            models = [(strategy_schema_file(by_alias[command]), by_alias[command].json_envelope)]
+        elif command in STRATEGY_REPLAY_COMMANDS:
+            models = [(strategy_schema_file(item), item.json_envelope) for item in descriptors]
+        else:
+            gaps.append(f"command '{command}' offers --json but has no typed document model")
+            continue
+        for file_name, model in models:
+            path = directory / file_name
+            if not path.is_file():
+                gaps.append(f"command '{command}' offers --json but schemas/{file_name} is not checked in")
+            elif path.read_bytes() != schema_text(model).encode("utf-8"):
+                gaps.append(f"command '{command}' offers --json but schemas/{file_name} is out of date")
+    return gaps
+
+
+# ---------------------------------------------------------------------------
 # T11: undeclared inputs fail closed
 # ---------------------------------------------------------------------------
 
@@ -603,6 +717,30 @@ def _workspace_probes(
                 {key: value for key, value in by_key.items() if key != (item.analysis_id, item.method_id)},
             ),
             UnsupportedRunVersionError,
+        )
+        inputs = ReplayInputs(ticker=run.ticker, instrument_profile=None, presentation_inputs=None)
+        replay_options = ReplayOptions()
+        _expect_undeclared(
+            gaps,
+            f"{label(item)} project_for(object evidence)",
+            partial(item.behavior.project_for, inputs, object(), entry.selection, replay_options),
+        )
+        _expect_undeclared(
+            gaps,
+            f"{label(item)} project_for(object selection)",
+            partial(item.behavior.project_for, inputs, entry.result, object(), replay_options),
+        )
+        replays_without_own = {
+            key: value
+            for key, value in replays_by_key(descriptors).items()
+            if key != (item.analysis_id, item.method_id)
+        }
+        _expect_error(
+            gaps,
+            f"{label(item)} project_run without its replay projector",
+            partial(project_run, run, codecs=by_key, replays=replays_without_own),
+            UnsupportedProjectionError,
+            names=item.method_id,
         )
         _expect_undeclared(
             gaps,
@@ -898,6 +1036,7 @@ def uniqueness_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
         "tool": dataclasses.replace(second, tool=first.tool),
         "tool_arguments": dataclasses.replace(second, tool_arguments=first.tool_arguments),
         "result_type": dataclasses.replace(second, behavior=first.behavior),
+        "json_envelope": dataclasses.replace(second, json_envelope=first.json_envelope),
     }
     gaps: list[str] = []
     for rule, duplicate in duplicates.items():

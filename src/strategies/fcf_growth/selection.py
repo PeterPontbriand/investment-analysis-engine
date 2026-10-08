@@ -8,12 +8,17 @@ from pydantic import AwareDatetime, Field, field_validator, model_validator
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.data.instrument_profile import InstrumentProfile
-from src.strategies.fcf_growth.models import (
+from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
+from src.strategies.fcf_growth.vocabulary import (
+    ANALYSIS_ID,
+    CONFIG_SCHEMA_VERSION,
+    METHOD_ID,
+    AnalysisId,
+    ConfigSchemaVersion,
     FCFClassificationBasis,
-    FCFEarningsGrowthConfig,
-    FCFEarningsGrowthPolicy,
     ForwardPolicy,
     HistoricalHorizon,
+    MethodId,
 )
 from src.workspace.selection_base import FrozenSelection
 
@@ -51,9 +56,9 @@ class FCFPolicySnapshot(FrozenSelection):
 class FCFGrowthSelection(FrozenSelection):
     """Historical FCF/Earnings Growth request options, independent of Graham configs."""
 
-    analysis_id: Literal["fcf_earnings_growth"] = "fcf_earnings_growth"
-    method_id: Literal["reported_fcf_eps_cagr"] = "reported_fcf_eps_cagr"
-    config_schema_version: Literal[1] = 1
+    analysis_id: AnalysisId = ANALYSIS_ID
+    method_id: MethodId = METHOD_ID
+    config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     policy: FCFPolicySnapshot = Field(default_factory=FCFPolicySnapshot)
     currency: str = "USD"
     provider_id: Literal["sec_edgar"] = "sec_edgar"

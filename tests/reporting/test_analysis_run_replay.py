@@ -14,8 +14,9 @@ from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile, fixture_known_etf_profile
 from src.evaluation.fixtures.market_data import FixtureDataClient
-from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
+from src.reporting.analysis_runs import project_run
 from src.reporting.presentation import PresentationMode
+from src.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, MetricResult
 from src.strategies.fcf_growth.selection import FCFGrowthSelection
 from src.strategies.graham_growth.calculation import (
@@ -31,7 +32,7 @@ from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumRun
 from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import EVIDENCE_BY_KEY, EVIDENCE_BY_TYPE, run_spec_for
+from src.strategy_wiring import EVIDENCE_BY_KEY, EVIDENCE_BY_TYPE, REPLAYS_BY_KEY, run_spec_for
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import decode_evidence, encode_evidence
 from src.workspace.execution import execute
@@ -159,7 +160,9 @@ def test_project_run_concise_uses_the_stored_spread_not_a_recomputed_one() -> No
     real_spread = evidence.metrics.short_sma_val - evidence.metrics.long_sma_val
     assert real_spread != 999.0  # sanity: the stored/real mismatch is genuine, not coincidental
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "SMA spread: 999.00 (currency unspecified) (111.00%)" in rendered
 
 
@@ -177,7 +180,9 @@ def test_project_run_renders_the_captured_profile_not_the_native_evidence_copy()
     assert evidence.instrument_profile is None  # confirms the native copy is genuinely absent
     assert run.instrument_profile == profile
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "Instrument kind: equity" in rendered
     assert "Instrument kind: unavailable" not in rendered
 
@@ -185,14 +190,16 @@ def test_project_run_renders_the_captured_profile_not_the_native_evidence_copy()
 def test_project_run_all_modes_render_from_the_reopened_run() -> None:
     run = _build_run()
     for mode in PresentationMode:
-        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY)
+        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
         assert rendered
         assert "AAPL" in rendered
 
 
 def test_project_run_json_matches_the_run_owns_captured_values() -> None:
     run = _build_run()
-    payload = json.loads(project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY))
+    payload = json.loads(
+        project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
+    )
     assert payload["result"]["sma_spread"] == 999.0
     assert payload["result"]["sma_spread_percent"] == 111.0
     assert payload["ticker"] == "AAPL"
@@ -200,28 +207,28 @@ def test_project_run_json_matches_the_run_owns_captured_values() -> None:
 
 def test_project_run_defaults_to_concise() -> None:
     run = _build_run()
-    assert project_run(run, codecs=EVIDENCE_BY_KEY) == project_run(
-        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY
+    assert project_run(run, codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY) == project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
     )
 
 
 def test_project_run_rejects_an_unsupported_projection_version() -> None:
     run = _build_run().model_copy(update={"projection_version": 2})
     with pytest.raises(UnsupportedProjectionError, match="projection version"):
-        project_run(run, codecs=EVIDENCE_BY_KEY)
+        project_run(run, codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
 
 
 def test_project_run_rejects_an_unimplemented_method() -> None:
     run = _build_run().model_copy(update={"analysis_id": "piotroski", "method_id": "f_score"})
     with pytest.raises(UnsupportedProjectionError, match="No v1 replay"):
-        project_run(run, codecs=EVIDENCE_BY_KEY)
+        project_run(run, codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
 
 
 def test_project_run_rejects_a_malformed_stored_presentation_input() -> None:
     """presentation_inputs has no per-key schema; a reopened row is a real boundary."""
     run = _build_run().model_copy(update={"presentation_inputs": {"sma_spread": "not-a-number"}})
     with pytest.raises(UnsupportedProjectionError, match="sma_spread"):
-        project_run(run, codecs=EVIDENCE_BY_KEY)
+        project_run(run, codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
 
 
 def test_project_run_rejects_a_malformed_stored_spread_percent() -> None:
@@ -229,7 +236,7 @@ def test_project_run_rejects_a_malformed_stored_spread_percent() -> None:
         update={"presentation_inputs": {"sma_spread": 1.0, "sma_spread_percent": "not-a-number"}}
     )
     with pytest.raises(UnsupportedProjectionError, match="sma_spread_percent"):
-        project_run(run, codecs=EVIDENCE_BY_KEY)
+        project_run(run, codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
 
 
 def test_project_run_never_calls_the_live_analyzer_or_settings() -> None:
@@ -241,7 +248,9 @@ def test_project_run_never_calls_the_live_analyzer_or_settings() -> None:
         patch.object(MomentumAnalyzer, "run_analysis", forbidden),
         patch("src.config.ProjectSettings.get_momentum_analysis", forbidden),
     ):
-        assert project_run(run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY)
+        assert project_run(
+            run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+        )
 
 
 # --- Graham Number (graham / graham_number) v1 replay -----------------------
@@ -255,7 +264,9 @@ def test_graham_project_run_renders_the_stored_result_not_a_recomputed_one() -> 
     # The assembly inputs (EPS 4.0, BVPS 10.0) recompute to sqrt(22.5 * 4 * 10) == 30.0, not the stored 42.0.
     assert evidence.result.maximum_indicated_price == 42.0
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "KO" in rendered
     # The stored value renders; a recompute would render 30.00 instead.
     assert "42.00" in rendered
@@ -271,7 +282,9 @@ def test_graham_project_run_renders_the_captured_profile_not_the_native_evidence
     assert evidence.instrument_profile is None  # confirms the native copy is genuinely absent
     assert run.instrument_profile == profile
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "Instrument kind: equity" in rendered
     assert "Instrument kind: unavailable" not in rendered
 
@@ -279,14 +292,16 @@ def test_graham_project_run_renders_the_captured_profile_not_the_native_evidence
 def test_graham_project_run_all_modes_render_from_the_reopened_run() -> None:
     run = _graham_run()
     for mode in PresentationMode:
-        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY)
+        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
         assert rendered
         assert "KO" in rendered
 
 
 def test_graham_project_run_json_matches_the_stored_result() -> None:
     run = _graham_run()
-    payload = json.loads(project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY))
+    payload = json.loads(
+        project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
+    )
     assert payload["result"]["maximum_indicated_price"] == 42.0
     assert payload["ticker"] == "KO"
     assert payload["analysis"] == "graham_number"
@@ -295,8 +310,8 @@ def test_graham_project_run_json_matches_the_stored_result() -> None:
 
 def test_graham_project_run_defaults_to_concise() -> None:
     run = _graham_run()
-    assert project_run(run, codecs=EVIDENCE_BY_KEY) == project_run(
-        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY
+    assert project_run(run, codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY) == project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
     )
 
 
@@ -343,7 +358,9 @@ def test_graham_project_run_invalid_input_renders_stored_failure_without_recalcu
     assert evidence.result.status is CalculationStatus.INVALID_INPUT
     assert evidence.margin_of_safety_percent is None
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "KO" in rendered
     assert "Status: invalid input" in rendered
     # The raw resolver reason is normalized to the live command's investor-facing sentence...
@@ -387,7 +404,9 @@ def test_graham_project_run_normalizes_raw_quote_reason_to_public_sentence() -> 
     assert evidence.assembly.quote_status is CalculationStatus.PROVIDER_ERROR
     assert evidence.assembly.quote_reason == "Provider error: connection reset"
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.DIAGNOSTICS), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.DIAGNOSTICS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     # The stored technical reason must be replaced by the investor-facing sentence...
     assert "The configured quote provider could not complete the request." in rendered
     # ...and the raw technical string must never appear anywhere in the replay output.
@@ -420,7 +439,9 @@ def test_graham_project_run_etf_not_applicable_renders_stored_failure() -> None:
     assert evidence.result.status is CalculationStatus.NOT_APPLICABLE
     assert evidence.margin_of_safety_percent is None
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "FLSW" in rendered
     assert "Status: not applicable" in rendered
     # The stored ETF reason renders verbatim; no Graham Number value is fabricated.
@@ -437,7 +458,9 @@ def test_graham_project_run_comparison_unavailable_renders_stored_result_without
     assert evidence.assembly.current_price is None
     assert evidence.margin_of_safety_percent is None
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     # The stored Graham Number renders...
     assert "42.00" in rendered
     # ...but the price comparison is explicitly unavailable (no quote was fabricated).
@@ -453,7 +476,7 @@ def test_graham_project_run_failure_fixtures_render_in_all_modes() -> None:
     )
     for run in failure_runs:
         for mode in PresentationMode:
-            rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY)
+            rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
             assert rendered
             assert "Graham Number (maximum indicated price)" not in rendered
 
@@ -530,7 +553,9 @@ def test_growth_project_run_renders_the_stored_result_not_a_recomputed_one() -> 
     assert isinstance(evidence, GrahamGrowthAnalysis)
     assert evidence.result.growth_value == 999.0
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "999.00" in rendered
 
 
@@ -547,7 +572,9 @@ def test_growth_project_run_uses_the_stored_assumptions_not_current_settings() -
         raise AssertionError("Replay must not read current Graham Growth assumption settings.")
 
     with patch("src.config.ProjectSettings.get_graham_value_analysis", forbidden):
-        rendered = project_run(run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY)
+        rendered = project_run(
+            run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+        )
     assert "Growth Value = EPS × (8.50 + 2.00 × growth) × 4.40 / AAA yield." in rendered
 
 
@@ -558,7 +585,9 @@ def test_growth_project_run_renders_negative_growth() -> None:
     assert isinstance(evidence, GrahamGrowthAnalysis)
     assert evidence.result.growth_value == -12.5
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "-12.50" in rendered
 
 
@@ -570,7 +599,9 @@ def test_growth_project_run_renders_the_captured_profile_not_the_native_evidence
     assert evidence.instrument_profile is None
     assert run.instrument_profile == profile
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "Instrument kind: equity" in rendered
 
 
@@ -582,7 +613,9 @@ def test_growth_project_run_comparison_unavailable_renders_stored_result_without
     assert evidence.assembly.current_price is None
     assert evidence.margin_of_safety_percent is None
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "Current price: unavailable" in rendered
     assert "Price comparison: unavailable (no current quote)" in rendered
 
@@ -613,7 +646,9 @@ def test_growth_project_run_invalid_input_renders_normalized_reason() -> None:
     assert isinstance(evidence, GrahamGrowthAnalysis)
     assert evidence.assembly.reason == "expected_growth: override value failed strict finite validation"
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "KO" in rendered
     assert "Unable to analyze KO: the requested inputs are invalid. Review the method and overrides." in rendered
     assert "override value failed strict finite validation" not in rendered
@@ -643,7 +678,9 @@ def test_growth_project_run_etf_not_applicable_renders_stored_failure() -> None:
     assert isinstance(evidence, GrahamGrowthAnalysis)
     assert evidence.assembly.status is CalculationStatus.NOT_APPLICABLE
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "FLSW" in rendered
     assert "Graham growth value is a company-level valuation method and does not apply directly to an ETF." in rendered
 
@@ -679,7 +716,9 @@ def test_growth_project_run_normalizes_raw_quote_reason_to_public_sentence() -> 
     assert evidence.assembly.quote_status is CalculationStatus.PROVIDER_ERROR
     assert evidence.assembly.quote_reason == "Provider error: connection reset"
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.DIAGNOSTICS), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.DIAGNOSTICS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "The configured quote provider could not complete the request." in rendered
     assert "Provider error: connection reset" not in rendered
 
@@ -692,13 +731,15 @@ def test_growth_project_run_all_modes_render_from_the_reopened_run() -> None:
     )
     for run in runs:
         for mode in PresentationMode:
-            rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY)
+            rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
             assert rendered
 
 
 def test_growth_project_run_json_matches_the_stored_result() -> None:
     run = _growth_run()
-    payload = json.loads(project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY))
+    payload = json.loads(
+        project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
+    )
     assert payload["ticker"] == "KO"
 
 
@@ -711,7 +752,9 @@ def test_growth_project_run_never_calls_the_live_analyzer_or_settings() -> None:
         patch("src.strategies.graham_growth.analyzer.GrahamGrowthAnalyzer.run_analysis", forbidden),
         patch("src.config.ProjectSettings.get_graham_value_analysis", forbidden),
     ):
-        assert project_run(run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY)
+        assert project_run(
+            run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -759,7 +802,9 @@ def test_fcf_project_run_renders_the_stored_result_not_a_recomputed_one() -> Non
     assert isinstance(evidence, FCFEarningsGrowthResult)
     assert evidence.fcf_cagr.value == 777.0
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "777.00%" in rendered
 
 
@@ -779,7 +824,9 @@ def test_fcf_project_run_renders_the_captured_profile_not_the_native_evidence_co
     assert evidence.instrument_profile is None
     assert run.instrument_profile == profile
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "Instrument kind: equity" in rendered
 
 
@@ -790,29 +837,33 @@ def test_fcf_project_run_renders_partial_evidence_and_missing_forward_context() 
     assert isinstance(evidence, FCFEarningsGrowthResult)
     assert evidence.forward_evidence.fy1_consensus_eps is None
 
-    rendered = project_run(run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY)
+    rendered = project_run(
+        run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+    )
     assert "Forward EPS" in rendered
 
 
 def test_fcf_project_run_all_modes_render_from_the_reopened_run() -> None:
     run = _fcf_run()
     for mode in PresentationMode:
-        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY)
+        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
         assert rendered
         assert "KO" in rendered
 
 
 def test_fcf_project_run_json_matches_the_stored_result() -> None:
     run = _fcf_run()
-    payload = json.loads(project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY))
+    payload = json.loads(
+        project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
+    )
     assert payload["ticker"] == "KO"
     assert payload["result_schema_version"] == 3
 
 
 def test_fcf_project_run_defaults_to_concise() -> None:
     run = _fcf_run()
-    assert project_run(run, codecs=EVIDENCE_BY_KEY) == project_run(
-        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY
+    assert project_run(run, codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY) == project_run(
+        run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
     )
 
 
@@ -822,4 +873,6 @@ def test_fcf_project_run_never_calls_a_live_analyzer() -> None:
 
     run = _fcf_run()
     with patch("src.strategies.fcf_growth.analyzer.FCFEarningsGrowthAnalyzer.run_analysis", forbidden):
-        assert project_run(run, ReplayOptions(mode=PresentationMode.DIAGNOSTICS), codecs=EVIDENCE_BY_KEY)
+        assert project_run(
+            run, ReplayOptions(mode=PresentationMode.DIAGNOSTICS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
+        )

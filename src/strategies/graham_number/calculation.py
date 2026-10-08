@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from typing import Final, Literal
+from typing import Final
 
 from src.analysis.shared.financial_resolution import resolve_normalized_eps, resolve_optional_quote
 from src.core.analysis_status import CalculationStatus
@@ -14,6 +14,7 @@ from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, S
 from src.data.financial.quote_freshness import QuoteFreshnessEvidence
 from src.data.financial.resolution_trace import ResolutionOutcome, ResolutionStage, ResolutionTrace, single_event_trace
 from src.data.financial.resolver import InputResolver
+from src.strategies.graham_number.vocabulary import METHOD_ID, MethodId
 
 
 @dataclass(frozen=True)
@@ -56,7 +57,7 @@ class GrahamNumberInputAssembly:
     quote_freshness: QuoteFreshnessEvidence | None = None
     reason: str | None = None
     resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
-    method: Literal["graham_number"] = field(init=False, default="graham_number")
+    method: MethodId = field(init=False, default=METHOD_ID)
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,7 @@ class GrahamNumberResult:
     status: CalculationStatus
     maximum_indicated_price: float | None = None
     reason: str | None = None
-    method: Literal["graham_number"] = field(init=False, default="graham_number")
+    method: MethodId = field(init=False, default=METHOD_ID)
 
     def __post_init__(self) -> None:
         """Enforce result-state invariants."""

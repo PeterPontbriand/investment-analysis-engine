@@ -21,19 +21,21 @@ from src.data.security_unit import (
 )
 from src.strategies.fcf_growth.models import (
     AnnualGrowthObservation,
-    Classification,
-    FCFClassificationBasis,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
-    ForwardEvidenceStatus,
-    ForwardPolicy,
     MetricResult,
     MetricStatus,
     ReasonCode,
-    TrendClassification,
 )
 from src.strategies.fcf_growth.selection import FCFGrowthSelection
+from src.strategies.fcf_growth.vocabulary import (
+    Classification,
+    FCFClassificationBasis,
+    ForwardEvidenceStatus,
+    ForwardPolicy,
+    TrendClassification,
+)
 from src.strategy_wiring import EVIDENCE_BY_KEY, EVIDENCE_BY_TYPE
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome

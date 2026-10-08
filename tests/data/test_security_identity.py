@@ -13,7 +13,6 @@ from src.data.security_identity import (
     SecurityIdentityResolution,
     resolve_security_identity,
     security_display_label,
-    security_identity_payload,
 )
 
 NOW = datetime(2026, 8, 29, 20, 0, tzinfo=UTC)
@@ -51,7 +50,7 @@ def test_identity_normalizes_whitespace_without_changing_official_case_or_punctu
     assert security_display_label("brk-b", _resolved(identity)) == "Berkshire Hathaway Inc. (BRK-B)"
 
 
-def test_non_company_instrument_uses_instrument_name_and_snapshot_payload() -> None:
+def test_non_company_instrument_uses_instrument_name() -> None:
     identity = SecurityIdentity(
         ticker="btc-usd",
         instrument_name="Bitcoin USD",
@@ -63,15 +62,6 @@ def test_non_company_instrument_uses_instrument_name_and_snapshot_payload() -> N
     resolution = _resolved(identity)
 
     assert security_display_label("BTC-USD", resolution) == "Bitcoin USD (BTC-USD)"
-    assert security_identity_payload("BTC-USD", resolution) == {
-        "ticker": "BTC-USD",
-        "instrument_name": "Bitcoin USD",
-        "listing_venue": "CCC",
-        "issuer_identifier": None,
-        "instrument_identifier": "BTC-USD",
-        "provider_id": "yfinance",
-        "resolved_at": NOW.isoformat(),
-    }
 
 
 def test_best_effort_lookup_calls_provider_once_and_classifies_failure() -> None:
@@ -84,21 +74,6 @@ def test_best_effort_lookup_calls_provider_once_and_classifies_failure() -> None
     assert resolution.status is IdentityResolutionStatus.PROVIDER_ERROR
     assert resolution.identity is None
     assert security_display_label("KO", resolution) == "KO"
-
-
-def test_unavailable_identity_payload_has_explicit_null_optional_fields() -> None:
-    resolution = resolve_security_identity(object(), SecurityIdentityRequest("KO", "fixture"))
-
-    assert resolution.status is IdentityResolutionStatus.UNAVAILABLE
-    assert security_identity_payload("KO", resolution) == {
-        "ticker": "KO",
-        "instrument_name": None,
-        "listing_venue": None,
-        "issuer_identifier": None,
-        "instrument_identifier": None,
-        "provider_id": None,
-        "resolved_at": None,
-    }
 
 
 def test_identity_rejects_naive_resolution_timestamp() -> None:

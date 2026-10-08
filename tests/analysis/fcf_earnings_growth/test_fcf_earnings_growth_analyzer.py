@@ -18,15 +18,9 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
 from src.reporting.presentation import PresentationMode
 from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.strategies.fcf_growth.models import (
-    Classification,
-    FCFEarningsGrowthConfig,
-    FCFEarningsGrowthPolicy,
-    ForwardPolicy,
-    MetricStatus,
-    ReasonCode,
-)
+from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy, MetricStatus, ReasonCode
 from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
+from src.strategies.fcf_growth.vocabulary import Classification, ForwardPolicy
 from tests.analysis.fcf_earnings_growth.test_fcf_earnings_growth_input_resolver import NOW
 
 

@@ -14,13 +14,24 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import StrEnum
 
 from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.financial.provenance import ResolvedInput
 from src.data.financial.resolution_trace import ResolutionTrace
 from src.data.instrument_profile import InstrumentProfile
+from src.strategies.fcf_growth.vocabulary import (
+    ANALYSIS_ID,
+    METHOD_ID,
+    AnalysisId,
+    Classification,
+    FCFClassificationBasis,
+    ForwardEvidenceStatus,
+    ForwardPolicy,
+    HistoricalHorizon,
+    MethodId,
+    TrendClassification,
+)
 
 __all__ = ["MetricResult", "MetricStatus", "ReasonCode"]
 
@@ -28,8 +39,6 @@ __all__ = ["MetricResult", "MetricStatus", "ReasonCode"]
 # Fixed identifiers (method_version = 2 / schema_version = 3)
 # ---------------------------------------------------------------------------
 
-STRATEGY_ID = "fcf_earnings_growth"
-METHOD_ID = "reported_fcf_eps_cagr"
 METHOD_VERSION = 2
 SCHEMA_VERSION = 3
 
@@ -37,56 +46,6 @@ SCHEMA_VERSION = 3
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
-
-
-class HistoricalHorizon(StrEnum):
-    """Requested historical elapsed-year horizon for classification."""
-
-    LONGEST_AVAILABLE = "longest_available"
-    THREE_YEARS = "3"
-    FOUR_YEARS = "4"
-    FIVE_YEARS = "5"
-
-
-class ForwardPolicy(StrEnum):
-    """How forward consensus evidence affects the headline result."""
-
-    DISPLAY_ONLY = "display_only"
-    CONFIRMATION = "confirmation"
-    HARD_GATE = "hard_gate"
-
-
-class FCFClassificationBasis(StrEnum):
-    """Free-cash-flow measure controlling classification."""
-
-    TOTAL_FCF = "total_fcf"
-    FCF_PER_SHARE = "fcf_per_share"
-
-
-class Classification(StrEnum):
-    """Headline historical screening conclusion."""
-
-    PASS = "pass"
-    FAIL = "fail"
-    INDETERMINATE = "indeterminate"
-
-
-class TrendClassification(StrEnum):
-    """Historical relationship between FCF and earnings growth (evidence, not a score)."""
-
-    BOTH_GROWING = "both_growing"
-    FCF_GROWING_EARNINGS_NOT = "fcf_growing_earnings_not"
-    EARNINGS_GROWING_FCF_NOT = "earnings_growing_fcf_not"
-    NEITHER_GROWING = "neither_growing"
-    INSUFFICIENT_OR_NONMEANINGFUL_GROWTH = "insufficient_or_nonmeaningful_growth"
-
-
-class ForwardEvidenceStatus(StrEnum):
-    """Completeness of the forward consensus evidence block."""
-
-    COMPLETE = "complete"
-    PARTIAL = "partial"
-    UNAVAILABLE = "unavailable"
 
 
 # ---------------------------------------------------------------------------
@@ -360,8 +319,8 @@ class FCFEarningsGrowthResult:
     """
 
     schema_version: int = field(init=False, default=SCHEMA_VERSION)
-    strategy_id: str = field(init=False, default=STRATEGY_ID)
-    method_id: str = field(init=False, default=METHOD_ID)
+    strategy_id: AnalysisId = field(init=False, default=ANALYSIS_ID)
+    method_id: MethodId = field(init=False, default=METHOD_ID)
     method_version: int = field(init=False, default=METHOD_VERSION)
     ticker: str
     requested_as_of: datetime | None = None

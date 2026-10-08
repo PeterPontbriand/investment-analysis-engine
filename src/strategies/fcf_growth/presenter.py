@@ -2,22 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, is_dataclass
-from datetime import datetime
-from enum import Enum
-from typing import Any
-
 from src.data.financial.provenance import ResolvedInput
-from src.data.instrument_profile import (
-    InstrumentProfile,
-    instrument_kind_evidence_payload,
-    profile_identity_resolution,
-)
-from src.data.security_identity import (
-    IdentityResolutionStatus,
-    SecurityIdentityResolution,
-    security_display_label,
-    security_identity_payload,
+from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
+from src.data.security_identity import SecurityIdentityResolution, security_display_label
+from src.reporting.documents.shared_parts import (
+    identity_diagnostic_parts,
+    instrument_kind_part_of,
+    metric_result_part,
+    profile_diagnostic_parts,
+    security_identity_part,
+    trace_parts,
 )
 from src.reporting.input_provenance import input_detail_lines, investor_value
 from src.reporting.presentation import (
@@ -28,12 +22,21 @@ from src.reporting.presentation import (
     json_document,
     provider_display_name,
 )
-from src.strategies.fcf_growth.models import (
+from src.strategies.fcf_growth.envelope import (
+    DOCUMENT_SCHEMA_VERSION,
+    FCFDiagnosticsPart,
+    FCFDocument,
+    FCFForwardEvidencePart,
+    FCFObservationPart,
+    FCFPolicyPart,
+    FCFResolvedInputPart,
+)
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, MetricResult, MetricStatus
+from src.strategies.fcf_growth.vocabulary import (
+    ANALYSIS_ID,
+    METHOD_ID,
     FCFClassificationBasis,
-    FCFEarningsGrowthResult,
     ForwardEvidenceStatus,
-    MetricResult,
-    MetricStatus,
     TrendClassification,
 )
 
@@ -42,8 +45,6 @@ _LIMITATION = (
     "or an investment recommendation."
 )
 
-# Presentation versions are independent from canonical result schema 3 / method 2.
-_PRESENTATION_SCHEMA_VERSION = 5
 
 _TREND_LABELS = {
     TrendClassification.BOTH_GROWING: "Both free cash flow and diluted EPS increased over the measured period.",
@@ -315,18 +316,60 @@ def _kind_detail_lines(profile: InstrumentProfile | None) -> list[str]:
     ]
 
 
-def _json_value(value: Any) -> Any:
-    if isinstance(value, datetime):
-        return value.isoformat()
-    if isinstance(value, Enum):
-        return value.value
-    if is_dataclass(value) and not isinstance(value, type):
-        return {key: _json_value(item) for key, item in asdict(value).items()}
-    if isinstance(value, dict):
-        return {str(key): _json_value(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_value(item) for item in value]
-    return value
+def _document(
+    result: FCFEarningsGrowthResult,
+    identity_resolution: SecurityIdentityResolution | None,
+    profile: InstrumentProfile | None,
+) -> FCFDocument:
+    """Build the typed FCF Growth document; validation of the model is the output boundary.
+
+    Nested result values are read from the result's own attributes, so the model is checked against the result
+    field by field.
+    """
+    return FCFDocument(
+        schema_version=DOCUMENT_SCHEMA_VERSION,
+        result_schema_version=result.schema_version,
+        strategy_id=ANALYSIS_ID,
+        method_id=METHOD_ID,
+        method_version=result.method_version,
+        ticker=result.ticker,
+        security_identity=security_identity_part(result.ticker, identity_resolution),
+        instrument_kind=instrument_kind_part_of(profile),
+        requested_as_of=result.requested_as_of,
+        effective_as_of=result.effective_as_of,
+        policy=FCFPolicyPart.model_validate(result.policy, from_attributes=True),
+        execution_status=result.execution_status,
+        classification=result.classification,
+        classification_reason_code=result.classification_reason_code,
+        classification_reason=result.classification_reason,
+        selected_horizon_years=result.selected_horizon_years,
+        selected_observation_count=result.selected_observation_count,
+        used_horizon_fallback=result.used_horizon_fallback,
+        period_start=result.period_start,
+        period_end=result.period_end,
+        annual_observations=tuple(
+            FCFObservationPart.model_validate(item, from_attributes=True) for item in result.annual_observations
+        ),
+        fcf_cagr=metric_result_part(result.fcf_cagr),
+        fcf_per_share_cagr=metric_result_part(result.fcf_per_share_cagr),
+        eps_cagr=metric_result_part(result.eps_cagr),
+        trend_classification=result.trend_classification,
+        market_capitalization=(
+            None
+            if result.market_capitalization is None
+            else FCFResolvedInputPart.model_validate(result.market_capitalization, from_attributes=True)
+        ),
+        fcf_yield=metric_result_part(result.fcf_yield),
+        forward_evidence=FCFForwardEvidencePart.model_validate(result.forward_evidence, from_attributes=True),
+        warnings=result.warnings,
+        diagnostics=FCFDiagnosticsPart(
+            events=(
+                *trace_parts(result.diagnostics),
+                *profile_diagnostic_parts(profile),
+                *identity_diagnostic_parts(profile, identity_resolution),
+            )
+        ),
+    )
 
 
 def render_fcf_earnings_growth(
@@ -343,42 +386,7 @@ def render_fcf_earnings_growth(
         else profile_identity_resolution(profile)
     )
     if mode is PresentationMode.JSON:
-        payload = _json_value(result)
-        assert isinstance(payload, dict)
-        payload.pop("instrument_profile", None)
-        payload["schema_version"] = _PRESENTATION_SCHEMA_VERSION
-        payload["result_schema_version"] = result.schema_version
-        payload["security_identity"] = security_identity_payload(result.ticker, resolved_identity)
-        payload["instrument_kind"] = instrument_kind_evidence_payload(
-            profile.kind_evidence if profile is not None else None
-        )
-        diagnostics = payload.get("diagnostics")
-        if isinstance(diagnostics, dict):
-            events = diagnostics.get("events")
-            if isinstance(events, list):
-                if profile is not None:
-                    events.extend(
-                        {
-                            "field_name": item.capability.value,
-                            "stage": "provider",
-                            "outcome": item.status.value,
-                            "message": item.message,
-                            "provider_id": item.provider_id,
-                        }
-                        for item in profile.diagnostics
-                    )
-                elif (
-                    resolved_identity is not None and resolved_identity.status is not IdentityResolutionStatus.RESOLVED
-                ):
-                    events.append(
-                        {
-                            "field_name": "security_identity",
-                            "stage": "provider",
-                            "outcome": resolved_identity.status.value,
-                            "message": resolved_identity.message,
-                        }
-                    )
-        return json_document(payload)
+        return json_document(_document(result, resolved_identity, profile).model_dump(mode="json"))
     if mode is PresentationMode.DETAILS:
         return "\n".join(_details(result, resolved_identity, profile))
     if mode is PresentationMode.DIAGNOSTICS:

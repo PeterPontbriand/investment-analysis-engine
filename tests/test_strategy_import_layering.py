@@ -3,8 +3,9 @@
 The role rule is design §4: a file's role is its file name inside its strategy package; within a
 package a file may import only a lower-ranked role, except that analyzer-level files may import each
 other; no strategy imports another; code outside ``src/strategies`` may import only analyzer and
-selection roles, except that a case module under ``src/evaluation/cases`` may also import the tool role
-of the strategy package it is named for. Only a strategy's ``evaluation`` file imports from
+selection roles, except that a case module under ``src/evaluation/cases`` may also import the tool and vocabulary
+roles of the strategy package it is named for. The vocabulary role ranks below every other and imports nothing
+from its package. Only a strategy's ``evaluation`` file imports from
 ``src/evaluation``, and only the fixture-id, fixture-context and fixture modules. The CLI tier imports only the
 ``cli`` role of a strategy package, and only the listed CLI modules import the tier. Imports of ``__init__.py``
 files count, and every ``__init__.py`` under ``src/strategies`` must be empty.
@@ -24,7 +25,7 @@ _GRAHAM_MEMBERS = frozenset({"graham_number", "graham_growth"})
 _ROOT = "src.strategy_wiring"
 # The composition root may import these strategy roles and no others: not execution, presenter, cli or
 # evaluation files, which belong to the layers below it and to the tiers.
-_ROOT_ROLES = ANALYZER_ROLES | {"codec", "envelope", "replay", "selection", "tool"}
+_ROOT_ROLES = ANALYZER_ROLES | {"codec", "envelope", "replay", "selection", "tool", "vocabulary"}
 # The only importers of the root, listed exactly. An entry must exist and import the root, so a slice adds
 # its module here in the change that first makes it import the root (the tier modules and the CLI modules
 # are added by the slices that create or rewire them).
@@ -61,12 +62,7 @@ _RESTRICTED_MODULES = MappingProxyType(
 )
 # Each tier's report name and the one strategy role it may import.
 _TIER_ROLES = MappingProxyType({_TIER: ("evaluation tier", "evaluation"), _CLI_TIER: ("CLI tier", "cli")})
-_TRANSITIONS = {
-    ("src.reporting.analysis_runs", "src.strategies.fcf_growth.presenter", "SWC.4c"),
-    ("src.reporting.analysis_runs", "src.strategies.graham_growth.presenter", "SWC.4c"),
-    ("src.reporting.analysis_runs", "src.strategies.graham_number.presenter", "SWC.4c"),
-    ("src.reporting.analysis_runs", "src.strategies.momentum.presenter", "SWC.4c"),
-}
+_TRANSITIONS: set[tuple[str, str, str]] = set()
 # Re-exporting package initializers that sit in an import cycle. They belong to eight components: the
 # telemetry component also holds the ``src.core.telemetry.sinks`` and ``src.data.repositories`` initializers.
 _BENIGN_CYCLE_PACKAGES = frozenset(
@@ -226,12 +222,12 @@ def _strategy_edge_error(source: str, target: str, strategies: frozenset[str]) -
 
 
 def _is_own_case_tool(source_parts: list[str], target_parts: list[str]) -> bool:
-    """Return whether a case module imports the tool role of the strategy package it is named for."""
+    """Return whether a case module imports the tool or vocabulary role of the strategy package it is named for."""
     return (
         len(source_parts) == 4
         and source_parts[:3] == ["src", "evaluation", "cases"]
         and target_parts[2] == source_parts[3]
-        and _role(target_parts) == "tool"
+        and _role(target_parts) in {"tool", "vocabulary"}
     )
 
 
@@ -411,9 +407,9 @@ def test_strategy_set_is_derived_from_the_package_directories(tmp_path: Path) ->
 
 def test_t13_fails_when_a_transition_entry_is_stale() -> None:
     """The transition list must shrink in the same change that removes an edge."""
-    errors = _edge_violations(set(), _SAMPLE_STRATEGIES)
-    assert "stale T13 transition entry: src.reporting.analysis_runs -> src.strategies.momentum.presenter" in errors
-    assert len(errors) == len(_TRANSITIONS)
+    listed = {("src.reporting.analysis_runs", "src.strategies.momentum.presenter", "X")}
+    errors = _edge_violations(set(), _SAMPLE_STRATEGIES, listed)
+    assert errors == ["stale T13 transition entry: src.reporting.analysis_runs -> src.strategies.momentum.presenter"]
 
 
 def test_t13_permits_only_the_listed_transition_edges() -> None:
@@ -479,6 +475,24 @@ def test_t13_fails_when_two_different_roles_of_equal_rank_import_each_other() ->
         for source, target in ((first, second), (second, first)):
             errors = _edge_violations({(f"{package}.{source}", f"{package}.{target}")}, _SAMPLE_STRATEGIES, set())
             assert errors == [f"same-rank roles may not import each other: {package}.{source} -> {package}.{target}"]
+
+
+def test_t13_fails_when_the_vocabulary_file_imports_another_role_of_its_strategy() -> None:
+    """The vocabulary role ranks below every other and imports nothing from its package."""
+    package = "src.strategies.momentum"
+    for target in ("analyzer", "envelope", "selection", "codec", "tool", "presenter", "replay", "cli"):
+        errors = _edge_violations({(f"{package}.vocabulary", f"{package}.{target}")}, _SAMPLE_STRATEGIES, set())
+        assert errors == [f"role order is not downward: {package}.vocabulary -> {package}.{target}"]
+    for source in ("analyzer", "envelope", "selection", "presenter", "replay", "cli"):
+        assert _edge_violations({(f"{package}.{source}", f"{package}.vocabulary")}, _SAMPLE_STRATEGIES, set()) == []
+
+
+def test_t13_lets_the_root_but_no_generic_module_import_a_vocabulary() -> None:
+    """Generic modules may import only analyzer and selection roles, which excludes the vocabulary role."""
+    target = "src.strategies.momentum.vocabulary"
+    errors = _edge_violations({("src.reporting.generic", target)}, _SAMPLE_STRATEGIES, set())
+    assert errors == [f"external import exceeds analyzer/selection roles: src.reporting.generic -> {target}"]
+    assert _edge_violations({("src.strategy_wiring", target)}, _SAMPLE_STRATEGIES, set()) == []
 
 
 def test_t13_fails_for_a_file_with_an_unrecognized_role(tmp_path: Path) -> None:
@@ -592,10 +606,9 @@ def test_t13_fails_when_the_root_is_in_an_import_cycle() -> None:
     assert _root_cycle_violations({_ROOT: {"src.a"}, "src.a": set()}) == []
 
 
-def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_wiring_slice() -> None:
-    """The twelve entries owned by the orchestration slice are gone; every remaining owner is a later slice."""
-    assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.4c"}
-    assert len(_TRANSITIONS) == 4
+def test_the_transition_list_is_empty() -> None:
+    """Every slice that owned a transition edge has removed it; SWC.7 verifies the list stays empty."""
+    assert set() == _TRANSITIONS
 
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_direct_commands_slice() -> None:

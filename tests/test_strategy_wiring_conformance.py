@@ -27,6 +27,7 @@ from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.strategy_wiring import (
     BY_ALIAS,
     BY_ARGUMENTS,
+    BY_ENVELOPE,
     BY_KEY,
     BY_METHOD_ID,
     BY_RESULT_TYPE,
@@ -37,6 +38,7 @@ from src.strategy_wiring import (
     MOMENTUM,
     STRATEGIES,
     StrategyDescriptor,
+    build_indexes,
 )
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
@@ -64,15 +66,6 @@ def test_t1_names_a_descriptor_with_no_selection_class() -> None:
     stray = replace(MOMENTUM, analysis_id="stray", method_id="stray")
     gaps = conformance.selection_union_gaps((*STRATEGIES, stray))
     assert gaps == ["descriptor ('stray', 'stray') has no selection class in SelectionMember"]
-
-
-def test_t1_reports_a_config_schema_version_that_differs_from_the_selection_class() -> None:
-    """The descriptor's configuration version is compared with the selection class's own literal default."""
-    drifted = replace(MOMENTUM, config_schema_version=9)
-    gaps = conformance.selection_union_gaps((drifted, *STRATEGIES[1:]))
-    assert gaps == [
-        "descriptor ('momentum', 'sma_crossover') declares config_schema_version 9, but MomentumSelection defaults to 2"
-    ]
 
 
 def test_t2_native_evidence_union_matches_the_descriptors() -> None:
@@ -630,3 +623,98 @@ def test_t14_permits_the_command_registration_in_add_strategy_commands_only(tmp_
     assert conformance.discovery_gaps([other], root=tmp_path) == [
         "strategy_cli.py:2: registers a command on the Typer app"
     ]
+
+
+# ---------------------------------------------------------------------------
+# SWC.4c: typed strategy documents, replay dispatch and the JSON command coverage
+# ---------------------------------------------------------------------------
+
+
+def test_t8_every_stored_run_replays_in_every_mode_and_writes_its_typed_document() -> None:
+    """The replayed JSON validates as the descriptor's envelope and carries the stored selection's identifiers."""
+    assert conformance.replay_gaps(STRATEGIES) == []
+
+
+def test_t8_reports_descriptors_paired_with_each_others_document_models() -> None:
+    """A replay whose JSON is not the declared model fails, naming the strategy and the model."""
+    swapped = (
+        replace(MOMENTUM, json_envelope=GRAHAM_NUMBER.json_envelope),
+        replace(GRAHAM_NUMBER, json_envelope=MOMENTUM.json_envelope),
+        *STRATEGIES[2:],
+    )
+    gaps = conformance.replay_gaps(swapped)
+    assert len(gaps) == 2
+    assert gaps[0].startswith("strategy ('momentum', 'sma_crossover'): the replayed JSON does not validate as ")
+    assert "GrahamNumberDocument" in gaps[0]
+    assert gaps[1].startswith("strategy ('graham_number', 'graham_number'): the replayed JSON does not validate as ")
+    assert "MomentumDocument" in gaps[1]
+
+
+def test_t8_reports_a_presenter_that_writes_an_identifier_its_document_model_rejects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The check can fail at the output boundary: a drifted identifier constant is rejected by the model."""
+    monkeypatch.setattr("src.strategies.momentum.presenter.ANALYSIS_ID", "drifted")
+    gaps = conformance.replay_gaps(STRATEGIES)
+    assert any(
+        gap.startswith("strategy ('momentum', 'sma_crossover'): replay in json mode raised ValidationError")
+        for gap in gaps
+    )
+
+
+def test_t10_every_descriptor_has_a_current_published_schema() -> None:
+    """Each descriptor's ``json_envelope`` has its schema file checked in."""
+    assert conformance.published_schema_gaps(STRATEGIES) == []
+
+
+def test_t10_names_a_strategy_whose_schema_is_missing_or_out_of_date(tmp_path: Path) -> None:
+    """The published-schema surface is compared in both of its failure modes."""
+    from scripts.generate_schemas import SCHEMA_DIRECTORY  # noqa: PLC0415 - only this test copies the directory
+
+    for path in SCHEMA_DIRECTORY.glob("*.json"):
+        (tmp_path / path.name).write_bytes(path.read_bytes())
+    (tmp_path / "graham-number.schema.json").unlink()
+    (tmp_path / "momentum.schema.json").write_bytes(b"{}\n")
+    assert conformance.published_schema_gaps(STRATEGIES, tmp_path) == [
+        "strategy ('momentum', 'sma_crossover') is not wired in: published schemas "
+        "(schemas/momentum.schema.json is out of date)",
+        "strategy ('graham_number', 'graham_number') is not wired in: published schemas "
+        "(schemas/graham-number.schema.json is missing)",
+    ]
+
+
+def test_t21_every_json_command_has_a_typed_document_and_a_current_schema() -> None:
+    """The commands come from the real command tree; none is exempt."""
+    assert len(conformance.json_command_paths(app)) == 12
+    assert conformance.json_command_gaps(STRATEGIES, app) == []
+
+
+def test_t21_names_a_command_with_no_typed_document_model() -> None:
+    """A new ``--json`` command with no model fails, naming the command."""
+    application = _tiny_app({**_alias_commands(), "stray": _offers_both})
+    gaps = conformance.json_command_gaps(STRATEGIES, application)
+    assert "command 'stray' offers --json but has no typed document model" in gaps
+
+
+def test_t21_names_a_command_whose_schema_is_missing_or_out_of_date(tmp_path: Path) -> None:
+    """A model with no checked-in schema, or a stale one, fails naming the command and the file."""
+    from scripts.generate_schemas import SCHEMA_DIRECTORY  # noqa: PLC0415 - only this test copies the directory
+
+    for path in SCHEMA_DIRECTORY.glob("*.json"):
+        (tmp_path / path.name).write_bytes(path.read_bytes())
+    (tmp_path / "refresh-summary.schema.json").unlink()
+    (tmp_path / "failure.schema.json").unlink()
+    (tmp_path / "fcf-growth.schema.json").write_bytes(b"{}\n")
+    gaps = conformance.json_command_gaps(STRATEGIES, app, tmp_path)
+    assert "command 'refresh' offers --json but schemas/refresh-summary.schema.json is not checked in" in gaps
+    assert "command 'fcf-growth' offers --json but schemas/fcf-growth.schema.json is out of date" in gaps
+    assert "command 'runs show' offers --json but schemas/fcf-growth.schema.json is out of date" in gaps
+
+
+def test_t24_a_duplicate_json_envelope_is_rejected_naming_the_rule_and_both_descriptors() -> None:
+    """Two strategies cannot publish one document model."""
+    with pytest.raises(ValueError, match="json_envelope") as raised:
+        build_indexes((MOMENTUM, replace(GRAHAM_NUMBER, json_envelope=MOMENTUM.json_envelope)))
+    assert "('momentum', 'sma_crossover')" in str(raised.value)
+    assert "('graham_number', 'graham_number')" in str(raised.value)
+    assert BY_ENVELOPE[MOMENTUM.json_envelope] is MOMENTUM

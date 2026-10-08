@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 def _normalized_required(value: str, field_name: str, *, uppercase: bool = False) -> str:
@@ -154,30 +154,6 @@ def resolve_security_identity(
         identity,
         f"Resolved current descriptive security identity via {request.provider_id!r}.",
     )
-
-
-def security_identity_payload(
-    ticker: str,
-    resolution: SecurityIdentityResolution | None,
-) -> dict[str, Any]:
-    """Return the stable Analysis Run identity-snapshot handoff payload.
-
-    Optional fields remain explicit ``None`` values.  Consumers must persist
-    this snapshot and must not relabel the run through a later ticker lookup.
-    """
-    normalized_ticker = _normalized_required(ticker, "ticker", uppercase=True)
-    identity = resolution.identity if resolution is not None else None
-    if identity is not None and identity.ticker != normalized_ticker:
-        raise ValueError("Security identity ticker does not match the presented analysis ticker.")
-    return {
-        "ticker": normalized_ticker,
-        "instrument_name": identity.instrument_name if identity is not None else None,
-        "listing_venue": identity.listing_venue if identity is not None else None,
-        "issuer_identifier": identity.issuer_identifier if identity is not None else None,
-        "instrument_identifier": identity.instrument_identifier if identity is not None else None,
-        "provider_id": identity.provider_id if identity is not None else None,
-        "resolved_at": identity.resolved_at.isoformat() if identity is not None else None,
-    }
 
 
 def security_display_label(ticker: str, resolution: SecurityIdentityResolution | None) -> str:

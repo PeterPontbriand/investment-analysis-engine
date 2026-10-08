@@ -5,12 +5,11 @@ import json
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from src.strategies.fcf_growth.models import (
-    METHOD_ID,
     METHOD_VERSION,
     SCHEMA_VERSION,
-    STRATEGY_ID,
     FCFEarningsGrowthResult,
 )
+from src.strategies.fcf_growth.vocabulary import ANALYSIS_ID, METHOD_ID
 from src.workspace.models import StrictJsonMapping, _validate_json_value
 
 
@@ -56,7 +55,7 @@ def decode_fcf_growth(payload: StrictJsonMapping) -> FCFEarningsGrowthResult:
     if not isinstance(result, dict):
         raise ValueError("FCF result must be an object.")
     # Native init=False metadata is verified before constructor reconstruction.
-    identifiers = {"strategy_id": STRATEGY_ID, "method_id": METHOD_ID}
+    identifiers = {"strategy_id": ANALYSIS_ID, "method_id": METHOD_ID}
     versions = {"method_version": METHOD_VERSION, "schema_version": SCHEMA_VERSION}
     if any(result.get(key) != value for key, value in identifiers.items()) or any(
         type(result.get(key)) is not int or result.get(key) != value for key, value in versions.items()

@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from src.core.analysis_status import CalculationStatus
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from src.strategies.graham_growth.vocabulary import METHOD_ID
 from src.workspace.models import StrictJsonMapping, _validate_json_value
 
 
@@ -24,7 +25,7 @@ class _GrowthEvidence(BaseModel):
         if analysis.as_of is not None and analysis.as_of.utcoffset() is None:
             raise ValueError("Analysis as_of must be timezone-aware.")
         assembly, result = analysis.assembly, analysis.result
-        if assembly.method != "graham_growth_value" or result.method != "graham_growth_value":
+        if assembly.method != METHOD_ID or result.method != METHOD_ID:
             raise ValueError("Graham Growth assembly/result method mismatch.")
         if assembly.status is CalculationStatus.OK:
             if (
@@ -83,7 +84,7 @@ def decode_graham_growth(payload: StrictJsonMapping) -> GrahamGrowthAnalysis:
     analysis = dict(analysis)
     for name in ("assembly", "result"):
         section = analysis.get(name)
-        if not isinstance(section, dict) or section.get("method") != "graham_growth_value":
+        if not isinstance(section, dict) or section.get("method") != METHOD_ID:
             raise ValueError("Graham Growth assembly/result method mismatch.")
         # Native init=False identifiers are checked, then restored by the native
         # constructor. Copy before removal to leave caller-owned data intact.

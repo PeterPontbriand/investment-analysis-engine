@@ -1,0 +1,43 @@
+{
+  "analysis": "graham_number",
+  "as_of": "2026-09-19T12:00:00+00:00",
+  "diagnostics": [],
+  "inputs": {
+    "bvps": null,
+    "current_price": null,
+    "eps": null
+  },
+  "instrument_kind": {
+    "kind": "etf",
+    "provider_id": "yfinance",
+    "provider_value": "ETF",
+    "resolved_at": "<wall-clock>"
+  },
+  "limitations": [
+    "The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation."
+  ],
+  "method": "graham_number",
+  "price_comparison": null,
+  "quote": {
+    "reason": null,
+    "status": "not_attempted"
+  },
+  "reason": "Graham Number is a company-level valuation method and does not apply directly to an ETF. No constituent-level or aggregate ETF valuation was performed.",
+  "result": {
+    "margin_of_safety_percent": null,
+    "maximum_indicated_price": null
+  },
+  "schema_version": 6,
+  "security_identity": {
+    "instrument_identifier": null,
+    "instrument_name": "Franklin FTSE Switzerland ETF",
+    "issuer_identifier": null,
+    "listing_venue": null,
+    "provider_id": "fixture_identity",
+    "resolved_at": "<wall-clock>",
+    "ticker": "FLSW"
+  },
+  "status": "not_applicable",
+  "ticker": "FLSW",
+  "warnings": []
+}

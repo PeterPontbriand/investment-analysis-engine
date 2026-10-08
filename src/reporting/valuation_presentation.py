@@ -12,13 +12,12 @@ apply to every strategy, not only ones that compare a reference value against a 
 from __future__ import annotations
 
 import math
-from typing import Any
 
 from src.analysis.shared.financial_resolution import PriceComparison
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.quote_freshness import evaluate_quote_freshness
-from src.reporting.evidence_presentation import basis_display_name, json_datetime
+from src.reporting.evidence_presentation import basis_display_name
 from src.reporting.presentation import (
     format_date,
     format_money,
@@ -80,19 +79,6 @@ def quote_warnings(status: CalculationStatus | None, _reason: str | None) -> lis
     return ["Current quote unavailable; price comparison omitted."]
 
 
-def quote_payload(
-    current_price: ResolvedInput | None,
-    status: CalculationStatus | None,
-    reason: str | None,
-) -> dict[str, str | None]:
-    """Return the stable quote-attempt payload shape."""
-    if status is not None:
-        return {"status": status.value, "reason": reason}
-    if current_price is not None:
-        return {"status": "ok", "reason": None}
-    return {"status": "not_attempted", "reason": None}
-
-
 # ---------------------------------------------------------------------------
 # Price-relationship comparison
 # ---------------------------------------------------------------------------
@@ -132,58 +118,6 @@ def comparison_reason(reason: str) -> str:
         "calculation_unavailable": "the reference calculation is unavailable",
         "nonfinite_comparison": "the price relationship is not finite",
     }.get(reason, "share-unit compatibility could not be established")
-
-
-def comparison_payload(comparison: PriceComparison | None) -> dict[str, Any] | None:
-    """Convert one price comparison to its stable JSON diagnostics shape."""
-    if comparison is None:
-        return None
-    resolution = comparison.security_unit_resolution
-    evidence = resolution.evidence if resolution else None
-    provenance = resolution.provenance if resolution else None
-    return {
-        "status": comparison.status,
-        "reason": comparison.reason,
-        "percent": comparison.percent,
-        "quote_freshness": None
-        if comparison.quote_freshness is None
-        else {
-            "status": comparison.quote_freshness.status,
-            "evaluated_at": comparison.quote_freshness.evaluated_at.isoformat(),
-            "retrieved_at": json_datetime(comparison.quote_freshness.retrieved_at),
-            "retrieval_age_seconds": comparison.quote_freshness.retrieval_age_seconds,
-            "max_retrieval_age_seconds": comparison.quote_freshness.max_retrieval_age_seconds,
-            "market_observed_at": json_datetime(comparison.quote_freshness.market_observed_at),
-        },
-        "security_unit_evidence": None
-        if evidence is None
-        else {
-            "ticker": evidence.ticker,
-            "filing_unit_kind": evidence.filing_unit_kind.value,
-            "quoted_unit_kind": evidence.quoted_unit_kind.value,
-            "underlying_shares_per_quoted_unit": evidence.underlying_shares_per_quoted_unit,
-            "provider_id": evidence.provider_id,
-            "source": evidence.source,
-        },
-        "provenance": None
-        if provenance is None
-        else {
-            "mapping_id": provenance.mapping_id,
-            "cik": provenance.cik,
-            "class_title": provenance.class_title,
-            "documents": [
-                {
-                    "accession": item.accession,
-                    "url": item.url,
-                    "context_ids": list(item.context_ids),
-                    "available_at": item.available_at.isoformat(),
-                    "retrieved_at": item.retrieved_at.isoformat(),
-                    "listing_venue": item.listing_venue,
-                }
-                for item in provenance.documents
-            ],
-        },
-    }
 
 
 def comparison_details(comparison: PriceComparison | None) -> list[str]:

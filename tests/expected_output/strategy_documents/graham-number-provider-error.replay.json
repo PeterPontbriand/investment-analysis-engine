@@ -1,0 +1,91 @@
+{
+  "analysis": "graham_number",
+  "as_of": null,
+  "diagnostics": [
+    {
+      "field_name": "eps",
+      "message": "No explicit EPS override was supplied.",
+      "outcome": "not_used",
+      "stage": "override"
+    },
+    {
+      "field_name": "eps",
+      "message": "Cache use was disabled for the derived EPS resolution.",
+      "outcome": "not_used",
+      "stage": "cache"
+    },
+    {
+      "field_name": "eps",
+      "message": "Requested completed fiscal-year EPS observations from the configured provider.",
+      "outcome": "attempted",
+      "stage": "provider"
+    },
+    {
+      "field_name": "eps",
+      "message": "Provider error: Simulated fixture provider operational failure.",
+      "outcome": "error",
+      "stage": "provider"
+    },
+    {
+      "field_name": "security_identity",
+      "message": "Provider 'sec_edgar' does not expose security identity metadata.",
+      "outcome": "unsupported",
+      "provider_id": "sec_edgar",
+      "stage": "provider"
+    },
+    {
+      "field_name": "security_identity",
+      "message": "Provider 'yfinance' returned no security identity metadata.",
+      "outcome": "unavailable",
+      "provider_id": "yfinance",
+      "stage": "provider"
+    },
+    {
+      "field_name": "instrument_kind",
+      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
+      "outcome": "unavailable",
+      "provider_id": "yfinance",
+      "stage": "provider"
+    }
+  ],
+  "inputs": {
+    "bvps": null,
+    "current_price": null,
+    "eps": null
+  },
+  "instrument_kind": null,
+  "limitations": [
+    "The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation."
+  ],
+  "method": "graham_number",
+  "price_comparison": {
+    "percent": null,
+    "provenance": null,
+    "quote_freshness": null,
+    "reason": "calculation_unavailable",
+    "security_unit_evidence": null,
+    "status": "unavailable"
+  },
+  "quote": {
+    "reason": null,
+    "status": "not_attempted"
+  },
+  "reason": "Unable to analyze ERROR: the configured provider could not retrieve required security data.",
+  "result": {
+    "margin_of_safety_percent": null,
+    "maximum_indicated_price": null
+  },
+  "schema_version": 6,
+  "security_identity": {
+    "instrument_identifier": null,
+    "instrument_name": null,
+    "issuer_identifier": null,
+    "listing_venue": null,
+    "provider_id": null,
+    "resolved_at": null,
+    "ticker": "ERROR"
+  },
+  "status": "provider_error",
+  "ticker": "ERROR",
+  "warnings": []
+}

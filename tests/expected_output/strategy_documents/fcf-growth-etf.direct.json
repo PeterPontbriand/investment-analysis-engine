@@ -1,0 +1,112 @@
+{
+  "annual_observations": [],
+  "classification": "indeterminate",
+  "classification_reason": "Reported company free-cash-flow and diluted-EPS growth analysis does not apply directly to an ETF. No holdings-level or aggregate ETF analysis was performed.",
+  "classification_reason_code": "instrument_kind_not_applicable",
+  "diagnostics": {
+    "events": [
+      {
+        "field_name": "security_identity",
+        "message": "Provider 'sec_edgar' returned no security identity metadata.",
+        "outcome": "unavailable",
+        "provider_id": "sec_edgar",
+        "stage": "provider"
+      },
+      {
+        "field_name": "security_identity",
+        "message": "Resolved current descriptive security identity via 'yfinance'.",
+        "outcome": "resolved",
+        "provider_id": "yfinance",
+        "stage": "provider"
+      },
+      {
+        "field_name": "instrument_kind",
+        "message": "Resolved current instrument-kind metadata via 'yfinance'.",
+        "outcome": "resolved",
+        "provider_id": "yfinance",
+        "stage": "provider"
+      }
+    ]
+  },
+  "effective_as_of": "<wall-clock>",
+  "eps_cagr": {
+    "reason": "Reported company free-cash-flow and diluted-EPS growth analysis does not apply directly to an ETF. No holdings-level or aggregate ETF analysis was performed.",
+    "reason_code": "instrument_kind_not_applicable",
+    "status": "not_applicable",
+    "value": null
+  },
+  "execution_status": "not_applicable",
+  "fcf_cagr": {
+    "reason": "Reported company free-cash-flow and diluted-EPS growth analysis does not apply directly to an ETF. No holdings-level or aggregate ETF analysis was performed.",
+    "reason_code": "instrument_kind_not_applicable",
+    "status": "not_applicable",
+    "value": null
+  },
+  "fcf_per_share_cagr": {
+    "reason": "Reported company free-cash-flow and diluted-EPS growth analysis does not apply directly to an ETF. No holdings-level or aggregate ETF analysis was performed.",
+    "reason_code": "instrument_kind_not_applicable",
+    "status": "not_applicable",
+    "value": null
+  },
+  "fcf_yield": {
+    "reason": "Reported company free-cash-flow and diluted-EPS growth analysis does not apply directly to an ETF. No holdings-level or aggregate ETF analysis was performed.",
+    "reason_code": "instrument_kind_not_applicable",
+    "status": "not_applicable",
+    "value": null
+  },
+  "forward_evidence": {
+    "actual_to_fy1_growth": {
+      "reason": "Reported company free-cash-flow and diluted-EPS growth analysis does not apply directly to an ETF. No holdings-level or aggregate ETF analysis was performed.",
+      "reason_code": "instrument_kind_not_applicable",
+      "status": "not_applicable",
+      "value": null
+    },
+    "confirms_positive_growth": null,
+    "fy1_consensus_eps": null,
+    "fy1_to_fy2_growth": {
+      "reason": "Reported company free-cash-flow and diluted-EPS growth analysis does not apply directly to an ETF. No holdings-level or aggregate ETF analysis was performed.",
+      "reason_code": "instrument_kind_not_applicable",
+      "status": "not_applicable",
+      "value": null
+    },
+    "fy2_consensus_eps": null,
+    "latest_actual_eps": null,
+    "status": "unavailable"
+  },
+  "instrument_kind": {
+    "kind": "etf",
+    "provider_id": "yfinance",
+    "provider_value": "ETF",
+    "resolved_at": "<wall-clock>"
+  },
+  "market_capitalization": null,
+  "method_id": "reported_fcf_eps_cagr",
+  "method_version": 2,
+  "period_end": null,
+  "period_start": null,
+  "policy": {
+    "classification_basis": "total_fcf",
+    "forward_policy": "display_only",
+    "historical_horizon": "longest_available",
+    "include_fcf_yield": true
+  },
+  "requested_as_of": null,
+  "result_schema_version": 3,
+  "schema_version": 5,
+  "security_identity": {
+    "instrument_identifier": "FIX-0001",
+    "instrument_name": "Fixture Holdings Inc.",
+    "issuer_identifier": "0000000001",
+    "listing_venue": "NYSE",
+    "provider_id": "yfinance",
+    "resolved_at": "<wall-clock>",
+    "ticker": "ACME"
+  },
+  "selected_horizon_years": null,
+  "selected_observation_count": 0,
+  "strategy_id": "fcf_earnings_growth",
+  "ticker": "ACME",
+  "trend_classification": "insufficient_or_nonmeaningful_growth",
+  "used_horizon_fallback": false,
+  "warnings": []
+}
