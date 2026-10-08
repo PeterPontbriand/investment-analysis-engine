@@ -39,15 +39,16 @@ from src.data.repositories.watchlists import (
     WatchlistConflictError,
     WatchlistEntryNotFoundError,
 )
-from src.reporting.analysis_runs import ReplayOptions, UnsupportedProjectionError, project_run
+from src.reporting.analysis_runs import project_run
 from src.reporting.documents.failure import FailureEnvelope, FailureReasonCode
 from src.reporting.documents.refresh import RefreshResultDocument, RefreshSummaryDocument
 from src.reporting.documents.runs import RunsListDocument, RunSummaryDocument
 from src.reporting.documents.watchlist import WatchlistDeleteDocument, WatchlistDocument, WatchlistEntryDocument
 from src.reporting.failure_classification import InvalidParameterError, classify_failure, failure_envelope
 from src.reporting.presentation import PresentationMode, failure_document
+from src.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
 from src.strategies.momentum.analyzer import MomentumConfig
-from src.strategy_wiring import BY_ALIAS, BY_METHOD_ID, EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
+from src.strategy_wiring import BY_ALIAS, BY_METHOD_ID, EVIDENCE_BY_KEY, REPLAYS_BY_KEY, RUN_SPECS_BY_KEY
 from src.utils.paths import is_windows
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
@@ -859,7 +860,7 @@ def runs_show(
             json_output=json_output,
         )
     try:
-        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY)
+        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
     except (UnsupportedProjectionError, UnsupportedRunVersionError, InvalidStoredRunError) as exc:
         _fail_with(exc, json_output=json_output)
     typer.echo(rendered)

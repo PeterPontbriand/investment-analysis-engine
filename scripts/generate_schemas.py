@@ -21,22 +21,23 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from src.reporting.documents.database import DatabaseMaintenanceReport
-from src.reporting.documents.failure import FailureEnvelope
-from src.reporting.documents.refresh import RefreshSummaryDocument
-from src.reporting.documents.runs import RunsListDocument
-from src.reporting.documents.watchlist import WatchlistDeleteDocument, WatchlistDocument
+from src.reporting.json_documents import DOCUMENTS as GENERIC_DOCUMENTS
+from src.strategy_wiring import STRATEGIES, StrategyDescriptor
 
 SCHEMA_DIRECTORY = Path(__file__).resolve().parent.parent / "schemas"
 
-# One entry per document: the file name and the typed model it describes.
+
+def strategy_schema_file(descriptor: StrategyDescriptor) -> str:
+    """Return the schema file of a strategy's document, named for the strategy's command alias."""
+    return f"{descriptor.alias}.schema.json"
+
+
+# One entry per document: the file name and the typed model it describes. The failure, workspace and database
+# documents come from the table in ``src/reporting/json_documents.py``; each strategy's model is its descriptor's
+# ``json_envelope``, added here because only the composition root may read the descriptors.
 DOCUMENTS: tuple[tuple[str, type[BaseModel]], ...] = (
-    ("failure.schema.json", FailureEnvelope),
-    ("database-maintenance-report.schema.json", DatabaseMaintenanceReport),
-    ("watchlist.schema.json", WatchlistDocument),
-    ("watchlist-delete.schema.json", WatchlistDeleteDocument),
-    ("runs-list.schema.json", RunsListDocument),
-    ("refresh-summary.schema.json", RefreshSummaryDocument),
+    *((document.schema_file, document.model) for document in GENERIC_DOCUMENTS),
+    *((strategy_schema_file(item), item.json_envelope) for item in STRATEGIES),
 )
 
 

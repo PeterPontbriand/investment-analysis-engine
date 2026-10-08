@@ -61,12 +61,7 @@ _RESTRICTED_MODULES = MappingProxyType(
 )
 # Each tier's report name and the one strategy role it may import.
 _TIER_ROLES = MappingProxyType({_TIER: ("evaluation tier", "evaluation"), _CLI_TIER: ("CLI tier", "cli")})
-_TRANSITIONS = {
-    ("src.reporting.analysis_runs", "src.strategies.fcf_growth.presenter", "SWC.4c"),
-    ("src.reporting.analysis_runs", "src.strategies.graham_growth.presenter", "SWC.4c"),
-    ("src.reporting.analysis_runs", "src.strategies.graham_number.presenter", "SWC.4c"),
-    ("src.reporting.analysis_runs", "src.strategies.momentum.presenter", "SWC.4c"),
-}
+_TRANSITIONS: set[tuple[str, str, str]] = set()
 # Re-exporting package initializers that sit in an import cycle. They belong to eight components: the
 # telemetry component also holds the ``src.core.telemetry.sinks`` and ``src.data.repositories`` initializers.
 _BENIGN_CYCLE_PACKAGES = frozenset(
@@ -411,9 +406,9 @@ def test_strategy_set_is_derived_from_the_package_directories(tmp_path: Path) ->
 
 def test_t13_fails_when_a_transition_entry_is_stale() -> None:
     """The transition list must shrink in the same change that removes an edge."""
-    errors = _edge_violations(set(), _SAMPLE_STRATEGIES)
-    assert "stale T13 transition entry: src.reporting.analysis_runs -> src.strategies.momentum.presenter" in errors
-    assert len(errors) == len(_TRANSITIONS)
+    listed = {("src.reporting.analysis_runs", "src.strategies.momentum.presenter", "X")}
+    errors = _edge_violations(set(), _SAMPLE_STRATEGIES, listed)
+    assert errors == ["stale T13 transition entry: src.reporting.analysis_runs -> src.strategies.momentum.presenter"]
 
 
 def test_t13_permits_only_the_listed_transition_edges() -> None:
@@ -592,10 +587,9 @@ def test_t13_fails_when_the_root_is_in_an_import_cycle() -> None:
     assert _root_cycle_violations({_ROOT: {"src.a"}, "src.a": set()}) == []
 
 
-def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_wiring_slice() -> None:
-    """The twelve entries owned by the orchestration slice are gone; every remaining owner is a later slice."""
-    assert {owner for _, _, owner in _TRANSITIONS} == {"SWC.4c"}
-    assert len(_TRANSITIONS) == 4
+def test_the_transition_list_is_empty() -> None:
+    """Every slice that owned a transition edge has removed it; SWC.7 verifies the list stays empty."""
+    assert set() == _TRANSITIONS
 
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_direct_commands_slice() -> None:

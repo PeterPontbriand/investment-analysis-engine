@@ -16,7 +16,6 @@ from src.data.repositories.watchlists import (
     WatchlistConflictError,
     WatchlistEntryNotFoundError,
 )
-from src.reporting.analysis_runs import UnsupportedProjectionError
 from src.reporting.documents.failure import (
     FailureDatabase,
     FailureDiagnostic,
@@ -25,6 +24,7 @@ from src.reporting.documents.failure import (
     FailureStatus,
     status_for,
 )
+from src.reporting.replay_inputs import UnsupportedProjectionError
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from src.workspace.refresh import EmptyRefreshTargetError
 from src.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError
