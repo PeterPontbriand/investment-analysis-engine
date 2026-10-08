@@ -1,3 +1,4 @@
+import logging
 import sys
 
 from src.core.telemetry import RunContext
@@ -20,6 +21,11 @@ def main() -> None:
 
     try:
         app()
+    except Exception:
+        # Typer replaces the interpreter's exception hook and shows its own traceback on standard error, so
+        # the log file would otherwise never learn of an exception that no command handled.
+        logging.getLogger("system.crash").critical("Uncaught exception encountered.", exc_info=True)
+        raise
     finally:
         teardown_global_logging()
 

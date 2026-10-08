@@ -1,5 +1,6 @@
 """Shared CLI parsing, resource ownership, and execution-error translation."""
 
+import logging
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, date, datetime, time, timedelta
@@ -29,6 +30,8 @@ from src.reporting.documents.failure import FailureReasonCode
 from src.reporting.failure_classification import classify_failure, failure_envelope
 from src.reporting.presentation import PresentationMode, failure_document
 from src.workspace.selection_base import FrozenSelection
+
+logger = logging.getLogger(__name__)
 
 _DIRECT_CODES = frozenset(
     {
@@ -257,6 +260,7 @@ def execution_errors(  # noqa: PLR0912, PLR0913
         else:
             code = FailureReasonCode.EXECUTION_ERROR
             message = unexpected(exc)
+            logger.exception("Unexpected failure reported to the user as: %s", message)
         envelope = failure_envelope(code, message, cause=exc, analysis=analysis, method=method, ticker=ticker)
         if mode is PresentationMode.JSON:
             typer.echo(failure_document(envelope))

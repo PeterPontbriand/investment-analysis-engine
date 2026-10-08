@@ -7,7 +7,6 @@ import threading
 import time
 import traceback
 import zipfile
-from collections.abc import Mapping, MutableMapping
 from logging.handlers import QueueHandler, QueueListener, TimedRotatingFileHandler
 from queue import Queue
 from types import TracebackType
@@ -23,53 +22,6 @@ _log_queue: Queue[logging.LogRecord] = Queue()
 _listeners: list[QueueListener] = []
 _fmt_str = "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
 _datefmt = "%Y-%m-%d %H:%M:%S"
-
-
-# Custom log formatter
-class ConsoleColorFormatter(logging.Formatter):
-    """Custom formatter that adds ANSI color coding to console output logs."""
-
-    # ANSI Escape Sequences
-    GREY = "\x1b[38;20m"
-    GREEN = "\x1b[32;20m"
-    YELLOW = "\x1b[33;20m"
-    RED = "\x1b[31;20m"
-    BOLD_RED = "\x1b[31;1m"
-    RESET = "\x1b[0m"
-
-    # Map log levels to target colors
-    COLORS: ClassVar[dict[int, str]] = {
-        logging.DEBUG: GREY,
-        logging.INFO: GREEN,
-        logging.WARNING: YELLOW,
-        logging.ERROR: RED,
-        logging.CRITICAL: BOLD_RED,
-    }
-
-    def format(self, record: logging.LogRecord) -> str:
-        """
-        Format the record.
-
-        Args:
-            record: The log record to format.
-
-        Returns:
-            str: The formatted log message.
-
-        """
-        # Clone the record levelname to wrap it in escape characters cleanly
-        original_levelname = record.levelname
-        color = self.COLORS.get(record.levelno, self.RESET)
-
-        # Colorize just the LEVELNAME component for readability
-        record.levelname = f"{color}{original_levelname}{self.RESET}"
-
-        # Format using the standard pattern layout rules
-        result = super().format(record)
-
-        # Restore the original state so other handlers (like the file) stay plain
-        record.levelname = original_levelname
-        return result
 
 
 # --- CUSTOM CROSS-PLATFORM COMPRESSION FILE HANDLER ---
@@ -242,8 +194,9 @@ def setup_global_logging() -> None:
     Set up global logging.
 
     Called EXACTLY ONCE at the absolute entry point of the application.
-    Constructs the thread-safe handler pipeline for both File and Console
-    output and starts background queue execution.
+    Routes every record from every logger, ours and third-party, at ``settings.log_level`` and above
+    through a queue to one rotating log file. There is no console handler: nothing is written to
+    standard output or standard error by logging.
     """
     # global boolean gate; needed to prevent double-initialization hooks from attaching to root loggers.
     global _global_logging_initialized  # noqa: PLW0603
@@ -253,10 +206,7 @@ def setup_global_logging() -> None:
     # 1. Base File Formatter (Plain Text)
     file_formatter = logging.Formatter(fmt=_fmt_str, datefmt=_datefmt, style="%")
 
-    # 2. Colored Console Formatter
-    console_formatter = ConsoleColorFormatter(fmt=_fmt_str, datefmt=_datefmt, style="%")
-
-    # 3. Instantiate File Handler
+    # 2. Instantiate File Handler
     file_path = settings.log_dir / settings.log_file_name
     file_handler = ThreadSafeSizeAwareTimedRotatingFileHandler(
         filename=str(file_path),
@@ -268,16 +218,17 @@ def setup_global_logging() -> None:
     )
     file_handler.setFormatter(file_formatter)
 
-    # 4. Instantiate Console (stdout) Handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(console_formatter)
-
-    # 5. Attach QueueListener to manage BOTH handlers asynchronously
-    listener = QueueListener(_log_queue, file_handler, console_handler, respect_handler_level=True)
+    # 3. Attach QueueListener to write the file asynchronously
+    listener = QueueListener(_log_queue, file_handler, respect_handler_level=True)
     listener.start()
     _listeners.append(listener)
 
-    # 6. REGISTER THE UNCAUGHT EXCEPTION HOOK
+    # 4. Send every logger's records to the queue through the root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(settings.log_level)
+    root_logger.addHandler(QueueHandler(_log_queue))
+
+    # 5. REGISTER THE UNCAUGHT EXCEPTION HOOK
     sys.excepthook = handle_uncaught_exception
 
     # Handle worker thread exceptions cleanly across Windows, Mac, and Linux
@@ -333,49 +284,6 @@ def teardown_global_logging() -> None:
 atexit.register(teardown_global_logging)
 
 
-# --- ADAPTERS & MANAGERS ---
-class ContextualAdapter(logging.LoggerAdapter[logging.Logger]):
-    """Set up a logger with contextual data and append inline context to log outputs."""
-
-    def __init__(
-        self,
-        logger: logging.Logger,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        """Initialize the contextual logger adapter instance."""
-        super().__init__(logger, extra or {})
-
-    def process(
-        self, msg: object, kwargs: MutableMapping[str, str | Mapping[str, str]]
-    ) -> tuple[object, MutableMapping[str, str | Mapping[str, str]]]:
-        """Process the log message and append inline ``context_data`` supplied through ``extra`` to the output."""
-        if "extra" in kwargs and isinstance(kwargs["extra"], dict) and "context_data" in kwargs["extra"]:
-            context_data = kwargs["extra"]["context_data"]
-            msg = f"{msg!s} | {context_data}"
-
-        return super().process(msg, kwargs)
-
-
-class LoggerContext:
-    """Provide a context manager lifecycle that yields a contextual adapter for one module logger."""
-
-    def __init__(self, logger: logging.Logger) -> None:
-        """Initialize the context container with its adapter."""
-        self.adapter = ContextualAdapter(logger, {})
-
-    def __enter__(self) -> ContextualAdapter:
-        """Enter the context block scope and return the contextual adapter instance."""
-        return self.adapter
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        """Exit the context block scope; the adapter holds no per-scope state to clear."""
-
-
 def handle_uncaught_exception(
     exc_type: type[BaseException],
     exc_value: BaseException,
@@ -384,8 +292,8 @@ def handle_uncaught_exception(
     """
     Intercept uncaught exceptions globally.
 
-    Log them with full stack traces to both the console and file handlers before the
-    application finishes crashing.
+    Log them with full stack traces to the log file, then print the standard traceback on standard error,
+    before the application finishes crashing.
     """
     # Don't log KeyboardInterrupt (Ctrl+C) as a scary system crash error
     if issubclass(exc_type, KeyboardInterrupt):
@@ -401,28 +309,5 @@ def handle_uncaught_exception(
     # Log the crash at CRITICAL level so it stands out visually
     logger.critical(f"Uncaught exception encountered:\n{error_msg}")
 
-
-def setup_logger(logger_name: str) -> LoggerContext:
-    """
-    Create and configure a logger with the specified name, returning it as a context manager.
-
-    Args:
-        logger_name: Name of the logger to create
-
-    Returns:
-        A configured logger as a context manager
-
-    """
-    # Defensive fall-back insurance in case setup_global_logging wasn't called explicitly
-    if not _global_logging_initialized:
-        setup_global_logging()
-
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(settings.log_level)
-
-    # Prevent appending multiple QueueHandlers if the logger is re-fetched
-    if not any(isinstance(h, QueueHandler) for h in logger.handlers):
-        queue_handler = QueueHandler(_log_queue)
-        logger.addHandler(queue_handler)
-
-    return LoggerContext(logger)
+    # Logging writes only to the file, so show the user the traceback on standard error as Python would
+    sys.__excepthook__(exc_type, exc_value, exc_traceback)

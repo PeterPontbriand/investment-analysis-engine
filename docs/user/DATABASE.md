@@ -90,7 +90,7 @@ existing data are separate operator actions.
 ## Choose the database location
 
 The default file is `data/investment-analysis-engine.sqlite3` under the installation
-folder (or the configured `DATA_DIR`). A relative `database_url` resolves against
+folder (or the configured `data_dir`). A relative `database_url` resolves against
 the configured application base directory, not the terminal's current folder.
 Set the same URL for migrations and subsequent analysis commands.
 
