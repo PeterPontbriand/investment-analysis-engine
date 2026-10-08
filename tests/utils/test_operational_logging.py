@@ -17,6 +17,7 @@ import pytest
 from src.utils.logger_util import handle_uncaught_exception
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 LOG_LINE = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \| ")
 DOWNLOAD_RECORD = "src.data.yfinance.client | INFO | Downloading market data for tool execution: OFFLINE"
 
@@ -31,16 +32,34 @@ class CommandRun:
     log: str
 
 
+def _default_locations() -> dict[str, tuple[int, int]]:
+    """Return the size and modification time of every file under the project's default data and log folders."""
+    state: dict[str, tuple[int, int]] = {}
+    for folder in (REPOSITORY_ROOT / "data", REPOSITORY_ROOT / "logs"):
+        for path in sorted(folder.rglob("*")) if folder.exists() else []:
+            if path.is_file():
+                status = path.stat()
+                state[path.relative_to(REPOSITORY_ROOT).as_posix()] = (status.st_size, status.st_mtime_ns)
+    return state
+
+
 def _run(tmp_path: Path, name: str, *arguments: str) -> CommandRun:
     root = tmp_path / name
+    # Setting names are case-sensitive (the settings class matches them exactly), so they are given as the
+    # settings fields are named; an upper-case spelling is honoured on Windows only.
     environment = {
         **os.environ,
-        "DATA_DIR": str(root / "data"),
-        "LOG_DIR": str(root / "logs"),
-        "TELEMETRY_LOG_DIR": str(root / "telemetry"),
+        "data_dir": str(root / "data"),
+        "log_dir": str(root / "logs"),
+        "telemetry_log_dir": str(root / "telemetry"),
         "PYTHONPATH": str(REPOSITORY_ROOT),
         "PYTHONIOENCODING": "utf-8",
+        # The pytest process forces colour for the CLI tests (tests/conftest.py); a real run writes to a pipe
+        # without it, so the child must not inherit it.
+        "NO_COLOR": "1",
     }
+    environment.pop("FORCE_COLOR", None)
+    before = _default_locations()
     completed = subprocess.run(  # noqa: S603
         [sys.executable, "-m", "tests.utils._logging_command_driver", *arguments],
         cwd=REPOSITORY_ROOT,
@@ -52,6 +71,11 @@ def _run(tmp_path: Path, name: str, *arguments: str) -> CommandRun:
         check=False,
     )
     log_file = root / "logs" / "app.log"
+    assert _default_locations() == before, "the command wrote under the project's default data or log folders"
+    if arguments[0] != "crash":  # the crash scenario fails before the command opens its database
+        assert list((root / "data").glob("*.sqlite3")), "the command did not create its database under its own folder"
+    if "--no-logging" not in arguments:  # that run installs no logging, so it has no log file
+        assert log_file.exists(), "the command did not create its log file under its own folder"
     return CommandRun(
         completed.returncode,
         completed.stdout,
@@ -141,4 +165,5 @@ def test_the_exception_hook_logs_the_crash_and_prints_the_traceback(
             handle_uncaught_exception(type(error), error, error.__traceback__)
 
     assert "hook crash" in caplog.text
-    assert "RuntimeError: hook crash" in capsys.readouterr().err
+    # Python 3.13 and later colour a traceback when FORCE_COLOR is set, which splits the text with escape codes.
+    assert "RuntimeError: hook crash" in ANSI_ESCAPE.sub("", capsys.readouterr().err)
