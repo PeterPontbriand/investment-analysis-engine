@@ -48,12 +48,6 @@ FIELD_DISPLAY_NAMES: Final[dict[str, str]] = {
     "expected_growth": "Expected growth",
 }
 
-UNITS_DISPLAY_NAMES: Final[dict[str, str]] = {
-    "currency_per_share": "currency per share",
-    "percentage_points": "percentage points",
-    "ratio": "ratio",
-}
-
 
 def basis_display_name(basis: str | None) -> str:
     """Return an explicit human-readable label for a basis identifier.
@@ -82,22 +76,6 @@ def field_display_name(field_name: str) -> str:
         explicit mapping exists.
     """
     return FIELD_DISPLAY_NAMES.get(field_name, field_name)
-
-
-def units_display_name(units: str | None) -> str:
-    """Return an explicit human-readable label for a units identifier.
-
-    Args:
-        units: Machine-readable units identifier (e.g. ``"currency_per_share"``).
-
-    Returns:
-        The corresponding display label, or the raw identifier when no
-        explicit mapping exists.  Returns ``"unavailable"`` when *units*
-        is ``None``.
-    """
-    if units is None:
-        return "unavailable"
-    return UNITS_DISPLAY_NAMES.get(units, units)
 
 
 # ---------------------------------------------------------------------------

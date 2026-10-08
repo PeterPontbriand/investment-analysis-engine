@@ -28,7 +28,6 @@ from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.reliability import (
     CircuitBreaker,
-    CircuitSnapshot,
     MonotonicClock,
     ReliabilityFailure,
     ReliabilityLimitReachedError,
@@ -174,12 +173,6 @@ class AgentOrchestrator:
         self._schema_capability: bool | None = None
         self._capability_resolved: bool = False
         self._circuit: CircuitBreaker | None = None
-        self.last_reliability_failure: ReliabilityFailure | None = None
-
-    @property
-    def reliability_snapshot(self) -> CircuitSnapshot | None:
-        """Return the current request-scoped circuit state when a run has started."""
-        return self._circuit.snapshot if self._circuit is not None else None
 
     @staticmethod
     def _schema_instruction_message(schema_dict: dict[str, Any]) -> dict[str, Any]:
@@ -241,7 +234,6 @@ class AgentOrchestrator:
         run_span_id = self.recorder.start_span()
         active_step_span_id: UUID | None = None
         self._circuit = CircuitBreaker(self.config.reliability_limits, self.options.clock)
-        self.last_reliability_failure = None
 
         try:
             self._record_run_start(run_span_id, prompt)
@@ -251,7 +243,7 @@ class AgentOrchestrator:
             for step in range(1, self.config.max_steps + 1):
                 self._circuit.begin_step(step)
                 final_step = step
-                step_span_id = self.recorder.start_span(parent_span_id=run_span_id)
+                step_span_id = self.recorder.start_span()
                 active_step_span_id = step_span_id
                 self._record_step_start(step, step_span_id, run_span_id)
 
@@ -265,7 +257,6 @@ class AgentOrchestrator:
                 if not tool_requests:
                     terminal_status = "completed"
                     self._record_step_end(step, step_span_id, run_span_id, {"status": "completed", "tool_count": 0})
-                    self.recorder.end_span(step_span_id)
                     active_step_span_id = None
                     yield AgentStepResult(step_number=step, message=assistant_msg, is_terminal=True)
                     return
@@ -278,7 +269,6 @@ class AgentOrchestrator:
                     run_span_id,
                     {"status": "continued", "tool_count": len(tool_requests)},
                 )
-                self.recorder.end_span(step_span_id)
                 active_step_span_id = None
 
                 yield AgentStepResult(
@@ -305,11 +295,8 @@ class AgentOrchestrator:
             terminal_status = "failed"
             raise
         finally:
-            if active_step_span_id is not None:
-                self.recorder.end_span(active_step_span_id)
             if run_started:
                 self._record_run_end(run_span_id, final_step, started_at, terminal_status)
-            self.recorder.end_span(run_span_id)
             self.recorder.flush()
             self.recorder.close()
 
@@ -319,12 +306,9 @@ class AgentOrchestrator:
         step_span_id: UUID,
         context: MessageContext,
     ) -> tuple[list[ToolCallRequest], ChatMessage]:
-        """Execute one planning request and close its logical span exactly once."""
-        request_span_id = self.recorder.start_span(parent_span_id=step_span_id)
-        try:
-            return await self._handle_llm_response(step, step_span_id, request_span_id, context)
-        finally:
-            self.recorder.end_span(request_span_id)
+        """Execute one planning request."""
+        request_span_id = self.recorder.start_span()
+        return await self._handle_llm_response(step, step_span_id, request_span_id, context)
 
     def _build_reliability_failure(
         self,
@@ -354,7 +338,6 @@ class AgentOrchestrator:
     ) -> AgentStepResult:
         """Record and return the typed terminal view of a reliability trip."""
         failure = self._build_reliability_failure(exc, final_step)
-        self.last_reliability_failure = failure
         self.recorder.record_error(
             TrajectoryErrorRecord(
                 component="circuit_breaker",
@@ -425,24 +408,6 @@ class AgentOrchestrator:
                 payload={"status": terminal_status, "final_step": final_step},
             )
         )
-
-    async def _resolve_schema_capability(self) -> bool:
-        """Determine whether to send the native JSON Schema constraint.
-
-        Resolution order:
-          1. If ``use_native_constraint`` is False → never send (explicit opt-out).
-          2. If ``SchemaConfig.ollama_version`` is set → classify that static value.
-          3. Otherwise → query the configured remote Ollama endpoint once, cache result.
-
-        Policy for unknown capability (version unresolvable):
-          Do NOT send the native constraint.  This is the safe default:
-          an unsupported ``format`` key may cause the server to reject the
-          entire request, whereas omitting it preserves existing behavior.
-
-        Returns:
-            True if the native ``format`` kwarg should be included in the LLM request.
-        """
-        return (await self._resolve_enforcement_mode()) == "native"
 
     async def _resolve_enforcement_mode(self) -> str:
         """Resolve the schema-enforcement mode for the next LLM call.
@@ -806,84 +771,81 @@ class AgentOrchestrator:
         step_span_id: UUID,
         context: MessageContext,
     ) -> ToolCallResult:
-        """Execute one timeout-bounded tool call and close its span exactly once."""
-        tool_span_id = self.recorder.start_span(parent_span_id=step_span_id)
+        """Execute one timeout-bounded tool call."""
+        tool_span_id = self.recorder.start_span()
+        self.recorder.record(
+            TrajectoryRecord(
+                event_type=TrajectoryEventType.TOOL_CALL,
+                component="orchestrator",
+                span_id=tool_span_id,
+                parent_span_id=step_span_id,
+                step_index=step,
+                tool_name=request.tool_name,
+                tool_args=request.arguments,
+                payload={"call_id": request.call_id},
+            )
+        )
+
+        tool_started = time.perf_counter()
+        circuit = self._require_circuit()
+        budget = circuit.timeout_budget(ReliabilityTripReason.TOOL_TIMEOUT)
         try:
+            async with asyncio.timeout(budget.seconds):
+                with record_quality(self.recorder, span_id=tool_span_id, parent_span_id=step_span_id):
+                    response = await self.dispatcher.dispatch(request)
+        except TimeoutError:
+            circuit.trip_timeout(
+                budget,
+                cancellation_confirmed=self.dispatcher.cancellation_is_cooperative(request.tool_name),
+            )
+        tool_latency_ms = (time.perf_counter() - tool_started) * 1000
+
+        tool_msg_content = str(response.result) if response.success else f"Error: {response.error_message}"
+        context.add_message(
+            ChatMessage(
+                role=Role.TOOL,
+                name=response.tool_name,
+                content=tool_msg_content,
+                tool_call_id=response.call_id,
+            )
+        )
+
+        if response.success:
             self.recorder.record(
                 TrajectoryRecord(
-                    event_type=TrajectoryEventType.TOOL_CALL,
-                    component="orchestrator",
+                    event_type=TrajectoryEventType.TOOL_RESULT,
+                    component="tool_dispatcher",
                     span_id=tool_span_id,
                     parent_span_id=step_span_id,
                     step_index=step,
-                    tool_name=request.tool_name,
-                    tool_args=request.arguments,
-                    payload={"call_id": request.call_id},
+                    tool_name=response.tool_name,
+                    latency_ms=tool_latency_ms,
+                    tool_result_summary={"success": True, "result": response.result},
+                    payload={"call_id": response.call_id},
                 )
             )
-
-            tool_started = time.perf_counter()
-            circuit = self._require_circuit()
-            budget = circuit.timeout_budget(ReliabilityTripReason.TOOL_TIMEOUT)
-            try:
-                async with asyncio.timeout(budget.seconds):
-                    with record_quality(self.recorder, span_id=tool_span_id, parent_span_id=step_span_id):
-                        response = await self.dispatcher.dispatch(request)
-            except TimeoutError:
-                circuit.trip_timeout(
-                    budget,
-                    cancellation_confirmed=self.dispatcher.cancellation_is_cooperative(request.tool_name),
-                )
-            tool_latency_ms = (time.perf_counter() - tool_started) * 1000
-
-            tool_msg_content = str(response.result) if response.success else f"Error: {response.error_message}"
-            context.add_message(
-                ChatMessage(
-                    role=Role.TOOL,
-                    name=response.tool_name,
-                    content=tool_msg_content,
-                    tool_call_id=response.call_id,
+        else:
+            self.recorder.record_error(
+                TrajectoryErrorRecord(
+                    component="tool_dispatcher",
+                    message=response.error_message or "Tool execution failed.",
+                    step_index=step,
+                    span_id=tool_span_id,
+                    parent_span_id=step_span_id,
+                    error_type="ToolExecutionError",
                 )
             )
-
-            if response.success:
-                self.recorder.record(
-                    TrajectoryRecord(
-                        event_type=TrajectoryEventType.TOOL_RESULT,
-                        component="tool_dispatcher",
-                        span_id=tool_span_id,
-                        parent_span_id=step_span_id,
-                        step_index=step,
-                        tool_name=response.tool_name,
-                        latency_ms=tool_latency_ms,
-                        tool_result_summary={"success": True, "result": response.result},
-                        payload={"call_id": response.call_id},
-                    )
+            self.recorder.record(
+                TrajectoryRecord(
+                    event_type=TrajectoryEventType.TOOL_RESULT,
+                    component="tool_dispatcher",
+                    span_id=tool_span_id,
+                    parent_span_id=step_span_id,
+                    step_index=step,
+                    tool_name=response.tool_name,
+                    latency_ms=tool_latency_ms,
+                    tool_result_summary={"success": False, "error": response.error_message},
+                    payload={"call_id": response.call_id},
                 )
-            else:
-                self.recorder.record_error(
-                    TrajectoryErrorRecord(
-                        component="tool_dispatcher",
-                        message=response.error_message or "Tool execution failed.",
-                        step_index=step,
-                        span_id=tool_span_id,
-                        parent_span_id=step_span_id,
-                        error_type="ToolExecutionError",
-                    )
-                )
-                self.recorder.record(
-                    TrajectoryRecord(
-                        event_type=TrajectoryEventType.TOOL_RESULT,
-                        component="tool_dispatcher",
-                        span_id=tool_span_id,
-                        parent_span_id=step_span_id,
-                        step_index=step,
-                        tool_name=response.tool_name,
-                        latency_ms=tool_latency_ms,
-                        tool_result_summary={"success": False, "error": response.error_message},
-                        payload={"call_id": response.call_id},
-                    )
-                )
-            return response
-        finally:
-            self.recorder.end_span(tool_span_id)
+            )
+        return response

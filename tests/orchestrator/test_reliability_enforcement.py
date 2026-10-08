@@ -114,10 +114,9 @@ async def test_llm_timeout_cancels_async_request_and_returns_trip() -> None:
     steps = await _collect(orchestrator)
 
     assert cancelled.is_set()
-    assert orchestrator.last_reliability_failure is not None
-    assert orchestrator.last_reliability_failure.reason is ReliabilityTripReason.LLM_TIMEOUT
-    assert orchestrator.last_reliability_failure.cancellation_confirmed is True
-    assert steps[-1].failure == orchestrator.last_reliability_failure
+    assert steps[-1].failure is not None
+    assert steps[-1].failure.reason is ReliabilityTripReason.LLM_TIMEOUT
+    assert steps[-1].failure.cancellation_confirmed is True
     assert steps[-1].failure is not None
     assert steps[-1].failure.run_id == orchestrator.recorder.run_id
     assert "llm_timeout" in steps[-1].failure.message
@@ -166,8 +165,8 @@ async def test_earliest_run_or_step_deadline_controls_llm(
 
     steps = await _collect(orchestrator)
 
-    assert orchestrator.last_reliability_failure is not None
-    assert orchestrator.last_reliability_failure.reason is expected_reason
+    assert steps[-1].failure is not None
+    assert steps[-1].failure.reason is expected_reason
     assert steps[-1].failure is not None
     assert steps[-1].failure.reason is expected_reason
     assert str(steps[-1].failure.run_id) in steps[-1].failure.message
@@ -201,10 +200,9 @@ async def test_async_tool_timeout_cancels_handler_and_stops_run() -> None:
     steps = await _collect(orchestrator)
 
     assert cancelled.is_set()
-    assert orchestrator.last_reliability_failure is not None
-    assert orchestrator.last_reliability_failure.reason is ReliabilityTripReason.TOOL_TIMEOUT
-    assert orchestrator.last_reliability_failure.cancellation_confirmed is True
-    assert steps[-1].failure == orchestrator.last_reliability_failure
+    assert steps[-1].failure is not None
+    assert steps[-1].failure.reason is ReliabilityTripReason.TOOL_TIMEOUT
+    assert steps[-1].failure.cancellation_confirmed is True
 
 
 @pytest.mark.asyncio
@@ -234,10 +232,9 @@ async def test_sync_tool_timeout_reports_unconfirmed_cancellation() -> None:
     finally:
         release.set()
 
-    assert orchestrator.last_reliability_failure is not None
-    assert orchestrator.last_reliability_failure.reason is ReliabilityTripReason.TOOL_TIMEOUT
-    assert orchestrator.last_reliability_failure.cancellation_confirmed is False
-    assert steps[-1].failure == orchestrator.last_reliability_failure
+    assert steps[-1].failure is not None
+    assert steps[-1].failure.reason is ReliabilityTripReason.TOOL_TIMEOUT
+    assert steps[-1].failure.cancellation_confirmed is False
 
 
 @pytest.mark.asyncio
@@ -277,7 +274,7 @@ async def test_transient_llm_failures_retry_with_recovery_telemetry(tmp_path: Pa
     assert all(event.error == {"type": "HTTPStatusError", "message": "unavailable [REDACTED]"} for event in errors)
     assert llm.generate.await_count == 3
     assert [event.payload["retry_number"] for event in recoveries if event.payload] == [1, 2]
-    assert orchestrator.last_reliability_failure is None
+    assert steps[-1].failure is None
     assert steps[-1].failure is None
 
 
@@ -302,14 +299,14 @@ async def test_transient_llm_retry_exhaustion_trips_after_exact_budget() -> None
         OrchestratorOptions(config=_config(), recorder=recorder),
     )
 
-    await _collect(orchestrator)
+    steps = await _collect(orchestrator)
 
     recoveries = [event for event in sink.events if event.event_type is TrajectoryEventType.RECOVERY_ATTEMPTED]
     assert llm.generate.await_count == 4
     assert len(recoveries) == 3
     _assert_recovery_order(sink.events, "llm_transport", 3)
-    assert orchestrator.last_reliability_failure is not None
-    assert orchestrator.last_reliability_failure.reason is ReliabilityTripReason.TRANSIENT_RETRY_LIMIT
+    assert steps[-1].failure is not None
+    assert steps[-1].failure.reason is ReliabilityTripReason.TRANSIENT_RETRY_LIMIT
 
 
 @pytest.mark.asyncio
@@ -376,8 +373,6 @@ async def test_schema_repair_emits_recovery_and_valid_response_resets_counter(
     assert len(recoveries) == 1
     assert recoveries[0].payload is not None
     assert recoveries[0].payload["failure_category"] == "schema_validation"
-    assert orchestrator.reliability_snapshot is not None
-    assert orchestrator.reliability_snapshot.consecutive_schema_violations == 0
 
 
 @pytest.mark.asyncio

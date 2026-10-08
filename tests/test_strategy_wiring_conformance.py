@@ -27,8 +27,6 @@ from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.strategy_wiring import (
     BY_ALIAS,
     BY_ARGUMENTS,
-    BY_ENVELOPE,
-    BY_KEY,
     BY_METHOD_ID,
     BY_RESULT_TYPE,
     BY_TOOL,
@@ -45,6 +43,7 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 _WIRING = _SRC / "strategy_wiring.py"
 _TIER = _SRC / "evaluation" / "strategy_fixtures.py"
 _CLI_TIER = _SRC / "cli_strategy_wiring.py"
+_ALL = build_indexes(STRATEGIES)
 _WITHOUT_FCF = tuple(item for item in STRATEGIES if item is not FCF_GROWTH)
 
 
@@ -294,7 +293,7 @@ def test_t14_wiring_files_declare_no_discovery_or_registration() -> None:
     assert (
         conformance.read_only_index_gaps(
             {
-                "BY_KEY": BY_KEY,
+                "BY_KEY": _ALL.by_key,
                 "BY_METHOD_ID": BY_METHOD_ID,
                 "BY_ALIAS": BY_ALIAS,
                 "BY_TOOL": BY_TOOL,
@@ -717,4 +716,4 @@ def test_t24_a_duplicate_json_envelope_is_rejected_naming_the_rule_and_both_desc
         build_indexes((MOMENTUM, replace(GRAHAM_NUMBER, json_envelope=MOMENTUM.json_envelope)))
     assert "('momentum', 'sma_crossover')" in str(raised.value)
     assert "('graham_number', 'graham_number')" in str(raised.value)
-    assert BY_ENVELOPE[MOMENTUM.json_envelope] is MOMENTUM
+    assert _ALL.by_envelope[MOMENTUM.json_envelope] is MOMENTUM

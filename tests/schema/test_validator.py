@@ -6,7 +6,7 @@ import pytest
 from pydantic import BaseModel, ConfigDict
 
 from src.schema.exceptions import SchemaValidationError
-from src.schema.models import PlanResponse, SynthesisResponse, ToolCallResponse
+from src.schema.models import ToolCallResponse
 from src.schema.validator import (
     ValidationErrorType,
     ValidationResult,
@@ -47,7 +47,6 @@ def test_validate_response_malformed_json() -> None:
 
     assert result.valid is False
     assert result.error_type == ValidationErrorType.MALFORMED_JSON
-    assert result.is_recoverable is True
     assert len(result.errors) == 1
 
 
@@ -58,7 +57,6 @@ def test_validate_response_missing_field() -> None:
 
     assert result.valid is False
     assert result.error_type == ValidationErrorType.MISSING_FIELD
-    assert result.is_recoverable is True
     assert len(result.errors) >= 1
 
 
@@ -69,7 +67,6 @@ def test_validate_response_invalid_type() -> None:
 
     assert result.valid is False
     assert result.error_type == ValidationErrorType.INVALID_TYPE
-    assert result.is_recoverable is True
 
 
 def test_validate_response_strict_mode_extra_fields() -> None:
@@ -79,7 +76,6 @@ def test_validate_response_strict_mode_extra_fields() -> None:
 
     assert result.valid is False
     assert result.error_type == ValidationErrorType.EXTRA_FIELD
-    assert result.is_recoverable is True
 
 
 def test_tool_call_extra_fields_rejected() -> None:
@@ -126,90 +122,11 @@ def test_validate_tool_call_response() -> None:
     assert result.error_type == ValidationErrorType.VALUE_ERROR
 
 
-def test_validate_plan_response() -> None:
-    """Test validation of PlanResponse."""
-    response = json.dumps(
-        {
-            "goal": "Analyze stock",
-            "steps": [
-                {
-                    "step_id": "1",
-                    "description": "Get data",
-                    "tool_name": "fetch",
-                    "dependencies": [],
-                }
-            ],
-        }
-    )
-    result = validate_response(response, PlanResponse)
-    assert result.valid is True
-    assert len(result.data.steps) == 1
-
-    response = json.dumps({"goal": "Analyze", "steps": []})
-    result = validate_response(response, PlanResponse)
-    assert result.valid is False
-
-
-def test_validate_synthesis_response() -> None:
-    """Test validation of SynthesisResponse."""
-    response = json.dumps(
-        {
-            "summary": "Bullish outlook",
-            "key_findings": ["Finding 1"],
-            "confidence_score": 0.85,
-        }
-    )
-    result = validate_response(response, SynthesisResponse)
-    assert result.valid is True
-    assert result.data.confidence_score == 0.85
-
-    response = json.dumps(
-        {
-            "summary": "Test",
-            "confidence_score": 1.5,
-        }
-    )
-    result = validate_response(response, SynthesisResponse)
-    assert result.valid is False
-    assert result.error_type in (
-        ValidationErrorType.VALUE_ERROR,
-        ValidationErrorType.INVALID_TYPE,
-    )
-
-
 def test_classify_validation_error() -> None:
     """Test error classification via pytest.raises."""
     with pytest.raises(json.JSONDecodeError) as exc_info:
         json.loads("{invalid}")
     assert classify_validation_error(exc_info.value) == ValidationErrorType.MALFORMED_JSON
-
-
-def test_validation_result_to_dict() -> None:
-    """Test ValidationResult.to_dict()."""
-    result = ValidationResult(
-        valid=True,
-        data={"test": "data"},
-        errors=[],
-        error_type=None,
-        is_recoverable=True,
-    )
-    d = result.to_dict()
-    assert d["valid"] is True
-    assert d["error_type"] is None
-    assert d["is_recoverable"] is True
-    assert d["error_count"] == 0
-
-    result = ValidationResult(
-        valid=False,
-        data=None,
-        errors=[{"error": "test"}],
-        error_type=ValidationErrorType.MALFORMED_JSON,
-        is_recoverable=True,
-    )
-    d = result.to_dict()
-    assert d["valid"] is False
-    assert d["error_type"] == "malformed_json"
-    assert d["error_count"] == 1
 
 
 def test_error_summary() -> None:

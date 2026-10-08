@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 import math
 import os
 from collections.abc import Callable, Iterator, Mapping, Sequence
@@ -55,8 +53,6 @@ SEC_IFRS_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD = "ifrs-full:AdjustedWeightedAver
 SEC_IFRS_OPERATING_CASH_FLOW_FIELD = "ifrs-full:CashFlowsFromUsedInOperatingActivities"
 SEC_IFRS_CAPITAL_EXPENDITURES_FIELD = "ifrs-full:PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"
 SEC_STOCKHOLDERS_EQUITY_FIELD = "us-gaap:StockholdersEquity"
-SEC_COMMON_SHARES_FIELD = "us-gaap:CommonStockSharesOutstanding"
-SEC_PREFERRED_SHARES_FIELD = "us-gaap:PreferredStockSharesOutstanding"
 _SEC_DERIVED_COMMON_SHARES_FIELD = "derived:us-gaap:CommonStockSharesIssued-us-gaap:TreasuryStockCommonShares"
 _SEC_INFERRED_PREFERRED_ABSENCE_FIELD = "inferred:sec-company-facts:no-issued-preferred-equity"
 _PREFERRED_NEUTRAL_CONCEPTS = frozenset({"PreferredStockSharesAuthorized", "PreferredStockParOrStatedValuePerShare"})
@@ -178,8 +174,6 @@ class SecEdgarAnalysisSnapshot:
     latest_annual_accession: str | None
     eligible_annual_accessions: tuple[str, ...]
     taxonomy: str | None
-    company_facts_sha256: str
-    submissions_sha256: str
     primary_documents: Mapping[str, str] = field(default_factory=dict)
     filing_forms: Mapping[str, str] = field(default_factory=dict)
     current_tickers: tuple[str, ...] = ()
@@ -249,8 +243,6 @@ class SecEdgarFinancialFactsAdapter:
                 latest_annual_accession=None,
                 eligible_annual_accessions=(),
                 taxonomy=None,
-                company_facts_sha256=_payload_sha256({}),
-                submissions_sha256=_payload_sha256({}),
             )
         company_facts_raw = self._fetch_json(_COMPANY_FACTS_URL.format(cik=cik), headers=self._headers)
         submissions_raw = self._fetch_json(_SUBMISSIONS_URL.format(cik=cik), headers=self._headers)
@@ -275,8 +267,6 @@ class SecEdgarFinancialFactsAdapter:
             latest_annual_accession=latest_accession,
             eligible_annual_accessions=eligible_accessions,
             taxonomy=taxonomy,
-            company_facts_sha256=_payload_sha256(company_facts_raw),
-            submissions_sha256=_payload_sha256(submissions_raw),
             primary_documents=MappingProxyType(_submission_strings(submissions_raw, "primaryDocument")),
             filing_forms=MappingProxyType(_submission_strings(submissions_raw, "form")),
             current_tickers=_submission_tickers(submissions_raw),
@@ -686,12 +676,6 @@ def _acceptance_times(payload: object) -> dict[str, datetime]:
         if parsed is not None:
             result[accession] = parsed
     return result
-
-
-def _payload_sha256(payload: object) -> str:
-    """Return a stable checksum for one JSON-compatible SEC payload."""
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
 
 
 def _freeze_json(value: object) -> object:

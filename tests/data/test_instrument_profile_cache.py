@@ -196,7 +196,7 @@ def test_disagreeing_anchor_on_refresh_supersedes_the_prior_profile(
     current = repository.get("KO")
     assert current is not None
     assert current.identity_anchor == "9999999999"
-    assert current.is_current
+    assert current.superseded_at is None
 
 
 def test_no_anchor_never_persists_and_resolves_live_every_time(
@@ -238,23 +238,6 @@ def test_refresh_failure_with_a_prior_entry_falls_open_to_the_stale_profile(
     record = repository.get("KO")
     assert record is not None
     assert record.refreshed_at == NOW
-
-
-def test_current_record_reads_the_repository_without_a_live_call(
-    repository: SQLiteInstrumentProfileRepository,
-) -> None:
-    resolver = CachedInstrumentProfileResolver(repository, ttl=TTL, clock=lambda: NOW)
-    assert resolver.current_record("KO") is None
-
-    identity_provider = _IdentityProvider(_identity("0000021344"))
-    kind_provider = _KindProvider(_kind_evidence())
-    identity_candidates, kind_candidate = _candidates(identity_provider, kind_provider)
-    resolver.resolve("KO", identity_candidates=identity_candidates, kind_candidate=kind_candidate)
-
-    record = resolver.current_record("ko")
-    assert record is not None
-    assert record.identity_anchor == "0000021344"
-    assert identity_provider.calls == 1
 
 
 def test_resolve_rejects_a_naive_clock(repository: SQLiteInstrumentProfileRepository) -> None:

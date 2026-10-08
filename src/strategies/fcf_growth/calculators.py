@@ -88,35 +88,6 @@ def compute_fcf_per_diluted_share(free_cash_flow: float, diluted_shares: float) 
     return MetricResult.ok(result)
 
 
-def compute_growth_percent(current: float, prior: float) -> MetricResult:
-    """Compute one-period growth as a percentage from a strictly positive prior.
-
-    Args:
-        current: Most recent value (e.g. FY1 consensus EPS).
-        prior: Prior value, which must be strictly positive (e.g. latest actual EPS).
-
-    Returns:
-        ``ok`` with the growth percent (zero for no change, negative for a
-        decline), ``unavailable`` with ``nonpositive_beginning`` when *prior*
-        is not strictly positive, or ``not_applicable`` with
-        ``invalid_request`` when an input is non-finite or the result
-        overflows the finite double range.
-    """
-    if not math.isfinite(current):
-        return _invalid_request(f"current must be finite (received {current!r}).")
-    if not math.isfinite(prior):
-        return _invalid_request(f"prior must be finite (received {prior!r}).")
-    if prior <= 0:
-        return _unavailable(
-            ReasonCode.NONPOSITIVE_BEGINNING,
-            f"prior must be strictly positive for growth to be meaningful (received {prior}).",
-        )
-    growth_percent = (current - prior) / prior * 100.0
-    if not math.isfinite(growth_percent):
-        return _invalid_request("Growth percent overflows the finite double range for the supplied inputs.")
-    return MetricResult.ok(growth_percent)
-
-
 def compute_cagr(beginning: float, ending: float, elapsed_years: int) -> MetricResult:
     """Compute compound annual growth as a percentage over *elapsed_years*.
 

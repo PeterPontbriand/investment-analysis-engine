@@ -22,7 +22,7 @@ from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import EVIDENCE_BY_TYPE, RUN_SPECS_BY_KEY
+from src.strategy_wiring import RUN_SPECS_BY_KEY
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import encode_evidence
 from src.workspace.models import RunOutcome
@@ -36,7 +36,7 @@ from src.workspace.refresh import (
 from src.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
 from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import WatchlistNotFoundError
-from tests._wiring import failure_code
+from tests._wiring import EVIDENCE_BY_TYPE, failure_code
 
 WATCHLIST_ID = UUID("11111111-1111-4111-8111-111111111111")
 NOW = datetime(2026, 9, 19, 12, 0, 0, tzinfo=UTC)

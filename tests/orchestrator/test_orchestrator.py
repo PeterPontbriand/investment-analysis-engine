@@ -132,12 +132,12 @@ def test_context_truncation_preserves_system_prompt() -> None:
         role = Role.USER if i % 2 == 0 else Role.ASSISTANT
         context.add_message(ChatMessage(role=role, content=f"Message {i}"))
 
-    messages = context.get_messages()
+    messages = context.to_ollama_payload()
     assert len(messages) == 5
-    assert messages[0].role == Role.SYSTEM
-    assert "You are a financial analysis assistant." in messages[0].content
+    assert messages[0]["role"] == Role.SYSTEM
+    assert "You are a financial analysis assistant." in messages[0]["content"]
     # Most recent non-system messages are retained
-    assert messages[-1].content == "Message 9"
+    assert messages[-1]["content"] == "Message 9"
 
 
 # ---------------------------------------------------------------------------
@@ -231,9 +231,9 @@ async def test_orchestrator_single_step_terminal() -> None:
     assert len(steps[0].executed_tools) == 0
 
     # System prompt (with rules) is still present after the run
-    messages = context.get_messages()
-    assert messages[0].role == Role.SYSTEM
-    assert "You are a financial analysis assistant." in messages[0].content
+    messages = context.to_ollama_payload()
+    assert messages[0]["role"] == Role.SYSTEM
+    assert "You are a financial analysis assistant." in messages[0]["content"]
 
 
 @pytest.mark.asyncio
@@ -293,7 +293,7 @@ async def test_orchestrator_tool_execution_loop() -> None:
     assert steps[1].message.content == "Apple is currently trading at $180."
 
     # Rules remain in the system message after tool rounds
-    assert context.get_messages()[0].role == Role.SYSTEM
+    assert context.to_ollama_payload()[0]["role"] == Role.SYSTEM
 
 
 @pytest.mark.asyncio
@@ -334,8 +334,8 @@ async def test_orchestrator_max_steps_exceeded() -> None:
 
     assert len(steps) == 3
     assert steps[-1].is_terminal is True
-    assert orchestrator.last_reliability_failure is not None
-    assert orchestrator.last_reliability_failure.reason is ReliabilityTripReason.MAX_STEPS_EXCEEDED
+    assert steps[-1].failure is not None
+    assert steps[-1].failure.reason is ReliabilityTripReason.MAX_STEPS_EXCEEDED
 
 
 # ---------------------------------------------------------------------------
@@ -671,8 +671,8 @@ async def test_schema_retry_recovers_after_one_invalid_response() -> None:
     assert steps[1].is_terminal is True
     # Step 2 reaches the consecutive-violation cap before parser fallback.
     assert parser_mock.parse.call_count == 0
-    assert orchestrator.last_reliability_failure is not None
-    assert orchestrator.last_reliability_failure.reason is ReliabilityTripReason.SCHEMA_VIOLATION_LIMIT
+    assert steps[-1].failure is not None
+    assert steps[-1].failure.reason is ReliabilityTripReason.SCHEMA_VIOLATION_LIMIT
 
 
 @pytest.mark.asyncio
@@ -735,8 +735,8 @@ async def test_schema_retry_exhaustion_trips_circuit() -> None:
     assert parser_mock.parse.call_count == 0
     assert len(steps) == 1
     assert steps[0].is_terminal is True
-    assert orchestrator.last_reliability_failure is not None
-    assert orchestrator.last_reliability_failure.reason is ReliabilityTripReason.SCHEMA_VIOLATION_LIMIT
+    assert steps[-1].failure is not None
+    assert steps[-1].failure.reason is ReliabilityTripReason.SCHEMA_VIOLATION_LIMIT
 
 
 @pytest.mark.asyncio
@@ -799,13 +799,13 @@ async def test_schema_retry_does_not_use_parser_as_primary_recovery() -> None:
     assert llm_mock.generate.await_count == 2
     # The second consecutive violation trips before parser fallback or tool work.
     assert parser_mock.parse.call_count == 0
-    assert orchestrator.last_reliability_failure is not None
-    assert orchestrator.last_reliability_failure.reason is ReliabilityTripReason.SCHEMA_VIOLATION_LIMIT
+    assert steps[-1].failure is not None
+    assert steps[-1].failure.reason is ReliabilityTripReason.SCHEMA_VIOLATION_LIMIT
     # Verify the retry feedback message was injected into context
-    msgs = context.get_messages()
-    user_msgs = [m for m in msgs if m.role == Role.USER]
+    msgs = context.to_ollama_payload()
+    user_msgs = [m for m in msgs if m["role"] == Role.USER]
     retry_feedback_msgs = [
-        m for m in user_msgs if "schema" in m.content.lower() or "did not match" in m.content.lower()
+        m for m in user_msgs if "schema" in m["content"].lower() or "did not match" in m["content"].lower()
     ]
     assert len(retry_feedback_msgs) >= 1, "retry feedback message must be present in context"
 
@@ -870,8 +870,8 @@ async def test_provider_compat_parser_fallback_when_native_disabled() -> None:
     assert steps[0].executed_tools[0].result == {"price": 180.0}
     assert steps[1].is_terminal is True
     # No retry feedback messages in context (retry loop was never entered)
-    user_msgs = [m for m in context.get_messages() if m.role == Role.USER]
-    retry_msgs = [m for m in user_msgs if "schema" in m.content.lower() or "did not match" in m.content.lower()]
+    user_msgs = [m for m in context.to_ollama_payload() if m["role"] == Role.USER]
+    retry_msgs = [m for m in user_msgs if "schema" in m["content"].lower() or "did not match" in m["content"].lower()]
     assert len(retry_msgs) == 0, "no retry feedback when native constraint is disabled"
 
 

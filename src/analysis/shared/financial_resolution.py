@@ -165,24 +165,6 @@ def has_provider_backed_evidence(*inputs: ResolvedInput | None) -> bool:
     return any(value is not None and value.source_kind is not SourceKind.OVERRIDE for value in inputs)
 
 
-def margin_of_safety(
-    reference_value: float | None,
-    current_price: ResolvedInput | None,
-    *,
-    valuation_currency: str | None = None,
-    security_unit_evidence: SecurityUnitEvidence | None = None,
-    require_security_unit_evidence: bool = False,
-) -> float | None:
-    """Return the legacy nullable percentage from the shared comparison decision."""
-    return evaluate_price_comparison(
-        reference_value,
-        current_price,
-        valuation_currency=valuation_currency,
-        security_unit_evidence=security_unit_evidence,
-        require_security_unit_evidence=require_security_unit_evidence,
-    ).percent
-
-
 def common_currency(*inputs: ResolvedInput | None) -> str | None:
     """Return one shared known currency, or None when inputs disagree or omit it."""
     currencies = {item.currency for item in inputs if item is not None and item.currency}

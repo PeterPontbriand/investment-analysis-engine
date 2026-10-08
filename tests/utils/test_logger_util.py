@@ -11,8 +11,6 @@ from src.utils.logger_util import (
     ConsoleColorFormatter,
     LoggerContext,
     ThreadSafeSizeAwareTimedRotatingFileHandler,
-    _log_queue,
-    get_log_queue_contents,
     setup_logger,
     wait_for_log_compression_shutdown,
 )
@@ -130,23 +128,15 @@ def test_timed_rollover_at_simulated_interval(temp_log_dir: Path) -> None:
     wait_for_log_compression_shutdown()
 
 
-def test_contextual_adapter_and_context_manager() -> None:
-    """Verify ContextualAdapter appends dictionary metadata context to printed messages."""
+def test_contextual_adapter_appends_inline_context_data() -> None:
+    """Verify ContextualAdapter appends inline context_data supplied through ``extra`` to the message."""
     logger = logging.getLogger("test_context")
     logger.setLevel(logging.INFO)
 
-    # Test Context manager allocation
-    context = LoggerContext(logger)
-    with context as adapter:
-        adapter.set_extra({"request_id": "ABC-123", "user_id": "999"})
-        # Process some log message
-        msg, _kwargs = adapter.process("Running momentum backtest", {})
-        msg_str: str = str(msg)
+    with LoggerContext(logger) as adapter:
+        msg, _kwargs = adapter.process("Running momentum backtest", {"extra": {"context_data": "request ABC-123"}})
 
-        # Assert metadata is formatted cleanly into the message string
-        assert "Running momentum backtest" in msg_str
-        assert "request_id:ABC-123" in msg_str
-        assert "user_id:999" in msg_str
+    assert str(msg) == "Running momentum backtest | request ABC-123"
 
 
 def test_setup_logger_idempotency() -> None:
@@ -165,23 +155,3 @@ def test_setup_logger_idempotency() -> None:
     # Assert handlers count did not change/double
     assert handlers_count_1 == handlers_count_2
     assert any(isinstance(h, logging.handlers.QueueHandler) for h in logger_instance.handlers)
-
-
-def test_get_log_queue_contents() -> None:
-    """Verify get_log_queue_contents flushes records cleanly."""
-    # Seed the queue with dummy log records
-    record = logging.LogRecord(
-        name="test_queue",
-        level=logging.INFO,
-        pathname="test.py",
-        lineno=5,
-        msg="Seeded record",
-        args=None,
-        exc_info=None,
-    )
-    _log_queue.put(record)
-
-    contents = get_log_queue_contents()
-    assert len(contents) == 1
-    assert "Seeded record" in contents[0]
-    assert _log_queue.empty() is True

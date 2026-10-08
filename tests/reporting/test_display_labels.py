@@ -22,10 +22,8 @@ from src.data.market_data import MarketDataContext
 from src.reporting.evidence_presentation import (
     BASIS_DISPLAY_NAMES,
     FIELD_DISPLAY_NAMES,
-    UNITS_DISPLAY_NAMES,
     basis_display_name,
     field_display_name,
-    units_display_name,
 )
 from src.reporting.presentation import PROVIDER_DISPLAY_NAMES, PresentationMode, provider_display_name
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
@@ -107,22 +105,6 @@ def test_field_display_name_expected_growth() -> None:
 
 def test_field_display_name_unknown_falls_through() -> None:
     assert field_display_name("some_unknown_field") == "some_unknown_field"
-
-
-def test_units_display_name_currency_per_share() -> None:
-    assert units_display_name("currency_per_share") == "currency per share"
-
-
-def test_units_display_name_percentage_points() -> None:
-    assert units_display_name("percentage_points") == "percentage points"
-
-
-def test_units_display_name_ratio() -> None:
-    assert units_display_name("ratio") == "ratio"
-
-
-def test_units_display_name_none() -> None:
-    assert units_display_name(None) == "unavailable"
 
 
 # ---------------------------------------------------------------------------
@@ -368,10 +350,3 @@ def test_field_display_names_expected_mappings() -> None:
     assert FIELD_DISPLAY_NAMES["current_price"] == "Current price"
     assert FIELD_DISPLAY_NAMES["current_aaa_yield"] == "Current AAA yield"
     assert FIELD_DISPLAY_NAMES["expected_growth"] == "Expected growth"
-
-
-def test_units_display_names_expected_mappings() -> None:
-    """Pin the explicit units display-label mappings."""
-    assert UNITS_DISPLAY_NAMES["currency_per_share"] == "currency per share"
-    assert UNITS_DISPLAY_NAMES["percentage_points"] == "percentage points"
-    assert UNITS_DISPLAY_NAMES["ratio"] == "ratio"

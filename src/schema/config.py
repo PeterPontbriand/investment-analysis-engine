@@ -19,7 +19,6 @@ class SchemaConfig:
         use_native_constraint: Whether to use native Ollama schema constraints.
         fallback_to_prompt: Whether to fall back to prompt-based constraints.
         max_validation_retries: Maximum retries on validation failure.
-        log_validation_errors: Whether to log detailed validation errors.
         ollama_version: Override for Ollama version detection.
     """
 
@@ -28,7 +27,6 @@ class SchemaConfig:
     use_native_constraint: bool = True
     fallback_to_prompt: bool = True
     max_validation_retries: int = 3
-    log_validation_errors: bool = True
     ollama_version: str | None = None
 
     @classmethod
@@ -41,7 +39,6 @@ class SchemaConfig:
             SCHEMA_USE_NATIVE: bool (default: True)
             SCHEMA_FALLBACK_TO_PROMPT: bool (default: True)
             SCHEMA_MAX_RETRIES: int (default: 3)
-            SCHEMA_LOG_ERRORS: bool (default: True)
         """
 
         def _get_bool(key: str, default: bool) -> bool:
@@ -65,7 +62,6 @@ class SchemaConfig:
             use_native_constraint=_get_bool("SCHEMA_USE_NATIVE", True),
             fallback_to_prompt=_get_bool("SCHEMA_FALLBACK_TO_PROMPT", True),
             max_validation_retries=_get_int("SCHEMA_MAX_RETRIES", 3),
-            log_validation_errors=_get_bool("SCHEMA_LOG_ERRORS", True),
             ollama_version=os.environ.get("OLLAMA_VERSION"),
         )
 

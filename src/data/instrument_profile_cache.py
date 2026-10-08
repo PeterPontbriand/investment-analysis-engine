@@ -268,10 +268,6 @@ class CachedInstrumentProfileResolver:
                 self._ticker_locks[ticker] = lock
             return lock
 
-    def current_record(self, ticker: str) -> InstrumentProfileRecord | None:
-        """Return the durable record for ``ticker`` without a live call or TTL check."""
-        return self._repository.get(_normalized_required(ticker, "ticker", uppercase=True))
-
     def _now(self) -> datetime:
         now = self._clock()
         if now.utcoffset() is None:

@@ -21,8 +21,6 @@ from src.data.financial.provenance import FinancialSubjectKind, SourceKind
 from src.data.massive import MASSIVE_PROVIDER_ID
 from src.data.massive.financial_facts import MassiveFinancialFactsAdapter
 from src.data.sec_edgar.financial_facts import (
-    SEC_COMMON_SHARES_FIELD,
-    SEC_PREFERRED_SHARES_FIELD,
     SEC_PROVIDER_ID,
     SEC_STOCKHOLDERS_EQUITY_FIELD,
     SecEdgarFinancialFactsAdapter,
@@ -338,8 +336,8 @@ def test_sec_adapter_returns_bvps_components_with_exact_fields_and_period() -> N
 
     assert len(equity) == len(common) == len(preferred) == 1
     assert equity[0].provider_field == SEC_STOCKHOLDERS_EQUITY_FIELD
-    assert common[0].provider_field == SEC_COMMON_SHARES_FIELD
-    assert preferred[0].provider_field == SEC_PREFERRED_SHARES_FIELD
+    assert common[0].provider_field == "us-gaap:CommonStockSharesOutstanding"
+    assert preferred[0].provider_field == "us-gaap:PreferredStockSharesOutstanding"
     assert equity[0].units is FinancialUnit.CURRENCY
     assert common[0].units is FinancialUnit.SHARES
     assert preferred[0].value == pytest.approx(0.0)

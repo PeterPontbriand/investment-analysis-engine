@@ -17,9 +17,9 @@ from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import PARSERS_BY_ALIAS
 from src.workspace.requests import AnalysisRequest, parse_selection
 from src.workspace.strategy_types import AnalysisSelection
+from tests._wiring import PARSERS_BY_ALIAS
 
 
 @pytest.fixture(autouse=True)

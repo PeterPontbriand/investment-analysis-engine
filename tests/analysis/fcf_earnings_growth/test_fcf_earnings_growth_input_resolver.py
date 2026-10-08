@@ -119,7 +119,6 @@ def test_interior_fcf_sign_change_is_nonmeaningful() -> None:
     values = (5.0, -2.0, 7.0, 8.0)
     result = _resolve(FixtureAnnualFinancialFactsProvider(annual_series(range(2022, 2026), fcf_values=values)))
     assert result.status is CalculationStatus.OK
-    assert result.span_sign_change_fcf
     assert result.fcf_cagr.reason_code is ReasonCode.SIGN_CHANGE
 
 

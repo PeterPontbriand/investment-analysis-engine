@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from src.evaluation.models import (
-    BehaviorConstraints,
     ComponentKind,
     ComponentOutcome,
     ComponentResult,
@@ -95,39 +94,6 @@ def evaluate_tool_selection(constraints: ToolConstraints, observation: Observati
         kind=ComponentKind.STRATEGY_SELECTION,
         label="tools",
         observed=tuple(call.tool_name for call in observation.tool_calls),
-        permitted=constraints.permitted,
-        required=constraints.required,
-        forbidden=constraints.forbidden,
-    )
-
-
-def evaluate_behavior_constraints(
-    constraints: BehaviorConstraints,
-    observed_behaviors: tuple[str, ...],
-    *,
-    component_kind: ComponentKind,
-) -> ComponentResult:
-    """Evaluate named behaviors under a fixture or execution failure category."""
-    if component_kind not in (ComponentKind.FIXTURE_STATUS, ComponentKind.EXECUTION_STATUS):
-        raise ValueError("behavior constraints must be classified as fixture_status or execution_status")
-    if not (constraints.permitted or constraints.required or constraints.forbidden):
-        return ComponentResult(
-            kind=component_kind,
-            outcome=ComponentOutcome.NOT_APPLICABLE,
-            evidence="This case defines no named behavior constraints.",
-        )
-    normalized = tuple(value.strip() for value in observed_behaviors)
-    if any(not value for value in normalized):
-        return ComponentResult(
-            kind=component_kind,
-            outcome=ComponentOutcome.FAIL,
-            failure_reason="Observed behavior identifiers must not be blank.",
-            evidence="Observed behaviors contained a blank identifier.",
-        )
-    return _evaluate_constraints(
-        kind=component_kind,
-        label="behaviors",
-        observed=normalized,
         permitted=constraints.permitted,
         required=constraints.required,
         forbidden=constraints.forbidden,

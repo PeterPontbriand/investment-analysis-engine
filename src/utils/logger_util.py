@@ -9,7 +9,6 @@ import traceback
 import zipfile
 from collections.abc import Mapping, MutableMapping
 from logging.handlers import QueueHandler, QueueListener, TimedRotatingFileHandler
-from pathlib import Path
 from queue import Queue
 from types import TracebackType
 from typing import Any, ClassVar, override
@@ -336,7 +335,7 @@ atexit.register(teardown_global_logging)
 
 # --- ADAPTERS & MANAGERS ---
 class ContextualAdapter(logging.LoggerAdapter[logging.Logger]):
-    """Set up a logger with contextual data and append parameters to log outputs."""
+    """Set up a logger with contextual data and append inline context to log outputs."""
 
     def __init__(
         self,
@@ -346,59 +345,10 @@ class ContextualAdapter(logging.LoggerAdapter[logging.Logger]):
         """Initialize the contextual logger adapter instance."""
         super().__init__(logger, extra or {})
 
-    # pyright: ignore[reportIncompatibleVariableOverride]
-    @property
-    def log_file_path(self) -> Path | None:
-        """
-        Get the absolute filesystem path of the active log file destination.
-
-        Return None if no file handler is currently active or registered globally.
-        """
-        # Delayed import to dynamically modify internal global variables from within an isolated scope.
-        import sys  # noqa: PLC0415
-
-        current_module = sys.modules[__name__]
-        for listener in current_module._listeners:
-            for handler in listener.handlers:
-                if isinstance(handler, ThreadSafeSizeAwareTimedRotatingFileHandler):
-                    return Path(handler.baseFilename)
-        return None
-
-    def read_log_contents(self) -> str:
-        """
-        Read and return the entire current plain-text contents of the active log file.
-
-        Return an empty string if the file is missing, empty, or temporarily locked by the OS.
-        """
-        path = self.log_file_path
-        if not path or not path.exists():
-            return ""
-
-        try:
-            # Use explicit encoding to ensure parity across Windows, macOS, and Linux
-            with open(path, encoding=settings.log_encoding) as f:
-                return f.read()
-        except OSError:
-            # Fail safely if a background process holds an exclusive Windows lock
-            return ""
-
-    def set_extra(self, extra: Mapping[str, str]) -> None:
-        """Update the logger's extra context with new values safely."""
-        current_extra = dict(self.extra) if self.extra else {}
-        current_extra.update(extra)
-        self.extra = current_extra
-
     def process(
         self, msg: object, kwargs: MutableMapping[str, str | Mapping[str, str]]
     ) -> tuple[object, MutableMapping[str, str | Mapping[str, str]]]:
-        """Process the log message and append all active contextual metadata keys to the output string."""
-        # 1. Capture dynamic metadata dictionary attributes set via adapter.set_extra()
-        if self.extra:
-            # Format dictionary items cleanly into a scannable string (e.g., "[user_id:1234, request_id:ABCD]")
-            context_string = ", ".join(f"{k}:{v}" for k, v in self.extra.items())
-            msg = f"{msg!s} [{context_string}]"
-
-        # 2. Keep support intact for on-the-fly inline log extensions if needed
+        """Process the log message and append inline ``context_data`` supplied through ``extra`` to the output."""
         if "extra" in kwargs and isinstance(kwargs["extra"], dict) and "context_data" in kwargs["extra"]:
             context_data = kwargs["extra"]["context_data"]
             msg = f"{msg!s} | {context_data}"
@@ -407,16 +357,14 @@ class ContextualAdapter(logging.LoggerAdapter[logging.Logger]):
 
 
 class LoggerContext:
-    """Provide a thread-safe context manager lifecycle for isolated module metadata."""
+    """Provide a context manager lifecycle that yields a contextual adapter for one module logger."""
 
     def __init__(self, logger: logging.Logger) -> None:
-        """Initialize the context container with an empty metadata adapter."""
+        """Initialize the context container with its adapter."""
         self.adapter = ContextualAdapter(logger, {})
 
     def __enter__(self) -> ContextualAdapter:
         """Enter the context block scope and return the contextual adapter instance."""
-        # Create a completely fresh dictionary for this specific execution block scope
-        self.adapter.extra = {}
         return self.adapter
 
     def __exit__(
@@ -425,11 +373,7 @@ class LoggerContext:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        """Exit the context block scope and clear the internal adapter dictionary."""
-        # Completely wipe the dictionary references on exit
-        current_extra = dict(self.adapter.extra) if self.adapter.extra else {}
-        current_extra.clear()
-        self.adapter.extra = current_extra
+        """Exit the context block scope; the adapter holds no per-scope state to clear."""
 
 
 def handle_uncaught_exception(
@@ -482,20 +426,3 @@ def setup_logger(logger_name: str) -> LoggerContext:
         logger.addHandler(queue_handler)
 
     return LoggerContext(logger)
-
-
-def get_log_queue_contents() -> list[str]:
-    """Retrieve contents from the global log queue as formatted strings."""
-    records = []
-    while not _log_queue.empty():
-        try:
-            item = _log_queue.get_nowait()
-            # If it's already a LogRecord instance, use it directly;
-            # otherwise, build it from a dictionary (like worker.py sends)
-            record = item if isinstance(item, logging.LogRecord) else logging.makeLogRecord(item)
-
-            formatter = logging.Formatter(_fmt_str, _datefmt)
-            records.append(formatter.format(record))
-        except Exception:
-            pass
-    return records

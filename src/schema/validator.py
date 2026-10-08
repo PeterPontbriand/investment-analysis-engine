@@ -41,23 +41,12 @@ class ValidationResult:
         data: Validated model (if valid) or raw parsed data / text (if invalid).
         errors: List of error detail dicts.
         error_type: Classification of the primary error.
-        is_recoverable: Whether this error can be retried.
     """
 
     valid: bool
     data: Any
     errors: list[dict[str, Any]] = field(default_factory=list)
     error_type: ValidationErrorType | None = None
-    is_recoverable: bool = True
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for telemetry logging."""
-        return {
-            "valid": self.valid,
-            "error_type": self.error_type.value if self.error_type else None,
-            "is_recoverable": self.is_recoverable,
-            "error_count": len(self.errors),
-        }
 
     def error_summary(self, max_errors: int = 5) -> str:
         """Human-readable summary suitable for inclusion in a retry prompt."""
@@ -108,7 +97,6 @@ def validate_response(
                 }
             ],
             error_type=ValidationErrorType.MALFORMED_JSON,
-            is_recoverable=True,
         )
 
     try:
@@ -118,7 +106,6 @@ def validate_response(
             data=validated,
             errors=[],
             error_type=None,
-            is_recoverable=True,
         )
     except ValidationError as e:
         error_info = _classify_validation_errors(e, model_class)
@@ -136,7 +123,6 @@ def validate_response(
             data=data,
             errors=error_info,
             error_type=error_type,
-            is_recoverable=True,  # All schema violations are treated as recoverable
         )
 
 
@@ -204,7 +190,7 @@ def build_retry_messages(
     Intended for use in a retry loop:
 
         result = validate_response(...)
-        if not result.valid and result.is_recoverable:
+        if not result.valid:
             messages = build_retry_messages(messages, result, assistant_content=raw)
             # re-call ollama.chat with the new messages
 

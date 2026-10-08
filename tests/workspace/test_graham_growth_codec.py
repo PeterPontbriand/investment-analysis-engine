@@ -28,11 +28,11 @@ from src.strategies.graham_growth.calculation import (
 )
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategy_wiring import EVIDENCE_BY_KEY, EVIDENCE_BY_TYPE
+from src.strategy_wiring import EVIDENCE_BY_KEY
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence, encode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun
-from tests._wiring import codecs_with_decode
+from tests._wiring import EVIDENCE_BY_TYPE, codecs_with_decode
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
 

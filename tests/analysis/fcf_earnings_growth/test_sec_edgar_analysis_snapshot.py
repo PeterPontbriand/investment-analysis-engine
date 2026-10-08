@@ -123,7 +123,6 @@ def test_snapshot_records_stable_identity_taxonomy_and_payload_checksums() -> No
     assert snapshot.cik == "0000937966"
     assert snapshot.latest_annual_accession == "0001628280-26-011378"
     assert snapshot.taxonomy == "us-gaap"
-    assert len(snapshot.company_facts_sha256) == len(snapshot.submissions_sha256) == 64
     with pytest.raises(TypeError):
         snapshot.company_facts["cik"] = 1  # type: ignore[index]
 

@@ -36,7 +36,29 @@ There are no required residual actions. Renaming the unused exception parameters
 cosmetic cleanup and can be handled separately. Repeat a repository-wide audit after the Step 3.5
 expansion adds its quantitative-screen analyzers.
 
-## 5. References
+## 5. Second pass: confidence 60 triage and deliberately kept items
+
+A second pass ran Vulture at minimum confidence 60 (the first pass used 80) and sorted every finding into
+a mechanism false positive (Pydantic fields, validators and `model_config`, Typer commands, enum members
+read by value, protocol and standard-library overrides), a test-only item, a dead item, or an unsure
+item. Dead items and approved test-only items were deleted together with the code and tests that existed
+only for them. The items below were reviewed and **deliberately kept**.
+
+| Item | Reason kept |
+|---|---|
+| `workspace.codecs.encode_evidence`, `workspace.requests.parse_selection` | Read by `scripts/strategy_conformance.py` and tests; no production caller. |
+| `InstrumentProfileRecord.superseded_reason` | Mirrors a stored column that the repository writes and reads back. |
+| `FCF_GROWTH_YEARS`, `FCF_GROWTH_EPS_VALUES`, `FCF_GROWTH_CAPEX`, `FCF_GROWTH_DILUTED_SHARES`, `GOLDEN_EXPECTED_GROWTH` | Reviewed evaluation fixture truth that tests compare against. |
+| `provider_checks.MAX_REQUESTS_PER_CHECK` | A provider-check test asserts the request budget against it. |
+| `SQLiteMarketDataRepository.list_keys`, `SQLiteResolvedInputCache.list_keys`, `SQLiteInstrumentProfileRepository.get_by_id` | Listed as repository interface in `docs/project/ARCHITECTURE.md`. |
+| `strategies.fcf_growth.calculators.compute_fcf_yield` | Step 3.5's FCF-yield screen either uses it or deletes it (see the Step 3.5 contract's shared-definitions slice). |
+| `RunOutcome.CANCELLED` and the `'cancelled'` value in the analysis-run outcome check constraint | Nothing produces it; removal changes the database schema. |
+| `strategy_wiring.evidence_by_type`, `strategy_wiring.parsers_by_alias` | Built by `scripts/strategy_conformance.py` and the test helpers; no production layer reads these views. |
+| `StrategyIndexes.by_key`, `StrategyIndexes.by_envelope` | Building them enforces key and envelope uniqueness at import; only the conformance tests read them. |
+| `AccountingScope.SEGMENT` | Member of a closed vocabulary; removing it changes a generated schema. |
+| `exc_val`, `exc_tb` in `LoggerContext.__exit__` | Required context-manager signature (recorded in the first pass). |
+
+## 6. References
 
 - [R3 audit plan](R3_DEAD_CODE_AUDIT_PLAN.md)
 - [Milestone v0.2 Implementation Plan sequencing](../IMPLEMENTATION_PLAN.md#sequence-and-status)

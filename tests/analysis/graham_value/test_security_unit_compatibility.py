@@ -4,10 +4,16 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime
+from typing import Any
 
-from src.analysis.shared.financial_resolution import margin_of_safety
+from src.analysis.shared.financial_resolution import evaluate_price_comparison
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.security_unit import SecurityUnitEvidence, SecurityUnitKind
+
+
+def _margin(*args: Any, **kwargs: Any) -> float | None:
+    """Return the comparison percent the removed legacy wrapper used to expose."""
+    return evaluate_price_comparison(*args, **kwargs).percent
 
 
 def _quote(currency: str) -> ResolvedInput:
@@ -36,7 +42,7 @@ def _ordinary_evidence() -> SecurityUnitEvidence:
 
 
 def test_affirmative_ordinary_share_evidence_permits_comparison() -> None:
-    margin = margin_of_safety(
+    margin = _margin(
         100.0,
         _quote("USD"),
         valuation_currency="USD",
@@ -51,7 +57,7 @@ def test_missing_adr_or_currency_mismatch_evidence_suppresses_comparison() -> No
     evidence = _ordinary_evidence()
 
     assert (
-        margin_of_safety(
+        _margin(
             100.0,
             _quote("USD"),
             valuation_currency="USD",
@@ -61,7 +67,7 @@ def test_missing_adr_or_currency_mismatch_evidence_suppresses_comparison() -> No
         is None
     )
     assert (
-        margin_of_safety(
+        _margin(
             100.0,
             _quote("USD"),
             valuation_currency="USD",
@@ -71,7 +77,7 @@ def test_missing_adr_or_currency_mismatch_evidence_suppresses_comparison() -> No
         is None
     )
     assert (
-        margin_of_safety(
+        _margin(
             100.0,
             _quote("USD"),
             valuation_currency="DKK",

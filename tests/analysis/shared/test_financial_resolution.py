@@ -8,9 +8,9 @@ import pytest
 
 from src.analysis.shared.financial_resolution import (
     common_currency,
+    evaluate_price_comparison,
     has_provider_backed_evidence,
     is_known_etf,
-    margin_of_safety,
     resolve_normalized_eps,
     resolve_optional_quote,
     validate_profile_ticker,
@@ -202,5 +202,5 @@ def test_margin_preserves_unavailable_and_currency_rules(
     expected: float | None,
 ) -> None:
     quote = _make_provider_input(field_name="current_price", value=80.0)
-    assert margin_of_safety(reference, quote, valuation_currency=currency) == expected
-    assert margin_of_safety(reference, None, valuation_currency=currency) is None
+    assert evaluate_price_comparison(reference, quote, valuation_currency=currency).percent == expected
+    assert evaluate_price_comparison(reference, None, valuation_currency=currency).percent is None
