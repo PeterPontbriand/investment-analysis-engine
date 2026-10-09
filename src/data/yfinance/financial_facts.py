@@ -54,7 +54,7 @@ class YFinanceFinancialFactsAdapter:
             quote = self._client.fetch_current_quote(request.subject_id)
         except DataFetchError as exc:
             msg = f"Yahoo Finance quote retrieval failed for {request.subject_id}."
-            raise FinancialProviderError(msg) from exc
+            raise FinancialProviderError(msg, kind=exc.kind, provider_id=exc.provider_id) from exc
 
         if quote.currency is None:
             return ()

@@ -10,12 +10,14 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
+import pytest
 from typer.testing import CliRunner
 
 from src import cli_health
 from src.cli import app
 from src.config import settings
 from src.core.provider_failure_kind import ProviderFailureKind
+from src.data.base_client import DataFetchError
 from src.data.provider_checks import ProviderClients, SecTransport, SecUnavailable
 from src.data.yfinance.client import YFinanceQuote
 from tests._cli_helpers import normalize_cli_output
@@ -70,14 +72,44 @@ def test_all_checks_passing_exits_zero_with_one_line_per_provider() -> None:
     assert all(line.endswith(" s)") for line in lines)
 
 
-def test_one_failing_check_exits_one_and_prints_its_detail_after_a_dash() -> None:
+def test_one_failing_check_with_a_kind_prints_the_kind_and_its_detail_after_a_dash() -> None:
     exit_code, output = _invoke(_clients(facts={"facts": {}}))
 
     lines = output.strip().splitlines()
     assert exit_code == 1
     assert lines[0].startswith("yfinance: ok")
-    assert lines[1].startswith("sec_edgar: failed (probe: AAPL ticker map and company facts, ")
+    assert lines[1].startswith("sec_edgar: unexpected response (probe: AAPL ticker map and company facts, ")
     assert lines[1].endswith(" s) - company facts document has no 'us-gaap' mapping under 'facts'")
+
+
+class _FailingYahoo(_FakeYahoo):
+    def __init__(self, failure: Exception) -> None:
+        super().__init__()
+        self.failure = failure
+
+    def fetch_current_quote(self, ticker: str) -> YFinanceQuote:  # noqa: ARG002
+        raise self.failure
+
+
+@pytest.mark.parametrize(
+    ("failure", "verdict"),
+    [
+        (DataFetchError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance"), "unreachable"),
+        (
+            DataFetchError("odd", kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id="yfinance"),
+            "unexpected response",
+        ),
+        (DataFetchError("none", kind=ProviderFailureKind.NO_DATA, provider_id="yfinance"), "no data"),
+        (RuntimeError("defect"), "failed"),
+    ],
+    ids=["unreachable", "unexpected response", "no data", "no kind"],
+)
+def test_a_failed_check_prints_its_verdict_and_keeps_the_detail(failure: Exception, verdict: str) -> None:
+    exit_code, output = _invoke(_clients(_FailingYahoo(failure)), "--provider", "yfinance")
+
+    assert exit_code == 1
+    assert output.startswith(f"yfinance: {verdict} (probe: AAPL daily history and quote, ")
+    assert output.strip().endswith(f" s) - {type(failure).__name__}: {failure}")
 
 
 def test_provider_option_runs_only_the_named_provider() -> None:
@@ -178,5 +210,5 @@ def test_process_exits_with_status_one_after_a_check_whose_adapter_never_returns
     )
 
     assert completed.returncode == 1, completed.stderr
-    assert "yfinance: failed" in completed.stdout
+    assert "yfinance: unreachable" in completed.stdout
     assert "timed out after 0.3 s" in completed.stdout

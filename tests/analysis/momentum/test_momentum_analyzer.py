@@ -85,8 +85,8 @@ def test_momentum_config_rejects_non_positive_windows() -> None:
 
 @patch("src.data.yfinance.client.yf.download")
 def test_fetch_market_data_handles_multiindex_flattening(mock_download: MagicMock) -> None:
-    multi_cols = pd.MultiIndex.from_product([["Close", "Volume"], ["BTC-USD"]])
-    multi_df = pd.DataFrame(np.random.randn(5, 2), columns=multi_cols)
+    multi_cols = pd.MultiIndex.from_product([["Open", "High", "Low", "Close", "Volume"], ["BTC-USD"]])
+    multi_df = pd.DataFrame(np.random.randn(5, 5), columns=multi_cols)
     mock_download.return_value = multi_df
 
     df = YFinanceClient().fetch_data("BTC-USD", start_date="2026-01-01")

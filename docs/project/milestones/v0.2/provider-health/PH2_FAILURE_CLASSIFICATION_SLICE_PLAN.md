@@ -32,13 +32,18 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 | D8 | One fixed precedence picks the single code when several inputs failed: `unreachable`, then `unexpected_response`, then `no_data` ([§5](#5-the-shared-provider_failure-element)). |
 | D9 | A refresh job carries a `reason_code` if and only if it raised or its run is `failed`; an `unavailable` run is an analysis outcome, not a failure ([§6](#6-refresh-job-reason_codes)). |
 | D10 | The classifier classifies `FinancialProviderError` and `DataFetchError` by type for every command. The per-command `data_error` callback is removed in favour of one per-kind sentence table. |
-| D11 | `yf.download` cannot be made to raise by any supported setting ([§8](#8-verified-against-main)), so a throttled or unreachable history download is `no_data`, and the sentence says Yahoo returned no rows. |
+| D11 | `yf.download` cannot be made to raise by any supported setting ([§8](#8-verified-against-main)), so a throttled or unreachable history download is `no_data`, and the sentence says Yahoo returned no data for the ticker, never that the ticker is unknown. |
 | D12 | `fetch_json` and `fetch_filing` raise `FinancialProviderError`, carrying the kind and the provider. The resolvers already catch that type, so a transport failure stays a recorded outcome, and the adapters' passthrough handlers let it through. |
 | D13 | A missing CIK is its own condition. `_resolve_cik` raises a private subclass of `FinancialProviderError` (kind `no_data`) for a ticker absent from SEC's map, and the two handlers that mean "no CIK mapping" (`create_analysis_snapshot` and the top of `fetch_facts`) catch only that subclass, so an outage while loading the ticker map is not turned into an empty snapshot or an empty fact tuple. |
 | D14 | `ProviderFailureKind` lives in `src/core/provider_failure_kind.py`, which imports nothing from the application. The library-call helper stays in `src/data/provider_failure.py`. `documents/failure.py` stays a leaf under a wider rule: it imports only modules that themselves import nothing from the application. The shared `provider_failure` element models live in that module, so the failure envelope and the strategy documents import the same types. |
 | D15 | `provider_failure.inputs[].input` is nullable: null if and only if the failure was raised and not recorded against a strategy input. Every entry PH.2a produces has a null `input`. |
 | D16 | A plain `DataQualityError` cannot be raised: for freshly fetched data the historical-quality check either raises `HistoricalDataQualityError` itself or returns nothing. The three unreachable `raise DataQualityError(...)` branches in `cached_client.py`, the classifier rule for the plain type and the tests that built one by hand are removed; the class stays as the base of the historical error. |
 | D17 | `_fail_with` in `cli_workspace.py` is called only with watchlist, stored-run, readiness and parameter errors. It stays outside the sentence table and is not changed. |
+| D18 | Quote before history in the Yahoo health check (PH.2b). `check_yfinance` calls `fetch_current_quote` first, then `fetch_data`. The quote call raises on a connection fault and `yf.download` does not, so this order lets the check report `unreachable` when Yahoo cannot be reached. The request count does not change. Evidence: [§8](#8-verified-against-main). |
+| D19 | The connection-failure test is two tests (PH.2b). An exception that escapes `yf.download` reaches the Momentum command's own output as the `unreachable` code and sentence, with nothing needed from the log. A fault that `yf.download` swallows (an empty frame) is `no_data`, and the sentence does not claim the ticker is unknown. |
+| D20 | `ProviderCheckResult` gains a nullable kind (PH.2b). A typed provider failure raised by an adapter keeps its own kind. The check's own failures: a timeout is `unreachable`; a wrong shape (not a frame, missing columns, bad index, a non-positive or non-finite quote, a wrong SEC document shape) is `unexpected_response`; an empty history is `no_data`. No kind, by design: SEC not configured (`SecUnavailable`), and an unexpected exception inside a check. `ian health` prints `<provider>: unreachable`, `unexpected response` or `no data` for a failed check with a kind and `<provider>: failed` for one without, each followed by the detail. A passed check is unchanged. |
+| D21 | Best-effort currency stays best-effort (PH.2b). `_fetch_currency` and the optional currency read in `fetch_current_quote` still return no currency, including when a connection fault surfaces there as `KeyError`. `_fetch_currency` catches only that and typed provider failures; anything else propagates. |
+| D22 | The `no_data` sentence stays as merged: "returned no data for it" (PH.2b). The plan's earlier wording, an empty history "says Yahoo returned no rows", is replaced to match the sentence table. |
 
 ## 3. Output changes
 
@@ -52,8 +57,8 @@ the same slice and the diff is what the review approves.
 | 3 | Failure sentence for a provider failure | One sentence from a per-command callback (Momentum only) | One sentence per kind from a shared table | PH.2a |
 | 4 | Generated schemas | No provider kinds | `failure`: three more `reason_code` values, the `provider_failure` element, version 7. `database-maintenance-report` and `refresh-summary`: the three values join the enumeration | PH.2a |
 | 5 | A non-provider exception inside an adapter | Reported as a provider error | Propagates and is reported as an internal failure by the CLI boundary | PH.2a, PH.2b |
-| 6 | Yahoo failure sentences | "Network transport fault ..." for any exception | A sentence per kind; an empty history says Yahoo returned no rows | PH.2b |
-| 7 | `ian health`, failed check | `<provider>: failed (...)` | `<provider>: unreachable`, `unexpected response` or `no data` | PH.2b |
+| 6 | Yahoo failure sentences | "Network transport fault ..." for any exception | A sentence per kind; an empty history says Yahoo returned no data for the ticker (D22) | PH.2b |
+| 7 | `ian health`, failed check | `<provider>: failed (...)` | `<provider>: unreachable`, `unexpected response` or `no data`; `<provider>: failed` only for a failure with no kind (D20) | PH.2b |
 | 8 | Stored evidence of the three SEC-backed strategies and Momentum | Provider failure has status and prose only | Typed kind and provider identity; evidence and run-envelope versions bumped | PH.2c |
 | 9 | Strategy `--json` documents (Momentum, Graham Number, Graham Growth, FCF Growth), direct and replayed | No code; Graham documents carry `status: provider_error` and a sentence | New nullable `provider_failure` element in every document; each document's `schema_version` bumped | PH.2c |
 | 10 | Saved run, every `failed` run | `failure_reason_code` `execution_failed` | A `FailureReasonCode` value: the mapped provider code, `invalid_input` or `execution_error`; `execution_failed` is no longer written | PH.2c |
@@ -100,12 +105,13 @@ PH.2c extend.
 
 - **Yahoo.** The `YFinanceClient` handlers and the yfinance facts adapter, through the helper; the listed
   `unreachable` types are in [§8](#8-verified-against-main).
-- **Checks.** `ProviderCheckResult` gains the kind and `ian health` prints it.
+- **Checks.** `ProviderCheckResult` gains the nullable kind (D20), `check_yfinance` reads the quote before the
+  history (D18), and `ian health` prints the kind.
 - **Completion test** (inventory §7) and the runbook, `docs/project/PROVIDER_DEBUGGING.md`.
-- **Connection failure test.** A test that a connection failure during a history download is named in the
-  command's own message, since the log line no longer reaches standard error. It can hold only for an exception
-  that escapes `yf.download`; `yf.download` swallows a per-ticker transport fault (D11), so that case is
-  reported as `no_data` and the cause is in the application log only. Needs a decision on what the test covers.
+- **Connection failure tests (D19).** Two tests, since the log line no longer reaches standard error. An
+  exception that escapes `yf.download` is named in the command's own message as `unreachable`. A fault that
+  `yf.download` swallows (D11) is reported as `no_data` and the sentence does not claim the ticker is unknown;
+  its cause is in the application log only.
 - **Gate.** The complete managed gate. The live suite still passes on the project owner's machine, since the
   check bodies changed.
 
@@ -207,7 +213,7 @@ hold `execution_failed` need no handling.
 
 ## 8. Verified against `main`
 
-Checked at `750d7c9` (2026-10-09).
+Checked at `847d28a` (2026-10-09).
 
 - **Where a provider failure ends.** Momentum raises `DataFetchError`, which reaches the failure envelope.
   Graham Number, Graham Growth and FCF Growth never raise it: the resolvers catch `FinancialProviderError`
@@ -270,6 +276,11 @@ Checked at `750d7c9` (2026-10-09).
     `InvalidURL`. The helper's order is therefore the `unexpected_response` and `no_data` types and the defect
     types first, then `unreachable` (`OSError`, `YFRateLimitError`), then any unlisted exception as
     `unexpected_response`.
+- **Yahoo connection fault through the client (D18).** PH.2b re-ran the stubbed-transport method at `847d28a` with
+  the `curl_cffi` session's `request` raising `ConnectionError`, no network, `hide_exceptions` at its default of
+  `True`: `fast_info["last_price"]` and `Ticker.info` raised it, `yf.download` returned an empty frame, and
+  `fast_info["currency"]` raised `KeyError`. With the setting at `False` the currency read raised the connection
+  error instead; the application never changes it.
 - **`fetch_json` call sites.** Per-company: SEC `financial_facts.py` 245, 246, 418, 422; Massive 242; the check
   transport's company-facts call (`provider_checks.py:251`). Fixed: SEC 529 (the ticker map) and the check
   transport's ticker-map call (`:248`). `cli_health.py` builds the check transport from `fetch_json`.

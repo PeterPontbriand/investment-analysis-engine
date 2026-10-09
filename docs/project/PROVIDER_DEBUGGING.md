@@ -26,8 +26,16 @@ tests and the `health` command call the same functions, so a probe is written on
 | The live tests directly | `uv run pytest --live tests/live` |
 
 `ian health` prints `<provider>: <verdict> (probe: <description>, <elapsed> s)`, with the failure detail after a
-dash when the check failed. The verdict is `ok` or `failed`. The exit status is 0 when every selected check passes
-and 1 otherwise; an unknown `--provider` value exits 2 and lists the valid ids.
+dash when the check failed. The exit status is 0 when every selected check passes and 1 otherwise; an unknown
+`--provider` value exits 2 and lists the valid ids.
+
+| Verdict | What it means | Look at first |
+| :--- | :--- | :--- |
+| `ok` | Every request answered in the shape the adapter reads. | Nothing. |
+| `unreachable` | The service did not serve the request: connection, DNS or TLS fault, a timeout, throttling or blocking (HTTP 403 or 429, Yahoo's rate limit), a server error. | The network, a proxy, throttling, and for SEC the declared identity. |
+| `unexpected response` | The service answered, but not in the form the adapter reads: a missing field or column, invalid JSON, a non-numeric or non-positive quote. | The detail names what is missing; the provider changed its format or the library changed. |
+| `no data` | The service answered correctly and has nothing for the probe: an empty history, or SEC has no document for the probe company. | See "`no_data` from a history download" below. |
+| `failed` | The check failed without a kind: SEC access is not configured, or an unexpected exception was raised inside the check. | The detail: for the first, set `SEC_USER_AGENT`; for the second, the exception name points at a defect in the check or the adapter. |
 
 The wrappers write each run to its own new directory under the ignored `.tmp/live-runs/`, never delete earlier
 runs, and return pytest's exit status. The results file is `live-results.xml` in the run directory.
@@ -84,19 +92,32 @@ Start with `uv run ian health --provider <id>` on your own machine, then compare
 
 ### Yahoo (`yfinance`)
 
-The check downloads about 30 days of daily history for the probe ticker and reads the quote.
+The check reads the current quote for the probe ticker first, then downloads about 30 days of daily history. The
+order matters: the quote read raises on a connection fault, whereas the history download does not (see below), so a
+Yahoo that cannot be reached is reported as `unreachable` by the quote read.
 
-| Detail | What to look at first |
+| Verdict and detail | What to look at first |
 | :--- | :--- |
-| `history is missing columns: ...`, `history index is not a monotonic date index`, `history is not a data frame` | The yfinance library changed the shape it returns. Compare the installed version with the one the lock file pins, read its release notes, and read `fetch_data` in [`src/data/yfinance/client.py`](../../src/data/yfinance/client.py). |
-| `history is empty` or `DataFetchError: No market data was returned` | Yahoo answered with nothing. Retry once and try a second ticker with `ian momentum`; a persistent empty answer for a liquid ticker points to a block or an upstream change. |
-| `quote last price is not a positive finite number` or a quote error | The quote read (`fast_info`) changed or was refused. Read `fetch_current_quote` in the same module. |
-| `timed out after 20 s` or a transport error | The network, a proxy, or throttling. |
+| `unreachable`: `timed out after 20 s`, or a `DataFetchError` naming a connection or rate-limit fault | The network, a proxy, or throttling. Retry from another network before concluding anything about Yahoo. |
+| `unexpected response`: `history is missing columns: ...`, `history index is not a monotonic date index`, `history is not a data frame` | The yfinance library changed the shape it returns. Compare the installed version with the one the lock file pins, read its release notes, and read `fetch_data` in [`src/data/yfinance/client.py`](../../src/data/yfinance/client.py). |
+| `unexpected response`: `quote last price is not a positive finite number` or a quote that is missing or not numeric | The quote read (`fast_info`) changed or was refused. Read `fetch_current_quote` in the same module. |
+| `no data`: `history is empty` | See the next section. |
+| `failed`: `<ExceptionName>: ...` | An exception the adapter does not classify was raised inside the check. It is a defect, not a provider condition; reproduce it with the same adapter call and read the code. |
 
-Until failure classification lands, a failed Yahoo check's detail cannot distinguish an unreachable service from no
-data. Offline, the check reports `No market data was returned` because yfinance returns an empty result instead of
-raising. Before concluding that Yahoo has no data, confirm the machine's connection (for example with a browser or
-`ian health --provider sec_edgar`, which does distinguish a transport error).
+#### `no_data` from a history download
+
+yfinance's `download` catches every per-ticker exception itself and returns an empty frame, and no supported setting
+changes that. So an empty history means only that Yahoo returned no rows. It can be an unknown or delisted ticker,
+a throttled request, or an unreachable service, and the command cannot tell which.
+
+- **What it can tell you:** Yahoo returned nothing for this request. In `ian health` the quote was read first, so a
+  `no data` verdict there means the quote read succeeded and only the history was empty; an unreachable Yahoo shows
+  up as `unreachable` instead.
+- **What it cannot tell you:** that the ticker is unknown, or that Yahoo is down. The sentence of a command such as
+  `ian momentum` says only that Yahoo returned no data for the ticker.
+- **To find out:** run `ian health --provider yfinance`; a pass or an `unreachable` verdict settles whether Yahoo is
+  answering at all. The reason yfinance itself recorded (for example `Failed to get ticker ... reason: ...`) is in
+  `logs/app.log`.
 
 Yahoo may throttle or block shared cloud addresses. If only the cloud run fails and `ian health` passes on your
 machine, the failure says little about what users see; see the fallback below.
@@ -107,11 +128,11 @@ The check reads the ticker map and one company-facts document for the probe tick
 
 | Detail | What to look at first |
 | :--- | :--- |
-| `SEC EDGAR access is not configured` | `SEC_USER_AGENT` is not set (locally, or the repository secret for the cloud run). |
-| `OSError: HTTP request failed ... 403` or `429` | SEC rejected the identity or the rate. SEC requires a declared identity and limits request rates; check the value and that nothing else was calling at the same time. |
-| `ticker map entries are missing fields: ...`, `ticker map entry for AAPL is missing fields: ...`, `ticker map has no entry for AAPL` | The ticker map document changed. Read `_ticker_cik_map` in [`src/data/sec_edgar/financial_facts.py`](../../src/data/sec_edgar/financial_facts.py). |
-| `company facts document has no 'facts' mapping` or no `'us-gaap'` mapping | The company-facts document changed. Read how the same module parses `facts`. |
-| `timed out after 20 s` | The network, or SEC is slow; retry once. |
+| `failed`: `SEC EDGAR access is not configured` | `SEC_USER_AGENT` is not set (locally, or the repository secret for the cloud run). |
+| `unreachable`: `FinancialProviderError: HTTP request failed ... 403` or `429` | SEC rejected the identity or the rate. SEC requires a declared identity and limits request rates; check the value and that nothing else was calling at the same time. |
+| `unexpected response`: `ticker map entries are missing fields: ...`, `ticker map entry for AAPL is missing fields: ...`, `ticker map has no entry for AAPL` | The ticker map document changed. Read `_ticker_cik_map` in [`src/data/sec_edgar/financial_facts.py`](../../src/data/sec_edgar/financial_facts.py). |
+| `unexpected response`: `company facts document has no 'facts' mapping` or no `'us-gaap'` mapping | The company-facts document changed. Read how the same module parses `facts`. |
+| `unreachable`: `timed out after 20 s` | The network, or SEC is slow; retry once. |
 
 ## 4. The application log
 
@@ -121,9 +142,12 @@ goes to `logs/app.log` under the project folder. Set `IAN_LOG_DIR` to move it, a
 file rotates daily or at 1 MB, keeps five backups and compresses older ones to `.zip`.
 
 Standard output and standard error carry only the command's own result and messages, so `--json` output is unaffected.
-That means a provider failure's cause may be in the log and not on the screen. For example, a connection failure
-during a history download writes `Low-level connection error during yfinance download for '<ticker>': <error>` to the
-log, while the command prints only that Yahoo returned no usable price history. When a command fails and its message is
+That means a provider failure's cause may be in the log and not on the screen. A command's own message names the
+kind of the failure (the service did not serve the request, answered in a form the application does not read, or
+returned no data) and the provider, but not the library's error text. For example, a connection failure that
+escapes a history download writes `yfinance download for '<ticker>' failed (unreachable): <error>` to the
+log and the command prints that yfinance did not serve the request. A fault that yfinance's `download` swallows
+reaches the command only as `no data`, and the cause, if yfinance recorded one, is in the log. When a command fails and its message is
 too general, read the last lines of `logs/app.log` first. An unexpected error that a command reports with a generic
 sentence is logged with its traceback, and an exception that no command handled is logged as `CRITICAL` under
 `system.crash`.

@@ -12,6 +12,8 @@ import pandas as pd
 import pytest
 
 from src.core.provider_failure_kind import ProviderFailureKind
+from src.data.base_client import DataFetchError
+from src.data.financial.facts import FinancialProviderError
 from src.data.provider_checks import (
     MAX_REQUESTS_PER_CHECK,
     PROVIDER_CHECKS,
@@ -56,11 +58,11 @@ class _FakeYahoo:
         history: object | None = None,
         quote: float | Exception = 190.0,
         block: threading.Event | None = None,
-        history_delay: float = 0.0,
-        block_quote: threading.Event | None = None,
+        quote_delay: float = 0.0,
+        block_history: threading.Event | None = None,
     ) -> None:
-        self.history_delay = history_delay
-        self.block_quote = block_quote
+        self.quote_delay = quote_delay
+        self.block_history = block_history
         self.history = _frame() if history is None else history
         self.quote = quote
         self.block = block
@@ -74,17 +76,17 @@ class _FakeYahoo:
         end_date: str | None = None,  # noqa: ARG002
     ) -> pd.DataFrame:
         self.history_calls.append((ticker, start_date))
-        time.sleep(self.history_delay)
-        if self.block is not None:
-            self.block.wait()
+        if self.block_history is not None:
+            self.block_history.wait()
         if isinstance(self.history, Exception):
             raise self.history
         return self.history  # type: ignore[return-value]
 
     def fetch_current_quote(self, ticker: str) -> YFinanceQuote:
         self.quote_calls.append(ticker)
-        if self.block_quote is not None:
-            self.block_quote.wait()
+        time.sleep(self.quote_delay)
+        if self.block is not None:
+            self.block.wait()
         if isinstance(self.quote, Exception):
             raise self.quote
         return YFinanceQuote(price=self.quote, currency="USD")
@@ -151,32 +153,35 @@ def test_yahoo_quote_must_be_positive_and_finite(price: float) -> None:
     assert result.detail.startswith("quote last price is not a positive finite number")
 
 
-def test_yahoo_history_exception_fails_the_check_and_skips_the_quote_request() -> None:
-    client = _FakeYahoo(history=ConnectionError("boom"))
+def test_yahoo_quote_is_requested_before_history_and_a_quote_exception_skips_the_history_request() -> None:
+    client = _FakeYahoo(quote=ConnectionError("boom"))
 
     result = _yahoo(client)
 
     assert result.detail == "ConnectionError: boom"
-    assert client.quote_calls == []
+    assert client.history_calls == []
 
 
-def test_yahoo_quote_exception_fails_the_check() -> None:
-    result = _yahoo(_FakeYahoo(quote=ValueError("no quote")))
+def test_yahoo_history_exception_fails_the_check_after_a_good_quote() -> None:
+    client = _FakeYahoo(history=ValueError("no history"))
 
-    assert result.detail == "ValueError: no quote"
+    result = _yahoo(client)
+
+    assert result.detail == "ValueError: no history"
+    assert client.quote_calls == ["AAPL"]
 
 
 def test_yahoo_timeout_is_a_deadline_for_the_whole_check() -> None:
     release = threading.Event()
     spec = replace(YAHOO_SPEC, timeout_seconds=_DEADLINE)
-    client = _FakeYahoo(history_delay=_DEADLINE * 2 / 3, block_quote=release)
+    client = _FakeYahoo(quote_delay=_DEADLINE * 2 / 3, block_history=release)
     try:
         started = time.monotonic()
         result = _yahoo(client, spec)
         waited = time.monotonic() - started
 
         assert result.detail == f"timed out after {_DEADLINE:g} s"
-        assert client.quote_calls == ["AAPL"]
+        assert client.history_calls
         assert waited < _DEADLINE * 1.5
     finally:
         release.set()
@@ -186,7 +191,7 @@ def test_yahoo_hung_adapter_times_out_on_a_daemon_worker_thread() -> None:
     release = threading.Event()
     spec = YahooCheckSpec("AAPL", 30, _COLUMNS, _SHORT_TIMEOUT)
     try:
-        result = _yahoo(_FakeYahoo(block=release), spec)
+        result = _yahoo(_FakeYahoo(block_history=release), spec)
 
         workers = [thread for thread in threading.enumerate() if thread.name == "provider-check"]
         assert result.detail == "timed out after 0.2 s"
@@ -385,3 +390,110 @@ def test_the_check_tuple_lists_yfinance_then_sec_edgar_and_each_entry_runs_its_o
     assert [result.provider_id for result in results] == ["yfinance", "sec_edgar"]
     assert [result.probe for result in results] == [entry.probe for entry in PROVIDER_CHECKS]
     assert all(result.passed for result in results)
+
+
+def _typed(kind: ProviderFailureKind, provider_id: str = "yfinance") -> DataFetchError:
+    return DataFetchError("typed failure", kind=kind, provider_id=provider_id)
+
+
+@pytest.mark.parametrize("kind", list(ProviderFailureKind))
+def test_a_typed_quote_failure_from_the_adapter_keeps_its_own_kind(kind: ProviderFailureKind) -> None:
+    result = _yahoo(_FakeYahoo(quote=_typed(kind)))
+
+    assert not result.passed
+    assert result.kind is kind
+    assert result.detail == "DataFetchError: typed failure"
+
+
+@pytest.mark.parametrize("kind", list(ProviderFailureKind))
+def test_a_typed_history_failure_from_the_adapter_keeps_its_own_kind(kind: ProviderFailureKind) -> None:
+    result = _yahoo(_FakeYahoo(history=_typed(kind)))
+
+    assert result.kind is kind
+
+
+def test_a_typed_sec_transport_failure_keeps_its_own_kind() -> None:
+    failure = FinancialProviderError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar")
+
+    result = _sec(_FakeSec(_documents(facts=failure)))
+
+    assert result.kind is ProviderFailureKind.UNREACHABLE
+
+
+def test_an_unclassified_typed_failure_has_no_kind() -> None:
+    result = _yahoo(_FakeYahoo(quote=DataFetchError("not classified")))
+
+    assert not result.passed
+    assert result.kind is None
+
+
+def test_yahoo_timeout_is_unreachable() -> None:
+    release = threading.Event()
+    try:
+        result = _yahoo(_FakeYahoo(block=release), YahooCheckSpec("AAPL", 30, _COLUMNS, _SHORT_TIMEOUT))
+    finally:
+        release.set()
+
+    assert result.kind is ProviderFailureKind.UNREACHABLE
+
+
+def test_sec_timeout_is_unreachable() -> None:
+    release = threading.Event()
+    spec = replace(SEC_EDGAR_SPEC, timeout_seconds=_SHORT_TIMEOUT)
+    try:
+        result = _sec(_FakeSec(_documents(), block=release), spec)
+    finally:
+        release.set()
+
+    assert result.kind is ProviderFailureKind.UNREACHABLE
+
+
+def test_yahoo_empty_history_is_no_data() -> None:
+    assert _yahoo(_FakeYahoo(history=_frame().iloc[0:0])).kind is ProviderFailureKind.NO_DATA
+
+
+@pytest.mark.parametrize(
+    "client",
+    [
+        _FakeYahoo(history={"Close": [1.0]}),
+        _FakeYahoo(history=_frame(("Close",))),
+        _FakeYahoo(history=_frame(index=pd.Index([0, 1, 2]))),
+        _FakeYahoo(quote=float("nan")),
+        _FakeYahoo(quote=-1.0),
+    ],
+    ids=["not a frame", "missing columns", "bad index", "non-finite quote", "non-positive quote"],
+)
+def test_yahoo_wrong_shape_is_an_unexpected_response(client: _FakeYahoo) -> None:
+    assert _yahoo(client).kind is ProviderFailureKind.UNEXPECTED_RESPONSE
+
+
+@pytest.mark.parametrize(
+    "documents",
+    [
+        _documents(ticker_map=[]),
+        _documents(ticker_map={"0": _OTHER_ENTRY}),
+        _documents(facts=[]),
+        _documents(facts={"facts": {}}),
+    ],
+    ids=["ticker map not an object", "probe ticker absent", "facts not an object", "no taxonomy"],
+)
+def test_sec_wrong_document_shape_is_an_unexpected_response(documents: dict[str, object]) -> None:
+    assert _sec(_FakeSec(documents)).kind is ProviderFailureKind.UNEXPECTED_RESPONSE
+
+
+def test_sec_not_configured_has_no_kind_by_design() -> None:
+    result = check_sec_edgar(SecUnavailable("SEC EDGAR access is not configured."), clock=_ticks())
+
+    assert not result.passed
+    assert result.kind is None
+
+
+def test_an_unexpected_exception_inside_a_check_has_no_kind_by_design() -> None:
+    result = _yahoo(_FakeYahoo(quote=ValueError("no quote")))
+
+    assert not result.passed
+    assert result.kind is None
+
+
+def test_a_passed_check_has_no_kind() -> None:
+    assert _yahoo(_FakeYahoo()).kind is None

@@ -99,7 +99,7 @@ def test_a_failing_command_flushes_its_records_to_the_file_before_exiting(tmp_pa
     assert run.returncode == 1
     assert DOWNLOAD_RECORD in run.log
     assert run.stdout == ""
-    assert run.stderr.strip() == ("Unable to analyze OFFLINE: a data provider failed; the failure was not classified.")
+    assert run.stderr.strip() == "Unable to analyze OFFLINE: yfinance returned no data for it."
 
 
 def test_third_party_records_at_info_reach_the_file(tmp_path: Path) -> None:
