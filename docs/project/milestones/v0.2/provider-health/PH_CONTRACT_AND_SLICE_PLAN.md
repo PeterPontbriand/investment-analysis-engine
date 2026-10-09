@@ -84,7 +84,8 @@ outcome with its resolution trace, and the existing `PROVIDER_ERROR` status is n
 
 - **Problem:** the Yahoo client turns every exception into one error, and `ian health` can say only `failed`.
 - **Decision:** one library-call helper wraps each third-party call; the Yahoo handlers use it; the check
-  results and `ian health` carry the kind; a completion test keeps broad handlers out of the adapters.
+  results and `ian health` carry the kind; a completion test keeps broad handlers out of the adapters. The Yahoo check opens with a direct
+  connection step, so an unreachable Yahoo is reported as such.
 - **Scope:** `src/data/yfinance/`, `src/data/provider_checks.py`, `src/cli_health.py`, the completion test and
   `docs/project/PROVIDER_DEBUGGING.md`.
 - **Branch:** `feat/ph-2b-yahoo-and-health-kinds`, from `main` after PH.2a has merged.

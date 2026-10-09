@@ -32,7 +32,7 @@ dash when the check failed. The exit status is 0 when every selected check passe
 | Verdict | What it means | Look at first |
 | :--- | :--- | :--- |
 | `ok` | Every request answered in the shape the adapter reads. | Nothing. |
-| `unreachable` | The service did not serve the request: connection, DNS or TLS fault, a timeout, throttling or blocking (HTTP 403 or 429, Yahoo's rate limit), a server error. | The network, a proxy, throttling, and for SEC the declared identity. |
+| `unreachable` | The service did not serve the request: connection, DNS or TLS fault, a timeout, throttling or blocking (HTTP 403 or 429), a server error. For Yahoo the opening connection step reports only a connection, DNS, TLS or timeout fault; it does not detect throttling. | The network, a proxy, and for SEC the declared identity or request rate. |
 | `unexpected response` | The service answered, but not in the form the adapter reads: a missing field or column, invalid JSON, a non-numeric or non-positive quote. | The detail names what is missing; the provider changed its format or the library changed. |
 | `no data` | The service answered correctly and has nothing for the probe: an empty history, or SEC has no document for the probe company. | See "`no_data` from a history download" below. |
 | `failed` | The check failed without a kind: SEC access is not configured, or an unexpected exception was raised inside the check. | The detail: for the first, set `SEC_USER_AGENT`; for the second, the exception name points at a defect in the check or the adapter. |
@@ -92,15 +92,26 @@ Start with `uv run ian health --provider <id>` on your own machine, then compare
 
 ### Yahoo (`yfinance`)
 
-The check reads the current quote for the probe ticker first, then downloads about 30 days of daily history. The
-order matters: the quote read raises on a connection fault, whereas the history download does not (see below), so a
-Yahoo that cannot be reached is reported as `unreachable` by the quote read.
+The check starts with a connection step, then reads the current quote for the probe ticker, then downloads about
+30 days of daily history. That is three requests, the most a check may make.
+
+**The connection step.** yfinance hides connection faults in several places, so its own calls cannot reliably say
+whether Yahoo was reachable. The check therefore first opens a direct TCP and TLS connection to
+`query2.finance.yahoo.com:443`, the host yfinance requests quote and history data from, without using yfinance.
+
+- A failure to connect is `unreachable` and ends the check; no quote or history is requested.
+- The step separates "cannot reach Yahoo" from everything else. It does **not** detect throttling: Yahoo can accept
+  the connection and still refuse or empty the requests that follow.
+- A command such as `ian momentum` or a Graham command does not run this step. Offline, it can still report
+  `unexpected response` (the quote read) or `no data` (the history download), because yfinance hides the
+  connection fault from the adapter. Run `ian health --provider yfinance` to find out whether Yahoo is reachable.
 
 | Verdict and detail | What to look at first |
 | :--- | :--- |
-| `unreachable`: `timed out after 20 s`, or a `DataFetchError` naming a connection or rate-limit fault | The network, a proxy, or throttling. Retry from another network before concluding anything about Yahoo. |
+| `unreachable`: `Cannot open a TLS connection to query2.finance.yahoo.com:443: ...` | The machine cannot reach Yahoo: the network, DNS, a proxy or a firewall. The step does not use a proxy configured only for yfinance. |
+| `unreachable`: `timed out after 20 s` | The connection, the quote or the history did not finish within the whole-check deadline. The network or a proxy. |
 | `unexpected response`: `history is missing columns: ...`, `history index is not a monotonic date index`, `history is not a data frame` | The yfinance library changed the shape it returns. Compare the installed version with the one the lock file pins, read its release notes, and read `fetch_data` in [`src/data/yfinance/client.py`](../../src/data/yfinance/client.py). |
-| `unexpected response`: `quote last price is not a positive finite number` or a quote that is missing or not numeric | The quote read (`fast_info`) changed or was refused. Read `fetch_current_quote` in the same module. |
+| `unexpected response`: `quote last price is not a positive finite number`, or a quote error | The connection opened, so the machine reaches Yahoo, but the quote read (`fast_info`) failed in a way yfinance reports as a shape error. Yahoo changed what it returns, or throttled or refused the request and yfinance hid that. Read `fetch_current_quote` in the same module. |
 | `no data`: `history is empty` | See the next section. |
 | `failed`: `<ExceptionName>: ...` | An exception the adapter does not classify was raised inside the check. It is a defect, not a provider condition; reproduce it with the same adapter call and read the code. |
 
@@ -108,16 +119,16 @@ Yahoo that cannot be reached is reported as `unreachable` by the quote read.
 
 yfinance's `download` catches every per-ticker exception itself and returns an empty frame, and no supported setting
 changes that. So an empty history means only that Yahoo returned no rows. It can be an unknown or delisted ticker,
-a throttled request, or an unreachable service, and the command cannot tell which.
+a throttled request, or an unreachable service, and a command cannot tell which.
 
-- **What it can tell you:** Yahoo returned nothing for this request. In `ian health` the quote was read first, so a
-  `no data` verdict there means the quote read succeeded and only the history was empty; an unreachable Yahoo shows
-  up as `unreachable` instead.
-- **What it cannot tell you:** that the ticker is unknown, or that Yahoo is down. The sentence of a command such as
-  `ian momentum` says only that Yahoo returned no data for the ticker.
-- **To find out:** run `ian health --provider yfinance`; a pass or an `unreachable` verdict settles whether Yahoo is
-  answering at all. The reason yfinance itself recorded (for example `Failed to get ticker ... reason: ...`) is in
-  `logs/app.log`.
+- **What it can tell you:** Yahoo returned nothing for this request. In `ian health` the connection step comes
+  first, so a `no data` verdict there means the machine reached Yahoo and the quote read passed; only the history
+  was empty.
+- **What it cannot tell you:** that the ticker is unknown, that Yahoo is throttling, or, in a command, that Yahoo
+  is down. The sentence of a command such as `ian momentum` says only that Yahoo returned no data for the ticker.
+- **To find out:** run `ian health --provider yfinance`; an `unreachable` verdict settles that the machine cannot
+  reach Yahoo, and a pass settles that Yahoo answers the probe. The reason yfinance itself recorded (for example
+  `Failed to get ticker ... reason: ...`) is in `logs/app.log`.
 
 Yahoo may throttle or block shared cloud addresses. If only the cloud run fails and `ian health` passes on your
 machine, the failure says little about what users see; see the fallback below.

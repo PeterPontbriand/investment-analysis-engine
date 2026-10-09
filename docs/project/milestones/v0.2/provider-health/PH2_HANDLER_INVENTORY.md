@@ -27,6 +27,11 @@ The three kinds are `unreachable`, `unexpected_response` and `no_data`; the deci
   an observation, its sentence says the provider returned no data for the ticker, and the canary
   ([PH.3](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-the-automatic-canary)) separates "this ticker has nothing" from
   "Yahoo is not answering".
+  The same holds for the quote: with yfinance's time zone cache populated, a connection fault surfaces from
+  `fast_info["last_price"]` as `KeyError('currentTradingPeriod')`, which the adapter reports as
+  `unexpected_response` and which is identical to Yahoo answering without that field. The adapter does not name
+  that `KeyError` as a special case. Only `ian health` separates "cannot reach Yahoo" from the rest, through its
+  opening connection step ([slice plan D18](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#2-decisions)).
 - **Carried to every report from the stored kind.** The kind and provider identity are typed fields on the
   stored resolution result and on the instrument-profile and security-identity diagnostics, beside the existing
   `PROVIDER_ERROR` status, which is not split. A single kind-to-code mapping turns them into three new stable

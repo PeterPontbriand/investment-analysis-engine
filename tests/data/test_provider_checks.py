@@ -2,14 +2,21 @@
 
 from __future__ import annotations
 
+import socket
+import ssl
 import threading
 import time
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
+from urllib.parse import urlsplit
 
 import pandas as pd
 import pytest
+import yfinance.const as yfinance_const
+import yfinance.scrapers.history as yfinance_history
+import yfinance.scrapers.quote as yfinance_quote
 
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
@@ -30,9 +37,11 @@ from src.data.provider_checks import (
     _Deadline,
     check_sec_edgar,
     check_yfinance,
+    open_tls_connection,
+    yahoo_probe_description,
 )
 from src.data.sec_edgar import financial_facts
-from src.data.yfinance.client import YFinanceQuote
+from src.data.yfinance.client import YFINANCE_DATA_HOST, YFinanceQuote
 
 _NOW = datetime(2026, 10, 5, tzinfo=UTC)
 _COLUMNS = ("Open", "High", "Low", "Close", "Volume")
@@ -92,8 +101,30 @@ class _FakeYahoo:
         return YFinanceQuote(price=self.quote, currency="USD")
 
 
-def _yahoo(client: _FakeYahoo, spec: YahooCheckSpec = YAHOO_SPEC) -> ProviderCheckResult:
-    return check_yfinance(client, spec=spec, clock=_ticks(), now=lambda: _NOW)
+class _Connector:
+    """Fake opening connection: records each attempt and the time it was given, and fails or hangs on request."""
+
+    def __init__(
+        self, failure: Exception | None = None, delay: float = 0.0, block: threading.Event | None = None
+    ) -> None:
+        self.failure = failure
+        self.delay = delay
+        self.block = block
+        self.calls: list[tuple[str, int, float]] = []
+
+    def __call__(self, host: str, port: int, timeout_seconds: float) -> None:
+        self.calls.append((host, port, timeout_seconds))
+        time.sleep(self.delay)
+        if self.block is not None:
+            self.block.wait()
+        if self.failure is not None:
+            raise self.failure
+
+
+def _yahoo(
+    client: _FakeYahoo, spec: YahooCheckSpec = YAHOO_SPEC, connector: _Connector | None = None
+) -> ProviderCheckResult:
+    return check_yfinance(client, spec=spec, clock=_ticks(), now=lambda: _NOW, connect=connector or _Connector())
 
 
 def test_yahoo_well_formed_response_passes_with_elapsed_from_the_injected_clock() -> None:
@@ -382,7 +413,9 @@ def test_sec_urls_match_the_adapter_constants() -> None:
 
 
 def test_the_check_tuple_lists_yfinance_then_sec_edgar_and_each_entry_runs_its_own_body() -> None:
-    clients = ProviderClients(yahoo=_FakeYahoo(), sec=SecTransport(_FakeSec(_documents()), "Agent a@example.com"))
+    clients = ProviderClients(
+        yahoo=_FakeYahoo(), sec=SecTransport(_FakeSec(_documents()), "Agent a@example.com"), connect=_Connector()
+    )
 
     results = [entry.run(clients) for entry in PROVIDER_CHECKS]
 
@@ -497,3 +530,149 @@ def test_an_unexpected_exception_inside_a_check_has_no_kind_by_design() -> None:
 
 def test_a_passed_check_has_no_kind() -> None:
     assert _yahoo(_FakeYahoo()).kind is None
+
+
+_CONNECTION_FAULTS = [
+    ConnectionRefusedError("refused"),
+    TimeoutError("timed out"),
+    socket.gaierror(11001, "getaddrinfo failed"),
+    ssl.SSLError("handshake failed"),
+]
+
+
+@pytest.mark.parametrize("fault", _CONNECTION_FAULTS, ids=[type(fault).__name__ for fault in _CONNECTION_FAULTS])
+def test_a_failed_connection_is_unreachable_and_ends_the_check_before_any_yahoo_call(fault: OSError) -> None:
+    client = _FakeYahoo()
+    connector = _Connector(failure=fault)
+
+    result = _yahoo(client, connector=connector)
+
+    assert not result.passed
+    assert result.kind is ProviderFailureKind.UNREACHABLE
+    assert result.detail is not None
+    assert result.detail.startswith("DataFetchError: Cannot open a TLS connection to query2.finance.yahoo.com:443")
+    assert [call[:2] for call in connector.calls] == [("query2.finance.yahoo.com", 443)]
+    assert client.quote_calls == []
+    assert client.history_calls == []
+
+
+@pytest.mark.parametrize(
+    ("client", "kind"),
+    [
+        (
+            _FakeYahoo(
+                quote=DataFetchError("odd", kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id="yfinance")
+            ),
+            ProviderFailureKind.UNEXPECTED_RESPONSE,
+        ),
+        (
+            _FakeYahoo(quote=DataFetchError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance")),
+            ProviderFailureKind.UNREACHABLE,
+        ),
+        (_FakeYahoo(history=_frame().iloc[0:0]), ProviderFailureKind.NO_DATA),
+        (_FakeYahoo(history=_frame(("Close",))), ProviderFailureKind.UNEXPECTED_RESPONSE),
+        (_FakeYahoo(quote=ValueError("defect")), None),
+    ],
+    ids=["quote unexpected", "quote unreachable", "history empty", "history shape", "unclassified"],
+)
+def test_after_a_good_connection_each_later_failure_keeps_its_own_kind(
+    client: _FakeYahoo, kind: ProviderFailureKind | None
+) -> None:
+    connector = _Connector()
+
+    result = _yahoo(client, connector=connector)
+
+    assert not result.passed
+    assert result.kind is kind
+    assert len(connector.calls) == 1
+    assert client.quote_calls == ["AAPL"]
+
+
+def test_a_good_connection_lets_the_quote_and_history_reads_run_and_the_check_pass() -> None:
+    client = _FakeYahoo()
+    connector = _Connector()
+
+    result = _yahoo(client, connector=connector)
+
+    assert result.passed
+    assert result.kind is None
+    assert client.quote_calls == ["AAPL"]
+    assert len(client.history_calls) == 1
+
+
+def test_the_yahoo_check_makes_exactly_three_requests_within_the_budget() -> None:
+    client = _FakeYahoo()
+    connector = _Connector()
+
+    _yahoo(client, connector=connector)
+
+    assert len(connector.calls) + len(client.quote_calls) + len(client.history_calls) == 3
+    assert MAX_REQUESTS_PER_CHECK == 3
+
+
+def test_the_connection_is_given_the_time_remaining_in_the_whole_check_deadline() -> None:
+    connector = _Connector()
+
+    _yahoo(_FakeYahoo(), spec=replace(YAHOO_SPEC, timeout_seconds=_DEADLINE), connector=connector)
+
+    assert 0 < connector.calls[0][2] <= _DEADLINE + 1e-6
+
+
+def test_the_connection_shares_the_deadline_with_the_later_reads() -> None:
+    release = threading.Event()
+    spec = replace(YAHOO_SPEC, timeout_seconds=_DEADLINE)
+    client = _FakeYahoo(quote_delay=_DEADLINE * 2 / 3, block_history=release)
+    connector = _Connector(delay=_DEADLINE * 2 / 3)
+    try:
+        started = time.monotonic()
+        result = _yahoo(client, spec, connector)
+        waited = time.monotonic() - started
+
+        assert result.detail == f"timed out after {_DEADLINE:g} s"
+        assert result.kind is ProviderFailureKind.UNREACHABLE
+        assert client.history_calls == []
+        assert waited < _DEADLINE * 1.5  # a fresh allowance per step would wait about 1.67 x the deadline
+    finally:
+        release.set()
+
+
+def test_a_connection_that_never_returns_times_out_without_a_quote_or_history_call() -> None:
+    release = threading.Event()
+    client = _FakeYahoo()
+    try:
+        result = _yahoo(client, replace(YAHOO_SPEC, timeout_seconds=_SHORT_TIMEOUT), _Connector(block=release))
+    finally:
+        release.set()
+
+    assert result.detail == "timed out after 0.2 s"
+    assert result.kind is ProviderFailureKind.UNREACHABLE
+    assert client.quote_calls == []
+
+
+def test_the_connection_host_is_the_one_yfinance_requests_data_from() -> None:
+    assert urlsplit(yfinance_const._BASE_URL_).hostname == YFINANCE_DATA_HOST
+    assert yfinance_history._BASE_URL_ == yfinance_const._BASE_URL_
+    assert yfinance_quote._BASE_URL_ == yfinance_const._BASE_URL_
+
+
+def test_the_probe_description_names_the_connection_the_quote_and_the_history() -> None:
+    assert yahoo_probe_description() == "connection to query2.finance.yahoo.com, AAPL quote and daily history"
+
+
+def test_opening_a_tls_connection_handshakes_with_the_host_name_and_sends_nothing() -> None:
+    raw = MagicMock()
+    raw.__enter__.return_value = raw
+    wrapped = MagicMock()
+    wrapped.__enter__.return_value = wrapped
+    context = MagicMock()
+    context.wrap_socket.return_value = wrapped
+    with (
+        patch("src.data.provider_checks.socket.create_connection", return_value=raw) as connect,
+        patch("src.data.provider_checks.ssl.create_default_context", return_value=context),
+    ):
+        open_tls_connection("example.test", 443, 1.5)
+
+    connect.assert_called_once_with(("example.test", 443), timeout=1.5)
+    context.wrap_socket.assert_called_once_with(raw, server_hostname="example.test")
+    wrapped.send.assert_not_called()
+    wrapped.sendall.assert_not_called()

@@ -50,9 +50,13 @@ def _sec_fetcher(*, facts: object | None = None) -> object:
     return fetch
 
 
+def _connected(host: str, port: int, timeout_seconds: float) -> None:  # noqa: ARG001
+    """Stand in for a successful connection."""
+
+
 def _clients(yahoo: _FakeYahoo | None = None, *, facts: object | None = None) -> ProviderClients:
     transport = SecTransport(_sec_fetcher(facts=facts), _SEC_AGENT)  # type: ignore[arg-type]
-    return ProviderClients(yahoo=yahoo or _FakeYahoo(), sec=transport)
+    return ProviderClients(yahoo=yahoo or _FakeYahoo(), sec=transport, connect=_connected)
 
 
 def _invoke(clients: ProviderClients, *arguments: str) -> tuple[int, str]:
@@ -67,7 +71,9 @@ def test_all_checks_passing_exits_zero_with_one_line_per_provider() -> None:
     lines = output.strip().splitlines()
     assert exit_code == 0
     assert len(lines) == 2
-    assert lines[0].startswith("yfinance: ok (probe: AAPL daily history and quote, ")
+    assert lines[0].startswith(
+        "yfinance: ok (probe: connection to query2.finance.yahoo.com, AAPL quote and daily history, "
+    )
     assert lines[1].startswith("sec_edgar: ok (probe: AAPL ticker map and company facts, ")
     assert all(line.endswith(" s)") for line in lines)
 
@@ -108,7 +114,9 @@ def test_a_failed_check_prints_its_verdict_and_keeps_the_detail(failure: Excepti
     exit_code, output = _invoke(_clients(_FailingYahoo(failure)), "--provider", "yfinance")
 
     assert exit_code == 1
-    assert output.startswith(f"yfinance: {verdict} (probe: AAPL daily history and quote, ")
+    assert output.startswith(
+        f"yfinance: {verdict} (probe: connection to query2.finance.yahoo.com, AAPL quote and daily history, "
+    )
     assert output.strip().endswith(f" s) - {type(failure).__name__}: {failure}")
 
 
@@ -188,11 +196,11 @@ _HUNG_ADAPTER_SCRIPT = textwrap.dedent(
     entry = checks.ProviderCheckEntry(
         provider_id="yfinance",
         probe=checks.yahoo_probe_description(spec),
-        run=lambda clients: checks.check_yfinance(clients.yahoo, spec=spec),
+        run=lambda clients: checks.check_yfinance(clients.yahoo, spec=spec, connect=clients.connect),
     )
     cli_health.PROVIDER_CHECKS = (entry,)
     cli_health.build_provider_clients = lambda: checks.ProviderClients(
-        yahoo=HungYahoo(), sec=checks.SecUnavailable("not used")
+        yahoo=HungYahoo(), sec=checks.SecUnavailable("not used"), connect=lambda host, port, timeout: None
     )
     app(["health"])
     """

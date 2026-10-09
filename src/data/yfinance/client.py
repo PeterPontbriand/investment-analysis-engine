@@ -43,6 +43,8 @@ from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 logger = logging.getLogger(__name__)
 
 YFINANCE_PROVIDER_ID = "yfinance"
+YFINANCE_DATA_HOST = "query2.finance.yahoo.com"
+"""The host yfinance requests the quote and history data from (its ``_BASE_URL_``); a test pins the two together."""
 YFINANCE_HISTORICAL_INTERVAL = "1d"
 YFINANCE_PRICE_ADJUSTMENT = "adjusted"
 YFINANCE_HISTORY_COLUMNS = ("Open", "High", "Low", "Close", "Volume")

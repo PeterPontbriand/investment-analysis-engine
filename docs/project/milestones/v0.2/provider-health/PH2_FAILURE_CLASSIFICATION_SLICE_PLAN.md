@@ -39,7 +39,7 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 | D15 | `provider_failure.inputs[].input` is nullable: null if and only if the failure was raised and not recorded against a strategy input. Every entry PH.2a produces has a null `input`. |
 | D16 | A plain `DataQualityError` cannot be raised: for freshly fetched data the historical-quality check either raises `HistoricalDataQualityError` itself or returns nothing. The three unreachable `raise DataQualityError(...)` branches in `cached_client.py`, the classifier rule for the plain type and the tests that built one by hand are removed; the class stays as the base of the historical error. |
 | D17 | `_fail_with` in `cli_workspace.py` is called only with watchlist, stored-run, readiness and parameter errors. It stays outside the sentence table and is not changed. |
-| D18 | Quote before history in the Yahoo health check (PH.2b). `check_yfinance` calls `fetch_current_quote` first, then `fetch_data`. The quote call raises on a connection fault and `yf.download` does not, so this order lets the check report `unreachable` when Yahoo cannot be reached. The request count does not change. Evidence: [§8](#8-verified-against-main). |
+| D18 | An opening connection step in the Yahoo health check (PH.2b). `check_yfinance` begins with a TCP and TLS connection to `query2.finance.yahoo.com:443` (`YFINANCE_DATA_HOST`), the host yfinance's `_BASE_URL_` names for its quote and history calls, made with the standard library and no yfinance code and classified through `call_library`. A failure is `unreachable` and ends the check; success lets the quote and history reads run in that order. The step shares the check's whole-check deadline and is one of the three requests; `MAX_REQUESTS_PER_CHECK` is unchanged, and a test pins the host to yfinance's base URL. It is a TCP and TLS connection and not a web request because a plain standard-library request is answered with HTTP 429 unless it sends a browser `User-Agent`, so a status code could not tell an unreachable service from one rejecting the client ([§8](#8-verified-against-main)). The adapter's classification is unchanged: it reports what it observed, so a swallowed connection fault stays `no_data` (history) or `unexpected_response` (the quote `KeyError`), and the step does not detect throttling. It replaces the earlier decision to read the quote before the history, whose premise holds only with an empty time zone cache. |
 | D19 | The connection-failure test is two tests (PH.2b). An exception that escapes `yf.download` reaches the Momentum command's own output as the `unreachable` code and sentence, with nothing needed from the log. A fault that `yf.download` swallows (an empty frame) is `no_data`, and the sentence does not claim the ticker is unknown. |
 | D20 | `ProviderCheckResult` gains a nullable kind (PH.2b). A typed provider failure raised by an adapter keeps its own kind. The check's own failures: a timeout is `unreachable`; a wrong shape (not a frame, missing columns, bad index, a non-positive or non-finite quote, a wrong SEC document shape) is `unexpected_response`; an empty history is `no_data`. No kind, by design: SEC not configured (`SecUnavailable`), and an unexpected exception inside a check. `ian health` prints `<provider>: unreachable`, `unexpected response` or `no data` for a failed check with a kind and `<provider>: failed` for one without, each followed by the detail. A passed check is unchanged. |
 | D21 | Best-effort currency stays best-effort (PH.2b). `_fetch_currency` and the optional currency read in `fetch_current_quote` still return no currency, including when a connection fault surfaces there as `KeyError`. `_fetch_currency` catches only that and typed provider failures; anything else propagates. |
@@ -105,8 +105,8 @@ PH.2c extend.
 
 - **Yahoo.** The `YFinanceClient` handlers and the yfinance facts adapter, through the helper; the listed
   `unreachable` types are in [§8](#8-verified-against-main).
-- **Checks.** `ProviderCheckResult` gains the nullable kind (D20), `check_yfinance` reads the quote before the
-  history (D18), and `ian health` prints the kind.
+- **Checks.** `ProviderCheckResult` gains the nullable kind (D20), `check_yfinance` opens with a connection step
+  and then reads the quote and the history (D18), and `ian health` prints the kind.
 - **Completion test** (inventory §7) and the runbook, `docs/project/PROVIDER_DEBUGGING.md`.
 - **Connection failure tests (D19).** Two tests, since the log line no longer reaches standard error. An
   exception that escapes `yf.download` is named in the command's own message as `unreachable`. A fault that
@@ -276,11 +276,36 @@ Checked at `847d28a` (2026-10-09).
     `InvalidURL`. The helper's order is therefore the `unexpected_response` and `no_data` types and the defect
     types first, then `unreachable` (`OSError`, `YFRateLimitError`), then any unlisted exception as
     `unexpected_response`.
-- **Yahoo connection fault through the client (D18).** PH.2b re-ran the stubbed-transport method at `847d28a` with
-  the `curl_cffi` session's `request` raising `ConnectionError`, no network, `hide_exceptions` at its default of
-  `True`: `fast_info["last_price"]` and `Ticker.info` raised it, `yf.download` returned an empty frame, and
-  `fast_info["currency"]` raised `KeyError`. With the setting at `False` the currency read raised the connection
-  error instead; the application never changes it.
+- **Yahoo connection fault through the client (D18).** PH.2b ran the stubbed-transport method at `847d28a` (the
+  `curl_cffi` session's `request` raising `ConnectionError`, no network, `hide_exceptions` at its default of `True`)
+  with the time zone cache empty and populated (`cache.get_tz_cache().store(...)`). The cache is what differs:
+  with it populated `Ticker.history` skips the time zone lookup, its chart request fails inside a bare
+  `except Exception` that returns when `hide_exceptions` is true (`yfinance/scrapers/history.py:235`), and the
+  metadata is `{}`, so `FastInfo._get_1y_prices` raises `KeyError` on `self._md["currentTradingPeriod"]`
+  (`scrapers/quote.py:153`). The right-hand column is a stubbed Yahoo answer with prices missing and no
+  `currentTradingPeriod` in the metadata.
+
+  | Call | Cache empty, offline | Cache populated, offline | Cache populated, Yahoo answers without the field |
+  | :--- | :--- | :--- | :--- |
+  | `yf.download` | empty frame | empty frame | empty frame |
+  | `fast_info["last_price"]` | `ConnectionError` | `KeyError('currentTradingPeriod')` | `KeyError('currentTradingPeriod')` |
+  | `fast_info["currency"]` | `KeyError('currency')` | `KeyError('currency')` | not measured |
+  | `Ticker.info` | `ConnectionError` | `ConnectionError` | not measured |
+  | `Ticker.history(period="1y", raise_errors=True)` (deprecated) | `ConnectionError` | `ConnectionError` | `YFPricesMissingError` |
+  | `fast_info["last_price"]` with `hide_exceptions=False` | `ConnectionError` | `ConnectionError` | `YFPricesMissingError` |
+
+  With the cache populated, "offline" and "answered without the field" give the same `KeyError` from the call the
+  adapter makes, so no typed signal there separates them. The two typed signals (`raise_errors=True`, or
+  `hide_exceptions=False`) are a deprecated parameter and a process-wide setting that refresh jobs on a thread pool
+  would share, and neither is used. The opening connection step is what separates "cannot reach Yahoo".
+- **Yahoo host and a plain request (D18).** yfinance 1.6.0 requests quote and history data from
+  `https://query2.finance.yahoo.com` (`yfinance/const.py` `_BASE_URL_`, path `/v8/finance/chart/`), through the
+  chart endpoint for `download`, `history` and `fast_info` alike. Its cookie and crumb setup uses `fc.yahoo.com` and
+  `query1.finance.yahoo.com` and is cached. At `847d28a`, a standard-library `urllib` GET of
+  `https://query2.finance.yahoo.com/` and of `/v8/finance/chart/AAPL` with the default `User-Agent` returned HTTP
+  `429` (`Edge: Too Many Requests`); the chart request with a browser `User-Agent` returned `200`. A TCP connection
+  and TLS 1.3 handshake to `query2.finance.yahoo.com:443` succeeded in about 0.06 s. The step is therefore a TCP and
+  TLS connection with no request sent.
 - **`fetch_json` call sites.** Per-company: SEC `financial_facts.py` 245, 246, 418, 422; Massive 242; the check
   transport's company-facts call (`provider_checks.py:251`). Fixed: SEC 529 (the ticker map) and the check
   transport's ticker-map call (`:248`). `cli_health.py` builds the check transport from `fetch_json`.

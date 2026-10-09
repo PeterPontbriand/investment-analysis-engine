@@ -1,6 +1,7 @@
 """Shape checks for the online providers the adapters read: Yahoo (through yfinance) and SEC EDGAR.
 
-Each check makes a small, fixed number of requests (at most ``MAX_REQUESTS_PER_CHECK``) and verifies the *shape*
+Each check makes a small, fixed number of requests (at most ``MAX_REQUESTS_PER_CHECK``; the Yahoo check's opening
+connection counts as one) and verifies the *shape*
 of what comes back, never a value: the fields and columns an adapter reads are present, not what they contain.
 The live test suite and the ``ian health`` command call the same functions, so a probe is written once.
 
@@ -17,6 +18,8 @@ kind is deliberate: SEC access that is not configured, and an unexpected excepti
 from __future__ import annotations
 
 import math
+import socket
+import ssl
 import threading
 import time
 from collections.abc import Callable, Mapping
@@ -31,11 +34,18 @@ from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 from src.data.http_json import JsonFetcher
+from src.data.provider_failure import FailureRule, call_library
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.data.yfinance.client import YFINANCE_HISTORY_COLUMNS, YFINANCE_PROVIDER_ID, YFinanceQuote
+from src.data.yfinance.client import (
+    YFINANCE_DATA_HOST,
+    YFINANCE_HISTORY_COLUMNS,
+    YFINANCE_PROVIDER_ID,
+    YFinanceQuote,
+)
 
 DEFAULT_TIMEOUT_SECONDS = 20.0  # Whole-check deadline; equals the per-request transport timeout in http_json.py.
 MAX_REQUESTS_PER_CHECK = 3  # SEC fair-access and guarded-egress budget; a fourth request needs project-owner review.
+YAHOO_DATA_PORT = 443
 
 
 @dataclass(frozen=True)
@@ -116,12 +126,17 @@ class SecUnavailable:
     detail: str
 
 
+Connector = Callable[[str, int, float], None]
+"""Opens a connection to ``(host, port)`` within a timeout in seconds, or raises ``OSError``."""
+
+
 @dataclass(frozen=True)
 class ProviderClients:
-    """The injected dependencies of every check."""
+    """The injected dependencies of every check; ``connect`` has no default, so no test reaches a host by accident."""
 
     yahoo: YahooProbeClient
     sec: SecTransport | SecUnavailable
+    connect: Connector
 
 
 @dataclass(frozen=True)
@@ -204,12 +219,28 @@ def _finish(
 
 def yahoo_probe_description(spec: YahooCheckSpec = YAHOO_SPEC) -> str:
     """Describe what the Yahoo check requests."""
-    return f"{spec.probe_ticker} daily history and quote"
+    return f"connection to {YFINANCE_DATA_HOST}, {spec.probe_ticker} quote and daily history"
 
 
 def sec_edgar_probe_description(spec: SecEdgarCheckSpec = SEC_EDGAR_SPEC) -> str:
     """Describe what the SEC EDGAR check requests."""
     return f"{spec.probe_ticker} ticker map and company facts"
+
+
+def open_tls_connection(host: str, port: int, timeout_seconds: float) -> None:
+    """Open a TCP connection to *host* and complete the TLS handshake, then close it; send no request.
+
+    A web request is not used: Yahoo's edge answers a client that does not look like a browser with HTTP 429, so a
+    status code from the standard library could not tell an unreachable service from one that rejects the client.
+    """
+    with (
+        socket.create_connection((host, port), timeout=timeout_seconds) as raw,
+        ssl.create_default_context().wrap_socket(raw, server_hostname=host),
+    ):
+        pass
+
+
+_CONNECTION_FAILURE_RULES = (FailureRule((OSError,), ProviderFailureKind.UNREACHABLE),)
 
 
 def check_yfinance(
@@ -218,14 +249,30 @@ def check_yfinance(
     spec: YahooCheckSpec = YAHOO_SPEC,
     clock: Callable[[], float] = time.monotonic,
     now: Callable[[], datetime] = utc_now,
+    connect: Connector = open_tls_connection,
 ) -> ProviderCheckResult:
-    """Check that a short daily history and a current quote come back in the shape the adapter reads."""
+    """Check that Yahoo can be reached, then that a current quote and a short daily history come back in shape.
+
+    The check opens with a direct TCP and TLS connection to the host yfinance requests data from, made without
+    yfinance. yfinance swallows a connection fault in several places (the history download returns an empty
+    frame, and the quote read can raise a ``KeyError``), so the adapter's own calls cannot reliably tell an
+    unreachable service from a changed response. A failed connection is ``unreachable`` and ends the check. A
+    connection that opens says nothing about throttling.
+    """
 
     def body() -> None:
         deadline = _Deadline(spec.timeout_seconds)
         start_date = (now() - timedelta(days=spec.history_days)).date().isoformat()
-        # The quote is read first: it raises on a connection fault, whereas the history download swallows one and
-        # returns an empty frame, so this order lets the check report an unreachable service as such.
+        _call_with_timeout(
+            lambda: call_library(
+                lambda: connect(YFINANCE_DATA_HOST, YAHOO_DATA_PORT, deadline.remaining()),
+                rules=_CONNECTION_FAILURE_RULES,
+                provider_id=YFINANCE_PROVIDER_ID,
+                message=f"Cannot open a TLS connection to {YFINANCE_DATA_HOST}:{YAHOO_DATA_PORT}",
+                error_type=DataFetchError,
+            ),
+            deadline,
+        )
         quote = _call_with_timeout(lambda: client.fetch_current_quote(spec.probe_ticker), deadline)
         price = quote.price
         if not math.isfinite(price) or price <= 0:
@@ -332,7 +379,7 @@ PROVIDER_CHECKS: tuple[ProviderCheckEntry, ...] = (
     ProviderCheckEntry(
         provider_id=YFINANCE_PROVIDER_ID,
         probe=yahoo_probe_description(),
-        run=lambda clients: check_yfinance(clients.yahoo),
+        run=lambda clients: check_yfinance(clients.yahoo, connect=clients.connect),
     ),
     ProviderCheckEntry(
         provider_id=SEC_PROVIDER_ID,

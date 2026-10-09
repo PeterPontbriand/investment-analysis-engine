@@ -22,6 +22,7 @@ from src.data.provider_checks import (
     ProviderClients,
     SecTransport,
     SecUnavailable,
+    open_tls_connection,
 )
 from src.data.yfinance import YFinanceClient
 from src.reporting.failure_classification import AnalysisConfigurationError
@@ -36,7 +37,7 @@ def build_provider_clients() -> ProviderClients:
         sec = SecUnavailable(str(exc))
     else:
         sec = SecTransport(fetch_json, (settings.sec_user_agent or "").strip())
-    return ProviderClients(yahoo=YFinanceClient(), sec=sec)
+    return ProviderClients(yahoo=YFinanceClient(), sec=sec, connect=open_tls_connection)
 
 
 _KIND_VERDICTS = {
