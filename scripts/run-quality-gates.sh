@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Optional second pass: --extra-python <major.minor> runs the test suite on that interpreter in
+# its own ignored environment under .tmp/envs/ after the default gate, leaving .venv alone.
+extra_python=""
+case "${1:-}" in
+    "") ;;
+    --extra-python)
+        extra_python="${2:-}"
+        if ! [[ "$extra_python" =~ ^[0-9]+\.[0-9]+$ ]] || [ "$#" -ne 2 ]; then
+            printf 'Usage: %s [--extra-python <major.minor>]\n' "$0" >&2
+            exit 2
+        fi
+        ;;
+    *)
+        printf 'Usage: %s [--extra-python <major.minor>]\n' "$0" >&2
+        exit 2
+        ;;
+esac
+
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repository_root="$(cd -- "$script_dir/.." && pwd -P)"
 cd "$repository_root"
@@ -64,3 +82,31 @@ uv run --no-sync pytest \
     tests
 
 printf 'Quality gates passed on Python %s, pandas %s. Isolated artifacts: %s\n' "$python_version" "$pandas_version" "$run_root"
+
+if [ -n "$extra_python" ]; then
+    # The environment folder is persistent and ignored (/.tmp/), so it is built once from the
+    # lock file and reused; the sync is a no-op afterwards and .venv is never touched.
+    if command -v cygpath >/dev/null 2>&1; then
+        export UV_PROJECT_ENVIRONMENT="$(cygpath -m "$repository_root/.tmp/envs/py$extra_python")"
+    else
+        export UV_PROJECT_ENVIRONMENT="$repository_root/.tmp/envs/py$extra_python"
+    fi
+    uv sync --frozen --python "$extra_python"
+    extra_info="$(uv run --no-sync python -c "import sys, pandas; print(f'{sys.version.split()[0]}|{pandas.__version__}')")"
+    extra_version="${extra_info%%|*}"
+    extra_pandas="${extra_info##*|}"
+    case "$extra_version" in
+        "$extra_python".*) ;;
+        *)
+            printf 'Second pass requested Python %s but the environment runs %s\n' "$extra_python" "$extra_version" >&2
+            exit 1
+            ;;
+    esac
+    printf 'Second pass running on Python %s, pandas %s\n' "$extra_version" "$extra_pandas"
+    uv run --no-sync pytest \
+        -o addopts= \
+        -p no:cacheprovider \
+        --basetemp="$windows_run_root/pytest-extra" \
+        tests
+    printf 'Second-pass tests passed on Python %s, pandas %s.\n' "$extra_version" "$extra_pandas"
+fi
