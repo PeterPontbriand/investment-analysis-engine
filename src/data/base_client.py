@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
+from src.core.provider_failure_kind import ProviderFailureKind, require_provider_identity
 from src.data.market_data import HistoricalMarketData, MarketDataContext, latest_observation_date
 
 
@@ -12,9 +13,17 @@ class DataFetchError(ValueError):
 
     Inherits from ValueError to maintain backward-compatibility with existing
     error-handling boundaries and test assertions.
+
+    ``kind`` and ``provider_id`` say what the adapter observed and which provider it was; both are
+    ``None`` for a failure the adapter did not classify.
     """
 
-    pass
+    def __init__(self, *args: object, kind: ProviderFailureKind | None = None, provider_id: str | None = None) -> None:
+        """Carry the failure kind and the provider that failed beside the message."""
+        require_provider_identity(kind, provider_id)
+        super().__init__(*args)
+        self.kind = kind
+        self.provider_id = provider_id
 
 
 class BaseDataClient(ABC):

@@ -153,9 +153,6 @@ def command(  # noqa: PLR0913
         selection_type=MomentumSelection,
         ticker=requested_ticker,
         invalid_detail=True,
-        data_error=lambda _exc: (
-            f"Unable to analyze {label}: the configured market-data provider returned no usable price history."
-        ),
         invalid=lambda _exc: (
             f"Unable to complete momentum analysis for {label}: the returned price history could not be analyzed."
         ),

@@ -13,6 +13,8 @@ from typing import cast
 from zoneinfo import ZoneInfo
 
 from src.core.clock import utc_now
+from src.core.provider_failure_kind import ProviderFailureKind
+from src.data.base_client import DataFetchError
 from src.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
@@ -58,6 +60,12 @@ _PREFERRED_NEUTRAL_CONCEPTS = frozenset({"PreferredStockSharesAuthorized", "Pref
 _COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
+
+
+class _MissingCikError(FinancialProviderError):
+    """SEC's ticker map has no entry for the ticker: a ticker without a CIK, not a failure to read the map."""
+
+
 _COMPLETED_ANNUAL_FORMS = frozenset({"10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"})
 _SEC_EASTERN = ZoneInfo("America/New_York")
 # A completed fiscal year can vary around 365 days, including 52/53-week years.
@@ -229,7 +237,7 @@ class SecEdgarFinancialFactsAdapter:
         effective_as_of = as_of or retrieved_at
         try:
             cik = self._resolve_cik(ticker)
-        except FinancialProviderError:
+        except _MissingCikError:
             return SecEdgarAnalysisSnapshot(
                 subject_id=ticker,
                 cik=None,
@@ -242,8 +250,8 @@ class SecEdgarFinancialFactsAdapter:
                 eligible_annual_accessions=(),
                 taxonomy=None,
             )
-        company_facts_raw = self._fetch_json(_COMPANY_FACTS_URL.format(cik=cik), headers=self._headers)
-        submissions_raw = self._fetch_json(_SUBMISSIONS_URL.format(cik=cik), headers=self._headers)
+        company_facts_raw = self._fetch_company_document(_COMPANY_FACTS_URL.format(cik=cik))
+        submissions_raw = self._fetch_company_document(_SUBMISSIONS_URL.format(cik=cik))
         acceptance_by_accession = _acceptance_times(submissions_raw)
         accession_taxonomies = _accession_taxonomies(company_facts_raw)
         eligible_accessions = _eligible_annual_accessions(
@@ -289,7 +297,7 @@ class SecEdgarFinancialFactsAdapter:
             return self._verify_security_unit(request, snapshot)
         except UnitMappingError:
             return SecurityUnitResolution(SecurityUnitResolutionReason.UNSUPPORTED_EVIDENCE)
-        except (OSError, ValueError):
+        except (FinancialProviderError, DataFetchError):
             return SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_ERROR)
 
     def _verify_security_unit(  # noqa: PLR0911
@@ -317,8 +325,20 @@ class SecEdgarFinancialFactsAdapter:
                 or snapshot.filing_forms.get(accession) != "10-K"
             ):
                 return SecurityUnitResolution(SecurityUnitResolutionReason.UNSUPPORTED_EVIDENCE)
-            url = filing_url(snapshot.cik, accession, primary)
-            markup = self._filing_fetcher(url, headers=self._headers, policy=self._filing_policy)
+            try:
+                url = filing_url(snapshot.cik, accession, primary)
+            except ValueError as exc:
+                msg = f"SEC listed a filing that cannot be addressed: {exc}"
+                raise FinancialProviderError(
+                    msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=SEC_PROVIDER_ID
+                ) from exc
+            markup = self._filing_fetcher(
+                url,
+                headers=self._headers,
+                policy=self._filing_policy,
+                not_found=ProviderFailureKind.NO_DATA,
+                provider_id=SEC_PROVIDER_ID,
+            )
             if len(markup.encode("utf-8")) > self._filing_policy.max_document_bytes:
                 return SecurityUnitResolution(SecurityUnitResolutionReason.UNSUPPORTED_EVIDENCE)
             parsed = parse_unit_document(markup, cik=snapshot.cik, ticker=request.ticker)
@@ -393,7 +413,7 @@ class SecEdgarFinancialFactsAdapter:
         try:
             try:
                 cik = self._resolve_cik(request.subject_id)
-            except FinancialProviderError:
+            except _MissingCikError:
                 if request.field_name in _SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY:
                     return ()
                 raise
@@ -415,14 +435,8 @@ class SecEdgarFinancialFactsAdapter:
                 acceptance_by_accession = snapshot.acceptance_by_accession
                 provider_now = snapshot.retrieved_at
             else:
-                company_facts = self._fetch_json(
-                    _COMPANY_FACTS_URL.format(cik=cik),
-                    headers=self._headers,
-                )
-                submissions = self._fetch_json(
-                    _SUBMISSIONS_URL.format(cik=cik),
-                    headers=self._headers,
-                )
+                company_facts = self._fetch_company_document(_COMPANY_FACTS_URL.format(cik=cik))
+                submissions = self._fetch_company_document(_SUBMISSIONS_URL.format(cik=cik))
                 acceptance_by_accession = _acceptance_times(submissions)
                 provider_now = self._clock()
             taxonomy = snapshot.taxonomy if snapshot is not None and snapshot.taxonomy is not None else "us-gaap"
@@ -497,9 +511,11 @@ class SecEdgarFinancialFactsAdapter:
             return _select_latest_balance_sheet_fact(candidates, request=request, now=effective_as_of)
         except FinancialProviderError:
             raise
-        except (KeyError, TypeError, ValueError, OSError) as exc:
+        except (KeyError, TypeError, ValueError) as exc:
             msg = f"SEC EDGAR valuation retrieval failed for {request.subject_id}: {exc}"
-            raise FinancialProviderError(msg) from exc
+            raise FinancialProviderError(
+                msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=SEC_PROVIDER_ID
+            ) from exc
 
     def _supports(self, request: FinancialFactRequest) -> bool:
         if request.provider_id != SEC_PROVIDER_ID or request.subject_kind is not FinancialSubjectKind.SECURITY:
@@ -520,13 +536,27 @@ class SecEdgarFinancialFactsAdapter:
             return ticker_to_cik[ticker]
         except KeyError as exc:
             msg = f"SEC EDGAR has no CIK mapping for ticker {ticker!r}."
-            raise FinancialProviderError(msg) from exc
+            raise _MissingCikError(msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID) from exc
+
+    def _fetch_company_document(self, url: str) -> object:
+        """Fetch one per-company SEC document, whose HTTP 404 means SEC has nothing for the company."""
+        document = self._fetch_json(
+            url, headers=self._headers, not_found=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID
+        )
+        _require_mapping(document, "company")
+        return document
 
     def _load_ticker_metadata(self) -> None:
         """Load SEC ticker mappings and descriptive identities only once per adapter."""
         if self._ticker_to_cik is not None:
             return
-        payload = self._fetch_json(_COMPANY_TICKERS_URL, headers=self._headers)
+        payload = self._fetch_json(
+            _COMPANY_TICKERS_URL,
+            headers=self._headers,
+            not_found=ProviderFailureKind.UNEXPECTED_RESPONSE,
+            provider_id=SEC_PROVIDER_ID,
+        )
+        _require_mapping(payload, "company-ticker")
         resolved_at = self._clock()
         self._ticker_to_cik = _ticker_cik_map(payload)
         self._cik_to_tickers = _cik_tickers_map(payload)
@@ -538,6 +568,13 @@ class SecEdgarFinancialFactsAdapter:
         if cik_to_tickers is None:
             return False
         return len(cik_to_tickers.get(cik, ())) == 1
+
+
+def _require_mapping(payload: object, name: str) -> None:
+    """Reject an SEC document that is not a JSON object, which is not the form the adapter reads."""
+    if not isinstance(payload, Mapping):
+        msg = f"SEC {name} document is not a JSON object."
+        raise FinancialProviderError(msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=SEC_PROVIDER_ID)
 
 
 def _resolve_sec_user_agent(user_agent: str) -> str:

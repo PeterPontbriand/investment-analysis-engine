@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
 from src.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
 from src.data.security_identity import SecurityIdentity
@@ -42,7 +43,10 @@ class _FrozenSecFetcher:
     def __init__(self, issuer: str) -> None:
         self._issuer = issuer
 
-    def __call__(self, url: str, *, headers: Mapping[str, str]) -> object:
+    def __call__(
+        self, url: str, *, headers: Mapping[str, str], not_found: ProviderFailureKind, provider_id: str
+    ) -> object:
+        del not_found, provider_id  # frozen payloads never fail
         if headers["User-Agent"] != _USER_AGENT:
             raise AssertionError("Unexpected deterministic SEC user agent.")
         if "company_tickers.json" in url:

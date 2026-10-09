@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.facts import FinancialFactRequest, FinancialField, FinancialUnit
 from src.data.financial.provenance import AccountingScope, FinancialSubjectKind, PeriodKind
 from src.data.sec_edgar.financial_facts import (
@@ -37,7 +38,14 @@ class FakeSecFetcher:
         self._ticker_rows = ticker_rows or {"0": {"cik_str": CIK, "ticker": "MSFT", "title": "Microsoft Corporation"}}
         self.calls: list[str] = []
 
-    def __call__(self, url: str, *, headers: Mapping[str, str]) -> object:
+    def __call__(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        not_found: ProviderFailureKind,  # noqa: ARG002
+        provider_id: str,  # noqa: ARG002
+    ) -> object:
         """Return the fixture associated with an SEC URL."""
         assert headers["User-Agent"] == "D1 fixture tests@example.invalid"
         self.calls.append(url)

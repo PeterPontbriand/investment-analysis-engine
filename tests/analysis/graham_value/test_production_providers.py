@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 
 from src.core.analysis_status import CalculationStatus
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
@@ -39,7 +40,14 @@ class FakeJsonFetcher:
         self.routes = dict(routes)
         self.calls: list[tuple[str, Mapping[str, str]]] = []
 
-    def __call__(self, url: str, *, headers: Mapping[str, str]) -> object:
+    def __call__(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        not_found: ProviderFailureKind,  # noqa: ARG002
+        provider_id: str,  # noqa: ARG002
+    ) -> object:
         self.calls.append((url, dict(headers)))
         for marker, payload in self.routes.items():
             if marker in url:

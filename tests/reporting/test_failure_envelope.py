@@ -9,10 +9,11 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 import src.cli  # noqa: F401 - loads every module that defines an exception with a reason_code
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
+from src.data.financial.facts import FinancialProviderError
 from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
 from src.data.quality import (
-    DataQualityError,
     HistoricalDataQualityError,
     QualityContext,
     evaluate_historical_quality,
@@ -25,10 +26,13 @@ from src.reporting.documents.failure import (
     FailureDiagnostic,
     FailureEnvelope,
     FailureReasonCode,
+    ProviderFailure,
+    ProviderFailureInput,
     status_for,
 )
 from src.reporting.failure_classification import (
     CLASSIFICATION_RULES,
+    PROVIDER_CODE_BY_KIND,
     AnalysisConfigurationError,
     InvalidParameterError,
     classify_failure,
@@ -99,6 +103,7 @@ def test_every_code_the_classifier_can_return_is_a_member_and_every_member_can_b
     """T18: the rules, the readiness codes and the default cover the enumeration, except command-context codes."""
     returned = {code for _type, code in CLASSIFICATION_RULES}
     returned |= {FailureReasonCode(item.value) for item in ReadinessReason}
+    returned |= {FailureReasonCode.PROVIDER_ERROR, *PROVIDER_CODE_BY_KIND.values()}
     returned.add(classify_failure(RuntimeError("unrecognized")).reason_code)
     assert returned | _COMMAND_CONTEXT_CODES == set(FailureReasonCode)
     assert not returned & _COMMAND_CONTEXT_CODES
@@ -127,7 +132,7 @@ def test_a_more_specific_exception_is_never_shadowed_by_its_base() -> None:
     ("error", "code", "status"),
     [
         (DataFetchError("x"), "provider_error", "input_unavailable"),
-        (DataQualityError("x"), "provider_error", "input_unavailable"),
+        (FinancialProviderError("x"), "provider_error", "input_unavailable"),
         (NoEligibleObservationsError("x"), "no_eligible_observations", "input_unavailable"),
         (AnalysisConfigurationError("x"), "configuration_error", "error"),
         (InvalidParameterError("x"), "invalid_parameter", "error"),
@@ -177,7 +182,7 @@ def test_the_document_has_the_documented_keys_and_stable_formatting() -> None:
     )
     text = failure_document(envelope)
     assert json.loads(text) == {
-        "schema_version": 6,
+        "schema_version": 7,
         "status": "input_unavailable",
         "reason_code": "provider_error",
         "reason": "No usable history.",
@@ -187,6 +192,7 @@ def test_the_document_has_the_documented_keys_and_stable_formatting() -> None:
         "result": None,
         "diagnostics": [],
         "database": None,
+        "provider_failure": None,
     }
     assert text.startswith('{\n  "analysis": "momentum",\n')
 
@@ -208,6 +214,7 @@ def test_envelope_fields_are_exactly_the_documented_set() -> None:
         "result",
         "diagnostics",
         "database",
+        "provider_failure",
     }
     assert _model_field_names(FailureDatabase) == {"database_path", "expected_revision"}
     assert _model_field_names(FailureDiagnostic) == {"rule", "reason"}
@@ -282,3 +289,110 @@ def test_invalid_parameter_and_invalid_input_stay_distinct() -> None:
     parameter_position = [exception_type for exception_type, _code in CLASSIFICATION_RULES].index(InvalidParameterError)
     value_error_position = [exception_type for exception_type, _code in CLASSIFICATION_RULES].index(ValueError)
     assert parameter_position < value_error_position
+
+
+# --- provider failure kinds (PH.2a) -----------------------------------------------------------------------------
+
+_EXCEPTION_TYPES = [DataFetchError, FinancialProviderError]
+_KIND_CODES = [
+    (ProviderFailureKind.UNREACHABLE, FailureReasonCode.PROVIDER_UNREACHABLE),
+    (ProviderFailureKind.UNEXPECTED_RESPONSE, FailureReasonCode.PROVIDER_UNEXPECTED_RESPONSE),
+    (ProviderFailureKind.NO_DATA, FailureReasonCode.PROVIDER_NO_DATA),
+]
+
+
+def test_the_kind_to_code_mapping_covers_every_kind_and_the_codes_are_input_unavailable() -> None:
+    assert set(PROVIDER_CODE_BY_KIND) == set(ProviderFailureKind)
+    assert len(set(PROVIDER_CODE_BY_KIND.values())) == len(ProviderFailureKind)
+    for code in PROVIDER_CODE_BY_KIND.values():
+        assert status_for(code) == "input_unavailable"
+    assert [code.value for code in PROVIDER_CODE_BY_KIND.values()] == [
+        "provider_unreachable",
+        "provider_unexpected_response",
+        "provider_no_data",
+    ]
+
+
+@pytest.mark.parametrize("exception_type", _EXCEPTION_TYPES)
+@pytest.mark.parametrize(("kind", "code"), _KIND_CODES)
+def test_both_provider_exception_types_classify_identically_by_kind(
+    exception_type: type[DataFetchError] | type[FinancialProviderError],
+    kind: ProviderFailureKind,
+    code: FailureReasonCode,
+) -> None:
+    classified = classify_failure(exception_type("x", kind=kind, provider_id="yfinance"))
+    assert (classified.reason_code, classified.status) == (code, "input_unavailable")
+
+
+@pytest.mark.parametrize("exception_type", _EXCEPTION_TYPES)
+def test_a_provider_failure_with_no_kind_is_a_provider_error(
+    exception_type: type[DataFetchError] | type[FinancialProviderError],
+) -> None:
+    classified = classify_failure(exception_type("x"))
+    assert (classified.reason_code, classified.status) == (FailureReasonCode.PROVIDER_ERROR, "input_unavailable")
+
+
+@pytest.mark.parametrize("exception_type", _EXCEPTION_TYPES)
+@pytest.mark.parametrize(("kind", "code"), _KIND_CODES)
+def test_a_raised_failure_reaches_the_envelope_with_one_null_input(
+    exception_type: type[DataFetchError] | type[FinancialProviderError],
+    kind: ProviderFailureKind,
+    code: FailureReasonCode,
+) -> None:
+    error = exception_type("x", kind=kind, provider_id="sec_edgar")
+    envelope = failure_envelope(classify_failure(error).reason_code, "sentence", cause=error)
+    assert envelope.reason_code is code
+    assert envelope.provider_failure == ProviderFailure(
+        reason_code=code, inputs=(ProviderFailureInput(input=None, provider_id="sec_edgar", kind=kind),)
+    )
+    assert envelope.provider_failure.reason_code is envelope.reason_code
+    assert json.loads(failure_document(envelope))["provider_failure"] == {
+        "reason_code": code.value,
+        "inputs": [{"input": None, "provider_id": "sec_edgar", "kind": kind.value}],
+    }
+
+
+def test_a_failure_with_no_kind_or_another_code_carries_no_provider_failure_element() -> None:
+    kindless = DataFetchError("x")
+    assert failure_envelope(FailureReasonCode.PROVIDER_ERROR, "s", cause=kindless).provider_failure is None
+    typed = DataFetchError("x", kind=ProviderFailureKind.NO_DATA, provider_id="yfinance")
+    assert failure_envelope(FailureReasonCode.EXECUTION_ERROR, "s", cause=typed).provider_failure is None
+    assert failure_envelope(FailureReasonCode.INVALID_INPUT, "s").provider_failure is None
+
+
+def test_the_envelope_needs_the_element_for_a_provider_code_and_refuses_it_for_any_other() -> None:
+    with pytest.raises(ValidationError, match="requires provider_failure"):
+        failure_envelope(FailureReasonCode.PROVIDER_NO_DATA, "s")
+    element = ProviderFailure(
+        reason_code=FailureReasonCode.PROVIDER_NO_DATA,
+        inputs=(ProviderFailureInput(input=None, provider_id="yfinance", kind=ProviderFailureKind.NO_DATA),),
+    )
+    with pytest.raises(ValidationError, match="must equal reason_code"):
+        FailureEnvelope(
+            status="input_unavailable",
+            reason_code=FailureReasonCode.PROVIDER_UNREACHABLE,
+            reason="s",
+            provider_failure=element,
+        )
+    with pytest.raises(ValidationError, match="only for a provider failure"):
+        FailureEnvelope(
+            status="input_unavailable",
+            reason_code=FailureReasonCode.PROVIDER_ERROR,
+            reason="s",
+            provider_failure=element,
+        )
+
+
+def test_the_element_accepts_only_provider_codes_and_at_least_one_input() -> None:
+    entry = ProviderFailureInput(input="eps", provider_id="sec_edgar", kind=ProviderFailureKind.UNREACHABLE)
+    with pytest.raises(ValidationError, match="not a provider failure code"):
+        ProviderFailure(reason_code=FailureReasonCode.PROVIDER_ERROR, inputs=(entry,))
+    with pytest.raises(ValidationError):
+        ProviderFailure(reason_code=FailureReasonCode.PROVIDER_UNREACHABLE, inputs=())
+
+
+def test_the_failure_envelope_is_version_7_and_its_json_carries_the_element_key() -> None:
+    envelope = failure_envelope(FailureReasonCode.INVALID_INPUT, "s")
+    document = json.loads(failure_document(envelope))
+    assert document["schema_version"] == 7
+    assert document["provider_failure"] is None

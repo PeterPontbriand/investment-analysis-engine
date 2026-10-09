@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.facts import FinancialFactRequest, FinancialField, FinancialUnit, ProviderFact
 from src.data.financial.provenance import FinancialSubjectKind
 from src.data.sec_edgar.financial_facts import (
@@ -24,7 +25,14 @@ class _Fetcher:
     def __init__(self, observations: list[dict[str, Any]]) -> None:
         self._observations = observations
 
-    def __call__(self, url: str, *, headers: Mapping[str, str]) -> object:
+    def __call__(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        not_found: ProviderFailureKind,  # noqa: ARG002
+        provider_id: str,  # noqa: ARG002
+    ) -> object:
         assert headers["User-Agent"] == "E2 fixture tests@example.invalid"
         if "company_tickers.json" in url:
             return {"0": {"cik_str": CIK, "ticker": "AAPL", "title": "Apple"}}

@@ -9,6 +9,7 @@ from typing import Any, cast
 import pytest
 
 from src.core.analysis_status import CalculationStatus
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind
 from src.data.financial.resolver import InputResolutionResult
@@ -31,7 +32,14 @@ class FakeJsonFetcher:
         self._payload = payload
         self.calls: list[str] = []
 
-    def __call__(self, url: str, *, headers: Mapping[str, str]) -> object:
+    def __call__(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        not_found: ProviderFailureKind,  # noqa: ARG002
+        provider_id: str,  # noqa: ARG002
+    ) -> object:
         del headers
         self.calls.append(url)
         if "company_tickers.json" in url:

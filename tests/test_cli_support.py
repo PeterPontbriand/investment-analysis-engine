@@ -1,5 +1,6 @@
 """Shared CLI parsing and exception boundaries preserve public exit semantics."""
 
+import json
 from datetime import UTC, datetime, time
 from unittest.mock import MagicMock, patch
 
@@ -13,9 +14,11 @@ from src.cli_support import (
     _presentation_mode,
     _resolve_ticker,
     execution_errors,
+    provider_failure_sentence,
 )
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
-from src.data.quality import DataQualityError
+from src.data.financial.facts import FinancialProviderError
 from src.reporting.presentation import PresentationMode
 
 
@@ -36,8 +39,14 @@ def test_intentional_cli_errors_propagate_without_output(error: Exception) -> No
 @pytest.mark.parametrize(
     ("error", "message"),
     [
-        (DataFetchError("private"), "data"),
-        (DataQualityError("private"), "data"),
+        (
+            DataFetchError("private"),
+            "Unable to analyze the requested instrument: a data provider failed; the failure was not classified.",
+        ),
+        (
+            FinancialProviderError("private"),
+            "Unable to analyze the requested instrument: a data provider failed; the failure was not classified.",
+        ),
         (ValueError("private"), "invalid"),
         (RuntimeError("private"), "unexpected"),
     ],
@@ -47,7 +56,6 @@ def test_execution_errors_classify_without_exposing_exception(error: Exception, 
         patch("src.cli_support.typer.echo") as echo,
         pytest.raises(typer.Exit) as caught,
         execution_errors(
-            data_error=lambda _exc: "data",
             invalid=lambda _exc: "invalid",
             unexpected=lambda _exc: "unexpected",
         ),
@@ -85,3 +93,67 @@ def test_ticker_provider_and_presentation_normalization() -> None:
     assert _presentation_mode(details=False, diagnostics=False, json_output=True) is PresentationMode.JSON
     with pytest.raises(typer.BadParameter):
         _presentation_mode(details=True, diagnostics=True, json_output=False)
+
+
+_KIND_SENTENCES = [
+    (ProviderFailureKind.UNREACHABLE, "Unable to analyze AAPL: sec_edgar did not serve the request."),
+    (
+        ProviderFailureKind.UNEXPECTED_RESPONSE,
+        "Unable to analyze AAPL: sec_edgar answered in a form the application does not read.",
+    ),
+    (ProviderFailureKind.NO_DATA, "Unable to analyze AAPL: sec_edgar returned no data for it."),
+]
+
+
+@pytest.mark.parametrize("exception_type", [DataFetchError, FinancialProviderError])
+@pytest.mark.parametrize(("kind", "sentence"), _KIND_SENTENCES)
+def test_the_sentence_table_names_the_provider_and_ticker_per_kind(
+    exception_type: type[DataFetchError] | type[FinancialProviderError], kind: ProviderFailureKind, sentence: str
+) -> None:
+    assert provider_failure_sentence(exception_type("private", kind=kind, provider_id="sec_edgar"), "AAPL") == sentence
+
+
+def test_the_sentence_table_has_one_row_per_kind_and_one_for_an_unclassified_failure() -> None:
+    sentences = {
+        provider_failure_sentence(DataFetchError("x", kind=kind, provider_id="p"), "T") for kind in ProviderFailureKind
+    }
+    assert len(sentences) == len(ProviderFailureKind)
+    assert provider_failure_sentence(DataFetchError("private detail"), None) == (
+        "Unable to analyze the requested instrument: a data provider failed; the failure was not classified."
+    )
+
+
+@pytest.mark.parametrize("exception_type", [DataFetchError, FinancialProviderError])
+@pytest.mark.parametrize(("kind", "sentence"), _KIND_SENTENCES)
+def test_a_raised_provider_failure_is_reported_under_its_code_with_its_element(
+    exception_type: type[DataFetchError] | type[FinancialProviderError], kind: ProviderFailureKind, sentence: str
+) -> None:
+    error = exception_type("private detail", kind=kind, provider_id="sec_edgar")
+    with (
+        patch("src.cli_support.typer.echo") as echo,
+        pytest.raises(typer.Exit) as caught,
+        execution_errors(mode=PresentationMode.JSON, ticker="AAPL", unexpected=lambda _exc: "unexpected"),
+    ):
+        raise error
+    assert caught.value.exit_code == 1
+    document = json.loads(echo.call_args.args[0])
+    assert document["reason_code"] == f"provider_{kind.value}"
+    assert document["status"] == "input_unavailable"
+    assert document["reason"] == sentence
+    assert document["provider_failure"] == {
+        "reason_code": document["reason_code"],
+        "inputs": [{"input": None, "provider_id": "sec_edgar", "kind": kind.value}],
+    }
+    assert "private detail" not in echo.call_args.args[0]
+
+
+def test_a_command_with_no_callbacks_still_reports_a_raised_provider_failure_as_one() -> None:
+    """Before, a command that passed no ``data_error`` reported a provider failure as invalid input."""
+    error = FinancialProviderError("private", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar")
+    with (
+        patch("src.cli_support.typer.echo") as echo,
+        pytest.raises(typer.Exit),
+        execution_errors(mode=PresentationMode.JSON, unexpected=lambda _exc: "unexpected"),
+    ):
+        raise error
+    assert json.loads(echo.call_args.args[0])["reason_code"] == "provider_unreachable"

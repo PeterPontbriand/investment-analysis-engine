@@ -6,11 +6,15 @@ different families. The two exception types defined here are raised by command c
 only through this module, which is why they live beside the table that classifies them.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
+from src.data.financial.facts import FinancialProviderError
 from src.data.market_data import NoEligibleObservationsError
-from src.data.quality import DataQualityError, HistoricalDataQualityError, QualityOutcome
+from src.data.quality import HistoricalDataQualityError, QualityOutcome
 from src.data.repositories.readiness import DatabaseReadinessError
 from src.data.repositories.watchlists import (
     WatchlistConflictError,
@@ -22,6 +26,8 @@ from src.reporting.documents.failure import (
     FailureEnvelope,
     FailureReasonCode,
     FailureStatus,
+    ProviderFailure,
+    ProviderFailureInput,
     status_for,
 )
 from src.reporting.replay_inputs import UnsupportedProjectionError
@@ -46,11 +52,19 @@ class FailureClassification:
     status: FailureStatus
 
 
+# The one mapping from what an adapter observed to the stable code that reports it.
+PROVIDER_CODE_BY_KIND: Mapping[ProviderFailureKind, FailureReasonCode] = MappingProxyType(
+    {
+        ProviderFailureKind.UNREACHABLE: FailureReasonCode.PROVIDER_UNREACHABLE,
+        ProviderFailureKind.UNEXPECTED_RESPONSE: FailureReasonCode.PROVIDER_UNEXPECTED_RESPONSE,
+        ProviderFailureKind.NO_DATA: FailureReasonCode.PROVIDER_NO_DATA,
+    }
+)
+
 # Most specific first: every entry but the last is a ``ValueError`` subtype, and several are subtypes of one another.
+# ``DataFetchError`` and ``FinancialProviderError`` are classified by ``classify_failure`` from their kind.
 CLASSIFICATION_RULES: tuple[tuple[type[BaseException], FailureReasonCode], ...] = (
     (HistoricalDataQualityError, FailureReasonCode.HISTORICAL_QUALITY),
-    (DataFetchError, FailureReasonCode.PROVIDER_ERROR),
-    (DataQualityError, FailureReasonCode.PROVIDER_ERROR),
     (AnalysisConfigurationError, FailureReasonCode.CONFIGURATION_ERROR),
     (NoEligibleObservationsError, FailureReasonCode.NO_ELIGIBLE_OBSERVATIONS),
     (InvalidParameterError, FailureReasonCode.INVALID_PARAMETER),
@@ -71,6 +85,8 @@ def classify_failure(exception: BaseException) -> FailureClassification:
     code = FailureReasonCode.EXECUTION_ERROR
     if isinstance(exception, DatabaseReadinessError):
         code = FailureReasonCode(exception.reason.value)
+    elif isinstance(exception, DataFetchError | FinancialProviderError):
+        code = FailureReasonCode.PROVIDER_ERROR if exception.kind is None else PROVIDER_CODE_BY_KIND[exception.kind]
     else:
         for exception_type, rule_code in CLASSIFICATION_RULES:
             if isinstance(exception, exception_type):
@@ -91,10 +107,12 @@ def failure_envelope(  # noqa: PLR0913
     """Build the envelope for ``reason_code``, taking diagnostics and database facts from ``cause``.
 
     ``reason`` is the sentence to show; the caller sanitizes it. Only a failed historical-quality
-    exception contributes diagnostics, and only a readiness error contributes ``database``.
+    exception contributes diagnostics, only a readiness error contributes ``database``, and only a provider
+    failure that carries a kind contributes ``provider_failure`` (its one input is null: the failure was raised).
     """
     diagnostics: tuple[FailureDiagnostic, ...] = ()
     database: FailureDatabase | None = None
+    provider_failure: ProviderFailure | None = None
     if isinstance(cause, HistoricalDataQualityError):
         diagnostics = tuple(
             FailureDiagnostic(rule=item.rule_id, reason=item.reason)
@@ -106,6 +124,16 @@ def failure_envelope(  # noqa: PLR0913
         database = FailureDatabase(
             database_path=None if path is None else str(path), expected_revision=cause.expected_revision
         )
+    if (
+        isinstance(cause, DataFetchError | FinancialProviderError)
+        and cause.kind is not None
+        and cause.provider_id is not None
+        and PROVIDER_CODE_BY_KIND[cause.kind] is reason_code
+    ):
+        provider_failure = ProviderFailure(
+            reason_code=reason_code,
+            inputs=(ProviderFailureInput(input=None, provider_id=cause.provider_id, kind=cause.kind),),
+        )
     return FailureEnvelope(
         status=status_for(reason_code),
         reason_code=reason_code,
@@ -115,11 +143,13 @@ def failure_envelope(  # noqa: PLR0913
         ticker=ticker,
         diagnostics=diagnostics,
         database=database,
+        provider_failure=provider_failure,
     )
 
 
 __all__ = [
     "CLASSIFICATION_RULES",
+    "PROVIDER_CODE_BY_KIND",
     "AnalysisConfigurationError",
     "FailureClassification",
     "InvalidParameterError",

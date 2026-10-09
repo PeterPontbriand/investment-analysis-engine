@@ -8,11 +8,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.core.provider_failure_kind import ProviderFailureKind
+from src.data.base_client import DataFetchError
+from src.data.financial.facts import FinancialProviderError
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.sec_edgar.filing_document import FilingReaderPolicy, fetch_filing, filing_url
 from src.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
 from src.data.sec_edgar.security_unit import UnitMappingError, parse_unit_document
-from src.data.security_unit import SecurityUnitRequest
+from src.data.security_unit import SecurityUnitRequest, SecurityUnitResolutionReason
 
 NOW = datetime(2026, 9, 9, tzinfo=UTC)
 ACCESSION = "0001628280-26-010047"
@@ -129,7 +132,7 @@ class FilingFixture:
             },
         }
 
-    def json(self, url: str, *, headers: Mapping[str, str]) -> object:
+    def json(self, url: str, *, headers: Mapping[str, str], not_found: ProviderFailureKind, provider_id: str) -> object:  # noqa: ARG002
         assert headers["User-Agent"]
         if url.endswith("company_tickers.json"):
             return {"0": {"ticker": "KO", "cik_str": 21344, "title": "Synthetic KO"}}
@@ -139,7 +142,15 @@ class FilingFixture:
             return self.submissions
         raise AssertionError(url)
 
-    def document(self, url: str, *, headers: Mapping[str, str], policy: FilingReaderPolicy) -> str:
+    def document(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        policy: FilingReaderPolicy,
+        not_found: ProviderFailureKind,  # noqa: ARG002
+        provider_id: str,  # noqa: ARG002
+    ) -> str:
         assert headers["User-Agent"]
         assert policy.max_documents == 4
         assert url == filing_url("21344", ACCESSION, "ko-20251231.htm")
@@ -277,19 +288,25 @@ def test_transport_enforces_size_timeout_user_agent_and_no_redirects() -> None:
     response = opener.open.return_value.__enter__.return_value
     response.read.return_value = b"<html />"
     with patch("src.data.sec_edgar.filing_document.build_opener", return_value=opener) as builder:
-        assert fetch_filing(url, headers={"User-Agent": "Synthetic"}, policy=policy) == "<html />"
+        assert fetch_filing(url, headers={"User-Agent": "Synthetic"}, policy=policy, **_FILING_KEYWORDS) == "<html />"
         opener.open.assert_called_once()
         assert opener.open.call_args.kwargs["timeout"] == 3
         assert opener.open.call_args.args[0].get_header("User-agent") == "Synthetic"
         response.read.assert_called_once_with(9)
         assert builder.call_args.args[0].redirect_request() is None
         response.read.return_value = b"123456789"
-        with pytest.raises(ValueError, match="size limit"):
-            fetch_filing(url, headers={"User-Agent": "Synthetic"}, policy=policy)
+        with pytest.raises(FinancialProviderError, match="size limit") as oversized:
+            fetch_filing(url, headers={"User-Agent": "Synthetic"}, policy=policy, **_FILING_KEYWORDS)
+        assert oversized.value.kind is ProviderFailureKind.UNEXPECTED_RESPONSE
     with pytest.raises(ValueError, match="User-Agent"):
-        fetch_filing(url, headers={}, policy=policy)
+        fetch_filing(url, headers={}, policy=policy, **_FILING_KEYWORDS)
     with pytest.raises(ValueError, match="Unsupported filing URL"):
-        fetch_filing("https://example.test/x.htm", headers={"User-Agent": "Synthetic"}, policy=policy)
+        fetch_filing(
+            "https://example.test/x.htm", headers={"User-Agent": "Synthetic"}, policy=policy, **_FILING_KEYWORDS
+        )
+
+
+_FILING_KEYWORDS: dict[str, Any] = {"not_found": ProviderFailureKind.NO_DATA, "provider_id": "sec_edgar"}
 
 
 @pytest.mark.parametrize(
@@ -328,7 +345,10 @@ def test_acquisition_boundaries(case: str, reason: str) -> None:
     )
     with adapter.analysis_scope(subject_id="KO", provider_id="sec_edgar", as_of=None):
         if case == "transport":
-            with patch.object(adapter, "_filing_fetcher", side_effect=OSError("private transport detail")):
+            failure = FinancialProviderError(
+                "private transport detail", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar"
+            )
+            with patch.object(adapter, "_filing_fetcher", side_effect=failure):
                 resolution = adapter.resolve_security_unit(request)
         else:
             resolution = adapter.resolve_security_unit(request)
@@ -351,7 +371,14 @@ def test_four_original_accessions_are_each_verified_once() -> None:
     inputs = tuple(replace(eps_input(), provider_fact_id=f"{accession}:source") for accession in accessions)
     seen: list[str] = []
 
-    def document(url: str, *, headers: Mapping[str, str], policy: FilingReaderPolicy) -> str:
+    def document(
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        policy: FilingReaderPolicy,
+        not_found: ProviderFailureKind,  # noqa: ARG001
+        provider_id: str,  # noqa: ARG001
+    ) -> str:
         assert headers["User-Agent"]
         assert policy.max_documents == 4
         seen.append(url)
@@ -373,3 +400,59 @@ def test_conflicting_registered_titles_fail_closed() -> None:
     fact = '<i:nonNumeric name="dei:Security12gTitle" contextRef="common">Preferred Stock</i:nonNumeric>'
     with pytest.raises(UnitMappingError, match="Conflicting registered"):
         parse_unit_document(filing_markup().replace("</html>", fact + "</html>"), cik="21344", ticker="KO")
+
+
+def _transport_request() -> SecurityUnitRequest:
+    source = eps_input()
+    return SecurityUnitRequest("KO", "sec_edgar", None, (source,), replace(source, provider_id="yfinance"))
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        FinancialProviderError("typed", kind=ProviderFailureKind.NO_DATA, provider_id="sec_edgar"),
+        FinancialProviderError("unclassified"),
+        DataFetchError("typed", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar"),
+    ],
+)
+def test_a_typed_provider_failure_is_a_provider_error_resolution(fault: Exception) -> None:
+    fixture = FilingFixture()
+    adapter = SecEdgarFinancialFactsAdapter(
+        json_fetcher=fixture.json, filing_fetcher=fixture.document, clock=lambda: NOW, user_agent="Synthetic"
+    )
+    with (
+        adapter.analysis_scope(subject_id="KO", provider_id="sec_edgar", as_of=None),
+        patch.object(adapter, "_filing_fetcher", side_effect=fault),
+    ):
+        resolution = adapter.resolve_security_unit(_transport_request())
+    assert resolution.reason is SecurityUnitResolutionReason.PROVIDER_ERROR
+
+
+@pytest.mark.parametrize(
+    "defect", [OSError("not a typed failure"), ValueError("not a typed failure"), RuntimeError("x")]
+)
+def test_a_non_provider_exception_inside_the_filing_read_propagates(defect: Exception) -> None:
+    fixture = FilingFixture()
+    adapter = SecEdgarFinancialFactsAdapter(
+        json_fetcher=fixture.json, filing_fetcher=fixture.document, clock=lambda: NOW, user_agent="Synthetic"
+    )
+    with (
+        adapter.analysis_scope(subject_id="KO", provider_id="sec_edgar", as_of=None),
+        patch.object(adapter, "_filing_fetcher", side_effect=defect),
+        pytest.raises(type(defect)) as caught,
+    ):
+        adapter.resolve_security_unit(_transport_request())
+    assert caught.value is defect
+
+
+def test_a_filing_the_provider_lists_but_cannot_be_addressed_is_an_unexpected_response_resolution() -> None:
+    fixture = FilingFixture()
+    fixture.submissions["filings"]["recent"]["primaryDocument"] = ["../escape.htm"] * len(
+        fixture.submissions["filings"]["recent"]["primaryDocument"]
+    )
+    adapter = SecEdgarFinancialFactsAdapter(
+        json_fetcher=fixture.json, filing_fetcher=fixture.document, clock=lambda: NOW, user_agent="Synthetic"
+    )
+    with adapter.analysis_scope(subject_id="KO", provider_id="sec_edgar", as_of=None):
+        resolution = adapter.resolve_security_unit(_transport_request())
+    assert resolution.reason is SecurityUnitResolutionReason.PROVIDER_ERROR

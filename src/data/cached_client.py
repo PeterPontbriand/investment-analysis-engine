@@ -11,7 +11,6 @@ from src.data.base_client import BaseDataClient
 from src.data.financial.provenance import SourceKind
 from src.data.market_data import HistoricalDataResolution, HistoricalMarketData
 from src.data.quality import (
-    DataQualityError,
     FreshnessPolicy,
     HistoricalDataQualityError,
     HistoricalQualityPolicy,
@@ -63,6 +62,7 @@ class CachedHistoricalDataClient(BaseDataClient):
     def _quality_error(
         self, data: HistoricalMarketData, input_id: str, *, cached_at: datetime | None = None
     ) -> str | None:
+        """Raise for fresh data that fails a rule; for a cached entry, return the failure reason or ``None``."""
         context = QualityContext(input_id, self._now())
         decisions = evaluate_historical_quality(data, context=context, policy=self._quality_policy)
         # Historical series have date labels, not publication timestamps. Only
@@ -110,16 +110,12 @@ class CachedHistoricalDataClient(BaseDataClient):
         if not use_cache:
             logger.debug("Historical cache bypassed: use_cache is False for this call.")
             data = self._provider.fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
-            error = self._quality_error(data, input_id)
-            if error is not None:
-                raise DataQualityError(error)
+            self._quality_error(data, input_id)
             return self._provider_resolution(data)
         if not provider_id or not provider_id.strip() or not self._variant or not self._variant.strip():
             logger.debug("Historical cache bypassed: provider or request variant is unavailable.")
             data = self._provider.fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
-            error = self._quality_error(data, input_id)
-            if error is not None:
-                raise DataQualityError(error)
+            self._quality_error(data, input_id)
             return self._provider_resolution(data)
         key = MarketDataCacheKey(
             ticker,
@@ -138,9 +134,7 @@ class CachedHistoricalDataClient(BaseDataClient):
             )
         data = self._provider.fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
         completed_at = self._now()
-        error = self._quality_error(data, input_id)
-        if error is not None:
-            raise DataQualityError(error)
+        self._quality_error(data, input_id)
         try:
             original_retrieval = data.resolution.retrieved_at if data.resolution is not None else completed_at
             self._repository.put(key, data, fetch_completed_at=original_retrieval)

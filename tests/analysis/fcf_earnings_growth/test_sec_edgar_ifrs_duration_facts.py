@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import CapitalExpenditureSign, FinancialSubjectKind
 from src.data.sec_edgar.financial_facts import (
@@ -38,7 +39,14 @@ class _IfrsFetcher:
         self._company_facts = company_facts
         self._submissions = submissions
 
-    def __call__(self, url: str, *, headers: Mapping[str, str]) -> object:
+    def __call__(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        not_found: ProviderFailureKind,  # noqa: ARG002
+        provider_id: str,  # noqa: ARG002
+    ) -> object:
         assert headers["User-Agent"] == "B1-B fixture tests@example.invalid"
         if "company_tickers.json" in url:
             return _fixture("company_tickers.json")

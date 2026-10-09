@@ -25,6 +25,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
+from src.core.provider_failure_kind import ProviderFailureKind, require_provider_identity
 from src.data.financial.provenance import (
     AccountingScope,
     CapitalExpenditureSign,
@@ -174,7 +175,17 @@ class FinancialProviderError(Exception):
     Represents an *operational* provider failure (e.g. transport or service
     error).  It is NOT used to signal an ordinary missing fact — an empty
     result tuple represents unavailability.
+
+    ``kind`` and ``provider_id`` say what the adapter observed and which provider it was; both are
+    ``None`` for a failure the adapter did not classify.
     """
+
+    def __init__(self, *args: object, kind: ProviderFailureKind | None = None, provider_id: str | None = None) -> None:
+        """Carry the failure kind and the provider that failed beside the message."""
+        require_provider_identity(kind, provider_id)
+        super().__init__(*args)
+        self.kind = kind
+        self.provider_id = provider_id
 
 
 # ---------------------------------------------------------------------------

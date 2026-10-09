@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
@@ -19,7 +20,14 @@ class HeaderCaptureFetcher:
         """Initialize an empty call log."""
         self.calls: list[tuple[str, Mapping[str, str]]] = []
 
-    def __call__(self, url: str, *, headers: Mapping[str, str]) -> object:
+    def __call__(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        not_found: ProviderFailureKind,  # noqa: ARG002
+        provider_id: str,  # noqa: ARG002
+    ) -> object:
         """Record one request and return the minimal payload needed for the URL."""
         self.calls.append((url, dict(headers)))
         if "company_tickers.json" in url:

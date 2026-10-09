@@ -33,8 +33,8 @@ before the next begins. A prose-only documentation slice follows the documentati
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | PH.1 | [Live suite, health command and scheduled run](#ph1--live-suite-health-command-and-scheduled-run) | Complete | 2026-10-05 |
-| PH.2a | [Kind and raised failures](#ph2a--kind-and-raised-failures) | Planned | |
-| PH.2b | [Yahoo, health and completion](#ph2b--yahoo-health-and-completion) | Planned | |
+| PH.2a | [Kind and raised failures](#ph2a--kind-and-raised-failures) | Complete | 2026-10-09 |
+| PH.2b | [Yahoo, health and completion](#ph2b--yahoo-health-and-completion) | Next | |
 | PH.2c | [Stored provider failures](#ph2c--stored-provider-failures) | Planned | |
 | PH.3 | [Automatic canary and health JSON](#ph3--automatic-canary-and-health-json) | Planned | |
 

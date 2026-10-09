@@ -12,6 +12,7 @@ from typing import Any
 
 import pytest
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
 from src.data.financial.provenance import FinancialSubjectKind
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
@@ -35,7 +36,14 @@ class _SnapshotFetcher:
         self.submissions = submissions
         self.calls: list[str] = []
 
-    def __call__(self, url: str, *, headers: Mapping[str, str]) -> object:
+    def __call__(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        not_found: ProviderFailureKind,  # noqa: ARG002
+        provider_id: str,  # noqa: ARG002
+    ) -> object:
         assert headers["User-Agent"] == "B1-A fixture tests@example.invalid"
         self.calls.append(url)
         if "company_tickers.json" in url:
