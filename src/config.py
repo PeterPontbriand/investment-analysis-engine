@@ -16,6 +16,7 @@ from pydantic_settings import BaseSettings, EnvSettingsSource, PydanticBaseSetti
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import ArgumentError
 
+from src.core.settings_error import SettingsEnvironmentError
 from src.orchestrator.reliability import ReliabilityLimits
 from src.schema.config import SchemaConfig
 from src.utils import paths
@@ -25,10 +26,6 @@ load_dotenv()
 
 ENV_PREFIX = "IAN_"
 NESTED_DELIMITER = "__"
-
-
-class SettingsEnvironmentError(ValueError):
-    """Raised when the process environment cannot be mapped onto the engine settings unambiguously."""
 
 
 def load_config_file(file_path: str) -> dict[str, Any]:
@@ -94,13 +91,13 @@ def check_environment(environ: Mapping[str, str], declared: frozenset[str]) -> N
     for lowered, keys in sorted(spellings.items()):
         if lowered not in declared:
             raise SettingsEnvironmentError(
-                f"Environment variable {keys[0]} does not match any engine setting. Engine settings are read as "
-                f"{ENV_PREFIX}<NAME> (for example {ENV_PREFIX}DATA_DIR); correct the name or remove the variable."
+                f"Environment variable {keys[0]} matches no engine setting (engine settings are read as "
+                f"{ENV_PREFIX}<NAME>, for example {ENV_PREFIX}DATA_DIR); correct the name or remove the variable."
             )
         if len(keys) > 1:
             listed = " and ".join(sorted(keys))
             raise SettingsEnvironmentError(
-                f"Environment variables {listed} differ only by case and both set the same engine setting; "
+                f"Environment variables {listed} differ only by letter case and both set the same engine setting; "
                 "set exactly one."
             )
 
@@ -280,12 +277,6 @@ class ProjectSettings(BaseSettings):
         """Retrieve core fast/slow moving average parameters settings."""
         momentum_config_path = self.base_dir / "config" / "momentum_config" / "momentum_analysis_settings.toml"
         return load_config_file(str(momentum_config_path))
-
-
-def configured_massive_api_key() -> str | None:
-    """Return the Massive API key from a fresh read of the environment, or None when it is not set."""
-    secret = ProjectSettings().massive_api_key
-    return None if secret is None else secret.get_secret_value()
 
 
 # Instantiate singleton settings proxy

@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from src.config import ProjectSettings, SettingsEnvironmentError, configured_massive_api_key
+from src.config import ProjectSettings
+from src.core.settings_error import SettingsEnvironmentError
 
 _CASE_VARIANTS = ["IAN_DATA_DIR", "ian_data_dir", "Ian_Data_Dir"]
 
@@ -115,12 +116,14 @@ def test_sec_user_agent_keeps_its_name_in_any_case(spelling: str, monkeypatch: p
 def test_massive_api_key_keeps_its_name_in_any_case(spelling: str, monkeypatch: pytest.MonkeyPatch) -> None:
     _replace_environment(monkeypatch, {spelling: "test-key"})
 
-    assert configured_massive_api_key() == "test-key"
+    configured = ProjectSettings().massive_api_key
+    assert configured is not None
+    assert configured.get_secret_value() == "test-key"
     assert "test-key" not in repr(ProjectSettings())
 
 
 def test_massive_api_key_is_none_when_unset() -> None:
-    assert configured_massive_api_key() is None
+    assert ProjectSettings().massive_api_key is None
 
 
 def test_application_identity_is_constant() -> None:

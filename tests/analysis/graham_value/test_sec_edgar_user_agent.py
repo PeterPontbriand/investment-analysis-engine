@@ -44,11 +44,8 @@ def _annual_eps_request() -> FinancialFactRequest:
     )
 
 
-def test_sec_user_agent_explicit_constructor_value_takes_precedence(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Use the explicit declared identity even when the environment differs."""
-    monkeypatch.setenv("SEC_USER_AGENT", "environment-agent env@example.invalid")
+def test_sec_user_agent_is_sent_on_every_request() -> None:
+    """Send the identity the caller declared."""
     fetcher = HeaderCaptureFetcher()
     adapter = SecEdgarFinancialFactsAdapter(
         json_fetcher=fetcher,
@@ -60,31 +57,16 @@ def test_sec_user_agent_explicit_constructor_value_takes_precedence(
     assert all(headers["User-Agent"] == "explicit-agent explicit@example.invalid" for _url, headers in fetcher.calls)
 
 
-def test_sec_user_agent_falls_back_to_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Use SEC_USER_AGENT when the constructor does not supply an identity."""
-    monkeypatch.setenv("SEC_USER_AGENT", "environment-agent env@example.invalid")
-    fetcher = HeaderCaptureFetcher()
-    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher)
-
-    assert adapter.fetch_facts(_annual_eps_request(), effective_as_of=datetime.now(UTC)) == ()
-    assert fetcher.calls
-    assert all(headers["User-Agent"] == "environment-agent env@example.invalid" for _url, headers in fetcher.calls)
-
-
-def test_sec_user_agent_missing_identity_fails_locally(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Reject construction before network access when no declared identity exists."""
-    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
-
-    with pytest.raises(ValueError, match="SEC_USER_AGENT"):
-        SecEdgarFinancialFactsAdapter(json_fetcher=HeaderCaptureFetcher())
-
-
-def test_sec_user_agent_blank_explicit_identity_does_not_fall_back(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Treat an explicitly blank identity as invalid instead of masking it with env."""
+def test_sec_user_agent_is_required_and_never_read_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reject construction without an identity, even when the environment declares one."""
     monkeypatch.setenv("SEC_USER_AGENT", "environment-agent env@example.invalid")
 
+    with pytest.raises(TypeError, match="user_agent"):
+        SecEdgarFinancialFactsAdapter(json_fetcher=HeaderCaptureFetcher())  # type: ignore[call-arg]
+
+
+def test_sec_user_agent_blank_identity_is_invalid() -> None:
+    """Treat a blank identity as invalid before any network access."""
     with pytest.raises(ValueError, match="declared User-Agent"):
         SecEdgarFinancialFactsAdapter(
             json_fetcher=HeaderCaptureFetcher(),

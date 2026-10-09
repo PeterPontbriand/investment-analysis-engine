@@ -15,7 +15,7 @@ from src.data.financial.facts import (
 from src.data.instrument_profile import InstrumentKindEvidence, InstrumentKindProvider, InstrumentKindRequest
 from src.data.massive.constants import MASSIVE_PROVIDER_ID
 from src.data.massive.financial_facts import MassiveFinancialFactsAdapter
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.data.security_identity import SecurityIdentity, SecurityIdentityProvider, SecurityIdentityRequest
 from src.data.security_unit import (
     SecurityUnitProvider,
@@ -36,13 +36,13 @@ class ProductionFinancialFactsProvider:
     def __init__(
         self,
         *,
-        sec_edgar: FinancialFactsProvider | None = None,
+        sec_edgar: FinancialFactsProvider,
         massive: FinancialFactsProvider | None = None,
         yfinance: FinancialFactsProvider | None = None,
     ) -> None:
         """Initialize with optional injected adapters for deterministic tests."""
         self._providers: Mapping[str, FinancialFactsProvider] = {
-            SEC_PROVIDER_ID: sec_edgar or SecEdgarFinancialFactsAdapter(),
+            SEC_PROVIDER_ID: sec_edgar,
             MASSIVE_PROVIDER_ID: massive or MassiveFinancialFactsAdapter(),
             YFINANCE_PROVIDER_ID: yfinance or YFinanceFinancialFactsAdapter(),
         }
