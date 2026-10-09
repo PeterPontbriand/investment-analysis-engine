@@ -1,5 +1,5 @@
 exit 0
 --- stdout
-Database: "<database>" State: initialized Revision: 0004_instrument_profiles; expected: 0004_instrument_profiles Database is ready.
+Database: "<database>" State: initialized Revision: 0005_remove_cancelled_outcome; expected: 0005_remove_cancelled_outcome Database is ready.
 --- stderr
 

@@ -426,7 +426,7 @@ Typed sanitized errors preserve stable reason categories and analysis envelopes.
 Optional telemetry neither initializes storage nor controls business execution;
 financial cache bypass and storage-free help/imports avoid opening that cache.
 The migration bundle currently comprises `0001_persistence`, `0002_research_workspace`,
-`0003_watchlist_entries`, and `0004_instrument_profiles`; older-schema support
+`0003_watchlist_entries`, `0004_instrument_profiles`, and `0005_remove_cancelled_outcome`; older-schema support
 is verified with synthetic history. See [Local Database Operations](../user/DATABASE.md)
 for target selection, error recovery and installation/platform limits.
 

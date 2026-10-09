@@ -53,7 +53,6 @@ The rule applied: code read only by its own tests is dead; code read by the sche
 | `provider_checks.MAX_REQUESTS_PER_CHECK` | A provider-check test asserts the request budget against it. |
 | `SQLiteMarketDataRepository.list_keys`, `SQLiteResolvedInputCache.list_keys`, `SQLiteInstrumentProfileRepository.get_by_id` | Listed as repository interface in `docs/project/ARCHITECTURE.md`. |
 | `strategies.fcf_growth.calculators.compute_fcf_yield` | Step 3.5's FCF-yield screen either uses it or deletes it (see the Step 3.5 contract's shared-definitions slice). |
-| `RunOutcome.CANCELLED` and the `'cancelled'` value in the analysis-run outcome check constraint | Nothing produces it; removal changes the database schema. |
 | `StrategyIndexes.by_key`, `StrategyIndexes.by_envelope` | Building them enforces key and envelope uniqueness at import; only the conformance tests read them. |
 | `StrategyDescriptor.json_envelope` | Read by the schema generator and the schema drift check. |
 | `EvaluationStrategy.sample_selection` | Read by the conformance script's stored-run probe; each strategy must supply one. |
@@ -62,6 +61,8 @@ The rule applied: code read only by its own tests is dead; code read by the sche
 A third pass (2026-10-08) deleted the two dispatch routes that only tests and the conformance script ran: `parse_selection`, the descriptor `parse` member, `parse_for` and `parsers_by_alias`, and `encode_evidence` with `evidence_by_type`. Production builds a selection from command-line options and reads a stored one with `decode_selection`, and encodes through the run spec of the run's own strategy. They are no longer on the kept list.
 
 A fourth pass (2026-10-08) made logging reach the log file and deleted what it left without a role: `worker.py`, `setup_logger`, `LoggerContext`, `ContextualAdapter` (with its `context_data` branch) and the console handler with its colour formatter. Nothing from the logging utility is on the kept list.
+
+A fifth pass (2026-10-09) removed `RunOutcome.CANCELLED` and the `'cancelled'` value in the analysis-run outcome check constraint. Nothing produced it: a run's outcome is chosen by each strategy's outcome mapping, which never returns it, and the only other places an outcome is built from text are the stored-row decoder and the `--status` filter. An interrupted run stores nothing, or the refresh finishes the jobs already running and saves them with their own outcome, so a cancelled run is not a state the project has. Removal changes the database schema, so it ships as the revision `0005_remove_cancelled_outcome`. It is no longer on the kept list.
 
 ## 6. References
 

@@ -433,7 +433,7 @@ analysis_runs = sa.Table(
     sa.CheckConstraint("length(trim(analysis_id)) > 0", name="ck_analysis_runs_analysis_id_nonempty"),
     sa.CheckConstraint("length(trim(method_id)) > 0", name="ck_analysis_runs_method_id_nonempty"),
     sa.CheckConstraint(
-        "outcome IN ('completed', 'unavailable', 'not_applicable', 'failed', 'cancelled')",
+        "outcome IN ('completed', 'unavailable', 'not_applicable', 'failed')",
         name="ck_analysis_runs_outcome_enum",
     ),
     sa.CheckConstraint(

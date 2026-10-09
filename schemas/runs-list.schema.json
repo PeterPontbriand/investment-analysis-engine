@@ -6,8 +6,7 @@
         "completed",
         "unavailable",
         "not_applicable",
-        "failed",
-        "cancelled"
+        "failed"
       ],
       "title": "RunOutcome",
       "type": "string"

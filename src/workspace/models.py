@@ -26,7 +26,6 @@ class RunOutcome(StrEnum):
     UNAVAILABLE = "unavailable"
     NOT_APPLICABLE = "not_applicable"
     FAILED = "failed"
-    CANCELLED = "cancelled"
 
 
 def _validate_json_value(value: object) -> object:

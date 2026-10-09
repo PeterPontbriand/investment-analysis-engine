@@ -157,9 +157,8 @@ analysis outcome, not a failure, so its job carries none; neither does a `comple
 - A `failed` outcome with no stored run (refresh with saving off) has no stored code to copy; where its code
   comes from is not decided (needs a decision).
 
-Nothing produces a cancelled run: `RunOutcome.CANCELLED` and the `'cancelled'` value in the outcome check
-constraint exist but no code writes them ([R3 close-out](../r3/R3_DEAD_CODE_AUDIT_CLOSEOUT.md)), so the rule has
-no `cancelled` case and no code is added for one. `data_unavailable` is not added either.
+A run cannot be cancelled: the outcome does not exist ([R3 close-out](../r3/R3_DEAD_CODE_AUDIT_CLOSEOUT.md)), so
+the rule has no `cancelled` case and no code is added for one. `data_unavailable` is not added either.
 
 **Safety of replacing `execution_failed`.** Nothing reads it: it is written at `workspace/execution.py:150`
 and validated only as non-empty (`workspace/runs.py:126`). One test asserts it

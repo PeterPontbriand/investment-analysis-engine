@@ -38,9 +38,11 @@ The command initializes fresh storage, upgrades a structurally valid recognized
 ancestor, or succeeds without changes when already ready. It does not prompt for
 confirmation. Unknown/newer revisions, unversioned nonempty storage and schema
 drift require inspection with matching application code, not a blind upgrade.
-The current bundle contains only `0001_persistence`; older-production-revision
-upgrades are not presently available. Upgrade behavior is tested with synthetic
-migration history.
+The bundle holds five revisions, `0001_persistence` to `0005_remove_cancelled_outcome`,
+and a database at any earlier one upgrades in place. The last revision rebuilds the
+run table without the `cancelled` outcome that no run ever had; it stops and changes
+nothing if a stored run somehow holds that outcome. Upgrade behavior is tested with
+synthetic migration history.
 
 Both maintenance commands accept `--database-url` and `--json`. An override is
 for that invocation only; it does not redirect later analyses:

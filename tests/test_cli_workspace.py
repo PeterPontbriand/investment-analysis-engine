@@ -473,6 +473,12 @@ def test_runs_list_rejects_an_invalid_status_as_a_usage_error() -> None:
     assert result.exit_code == 2
 
 
+def test_runs_list_rejects_the_removed_cancelled_status_as_a_usage_error() -> None:
+    result = runner.invoke(app, ["runs", "list", "--status", "cancelled"])
+    assert result.exit_code == 2
+    assert "cancelled" not in normalize_cli_output(result.output).split("must be one of:")[-1]
+
+
 def test_runs_show_missing_id_exits_1() -> None:
     result = runner.invoke(app, ["runs", "show", "11111111-1111-4111-8111-111111111111"])
     assert result.exit_code == 1
