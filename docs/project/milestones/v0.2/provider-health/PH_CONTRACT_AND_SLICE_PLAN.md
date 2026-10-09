@@ -96,8 +96,8 @@ outcome with its resolution trace, and the existing `PROVIDER_ERROR` status is n
   report, a saved run or a refresh job.
 - **Decision:** the kind and provider identity are typed fields on the stored resolver result and the profile
   and identity diagnostics; every report derives from them through one kind-to-code mapping with a fixed
-  precedence; every strategy document carries one shared `provider_failure` element; every refresh job that did
-  not succeed carries a `reason_code`.
+  precedence; every strategy document carries one shared `provider_failure` element; a refresh job carries a
+  `reason_code` if and only if it raised or its run failed.
 - **Scope:** the resolvers and carriers, the four strategy codecs and documents, the run envelope, the
   profile-cache payload, the saved run's failure code and the refresh job and summary.
 - **Branch:** `feat/ph-2c-stored-provider-failures`, from `main` after PH.2b has merged.
