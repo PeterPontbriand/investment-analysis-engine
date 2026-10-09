@@ -102,7 +102,7 @@ def test_project_settings_reads_nested_reliability_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Reliability limits remain configurable without code changes."""
-    monkeypatch.setenv("reliability_limits__max_steps", "8")
+    monkeypatch.setenv("IAN_RELIABILITY_LIMITS__MAX_STEPS", "8")
 
     project_settings = ProjectSettings()
 

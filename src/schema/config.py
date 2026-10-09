@@ -5,7 +5,6 @@ Provides settings for strictness, fallback behavior, and Ollama compatibility.
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 
 
@@ -29,42 +28,6 @@ class SchemaConfig:
     max_validation_retries: int = 3
     ollama_version: str | None = None
 
-    @classmethod
-    def from_env(cls) -> SchemaConfig:
-        """Load configuration from environment variables.
-
-        Environment variables:
-            SCHEMA_STRICT_MODE: bool (default: True)
-            SCHEMA_ADDITIONAL_PROPERTIES: bool (default: False)
-            SCHEMA_USE_NATIVE: bool (default: True)
-            SCHEMA_FALLBACK_TO_PROMPT: bool (default: True)
-            SCHEMA_MAX_RETRIES: int (default: 3)
-        """
-
-        def _get_bool(key: str, default: bool) -> bool:
-            val = os.environ.get(key)
-            if val is None:
-                return default
-            return val.lower() in ("1", "true", "yes", "on")
-
-        def _get_int(key: str, default: int) -> int:
-            val = os.environ.get(key)
-            if val is None:
-                return default
-            try:
-                return int(val)
-            except ValueError:
-                return default
-
-        return cls(
-            strict_mode=_get_bool("SCHEMA_STRICT_MODE", True),
-            additional_properties=_get_bool("SCHEMA_ADDITIONAL_PROPERTIES", False),
-            use_native_constraint=_get_bool("SCHEMA_USE_NATIVE", True),
-            fallback_to_prompt=_get_bool("SCHEMA_FALLBACK_TO_PROMPT", True),
-            max_validation_retries=_get_int("SCHEMA_MAX_RETRIES", 3),
-            ollama_version=os.environ.get("OLLAMA_VERSION"),
-        )
-
 
 class _ConfigStore:
     """Mutable holder for the process-wide schema configuration."""
@@ -73,9 +36,14 @@ class _ConfigStore:
 
 
 def get_schema_config() -> SchemaConfig:
-    """Get the global schema configuration, loading from env if not set."""
+    """Get the global schema configuration, taking it from the application settings if not set.
+
+    The values come from ``IAN_SCHEMA_CONFIG__<FIELD>`` environment variables through the settings class.
+    """
     if _ConfigStore.current is None:
-        _ConfigStore.current = SchemaConfig.from_env()
+        from src.config import settings  # noqa: PLC0415 - src.config imports this module at load time
+
+        _ConfigStore.current = settings.schema_config
     return _ConfigStore.current
 
 

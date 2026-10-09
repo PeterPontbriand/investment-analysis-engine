@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, time
 from urllib.parse import urlencode
 
+from src.config import configured_massive_api_key
 from src.core.clock import utc_now
 from src.data.financial.facts import (
     FinancialFactRequest,
@@ -51,7 +51,7 @@ class MassiveFinancialFactsAdapter:
         base_url: str = _BASE_URL,
     ) -> None:
         """Initialize the adapter with injectable credentials, transport, and clock."""
-        self._api_key = api_key if api_key is not None else os.getenv("MASSIVE_API_KEY")
+        self._api_key = api_key if api_key is not None else configured_massive_api_key()
         self._fetch_json = json_fetcher
         self._clock = clock or utc_now
         self._base_url = base_url.rstrip("/")

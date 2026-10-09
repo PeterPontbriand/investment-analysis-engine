@@ -1,13 +1,18 @@
 # src/config.py
 """Application configurations managed via Pydantic-settings and external TOML profiles."""
 
+import dataclasses
+import os
 import tomllib
+from collections import defaultdict
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Literal, Self
+from typing import Any, ClassVar, Literal, Self
 
 from dotenv import load_dotenv
-from pydantic import Field, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel, Field, SecretStr, model_validator
+from pydantic.fields import FieldInfo
+from pydantic_settings import BaseSettings, EnvSettingsSource, PydanticBaseSettingsSource, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import ArgumentError
 
@@ -17,6 +22,13 @@ from src.utils import paths
 
 # Ensure core environment variables are populated
 load_dotenv()
+
+ENV_PREFIX = "IAN_"
+NESTED_DELIMITER = "__"
+
+
+class SettingsEnvironmentError(ValueError):
+    """Raised when the process environment cannot be mapped onto the engine settings unambiguously."""
 
 
 def load_config_file(file_path: str) -> dict[str, Any]:
@@ -30,23 +42,105 @@ def load_config_file(file_path: str) -> dict[str, Any]:
         raise ValueError(f"Failed to decode configuration file at path: {file_path}") from None
 
 
-class ProjectSettings(BaseSettings):
-    """Application configuration loaded from environment variables and config tables."""
+def _nested_field_names(annotation: object) -> frozenset[str] | None:
+    """Return the field names of a nested settings model, or None when the field is a plain value."""
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return frozenset(annotation.model_fields)
+    if isinstance(annotation, type) and dataclasses.is_dataclass(annotation):
+        return frozenset(item.name for item in dataclasses.fields(annotation))
+    return None
 
-    version: str = "0.1.0"
+
+def _environment_name(name: str, field: FieldInfo) -> str:
+    """Return the upper-case environment variable that sets a field (its alias, or the prefixed field name)."""
+    if isinstance(field.validation_alias, str):
+        return field.validation_alias.upper()
+    return f"{ENV_PREFIX}{name}".upper()
+
+
+def declared_environment_names(settings_cls: type[BaseSettings]) -> frozenset[str]:
+    """Return every environment variable name the settings class accepts, lower-cased.
+
+    Plain fields are read as ``IAN_<FIELD>``; a field with a string validation alias keeps that alias (the
+    provider credentials). Nested model fields additionally accept ``IAN_<FIELD>__<SUBFIELD>`` and the
+    whole-object ``IAN_<FIELD>`` form.
+    """
+    names: set[str] = set()
+    for name, field in settings_cls.model_fields.items():
+        base = _environment_name(name, field)
+        names.add(base.lower())
+        nested = _nested_field_names(field.annotation)
+        if nested is not None:
+            names.update(f"{base}{NESTED_DELIMITER}{sub}".lower() for sub in nested)
+    return frozenset(names)
+
+
+def check_environment(environ: Mapping[str, str], declared: frozenset[str]) -> None:
+    """Fail closed when the environment does not map onto the declared settings unambiguously.
+
+    Args:
+        environ: The process environment (or any mapping of variable names to values).
+        declared: Lower-cased names from :func:`declared_environment_names`.
+
+    Raises:
+        SettingsEnvironmentError: An ``IAN_`` variable names no setting, or two variables that differ only
+            by case are both set for the same setting. The message names the offending variables.
+    """
+    spellings: dict[str, list[str]] = defaultdict(list)
+    for key in environ:
+        lowered = key.lower()
+        if lowered in declared or lowered.startswith(ENV_PREFIX.lower()):
+            spellings[lowered].append(key)
+    for lowered, keys in sorted(spellings.items()):
+        if lowered not in declared:
+            raise SettingsEnvironmentError(
+                f"Environment variable {keys[0]} does not match any engine setting. Engine settings are read as "
+                f"{ENV_PREFIX}<NAME> (for example {ENV_PREFIX}DATA_DIR); correct the name or remove the variable."
+            )
+        if len(keys) > 1:
+            listed = " and ".join(sorted(keys))
+            raise SettingsEnvironmentError(
+                f"Environment variables {listed} differ only by case and both set the same engine setting; "
+                "set exactly one."
+            )
+
+
+class _EngineEnvSource(EnvSettingsSource):
+    """Environment source that validates the whole environment before any value is read."""
+
+    def _load_env_vars(self) -> Mapping[str, str | None]:
+        """Validate the process environment, then load it as the base source does."""
+        check_environment(os.environ, declared_environment_names(self.settings_cls))
+        return super()._load_env_vars()
+
+
+class ProjectSettings(BaseSettings):
+    """Application configuration loaded from environment variables and config tables.
+
+    Every setting is read from ``IAN_<NAME>`` in any letter case (for example ``IAN_DATA_DIR``); unprefixed names
+    are not read. The provider credentials ``SEC_USER_AGENT`` and ``MASSIVE_API_KEY`` keep their own names, also
+    in any case. An ``IAN_`` variable that names no setting, or two variables differing only by case for one
+    setting, raise :class:`SettingsEnvironmentError`.
+    """
+
+    # Fixed application identity; deliberately not environment-overridable.
+    version: ClassVar[str] = "0.1.0"
+    environment: ClassVar[str] = "development"
+    encoding: ClassVar[str] = "utf-8"
 
     # AI/Agent Settings
     ollama_base_url: str = "http://192.168.1.19:11434"
     model_selection: str = "deepseek-r1:14b"
 
     # Native Schema Enforcement Settings
-    schema_config: SchemaConfig = Field(default_factory=SchemaConfig.from_env)
+    schema_config: SchemaConfig = Field(default_factory=SchemaConfig)
 
     # Orchestration reliability limits
     reliability_limits: ReliabilityLimits = Field(default_factory=ReliabilityLimits)
 
     # External data-provider settings
     sec_user_agent: str | None = Field(default=None, validation_alias="SEC_USER_AGENT")
+    massive_api_key: SecretStr | None = Field(default=None, validation_alias="MASSIVE_API_KEY")
 
     # Human-readable operational logging
     log_level: str = "INFO"
@@ -100,12 +194,6 @@ class ProjectSettings(BaseSettings):
         ),
     )
 
-    # Environment Variables
-    environment: str = "development"
-
-    # Encoding for all text files
-    encoding: str = "utf-8"
-
     # Project Root Directory
     base_dir: Path = Path(__file__).resolve().parent.parent
 
@@ -116,9 +204,22 @@ class ProjectSettings(BaseSettings):
     model_config = SettingsConfigDict(
         extra="ignore",
         env_ignore_empty=True,
-        env_nested_delimiter="__",
-        case_sensitive=True,
+        env_prefix=ENV_PREFIX,
+        env_nested_delimiter=NESTED_DELIMITER,
+        case_sensitive=False,
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,  # noqa: ARG003 - fixed override signature
+        dotenv_settings: PydanticBaseSettingsSource,  # noqa: ARG003 - fixed override signature
+        file_secret_settings: PydanticBaseSettingsSource,  # noqa: ARG003 - fixed override signature
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """Read explicit arguments first, then the validated process environment."""
+        return (init_settings, _EngineEnvSource(settings_cls))
 
     @model_validator(mode="after")
     def resolve_database_configuration(self) -> Self:
@@ -179,6 +280,12 @@ class ProjectSettings(BaseSettings):
         """Retrieve core fast/slow moving average parameters settings."""
         momentum_config_path = self.base_dir / "config" / "momentum_config" / "momentum_analysis_settings.toml"
         return load_config_file(str(momentum_config_path))
+
+
+def configured_massive_api_key() -> str | None:
+    """Return the Massive API key from a fresh read of the environment, or None when it is not set."""
+    secret = ProjectSettings().massive_api_key
+    return None if secret is None else secret.get_secret_value()
 
 
 # Instantiate singleton settings proxy

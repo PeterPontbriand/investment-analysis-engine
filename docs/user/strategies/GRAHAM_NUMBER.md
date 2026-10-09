@@ -84,12 +84,12 @@ by that command are refreshed through the normal provider/cache path. For
 example, in PowerShell:
 
 ```powershell
-$previousTtl = $env:financial_cache_ttl_seconds
+$previousTtl = $env:IAN_FINANCIAL_CACHE_TTL_SECONDS
 try {
-    $env:financial_cache_ttl_seconds = "0"
+    $env:IAN_FINANCIAL_CACHE_TTL_SECONDS = "0"
     uv run ian graham-number KO
 } finally {
-    $env:financial_cache_ttl_seconds = $previousTtl
+    $env:IAN_FINANCIAL_CACHE_TTL_SECONDS = $previousTtl
 }
 ```
 

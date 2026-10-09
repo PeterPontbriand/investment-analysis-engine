@@ -1,10 +1,10 @@
 """Placeholder financial market client for the forthcoming Massive API service."""
 
 import logging
-import os
 
 import pandas as pd
 
+from src.config import configured_massive_api_key
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.massive.constants import MASSIVE_PROVIDER_ID
 
@@ -21,7 +21,7 @@ class MassiveClient(BaseDataClient):
 
     def __init__(self) -> None:
         """Initialize Massive API client credentials."""
-        self.api_key = os.getenv("MASSIVE_API_KEY")
+        self.api_key = configured_massive_api_key()
 
     def fetch_data(self, ticker: str, start_date: str, end_date: str | None = None) -> pd.DataFrame:
         """Retrieve structured historical assets from Massive.

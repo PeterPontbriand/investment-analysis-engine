@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import os
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -13,6 +12,7 @@ from types import MappingProxyType
 from typing import cast
 from zoneinfo import ZoneInfo
 
+from src.config import ProjectSettings
 from src.core.clock import utc_now
 from src.data.financial.facts import (
     FinancialFactRequest,
@@ -56,7 +56,6 @@ SEC_STOCKHOLDERS_EQUITY_FIELD = "us-gaap:StockholdersEquity"
 _SEC_DERIVED_COMMON_SHARES_FIELD = "derived:us-gaap:CommonStockSharesIssued-us-gaap:TreasuryStockCommonShares"
 _SEC_INFERRED_PREFERRED_ABSENCE_FIELD = "inferred:sec-company-facts:no-issued-preferred-equity"
 _PREFERRED_NEUTRAL_CONCEPTS = frozenset({"PreferredStockSharesAuthorized", "PreferredStockParOrStatedValuePerShare"})
-_SEC_USER_AGENT_ENV = "SEC_USER_AGENT"
 _COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
@@ -544,7 +543,7 @@ class SecEdgarFinancialFactsAdapter:
 
 def _resolve_sec_user_agent(explicit_user_agent: str | None) -> str:
     """Resolve the declared SEC identity from constructor input or environment."""
-    candidate = explicit_user_agent if explicit_user_agent is not None else os.getenv(_SEC_USER_AGENT_ENV)
+    candidate = explicit_user_agent if explicit_user_agent is not None else ProjectSettings().sec_user_agent
     if candidate is None or not candidate.strip():
         msg = (
             "SEC EDGAR requires a declared User-Agent. "

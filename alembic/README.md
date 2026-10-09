@@ -7,8 +7,8 @@ uv run --no-sync alembic upgrade head
 uv run --no-sync alembic current
 ```
 
-These commands use `ProjectSettings.database_url`, including the existing
-case-sensitive `database_url` environment override. Relative SQLite paths resolve
+These commands use `ProjectSettings.database_url`, including the
+`IAN_DATABASE_URL` environment override (letter case is ignored). Relative SQLite paths resolve
 against `base_dir`. `alembic.ini` resolves script/import paths from its own location.
 No logging configuration is installed or replaced by the migration environment.
 

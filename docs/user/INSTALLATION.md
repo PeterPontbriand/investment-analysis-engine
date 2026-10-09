@@ -135,6 +135,21 @@ Keep the key private. Your Massive plan must permit the data/endpoints you inten
 
 The [Analysis Strategy Guides](strategies/README.md) describe supported data sources and any provider-specific limits for each strategy.
 
+### Engine settings
+
+Every engine setting is read from an environment variable named `IAN_<NAME>`, in any letter case. The documented spelling is upper case, for example `IAN_DATA_DIR`, `IAN_DATABASE_URL`, `IAN_LOG_DIR` or `IAN_RELIABILITY_LIMITS__OVERALL_TIMEOUT_SECONDS` (two underscores separate a group from the field inside it). Names without the `IAN_` prefix are not read.
+
+The two provider credentials keep their own names and are the only exception: `SEC_USER_AGENT` and `MASSIVE_API_KEY`, also in any letter case. Do not add the `IAN_` prefix to them.
+
+A `.env` file therefore contains the provider credentials as above plus any settings you override, for example:
+
+```dotenv
+SEC_USER_AGENT="Your Name your-email@example.com"
+IAN_DATA_DIR="E:/FinancialData"
+```
+
+The application stops with a message naming the variable when an `IAN_` variable matches no setting (usually a typo), or when two variables that differ only by letter case are both set for the same setting. The application name, version and text encoding are fixed and cannot be overridden.
+
 ### Optional: local AI
 
 Direct deterministic analysis does not require Ollama or a GPU.
