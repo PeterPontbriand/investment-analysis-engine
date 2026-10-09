@@ -102,10 +102,12 @@ whether Yahoo was reachable. The check therefore first opens a direct TCP and TL
 - A failure to connect is `unreachable` and ends the check; no quote or history is requested.
 - The step separates "cannot reach Yahoo" from everything else. It does **not** detect throttling: Yahoo can accept
   the connection and still refuse or empty the requests that follow.
-- **With a proxy configured, the step is skipped.** The check asks the Python standard library whether an HTTPS
-  proxy applies to `query2.finance.yahoo.com`; it reads the `https_proxy` environment variable and, on Windows and
-  macOS, the system proxy settings, and honours the bypass list. A direct connection says nothing about reaching
-  Yahoo through a proxy, so the step does not run and the probe in the `ian health` line reads
+- **With a proxy configured, the step is skipped.** The check looks for a proxy the way yfinance's HTTP layer
+  (`curl_cffi`, on libcurl) does: the `https_proxy` or `all_proxy` environment variable, in either case, unless
+  `NO_PROXY` names `query2.finance.yahoo.com`. It does not read the Windows or macOS system proxy settings, because
+  that HTTP layer does not either; a proxy set only there is not used by yfinance, so the step still runs. A direct
+  connection says nothing about reaching Yahoo through a proxy, so when the variables name one the step does not run
+  and the probe in the `ian health` line reads
   `AAPL quote and daily history (connection step skipped: a proxy is configured)`. The quote and history reads
   run as usual, and the check then makes two requests. Without the step, an offline machine behind a proxy can show
   the `unexpected response` or `no data` verdicts described below. The proxy address is never printed.

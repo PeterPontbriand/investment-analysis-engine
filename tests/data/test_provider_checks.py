@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import socket
 import ssl
 import threading
 import time
+import urllib.request
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -770,22 +772,67 @@ def test_the_detected_https_proxy_is_asked_about_the_connection_host() -> None:
     assert hosts == ["query2.finance.yahoo.com"]
 
 
+_PROXY_ADDRESS = "http://proxy.example.test:8080"
+
+
+@pytest.fixture
+def no_proxy_environment(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
+    """Remove every proxy variable (in any case) from the environment of the test."""
+    for name in [name for name in os.environ if name.lower().endswith("_proxy")]:
+        monkeypatch.delenv(name)
+    return monkeypatch
+
+
 @pytest.mark.parametrize(
-    ("proxies", "bypassed", "expected"),
+    ("variables", "expected"),
     [
-        ({}, False, None),
-        ({"http": "http://only-http.example.test:3128"}, False, None),
-        ({"https": ""}, False, None),
-        ({"https": "http://proxy.example.test:8080"}, False, "http://proxy.example.test:8080"),
-        ({"https": "http://proxy.example.test:8080"}, True, None),
+        ({}, None),
+        ({"http_proxy": "http://only-http.example.test:3128"}, None),
+        ({"https_proxy": ""}, None),
+        ({"https_proxy": _PROXY_ADDRESS}, _PROXY_ADDRESS),
+        ({"HTTPS_PROXY": _PROXY_ADDRESS}, _PROXY_ADDRESS),
+        ({"all_proxy": _PROXY_ADDRESS}, _PROXY_ADDRESS),
+        ({"https_proxy": _PROXY_ADDRESS, "no_proxy": "query2.finance.yahoo.com"}, None),
+        ({"https_proxy": _PROXY_ADDRESS, "NO_PROXY": ".finance.yahoo.com"}, None),
+        ({"https_proxy": _PROXY_ADDRESS, "no_proxy": "*"}, None),
+        ({"https_proxy": _PROXY_ADDRESS, "no_proxy": "other.example.test"}, _PROXY_ADDRESS),
     ],
-    ids=["none", "http only", "blank", "https", "https but host bypassed"],
+    ids=[
+        "none",
+        "http only",
+        "blank",
+        "https_proxy",
+        "HTTPS_PROXY",
+        "all_proxy",
+        "no_proxy names the host",
+        "NO_PROXY names the domain",
+        "no_proxy star",
+        "no_proxy names another host",
+    ],
 )
-def test_https_proxy_detection_uses_the_standard_library_settings_and_bypass_list(
-    proxies: dict[str, str], bypassed: bool, expected: str | None
+def test_https_proxy_detection_reads_the_proxy_variables_and_no_proxy(
+    no_proxy_environment: pytest.MonkeyPatch, variables: dict[str, str], expected: str | None
 ) -> None:
-    with (
-        patch("src.data.provider_checks.getproxies", return_value=proxies),
-        patch("src.data.provider_checks.proxy_bypass", return_value=bypassed),
-    ):
-        assert configured_https_proxy("query2.finance.yahoo.com") == expected
+    for name, value in variables.items():
+        no_proxy_environment.setenv(name, value)
+
+    assert configured_https_proxy("query2.finance.yahoo.com") == expected
+
+
+def test_a_proxy_only_in_the_system_settings_does_not_skip_the_connection_step(
+    no_proxy_environment: pytest.MonkeyPatch,
+) -> None:
+    """The HTTP layer yfinance uses ignores the Windows and macOS settings, so the step must still run."""
+    connector = _Connector()
+    system = {"https": _PROXY_ADDRESS, "http": _PROXY_ADDRESS}
+    # getproxies and proxy_bypass are what read the Windows registry and the macOS system configuration.
+    no_proxy_environment.setattr(urllib.request, "getproxies", lambda: system)
+    no_proxy_environment.setattr(urllib.request, "proxy_bypass", lambda _host: False)
+
+    assert configured_https_proxy("query2.finance.yahoo.com") is None
+    result = check_yfinance(
+        _FakeYahoo(), clock=_ticks(), now=lambda: _NOW, connection=ConnectionStep(connect=connector)
+    )
+
+    assert len(connector.calls) == 1
+    assert result.probe == yahoo_probe_description()

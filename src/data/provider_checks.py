@@ -22,11 +22,12 @@ import socket
 import ssl
 import threading
 import time
+import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
-from urllib.request import getproxies, proxy_bypass
+from urllib.request import getproxies_environment
 
 import pandas as pd
 
@@ -245,13 +246,18 @@ def open_tls_connection(host: str, port: int, timeout_seconds: float) -> None:
 
 
 def configured_https_proxy(host: str) -> str | None:
-    """Return the HTTPS proxy the standard library detects for *host*, or ``None`` when it would connect directly.
+    """Return the HTTPS proxy named by the proxy environment variables for *host*, or ``None`` for a direct connection.
 
-    ``urllib.request.getproxies`` reads the ``*_proxy`` environment variables and, on Windows and macOS, the system
-    proxy settings. A host that the bypass list names is reached directly, so it has no proxy.
+    This follows what yfinance's HTTP layer (``curl_cffi``, on libcurl) does: it takes a proxy from the
+    ``https_proxy`` or ``all_proxy`` environment variables, either case, honours ``NO_PROXY``, and does not read the
+    Windows or macOS system proxy settings. ``urllib.request.getproxies_environment`` and
+    ``proxy_bypass_environment`` read the environment only. A ``NO_PROXY`` pattern libcurl accepts and the
+    standard library does not (such as a CIDR range) is not honoured here.
     """
-    proxy = getproxies().get("https")
-    if not proxy or proxy_bypass(host):
+    proxies = getproxies_environment()
+    proxy = proxies.get("https") or proxies.get("all")
+    # proxy_bypass_environment is long-standing but undocumented, so the typeshed stubs omit it.
+    if not proxy or urllib.request.proxy_bypass_environment(host, proxies):  # type: ignore[attr-defined]
         return None
     return proxy
 
