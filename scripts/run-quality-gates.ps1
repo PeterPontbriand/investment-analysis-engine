@@ -1,5 +1,10 @@
 [CmdletBinding()]
-param()
+param(
+    # Optional second pass: after the default gate, run the test suite on this interpreter
+    # (for example "3.14") in its own ignored environment under .tmp/envs/, leaving .venv alone.
+    [ValidatePattern('^\d+\.\d+$')]
+    [string]$ExtraPython = ""
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -17,6 +22,7 @@ $originalTemp = $env:TEMP
 $originalTmp = $env:TMP
 $originalUvCache = $env:UV_CACHE_DIR
 $originalCoverageFile = $env:COVERAGE_FILE
+$originalProjectEnvironment = $env:UV_PROJECT_ENVIRONMENT
 
 function Invoke-QualityCommand {
     param(
@@ -96,6 +102,34 @@ try {
         "--basetemp=$pytestRoot",
         "tests"
     )
+
+    if ($ExtraPython) {
+        # The environment folder is persistent and ignored (/.tmp/), so it is built once from the
+        # lock file and reused; the sync is a no-op afterwards and .venv is never touched.
+        $extraEnv = Join-Path $repositoryRoot ".tmp\envs\py$ExtraPython"
+        $env:UV_PROJECT_ENVIRONMENT = $extraEnv
+        Invoke-QualityCommand -Arguments @("sync", "--frozen", "--python", $ExtraPython)
+        $extraInfo = & uv run --no-sync python -c "import sys, pandas; print(f'{sys.version.split()[0]}|{pandas.__version__}')"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Quality command failed with exit code $LASTEXITCODE`: uv run --no-sync python -c <version check>"
+        }
+        $extraVersion, $extraPandas = ($extraInfo | Select-Object -Last 1) -split '\|'
+        if (-not $extraVersion.StartsWith("$ExtraPython.")) {
+            throw "Second pass requested Python $ExtraPython but the environment runs $extraVersion"
+        }
+        Write-Host "Second pass running on Python $extraVersion, pandas $extraPandas"
+        Invoke-QualityCommand -Arguments @(
+            "run",
+            "--no-sync",
+            "pytest",
+            "-o",
+            "addopts=",
+            "-p",
+            "no:cacheprovider",
+            "--basetemp=$(Join-Path $runRoot 'pytest-extra')",
+            "tests"
+        )
+    }
 }
 finally {
     Set-Location $originalLocation
@@ -104,6 +138,10 @@ finally {
     if ($null -eq $originalTmp) { Remove-Item Env:TMP -ErrorAction SilentlyContinue } else { $env:TMP = $originalTmp }
     if ($null -eq $originalUvCache) { Remove-Item Env:UV_CACHE_DIR -ErrorAction SilentlyContinue } else { $env:UV_CACHE_DIR = $originalUvCache }
     if ($null -eq $originalCoverageFile) { Remove-Item Env:COVERAGE_FILE -ErrorAction SilentlyContinue } else { $env:COVERAGE_FILE = $originalCoverageFile }
+    if ($null -eq $originalProjectEnvironment) { Remove-Item Env:UV_PROJECT_ENVIRONMENT -ErrorAction SilentlyContinue } else { $env:UV_PROJECT_ENVIRONMENT = $originalProjectEnvironment }
 }
 
 Write-Host "Quality gates passed on Python $pythonVersion, pandas $pandasVersion. Isolated artifacts: $runRoot"
+if ($ExtraPython) {
+    Write-Host "Second-pass tests passed on Python $extraVersion, pandas $extraPandas."
+}

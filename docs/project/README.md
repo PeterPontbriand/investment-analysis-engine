@@ -83,6 +83,8 @@ bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"
 
 The wrappers run the same six gates with `uv run --no-sync` and isolate writable pytest, coverage, mypy, Ruff, and UV artifacts under a unique ignored `/.tmp/quality-runs/` directory. They are safe for concurrent managed-agent runs and contain no machine-specific repository path. Developers with normal user-directory access do not need the wrappers.
 
+The default gate runs on the interpreter pinned in `.python-version` (3.12, the floor of the supported range), so eager-annotation regressions fail locally; the reasoning is in [IR.4](milestones/v0.2/integration-readiness/IR4_PYTHON_VERSION_REPRODUCIBILITY.md#3-python-policy). Pass `-ExtraPython 3.14` to the PowerShell wrapper (`--extra-python 3.14` to the shell wrapper) to also run the test suite on that interpreter after the default gate, in a separate ignored environment under `/.tmp/envs/` that is built once from the lock file and leaves `.venv` untouched. Run the 3.14 pass once before pushing a pull request.
+
 The test suite forces coloured CLI output itself (`tests/conftest.py` sets `FORCE_COLOR=1`), so every pytest run sees the same ANSI styling as a CI runner. CLI help and output assertions must therefore go through `normalize_cli_output` (`tests/_cli_helpers.py`) rather than compare raw text.
 
 When local repair is required, the recommended order is:
