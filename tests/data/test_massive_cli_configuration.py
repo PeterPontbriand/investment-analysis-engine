@@ -6,16 +6,15 @@ import pytest
 from typer.testing import CliRunner
 
 from src.cli import app
+from src.config import settings
 from src.data.massive.financial_facts import MassiveFinancialFactsAdapter
 from tests._cli_helpers import isolated_cli_database  # noqa: F401
 
 runner = CliRunner()
 
 
-def test_massive_adapter_remains_constructible_without_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_massive_adapter_remains_constructible_without_credentials() -> None:
     """Preserve the provider contract: missing credentials do not break construction."""
-    monkeypatch.delenv("MASSIVE_API_KEY", raising=False)
-
     adapter = MassiveFinancialFactsAdapter()
 
     assert adapter.is_configured is False
@@ -23,7 +22,7 @@ def test_massive_adapter_remains_constructible_without_credentials(monkeypatch: 
 
 def test_cli_explicit_massive_missing_api_key_is_clean_configuration_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """Report missing Massive access before misclassifying it as unavailable financial data."""
-    monkeypatch.delenv("MASSIVE_API_KEY", raising=False)
+    monkeypatch.setattr(settings, "massive_api_key", None)
 
     result = runner.invoke(
         app,

@@ -28,7 +28,7 @@ def migration_config(path: Path) -> Config:
 def test_cli_schema_lifecycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / "cli database.sqlite3"
     unused = tmp_path / "unused.sqlite3"
-    monkeypatch.setenv("database_url", f"sqlite:///{unused.as_posix()}")
+    monkeypatch.setenv("IAN_DATABASE_URL", f"sqlite:///{unused.as_posix()}")
     for operation, revision in [("upgrade", "head"), ("upgrade", "head"), ("downgrade", "base"), ("upgrade", "head")]:
         result = subprocess.run(
             [sys.executable, "-m", "alembic", "-x", f"database_url=sqlite:///{path.as_posix()}", operation, revision],
@@ -137,7 +137,7 @@ def test_workspace_upgrade_failure_rolls_back_to_predecessor(tmp_path: Path, mon
 
 def test_environment_url_and_logging_are_preserved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / "environment.sqlite3"
-    monkeypatch.setenv("database_url", f"sqlite:///{path.as_posix()}")
+    monkeypatch.setenv("IAN_DATABASE_URL", f"sqlite:///{path.as_posix()}")
     logger = logging.getLogger()
     handlers = list(logger.handlers)
     level = logger.level
@@ -150,7 +150,7 @@ def test_environment_url_and_logging_are_preserved(tmp_path: Path, monkeypatch: 
 
 
 def test_migration_connection_uses_b1_policy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("database_busy_timeout_ms", "123")
+    monkeypatch.setenv("IAN_DATABASE_BUSY_TIMEOUT_MS", "123")
     visited: list[bool] = []
 
     def inspect_connection() -> None:
@@ -194,7 +194,7 @@ def test_programmatic_override_with_percent_and_independent_cwd(
 ) -> None:
     path = tmp_path / "100% valid.sqlite3"
     unused = tmp_path / "unused.sqlite3"
-    monkeypatch.setenv("database_url", f"sqlite:///{unused.as_posix()}")
+    monkeypatch.setenv("IAN_DATABASE_URL", f"sqlite:///{unused.as_posix()}")
     monkeypatch.chdir(tmp_path)
 
     command.upgrade(migration_config(path), "head")

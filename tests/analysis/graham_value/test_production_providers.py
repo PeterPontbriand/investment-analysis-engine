@@ -26,6 +26,7 @@ from src.data.sec_edgar.financial_facts import (
     SecEdgarFinancialFactsAdapter,
 )
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from tests.analysis.graham_value.conftest import SEC_TEST_USER_AGENT
 
 NOW = datetime(2026, 8, 21, 18, 0, tzinfo=UTC)
 
@@ -276,7 +277,7 @@ def test_sec_adapter_sends_explicit_declared_user_agent_unchanged() -> None:
 
 def test_sec_adapter_returns_one_annual_eps_fact_per_period_with_acceptance_provenance() -> None:
     fetcher = _sec_fetcher()
-    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW, user_agent=SEC_TEST_USER_AGENT)
 
     facts = adapter.fetch_facts(_sec_request(), effective_as_of=NOW)
 
@@ -296,7 +297,7 @@ def test_sec_adapter_returns_one_annual_eps_fact_per_period_with_acceptance_prov
 
 def test_sec_adapter_historical_as_of_uses_restatement_known_at_boundary() -> None:
     fetcher = _sec_fetcher()
-    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW, user_agent=SEC_TEST_USER_AGENT)
     as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
 
     facts = adapter.fetch_facts(_sec_request(as_of=as_of), effective_as_of=as_of)
@@ -312,7 +313,7 @@ def test_sec_adapter_historical_as_of_uses_restatement_known_at_boundary() -> No
 
 def test_sec_adapter_unsupported_capability_returns_empty_without_fetching() -> None:
     fetcher = _sec_fetcher()
-    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW, user_agent=SEC_TEST_USER_AGENT)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
@@ -326,7 +327,7 @@ def test_sec_adapter_unsupported_capability_returns_empty_without_fetching() -> 
 
 def test_sec_adapter_returns_bvps_components_with_exact_fields_and_period() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
-    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW, user_agent=SEC_TEST_USER_AGENT)
 
     equity = adapter.fetch_facts(_sec_component_request(FinancialField.STOCKHOLDERS_EQUITY), effective_as_of=NOW)
     common = adapter.fetch_facts(_sec_component_request(FinancialField.COMMON_SHARES_OUTSTANDING), effective_as_of=NOW)
@@ -351,7 +352,7 @@ def test_sec_adapter_returns_bvps_components_with_exact_fields_and_period() -> N
 
 def test_sec_component_historical_as_of_uses_latest_period_known_at_boundary() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
-    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW, user_agent=SEC_TEST_USER_AGENT)
     as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
 
     facts = adapter.fetch_facts(
@@ -379,7 +380,7 @@ def test_sec_component_ambiguous_latest_share_class_values_are_unavailable() -> 
         }
     )
     fetcher = _sec_fetcher(payload)
-    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW, user_agent=SEC_TEST_USER_AGENT)
 
     assert (
         adapter.fetch_facts(_sec_component_request(FinancialField.COMMON_SHARES_OUTSTANDING), effective_as_of=NOW) == ()
@@ -388,7 +389,7 @@ def test_sec_component_ambiguous_latest_share_class_values_are_unavailable() -> 
 
 def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
-    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW, user_agent=SEC_TEST_USER_AGENT)
     resolver = GrahamNumberInputResolver(provider=adapter, clock=lambda: NOW)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
@@ -413,7 +414,7 @@ def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -
 
 def test_resolver_historical_bvps_uses_components_known_at_as_of() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
-    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW, user_agent=SEC_TEST_USER_AGENT)
     resolver = GrahamNumberInputResolver(provider=adapter, clock=lambda: NOW)
     as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
     request = FinancialFactRequest(
@@ -439,7 +440,7 @@ def test_resolver_bvps_missing_or_nonzero_preferred_share_guard_is_unavailable(
     preferred_shares: float | None,
 ) -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components(preferred_shares=preferred_shares))
-    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW, user_agent=SEC_TEST_USER_AGENT)
     resolver = GrahamNumberInputResolver(provider=adapter, clock=lambda: NOW)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
@@ -479,7 +480,7 @@ def test_wfc_negative_control_material_preferred_stock_blocks_bvps_derivation() 
             "/submissions/": _submissions_payload(),
         }
     )
-    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW, user_agent=SEC_TEST_USER_AGENT)
     resolver = GrahamNumberInputResolver(provider=adapter, clock=lambda: NOW)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
@@ -734,6 +735,7 @@ def test_graham_number_assembly_can_use_sec_eps_and_massive_quote() -> None:
     sec = SecEdgarFinancialFactsAdapter(
         json_fetcher=fetcher,
         clock=lambda: NOW,
+        user_agent=SEC_TEST_USER_AGENT,
     )
     massive = StaticProvider((_massive_quote_fact(),))
     provider = ProductionFinancialFactsProvider(sec_edgar=sec, massive=massive)

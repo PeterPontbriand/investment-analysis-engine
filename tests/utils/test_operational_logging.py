@@ -45,13 +45,12 @@ def _default_locations() -> dict[str, tuple[int, int]]:
 
 def _run(tmp_path: Path, name: str, *arguments: str) -> CommandRun:
     root = tmp_path / name
-    # Setting names are case-sensitive (the settings class matches them exactly), so they are given as the
-    # settings fields are named; an upper-case spelling is honoured on Windows only.
+    # Engine settings are read as IAN_<NAME> on every platform.
     environment = {
         **os.environ,
-        "data_dir": str(root / "data"),
-        "log_dir": str(root / "logs"),
-        "telemetry_log_dir": str(root / "telemetry"),
+        "IAN_DATA_DIR": str(root / "data"),
+        "IAN_LOG_DIR": str(root / "logs"),
+        "IAN_TELEMETRY_LOG_DIR": str(root / "telemetry"),
         "PYTHONPATH": str(REPOSITORY_ROOT),
         "PYTHONIOENCODING": "utf-8",
         # The pytest process forces colour for the CLI tests (tests/conftest.py); a real run writes to a pipe

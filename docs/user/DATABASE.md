@@ -66,7 +66,7 @@ stderr; parser-level usage errors retain normal CLI behavior.
 
 Direct Alembic commands remain available for explicit operator maintenance.
 
-Current financial quotes use `quote_cache_ttl_seconds` (default 300 seconds), measured from the original provider response retrieval. Zero disables quote reuse. Unknown, future or expired response timing triggers refresh without stale fallback. This policy is separate from annual financial-input and historical-snapshot cache settings. Legacy quote keys refresh automatically without a schema migration; retrieval time does not establish an exchange trade timestamp.
+Current financial quotes use `IAN_QUOTE_CACHE_TTL_SECONDS` (default 300 seconds), measured from the original provider response retrieval. Zero disables quote reuse. Unknown, future or expired response timing triggers refresh without stale fallback. This policy is separate from annual financial-input and historical-snapshot cache settings. Legacy quote keys refresh automatically without a schema migration; retrieval time does not establish an exchange trade timestamp.
 
 Run these commands from the installation folder, after stopping application
 processes. Back up an existing database before upgrading it.
@@ -90,14 +90,14 @@ existing data are separate operator actions.
 ## Choose the database location
 
 The default file is `data/investment-analysis-engine.sqlite3` under the installation
-folder (or the configured `data_dir`). A relative `database_url` resolves against
+folder (or the configured `IAN_DATA_DIR`). A relative `IAN_DATABASE_URL` resolves against
 the configured application base directory, not the terminal's current folder.
 Set the same URL for migrations and subsequent analysis commands.
 
 PowerShell example:
 
 ```powershell
-$env:database_url = "sqlite:///E:/FinancialData/investment-analysis-engine.sqlite3"
+$env:IAN_DATABASE_URL = "sqlite:///E:/FinancialData/investment-analysis-engine.sqlite3"
 uv run --no-sync alembic upgrade head
 uv run --no-sync alembic current
 ```
@@ -105,14 +105,14 @@ uv run --no-sync alembic current
 Linux or macOS example:
 
 ```bash
-export database_url="sqlite:////srv/financial-data/investment-analysis-engine.sqlite3"
+export IAN_DATABASE_URL="sqlite:////srv/financial-data/investment-analysis-engine.sqlite3"
 uv run --no-sync alembic upgrade head
 ```
 
 Git Bash on Windows example:
 
 ```bash
-export database_url="sqlite:///E:/FinancialData/investment-analysis-engine.sqlite3"
+export IAN_DATABASE_URL="sqlite:///E:/FinancialData/investment-analysis-engine.sqlite3"
 uv run --no-sync alembic upgrade head
 ```
 
@@ -123,7 +123,7 @@ converts a Git Bash path to the form to use. A path with a drive letter but no r
 (`E:data`) is rejected for the same reason. Relative paths and full paths that start
 with a drive letter or a network share are accepted.
 
-The environment setting lasts for the terminal session. Add `database_url` to
+The environment setting lasts for the terminal session. Add `IAN_DATABASE_URL` to
 local `.env` configuration to retain it. The directory must be writable.
 Synchronous local SQLite URLs are supported; remote database URLs and SQLite
 URI query parameters are not.
@@ -142,7 +142,7 @@ Migration URL precedence is `-x database_url`, an explicit Alembic
 
 - Historical reuse requires the same ticker, provider, request dates, and daily
   adjusted-price configuration. Other ranges refetch in full. The default
-  `HISTORICAL_CACHE_TTL_SECONDS` is 3600; zero permits no positive cache age.
+  `IAN_HISTORICAL_CACHE_TTL_SECONDS` is 3600; zero permits no positive cache age.
   Programmatic `ProjectSettings(..., historical_cache_ttl_seconds=None)` disables
   expiry. Failed fetches never substitute a stale snapshot. Empty or invalid
   observations are not persisted; valid unsupported frame shapes bypass caching.
@@ -153,13 +153,13 @@ Migration URL precedence is `-x database_url`, an explicit Alembic
   financial facts are required. Cache reuse preserves provider provenance and reports cache resolution.
 - Historical prices do not become live quotes. Quote requests and optional
   instrument-profile enrichment retain their provider boundaries.
-- `telemetry_sink=sqlite` selects SQLite trajectory storage where the runtime
-  creates a recorder. `telemetry_sink=jsonl` is the default;
-  `telemetry_level=OFF` disables recording. Telemetry failures remain fail-open;
+- `IAN_TELEMETRY_SINK=sqlite` selects SQLite trajectory storage where the runtime
+  creates a recorder. `IAN_TELEMETRY_SINK=jsonl` is the default;
+  `IAN_TELEMETRY_LEVEL=OFF` disables recording. Telemetry failures remain fail-open;
   they do not initialize storage or control analysis readiness. If SQLite is used
   only for telemetry, explicitly prepare its target with `db upgrade` first.
 
-`DATABASE_BUSY_TIMEOUT_MS` defaults to 5000. Connections enable foreign keys and
+`IAN_DATABASE_BUSY_TIMEOUT_MS` defaults to 5000. Connections enable foreign keys and
 WAL journaling. Transactions keep related rows atomic; caches do not import
 benchmark fixtures as production data.
 
@@ -221,7 +221,7 @@ requires a SQLite-aware consistent backup mechanism, not sequential file copies.
 
 Restore only with all application processes stopped. Preserve the current file
 set first, then restore the matching backup set into a clean destination and
-point `database_url` there. Do not mix sidecars from different backups. Check
+point `IAN_DATABASE_URL` there. Do not mix sidecars from different backups. Check
 `alembic current`, review the needed migrations, and upgrade with compatible
 application code before resuming analysis. Database files and operational logs
 are local artifacts and must not be committed to Git.

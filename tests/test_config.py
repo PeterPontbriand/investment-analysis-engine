@@ -15,12 +15,12 @@ from src.config import ProjectSettings
 @pytest.fixture(autouse=True)
 def isolate_persistence_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in (
-        "base_dir",
-        "data_dir",
-        "database_url",
-        "database_busy_timeout_ms",
-        "historical_cache_ttl_seconds",
-        "telemetry_sink",
+        "IAN_BASE_DIR",
+        "IAN_DATA_DIR",
+        "IAN_DATABASE_URL",
+        "IAN_DATABASE_BUSY_TIMEOUT_MS",
+        "IAN_HISTORICAL_CACHE_TTL_SECONDS",
+        "IAN_TELEMETRY_SINK",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -38,7 +38,7 @@ def test_project_settings_reads_nested_reliability_limit_from_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Reliability caps can be changed through the existing nested settings convention."""
-    monkeypatch.setenv("reliability_limits__overall_timeout_seconds", "240")
+    monkeypatch.setenv("IAN_RELIABILITY_LIMITS__OVERALL_TIMEOUT_SECONDS", "240")
 
     configured = ProjectSettings()
 
@@ -75,11 +75,11 @@ def test_relative_database_environment_override_ignores_cwd(
 ) -> None:
     application_base = tmp_path / "application"
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("base_dir", str(application_base))
-    monkeypatch.setenv("database_url", "sqlite+pysqlite:///database files/custom.sqlite3")
-    monkeypatch.setenv("database_busy_timeout_ms", "1200")
-    monkeypatch.setenv("historical_cache_ttl_seconds", "90.5")
-    monkeypatch.setenv("telemetry_sink", "sqlite")
+    monkeypatch.setenv("IAN_BASE_DIR", str(application_base))
+    monkeypatch.setenv("IAN_DATABASE_URL", "sqlite+pysqlite:///database files/custom.sqlite3")
+    monkeypatch.setenv("IAN_DATABASE_BUSY_TIMEOUT_MS", "1200")
+    monkeypatch.setenv("IAN_HISTORICAL_CACHE_TTL_SECONDS", "90.5")
+    monkeypatch.setenv("IAN_TELEMETRY_SINK", "sqlite")
 
     configured = ProjectSettings()
 
@@ -131,7 +131,7 @@ def test_invalid_or_unsupported_database_urls_are_rejected(database_url: str) ->
 
 @pytest.mark.parametrize("timeout", ["0", "-1", "1.5", "2147483648", "nan", "inf"])
 def test_invalid_busy_timeout_is_rejected(timeout: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("database_busy_timeout_ms", timeout)
+    monkeypatch.setenv("IAN_DATABASE_BUSY_TIMEOUT_MS", timeout)
     with pytest.raises(ValidationError):
         ProjectSettings()
 
@@ -154,10 +154,10 @@ def test_unknown_telemetry_sink_is_rejected() -> None:
 
 def test_import_does_not_create_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     database_path = tmp_path / "database/not-created.sqlite3"
-    monkeypatch.setenv("database_url", f"sqlite:///{database_path.as_posix()}")
-    monkeypatch.setenv("data_dir", str(tmp_path / "data"))
-    monkeypatch.setenv("log_dir", str(tmp_path / "logs"))
-    monkeypatch.setenv("telemetry_log_dir", str(tmp_path / "telemetry"))
+    monkeypatch.setenv("IAN_DATABASE_URL", f"sqlite:///{database_path.as_posix()}")
+    monkeypatch.setenv("IAN_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("IAN_LOG_DIR", str(tmp_path / "logs"))
+    monkeypatch.setenv("IAN_TELEMETRY_LOG_DIR", str(tmp_path / "telemetry"))
     result = subprocess.run(
         [sys.executable, "-c", "import src.config"],
         cwd=Path(__file__).resolve().parents[1],
@@ -201,7 +201,7 @@ _PARTLY_ANCHORED = [
 def windows_rules(monkeypatch: pytest.MonkeyPatch) -> None:
     """Apply the Windows path rule on any operating system."""
     monkeypatch.setattr("src.utils.paths.is_windows", lambda: True)
-    for name in ("log_dir", "telemetry_log_dir"):
+    for name in ("IAN_LOG_DIR", "IAN_TELEMETRY_LOG_DIR"):
         monkeypatch.delenv(name, raising=False)
 
 
@@ -219,7 +219,7 @@ def test_partly_anchored_paths_are_rejected_on_windows(field: str, value: object
 def test_partly_anchored_paths_are_rejected_from_the_environment(
     field: str, value: object, message: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv(field, str(value))
+    monkeypatch.setenv(f"IAN_{field.upper()}", str(value))
     with pytest.raises(ValidationError, match=re.escape(message)):
         ProjectSettings()
 

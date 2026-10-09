@@ -1,22 +1,32 @@
 # src/config.py
 """Application configurations managed via Pydantic-settings and external TOML profiles."""
 
+import dataclasses
+import os
+import re
 import tomllib
+from collections import defaultdict
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Literal, Self
+from typing import Any, ClassVar, Literal, Self
 
 from dotenv import load_dotenv
-from pydantic import Field, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel, Field, SecretStr, ValidationError, field_validator, model_validator
+from pydantic.fields import FieldInfo
+from pydantic_settings import BaseSettings, EnvSettingsSource, PydanticBaseSettingsSource, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import ArgumentError
 
+from src.core.settings_error import SettingsEnvironmentError
 from src.orchestrator.reliability import ReliabilityLimits
 from src.schema.config import SchemaConfig
 from src.utils import paths
 
 # Ensure core environment variables are populated
 load_dotenv()
+
+ENV_PREFIX = "IAN_"
+NESTED_DELIMITER = "__"
 
 
 def load_config_file(file_path: str) -> dict[str, Any]:
@@ -30,23 +40,105 @@ def load_config_file(file_path: str) -> dict[str, Any]:
         raise ValueError(f"Failed to decode configuration file at path: {file_path}") from None
 
 
-class ProjectSettings(BaseSettings):
-    """Application configuration loaded from environment variables and config tables."""
+def _nested_field_names(annotation: object) -> frozenset[str] | None:
+    """Return the field names of a nested settings model, or None when the field is a plain value."""
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return frozenset(annotation.model_fields)
+    if isinstance(annotation, type) and dataclasses.is_dataclass(annotation):
+        return frozenset(item.name for item in dataclasses.fields(annotation))
+    return None
 
-    version: str = "0.1.0"
+
+def _environment_name(name: str, field: FieldInfo) -> str:
+    """Return the upper-case environment variable that sets a field (its alias, or the prefixed field name)."""
+    if isinstance(field.validation_alias, str):
+        return field.validation_alias.upper()
+    return f"{ENV_PREFIX}{name}".upper()
+
+
+def declared_environment_names(settings_cls: type[BaseSettings]) -> frozenset[str]:
+    """Return every environment variable name the settings class accepts, lower-cased.
+
+    Plain fields are read as ``IAN_<FIELD>``; a field with a string validation alias keeps that alias (the
+    provider credentials). Nested model fields additionally accept ``IAN_<FIELD>__<SUBFIELD>`` and the
+    whole-object ``IAN_<FIELD>`` form.
+    """
+    names: set[str] = set()
+    for name, field in settings_cls.model_fields.items():
+        base = _environment_name(name, field)
+        names.add(base.lower())
+        nested = _nested_field_names(field.annotation)
+        if nested is not None:
+            names.update(f"{base}{NESTED_DELIMITER}{sub}".lower() for sub in nested)
+    return frozenset(names)
+
+
+def check_environment(environ: Mapping[str, str], declared: frozenset[str]) -> None:
+    """Fail closed when the environment does not map onto the declared settings unambiguously.
+
+    Args:
+        environ: The process environment (or any mapping of variable names to values).
+        declared: Lower-cased names from :func:`declared_environment_names`.
+
+    Raises:
+        SettingsEnvironmentError: An ``IAN_`` variable names no setting, or two variables that differ only
+            by case are both set for the same setting. The message names the offending variables.
+    """
+    spellings: dict[str, list[str]] = defaultdict(list)
+    for key in environ:
+        lowered = key.lower()
+        if lowered in declared or lowered.startswith(ENV_PREFIX.lower()):
+            spellings[lowered].append(key)
+    for lowered, keys in sorted(spellings.items()):
+        if lowered not in declared:
+            raise SettingsEnvironmentError(
+                f"Environment variable {keys[0]} matches no engine setting (engine settings are read as "
+                f"{ENV_PREFIX}<NAME>, for example {ENV_PREFIX}DATA_DIR); correct the name or remove the variable."
+            )
+        if len(keys) > 1:
+            listed = " and ".join(sorted(keys))
+            raise SettingsEnvironmentError(
+                f"Environment variables {listed} differ only by letter case and both set the same engine setting; "
+                "set exactly one."
+            )
+
+
+class _EngineEnvSource(EnvSettingsSource):
+    """Environment source that validates the whole environment before any value is read."""
+
+    def _load_env_vars(self) -> Mapping[str, str | None]:
+        """Validate the process environment, then load it as the base source does."""
+        check_environment(os.environ, declared_environment_names(self.settings_cls))
+        return super()._load_env_vars()
+
+
+class ProjectSettings(BaseSettings):
+    """Application configuration loaded from environment variables and config tables.
+
+    Every setting is read from ``IAN_<NAME>`` in any letter case (for example ``IAN_DATA_DIR``); unprefixed names
+    are not read. The provider credentials ``SEC_USER_AGENT`` and ``MASSIVE_API_KEY`` keep their own names, also
+    in any case. An ``IAN_`` variable that names no setting, or two variables differing only by case for one
+    setting, raise :class:`SettingsEnvironmentError`.
+    """
+
+    # Fixed application identity; deliberately not environment-overridable.
+    version: ClassVar[str] = "0.1.0"
+    environment: ClassVar[str] = "development"
+    encoding: ClassVar[str] = "utf-8"
 
     # AI/Agent Settings
     ollama_base_url: str = "http://192.168.1.19:11434"
     model_selection: str = "deepseek-r1:14b"
 
     # Native Schema Enforcement Settings
-    schema_config: SchemaConfig = Field(default_factory=SchemaConfig.from_env)
+    schema_config: SchemaConfig = Field(default_factory=SchemaConfig)
 
     # Orchestration reliability limits
     reliability_limits: ReliabilityLimits = Field(default_factory=ReliabilityLimits)
 
     # External data-provider settings
     sec_user_agent: str | None = Field(default=None, validation_alias="SEC_USER_AGENT")
+    massive_api_key: SecretStr | None = Field(default=None, validation_alias="MASSIVE_API_KEY")
 
     # Human-readable operational logging
     log_level: str = "INFO"
@@ -100,12 +192,6 @@ class ProjectSettings(BaseSettings):
         ),
     )
 
-    # Environment Variables
-    environment: str = "development"
-
-    # Encoding for all text files
-    encoding: str = "utf-8"
-
     # Project Root Directory
     base_dir: Path = Path(__file__).resolve().parent.parent
 
@@ -116,9 +202,30 @@ class ProjectSettings(BaseSettings):
     model_config = SettingsConfigDict(
         extra="ignore",
         env_ignore_empty=True,
-        env_nested_delimiter="__",
-        case_sensitive=True,
+        env_prefix=ENV_PREFIX,
+        env_nested_delimiter=NESTED_DELIMITER,
+        case_sensitive=False,
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,  # noqa: ARG003 - fixed override signature
+        dotenv_settings: PydanticBaseSettingsSource,  # noqa: ARG003 - fixed override signature
+        file_secret_settings: PydanticBaseSettingsSource,  # noqa: ARG003 - fixed override signature
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """Read explicit arguments first, then the validated process environment."""
+        return (init_settings, _EngineEnvSource(settings_cls))
+
+    @field_validator("massive_api_key")
+    @classmethod
+    def reject_whitespace_in_api_key(cls, value: SecretStr | None) -> SecretStr | None:
+        """Reject a key containing whitespace, which a pasted line break or space makes of a malformed credential."""
+        if value is not None and any(character.isspace() for character in value.get_secret_value()):
+            raise ValueError("must not contain whitespace")
+        return value
 
     @model_validator(mode="after")
     def resolve_database_configuration(self) -> Self:
@@ -181,8 +288,56 @@ class ProjectSettings(BaseSettings):
         return load_config_file(str(momentum_config_path))
 
 
+def describe_validation_error(error: ValidationError, environ: Mapping[str, str]) -> str:
+    """Describe the first invalid setting as one sentence that names the environment variable.
+
+    The offending value is never included: pydantic's message text describes the rule, and a secret setting is
+    additionally marked as not shown.
+
+    Args:
+        error: The validation error raised while building :class:`ProjectSettings` from the environment.
+        environ: The process environment, used to quote the variable in the spelling the user set.
+
+    Returns:
+        A single sentence naming the variable and what was wrong with its value.
+    """
+    first = error.errors(include_input=False, include_url=False, include_context=False)[0]
+    location = tuple(str(part) for part in first["loc"])
+    message = first["msg"].removeprefix("Value error, ").rstrip(".")
+    fields = ProjectSettings.model_fields
+    if not location:
+        # A whole-model rule (such as path anchoring) names the setting by field name; quote the variable instead.
+        for name, field in fields.items():
+            message = re.sub(rf"\b{re.escape(name)}\b", _environment_name(name, field), message)
+        return f"The engine settings are invalid: {message}."
+    owner = next(
+        (
+            (name, field)
+            for name, field in fields.items()
+            if location[0] == name or location[0] == field.validation_alias
+        ),
+        None,
+    )
+    if owner is None:
+        return f"The engine settings are invalid: {message}."
+    name, field = owner
+    expected = _environment_name(name, field) + "".join(f"{NESTED_DELIMITER}{part.upper()}" for part in location[1:])
+    actual = next((key for key in environ if key.lower() == expected.lower()), expected)
+    if "SecretStr" in repr(field.annotation):
+        return f"Environment variable {actual} is invalid (its value is not shown): {message}."
+    return f"Environment variable {actual} is invalid: {message}."
+
+
+def _build_settings() -> ProjectSettings:
+    """Build the settings from the environment, reporting an invalid value as :class:`SettingsEnvironmentError`."""
+    try:
+        return ProjectSettings()
+    except ValidationError as error:
+        raise SettingsEnvironmentError(describe_validation_error(error, os.environ)) from None
+
+
 # Instantiate singleton settings proxy
-settings = ProjectSettings()
+settings = _build_settings()
 
 # Ensure directories exist
 if not settings.data_dir.exists():

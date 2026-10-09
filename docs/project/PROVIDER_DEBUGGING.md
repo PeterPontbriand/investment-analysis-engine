@@ -116,8 +116,8 @@ The check reads the ticker map and one company-facts document for the probe tick
 ## 4. The application log
 
 Every command writes its log records to one file and prints none of them. A record from one of the project's modules
-or from a library such as `yfinance` or `alembic` at the configured level (`log_level`, `INFO` by default) or above
-goes to `logs/app.log` under the project folder. Set `log_dir` to move it, and `log_file_name` to rename it (setting names are case-sensitive). The
+or from a library such as `yfinance` or `alembic` at the configured level (`IAN_LOG_LEVEL`, `INFO` by default) or above
+goes to `logs/app.log` under the project folder. Set `IAN_LOG_DIR` to move it, and `IAN_LOG_FILE_NAME` to rename it. The
 file rotates daily or at 1 MB, keeps five backups and compresses older ones to `.zip`.
 
 Standard output and standard error carry only the command's own result and messages, so `--json` output is unaffected.

@@ -7,7 +7,7 @@ This module routes every log record the application produces into one rotating l
 ## Key Features
 
 - **Asynchronous, Non-Blocking Architecture**: Thread-safe logging that routes records through a central memory queue to keep analytical execution flows fast.
-- **File-Only Output**: Writes log entries to `logs/app.log` (set `log_dir` to move it) and never to the terminal.
+- **File-Only Output**: Writes log entries to `logs/app.log` (set `IAN_LOG_DIR` to move it) and never to the terminal.
 - **Enhanced Cross-Platform Rotation**: Subclasses `TimedRotatingFileHandler` to seamlessly enforce *both* time-based (e.g., daily) and size-based limits (`maxBytes`) without filename collisions.
 - **Thread-Safe Log Compression**: Automatically compresses older logs into standard `.zip` files via background threads, strictly avoiding native Windows host file-locking crashes (`PermissionError`).
 - **Global Failure Interception**: Logs an uncaught exception as `CRITICAL` with its full traceback, from the command-line entry point and from secondary threads, and shows the standard traceback on standard error.
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 logger.info("Downloading market data for %s", ticker)
 ```
 
-The record goes to `logs/app.log` (or `log_dir/<log_file_name>`) as `timestamp | logger name | LEVEL | message`. Nothing appears on the terminal, so a message the user must see belongs in the command's own output, not in a log call.
+The record goes to `logs/app.log` (or `<IAN_LOG_DIR>/<IAN_LOG_FILE_NAME>`) as `timestamp | logger name | LEVEL | message`. Nothing appears on the terminal, so a message the user must see belongs in the command's own output, not in a log call.
 
 An exception that a command handler reports with a generic sentence is logged with its traceback by `execution_errors`. An exception that no handler catches is logged as `CRITICAL` under `system.crash` by `main()`, and Typer shows its own traceback on standard error.
 

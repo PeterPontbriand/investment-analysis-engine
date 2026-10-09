@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import os
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -56,7 +55,6 @@ SEC_STOCKHOLDERS_EQUITY_FIELD = "us-gaap:StockholdersEquity"
 _SEC_DERIVED_COMMON_SHARES_FIELD = "derived:us-gaap:CommonStockSharesIssued-us-gaap:TreasuryStockCommonShares"
 _SEC_INFERRED_PREFERRED_ABSENCE_FIELD = "inferred:sec-company-facts:no-issued-preferred-equity"
 _PREFERRED_NEUTRAL_CONCEPTS = frozenset({"PreferredStockSharesAuthorized", "PreferredStockParOrStatedValuePerShare"})
-_SEC_USER_AGENT_ENV = "SEC_USER_AGENT"
 _COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
@@ -204,15 +202,15 @@ class SecEdgarFinancialFactsAdapter:
         *,
         json_fetcher: JsonFetcher = fetch_json,
         clock: Callable[[], datetime] | None = None,
-        user_agent: str | None = None,
+        user_agent: str,
         filing_fetcher: FilingFetcher = fetch_filing,
         filing_policy: FilingReaderPolicy | None = None,
     ) -> None:
         """Initialize the adapter with injectable transport, clock, and SEC identity.
 
-        An explicit ``user_agent`` takes precedence. When it is omitted, the
-        adapter reads ``SEC_USER_AGENT`` from the environment. A non-empty
-        declared identity is required before any SEC request can be made.
+        The caller supplies the declared ``user_agent`` (the composition root takes it from the application
+        settings); the adapter never reads the environment. A non-empty identity is required before any SEC
+        request can be made.
         """
         resolved_user_agent = _resolve_sec_user_agent(user_agent)
         self._fetch_json = json_fetcher
@@ -542,16 +540,12 @@ class SecEdgarFinancialFactsAdapter:
         return len(cik_to_tickers.get(cik, ())) == 1
 
 
-def _resolve_sec_user_agent(explicit_user_agent: str | None) -> str:
-    """Resolve the declared SEC identity from constructor input or environment."""
-    candidate = explicit_user_agent if explicit_user_agent is not None else os.getenv(_SEC_USER_AGENT_ENV)
-    if candidate is None or not candidate.strip():
-        msg = (
-            "SEC EDGAR requires a declared User-Agent. "
-            "Pass user_agent=... or set the SEC_USER_AGENT environment variable."
-        )
+def _resolve_sec_user_agent(user_agent: str) -> str:
+    """Return the declared SEC identity, rejecting an empty one."""
+    if not user_agent.strip():
+        msg = "SEC EDGAR requires a declared User-Agent; pass a non-empty user_agent."
         raise ValueError(msg)
-    return candidate.strip()
+    return user_agent.strip()
 
 
 def _ticker_cik_map(payload: object) -> dict[str, str]:

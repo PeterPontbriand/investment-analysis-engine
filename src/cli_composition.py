@@ -56,7 +56,8 @@ def build_sec_production_provider() -> ProductionFinancialFactsProvider:
 
 def build_massive_production_provider() -> MassiveFinancialFactsAdapter:
     """Build Massive only when usable API credentials are configured."""
-    massive = MassiveFinancialFactsAdapter()
+    api_key = settings.massive_api_key
+    massive = MassiveFinancialFactsAdapter(api_key=None if api_key is None else api_key.get_secret_value())
     if not massive.is_configured:
         raise AnalysisConfigurationError("Massive access is not configured. Set MASSIVE_API_KEY and retry.")
     return massive

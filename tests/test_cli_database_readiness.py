@@ -179,7 +179,7 @@ def test_optional_telemetry_failure_does_not_control_cache_readiness(tmp_path: P
 
 def test_fresh_process_cli_import_does_not_connect_or_create_storage(tmp_path: Path) -> None:
     path = tmp_path / "absent" / "import.sqlite3"
-    environment = dict(os.environ, database_url=f"sqlite:///{path.as_posix()}", telemetry_level="OFF")
+    environment = dict(os.environ, IAN_DATABASE_URL=f"sqlite:///{path.as_posix()}", IAN_TELEMETRY_LEVEL="OFF")
     script = (
         "from unittest.mock import patch\n"
         "with patch('sqlite3.connect', side_effect=AssertionError('Import must not connect')) as connect:\n"

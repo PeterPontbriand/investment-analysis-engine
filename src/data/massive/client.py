@@ -1,7 +1,6 @@
 """Placeholder financial market client for the forthcoming Massive API service."""
 
 import logging
-import os
 
 import pandas as pd
 
@@ -19,9 +18,9 @@ class MassiveClient(BaseDataClient):
         """Return the stable provider identity owned by this adapter."""
         return MASSIVE_PROVIDER_ID
 
-    def __init__(self) -> None:
-        """Initialize Massive API client credentials."""
-        self.api_key = os.getenv("MASSIVE_API_KEY")
+    def __init__(self, api_key: str | None = None) -> None:
+        """Initialize Massive API client credentials, which the caller supplies."""
+        self.api_key = api_key
 
     def fetch_data(self, ticker: str, start_date: str, end_date: str | None = None) -> pd.DataFrame:
         """Retrieve structured historical assets from Massive.
@@ -30,7 +29,7 @@ class MassiveClient(BaseDataClient):
         """
         logger.info(f"Preparing integration payload for Massive API call: {ticker}")
         if not self.api_key:
-            logger.warning("MASSIVE_API_KEY environment variable is not defined; using developer mock key.")
+            logger.warning("Massive API key is not configured; using developer mock key.")
 
         # Mock structured response matching yfinance schemas
         try:

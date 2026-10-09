@@ -52,7 +52,7 @@ The defaults are:
 These values are fields below the `reliability_limits` application setting.
 They can be changed without editing code through the existing nested settings
 environment convention, for example
-`reliability_limits__overall_timeout_seconds=240`. An explicitly constructed
+`IAN_RELIABILITY_LIMITS__OVERALL_TIMEOUT_SECONDS=240`. An explicitly constructed
 `OrchestratorConfig` can instead supply one complete `ReliabilityLimits` value
 for a particular run.
 
@@ -201,7 +201,7 @@ Quote timing distinguishes original retrieval from market observation. Filing ve
 
 Post-parse execution failures also produce one JSON failure document with a null result, a stable `reason_code`, a `reason` sentence and sanitized diagnostics; the process exits with code 1. The same document is written by the workspace commands that offer `--json` (`watchlist show`, `watchlist rename`, `watchlist delete`, `runs list`, `runs show` and `refresh`), with `analysis`, `method` and `ticker` null. A `reason_code` value is never renamed or removed, so branch on it and not on `reason`; treat a value you do not recognise as a generic failure and read `status`. Parser/usage errors retain exit code 2. Momentum's window and period checks (`--short-window`, `--long-window`, `--rsi-period`) are execution failures, not usage errors: they report `invalid_parameter` (a sentence that names the offending option) and exit 1, from `momentum` and from `watchlist create` and `watchlist add-selection` alike. The schema is published as `schemas/failure.schema.json`. A successfully calculated FCF screen `FAIL` is not an execution failure.
 
-Financial cache bypass is available through `--no-cache` on both Graham commands and `fcf-growth`. Quote responses expire independently after 300 seconds by default, even when annual-fact cache reuse is unlimited. Set the `quote_cache_ttl_seconds` environment setting to a finite nonnegative value; zero disables quote reuse. An expired quote is refreshed once without substituting a stale value on failure. Old quotes with an unspecified cache basis are refreshed under the descriptive quote basis; annual caches and database schema are unchanged.
+Financial cache bypass is available through `--no-cache` on both Graham commands and `fcf-growth`. Quote responses expire independently after 300 seconds by default, even when annual-fact cache reuse is unlimited. Set the `IAN_QUOTE_CACHE_TTL_SECONDS` environment setting to a finite nonnegative value; zero disables quote reuse. An expired quote is refreshed once without substituting a stale value on failure. Old quotes with an unspecified cache basis are refreshed under the descriptive quote basis; annual caches and database schema are unchanged.
 
 [Machine-readable output](GLOSSARY.md#machine-readable-output) is structured for another program to consume reliably rather than primarily for a person to read. Investment Analysis Engine currently uses [JSON](GLOSSARY.md#json-javascript-object-notation) for this mode.
 
