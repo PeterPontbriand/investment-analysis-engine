@@ -26,6 +26,7 @@ from src.data.provider_checks import (
     PROVIDER_CHECKS,
     SEC_EDGAR_SPEC,
     YAHOO_SPEC,
+    ConnectionStep,
     ProviderCheckResult,
     ProviderClients,
     SecEdgarCheckSpec,
@@ -37,6 +38,7 @@ from src.data.provider_checks import (
     _Deadline,
     check_sec_edgar,
     check_yfinance,
+    configured_https_proxy,
     open_tls_connection,
     yahoo_probe_description,
 )
@@ -101,6 +103,16 @@ class _FakeYahoo:
         return YFinanceQuote(price=self.quote, currency="USD")
 
 
+def _no_proxy(host: str) -> str | None:  # noqa: ARG001
+    """Proxy detection on a machine with no proxy."""
+    return None
+
+
+def _proxy(host: str) -> str | None:  # noqa: ARG001
+    """Proxy detection on a machine with an HTTPS proxy (the address carries credentials)."""
+    return _PROXY
+
+
 class _Connector:
     """Fake opening connection: records each attempt and the time it was given, and fails or hangs on request."""
 
@@ -124,7 +136,8 @@ class _Connector:
 def _yahoo(
     client: _FakeYahoo, spec: YahooCheckSpec = YAHOO_SPEC, connector: _Connector | None = None
 ) -> ProviderCheckResult:
-    return check_yfinance(client, spec=spec, clock=_ticks(), now=lambda: _NOW, connect=connector or _Connector())
+    step = ConnectionStep(connect=connector or _Connector(), https_proxy=_no_proxy)
+    return check_yfinance(client, spec=spec, clock=_ticks(), now=lambda: _NOW, connection=step)
 
 
 def test_yahoo_well_formed_response_passes_with_elapsed_from_the_injected_clock() -> None:
@@ -414,7 +427,9 @@ def test_sec_urls_match_the_adapter_constants() -> None:
 
 def test_the_check_tuple_lists_yfinance_then_sec_edgar_and_each_entry_runs_its_own_body() -> None:
     clients = ProviderClients(
-        yahoo=_FakeYahoo(), sec=SecTransport(_FakeSec(_documents()), "Agent a@example.com"), connect=_Connector()
+        yahoo=_FakeYahoo(),
+        sec=SecTransport(_FakeSec(_documents()), "Agent a@example.com"),
+        connection=ConnectionStep(connect=_Connector(), https_proxy=_no_proxy),
     )
 
     results = [entry.run(clients) for entry in PROVIDER_CHECKS]
@@ -676,3 +691,101 @@ def test_opening_a_tls_connection_handshakes_with_the_host_name_and_sends_nothin
     context.wrap_socket.assert_called_once_with(raw, server_hostname="example.test")
     wrapped.send.assert_not_called()
     wrapped.sendall.assert_not_called()
+
+
+_PROXY = "http://user:secret@proxy.example.test:8080"
+
+
+def _yahoo_behind_proxy(client: _FakeYahoo, connector: _Connector) -> ProviderCheckResult:
+    step = ConnectionStep(connect=connector, https_proxy=_proxy)
+    return check_yfinance(client, clock=_ticks(), now=lambda: _NOW, connection=step)
+
+
+def test_with_a_proxy_configured_the_connection_step_is_skipped_and_the_reads_run() -> None:
+    client = _FakeYahoo()
+    connector = _Connector()
+
+    result = _yahoo_behind_proxy(client, connector)
+
+    assert result.passed
+    assert connector.calls == []
+    assert client.quote_calls == ["AAPL"]
+    assert len(client.history_calls) == 1
+
+
+def test_with_a_proxy_configured_the_probe_says_the_step_was_skipped_without_the_proxy_address() -> None:
+    result = _yahoo_behind_proxy(_FakeYahoo(), _Connector())
+
+    assert result.probe == "AAPL quote and daily history (connection step skipped: a proxy is configured)"
+    assert "secret" not in result.probe
+    assert "proxy.example.test" not in result.probe
+
+
+def test_with_a_proxy_configured_the_check_makes_two_requests_within_the_budget() -> None:
+    client = _FakeYahoo()
+    connector = _Connector()
+
+    _yahoo_behind_proxy(client, connector)
+
+    assert len(connector.calls) + len(client.quote_calls) + len(client.history_calls) == 2 <= MAX_REQUESTS_PER_CHECK
+
+
+@pytest.mark.parametrize(
+    ("client", "kind"),
+    [
+        (_FakeYahoo(history=_frame().iloc[0:0]), ProviderFailureKind.NO_DATA),
+        (
+            _FakeYahoo(quote=DataFetchError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance")),
+            ProviderFailureKind.UNREACHABLE,
+        ),
+    ],
+    ids=["history empty", "quote unreachable"],
+)
+def test_with_a_proxy_configured_a_failed_read_keeps_its_own_kind(
+    client: _FakeYahoo, kind: ProviderFailureKind
+) -> None:
+    connector = _Connector(failure=ConnectionRefusedError("would be unreachable"))
+
+    result = _yahoo_behind_proxy(client, connector)
+
+    assert result.kind is kind
+    assert connector.calls == []
+
+
+def test_without_a_proxy_the_connection_step_runs_and_the_probe_names_it() -> None:
+    connector = _Connector()
+
+    result = _yahoo(_FakeYahoo(), connector=connector)
+
+    assert len(connector.calls) == 1
+    assert result.probe == yahoo_probe_description()
+
+
+def test_the_detected_https_proxy_is_asked_about_the_connection_host() -> None:
+    hosts: list[str] = []
+    step = ConnectionStep(connect=_Connector(), https_proxy=hosts.append)
+
+    check_yfinance(_FakeYahoo(), clock=_ticks(), now=lambda: _NOW, connection=step)
+
+    assert hosts == ["query2.finance.yahoo.com"]
+
+
+@pytest.mark.parametrize(
+    ("proxies", "bypassed", "expected"),
+    [
+        ({}, False, None),
+        ({"http": "http://only-http.example.test:3128"}, False, None),
+        ({"https": ""}, False, None),
+        ({"https": "http://proxy.example.test:8080"}, False, "http://proxy.example.test:8080"),
+        ({"https": "http://proxy.example.test:8080"}, True, None),
+    ],
+    ids=["none", "http only", "blank", "https", "https but host bypassed"],
+)
+def test_https_proxy_detection_uses_the_standard_library_settings_and_bypass_list(
+    proxies: dict[str, str], bypassed: bool, expected: str | None
+) -> None:
+    with (
+        patch("src.data.provider_checks.getproxies", return_value=proxies),
+        patch("src.data.provider_checks.proxy_bypass", return_value=bypassed),
+    ):
+        assert configured_https_proxy("query2.finance.yahoo.com") == expected

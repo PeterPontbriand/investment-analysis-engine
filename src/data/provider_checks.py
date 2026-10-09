@@ -26,6 +26,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
+from urllib.request import getproxies, proxy_bypass
 
 import pandas as pd
 
@@ -136,7 +137,7 @@ class ProviderClients:
 
     yahoo: YahooProbeClient
     sec: SecTransport | SecUnavailable
-    connect: Connector
+    connection: ConnectionStep
 
 
 @dataclass(frozen=True)
@@ -217,9 +218,12 @@ def _finish(
     return ProviderCheckResult(provider_id, probe, detail is None, clock() - started, detail, kind)
 
 
-def yahoo_probe_description(spec: YahooCheckSpec = YAHOO_SPEC) -> str:
-    """Describe what the Yahoo check requests."""
-    return f"connection to {YFINANCE_DATA_HOST}, {spec.probe_ticker} quote and daily history"
+def yahoo_probe_description(spec: YahooCheckSpec = YAHOO_SPEC, *, connection_step: bool = True) -> str:
+    """Describe what the Yahoo check requests; without the opening connection when a proxy is configured."""
+    reads = f"{spec.probe_ticker} quote and daily history"
+    if connection_step:
+        return f"connection to {YFINANCE_DATA_HOST}, {reads}"
+    return f"{reads} (connection step skipped: a proxy is configured)"
 
 
 def sec_edgar_probe_description(spec: SecEdgarCheckSpec = SEC_EDGAR_SPEC) -> str:
@@ -240,6 +244,26 @@ def open_tls_connection(host: str, port: int, timeout_seconds: float) -> None:
         pass
 
 
+def configured_https_proxy(host: str) -> str | None:
+    """Return the HTTPS proxy the standard library detects for *host*, or ``None`` when it would connect directly.
+
+    ``urllib.request.getproxies`` reads the ``*_proxy`` environment variables and, on Windows and macOS, the system
+    proxy settings. A host that the bypass list names is reached directly, so it has no proxy.
+    """
+    proxy = getproxies().get("https")
+    if not proxy or proxy_bypass(host):
+        return None
+    return proxy
+
+
+@dataclass(frozen=True)
+class ConnectionStep:
+    """The Yahoo check's opening connection and the proxy detection that decides whether it runs."""
+
+    connect: Connector = open_tls_connection
+    https_proxy: Callable[[str], str | None] = configured_https_proxy
+
+
 _CONNECTION_FAILURE_RULES = (FailureRule((OSError,), ProviderFailureKind.UNREACHABLE),)
 
 
@@ -249,7 +273,7 @@ def check_yfinance(
     spec: YahooCheckSpec = YAHOO_SPEC,
     clock: Callable[[], float] = time.monotonic,
     now: Callable[[], datetime] = utc_now,
-    connect: Connector = open_tls_connection,
+    connection: ConnectionStep | None = None,
 ) -> ProviderCheckResult:
     """Check that Yahoo can be reached, then that a current quote and a short daily history come back in shape.
 
@@ -257,22 +281,27 @@ def check_yfinance(
     yfinance. yfinance swallows a connection fault in several places (the history download returns an empty
     frame, and the quote read can raise a ``KeyError``), so the adapter's own calls cannot reliably tell an
     unreachable service from a changed response. A failed connection is ``unreachable`` and ends the check. A
-    connection that opens says nothing about throttling.
+    connection that opens says nothing about throttling. When a proxy is configured for HTTPS the step is skipped
+    and the probe description says so, because a direct connection says nothing about reaching Yahoo through the
+    proxy; the quote and history reads then run unchanged.
     """
+    step = connection or ConnectionStep()
+    connection_step = step.https_proxy(YFINANCE_DATA_HOST) is None
 
     def body() -> None:
         deadline = _Deadline(spec.timeout_seconds)
         start_date = (now() - timedelta(days=spec.history_days)).date().isoformat()
-        _call_with_timeout(
-            lambda: call_library(
-                lambda: connect(YFINANCE_DATA_HOST, YAHOO_DATA_PORT, deadline.remaining()),
-                rules=_CONNECTION_FAILURE_RULES,
-                provider_id=YFINANCE_PROVIDER_ID,
-                message=f"Cannot open a TLS connection to {YFINANCE_DATA_HOST}:{YAHOO_DATA_PORT}",
-                error_type=DataFetchError,
-            ),
-            deadline,
-        )
+        if connection_step:
+            _call_with_timeout(
+                lambda: call_library(
+                    lambda: step.connect(YFINANCE_DATA_HOST, YAHOO_DATA_PORT, deadline.remaining()),
+                    rules=_CONNECTION_FAILURE_RULES,
+                    provider_id=YFINANCE_PROVIDER_ID,
+                    message=f"Cannot open a TLS connection to {YFINANCE_DATA_HOST}:{YAHOO_DATA_PORT}",
+                    error_type=DataFetchError,
+                ),
+                deadline,
+            )
         quote = _call_with_timeout(lambda: client.fetch_current_quote(spec.probe_ticker), deadline)
         price = quote.price
         if not math.isfinite(price) or price <= 0:
@@ -281,7 +310,7 @@ def check_yfinance(
         frame = _call_with_timeout(lambda: client.fetch_data(spec.probe_ticker, start_date), deadline)
         _require_history_shape(frame, spec)
 
-    return _finish(YFINANCE_PROVIDER_ID, yahoo_probe_description(spec), clock, body)
+    return _finish(YFINANCE_PROVIDER_ID, yahoo_probe_description(spec, connection_step=connection_step), clock, body)
 
 
 def _require_history_shape(frame: object, spec: YahooCheckSpec) -> None:
@@ -379,7 +408,7 @@ PROVIDER_CHECKS: tuple[ProviderCheckEntry, ...] = (
     ProviderCheckEntry(
         provider_id=YFINANCE_PROVIDER_ID,
         probe=yahoo_probe_description(),
-        run=lambda clients: check_yfinance(clients.yahoo, connect=clients.connect),
+        run=lambda clients: check_yfinance(clients.yahoo, connection=clients.connection),
     ),
     ProviderCheckEntry(
         provider_id=SEC_PROVIDER_ID,

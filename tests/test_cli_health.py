@@ -18,7 +18,7 @@ from src.cli import app
 from src.config import settings
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
-from src.data.provider_checks import ProviderClients, SecTransport, SecUnavailable
+from src.data.provider_checks import ConnectionStep, ProviderClients, SecTransport, SecUnavailable
 from src.data.yfinance.client import YFinanceQuote
 from tests._cli_helpers import normalize_cli_output
 
@@ -54,9 +54,16 @@ def _connected(host: str, port: int, timeout_seconds: float) -> None:  # noqa: A
     """Stand in for a successful connection."""
 
 
+def _no_proxy(host: str) -> str | None:  # noqa: ARG001
+    """Stand in for proxy detection on a machine with no proxy."""
+    return None
+
+
 def _clients(yahoo: _FakeYahoo | None = None, *, facts: object | None = None) -> ProviderClients:
     transport = SecTransport(_sec_fetcher(facts=facts), _SEC_AGENT)  # type: ignore[arg-type]
-    return ProviderClients(yahoo=yahoo or _FakeYahoo(), sec=transport, connect=_connected)
+    return ProviderClients(
+        yahoo=yahoo or _FakeYahoo(), sec=transport, connection=ConnectionStep(connect=_connected, https_proxy=_no_proxy)
+    )
 
 
 def _invoke(clients: ProviderClients, *arguments: str) -> tuple[int, str]:
@@ -196,11 +203,13 @@ _HUNG_ADAPTER_SCRIPT = textwrap.dedent(
     entry = checks.ProviderCheckEntry(
         provider_id="yfinance",
         probe=checks.yahoo_probe_description(spec),
-        run=lambda clients: checks.check_yfinance(clients.yahoo, spec=spec, connect=clients.connect),
+        run=lambda clients: checks.check_yfinance(clients.yahoo, spec=spec, connection=clients.connection),
     )
     cli_health.PROVIDER_CHECKS = (entry,)
     cli_health.build_provider_clients = lambda: checks.ProviderClients(
-        yahoo=HungYahoo(), sec=checks.SecUnavailable("not used"), connect=lambda host, port, timeout: None
+        yahoo=HungYahoo(), sec=checks.SecUnavailable("not used"), connection=checks.ConnectionStep(
+            connect=lambda host, port, timeout: None, https_proxy=lambda host: None
+        )
     )
     app(["health"])
     """

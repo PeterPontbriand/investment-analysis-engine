@@ -54,7 +54,7 @@ The default is 20 seconds, matching the transport timeout in `src/data/http_json
 shorter one. Making the timeout a parameter now means PH.3 adds a caller, not a second body.
 
 **Request budget.** At most three requests per check. Yahoo makes three (an opening
-connection, one quote read and one history download), SEC EDGAR two (the ticker map and one company-facts
+connection, one quote read and one history download; two when a proxy is configured), SEC EDGAR two (the ticker map and one company-facts
 document). The cap respects SEC's fair-access
 limit and the project's guarded-egress rule, and a check that needs a fourth request needs project-owner
 review.

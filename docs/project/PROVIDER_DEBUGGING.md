@@ -92,8 +92,8 @@ Start with `uv run ian health --provider <id>` on your own machine, then compare
 
 ### Yahoo (`yfinance`)
 
-The check starts with a connection step, then reads the current quote for the probe ticker, then downloads about
-30 days of daily history. That is three requests, the most a check may make.
+Unless a proxy is configured, the check starts with a connection step, then reads the current quote for the probe ticker, then downloads about
+30 days of daily history. That is three requests, the most a check may make (two when the connection step is skipped).
 
 **The connection step.** yfinance hides connection faults in several places, so its own calls cannot reliably say
 whether Yahoo was reachable. The check therefore first opens a direct TCP and TLS connection to
@@ -102,13 +102,20 @@ whether Yahoo was reachable. The check therefore first opens a direct TCP and TL
 - A failure to connect is `unreachable` and ends the check; no quote or history is requested.
 - The step separates "cannot reach Yahoo" from everything else. It does **not** detect throttling: Yahoo can accept
   the connection and still refuse or empty the requests that follow.
+- **With a proxy configured, the step is skipped.** The check asks the Python standard library whether an HTTPS
+  proxy applies to `query2.finance.yahoo.com`; it reads the `https_proxy` environment variable and, on Windows and
+  macOS, the system proxy settings, and honours the bypass list. A direct connection says nothing about reaching
+  Yahoo through a proxy, so the step does not run and the probe in the `ian health` line reads
+  `AAPL quote and daily history (connection step skipped: a proxy is configured)`. The quote and history reads
+  run as usual, and the check then makes two requests. Without the step, an offline machine behind a proxy can show
+  the `unexpected response` or `no data` verdicts described below. The proxy address is never printed.
 - A command such as `ian momentum` or a Graham command does not run this step. Offline, it can still report
   `unexpected response` (the quote read) or `no data` (the history download), because yfinance hides the
   connection fault from the adapter. Run `ian health --provider yfinance` to find out whether Yahoo is reachable.
 
 | Verdict and detail | What to look at first |
 | :--- | :--- |
-| `unreachable`: `Cannot open a TLS connection to query2.finance.yahoo.com:443: ...` | The machine cannot reach Yahoo: the network, DNS, a proxy or a firewall. The step does not use a proxy configured only for yfinance. |
+| `unreachable`: `Cannot open a TLS connection to query2.finance.yahoo.com:443: ...` | The machine cannot reach Yahoo directly: the network, DNS or a firewall. |
 | `unreachable`: `timed out after 20 s` | The connection, the quote or the history did not finish within the whole-check deadline. The network or a proxy. |
 | `unexpected response`: `history is missing columns: ...`, `history index is not a monotonic date index`, `history is not a data frame` | The yfinance library changed the shape it returns. Compare the installed version with the one the lock file pins, read its release notes, and read `fetch_data` in [`src/data/yfinance/client.py`](../../src/data/yfinance/client.py). |
 | `unexpected response`: `quote last price is not a positive finite number`, or a quote error | The connection opened, so the machine reaches Yahoo, but the quote read (`fast_info`) failed in a way yfinance reports as a shape error. Yahoo changed what it returns, or throttled or refused the request and yfinance hid that. Read `fetch_current_quote` in the same module. |

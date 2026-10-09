@@ -17,12 +17,12 @@ from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.http_json import fetch_json
 from src.data.provider_checks import (
     PROVIDER_CHECKS,
+    ConnectionStep,
     ProviderCheckEntry,
     ProviderCheckResult,
     ProviderClients,
     SecTransport,
     SecUnavailable,
-    open_tls_connection,
 )
 from src.data.yfinance import YFinanceClient
 from src.reporting.failure_classification import AnalysisConfigurationError
@@ -37,7 +37,11 @@ def build_provider_clients() -> ProviderClients:
         sec = SecUnavailable(str(exc))
     else:
         sec = SecTransport(fetch_json, (settings.sec_user_agent or "").strip())
-    return ProviderClients(yahoo=YFinanceClient(), sec=sec, connect=open_tls_connection)
+    return ProviderClients(
+        yahoo=YFinanceClient(),
+        sec=sec,
+        connection=ConnectionStep(),
+    )
 
 
 _KIND_VERDICTS = {
