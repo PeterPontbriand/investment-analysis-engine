@@ -106,6 +106,11 @@ def test_a_rule_can_be_narrowed_by_a_test() -> None:
     assert classify_library_exception(OSError(5, "io"), rules) is ProviderFailureKind.UNREACHABLE
 
 
+def test_a_rule_outcome_is_a_kind_or_the_defect_marker_and_nothing_else() -> None:
+    FailureRule((_MisuseError,), "defect")  # type: ignore[arg-type]  # a bare string is not an outcome
+    assert not isinstance(DEFECT, str)
+
+
 def test_a_listed_defect_propagates_unchanged() -> None:
     misuse = _MisuseError("bad call")
     with pytest.raises(_MisuseError) as caught:

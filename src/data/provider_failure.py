@@ -8,16 +8,24 @@ the service or the library did something the adapter did not expect.
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from enum import Enum
 from typing import Final
 
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 
-DEFECT: Final = "defect"
+
+class _Defect(Enum):
+    """The single outcome that is not a kind: the exception is a programming error and propagates."""
+
+    DEFECT = "defect"
+
+
+DEFECT: Final = _Defect.DEFECT
 """The outcome of a rule whose exception types are programming errors and must propagate unchanged."""
 
-Outcome = ProviderFailureKind | str
+Outcome = ProviderFailureKind | _Defect
 
 
 @dataclass(frozen=True)
@@ -70,9 +78,8 @@ def call_library[ResultT](
         raise
     except Exception as error:
         outcome = classify_library_exception(error, rules)
-        if outcome == DEFECT:
+        if outcome is DEFECT:
             raise
-        assert isinstance(outcome, ProviderFailureKind)
         raise error_type(f"{message}: {error}", kind=outcome, provider_id=provider_id) from error
 
 

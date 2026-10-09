@@ -73,6 +73,9 @@ def test_a_json_404_takes_the_kind_the_caller_passes(caller_kind: ProviderFailur
     [
         _http_error(403),
         _http_error(429),
+        _http_error(400),
+        _http_error(401),
+        _http_error(410),
         _http_error(500),
         _http_error(503),
         URLError("name resolution failed"),
@@ -108,7 +111,19 @@ def test_a_filing_404_takes_the_kind_the_caller_passes(caller_kind: ProviderFail
     assert caught.value.kind is caller_kind
 
 
-@pytest.mark.parametrize("fault", [_http_error(403), _http_error(502), URLError("refused"), TimeoutError()])
+@pytest.mark.parametrize(
+    "fault",
+    [
+        _http_error(403),
+        _http_error(400),
+        _http_error(401),
+        _http_error(410),
+        _http_error(502),
+        URLError("refused"),
+        TimeoutError(),
+        IncompleteRead(b"partial"),
+    ],
+)
 def test_a_filing_transport_fault_is_unreachable(fault: BaseException) -> None:
     with _patched_filing(fault), pytest.raises(FinancialProviderError) as caught:
         _filing()
