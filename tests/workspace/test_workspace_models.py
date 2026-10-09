@@ -16,9 +16,13 @@ def test_run_outcome_is_terminal_only() -> None:
         "unavailable",
         "not_applicable",
         "failed",
-        "cancelled",
     }
     assert not any("running" in outcome.name.lower() or "running" in outcome.value for outcome in RunOutcome)
+
+
+def test_run_outcome_rejects_the_removed_cancelled_value() -> None:
+    with pytest.raises(ValueError, match="cancelled"):
+        RunOutcome("cancelled")
 
 
 def test_json_value_accepts_nested_primitives() -> None:

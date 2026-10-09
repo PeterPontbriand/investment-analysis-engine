@@ -1,5 +1,5 @@
 exit 1
 --- stdout
-{"command": "db status", "status": "success", "database_path": "<database>", "state": "missing", "current_revision": null, "expected_revision": "0004_instrument_profiles", "reason_code": null, "reason": "Database is not initialized. Run ian db upgrade with this same target to initialize it.", "schema_version": 2}
+{"command": "db status", "status": "success", "database_path": "<database>", "state": "missing", "current_revision": null, "expected_revision": "0005_remove_cancelled_outcome", "reason_code": null, "reason": "Database is not initialized. Run ian db upgrade with this same target to initialize it.", "schema_version": 2}
 --- stderr
 

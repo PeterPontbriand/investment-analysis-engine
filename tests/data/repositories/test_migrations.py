@@ -9,11 +9,13 @@ from typing import Any
 import pytest
 from alembic.config import Config
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.schema import SchemaItem, Table
 
 from alembic import command, context, op
 from src.config import ProjectSettings
 from src.data.repositories import SQLiteDatabase, migrations
+from src.data.repositories.readiness import ReadinessOutcome, ensure_database_ready
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
@@ -61,7 +63,7 @@ def test_cli_schema_lifecycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
                 )
                 assert set(tables) == expected
                 versions = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalars().all()
-                assert versions == ([] if operation == "downgrade" else ["0004_instrument_profiles"])
+                assert versions == ([] if operation == "downgrade" else ["0005_remove_cancelled_outcome"])
         finally:
             database.close()
     assert not unused.exists()
@@ -94,7 +96,7 @@ def test_workspace_revision_downgrade_retains_predecessor_data(tmp_path: Path) -
         command.upgrade(config, "head")
         with database.read() as connection:
             assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
-                "0004_instrument_profiles"
+                "0005_remove_cancelled_outcome"
             )
     finally:
         database.close()
@@ -220,7 +222,7 @@ def test_borrowed_transaction_is_not_committed_or_closed(tmp_path: Path) -> None
             assert not connection.closed
             assert connection.in_transaction()
             revision = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
-            assert revision == "0004_instrument_profiles"
+            assert revision == "0005_remove_cancelled_outcome"
             raise RuntimeError("outer rollback")
 
     try:
@@ -285,3 +287,74 @@ def test_resource_discovery_checks_actual_synthetic_graph(
     else:
         with pytest.raises(ValueError, match="missing|exactly one head"):
             migrations.migration_resources()
+
+
+_RUN_COLUMNS = (
+    "(analysis_run_id, ticker, analysis_id, method_id, outcome, completed_at, run_schema_version, "
+    "config_schema_version, method_version, result_schema_version, evidence_codec_version, projection_version, "
+    "envelope_json)"
+)
+
+
+def _insert_run(connection: Any, run_id: str, outcome: str) -> None:
+    connection.exec_driver_sql(
+        f"INSERT INTO analysis_runs {_RUN_COLUMNS} VALUES "  # noqa: S608
+        f"('{run_id}', 'KO', 'momentum', 'sma_crossover', '{outcome}', '2026-09-15T12:00:00.000000Z', "
+        "1, 1, 1, 1, 1, 1, '{}')"
+    )
+
+
+def test_outcome_revision_keeps_runs_and_rejects_cancelled(tmp_path: Path) -> None:
+    path = tmp_path / "outcome-revision.sqlite3"
+    config = migration_config(path)
+    command.upgrade(config, "0004_instrument_profiles")
+    database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+    try:
+        with database.transaction() as connection:
+            _insert_run(connection, "run-completed", "completed")
+            _insert_run(connection, "run-failed", "failed")
+        command.upgrade(config, "head")
+        with database.read() as connection:
+            rows = connection.exec_driver_sql("SELECT analysis_run_id, outcome FROM analysis_runs ORDER BY 1").all()
+            assert [tuple(row) for row in rows] == [("run-completed", "completed"), ("run-failed", "failed")]
+            indexes = set(
+                connection.exec_driver_sql(
+                    "SELECT name FROM sqlite_schema WHERE type='index' AND tbl_name='analysis_runs'"
+                )
+                .scalars()
+                .all()
+            )
+            assert {
+                "ix_analysis_runs_ticker",
+                "ix_analysis_runs_method_id",
+                "ix_analysis_runs_outcome",
+                "ix_analysis_runs_completed",
+                "ix_analysis_runs_refresh",
+            } <= indexes
+        assert ensure_database_ready(database) is ReadinessOutcome.READY
+        with pytest.raises(IntegrityError), database.transaction() as connection:
+            _insert_run(connection, "run-cancelled", "cancelled")
+        command.downgrade(config, "0004_instrument_profiles")
+        with database.transaction() as connection:
+            _insert_run(connection, "run-cancelled", "cancelled")
+    finally:
+        database.close()
+
+
+def test_outcome_revision_refuses_to_drop_a_stored_cancelled_run(tmp_path: Path) -> None:
+    path = tmp_path / "outcome-revision-held.sqlite3"
+    config = migration_config(path)
+    command.upgrade(config, "0004_instrument_profiles")
+    database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+    try:
+        with database.transaction() as connection:
+            _insert_run(connection, "run-cancelled", "cancelled")
+        with pytest.raises(RuntimeError, match="'cancelled'"):
+            command.upgrade(config, "head")
+        with database.read() as connection:
+            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
+                "0004_instrument_profiles"
+            )
+            assert connection.exec_driver_sql("SELECT outcome FROM analysis_runs").scalar_one() == "cancelled"
+    finally:
+        database.close()

@@ -350,3 +350,34 @@ def test_fcf_growth_default_call_saves_nothing() -> None:
     assert "Saved Analysis Run" not in result.output
 
     assert _repository().list(RunQuery(ticker="ACME")) == ()
+
+
+# ---------------------------------------------------------------------------
+# Interruption
+# ---------------------------------------------------------------------------
+
+
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+def test_interrupt_during_analysis_stores_no_run(mock_run: MagicMock) -> None:
+    """Ctrl-C before the run is captured leaves nothing stored and reports no saved run."""
+    mock_run.side_effect = KeyboardInterrupt
+
+    result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
+
+    assert result.exit_code == 130
+    assert "Saved Analysis Run" not in result.output
+    assert _repository().list(RunQuery()) == ()
+
+
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+def test_interrupt_while_storing_leaves_no_partial_run(mock_run: MagicMock) -> None:
+    """Ctrl-C inside the insert transaction rolls the transaction back; no row, no saved-run line."""
+    mock_run.return_value = _mock_momentum_run()
+    carry_profile(mock_run)
+
+    with patch("src.data.repositories.analysis_runs._row", side_effect=KeyboardInterrupt):
+        result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
+
+    assert result.exit_code == 130
+    assert "Saved Analysis Run" not in result.output
+    assert _repository().list(RunQuery()) == ()
