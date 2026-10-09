@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 from src.core.analysis_status import CalculationStatus
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
@@ -22,7 +23,14 @@ class _SecFixtureFetcher:
     def __init__(self, company_facts: object) -> None:
         self._company_facts = company_facts
 
-    def __call__(self, url: str, *, headers: Mapping[str, str]) -> object:
+    def __call__(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        not_found: ProviderFailureKind,  # noqa: ARG002
+        provider_id: str,  # noqa: ARG002
+    ) -> object:
         """Return the fixture matching the requested SEC endpoint."""
         assert headers["User-Agent"] == "D5 integration tests@example.invalid"
         if "company_tickers.json" in url:

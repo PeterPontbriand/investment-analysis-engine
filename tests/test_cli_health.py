@@ -15,6 +15,7 @@ from typer.testing import CliRunner
 from src import cli_health
 from src.cli import app
 from src.config import settings
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.provider_checks import ProviderClients, SecTransport, SecUnavailable
 from src.data.yfinance.client import YFinanceQuote
 from tests._cli_helpers import normalize_cli_output
@@ -39,7 +40,7 @@ class _FakeYahoo:
 
 
 def _sec_fetcher(*, facts: object | None = None) -> object:
-    def fetch(url: str, *, headers: Mapping[str, str]) -> object:  # noqa: ARG001
+    def fetch(url: str, *, headers: Mapping[str, str], not_found: ProviderFailureKind, provider_id: str) -> object:  # noqa: ARG001
         if url.endswith("company_tickers.json"):
             return {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}}
         return {"facts": {"us-gaap": {}}} if facts is None else facts

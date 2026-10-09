@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from unittest.mock import patch
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentKindRequest
 from src.data.sec_edgar import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
@@ -19,7 +20,7 @@ NOW = datetime(2026, 8, 29, 20, 0, tzinfo=UTC)
 def test_sec_retains_ticker_title_and_cik_without_duplicate_mapping_fetch() -> None:
     calls = 0
 
-    def fetcher(url: str, *, headers: Mapping[str, str]) -> object:
+    def fetcher(url: str, *, headers: Mapping[str, str], not_found: ProviderFailureKind, provider_id: str) -> object:  # noqa: ARG001
         nonlocal calls
         calls += 1
         assert url.endswith("company_tickers.json")

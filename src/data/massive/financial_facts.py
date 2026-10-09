@@ -7,6 +7,7 @@ from datetime import UTC, datetime, time
 from urllib.parse import urlencode
 
 from src.core.clock import utc_now
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
@@ -91,9 +92,11 @@ class MassiveFinancialFactsAdapter:
             return ()
         except FinancialProviderError:
             raise
-        except (KeyError, TypeError, ValueError, OSError) as exc:
+        except (KeyError, TypeError, ValueError) as exc:
             msg = f"Massive valuation retrieval failed for {request.subject_id}: {exc}"
-            raise FinancialProviderError(msg) from exc
+            raise FinancialProviderError(
+                msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=MASSIVE_PROVIDER_ID
+            ) from exc
 
     def _fetch_ttm_eps(self, request: FinancialFactRequest) -> ProviderFact | None:
         currency = self._currency_for_ticker(request.subject_id)
@@ -239,7 +242,12 @@ class MassiveFinancialFactsAdapter:
             "Authorization": f"Bearer {self._api_key}",
             "Accept": "application/json",
         }
-        payload = self._fetch_json(f"{self._base_url}{path}", headers=headers)
+        payload = self._fetch_json(
+            f"{self._base_url}{path}",
+            headers=headers,
+            not_found=ProviderFailureKind.NO_DATA,
+            provider_id=MASSIVE_PROVIDER_ID,
+        )
         _require_ok(payload)
         return payload
 
@@ -251,7 +259,7 @@ def _require_ok(payload: object) -> None:
     status = payload.get("status")
     if status is not None and status != "OK":
         msg = f"Massive returned non-OK status {status!r}."
-        raise FinancialProviderError(msg)
+        raise FinancialProviderError(msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=MASSIVE_PROVIDER_ID)
 
 
 def _results(payload: object) -> tuple[Mapping[object, object], ...]:

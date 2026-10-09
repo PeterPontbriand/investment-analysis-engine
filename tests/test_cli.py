@@ -14,6 +14,7 @@ from src.cli import app
 from src.cli_composition import build_graham_resolver
 from src.config import settings
 from src.core.constants import TrendStatus
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
 from src.data.instrument_profile import InstrumentKind
@@ -353,10 +354,42 @@ def test_cli_momentum_data_fetch_failure_is_one_clean_message(mock_run: MagicMoc
 
     assert result.exit_code == 1
     assert "Unable to analyze FCIM" in result.output
-    assert "configured market-data provider returned no usable price history" in result.output.lower()
+    assert "a data provider failed; the failure was not classified" in result.output.lower()
     assert "verify ticker" not in result.output.lower()
     assert "currentTradingPeriod" not in result.output
     assert "Traceback" not in result.output
+
+
+@pytest.mark.parametrize(
+    ("kind", "sentence"),
+    [
+        (ProviderFailureKind.UNREACHABLE, "Unable to analyze FCIM: yfinance did not serve the request."),
+        (
+            ProviderFailureKind.UNEXPECTED_RESPONSE,
+            "Unable to analyze FCIM: yfinance answered in a form the application does not read.",
+        ),
+        (ProviderFailureKind.NO_DATA, "Unable to analyze FCIM: yfinance returned no data for it."),
+    ],
+)
+@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+def test_cli_momentum_classified_failure_names_its_kind_in_text_and_json(
+    mock_run: MagicMock, kind: ProviderFailureKind, sentence: str
+) -> None:
+    mock_run.side_effect = DataFetchError("library detail leaked here", kind=kind, provider_id="yfinance")
+
+    text = runner.invoke(app, ["momentum", "FCIM"])
+    assert text.exit_code == 1
+    assert text.stderr.strip() == sentence
+    assert "library detail" not in text.output
+
+    document = json.loads(runner.invoke(app, ["momentum", "FCIM", "--json"]).stdout)
+    assert document["reason_code"] == f"provider_{kind.value}"
+    assert document["status"] == "input_unavailable"
+    assert document["reason"] == sentence
+    assert document["provider_failure"] == {
+        "reason_code": f"provider_{kind.value}",
+        "inputs": [{"input": None, "provider_id": "yfinance", "kind": kind.value}],
+    }
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")

@@ -1,7 +1,7 @@
 # PH.2 — Failure classification: decisions and handler inventory
 
 Every exception handler that turns a provider failure into a generic error, or carries one on without its
-class, as of `main` at `d415011` (2026-10-09). Owned by
+class, as of `main` at `750d7c9` (2026-10-09). Owned by
 [PH.2](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md). Line numbers are for that commit and will move; the symbol is
 the stable reference. The list came from a scan of `src/` for handlers of `Exception`, `BaseException`, a
 bare `except`, and tuples mixing `OSError` with `KeyError`, `TypeError` or `ValueError`, then each was read.
@@ -13,7 +13,7 @@ The three kinds are `unreachable`, `unexpected_response` and `no_data`; the deci
 
 - **Typed, never parsed from prose.** A `ProviderFailureKind` enum and the provider identity are fields on the
   failure, carried by the existing `DataFetchError` and `FinancialProviderError` as additive attributes
-  (a new `src/data/provider_failure.py` defines the enum). No public exception is removed or renamed.
+  (`src/core/provider_failure_kind.py` defines the enum; the helper is in `src/data/provider_failure.py`). No public exception is removed or renamed.
 - **`unreachable`:** the service did not serve the request: DNS, connect, timeout, throttling or blocking such
   as HTTP 403 and 429, server errors.
 - **`unexpected_response`:** the service answered, but not in the form the adapter reads: invalid JSON, missing
@@ -68,13 +68,13 @@ provider are updated to raise a typed failure. Branches and slice order are in t
 
 | File and symbol | Line | Handler today | Disposition | Slice |
 | :--- | :--- | :--- | :--- | :--- |
-| `http_json.py` `fetch_json` | 26 | `except (HTTPError, URLError, TimeoutError, OSError)`, re-raised as `OSError` | **Replace.** The kind of an HTTP 404 comes from the caller through a required keyword on `JsonFetcher` and every fetcher: `no_data` for a per-company document, `unexpected_response` for a fixed endpoint. HTTP 403, 429 and 5xx, DNS and connection errors, and timeouts are `unreachable`. The sentence keeps the URL and status. | PH.2a |
+| `http_json.py` `fetch_json` | 26 | `except (HTTPError, URLError, TimeoutError, OSError)`, re-raised as `OSError` | **Replace.** The kind of an HTTP 404 comes from the caller through a required keyword on `JsonFetcher` and every fetcher: `no_data` for a per-company document, `unexpected_response` for a fixed endpoint. Every HTTP status other than 404 is `unreachable`: 403, 429 and 5xx, and also 400, 401 and 410, because the service did not serve the request. DNS and connection errors, timeouts and `http.client.HTTPException` (for example an `IncompleteRead` partway through the body) are `unreachable` too. The sentence keeps the URL and status. | PH.2a |
 | `http_json.py` `fetch_json` | 33 | `except (json.JSONDecodeError, UnicodeDecodeError)`, re-raised as `ValueError` | **Replace.** `unexpected_response`. | PH.2a |
 | `filing_document.py` `fetch_filing` | 54 | no handler; `build_opener(...).open` (line 62) raises raw `OSError`, `HTTPError` and `UnicodeDecodeError` | **Classify**, as `fetch_json`: an HTTP 404 on a filing is `no_data`, other transport faults `unreachable`, a decode failure `unexpected_response`. Without this, narrowing `resolve_security_unit` would turn its transport errors into defects. | PH.2a |
 | `financial_facts.py` `SecEdgarFinancialFactsAdapter.fetch_facts` | 500 | `except (KeyError, TypeError, ValueError, OSError)`, re-raised as `FinancialProviderError`; an `except FinancialProviderError: raise` precedes it at 498 and another sits at 396 | **Replace.** The passthrough handlers stay. Transport failures arrive already typed from `fetch_json` and pass through; `KeyError`, `TypeError` and `ValueError` raised while reading a document become `unexpected_response`. | PH.2a |
 | `financial_facts.py` `SecEdgarFinancialFactsAdapter._resolve_cik` | 521 | `except KeyError`, raised as `FinancialProviderError` | **Replace.** A ticker absent from SEC's mapping is `no_data`. | PH.2a |
 | `financial_facts.py` `SecEdgarFinancialFactsAdapter.resolve_security_unit` | 292 | `except (OSError, ValueError)`, returns `SecurityUnitResolutionReason.PROVIDER_ERROR` | **Narrow.** Catches typed provider failures only and records the kind on the resolution; the reason value is unchanged. A non-provider `ValueError` is a defect and propagates. | PH.2a narrows; PH.2c records the kind |
-| `financial_facts.py` `SecEdgarFinancialFactsAdapter.create_analysis_snapshot` (245, 246), `_load_ticker_metadata` (529) and `fetch_facts` (418, 422) | — | no handler; they call `fetch_json` directly. `create_analysis_snapshot` has an `except FinancialProviderError` at 232 that returns an empty snapshot, and `_resolve_cik` (which loads the ticker map) is inside it | **Covered by `fetch_json`.** Each call site passes its 404 kind: company facts and submissions are per-company, the ticker map is a fixed endpoint. The check transport (`provider_checks.py` 248, 251) and the evaluation fixture fetcher pass it too. The class a classified transport failure raises must not be swallowed by the 232 handler or re-wrapped by the 500 handler (needs a decision, [slice plan §8](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#8-verified-against-main)). | PH.2a |
+| `financial_facts.py` `SecEdgarFinancialFactsAdapter.create_analysis_snapshot` (245, 246), `_load_ticker_metadata` (529) and `fetch_facts` (418, 422) | — | no handler; they call `fetch_json` directly. `create_analysis_snapshot` has an `except FinancialProviderError` at 232 that returns an empty snapshot, and `_resolve_cik` (which loads the ticker map) is inside it | **Covered by `fetch_json`.** Each call site passes its 404 kind: company facts and submissions are per-company, the ticker map is a fixed endpoint. The check transport (`provider_checks.py` 248, 251) and the evaluation fixture fetcher pass it too. A classified transport failure is a `FinancialProviderError` (D12), and the handler at 232 and the top of `fetch_facts` catch only the private missing-CIK subclass (D13), so neither swallows an outage. | PH.2a |
 
 ## 3. Massive
 

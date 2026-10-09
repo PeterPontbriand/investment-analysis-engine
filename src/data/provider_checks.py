@@ -24,6 +24,7 @@ from typing import Protocol
 import pandas as pd
 
 from src.core.clock import utc_now
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.http_json import JsonFetcher
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceQuote
@@ -245,10 +246,23 @@ def check_sec_edgar(
             raise _CheckFailureError(transport.detail)
         deadline = _Deadline(spec.timeout_seconds)
         headers = {"User-Agent": transport.user_agent, "Accept": "application/json"}
-        ticker_map = _call_with_timeout(lambda: transport.json_fetcher(spec.ticker_map_url, headers=headers), deadline)
+        ticker_map = _call_with_timeout(
+            lambda: transport.json_fetcher(
+                spec.ticker_map_url,
+                headers=headers,
+                not_found=ProviderFailureKind.UNEXPECTED_RESPONSE,
+                provider_id=SEC_PROVIDER_ID,
+            ),
+            deadline,
+        )
         cik = _probe_cik(ticker_map, spec)
         url = spec.company_facts_url.format(cik=cik)
-        company_facts = _call_with_timeout(lambda: transport.json_fetcher(url, headers=headers), deadline)
+        company_facts = _call_with_timeout(
+            lambda: transport.json_fetcher(
+                url, headers=headers, not_found=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID
+            ),
+            deadline,
+        )
         _require_company_facts_shape(company_facts, spec)
 
     return _finish(SEC_PROVIDER_ID, sec_edgar_probe_description(spec), clock, body)

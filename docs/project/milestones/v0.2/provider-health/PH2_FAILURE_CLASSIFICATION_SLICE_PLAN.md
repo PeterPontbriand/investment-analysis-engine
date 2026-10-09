@@ -24,7 +24,7 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 | :--- | :--- |
 | D1 | Three slices, not one: PH.2a, PH.2b, PH.2c ([§4](#4-slices)). |
 | D2 | One named helper in `src/data/provider_failure.py` wraps a third-party library call, and only that call, never project code that reads its result. It classifies an exception raised inside the call in this order: the listed `unreachable` types, the listed `unexpected_response` types, the listed `no_data` types; the listed defect types propagate unchanged; and only an unlisted exception becomes `unexpected_response`. The lists are in [§8](#8-verified-against-main). Adapters call the helper and contain no broad handler. |
-| D3 | `fetch_json` and `fetch_filing` take the kind of an HTTP 404 from the caller through a required keyword, with no default, on the `JsonFetcher` protocol and every fetcher. Per-company documents pass `no_data`; fixed endpoints pass `unexpected_response`. |
+| D3 | `fetch_json` and `fetch_filing` take the kind of an HTTP 404 from the caller through the required keyword `not_found`, and the provider through the required keyword `provider_id`, both keyword-only with no default, on the `JsonFetcher` and `FilingFetcher` protocols and every fetcher. Per-company documents and filings pass `no_data`; fixed endpoints pass `unexpected_response`. |
 | D4 | The reason-code change for existing failures is an approved output change ([§3](#3-output-changes)). `provider_error` stays valid and stable for failures an adapter cannot classify. |
 | D5 | The kind is stored: typed fields on the resolver result and on the instrument-profile and security-identity diagnostics, beside the unchanged `PROVIDER_ERROR` status. Affected versions are bumped; nothing is migrated. A provider failure is not turned into a raised error. |
 | D6 | Issue #40 is immediately after PH.2c, as its own small change. |
@@ -33,6 +33,12 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 | D9 | A refresh job carries a `reason_code` if and only if it raised or its run is `failed`; an `unavailable` run is an analysis outcome, not a failure ([§6](#6-refresh-job-reason_codes)). |
 | D10 | The classifier classifies `FinancialProviderError` and `DataFetchError` by type for every command. The per-command `data_error` callback is removed in favour of one per-kind sentence table. |
 | D11 | `yf.download` cannot be made to raise by any supported setting ([§8](#8-verified-against-main)), so a throttled or unreachable history download is `no_data`, and the sentence says Yahoo returned no rows. |
+| D12 | `fetch_json` and `fetch_filing` raise `FinancialProviderError`, carrying the kind and the provider. The resolvers already catch that type, so a transport failure stays a recorded outcome, and the adapters' passthrough handlers let it through. |
+| D13 | A missing CIK is its own condition. `_resolve_cik` raises a private subclass of `FinancialProviderError` (kind `no_data`) for a ticker absent from SEC's map, and the two handlers that mean "no CIK mapping" (`create_analysis_snapshot` and the top of `fetch_facts`) catch only that subclass, so an outage while loading the ticker map is not turned into an empty snapshot or an empty fact tuple. |
+| D14 | `ProviderFailureKind` lives in `src/core/provider_failure_kind.py`, which imports nothing from the application. The library-call helper stays in `src/data/provider_failure.py`. `documents/failure.py` stays a leaf under a wider rule: it imports only modules that themselves import nothing from the application. The shared `provider_failure` element models live in that module, so the failure envelope and the strategy documents import the same types. |
+| D15 | `provider_failure.inputs[].input` is nullable: null if and only if the failure was raised and not recorded against a strategy input. Every entry PH.2a produces has a null `input`. |
+| D16 | A plain `DataQualityError` cannot be raised: for freshly fetched data the historical-quality check either raises `HistoricalDataQualityError` itself or returns nothing. The three unreachable `raise DataQualityError(...)` branches in `cached_client.py`, the classifier rule for the plain type and the tests that built one by hand are removed; the class stays as the base of the historical error. |
+| D17 | `_fail_with` in `cli_workspace.py` is called only with watchlist, stored-run, readiness and parameter errors. It stays outside the sentence table and is not changed. |
 
 ## 3. Output changes
 
@@ -41,10 +47,10 @@ the same slice and the diff is what the review approves.
 
 | # | Where | Before | After | Slice |
 | :--- | :--- | :--- | :--- | :--- |
-| 1 | Failure envelope, `--json`, a raised provider failure (every command) | `reason_code` `provider_error`; the Graham and FCF commands never produced it | One of the three new codes; `provider_error` only when the adapter cannot classify | PH.2a |
+| 1 | Failure envelope, `--json`, a raised provider failure (every command; a raised refresh job's `reason_code` too) | `reason_code` `provider_error`; the Graham and FCF commands never produced it | One of the three new codes; `provider_error` only when the adapter cannot classify | PH.2a |
 | 2 | Failure envelope document | No provider detail | New nullable `provider_failure` element; `schema_version` 6 to 7 | PH.2a |
 | 3 | Failure sentence for a provider failure | One sentence from a per-command callback (Momentum only) | One sentence per kind from a shared table | PH.2a |
-| 4 | Failed-schema file | No provider kinds | Three more `reason_code` values and the `provider_failure` element | PH.2a |
+| 4 | Generated schemas | No provider kinds | `failure`: three more `reason_code` values, the `provider_failure` element, version 7. `database-maintenance-report` and `refresh-summary`: the three values join the enumeration | PH.2a |
 | 5 | A non-provider exception inside an adapter | Reported as a provider error | Propagates and is reported as an internal failure by the CLI boundary | PH.2a, PH.2b |
 | 6 | Yahoo failure sentences | "Network transport fault ..." for any exception | A sentence per kind; an empty history says Yahoo returned no rows | PH.2b |
 | 7 | `ian health`, failed check | `<provider>: failed (...)` | `<provider>: unreachable`, `unexpected response` or `no data` | PH.2b |
@@ -69,19 +75,23 @@ PH.2c extend.
 
 `feat/ph-2a-kind-and-raised-failures`
 
-- **Kind.** `ProviderFailureKind` and the library-call helper in a new `src/data/provider_failure.py`;
-  `DataFetchError` and `FinancialProviderError` carry the kind and provider identity as additive attributes.
+- **Kind.** `ProviderFailureKind` in `src/core/provider_failure_kind.py` (D14) and the library-call helper in
+  `src/data/provider_failure.py`; `DataFetchError` and `FinancialProviderError` carry the kind and provider
+  identity as additive attributes.
 - **Classifier.** The three codes join the input-unavailable codes and the direct-command codes;
-  `classify_failure` classifies `FinancialProviderError` and `DataFetchError` by type for every command; the
-  `data_error` parameter of `execution_errors` and its fallback to `invalid_input` are removed; one per-kind
-  sentence table replaces the callback. The failure envelope gains the nullable `provider_failure` element.
-  `documents/failure.py` is a leaf module that imports nothing from the application, so the element's kind
-  cannot import the enum from `src/data/provider_failure.py` without a decision on that rule.
-- **Transport.** `fetch_json` and `fetch_filing` classify their failures; the 404 kind is a required keyword on
-  `JsonFetcher` and `FilingFetcher` and every fetcher (SEC, Massive, the check transport, the evaluation
-  fixture fetcher and the test fakes). The class a classified transport failure raises is not yet decided
-  (needs a decision, [§8](#8-verified-against-main)).
-- **Adapters.** SEC EDGAR and Massive facts handlers and `resolve_security_unit`'s narrowing, per the inventory.
+  `classify_failure` classifies `FinancialProviderError` and `DataFetchError` by type for every command, and a
+  typed failure with no kind is `provider_error`; the kind-to-code mapping is `PROVIDER_CODE_BY_KIND` in
+  `failure_classification.py`. The `data_error` parameter of `execution_errors` and its fallback to
+  `invalid_input` are removed; `provider_failure_sentence` in `cli_support.py` is the one sentence table. The
+  failure envelope gains the nullable `provider_failure` element (D14, D15), `schema_version` 7, and a
+  validator that `reason_code` and `provider_failure.reason_code` agree. The plain `DataQualityError` branches
+  are removed (D16).
+- **Transport.** `fetch_json` and `fetch_filing` classify their failures and raise `FinancialProviderError`
+  (D12); `not_found` and `provider_id` are required keywords on both protocols and every fetcher (D3): SEC,
+  Massive, the check transport, the evaluation fixture fetcher and the test fakes.
+- **Adapters.** SEC EDGAR and Massive facts handlers, `_resolve_cik` (D13) and `resolve_security_unit`'s
+  narrowing, per the inventory. A filing identifier or a non-object document that SEC supplies is an
+  `unexpected_response`.
 - **Gate.** The complete managed gate.
 
 ### PH.2b — Yahoo, health and completion
@@ -124,7 +134,7 @@ PH.2c extend.
 ## 5. The shared `provider_failure` element
 
 - **Shape.** `provider_failure` is null, or an object with `reason_code` (one of the three codes) and `inputs`,
-  an array of `{input, provider_id, kind}`: each failed input with the provider that failed and its kind. It is
+  an array of `{input, provider_id, kind}`: each failed input with the provider that failed and its kind (`input` is null for a raised failure, D15). It is
   populated when the analysis outcome is a provider failure, and lists the inputs that caused it. A failed
   optional input (identity, kind, share unit) that does not change the outcome stays in the profile
   diagnostics, which carry the same kind.
@@ -138,8 +148,7 @@ PH.2c extend.
   returns at its first failed input, so the list holds one entry today (one exception: FCF Growth skips a
   failed diluted-share field when it classifies on total free cash flow, and that failure is not reported);
   the rule matters for the first strategy that resolves inputs without stopping. No rule that the code
-  suggests is better. A raised provider failure (Momentum) has no input name; the value of `input` for it is
-  not yet decided (needs a decision).
+  suggests is better. A raised provider failure (Momentum) has no input name, so its `input` is null (D15).
 - **Conformance check.** A test iterates every strategy descriptor's `json_envelope` model (`STRATEGIES` in
   `src/strategy_wiring.py`, added by SWC.4c)
   and fails if its schema lacks the `provider_failure` property of the shared type, so a new strategy cannot
@@ -198,7 +207,7 @@ hold `execution_failed` need no handling.
 
 ## 8. Verified against `main`
 
-Checked at `d415011` (2026-10-09).
+Checked at `750d7c9` (2026-10-09).
 
 - **Where a provider failure ends.** Momentum raises `DataFetchError`, which reaches the failure envelope.
   Graham Number, Graham Growth and FCF Growth never raise it: the resolvers catch `FinancialProviderError`
@@ -223,8 +232,7 @@ Checked at `d415011` (2026-10-09).
   `str(exception)` as the sentence) and the refresh command's `classify` argument; `refresh.py` does not import
   it. `_DIRECT_CODES` in `cli_support.py` lists the direct-command codes, and a code outside it is downgraded
   there. Only Momentum passes `data_error` (`strategies/momentum/cli.py`), and `tests/test_cli_support.py`
-  passes it too. A non-historical `DataQualityError` also reaches `data_error` today; its sentence after the
-  callback is removed is not decided (needs a decision).
+  passes it too. A non-historical `DataQualityError` also reached `data_error`, but cannot be raised (D16).
 - **Codecs that would encode the kind.** The `_MomentumEvidence`, `_NumberEvidence`, `_GrowthEvidence` and
   `_FCFEvidence` models in each strategy's `codec.py`; `AnalysisRun.model_dump` in
   `repositories/analysis_runs.py`, which stores `instrument_profile`; and the hand-written
@@ -239,10 +247,10 @@ Checked at `d415011` (2026-10-09).
   (`repositories/instrument_profiles.py`) and the cache never reads; freshness is the age only. A new payload
   field versus a bump of that column, and what makes an old payload stale (including on the fail-open path that
   reuses a stored profile), are not decided (needs a decision).
-- **Transport failure class.** `fetch_json` raises `OSError` or `ValueError`. `create_analysis_snapshot` swallows
-  `FinancialProviderError` around `_resolve_cik`, which loads the ticker map, and `fetch_facts` re-wraps any
-  `ValueError`, which `DataFetchError` is. A classified transport failure that is either type would be swallowed
-  or re-wrapped by those handlers (needs a decision on the class and the handler order).
+- **Transport failure class.** Before PH.2a `fetch_json` raised `OSError` or `ValueError`. `create_analysis_snapshot`
+  swallowed `FinancialProviderError` around `_resolve_cik`, which loads the ticker map, and `fetch_facts` re-wrapped
+  any `ValueError`, which `DataFetchError` is; a classified transport failure of either type would have been
+  swallowed or re-wrapped. D12 and D13 settle it.
 - **`yfinance` 1.6.0** (the version in `uv.lock`, unchanged), HTTP layer stubbed to raise a `curl_cffi`
   `ConnectionError`, no network, re-run at `d415011` with a ticker whose timezone is not cached:
   - `yf.download` returned an empty frame with `yf.config.debug.hide_exceptions` at `True` and at `False`.

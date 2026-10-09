@@ -11,12 +11,14 @@ from typer._click.exceptions import UsageError
 
 from src.config import settings
 from src.core.constants import ConfigKeys
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.core.telemetry.quality import record_cli_quality
 from src.data.base_client import DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.financial.cache import ResolvedInputSeriesCacheProtocol
+from src.data.financial.facts import FinancialProviderError
 from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
-from src.data.quality import DataQualityError, HistoricalQualityPolicy
+from src.data.quality import HistoricalQualityPolicy
 from src.data.repositories import (
     SQLiteDatabase,
     SQLiteInstrumentProfileRepository,
@@ -26,7 +28,7 @@ from src.data.repositories import (
 from src.data.repositories.readiness import ensure_database_ready
 from src.data.yfinance import YFinanceClient
 from src.data.yfinance.client import YFINANCE_HISTORICAL_INTERVAL, YFINANCE_PRICE_ADJUSTMENT
-from src.reporting.documents.failure import FailureReasonCode
+from src.reporting.documents.failure import PROVIDER_FAILURE_CODES, FailureReasonCode
 from src.reporting.failure_classification import classify_failure, failure_envelope
 from src.reporting.presentation import PresentationMode, failure_document
 from src.workspace.selection_base import FrozenSelection
@@ -38,12 +40,35 @@ _DIRECT_CODES = frozenset(
         FailureReasonCode.EXECUTION_ERROR,
         FailureReasonCode.HISTORICAL_QUALITY,
         FailureReasonCode.PROVIDER_ERROR,
+        *PROVIDER_FAILURE_CODES,
         FailureReasonCode.CONFIGURATION_ERROR,
         FailureReasonCode.NO_ELIGIBLE_OBSERVATIONS,
         FailureReasonCode.INVALID_INPUT,
         FailureReasonCode.INVALID_PARAMETER,
     }
 )
+
+# One sentence per kind of provider failure, then one for a failure the adapter did not classify. Each names the
+# provider (when known) and the ticker, says what was observed, and offers no remedy.
+_PROVIDER_FAILURE_SENTENCES = {
+    ProviderFailureKind.UNREACHABLE: "Unable to analyze {subject}: {provider} did not serve the request.",
+    ProviderFailureKind.UNEXPECTED_RESPONSE: (
+        "Unable to analyze {subject}: {provider} answered in a form the application does not read."
+    ),
+    ProviderFailureKind.NO_DATA: "Unable to analyze {subject}: {provider} returned no data for it.",
+}
+_UNCLASSIFIED_PROVIDER_FAILURE_SENTENCE = (
+    "Unable to analyze {subject}: a data provider failed; the failure was not classified."
+)
+
+
+def provider_failure_sentence(error: DataFetchError | FinancialProviderError, ticker: str | None) -> str:
+    """Return the sentence for a provider failure, from its kind, the provider that failed and the ticker."""
+    subject = ticker or "the requested instrument"
+    if error.kind is None:
+        return _UNCLASSIFIED_PROVIDER_FAILURE_SENTENCE.format(subject=subject)
+    return _PROVIDER_FAILURE_SENTENCES[error.kind].format(subject=subject, provider=error.provider_id)
+
 
 # Failures whose own message was written to be shown: the database and quality sentences, and the
 # command's own parameter guidance. No other exception's text is shown by default.
@@ -213,7 +238,6 @@ def execution_errors(  # noqa: PLR0912, PLR0913
     unexpected: Callable[[Exception], str],
     invalid: Callable[[ValueError], str] | None = None,
     invalid_detail: bool = False,
-    data_error: Callable[[DataFetchError | DataQualityError], str] | None = None,
     mode: PresentationMode | None = None,
     selection_type: type[FrozenSelection] | None = None,
     ticker: str | None = None,
@@ -221,10 +245,10 @@ def execution_errors(  # noqa: PLR0912, PLR0913
     """Translate execution failures while preserving deliberate CLI exits.
 
     The code and status of a failure come from :func:`classify_failure`, shared with the workspace
-    commands. The callbacks only choose the sentence shown: ``data_error`` for provider failures and
-    ``invalid`` for configuration guidance and, when ``invalid_detail`` is true or no ``mode`` is given,
-    for a plain ``ValueError``. A plain ``ValueError`` otherwise reports the generic sentence, so
-    exception text from provider data is not exposed. A failure whose callback is absent is reported
+    commands. A provider failure's sentence comes from :func:`provider_failure_sentence`; the callbacks
+    only choose the sentence shown: ``invalid`` for configuration guidance and, when ``invalid_detail`` is true
+    or no ``mode`` is given, for a plain ``ValueError``. A plain ``ValueError`` otherwise reports the generic
+    sentence, so exception text from provider data is not exposed. A failure whose callback is absent is reported
     as an unexpected one, exactly as before. ``selection_type`` is the command's own selection class,
     whose fixed ``analysis_id`` and ``method_id`` name the analysis in the failure document.
     """
@@ -240,19 +264,12 @@ def execution_errors(  # noqa: PLR0912, PLR0913
             # A workspace code (for example a stored-run error raised while saving a run) is reported
             # by the direct commands as it always was: a plain invalid input, or an unexpected failure.
             code = FailureReasonCode.INVALID_INPUT if isinstance(exc, ValueError) else FailureReasonCode.EXECUTION_ERROR
-        if code is FailureReasonCode.PROVIDER_ERROR and data_error is None:
-            code = FailureReasonCode.INVALID_INPUT  # provider errors are ValueErrors, so they fall through to that case
         if code is FailureReasonCode.INVALID_INPUT and invalid is None:
             code = FailureReasonCode.EXECUTION_ERROR
         if code.value.startswith("database_") or code in _SHOWN_AS_RAISED:
             message = str(exc)
-        elif isinstance(exc, DataFetchError | DataQualityError) and data_error is not None:
-            # A non-historical DataQualityError (retrieved data failed a quality rule) is folded
-            # into the same CLI-facing "provider_error" classification as DataFetchError (provider
-            # unreachable): CLI presentation does not yet distinguish the two failure classes for
-            # users. HistoricalDataQualityError, handled above, is excluded from this branch and
-            # keeps its own dedicated code because it already exposes structured rule diagnostics.
-            message = data_error(exc)
+        elif isinstance(exc, DataFetchError | FinancialProviderError):
+            message = provider_failure_sentence(exc, ticker)
         elif code is FailureReasonCode.CONFIGURATION_ERROR:
             message = invalid(exc) if invalid is not None and isinstance(exc, ValueError) else str(exc)
         elif code is FailureReasonCode.INVALID_INPUT and invalid is not None and isinstance(exc, ValueError):

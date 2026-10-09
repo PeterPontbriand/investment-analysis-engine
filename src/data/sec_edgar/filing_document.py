@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from typing import Protocol
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+from src.core.provider_failure_kind import ProviderFailureKind
+from src.data.financial.facts import FinancialProviderError
+from src.data.http_json import http_failure_rules
+from src.data.provider_failure import call_library
+
 
 @dataclass(frozen=True)
 class FilingReaderPolicy:
@@ -38,8 +43,19 @@ def filing_url(cik: str, accession: str, primary_document: str) -> str:
 class FilingFetcher(Protocol):
     """Inject a document transport without a live dependency in tests."""
 
-    def __call__(self, url: str, *, headers: Mapping[str, str], policy: FilingReaderPolicy) -> str:
-        """Return bounded UTF-8 filing markup."""
+    def __call__(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        policy: FilingReaderPolicy,
+        not_found: ProviderFailureKind,
+        provider_id: str,
+    ) -> str:
+        """Return bounded UTF-8 filing markup.
+
+        ``not_found`` is the kind of an HTTP 404 and ``provider_id`` names the provider the request serves.
+        """
         ...
 
 
@@ -51,18 +67,44 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def fetch_filing(url: str, *, headers: Mapping[str, str], policy: FilingReaderPolicy) -> str:
-    """Read a bounded SEC document without redirects, retries, or external parsing."""
+def fetch_filing(
+    url: str,
+    *,
+    headers: Mapping[str, str],
+    policy: FilingReaderPolicy,
+    not_found: ProviderFailureKind,
+    provider_id: str,
+) -> str:
+    """Read a bounded SEC document without redirects, retries, or external parsing.
+
+    Raises:
+        ValueError: The URL or the declared identity is not acceptable; a defect of the caller.
+        FinancialProviderError: A transport fault, a 404, a document over the size limit or one that is not UTF-8,
+            carrying the kind of the failure and *provider_id*.
+    """
     if not re.fullmatch(r"https://www\.sec\.gov/Archives/edgar/data/[0-9]+/[0-9]{18}/[A-Za-z0-9_-]+\.html?", url):
         raise ValueError("Unsupported filing URL.")
     request_headers = dict(headers)
     if not request_headers.get("User-Agent", "").strip():
         raise ValueError("SEC filing requests require a declared User-Agent.")
     request_headers["Accept"] = "text/html,application/xhtml+xml"
-    with build_opener(_NoRedirect()).open(
-        Request(url, headers=request_headers), timeout=policy.timeout_seconds
-    ) as response:
-        data: bytes = response.read(policy.max_document_bytes + 1)
+    request = Request(url, headers=request_headers)
+
+    def read() -> bytes:
+        with build_opener(_NoRedirect()).open(request, timeout=policy.timeout_seconds) as response:
+            body: bytes = response.read(policy.max_document_bytes + 1)
+        return body
+
+    data = call_library(
+        read, rules=http_failure_rules(not_found), provider_id=provider_id, message=f"HTTP request failed for {url!r}"
+    )
     if len(data) > policy.max_document_bytes:
-        raise ValueError("Filing exceeds the configured size limit.")
-    return data.decode("utf-8-sig")
+        msg = "Filing exceeds the configured size limit."
+        raise FinancialProviderError(msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=provider_id)
+    try:
+        return data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        msg = f"Filing at {url!r} was not valid UTF-8."
+        raise FinancialProviderError(
+            msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=provider_id
+        ) from exc

@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 import pandas as pd
 import pytest
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.provider_checks import (
     MAX_REQUESTS_PER_CHECK,
     PROVIDER_CHECKS,
@@ -210,7 +211,14 @@ class _FakeSec:
         self.block_facts = block_facts
         self.requests: list[tuple[str, Mapping[str, str]]] = []
 
-    def __call__(self, url: str, *, headers: Mapping[str, str]) -> object:
+    def __call__(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        not_found: ProviderFailureKind,  # noqa: ARG002
+        provider_id: str,  # noqa: ARG002
+    ) -> object:
         self.requests.append((url, headers))
         if len(self.requests) == 1:
             time.sleep(self.first_delay)
