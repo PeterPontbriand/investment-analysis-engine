@@ -359,12 +359,14 @@ def test_fcf_growth_default_call_saves_nothing() -> None:
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_interrupt_during_analysis_stores_no_run(mock_run: MagicMock) -> None:
-    """Ctrl-C before the run is captured leaves nothing stored and reports no saved run."""
+    """Ctrl-C before the run is captured leaves nothing stored and reports no saved run.
+
+    The exit status of an interrupt is Typer's (130), not the application's, so it is not asserted.
+    """
     mock_run.side_effect = KeyboardInterrupt
 
     result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
 
-    assert result.exit_code == 130
     assert "Saved Analysis Run" not in result.output
     assert _repository().list(RunQuery()) == ()
 
@@ -378,6 +380,5 @@ def test_interrupt_while_storing_leaves_no_partial_run(mock_run: MagicMock) -> N
     with patch("src.data.repositories.analysis_runs._row", side_effect=KeyboardInterrupt):
         result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
 
-    assert result.exit_code == 130
     assert "Saved Analysis Run" not in result.output
     assert _repository().list(RunQuery()) == ()

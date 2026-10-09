@@ -304,7 +304,34 @@ def _insert_run(connection: Any, run_id: str, outcome: str) -> None:
     )
 
 
-def test_outcome_revision_keeps_runs_and_rejects_cancelled(tmp_path: Path) -> None:
+def _tables_referencing(connection: Any, target: str) -> list[str]:
+    """Return every table that declares a foreign key to ``target``."""
+    tables = connection.exec_driver_sql("SELECT name FROM sqlite_schema WHERE type='table'").scalars().all()
+    return [
+        table
+        for table in tables
+        if any(row[2] == target for row in connection.exec_driver_sql(f"PRAGMA foreign_key_list('{table}')"))
+    ]
+
+
+def _insert_watchlist_with_entry(connection: Any) -> None:
+    """Hold a parent and a foreign-key child, whose cascade a careless table rebuild could trigger."""
+    connection.exec_driver_sql(
+        "INSERT INTO watchlists VALUES ('watchlist-1','core','Core','2026-09-15T12:00:00.000000Z',NULL)"
+    )
+    connection.exec_driver_sql(
+        "INSERT INTO watchlist_entries VALUES ('watchlist-1', 0, 'KO', 'sma_crossover', 1, '{}')"
+    )
+
+
+def _assert_watchlist_entry_intact(connection: Any) -> None:
+    rows = connection.exec_driver_sql(
+        "SELECT e.watchlist_id, e.ticker FROM watchlist_entries e JOIN watchlists w USING (watchlist_id)"
+    ).all()
+    assert [tuple(row) for row in rows] == [("watchlist-1", "KO")]
+
+
+def test_outcome_revision_keeps_runs_and_rejects_cancelled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / "outcome-revision.sqlite3"
     config = migration_config(path)
     command.upgrade(config, "0004_instrument_profiles")
@@ -313,8 +340,22 @@ def test_outcome_revision_keeps_runs_and_rejects_cancelled(tmp_path: Path) -> No
         with database.transaction() as connection:
             _insert_run(connection, "run-completed", "completed")
             _insert_run(connection, "run-failed", "failed")
+            _insert_watchlist_with_entry(connection)
+            assert _tables_referencing(connection, "analysis_runs") == []
+        enforcement: list[int] = []
+        real_drop_table = op.drop_table
+
+        def record_enforcement(name: str, *args: Any, **kwargs: Any) -> None:
+            if name == "analysis_runs":
+                enforcement.append(op.get_bind().exec_driver_sql("PRAGMA foreign_keys").scalar_one())
+            real_drop_table(name, *args, **kwargs)
+
+        monkeypatch.setattr(op, "drop_table", record_enforcement)
         command.upgrade(config, "head")
+        assert enforcement == [1]
         with database.read() as connection:
+            assert _tables_referencing(connection, "analysis_runs") == []
+            _assert_watchlist_entry_intact(connection)
             rows = connection.exec_driver_sql("SELECT analysis_run_id, outcome FROM analysis_runs ORDER BY 1").all()
             assert [tuple(row) for row in rows] == [("run-completed", "completed"), ("run-failed", "failed")]
             indexes = set(
@@ -337,6 +378,10 @@ def test_outcome_revision_keeps_runs_and_rejects_cancelled(tmp_path: Path) -> No
         command.downgrade(config, "0004_instrument_profiles")
         with database.transaction() as connection:
             _insert_run(connection, "run-cancelled", "cancelled")
+        with database.read() as connection:
+            assert _tables_referencing(connection, "analysis_runs") == []
+            _assert_watchlist_entry_intact(connection)
+            assert connection.exec_driver_sql("SELECT count(*) FROM analysis_runs").scalar_one() == 3
     finally:
         database.close()
 
