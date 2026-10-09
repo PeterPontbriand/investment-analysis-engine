@@ -148,7 +148,7 @@ SEC_USER_AGENT="Your Name your-email@example.com"
 IAN_DATA_DIR="E:/FinancialData"
 ```
 
-At startup (including `ian --help`) the application prints one sentence naming the variable to the error stream and exits with code 2 when an `IAN_` variable matches no setting (usually a typo), or when two variables that differ only by letter case are both set for the same setting. The application name, version and text encoding are fixed and cannot be overridden.
+At startup (including `ian --help`) the application prints one sentence naming the variable to the error stream and exits with code 2 when an `IAN_` variable matches no setting (usually a typo), when two variables that differ only by letter case are both set for the same setting, or when a variable's value is not valid for its setting (the sentence says what was wrong; the value of a secret such as `MASSIVE_API_KEY` is never shown). The application name, version and text encoding are fixed and cannot be overridden.
 
 ### Optional: local AI
 

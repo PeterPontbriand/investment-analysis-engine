@@ -58,3 +58,27 @@ def test_help_reports_the_same_sentence_as_a_command_for_a_bad_variable() -> Non
     bad = {"IAN_NO_SUCH_SETTING": "1"}
 
     assert _run_ian(bad, "--help").stderr == _run_ian(bad, "momentum", "KO").stderr
+
+
+@pytest.mark.parametrize("arguments", [("momentum", "KO"), ("--help",)])
+def test_bad_plain_value_is_reported_at_startup(arguments: tuple[str, ...]) -> None:
+    run = _run_ian({"IAN_DATABASE_BUSY_TIMEOUT_MS": "abc"}, *arguments)
+
+    _assert_one_sentence_failure(run, "IAN_DATABASE_BUSY_TIMEOUT_MS", "valid integer")
+
+
+@pytest.mark.parametrize("arguments", [("momentum", "KO"), ("--help",)])
+def test_bad_nested_value_is_reported_at_startup(arguments: tuple[str, ...]) -> None:
+    run = _run_ian({"ian_schema_config__max_validation_retries": "many"}, *arguments)
+
+    _assert_one_sentence_failure(run, "valid integer")
+    assert "ian_schema_config__max_validation_retries".upper() in run.stderr.upper()
+
+
+@pytest.mark.parametrize("arguments", [("momentum", "KO"), ("--help",)])
+def test_bad_secret_is_reported_without_echoing_the_value(arguments: tuple[str, ...]) -> None:
+    run = _run_ian({"MASSIVE_API_KEY": "topsecret value"}, *arguments)
+
+    _assert_one_sentence_failure(run, "MASSIVE_API_KEY", "not shown", "whitespace")
+    assert "topsecret" not in run.stderr
+    assert "topsecret" not in run.stdout

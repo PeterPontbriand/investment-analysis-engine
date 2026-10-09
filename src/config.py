@@ -3,6 +3,7 @@
 
 import dataclasses
 import os
+import re
 import tomllib
 from collections import defaultdict
 from collections.abc import Mapping
@@ -10,7 +11,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal, Self
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, SecretStr, model_validator
+from pydantic import BaseModel, Field, SecretStr, ValidationError, field_validator, model_validator
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, EnvSettingsSource, PydanticBaseSettingsSource, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
@@ -218,6 +219,14 @@ class ProjectSettings(BaseSettings):
         """Read explicit arguments first, then the validated process environment."""
         return (init_settings, _EngineEnvSource(settings_cls))
 
+    @field_validator("massive_api_key")
+    @classmethod
+    def reject_whitespace_in_api_key(cls, value: SecretStr | None) -> SecretStr | None:
+        """Reject a key containing whitespace, which a pasted line break or space makes of a malformed credential."""
+        if value is not None and any(character.isspace() for character in value.get_secret_value()):
+            raise ValueError("must not contain whitespace")
+        return value
+
     @model_validator(mode="after")
     def resolve_database_configuration(self) -> Self:
         """Resolve SQLite paths without opening a connection or creating a database.
@@ -279,8 +288,56 @@ class ProjectSettings(BaseSettings):
         return load_config_file(str(momentum_config_path))
 
 
+def describe_validation_error(error: ValidationError, environ: Mapping[str, str]) -> str:
+    """Describe the first invalid setting as one sentence that names the environment variable.
+
+    The offending value is never included: pydantic's message text describes the rule, and a secret setting is
+    additionally marked as not shown.
+
+    Args:
+        error: The validation error raised while building :class:`ProjectSettings` from the environment.
+        environ: The process environment, used to quote the variable in the spelling the user set.
+
+    Returns:
+        A single sentence naming the variable and what was wrong with its value.
+    """
+    first = error.errors(include_input=False, include_url=False, include_context=False)[0]
+    location = tuple(str(part) for part in first["loc"])
+    message = first["msg"].removeprefix("Value error, ").rstrip(".")
+    fields = ProjectSettings.model_fields
+    if not location:
+        # A whole-model rule (such as path anchoring) names the setting by field name; quote the variable instead.
+        for name, field in fields.items():
+            message = re.sub(rf"\b{re.escape(name)}\b", _environment_name(name, field), message)
+        return f"The engine settings are invalid: {message}."
+    owner = next(
+        (
+            (name, field)
+            for name, field in fields.items()
+            if location[0] == name or location[0] == field.validation_alias
+        ),
+        None,
+    )
+    if owner is None:
+        return f"The engine settings are invalid: {message}."
+    name, field = owner
+    expected = _environment_name(name, field) + "".join(f"{NESTED_DELIMITER}{part.upper()}" for part in location[1:])
+    actual = next((key for key in environ if key.lower() == expected.lower()), expected)
+    if "SecretStr" in repr(field.annotation):
+        return f"Environment variable {actual} is invalid (its value is not shown): {message}."
+    return f"Environment variable {actual} is invalid: {message}."
+
+
+def _build_settings() -> ProjectSettings:
+    """Build the settings from the environment, reporting an invalid value as :class:`SettingsEnvironmentError`."""
+    try:
+        return ProjectSettings()
+    except ValidationError as error:
+        raise SettingsEnvironmentError(describe_validation_error(error, os.environ)) from None
+
+
 # Instantiate singleton settings proxy
-settings = ProjectSettings()
+settings = _build_settings()
 
 # Ensure directories exist
 if not settings.data_dir.exists():

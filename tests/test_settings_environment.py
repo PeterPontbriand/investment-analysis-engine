@@ -7,8 +7,9 @@ import re
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
-from src.config import ProjectSettings
+from src.config import ProjectSettings, describe_validation_error
 from src.core.settings_error import SettingsEnvironmentError
 
 _CASE_VARIANTS = ["IAN_DATA_DIR", "ian_data_dir", "Ian_Data_Dir"]
@@ -133,3 +134,27 @@ def test_application_identity_is_constant() -> None:
         "utf-8",
     )
     assert not {"version", "environment", "encoding"} & set(ProjectSettings.model_fields)
+
+
+def test_invalid_value_is_described_by_variable_without_the_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ian_database_busy_timeout_ms", "not-a-number")
+    with pytest.raises(ValidationError) as raised:
+        ProjectSettings()
+
+    sentence = describe_validation_error(raised.value, os.environ)
+
+    assert sentence.startswith("Environment variable ")
+    assert "DATABASE_BUSY_TIMEOUT_MS" in sentence.upper()
+    assert "not-a-number" not in sentence
+
+
+def test_invalid_secret_value_is_never_echoed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MASSIVE_API_KEY", "leaky secret")
+    with pytest.raises(ValidationError) as raised:
+        ProjectSettings()
+
+    sentence = describe_validation_error(raised.value, os.environ)
+
+    assert "MASSIVE_API_KEY" in sentence
+    assert "not shown" in sentence
+    assert "leaky" not in sentence
