@@ -28,7 +28,9 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
     [Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status); the strategy's native-status
     function returns it, as FCF-Growth's does. One question joins that decision: whether Momentum
     records an unavailable result for a provider failure
-    ([A.8](#a8-momentum-provider-failure-and-result-status-question-from-ph2-2026-10-07)).
+    ([A.8](#a8-momentum-provider-failure-and-result-status-question-from-ph2-2026-10-07)). A second
+    question to settle before slice 3.5.0 is whether every strategy uses one shared mapping from statuses to a
+    run outcome ([A.9](#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)).
   - A strategy slice ships complete: analyzer, wiring (including its `headline` function for the
     side-by-side table), presentation, tests, user guide, and `FINANCE_MATH.md` and `GLOSSARY.md` entries.
   - The managed quality gate after every slice, and explicit authorization before the next begins.
@@ -67,6 +69,9 @@ after SWC and PKG land, against the `main` of that day, because both packages ch
 wiring a plan must name. Each plan states:
 
 - exact files and starting points;
+- the decisions this contract leaves open, A.8 (Momentum's provider failure) and
+  [A.9](#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10) (the run-outcome
+  mapping);
 - new data fields and their mappings;
 - the boundary between resolver and calculator;
 - the result shape;
@@ -435,3 +440,20 @@ status ([Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-sta
 Momentum's `execution_status` for that case. Decision pending.
 
 The common strategy-document header ([SWC.4c.1](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h34-common-header-and-tail-for-strategy-documents-2026-10-09)) gives Momentum a calculation `status`. That slice left it as `ok` for every document that exists, with too little history shown as `result.trend` `UNKNOWN`; whether that case becomes `input_unavailable` is decided here.
+
+### A.9 One shared mapping from statuses to a run outcome: question from ESC-29 (2026-10-10)
+
+Each strategy writes its own function from its assembly and calculation statuses to a `RunOutcome`: Graham Number
+(`classify_graham_number_outcome`), Graham Growth (`classify_graham_growth_outcome`) and FCF Growth
+(`classify_fcf_growth_outcome`), each in its strategy's `execution.py`, and Momentum's fixed `COMPLETED`
+(`from_momentum_capture`). ESC-29 was a slip in one of them: Graham Number mapped a calculation that returned
+`not_applicable` to a failed run
+([ledger entry](../existing-strategy-correctness/ESC_A_DEFECT_LEDGER.md#esc-29--a-calculation-that-returns-not_applicable-is-stored-as-a-failed-run),
+repaired in [PR #110](https://github.com/PeterPontbriand/investment-analysis-engine/pull/110)). Graham Growth has
+the same fall-through line, unreachable today because its calculation returns only `ok` or `invalid_input`. This
+step adds seven strategies, each of which would write another copy.
+
+The question to settle when the Step 3.5 slice plan is drafted: should every strategy use one shared mapping, with
+a conformance test over every declared strategy, in place of a per-strategy function? A strategy with no separate
+assembly status and one with a fixed outcome would need a defined place in it. Decision pending. Tracked in
+[issue #111](https://github.com/PeterPontbriand/investment-analysis-engine/issues/111).
