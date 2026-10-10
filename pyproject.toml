@@ -24,7 +24,6 @@ dependencies = [
     "yfinance>=1.3.0",           # Latest as of April 2026
     "curl-cffi>=0.15",           # Imported for yfinance exception types; the floor yfinance 1.6.0 declares
     "requests>=2.31",            # Imported for yfinance exception types; the floor yfinance 1.6.0 declares
-    "massive-api-client>=0.0.4", # Modern, official library wrapper
     "pandas>=2.2.0",
     "numpy>=1.26.0",
     "matplotlib>=3.8.0",
