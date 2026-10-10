@@ -4,8 +4,10 @@ Shared by ``tests/test_strategy_document_output.py`` and the regeneration entry 
 
     uv run python -m tests._strategy_document_output
 
-Every case runs one direct command against deterministic fixtures with ``--json``, and again with ``--save-run`` into
-a temporary migrated database, then replays the saved run with ``runs show --json``. A few shapes the commands cannot
+Every case runs one direct command against deterministic fixtures with ``--json --save-run`` into a temporary
+migrated database. The document that command writes is the ``.direct`` file; replaying the saved run with
+``runs show --json`` writes the ``.replay`` file. Both come from the same run, so they differ only if the stored
+evidence or the replay path loses something. A few shapes the commands cannot
 reach with fixtures (a stored result that is invalid while its inputs are fine, a Graham quote failure) are built as
 stored runs by the replay tests and replayed the same way. The stored files are the check that the typed documents
 write the same bytes the hand-written builders wrote.
@@ -22,6 +24,7 @@ import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack
 from dataclasses import dataclass, fields, replace
+from functools import cache
 from pathlib import Path
 from types import ModuleType
 from typing import cast
@@ -216,9 +219,9 @@ def _fcf_provider(case: Case, yahoo: type[_FixtureYahoo]) -> ProductionFinancial
     )
 
 
-def _enter_providers(stack: ExitStack, case: Case, *, sec_labeled: bool) -> None:
+def _enter_providers(stack: ExitStack, case: Case) -> None:
     """Replace the command's providers with the case's deterministic fixtures."""
-    enter_fixture_providers(stack, case.command, sec_labeled=sec_labeled)
+    enter_fixture_providers(stack, case.command, sec_labeled=True)
     for strategy in ("momentum", "graham_number", "graham_growth"):
         stack.enter_context(patch(f"src.strategies.{strategy}.cli.YFinanceClient", case.yahoo))
     stack.enter_context(
@@ -232,14 +235,6 @@ def _enter_providers(stack: ExitStack, case: Case, *, sec_labeled: bool) -> None
 def _provider_arguments(arguments: tuple[str, ...]) -> list[str]:
     """Return ``arguments`` naming SEC EDGAR, the one provider a saved run's selection admits."""
     return [SEC_PROVIDER_ID if item == PROVIDER_ID else item for item in arguments]
-
-
-def run_direct(case: Case) -> CommandOutput:
-    """Run the case's direct command with ``--json`` and no database."""
-    with ExitStack() as stack:
-        _enter_providers(stack, case, sec_labeled=False)
-        result = CliRunner().invoke(app, [*case.arguments, "--json"])
-    return CommandOutput(result.exit_code, normalize(result.stdout_bytes), result.stderr_bytes)
 
 
 def _migrated(directory: Path) -> ProjectSettings:
@@ -270,17 +265,23 @@ def _single_run(settings: ProjectSettings) -> AnalysisRun:
     return run
 
 
-def run_saved(case: Case) -> CommandOutput:
-    """Run the case's direct command with ``--save-run`` in a temporary database, then replay the saved run."""
+@cache
+def run_pair(case: Case) -> tuple[CommandOutput, CommandOutput]:
+    """Run the case's direct command once with ``--json --save-run``, then replay the run it saved.
+
+    Returns the direct command's output and the replay's output. Both come from the one run, in a temporary
+    database, against the one set of providers; a repeated call for the same case returns the first result.
+    """
     with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
         settings = _migrated(Path(directory))
         for module in ("src.cli_run_support", "src.strategies.momentum.cli"):
             stack.enter_context(patch(f"{module}.settings", settings))
-        _enter_providers(stack, case, sec_labeled=True)
+        _enter_providers(stack, case)
         result = CliRunner().invoke(app, [*_provider_arguments(case.arguments), "--json", "--save-run"])
-        assert result.exit_code == case.exit_code, result.output
+        direct = CommandOutput(result.exit_code, normalize(result.stdout_bytes), result.stderr_bytes)
+        assert direct.exit_code == case.exit_code, result.output
         run = _single_run(settings)
-        return _replay(settings, str(run.analysis_run_id))
+        return direct, _replay(settings, str(run.analysis_run_id))
 
 
 def replay_stored_run(run: AnalysisRun) -> CommandOutput:
@@ -380,7 +381,8 @@ def produce(stem: str) -> CommandOutput:
     name, kind = stem.rsplit(".", maxsplit=1)
     for case in CASES:
         if case.name == name:
-            return run_direct(case) if kind == "direct" else run_saved(case)
+            direct, replayed = run_pair(case)
+            return direct if kind == "direct" else replayed
     for stored_name, builder in stored_runs():
         if stored_name == name:
             return replay_stored_run(builder())

@@ -18,9 +18,16 @@
   "instrument_kind": null,
   "price_comparison": {
     "status": "unavailable",
-    "reason": "missing_quote",
+    "reason": "provider_unsupported",
     "percent": null,
-    "quote_freshness": null,
+    "quote_freshness": {
+      "status": "recent_retrieval",
+      "evaluated_at": "2025-07-01T12:00:00+00:00",
+      "retrieved_at": "<wall-clock>",
+      "retrieval_age_seconds": 0.0,
+      "max_retrieval_age_seconds": 300.0,
+      "market_observed_at": "2025-06-30T16:00:00+00:00"
+    },
     "security_unit_evidence": null,
     "provenance": null
   },
@@ -169,7 +176,29 @@
       "notes": [],
       "lineage": null
     },
-    "current_price": null
+    "current_price": {
+      "field_name": "current_price",
+      "value": 52.3,
+      "source_kind": "provider",
+      "origin_source_kind": null,
+      "basis": "latest_provider_quote",
+      "units": "currency_per_share",
+      "currency": "USD",
+      "provider_id": "yfinance",
+      "provider_field": "fx_quote",
+      "observation_period_start": null,
+      "observation_period_end": null,
+      "observed_at": "2025-06-30T16:00:00+00:00",
+      "available_at": "2025-06-30T16:00:00+00:00",
+      "as_of": null,
+      "retrieved_at": "<wall-clock>",
+      "resolved_at": "<wall-clock>",
+      "cache_schema_version": null,
+      "notes": [
+        "fixture: point-in-time quote"
+      ],
+      "lineage": null
+    }
   },
   "method_assumptions": {
     "base_pe": 8.5,
@@ -177,12 +206,11 @@
     "baseline_aaa_yield": 4.4
   },
   "quote": {
-    "status": "provider_error",
-    "reason": "The configured quote provider could not complete the request."
+    "status": "ok",
+    "reason": null
   },
   "warnings": [
-    "AAA yield is user-supplied rather than provider-verified.",
-    "Current quote unavailable; price comparison omitted."
+    "AAA yield is user-supplied rather than provider-verified."
   ],
   "limitations": [
     "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
@@ -257,8 +285,8 @@
     {
       "field_name": "current_price",
       "stage": "provider",
-      "outcome": "rejected",
-      "message": "Provider fact provider_id ('sec_edgar') does not match request ('yfinance')."
+      "outcome": "success",
+      "message": "Provider fact passed resolver validation and was accepted."
     },
     {
       "field_name": "security_identity",
@@ -280,6 +308,13 @@
       "outcome": "unavailable",
       "message": "Provider 'yfinance' returned no instrument-kind metadata.",
       "provider_id": "yfinance"
+    },
+    {
+      "field_name": "security_unit",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Share-unit evidence: provider_unsupported.",
+      "provider_id": "sec_edgar"
     }
   ]
 }

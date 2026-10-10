@@ -42,7 +42,7 @@
       "value": -1.0,
       "source_kind": "override",
       "origin_source_kind": null,
-      "basis": "ttm",
+      "basis": "three_year_average",
       "units": "currency_per_share",
       "currency": null,
       "provider_id": null,
@@ -66,7 +66,7 @@
       "basis": null,
       "units": "currency_per_share",
       "currency": "USD",
-      "provider_id": "fixture-synth",
+      "provider_id": "sec_edgar",
       "provider_field": "fx_bvps",
       "observation_period_start": null,
       "observation_period_end": "2024-12-31T00:00:00+00:00",
@@ -89,7 +89,7 @@
       "basis": "latest_provider_quote",
       "units": "currency_per_share",
       "currency": "USD",
-      "provider_id": "fixture-synth",
+      "provider_id": "yfinance",
       "provider_field": "fx_quote",
       "observation_period_start": null,
       "observation_period_end": null,
@@ -138,7 +138,7 @@
       "field_name": "bvps",
       "stage": "provider",
       "outcome": "attempted",
-      "message": "Requested bvps from provider 'fixture-synth'."
+      "message": "Requested bvps from provider 'sec_edgar'."
     },
     {
       "field_name": "bvps",
@@ -162,7 +162,7 @@
       "field_name": "current_price",
       "stage": "provider",
       "outcome": "attempted",
-      "message": "Requested current_price from provider 'fixture-synth'."
+      "message": "Requested current_price from provider 'yfinance'."
     },
     {
       "field_name": "current_price",
@@ -174,8 +174,8 @@
       "field_name": "security_identity",
       "stage": "provider",
       "outcome": "unsupported",
-      "message": "Provider 'fixture-synth' does not expose security identity metadata.",
-      "provider_id": "fixture-synth"
+      "message": "Provider 'sec_edgar' does not expose security identity metadata.",
+      "provider_id": "sec_edgar"
     },
     {
       "field_name": "security_identity",
@@ -196,7 +196,7 @@
       "stage": "provider",
       "outcome": "unavailable",
       "message": "Share-unit evidence: provider_unsupported.",
-      "provider_id": "fixture-synth"
+      "provider_id": "sec_edgar"
     }
   ]
 }

@@ -52,8 +52,8 @@
       "field_name": "security_identity",
       "stage": "provider",
       "outcome": "unsupported",
-      "message": "Provider 'fixture-synth' does not expose security identity metadata.",
-      "provider_id": "fixture-synth"
+      "message": "Provider 'sec_edgar' does not expose security identity metadata.",
+      "provider_id": "sec_edgar"
     },
     {
       "field_name": "security_identity",

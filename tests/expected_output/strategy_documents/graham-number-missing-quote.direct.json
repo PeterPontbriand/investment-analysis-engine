@@ -26,32 +26,106 @@
   },
   "reason": null,
   "result": {
-    "maximum_indicated_price": 44.69899327725402,
+    "maximum_indicated_price": 36.686169055926236,
     "margin_of_safety_percent": null
   },
   "inputs": {
     "eps": {
       "field_name": "eps",
-      "value": 4.8,
-      "source_kind": "provider",
+      "value": 3.233333333333333,
+      "source_kind": "derived",
       "origin_source_kind": null,
-      "basis": "ttm",
+      "basis": "three_year_average",
       "units": "currency_per_share",
       "currency": "USD",
-      "provider_id": "fixture-synth",
-      "provider_field": "fx_ttm_eps",
-      "observation_period_start": "2024-07-01T00:00:00+00:00",
-      "observation_period_end": "2025-06-30T00:00:00+00:00",
+      "provider_id": "sec_edgar",
+      "provider_field": null,
+      "observation_period_start": "2021-07-01T00:00:00+00:00",
+      "observation_period_end": "2024-06-30T00:00:00+00:00",
       "observed_at": null,
-      "available_at": "2025-06-30T12:00:00+00:00",
+      "available_at": "2024-09-13T00:00:00+00:00",
       "as_of": null,
       "retrieved_at": "<wall-clock>",
       "resolved_at": "<wall-clock>",
       "cache_schema_version": null,
       "notes": [
-        "fixture: TTM EPS"
+        "Annual EPS compatibility established for provider concept, earnings-per-share basis, currency, units, fiscal periods, and exposed share-class/split metadata.",
+        "Duplicate-period restatements are rejected unless the provider adapter has already selected one fact."
       ],
-      "lineage": null
+      "lineage": {
+        "transformation": "arithmetic_mean",
+        "components": [
+          {
+            "field_name": "eps",
+            "value": 2.1,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency_per_share",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "fx_annual_eps",
+            "observation_period_start": "2021-07-01T00:00:00+00:00",
+            "observation_period_end": "2022-06-30T00:00:00+00:00",
+            "observed_at": null,
+            "available_at": "2022-09-15T00:00:00+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "fixture: FY2022 annual EPS"
+            ],
+            "lineage": null
+          },
+          {
+            "field_name": "eps",
+            "value": 3.4,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency_per_share",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "fx_annual_eps",
+            "observation_period_start": "2022-07-01T00:00:00+00:00",
+            "observation_period_end": "2023-06-30T00:00:00+00:00",
+            "observed_at": null,
+            "available_at": "2023-09-14T00:00:00+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "fixture: FY2023 annual EPS"
+            ],
+            "lineage": null
+          },
+          {
+            "field_name": "eps",
+            "value": 4.2,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency_per_share",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "fx_annual_eps",
+            "observation_period_start": "2023-07-01T00:00:00+00:00",
+            "observation_period_end": "2024-06-30T00:00:00+00:00",
+            "observed_at": null,
+            "available_at": "2024-09-13T00:00:00+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "fixture: FY2024 annual EPS"
+            ],
+            "lineage": null
+          }
+        ]
+      }
     },
     "bvps": {
       "field_name": "bvps",
@@ -61,7 +135,7 @@
       "basis": null,
       "units": "currency_per_share",
       "currency": "USD",
-      "provider_id": "fixture-synth",
+      "provider_id": "sec_edgar",
       "provider_field": "fx_bvps",
       "observation_period_start": null,
       "observation_period_end": "2024-12-31T00:00:00+00:00",
@@ -93,25 +167,37 @@
       "field_name": "eps",
       "stage": "override",
       "outcome": "not_used",
-      "message": "No explicit override was supplied."
+      "message": "No explicit EPS override was supplied."
     },
     {
       "field_name": "eps",
       "stage": "cache",
       "outcome": "not_used",
-      "message": "Cache use was disabled for this resolution."
+      "message": "Cache use was disabled for the derived EPS resolution."
     },
     {
       "field_name": "eps",
       "stage": "provider",
       "outcome": "attempted",
-      "message": "Requested eps from provider 'fixture-synth'."
+      "message": "Requested completed fiscal-year EPS observations from the configured provider."
     },
     {
       "field_name": "eps",
       "stage": "provider",
       "outcome": "success",
-      "message": "Provider fact passed resolver validation and was accepted."
+      "message": "Provider returned 3 fiscal-year EPS candidate(s)."
+    },
+    {
+      "field_name": "eps",
+      "stage": "derivation",
+      "outcome": "attempted",
+      "message": "Selecting three compatible, temporally eligible fiscal-year EPS observations."
+    },
+    {
+      "field_name": "eps",
+      "stage": "derivation",
+      "outcome": "success",
+      "message": "Derived three-year-average EPS from three compatible fiscal-year observations."
     },
     {
       "field_name": "bvps",
@@ -129,7 +215,7 @@
       "field_name": "bvps",
       "stage": "provider",
       "outcome": "attempted",
-      "message": "Requested bvps from provider 'fixture-synth'."
+      "message": "Requested bvps from provider 'sec_edgar'."
     },
     {
       "field_name": "bvps",
@@ -153,7 +239,7 @@
       "field_name": "current_price",
       "stage": "provider",
       "outcome": "attempted",
-      "message": "Requested current_price from provider 'fixture-synth'."
+      "message": "Requested current_price from provider 'yfinance'."
     },
     {
       "field_name": "current_price",
@@ -165,8 +251,8 @@
       "field_name": "security_identity",
       "stage": "provider",
       "outcome": "unsupported",
-      "message": "Provider 'fixture-synth' does not expose security identity metadata.",
-      "provider_id": "fixture-synth"
+      "message": "Provider 'sec_edgar' does not expose security identity metadata.",
+      "provider_id": "sec_edgar"
     },
     {
       "field_name": "security_identity",
