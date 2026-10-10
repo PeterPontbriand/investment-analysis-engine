@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from src.core.constants import TrendStatus
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
@@ -138,13 +138,15 @@ def test_momentum_diagnostics_expose_retained_raw_and_market_context() -> None:
 def test_momentum_json_adds_semantic_fields_with_identity_schema_version() -> None:
     payload = json.loads(render_momentum(_presentation(), PresentationMode.JSON))
 
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     assert payload["security_identity"]["instrument_name"] is None
     assert payload["analysis"] == "momentum"
     assert payload["method"] == "sma_crossover"
-    assert payload["as_of"] == DATA_AS_OF.isoformat()
-    assert payload["analysis_timestamp"] == NOW.isoformat()
-    assert payload["status"] == "BULLISH"
+    assert "as_of" not in payload
+    assert payload["source"]["data_as_of"] == DATA_AS_OF.isoformat()
+    assert payload["effective_as_of"] == NOW.isoformat()
+    assert payload["status"] == "ok"
+    assert payload["result"]["trend"] == "BULLISH"
     assert payload["result"]["current_price"] == 225.0
     assert payload["result"]["price_basis"] == "latest_adjusted_historical_close"
     assert payload["result"]["crossover_signal"] == 1.0
@@ -197,8 +199,9 @@ def test_momentum_json_keeps_unknown_data_date_separate_from_analysis_timestamp(
 
     payload = json.loads(render_momentum(presentation, PresentationMode.JSON))
 
-    assert payload["as_of"] is None
-    assert payload["analysis_timestamp"] == NOW.isoformat()
+    assert "as_of" not in payload
+    assert payload["requested_as_of"] is None
+    assert payload["effective_as_of"] == NOW.isoformat()
     assert payload["source"]["data_as_of"] is None
     assert payload["result"]["crossover_state"] == "no_new_crossover"
     assert payload["result"]["trend_relationship"] == "short_below_long"
@@ -292,3 +295,27 @@ def test_momentum_unavailable_sma_explains_insufficient_history_without_nan() ->
     assert payload["result"]["crossover_signal"] is None
     assert payload["result"]["crossover_state"] is None
     assert payload["result"]["trend_relationship"] is None
+
+
+def test_momentum_json_carries_the_requested_boundary_apart_from_the_evaluated_instant() -> None:
+    """``requested_as_of`` is what the user asked for; ``effective_as_of`` stays the instant the analysis ran at."""
+    boundary = NOW - timedelta(days=30)
+    metrics = MomentumMetrics(
+        ticker="AAPL",
+        status=TrendStatus.BEARISH,
+        current_price=200.0,
+        short_sma_val=190.0,
+        long_sma_val=210.0,
+        crossover_signal=0.0,
+        timestamp=boundary,
+    )
+    presentation = MomentumPresentation(
+        metrics=metrics, config=MomentumConfig(short_window=20, long_window=50), requested_as_of=boundary
+    )
+
+    payload = json.loads(render_momentum(presentation, PresentationMode.JSON))
+
+    assert payload["requested_as_of"] == boundary.isoformat()
+    assert payload["effective_as_of"] == boundary.isoformat()
+    assert payload["status"] == "ok"
+    assert payload["result"]["trend"] == "BEARISH"

@@ -31,6 +31,7 @@ class GrahamGrowthAnalysis:
 
     ticker: str
     as_of: datetime | None
+    effective_as_of: datetime
     assembly: GrowthValueInputAssembly
     result: GrahamGrowthValueResult
     policy: GrahamGrowthCalculationPolicy
@@ -51,6 +52,7 @@ def run_graham_growth_analysis(  # noqa: PLR0913
     aaa_yield_override: float,
     quote_override: float | None,
     as_of: datetime | None,
+    effective_as_of: datetime,
     use_cache: bool,
     policy: GrahamGrowthCalculationPolicy,
     instrument_profile: InstrumentProfile | None = None,
@@ -146,6 +148,7 @@ def run_graham_growth_analysis(  # noqa: PLR0913
     return GrahamGrowthAnalysis(
         ticker=ticker,
         as_of=as_of,
+        effective_as_of=effective_as_of,
         assembly=assembly,
         result=result,
         policy=policy,

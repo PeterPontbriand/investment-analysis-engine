@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
+from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import MetricResult
 from src.data.financial.resolution_trace import ResolutionTrace
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
@@ -17,13 +19,13 @@ from src.reporting.documents.shared_parts import (
     profile_diagnostic_parts,
     security_identity_part,
 )
+from src.reporting.documents.strategy_document import strategy_document_json
 from src.reporting.presentation import (
     PresentationMode,
     ResolutionDiagnostic,
     format_datetime,
     format_money,
     format_number,
-    json_document,
     provider_display_name,
 )
 from src.strategies.momentum.analyzer import MomentumConfig, MomentumMetrics
@@ -58,6 +60,7 @@ class MomentumPresentation:
 
     metrics: MomentumMetrics
     config: MomentumConfig
+    requested_as_of: datetime | None = None
     market_data: MarketDataContext | None = None
     warnings: tuple[str, ...] = ()
     diagnostics: tuple[ResolutionDiagnostic, ...] = ()
@@ -81,7 +84,7 @@ def render_momentum(
 ) -> str:
     """Render Momentum using the same progressive-disclosure grammar as Graham."""
     if mode is PresentationMode.JSON:
-        return json_document(_document(presentation).model_dump(mode="json"))
+        return strategy_document_json(_document(presentation))
 
     lines = _concise_lines(presentation)
     if mode is PresentationMode.DETAILS:
@@ -451,14 +454,15 @@ def _document(p: MomentumPresentation) -> MomentumDocument:
     return MomentumDocument(
         schema_version=DOCUMENT_SCHEMA_VERSION,
         analysis=ANALYSIS_ID,
+        method=METHOD_ID,
         ticker=metrics.ticker.upper(),
+        status=CalculationStatus.OK,
+        requested_as_of=p.requested_as_of,
+        effective_as_of=metrics.timestamp,
         security_identity=security_identity_part(metrics.ticker, p.identity_resolution),
         instrument_kind=instrument_kind_part_of(p.instrument_profile),
-        method=METHOD_ID,
-        as_of=data_as_of,
-        analysis_timestamp=metrics.timestamp,
-        status=metrics.status,
         result=MomentumResultPart(
+            trend=metrics.status,
             current_price=metrics.current_price,
             price_basis=_json_price_basis(context),
             short_sma=metrics.short_sma_val,

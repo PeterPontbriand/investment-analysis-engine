@@ -26,6 +26,7 @@ def project_graham_number(
         assembly=number_with_public_quote_reason(friendly_graham_assembly(inputs.ticker, evidence.assembly)),
         result=evidence.result,
         as_of=evidence.as_of,
+        effective_as_of=evidence.effective_as_of,
         margin_of_safety_percent=evidence.margin_of_safety_percent,
         instrument_profile=inputs.instrument_profile,
         price_comparison=evidence.price_comparison,

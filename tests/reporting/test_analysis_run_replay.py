@@ -114,6 +114,7 @@ def _graham_analysis() -> GrahamNumberAnalysis:
     return GrahamNumberAnalysis(
         ticker="KO",
         as_of=NOW,
+        effective_as_of=NOW,
         assembly=assembly,
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=42.0),
         margin_of_safety_percent=None,
@@ -138,8 +139,8 @@ def _graham_run(
         started_at=NOW,
         completed_at=NOW,
         method_version=1,
-        result_schema_version=1,
-        evidence_codec_version=1,
+        result_schema_version=2,
+        evidence_codec_version=2,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis),
         instrument_profile=profile,
@@ -337,6 +338,7 @@ def _graham_invalid_input_analysis() -> GrahamNumberAnalysis:
     return GrahamNumberAnalysis(
         ticker="KO",
         as_of=NOW,
+        effective_as_of=NOW,
         assembly=assembly,
         result=GrahamNumberResult(status=CalculationStatus.INVALID_INPUT, reason=raw_reason),
         margin_of_safety_percent=None,
@@ -390,6 +392,7 @@ def _graham_quote_failure_analysis() -> GrahamNumberAnalysis:
     return GrahamNumberAnalysis(
         ticker="KO",
         as_of=NOW,
+        effective_as_of=NOW,
         assembly=assembly,
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=42.0),
         margin_of_safety_percent=None,
@@ -424,6 +427,7 @@ def _graham_etf_not_applicable_analysis() -> GrahamNumberAnalysis:
     return GrahamNumberAnalysis(
         ticker="FLSW",
         as_of=NOW,
+        effective_as_of=NOW,
         assembly=assembly,
         result=GrahamNumberResult(status=CalculationStatus.NOT_APPLICABLE, reason=reason),
         margin_of_safety_percent=None,
@@ -514,6 +518,7 @@ def _growth_analysis(
     return GrahamGrowthAnalysis(
         ticker="KO",
         as_of=NOW,
+        effective_as_of=NOW,
         assembly=assembly,
         result=GrahamGrowthValueResult(status=CalculationStatus.OK, growth_value=growth_value),
         policy=_GROWTH_POLICY,
@@ -539,8 +544,8 @@ def _growth_run(
         started_at=NOW,
         completed_at=NOW,
         method_version=1,
-        result_schema_version=1,
-        evidence_codec_version=1,
+        result_schema_version=2,
+        evidence_codec_version=2,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis),
         instrument_profile=profile,
@@ -633,6 +638,7 @@ def _growth_invalid_input_analysis() -> GrahamGrowthAnalysis:
     return GrahamGrowthAnalysis(
         ticker="KO",
         as_of=NOW,
+        effective_as_of=NOW,
         assembly=assembly,
         result=GrahamGrowthValueResult(status=CalculationStatus.INVALID_INPUT, reason=raw_reason),
         policy=_GROWTH_POLICY,
@@ -665,6 +671,7 @@ def _growth_etf_not_applicable_analysis() -> GrahamGrowthAnalysis:
     return GrahamGrowthAnalysis(
         ticker="FLSW",
         as_of=NOW,
+        effective_as_of=NOW,
         assembly=assembly,
         result=GrahamGrowthValueResult(status=CalculationStatus.NOT_APPLICABLE, reason=reason),
         policy=_GROWTH_POLICY,
@@ -703,6 +710,7 @@ def _growth_quote_failure_analysis() -> GrahamGrowthAnalysis:
     return GrahamGrowthAnalysis(
         ticker="KO",
         as_of=NOW,
+        effective_as_of=NOW,
         assembly=assembly,
         result=GrahamGrowthValueResult(status=CalculationStatus.OK, growth_value=10.0),
         policy=_GROWTH_POLICY,

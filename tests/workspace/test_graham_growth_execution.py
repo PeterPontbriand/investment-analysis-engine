@@ -58,6 +58,7 @@ def _analysis(
     return GrahamGrowthAnalysis(
         ticker=SECURITY_ID,
         as_of=None,
+        effective_as_of=NOW,
         assembly=_assembly(assembly_status),
         result=_result(result_status, growth_value=growth_value),
         policy=_POLICY,

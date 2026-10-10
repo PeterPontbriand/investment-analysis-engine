@@ -1,238 +1,239 @@
 {
+  "schema_version": 7,
   "analysis": "graham_growth_value",
-  "as_of": null,
-  "diagnostics": [
-    {
-      "field_name": "eps",
-      "message": "No explicit override was supplied.",
-      "outcome": "not_used",
-      "stage": "override"
-    },
-    {
-      "field_name": "eps",
-      "message": "Cache use was disabled for this resolution.",
-      "outcome": "not_used",
-      "stage": "cache"
-    },
-    {
-      "field_name": "eps",
-      "message": "Requested eps from provider 'fixture-synth'.",
-      "outcome": "attempted",
-      "stage": "provider"
-    },
-    {
-      "field_name": "eps",
-      "message": "Provider fact passed resolver validation and was accepted.",
-      "outcome": "success",
-      "stage": "provider"
-    },
-    {
-      "field_name": "expected_growth",
-      "message": "Explicit expected-growth assumption was accepted.",
-      "outcome": "success",
-      "stage": "override"
-    },
-    {
-      "field_name": "current_aaa_yield",
-      "message": "Explicit override was accepted; cache and provider were bypassed.",
-      "outcome": "success",
-      "stage": "override"
-    },
-    {
-      "field_name": "current_price",
-      "message": "No explicit override was supplied.",
-      "outcome": "not_used",
-      "stage": "override"
-    },
-    {
-      "field_name": "current_price",
-      "message": "Cache use was disabled for this resolution.",
-      "outcome": "not_used",
-      "stage": "cache"
-    },
-    {
-      "field_name": "current_price",
-      "message": "Requested current_price from provider 'fixture-synth'.",
-      "outcome": "attempted",
-      "stage": "provider"
-    },
-    {
-      "field_name": "current_price",
-      "message": "Provider fact passed resolver validation and was accepted.",
-      "outcome": "success",
-      "stage": "provider"
-    },
-    {
-      "field_name": "security_identity",
-      "message": "Provider 'fixture-synth' does not expose security identity metadata.",
-      "outcome": "unsupported",
-      "provider_id": "fixture-synth",
-      "stage": "provider"
-    },
-    {
-      "field_name": "security_identity",
-      "message": "Resolved current descriptive security identity via 'yfinance'.",
-      "outcome": "resolved",
-      "provider_id": "yfinance",
-      "stage": "provider"
-    },
-    {
-      "field_name": "instrument_kind",
-      "message": "Resolved current instrument-kind metadata via 'yfinance'.",
-      "outcome": "resolved",
-      "provider_id": "yfinance",
-      "stage": "provider"
-    },
-    {
-      "field_name": "security_unit",
-      "message": "Share-unit evidence: provider_unsupported.",
-      "outcome": "unavailable",
-      "provider_id": "fixture-synth",
-      "stage": "provider"
-    }
-  ],
-  "inputs": {
-    "current_aaa_yield": {
-      "as_of": null,
-      "available_at": null,
-      "basis": null,
-      "cache_schema_version": null,
-      "currency": null,
-      "field_name": "current_aaa_yield",
-      "lineage": null,
-      "notes": [],
-      "observation_period_end": null,
-      "observation_period_start": null,
-      "observed_at": null,
-      "origin_source_kind": null,
-      "provider_field": null,
-      "provider_id": null,
-      "resolved_at": "<wall-clock>",
-      "retrieved_at": null,
-      "source_kind": "override",
-      "units": "percentage_points",
-      "value": 4.5
-    },
-    "current_price": {
-      "as_of": null,
-      "available_at": "2025-06-30T16:00:00+00:00",
-      "basis": "latest_provider_quote",
-      "cache_schema_version": null,
-      "currency": "USD",
-      "field_name": "current_price",
-      "lineage": null,
-      "notes": [
-        "fixture: point-in-time quote"
-      ],
-      "observation_period_end": null,
-      "observation_period_start": null,
-      "observed_at": "2025-06-30T16:00:00+00:00",
-      "origin_source_kind": null,
-      "provider_field": "fx_quote",
-      "provider_id": "fixture-synth",
-      "resolved_at": "<wall-clock>",
-      "retrieved_at": "<wall-clock>",
-      "source_kind": "provider",
-      "units": "currency_per_share",
-      "value": 52.3
-    },
-    "eps": {
-      "as_of": null,
-      "available_at": "2025-06-30T12:00:00+00:00",
-      "basis": "ttm",
-      "cache_schema_version": null,
-      "currency": "USD",
-      "field_name": "eps",
-      "lineage": null,
-      "notes": [
-        "fixture: TTM EPS"
-      ],
-      "observation_period_end": "2025-06-30T00:00:00+00:00",
-      "observation_period_start": "2024-07-01T00:00:00+00:00",
-      "observed_at": null,
-      "origin_source_kind": null,
-      "provider_field": "fx_ttm_eps",
-      "provider_id": "fixture-synth",
-      "resolved_at": "<wall-clock>",
-      "retrieved_at": "<wall-clock>",
-      "source_kind": "provider",
-      "units": "currency_per_share",
-      "value": 4.8
-    },
-    "expected_growth": {
-      "as_of": null,
-      "available_at": null,
-      "basis": null,
-      "cache_schema_version": null,
-      "currency": null,
-      "field_name": "expected_growth",
-      "lineage": null,
-      "notes": [],
-      "observation_period_end": null,
-      "observation_period_start": null,
-      "observed_at": null,
-      "origin_source_kind": null,
-      "provider_field": null,
-      "provider_id": null,
-      "resolved_at": "<wall-clock>",
-      "retrieved_at": null,
-      "source_kind": "override",
-      "units": "percentage_points",
-      "value": 5.0
-    }
+  "method": "graham_growth_value",
+  "ticker": "SYNTH",
+  "status": "ok",
+  "requested_as_of": null,
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "SYNTH",
+    "instrument_name": "Fixture Holdings Inc.",
+    "listing_venue": "NYSE",
+    "issuer_identifier": "0000000001",
+    "instrument_identifier": "FIX-0001",
+    "provider_id": "yfinance",
+    "resolved_at": "<wall-clock>"
   },
   "instrument_kind": {
     "kind": "equity",
-    "provider_id": "yfinance",
     "provider_value": "EQUITY",
+    "provider_id": "yfinance",
     "resolved_at": "<wall-clock>"
   },
-  "limitations": [
-    "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
-  ],
-  "method": "graham_growth_value",
-  "method_assumptions": {
-    "base_pe": 8.5,
-    "baseline_aaa_yield": 4.4,
-    "growth_multiplier": 2.0
-  },
   "price_comparison": {
-    "percent": null,
-    "provenance": null,
-    "quote_freshness": {
-      "evaluated_at": "2025-07-01T12:00:00+00:00",
-      "market_observed_at": "2025-06-30T16:00:00+00:00",
-      "max_retrieval_age_seconds": 300.0,
-      "retrieval_age_seconds": 0.0,
-      "retrieved_at": "<wall-clock>",
-      "status": "recent_retrieval"
-    },
+    "status": "unavailable",
     "reason": "provider_unsupported",
+    "percent": null,
+    "quote_freshness": {
+      "status": "recent_retrieval",
+      "evaluated_at": "2025-07-01T12:00:00+00:00",
+      "retrieved_at": "<wall-clock>",
+      "retrieval_age_seconds": 0.0,
+      "max_retrieval_age_seconds": 300.0,
+      "market_observed_at": "2025-06-30T16:00:00+00:00"
+    },
     "security_unit_evidence": null,
-    "status": "unavailable"
-  },
-  "quote": {
-    "reason": null,
-    "status": "ok"
+    "provenance": null
   },
   "reason": null,
   "result": {
     "growth_value": 86.82666666666667,
     "margin_of_safety_percent": null
   },
-  "schema_version": 6,
-  "security_identity": {
-    "instrument_identifier": "FIX-0001",
-    "instrument_name": "Fixture Holdings Inc.",
-    "issuer_identifier": "0000000001",
-    "listing_venue": "NYSE",
-    "provider_id": "yfinance",
-    "resolved_at": "<wall-clock>",
-    "ticker": "SYNTH"
+  "inputs": {
+    "eps": {
+      "field_name": "eps",
+      "value": 4.8,
+      "source_kind": "provider",
+      "origin_source_kind": null,
+      "basis": "ttm",
+      "units": "currency_per_share",
+      "currency": "USD",
+      "provider_id": "fixture-synth",
+      "provider_field": "fx_ttm_eps",
+      "observation_period_start": "2024-07-01T00:00:00+00:00",
+      "observation_period_end": "2025-06-30T00:00:00+00:00",
+      "observed_at": null,
+      "available_at": "2025-06-30T12:00:00+00:00",
+      "as_of": null,
+      "retrieved_at": "<wall-clock>",
+      "resolved_at": "<wall-clock>",
+      "cache_schema_version": null,
+      "notes": [
+        "fixture: TTM EPS"
+      ],
+      "lineage": null
+    },
+    "expected_growth": {
+      "field_name": "expected_growth",
+      "value": 5.0,
+      "source_kind": "override",
+      "origin_source_kind": null,
+      "basis": null,
+      "units": "percentage_points",
+      "currency": null,
+      "provider_id": null,
+      "provider_field": null,
+      "observation_period_start": null,
+      "observation_period_end": null,
+      "observed_at": null,
+      "available_at": null,
+      "as_of": null,
+      "retrieved_at": null,
+      "resolved_at": "<wall-clock>",
+      "cache_schema_version": null,
+      "notes": [],
+      "lineage": null
+    },
+    "current_aaa_yield": {
+      "field_name": "current_aaa_yield",
+      "value": 4.5,
+      "source_kind": "override",
+      "origin_source_kind": null,
+      "basis": null,
+      "units": "percentage_points",
+      "currency": null,
+      "provider_id": null,
+      "provider_field": null,
+      "observation_period_start": null,
+      "observation_period_end": null,
+      "observed_at": null,
+      "available_at": null,
+      "as_of": null,
+      "retrieved_at": null,
+      "resolved_at": "<wall-clock>",
+      "cache_schema_version": null,
+      "notes": [],
+      "lineage": null
+    },
+    "current_price": {
+      "field_name": "current_price",
+      "value": 52.3,
+      "source_kind": "provider",
+      "origin_source_kind": null,
+      "basis": "latest_provider_quote",
+      "units": "currency_per_share",
+      "currency": "USD",
+      "provider_id": "fixture-synth",
+      "provider_field": "fx_quote",
+      "observation_period_start": null,
+      "observation_period_end": null,
+      "observed_at": "2025-06-30T16:00:00+00:00",
+      "available_at": "2025-06-30T16:00:00+00:00",
+      "as_of": null,
+      "retrieved_at": "<wall-clock>",
+      "resolved_at": "<wall-clock>",
+      "cache_schema_version": null,
+      "notes": [
+        "fixture: point-in-time quote"
+      ],
+      "lineage": null
+    }
   },
-  "status": "ok",
-  "ticker": "SYNTH",
+  "method_assumptions": {
+    "base_pe": 8.5,
+    "growth_multiplier": 2.0,
+    "baseline_aaa_yield": 4.4
+  },
+  "quote": {
+    "status": "ok",
+    "reason": null
+  },
   "warnings": [
     "AAA yield is user-supplied rather than provider-verified."
+  ],
+  "limitations": [
+    "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
+  ],
+  "diagnostics": [
+    {
+      "field_name": "eps",
+      "stage": "override",
+      "outcome": "not_used",
+      "message": "No explicit override was supplied."
+    },
+    {
+      "field_name": "eps",
+      "stage": "cache",
+      "outcome": "not_used",
+      "message": "Cache use was disabled for this resolution."
+    },
+    {
+      "field_name": "eps",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested eps from provider 'fixture-synth'."
+    },
+    {
+      "field_name": "eps",
+      "stage": "provider",
+      "outcome": "success",
+      "message": "Provider fact passed resolver validation and was accepted."
+    },
+    {
+      "field_name": "expected_growth",
+      "stage": "override",
+      "outcome": "success",
+      "message": "Explicit expected-growth assumption was accepted."
+    },
+    {
+      "field_name": "current_aaa_yield",
+      "stage": "override",
+      "outcome": "success",
+      "message": "Explicit override was accepted; cache and provider were bypassed."
+    },
+    {
+      "field_name": "current_price",
+      "stage": "override",
+      "outcome": "not_used",
+      "message": "No explicit override was supplied."
+    },
+    {
+      "field_name": "current_price",
+      "stage": "cache",
+      "outcome": "not_used",
+      "message": "Cache use was disabled for this resolution."
+    },
+    {
+      "field_name": "current_price",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested current_price from provider 'fixture-synth'."
+    },
+    {
+      "field_name": "current_price",
+      "stage": "provider",
+      "outcome": "success",
+      "message": "Provider fact passed resolver validation and was accepted."
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "unsupported",
+      "message": "Provider 'fixture-synth' does not expose security identity metadata.",
+      "provider_id": "fixture-synth"
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "resolved",
+      "message": "Resolved current descriptive security identity via 'yfinance'.",
+      "provider_id": "yfinance"
+    },
+    {
+      "field_name": "instrument_kind",
+      "stage": "provider",
+      "outcome": "resolved",
+      "message": "Resolved current instrument-kind metadata via 'yfinance'.",
+      "provider_id": "yfinance"
+    },
+    {
+      "field_name": "security_unit",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Share-unit evidence: provider_unsupported.",
+      "provider_id": "fixture-synth"
+    }
   ]
 }

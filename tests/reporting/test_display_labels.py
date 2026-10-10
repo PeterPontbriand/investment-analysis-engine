@@ -19,6 +19,7 @@ from src.core.constants import TrendStatus
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.data.market_data import MarketDataContext
+from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
 from src.reporting.evidence_presentation import (
     BASIS_DISPLAY_NAMES,
     FIELD_DISPLAY_NAMES,
@@ -156,6 +157,7 @@ def _graham_number_presentation() -> GrahamNumberPresentation:
         ticker="KO",
         assembly=assembly,
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=21.14),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
 
@@ -247,6 +249,7 @@ def test_diagnostics_graham_retains_raw_field_and_stage_names() -> None:
         ticker="KO",
         assembly=assembly_with_trace,
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=21.14),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
     rendered = render_graham_number(presentation, PresentationMode.DIAGNOSTICS)
     # Diagnostics intentionally uses raw identifiers

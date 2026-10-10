@@ -274,8 +274,8 @@ GRAHAM_NUMBER: Final = StrategyDescriptor(
     behavior=GRAHAM_NUMBER_BEHAVIOR,
     config_schema_version=GRAHAM_NUMBER_CONFIG_SCHEMA_VERSION,
     method_version=1,
-    result_schema_version=1,
-    evidence_codec_version=1,
+    result_schema_version=2,
+    evidence_codec_version=2,
     json_envelope=GrahamNumberDocument,
 )
 GRAHAM_GROWTH: Final = StrategyDescriptor(
@@ -289,8 +289,8 @@ GRAHAM_GROWTH: Final = StrategyDescriptor(
     behavior=GRAHAM_GROWTH_BEHAVIOR,
     config_schema_version=GRAHAM_GROWTH_CONFIG_SCHEMA_VERSION,
     method_version=1,
-    result_schema_version=1,
-    evidence_codec_version=1,
+    result_schema_version=2,
+    evidence_codec_version=2,
     json_envelope=GrahamGrowthDocument,
 )
 FCF_GROWTH: Final = StrategyDescriptor(

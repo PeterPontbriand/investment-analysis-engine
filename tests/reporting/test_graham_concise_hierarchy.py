@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
+from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
 from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.strategies.graham_growth.presenter import GrahamGrowthPresentation, render_graham_growth
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
@@ -114,6 +115,7 @@ def _number_presentation(*, as_of: datetime | None = None) -> GrahamNumberPresen
         ),
         as_of=as_of,
         margin_of_safety_percent=-330.90,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
 
@@ -163,6 +165,7 @@ def test_number_not_applicable_keeps_status_and_reason_prominent() -> None:
             status=CalculationStatus.NOT_APPLICABLE,
             reason="BVPS must be positive for Graham Number.",
         ),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     lines = render_graham_number(presentation).splitlines()
@@ -209,6 +212,7 @@ def test_growth_success_leads_with_value_then_forecast_assumption() -> None:
         growth_multiplier=2.0,
         baseline_aaa_yield=4.4,
         margin_of_safety_percent=-89.55,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     rendered = render_graham_growth(presentation)

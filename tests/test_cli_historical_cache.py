@@ -88,8 +88,8 @@ def test_momentum_cli_reuses_history_and_preserves_profile_provider(
     assert second.exit_code == 0, second.output
     fetch.assert_called_once()
     left, right = json.loads(first.output), json.loads(second.output)
-    left.pop("analysis_timestamp")
-    right.pop("analysis_timestamp")
+    left.pop("effective_as_of")
+    right.pop("effective_as_of")
     provider_resolution = left.pop("data_resolution")
     cache_resolution = right.pop("data_resolution")
     assert provider_resolution["source_kind"] == "provider"
@@ -243,4 +243,5 @@ def test_momentum_as_of_truncates_the_series_at_the_requested_boundary(
     _path, payload, _fetch = _momentum_options_run(
         tmp_path, ["--no-cache", "--as-of", boundary.isoformat()], history, guard_readiness=True
     )
-    assert payload["as_of"] == boundary.isoformat()
+    assert payload["source"]["data_as_of"] == boundary.isoformat()
+    assert payload["requested_as_of"] is not None

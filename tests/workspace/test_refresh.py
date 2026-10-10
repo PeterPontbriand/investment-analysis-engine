@@ -159,6 +159,7 @@ def test_refresh_watchlist_iterates_member_then_selection_position_order() -> No
         analysis = GrahamNumberAnalysis(
             ticker=ticker,
             as_of=NOW,
+            effective_as_of=NOW,
             assembly=GrahamNumberInputAssembly(CalculationStatus.OK, eps, bvps, None),
             result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=30.0),
             margin_of_safety_percent=None,

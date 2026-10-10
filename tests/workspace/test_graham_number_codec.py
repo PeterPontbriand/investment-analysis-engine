@@ -100,6 +100,7 @@ def _analysis() -> GrahamNumberAnalysis:
     return GrahamNumberAnalysis(
         "KO",
         STAMP,
+        STAMP,
         assembly,
         GrahamNumberResult(CalculationStatus.OK, 30.0),
         20.0,
@@ -119,8 +120,8 @@ def _run(analysis: GrahamNumberAnalysis | None = None) -> AnalysisRun:
         started_at=STAMP,
         completed_at=STAMP,
         method_version=1,
-        result_schema_version=1,
-        evidence_codec_version=1,
+        result_schema_version=2,
+        evidence_codec_version=2,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis or _analysis()),
     )

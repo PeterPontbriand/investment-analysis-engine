@@ -31,6 +31,7 @@ class GrahamNumberAnalysis:
 
     ticker: str
     as_of: datetime | None
+    effective_as_of: datetime
     assembly: GrahamNumberInputAssembly
     result: GrahamNumberResult
     margin_of_safety_percent: float | None
@@ -49,6 +50,7 @@ def run_graham_number_analysis(  # noqa: PLR0913
     bvps_override: float | None,
     quote_override: float | None,
     as_of: datetime | None,
+    effective_as_of: datetime,
     use_cache: bool,
     instrument_profile: InstrumentProfile | None = None,
 ) -> GrahamNumberAnalysis:
@@ -132,6 +134,7 @@ def run_graham_number_analysis(  # noqa: PLR0913
     return GrahamNumberAnalysis(
         ticker=ticker,
         as_of=as_of,
+        effective_as_of=effective_as_of,
         assembly=assembly,
         result=result,
         margin_of_safety_percent=comparison.percent,

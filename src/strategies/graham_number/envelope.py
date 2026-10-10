@@ -7,20 +7,11 @@ The same model backs a direct command and a ``runs show`` replay, which write th
 
 from typing import Final
 
-from src.core.analysis_status import CalculationStatus
-from src.reporting.documents.shared_parts import (
-    DiagnosticEntry,
-    DocumentPart,
-    InstrumentKindPart,
-    PriceComparisonPart,
-    QuotePart,
-    ResolvedInputPart,
-    SecurityIdentityPart,
-)
-from src.reporting.documents.timestamp import DocumentTimestamp
+from src.reporting.documents.shared_parts import DocumentPart, PriceComparisonPart, QuotePart, ResolvedInputPart
+from src.reporting.documents.strategy_document import StrategyDocumentHeader, StrategyDocumentTail
 from src.strategies.graham_number.vocabulary import AnalysisId, MethodId
 
-DOCUMENT_SCHEMA_VERSION: Final = 6
+DOCUMENT_SCHEMA_VERSION: Final = 7
 
 
 class GrahamNumberResultPart(DocumentPart):
@@ -38,29 +29,26 @@ class GrahamNumberInputsPart(DocumentPart):
     current_price: ResolvedInputPart | None
 
 
-class GrahamNumberDocument(DocumentPart):
-    """The Graham Number document, version 6, as ``graham-number --json`` and ``runs show --json`` write it."""
+class GrahamNumberBody(DocumentPart):
+    """The keys only the Graham Number document writes."""
 
-    schema_version: int
     price_comparison: PriceComparisonPart | None
-    analysis: AnalysisId
-    ticker: str
-    security_identity: SecurityIdentityPart
-    instrument_kind: InstrumentKindPart | None
-    method: MethodId
-    as_of: DocumentTimestamp | None
-    status: CalculationStatus
     reason: str | None
     result: GrahamNumberResultPart
     inputs: GrahamNumberInputsPart
     quote: QuotePart
-    warnings: tuple[str, ...]
-    limitations: tuple[str, ...]
-    diagnostics: tuple[DiagnosticEntry, ...]
+
+
+class GrahamNumberDocument(StrategyDocumentTail, GrahamNumberBody, StrategyDocumentHeader[AnalysisId, MethodId]):
+    """The Graham Number document, version 7, as ``graham-number --json`` and ``runs show --json`` write it.
+
+    The shared header and tail come from :mod:`src.reporting.documents.strategy_document`.
+    """
 
 
 __all__ = [
     "DOCUMENT_SCHEMA_VERSION",
+    "GrahamNumberBody",
     "GrahamNumberDocument",
     "GrahamNumberInputsPart",
     "GrahamNumberResultPart",

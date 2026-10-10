@@ -77,10 +77,11 @@ def test_a_resolved_input_value_is_written_as_the_source_holds_it(value: float, 
     assert json.dumps(part.model_dump(mode="json")["value"]) == written
 
 
-def test_a_momentum_boundary_is_a_date_and_an_analysis_instant_carries_its_offset() -> None:
+def test_a_momentum_data_date_is_a_date_and_an_analysis_instant_carries_its_offset() -> None:
     """The data's last observation is a calendar date; the analysis time is an instant written with ``+00:00``."""
     stored = json.loads(expected_path("momentum-success.direct").read_bytes())
-    assert stored["as_of"] == stored["source"]["data_as_of"] == "2026-01-06"
+    assert "as_of" not in stored
+    assert stored["source"]["data_as_of"] == "2026-01-06"
     assert momentum_envelope.MomentumSourcePart.model_fields["data_as_of"].annotation == (
         momentum_envelope.date | None  # type: ignore[attr-defined]
     )
@@ -89,7 +90,7 @@ def test_a_momentum_boundary_is_a_date_and_an_analysis_instant_carries_its_offse
 def test_the_document_version_the_method_version_and_the_result_schema_version_are_distinct() -> None:
     """FCF Growth's document writes three unrelated versions; each is read from its own declaration."""
     document = json.loads(expected_path("fcf-growth-success.direct").read_bytes())
-    assert document["schema_version"] == fcf_envelope.DOCUMENT_SCHEMA_VERSION == 5
+    assert document["schema_version"] == fcf_envelope.DOCUMENT_SCHEMA_VERSION == 6
     assert document["method_version"] == FCF_GROWTH.method_version == 2
     assert document["result_schema_version"] == FCF_GROWTH.result_schema_version == 3
     assert len({document["schema_version"], document["method_version"], document["result_schema_version"]}) == 3

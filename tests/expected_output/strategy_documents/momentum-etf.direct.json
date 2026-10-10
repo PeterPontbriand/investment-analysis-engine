@@ -1,111 +1,112 @@
 {
+  "schema_version": 6,
   "analysis": "momentum",
-  "analysis_timestamp": "<wall-clock>",
-  "as_of": "2026-01-06",
-  "data_resolution": {
-    "cache_schema_version": null,
-    "cached_at": null,
-    "resolved_at": "<wall-clock>",
-    "retrieved_at": "<wall-clock>",
-    "source_kind": "provider"
-  },
-  "diagnostics": [
-    {
-      "field_name": "historical_close",
-      "message": "Requested historical market observations from the configured provider.",
-      "outcome": "attempted",
-      "stage": "provider"
-    },
-    {
-      "field_name": "historical_close",
-      "message": "Resolved 5 historical observations with retained source provenance.",
-      "outcome": "success",
-      "stage": "provider"
-    },
-    {
-      "field_name": "historical_close",
-      "message": "Applied the requested point-in-time boundary before calculation.",
-      "outcome": "success",
-      "stage": "validation"
-    },
-    {
-      "field_name": "momentum",
-      "message": "Calculated Momentum metrics from the point-in-time price series.",
-      "outcome": "success",
-      "stage": "derivation"
-    },
-    {
-      "field_name": "security_identity",
-      "message": "Resolved current descriptive security identity via 'yfinance'.",
-      "outcome": "resolved",
-      "provider_id": "yfinance",
-      "stage": "provider"
-    },
-    {
-      "field_name": "instrument_kind",
-      "message": "Resolved current instrument-kind metadata via 'yfinance'.",
-      "outcome": "resolved",
-      "provider_id": "yfinance",
-      "stage": "provider"
-    }
-  ],
-  "instrument_kind": {
-    "kind": "etf",
+  "method": "sma_crossover",
+  "ticker": "BTC-USD",
+  "status": "ok",
+  "requested_as_of": null,
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "BTC-USD",
+    "instrument_name": "Fixture Holdings Inc.",
+    "listing_venue": "NYSE",
+    "issuer_identifier": "0000000001",
+    "instrument_identifier": "FIX-0001",
     "provider_id": "yfinance",
-    "provider_value": "ETF",
     "resolved_at": "<wall-clock>"
   },
-  "limitations": [
-    "SMA momentum describes recent price trend; it is not a valuation, fundamental-quality conclusion, or investment recommendation."
-  ],
-  "method": "sma_crossover",
-  "parameters": {
-    "long_window": 3,
-    "rsi_period": 3,
-    "short_window": 2
+  "instrument_kind": {
+    "kind": "etf",
+    "provider_value": "ETF",
+    "provider_id": "yfinance",
+    "resolved_at": "<wall-clock>"
   },
   "result": {
-    "crossover_result": {
-      "reason": null,
-      "reason_code": null,
-      "status": "ok",
-      "value": 0.0
-    },
-    "crossover_signal": 0.0,
-    "crossover_state": "no_new_crossover",
+    "trend": "BULLISH",
     "current_price": 104.0,
-    "long_sma": 103.0,
     "price_basis": "latest_adjusted_historical_close",
-    "rsi": {
-      "reason": null,
-      "reason_code": null,
-      "status": "ok",
-      "value": 100.0
-    },
     "short_sma": 103.5,
+    "long_sma": 103.0,
     "sma_spread": 0.5,
     "sma_spread_percent": 0.48543689320388345,
-    "trend_relationship": "short_above_long"
+    "trend_relationship": "short_above_long",
+    "crossover_signal": 0.0,
+    "crossover_result": {
+      "status": "ok",
+      "value": 0.0,
+      "reason_code": null,
+      "reason": null
+    },
+    "crossover_state": "no_new_crossover",
+    "rsi": {
+      "status": "ok",
+      "value": 100.0,
+      "reason_code": null,
+      "reason": null
+    }
   },
-  "schema_version": 5,
-  "security_identity": {
-    "instrument_identifier": "FIX-0001",
-    "instrument_name": "Fixture Holdings Inc.",
-    "issuer_identifier": "0000000001",
-    "listing_venue": "NYSE",
-    "provider_id": "yfinance",
-    "resolved_at": "<wall-clock>",
-    "ticker": "BTC-USD"
+  "parameters": {
+    "short_window": 2,
+    "long_window": 3,
+    "rsi_period": 3
   },
   "source": {
-    "currency": "USD",
+    "provider": "fixture_market",
     "data_as_of": "2026-01-06",
     "interval": "1d",
     "observation_count": 5,
-    "price_adjustment": "adjusted",
-    "provider": "fixture_market"
+    "currency": "USD",
+    "price_adjustment": "adjusted"
   },
-  "status": "BULLISH",
-  "ticker": "BTC-USD",
-  "warnings": []
+  "data_resolution": {
+    "source_kind": "provider",
+    "retrieved_at": "<wall-clock>",
+    "cached_at": null,
+    "resolved_at": "<wall-clock>",
+    "cache_schema_version": null
+  },
+  "warnings": [],
+  "limitations": [
+    "SMA momentum describes recent price trend; it is not a valuation, fundamental-quality conclusion, or investment recommendation."
+  ],
+  "diagnostics": [
+    {
+      "field_name": "historical_close",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested historical market observations from the configured provider."
+    },
+    {
+      "field_name": "historical_close",
+      "stage": "provider",
+      "outcome": "success",
+      "message": "Resolved 5 historical observations with retained source provenance."
+    },
+    {
+      "field_name": "historical_close",
+      "stage": "validation",
+      "outcome": "success",
+      "message": "Applied the requested point-in-time boundary before calculation."
+    },
+    {
+      "field_name": "momentum",
+      "stage": "derivation",
+      "outcome": "success",
+      "message": "Calculated Momentum metrics from the point-in-time price series."
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "resolved",
+      "message": "Resolved current descriptive security identity via 'yfinance'.",
+      "provider_id": "yfinance"
+    },
+    {
+      "field_name": "instrument_kind",
+      "stage": "provider",
+      "outcome": "resolved",
+      "message": "Resolved current instrument-kind metadata via 'yfinance'.",
+      "provider_id": "yfinance"
+    }
+  ]
 }

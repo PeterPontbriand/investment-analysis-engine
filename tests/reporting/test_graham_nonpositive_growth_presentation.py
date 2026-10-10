@@ -9,6 +9,7 @@ import pytest
 
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
+from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
 from src.reporting.presentation import PresentationMode
 from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.strategies.graham_growth.presenter import GrahamGrowthPresentation, render_graham_growth
@@ -75,6 +76,7 @@ def _presentation() -> GrahamGrowthPresentation:
         base_pe=8.5,
         growth_multiplier=2.0,
         baseline_aaa_yield=4.4,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
 
@@ -90,7 +92,7 @@ def test_non_positive_growth_value_explains_omitted_price_comparison() -> None:
 def test_non_positive_growth_value_warning_is_preserved_in_json() -> None:
     payload = json.loads(render_graham_growth(_presentation(), PresentationMode.JSON))
 
-    assert payload["schema_version"] == 6
+    assert payload["schema_version"] == 7
     assert payload["status"] == "ok"
     assert payload["result"]["growth_value"] == pytest.approx(-31.465775136206044)
     assert payload["result"]["margin_of_safety_percent"] is None

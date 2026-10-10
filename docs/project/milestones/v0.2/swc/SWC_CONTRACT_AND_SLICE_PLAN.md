@@ -55,6 +55,7 @@ document-link check and applicable documentation checks.
 | SWC.4a | [Typed failure envelope and schema generator](#swc4a--failure-envelope-and-schema-generator) | Complete | 2026-10-06 |
 | SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Complete | 2026-10-07 |
 | SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Complete | 2026-10-07 |
+| SWC.4c.1 | [Common header and tail for strategy documents](#swc4c1--common-header-and-tail-for-strategy-documents) | Complete | 2026-10-09 |
 | SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Next | |
 | SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
@@ -499,6 +500,26 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Detail:** [SWC.1 design §6, §10 and §13.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#10-conformance-tests-and-negative-control),
   [inventory disposition](#4-inventory-disposition) and
   [audited inventory](#appendix-a-proposal-inventory-verified-against-main).
+
+#### SWC.4c.1 — Common header and tail for strategy documents
+
+- **Problem:** the four strategy documents named the same facts differently and in different places (`as_of` meant a
+  request in one and a data date in another; `status` was a verdict in Momentum and a calculation status elsewhere;
+  FCF Growth wrapped its diagnostics and had no `limitations`), so a key added to all four had to be added four times.
+- **Decision:** every strategy document begins with one header and ends with one tail, each declared once in
+  `src/reporting/documents/strategy_document.py` and composed into the strategy's body by inheritance
+  ([design H.34](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h34-common-header-and-tail-for-strategy-documents-2026-10-09)).
+  A conformance test iterates every descriptor's `json_envelope` and fails for a document that does not take them. The
+  Graham evidence now carries the instant the analysis was evaluated at, so `effective_as_of` is a true value in all
+  four. The failure envelope and the text output are unchanged. Landed before PH.2c, which adds `provider_failure` to
+  the header, and before Step 3.5.
+- **Scope:** `src/reporting/documents/strategy_document.py`; the four `envelope.py` and `presenter.py` files; the
+  Momentum and Graham `replay.py` and `cli.py` files; Graham's `service.py`, `analyzer.py` and `codec.py`;
+  `src/strategy_wiring.py` (the Graham `result_schema_version` and `evidence_codec_version`); four schemas; the stored
+  output under `tests/expected_output/`; the affected tests; `docs/user/USAGE.md`, `docs/user/SMOKE_TESTING.md` and the
+  plans that name these keys.
+- **Branch:** `feat/strategy-document-common-header`, from `main` after SWC.4c.
+- **Detail:** [design H.34](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h34-common-header-and-tail-for-strategy-documents-2026-10-09).
 
 #### SWC.4d — Command validation failures and the failure envelope
 

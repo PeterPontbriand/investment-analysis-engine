@@ -95,10 +95,10 @@ def test_presenter_modes_share_result_and_json_has_null_not_nan() -> None:
     assert "derivation: free_cash_flow / weighted_average_diluted_shares" in diagnostics
     assert "Diagnostics" in diagnostics
     assert "provider/success" in diagnostics
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     assert payload["result_schema_version"] == 3
     assert payload["security_identity"]["instrument_name"] is None
-    assert payload["strategy_id"] == "fcf_earnings_growth"
+    assert payload["analysis"] == "fcf_earnings_growth"
     assert payload["market_capitalization"] is None
     assert payload["fcf_yield"]["value"] is None
     assert payload["fcf_per_share_cagr"]["status"] == "ok"

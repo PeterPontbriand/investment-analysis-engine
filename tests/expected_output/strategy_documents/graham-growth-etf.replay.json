@@ -1,78 +1,79 @@
 {
+  "schema_version": 7,
   "analysis": "graham_growth_value",
-  "as_of": null,
-  "diagnostics": [
-    {
-      "field_name": "security_identity",
-      "message": "Provider 'sec_edgar' does not expose security identity metadata.",
-      "outcome": "unsupported",
-      "provider_id": "sec_edgar",
-      "stage": "provider"
-    },
-    {
-      "field_name": "security_identity",
-      "message": "Resolved current descriptive security identity via 'yfinance'.",
-      "outcome": "resolved",
-      "provider_id": "yfinance",
-      "stage": "provider"
-    },
-    {
-      "field_name": "instrument_kind",
-      "message": "Resolved current instrument-kind metadata via 'yfinance'.",
-      "outcome": "resolved",
-      "provider_id": "yfinance",
-      "stage": "provider"
-    }
-  ],
-  "inputs": {
-    "current_aaa_yield": null,
-    "current_price": null,
-    "eps": null,
-    "expected_growth": null
+  "method": "graham_growth_value",
+  "ticker": "SYNTH",
+  "status": "not_applicable",
+  "requested_as_of": null,
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "SYNTH",
+    "instrument_name": "Fixture Holdings Inc.",
+    "listing_venue": "NYSE",
+    "issuer_identifier": "0000000001",
+    "instrument_identifier": "FIX-0001",
+    "provider_id": "yfinance",
+    "resolved_at": "<wall-clock>"
   },
   "instrument_kind": {
     "kind": "etf",
-    "provider_id": "yfinance",
     "provider_value": "ETF",
+    "provider_id": "yfinance",
     "resolved_at": "<wall-clock>"
   },
-  "limitations": [
-    "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
-  ],
-  "method": "graham_growth_value",
-  "method_assumptions": {
-    "base_pe": 8.5,
-    "baseline_aaa_yield": 4.4,
-    "growth_multiplier": 2.0
-  },
   "price_comparison": {
-    "percent": null,
-    "provenance": null,
-    "quote_freshness": null,
+    "status": "unavailable",
     "reason": "calculation_unavailable",
+    "percent": null,
+    "quote_freshness": null,
     "security_unit_evidence": null,
-    "status": "unavailable"
-  },
-  "quote": {
-    "reason": null,
-    "status": "not_attempted"
+    "provenance": null
   },
   "reason": "Graham growth-value method is a company-level valuation method and does not apply directly to an ETF. No constituent-level or aggregate ETF valuation was performed.",
   "result": {
     "growth_value": null,
     "margin_of_safety_percent": null
   },
-  "schema_version": 6,
-  "security_identity": {
-    "instrument_identifier": "FIX-0001",
-    "instrument_name": "Fixture Holdings Inc.",
-    "issuer_identifier": "0000000001",
-    "listing_venue": "NYSE",
-    "provider_id": "yfinance",
-    "resolved_at": "<wall-clock>",
-    "ticker": "SYNTH"
+  "inputs": {
+    "eps": null,
+    "expected_growth": null,
+    "current_aaa_yield": null,
+    "current_price": null
   },
-  "status": "not_applicable",
-  "ticker": "SYNTH",
-  "warnings": []
+  "method_assumptions": {
+    "base_pe": 8.5,
+    "growth_multiplier": 2.0,
+    "baseline_aaa_yield": 4.4
+  },
+  "quote": {
+    "status": "not_attempted",
+    "reason": null
+  },
+  "warnings": [],
+  "limitations": [
+    "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
+  ],
+  "diagnostics": [
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "unsupported",
+      "message": "Provider 'sec_edgar' does not expose security identity metadata.",
+      "provider_id": "sec_edgar"
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "resolved",
+      "message": "Resolved current descriptive security identity via 'yfinance'.",
+      "provider_id": "yfinance"
+    },
+    {
+      "field_name": "instrument_kind",
+      "stage": "provider",
+      "outcome": "resolved",
+      "message": "Resolved current instrument-kind metadata via 'yfinance'.",
+      "provider_id": "yfinance"
+    }
+  ]
 }

@@ -86,7 +86,7 @@ def test_cli_fcf_growth_known_etf_is_successful_not_applicable_without_fact_reso
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["execution_status"] == "not_applicable"
+    assert payload["status"] == "not_applicable"
     assert payload["classification"] == "indeterminate"
     assert payload["classification_reason_code"] == "instrument_kind_not_applicable"
     assert payload["security_identity"]["instrument_name"] == "Franklin FTSE Switzerland ETF"

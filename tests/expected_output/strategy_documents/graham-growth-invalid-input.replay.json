@@ -1,44 +1,45 @@
 {
+  "schema_version": 7,
   "analysis": "graham_growth_value",
-  "as_of": "2026-09-19T12:00:00+00:00",
-  "diagnostics": [],
-  "inputs": {
-    "current_aaa_yield": null,
-    "current_price": null,
-    "eps": null,
-    "expected_growth": null
+  "method": "graham_growth_value",
+  "ticker": "KO",
+  "status": "invalid_input",
+  "requested_as_of": "2026-09-19T12:00:00+00:00",
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "KO",
+    "instrument_name": null,
+    "listing_venue": null,
+    "issuer_identifier": null,
+    "instrument_identifier": null,
+    "provider_id": null,
+    "resolved_at": null
   },
   "instrument_kind": null,
-  "limitations": [
-    "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
-  ],
-  "method": "graham_growth_value",
-  "method_assumptions": {
-    "base_pe": 8.5,
-    "baseline_aaa_yield": 4.4,
-    "growth_multiplier": 2.0
-  },
   "price_comparison": null,
-  "quote": {
-    "reason": null,
-    "status": "not_attempted"
-  },
   "reason": "Unable to analyze KO: the requested inputs are invalid. Review the method and overrides.",
   "result": {
     "growth_value": null,
     "margin_of_safety_percent": null
   },
-  "schema_version": 6,
-  "security_identity": {
-    "instrument_identifier": null,
-    "instrument_name": null,
-    "issuer_identifier": null,
-    "listing_venue": null,
-    "provider_id": null,
-    "resolved_at": null,
-    "ticker": "KO"
+  "inputs": {
+    "eps": null,
+    "expected_growth": null,
+    "current_aaa_yield": null,
+    "current_price": null
   },
-  "status": "invalid_input",
-  "ticker": "KO",
-  "warnings": []
+  "method_assumptions": {
+    "base_pe": 8.5,
+    "growth_multiplier": 2.0,
+    "baseline_aaa_yield": 4.4
+  },
+  "quote": {
+    "status": "not_attempted",
+    "reason": null
+  },
+  "warnings": [],
+  "limitations": [
+    "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
+  ],
+  "diagnostics": []
 }

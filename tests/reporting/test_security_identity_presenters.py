@@ -23,6 +23,7 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
+from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
 from src.reporting.presentation import PresentationMode
 from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
@@ -116,6 +117,7 @@ def _graham_number(identity: SecurityIdentityResolution) -> GrahamNumberPresenta
         ),
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=21.213203435596427),
         identity_resolution=identity,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
 
@@ -133,6 +135,7 @@ def _graham_growth(identity: SecurityIdentityResolution) -> GrahamGrowthPresenta
         growth_multiplier=2.0,
         baseline_aaa_yield=4.4,
         identity_resolution=identity,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
 
@@ -173,7 +176,7 @@ def test_json_contracts_expose_same_snapshot_and_deliberate_versions() -> None:
         json.loads(render_fcf_earnings_growth(fcf_result, PresentationMode.JSON, identity)),
     )
 
-    assert [document["schema_version"] for document in documents] == [5, 6, 6, 5]
+    assert [document["schema_version"] for document in documents] == [6, 7, 7, 6]
     for document in documents:
         snapshot = document["security_identity"]
         assert snapshot["ticker"] == "ACME"
@@ -256,10 +259,11 @@ def test_lookup_failure_is_diagnostic_only_and_preserves_success_semantics() -> 
         render_graham_number(_graham_number(_resolution("ACME", None)), PresentationMode.JSON)
     )
 
-    assert momentum_payload["status"] == "BULLISH"
+    assert momentum_payload["status"] == "ok"
+    assert momentum_payload["result"]["trend"] == "BULLISH"
     assert number_payload["status"] == "ok"
     assert growth_payload["status"] == "ok"
-    assert fcf_payload["execution_status"] == "ok"
+    assert fcf_payload["status"] == "ok"
     assert fcf_payload["classification"] == "pass"
     assert momentum_payload["warnings"] == []
     assert number_payload["warnings"] == baseline_number_payload["warnings"]

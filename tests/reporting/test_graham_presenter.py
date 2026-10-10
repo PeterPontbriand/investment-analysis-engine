@@ -16,6 +16,7 @@ from src.data.financial.resolution_trace import (
     ResolutionStage,
     ResolutionTrace,
 )
+from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
 from src.reporting.presentation import PresentationMode
 from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.strategies.graham_growth.presenter import GrahamGrowthPresentation, render_graham_growth
@@ -138,6 +139,7 @@ def test_number_concise_uses_screening_ceiling_language_and_not_intrinsic_value(
             status=CalculationStatus.OK,
             maximum_indicated_price=33.8004677786747,
         ),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     rendered = render_graham_number(presentation)
@@ -162,6 +164,7 @@ def test_number_diagnostics_expose_provider_fields_and_derivation_lineage() -> N
             status=CalculationStatus.OK,
             maximum_indicated_price=33.8004677786747,
         ),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     rendered = render_graham_number(presentation, PresentationMode.DIAGNOSTICS)
@@ -176,6 +179,7 @@ def test_details_explain_calculation_and_diagnostics_retain_raw_evidence() -> No
         ticker="NDAQ",
         assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=_eps(), bvps=_derived_bvps()),
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=33.8),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
     details = render_graham_number(presentation, PresentationMode.DETAILS)
     diagnostics = render_graham_number(presentation, PresentationMode.DIAGNOSTICS)
@@ -201,11 +205,12 @@ def test_number_json_preserves_typed_provenance() -> None:
             status=CalculationStatus.OK,
             maximum_indicated_price=33.8004677786747,
         ),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     payload = json.loads(render_graham_number(presentation, PresentationMode.JSON))
 
-    assert payload["schema_version"] == 6
+    assert payload["schema_version"] == 7
     assert payload["security_identity"]["instrument_name"] is None
     assert payload["method"] == "graham_number"
     assert payload["result"]["maximum_indicated_price"] == pytest.approx(33.8004677786747)
@@ -249,6 +254,7 @@ def test_growth_concise_makes_user_growth_assumption_conspicuous() -> None:
         base_pe=8.5,
         growth_multiplier=2.0,
         baseline_aaa_yield=4.4,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     rendered = render_graham_growth(presentation)
@@ -269,6 +275,7 @@ def test_diagnostics_do_not_invent_unretained_cache_or_provider_attempts() -> No
         ticker="AAPL",
         assembly=assembly,
         result=None,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     rendered = render_graham_number(presentation, PresentationMode.DIAGNOSTICS)
@@ -319,6 +326,7 @@ def test_diagnostics_render_recorded_resolver_trace_without_reconstruction() -> 
             status=CalculationStatus.OK,
             maximum_indicated_price=33.8004677786747,
         ),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     rendered = render_graham_number(presentation, PresentationMode.DIAGNOSTICS)
@@ -356,7 +364,9 @@ def test_number_missing_component_explains_failure_before_diagnostics(
             )
         ),
     )
-    rendered = render_graham_number(GrahamNumberPresentation(ticker="MSFT", assembly=assembly, result=None), mode)
+    rendered = render_graham_number(
+        GrahamNumberPresentation(ticker="MSFT", assembly=assembly, result=None, effective_as_of=EFFECTIVE_AS_OF), mode
+    )
     opening = rendered.split("Details")[0]
     assert "Graham Number could not be calculated." in opening
     assert f"eligible {label} could not be resolved" in opening
@@ -396,7 +406,9 @@ def test_number_json_reason_matches_text_modes_specific_explanation(component: s
             )
         ),
     )
-    presentation = GrahamNumberPresentation(ticker="MSFT", assembly=assembly, result=None)
+    presentation = GrahamNumberPresentation(
+        ticker="MSFT", assembly=assembly, result=None, effective_as_of=EFFECTIVE_AS_OF
+    )
     payload = json.loads(render_graham_number(presentation, PresentationMode.JSON))
     assert f"eligible {label} could not be resolved" in payload["reason"]
     assert "Raw provider detail" not in payload["reason"]
@@ -415,7 +427,8 @@ def test_number_failure_does_not_relabel_attempted_quote_as_not_requested() -> N
         quote_reason="Quote request failed",
     )
     rendered = render_graham_number(
-        GrahamNumberPresentation(ticker="MSFT", assembly=assembly, result=None), PresentationMode.DIAGNOSTICS
+        GrahamNumberPresentation(ticker="MSFT", assembly=assembly, result=None, effective_as_of=EFFECTIVE_AS_OF),
+        PresentationMode.DIAGNOSTICS,
     )
     assert "Current price: not requested" not in rendered
     assert "Current price: unavailable" in rendered
@@ -448,6 +461,7 @@ def test_number_presentation_rejects_as_of_mismatch_with_resolved_input() -> Non
             assembly=assembly,
             result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=21.213203435596427),
             as_of=None,
+            effective_as_of=EFFECTIVE_AS_OF,
         )
 
 
@@ -492,6 +506,7 @@ def test_growth_presentation_accepts_matching_historical_as_of() -> None:
         growth_multiplier=2.0,
         baseline_aaa_yield=4.4,
         as_of=historical_as_of,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     rendered = render_graham_growth(presentation)
@@ -508,6 +523,7 @@ def test_graham_presentation_rejects_naive_as_of() -> None:
             assembly=assembly,
             result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=33.8004677786747),
             as_of=datetime(2026, 8, 22),
+            effective_as_of=EFFECTIVE_AS_OF,
         )
 
 
@@ -531,6 +547,7 @@ def test_number_not_applicable_is_humanized_and_suppresses_quote_noise() -> None
             status=CalculationStatus.NOT_APPLICABLE,
             reason="BVPS must be positive for Graham Number (received -4.986447241045498).",
         ),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
     rendered = render_graham_number(presentation)
     assert "Status: not applicable" in rendered
@@ -544,6 +561,7 @@ def test_number_diagnostics_keep_financial_dates_and_original_retrieval_time() -
         ticker="NDAQ",
         assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=_eps(), bvps=_derived_bvps()),
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=33.8),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
     rendered = render_graham_number(presentation, PresentationMode.DIAGNOSTICS)
     assert "basis: fiscal-year-end" in rendered
@@ -587,6 +605,7 @@ def test_provider_side_inference_and_derivation_have_explicit_source_labels() ->
         ticker="KO",
         assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=_eps(), bvps=bvps),
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=21.14),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
     rendered = render_graham_number(presentation, PresentationMode.DIAGNOSTICS)
     assert "source: inferred (SEC EDGAR)" in rendered
@@ -598,6 +617,7 @@ def test_concise_freshness_uses_semantic_dates() -> None:
         ticker="KO",
         assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=_eps(), bvps=_derived_bvps()),
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=21.14),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
     rendered = render_graham_number(presentation)
     assert "(available 2026-02-12)" in rendered
@@ -628,6 +648,7 @@ def test_cross_currency_quote_is_shown_without_price_relationship() -> None:
         ),
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=33.8),
         margin_of_safety_percent=None,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
     rendered = render_graham_number(presentation)
     assert "Latest available quote: 50.00 CAD" in rendered
@@ -650,6 +671,7 @@ def test_not_applicable_json_preserves_raw_status_value_and_precision() -> None:
             status=CalculationStatus.NOT_APPLICABLE,
             reason=f"BVPS must be positive for Graham Number (received {bvps_value}).",
         ),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
     payload = json.loads(render_graham_number(presentation, PresentationMode.JSON))
     assert payload["status"] == "not_applicable"

@@ -1,185 +1,186 @@
 {
+  "schema_version": 7,
   "analysis": "graham_number",
-  "as_of": null,
-  "diagnostics": [
-    {
-      "field_name": "eps",
-      "message": "No explicit override was supplied.",
-      "outcome": "not_used",
-      "stage": "override"
-    },
-    {
-      "field_name": "eps",
-      "message": "Cache use was disabled for this resolution.",
-      "outcome": "not_used",
-      "stage": "cache"
-    },
-    {
-      "field_name": "eps",
-      "message": "Requested eps from provider 'fixture-synth'.",
-      "outcome": "attempted",
-      "stage": "provider"
-    },
-    {
-      "field_name": "eps",
-      "message": "Provider fact passed resolver validation and was accepted.",
-      "outcome": "success",
-      "stage": "provider"
-    },
-    {
-      "field_name": "bvps",
-      "message": "No explicit override was supplied.",
-      "outcome": "not_used",
-      "stage": "override"
-    },
-    {
-      "field_name": "bvps",
-      "message": "Cache use was disabled for this resolution.",
-      "outcome": "not_used",
-      "stage": "cache"
-    },
-    {
-      "field_name": "bvps",
-      "message": "Requested bvps from provider 'fixture-synth'.",
-      "outcome": "attempted",
-      "stage": "provider"
-    },
-    {
-      "field_name": "bvps",
-      "message": "Provider fact passed resolver validation and was accepted.",
-      "outcome": "success",
-      "stage": "provider"
-    },
-    {
-      "field_name": "current_price",
-      "message": "No explicit override was supplied.",
-      "outcome": "not_used",
-      "stage": "override"
-    },
-    {
-      "field_name": "current_price",
-      "message": "Cache use was disabled for this resolution.",
-      "outcome": "not_used",
-      "stage": "cache"
-    },
-    {
-      "field_name": "current_price",
-      "message": "Requested current_price from provider 'fixture-synth'.",
-      "outcome": "attempted",
-      "stage": "provider"
-    },
-    {
-      "field_name": "current_price",
-      "message": "Provider returned no data for the requested field.",
-      "outcome": "unavailable",
-      "stage": "provider"
-    },
-    {
-      "field_name": "security_identity",
-      "message": "Provider 'fixture-synth' does not expose security identity metadata.",
-      "outcome": "unsupported",
-      "provider_id": "fixture-synth",
-      "stage": "provider"
-    },
-    {
-      "field_name": "security_identity",
-      "message": "Provider 'yfinance' returned no security identity metadata.",
-      "outcome": "unavailable",
-      "provider_id": "yfinance",
-      "stage": "provider"
-    },
-    {
-      "field_name": "instrument_kind",
-      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
-      "outcome": "unavailable",
-      "provider_id": "yfinance",
-      "stage": "provider"
-    }
-  ],
-  "inputs": {
-    "bvps": {
-      "as_of": null,
-      "available_at": "2025-02-10T00:00:00+00:00",
-      "basis": null,
-      "cache_schema_version": null,
-      "currency": "USD",
-      "field_name": "bvps",
-      "lineage": null,
-      "notes": [
-        "fixture: book value per share"
-      ],
-      "observation_period_end": "2024-12-31T00:00:00+00:00",
-      "observation_period_start": null,
-      "observed_at": null,
-      "origin_source_kind": null,
-      "provider_field": "fx_bvps",
-      "provider_id": "fixture-synth",
-      "resolved_at": "<wall-clock>",
-      "retrieved_at": "<wall-clock>",
-      "source_kind": "provider",
-      "units": "currency_per_share",
-      "value": 18.5
-    },
-    "current_price": null,
-    "eps": {
-      "as_of": null,
-      "available_at": "2025-06-30T12:00:00+00:00",
-      "basis": "ttm",
-      "cache_schema_version": null,
-      "currency": "USD",
-      "field_name": "eps",
-      "lineage": null,
-      "notes": [
-        "fixture: TTM EPS"
-      ],
-      "observation_period_end": "2025-06-30T00:00:00+00:00",
-      "observation_period_start": "2024-07-01T00:00:00+00:00",
-      "observed_at": null,
-      "origin_source_kind": null,
-      "provider_field": "fx_ttm_eps",
-      "provider_id": "fixture-synth",
-      "resolved_at": "<wall-clock>",
-      "retrieved_at": "<wall-clock>",
-      "source_kind": "provider",
-      "units": "currency_per_share",
-      "value": 4.8
-    }
+  "method": "graham_number",
+  "ticker": "MISSING_QUOTE",
+  "status": "ok",
+  "requested_as_of": null,
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "MISSING_QUOTE",
+    "instrument_name": null,
+    "listing_venue": null,
+    "issuer_identifier": null,
+    "instrument_identifier": null,
+    "provider_id": null,
+    "resolved_at": null
   },
   "instrument_kind": null,
-  "limitations": [
-    "The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation."
-  ],
-  "method": "graham_number",
   "price_comparison": {
-    "percent": null,
-    "provenance": null,
-    "quote_freshness": null,
+    "status": "unavailable",
     "reason": "missing_quote",
+    "percent": null,
+    "quote_freshness": null,
     "security_unit_evidence": null,
-    "status": "unavailable"
-  },
-  "quote": {
-    "reason": "No eligible current quote was available from the configured quote source.",
-    "status": "input_unavailable"
+    "provenance": null
   },
   "reason": null,
   "result": {
-    "margin_of_safety_percent": null,
-    "maximum_indicated_price": 44.69899327725402
+    "maximum_indicated_price": 44.69899327725402,
+    "margin_of_safety_percent": null
   },
-  "schema_version": 6,
-  "security_identity": {
-    "instrument_identifier": null,
-    "instrument_name": null,
-    "issuer_identifier": null,
-    "listing_venue": null,
-    "provider_id": null,
-    "resolved_at": null,
-    "ticker": "MISSING_QUOTE"
+  "inputs": {
+    "eps": {
+      "field_name": "eps",
+      "value": 4.8,
+      "source_kind": "provider",
+      "origin_source_kind": null,
+      "basis": "ttm",
+      "units": "currency_per_share",
+      "currency": "USD",
+      "provider_id": "fixture-synth",
+      "provider_field": "fx_ttm_eps",
+      "observation_period_start": "2024-07-01T00:00:00+00:00",
+      "observation_period_end": "2025-06-30T00:00:00+00:00",
+      "observed_at": null,
+      "available_at": "2025-06-30T12:00:00+00:00",
+      "as_of": null,
+      "retrieved_at": "<wall-clock>",
+      "resolved_at": "<wall-clock>",
+      "cache_schema_version": null,
+      "notes": [
+        "fixture: TTM EPS"
+      ],
+      "lineage": null
+    },
+    "bvps": {
+      "field_name": "bvps",
+      "value": 18.5,
+      "source_kind": "provider",
+      "origin_source_kind": null,
+      "basis": null,
+      "units": "currency_per_share",
+      "currency": "USD",
+      "provider_id": "fixture-synth",
+      "provider_field": "fx_bvps",
+      "observation_period_start": null,
+      "observation_period_end": "2024-12-31T00:00:00+00:00",
+      "observed_at": null,
+      "available_at": "2025-02-10T00:00:00+00:00",
+      "as_of": null,
+      "retrieved_at": "<wall-clock>",
+      "resolved_at": "<wall-clock>",
+      "cache_schema_version": null,
+      "notes": [
+        "fixture: book value per share"
+      ],
+      "lineage": null
+    },
+    "current_price": null
   },
-  "status": "ok",
-  "ticker": "MISSING_QUOTE",
+  "quote": {
+    "status": "input_unavailable",
+    "reason": "No eligible current quote was available from the configured quote source."
+  },
   "warnings": [
     "Current quote unavailable; price comparison omitted."
+  ],
+  "limitations": [
+    "The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation."
+  ],
+  "diagnostics": [
+    {
+      "field_name": "eps",
+      "stage": "override",
+      "outcome": "not_used",
+      "message": "No explicit override was supplied."
+    },
+    {
+      "field_name": "eps",
+      "stage": "cache",
+      "outcome": "not_used",
+      "message": "Cache use was disabled for this resolution."
+    },
+    {
+      "field_name": "eps",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested eps from provider 'fixture-synth'."
+    },
+    {
+      "field_name": "eps",
+      "stage": "provider",
+      "outcome": "success",
+      "message": "Provider fact passed resolver validation and was accepted."
+    },
+    {
+      "field_name": "bvps",
+      "stage": "override",
+      "outcome": "not_used",
+      "message": "No explicit override was supplied."
+    },
+    {
+      "field_name": "bvps",
+      "stage": "cache",
+      "outcome": "not_used",
+      "message": "Cache use was disabled for this resolution."
+    },
+    {
+      "field_name": "bvps",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested bvps from provider 'fixture-synth'."
+    },
+    {
+      "field_name": "bvps",
+      "stage": "provider",
+      "outcome": "success",
+      "message": "Provider fact passed resolver validation and was accepted."
+    },
+    {
+      "field_name": "current_price",
+      "stage": "override",
+      "outcome": "not_used",
+      "message": "No explicit override was supplied."
+    },
+    {
+      "field_name": "current_price",
+      "stage": "cache",
+      "outcome": "not_used",
+      "message": "Cache use was disabled for this resolution."
+    },
+    {
+      "field_name": "current_price",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested current_price from provider 'fixture-synth'."
+    },
+    {
+      "field_name": "current_price",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider returned no data for the requested field."
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "unsupported",
+      "message": "Provider 'fixture-synth' does not expose security identity metadata.",
+      "provider_id": "fixture-synth"
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider 'yfinance' returned no security identity metadata.",
+      "provider_id": "yfinance"
+    },
+    {
+      "field_name": "instrument_kind",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
+      "provider_id": "yfinance"
+    }
   ]
 }

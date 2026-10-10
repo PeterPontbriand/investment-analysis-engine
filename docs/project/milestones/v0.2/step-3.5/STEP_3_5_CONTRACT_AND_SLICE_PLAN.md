@@ -433,3 +433,5 @@ outcome. Provider-failure classification
 Whether Momentum should record an unavailable result for a provider failure is decided with the result-level
 status ([Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status)), because the answer fixes
 Momentum's `execution_status` for that case. Decision pending.
+
+The common strategy-document header ([SWC.4c.1](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h34-common-header-and-tail-for-strategy-documents-2026-10-09)) gives Momentum a calculation `status`. That slice left it as `ok` for every document that exists, with too little history shown as `result.trend` `UNKNOWN`; whether that case becomes `input_unavailable` is decided here.

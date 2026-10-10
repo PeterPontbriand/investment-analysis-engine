@@ -25,6 +25,7 @@ from src.evaluation.fixtures.graham import (
     SECURITY_ID,
     FixtureFinancialFactsProvider,
 )
+from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
 from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
@@ -187,6 +188,7 @@ def test_precedence_case_native_outputs_match_reviewed_cache_and_provider_source
         quote_provider_id=PROVIDER_ID,
         as_of=NOW,
         use_cache=True,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
     assert analysis.assembly.status is CalculationStatus.OK
     assert analysis.result.status is CalculationStatus.OK
