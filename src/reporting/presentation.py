@@ -59,7 +59,6 @@ def humanized_status(status: CalculationStatus | None) -> str:
 PROVIDER_DISPLAY_NAMES: Final[dict[str, str]] = {
     "sec_edgar": "SEC EDGAR",
     "yfinance": "Yahoo Finance",
-    "massive": "Massive",
 }
 
 

@@ -40,8 +40,8 @@ current codes:
   project owner from a scheduled run and to a user from the first line of the error message. PH.1 runs now;
   PH.2a to PH.2c and PH.3 follow SWC.4c; all finish before Step 3.5 begins.
 - `MR` — short for "Massive Removal" ([plan](massive-removal/MR_MASSIVE_REMOVAL_PLAN.md)): removes the unfinished,
-  untested Massive provider until a requirement makes it worth bringing back. Its row is numbered `13A` so the
-  rows after it keep their numbers; it runs inside `PH`, after PH.2b and before PH.2c, and before `PKG`.
+  untested Massive provider until a requirement makes it worth bringing back. Its row is numbered `11A` so the
+  rows after it keep their numbers and sits among the complete rows; it ran inside `PH`, after PH.2b and before PH.2c, and before `PKG`.
 - `PKG` — the `src` → real top-level package rename ([plan](pkg/PKG_RENAME_PLAN.md)), split out of `IR`
   given its scale. Not `R4`, deliberately: that code is already used as a document-local
   requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted
@@ -73,9 +73,9 @@ sequencing meaning.
 | 9 | [Existing-analysis renewal (ESC-D)](existing-strategy-correctness/ESC_D_RENEWAL_PLAN.md) | Complete | 2026-09-23 |
 | 10 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-01 |
 | 11 | [Repository-wide dead code audit (R3)](r3/R3_DEAD_CODE_AUDIT_PLAN.md) | Complete | 2026-10-01 |
+| 11A | [Massive provider removal (MR)](massive-removal/MR_MASSIVE_REMOVAL_PLAN.md#2-sequence-and-status) | Complete | 2026-10-10 |
 | 12 | [Strategy wiring consolidation (SWC)](swc/SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
 | 13 | [Provider health (PH)](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
-| 13A | [Massive provider removal (MR)](massive-removal/MR_MASSIVE_REMOVAL_PLAN.md#2-sequence-and-status) | Planned | |
 | 14 | [`src` package rename (PKG)](pkg/PKG_RENAME_PLAN.md) | Planned | |
 | 15 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
 | 16 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |

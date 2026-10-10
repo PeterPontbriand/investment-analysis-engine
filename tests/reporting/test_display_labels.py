@@ -48,10 +48,6 @@ def test_provider_display_name_yfinance() -> None:
     assert provider_display_name("yfinance") == "Yahoo Finance"
 
 
-def test_provider_display_name_massive() -> None:
-    assert provider_display_name("massive") == "Massive"
-
-
 def test_provider_display_name_unknown_falls_through() -> None:
     assert provider_display_name("fixture_market_data") == "fixture_market_data"
 
@@ -335,7 +331,6 @@ def test_provider_display_names_expected_mappings() -> None:
     """Pin the explicit provider display-label mappings."""
     assert PROVIDER_DISPLAY_NAMES["sec_edgar"] == "SEC EDGAR"
     assert PROVIDER_DISPLAY_NAMES["yfinance"] == "Yahoo Finance"
-    assert PROVIDER_DISPLAY_NAMES["massive"] == "Massive"
 
 
 def test_basis_display_names_expected_mappings() -> None:

@@ -265,7 +265,7 @@ def test_watchlist_create_rejects_a_blank_seed_ticker() -> None:
 
 
 def test_watchlist_add_selection_appends_and_allows_the_same_method_twice() -> None:
-    """The amendment's headline capability: comparing one method via two providers on one ticker."""
+    """The amendment's headline capability: comparing one method under two configurations on one ticker."""
     _create("Compare")
     result = runner.invoke(app, ["watchlist", "add-selection", "Compare", "AAPL", "--analysis", "graham-number"])
     assert result.exit_code == 0, result.output
@@ -278,8 +278,6 @@ def test_watchlist_add_selection_appends_and_allows_the_same_method_twice() -> N
             "AAPL",
             "--analysis",
             "graham-number",
-            "--data-provider",
-            "massive",
             "--bvps",
             "12.5",
         ],
@@ -287,8 +285,7 @@ def test_watchlist_add_selection_appends_and_allows_the_same_method_twice() -> N
     assert result.exit_code == 0, result.output
     output = normalize_cli_output(result.output)
     assert "Entries (2):" in output
-    assert "security_provider_id=sec_edgar" in output
-    assert "security_provider_id=massive" in output
+    assert "bvps_override=12.5" in output
 
 
 def test_watchlist_add_selection_missing_watchlist_exits_1() -> None:

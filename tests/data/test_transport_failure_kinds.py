@@ -63,8 +63,8 @@ def test_a_successful_json_fetch_decodes_the_document() -> None:
 @pytest.mark.parametrize("caller_kind", [_NO_DATA, _UNEXPECTED])
 def test_a_json_404_takes_the_kind_the_caller_passes(caller_kind: ProviderFailureKind) -> None:
     with _patched_json(_http_error(404)), pytest.raises(FinancialProviderError) as caught:
-        _json(not_found=caller_kind, provider_id="massive")
-    assert (caught.value.kind, caught.value.provider_id) == (caller_kind, "massive")
+        _json(not_found=caller_kind, provider_id="sec_edgar")
+    assert (caught.value.kind, caught.value.provider_id) == (caller_kind, "sec_edgar")
     assert "HTTP request failed for 'https://example.test/x'" in str(caught.value)
 
 

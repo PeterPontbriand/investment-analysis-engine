@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal, Self
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, SecretStr, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationError, model_validator
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, EnvSettingsSource, PydanticBaseSettingsSource, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
@@ -116,7 +116,7 @@ class ProjectSettings(BaseSettings):
     """Application configuration loaded from environment variables and config tables.
 
     Every setting is read from ``IAN_<NAME>`` in any letter case (for example ``IAN_DATA_DIR``); unprefixed names
-    are not read. The provider credentials ``SEC_USER_AGENT`` and ``MASSIVE_API_KEY`` keep their own names, also
+    are not read. The provider credential ``SEC_USER_AGENT`` keeps its own name, also
     in any case. An ``IAN_`` variable that names no setting, or two variables differing only by case for one
     setting, raise :class:`SettingsEnvironmentError`.
     """
@@ -138,7 +138,6 @@ class ProjectSettings(BaseSettings):
 
     # External data-provider settings
     sec_user_agent: str | None = Field(default=None, validation_alias="SEC_USER_AGENT")
-    massive_api_key: SecretStr | None = Field(default=None, validation_alias="MASSIVE_API_KEY")
 
     # Human-readable operational logging
     log_level: str = "INFO"
@@ -219,14 +218,6 @@ class ProjectSettings(BaseSettings):
         """Read explicit arguments first, then the validated process environment."""
         return (init_settings, _EngineEnvSource(settings_cls))
 
-    @field_validator("massive_api_key")
-    @classmethod
-    def reject_whitespace_in_api_key(cls, value: SecretStr | None) -> SecretStr | None:
-        """Reject a key containing whitespace, which a pasted line break or space makes of a malformed credential."""
-        if value is not None and any(character.isspace() for character in value.get_secret_value()):
-            raise ValueError("must not contain whitespace")
-        return value
-
     @model_validator(mode="after")
     def resolve_database_configuration(self) -> Self:
         """Resolve SQLite paths without opening a connection or creating a database.
@@ -291,8 +282,7 @@ class ProjectSettings(BaseSettings):
 def describe_validation_error(error: ValidationError, environ: Mapping[str, str]) -> str:
     """Describe the first invalid setting as one sentence that names the environment variable.
 
-    The offending value is never included: pydantic's message text describes the rule, and a secret setting is
-    additionally marked as not shown.
+    The offending value is never included: pydantic's message text describes the rule.
 
     Args:
         error: The validation error raised while building :class:`ProjectSettings` from the environment.
@@ -323,8 +313,6 @@ def describe_validation_error(error: ValidationError, environ: Mapping[str, str]
     name, field = owner
     expected = _environment_name(name, field) + "".join(f"{NESTED_DELIMITER}{part.upper()}" for part in location[1:])
     actual = next((key for key in environ if key.lower() == expected.lower()), expected)
-    if "SecretStr" in repr(field.annotation):
-        return f"Environment variable {actual} is invalid (its value is not shown): {message}."
     return f"Environment variable {actual} is invalid: {message}."
 
 

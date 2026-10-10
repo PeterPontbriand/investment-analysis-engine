@@ -117,9 +117,9 @@ def command(  # noqa: PLR0913
         None,
         "--eps-basis",
         help=(
-            "EPS basis; Number defaults to three_year_average and accepts ttm with Massive; "
-            "Growth defaults to three_year_average with SEC EDGAR (also accepts an explicit "
-            "fiscal_year basis for reviewed workflows) and ttm with Massive"
+            "EPS basis; Number accepts three_year_average (the default); "
+            "Growth defaults to three_year_average (also accepts an explicit "
+            "fiscal_year basis for reviewed workflows)"
         ),
     ),
     bvps: float | None = typer.Option(
@@ -215,15 +215,17 @@ def _run_graham_number(  # noqa: PLR0913
         executed_at=executed_at,
         request_factory=lambda: AnalysisRequest(
             ticker=ticker,
-            selection=GrahamNumberSelection(
-                security_provider_id=config.security_provider_id,
-                quote_provider_id=config.quote_provider_id,
-                eps_basis=config.eps_basis,
-                eps_override=config.eps_override,
-                bvps_override=config.bvps_override,
-                quote_override=config.quote_override,
-                as_of=as_of,
-                use_cache=use_cache,
+            selection=GrahamNumberSelection.model_validate(
+                {
+                    "security_provider_id": config.security_provider_id,
+                    "quote_provider_id": config.quote_provider_id,
+                    "eps_basis": config.eps_basis,
+                    "eps_override": config.eps_override,
+                    "bvps_override": config.bvps_override,
+                    "quote_override": config.quote_override,
+                    "as_of": as_of,
+                    "use_cache": use_cache,
+                }
             ),
         ),
         run_adapter=lambda profile_cache: execute_graham_number(

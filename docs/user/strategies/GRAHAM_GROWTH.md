@@ -137,23 +137,6 @@ market-price comparison is unavailable.
 
 For market-price comparison, Investment Analysis Engine obtains current quote data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library when available. `yfinance` is not affiliated with or endorsed by Yahoo.
 
-### Massive (optional)
-
-[Massive](../GLOSSARY.md#massive) is a commercial financial-market-data service. A Massive API key is useful only if you have Massive access and want Investment Analysis Engine to obtain data that the current Massive integration supports.
-
-Users with a configured Massive API key can explicitly select Massive:
-
-```bash
-uv run ian graham-growth KO \
-    --data-provider massive \
-    --expected-growth 5 \
-    --aaa-yield 4.5
-```
-
-The current Massive integration supplies current [TTM](../GLOSSARY.md#ttm-trailing-twelve-months) diluted EPS and current stock trade price. It does **not** currently supply historical `as_of` support or an AAA-yield series.
-
-See [Installation & Configuration — Massive](../INSTALLATION.md#optional-massive-market-data-access).
-
 Point-in-time (`--as-of`) analysis is also shared across both Graham strategies — see the [overview's Point-in-time analysis section](GRAHAM.md#point-in-time-analysis).
 
 ## Why another Graham growth-value calculator may disagree
@@ -174,7 +157,6 @@ The accepted `--eps-basis` values, and the default when none is given, are provi
 | Provider | Accepted `--eps-basis` | Default |
 | :--- | :--- | :--- |
 | SEC EDGAR | `three_year_average` (default), or an explicit `fiscal_year` for reviewed workflows | `three_year_average` |
-| Massive | `ttm` only | `ttm` |
 
 `fiscal_year` (a single completed fiscal year's diluted EPS) is a Graham Growth Value-only basis; the Graham Number never accepts it, with either provider. See [Financial Math](../FINANCE_MATH.md#eps-basis) for the authoritative formula-level statement. An unsupported provider/basis combination is rejected, never silently transformed into a different basis.
 

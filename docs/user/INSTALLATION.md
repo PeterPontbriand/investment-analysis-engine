@@ -115,40 +115,22 @@ export SEC_USER_AGENT="Your Name your-email@example.com"
 
 The temporary form disappears when that terminal session ends.
 
-### Optional: Massive market-data access
-
-[Massive](GLOSSARY.md#massive) is a commercial financial-market-data service. Investment Analysis Engine can optionally use it for supported current market and fundamental data.
-
-Massive credentials are needed only when selecting a data source that uses Massive. Consult the selected strategy's guide for supported providers and required credentials.
-
-A **Massive API key** is a credential supplied by Massive that allows software to access data permitted by your Massive account/plan. If you already have or want Massive access:
-
-1. obtain an API key from your Massive account;
-2. review the [Massive REST API quickstart](https://massive.com/docs/rest/quickstart); and
-3. add the key as another line in the same `.env` file:
-
-```dotenv
-MASSIVE_API_KEY="your-massive-api-key"
-```
-
-Keep the key private. Your Massive plan must permit the data/endpoints you intend to use.
-
 The [Analysis Strategy Guides](strategies/README.md) describe supported data sources and any provider-specific limits for each strategy.
 
 ### Engine settings
 
 Every engine setting is read from an environment variable named `IAN_<NAME>`, in any letter case. The documented spelling is upper case, for example `IAN_DATA_DIR`, `IAN_DATABASE_URL`, `IAN_LOG_DIR` or `IAN_RELIABILITY_LIMITS__OVERALL_TIMEOUT_SECONDS` (two underscores separate a group from the field inside it). Names without the `IAN_` prefix are not read.
 
-The two provider credentials keep their own names and are the only exception: `SEC_USER_AGENT` and `MASSIVE_API_KEY`, also in any letter case. Do not add the `IAN_` prefix to them.
+The provider credential keeps its own name and is the only exception: `SEC_USER_AGENT`, also in any letter case. Do not add the `IAN_` prefix to it.
 
-A `.env` file therefore contains the provider credentials as above plus any settings you override, for example:
+A `.env` file therefore contains the provider credential as above plus any settings you override, for example:
 
 ```dotenv
 SEC_USER_AGENT="Your Name your-email@example.com"
 IAN_DATA_DIR="E:/FinancialData"
 ```
 
-At startup (including `ian --help`) the application prints one sentence naming the variable to the error stream and exits with code 2 when an `IAN_` variable matches no setting (usually a typo), when two variables that differ only by letter case are both set for the same setting, or when a variable's value is not valid for its setting (the sentence says what was wrong; the value of a secret such as `MASSIVE_API_KEY` is never shown). The application name, version and text encoding are fixed and cannot be overridden.
+At startup (including `ian --help`) the application prints one sentence naming the variable to the error stream and exits with code 2 when an `IAN_` variable matches no setting (usually a typo), when two variables that differ only by letter case are both set for the same setting, or when a variable's value is not valid for its setting (the sentence says what was wrong and never repeats the value). The application name, version and text encoding are fixed and cannot be overridden.
 
 ### Optional: local AI
 
@@ -197,10 +179,6 @@ target overrides, locking and recovery.
 ### "SEC EDGAR access is not configured"
 
 Check that `SEC_USER_AGENT` is present in the `.env` file in the Investment Analysis Engine installation folder, or set it in the current terminal as shown above.
-
-### "Massive access is not configured"
-
-This matters only if you explicitly ask Investment Analysis Engine to use Massive. Set `MASSIVE_API_KEY` in `.env` or in the current terminal.
 
 ### `git`, `python`, or `uv` is "not recognized" / "command not found"
 

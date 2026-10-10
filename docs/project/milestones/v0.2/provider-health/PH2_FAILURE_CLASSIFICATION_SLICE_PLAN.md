@@ -6,6 +6,8 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 
 ## 1. At a glance
 
+- **Massive:** removed by [MR](../massive-removal/MR_MASSIVE_REMOVAL_PLAN.md) after PH.2a and PH.2b delivered; the Massive
+  text in §4 and §8 records what was delivered.
 - **What it does:** a provider failure says which of three things happened: the service was `unreachable`, it
   answered in an `unexpected_response`, or it had `no_data` for this request. The kind is a typed field from the
   adapter to every report, and becomes one of three new stable reason codes.
@@ -123,7 +125,8 @@ PH.2c extend.
   assembly, `InstrumentProfileDiagnostic`, `SecurityIdentityResolution` and `SecurityUnitResolution`, beside the
   existing `PROVIDER_ERROR` status. The carrier handlers narrow to typed provider failures and record the kind.
   The result-built `PROVIDER_ERROR` sites in the inventory (§4) have no typed failure to record; their kind is
-  undecided (needs a decision).
+  undecided (needs a decision). So is the Yahoo adapter's kindless raise for a naive clock, which may not be a
+  provider failure at all.
 - **Codecs and versions.** The four strategy codecs encode the new fields. Bumped: each strategy's
   `result_schema_version` and `evidence_codec_version` and its document's `schema_version`;
   `AnalysisRun.run_schema_version` (a `Literal[1]` in `workspace/runs.py`, and `decode_evidence` in

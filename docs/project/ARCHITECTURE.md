@@ -230,10 +230,9 @@ A dedicated provider-neutral financial-fact boundary supplies or composes the qu
 Implemented production adapters are deliberately narrow:
 
 - **SEC EDGAR (`sec_edgar`)** — completed annual duration facts from `10-K`, `10-K/A`, `20-F`, `20-F/A`, `40-F`, and `40-F/A`. Existing exact US-GAAP mappings cover diluted EPS, diluted weighted-average shares, operating cash flow, and CapEx. Exact IFRS mappings cover diluted EPS, diluted weighted-average shares, operating cash flow, and physical-PP&E CapEx. Fiscal-year-end balance-sheet components and conservative BVPS derivation remain US-GAAP-only; IFRS BVPS and preferred-zero inference are unsupported.
-- **Massive (`massive`)** — current TTM diluted EPS and current price when Massive is explicitly selected. Live use requires `MASSIVE_API_KEY`; current-only facts do not masquerade as historical evidence.
 - **Yahoo Finance (`yfinance`)** — narrow current-price financial-facts adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts. It does not claim historical quote support through the financial-facts contract.
 
-The Graham Number's default SEC route pairs SEC financial facts with Yahoo current quote comparison. Its explicit Massive route is deliberately limited to Massive TTM EPS plus a BVPS override and may use a Massive quote. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote; explicitly selecting Massive uses its supported TTM EPS/current-price data. Unsupported provider/basis combinations are rejected before provider work.
+The Graham Number's default SEC route pairs SEC financial facts with Yahoo current quote comparison. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote. Unsupported provider/basis combinations are rejected before provider work.
 
 ### Security identity and instrument applicability
 `SecurityIdentityProvider` is a narrow optional capability beside, not inside, numeric financial facts. The identity capability returns an immutable current descriptive snapshot with normalized ticker, optional instrument name/listing venue/issuer and instrument identifiers, provider identity, and timezone-aware `resolved_at`. SEC retains current ticker-title/CIK evidence from its ticker mapping; Yahoo retains supported instrument metadata, including non-company names where available.
@@ -560,7 +559,7 @@ This is a package-level map, not a generated file listing — it names what each
 - `src/analysis/` — the generic `BaseAnalyzer`/`AnalysisContext` contract and strategy-neutral helpers (`shared/financial_resolution.py`: EPS/quote resolution, price-relationship comparison, ticker normalization).
 - `src/strategies/` — one package per strategy, each file named for its role (analyzer modules, `selection.py` for the persisted selection snapshot, `tool.py` for the analysis-tool arguments model, `codec.py`, `execution.py`, `presenter.py`), plus `_shared/` and `_graham/` for code several strategies share.
 - `src/core/` — the shared clock (`clock.py`), core result/status types, and trajectory telemetry.
-- `src/data/` — provider contracts and adapters (`base_client.py`, `market_data.py`, `sec_edgar/`, `massive/`, `yfinance/`), financial provenance and resolution (`financial/`), instrument identity/profiles, and SQLite repositories under `repositories/`.
+- `src/data/` — provider contracts and adapters (`base_client.py`, `market_data.py`, `sec_edgar/`, `yfinance/`), financial provenance and resolution (`financial/`), instrument identity/profiles, and SQLite repositories under `repositories/`.
 - `src/evaluation/` — the Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting.
 - `src/llm/` — the local-model client.
 - `src/orchestrator/` — LLM tool selection/dispatch and the analysis-tool handlers registered on it.

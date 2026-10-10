@@ -7,9 +7,7 @@ from typing import Final, Literal, Self
 from pydantic import BaseModel, ConfigDict, StrictFloat, field_validator, model_validator
 
 from src.data.financial.eps_basis import (
-    MASSIVE_ONLY_EPS_BASIS,
     default_eps_basis_for_provider,
-    is_massive_provider,
     is_sec_edgar_provider,
 )
 
@@ -64,8 +62,6 @@ class GrahamGrowthConfig(BaseModel):
         if is_sec_edgar_provider(self.security_provider_id) and basis not in _SEC_EDGAR_ACCEPTED_BASES:
             allowed = ", ".join(sorted(_SEC_EDGAR_ACCEPTED_BASES))
             raise ValueError(f"SEC EDGAR requires eps_basis to be one of ({allowed}) (received {basis!r}).")
-        if is_massive_provider(self.security_provider_id) and basis != MASSIVE_ONLY_EPS_BASIS:
-            raise ValueError(f"Massive requires eps_basis={MASSIVE_ONLY_EPS_BASIS!r} (received {basis!r}).")
         quote_provider = self.quote_provider_id
         if quote_provider is None:
             quote_provider = (

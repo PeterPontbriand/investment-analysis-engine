@@ -71,10 +71,10 @@ def disable_live_yfinance_identity_resolution() -> Iterator[None]:
 
 def test_normalize_cli_output_strips_ansi_and_box_characters() -> None:
     """Prove the helper removes ANSI escape codes and normalizes Rich box/border layout."""
-    styled = "\x1b[1m--expected-growth\x1b[0m is required\n╭─╮\n│  use --data-provider massive for TTM EPS  │\n╰─╯"
+    styled = "\x1b[1m--expected-growth\x1b[0m is required\n╭─╮\n│  use --data-provider sec_edgar for SEC data  │\n╰─╯"
     normalized = normalize_cli_output(styled)
     assert "--expected-growth is required" in normalized
-    assert "use --data-provider massive for TTM EPS" in normalized
+    assert "use --data-provider sec_edgar for SEC data" in normalized
     assert "\x1b" not in normalized
     for ch in "─│┌┐└┘╭╮╰╯":
         assert ch not in normalized
@@ -755,7 +755,6 @@ def test_cli_graham_unsupported_provider_fails_before_network_setup() -> None:
     assert result.exit_code == 1
     assert "Unsupported valuation data provider" in result.output
     assert "sec_edgar" in result.output
-    assert "massive" in result.output
 
 
 def test_cli_graham_unexpected_failure_does_not_leak_exception_text() -> None:
@@ -821,10 +820,6 @@ def test_cli_graham_growth_eps_override_inherits_ttm_basis(growth_fixture_resolv
 def test_graham_quote_provider_routing_is_method_aware() -> None:
     assert GrahamNumberConfig().quote_provider_id == "yfinance"
     assert GrahamNumberConfig(security_provider_id="sec_edgar").quote_provider_id == "yfinance"
-    assert (
-        GrahamNumberConfig(security_provider_id="massive", eps_basis="ttm", bvps_override=42.0).quote_provider_id
-        == "massive"
-    )
     assert GrahamGrowthConfig(expected_growth=5.0, aaa_yield_override=4.5).quote_provider_id == "yfinance"
     assert (
         GrahamGrowthConfig(

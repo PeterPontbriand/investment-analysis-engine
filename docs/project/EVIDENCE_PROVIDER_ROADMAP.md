@@ -83,7 +83,7 @@ differentiators.
 - **Corporate-actions ledger.** Splits, reverse splits, spinoffs, and special dividends with
   provenance, applied when adjusting per-share facts. Completes the security-unit work referenced
   above.
-- **Multi-provider reconciliation.** When EDGAR, Yahoo, and Massive disagree, report the
+- **Multi-provider reconciliation.** When two providers (today EDGAR and Yahoo) disagree, report the
   disagreement as evidence under a tolerance policy rather than silently choosing one.
 - **Sensitivity and breakeven solving.** Deterministic sensitivity grids and inverse solves for
   formula strategies, such as the growth rate at which Graham Growth equals the current price.
@@ -115,7 +115,7 @@ resolver. "Existing plan" names the Master Plan step that already owns a candida
 where a step names a candidate only as a subject to separate approval rather than committed scope,
 or where the candidate would merely fall under a step's general subject without being separately
 named there, that distinction is stated rather than implied. "New" marks roadmap-only ideas. "Data
-on hand" means the current providers (SEC EDGAR, yfinance, Massive) can plausibly supply the
+on hand" means the current providers (SEC EDGAR and yfinance) can plausibly supply the
 inputs.
 
 | Family | Strategy | Evidence it produces | Existing plan | Data on hand |

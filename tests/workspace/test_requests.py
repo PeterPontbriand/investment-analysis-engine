@@ -117,15 +117,12 @@ def test_momentum_selection_is_frozen(field: str) -> None:
         setattr(selection, field, 1)
 
 
-@pytest.mark.parametrize("provider", ["sec_edgar", "massive"])
-def test_graham_defaults_resolve_like_analyzer_config(provider: str) -> None:
-    selection = GrahamNumberSelection(security_provider_id=provider, bvps_override=20.0)
+def test_graham_defaults_resolve_like_analyzer_config() -> None:
+    selection = GrahamNumberSelection(security_provider_id="sec_edgar", bvps_override=20.0)
     config = selection.to_graham_number_config()
 
     assert isinstance(config, GrahamNumberConfig)
-    expected_basis = "three_year_average" if provider == "sec_edgar" else "ttm"
-    expected_quote = "yfinance" if provider == "sec_edgar" else provider
-    assert (selection.eps_basis, selection.quote_provider_id) == (expected_basis, expected_quote)
+    assert (selection.eps_basis, selection.quote_provider_id) == ("three_year_average", "yfinance")
     assert selection.use_cache is True
 
 
@@ -143,9 +140,9 @@ def test_graham_normalization_and_explicit_values() -> None:
     as_of = datetime(2025, 1, 1, tzinfo=UTC)
     selection = GrahamNumberSelection.model_validate(
         {
-            "security_provider_id": " MASSIVE ",
+            "security_provider_id": " SEC_EDGAR ",
             "quote_provider_id": " YFINANCE ",
-            "eps_basis": " TTM ",
+            "eps_basis": " THREE_YEAR_AVERAGE ",
             "eps_override": 4.5,
             "bvps_override": 20.0,
             "quote_override": 100.0,
@@ -153,7 +150,7 @@ def test_graham_normalization_and_explicit_values() -> None:
             "use_cache": False,
         }
     )
-    assert (selection.security_provider_id, selection.quote_provider_id) == ("massive", "yfinance")
+    assert (selection.security_provider_id, selection.quote_provider_id) == ("sec_edgar", "yfinance")
     config = selection.to_graham_number_config()
     assert (config.eps_override, config.bvps_override, config.quote_override) == (4.5, 20.0, 100.0)
     assert selection.as_of == as_of
@@ -161,20 +158,20 @@ def test_graham_normalization_and_explicit_values() -> None:
 
 
 def test_graham_snapshot_is_independent_of_caller_inputs() -> None:
-    caller_values = {"security_provider_id": "massive", "bvps_override": 25.0}
+    caller_values = {"eps_override": 4.5, "bvps_override": 25.0}
     selection = GrahamNumberSelection.model_validate(caller_values)
-    caller_values.update(security_provider_id="sec_edgar")
+    caller_values.update(eps_override=9.9)
 
-    assert selection.security_provider_id == "massive"
-    assert selection.to_graham_number_config().security_provider_id == "massive"
+    assert selection.eps_override == 4.5
+    assert selection.to_graham_number_config().eps_override == 4.5
 
 
 @pytest.mark.parametrize(
     ("values", "message"),
     [
         ({"security_provider_id": "sec_edgar", "eps_basis": "ttm"}, "three_year_average"),
-        ({"security_provider_id": "massive", "eps_basis": "three_year_average"}, "ttm"),
-        ({"security_provider_id": "massive"}, "bvps_override"),
+        ({"security_provider_id": "massive"}, "Unsupported security provider"),
+        ({"quote_provider_id": "massive"}, "Unsupported quote provider"),
         ({"eps_basis": "annual"}, "literal_error"),
     ],
 )
@@ -288,15 +285,12 @@ def test_growth_requires_each_explicit_assumption(missing: str) -> None:
     assert [item["loc"] for item in error.value.errors()] == [(missing,)]
 
 
-@pytest.mark.parametrize("provider", ["sec_edgar", "massive"])
 @pytest.mark.parametrize("growth", [0.0, -5.0, 5.0])
-def test_growth_conversion_preserves_assumptions(provider: str, growth: float) -> None:
-    selection = GrahamGrowthSelection(security_provider_id=provider, expected_growth=growth, aaa_yield_override=0.0)
-    expected_basis = "three_year_average" if provider == "sec_edgar" else "ttm"
-    expected_quote = "yfinance" if provider == "sec_edgar" else "massive"
-    expected = GrahamGrowthConfig(security_provider_id=provider, expected_growth=growth, aaa_yield_override=0.0)
+def test_growth_conversion_preserves_assumptions(growth: float) -> None:
+    selection = GrahamGrowthSelection(security_provider_id="sec_edgar", expected_growth=growth, aaa_yield_override=0.0)
+    expected = GrahamGrowthConfig(security_provider_id="sec_edgar", expected_growth=growth, aaa_yield_override=0.0)
     assert selection.to_graham_growth_config() == expected
-    assert (selection.eps_basis, selection.quote_provider_id) == (expected_basis, expected_quote)
+    assert (selection.eps_basis, selection.quote_provider_id) == ("three_year_average", "yfinance")
 
 
 @pytest.mark.parametrize("field", ["bvps_override", "calculation_policy", "policy"])
@@ -319,7 +313,7 @@ def test_growth_nonfinite_values_rejected(field: str, value: float) -> None:
         {"security_provider_id": "injected"},
         {"quote_provider_id": "quotes"},
         {"security_provider_id": "sec_edgar", "eps_basis": "ttm"},
-        {"security_provider_id": "massive", "eps_basis": "three_year_average"},
+        {"security_provider_id": "massive"},
         {"as_of": datetime(2025, 1, 1)},
         {"use_cache": "false"},
         {"expected_growth": None},
@@ -405,7 +399,7 @@ def test_fcf_normalizes_currency_provider_and_preserves_time() -> None:
         {"currency": ""},
         {"currency": "US"},
         {"currency": "123"},
-        {"provider_id": "massive"},
+        {"provider_id": "yfinance"},
         {"as_of": datetime(2025, 1, 1)},
         {"use_cache": "false"},
         {"config": {}},

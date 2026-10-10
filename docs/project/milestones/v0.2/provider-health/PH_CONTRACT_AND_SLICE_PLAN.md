@@ -127,7 +127,7 @@ outcome with its resolution trace, and the existing `PROVIDER_ERROR` status is n
   monitoring is unaffected ([A.3](#a3-reading-of-the-milestones-unattended-scheduling-exclusion)). The canary
   is synchronous, runs only after an error, and ends with the command.
 - Assertions on values (prices, share counts, facts). Shape only.
-- Checks for Massive until its adapter has a live endpoint, and for the local Ollama service, which is not an
+- Checks for any provider other than Yahoo and SEC EDGAR, and for the local Ollama service, which is not an
   online dependency.
 - Live calls in the default run, the managed gate or the normal CI workflow.
 - A second logging framework, new dependencies or a `pyproject.toml` edit.

@@ -37,12 +37,6 @@ Create `.env` in the project root:
 SEC_USER_AGENT="Your Name your-email@example.com"
 ```
 
-Optional Massive access:
-
-```dotenv
-MASSIVE_API_KEY="your-massive-api-key"
-```
-
 `.env` / `.env*` are excluded by the repository's Git ignore rules.
 
 ## Smoke test

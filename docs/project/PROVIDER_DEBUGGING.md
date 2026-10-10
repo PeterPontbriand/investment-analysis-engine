@@ -8,8 +8,7 @@ Setup problems on a new machine are covered by the
 
 The checks assert response *shape* (the fields and columns an adapter reads), never a value. They make real
 requests, at most three per check, and never run in the default test run, the managed quality gate or the normal
-continuous-integration workflow. Massive is not checked: its adapter has no live endpoint. The local Ollama
-service is not an online dependency and is not checked.
+continuous-integration workflow. The local Ollama service is not an online dependency and is not checked.
 
 The check bodies live in one module, [`src/data/provider_checks.py`](../../src/data/provider_checks.py). The live
 tests and the `health` command call the same functions, so a probe is written once.

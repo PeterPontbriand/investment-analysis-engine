@@ -246,16 +246,7 @@ Overrides are recorded as overrides rather than being presented as provider-veri
 
 ## Selecting a data source
 
-Some methods allow explicit data-source selection. For example, users with configured [Massive](GLOSSARY.md#massive) access can select it where the Graham Growth Value method supports its data:
-
-```bash
-uv run ian graham-growth KO \
-    --data-provider massive \
-    --expected-growth 5 \
-    --aaa-yield 4.5
-```
-
-Data sources are not interchangeable merely because they expose similarly named values. Investment Analysis Engine rejects unsupported combinations rather than silently substituting a different financial basis.
+The Graham commands and `fcf-growth` take `--data-provider`; SEC EDGAR (`sec_edgar`) is the only accepted value and the default. Investment Analysis Engine rejects an unsupported value rather than silently substituting a different source or financial basis.
 
 ## When a command cannot produce a result
 

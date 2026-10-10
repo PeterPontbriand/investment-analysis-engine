@@ -209,7 +209,7 @@ def test_duplicate_ticker_and_method_pair_is_allowed() -> None:
                 WatchlistEntry(ticker="KO", selection=GrahamNumberSelection()),
                 WatchlistEntry(
                     ticker="KO",
-                    selection=GrahamNumberSelection(security_provider_id="massive", bvps_override=1.0),
+                    selection=GrahamNumberSelection(bvps_override=1.0),
                 ),
             ]
         )

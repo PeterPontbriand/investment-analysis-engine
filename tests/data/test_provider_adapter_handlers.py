@@ -3,7 +3,7 @@
 A provider failure is classified at the adapter boundary by the library-call helper in
 ``src/data/provider_failure.py``, which holds the one broad catch around a third-party call. An adapter that catches
 ``Exception``, ``BaseException`` or everything (a bare ``except``) would report a defect as a provider outage, so the
-scan fails on any such handler except the one retained mock in ``MassiveClient.fetch_data``.
+scan fails on any such handler.
 """
 
 from __future__ import annotations
@@ -18,12 +18,10 @@ _ADAPTER_MODULES = sorted(
     [
         *(_SOURCE / "yfinance").glob("*.py"),
         *(_SOURCE / "sec_edgar").glob("*.py"),
-        *(_SOURCE / "massive").glob("*.py"),
         _SOURCE / "http_json.py",
     ]
 )
 _BROAD_NAMES = frozenset({"Exception", "BaseException"})
-_RETAINED = frozenset({("massive/client.py", "MassiveClient.fetch_data")})
 
 
 def _is_broad(handler: ast.ExceptHandler) -> bool:
@@ -57,16 +55,14 @@ def test_the_scan_covers_every_adapter_module() -> None:
         "yfinance/financial_facts.py",
         "sec_edgar/financial_facts.py",
         "sec_edgar/filing_document.py",
-        "massive/client.py",
-        "massive/financial_facts.py",
         "http_json.py",
     } <= names
 
 
-def test_only_the_retained_massive_mock_handler_catches_everything() -> None:
+def test_no_adapter_module_catches_everything() -> None:
     found = {handler for path in _ADAPTER_MODULES for handler in _broad_handlers(path)}
 
-    assert found == _RETAINED
+    assert found == set()
 
 
 @pytest.mark.parametrize(

@@ -140,20 +140,6 @@ market-price comparison is unavailable.
 
 For market-price comparison, Investment Analysis Engine obtains current quote data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library when available. `yfinance` is not affiliated with or endorsed by Yahoo.
 
-### Massive (optional)
-
-[Massive](../GLOSSARY.md#massive) is a commercial financial-market-data service. A Massive API key is useful only if you have Massive access and want Investment Analysis Engine to obtain data that the current Massive integration supports.
-
-For the Graham Number, users with a configured Massive API key can explicitly select Massive:
-
-```bash
-uv run ian graham-number KO --data-provider massive --bvps 8.10
-```
-
-The current Massive integration supplies current [TTM](../GLOSSARY.md#ttm-trailing-twelve-months) diluted EPS and current stock trade price. It does **not** currently supply historical `as_of` support or BVPS — an explicit `--bvps` override is required when using Massive.
-
-See [Installation & Configuration — Massive](../INSTALLATION.md#optional-massive-market-data-access).
-
 Point-in-time (`--as-of`) analysis is also shared across both Graham strategies — see the [overview's Point-in-time analysis section](GRAHAM.md#point-in-time-analysis).
 
 ## Why another Graham Number calculator may disagree
@@ -174,7 +160,6 @@ Investment Analysis Engine uses three-year-average diluted EPS as the standard G
 | Provider | Accepted `--eps-basis` | Default |
 | :--- | :--- | :--- |
 | SEC EDGAR | `three_year_average` only | `three_year_average` |
-| Massive | `ttm` only | `ttm` |
 
 The Graham Number never accepts an explicit single-fiscal-year (`fiscal_year`) basis, with either provider — that basis is a Graham Growth Value-only capability. See [Financial Math](../FINANCE_MATH.md#eps-basis) for the authoritative formula-level statement. An unsupported provider/basis combination is rejected, never silently transformed into a different basis.
 

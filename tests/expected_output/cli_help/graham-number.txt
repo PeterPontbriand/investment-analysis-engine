@@ -12,12 +12,11 @@ to SEC EDGAR
 --no-cache Bypass resolved-input cache reads and
 writes
 --eps -e <float> Explicit EPS override
---eps-basis <str> EPS basis; Number defaults to
-three_year_average and accepts ttm with
-Massive; Growth defaults to
-three_year_average with SEC EDGAR (also
+--eps-basis <str> EPS basis; Number accepts
+three_year_average (the default); Growth
+defaults to three_year_average (also
 accepts an explicit fiscal_year basis for
-reviewed workflows) and ttm with Massive
+reviewed workflows)
 --bvps <float> Explicit book value per common share
 override (Number only)
 --current-price -p <float> Optional explicit current-price override

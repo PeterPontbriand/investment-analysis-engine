@@ -68,7 +68,6 @@ _TRANSITIONS: set[tuple[str, str, str]] = set()
 _BENIGN_CYCLE_PACKAGES = frozenset(
     {
         "src.data.sec_edgar",
-        "src.data.massive",
         "src.data.yfinance",
         "src.schema",
         "src.core.telemetry",

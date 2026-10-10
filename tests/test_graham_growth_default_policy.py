@@ -5,7 +5,7 @@ from unittest.mock import ANY, MagicMock, patch
 from typer.testing import CliRunner
 
 from src.cli import app
-from src.data.financial.providers import MASSIVE_PROVIDER_ID, SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
+from src.data.financial.providers import SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
 from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 
@@ -41,22 +41,6 @@ def test_growth_default_routes_sec_three_year_average_and_yahoo_quote() -> None:
     assert mock_run.call_args.kwargs["config"].eps_basis == "three_year_average"
 
 
-def test_growth_explicit_massive_routes_ttm_and_massive_quote() -> None:
-    with (
-        patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=MagicMock()) as mock_build,
-        patch("src.strategies.graham_growth.cli._run_graham_growth", return_value=("ok", 0)) as mock_run,
-    ):
-        result = runner.invoke(app, _growth_args("--data-provider", "massive"))
-
-    assert result.exit_code == 0
-    mock_build.assert_called_once_with(
-        resolver_type=GrahamGrowthInputResolver, data_provider=MASSIVE_PROVIDER_ID, cache=ANY, clock=ANY
-    )
-    assert mock_run.call_args.kwargs["config"].security_provider_id == MASSIVE_PROVIDER_ID
-    assert mock_run.call_args.kwargs["config"].quote_provider_id == MASSIVE_PROVIDER_ID
-    assert mock_run.call_args.kwargs["config"].eps_basis == "ttm"
-
-
 def test_growth_rejects_ttm_with_sec_before_provider_access() -> None:
     result = runner.invoke(
         app,
@@ -66,16 +50,4 @@ def test_growth_rejects_ttm_with_sec_before_provider_access() -> None:
     assert result.exit_code == 2
     normalized = normalize_cli_output(result.output)
     assert "SEC EDGAR requires --eps-basis to be one of (fiscal_year, three_year_average)" in normalized
-    assert "--eps-basis" in normalized
-
-
-def test_growth_rejects_three_year_average_with_massive_before_provider_access() -> None:
-    result = runner.invoke(
-        app,
-        _growth_args("--data-provider", "massive", "--eps-basis", "three_year_average"),
-    )
-
-    assert result.exit_code == 2
-    normalized = normalize_cli_output(result.output)
-    assert "Massive requires --eps-basis='ttm'" in normalized
     assert "--eps-basis" in normalized

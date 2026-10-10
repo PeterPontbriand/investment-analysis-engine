@@ -109,7 +109,11 @@ def test_status_is_a_calculation_status_never_a_verdict(stem: str) -> None:
 
 
 def test_the_direct_and_replayed_headers_and_tails_agree() -> None:
-    """A direct command and the replay of its saved run write the same header and the same limitations."""
+    """A direct command and the replay of its saved run write the same header and the same limitations.
+
+    The Graham pairs disagree below the header, in inputs, quote and result; issue #106 records it, so this check
+    compares only the header and ``limitations``.
+    """
     compared = 0
     for stem in cases():
         if not stem.endswith(".direct"):
