@@ -97,19 +97,23 @@ def normalize(stdout: bytes) -> bytes:
 
 
 class SecLabeledGrahamProvider:
-    """The Graham fixture provider with its facts relabeled as SEC EDGAR.
+    """The Graham fixture provider answering the way the production provider router does.
 
     A saved run's selection admits only the providers the CLI supports, so ``--save-run`` needs the resolved
-    facts' own provider id to agree with the ``sec_edgar`` value requested on the command line.
+    facts' provider id to agree with the ``sec_edgar`` value requested on the command line. The production router
+    answers each request with facts labelled by that request's provider, so the security facts answer as
+    ``sec_edgar`` and the quote, which the resolver requests from ``yfinance``, answers as ``yfinance``. Relabelling
+    every fact as ``sec_edgar`` instead would make the resolver reject the quote for a provider mismatch, a failure
+    no production composition can produce.
     """
 
     def __init__(self) -> None:
         self._delegate = FixtureFinancialFactsProvider()
 
     def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
-        """Return the fixture facts, each relabeled with the SEC EDGAR provider id."""
+        """Return the fixture facts, each labelled with the provider the request names."""
         return tuple(
-            replace(fact, provider_id=SEC_PROVIDER_ID)
+            replace(fact, provider_id=request.provider_id)
             for fact in self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
         )
 

@@ -23,7 +23,7 @@ from src.reporting.documents.strategy_document import (
     StrategyDocumentTail,
 )
 from src.strategy_wiring import STRATEGIES
-from tests._strategy_document_output import cases, expected_path
+from tests._strategy_document_output import CASES, Case, cases, expected_path, run_pair
 
 _IDENTIFIERS = ("analysis", "method")
 
@@ -108,20 +108,52 @@ def test_status_is_a_calculation_status_never_a_verdict(stem: str) -> None:
         assert document["result"]["trend"] in {item.value for item in TrendStatus}
 
 
-def test_the_direct_and_replayed_headers_and_tails_agree() -> None:
-    """A direct command and the replay of its saved run write the same header and the same limitations.
+def differing_paths(direct: object, replayed: object, path: str = "$") -> list[str]:
+    """Return the path of every value that differs between two parsed documents, including a missing key."""
+    if isinstance(direct, dict) and isinstance(replayed, dict):
+        paths: list[str] = []
+        for key in dict.fromkeys([*direct, *replayed]):
+            if key not in direct or key not in replayed:
+                paths.append(f"{path}.{key}")
+            else:
+                paths.extend(differing_paths(direct[key], replayed[key], f"{path}.{key}"))
+        return paths
+    if isinstance(direct, list) and isinstance(replayed, list) and len(direct) == len(replayed):
+        return [
+            difference
+            for index, (left, right) in enumerate(zip(direct, replayed, strict=True))
+            for difference in differing_paths(left, right, f"{path}[{index}]")
+        ]
+    return [] if direct == replayed else [path]
 
-    The Graham pairs disagree below the header, in inputs, quote and result; issue #106 records it, so this check
-    compares only the header and ``limitations``.
+
+@pytest.mark.parametrize("case", CASES, ids=lambda item: item.name)
+def test_the_direct_and_replayed_documents_agree(case: Case) -> None:
+    """The document a command writes and the document of its saved run's replay are the same, key for key.
+
+    Each case runs once with ``--save-run``; both documents come from that run and the same providers, so any
+    difference means the stored evidence or the replay path lost or recomputed something.
     """
-    compared = 0
-    for stem in cases():
-        if not stem.endswith(".direct"):
-            continue
-        replay = stem.removesuffix(".direct") + ".replay"
-        direct_document = json.loads(expected_path(stem).read_bytes())
-        replayed_document = json.loads(expected_path(replay).read_bytes())
-        for key in (*HEADER_KEYS, "limitations"):
-            assert direct_document[key] == replayed_document[key], (stem, key)
-        compared += 1
-    assert compared >= len(STRATEGIES)
+    direct, replayed = run_pair(case)
+    assert replayed.exit_code == 0
+    assert differing_paths(json.loads(direct.stdout), json.loads(replayed.stdout)) == []
+    assert direct.stdout == replayed.stdout
+
+
+def test_the_comparison_fails_when_a_body_key_differs() -> None:
+    """Negative control: a changed, dropped or added value anywhere in the body is reported by path."""
+    direct, replayed = run_pair(next(item for item in CASES if item.name == "graham-number-success"))
+    document = json.loads(direct.stdout)
+    assert differing_paths(document, json.loads(replayed.stdout)) == []
+
+    changed = json.loads(replayed.stdout)
+    changed["inputs"]["eps"]["value"] += 1
+    assert differing_paths(document, changed) == ["$.inputs.eps.value"]
+
+    dropped = json.loads(replayed.stdout)
+    del dropped["quote"]
+    assert differing_paths(document, dropped) == ["$.quote"]
+
+    extended = json.loads(replayed.stdout)
+    extended["diagnostics"].append("extra")
+    assert differing_paths(document, extended) == ["$.diagnostics"]

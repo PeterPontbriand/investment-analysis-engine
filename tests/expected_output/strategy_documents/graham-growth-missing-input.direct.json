@@ -53,32 +53,44 @@
       "field_name": "eps",
       "stage": "override",
       "outcome": "not_used",
-      "message": "No explicit override was supplied."
+      "message": "No explicit EPS override was supplied."
     },
     {
       "field_name": "eps",
       "stage": "cache",
       "outcome": "not_used",
-      "message": "Cache use was disabled for this resolution."
+      "message": "Cache use was disabled for the derived EPS resolution."
     },
     {
       "field_name": "eps",
       "stage": "provider",
       "outcome": "attempted",
-      "message": "Requested eps from provider 'fixture-synth'."
+      "message": "Requested completed fiscal-year EPS observations from the configured provider."
     },
     {
       "field_name": "eps",
       "stage": "provider",
+      "outcome": "success",
+      "message": "Provider returned 0 fiscal-year EPS candidate(s)."
+    },
+    {
+      "field_name": "eps",
+      "stage": "derivation",
+      "outcome": "attempted",
+      "message": "Selecting three compatible, temporally eligible fiscal-year EPS observations."
+    },
+    {
+      "field_name": "eps",
+      "stage": "derivation",
       "outcome": "unavailable",
-      "message": "Provider returned no data for the requested field."
+      "message": "Insufficient eligible fiscal-year EPS observations: found 0 distinct period(s), need 3."
     },
     {
       "field_name": "security_identity",
       "stage": "provider",
       "outcome": "unsupported",
-      "message": "Provider 'fixture-synth' does not expose security identity metadata.",
-      "provider_id": "fixture-synth"
+      "message": "Provider 'sec_edgar' does not expose security identity metadata.",
+      "provider_id": "sec_edgar"
     },
     {
       "field_name": "security_identity",
