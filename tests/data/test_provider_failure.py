@@ -146,7 +146,7 @@ def test_a_classified_exception_becomes_a_typed_failure_chained_to_its_cause(
 
 
 def test_an_already_typed_failure_passes_through_unchanged() -> None:
-    inner = FinancialProviderError("typed", kind=ProviderFailureKind.NO_DATA, provider_id="massive")
+    inner = FinancialProviderError("typed", kind=ProviderFailureKind.NO_DATA, provider_id="sec_edgar")
     with pytest.raises(FinancialProviderError) as caught:
         call_library(lambda: _raise(inner), rules=_RULES, provider_id="yfinance", message="Library call failed")
     assert caught.value is inner

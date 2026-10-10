@@ -7,9 +7,8 @@ Execute this short set of commands as a smoke test after deploying or updating I
 - Complete the normal installation and configuration steps, including
   [database schema preparation](DATABASE.md). The database guide also describes
   the separate offline persistence test.
-- Allow outbound access required by Yahoo Finance, SEC EDGAR, and—when tested—Massive.
+- Allow outbound access required by Yahoo Finance and SEC EDGAR.
 - Configure the SEC EDGAR application identity described in the installation guidance.
-- Set `MASSIVE_API_KEY` before running the optional Massive command.
 
 Provider data changes over time, so exact values are not prescribed. For each command, confirm that output is well-formed, identifies the requested ticker and method, contains no traceback or `NaN`/infinity, and either produces a typed result or explains classified unavailability clearly.
 
@@ -81,19 +80,13 @@ Provider data changes over time, so exact values are not prescribed. For each co
    uv run ian graham-growth KO --expected-growth 5 --aaa-yield 4.5 --details
    ```
 
-10. If Massive access is configured, exercise the deliberately supported Massive Graham Number route—TTM EPS plus an explicit BVPS override and Massive quote:
-
-    ```powershell
-    uv run ian graham-number AAPL --data-provider massive --eps-basis ttm --bvps 4.50 --details
-    ```
-
-11. Run the default historical Free Cash Flow & Earnings Growth screen:
+10. Run the default historical Free Cash Flow & Earnings Growth screen:
 
     ```powershell
     uv run ian fcf-growth AAPL
     ```
 
-12. Exercise a strict horizon, FCF-per-share classification, and detailed annual evidence:
+11. Exercise a strict horizon, FCF-per-share classification, and detailed annual evidence:
 
     ```powershell
     uv run ian fcf-growth MSFT --growth-years 3 --classification-basis fcf-per-share --details
@@ -114,4 +107,4 @@ Provider data changes over time, so exact values are not prescribed. For each co
 
 Do not treat a changed market value, screening classification, or unavailable optional quote as a deployment failure by itself. Investigate malformed output, unclassified exceptions, unsupported-option errors for the commands above, missing provenance, or unexplained provider failures.
 
-This remains twelve primary commands, including the optional Massive route. Exact quote-expiry boundaries, stale-refresh failures, first-valid-SMA transitions, invalid preloaded frames and historical execution-clock selection belong to deterministic regression tests; live smoke data cannot reliably force those cases.
+This remains eleven primary commands. Exact quote-expiry boundaries, stale-refresh failures, first-valid-SMA transitions, invalid preloaded frames and historical execution-clock selection belong to deterministic regression tests; live smoke data cannot reliably force those cases.

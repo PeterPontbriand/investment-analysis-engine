@@ -140,7 +140,6 @@
             {
               "enum": [
                 "three_year_average",
-                "ttm",
                 "fiscal_year"
               ],
               "type": "string"
@@ -260,10 +259,7 @@
         "eps_basis": {
           "anyOf": [
             {
-              "enum": [
-                "three_year_average",
-                "ttm"
-              ],
+              "const": "three_year_average",
               "type": "string"
             },
             {

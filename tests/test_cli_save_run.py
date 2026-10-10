@@ -118,7 +118,7 @@ class _SecLabeledGrahamProvider:
     The fixture provider natively tags its facts `fixture-synth` (matching
     the `--data-provider` value every other Graham CLI test uses); the
     workspace `AnalysisSelection` types restrict `security_provider_id` to
-    `sec_edgar`/`massive` only (B1), so `--save-run` tests need the resolved
+    `sec_edgar` only (B1), so `--save-run` tests need the resolved
     facts' own `provider_id` to agree with the `sec_edgar` value requested
     on the command line, or the resolver's own provider-identity check
     rejects every candidate before composition.

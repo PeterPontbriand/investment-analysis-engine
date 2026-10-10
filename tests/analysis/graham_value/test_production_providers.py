@@ -13,19 +13,17 @@ from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
-    FinancialProviderError,
     FinancialUnit,
     ProviderFact,
 )
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.financial.provenance import FinancialSubjectKind, SourceKind
-from src.data.massive import MASSIVE_PROVIDER_ID
-from src.data.massive.financial_facts import MassiveFinancialFactsAdapter
 from src.data.sec_edgar.financial_facts import (
     SEC_PROVIDER_ID,
     SEC_STOCKHOLDERS_EQUITY_FIELD,
     SecEdgarFinancialFactsAdapter,
 )
+from src.data.yfinance import YFINANCE_PROVIDER_ID
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from tests.analysis.graham_value.conftest import SEC_TEST_USER_AGENT
 
@@ -505,166 +503,13 @@ def test_wfc_negative_control_material_preferred_stock_blocks_bvps_derivation() 
     assert "preferred_shares_outstanding is non-zero" in result.reason
 
 
-def _massive_currency_payload() -> object:
-    return {
-        "status": "OK",
-        "results": [
-            {
-                "ticker": "AAPL",
-                "currency_name": "usd",
-                "market": "stocks",
-                "active": True,
-            }
-        ],
-    }
-
-
-def _massive_ttm_payload() -> object:
-    return {
-        "status": "OK",
-        "results": [
-            {
-                "tickers": ["AAPL"],
-                "cik": "0000320193",
-                "timeframe": "trailing_twelve_months",
-                "period_end": "2026-06-27",
-                "filing_date": "2026-07-31",
-                "diluted_earnings_per_share": 7.25,
-            }
-        ],
-    }
-
-
-def _massive_trade_payload() -> object:
-    return {
-        "status": "OK",
-        "results": {
-            "T": "AAPL",
-            "p": 250.50,
-            "i": "trade-123",
-            "x": 4,
-            "t": 1787331600000000000,
-            "y": 1787331599000000000,
-        },
-    }
-
-
-def _massive_fetcher() -> FakeJsonFetcher:
-    return FakeJsonFetcher(
-        {
-            "/v3/reference/tickers?": _massive_currency_payload(),
-            "/stocks/financials/v1/income-statements?": _massive_ttm_payload(),
-            "/v2/last/trade/": _massive_trade_payload(),
-        }
-    )
-
-
-def _massive_request(
-    field: FinancialField,
-    *,
-    basis: str | None = None,
-    as_of: datetime | None = None,
-) -> FinancialFactRequest:
+def _quote_request(field: FinancialField) -> FinancialFactRequest:
     return FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="AAPL",
         field_name=field,
-        provider_id=MASSIVE_PROVIDER_ID,
-        basis=basis,
-        as_of=as_of,
+        provider_id=YFINANCE_PROVIDER_ID,
     )
-
-
-def test_massive_ttm_eps_preserves_current_only_provenance_and_secret_stays_in_header() -> None:
-    fetcher = _massive_fetcher()
-    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
-
-    facts = adapter.fetch_facts(_massive_request(FinancialField.EPS, basis="ttm"), effective_as_of=NOW)
-
-    assert len(facts) == 1
-    fact = facts[0]
-    assert fact.value == pytest.approx(7.25)
-    assert fact.provider_field == "diluted_earnings_per_share"
-    assert fact.basis == "ttm"
-    assert fact.currency == "USD"
-    assert fact.observation_period_end == datetime(2026, 6, 27, 23, 59, 59, 999999, tzinfo=UTC)
-    assert fact.available_at == datetime(2026, 7, 31, 23, 59, 59, 999999, tzinfo=UTC)
-    assert any("not its original publication date" in note for note in fact.notes)
-    assert all("secret-key" not in url for url, _headers in fetcher.calls)
-    assert all(headers["Authorization"] == "Bearer secret-key" for _url, headers in fetcher.calls)
-
-
-def test_massive_latest_trade_price_has_observation_timestamp_and_currency() -> None:
-    fetcher = _massive_fetcher()
-    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
-
-    facts = adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE), effective_as_of=NOW)
-
-    assert len(facts) == 1
-    fact = facts[0]
-    assert fact.value == pytest.approx(250.50)
-    assert fact.provider_field == "results.p"
-    assert fact.currency == "USD"
-    assert fact.observed_at is not None
-    assert fact.available_at == fact.observed_at
-    assert "trade_id=trade-123" in fact.notes
-
-
-def test_massive_quote_without_verified_currency_is_unavailable() -> None:
-    """Missing required quote currency is absence, not an operational failure."""
-    fetcher = FakeJsonFetcher(
-        {
-            "/v3/reference/tickers?": {"status": "OK", "results": []},
-            "/v2/last/trade/": _massive_trade_payload(),
-        }
-    )
-    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
-
-    assert adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE), effective_as_of=NOW) == ()
-
-
-def test_massive_historical_request_is_unavailable_without_network_call() -> None:
-    fetcher = _massive_fetcher()
-    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
-    request = _massive_request(
-        FinancialField.EPS,
-        basis="ttm",
-        as_of=datetime(2025, 12, 31, 23, 59, tzinfo=UTC),
-    )
-
-    assert adapter.fetch_facts(request, effective_as_of=NOW) == ()
-    assert fetcher.calls == []
-
-
-def test_massive_unsupported_bvps_is_unavailable_without_network_call() -> None:
-    fetcher = _massive_fetcher()
-    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
-
-    assert adapter.fetch_facts(_massive_request(FinancialField.BVPS), effective_as_of=NOW) == ()
-    assert fetcher.calls == []
-
-
-def test_massive_missing_api_key_is_unavailable_without_network_call() -> None:
-    fetcher = _massive_fetcher()
-    adapter = MassiveFinancialFactsAdapter(api_key="", json_fetcher=fetcher, clock=lambda: NOW)
-
-    assert adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE), effective_as_of=NOW) == ()
-    assert fetcher.calls == []
-
-
-def test_massive_non_ok_response_is_provider_error() -> None:
-    fetcher = FakeJsonFetcher(
-        {
-            "/v3/reference/tickers?": {
-                "status": "ERROR",
-                "error": "not authorized",
-            }
-        }
-    )
-    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
-
-    with pytest.raises(FinancialProviderError, match="non-OK status"):
-        adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE), effective_as_of=NOW)
 
 
 class StaticProvider:
@@ -709,7 +554,7 @@ def _annual_eps_fact(value: float, year: int) -> ProviderFact:
     )
 
 
-def _massive_quote_fact() -> ProviderFact:
+def _yahoo_quote_fact() -> ProviderFact:
     observed = datetime(2026, 8, 21, 17, 59, tzinfo=UTC)
     return ProviderFact(
         subject_kind=FinancialSubjectKind.SECURITY,
@@ -717,8 +562,8 @@ def _massive_quote_fact() -> ProviderFact:
         field_name=FinancialField.CURRENT_PRICE,
         value=250.5,
         units=FinancialUnit.CURRENCY_PER_SHARE,
-        provider_id=MASSIVE_PROVIDER_ID,
-        provider_field="results.p",
+        provider_id=YFINANCE_PROVIDER_ID,
+        provider_field="fast_info.last_price",
         retrieved_at=NOW,
         currency="USD",
         observed_at=observed,
@@ -728,31 +573,31 @@ def _massive_quote_fact() -> ProviderFact:
 
 def test_production_provider_routes_without_rewriting_provider_identity() -> None:
     sec = StaticProvider((_annual_eps_fact(5.0, 2023),))
-    massive = StaticProvider((_massive_quote_fact(),))
-    provider = ProductionFinancialFactsProvider(sec_edgar=sec, massive=massive)
+    yahoo = StaticProvider((_yahoo_quote_fact(),))
+    provider = ProductionFinancialFactsProvider(sec_edgar=sec, yfinance=yahoo)
 
     sec_result = provider.fetch_facts(_sec_request(), effective_as_of=NOW)
-    quote_result = provider.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE), effective_as_of=NOW)
+    quote_result = provider.fetch_facts(_quote_request(FinancialField.CURRENT_PRICE), effective_as_of=NOW)
 
     assert sec_result[0].provider_id == SEC_PROVIDER_ID
-    assert quote_result[0].provider_id == MASSIVE_PROVIDER_ID
+    assert quote_result[0].provider_id == YFINANCE_PROVIDER_ID
 
 
-def test_graham_number_assembly_can_use_sec_eps_and_massive_quote() -> None:
+def test_graham_number_assembly_can_use_sec_eps_and_yahoo_quote() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
     sec = SecEdgarFinancialFactsAdapter(
         json_fetcher=fetcher,
         clock=lambda: NOW,
         user_agent=SEC_TEST_USER_AGENT,
     )
-    massive = StaticProvider((_massive_quote_fact(),))
-    provider = ProductionFinancialFactsProvider(sec_edgar=sec, massive=massive)
+    yahoo = StaticProvider((_yahoo_quote_fact(),))
+    provider = ProductionFinancialFactsProvider(sec_edgar=sec, yfinance=yahoo)
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
 
     result = resolver.assemble_graham_number(
         security_subject_id="AAPL",
         security_provider_id=SEC_PROVIDER_ID,
-        quote_provider_id=MASSIVE_PROVIDER_ID,
+        quote_provider_id=YFINANCE_PROVIDER_ID,
     )
 
     assert result.status is CalculationStatus.OK
@@ -768,5 +613,5 @@ def test_graham_number_assembly_can_use_sec_eps_and_massive_quote() -> None:
     assert {component.provider_id for component in result.bvps.lineage.components} == {SEC_PROVIDER_ID}
     assert result.current_price is not None
     assert result.current_price.value == pytest.approx(250.5)
-    assert result.current_price.provider_id == MASSIVE_PROVIDER_ID
-    assert massive.calls[-1].field_name is FinancialField.CURRENT_PRICE
+    assert result.current_price.provider_id == YFINANCE_PROVIDER_ID
+    assert yahoo.calls[-1].field_name is FinancialField.CURRENT_PRICE

@@ -30,9 +30,8 @@ class RecordingProvider:
 
 def test_production_provider_routes_yfinance_quote_by_provider_identity() -> None:
     sec = RecordingProvider()
-    massive = RecordingProvider()
     yfinance = RecordingProvider()
-    provider = ProductionFinancialFactsProvider(sec_edgar=sec, massive=massive, yfinance=yfinance)
+    provider = ProductionFinancialFactsProvider(sec_edgar=sec, yfinance=yfinance)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="KO",
@@ -43,4 +42,3 @@ def test_production_provider_routes_yfinance_quote_by_provider_identity() -> Non
     assert provider.fetch_facts(request, effective_as_of=datetime(2026, 9, 26, tzinfo=UTC)) == ()
     assert yfinance.requests == [request]
     assert sec.requests == []
-    assert massive.requests == []

@@ -60,12 +60,11 @@ project-owner authorization before the next work begins.
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| MR.1 | [Remove the provider, its rules, its dependency and its documentation](#mr1--remove-the-provider-its-rules-its-dependency-and-its-documentation) | Planned | |
+| MR.1 | [Remove the provider, its rules, its dependency and its documentation](#mr1--remove-the-provider-its-rules-its-dependency-and-its-documentation) | Complete | 2026-10-10 |
 
 MR.1 branches from `main`. In the [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status) the work
-package is row 13A, `Planned`, ahead of PKG. It runs inside the Provider health package: after PH.2b (complete)
-and before PH.2c. The milestone table orders rows by status, so the row sits after the two rows that are in
-progress; this plan states the real order.
+package is row 11A, `Complete`. It ran inside the Provider health package: after PH.2b and before PH.2c. The
+milestone table orders rows by status, so the row sits among the complete rows; this plan states the real order.
 
 ## 3. Decisions
 
@@ -81,7 +80,7 @@ stated. The options and effects behind each are in [§4](#4-the-decisions-in-det
 | 5 | What does removal take out of PH.2c and Step 3.5? | Nothing from PH.2c's scope; nothing in the Step 3.5 contract assumes Massive. | Decided |
 | 6 | Where does the note for bringing it back live? | Nowhere. No entry, no recorded commit, no tag: the removed code is not a starting point for a future integration, and this plan and Git history are the record. The roadmap's two existing sentences that name Massive are still corrected. | Decided |
 | 7 | Size and gate time. | Accepted: net test count and gate time do not grow; the numbers are in [§7](#7-tests-and-gate-time). | Decided |
-| 8 | One slice or two? Work-package code and position. | One slice, MR.1, with the dependency removal as its own commit; it becomes MR.2 only if the lock changes more than that package and packages only it required. Code `MR`, row 13A. | Decided |
+| 8 | One slice or two? Work-package code and position. | One slice, MR.1, with the dependency removal as its own commit; it becomes MR.2 only if the lock changes more than that package and packages only it required. Code `MR`, row 11A. | Decided |
 | 9 | Permission to remove `massive-api-client` from `pyproject.toml` and `uv.lock`. | Granted, within the limit stated in row 8. | Decided |
 
 ## 4. The decisions in detail
@@ -217,7 +216,7 @@ package's version, an added package), stop and report, and the dependency commit
 waits for a further decision.
 
 The code is `MR` ("Massive Removal"); `R4` is avoided for the reason PKG gives. Position: after SWC.4c.1 and PH.2b,
-before the Graham direct-versus-replay disagreement (ESC-27), PH.2c and PKG; the milestone row is 13A, `Planned`
+before the Graham direct-versus-replay disagreement (ESC-27), PH.2c and PKG; the milestone row is 11A
 (numbered so no later row renumbers).
 
 ## 5. The work

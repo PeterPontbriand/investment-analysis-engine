@@ -4,7 +4,7 @@ This section is for people **using Investment Analysis Engine**. It deliberately
 
 ## Get the application running
 
-- [Installation & Configuration](INSTALLATION.md) — patient, beginner-friendly setup instructions with explanations of Git, the installation folder, SEC EDGAR identification, optional Massive credentials, and troubleshooting.
+- [Installation & Configuration](INSTALLATION.md) — patient, beginner-friendly setup instructions with explanations of Git, the installation folder, SEC EDGAR identification, and troubleshooting.
 - [Local Database Operations](DATABASE.md) — schema preparation, cache settings, backup, and recovery.
 - [Quick Start](QUICKSTART.md) — terse setup for experienced developers and technically comfortable users.
 - [Hardware & Local AI](HARDWARE.md) — optional local-model hardware guidance. A GPU is not required for direct deterministic analysis.

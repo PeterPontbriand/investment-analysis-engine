@@ -3,12 +3,11 @@
 from pydantic import BaseModel, ConfigDict, field_validator
 
 # Provider identifiers supported by the current CLI composition. These mirror the
-# stable IDs declared in ``src.data.massive.constants``,
-# ``src.data.sec_edgar.financial_facts`` and ``src.data.yfinance.client``; they are
+# stable IDs declared in ``src.data.sec_edgar.financial_facts`` and ``src.data.yfinance.client``; they are
 # used as literals here (as the base Graham configs do) to keep this request model
 # free of the production provider stack.
-CLI_SECURITY_PROVIDERS = ("sec_edgar", "massive")
-CLI_QUOTE_PROVIDERS = ("yfinance", "massive")
+CLI_SECURITY_PROVIDERS = ("sec_edgar",)
+CLI_QUOTE_PROVIDERS = ("yfinance",)
 
 
 class FrozenSelection(BaseModel):

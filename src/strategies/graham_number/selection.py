@@ -2,12 +2,13 @@
 
 import math
 from datetime import datetime
+from typing import Literal
 
 from pydantic import AwareDatetime, Field, StrictFloat, field_validator, model_validator
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.data.instrument_profile import InstrumentProfile
-from src.strategies.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
+from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.graham_number.vocabulary import (
     ANALYSIS_ID,
     CONFIG_SCHEMA_VERSION,
@@ -22,6 +23,9 @@ from src.workspace.selection_base import (
     FrozenSelection,
 )
 
+GrahamNumberSelectionEPSBasis = Literal["three_year_average"]
+"""The EPS bases a stored selection accepts: the one SEC EDGAR supplies for Graham Number."""
+
 
 class GrahamNumberSelection(FrozenSelection):
     """Immutable Graham Number selection with an optional book-value override."""
@@ -31,7 +35,7 @@ class GrahamNumberSelection(FrozenSelection):
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     security_provider_id: str = "sec_edgar"
     quote_provider_id: str | None = None
-    eps_basis: GrahamNumberEPSBasis | None = None
+    eps_basis: GrahamNumberSelectionEPSBasis | None = None
     eps_override: StrictFloat | None = None
     quote_override: StrictFloat | None = None
     bvps_override: StrictFloat | None = None
@@ -46,9 +50,7 @@ class GrahamNumberSelection(FrozenSelection):
         if not normalized:
             raise ValueError("Provider identifier must not be blank.")
         if normalized not in CLI_SECURITY_PROVIDERS:
-            raise ValueError(
-                f"Unsupported security provider {normalized!r}; supported providers are 'sec_edgar' and 'massive'."
-            )
+            raise ValueError(f"Unsupported security provider {normalized!r}; supported provider is 'sec_edgar'.")
         return normalized
 
     @field_validator("quote_provider_id")
@@ -61,9 +63,7 @@ class GrahamNumberSelection(FrozenSelection):
         if not normalized:
             raise ValueError("Provider identifier must not be blank.")
         if normalized not in CLI_QUOTE_PROVIDERS:
-            raise ValueError(
-                f"Unsupported quote provider {normalized!r}; supported providers are 'yfinance' and 'massive'."
-            )
+            raise ValueError(f"Unsupported quote provider {normalized!r}; supported provider is 'yfinance'.")
         return normalized
 
     @field_validator("eps_override", "quote_override", "bvps_override")
@@ -85,7 +85,7 @@ class GrahamNumberSelection(FrozenSelection):
         """Resolve the effective EPS basis/quote provider by constructing this method's own config.
 
         ``GrahamNumberConfig.validate_method`` is the single definition of Graham Number's
-        entire accept/default rule (EPS basis and the Massive book-value requirement); this
+        entire accept/default rule (EPS basis and quote provider); this
         Selection validates by delegating to it rather than reimplementing the rule, so the
         CLI-direct and ``--save-run``/workspace entry points cannot silently diverge.
         """

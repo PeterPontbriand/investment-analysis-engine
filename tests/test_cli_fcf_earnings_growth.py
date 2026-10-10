@@ -141,7 +141,7 @@ def test_cli_fcf_growth_accepts_hyphenated_forward_policy() -> None:
 
 def test_cli_fcf_growth_rejects_unapproved_provider_without_network_work() -> None:
     with patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_provider()):
-        result = runner.invoke(app, ["fcf-growth", "ACME", "--data-provider", "massive"])
+        result = runner.invoke(app, ["fcf-growth", "ACME", "--data-provider", "unapproved"])
 
     assert result.exit_code == 1
     assert "INDETERMINATE" in result.output

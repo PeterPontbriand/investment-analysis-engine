@@ -259,7 +259,7 @@ CLI / bounded orchestrator
         ├─ BaseDataClient → historical prices
         └─ FinancialFactsProvider → quote/fundamentals/macro contract
              → GrahamNumberInputResolver or GrahamGrowthInputResolver ← override/cache
-             → SEC / Massive / Yahoo financial-facts adapters
+             → SEC / Yahoo financial-facts adapters
       → deterministic result
   → investor presentation
       → concise / details / diagnostics / JSON
@@ -281,7 +281,6 @@ src/
 ├── orchestrator/
 ├── data/
 │   ├── base_client.py
-│   ├── massive/
 │   ├── sec_edgar/
 │   ├── financial/
 │   ├── security_identity.py
@@ -353,12 +352,11 @@ Step 2.2 prefers native schema constraints when supported, retains Pydantic vali
 - **Financial-fact boundary:** Step 2.3 uses a dedicated financial-facts provider boundary, narrow resolved-input cache seam, input resolver, and typed provenance models.
 - **SEC EDGAR production facts:** eligible completed fiscal-year diluted EPS plus fiscal-year-end balance-sheet components used for conservative BVPS derivation. Direct SEC BVPS is not claimed.
 - **Yahoo production quote:** narrow current-price financial-facts adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts; historical valuation-quote support is not claimed.
-- **Massive when explicitly selected:** current TTM diluted EPS and current quote when explicitly selected; live access requires `MASSIVE_API_KEY` and current facts do not masquerade as historical evidence.
 - **Historical data:** first-class capability used by Momentum/time-series strategies.
 - **Current quote:** first-class valuation input used for Graham price comparison; it is not a one-day historical request.
 - **Fundamentals:** annual/TTM EPS and BVPS or its components retain their accounting basis, periods, availability dates, transformations, and source fields.
 - **Macro series:** the contract can represent macro observations, but no production AAA-yield series is approved in Step 2.3. The current Growth CLI requires an explicit AAA-yield override rather than inventing or substituting a ticker proxy.
-- **Growth EPS basis:** default/SEC Growth uses three-year-average diluted EPS; explicitly selected Massive Growth uses TTM diluted EPS. Unsupported provider/basis combinations fail explicitly.
+- **Growth EPS basis:** default/SEC Growth uses three-year-average diluted EPS. Unsupported provider/basis combinations fail explicitly.
 - **Resolution:** each field uses override → valid cache → provider → unavailable precedence.
 - **Subject validation:** override arithmetic alone does not verify a ticker; authoritative direct Graham output requires provider-backed security evidence.
 - **Temporal correctness:** requested `as_of` rejects information not yet available; current snapshots do not silently answer historical requests.

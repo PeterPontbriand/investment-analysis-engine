@@ -2,12 +2,13 @@
 
 import math
 from datetime import datetime
+from typing import Literal
 
 from pydantic import AwareDatetime, Field, StrictFloat, field_validator, model_validator
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.data.instrument_profile import InstrumentProfile
-from src.strategies.graham_growth.config import GrahamGrowthConfig, GrahamGrowthEPSBasis
+from src.strategies.graham_growth.config import GrahamGrowthConfig
 from src.strategies.graham_growth.vocabulary import (
     ANALYSIS_ID,
     CONFIG_SCHEMA_VERSION,
@@ -22,6 +23,9 @@ from src.workspace.selection_base import (
     FrozenSelection,
 )
 
+GrahamGrowthSelectionEPSBasis = Literal["three_year_average", "fiscal_year"]
+"""The EPS bases a stored selection accepts: the ones SEC EDGAR supplies for Graham Growth."""
+
 
 class GrahamGrowthSelection(FrozenSelection):
     """Graham growth-value selection requiring explicit growth and AAA yield percentages."""
@@ -31,7 +35,7 @@ class GrahamGrowthSelection(FrozenSelection):
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     security_provider_id: str = "sec_edgar"
     quote_provider_id: str | None = None
-    eps_basis: GrahamGrowthEPSBasis | None = None
+    eps_basis: GrahamGrowthSelectionEPSBasis | None = None
     eps_override: StrictFloat | None = None
     quote_override: StrictFloat | None = None
     expected_growth: StrictFloat
@@ -47,9 +51,7 @@ class GrahamGrowthSelection(FrozenSelection):
         if not normalized:
             raise ValueError("Provider identifier must not be blank.")
         if normalized not in CLI_SECURITY_PROVIDERS:
-            raise ValueError(
-                f"Unsupported security provider {normalized!r}; supported providers are 'sec_edgar' and 'massive'."
-            )
+            raise ValueError(f"Unsupported security provider {normalized!r}; supported provider is 'sec_edgar'.")
         return normalized
 
     @field_validator("quote_provider_id")
@@ -62,9 +64,7 @@ class GrahamGrowthSelection(FrozenSelection):
         if not normalized:
             raise ValueError("Provider identifier must not be blank.")
         if normalized not in CLI_QUOTE_PROVIDERS:
-            raise ValueError(
-                f"Unsupported quote provider {normalized!r}; supported providers are 'yfinance' and 'massive'."
-            )
+            raise ValueError(f"Unsupported quote provider {normalized!r}; supported provider is 'yfinance'.")
         return normalized
 
     @field_validator("eps_override", "quote_override", "expected_growth", "aaa_yield_override")

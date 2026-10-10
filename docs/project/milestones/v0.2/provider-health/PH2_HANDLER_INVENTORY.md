@@ -83,10 +83,8 @@ provider are updated to raise a typed failure. Branches and slice order are in t
 
 ## 3. Massive
 
-| File and symbol | Line | Handler today | Disposition | Slice |
-| :--- | :--- | :--- | :--- | :--- |
-| `massive/client.py` `MassiveClient.fetch_data` | 50 | `except Exception`, re-raised as `DataFetchError` | **Retain.** The method builds a mock frame and calls no service; there is nothing to classify. Its raise sites at 40 (empty range) and 59 (`fetch_current_quote`, not implemented) carry no kind either and fall to `provider_error`. Recorded so it is not skipped by accident. When a live endpoint replaces it, that work classifies it and adds a check. | — |
-| `massive/financial_facts.py` `MassiveFinancialFactsAdapter.fetch_facts` | 94 | `except (KeyError, TypeError, ValueError, OSError)`, re-raised as `FinancialProviderError` | **Replace**, identically to SEC `fetch_facts`. It uses the shared `fetch_json` (call site 242, a per-company path), so it is classified even though no health check covers it. | PH.2a |
+Massive was removed by [MR](../massive-removal/MR_MASSIVE_REMOVAL_PLAN.md) after PH.2a and PH.2b delivered. It no longer has
+handlers to classify, and the completion test retains no exception.
 
 ## 4. Carriers: handlers that keep the class from reaching the envelope
 
@@ -111,6 +109,7 @@ each needs a decision in PH.2c.
 | `financial/resolver.py` `_validate_provider_response` | 1466 | A coherence check on the fact (subject, field, provider, basis) fails. | **Decide.** | PH.2c |
 | `financial/resolver.py` `_derive_bvps_from_components` | 803 | The BVPS quotient is not finite (project arithmetic, not a provider answer). | **Decide**, including whether it is a provider failure at all. | PH.2c |
 | `financial/resolver.py` `_bvps_component_failure` | 1376 | Passes a component's `PROVIDER_ERROR` status through the derivation. | **Carry.** The component's kind passes through unchanged. | PH.2c |
+| `yfinance/financial_facts.py` `YFinanceFinancialFactsAdapter.fetch_facts` | 51 | A `FinancialProviderError` with no kind is raised when the injected clock returns a naive datetime. | **Decide**, including whether it is a provider failure at all. | PH.2c |
 
 ## 5. Boundaries that stay broad by design
 
@@ -131,7 +130,6 @@ provider for this work package.
 
 ## 7. Completion test
 
-PH.2b adds a test (`tests/data/test_provider_adapter_handlers.py`) that scans the provider adapter modules in sections 1 to 3 for `except Exception`,
-`except BaseException` and bare `except`, and fails on any handler other than the retained
-`MassiveClient.fetch_data` mock, so the broad handlers cannot return. The one broad catch around a third-party
+PH.2b adds a test (`tests/data/test_provider_adapter_handlers.py`) that scans the provider adapter modules in sections 1 and 2 for `except Exception`,
+`except BaseException` and bare `except`, and fails on any such handler, so the broad handlers cannot return. The one broad catch around a third-party
 library call lives in the library-call helper in `src/data/provider_failure.py`, which is not an adapter module.

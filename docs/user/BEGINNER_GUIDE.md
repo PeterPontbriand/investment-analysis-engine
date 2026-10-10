@@ -100,7 +100,7 @@ Financial facts and market observations come from sources with different roles. 
 
 The project uses a software component called `yfinance` to access Yahoo Finance historical prices and certain current share prices. `yfinance` is a third-party open-source library; it is not affiliated with, endorsed by, or vetted by Yahoo.
 
-[Massive](GLOSSARY.md#massive) is an optional commercial data service that can supply a limited set of current inputs when selected. Some commands also accept user-provided overrides—values supplied for a particular run rather than confirmed by a data service. Each strategy guide describes its specific sources.
+Some commands also accept user-provided overrides—values supplied for a particular run rather than confirmed by a data service. Each strategy guide describes its specific sources.
 
 A **fiscal period** is the period a reported figure describes. The date that period ended is not necessarily when investors could first know the figure: a company may file its report weeks or months later. For a historical analysis, using a fact before its public release would use information that arrived later, an error called [look-ahead bias](GLOSSARY.md#look-ahead-bias). The project's [`as_of`](GLOSSARY.md#as_of) date is a cutoff: where the source supports it, the analysis only uses information available by that date. A current-only quote does not become a historical quote just because an analysis has an earlier `as_of` date. See [filing and publication dates](GLOSSARY.md#available-at--filing-date--publication-date) for more detail.
 

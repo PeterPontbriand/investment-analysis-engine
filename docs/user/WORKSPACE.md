@@ -24,7 +24,7 @@ Once a result is saved this way — or automatically by [refreshing a watchlist]
 
 ## Watchlists
 
-A watchlist is a named, ordered list of [entries](GLOSSARY.md#entry) — each one a ticker paired with a [selection](GLOSSARY.md#selection) (an analysis method and its own configuration) — that you want to run and revisit as a group. There is no separate "list of tickers" and "list of methods": each entry stands on its own, so the same method can appear more than once, whether for different tickers or for the *same* ticker with different configuration (comparing Graham Number computed from SEC EDGAR data against Massive data, for example).
+A watchlist is a named, ordered list of [entries](GLOSSARY.md#entry) — each one a ticker paired with a [selection](GLOSSARY.md#selection) (an analysis method and its own configuration) — that you want to run and revisit as a group. There is no separate "list of tickers" and "list of methods": each entry stands on its own, so the same method can appear more than once, whether for different tickers or for the *same* ticker with different configuration (comparing Graham Number under two different overrides, for example).
 
 ```bash
 uv run ian watchlist create "Core Holdings"
@@ -55,7 +55,7 @@ Entries (4):
   AAPL:
     [1] momentum: long_window=200, rsi_period=14, short_window=50
     [2] graham-number: as_of=None, bvps_override=None, eps_basis=three_year_average, security_provider_id=sec_edgar, ...
-    [3] graham-number: as_of=None, bvps_override=12.5, eps_basis=ttm, security_provider_id=massive, ...
+    [3] graham-number: as_of=None, bvps_override=12.5, eps_basis=three_year_average, security_provider_id=sec_edgar, ...
   MSFT:
     [4] momentum: long_window=200, rsi_period=14, short_window=50
 ```
@@ -87,7 +87,7 @@ uv run ian watchlist add-selection "Core Holdings" AAPL MSFT --analysis graham-n
 Adding the same method again for a ticker that already has it does not replace anything — it appends a second entry, so you can compare configurations side by side:
 
 ```bash
-uv run ian watchlist add-selection "Core Holdings" AAPL --analysis graham-number --data-provider massive --bvps 12.5
+uv run ian watchlist add-selection "Core Holdings" AAPL --analysis graham-number --bvps 12.5
 ```
 
 Remove one entry by the number `watchlist show` gives it:
@@ -155,7 +155,7 @@ These are the flags `watchlist create --analysis METHOD` and `watchlist add-sele
 | `--analysis` value | Flags | Notes |
 |---|---|---|
 | `momentum` | `--short-window`, `--long-window`, `--rsi-period`, `--as-of`, `--no-cache` | Window defaults match the configured Momentum policy. `--no-cache` bypasses the historical price cache. |
-| `graham-number` | `--as-of`, `--data-provider`, `--no-cache`, `--eps`, `--eps-basis`, `--bvps`, `--current-price` | `--bvps` is required when `--data-provider massive`. |
+| `graham-number` | `--as-of`, `--data-provider`, `--no-cache`, `--eps`, `--eps-basis`, `--bvps`, `--current-price` | |
 | `graham-growth` | Same as `graham-number`, plus `--expected-growth`/`--aaa-yield` | The growth/yield assumptions are required; there is no default. |
 | `fcf-growth` | `--growth-years`, `--forward-policy`, `--classification-basis`, `--currency` | Always uses SEC EDGAR data, matching the direct `fcf-growth` command. |
 
@@ -222,7 +222,7 @@ A refresh's saved results are visible to `runs list`/`runs show` (see below) as 
 
 Two different things happen every time you run an analysis, and it's easy to mix them up:
 
-- **Caching** happens automatically, every single time, whether or not you save anything. It's about the *raw data* a calculation needs — a company's earnings per share, its book value, a stretch of daily prices. The first time you ask for a ticker, that data is fetched from your configured provider (SEC EDGAR, Massive, Yahoo Finance) and kept locally. The next time you ask for the *same* data, it's reused instead of fetched again — you don't have to do anything for this, and there is no separate "cached result" to go find later.
+- **Caching** happens automatically, every single time, whether or not you save anything. It's about the *raw data* a calculation needs — a company's earnings per share, its book value, a stretch of daily prices. The first time you ask for a ticker, that data is fetched from your configured provider (SEC EDGAR, Yahoo Finance) and kept locally. The next time you ask for the *same* data, it's reused instead of fetched again — you don't have to do anything for this, and there is no separate "cached result" to go find later.
 - **Saving** is about the *finished result* — permanently keeping the full record of one specific analysis attempt, calculation and all, so you can find that exact result again later by browsing or by its ID (see [Browsing saved runs](#browsing-saved-runs)). A watchlist refresh always saves, automatically; a direct command only saves when you add `--save-run`, and does so the same way a refresh always does. This makes direct commands well suited to quick, temporary experimentation by default — nothing is kept unless you ask for it. A watchlist doesn't need more than one entry, either: if you find yourself repeatedly retyping the same direct command with `--save-run`, a single-entry watchlist you can `refresh` instead may be more convenient.
 
 ```text
@@ -247,7 +247,7 @@ Step 3 - Save it? (optional)
          you can find again later.
 ```
 
-This matters most if you're paying for data access (a Massive subscription, for example): re-running the *same* request later does not re-fetch and does not re-charge, because caching already covers that automatically — for Graham and FCF/Earnings Growth data specifically, the local copy doesn't expire on its own by default (see [Local Database Operations](DATABASE.md#cache-and-telemetry-behavior) for the exact per-method rules, including the shorter-lived momentum and quote caches, which refresh sooner on purpose since you'd want current numbers there). You don't need to save a result just to avoid paying for it twice. Save a result when you want a permanent, addressable copy of it to come back to on purpose — a watchlist refresh does this for you automatically, because that's what a watchlist is for.
+This matters most if a data source charges or throttles you: re-running the *same* request later does not re-fetch and does not re-charge, because caching already covers that automatically — for Graham and FCF/Earnings Growth data specifically, the local copy doesn't expire on its own by default (see [Local Database Operations](DATABASE.md#cache-and-telemetry-behavior) for the exact per-method rules, including the shorter-lived momentum and quote caches, which refresh sooner on purpose since you'd want current numbers there). You don't need to save a result just to avoid paying for it twice. Save a result when you want a permanent, addressable copy of it to come back to on purpose — a watchlist refresh does this for you automatically, because that's what a watchlist is for.
 
 ## Browsing saved runs
 

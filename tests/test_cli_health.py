@@ -145,7 +145,7 @@ def test_provider_option_is_case_insensitive() -> None:
 
 
 def test_unknown_provider_is_a_usage_error_listing_the_valid_ids() -> None:
-    exit_code, output = _invoke(_clients(), "--provider", "massive")
+    exit_code, output = _invoke(_clients(), "--provider", "unknown")
 
     assert exit_code == 2
     assert "yfinance, sec_edgar" in normalize_cli_output(output)

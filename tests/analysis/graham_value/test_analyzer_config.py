@@ -10,7 +10,7 @@ from src.strategies.graham_number.config import GrahamNumberConfig
 
 
 @pytest.mark.parametrize("growth", [False, True])
-@pytest.mark.parametrize("provider", ["sec_edgar", "massive", "injected"])
+@pytest.mark.parametrize("provider", ["sec_edgar", "injected"])
 @pytest.mark.parametrize("basis", [None, "three_year_average", "ttm"])
 @pytest.mark.parametrize("bvps", [None, 20.0])
 def test_provider_basis_matrix(growth: bool, provider: str, basis: str | None, bvps: float | None) -> None:
@@ -23,11 +23,7 @@ def test_provider_basis_matrix(growth: bool, provider: str, basis: str | None, b
         config_type = GrahamNumberConfig
         values["bvps_override"] = bvps
     effective = basis or ("three_year_average" if provider == "sec_edgar" else "ttm")
-    invalid = (
-        (provider == "sec_edgar" and effective != "three_year_average")
-        or (provider == "massive" and effective != "ttm")
-        or (not growth and provider == "massive" and bvps is None)
-    )
+    invalid = provider == "sec_edgar" and effective != "three_year_average"
     if invalid:
         with pytest.raises(ValidationError):
             config_type.model_validate(values)

@@ -1,6 +1,6 @@
 """Production provider/resolver composition shared by CLI entry points.
 
-These functions build the SEC EDGAR/Massive financial-fact providers and the
+These functions build the SEC EDGAR financial-fact provider and the
 Graham input resolvers used by the direct commands (``src.strategies.<strategy>.cli``) and by the
 refresh service's dispatch executor (``src.cli_workspace``). They read
 declared application identity and growth-assumption constants from
@@ -29,9 +29,7 @@ from src.core.constants import ConfigKeys
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheProtocol
 from src.data.financial.facts import FinancialFactsProvider
 from src.data.financial.providers import (
-    MASSIVE_PROVIDER_ID,
     SEC_PROVIDER_ID,
-    MassiveFinancialFactsAdapter,
     ProductionFinancialFactsProvider,
     SecEdgarFinancialFactsAdapter,
 )
@@ -54,15 +52,6 @@ def build_sec_production_provider() -> ProductionFinancialFactsProvider:
     return ProductionFinancialFactsProvider(sec_edgar=sec_edgar)
 
 
-def build_massive_production_provider() -> MassiveFinancialFactsAdapter:
-    """Build Massive only when usable API credentials are configured."""
-    api_key = settings.massive_api_key
-    massive = MassiveFinancialFactsAdapter(api_key=None if api_key is None else api_key.get_secret_value())
-    if not massive.is_configured:
-        raise AnalysisConfigurationError("Massive access is not configured. Set MASSIVE_API_KEY and retry.")
-    return massive
-
-
 def build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInputResolver)](
     *,
     resolver_type: type[ResolverT],
@@ -77,17 +66,11 @@ def build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInp
     never fed a point-in-time boundary.
     """
     provider: FinancialFactsProvider
-    if data_provider == MASSIVE_PROVIDER_ID:
-        provider = build_massive_production_provider()
-    elif data_provider == SEC_PROVIDER_ID:
-        provider = build_sec_production_provider()
-    elif data_provider is not None:
+    if data_provider is not None and data_provider != SEC_PROVIDER_ID:
         raise AnalysisConfigurationError(
-            f"Unsupported valuation data provider {data_provider!r}; "
-            f"supported providers are {SEC_PROVIDER_ID!r} and {MASSIVE_PROVIDER_ID!r}."
+            f"Unsupported valuation data provider {data_provider!r}; supported provider is {SEC_PROVIDER_ID!r}."
         )
-    else:
-        provider = build_sec_production_provider()
+    provider = build_sec_production_provider()
 
     return resolver_type(
         provider,
@@ -109,7 +92,6 @@ def growth_assumptions() -> GrahamGrowthCalculationPolicy:
 
 __all__ = [
     "build_graham_resolver",
-    "build_massive_production_provider",
     "build_sec_production_provider",
     "growth_assumptions",
 ]

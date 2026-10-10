@@ -73,12 +73,3 @@ def test_bad_nested_value_is_reported_at_startup(arguments: tuple[str, ...]) -> 
 
     _assert_one_sentence_failure(run, "valid integer")
     assert "ian_schema_config__max_validation_retries".upper() in run.stderr.upper()
-
-
-@pytest.mark.parametrize("arguments", [("momentum", "KO"), ("--help",)])
-def test_bad_secret_is_reported_without_echoing_the_value(arguments: tuple[str, ...]) -> None:
-    run = _run_ian({"MASSIVE_API_KEY": "topsecret value"}, *arguments)
-
-    _assert_one_sentence_failure(run, "MASSIVE_API_KEY", "not shown", "whitespace")
-    assert "topsecret" not in run.stderr
-    assert "topsecret" not in run.stdout

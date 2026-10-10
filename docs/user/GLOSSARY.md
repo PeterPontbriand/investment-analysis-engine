@@ -56,7 +56,7 @@ See the [Local Research Workspace guide](WORKSPACE.md) for command usage.
 One durable, saved record of a single analysis attempt: the method, ticker, the exact configuration used, and the result (or the fact that it could not be produced). Saved either explicitly with `--save-run` on a direct command, or automatically by `refresh`. Showing a saved Analysis Run always replays its own captured evidence; it never re-fetches data or recalculates, so it keeps showing the same result even if a data provider or your configuration changes afterward.
 
 ### Selection
-One analysis method and its own configuration — for example, "Graham Number with SEC EDGAR data" or "Graham Growth Value with a 6% expected-growth assumption." The same method may appear in more than one selection, for example to compare Graham Number computed from SEC EDGAR data against Massive data.
+One analysis method and its own configuration — for example, "Graham Number with SEC EDGAR data" or "Graham Growth Value with a 6% expected-growth assumption." The same method may appear in more than one selection, for example to compare Graham Number computed from SEC EDGAR data under two different overrides.
 
 ### Entry
 One ticker paired with a [selection](GLOSSARY.md#selection) inside a watchlist. A watchlist is an ordered list of entries, not a separate list of tickers and a separate list of selections; the same method may appear more than once, whether for different tickers or for the same ticker with different configuration. An entry's position in the list is shown and addressed as a 1-based number (`watchlist show`'s index, and `remove-entry`'s `INDEX` argument); removing an entry renumbers the ones after it so the displayed numbers never skip.
@@ -82,14 +82,6 @@ The [U.S. Securities and Exchange Commission](https://www.sec.gov/), the U.S. fe
 
 ### EDGAR
 The SEC's **Electronic Data Gathering, Analysis, and Retrieval** system, which provides public access to company filings and structured filing data. See the SEC's [EDGAR search resources](https://www.sec.gov/search-filings) and [Accessing EDGAR Data](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data).
-
-### Massive
-[Massive](https://massive.com/) is a commercial financial-market-data service with an [API](#api-application-programming-interface) that software can use to request licensed market/fundamental data.
-
-A **Massive API key** is a credential issued by Massive that authorizes API requests according to the user's account/plan. Investment Analysis Engine can optionally use Massive for the supported current TTM diluted-EPS and current-price data used by the Graham Growth Value strategy. Massive is not required for the Graham Number or Momentum strategies.
-
-See the [Massive API documentation](https://massive.com/docs) for the service itself and [Installation & Configuration](INSTALLATION.md#optional-massive-market-data-access) for Investment Analysis Engine configuration.
-
 
 ### Cache
 A stored copy of previously retrieved data. A cache hit may be used only when the entry satisfies the requested `as_of` and freshness policy; otherwise resolution proceeds to an allowed provider or reports the input unavailable. Caching is automatic and distinct from [saving an Analysis Run](WORKSPACE.md#saving-vs-caching-theyre-not-the-same-thing), which is optional and durable.
@@ -194,7 +186,7 @@ Profit attributable to common shareholders expressed per common share. EPS may b
 **Basic EPS** uses the weighted-average common shares actually outstanding during the reporting period. **Diluted EPS** also reflects potentially dilutive securities such as options or convertible instruments. Values with different share bases must not be combined silently.
 
 ### TTM (Trailing Twelve Months)
-The most recent continuous twelve-month period represented by available reports. TTM EPS is a current-looking accounting measure but is not the same as one completed fiscal year's EPS or Graham's three-year average. In the current application it is used when the Graham Growth Value strategy explicitly uses Massive data, not as the standard Graham Number basis.
+The most recent continuous twelve-month period represented by available reports. TTM EPS is a current-looking accounting measure but is not the same as one completed fiscal year's EPS or Graham's three-year average. No data source the application currently ships supplies it; the Graham strategies use three-year-average or fiscal-year EPS.
 
 ### Three-Year-Average EPS
 The arithmetic mean of EPS from three completed fiscal years. Investment Analysis Engine uses this as the standard Graham Number earnings basis and when the Graham Growth Value strategy uses SEC EDGAR earnings data, reflecting Graham's defensive-investor emphasis on average earnings over the preceding three years.

@@ -12,7 +12,6 @@ Investment Analysis Engine uses different sources for different kinds of informa
 
 - **SEC EDGAR** — completed annual company financial facts used by Graham and FCF/Earnings Growth. Reviewed US-GAAP duration concepts accept `10-K`/`20-F`/`40-F` annual forms; reviewed IFRS support is limited to exact diluted EPS, diluted weighted-average shares, operating cash flow, and physical-PP&E CapEx concepts.
 - **Yahoo Finance data via [`yfinance`](https://ranaroussi.github.io/yfinance/)** — historical market prices for Momentum and current quote comparison for Graham where applicable. `yfinance` is an independent open-source library and is not affiliated with, endorsed by, or vetted by Yahoo.
-- **Massive** — optional supported current TTM diluted EPS/current-price data for explicitly selected Graham Growth analysis.
 - **AAA corporate-bond yield** — currently supplied explicitly by the user for Graham Growth Value; no automatic live series is integrated.
 
 A source is used only for financial values whose meaning and time behavior are understood well enough for the selected calculation.
@@ -188,7 +187,6 @@ This is a forecast-dependent growth-stock estimate. It is not the Graham Number.
 ### EPS basis
 
 - Graham Growth using SEC EDGAR data uses three-year-average diluted EPS by default. The production tool boundary also supports an explicit single completed fiscal-year EPS basis for reviewed workflows.
-- Graham Growth using explicitly selected Massive data uses current TTM diluted EPS.
 
 Unsupported data-source/basis combinations are rejected rather than silently transformed into a different calculation.
 

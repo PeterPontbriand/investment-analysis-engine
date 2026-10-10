@@ -733,7 +733,6 @@ source = { editable = "." }
 dependencies = [
     { name = "alembic" },
     { name = "curl-cffi" },
-    { name = "massive-api-client" },
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "ollama" },
@@ -764,7 +763,6 @@ dev = [
 requires-dist = [
     { name = "alembic", specifier = ">=1.13,<2" },
     { name = "curl-cffi", specifier = ">=0.15" },
-    { name = "massive-api-client", specifier = ">=0.0.4" },
     { name = "matplotlib", specifier = ">=3.8.0" },
     { name = "numpy", specifier = ">=1.26.0" },
     { name = "ollama", specifier = ">=0.4.0" },
@@ -1143,33 +1141,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/df/5bd7a48c256faecd1d36edc13133e51397e41b73bb77e1a69deab746ebac/markupsafe-3.0.3-cp314-cp314t-win32.whl", hash = "sha256:915c04ba3851909ce68ccc2b8e2cd691618c4dc4c4232fb7982bca3f41fd8c3d", size = 14819, upload-time = "2025-09-27T18:37:26.285Z" },
     { url = "https://files.pythonhosted.org/packages/1a/8a/0402ba61a2f16038b48b39bccca271134be00c5c9f0f623208399333c448/markupsafe-3.0.3-cp314-cp314t-win_amd64.whl", hash = "sha256:4faffd047e07c38848ce017e8725090413cd80cbc23d86e55c587bf979e579c9", size = 15426, upload-time = "2025-09-27T18:37:27.316Z" },
     { url = "https://files.pythonhosted.org/packages/70/bc/6f1c2f612465f5fa89b95bead1f44dcb607670fd42891d8fdcd5d039f4f4/markupsafe-3.0.3-cp314-cp314t-win_arm64.whl", hash = "sha256:32001d6a8fc98c8cb5c947787c5d08b0a50663d139f1305bac5885d98d9b40fa", size = 14146, upload-time = "2025-09-27T18:37:28.327Z" },
-]
-
-[[package]]
-name = "massive"
-version = "2.8.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "certifi" },
-    { name = "urllib3" },
-    { name = "websockets" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9c/b2/7cc9fadccd111b9fa1c378dad6a668312b563600d19498d26051fb57cf73/massive-2.8.0.tar.gz", hash = "sha256:e3f70c4b51e03b105a01a5a91e01745c43f9f5d4da9459ea80e1b7c3e7a17278", size = 50942, upload-time = "2026-05-26T08:18:34.555Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/0d/01464a7faa974cf0e6345cf93f2f5d10991a316e733d3f55e36fbb2d814d/massive-2.8.0-py3-none-any.whl", hash = "sha256:d04332c9dec289bdf71e4cfaf8bfba26bd10e5829806d27b833488e89ee5015b", size = 68725, upload-time = "2026-05-26T08:18:35.766Z" },
-]
-
-[[package]]
-name = "massive-api-client"
-version = "0.0.4"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "httpx" },
-    { name = "massive" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/2d/27/0429d33082924b05911b592e9a36dfa488bceea80c6eca4fccc503da47c9/massive_api_client-0.0.4.tar.gz", hash = "sha256:840ce4dce7f0624b97bb57ed5410792bf9fe4c83b9b9e167e22f5f00e034148d", size = 11659, upload-time = "2026-04-14T14:15:41.224Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a5/3f/301d577c9dd22b7de4a8ccec51271795d97db870804fb960657f86705a25/massive_api_client-0.0.4-py3-none-any.whl", hash = "sha256:a26f27c692244f78b3bdb0d75239cfe271578d4d6f01984c9d010d8c79d4e06c", size = 12504, upload-time = "2026-04-14T14:15:39.805Z" },
 ]
 
 [[package]]
