@@ -240,13 +240,13 @@ def test_a_failed_run_with_invalid_input_stores_invalid_input() -> None:
     assert {capture.failure_reason_code for capture in captures} == {"invalid_input"}
 
 
-def test_a_failed_run_from_a_calculation_that_does_not_apply_stores_execution_error() -> None:
+def test_a_calculation_that_does_not_apply_is_a_not_applicable_run_with_no_code() -> None:
     analysis = _number(CalculationStatus.OK, result=CalculationStatus.NOT_APPLICABLE)
 
     capture = _number_capture(analysis)
 
-    assert capture.outcome is RunOutcome.FAILED
-    assert capture.failure_reason_code == "execution_error"
+    assert capture.outcome is RunOutcome.NOT_APPLICABLE
+    assert capture.failure_reason_code is None
 
 
 def test_a_run_that_did_not_fail_stores_no_code() -> None:

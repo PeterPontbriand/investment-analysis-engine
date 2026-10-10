@@ -7,11 +7,13 @@ Presentation, exit-code selection, and friendly failure rendering stay in
 the command (``src.strategies.graham_number.cli``); this module captures execution evidence only.
 
 ``classify_graham_number_outcome`` freezes the exact native-status mapping
-required before any run is persisted: native ``NOT_APPLICABLE`` maps to
-``RunOutcome.NOT_APPLICABLE``; a missing required input
-(``INPUT_UNAVAILABLE``) maps to ``RunOutcome.UNAVAILABLE``; an invalid input
-or provider error maps to ``RunOutcome.FAILED``; a completed calculation
-maps to ``RunOutcome.COMPLETED``.
+required before any run is persisted: a native ``NOT_APPLICABLE`` maps to
+``RunOutcome.NOT_APPLICABLE``, whether the assembly reports it (an ETF) or the
+calculation does (a non-positive EPS or BVPS, which the method does not apply
+to); a missing required input (``INPUT_UNAVAILABLE``) maps to
+``RunOutcome.UNAVAILABLE``; an invalid input or provider error, or a
+calculation that returns invalid input, maps to ``RunOutcome.FAILED``; a
+completed calculation maps to ``RunOutcome.COMPLETED``.
 """
 
 from dataclasses import dataclass
@@ -58,6 +60,8 @@ def classify_graham_number_outcome(analysis: GrahamNumberAnalysis) -> RunOutcome
         return RunOutcome.FAILED
     if analysis.result.status is CalculationStatus.OK:
         return RunOutcome.COMPLETED
+    if analysis.result.status is CalculationStatus.NOT_APPLICABLE:
+        return RunOutcome.NOT_APPLICABLE
     return RunOutcome.FAILED
 
 
