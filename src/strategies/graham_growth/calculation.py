@@ -42,6 +42,8 @@ class GrowthValueInputAssembly:
         quote_status: Status of the quote resolution attempt (set when a
             quote was requested and did not return OK).
         quote_reason: Human-readable reason for a non-OK quote.
+        quote_provider_failure: The kind and provider of a quote whose provider failed, recorded against
+            ``current_price``; it does not change ``status``.
         reason: Explanation when assembly ``status`` is not OK.
         resolution_trace: Ordered resolver events across attempted method inputs.
         method: Always ``"graham_growth_value"``.
@@ -61,11 +63,14 @@ class GrowthValueInputAssembly:
     resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
     method: MethodId = field(init=False, default=METHOD_ID)
     provider_failure: ProviderFailureRecord | None = None
+    quote_provider_failure: ProviderFailureRecord | None = None
 
     def __post_init__(self) -> None:
-        """Keep a recorded provider failure tied to a provider-error assembly."""
+        """Keep each recorded provider failure tied to the provider-error status it explains."""
         if self.provider_failure is not None and self.status is not CalculationStatus.PROVIDER_ERROR:
             raise ValueError("provider_failure requires a provider_error assembly.")
+        if self.quote_provider_failure is not None and self.quote_status is not CalculationStatus.PROVIDER_ERROR:
+            raise ValueError("quote_provider_failure requires a provider_error quote status.")
 
 
 @dataclass(frozen=True)
@@ -355,6 +360,7 @@ class GrahamGrowthInputResolver(InputResolver):
                 current_price=None,
                 quote_status=quote_result.status,
                 quote_reason=quote_result.reason,
+                quote_provider_failure=_recorded(quote_result, "current_price"),
                 quote_freshness=quote_result.quote_freshness,
                 resolution_trace=trace,
             )

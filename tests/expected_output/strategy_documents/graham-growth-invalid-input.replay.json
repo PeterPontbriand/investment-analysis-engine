@@ -36,7 +36,8 @@
   },
   "quote": {
     "status": "not_attempted",
-    "reason": null
+    "reason": null,
+    "provider_failure": null
   },
   "warnings": [],
   "limitations": [

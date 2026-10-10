@@ -21,6 +21,14 @@ class ProviderFailureKind(StrEnum):
     NO_DATA = "no_data"
 
 
+PROVIDER_KIND_PRECEDENCE: tuple[ProviderFailureKind, ...] = (
+    ProviderFailureKind.UNREACHABLE,
+    ProviderFailureKind.UNEXPECTED_RESPONSE,
+    ProviderFailureKind.NO_DATA,
+)
+"""The one order that picks among several failed kinds: an outage, then a shape change, then an absent answer."""
+
+
 def require_provider_identity(kind: ProviderFailureKind | None, provider_id: str | None) -> None:
     """Reject a kind without the provider that failed, and a provider identity that is blank."""
     if provider_id is not None and not provider_id.strip():
@@ -52,4 +60,4 @@ class ProviderFailureRecord:
         return replace(self, input=input_name)
 
 
-__all__ = ["ProviderFailureKind", "ProviderFailureRecord", "require_provider_identity"]
+__all__ = ["PROVIDER_KIND_PRECEDENCE", "ProviderFailureKind", "ProviderFailureRecord", "require_provider_identity"]

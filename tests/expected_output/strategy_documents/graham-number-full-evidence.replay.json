@@ -204,7 +204,8 @@
   },
   "quote": {
     "status": "ok",
-    "reason": null
+    "reason": null,
+    "provider_failure": null
   },
   "warnings": [
     "book_value_per_share is a user override, not provider-verified data."

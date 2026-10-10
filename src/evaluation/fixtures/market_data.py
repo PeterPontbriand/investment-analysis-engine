@@ -8,6 +8,7 @@ from typing import Final
 
 import pandas as pd
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.market_data import HistoricalMarketData, MarketDataContext, latest_observation_date
 
@@ -100,7 +101,9 @@ class FixtureDataClient(BaseDataClient):
         if not ticker or not ticker.strip():
             raise ValueError(f"Invalid ticker supplied to fixture: {ticker!r}")
         if start_date == "raise":
-            raise DataFetchError("fixture simulated provider failure")
+            raise DataFetchError(
+                "fixture simulated provider failure", kind=ProviderFailureKind.UNREACHABLE, provider_id="fixture"
+            )
 
         closes = [100.0 * (1.01**i) for i in range(5)]
         return pd.DataFrame(
@@ -131,5 +134,7 @@ class FixtureDataClient(BaseDataClient):
         if not ticker or not ticker.strip():
             raise ValueError(f"Invalid ticker supplied to fixture: {ticker!r}")
         if ticker == "FAIL":
-            raise DataFetchError("fixture simulated quote failure")
+            raise DataFetchError(
+                "fixture simulated quote failure", kind=ProviderFailureKind.UNREACHABLE, provider_id="fixture"
+            )
         return float(self.fetch_data(ticker, "2026-01-01").iloc[-1]["Close"])

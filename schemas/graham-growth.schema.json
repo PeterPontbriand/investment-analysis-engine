@@ -510,6 +510,16 @@
       "additionalProperties": false,
       "description": "The optional current-quote attempt: ``ok``, ``not_attempted`` or the status of the failed lookup.",
       "properties": {
+        "provider_failure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProviderFailureInput"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "reason": {
           "anyOf": [
             {
@@ -528,7 +538,8 @@
       },
       "required": [
         "status",
-        "reason"
+        "reason",
+        "provider_failure"
       ],
       "title": "QuotePart",
       "type": "object"

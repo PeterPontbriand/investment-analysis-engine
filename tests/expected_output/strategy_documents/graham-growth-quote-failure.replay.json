@@ -96,7 +96,8 @@
   },
   "quote": {
     "status": "provider_error",
-    "reason": "The configured quote provider could not complete the request."
+    "reason": "The configured quote provider could not complete the request.",
+    "provider_failure": null
   },
   "warnings": [
     "AAA yield is user-supplied rather than provider-verified.",

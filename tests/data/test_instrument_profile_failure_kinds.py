@@ -361,3 +361,61 @@ class _AnchorlessIdentity:
         return SecurityIdentity(
             ticker=request.ticker, provider_id=request.provider_id, resolved_at=NOW, instrument_name="Coca-Cola"
         )
+
+
+@pytest.mark.parametrize(
+    ("kinds", "expected"),
+    [
+        ((ProviderFailureKind.NO_DATA, ProviderFailureKind.UNREACHABLE), ProviderFailureKind.UNREACHABLE),
+        ((ProviderFailureKind.UNREACHABLE, ProviderFailureKind.NO_DATA), ProviderFailureKind.UNREACHABLE),
+        (
+            (ProviderFailureKind.NO_DATA, ProviderFailureKind.UNEXPECTED_RESPONSE),
+            ProviderFailureKind.UNEXPECTED_RESPONSE,
+        ),
+        (
+            (ProviderFailureKind.UNEXPECTED_RESPONSE, ProviderFailureKind.NO_DATA),
+            ProviderFailureKind.UNEXPECTED_RESPONSE,
+        ),
+        ((ProviderFailureKind.NO_DATA, ProviderFailureKind.NO_DATA), ProviderFailureKind.NO_DATA),
+    ],
+)
+def test_several_failed_identity_candidates_report_the_highest_precedence_kind(
+    kinds: tuple[ProviderFailureKind, ProviderFailureKind], expected: ProviderFailureKind
+) -> None:
+    profile = compose_instrument_profile(
+        "KO",
+        identity_candidates=(
+            InstrumentProfileCandidate(
+                "first", _FailingIdentity(DataFetchError("a", kind=kinds[0], provider_id="first"))
+            ),
+            InstrumentProfileCandidate(
+                "second", _FailingIdentity(DataFetchError("b", kind=kinds[1], provider_id="second"))
+            ),
+        ),
+        kind_candidate=None,
+    )
+
+    failure = profile_identity_resolution(profile).provider_failure
+
+    assert failure is not None
+    assert failure.kind is expected
+
+
+def test_equal_precedence_keeps_the_first_candidate() -> None:
+    profile = compose_instrument_profile(
+        "KO",
+        identity_candidates=(
+            InstrumentProfileCandidate(
+                "first", _FailingIdentity(DataFetchError("a", kind=ProviderFailureKind.NO_DATA, provider_id="first"))
+            ),
+            InstrumentProfileCandidate(
+                "second", _FailingIdentity(DataFetchError("b", kind=ProviderFailureKind.NO_DATA, provider_id="second"))
+            ),
+        ),
+        kind_candidate=None,
+    )
+
+    failure = profile_identity_resolution(profile).provider_failure
+
+    assert failure is not None
+    assert failure.provider_id == "first"

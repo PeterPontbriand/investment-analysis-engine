@@ -253,3 +253,13 @@ The parts:
 - **(iii) Report `INPUT_UNAVAILABLE`.** The derivation cannot produce a usable value, as it does for a preferred-share conflict.
 
 Any of (ii) and (iii) changes a classification for an input no real filing produces, so it needs this decision first. No formula changes under any option.
+
+### ESC-29 — A calculation that returns not_applicable is stored as a failed run
+
+**Scope/severity:** Graham Number (reachable) and Graham Growth (structural only), every saved run and refresh job; low-to-medium; found in PH.2c's review. **Source revision:** the PH.2c branch.
+
+**Code path:** `classify_graham_number_outcome` and `classify_graham_growth_outcome` (`execution.py` of each strategy) map the assembly status first, then `if analysis.result.status is OK: COMPLETED` and `return FAILED` for any other result status. An assembly that is `OK` with a result that is `not_applicable` therefore becomes a `failed` run. Since PH.2c the run's `failure_reason_code` comes from `failure_reason_code(native_status, ...)`, where the native status is the result's, so it stores `execution_error` (it stored `execution_failed` before).
+
+**Example:** `graham-number KO --eps -1`: the assembly is `ok`, `compute_graham_number` returns `not_applicable` ("Earnings per share is negative"), and the saved run is `failed` with `execution_error`; the direct document shows `status: not_applicable` (`tests/expected_output/strategy_documents/graham-number-nonpositive-eps.*.json`). `compute_graham_growth_value` never returns `not_applicable`, so Graham Growth reaches this branch only for `invalid_input`, which stores `invalid_input`.
+
+**Expected contract (question for the project owner):** whether a calculation that does not apply is a failed run, or an outcome of its own (`not_applicable`) as an ETF is. No fix in PH.2c.

@@ -179,7 +179,8 @@
   },
   "quote": {
     "status": "input_unavailable",
-    "reason": "No eligible current quote was available from the configured quote source."
+    "reason": "No eligible current quote was available from the configured quote source.",
+    "provider_failure": null
   },
   "warnings": [
     "AAA yield is user-supplied rather than provider-verified.",

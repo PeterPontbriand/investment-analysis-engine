@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, WithJsonSchema
 from src.analysis.shared.financial_resolution import PriceComparison, PriceComparisonStatus
 from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
+from src.core.provider_failure_kind import ProviderFailureRecord
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.quote_freshness import QuoteFreshnessStatus
 from src.data.financial.resolution_trace import ResolutionTrace
@@ -29,6 +30,7 @@ from src.data.instrument_profile import (
     InstrumentProfileDiagnostic,
 )
 from src.data.security_identity import IdentityResolutionStatus, SecurityIdentityResolution
+from src.reporting.documents.failure import ProviderFailureInput
 from src.reporting.documents.timestamp import DocumentTimestamp
 
 JsonNumber = Annotated[
@@ -102,6 +104,7 @@ class QuotePart(DocumentPart):
 
     status: str
     reason: str | None
+    provider_failure: ProviderFailureInput | None
 
 
 class ResolvedInputPart(DocumentPart):
@@ -323,13 +326,26 @@ def resolved_input_part(value: ResolvedInput | None) -> ResolvedInputPart | None
     )
 
 
-def quote_part(current_price: ResolvedInput | None, status: CalculationStatus | None, reason: str | None) -> QuotePart:
-    """Return the quote-attempt part: the failed lookup's status, ``ok`` for a quote, else ``not_attempted``."""
+def quote_part(
+    current_price: ResolvedInput | None,
+    status: CalculationStatus | None,
+    reason: str | None,
+    failure: ProviderFailureRecord | None = None,
+) -> QuotePart:
+    """Return the quote-attempt part: the failed lookup's status, ``ok`` for a quote, else ``not_attempted``.
+
+    ``failure`` is the kind and provider of a failed lookup whose adapter classified it.
+    """
     if status is not None:
-        return QuotePart(status=status.value, reason=reason)
+        element = (
+            None
+            if failure is None
+            else ProviderFailureInput(input=failure.input, provider_id=failure.provider_id, kind=failure.kind)
+        )
+        return QuotePart(status=status.value, reason=reason, provider_failure=element)
     if current_price is not None:
-        return QuotePart(status="ok", reason=None)
-    return QuotePart(status="not_attempted", reason=None)
+        return QuotePart(status="ok", reason=None, provider_failure=None)
+    return QuotePart(status="not_attempted", reason=None, provider_failure=None)
 
 
 def price_comparison_part(comparison: PriceComparison | None) -> PriceComparisonPart | None:

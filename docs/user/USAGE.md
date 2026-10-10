@@ -203,7 +203,7 @@ Every strategy document has the same header and the same tail. Keys are written 
 
 A verdict lives in the body: Momentum's trend is `result.trend` (`BULLISH`, `BEARISH` or `UNKNOWN`), and FCF Growth's screen is `classification`. Momentum's `status` is `ok` for every document it writes, because a calculation that cannot run fails instead. The latest data date Momentum used is `source.data_as_of`.
 
-A Graham document's body begins with `price_comparison` (`status`, `reason`, `percent`, `security_unit_evidence`, `provenance`, `quote_freshness`); its `percent` matches `result.margin_of_safety_percent`, and a comparison that was not made is `null`.
+A Graham document's `quote` part carries `provider_failure` (`input` `current_price`, `provider_id`, `kind`) when the optional quote failed with a classified provider failure, otherwise `null`; it does not change `status`. A Graham document's body begins with `price_comparison` (`status`, `reason`, `percent`, `security_unit_evidence`, `provenance`, `quote_freshness`); its `percent` matches `result.margin_of_safety_percent`, and a comparison that was not made is `null`.
 
 Presentation versions: Momentum **7**, Graham Number **8**, Graham Growth **8**, FCF Growth **7**. FCF's canonical result schema is **4** and its method version **2**.
 

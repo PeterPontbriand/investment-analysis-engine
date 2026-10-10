@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 
 from src.core.analysis_status import CalculationStatus
-from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from src.core.provider_failure_kind import PROVIDER_KIND_PRECEDENCE, ProviderFailureKind, ProviderFailureRecord
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 from src.data.market_data import NoEligibleObservationsError
@@ -60,14 +60,6 @@ PROVIDER_CODE_BY_KIND: Mapping[ProviderFailureKind, FailureReasonCode] = Mapping
         ProviderFailureKind.UNEXPECTED_RESPONSE: FailureReasonCode.PROVIDER_UNEXPECTED_RESPONSE,
         ProviderFailureKind.NO_DATA: FailureReasonCode.PROVIDER_NO_DATA,
     }
-)
-
-# An outage on any input outranks a shape change, which outranks an absent answer, so the one code names the
-# condition most likely to need action.
-PROVIDER_KIND_PRECEDENCE: tuple[ProviderFailureKind, ...] = (
-    ProviderFailureKind.UNREACHABLE,
-    ProviderFailureKind.UNEXPECTED_RESPONSE,
-    ProviderFailureKind.NO_DATA,
 )
 
 # Most specific first: every entry but the last is a ``ValueError`` subtype, and several are subtypes of one another.

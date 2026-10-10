@@ -141,7 +141,11 @@ class Case:
     fcf_facts: Callable[[], tuple[ProviderFact, ...]] | None = None
     fcf_error_field: FinancialField | None = None
     failure_kind: ProviderFailureKind | None = None
-    """When set, the fixture provider's failure is raised carrying this kind, as a classifying adapter would."""
+    """When set, the fixture provider's failure is raised carrying this kind instead of the fixture's own."""
+    unclassified: bool = False
+    """The one deliberate no-kind case: the fixture provider's failure is raised with no kind."""
+    quote_failure_kind: ProviderFailureKind | None = None
+    """When set, only the optional quote fails, with this kind."""
 
 
 def _fcf_success_facts() -> tuple[ProviderFact, ...]:
@@ -217,34 +221,33 @@ CASES: tuple[Case, ...] = (
         fcf_error_field=FinancialField.OPERATING_CASH_FLOW,
     ),
     Case(
-        "graham-number-provider-unreachable",
+        "graham-number-provider-error-unclassified",
         "graham-number",
         _with_ticker("graham-number", "ERROR"),
         1,
-        failure_kind=ProviderFailureKind.UNREACHABLE,
+        unclassified=True,
     ),
     Case(
-        "graham-growth-provider-unreachable",
+        "graham-number-quote-provider-failure",
+        "graham-number",
+        _arguments("graham-number"),
+        0,
+        quote_failure_kind=ProviderFailureKind.UNREACHABLE,
+    ),
+    Case(
+        "graham-growth-quote-provider-failure",
         "graham-growth",
-        _with_ticker("graham-growth", "ERROR"),
-        1,
-        failure_kind=ProviderFailureKind.UNREACHABLE,
-    ),
-    Case(
-        "fcf-growth-provider-unreachable",
-        "fcf-growth",
-        _arguments("fcf-growth"),
-        1,
-        fcf_error_field=FinancialField.OPERATING_CASH_FLOW,
-        failure_kind=ProviderFailureKind.UNREACHABLE,
+        _arguments("graham-growth"),
+        0,
+        quote_failure_kind=ProviderFailureKind.UNREACHABLE,
     ),
 )
 
 
 class _ClassifyingProvider:
-    """Wraps a fixture provider, raising its provider failures with a kind and the provider the request named."""
+    """Wraps a fixture provider, re-raising its provider failures with a chosen kind, or with none."""
 
-    def __init__(self, delegate: FinancialFactsProvider, kind: ProviderFailureKind) -> None:
+    def __init__(self, delegate: FinancialFactsProvider, kind: ProviderFailureKind | None) -> None:
         self._delegate = delegate
         self._kind = kind
 
@@ -252,7 +255,22 @@ class _ClassifyingProvider:
         try:
             return self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
         except FinancialProviderError as error:
+            if self._kind is None:
+                raise FinancialProviderError(str(error)) from error
             raise FinancialProviderError(str(error), kind=self._kind, provider_id=request.provider_id) from error
+
+
+class _FailingQuoteProvider:
+    """Wraps a fixture provider so that only the current-price request fails, with a kind."""
+
+    def __init__(self, delegate: FinancialFactsProvider, kind: ProviderFailureKind) -> None:
+        self._delegate = delegate
+        self._kind = kind
+
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
+        if request.field_name is FinancialField.CURRENT_PRICE:
+            raise FinancialProviderError("fixture quote failure", kind=self._kind, provider_id=request.provider_id)
+        return self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
 
 
 def _fcf_provider(case: Case, yahoo: type[_FixtureYahoo]) -> ProductionFinancialFactsProvider:
@@ -274,9 +292,15 @@ def _fcf_provider(case: Case, yahoo: type[_FixtureYahoo]) -> ProductionFinancial
 def _enter_providers(stack: ExitStack, case: Case) -> None:
     """Replace the command's providers with the case's deterministic fixtures."""
     enter_fixture_providers(stack, case.command, sec_labeled=True)
-    if case.failure_kind is not None and case.command != "fcf-growth":
+    wrapper: FinancialFactsProvider | None = None
+    if case.command != "fcf-growth":
+        if case.failure_kind is not None or case.unclassified:
+            wrapper = _ClassifyingProvider(SecLabeledGrahamProvider(), case.failure_kind)
+        elif case.quote_failure_kind is not None:
+            wrapper = _FailingQuoteProvider(SecLabeledGrahamProvider(), case.quote_failure_kind)
+    if wrapper is not None:
         resolver_type = GrahamGrowthInputResolver if case.command == "graham-growth" else GrahamNumberInputResolver
-        resolver = resolver_type(_ClassifyingProvider(SecLabeledGrahamProvider(), case.failure_kind), clock=lambda: NOW)
+        resolver = resolver_type(wrapper, clock=lambda: NOW)
         for graham in ("graham_number", "graham_growth"):
             stack.enter_context(patch(f"src.strategies.{graham}.cli.build_graham_resolver", return_value=resolver))
     for strategy in ("momentum", "graham_number", "graham_growth"):

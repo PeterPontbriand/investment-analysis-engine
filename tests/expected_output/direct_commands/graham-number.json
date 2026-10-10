@@ -110,7 +110,8 @@
   },
   "quote": {
     "status": "ok",
-    "reason": null
+    "reason": null,
+    "provider_failure": null
   },
   "warnings": [],
   "limitations": [

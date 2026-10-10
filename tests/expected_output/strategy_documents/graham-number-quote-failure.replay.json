@@ -70,7 +70,8 @@
   },
   "quote": {
     "status": "provider_error",
-    "reason": "The configured quote provider could not complete the request."
+    "reason": "The configured quote provider could not complete the request.",
+    "provider_failure": null
   },
   "warnings": [
     "book_value_per_share is a user override, not provider-verified data.",

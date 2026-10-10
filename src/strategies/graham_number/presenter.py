@@ -353,7 +353,12 @@ def _number_document(p: GrahamNumberPresentation) -> GrahamNumberDocument:
             bvps=resolved_input_part(p.assembly.bvps),
             current_price=resolved_input_part(p.assembly.current_price),
         ),
-        quote=quote_part(p.assembly.current_price, p.assembly.quote_status, p.assembly.quote_reason),
+        quote=quote_part(
+            p.assembly.current_price,
+            p.assembly.quote_status,
+            p.assembly.quote_reason,
+            p.assembly.quote_provider_failure,
+        ),
         warnings=tuple(_number_warnings(p)),
         limitations=(_NUMBER_LIMITATION,),
         diagnostics=(

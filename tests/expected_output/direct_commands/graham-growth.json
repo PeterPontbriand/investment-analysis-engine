@@ -134,7 +134,8 @@
   },
   "quote": {
     "status": "ok",
-    "reason": null
+    "reason": null,
+    "provider_failure": null
   },
   "warnings": [
     "AAA yield is user-supplied rather than provider-verified."

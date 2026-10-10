@@ -12,7 +12,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
-from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from src.core.provider_failure_kind import PROVIDER_KIND_PRECEDENCE, ProviderFailureKind, ProviderFailureRecord
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 from src.data.provider_failure import failure_record
@@ -248,8 +248,12 @@ def profile_identity_resolution(profile: InstrumentProfile) -> SecurityIdentityR
         IdentityResolutionStatus.PROVIDER_ERROR if failed else IdentityResolutionStatus.UNAVAILABLE,
         None,
         "No security identity metadata was resolved by the instrument-profile candidates.",
-        # Candidates are in provider precedence order, so the first failed candidate's failure is the one reported.
-        next((item.provider_failure for item in failed if item.provider_failure is not None), None),
+        # The highest-precedence kind among the failed candidates; candidate order breaks a tie.
+        min(
+            (item.provider_failure for item in failed if item.provider_failure is not None),
+            key=lambda failure: PROVIDER_KIND_PRECEDENCE.index(failure.kind),
+            default=None,
+        ),
     )
 
 

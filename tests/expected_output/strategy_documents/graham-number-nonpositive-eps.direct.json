@@ -108,7 +108,8 @@
   },
   "quote": {
     "status": "ok",
-    "reason": null
+    "reason": null,
+    "provider_failure": null
   },
   "warnings": [
     "EPS is a user override, not provider-verified data."

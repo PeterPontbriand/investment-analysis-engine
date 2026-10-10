@@ -110,7 +110,7 @@ rejected the answer, so no typed failure exists to carry. The stored kind of the
 | `financial/resolver.py` `_validate_provider_response` | 1466 | A coherence check on the fact (subject, field, provider, basis) fails. | **Decided:** same (D23). | PH.2c, complete |
 | `financial/resolver.py` `_derive_bvps_from_components` | 803 | The BVPS quotient is not finite (project arithmetic, not a provider answer). | **Decided:** the branch is reachable from finite components, so it stays with `unexpected_response` and its status; whether `PROVIDER_ERROR` is right is ESC-28 (D24). | PH.2c, complete |
 | `financial/resolver.py` `_bvps_component_failure` | 1376 | Passes a component's `PROVIDER_ERROR` status through the derivation. | **Carried.** The component's kind passes through unchanged. | PH.2c, complete |
-| `yfinance/financial_facts.py` `YFinanceFinancialFactsAdapter.fetch_facts` | 51 | A `FinancialProviderError` with no kind was raised when the injected clock returns a naive datetime. | **Decided:** a defect. It raises `ValueError` and propagates (D25). | PH.2c, complete |
+| `yfinance/financial_facts.py` `YFinanceFinancialFactsAdapter.fetch_facts` | 51 | A `FinancialProviderError` with no kind was raised when the injected clock returns a naive datetime. | **Decided:** a defect. It raises `RuntimeError`, reported as `execution_error`, and propagates (D25). | PH.2c, complete |
 
 ## 5. Boundaries that stay broad by design
 

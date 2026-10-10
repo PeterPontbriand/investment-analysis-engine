@@ -19,6 +19,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Final
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheKey
 from src.data.financial.facts import (
     FinancialFactRequest,
@@ -201,7 +202,11 @@ class FixtureFinancialFactsProvider:
             return ()
 
         if subject == SUBJECT_ERROR:
-            raise FinancialProviderError("Simulated fixture provider operational failure.")
+            raise FinancialProviderError(
+                "Simulated fixture provider operational failure.",
+                kind=ProviderFailureKind.UNREACHABLE,
+                provider_id=request.provider_id,
+            )
 
         if subject == SUBJECT_FUTURE:
             return self._future_fact(request)

@@ -310,7 +310,12 @@ def _growth_document(p: GrahamGrowthPresentation) -> GrahamGrowthDocument:
         method_assumptions=GrahamGrowthAssumptionsPart(
             base_pe=p.base_pe, growth_multiplier=p.growth_multiplier, baseline_aaa_yield=p.baseline_aaa_yield
         ),
-        quote=quote_part(p.assembly.current_price, p.assembly.quote_status, p.assembly.quote_reason),
+        quote=quote_part(
+            p.assembly.current_price,
+            p.assembly.quote_status,
+            p.assembly.quote_reason,
+            p.assembly.quote_provider_failure,
+        ),
         warnings=tuple(_growth_warnings(p)),
         limitations=(_GROWTH_LIMITATION,),
         diagnostics=(

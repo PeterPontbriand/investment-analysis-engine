@@ -4,16 +4,7 @@
   "method": "graham_number",
   "ticker": "ERROR",
   "status": "provider_error",
-  "provider_failure": {
-    "reason_code": "provider_unreachable",
-    "inputs": [
-      {
-        "input": "eps",
-        "provider_id": "sec_edgar",
-        "kind": "unreachable"
-      }
-    ]
-  },
+  "provider_failure": null,
   "requested_as_of": null,
   "effective_as_of": "<wall-clock>",
   "security_identity": {
@@ -46,7 +37,8 @@
   },
   "quote": {
     "status": "not_attempted",
-    "reason": null
+    "reason": null,
+    "provider_failure": null
   },
   "warnings": [],
   "limitations": [
