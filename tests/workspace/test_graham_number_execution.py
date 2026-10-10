@@ -66,8 +66,14 @@ def _analysis(
     ("assembly_status", "result_status", "expected"),
     [
         (CalculationStatus.OK, CalculationStatus.OK, RunOutcome.COMPLETED),
+        (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE, RunOutcome.NOT_APPLICABLE),
         (CalculationStatus.OK, CalculationStatus.INVALID_INPUT, RunOutcome.FAILED),
+        # The service never builds these two (the calculation returns ok, not_applicable or invalid_input); a result
+        # that is neither is a defect, and a failed run is the outcome that surfaces it.
+        (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE, RunOutcome.FAILED),
+        (CalculationStatus.OK, CalculationStatus.PROVIDER_ERROR, RunOutcome.FAILED),
         (CalculationStatus.NOT_APPLICABLE, CalculationStatus.OK, RunOutcome.NOT_APPLICABLE),
+        (CalculationStatus.NOT_APPLICABLE, CalculationStatus.NOT_APPLICABLE, RunOutcome.NOT_APPLICABLE),
         (CalculationStatus.INPUT_UNAVAILABLE, CalculationStatus.OK, RunOutcome.UNAVAILABLE),
         (CalculationStatus.INVALID_INPUT, CalculationStatus.OK, RunOutcome.FAILED),
         (CalculationStatus.PROVIDER_ERROR, CalculationStatus.OK, RunOutcome.FAILED),
