@@ -32,6 +32,7 @@ def project_momentum(
     presentation = MomentumPresentation(
         metrics=evidence.metrics,
         config=selection.to_momentum_config(),
+        requested_as_of=selection.as_of,
         market_data=evidence.market_data,
         resolution_trace=evidence.resolution_trace,
         data_resolution=evidence.data_resolution,

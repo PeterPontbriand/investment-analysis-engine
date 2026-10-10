@@ -186,16 +186,27 @@ Diagnostics retain complete technical provenance as well as resolution behavior:
 uv run ian graham-number KO --json
 ```
 
-Graham JSON uses presentation schema version **6**. The additive top-level
-`price_comparison` object contains `status`, `reason`, `percent`,
-`security_unit_evidence`, `provenance`, and `quote_freshness`. Its percentage matches the retained
-`result.margin_of_safety_percent` field; unavailable comparisons use null.
-Consumers pinned to earlier versions must accept version 5 explicitly. Existing
-programmatic presentations without a structured comparison emit a null object.
-Momentum and FCF/Earnings Growth use presentation version **5**; Graham uses version **6**.
-FCF's canonical result schema remains **3** and method version **2**.
+Every strategy document has the same header and the same tail. Keys are written in this order, not sorted:
 
-Each strategy's document is described by a published schema: `schemas/momentum.schema.json`, `schemas/graham-number.schema.json`, `schemas/graham-growth.schema.json` and `schemas/fcf-growth.schema.json`. `runs show --json` writes the saved run's own strategy document, described by the same schema as the direct command's. Every key is always present: a value that is absent is `null`, not an omitted key. The document's `schema_version` is independent of the method version and of the stored result's schema version, which FCF Growth also writes (`method_version`, `result_schema_version`).
+| Part | Keys, in order | Meaning |
+| :--- | :--- | :--- |
+| Header | `schema_version` | The document's own version |
+| | `analysis`, `method` | Which strategy and method wrote it |
+| | `ticker` | The instrument |
+| | `status` | Whether the calculation ran, as a calculation status (`ok`, `not_applicable`, `invalid_input`, `input_unavailable` or `provider_error`). Never a verdict |
+| | `requested_as_of` | The point in time you asked for with `--as-of`; `null` means now |
+| | `effective_as_of` | The instant the analysis was evaluated at: `requested_as_of` when given, else the execution time |
+| | `security_identity`, `instrument_kind` | The identity and instrument-kind evidence the run retained |
+| Body | The strategy's own keys | Listed in its schema |
+| Tail | `warnings`, `limitations`, `diagnostics` | Lists of strings, strings and entries |
+
+A verdict lives in the body: Momentum's trend is `result.trend` (`BULLISH`, `BEARISH` or `UNKNOWN`), and FCF Growth's screen is `classification`. Momentum's `status` is `ok` for every document it writes, because a calculation that cannot run fails instead. The latest data date Momentum used is `source.data_as_of`.
+
+A Graham document's body begins with `price_comparison` (`status`, `reason`, `percent`, `security_unit_evidence`, `provenance`, `quote_freshness`); its `percent` matches `result.margin_of_safety_percent`, and a comparison that was not made is `null`.
+
+Presentation versions: Momentum **6**, Graham Number **7**, Graham Growth **7**, FCF Growth **6**. FCF's canonical result schema is **3** and its method version **2**.
+
+Each strategy's document is described by a published schema: `schemas/momentum.schema.json`, `schemas/graham-number.schema.json`, `schemas/graham-growth.schema.json` and `schemas/fcf-growth.schema.json`. `runs show --json` writes the saved run's own strategy document, described by the same schema as the direct command's. Every key is always present: a value that is absent is `null`, not an omitted key. The document's `schema_version` is independent of the method version and of the stored result's schema version, which FCF Growth also writes (`method_version`, `result_schema_version`, directly after the header).
 
 Quote timing distinguishes original retrieval from market observation. Filing venue evidence is separate from current identity. Momentum retains cache/provider resolution evidence and a typed crossover result. Missing numeric values remain `null`, never zero or non-standard `NaN`.
 

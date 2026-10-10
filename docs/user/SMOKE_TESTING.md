@@ -49,7 +49,7 @@ Provider data changes over time, so exact values are not prescribed. For each co
    uv run ian momentum KO --json
    ```
 
-   With historical caching enabled and the preceding snapshot still eligible, expect `data_resolution.source_kind` to be `cache`, with the original retrieval time retained and cache evidence in `diagnostics`. Expect the top-level `schema_version` to be 4; `data_resolution.cache_schema_version` remains 1. Cache reuse must not relabel the snapshot as freshly retrieved provider data.
+   With historical caching enabled and the preceding snapshot still eligible, expect `data_resolution.source_kind` to be `cache`, with the original retrieval time retained and cache evidence in `diagnostics`. Expect the top-level `schema_version` to be 6; `data_resolution.cache_schema_version` remains 1. Cache reuse must not relabel the snapshot as freshly retrieved provider data.
 
 6. Inspect the default SEC-backed Graham Number calculation, quote comparison and detailed lineage:
 
@@ -65,7 +65,7 @@ Provider data changes over time, so exact values are not prescribed. For each co
    uv run ian graham-number KO --json
    ```
 
-   Expect top-level schema version 6 and `price_comparison.quote_freshness` with original retrieval time, response age and the configured maximum (300 seconds by default). An eligible cache hit retains its retrieval time; an expired or unverifiable quote must refresh or explain unavailability, never silently fall back to stale data. A missing market timestamp remains `null`. If legacy-input evidence prevents comparison, rerun command 6 with `--no-cache`; continuing unavailability requires its own supported explanation, not automatic acceptance of the refresh hint.
+   Expect top-level schema version 7 and `price_comparison.quote_freshness` with original retrieval time, response age and the configured maximum (300 seconds by default). An eligible cache hit retains its retrieval time; an expired or unverifiable quote must refresh or explain unavailability, never silently fall back to stale data. A missing market timestamp remains `null`. If legacy-input evidence prevents comparison, rerun command 6 with `--no-cache`; continuing unavailability requires its own supported explanation, not automatic acceptance of the refresh hint.
 
 8. Exercise a historical Graham boundary and its resolver diagnostics:
 

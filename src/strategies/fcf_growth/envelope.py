@@ -4,27 +4,20 @@ The identifiers and enumerations the document writes are read from the strategy'
 they are declared; this module imports nothing else from the package.
 The same model backs a direct command and a ``runs show`` replay.
 
-The document is the complete result plus the presentation fields (``schema_version``, ``result_schema_version``,
-``security_identity`` and ``instrument_kind``). Its resolved inputs are wider than the Graham family's: they
-carry the annual-fact fields (fiscal year, period kind, accounting scope, capital-expenditure sign, provider fact
-id), so the model is this strategy's own.
+The document is the complete result plus the presentation fields (the shared header and tail, and
+``result_schema_version``). Its resolved inputs are wider than the Graham family's: they carry the annual-fact
+fields (fiscal year, period kind, accounting scope, capital-expenditure sign, provider fact id), so the model is this
+strategy's own.
 """
 
 from __future__ import annotations
 
 from typing import Final
 
-from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import ReasonCode
 from src.data.financial.provenance import AccountingScope, CapitalExpenditureSign, PeriodKind, SourceKind
-from src.reporting.documents.shared_parts import (
-    DiagnosticEntry,
-    DocumentPart,
-    InstrumentKindPart,
-    JsonNumber,
-    MetricResultPart,
-    SecurityIdentityPart,
-)
+from src.reporting.documents.shared_parts import DocumentPart, JsonNumber, MetricResultPart
+from src.reporting.documents.strategy_document import StrategyDocumentHeader, StrategyDocumentTail
 from src.reporting.documents.timestamp import DocumentTimestamp
 from src.strategies.fcf_growth.vocabulary import (
     AnalysisId,
@@ -37,7 +30,7 @@ from src.strategies.fcf_growth.vocabulary import (
     TrendClassification,
 )
 
-DOCUMENT_SCHEMA_VERSION: Final = 5
+DOCUMENT_SCHEMA_VERSION: Final = 6
 
 
 class FCFResolvedInputPart(DocumentPart):
@@ -115,27 +108,12 @@ class FCFForwardEvidencePart(DocumentPart):
     confirms_positive_growth: bool | None
 
 
-class FCFDiagnosticsPart(DocumentPart):
-    """The ordered diagnostics of the run: resolver events, then the instrument-profile attempts."""
+class FCFBody(DocumentPart):
+    """The keys only the FCF Growth document writes."""
 
-    events: tuple[DiagnosticEntry, ...]
-
-
-class FCFDocument(DocumentPart):
-    """The FCF Growth document, version 5, as ``fcf-growth --json`` and ``runs show --json`` write it."""
-
-    schema_version: int
     result_schema_version: int
-    strategy_id: AnalysisId
-    method_id: MethodId
     method_version: int
-    ticker: str
-    security_identity: SecurityIdentityPart
-    instrument_kind: InstrumentKindPart | None
-    requested_as_of: DocumentTimestamp | None
-    effective_as_of: DocumentTimestamp
     policy: FCFPolicyPart
-    execution_status: CalculationStatus
     classification: Classification
     classification_reason_code: ReasonCode | None
     classification_reason: str | None
@@ -152,13 +130,18 @@ class FCFDocument(DocumentPart):
     market_capitalization: FCFResolvedInputPart | None
     fcf_yield: MetricResultPart
     forward_evidence: FCFForwardEvidencePart
-    warnings: tuple[str, ...]
-    diagnostics: FCFDiagnosticsPart
+
+
+class FCFDocument(StrategyDocumentTail, FCFBody, StrategyDocumentHeader[AnalysisId, MethodId]):
+    """The FCF Growth document, version 6, as ``fcf-growth --json`` and ``runs show --json`` write it.
+
+    The shared header and tail come from :mod:`src.reporting.documents.strategy_document`.
+    """
 
 
 __all__ = [
     "DOCUMENT_SCHEMA_VERSION",
-    "FCFDiagnosticsPart",
+    "FCFBody",
     "FCFDocument",
     "FCFForwardEvidencePart",
     "FCFLineagePart",

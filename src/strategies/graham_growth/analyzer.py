@@ -31,6 +31,7 @@ class GrahamGrowthAnalyzer(BaseAnalyzer[GrahamGrowthConfig, GrahamGrowthAnalysis
             aaa_yield_override=config.aaa_yield_override,
             quote_override=config.quote_override,
             as_of=context.as_of,
+            effective_as_of=context.effective_as_of,
             use_cache=context.use_cache,
             policy=self._policy,
             instrument_profile=context.instrument_profile,

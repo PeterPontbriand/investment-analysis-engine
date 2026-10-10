@@ -7,20 +7,11 @@ The same model backs a direct command and a ``runs show`` replay, which write th
 
 from typing import Final
 
-from src.core.analysis_status import CalculationStatus
-from src.reporting.documents.shared_parts import (
-    DiagnosticEntry,
-    DocumentPart,
-    InstrumentKindPart,
-    PriceComparisonPart,
-    QuotePart,
-    ResolvedInputPart,
-    SecurityIdentityPart,
-)
-from src.reporting.documents.timestamp import DocumentTimestamp
+from src.reporting.documents.shared_parts import DocumentPart, PriceComparisonPart, QuotePart, ResolvedInputPart
+from src.reporting.documents.strategy_document import StrategyDocumentHeader, StrategyDocumentTail
 from src.strategies.graham_growth.vocabulary import AnalysisId, MethodId
 
-DOCUMENT_SCHEMA_VERSION: Final = 6
+DOCUMENT_SCHEMA_VERSION: Final = 7
 
 
 class GrahamGrowthResultPart(DocumentPart):
@@ -47,31 +38,28 @@ class GrahamGrowthAssumptionsPart(DocumentPart):
     baseline_aaa_yield: float
 
 
-class GrahamGrowthDocument(DocumentPart):
-    """The Graham Growth document, version 6, as ``graham-growth --json`` and ``runs show --json`` write it."""
+class GrahamGrowthBody(DocumentPart):
+    """The keys only the Graham Growth document writes."""
 
-    schema_version: int
     price_comparison: PriceComparisonPart | None
-    analysis: AnalysisId
-    ticker: str
-    security_identity: SecurityIdentityPart
-    instrument_kind: InstrumentKindPart | None
-    method: MethodId
-    as_of: DocumentTimestamp | None
-    status: CalculationStatus
     reason: str | None
     result: GrahamGrowthResultPart
     inputs: GrahamGrowthInputsPart
     method_assumptions: GrahamGrowthAssumptionsPart
     quote: QuotePart
-    warnings: tuple[str, ...]
-    limitations: tuple[str, ...]
-    diagnostics: tuple[DiagnosticEntry, ...]
+
+
+class GrahamGrowthDocument(StrategyDocumentTail, GrahamGrowthBody, StrategyDocumentHeader[AnalysisId, MethodId]):
+    """The Graham Growth document, version 7, as ``graham-growth --json`` and ``runs show --json`` write it.
+
+    The shared header and tail come from :mod:`src.reporting.documents.strategy_document`.
+    """
 
 
 __all__ = [
     "DOCUMENT_SCHEMA_VERSION",
     "GrahamGrowthAssumptionsPart",
+    "GrahamGrowthBody",
     "GrahamGrowthDocument",
     "GrahamGrowthInputsPart",
     "GrahamGrowthResultPart",

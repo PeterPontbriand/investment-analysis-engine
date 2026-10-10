@@ -29,6 +29,7 @@ class GrahamNumberAnalyzer(BaseAnalyzer[GrahamNumberConfig, GrahamNumberAnalysis
             bvps_override=config.bvps_override,
             quote_override=config.quote_override,
             as_of=context.as_of,
+            effective_as_of=context.effective_as_of,
             use_cache=context.use_cache,
             instrument_profile=context.instrument_profile,
         )

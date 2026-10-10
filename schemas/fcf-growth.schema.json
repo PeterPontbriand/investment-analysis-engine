@@ -80,31 +80,6 @@
       "title": "FCFClassificationBasis",
       "type": "string"
     },
-    "FCFDiagnosticsPart": {
-      "additionalProperties": false,
-      "description": "The ordered diagnostics of the run: resolver events, then the instrument-profile attempts.",
-      "properties": {
-        "events": {
-          "items": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/DiagnosticPart"
-              },
-              {
-                "$ref": "#/$defs/ProviderDiagnosticPart"
-              }
-            ]
-          },
-          "title": "Events",
-          "type": "array"
-        }
-      },
-      "required": [
-        "events"
-      ],
-      "title": "FCFDiagnosticsPart",
-      "type": "object"
-    },
     "FCFForwardEvidencePart": {
       "additionalProperties": false,
       "description": "The analyst-consensus forward evidence for the next two fiscal years.",
@@ -890,8 +865,13 @@
     }
   },
   "additionalProperties": false,
-  "description": "The FCF Growth document, version 5, as ``fcf-growth --json`` and ``runs show --json`` write it.",
+  "description": "The FCF Growth document, version 6, as ``fcf-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`src.reporting.documents.strategy_document`.",
   "properties": {
+    "analysis": {
+      "const": "fcf_earnings_growth",
+      "title": "Analysis",
+      "type": "string"
+    },
     "annual_observations": {
       "items": {
         "$ref": "#/$defs/FCFObservationPart"
@@ -924,7 +904,18 @@
       ]
     },
     "diagnostics": {
-      "$ref": "#/$defs/FCFDiagnosticsPart"
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/DiagnosticPart"
+          },
+          {
+            "$ref": "#/$defs/ProviderDiagnosticPart"
+          }
+        ]
+      },
+      "title": "Diagnostics",
+      "type": "array"
     },
     "effective_as_of": {
       "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
@@ -934,9 +925,6 @@
     },
     "eps_cagr": {
       "$ref": "#/$defs/MetricResultPart"
-    },
-    "execution_status": {
-      "$ref": "#/$defs/CalculationStatus"
     },
     "fcf_cagr": {
       "$ref": "#/$defs/MetricResultPart"
@@ -960,6 +948,13 @@
         }
       ]
     },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
     "market_capitalization": {
       "anyOf": [
         {
@@ -970,9 +965,9 @@
         }
       ]
     },
-    "method_id": {
+    "method": {
       "const": "reported_fcf_eps_cagr",
-      "title": "Method Id",
+      "title": "Method",
       "type": "string"
     },
     "method_version": {
@@ -1047,10 +1042,8 @@
       "title": "Selected Observation Count",
       "type": "integer"
     },
-    "strategy_id": {
-      "const": "fcf_earnings_growth",
-      "title": "Strategy Id",
-      "type": "string"
+    "status": {
+      "$ref": "#/$defs/CalculationStatus"
     },
     "ticker": {
       "title": "Ticker",
@@ -1073,17 +1066,17 @@
   },
   "required": [
     "schema_version",
-    "result_schema_version",
-    "strategy_id",
-    "method_id",
-    "method_version",
+    "analysis",
+    "method",
     "ticker",
-    "security_identity",
-    "instrument_kind",
+    "status",
     "requested_as_of",
     "effective_as_of",
+    "security_identity",
+    "instrument_kind",
+    "result_schema_version",
+    "method_version",
     "policy",
-    "execution_status",
     "classification",
     "classification_reason_code",
     "classification_reason",
@@ -1101,6 +1094,7 @@
     "fcf_yield",
     "forward_evidence",
     "warnings",
+    "limitations",
     "diagnostics"
   ],
   "title": "FCFDocument",

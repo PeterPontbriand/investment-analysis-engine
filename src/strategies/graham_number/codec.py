@@ -24,6 +24,10 @@ class _NumberEvidence(BaseModel):
             raise ValueError("Graham Number requires a normalized ticker.")
         if analysis.as_of is not None and analysis.as_of.utcoffset() is None:
             raise ValueError("Analysis as_of must be timezone-aware.")
+        if analysis.effective_as_of.utcoffset() is None:
+            raise ValueError("Analysis effective_as_of must be timezone-aware.")
+        if analysis.as_of is not None and analysis.effective_as_of != analysis.as_of:
+            raise ValueError("Analysis effective_as_of must equal the requested as_of when one was given.")
         assembly, result = analysis.assembly, analysis.result
         if assembly.method != METHOD_ID or result.method != METHOD_ID:
             raise ValueError("Graham Number assembly/result method mismatch.")

@@ -107,6 +107,7 @@ def _analysis() -> GrahamGrowthAnalysis:
     return GrahamGrowthAnalysis(
         "KO",
         STAMP,
+        STAMP,
         assembly,
         GrahamGrowthValueResult(CalculationStatus.OK, 30.0),
         GrahamGrowthCalculationPolicy(1.5, 1.0, 4.4),
@@ -127,8 +128,8 @@ def _run(analysis: GrahamGrowthAnalysis | None = None) -> AnalysisRun:
         started_at=STAMP,
         completed_at=STAMP,
         method_version=1,
-        result_schema_version=1,
-        evidence_codec_version=1,
+        result_schema_version=2,
+        evidence_codec_version=2,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis or _analysis()),
     )

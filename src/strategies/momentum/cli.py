@@ -226,6 +226,7 @@ def command(  # noqa: PLR0913
         presentation = MomentumPresentation(
             metrics=run.metrics,
             config=config,
+            requested_as_of=boundary,
             market_data=run.market_data,
             resolution_trace=run.resolution_trace,
             data_resolution=run.data_resolution,

@@ -33,11 +33,14 @@ def test_every_stored_file_belongs_to_a_case() -> None:
 def test_every_strategy_has_a_document_for_each_status_it_can_report() -> None:
     """The captured set spans each strategy's statuses, so a status cannot lose its byte check unnoticed."""
     statuses: dict[str, set[str]] = {}
+    trends: set[str] = set()
     for stem in cases():
         document = json.loads(expected_path(stem).read_bytes())
-        key = document.get("analysis") or document["strategy_id"]
-        statuses.setdefault(key, set()).add(document.get("status") or document["execution_status"])
-    assert statuses["momentum"] >= {"BULLISH", "UNKNOWN"}
+        statuses.setdefault(document["analysis"], set()).add(document["status"])
+        if document["analysis"] == "momentum":
+            trends.add(document["result"]["trend"])
+    assert statuses["momentum"] == {"ok"}
+    assert trends >= {"BULLISH", "UNKNOWN"}
     for graham in ("graham_number", "graham_growth_value"):
         assert statuses[graham] == {"ok", "not_applicable", "input_unavailable", "provider_error", "invalid_input"}
     assert statuses["fcf_earnings_growth"] == {

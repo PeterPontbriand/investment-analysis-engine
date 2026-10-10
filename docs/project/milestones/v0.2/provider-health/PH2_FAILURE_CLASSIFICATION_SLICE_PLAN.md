@@ -60,7 +60,7 @@ the same slice and the diff is what the review approves.
 | 6 | Yahoo failure sentences | "Network transport fault ..." for any exception | A sentence per kind; an empty history says Yahoo returned no data for the ticker (D22) | PH.2b |
 | 7 | `ian health`, failed check | `<provider>: failed (...)` | `<provider>: unreachable`, `unexpected response` or `no data`; `<provider>: failed` only for a failure with no kind (D20) | PH.2b |
 | 8 | Stored evidence of the three SEC-backed strategies and Momentum | Provider failure has status and prose only | Typed kind and provider identity; evidence and run-envelope versions bumped | PH.2c |
-| 9 | Strategy `--json` documents (Momentum, Graham Number, Graham Growth, FCF Growth), direct and replayed | No code; Graham documents carry `status: provider_error` and a sentence | New nullable `provider_failure` element in every document; each document's `schema_version` bumped | PH.2c |
+| 9 | Strategy `--json` documents (Momentum, Graham Number, Graham Growth, FCF Growth), direct and replayed | No code; Graham documents carry `status: provider_error` and a sentence | New nullable `provider_failure` key in the shared document header, after `status`, so every document takes it; each document's `schema_version` bumped | PH.2c |
 | 10 | Saved run, every `failed` run | `failure_reason_code` `execution_failed` | A `FailureReasonCode` value: the mapped provider code, `invalid_input` or `execution_error`; `execution_failed` is no longer written | PH.2c |
 | 11 | Refresh job `reason_code` | Set only for a raised exception | Set if and only if the job raised or its run is `failed`; a failed run's job copies the stored code ([§6](#6-refresh-job-reason_codes)) | PH.2c |
 | 12 | Refresh summary schema | `reason_code` set if and only if `error` is set | Set if and only if the job raised or its run is `failed` | PH.2c |
@@ -131,6 +131,11 @@ PH.2c extend.
   the hand-written profile-cache payload, whose `_diagnostics_payload` and `_diagnostics_from_payload` carry the
   kind, with a test that it round-trips. Nothing is migrated; local databases may be discarded. The 73 files in
   `tests/expected_output/strategy_documents/` are regenerated (new element and version in each).
+- **The element is added in one place.** The strategy documents share a header and a tail declared once in
+  `src/reporting/documents/strategy_document.py` ([design H.34](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h34-common-header-and-tail-for-strategy-documents-2026-10-09)).
+  PH.2c adds `provider_failure: ProviderFailurePart | None` to `StrategyDocumentHeader` directly after `status`, adds
+  the key to `HEADER_KEYS`, and populates it in each presenter. No strategy envelope changes. The shape test
+  `tests/reporting/test_strategy_document_shape.py` then covers every descriptor's `json_envelope`.
 - **Derived reports.** Every report derives from the stored kind through the one kind-to-code mapping in
   `failure_classification.py`: the strategy documents and the saved run's `failure_reason_code`. The refresh
   job copies the stored code.
@@ -155,10 +160,10 @@ PH.2c extend.
   failed diluted-share field when it classifies on total free cash flow, and that failure is not reported);
   the rule matters for the first strategy that resolves inputs without stopping. No rule that the code
   suggests is better. A raised provider failure (Momentum) has no input name, so its `input` is null (D15).
-- **Conformance check.** A test iterates every strategy descriptor's `json_envelope` model (`STRATEGIES` in
-  `src/strategy_wiring.py`, added by SWC.4c)
-  and fails if its schema lacks the `provider_failure` property of the shared type, so a new strategy cannot
-  omit it. It also checks the failure envelope.
+- **Conformance check.** The shared strategy-document test (`tests/reporting/test_strategy_document_shape.py`, added by SWC.4c.1)
+  iterates every strategy descriptor's `json_envelope` model (`STRATEGIES` in `src/strategy_wiring.py`) and fails if
+  it does not take the shared header, which PH.2c extends with `provider_failure`, so a new strategy cannot omit it.
+  PH.2c adds the failure envelope to the check.
 
 ## 6. Refresh job `reason_code`s
 
@@ -227,7 +232,7 @@ Checked at `847d28a` (2026-10-09).
   (`:1376`) passes a component's status through, so a kind has to pass through it as well.
 - **Today's `--json` for a provider failure.** Momentum: the failure envelope. Graham Number and Graham
   Growth: a document with `status: "provider_error"`, a sentence in `reason`, null `result` and `inputs`, and no
-  code. FCF Growth: the whole result with `execution_status` and per-metric `reason_code` `provider_error`.
+  code. FCF Growth: the whole result with `status` and per-metric `reason_code` `provider_error`.
 - **Failure envelope.** `FailureEnvelope.schema_version` is `Literal[6]` in `src/reporting/documents/failure.py`,
   a leaf module that imports nothing from the application. `FailureReasonCode` and `INPUT_UNAVAILABLE_CODES` are
   there too; `DatabaseMaintenanceReport` shares the code vocabulary, so its schema also regenerates.
@@ -244,9 +249,9 @@ Checked at `847d28a` (2026-10-09).
   `repositories/analysis_runs.py`, which stores `instrument_profile`; and the hand-written
   `_diagnostics_payload` and `_diagnostics_from_payload` in `instrument_profile_cache.py`, which list fields
   explicitly and would drop a new one. The profile table stores that payload as opaque JSON.
-- **Versions today.** `AnalysisRun.run_schema_version` is 1. Document `schema_version`: Momentum 5, Graham Number
-  6, Graham Growth 6, FCF Growth 5. Descriptor `result_schema_version`: Momentum 2, Graham Number 1, Graham
-  Growth 1, FCF Growth `FCF_GROWTH_RESULT_SCHEMA_VERSION`; every `evidence_codec_version` is 1. All four
+- **Versions today.** `AnalysisRun.run_schema_version` is 1. Document `schema_version`: Momentum 6, Graham Number
+  7, Graham Growth 7, FCF Growth 6. Descriptor `result_schema_version`: Momentum 2, Graham Number 2, Graham
+  Growth 2, FCF Growth `FCF_GROWTH_RESULT_SCHEMA_VERSION`; `evidence_codec_version` is 2 for the two Graham strategies and 1 for the others. All four
   descriptors in `src/strategy_wiring.py` carry `json_envelope`.
 - **Profile-cache payload.** `_encode_profile` writes `identity`, `kind_evidence` and `diagnostics` and no version
   field. The stored record has a `schema_version` column that the repository writes as the constant 1

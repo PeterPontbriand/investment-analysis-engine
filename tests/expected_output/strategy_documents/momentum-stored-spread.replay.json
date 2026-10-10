@@ -1,86 +1,87 @@
 {
+  "schema_version": 6,
   "analysis": "momentum",
-  "analysis_timestamp": "<wall-clock>",
-  "as_of": "2026-01-05",
-  "data_resolution": null,
-  "diagnostics": [
-    {
-      "field_name": "historical_close",
-      "message": "Requested historical market observations from the configured provider.",
-      "outcome": "attempted",
-      "stage": "provider"
-    },
-    {
-      "field_name": "historical_close",
-      "message": "Resolved 5 historical observations with retained source provenance.",
-      "outcome": "success",
-      "stage": "provider"
-    },
-    {
-      "field_name": "historical_close",
-      "message": "Applied the requested point-in-time boundary before calculation.",
-      "outcome": "success",
-      "stage": "validation"
-    },
-    {
-      "field_name": "momentum",
-      "message": "Calculated Momentum metrics from the point-in-time price series.",
-      "outcome": "success",
-      "stage": "derivation"
-    }
-  ],
-  "instrument_kind": null,
-  "limitations": [
-    "SMA momentum describes recent price trend; it is not a valuation, fundamental-quality conclusion, or investment recommendation."
-  ],
   "method": "sma_crossover",
-  "parameters": {
-    "long_window": 3,
-    "rsi_period": 14,
-    "short_window": 2
+  "ticker": "AAPL",
+  "status": "ok",
+  "requested_as_of": null,
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "AAPL",
+    "instrument_name": null,
+    "listing_venue": null,
+    "issuer_identifier": null,
+    "instrument_identifier": null,
+    "provider_id": null,
+    "resolved_at": null
   },
+  "instrument_kind": null,
   "result": {
-    "crossover_result": {
-      "reason": null,
-      "reason_code": null,
-      "status": "ok",
-      "value": 0.0
-    },
-    "crossover_signal": 0.0,
-    "crossover_state": "no_new_crossover",
+    "trend": "BULLISH",
     "current_price": 104.060401,
-    "long_sma": 103.03350033333334,
     "price_basis": "latest_historical_close",
-    "rsi": {
-      "reason": "RSI requires at least 15 observations; 5 were available.",
-      "reason_code": "insufficient_history",
-      "status": "unavailable",
-      "value": null
-    },
     "short_sma": 103.54525050000001,
+    "long_sma": 103.03350033333334,
     "sma_spread": 999.0,
     "sma_spread_percent": 111.0,
-    "trend_relationship": "short_above_long"
+    "trend_relationship": "short_above_long",
+    "crossover_signal": 0.0,
+    "crossover_result": {
+      "status": "ok",
+      "value": 0.0,
+      "reason_code": null,
+      "reason": null
+    },
+    "crossover_state": "no_new_crossover",
+    "rsi": {
+      "status": "unavailable",
+      "value": null,
+      "reason_code": "insufficient_history",
+      "reason": "RSI requires at least 15 observations; 5 were available."
+    }
   },
-  "schema_version": 5,
-  "security_identity": {
-    "instrument_identifier": null,
-    "instrument_name": null,
-    "issuer_identifier": null,
-    "listing_venue": null,
-    "provider_id": null,
-    "resolved_at": null,
-    "ticker": "AAPL"
+  "parameters": {
+    "short_window": 2,
+    "long_window": 3,
+    "rsi_period": 14
   },
   "source": {
-    "currency": null,
+    "provider": "fixture",
     "data_as_of": "2026-01-05",
     "interval": null,
     "observation_count": 5,
-    "price_adjustment": null,
-    "provider": "fixture"
+    "currency": null,
+    "price_adjustment": null
   },
-  "status": "BULLISH",
-  "ticker": "AAPL",
-  "warnings": []
+  "data_resolution": null,
+  "warnings": [],
+  "limitations": [
+    "SMA momentum describes recent price trend; it is not a valuation, fundamental-quality conclusion, or investment recommendation."
+  ],
+  "diagnostics": [
+    {
+      "field_name": "historical_close",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested historical market observations from the configured provider."
+    },
+    {
+      "field_name": "historical_close",
+      "stage": "provider",
+      "outcome": "success",
+      "message": "Resolved 5 historical observations with retained source provenance."
+    },
+    {
+      "field_name": "historical_close",
+      "stage": "validation",
+      "outcome": "success",
+      "message": "Applied the requested point-in-time boundary before calculation."
+    },
+    {
+      "field_name": "momentum",
+      "stage": "derivation",
+      "outcome": "success",
+      "message": "Calculated Momentum metrics from the point-in-time price series."
+    }
+  ]
 }

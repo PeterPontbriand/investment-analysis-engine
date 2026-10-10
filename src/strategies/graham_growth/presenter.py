@@ -21,6 +21,7 @@ from src.reporting.documents.shared_parts import (
     security_identity_part,
     trace_parts,
 )
+from src.reporting.documents.strategy_document import strategy_document_json
 from src.reporting.evidence_presentation import (
     analysis_heading,
     common_currency,
@@ -38,7 +39,7 @@ from src.reporting.evidence_presentation import (
     validate_ticker,
 )
 from src.reporting.input_provenance import investor_input_lines
-from src.reporting.presentation import PresentationMode, format_money, format_number, json_document
+from src.reporting.presentation import PresentationMode, format_money, format_number
 from src.reporting.valuation_presentation import (
     comparison_details,
     comparison_lines,
@@ -73,6 +74,7 @@ class GrahamGrowthPresentation:
     base_pe: float
     growth_multiplier: float
     baseline_aaa_yield: float
+    effective_as_of: datetime
     as_of: datetime | None = None
     margin_of_safety_percent: float | None = None
     identity_resolution: SecurityIdentityResolution | None = None
@@ -124,7 +126,7 @@ def render_graham_growth(
 ) -> str:
     """Render a Graham growth-value analysis using the approved investor grammar."""
     if mode is PresentationMode.JSON:
-        return json_document(_growth_document(presentation).model_dump(mode="json"))
+        return strategy_document_json(_growth_document(presentation))
 
     lines = _growth_concise_lines(presentation)
     if mode is PresentationMode.DETAILS:
@@ -286,14 +288,15 @@ def _growth_document(p: GrahamGrowthPresentation) -> GrahamGrowthDocument:
     result_value = p.result.growth_value if p.result is not None and p.result.status is CalculationStatus.OK else None
     return GrahamGrowthDocument(
         schema_version=DOCUMENT_SCHEMA_VERSION,
-        price_comparison=price_comparison_part(p.price_comparison),
         analysis=ANALYSIS_ID,
+        method=METHOD_ID,
         ticker=p.ticker.upper(),
+        status=status,
+        requested_as_of=p.as_of,
+        effective_as_of=p.effective_as_of,
         security_identity=security_identity_part(p.ticker, p.identity_resolution),
         instrument_kind=instrument_kind_part_of(p.instrument_profile),
-        method=METHOD_ID,
-        as_of=p.as_of,
-        status=status,
+        price_comparison=price_comparison_part(p.price_comparison),
         reason=reason,
         result=GrahamGrowthResultPart(growth_value=result_value, margin_of_safety_percent=p.margin_of_safety_percent),
         inputs=GrahamGrowthInputsPart(

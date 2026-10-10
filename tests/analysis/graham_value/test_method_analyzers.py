@@ -102,7 +102,7 @@ def test_complete_service_equivalence(growth: bool, ticker: str, use_cache: bool
     config = _config(growth, **values)
     analyzer = _analyzer(growth, _resolver(growth))
     kwargs = config.model_dump()
-    kwargs.update(as_of=NOW, use_cache=use_cache, instrument_profile=None)
+    kwargs.update(as_of=NOW, effective_as_of=NOW, use_cache=use_cache, instrument_profile=None)
     if growth:
         kwargs["policy"] = POLICY
     expected = (
@@ -204,7 +204,7 @@ def test_borrowed_resources_cache_reuse_and_bypass(growth: bool) -> None:
 def test_numeric_edge_cases_match_service(growth: bool, field: str, value: float) -> None:
     config = _config(growth, **{field: value})
     kwargs = config.model_dump()
-    kwargs.update(as_of=NOW, use_cache=True, instrument_profile=None)
+    kwargs.update(as_of=NOW, effective_as_of=NOW, use_cache=True, instrument_profile=None)
     if growth:
         kwargs["policy"] = POLICY
     expected = (

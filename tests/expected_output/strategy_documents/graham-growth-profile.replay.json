@@ -1,289 +1,290 @@
 {
+  "schema_version": 7,
   "analysis": "graham_growth_value",
-  "as_of": null,
-  "diagnostics": [
-    {
-      "field_name": "eps",
-      "message": "No explicit EPS override was supplied.",
-      "outcome": "not_used",
-      "stage": "override"
-    },
-    {
-      "field_name": "eps",
-      "message": "Cache use was disabled for the derived EPS resolution.",
-      "outcome": "not_used",
-      "stage": "cache"
-    },
-    {
-      "field_name": "eps",
-      "message": "Requested completed fiscal-year EPS observations from the configured provider.",
-      "outcome": "attempted",
-      "stage": "provider"
-    },
-    {
-      "field_name": "eps",
-      "message": "Provider returned 3 fiscal-year EPS candidate(s).",
-      "outcome": "success",
-      "stage": "provider"
-    },
-    {
-      "field_name": "eps",
-      "message": "Selecting three compatible, temporally eligible fiscal-year EPS observations.",
-      "outcome": "attempted",
-      "stage": "derivation"
-    },
-    {
-      "field_name": "eps",
-      "message": "Derived three-year-average EPS from three compatible fiscal-year observations.",
-      "outcome": "success",
-      "stage": "derivation"
-    },
-    {
-      "field_name": "expected_growth",
-      "message": "Explicit expected-growth assumption was accepted.",
-      "outcome": "success",
-      "stage": "override"
-    },
-    {
-      "field_name": "current_aaa_yield",
-      "message": "Explicit override was accepted; cache and provider were bypassed.",
-      "outcome": "success",
-      "stage": "override"
-    },
-    {
-      "field_name": "current_price",
-      "message": "No explicit override was supplied.",
-      "outcome": "not_used",
-      "stage": "override"
-    },
-    {
-      "field_name": "current_price",
-      "message": "Cache use was disabled for this resolution.",
-      "outcome": "not_used",
-      "stage": "cache"
-    },
-    {
-      "field_name": "current_price",
-      "message": "Requested current_price from provider 'yfinance'.",
-      "outcome": "attempted",
-      "stage": "provider"
-    },
-    {
-      "field_name": "current_price",
-      "message": "Provider fact provider_id ('sec_edgar') does not match request ('yfinance').",
-      "outcome": "rejected",
-      "stage": "provider"
-    },
-    {
-      "field_name": "security_identity",
-      "message": "Provider 'sec_edgar' does not expose security identity metadata.",
-      "outcome": "unsupported",
-      "provider_id": "sec_edgar",
-      "stage": "provider"
-    },
-    {
-      "field_name": "security_identity",
-      "message": "Resolved current descriptive security identity via 'yfinance'.",
-      "outcome": "resolved",
-      "provider_id": "yfinance",
-      "stage": "provider"
-    },
-    {
-      "field_name": "instrument_kind",
-      "message": "Resolved current instrument-kind metadata via 'yfinance'.",
-      "outcome": "resolved",
-      "provider_id": "yfinance",
-      "stage": "provider"
-    }
-  ],
-  "inputs": {
-    "current_aaa_yield": {
-      "as_of": null,
-      "available_at": null,
-      "basis": null,
-      "cache_schema_version": null,
-      "currency": null,
-      "field_name": "current_aaa_yield",
-      "lineage": null,
-      "notes": [],
-      "observation_period_end": null,
-      "observation_period_start": null,
-      "observed_at": null,
-      "origin_source_kind": null,
-      "provider_field": null,
-      "provider_id": null,
-      "resolved_at": "<wall-clock>",
-      "retrieved_at": null,
-      "source_kind": "override",
-      "units": "percentage_points",
-      "value": 4.5
-    },
-    "current_price": null,
-    "eps": {
-      "as_of": null,
-      "available_at": "2024-09-13T00:00:00+00:00",
-      "basis": "three_year_average",
-      "cache_schema_version": null,
-      "currency": "USD",
-      "field_name": "eps",
-      "lineage": {
-        "components": [
-          {
-            "as_of": null,
-            "available_at": "2022-09-15T00:00:00+00:00",
-            "basis": "fiscal_year",
-            "cache_schema_version": null,
-            "currency": "USD",
-            "field_name": "eps",
-            "lineage": null,
-            "notes": [
-              "fixture: FY2022 annual EPS"
-            ],
-            "observation_period_end": "2022-06-30T00:00:00+00:00",
-            "observation_period_start": "2021-07-01T00:00:00+00:00",
-            "observed_at": null,
-            "origin_source_kind": null,
-            "provider_field": "fx_annual_eps",
-            "provider_id": "sec_edgar",
-            "resolved_at": "<wall-clock>",
-            "retrieved_at": "<wall-clock>",
-            "source_kind": "provider",
-            "units": "currency_per_share",
-            "value": 2.1
-          },
-          {
-            "as_of": null,
-            "available_at": "2023-09-14T00:00:00+00:00",
-            "basis": "fiscal_year",
-            "cache_schema_version": null,
-            "currency": "USD",
-            "field_name": "eps",
-            "lineage": null,
-            "notes": [
-              "fixture: FY2023 annual EPS"
-            ],
-            "observation_period_end": "2023-06-30T00:00:00+00:00",
-            "observation_period_start": "2022-07-01T00:00:00+00:00",
-            "observed_at": null,
-            "origin_source_kind": null,
-            "provider_field": "fx_annual_eps",
-            "provider_id": "sec_edgar",
-            "resolved_at": "<wall-clock>",
-            "retrieved_at": "<wall-clock>",
-            "source_kind": "provider",
-            "units": "currency_per_share",
-            "value": 3.4
-          },
-          {
-            "as_of": null,
-            "available_at": "2024-09-13T00:00:00+00:00",
-            "basis": "fiscal_year",
-            "cache_schema_version": null,
-            "currency": "USD",
-            "field_name": "eps",
-            "lineage": null,
-            "notes": [
-              "fixture: FY2024 annual EPS"
-            ],
-            "observation_period_end": "2024-06-30T00:00:00+00:00",
-            "observation_period_start": "2023-07-01T00:00:00+00:00",
-            "observed_at": null,
-            "origin_source_kind": null,
-            "provider_field": "fx_annual_eps",
-            "provider_id": "sec_edgar",
-            "resolved_at": "<wall-clock>",
-            "retrieved_at": "<wall-clock>",
-            "source_kind": "provider",
-            "units": "currency_per_share",
-            "value": 4.2
-          }
-        ],
-        "transformation": "arithmetic_mean"
-      },
-      "notes": [
-        "Annual EPS compatibility established for provider concept, earnings-per-share basis, currency, units, fiscal periods, and exposed share-class/split metadata.",
-        "Duplicate-period restatements are rejected unless the provider adapter has already selected one fact."
-      ],
-      "observation_period_end": "2024-06-30T00:00:00+00:00",
-      "observation_period_start": "2021-07-01T00:00:00+00:00",
-      "observed_at": null,
-      "origin_source_kind": null,
-      "provider_field": null,
-      "provider_id": "sec_edgar",
-      "resolved_at": "<wall-clock>",
-      "retrieved_at": "<wall-clock>",
-      "source_kind": "derived",
-      "units": "currency_per_share",
-      "value": 3.233333333333333
-    },
-    "expected_growth": {
-      "as_of": null,
-      "available_at": null,
-      "basis": null,
-      "cache_schema_version": null,
-      "currency": null,
-      "field_name": "expected_growth",
-      "lineage": null,
-      "notes": [],
-      "observation_period_end": null,
-      "observation_period_start": null,
-      "observed_at": null,
-      "origin_source_kind": null,
-      "provider_field": null,
-      "provider_id": null,
-      "resolved_at": "<wall-clock>",
-      "retrieved_at": null,
-      "source_kind": "override",
-      "units": "percentage_points",
-      "value": 5.0
-    }
+  "method": "graham_growth_value",
+  "ticker": "SYNTH",
+  "status": "ok",
+  "requested_as_of": null,
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "SYNTH",
+    "instrument_name": "Fixture Holdings Inc.",
+    "listing_venue": "NYSE",
+    "issuer_identifier": "0000000001",
+    "instrument_identifier": "FIX-0001",
+    "provider_id": "yfinance",
+    "resolved_at": "<wall-clock>"
   },
   "instrument_kind": {
     "kind": "equity",
-    "provider_id": "yfinance",
     "provider_value": "EQUITY",
+    "provider_id": "yfinance",
     "resolved_at": "<wall-clock>"
   },
-  "limitations": [
-    "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
-  ],
-  "method": "graham_growth_value",
-  "method_assumptions": {
-    "base_pe": 8.5,
-    "baseline_aaa_yield": 4.4,
-    "growth_multiplier": 2.0
-  },
   "price_comparison": {
-    "percent": null,
-    "provenance": null,
-    "quote_freshness": null,
+    "status": "unavailable",
     "reason": "missing_quote",
+    "percent": null,
+    "quote_freshness": null,
     "security_unit_evidence": null,
-    "status": "unavailable"
-  },
-  "quote": {
-    "reason": "The configured quote provider could not complete the request.",
-    "status": "provider_error"
+    "provenance": null
   },
   "reason": null,
   "result": {
     "growth_value": 58.4874074074074,
     "margin_of_safety_percent": null
   },
-  "schema_version": 6,
-  "security_identity": {
-    "instrument_identifier": "FIX-0001",
-    "instrument_name": "Fixture Holdings Inc.",
-    "issuer_identifier": "0000000001",
-    "listing_venue": "NYSE",
-    "provider_id": "yfinance",
-    "resolved_at": "<wall-clock>",
-    "ticker": "SYNTH"
+  "inputs": {
+    "eps": {
+      "field_name": "eps",
+      "value": 3.233333333333333,
+      "source_kind": "derived",
+      "origin_source_kind": null,
+      "basis": "three_year_average",
+      "units": "currency_per_share",
+      "currency": "USD",
+      "provider_id": "sec_edgar",
+      "provider_field": null,
+      "observation_period_start": "2021-07-01T00:00:00+00:00",
+      "observation_period_end": "2024-06-30T00:00:00+00:00",
+      "observed_at": null,
+      "available_at": "2024-09-13T00:00:00+00:00",
+      "as_of": null,
+      "retrieved_at": "<wall-clock>",
+      "resolved_at": "<wall-clock>",
+      "cache_schema_version": null,
+      "notes": [
+        "Annual EPS compatibility established for provider concept, earnings-per-share basis, currency, units, fiscal periods, and exposed share-class/split metadata.",
+        "Duplicate-period restatements are rejected unless the provider adapter has already selected one fact."
+      ],
+      "lineage": {
+        "transformation": "arithmetic_mean",
+        "components": [
+          {
+            "field_name": "eps",
+            "value": 2.1,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency_per_share",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "fx_annual_eps",
+            "observation_period_start": "2021-07-01T00:00:00+00:00",
+            "observation_period_end": "2022-06-30T00:00:00+00:00",
+            "observed_at": null,
+            "available_at": "2022-09-15T00:00:00+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "fixture: FY2022 annual EPS"
+            ],
+            "lineage": null
+          },
+          {
+            "field_name": "eps",
+            "value": 3.4,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency_per_share",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "fx_annual_eps",
+            "observation_period_start": "2022-07-01T00:00:00+00:00",
+            "observation_period_end": "2023-06-30T00:00:00+00:00",
+            "observed_at": null,
+            "available_at": "2023-09-14T00:00:00+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "fixture: FY2023 annual EPS"
+            ],
+            "lineage": null
+          },
+          {
+            "field_name": "eps",
+            "value": 4.2,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency_per_share",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "fx_annual_eps",
+            "observation_period_start": "2023-07-01T00:00:00+00:00",
+            "observation_period_end": "2024-06-30T00:00:00+00:00",
+            "observed_at": null,
+            "available_at": "2024-09-13T00:00:00+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "fixture: FY2024 annual EPS"
+            ],
+            "lineage": null
+          }
+        ]
+      }
+    },
+    "expected_growth": {
+      "field_name": "expected_growth",
+      "value": 5.0,
+      "source_kind": "override",
+      "origin_source_kind": null,
+      "basis": null,
+      "units": "percentage_points",
+      "currency": null,
+      "provider_id": null,
+      "provider_field": null,
+      "observation_period_start": null,
+      "observation_period_end": null,
+      "observed_at": null,
+      "available_at": null,
+      "as_of": null,
+      "retrieved_at": null,
+      "resolved_at": "<wall-clock>",
+      "cache_schema_version": null,
+      "notes": [],
+      "lineage": null
+    },
+    "current_aaa_yield": {
+      "field_name": "current_aaa_yield",
+      "value": 4.5,
+      "source_kind": "override",
+      "origin_source_kind": null,
+      "basis": null,
+      "units": "percentage_points",
+      "currency": null,
+      "provider_id": null,
+      "provider_field": null,
+      "observation_period_start": null,
+      "observation_period_end": null,
+      "observed_at": null,
+      "available_at": null,
+      "as_of": null,
+      "retrieved_at": null,
+      "resolved_at": "<wall-clock>",
+      "cache_schema_version": null,
+      "notes": [],
+      "lineage": null
+    },
+    "current_price": null
   },
-  "status": "ok",
-  "ticker": "SYNTH",
+  "method_assumptions": {
+    "base_pe": 8.5,
+    "growth_multiplier": 2.0,
+    "baseline_aaa_yield": 4.4
+  },
+  "quote": {
+    "status": "provider_error",
+    "reason": "The configured quote provider could not complete the request."
+  },
   "warnings": [
     "AAA yield is user-supplied rather than provider-verified.",
     "Current quote unavailable; price comparison omitted."
+  ],
+  "limitations": [
+    "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
+  ],
+  "diagnostics": [
+    {
+      "field_name": "eps",
+      "stage": "override",
+      "outcome": "not_used",
+      "message": "No explicit EPS override was supplied."
+    },
+    {
+      "field_name": "eps",
+      "stage": "cache",
+      "outcome": "not_used",
+      "message": "Cache use was disabled for the derived EPS resolution."
+    },
+    {
+      "field_name": "eps",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested completed fiscal-year EPS observations from the configured provider."
+    },
+    {
+      "field_name": "eps",
+      "stage": "provider",
+      "outcome": "success",
+      "message": "Provider returned 3 fiscal-year EPS candidate(s)."
+    },
+    {
+      "field_name": "eps",
+      "stage": "derivation",
+      "outcome": "attempted",
+      "message": "Selecting three compatible, temporally eligible fiscal-year EPS observations."
+    },
+    {
+      "field_name": "eps",
+      "stage": "derivation",
+      "outcome": "success",
+      "message": "Derived three-year-average EPS from three compatible fiscal-year observations."
+    },
+    {
+      "field_name": "expected_growth",
+      "stage": "override",
+      "outcome": "success",
+      "message": "Explicit expected-growth assumption was accepted."
+    },
+    {
+      "field_name": "current_aaa_yield",
+      "stage": "override",
+      "outcome": "success",
+      "message": "Explicit override was accepted; cache and provider were bypassed."
+    },
+    {
+      "field_name": "current_price",
+      "stage": "override",
+      "outcome": "not_used",
+      "message": "No explicit override was supplied."
+    },
+    {
+      "field_name": "current_price",
+      "stage": "cache",
+      "outcome": "not_used",
+      "message": "Cache use was disabled for this resolution."
+    },
+    {
+      "field_name": "current_price",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested current_price from provider 'yfinance'."
+    },
+    {
+      "field_name": "current_price",
+      "stage": "provider",
+      "outcome": "rejected",
+      "message": "Provider fact provider_id ('sec_edgar') does not match request ('yfinance')."
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "unsupported",
+      "message": "Provider 'sec_edgar' does not expose security identity metadata.",
+      "provider_id": "sec_edgar"
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "resolved",
+      "message": "Resolved current descriptive security identity via 'yfinance'.",
+      "provider_id": "yfinance"
+    },
+    {
+      "field_name": "instrument_kind",
+      "stage": "provider",
+      "outcome": "resolved",
+      "message": "Resolved current instrument-kind metadata via 'yfinance'.",
+      "provider_id": "yfinance"
+    }
   ]
 }

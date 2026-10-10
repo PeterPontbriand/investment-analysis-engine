@@ -19,6 +19,7 @@ from src.data.instrument_profile import (
     InstrumentProfileResolutionStatus,
 )
 from src.data.security_identity import SecurityIdentity
+from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
 from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
 from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy
@@ -103,6 +104,7 @@ def test_known_etf_short_circuits_both_graham_methods_before_input_or_quote_reso
         as_of=None,
         use_cache=True,
         instrument_profile=profile,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
     growth = run_graham_growth_analysis(
         resolver=resolver,
@@ -118,6 +120,7 @@ def test_known_etf_short_circuits_both_graham_methods_before_input_or_quote_reso
         use_cache=True,
         policy=GrahamGrowthCalculationPolicy(8.5, 2.0, 4.4),
         instrument_profile=profile,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     assert number.result.status is CalculationStatus.NOT_APPLICABLE
@@ -171,6 +174,7 @@ def test_unreviewed_kind_fails_open_to_existing_graham_resolution() -> None:
         as_of=None,
         use_cache=True,
         instrument_profile=profile,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     assert result.result.status is CalculationStatus.INPUT_UNAVAILABLE
@@ -196,6 +200,7 @@ def test_known_equity_continues_existing_graham_resolution() -> None:
         as_of=None,
         use_cache=True,
         instrument_profile=_profile(InstrumentKind.EQUITY, "EQUITY"),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     assert result.result.status is CalculationStatus.INPUT_UNAVAILABLE
@@ -221,6 +226,7 @@ def test_kind_provider_error_fails_open_to_existing_graham_resolution() -> None:
         as_of=None,
         use_cache=True,
         instrument_profile=_profile_without_kind(InstrumentProfileResolutionStatus.PROVIDER_ERROR),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     assert result.result.status is CalculationStatus.INPUT_UNAVAILABLE

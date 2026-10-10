@@ -13,18 +13,17 @@ from src.reporting.documents.shared_parts import (
     security_identity_part,
     trace_parts,
 )
+from src.reporting.documents.strategy_document import strategy_document_json
 from src.reporting.input_provenance import input_detail_lines, investor_value
 from src.reporting.presentation import (
     PresentationMode,
     format_date,
     format_datetime,
     format_money,
-    json_document,
     provider_display_name,
 )
 from src.strategies.fcf_growth.envelope import (
     DOCUMENT_SCHEMA_VERSION,
-    FCFDiagnosticsPart,
     FCFDocument,
     FCFForwardEvidencePart,
     FCFObservationPart,
@@ -328,17 +327,17 @@ def _document(
     """
     return FCFDocument(
         schema_version=DOCUMENT_SCHEMA_VERSION,
-        result_schema_version=result.schema_version,
-        strategy_id=ANALYSIS_ID,
-        method_id=METHOD_ID,
-        method_version=result.method_version,
+        analysis=ANALYSIS_ID,
+        method=METHOD_ID,
         ticker=result.ticker,
-        security_identity=security_identity_part(result.ticker, identity_resolution),
-        instrument_kind=instrument_kind_part_of(profile),
+        status=result.execution_status,
         requested_as_of=result.requested_as_of,
         effective_as_of=result.effective_as_of,
+        security_identity=security_identity_part(result.ticker, identity_resolution),
+        instrument_kind=instrument_kind_part_of(profile),
+        result_schema_version=result.schema_version,
+        method_version=result.method_version,
         policy=FCFPolicyPart.model_validate(result.policy, from_attributes=True),
-        execution_status=result.execution_status,
         classification=result.classification,
         classification_reason_code=result.classification_reason_code,
         classification_reason=result.classification_reason,
@@ -362,12 +361,11 @@ def _document(
         fcf_yield=metric_result_part(result.fcf_yield),
         forward_evidence=FCFForwardEvidencePart.model_validate(result.forward_evidence, from_attributes=True),
         warnings=result.warnings,
-        diagnostics=FCFDiagnosticsPart(
-            events=(
-                *trace_parts(result.diagnostics),
-                *profile_diagnostic_parts(profile),
-                *identity_diagnostic_parts(profile, identity_resolution),
-            )
+        limitations=(_LIMITATION,),
+        diagnostics=(
+            *trace_parts(result.diagnostics),
+            *profile_diagnostic_parts(profile),
+            *identity_diagnostic_parts(profile, identity_resolution),
         ),
     )
 
@@ -386,7 +384,7 @@ def render_fcf_earnings_growth(
         else profile_identity_resolution(profile)
     )
     if mode is PresentationMode.JSON:
-        return json_document(_document(result, resolved_identity, profile).model_dump(mode="json"))
+        return strategy_document_json(_document(result, resolved_identity, profile))
     if mode is PresentationMode.DETAILS:
         return "\n".join(_details(result, resolved_identity, profile))
     if mode is PresentationMode.DIAGNOSTICS:

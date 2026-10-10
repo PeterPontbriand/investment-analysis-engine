@@ -104,6 +104,7 @@ def _graham_number_analysis(ticker: str, price: float) -> GrahamNumberAnalysis:
     return GrahamNumberAnalysis(
         ticker=ticker,
         as_of=NOW,
+        effective_as_of=NOW,
         assembly=assembly,
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=price),
         margin_of_safety_percent=None,

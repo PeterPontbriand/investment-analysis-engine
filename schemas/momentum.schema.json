@@ -1,5 +1,17 @@
 {
   "$defs": {
+    "CalculationStatus": {
+      "description": "Machine-readable outcome of a calculation attempt.\n\nPure calculators (Slice B) may return:\n\n- ``OK`` — required inputs resolved and calculation completed.\n- ``NOT_APPLICABLE`` — inputs are valid but the selected method is\n  inapplicable (e.g. non-positive EPS or BVPS for the Graham Number).\n- ``INVALID_INPUT`` — supplied value, unit, basis, or method/flag\n  combination is invalid.\n\nResolver/provider layers (Slice C and later) will additionally return:\n\n- ``INPUT_UNAVAILABLE`` — a required input could not be resolved under\n  the requested time boundary.\n- ``PROVIDER_ERROR`` — the configured provider failed in a way that\n  should be distinguished from an absent fact.",
+      "enum": [
+        "ok",
+        "not_applicable",
+        "invalid_input",
+        "input_unavailable",
+        "provider_error"
+      ],
+      "title": "CalculationStatus",
+      "type": "string"
+    },
     "CrossoverState": {
       "description": "What the latest crossover signal says.",
       "enum": [
@@ -235,7 +247,7 @@
     },
     "MomentumResultPart": {
       "additionalProperties": false,
-      "description": "The computed trend metrics; each is null when the available history cannot support it.",
+      "description": "The computed trend and metrics; each metric is null when the available history cannot support it.\n\n``trend`` is the verdict (``UNKNOWN`` when the history cannot support both moving averages), never the\ndocument's ``status``, which says only that the calculation ran.",
       "properties": {
         "crossover_result": {
           "anyOf": [
@@ -322,6 +334,9 @@
           ],
           "title": "Sma Spread Percent"
         },
+        "trend": {
+          "$ref": "#/$defs/TrendStatus"
+        },
         "trend_relationship": {
           "anyOf": [
             {
@@ -334,6 +349,7 @@
         }
       },
       "required": [
+        "trend",
         "current_price",
         "price_basis",
         "short_sma",
@@ -627,30 +643,12 @@
     }
   },
   "additionalProperties": false,
-  "description": "The Momentum document, version 5, as ``momentum --json`` and ``runs show --json`` write it.",
+  "description": "The Momentum document, version 6, as ``momentum --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`src.reporting.documents.strategy_document`.",
   "properties": {
     "analysis": {
       "const": "momentum",
       "title": "Analysis",
       "type": "string"
-    },
-    "analysis_timestamp": {
-      "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-      "format": "date-time",
-      "title": "Analysis Timestamp",
-      "type": "string"
-    },
-    "as_of": {
-      "anyOf": [
-        {
-          "format": "date",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "title": "As Of"
     },
     "data_resolution": {
       "anyOf": [
@@ -675,6 +673,12 @@
       },
       "title": "Diagnostics",
       "type": "array"
+    },
+    "effective_as_of": {
+      "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+      "format": "date-time",
+      "title": "Effective As Of",
+      "type": "string"
     },
     "instrument_kind": {
       "anyOf": [
@@ -701,6 +705,19 @@
     "parameters": {
       "$ref": "#/$defs/MomentumParametersPart"
     },
+    "requested_as_of": {
+      "anyOf": [
+        {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Requested As Of"
+    },
     "result": {
       "$ref": "#/$defs/MomentumResultPart"
     },
@@ -715,7 +732,7 @@
       "$ref": "#/$defs/MomentumSourcePart"
     },
     "status": {
-      "$ref": "#/$defs/TrendStatus"
+      "$ref": "#/$defs/CalculationStatus"
     },
     "ticker": {
       "title": "Ticker",
@@ -732,18 +749,18 @@
   "required": [
     "schema_version",
     "analysis",
+    "method",
     "ticker",
+    "status",
+    "requested_as_of",
+    "effective_as_of",
     "security_identity",
     "instrument_kind",
-    "method",
-    "as_of",
-    "analysis_timestamp",
-    "status",
     "result",
     "parameters",
     "source",
-    "warnings",
     "data_resolution",
+    "warnings",
     "limitations",
     "diagnostics"
   ],

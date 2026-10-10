@@ -2330,3 +2330,45 @@ never ran.
 - **Edit sites.** Unchanged at 20 sites in 25 files: the parser was a function inside the `selection.py` that row 6 already
   counts, so no row and no file is removed. Row 6 now reads "Selection class".
 - **Output.** None.
+
+### H.34 Common header and tail for strategy documents (2026-10-09)
+
+Decided by the project owner after SWC.4c. Slice: [SWC.4c.1](SWC_CONTRACT_AND_SLICE_PLAN.md#swc4c1--common-header-and-tail-for-strategy-documents).
+
+- **Header.** Every strategy document begins with `schema_version`, `analysis`, `method`, `ticker`, `status`,
+  `requested_as_of`, `effective_as_of`, `security_identity`, `instrument_kind`, in that order, each with one meaning.
+  `status` is the calculation status and never a verdict. `requested_as_of` is the point in time the user asked for
+  (`null` is now); `effective_as_of` is the instant the analysis was evaluated at.
+- **Tail.** Every strategy document ends with `warnings`, `limitations`, `diagnostics`, with the same types. FCF Growth's
+  diagnostics wrapper is gone and its `limitations` is the limitation sentence its text output already printed.
+- **Renames and moves.** FCF Growth `strategy_id`, `method_id`, `execution_status` become `analysis`, `method`, `status`.
+  Graham `as_of` becomes `requested_as_of`. Momentum `analysis_timestamp` becomes `effective_as_of`; its verdict moves to
+  `result.trend`; its top-level `as_of` is removed (the date stays in `source.data_as_of`); its `status` is `ok`
+  whenever a document exists, because a calculation that cannot run raises. Graham's `price_comparison` and FCF
+  Growth's `result_schema_version` and `method_version` are the first keys of their bodies. Nothing is dropped.
+- **Mechanism.** A generic `StrategyDocumentHeader[AnalysisId, MethodId]`, a `StrategyDocumentTail` and a per-strategy
+  body class are combined as `class Document(StrategyDocumentTail, Body, StrategyDocumentHeader[...])`. Pydantic collects
+  fields from the base-most class first, so the model, its schema's `required` list and the written JSON come out as
+  header, body, tail with no change to pydantic's field map; `mypy --strict` passes, and each schema keeps its own
+  identifier literals because the header is generic over them. The spike of this composition passed, so the
+  `__pydantic_init_subclass__` reordering hook was not needed. The trade-off: order depends on the base order in each
+  `class` statement, so a document written in another base order breaks, which the conformance test catches.
+- **Written order.** `json_document` sorts keys, which would have hidden the order. Strategy documents are written by
+  `strategy_document_json`, in model order at every depth. Failure, workspace and database documents keep sorted keys.
+  Generated schemas are still written with sorted keys, so the order is visible in a schema's `required` list.
+- **Conformance.** `tests/reporting/test_strategy_document_shape.py` iterates `STRATEGIES`, checks each `json_envelope`
+  against `HEADER_KEYS`, `TAIL_KEYS` and the declared types, includes a negative control, and checks the stored direct
+  and replayed documents for key order, a calculation-status `status` and agreeing headers.
+- **Evidence.** Graham Number and Graham Growth evidence stored only the requested boundary, so a run without
+  `--as-of` had no stored evaluation instant. `GrahamNumberAnalysis` and `GrahamGrowthAnalysis` now carry
+  `effective_as_of`, set from `AnalysisContext.effective_as_of`; the codecs reject a naive instant and one that differs
+  from a given `as_of`. Their `result_schema_version` and `evidence_codec_version` are 2.
+  `AnalysisRun.run_schema_version` does not change: the run envelope's fields are unchanged and the evidence shape is
+  versioned by those two fields.
+- **Momentum status.** Too little history leaves `status` at `ok` with `result.trend` `UNKNOWN`. Whether that becomes
+  `input_unavailable` belongs to Step 3.5's result-status decision
+  ([A.8](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a8-momentum-provider-failure-and-result-status-question-from-ph2-2026-10-07)).
+- **Output.** Each document's `schema_version` is bumped once (Momentum 6, Graham Number 7, Graham Growth 7, FCF Growth 6).
+  The stored strategy documents, the four direct-command files and one workspace file are regenerated; only key names,
+  key order, versions, and the new `effective_as_of` and FCF `limitations` values differ. The failure envelope and text
+  output are unchanged.

@@ -10,22 +10,22 @@ from typing import Final
 
 from src.core.constants import TrendStatus
 from src.data.financial.provenance import SourceKind
-from src.reporting.documents.shared_parts import (
-    DiagnosticEntry,
-    DocumentPart,
-    InstrumentKindPart,
-    MetricResultPart,
-    SecurityIdentityPart,
-)
+from src.reporting.documents.shared_parts import DocumentPart, MetricResultPart
+from src.reporting.documents.strategy_document import StrategyDocumentHeader, StrategyDocumentTail
 from src.reporting.documents.timestamp import DocumentTimestamp
 from src.strategies.momentum.vocabulary import AnalysisId, CrossoverState, MethodId, PriceBasis, TrendRelationship
 
-DOCUMENT_SCHEMA_VERSION: Final = 5
+DOCUMENT_SCHEMA_VERSION: Final = 6
 
 
 class MomentumResultPart(DocumentPart):
-    """The computed trend metrics; each is null when the available history cannot support it."""
+    """The computed trend and metrics; each metric is null when the available history cannot support it.
 
+    ``trend`` is the verdict (``UNKNOWN`` when the history cannot support both moving averages), never the
+    document's ``status``, which says only that the calculation ran.
+    """
+
+    trend: TrendStatus
     current_price: float
     price_basis: PriceBasis
     short_sma: float | None
@@ -68,29 +68,25 @@ class MomentumDataResolutionPart(DocumentPart):
     cache_schema_version: int | None
 
 
-class MomentumDocument(DocumentPart):
-    """The Momentum document, version 5, as ``momentum --json`` and ``runs show --json`` write it."""
+class MomentumBody(DocumentPart):
+    """The keys only the Momentum document writes."""
 
-    schema_version: int
-    analysis: AnalysisId
-    ticker: str
-    security_identity: SecurityIdentityPart
-    instrument_kind: InstrumentKindPart | None
-    method: MethodId
-    as_of: date | None
-    analysis_timestamp: DocumentTimestamp
-    status: TrendStatus
     result: MomentumResultPart
     parameters: MomentumParametersPart
     source: MomentumSourcePart
-    warnings: tuple[str, ...]
     data_resolution: MomentumDataResolutionPart | None
-    limitations: tuple[str, ...]
-    diagnostics: tuple[DiagnosticEntry, ...]
+
+
+class MomentumDocument(StrategyDocumentTail, MomentumBody, StrategyDocumentHeader[AnalysisId, MethodId]):
+    """The Momentum document, version 6, as ``momentum --json`` and ``runs show --json`` write it.
+
+    The shared header and tail come from :mod:`src.reporting.documents.strategy_document`.
+    """
 
 
 __all__ = [
     "DOCUMENT_SCHEMA_VERSION",
+    "MomentumBody",
     "MomentumDataResolutionPart",
     "MomentumDocument",
     "MomentumParametersPart",

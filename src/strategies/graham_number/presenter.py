@@ -21,6 +21,7 @@ from src.reporting.documents.shared_parts import (
     security_identity_part,
     trace_parts,
 )
+from src.reporting.documents.strategy_document import strategy_document_json
 from src.reporting.evidence_presentation import (
     analysis_heading,
     basis_display_name,
@@ -40,7 +41,7 @@ from src.reporting.evidence_presentation import (
     validate_ticker,
 )
 from src.reporting.input_provenance import investor_input_lines
-from src.reporting.presentation import PresentationMode, format_money, json_document
+from src.reporting.presentation import PresentationMode, format_money
 from src.reporting.valuation_presentation import (
     comparison_details,
     comparison_lines,
@@ -72,6 +73,7 @@ class GrahamNumberPresentation:
     ticker: str
     assembly: GrahamNumberInputAssembly
     result: GrahamNumberResult | None
+    effective_as_of: datetime
     as_of: datetime | None = None
     margin_of_safety_percent: float | None = None
     identity_resolution: SecurityIdentityResolution | None = None
@@ -109,7 +111,7 @@ def render_graham_number(
 ) -> str:
     """Render a Graham Number analysis using the approved investor grammar."""
     if mode is PresentationMode.JSON:
-        return json_document(_number_document(presentation).model_dump(mode="json"))
+        return strategy_document_json(_number_document(presentation))
 
     lines = _number_concise_lines(presentation)
     if mode is PresentationMode.DETAILS:
@@ -331,14 +333,15 @@ def _number_document(p: GrahamNumberPresentation) -> GrahamNumberDocument:
     )
     return GrahamNumberDocument(
         schema_version=DOCUMENT_SCHEMA_VERSION,
-        price_comparison=price_comparison_part(p.price_comparison),
         analysis=ANALYSIS_ID,
+        method=METHOD_ID,
         ticker=p.ticker.upper(),
+        status=status,
+        requested_as_of=p.as_of,
+        effective_as_of=p.effective_as_of,
         security_identity=security_identity_part(p.ticker, p.identity_resolution),
         instrument_kind=instrument_kind_part_of(p.instrument_profile),
-        method=METHOD_ID,
-        as_of=p.as_of,
-        status=status,
+        price_comparison=price_comparison_part(p.price_comparison),
         reason=reason,
         result=GrahamNumberResultPart(
             maximum_indicated_price=result_value, margin_of_safety_percent=p.margin_of_safety_percent

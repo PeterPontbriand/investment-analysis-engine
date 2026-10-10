@@ -54,6 +54,7 @@ def _analysis(
     return GrahamNumberAnalysis(
         ticker=SECURITY_ID,
         as_of=None,
+        effective_as_of=NOW,
         assembly=_assembly(assembly_status),
         result=_result(result_status),
         margin_of_safety_percent=None,

@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
+from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.strategies.graham_number.presenter import GrahamNumberPresentation, render_graham_number
 
@@ -63,6 +64,7 @@ def test_number_concise_explains_normalized_eps_and_period_end_bvps_basis() -> N
         ticker="KO",
         assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=eps, bvps=bvps),
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=21.14),
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     rendered = render_graham_number(presentation)

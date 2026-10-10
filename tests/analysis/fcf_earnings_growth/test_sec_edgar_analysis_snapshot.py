@@ -16,6 +16,7 @@ from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
 from src.data.financial.provenance import FinancialSubjectKind
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.service import run_graham_number_analysis
 
@@ -236,6 +237,7 @@ def test_graham_analysis_enters_the_same_optional_snapshot_boundary() -> None:
         quote_override=None,
         as_of=NOW,
         use_cache=False,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
 
     assert provider.scope_entries == 1

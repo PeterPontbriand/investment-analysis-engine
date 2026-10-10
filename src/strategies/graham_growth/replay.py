@@ -30,6 +30,7 @@ def project_graham_growth(
         growth_multiplier=evidence.policy.growth_multiplier,
         baseline_aaa_yield=evidence.policy.baseline_aaa_yield,
         as_of=evidence.as_of,
+        effective_as_of=evidence.effective_as_of,
         margin_of_safety_percent=evidence.margin_of_safety_percent,
         instrument_profile=inputs.instrument_profile,
         price_comparison=evidence.price_comparison,

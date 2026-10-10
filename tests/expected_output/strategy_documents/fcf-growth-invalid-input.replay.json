@@ -1,159 +1,160 @@
 {
-  "annual_observations": [],
-  "classification": "indeterminate",
-  "classification_reason": "subject_id, currency, and providers for OCF, CapEx, and EPS are required.",
-  "classification_reason_code": "invalid_request",
-  "diagnostics": {
-    "events": [
-      {
-        "field_name": "fcf",
-        "message": "Resolved history",
-        "outcome": "success",
-        "stage": "provider"
-      },
-      {
-        "field_name": "consensus",
-        "message": "No estimates",
-        "outcome": "unavailable",
-        "stage": "provider"
-      }
-    ]
-  },
+  "schema_version": 6,
+  "analysis": "fcf_earnings_growth",
+  "method": "reported_fcf_eps_cagr",
+  "ticker": "KO",
+  "status": "invalid_input",
+  "requested_as_of": "2026-09-10T12:00:00+00:00",
   "effective_as_of": "<wall-clock>",
-  "eps_cagr": {
-    "reason": "subject_id, currency, and providers for OCF, CapEx, and EPS are required.",
-    "reason_code": "invalid_request",
-    "status": "unavailable",
-    "value": null
-  },
-  "execution_status": "invalid_input",
-  "fcf_cagr": {
-    "reason": "subject_id, currency, and providers for OCF, CapEx, and EPS are required.",
-    "reason_code": "invalid_request",
-    "status": "unavailable",
-    "value": null
-  },
-  "fcf_per_share_cagr": {
-    "reason": "subject_id, currency, and providers for OCF, CapEx, and EPS are required.",
-    "reason_code": "invalid_request",
-    "status": "unavailable",
-    "value": null
-  },
-  "fcf_yield": {
-    "reason": null,
-    "reason_code": null,
-    "status": "ok",
-    "value": 5.0
-  },
-  "forward_evidence": {
-    "actual_to_fy1_growth": {
-      "reason": "No consensus",
-      "reason_code": "consensus_unavailable",
-      "status": "unavailable",
-      "value": null
-    },
-    "confirms_positive_growth": null,
-    "fy1_consensus_eps": null,
-    "fy1_to_fy2_growth": {
-      "reason": "No consensus",
-      "reason_code": "consensus_unavailable",
-      "status": "unavailable",
-      "value": null
-    },
-    "fy2_consensus_eps": null,
-    "latest_actual_eps": {
-      "accounting_scope": null,
-      "as_of": null,
-      "available_at": "2026-09-10T12:00:00+00:00",
-      "basis": null,
-      "cache_schema_version": null,
-      "capital_expenditure_sign": null,
-      "currency": "USD",
-      "field_name": "diluted_eps",
-      "fiscal_year": null,
-      "lineage": null,
-      "notes": [
-        "First",
-        "Second"
-      ],
-      "observation_period_end": null,
-      "observation_period_start": null,
-      "observed_at": null,
-      "origin_source_kind": null,
-      "period_kind": null,
-      "provider_fact_id": null,
-      "provider_field": null,
-      "provider_id": "sec_edgar",
-      "resolved_at": "<wall-clock>",
-      "retrieved_at": "<wall-clock>",
-      "source_kind": "provider",
-      "units": "currency_per_share",
-      "value": 4.0
-    },
-    "status": "unavailable"
+  "security_identity": {
+    "ticker": "KO",
+    "instrument_name": "Coca-Cola",
+    "listing_venue": "NYSE",
+    "issuer_identifier": "123",
+    "instrument_identifier": null,
+    "provider_id": "sec_edgar",
+    "resolved_at": "<wall-clock>"
   },
   "instrument_kind": {
     "kind": "equity",
-    "provider_id": "yfinance",
     "provider_value": "EQUITY",
+    "provider_id": "yfinance",
     "resolved_at": "<wall-clock>"
   },
+  "result_schema_version": 3,
+  "method_version": 2,
+  "policy": {
+    "historical_horizon": "longest_available",
+    "classification_basis": "total_fcf",
+    "forward_policy": "display_only",
+    "include_fcf_yield": true
+  },
+  "classification": "indeterminate",
+  "classification_reason_code": "invalid_request",
+  "classification_reason": "subject_id, currency, and providers for OCF, CapEx, and EPS are required.",
+  "selected_horizon_years": null,
+  "selected_observation_count": 0,
+  "used_horizon_fallback": false,
+  "period_start": null,
+  "period_end": null,
+  "annual_observations": [],
+  "fcf_cagr": {
+    "status": "unavailable",
+    "value": null,
+    "reason_code": "invalid_request",
+    "reason": "subject_id, currency, and providers for OCF, CapEx, and EPS are required."
+  },
+  "fcf_per_share_cagr": {
+    "status": "unavailable",
+    "value": null,
+    "reason_code": "invalid_request",
+    "reason": "subject_id, currency, and providers for OCF, CapEx, and EPS are required."
+  },
+  "eps_cagr": {
+    "status": "unavailable",
+    "value": null,
+    "reason_code": "invalid_request",
+    "reason": "subject_id, currency, and providers for OCF, CapEx, and EPS are required."
+  },
+  "trend_classification": "insufficient_or_nonmeaningful_growth",
   "market_capitalization": {
-    "accounting_scope": null,
-    "as_of": null,
-    "available_at": "2026-09-10T12:00:00+00:00",
-    "basis": null,
-    "cache_schema_version": null,
-    "capital_expenditure_sign": null,
-    "currency": "USD",
     "field_name": "market_capitalization",
-    "fiscal_year": null,
+    "value": 1600.0,
+    "source_kind": "provider",
+    "resolved_at": "<wall-clock>",
+    "origin_source_kind": null,
+    "basis": null,
+    "units": "currency",
+    "currency": "USD",
+    "provider_id": "sec_edgar",
+    "provider_field": null,
+    "observation_period_start": null,
+    "observation_period_end": null,
+    "observed_at": null,
+    "available_at": "2026-09-10T12:00:00+00:00",
+    "as_of": null,
+    "retrieved_at": "<wall-clock>",
+    "cache_schema_version": null,
     "lineage": null,
     "notes": [
       "First",
       "Second"
     ],
-    "observation_period_end": null,
-    "observation_period_start": null,
-    "observed_at": null,
-    "origin_source_kind": null,
+    "fiscal_year": null,
     "period_kind": null,
-    "provider_fact_id": null,
-    "provider_field": null,
-    "provider_id": "sec_edgar",
-    "resolved_at": "<wall-clock>",
-    "retrieved_at": "<wall-clock>",
-    "source_kind": "provider",
-    "units": "currency",
-    "value": 1600.0
+    "accounting_scope": null,
+    "capital_expenditure_sign": null,
+    "provider_fact_id": null
   },
-  "method_id": "reported_fcf_eps_cagr",
-  "method_version": 2,
-  "period_end": null,
-  "period_start": null,
-  "policy": {
-    "classification_basis": "total_fcf",
-    "forward_policy": "display_only",
-    "historical_horizon": "longest_available",
-    "include_fcf_yield": true
+  "fcf_yield": {
+    "status": "ok",
+    "value": 5.0,
+    "reason_code": null,
+    "reason": null
   },
-  "requested_as_of": "2026-09-10T12:00:00+00:00",
-  "result_schema_version": 3,
-  "schema_version": 5,
-  "security_identity": {
-    "instrument_identifier": null,
-    "instrument_name": "Coca-Cola",
-    "issuer_identifier": "123",
-    "listing_venue": "NYSE",
-    "provider_id": "sec_edgar",
-    "resolved_at": "<wall-clock>",
-    "ticker": "KO"
+  "forward_evidence": {
+    "status": "unavailable",
+    "latest_actual_eps": {
+      "field_name": "diluted_eps",
+      "value": 4.0,
+      "source_kind": "provider",
+      "resolved_at": "<wall-clock>",
+      "origin_source_kind": null,
+      "basis": null,
+      "units": "currency_per_share",
+      "currency": "USD",
+      "provider_id": "sec_edgar",
+      "provider_field": null,
+      "observation_period_start": null,
+      "observation_period_end": null,
+      "observed_at": null,
+      "available_at": "2026-09-10T12:00:00+00:00",
+      "as_of": null,
+      "retrieved_at": "<wall-clock>",
+      "cache_schema_version": null,
+      "lineage": null,
+      "notes": [
+        "First",
+        "Second"
+      ],
+      "fiscal_year": null,
+      "period_kind": null,
+      "accounting_scope": null,
+      "capital_expenditure_sign": null,
+      "provider_fact_id": null
+    },
+    "fy1_consensus_eps": null,
+    "fy2_consensus_eps": null,
+    "actual_to_fy1_growth": {
+      "status": "unavailable",
+      "value": null,
+      "reason_code": "consensus_unavailable",
+      "reason": "No consensus"
+    },
+    "fy1_to_fy2_growth": {
+      "status": "unavailable",
+      "value": null,
+      "reason_code": "consensus_unavailable",
+      "reason": "No consensus"
+    },
+    "confirms_positive_growth": null
   },
-  "selected_horizon_years": null,
-  "selected_observation_count": 0,
-  "strategy_id": "fcf_earnings_growth",
-  "ticker": "KO",
-  "trend_classification": "insufficient_or_nonmeaningful_growth",
-  "used_horizon_fallback": false,
-  "warnings": []
+  "warnings": [],
+  "limitations": [
+    "Historical financial strength does not establish market opportunity, scarcity, durability of moat, or an investment recommendation."
+  ],
+  "diagnostics": [
+    {
+      "field_name": "fcf",
+      "stage": "provider",
+      "outcome": "success",
+      "message": "Resolved history"
+    },
+    {
+      "field_name": "consensus",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "No estimates"
+    }
+  ]
 }

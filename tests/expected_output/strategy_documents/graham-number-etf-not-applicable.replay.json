@@ -1,43 +1,44 @@
 {
+  "schema_version": 7,
   "analysis": "graham_number",
-  "as_of": "2026-09-19T12:00:00+00:00",
-  "diagnostics": [],
-  "inputs": {
-    "bvps": null,
-    "current_price": null,
-    "eps": null
+  "method": "graham_number",
+  "ticker": "FLSW",
+  "status": "not_applicable",
+  "requested_as_of": "2026-09-19T12:00:00+00:00",
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "FLSW",
+    "instrument_name": "Franklin FTSE Switzerland ETF",
+    "listing_venue": null,
+    "issuer_identifier": null,
+    "instrument_identifier": null,
+    "provider_id": "fixture_identity",
+    "resolved_at": "<wall-clock>"
   },
   "instrument_kind": {
     "kind": "etf",
-    "provider_id": "yfinance",
     "provider_value": "ETF",
+    "provider_id": "yfinance",
     "resolved_at": "<wall-clock>"
   },
+  "price_comparison": null,
+  "reason": "Graham Number is a company-level valuation method and does not apply directly to an ETF. No constituent-level or aggregate ETF valuation was performed.",
+  "result": {
+    "maximum_indicated_price": null,
+    "margin_of_safety_percent": null
+  },
+  "inputs": {
+    "eps": null,
+    "bvps": null,
+    "current_price": null
+  },
+  "quote": {
+    "status": "not_attempted",
+    "reason": null
+  },
+  "warnings": [],
   "limitations": [
     "The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation."
   ],
-  "method": "graham_number",
-  "price_comparison": null,
-  "quote": {
-    "reason": null,
-    "status": "not_attempted"
-  },
-  "reason": "Graham Number is a company-level valuation method and does not apply directly to an ETF. No constituent-level or aggregate ETF valuation was performed.",
-  "result": {
-    "margin_of_safety_percent": null,
-    "maximum_indicated_price": null
-  },
-  "schema_version": 6,
-  "security_identity": {
-    "instrument_identifier": null,
-    "instrument_name": "Franklin FTSE Switzerland ETF",
-    "issuer_identifier": null,
-    "listing_venue": null,
-    "provider_id": "fixture_identity",
-    "resolved_at": "<wall-clock>",
-    "ticker": "FLSW"
-  },
-  "status": "not_applicable",
-  "ticker": "FLSW",
-  "warnings": []
+  "diagnostics": []
 }

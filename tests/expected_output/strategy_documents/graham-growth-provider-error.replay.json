@@ -1,97 +1,98 @@
 {
+  "schema_version": 7,
   "analysis": "graham_growth_value",
-  "as_of": null,
-  "diagnostics": [
-    {
-      "field_name": "eps",
-      "message": "No explicit EPS override was supplied.",
-      "outcome": "not_used",
-      "stage": "override"
-    },
-    {
-      "field_name": "eps",
-      "message": "Cache use was disabled for the derived EPS resolution.",
-      "outcome": "not_used",
-      "stage": "cache"
-    },
-    {
-      "field_name": "eps",
-      "message": "Requested completed fiscal-year EPS observations from the configured provider.",
-      "outcome": "attempted",
-      "stage": "provider"
-    },
-    {
-      "field_name": "eps",
-      "message": "Provider error: Simulated fixture provider operational failure.",
-      "outcome": "error",
-      "stage": "provider"
-    },
-    {
-      "field_name": "security_identity",
-      "message": "Provider 'sec_edgar' does not expose security identity metadata.",
-      "outcome": "unsupported",
-      "provider_id": "sec_edgar",
-      "stage": "provider"
-    },
-    {
-      "field_name": "security_identity",
-      "message": "Provider 'yfinance' returned no security identity metadata.",
-      "outcome": "unavailable",
-      "provider_id": "yfinance",
-      "stage": "provider"
-    },
-    {
-      "field_name": "instrument_kind",
-      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
-      "outcome": "unavailable",
-      "provider_id": "yfinance",
-      "stage": "provider"
-    }
-  ],
-  "inputs": {
-    "current_aaa_yield": null,
-    "current_price": null,
-    "eps": null,
-    "expected_growth": null
+  "method": "graham_growth_value",
+  "ticker": "ERROR",
+  "status": "provider_error",
+  "requested_as_of": null,
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "ERROR",
+    "instrument_name": null,
+    "listing_venue": null,
+    "issuer_identifier": null,
+    "instrument_identifier": null,
+    "provider_id": null,
+    "resolved_at": null
   },
   "instrument_kind": null,
-  "limitations": [
-    "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
-  ],
-  "method": "graham_growth_value",
-  "method_assumptions": {
-    "base_pe": 8.5,
-    "baseline_aaa_yield": 4.4,
-    "growth_multiplier": 2.0
-  },
   "price_comparison": {
-    "percent": null,
-    "provenance": null,
-    "quote_freshness": null,
+    "status": "unavailable",
     "reason": "calculation_unavailable",
+    "percent": null,
+    "quote_freshness": null,
     "security_unit_evidence": null,
-    "status": "unavailable"
-  },
-  "quote": {
-    "reason": null,
-    "status": "not_attempted"
+    "provenance": null
   },
   "reason": "Unable to analyze ERROR: the configured provider could not retrieve required security data.",
   "result": {
     "growth_value": null,
     "margin_of_safety_percent": null
   },
-  "schema_version": 6,
-  "security_identity": {
-    "instrument_identifier": null,
-    "instrument_name": null,
-    "issuer_identifier": null,
-    "listing_venue": null,
-    "provider_id": null,
-    "resolved_at": null,
-    "ticker": "ERROR"
+  "inputs": {
+    "eps": null,
+    "expected_growth": null,
+    "current_aaa_yield": null,
+    "current_price": null
   },
-  "status": "provider_error",
-  "ticker": "ERROR",
-  "warnings": []
+  "method_assumptions": {
+    "base_pe": 8.5,
+    "growth_multiplier": 2.0,
+    "baseline_aaa_yield": 4.4
+  },
+  "quote": {
+    "status": "not_attempted",
+    "reason": null
+  },
+  "warnings": [],
+  "limitations": [
+    "The Graham growth value is forecast-dependent and sensitive to the user-supplied growth assumption; it is not an investment recommendation."
+  ],
+  "diagnostics": [
+    {
+      "field_name": "eps",
+      "stage": "override",
+      "outcome": "not_used",
+      "message": "No explicit EPS override was supplied."
+    },
+    {
+      "field_name": "eps",
+      "stage": "cache",
+      "outcome": "not_used",
+      "message": "Cache use was disabled for the derived EPS resolution."
+    },
+    {
+      "field_name": "eps",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested completed fiscal-year EPS observations from the configured provider."
+    },
+    {
+      "field_name": "eps",
+      "stage": "provider",
+      "outcome": "error",
+      "message": "Provider error: Simulated fixture provider operational failure."
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "unsupported",
+      "message": "Provider 'sec_edgar' does not expose security identity metadata.",
+      "provider_id": "sec_edgar"
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider 'yfinance' returned no security identity metadata.",
+      "provider_id": "yfinance"
+    },
+    {
+      "field_name": "instrument_kind",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
+      "provider_id": "yfinance"
+    }
+  ]
 }
