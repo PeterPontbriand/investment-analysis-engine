@@ -161,6 +161,7 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarning
             forward_evidence=forward,
             warnings=tuple(warnings),
             diagnostics=assembly.resolution_trace,
+            provider_failure=assembly.provider_failure,
         )
 
 

@@ -11,7 +11,7 @@ from src.reporting.documents.shared_parts import DocumentPart, PriceComparisonPa
 from src.reporting.documents.strategy_document import StrategyDocumentHeader, StrategyDocumentTail
 from src.strategies.graham_number.vocabulary import AnalysisId, MethodId
 
-DOCUMENT_SCHEMA_VERSION: Final = 7
+DOCUMENT_SCHEMA_VERSION: Final = 8
 
 
 class GrahamNumberResultPart(DocumentPart):
@@ -40,7 +40,7 @@ class GrahamNumberBody(DocumentPart):
 
 
 class GrahamNumberDocument(StrategyDocumentTail, GrahamNumberBody, StrategyDocumentHeader[AnalysisId, MethodId]):
-    """The Graham Number document, version 7, as ``graham-number --json`` and ``runs show --json`` write it.
+    """The Graham Number document, version 8, as ``graham-number --json`` and ``runs show --json`` write it.
 
     The shared header and tail come from :mod:`src.reporting.documents.strategy_document`.
     """

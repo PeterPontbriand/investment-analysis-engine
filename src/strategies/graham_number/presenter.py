@@ -40,6 +40,7 @@ from src.reporting.evidence_presentation import (
     validate_presentation_as_of,
     validate_ticker,
 )
+from src.reporting.failure_classification import provider_failure_of
 from src.reporting.input_provenance import investor_input_lines
 from src.reporting.presentation import PresentationMode, format_money
 from src.reporting.valuation_presentation import (
@@ -337,6 +338,7 @@ def _number_document(p: GrahamNumberPresentation) -> GrahamNumberDocument:
         method=METHOD_ID,
         ticker=p.ticker.upper(),
         status=status,
+        provider_failure=provider_failure_of((p.assembly.provider_failure,)),
         requested_as_of=p.as_of,
         effective_as_of=p.effective_as_of,
         security_identity=security_identity_part(p.ticker, p.identity_resolution),
@@ -351,7 +353,12 @@ def _number_document(p: GrahamNumberPresentation) -> GrahamNumberDocument:
             bvps=resolved_input_part(p.assembly.bvps),
             current_price=resolved_input_part(p.assembly.current_price),
         ),
-        quote=quote_part(p.assembly.current_price, p.assembly.quote_status, p.assembly.quote_reason),
+        quote=quote_part(
+            p.assembly.current_price,
+            p.assembly.quote_status,
+            p.assembly.quote_reason,
+            p.assembly.quote_provider_failure,
+        ),
         warnings=tuple(_number_warnings(p)),
         limitations=(_NUMBER_LIMITATION,),
         diagnostics=(

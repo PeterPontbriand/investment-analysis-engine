@@ -98,7 +98,12 @@ def _momentum_capture(ticker: str, outcome: RunOutcome = RunOutcome.COMPLETED) -
     native: MomentumRun = run_momentum(
         selection, ticker, _FixtureClient(), start_date="2026-01-01", executed_at=NOW, instrument_profile=None
     )
-    return ExecutionCapture(native_evidence=native, profile=None, outcome=outcome)
+    return ExecutionCapture(
+        native_evidence=native,
+        profile=None,
+        outcome=outcome,
+        failure_reason_code="execution_error" if outcome is RunOutcome.FAILED else None,
+    )
 
 
 def _momentum_only_executor(ticker: str, selection: AnalysisSelection) -> ExecutionCapture:
@@ -386,14 +391,14 @@ def test_refresh_watchlist_with_save_false_still_isolates_one_jobs_executor_exce
 
 def test_refresh_summary_counts_by_outcome() -> None:
     completed_run = _build_run(status=RunOutcome.COMPLETED)
-    failed_run = _build_run(status=RunOutcome.FAILED, failure_reason_code="execution_failed")
+    failed_run = _build_run(status=RunOutcome.FAILED, failure_reason_code="execution_error")
     summary = RefreshSummary(
         refresh_id=UUID("22222222-2222-4222-8222-222222222222"),
         watchlist_id=WATCHLIST_ID,
         watchlist_name="My Watch",
         results=(
             RefreshJobResult(ticker="AAPL", method_id="sma_crossover", run=completed_run),
-            RefreshJobResult(ticker="MSFT", method_id="sma_crossover", run=failed_run),
+            RefreshJobResult(ticker="MSFT", method_id="sma_crossover", run=failed_run, reason_code="execution_error"),
             RefreshJobResult(ticker="KO", method_id="sma_crossover", error="boom", reason_code="execution_error"),
             RefreshJobResult(ticker="GE", method_id="sma_crossover", outcome=RunOutcome.UNAVAILABLE),
         ),

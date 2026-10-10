@@ -26,6 +26,7 @@ from src.analysis.base_analyzer import AnalysisContext
 from src.core.analysis_status import CalculationStatus
 from src.data.instrument_profile import InstrumentProfile
 from src.data.instrument_profile_cache import InstrumentProfileResolver
+from src.reporting.failure_classification import failure_reason_code, provider_failure_of
 from src.strategies._shared.profile import compose_graham_profile
 from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
@@ -120,9 +121,23 @@ def execute_graham_growth(  # noqa: PLR0913
     return GrahamGrowthCapture(analysis=analysis, profile=profile, outcome=classify_graham_growth_outcome(analysis))
 
 
+def _failure_code(capture: GrahamGrowthCapture) -> str | None:
+    """Return the stable code of a failed run, derived from the stored native status and provider failure."""
+    if capture.outcome is not RunOutcome.FAILED:
+        return None
+    return failure_reason_code(
+        capture.analysis.native_status, provider_failure_of((capture.analysis.assembly.provider_failure,))
+    ).value
+
+
 def from_graham_growth_capture(capture: GrahamGrowthCapture) -> ExecutionCapture:
     """Normalize a Graham Growth capture."""
-    return ExecutionCapture(native_evidence=capture.analysis, profile=capture.profile, outcome=capture.outcome)
+    return ExecutionCapture(
+        native_evidence=capture.analysis,
+        profile=capture.profile,
+        outcome=capture.outcome,
+        failure_reason_code=_failure_code(capture),
+    )
 
 
 __all__ = [

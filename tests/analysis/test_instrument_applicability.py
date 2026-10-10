@@ -150,7 +150,7 @@ def test_known_etf_short_circuits_company_fcf_before_annual_fact_resolution() ->
     assert result.fcf_cagr.status is MetricStatus.NOT_APPLICABLE
     assert result.fcf_per_share_cagr.status is MetricStatus.NOT_APPLICABLE
     assert result.eps_cagr.status is MetricStatus.NOT_APPLICABLE
-    assert result.schema_version == 3
+    assert result.schema_version == 4
     resolver.resolve.assert_not_called()
 
 

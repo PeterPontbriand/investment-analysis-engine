@@ -17,6 +17,7 @@ from datetime import datetime
 
 from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
+from src.core.provider_failure_kind import ProviderFailureRecord
 from src.data.financial.provenance import ResolvedInput
 from src.data.financial.resolution_trace import ResolutionTrace
 from src.data.instrument_profile import InstrumentProfile
@@ -36,11 +37,11 @@ from src.strategies.fcf_growth.vocabulary import (
 __all__ = ["MetricResult", "MetricStatus", "ReasonCode"]
 
 # ---------------------------------------------------------------------------
-# Fixed identifiers (method_version = 2 / schema_version = 3)
+# Fixed identifiers (method_version = 2 / schema_version = 4)
 # ---------------------------------------------------------------------------
 
 METHOD_VERSION = 2
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 # ---------------------------------------------------------------------------
@@ -316,6 +317,8 @@ class FCFEarningsGrowthResult:
         forward_evidence: Forward consensus evidence block.
         warnings: Material data-quality warnings for the run.
         diagnostics: Ordered resolver trace for investor-facing diagnostics.
+        provider_failure: The kind and provider of the input whose provider failed, when ``execution_status`` is
+            ``provider_error`` and the adapter classified the failure.
     """
 
     schema_version: int = field(init=False, default=SCHEMA_VERSION)
@@ -346,6 +349,7 @@ class FCFEarningsGrowthResult:
     forward_evidence: ForwardEvidence
     warnings: tuple[str, ...] = ()
     diagnostics: ResolutionTrace = ResolutionTrace()
+    provider_failure: ProviderFailureRecord | None = None
 
     def __post_init__(self) -> None:
         """Enforce the result-level invariants from the strategy contract."""
@@ -381,6 +385,7 @@ class FCFEarningsGrowthResult:
             msg = "Instrument profile ticker does not match the FCF & Earnings Growth result ticker."
             raise ValueError(msg)
         self._validate_not_applicable_result()
+        self._validate_provider_failure()
 
         if self.classification in (Classification.PASS, Classification.FAIL) and (
             self.execution_status is not CalculationStatus.OK
@@ -413,6 +418,12 @@ class FCFEarningsGrowthResult:
                 f"A {self.classification.value} classification requires "
                 "classification_reason_code and a non-empty classification_reason."
             )
+            raise ValueError(msg)
+
+    def _validate_provider_failure(self) -> None:
+        """Require a recorded provider failure to accompany a provider-error outcome."""
+        if self.provider_failure is not None and self.execution_status is not CalculationStatus.PROVIDER_ERROR:
+            msg = "provider_failure requires execution_status=provider_error."
             raise ValueError(msg)
 
     def _validate_not_applicable_result(self) -> None:

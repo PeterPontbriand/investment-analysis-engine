@@ -35,7 +35,7 @@ before the next begins. A prose-only documentation slice follows the documentati
 | PH.1 | [Live suite, health command and scheduled run](#ph1--live-suite-health-command-and-scheduled-run) | Complete | 2026-10-05 |
 | PH.2a | [Kind and raised failures](#ph2a--kind-and-raised-failures) | Complete | 2026-10-09 |
 | PH.2b | [Yahoo, health and completion](#ph2b--yahoo-health-and-completion) | Complete | 2026-10-09 |
-| PH.2c | [Stored provider failures](#ph2c--stored-provider-failures) | Next | |
+| PH.2c | [Stored provider failures](#ph2c--stored-provider-failures) | Complete | 2026-10-10 |
 | PH.3 | [Automatic canary and health JSON](#ph3--automatic-canary-and-health-json) | Planned | |
 
 PH.2a does not start before [SWC.4c](../swc/SWC_CONTRACT_AND_SLICE_PLAN.md#swc4c--typed-strategy-envelopes-and-replay-dispatch)
@@ -44,8 +44,8 @@ no dependency and may run alongside SWC.
 
 [Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) (orchestrator
 classification of `DataQualityError` in trajectory events) comes immediately after PH.2c, as its own small
-change, because it reuses the reason codes and failure kinds PH.2 delivers. It is complete before Step 3.5
-begins.
+change, because it reuses the reason codes and failure kinds PH.2 delivers. It is next, and it is complete before
+Step 3.5 begins; PH.3 follows it.
 
 ## 3. The slices
 

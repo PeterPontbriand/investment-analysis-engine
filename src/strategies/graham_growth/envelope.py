@@ -11,7 +11,7 @@ from src.reporting.documents.shared_parts import DocumentPart, PriceComparisonPa
 from src.reporting.documents.strategy_document import StrategyDocumentHeader, StrategyDocumentTail
 from src.strategies.graham_growth.vocabulary import AnalysisId, MethodId
 
-DOCUMENT_SCHEMA_VERSION: Final = 7
+DOCUMENT_SCHEMA_VERSION: Final = 8
 
 
 class GrahamGrowthResultPart(DocumentPart):
@@ -50,7 +50,7 @@ class GrahamGrowthBody(DocumentPart):
 
 
 class GrahamGrowthDocument(StrategyDocumentTail, GrahamGrowthBody, StrategyDocumentHeader[AnalysisId, MethodId]):
-    """The Graham Growth document, version 7, as ``graham-growth --json`` and ``runs show --json`` write it.
+    """The Graham Growth document, version 8, as ``graham-growth --json`` and ``runs show --json`` write it.
 
     The shared header and tail come from :mod:`src.reporting.documents.strategy_document`.
     """

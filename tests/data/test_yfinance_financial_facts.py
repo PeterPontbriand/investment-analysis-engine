@@ -19,6 +19,8 @@ from src.data.yfinance import (
     YFinanceFinancialFactsAdapter,
     YFinanceQuote,
 )
+from src.reporting.documents.failure import FailureReasonCode
+from src.reporting.failure_classification import classify_failure
 
 NOW = datetime(2026, 8, 23, 22, 30, tzinfo=UTC)
 
@@ -95,13 +97,15 @@ def test_unsupported_field_is_unavailable_without_quote_lookup() -> None:
     client.fetch_current_quote.assert_not_called()
 
 
-def test_naive_adapter_clock_is_provider_error() -> None:
+def test_naive_adapter_clock_is_a_defect_and_not_a_provider_failure() -> None:
     client = MagicMock(spec=YFinanceClient)
     adapter = YFinanceFinancialFactsAdapter(client=client, clock=lambda: datetime(2026, 8, 23, 22, 30))
 
-    with pytest.raises(FinancialProviderError, match="clock returned a naive datetime"):
+    with pytest.raises(RuntimeError, match="clock returned a naive datetime") as raised:
         adapter.fetch_facts(_quote_request(), effective_as_of=NOW)
 
+    assert not isinstance(raised.value, FinancialProviderError)
+    assert classify_failure(raised.value).reason_code is FailureReasonCode.EXECUTION_ERROR
     client.fetch_current_quote.assert_not_called()
 
 

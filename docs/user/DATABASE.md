@@ -177,7 +177,7 @@ its stable pathname is part of coordination. Keep it out of Git.
 
 Analysis readiness failures exit 1 with an actionable sanitized target and reason,
 including in ordinary output; `--diagnostics` remains analysis-focused. JSON
-analysis failures retain their versioned failure envelope (`schema_version=6`) with
+analysis failures retain their versioned failure envelope (`schema_version=7`) with
 `status=error`, `result=null` and a stable `reason_code`, without initialization
 chatter. A `database_*` code also carries `database`, holding `database_path` and
 `expected_revision` as separate fields, so a caller need not read them from the

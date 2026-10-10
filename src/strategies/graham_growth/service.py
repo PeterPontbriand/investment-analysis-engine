@@ -39,6 +39,12 @@ class GrahamGrowthAnalysis:
     instrument_profile: InstrumentProfile | None = None
     price_comparison: PriceComparison | None = None
 
+    @property
+    def native_status(self) -> CalculationStatus:
+        """Return the assembly's status, or the calculation's when the assembly succeeded."""
+        status = self.assembly.status
+        return self.result.status if status is CalculationStatus.OK else status
+
 
 def run_graham_growth_analysis(  # noqa: PLR0913
     *,

@@ -25,6 +25,7 @@ from src.data.financial.facts import (
 )
 from src.data.financial.provenance import AccountingScope, CapitalExpenditureSign, FinancialSubjectKind, PeriodKind
 from src.data.http_json import JsonFetcher, fetch_json
+from src.data.provider_failure import failure_record
 from src.data.sec_edgar.filing_document import FilingFetcher, FilingReaderPolicy, fetch_filing, filing_url
 from src.data.sec_edgar.security_unit import (
     MAPPING_ID,
@@ -297,8 +298,10 @@ class SecEdgarFinancialFactsAdapter:
             return self._verify_security_unit(request, snapshot)
         except UnitMappingError:
             return SecurityUnitResolution(SecurityUnitResolutionReason.UNSUPPORTED_EVIDENCE)
-        except (FinancialProviderError, DataFetchError):
-            return SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_ERROR)
+        except (FinancialProviderError, DataFetchError) as exc:
+            return SecurityUnitResolution(
+                SecurityUnitResolutionReason.PROVIDER_ERROR, provider_failure=failure_record(exc)
+            )
 
     def _verify_security_unit(  # noqa: PLR0911
         self, request: SecurityUnitRequest, snapshot: SecEdgarAnalysisSnapshot

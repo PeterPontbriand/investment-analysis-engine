@@ -9,6 +9,7 @@ from datetime import datetime
 
 from src.core.analysis_status import CalculationStatus
 from src.core.clock import effective_as_of
+from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from src.data.financial.cache import ResolvedInputCacheKey, ResolvedInputCacheProtocol
 from src.data.financial.facts import (
     FinancialFactRequest,
@@ -37,6 +38,7 @@ from src.data.financial.resolution_trace import (
     ResolutionStage,
     ResolutionTrace,
 )
+from src.data.provider_failure import failure_record
 from src.data.quality import QualityContext, QualityDecision, QualityOutcome
 from src.data.quality_reporting import publish_quality
 
@@ -108,6 +110,8 @@ class InputResolutionResult:
         - ``OK`` requires ``resolved_input`` present and ``reason`` is ``None``.
         - ``INVALID_INPUT``, ``INPUT_UNAVAILABLE``, ``PROVIDER_ERROR`` require
           ``resolved_input`` is ``None`` and a non-empty ``reason``.
+        - ``provider_failure`` is present only with ``PROVIDER_ERROR``; it is absent there only for a failure
+          the adapter did not classify.
         - ``NOT_APPLICABLE`` is calculator-level semantics and is rejected here.
 
     Attributes:
@@ -115,6 +119,7 @@ class InputResolutionResult:
         resolved_input: Present only when status is ``OK``.
         reason: Non-empty explanation when status is not ``OK``.
         resolution_trace: Ordered resolver events actually observed for this resolution.
+        provider_failure: The kind and provider of a ``PROVIDER_ERROR`` outcome.
     """
 
     status: CalculationStatus
@@ -122,11 +127,15 @@ class InputResolutionResult:
     reason: str | None = None
     resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
     quote_freshness: QuoteFreshnessEvidence | None = None
+    provider_failure: ProviderFailureRecord | None = None
 
     def __post_init__(self) -> None:
         """Enforce status/value invariants."""
         if self.status is CalculationStatus.NOT_APPLICABLE:
             msg = "InputResolutionResult does not permit CalculationStatus.NOT_APPLICABLE."
+            raise ValueError(msg)
+        if self.provider_failure is not None and self.status is not CalculationStatus.PROVIDER_ERROR:
+            msg = "InputResolutionResult: provider_failure requires status PROVIDER_ERROR."
             raise ValueError(msg)
         if self.status is CalculationStatus.OK:
             if self.resolved_input is None:
@@ -511,6 +520,7 @@ class InputResolver:
             return InputResolutionResult(
                 status=CalculationStatus.PROVIDER_ERROR,
                 reason=reason,
+                provider_failure=failure_record(exc),
                 resolution_trace=trace.append(
                     _event(
                         field_name,
@@ -539,6 +549,7 @@ class InputResolver:
                 return InputResolutionResult(
                     status=CalculationStatus.PROVIDER_ERROR,
                     reason=err,
+                    provider_failure=_rejected_answer(request),
                     resolution_trace=trace.append(
                         _event(
                             field_name,
@@ -802,6 +813,7 @@ class InputResolver:
             return InputResolutionResult(
                 status=CalculationStatus.PROVIDER_ERROR,
                 reason=reason,
+                provider_failure=_rejected_answer(request),
                 resolution_trace=_derivation_outcome_trace(
                     trace,
                     FinancialField.BVPS.value,
@@ -1115,6 +1127,7 @@ class InputResolver:
             return InputResolutionResult(
                 status=CalculationStatus.PROVIDER_ERROR,
                 reason=reason,
+                provider_failure=failure_record(exc),
                 resolution_trace=trace.append(
                     _event(
                         field_name,
@@ -1147,6 +1160,7 @@ class InputResolver:
             return InputResolutionResult(
                 status=CalculationStatus.PROVIDER_ERROR,
                 reason=reason,
+                provider_failure=_rejected_answer(request),
                 resolution_trace=trace.append(
                     _event(
                         field_name,
@@ -1171,6 +1185,7 @@ class InputResolver:
             return InputResolutionResult(
                 status=status,
                 reason=reason,
+                provider_failure=_rejected_answer(request) if status is CalculationStatus.PROVIDER_ERROR else None,
                 resolution_trace=trace.append(
                     _event(
                         field_name,
@@ -1361,6 +1376,11 @@ def _field_unit(field_name: FinancialField) -> FinancialUnit:
     return FinancialUnit.CURRENCY_PER_SHARE
 
 
+def _rejected_answer(request: FinancialFactRequest) -> ProviderFailureRecord:
+    """Record that the provider the request named answered and the project rejected the answer."""
+    return ProviderFailureRecord(kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=request.provider_id)
+
+
 def _bvps_component_request(request: FinancialFactRequest, field_name: FinancialField) -> FinancialFactRequest:
     """Build a fiscal-year-end component request inheriting the BVPS analysis boundary."""
     return FinancialFactRequest(
@@ -1389,6 +1409,7 @@ def _bvps_component_failure(
     return InputResolutionResult(
         status=result.status,
         reason=reason,
+        provider_failure=result.provider_failure,
         resolution_trace=_derivation_outcome_trace(
             trace,
             FinancialField.BVPS.value,

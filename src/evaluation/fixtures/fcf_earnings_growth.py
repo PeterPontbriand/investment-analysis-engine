@@ -6,6 +6,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Final
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
@@ -60,7 +61,9 @@ class FixtureAnnualFinancialFactsProvider:
         """Return matching configured facts or raise the configured error."""
         self.requests.append(request)
         if request.field_name is self.error_field:
-            raise FinancialProviderError("fixture provider failure")
+            raise FinancialProviderError(
+                "fixture provider failure", kind=ProviderFailureKind.UNREACHABLE, provider_id=request.provider_id
+            )
         return tuple(
             fact
             for fact in self.facts

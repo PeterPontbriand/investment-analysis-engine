@@ -45,7 +45,7 @@ from uuid import UUID, uuid4
 
 from src.core.clock import utc_now
 from src.workspace.capture import ExecutionCapture
-from src.workspace.models import RunOutcome, StrictJsonMapping
+from src.workspace.models import StrictJsonMapping
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
 from src.workspace.strategy_types import NativeEvidence
@@ -147,7 +147,7 @@ def execute(  # noqa: PLR0913
         result_schema_version=spec.result_schema_version,
         evidence_codec_version=spec.evidence_codec_version,
         status=result.outcome,
-        failure_reason_code="execution_failed" if result.outcome is RunOutcome.FAILED else None,
+        failure_reason_code=result.failure_reason_code,
         result_evidence=spec.encode(result.native_evidence),
         presentation_inputs=result.presentation_inputs or None,
         instrument_profile=result.profile,

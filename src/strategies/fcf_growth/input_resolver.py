@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from src.core.analysis_status import CalculationStatus
+from src.core.provider_failure_kind import ProviderFailureRecord
 from src.data.financial.cache import (
     ResolvedInputCacheKey,
     ResolvedInputSeriesCacheProtocol,
@@ -37,6 +38,7 @@ from src.data.financial.resolution_trace import (
     ResolutionStage,
     ResolutionTrace,
 )
+from src.data.provider_failure import failure_record
 from src.data.quality import QualityContext, QualityDecision, QualityOutcome
 from src.data.quality_reporting import publish_quality
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
@@ -198,9 +200,12 @@ class AnnualGrowthSeriesAssembly:
     eps_cagr: MetricResult
     selection: SeriesSelection
     resolution_trace: ResolutionTrace
+    provider_failure: ProviderFailureRecord | None = None
 
     def __post_init__(self) -> None:
         """Enforce success/failure and selected-span invariants."""
+        if self.provider_failure is not None and self.status is not CalculationStatus.PROVIDER_ERROR:
+            raise ValueError("provider_failure requires a provider_error assembly.")
         if self.selected_observation_count != len(self.observations):
             raise ValueError("selected_observation_count must equal len(observations).")
         if self.selected_horizon_years is not None and len(self.observations) != self.selected_horizon_years + 1:
@@ -222,6 +227,7 @@ class _FieldResolution:
     reason_code: ReasonCode | None = None
     reason: str | None = None
     provider_error: bool = False
+    provider_failure: ProviderFailureRecord | None = None
 
 
 def _event(
@@ -260,6 +266,7 @@ def _failure_assembly(  # noqa: PLR0913
     common_count: int,
     longest_count: int,
     trace: ResolutionTrace,
+    provider_failure: ProviderFailureRecord | None = None,
 ) -> AnnualGrowthSeriesAssembly:
     selection = SeriesSelection(
         requested=policy.historical_horizon,
@@ -282,6 +289,7 @@ def _failure_assembly(  # noqa: PLR0913
         eps_cagr=metric,
         selection=selection,
         resolution_trace=trace,
+        provider_failure=provider_failure,
     )
 
 
@@ -607,7 +615,10 @@ def _resolve_field(  # noqa: PLR0913
     except FinancialProviderError as exc:
         reason = f"{field.value} provider failed: {exc}"
         return _FieldResolution(
-            reason_code=ReasonCode.PROVIDER_ERROR, reason=reason, provider_error=True
+            reason_code=ReasonCode.PROVIDER_ERROR,
+            reason=reason,
+            provider_error=True,
+            provider_failure=failure_record(exc),
         ), trace.append(_event(field.value, ResolutionStage.PROVIDER, ResolutionOutcome.ERROR, reason, now=resolved_at))
     resolution = _select_provider_facts(
         facts, field, subject_id, currency, effective_as_of, requested_as_of, resolved_at
@@ -874,6 +885,9 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
                 common_count=0,
                 longest_count=0,
                 trace=trace,
+                provider_failure=None
+                if resolution.provider_failure is None
+                else resolution.provider_failure.for_input(field.value),
             )
         resolved_fields[field] = resolution.inputs
     common, code, reason = _assemble_common(resolved_fields, now, as_of)

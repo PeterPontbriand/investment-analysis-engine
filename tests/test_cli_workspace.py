@@ -530,7 +530,12 @@ def _insert_momentum_run(
                 executed_at=datetime.now(UTC),
                 instrument_profile=None,
             )
-            return ExecutionCapture(native_evidence=native, profile=None, outcome=outcome)
+            return ExecutionCapture(
+                native_evidence=native,
+                profile=None,
+                outcome=outcome,
+                failure_reason_code="execution_error" if outcome is RunOutcome.FAILED else None,
+            )
 
         return execute(
             request,

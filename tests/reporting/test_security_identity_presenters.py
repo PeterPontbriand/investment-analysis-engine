@@ -9,6 +9,8 @@ from datetime import UTC, datetime
 from src.analysis.base_analyzer import AnalysisContext
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import TrendStatus
+from src.core.provider_failure_kind import ProviderFailureKind
+from src.data.base_client import DataFetchError
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
@@ -48,7 +50,7 @@ class _IdentityProvider:
 
     def resolve_security_identity(self, _request: SecurityIdentityRequest) -> SecurityIdentity | None:
         if self._fails:
-            raise RuntimeError("simulated failure")
+            raise DataFetchError("simulated failure", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance")
         return self._identity
 
 
@@ -176,7 +178,7 @@ def test_json_contracts_expose_same_snapshot_and_deliberate_versions() -> None:
         json.loads(render_fcf_earnings_growth(fcf_result, PresentationMode.JSON, identity)),
     )
 
-    assert [document["schema_version"] for document in documents] == [6, 7, 7, 6]
+    assert [document["schema_version"] for document in documents] == [7, 8, 8, 7]
     for document in documents:
         snapshot = document["security_identity"]
         assert snapshot["ticker"] == "ACME"

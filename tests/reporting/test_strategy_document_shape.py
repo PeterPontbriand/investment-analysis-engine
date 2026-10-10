@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import TrendStatus
+from src.reporting.documents.failure import PROVIDER_FAILURE_CODES, FailureEnvelope
 from src.reporting.documents.shared_parts import DocumentPart
 from src.reporting.documents.strategy_document import (
     HEADER_KEYS,
@@ -22,6 +23,7 @@ from src.reporting.documents.strategy_document import (
     StrategyDocumentHeader,
     StrategyDocumentTail,
 )
+from src.reporting.failure_classification import PROVIDER_CODE_BY_KIND, PROVIDER_KIND_PRECEDENCE
 from src.strategy_wiring import STRATEGIES
 from tests._strategy_document_output import CASES, Case, cases, expected_path, run_pair
 
@@ -61,6 +63,44 @@ def test_every_strategy_document_takes_the_shared_header_and_tail(descriptor: An
     required = model.model_json_schema(mode="serialization")["required"]
     assert required[: len(HEADER_KEYS)] == list(HEADER_KEYS)
     assert required[-len(TAIL_KEYS) :] == list(TAIL_KEYS)
+
+
+@pytest.mark.parametrize("descriptor", STRATEGIES, ids=lambda item: item.alias)
+def test_every_strategy_document_carries_the_provider_failure_element_directly_after_status(descriptor: Any) -> None:
+    """The element is added once, in the header, so no strategy can omit it or place it elsewhere."""
+    names = list(descriptor.json_envelope.model_fields)
+
+    assert names.index("provider_failure") == names.index("status") + 1
+    assert HEADER_KEYS.index("provider_failure") == HEADER_KEYS.index("status") + 1
+    assert (
+        descriptor.json_envelope.model_fields["provider_failure"].annotation
+        == StrategyDocumentHeader.model_fields["provider_failure"].annotation
+    )
+
+
+def test_the_failure_envelope_carries_the_same_provider_failure_element() -> None:
+    """The failure envelope and the strategy documents share one element type, so one reader handles both."""
+    assert (
+        FailureEnvelope.model_fields["provider_failure"].annotation
+        == StrategyDocumentHeader.model_fields["provider_failure"].annotation
+    )
+
+
+@pytest.mark.parametrize("stem", list(cases()))
+def test_a_stored_provider_failure_agrees_with_the_status_and_the_precedence_rule(stem: str) -> None:
+    """The element is present only for a provider error, names a provider code, and that code follows precedence."""
+    document = json.loads(expected_path(stem).read_bytes())
+    element = document["provider_failure"]
+    if element is None:
+        return
+    assert document["status"] == CalculationStatus.PROVIDER_ERROR.value
+    assert element["reason_code"] in {code.value for code in PROVIDER_FAILURE_CODES}
+    order = [kind.value for kind in PROVIDER_KIND_PRECEDENCE]
+    winner = min({item["kind"] for item in element["inputs"]}, key=order.index)
+    assert element["reason_code"] == next(
+        code.value for kind, code in PROVIDER_CODE_BY_KIND.items() if kind.value == winner
+    )
+    assert all(item["input"] is not None for item in element["inputs"])
 
 
 def test_the_conformance_check_rejects_a_document_that_does_not_conform() -> None:

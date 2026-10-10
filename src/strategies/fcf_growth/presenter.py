@@ -14,6 +14,7 @@ from src.reporting.documents.shared_parts import (
     trace_parts,
 )
 from src.reporting.documents.strategy_document import strategy_document_json
+from src.reporting.failure_classification import provider_failure_of
 from src.reporting.input_provenance import input_detail_lines, investor_value
 from src.reporting.presentation import (
     PresentationMode,
@@ -331,6 +332,7 @@ def _document(
         method=METHOD_ID,
         ticker=result.ticker,
         status=result.execution_status,
+        provider_failure=provider_failure_of((result.provider_failure,)),
         requested_as_of=result.requested_as_of,
         effective_as_of=result.effective_as_of,
         security_identity=security_identity_part(result.ticker, identity_resolution),

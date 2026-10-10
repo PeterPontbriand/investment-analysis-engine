@@ -396,11 +396,11 @@ class TestFCFEarningsGrowthResult:
 
     def test_fixed_identifiers(self) -> None:
         result = _make_result()
-        assert result.schema_version == 3
+        assert result.schema_version == 4
         assert result.strategy_id == "fcf_earnings_growth"
         assert result.method_id == "reported_fcf_eps_cagr"
         assert result.method_version == 2
-        assert models_module.SCHEMA_VERSION == 3
+        assert models_module.SCHEMA_VERSION == 4
         assert models_module.METHOD_VERSION == 2
 
     @pytest.mark.parametrize(

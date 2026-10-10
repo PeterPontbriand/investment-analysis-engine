@@ -14,6 +14,11 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
+from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from src.data.base_client import DataFetchError
+from src.data.financial.facts import FinancialProviderError
+from src.data.provider_failure import failure_record
+
 
 def _normalized_required(value: str, field_name: str, *, uppercase: bool = False) -> str:
     """Normalize one required short string without inventing content."""
@@ -101,6 +106,7 @@ class SecurityIdentityResolution:
     status: IdentityResolutionStatus
     identity: SecurityIdentity | None
     message: str
+    provider_failure: ProviderFailureRecord | None = None
 
     def __post_init__(self) -> None:
         """Keep status, identity, and diagnostic message coherent."""
@@ -112,6 +118,8 @@ class SecurityIdentityResolution:
             raise ValueError("resolved identity status requires an identity snapshot.")
         if self.status is not IdentityResolutionStatus.RESOLVED and self.identity is not None:
             raise ValueError("unavailable identity status cannot carry an identity snapshot.")
+        if self.provider_failure is not None and self.status is not IdentityResolutionStatus.PROVIDER_ERROR:
+            raise ValueError("provider_failure requires the provider_error identity status.")
 
 
 def resolve_security_identity(
@@ -131,11 +139,12 @@ def resolve_security_identity(
         )
     try:
         identity = provider.resolve_security_identity(request)
-    except Exception:
+    except (DataFetchError, FinancialProviderError) as exc:
         return SecurityIdentityResolution(
             IdentityResolutionStatus.PROVIDER_ERROR,
             None,
             f"Provider {request.provider_id!r} could not resolve security identity metadata.",
+            failure_record(exc),
         )
     if identity is None:
         return SecurityIdentityResolution(
@@ -148,6 +157,7 @@ def resolve_security_identity(
             IdentityResolutionStatus.PROVIDER_ERROR,
             None,
             f"Provider {request.provider_id!r} returned mismatched security identity metadata.",
+            ProviderFailureRecord(kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=request.provider_id),
         )
     return SecurityIdentityResolution(
         IdentityResolutionStatus.RESOLVED,

@@ -15,7 +15,7 @@ from src.reporting.documents.strategy_document import StrategyDocumentHeader, St
 from src.reporting.documents.timestamp import DocumentTimestamp
 from src.strategies.momentum.vocabulary import AnalysisId, CrossoverState, MethodId, PriceBasis, TrendRelationship
 
-DOCUMENT_SCHEMA_VERSION: Final = 6
+DOCUMENT_SCHEMA_VERSION: Final = 7
 
 
 class MomentumResultPart(DocumentPart):
@@ -78,7 +78,7 @@ class MomentumBody(DocumentPart):
 
 
 class MomentumDocument(StrategyDocumentTail, MomentumBody, StrategyDocumentHeader[AnalysisId, MethodId]):
-    """The Momentum document, version 6, as ``momentum --json`` and ``runs show --json`` write it.
+    """The Momentum document, version 7, as ``momentum --json`` and ``runs show --json`` write it.
 
     The shared header and tail come from :mod:`src.reporting.documents.strategy_document`.
     """

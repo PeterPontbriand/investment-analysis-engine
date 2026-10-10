@@ -16,6 +16,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 
+from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from src.data.instrument_profile import (
     InstrumentKind,
     InstrumentKindEvidence,
@@ -29,7 +30,11 @@ from src.data.instrument_profile import (
 )
 from src.data.quality import FreshnessPolicy, QualityContext, QualityOutcome, evaluate_freshness
 from src.data.quality_reporting import publish_quality
-from src.data.repositories.instrument_profiles import InstrumentProfileRecord, SQLiteInstrumentProfileRepository
+from src.data.repositories.instrument_profiles import (
+    INSTRUMENT_PROFILE_SCHEMA_VERSION,
+    InstrumentProfileRecord,
+    SQLiteInstrumentProfileRepository,
+)
 from src.data.security_identity import SecurityIdentity, _normalized_required
 
 _CACHE_PROVIDER_ID = "instrument_profile_cache"
@@ -79,14 +84,31 @@ def _kind_evidence_from_payload(ticker: str, payload: Mapping[str, Any] | None) 
     )
 
 
+def _failure_payload(failure: ProviderFailureRecord | None) -> dict[str, Any] | None:
+    """Encode the stored provider failure of a diagnostic, or null when it recorded none."""
+    if failure is None:
+        return None
+    return {"kind": failure.kind.value, "provider_id": failure.provider_id, "input": failure.input}
+
+
+def _failure_from_payload(payload: Mapping[str, Any] | None) -> ProviderFailureRecord | None:
+    """Decode the stored provider failure of a diagnostic."""
+    if payload is None:
+        return None
+    return ProviderFailureRecord(
+        kind=ProviderFailureKind(payload["kind"]), provider_id=payload["provider_id"], input=payload["input"]
+    )
+
+
 def _diagnostics_payload(diagnostics: tuple[InstrumentProfileDiagnostic, ...]) -> list[dict[str, Any]]:
-    """Encode every diagnostic exactly as composed, preserving capability/provider/status."""
+    """Encode every diagnostic exactly as composed, preserving capability/provider/status/failure kind."""
     return [
         {
             "capability": item.capability.value,
             "provider_id": item.provider_id,
             "status": item.status.value,
             "message": item.message,
+            "provider_failure": _failure_payload(item.provider_failure),
         }
         for item in diagnostics
     ]
@@ -100,6 +122,7 @@ def _diagnostics_from_payload(payload: list[dict[str, Any]]) -> tuple[Instrument
             item["provider_id"],
             InstrumentProfileResolutionStatus(item["status"]),
             item["message"],
+            _failure_from_payload(item["provider_failure"]),
         )
         for item in payload
     )
@@ -218,7 +241,7 @@ class CachedInstrumentProfileResolver:
         normalized_ticker = _normalized_required(ticker, "ticker", uppercase=True)
         with self._lock_for(normalized_ticker):
             now = self._now()
-            stored = self._repository.get(normalized_ticker)
+            stored = self._current_version(self._repository.get(normalized_ticker))
             if not force_refresh and stored is not None and self._is_fresh(stored, now):
                 return _with_diagnostic(
                     _decode_profile(normalized_ticker, stored.evidence),
@@ -250,6 +273,16 @@ class CachedInstrumentProfileResolver:
                     ),
                 )
             return live
+
+    @staticmethod
+    def _current_version(stored: InstrumentProfileRecord | None) -> InstrumentProfileRecord | None:
+        """Treat a record written under another payload version as absent, on every path that would reuse it.
+
+        Nothing is migrated: the record is neither decoded nor reused, and the next anchored resolution overwrites it.
+        """
+        if stored is None or stored.schema_version != INSTRUMENT_PROFILE_SCHEMA_VERSION:
+            return None
+        return stored
 
     def _lock_for(self, ticker: str) -> threading.Lock:
         """Return this instance's serialization lock for one normalized ticker.
