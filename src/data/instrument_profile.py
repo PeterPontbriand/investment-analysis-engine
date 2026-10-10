@@ -12,6 +12,10 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
+from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from src.data.base_client import DataFetchError
+from src.data.financial.facts import FinancialProviderError
+from src.data.provider_failure import failure_record
 from src.data.security_identity import (
     IdentityResolutionStatus,
     SecurityIdentity,
@@ -144,6 +148,7 @@ class InstrumentProfileDiagnostic:
     provider_id: str
     status: InstrumentProfileResolutionStatus
     message: str
+    provider_failure: ProviderFailureRecord | None = None
 
     def __post_init__(self) -> None:
         """Normalize diagnostic identifiers and require a useful message."""
@@ -193,8 +198,10 @@ def complete_security_unit_profile(
     elif isinstance(provider, SecurityUnitProvider):
         try:
             resolution = provider.resolve_security_unit(request)
-        except Exception:
-            resolution = SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_ERROR)
+        except (DataFetchError, FinancialProviderError) as exc:
+            resolution = SecurityUnitResolution(
+                SecurityUnitResolutionReason.PROVIDER_ERROR, provider_failure=failure_record(exc)
+            )
     evidence = resolution.evidence
     if evidence is not None and (evidence.ticker != request.ticker or evidence.provider_id != request.provider_id):
         resolution = SecurityUnitResolution(SecurityUnitResolutionReason.SOURCE_MISMATCH)
@@ -213,6 +220,7 @@ def complete_security_unit_profile(
         if resolution.evidence is not None
         else InstrumentProfileResolutionStatus.UNAVAILABLE,
         f"Share-unit evidence: {resolution.reason.value}.",
+        resolution.provider_failure,
     )
     return replace(
         profile,
@@ -233,15 +241,15 @@ def profile_identity_resolution(profile: InstrumentProfile) -> SecurityIdentityR
     identity_diagnostics = tuple(
         item for item in profile.diagnostics if item.capability is InstrumentProfileCapability.SECURITY_IDENTITY
     )
-    status = (
-        IdentityResolutionStatus.PROVIDER_ERROR
-        if any(item.status is InstrumentProfileResolutionStatus.PROVIDER_ERROR for item in identity_diagnostics)
-        else IdentityResolutionStatus.UNAVAILABLE
+    failed = tuple(
+        item for item in identity_diagnostics if item.status is InstrumentProfileResolutionStatus.PROVIDER_ERROR
     )
     return SecurityIdentityResolution(
-        status,
+        IdentityResolutionStatus.PROVIDER_ERROR if failed else IdentityResolutionStatus.UNAVAILABLE,
         None,
         "No security identity metadata was resolved by the instrument-profile candidates.",
+        # Candidates are in provider precedence order, so the first failed candidate's failure is the one reported.
+        next((item.provider_failure for item in failed if item.provider_failure is not None), None),
     )
 
 
@@ -316,12 +324,13 @@ def _resolve_identity_candidate(
         )
     try:
         identity = candidate.provider.resolve_security_identity(SecurityIdentityRequest(ticker, provider_id))
-    except Exception:
+    except (DataFetchError, FinancialProviderError) as exc:
         return None, _diagnostic(
             InstrumentProfileCapability.SECURITY_IDENTITY,
             provider_id,
             InstrumentProfileResolutionStatus.PROVIDER_ERROR,
             f"Provider {provider_id!r} could not resolve security identity metadata.",
+            failure_record(exc),
         )
     if identity is None:
         return None, _diagnostic(
@@ -336,6 +345,7 @@ def _resolve_identity_candidate(
             provider_id,
             InstrumentProfileResolutionStatus.PROVIDER_ERROR,
             f"Provider {provider_id!r} returned mismatched security identity metadata.",
+            _rejected_answer(provider_id),
         )
     return identity, _diagnostic(
         InstrumentProfileCapability.SECURITY_IDENTITY,
@@ -360,12 +370,13 @@ def _resolve_kind_candidate(
         )
     try:
         evidence = candidate.provider.resolve_instrument_kind(InstrumentKindRequest(ticker, provider_id))
-    except Exception:
+    except (DataFetchError, FinancialProviderError) as exc:
         return None, _diagnostic(
             InstrumentProfileCapability.INSTRUMENT_KIND,
             provider_id,
             InstrumentProfileResolutionStatus.PROVIDER_ERROR,
             f"Provider {provider_id!r} could not resolve instrument-kind metadata.",
+            failure_record(exc),
         )
     if evidence is None:
         return None, _diagnostic(
@@ -380,6 +391,7 @@ def _resolve_kind_candidate(
             provider_id,
             InstrumentProfileResolutionStatus.PROVIDER_ERROR,
             f"Provider {provider_id!r} returned mismatched instrument-kind metadata.",
+            _rejected_answer(provider_id),
         )
     return evidence, _diagnostic(
         InstrumentProfileCapability.INSTRUMENT_KIND,
@@ -394,6 +406,12 @@ def _diagnostic(
     provider_id: str,
     status: InstrumentProfileResolutionStatus,
     message: str,
+    provider_failure: ProviderFailureRecord | None = None,
 ) -> InstrumentProfileDiagnostic:
     """Construct one normalized profile diagnostic."""
-    return InstrumentProfileDiagnostic(capability, provider_id, status, message)
+    return InstrumentProfileDiagnostic(capability, provider_id, status, message, provider_failure)
+
+
+def _rejected_answer(provider_id: str) -> ProviderFailureRecord:
+    """Record that the provider answered and the project rejected the answer as describing another instrument."""
+    return ProviderFailureRecord(kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=provider_id)

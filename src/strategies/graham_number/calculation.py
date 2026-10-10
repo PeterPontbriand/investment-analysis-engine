@@ -9,11 +9,12 @@ from typing import Final
 
 from src.analysis.shared.financial_resolution import resolve_normalized_eps, resolve_optional_quote
 from src.core.analysis_status import CalculationStatus
+from src.core.provider_failure_kind import ProviderFailureRecord
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from src.data.financial.quote_freshness import QuoteFreshnessEvidence
 from src.data.financial.resolution_trace import ResolutionOutcome, ResolutionStage, ResolutionTrace, single_event_trace
-from src.data.financial.resolver import InputResolver
+from src.data.financial.resolver import InputResolutionResult, InputResolver
 from src.strategies.graham_number.vocabulary import METHOD_ID, MethodId
 
 
@@ -46,6 +47,8 @@ class GrahamNumberInputAssembly:
         reason: Explanation when assembly ``status`` is not OK.
         resolution_trace: Ordered resolver events across attempted method inputs.
         method: Always ``"graham_number"``.
+        provider_failure: The kind and provider of the input whose provider failed, recorded against that input,
+            when ``status`` is ``PROVIDER_ERROR`` and the adapter classified the failure.
     """
 
     status: CalculationStatus
@@ -58,6 +61,12 @@ class GrahamNumberInputAssembly:
     reason: str | None = None
     resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
     method: MethodId = field(init=False, default=METHOD_ID)
+    provider_failure: ProviderFailureRecord | None = None
+
+    def __post_init__(self) -> None:
+        """Keep a recorded provider failure tied to a provider-error assembly."""
+        if self.provider_failure is not None and self.status is not CalculationStatus.PROVIDER_ERROR:
+            raise ValueError("provider_failure requires a provider_error assembly.")
 
 
 @dataclass(frozen=True)
@@ -202,6 +211,7 @@ class GrahamNumberInputResolver(InputResolver):
                 status=eps_result.status,
                 reason=f"eps: {eps_result.reason}",
                 resolution_trace=trace,
+                provider_failure=_recorded(eps_result, "eps"),
             )
         eps_input = eps_result.resolved_input
 
@@ -220,6 +230,7 @@ class GrahamNumberInputResolver(InputResolver):
                 eps=eps_input,
                 reason=f"bvps: {bvps_result.reason}",
                 resolution_trace=trace,
+                provider_failure=_recorded(bvps_result, "bvps"),
             )
         bvps_input = bvps_result.resolved_input
         assert bvps_input is not None
@@ -261,6 +272,11 @@ class GrahamNumberInputResolver(InputResolver):
             quote_freshness=quote_result.quote_freshness,
             resolution_trace=trace,
         )
+
+
+def _recorded(result: InputResolutionResult, input_name: str) -> ProviderFailureRecord | None:
+    """Return the failure a resolution recorded, against the strategy input it was resolved for."""
+    return None if result.provider_failure is None else result.provider_failure.for_input(input_name)
 
 
 def _with_semantic_bvps_basis(value: ResolvedInput) -> ResolvedInput:

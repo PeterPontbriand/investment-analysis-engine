@@ -25,7 +25,8 @@ from src.data.repositories.schema import instrument_profiles
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.security_identity import _normalized_required
 
-_SCHEMA_VERSION = 1
+INSTRUMENT_PROFILE_SCHEMA_VERSION = 2
+"""The version of the stored profile record and its evidence payload; bumped whenever the payload's shape changes."""
 
 
 def _utc(value: datetime) -> str:
@@ -175,11 +176,13 @@ class SQLiteInstrumentProfileRepository:
                 refreshed_at=_utc(now),
                 superseded_at=None,
                 superseded_reason=None,
-                schema_version=_SCHEMA_VERSION,
+                schema_version=INSTRUMENT_PROFILE_SCHEMA_VERSION,
                 evidence_json=payload,
             )
         )
-        return InstrumentProfileRecord(profile_id, ticker, anchor, now, now, _SCHEMA_VERSION, json.loads(payload))
+        return InstrumentProfileRecord(
+            profile_id, ticker, anchor, now, now, INSTRUMENT_PROFILE_SCHEMA_VERSION, json.loads(payload)
+        )
 
     @staticmethod
     def _update_in_place(
@@ -189,7 +192,7 @@ class SQLiteInstrumentProfileRepository:
         connection.execute(
             update(instrument_profiles)
             .where(instrument_profiles.c.profile_id == current["profile_id"])
-            .values(refreshed_at=_utc(now), evidence_json=payload)
+            .values(refreshed_at=_utc(now), schema_version=INSTRUMENT_PROFILE_SCHEMA_VERSION, evidence_json=payload)
         )
         return InstrumentProfileRecord(
             profile_id=UUID(current["profile_id"]),
@@ -197,7 +200,7 @@ class SQLiteInstrumentProfileRepository:
             identity_anchor=current["identity_anchor"],
             cached_at=datetime.fromisoformat(current["cached_at"]),
             refreshed_at=now,
-            schema_version=current["schema_version"],
+            schema_version=INSTRUMENT_PROFILE_SCHEMA_VERSION,
             evidence=json.loads(payload),
         )
 

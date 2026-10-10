@@ -1,7 +1,8 @@
 # PH.2 — Failure classification: decisions and handler inventory
 
 Every exception handler that turns a provider failure into a generic error, or carries one on without its
-class, as of `main` at `847d28a` (2026-10-09). Owned by
+class, as of `main` at `847d28a` (2026-10-09); the section 4 dispositions were delivered and verified at `2983bd2`
+(2026-10-10). Owned by
 [PH.2](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md). Line numbers are for that commit and will move; the symbol is
 the stable reference. The list came from a scan of `src/` for handlers of `Exception`, `BaseException`, a
 bare `except`, and tuples mixing `OSError` with `KeyError`, `TypeError` or `ValueError`, then each was read.
@@ -90,26 +91,26 @@ handlers to classify, and the completion test retains no exception.
 
 | File and symbol | Line | Handler today | Disposition | Slice |
 | :--- | :--- | :--- | :--- | :--- |
-| `financial/resolver.py` `resolve_three_year_average_eps` | 509 | `except FinancialProviderError`, builds a `PROVIDER_ERROR` result with `Provider error: <text>` | **Carry.** The stored result keeps the kind and provider identity as typed fields; the prose stays as it is. | PH.2c |
-| `financial/resolver.py` `_resolve_provider` | 1113 | same | **Carry**, same change. | PH.2c |
-| `strategies/fcf_growth/input_resolver.py` `_resolve_field` | 607 | `except FinancialProviderError`, returns a `_FieldResolution` with `ReasonCode.PROVIDER_ERROR` and `provider_error=True` | **Carry.** The resolution and the failure assembly keep the kind and provider identity. | PH.2c |
-| `instrument_profile.py` `complete_security_unit_profile` | 196 | `except Exception`, sets `PROVIDER_ERROR` | **Narrow to typed provider failures** and record the kind in the stored resolution. Other exceptions propagate. | PH.2c |
-| `instrument_profile.py` `_resolve_identity_candidate` | 319 | `except Exception`, `PROVIDER_ERROR` diagnostic with no cause | **Narrow** and record the kind on `InstrumentProfileDiagnostic`. | PH.2c |
-| `instrument_profile.py` `_resolve_kind_candidate` | 363 | same | **Narrow** and record the kind. | PH.2c |
-| `security_identity.py` `resolve_security_identity` | 134 | `except Exception`, `IdentityResolutionStatus.PROVIDER_ERROR` | **Narrow** and record the kind on `SecurityIdentityResolution`. | PH.2c |
+| `financial/resolver.py` `resolve_three_year_average_eps` | 509 | `except FinancialProviderError`, builds a `PROVIDER_ERROR` result with `Provider error: <text>` | **Carried.** The stored result keeps the kind and provider identity as a typed `ProviderFailureRecord`; the prose stays as it is. | PH.2c, complete |
+| `financial/resolver.py` `_resolve_provider` | 1113 | same | **Carried**, same change. | PH.2c, complete |
+| `strategies/fcf_growth/input_resolver.py` `_resolve_field` | 607 | `except FinancialProviderError`, returns a `_FieldResolution` with `ReasonCode.PROVIDER_ERROR` and `provider_error=True` | **Carried.** The resolution, the failure assembly and the result keep the kind and provider identity, with the annual field as the input. | PH.2c, complete |
+| `instrument_profile.py` `complete_security_unit_profile` | 196 | `except Exception`, sets `PROVIDER_ERROR` | **Narrowed to typed provider failures**; the kind is recorded on the stored resolution and on the diagnostic. Other exceptions propagate. | PH.2c, complete |
+| `instrument_profile.py` `_resolve_identity_candidate` | 319 | `except Exception`, `PROVIDER_ERROR` diagnostic with no cause | **Narrowed**; the kind is recorded on `InstrumentProfileDiagnostic`. An answer for another instrument is an `unexpected_response` from the candidate. | PH.2c, complete |
+| `instrument_profile.py` `_resolve_kind_candidate` | 363 | same | **Narrowed**, same change. | PH.2c, complete |
+| `security_identity.py` `resolve_security_identity` | 134 | `except Exception`, `IdentityResolutionStatus.PROVIDER_ERROR` | **Narrowed**; the kind is recorded on `SecurityIdentityResolution`. | PH.2c, complete |
 
 Results built without a handler: `PROVIDER_ERROR` is also assigned where the provider answered and the project
-rejected the answer, so no typed failure exists to carry. The plan has not decided the stored kind for these;
-each needs a decision in PH.2c.
+rejected the answer, so no typed failure exists to carry. The stored kind of these is decided in
+[D23 to D25](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#2-decisions).
 
 | File and symbol | Line | Where `PROVIDER_ERROR` is built | Disposition | Slice |
 | :--- | :--- | :--- | :--- | :--- |
-| `financial/resolver.py` `resolve_three_year_average_eps` | 540 | A fact fails `_validate_candidate`. | **Decide.** | PH.2c |
-| `financial/resolver.py` `_resolve_provider` | 1148 | More than one fact for a single-observation request. | **Decide.** | PH.2c |
-| `financial/resolver.py` `_validate_provider_response` | 1466 | A coherence check on the fact (subject, field, provider, basis) fails. | **Decide.** | PH.2c |
-| `financial/resolver.py` `_derive_bvps_from_components` | 803 | The BVPS quotient is not finite (project arithmetic, not a provider answer). | **Decide**, including whether it is a provider failure at all. | PH.2c |
-| `financial/resolver.py` `_bvps_component_failure` | 1376 | Passes a component's `PROVIDER_ERROR` status through the derivation. | **Carry.** The component's kind passes through unchanged. | PH.2c |
-| `yfinance/financial_facts.py` `YFinanceFinancialFactsAdapter.fetch_facts` | 51 | A `FinancialProviderError` with no kind is raised when the injected clock returns a naive datetime. | **Decide**, including whether it is a provider failure at all. | PH.2c |
+| `financial/resolver.py` `resolve_three_year_average_eps` | 540 | A fact fails `_validate_candidate`. | **Decided:** `unexpected_response` from the provider the request named (D23). | PH.2c, complete |
+| `financial/resolver.py` `_resolve_provider` | 1148 | More than one fact for a single-observation request. | **Decided:** same (D23). | PH.2c, complete |
+| `financial/resolver.py` `_validate_provider_response` | 1466 | A coherence check on the fact (subject, field, provider, basis) fails. | **Decided:** same (D23). | PH.2c, complete |
+| `financial/resolver.py` `_derive_bvps_from_components` | 803 | The BVPS quotient is not finite (project arithmetic, not a provider answer). | **Decided:** the branch is reachable from finite components, so it stays with `unexpected_response` and its status; whether `PROVIDER_ERROR` is right is ESC-28 (D24). | PH.2c, complete |
+| `financial/resolver.py` `_bvps_component_failure` | 1376 | Passes a component's `PROVIDER_ERROR` status through the derivation. | **Carried.** The component's kind passes through unchanged. | PH.2c, complete |
+| `yfinance/financial_facts.py` `YFinanceFinancialFactsAdapter.fetch_facts` | 51 | A `FinancialProviderError` with no kind was raised when the injected clock returns a naive datetime. | **Decided:** a defect. It raises `ValueError` and propagates (D25). | PH.2c, complete |
 
 ## 5. Boundaries that stay broad by design
 
@@ -118,7 +119,7 @@ These catch everything on purpose and are not provider adapters. PH.2 changes on
 | File and symbol | Line | Why it stays | What changes |
 | :--- | :--- | :--- | :--- |
 | `src/cli_support.py` `execution_errors` | 236 | The CLI's last boundary; it must turn any exception into a clean exit. | The classifier maps `FinancialProviderError` and `DataFetchError` by type for every command and the three kinds to three codes; the per-command `data_error` callback is replaced by one per-kind sentence table. The classifier's other callers are `cli_workspace.py` (`_fail_with`, and the `classify` argument to `refresh_watchlist`); `_fail_with` shows `str(exception)`. |
-| `src/workspace/refresh.py` `refresh_watchlist` and `_refresh_concurrently` | 269, 290, 399, 492 | One job's failure must never abort the batch. | Each raised job's `reason_code` comes from the same classifier; a stored non-success job's code derives from the stored run through the same mapping. |
+| `src/workspace/refresh.py` `refresh_watchlist` and `_refresh_concurrently` | 269, 290, 399, 492 | One job's failure must never abort the batch. | Each raised job's `reason_code` comes from the same classifier; a job whose run or outcome is `failed` copies the code the capture computed from the stored kind (D27). |
 | `src/data/provider_checks.py` `_call_with_timeout` and `_finish` | 152, 181 | The check harness turns any failure into a failed `ProviderCheckResult`. | The result carries the kind when the exception is a typed provider failure. The completion test does not scan this module. |
 
 ## 6. Not provider adapters

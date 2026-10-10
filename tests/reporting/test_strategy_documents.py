@@ -90,9 +90,9 @@ def test_a_momentum_data_date_is_a_date_and_an_analysis_instant_carries_its_offs
 def test_the_document_version_the_method_version_and_the_result_schema_version_are_distinct() -> None:
     """FCF Growth's document writes three unrelated versions; each is read from its own declaration."""
     document = json.loads(expected_path("fcf-growth-success.direct").read_bytes())
-    assert document["schema_version"] == fcf_envelope.DOCUMENT_SCHEMA_VERSION == 6
+    assert document["schema_version"] == fcf_envelope.DOCUMENT_SCHEMA_VERSION == 7
     assert document["method_version"] == FCF_GROWTH.method_version == 2
-    assert document["result_schema_version"] == FCF_GROWTH.result_schema_version == 3
+    assert document["result_schema_version"] == FCF_GROWTH.result_schema_version == 4
     assert len({document["schema_version"], document["method_version"], document["result_schema_version"]}) == 3
 
 

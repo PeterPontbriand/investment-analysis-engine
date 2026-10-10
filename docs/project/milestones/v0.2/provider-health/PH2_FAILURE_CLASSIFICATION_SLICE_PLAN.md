@@ -13,7 +13,8 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
   adapter to every report, and becomes one of three new stable reason codes.
 - **Three slices, in this order, after SWC.4c:** PH.2a (the kind, the classifier, SEC EDGAR and Massive, the
   raised path), PH.2b (Yahoo, `ian health`, the completion test, the runbook), PH.2c (the kind in stored
-  evidence, the saved run, the refresh job and the strategy documents). Issue #40 follows PH.2c.
+  evidence, the saved run, the refresh job and the strategy documents). All three are complete, so PH.2 is
+  complete. [Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) is next.
 - **What it does not do:** probe a provider, put a verdict on the first line, or add `ian health --json` (PH.3);
   retry, fall back or remediate; change any analysis result, formula or classification.
 - **Rules:** a provider failure stays a recorded, stored outcome with its resolution trace; the
@@ -46,6 +47,11 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 | D20 | `ProviderCheckResult` gains a nullable kind (PH.2b). A typed provider failure raised by an adapter keeps its own kind. The check's own failures: a timeout is `unreachable`; a wrong shape (not a frame, missing columns, bad index, a non-positive or non-finite quote, a wrong SEC document shape) is `unexpected_response`; an empty history is `no_data`. No kind, by design: SEC not configured (`SecUnavailable`), and an unexpected exception inside a check. `ian health` prints `<provider>: unreachable`, `unexpected response` or `no data` for a failed check with a kind and `<provider>: failed` for one without, each followed by the detail. A passed check is unchanged. |
 | D21 | Best-effort currency stays best-effort (PH.2b). `_fetch_currency` and the optional currency read in `fetch_current_quote` still return no currency, including when a connection fault surfaces there as `KeyError`. `_fetch_currency` catches only that and typed provider failures; anything else propagates. |
 | D22 | The `no_data` sentence stays as merged: "returned no data for it" (PH.2b). The plan's earlier wording, an empty history "says Yahoo returned no rows", is replaced to match the sentence table. |
+| D23 | Result-built provider errors (PH.2c, decision a). Where the resolver builds `PROVIDER_ERROR` because the provider answered and the answer was rejected (a fact that fails `_validate_candidate`, more than one fact for a single-observation request, a failed coherence check in `_validate_provider_response`), the stored kind is `unexpected_response` and the provider is the one the request named. `_bvps_component_failure` passes a component's kind and provider through unchanged. The same holds for an identity or kind answer that describes another instrument (a profile diagnostic or an identity resolution): `unexpected_response` from the candidate that answered. |
+| D24 | The BVPS non-finite branch (PH.2c, decision b). The branch can run: every component is finite and the shares are strictly positive, but nothing bounds their size, so a finite equity over very small shares overflows to infinity (equity `1e300`, shares `1e-10`). It stays, takes `unexpected_response` from the requested provider, and keeps its status. Whether `PROVIDER_ERROR` is the right status for project arithmetic is a question for the project owner: [ESC-28](../existing-strategy-correctness/ESC_A_DEFECT_LEDGER.md#esc-28--a-non-finite-bvps-derivation-is-reported-as-a-provider-error). |
+| D25 | The Yahoo clock guard (PH.2c, decision c). A naive datetime from the injected clock in `YFinanceFinancialFactsAdapter.fetch_facts` is a defect, not a provider failure: it raises `ValueError`, the type every other naive-datetime guard in the project raises, and it propagates. Every other raise of a provider failure without a kind is in an evaluation fixture; none is in a production adapter ([§8](#8-verified-against-main)). |
+| D26 | The profile cache version (PH.2c, decision d). The stored profile record's existing `schema_version` column carries the version: its constant is 2 and the cache reads it. A record whose version is not current is treated as absent on the fresh-reuse path and on the fail-open path that reuses a stored profile when a refresh cannot confirm an identity anchor; the next anchored resolution overwrites it, including its version. The payload has no version field of its own. |
+| D27 | One function from a result to its failure code (PH.2c, decision e). `failure_reason_code` in `failure_classification.py` returns the mapped provider code when the native status is a provider error (`provider_error` when no kind was recorded), `invalid_input` for invalid input, otherwise `execution_error`. Each strategy's capture calls it once, for a `failed` outcome, so a saved run and an unsaved refresh job read the same code; `execution_failed` is no longer written. A refresh job carries a `reason_code` if and only if it raised or its outcome is `failed`, with saving on or off. |
 
 ## 3. Output changes
 
@@ -63,10 +69,10 @@ the same slice and the diff is what the review approves.
 | 7 | `ian health`, failed check | `<provider>: failed (...)` | `<provider>: unreachable`, `unexpected response` or `no data`; `<provider>: failed` only for a failure with no kind (D20) | PH.2b |
 | 8 | Stored evidence of the three SEC-backed strategies and Momentum | Provider failure has status and prose only | Typed kind and provider identity; evidence and run-envelope versions bumped | PH.2c |
 | 9 | Strategy `--json` documents (Momentum, Graham Number, Graham Growth, FCF Growth), direct and replayed | No code; Graham documents carry `status: provider_error` and a sentence | New nullable `provider_failure` key in the shared document header, after `status`, so every document takes it; each document's `schema_version` bumped | PH.2c |
-| 10 | Saved run, every `failed` run | `failure_reason_code` `execution_failed` | A `FailureReasonCode` value: the mapped provider code, `invalid_input` or `execution_error`; `execution_failed` is no longer written | PH.2c |
+| 10 | Saved run, every `failed` run | `failure_reason_code` `execution_failed` | A `FailureReasonCode` value: the mapped provider code, `invalid_input` or `execution_error`; `execution_failed` is no longer written ([D27](#2-decisions)) | PH.2c |
 | 11 | Refresh job `reason_code` | Set only for a raised exception | Set if and only if the job raised or its run is `failed`; a failed run's job copies the stored code ([§6](#6-refresh-job-reason_codes)) | PH.2c |
 | 12 | Refresh summary schema | `reason_code` set if and only if `error` is set | Set if and only if the job raised or its run is `failed` | PH.2c |
-| 13 | Profile-cache payload | Unversioned, no kind | Versioned, carries the kind; an old payload is treated as stale (mechanism: [§8](#8-verified-against-main), needs a decision) | PH.2c |
+| 13 | Profile-cache payload | Stored under `schema_version` 1, no kind | Stored under `schema_version` 2 and carries the kind; a record of another version is treated as absent on the fresh path and the fail-open path ([D26](#2-decisions)) | PH.2c |
 
 Text-mode sentences keep their wording except where they state a cause the kind contradicts: the Yahoo
 transport sentence (row 6) and Momentum's "returned no usable price history" (row 3).
@@ -119,29 +125,39 @@ PH.2c extend.
 
 ### PH.2c — Stored provider failures
 
-`feat/ph-2c-stored-provider-failures`, after SWC.4c and PH.2b.
+`feat/ph-2c-stored-provider-failures`, after SWC.4c and PH.2b. Complete 2026-10-10.
 
-- **Stored kind.** Typed kind and provider identity on `InputResolutionResult`, the FCF field resolution and
-  assembly, `InstrumentProfileDiagnostic`, `SecurityIdentityResolution` and `SecurityUnitResolution`, beside the
-  existing `PROVIDER_ERROR` status. The carrier handlers narrow to typed provider failures and record the kind.
-  The result-built `PROVIDER_ERROR` sites in the inventory (§4) have no typed failure to record; their kind is
-  undecided (needs a decision). So is the Yahoo adapter's kindless raise for a naive clock, which may not be a
-  provider failure at all.
-- **Codecs and versions.** The four strategy codecs encode the new fields. Bumped: each strategy's
-  `result_schema_version` and `evidence_codec_version` and its document's `schema_version`;
-  `AnalysisRun.run_schema_version` (a `Literal[1]` in `workspace/runs.py`, and `decode_evidence` in
-  `workspace/codecs.py` accepts only 1 for it and for `projection_version` together); a new version field on
-  the hand-written profile-cache payload, whose `_diagnostics_payload` and `_diagnostics_from_payload` carry the
-  kind, with a test that it round-trips. Nothing is migrated; local databases may be discarded. The 73 files in
-  `tests/expected_output/strategy_documents/` are regenerated (new element and version in each).
+- **Stored kind.** A `ProviderFailureRecord` (kind, provider, and the strategy input once an assembly records it)
+  in `src/core/provider_failure_kind.py`, carried by `InputResolutionResult`, the FCF field resolution and
+  assembly and result, the Graham assemblies, `InstrumentProfileDiagnostic`, `SecurityIdentityResolution` and
+  `SecurityUnitResolution`, beside the unchanged `PROVIDER_ERROR` status. The seven carrier handlers narrow to
+  typed provider failures and record the kind; anything else propagates. The result-built `PROVIDER_ERROR` sites
+  take `unexpected_response` ([D23](#2-decisions)), the BVPS non-finite branch is kept ([D24](#2-decisions)) and
+  the Yahoo naive-clock guard is a defect ([D25](#2-decisions)).
+- **Codecs and versions.** The four strategy codecs encode the new fields through their native types. Bumped,
+  with nothing migrated:
+
+  | Version | Before | After |
+  | :--- | :--- | :--- |
+  | `AnalysisRun.run_schema_version` (and its paired check in `decode_evidence`) | 1 | 2 |
+  | `result_schema_version`: Momentum, Graham Number, Graham Growth, FCF Growth | 2, 2, 2, 3 | 3, 3, 3, 4 |
+  | `evidence_codec_version`: Momentum, Graham Number, Graham Growth, FCF Growth | 1, 2, 2, 1 | 2, 3, 3, 2 |
+  | Document `schema_version`: Momentum, Graham Number, Graham Growth, FCF Growth | 6, 7, 7, 6 | 7, 8, 8, 7 |
+  | Instrument-profile record `schema_version` ([D26](#2-decisions)) | 1 | 2 |
+
+  Momentum's evidence bumps too, because it embeds the instrument profile and its diagnostics gain the kind.
+  The 73 files in `tests/expected_output/strategy_documents/` are regenerated (the new element and the versions
+  differ and nothing else), and six files are added for a provider failure that carries a kind.
 - **The element is added in one place.** The strategy documents share a header and a tail declared once in
   `src/reporting/documents/strategy_document.py` ([design H.34](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h34-common-header-and-tail-for-strategy-documents-2026-10-09)).
-  PH.2c adds `provider_failure: ProviderFailurePart | None` to `StrategyDocumentHeader` directly after `status`, adds
-  the key to `HEADER_KEYS`, and populates it in each presenter. No strategy envelope changes. The shape test
-  `tests/reporting/test_strategy_document_shape.py` then covers every descriptor's `json_envelope`.
-- **Derived reports.** Every report derives from the stored kind through the one kind-to-code mapping in
-  `failure_classification.py`: the strategy documents and the saved run's `failure_reason_code`. The refresh
-  job copies the stored code.
+  PH.2c adds `provider_failure: ProviderFailure | None` (the type the failure envelope carries) to
+  `StrategyDocumentHeader` directly after `status`, adds the key to `HEADER_KEYS`, and populates it in each
+  presenter. No strategy envelope changes. The shape test `tests/reporting/test_strategy_document_shape.py` then
+  covers every descriptor's `json_envelope` and the failure envelope.
+- **Derived reports.** Every report derives from the stored kind through the one kind-to-code mapping and the one
+  precedence function in `failure_classification.py` (`provider_failure_of`): the strategy documents and, through
+  `failure_reason_code`, the saved run's `failure_reason_code`. The refresh job copies the code its run or its
+  unsaved capture holds ([D27](#2-decisions)).
 - **Conformance.** The check in [§5](#5-the-shared-provider_failure-element).
 - **Gate.** The complete managed gate.
 
@@ -159,9 +175,10 @@ PH.2c extend.
   order: `unreachable`, then `unexpected_response`, then `no_data`. An outage on any input outranks a shape
   change, which outranks an absent answer, so the code names the condition most likely to need action. The
   document, the saved run and the refresh job all call that function. In the code as it stands every assembly
-  returns at its first failed input, so the list holds one entry today (one exception: FCF Growth skips a
-  failed diluted-share field when it classifies on total free cash flow, and that failure is not reported);
-  the rule matters for the first strategy that resolves inputs without stopping. No rule that the code
+  returns at its first failed input, so the list holds one entry today (FCF Growth skips a failed diluted-share
+  field when it classifies on total free cash flow; that failure is not part of the element, and its trace event,
+  which carries the failure's sentence, stays in the document's diagnostics); the rule matters for the first
+  strategy that resolves inputs without stopping. No rule that the code
   suggests is better. A raised provider failure (Momentum) has no input name, so its `input` is null (D15).
 - **Conformance check.** The shared strategy-document test (`tests/reporting/test_strategy_document_shape.py`, added by SWC.4c.1)
   iterates every strategy descriptor's `json_envelope` model (`STRATEGIES` in `src/strategy_wiring.py`) and fails if
@@ -177,8 +194,8 @@ analysis outcome, not a failure, so its job carries none; neither does a `comple
 - A `failed` run: the run's stored `failure_reason_code`, copied. Every failed run stores a `FailureReasonCode`
   value (D5, row 10): the mapped provider code when the native status is a provider error, `invalid_input` when
   it is invalid input, otherwise `execution_error`. There is no translation step in the refresh.
-- A `failed` outcome with no stored run (refresh with saving off) has no stored code to copy; where its code
-  comes from is not decided (needs a decision).
+- A `failed` outcome with no stored run (refresh with saving off) carries the code the saved run would have
+  stored: the capture computes it once with the same function ([D27](#2-decisions)).
 
 A run cannot be cancelled: the outcome does not exist ([R3 close-out](../r3/R3_DEAD_CODE_AUDIT_CLOSEOUT.md)), so
 the rule has no `cancelled` case and no code is added for one. `data_unavailable` is not added either.
@@ -221,7 +238,9 @@ hold `execution_failed` need no handling.
 
 ## 8. Verified against `main`
 
-Checked at `847d28a` (2026-10-09).
+Checked at `847d28a` (2026-10-09). The PH.2c items (the carriers, the versions, the profile cache, the kindless raises
+and the expected output) were checked and delivered at `2983bd2` (2026-10-10); the bullets below describe `main`
+before PH.2c unless they say otherwise.
 
 - **Where a provider failure ends.** Momentum raises `DataFetchError`, which reaches the failure envelope.
   Graham Number, Graham Growth and FCF Growth never raise it: the resolvers catch `FinancialProviderError`
@@ -231,8 +250,10 @@ Checked at `847d28a` (2026-10-09).
 - **`PROVIDER_ERROR` without a provider exception.** `resolver.py` also builds `PROVIDER_ERROR` results where the
   provider answered and the answer was rejected: `:540` (candidate validation), `:1148` (more than one fact for a
   single-observation request), `_validate_provider_response` (`:1466`, the coherence checks) and `:803` (a
-  non-finite BVPS derivation, which is project arithmetic). These carry no kind. `_bvps_component_failure`
-  (`:1376`) passes a component's status through, so a kind has to pass through it as well.
+  non-finite BVPS derivation, which is project arithmetic). These carried no kind. `_bvps_component_failure`
+  (`:1376`) passes a component's status through, so a kind has to pass through it as well. PH.2c settles them in
+  [D23 and D24](#2-decisions): the first four take `unexpected_response` from the requested provider, and the
+  component failure passes its component's kind through.
 - **Today's `--json` for a provider failure.** Momentum: the failure envelope. Graham Number and Graham
   Growth: a document with `status: "provider_error"`, a sentence in `reason`, null `result` and `inputs`, and no
   code. FCF Growth: the whole result with `status` and per-metric `reason_code` `provider_error`.
@@ -252,15 +273,16 @@ Checked at `847d28a` (2026-10-09).
   `repositories/analysis_runs.py`, which stores `instrument_profile`; and the hand-written
   `_diagnostics_payload` and `_diagnostics_from_payload` in `instrument_profile_cache.py`, which list fields
   explicitly and would drop a new one. The profile table stores that payload as opaque JSON.
-- **Versions today.** `AnalysisRun.run_schema_version` is 1. Document `schema_version`: Momentum 6, Graham Number
+- **Versions before PH.2c** (the table in [§4](#ph2c--stored-provider-failures) gives the new ones).
+  `AnalysisRun.run_schema_version` was 1. Document `schema_version`: Momentum 6, Graham Number
   7, Graham Growth 7, FCF Growth 6. Descriptor `result_schema_version`: Momentum 2, Graham Number 2, Graham
   Growth 2, FCF Growth `FCF_GROWTH_RESULT_SCHEMA_VERSION`; `evidence_codec_version` is 2 for the two Graham strategies and 1 for the others. All four
   descriptors in `src/strategy_wiring.py` carry `json_envelope`.
 - **Profile-cache payload.** `_encode_profile` writes `identity`, `kind_evidence` and `diagnostics` and no version
-  field. The stored record has a `schema_version` column that the repository writes as the constant 1
-  (`repositories/instrument_profiles.py`) and the cache never reads; freshness is the age only. A new payload
-  field versus a bump of that column, and what makes an old payload stale (including on the fail-open path that
-  reuses a stored profile), are not decided (needs a decision).
+  field. The stored record has a `schema_version` column, which the repository wrote as the constant 1
+  (`repositories/instrument_profiles.py`) and the cache never read; freshness was the age only. [D26](#2-decisions)
+  settles it: the constant is 2, the cache reads the column, and the repository writes it on an update in place as
+  well as on an insert, so a version-1 row refreshed under the same identity anchor becomes a version-2 row.
 - **Transport failure class.** Before PH.2a `fetch_json` raised `OSError` or `ValueError`. `create_analysis_snapshot`
   swallowed `FinancialProviderError` around `_resolve_cik`, which loads the ticker map, and `fetch_facts` re-wrapped
   any `ValueError`, which `DataFetchError` is; a classified transport failure of either type would have been
@@ -330,9 +352,21 @@ Checked at `847d28a` (2026-10-09).
   `YFinanceClient.fetch_data` (reached only by an exception that escapes `yf.download`) does not reach standard
   error. The adapters take the SEC identity and the Massive key as constructor arguments and do not read the
   environment; `src/config.py` is the only reader.
-- **`execution_failed`.** Written at `workspace/execution.py:150`; checked only as non-empty at
-  `workspace/runs.py:126`; no other reader. Only `tests/workspace/test_execution.py:197` asserts it.
-  `FAILED` comes only from the three Graham and FCF `execution.py` outcome mappings.
+- **`execution_failed`.** Was written at `workspace/execution.py:150`; checked only as non-empty at
+  `workspace/runs.py:126`; no other reader. Only `tests/workspace/test_execution.py:197` asserted it. `FAILED`
+  comes only from the three Graham and FCF `execution.py` outcome mappings. Graham Number also maps a calculation
+  that does not apply (a non-positive EPS or BVPS, native status `not_applicable`) to `failed`; under
+  [D27](#2-decisions) such a run stores `execution_error`, which the project owner may want to revisit.
+- **Raises of a provider failure without a kind (PH.2c scan of `src/`).** None is left in a production adapter:
+  the Yahoo naive-clock guard was the only one and is now a defect (D25). Three evaluation fixtures still raise one,
+  so their `provider-error` expected-output cases store a `provider_error` status with a null `provider_failure`
+  and show the unclassified path: `FixtureAnnualFinancialFactsProvider` (`fcf_earnings_growth.py`),
+  `FixtureFinancialFactsProvider` (`graham.py`) and `FixtureDataClient` (`market_data.py`, two raises). Not
+  changed. The document tests wrap the fixtures to raise a kinded failure for the `provider-unreachable` cases.
+- **Stored shapes that still carry a provider failure without a kind (PH.2c).** The resolver's trace events and the
+  Graham assemblies' `quote_status`/`quote_reason` for a failed optional quote carry the failure as prose only; the
+  security-unit profile diagnostic keeps its `unavailable` status beside the kind. None is a changed output, and
+  none was in PH.2c's list; they are carried to issue #40 and PH.3.
 - **Handlers.** The inventory was re-scanned against `main` at `d415011`; line numbers moved in the SEC,
   Massive, Yahoo-facts, FCF and `cli_support.py` rows, and no handler was added or removed.
 - **Expected output.** `tests/expected_output/strategy_documents/` holds 73 golden documents, including

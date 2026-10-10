@@ -8,6 +8,8 @@ from unittest.mock import patch
 
 import pytest
 
+from src.core.provider_failure_kind import ProviderFailureKind
+from src.data.base_client import DataFetchError
 from src.data.instrument_profile import (
     InstrumentKind,
     InstrumentKindEvidence,
@@ -47,7 +49,9 @@ class _KindProvider:
     def resolve_instrument_kind(self, _request: InstrumentKindRequest) -> InstrumentKindEvidence | None:
         self.calls += 1
         if self.fails:
-            raise RuntimeError("simulated kind provider failure")
+            raise DataFetchError(
+                "simulated kind provider failure", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance"
+            )
         return self.evidence
 
 

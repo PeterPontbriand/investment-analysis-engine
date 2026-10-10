@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Final
 
-from src.core.provider_failure_kind import ProviderFailureKind
+from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 
@@ -39,6 +39,13 @@ class FailureRule:
     def matches(self, error: BaseException) -> bool:
         """Return whether *error* is one of the types and passes the test, if any."""
         return isinstance(error, self.types) and (self.when is None or self.when(error))
+
+
+def failure_record(error: DataFetchError | FinancialProviderError) -> ProviderFailureRecord | None:
+    """Return the stored record of a typed provider failure, or ``None`` when the adapter did not classify it."""
+    if error.kind is None or error.provider_id is None:
+        return None
+    return ProviderFailureRecord(kind=error.kind, provider_id=error.provider_id)
 
 
 def classify_library_exception(error: BaseException, rules: Sequence[FailureRule]) -> Outcome:
@@ -83,4 +90,4 @@ def call_library[ResultT](
         raise error_type(f"{message}: {error}", kind=outcome, provider_id=provider_id) from error
 
 
-__all__ = ["DEFECT", "FailureRule", "call_library", "classify_library_exception"]
+__all__ = ["DEFECT", "FailureRule", "call_library", "classify_library_exception", "failure_record"]

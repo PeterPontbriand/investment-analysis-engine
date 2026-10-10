@@ -48,7 +48,7 @@ class YFinanceFinancialFactsAdapter:
         retrieved_at = self._clock()
         if retrieved_at.tzinfo is None or retrieved_at.tzinfo.utcoffset(retrieved_at) is None:
             msg = "Yahoo financial-facts adapter clock returned a naive datetime."
-            raise FinancialProviderError(msg)
+            raise ValueError(msg)
 
         try:
             quote = self._client.fetch_current_quote(request.subject_id)

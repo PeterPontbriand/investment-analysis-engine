@@ -37,7 +37,7 @@
     },
     "RefreshResultDocument": {
       "additionalProperties": false,
-      "description": "One (ticker, selection) job of a refresh.\n\nExactly one of a saved run (``analysis_run_id``), an unsaved outcome (``status`` with no run) and a failure\n(``error``) describes the job, and ``reason_code`` is set if and only if ``error`` is.",
+      "description": "One (ticker, selection) job of a refresh.\n\nExactly one of a saved run (``analysis_run_id``), an unsaved outcome (``status`` with no run) and a failure\n(``error``) describes the job, and ``reason_code`` is set if and only if the job raised (``error``) or its\n``status`` is ``failed``. An ``unavailable`` job is an analysis outcome and carries none.",
       "properties": {
         "analysis_run_id": {
           "anyOf": [
@@ -61,7 +61,7 @@
               "type": "null"
             }
           ],
-          "description": "The failure's message for people; null unless the job failed.",
+          "description": "The failure's message for people; null unless the job raised.",
           "title": "Error"
         },
         "method_id": {
@@ -77,7 +77,7 @@
               "type": "null"
             }
           ],
-          "description": "The stable code of the failure; null unless it failed."
+          "description": "The stable code of the failure; null unless the job raised or its status is failed."
         },
         "saved": {
           "title": "Saved",
@@ -92,7 +92,7 @@
               "type": "null"
             }
           ],
-          "description": "The run's or the unsaved outcome's status; null for a failed job."
+          "description": "The run's or the unsaved outcome's status; null for a raised job."
         },
         "ticker": {
           "title": "Ticker",
@@ -130,7 +130,7 @@
       "additionalProperties": {
         "type": "integer"
       },
-      "description": "Jobs per status; a failed job counts as 'error'.",
+      "description": "Jobs per status; a job that raised counts as 'error'.",
       "title": "Counts",
       "type": "object"
     },

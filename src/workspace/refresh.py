@@ -126,8 +126,10 @@ class RefreshJobResult:
     not persisted anywhere, and any user-facing sanitization is the
     caller's (eventual CLI) responsibility, mirroring how ``execution_errors``
     sanitizes at the presentation boundary rather than deep in a service.
-    ``reason_code`` is the stable code the caller's classifier assigned to the
-    same exception; it is set if and only if ``error`` is.
+    ``reason_code`` is the stable code of a failure: the code the caller's classifier assigned to the
+    exception when the job raised, or the failed run's (or unsaved outcome's) own stored code. It is set if and
+    only if the job raised or its run or outcome is ``failed``; an ``unavailable`` run is an analysis outcome,
+    not a failure, and carries none.
     """
 
     ticker: str
@@ -138,12 +140,17 @@ class RefreshJobResult:
     reason_code: str | None = None
 
     def __post_init__(self) -> None:
-        """Enforce the run-xor-outcome-xor-error invariant and that ``reason_code`` accompanies ``error``."""
+        """Enforce the run-xor-outcome-xor-error invariant and that ``reason_code`` accompanies a failure."""
         set_count = sum(value is not None for value in (self.run, self.outcome, self.error))
         if set_count != 1:
             raise ValueError("Exactly one of run, outcome, or error must be set.")
-        if (self.reason_code is None) != (self.error is None):
-            raise ValueError("reason_code is set if and only if error is set.")
+        failed = (
+            self.error is not None
+            or (self.run is not None and self.run.status is RunOutcome.FAILED)
+            or self.outcome is RunOutcome.FAILED
+        )
+        if failed != (self.reason_code is not None):
+            raise ValueError("reason_code is set if and only if the job raised or its run is failed.")
 
 
 @dataclass(frozen=True)
@@ -263,9 +270,7 @@ def refresh_watchlist(  # noqa: PLR0913
             if not save:
                 try:
                     result = capture()
-                    results.append(
-                        RefreshJobResult(ticker=ticker, method_id=selection.method_id, outcome=result.outcome)
-                    )
+                    results.append(_unsaved(ticker, selection, result))
                 except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
                     results.append(_failed(ticker, selection, exc, classify))
                 continue
@@ -286,7 +291,7 @@ def refresh_watchlist(  # noqa: PLR0913
                     clock=resolved_clock,
                     batch=batch,
                 )
-                results.append(RefreshJobResult(ticker=ticker, method_id=selection.method_id, run=run))
+                results.append(_saved(ticker, selection, run))
             except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
                 results.append(_failed(ticker, selection, exc, classify))
 
@@ -319,6 +324,18 @@ def _failed(
     """Record one job's failure: the exception's own text and the code classified from the same exception."""
     return RefreshJobResult(
         ticker=ticker, method_id=selection.method_id, error=str(exception), reason_code=classify(exception)
+    )
+
+
+def _saved(ticker: str, selection: AnalysisSelection, run: AnalysisRun) -> RefreshJobResult:
+    """Record a saved run; a failed run's job copies the run's stored code."""
+    return RefreshJobResult(ticker=ticker, method_id=selection.method_id, run=run, reason_code=run.failure_reason_code)
+
+
+def _unsaved(ticker: str, selection: AnalysisSelection, capture: ExecutionCapture) -> RefreshJobResult:
+    """Record an unsaved outcome; a failed one carries the code the saved run would have stored."""
+    return RefreshJobResult(
+        ticker=ticker, method_id=selection.method_id, outcome=capture.outcome, reason_code=capture.failure_reason_code
     )
 
 
@@ -477,7 +494,7 @@ def _settle(  # noqa: PLR0913
     captured = outcome.capture
     assert captured is not None  # enforced by _JobOutcome's own capture-xor-error invariant
     if not save:
-        return RefreshJobResult(ticker=ticker, method_id=selection.method_id, outcome=captured.outcome)
+        return _unsaved(ticker, selection, captured)
     try:
         run = execute(
             AnalysisRequest(ticker=ticker, selection=selection),
@@ -488,7 +505,7 @@ def _settle(  # noqa: PLR0913
             clock=_replay_clock(outcome.started_at, outcome.completed_at),
             batch=batch,
         )
-        return RefreshJobResult(ticker=ticker, method_id=selection.method_id, run=run)
+        return _saved(ticker, selection, run)
     except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
         return _failed(ticker, selection, exc, classify)
 

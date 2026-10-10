@@ -107,8 +107,8 @@ def _run(evidence: MomentumRun | None = None) -> AnalysisRun:
         started_at=STAMP,
         completed_at=STAMP,
         method_version=1,
-        result_schema_version=2,
-        evidence_codec_version=1,
+        result_schema_version=3,
+        evidence_codec_version=2,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(evidence or _evidence()),
     )

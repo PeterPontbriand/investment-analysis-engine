@@ -13,6 +13,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
+from src.core.provider_failure_kind import ProviderFailureRecord
 from src.data.financial.provenance import ResolvedInput
 from src.data.security_identity import _normalized_required
 
@@ -104,11 +105,14 @@ class SecurityUnitResolution:
     reason: SecurityUnitResolutionReason
     evidence: SecurityUnitEvidence | None = None
     provenance: SecurityUnitProvenance | None = None
+    provider_failure: ProviderFailureRecord | None = None
 
     def __post_init__(self) -> None:
-        """Require evidence exactly when acquisition succeeds."""
+        """Require evidence exactly when acquisition succeeds, and a failure kind only for a provider error."""
         if (self.reason is SecurityUnitResolutionReason.RESOLVED) != (self.evidence is not None):
             raise ValueError("Resolved unit evidence must agree with its acquisition reason.")
+        if self.provider_failure is not None and self.reason is not SecurityUnitResolutionReason.PROVIDER_ERROR:
+            raise ValueError("provider_failure requires the provider_error acquisition reason.")
         if self.provenance is not None and self.evidence is None:
             raise ValueError("Unit provenance requires resolved evidence.")
 

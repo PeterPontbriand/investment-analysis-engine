@@ -457,6 +457,7 @@ def _document(p: MomentumPresentation) -> MomentumDocument:
         method=METHOD_ID,
         ticker=metrics.ticker.upper(),
         status=CalculationStatus.OK,
+        provider_failure=None,
         requested_as_of=p.requested_as_of,
         effective_as_of=metrics.timestamp,
         security_identity=security_identity_part(metrics.ticker, p.identity_resolution),
