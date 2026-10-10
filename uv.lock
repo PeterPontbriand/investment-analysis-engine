@@ -732,6 +732,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
+    { name = "curl-cffi" },
     { name = "massive-api-client" },
     { name = "matplotlib" },
     { name = "numpy" },
@@ -740,6 +741,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "requests" },
     { name = "seaborn" },
     { name = "sqlalchemy" },
     { name = "tenacity" },
@@ -761,6 +763,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.13,<2" },
+    { name = "curl-cffi", specifier = ">=0.15" },
     { name = "massive-api-client", specifier = ">=0.0.4" },
     { name = "matplotlib", specifier = ">=3.8.0" },
     { name = "numpy", specifier = ">=1.26.0" },
@@ -769,6 +772,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.8.0" },
     { name = "pydantic-settings", specifier = ">=2.2.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "requests", specifier = ">=2.31" },
     { name = "seaborn", specifier = ">=0.13.0" },
     { name = "sqlalchemy", specifier = ">=2.0,<3" },
     { name = "tenacity", specifier = ">=8.0.0" },

@@ -53,8 +53,9 @@ cannot keep the process alive: the command and the pytest session exit after a t
 The default is 20 seconds, matching the transport timeout in `src/data/http_json.py`; PH.3's canary passes a
 shorter one. Making the timeout a parameter now means PH.3 adds a caller, not a second body.
 
-**Request budget.** At most three requests per check. Both checks make two today: Yahoo one history download
-and one quote read, SEC EDGAR the ticker map and one company-facts document. The cap respects SEC's fair-access
+**Request budget.** At most three requests per check. Yahoo makes three (an opening
+connection, one quote read and one history download; two when a proxy is configured), SEC EDGAR two (the ticker map and one company-facts
+document). The cap respects SEC's fair-access
 limit and the project's guarded-egress rule, and a check that needs a fourth request needs project-owner
 review.
 

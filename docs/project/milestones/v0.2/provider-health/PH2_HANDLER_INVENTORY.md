@@ -1,7 +1,7 @@
 # PH.2 — Failure classification: decisions and handler inventory
 
 Every exception handler that turns a provider failure into a generic error, or carries one on without its
-class, as of `main` at `750d7c9` (2026-10-09). Owned by
+class, as of `main` at `847d28a` (2026-10-09). Owned by
 [PH.2](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md). Line numbers are for that commit and will move; the symbol is
 the stable reference. The list came from a scan of `src/` for handlers of `Exception`, `BaseException`, a
 bare `except`, and tuples mixing `OSError` with `KeyError`, `TypeError` or `ValueError`, then each was read.
@@ -24,9 +24,14 @@ The three kinds are `unreachable`, `unexpected_response` and `no_data`; the deci
   per-ticker exception itself and returns an empty frame, so a throttled or unreachable Yahoo history request is
   indistinguishable from an unknown ticker; no supported setting changes that
   ([slice plan §8](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#8-verified-against-main)). The adapter's `no_data` is
-  an observation, its sentence says Yahoo returned no rows, and the canary
+  an observation, its sentence says the provider returned no data for the ticker, and the canary
   ([PH.3](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-the-automatic-canary)) separates "this ticker has nothing" from
   "Yahoo is not answering".
+  The same holds for the quote: with yfinance's time zone cache populated, a connection fault surfaces from
+  `fast_info["last_price"]` as `KeyError('currentTradingPeriod')`, which the adapter reports as
+  `unexpected_response` and which is identical to Yahoo answering without that field. The adapter does not name
+  that `KeyError` as a special case. Only `ian health` separates "cannot reach Yahoo" from the rest, through its
+  opening connection step ([slice plan D18](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#2-decisions)).
 - **Carried to every report from the stored kind.** The kind and provider identity are typed fields on the
   stored resolution result and on the instrument-profile and security-identity diagnostics, beside the existing
   `PROVIDER_ERROR` status, which is not split. A single kind-to-code mapping turns them into three new stable
@@ -57,12 +62,12 @@ provider are updated to raise a typed failure. Branches and slice order are in t
 
 | File and symbol | Line | Handler today | Disposition | Slice |
 | :--- | :--- | :--- | :--- | :--- |
-| `client.py` `YFinanceClient.fetch_data` | 88 | `except Exception` around `yf.download`, re-raised as `DataFetchError("Network transport fault ...")` | **Replace.** The call goes through the library-call helper. An exception that reaches it is rare, because `yf.download` swallows per-ticker failures: listed transport types are `unreachable`, anything else `unexpected_response`. The `None`/empty-frame raise (line 95) becomes `no_data` and says Yahoo returned no rows. New raise sites: a non-`DataFrame` result and missing `Open`/`High`/`Low`/`Close`/`Volume` columns become `unexpected_response`. | PH.2b |
-| `client.py` `YFinanceClient.fetch_current_quote` | 144 | `except Exception` around `yf.Ticker(...).fast_info`, re-raised as `DataFetchError("Unable to resolve a current quote ...")` | **Replace.** The `fast_info[...]` reads go through the helper: transport types and `YFRateLimitError` are `unreachable`, `YFDataException` is `unexpected_response`. The `float(...)` conversion is project code outside the helper: a `None` or non-numeric value is `unexpected_response`. The non-finite or non-positive quote raise (line 151) becomes `unexpected_response`. | PH.2b |
-| `client.py` `YFinanceClient.fetch_current_quote` | 142 | `except (KeyError, TypeError)` around the optional `currency` read | **Retain.** An absent optional field is not a failure; the handler is already narrow and returns no currency. | — |
-| `client.py` `YFinanceClient._fetch_metadata_snapshot` | 223 | `except Exception` around `yf.Ticker(...).info`; the failure is memoized per ticker | **Replace.** Classified through the helper as above; the memoized value keeps its kind. | PH.2b |
-| `client.py` `YFinanceClient._fetch_currency` | 241 | `except Exception`, returns `None` (best-effort enrichment) | **Narrow, keep the behavior.** It must still never invalidate usable price history, so it still returns `None`, but it catches only typed provider failures and logs the kind. A non-provider exception propagates. | PH.2b |
-| `financial_facts.py` `YFinanceFinancialFactsAdapter.fetch_facts` | 55 | `except DataFetchError`, re-raised as `FinancialProviderError` with a new sentence | **Carry.** The raised `FinancialProviderError` keeps the original kind and provider identity. | PH.2b |
+| `client.py` `YFinanceClient.fetch_data` | 128 | `except Exception` around `yf.download`, re-raised as `DataFetchError("Network transport fault ...")` | **Replaced.** The call goes through the library-call helper with the rules of [slice plan §8](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#8-verified-against-main) (`_YFINANCE_FAILURE_RULES`). An exception that reaches it is rare, because `yf.download` swallows per-ticker failures: listed transport types are `unreachable`, a listed shape type `unexpected_response`, a listed ticker-missing type `no_data`, anything unlisted `unexpected_response`. The `None`/empty-frame raise is `no_data`. New raise sites: a non-`DataFrame` result and missing `Open`/`High`/`Low`/`Close`/`Volume` columns (`YFINANCE_HISTORY_COLUMNS`) are `unexpected_response`. The log line for an escaped exception now carries the kind. | PH.2b, complete |
+| `client.py` `YFinanceClient.fetch_current_quote` | 213 | `except Exception` around `yf.Ticker(...).fast_info`, re-raised as `DataFetchError("Unable to resolve a current quote ...")` | **Replaced.** The `fast_info[...]` reads go through the helper with the same rules. The `float(...)` conversion is project code outside the helper: a `None` or non-numeric value is `unexpected_response`. The non-finite or non-positive quote raise is `unexpected_response`. | PH.2b, complete |
+| `client.py` `YFinanceClient.fetch_current_quote` | 209 | `except (KeyError, TypeError)` around the optional `currency` read | **Retained**, now inside the helper's callable, so a connection fault on that second read is still classified as `DataFetchError` as it was under the broad handler. An absent optional field is not a failure; the handler is narrow and returns no currency (D21). | — |
+| `client.py` `YFinanceClient._fetch_metadata_snapshot` | 315 | `except Exception` around `yf.Ticker(...).info`; the failure is memoized per ticker | **Replaced.** Classified through the helper; the memoized `DataFetchError` keeps its kind and provider identity. A defect propagates and is not memoized. | PH.2b, complete |
+| `client.py` `YFinanceClient._fetch_currency` | 349 | `except Exception`, returns `None` (best-effort enrichment) | **Narrowed, behavior kept (D21).** It still returns `None`, but catches only the `KeyError` a connection fault surfaces as and typed provider failures, and logs the kind. A non-provider exception propagates. | PH.2b, complete |
+| `financial_facts.py` `YFinanceFinancialFactsAdapter.fetch_facts` | 55 | `except DataFetchError`, re-raised as `FinancialProviderError` with a new sentence | **Carried.** The raised `FinancialProviderError` keeps the original kind and provider identity. | PH.2b, complete |
 
 ## 2. SEC EDGAR (`src/data/sec_edgar/`, `src/data/http_json.py`)
 
@@ -126,7 +131,7 @@ provider for this work package.
 
 ## 7. Completion test
 
-PH.2b adds a test that scans the provider adapter modules in sections 1 to 3 for `except Exception`,
+PH.2b adds a test (`tests/data/test_provider_adapter_handlers.py`) that scans the provider adapter modules in sections 1 to 3 for `except Exception`,
 `except BaseException` and bare `except`, and fails on any handler other than the retained
 `MassiveClient.fetch_data` mock, so the broad handlers cannot return. The one broad catch around a third-party
 library call lives in the library-call helper in `src/data/provider_failure.py`, which is not an adapter module.

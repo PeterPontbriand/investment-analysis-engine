@@ -7,12 +7,23 @@ import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import cast
+from typing import Any
 
+import curl_cffi.requests.exceptions as curl_exceptions
 import pandas as pd
+import requests.exceptions as requests_exceptions
 import yfinance as yf
+from yfinance.exceptions import (
+    YFDataException,
+    YFException,
+    YFInvalidPeriodError,
+    YFNotImplementedError,
+    YFRateLimitError,
+    YFTickerMissingError,
+)
 
 from src.core.clock import utc_now
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.financial.provenance import SourceKind
 from src.data.instrument_profile import (
@@ -26,13 +37,41 @@ from src.data.market_data import (
     MarketDataContext,
     latest_observation_date,
 )
+from src.data.provider_failure import DEFECT, FailureRule, call_library
 from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 
 logger = logging.getLogger(__name__)
 
 YFINANCE_PROVIDER_ID = "yfinance"
+YFINANCE_DATA_HOST = "query2.finance.yahoo.com"
+"""The host yfinance requests the quote and history data from (its ``_BASE_URL_``); a test pins the two together."""
 YFINANCE_HISTORICAL_INTERVAL = "1d"
 YFINANCE_PRICE_ADJUSTMENT = "adjusted"
+YFINANCE_HISTORY_COLUMNS = ("Open", "High", "Low", "Close", "Volume")
+"""The columns of a daily history frame that the adapter requires from ``yf.download``."""
+
+# How an exception raised inside a yfinance call is classified, checked in this order. The more specific types
+# come first because both HTTP backends derive their request errors from ``OSError`` (including the JSON-decoding,
+# content-decoding and invalid-URL errors), and a bare ``YFException`` is a library defect, not a service fault.
+_YFINANCE_FAILURE_RULES = (
+    FailureRule(
+        (
+            curl_exceptions.JSONDecodeError,
+            curl_exceptions.ContentDecodingError,
+            requests_exceptions.JSONDecodeError,
+            requests_exceptions.ContentDecodingError,
+            YFDataException,
+        ),
+        ProviderFailureKind.UNEXPECTED_RESPONSE,
+    ),
+    FailureRule((YFTickerMissingError,), ProviderFailureKind.NO_DATA),
+    FailureRule(
+        (YFInvalidPeriodError, YFNotImplementedError, curl_exceptions.InvalidURL, requests_exceptions.InvalidURL),
+        DEFECT,
+    ),
+    FailureRule((YFException,), DEFECT, when=lambda error: type(error) is YFException),
+    FailureRule((OSError, YFRateLimitError), ProviderFailureKind.UNREACHABLE),
+)
 
 
 @dataclass(frozen=True)
@@ -73,9 +112,10 @@ class YFinanceClient(BaseDataClient):
         logger.info(f"Downloading market data for tool execution: {ticker} from {start_date}")
 
         stderr_buffer = io.StringIO()
-        try:
+
+        def download() -> object:
             with contextlib.redirect_stderr(stderr_buffer):
-                df = yf.download(
+                return yf.download(
                     ticker,
                     start=start_date,
                     end=end_date,
@@ -85,19 +125,47 @@ class YFinanceClient(BaseDataClient):
                     progress=False,
                     threads=False,
                 )
-        except Exception as err:
-            logger.error(f"Low-level connection error during yfinance download for '{ticker}': {err}")
-            logger.debug(f"Stderr buffer contents: {stderr_buffer.getvalue()} - Ticker: {ticker}")
-            raise DataFetchError(f"Network transport fault fetching '{ticker}': {err}") from err
 
-        if df is None or df.empty:
+        try:
+            result = call_library(
+                download,
+                rules=_YFINANCE_FAILURE_RULES,
+                provider_id=YFINANCE_PROVIDER_ID,
+                message=f"yfinance history download failed for '{ticker}'",
+                error_type=DataFetchError,
+            )
+        except DataFetchError as failure:
+            logger.error(f"yfinance download for '{ticker}' failed ({failure.kind}): {failure}")
+            logger.debug(f"Stderr buffer contents: {stderr_buffer.getvalue()} - Ticker: {ticker}")
+            raise
+
+        if result is None or (isinstance(result, pd.DataFrame) and result.empty):
             logger.debug("No market data returned for ticker '%s'.", ticker)
-            raise DataFetchError(f"No market data was returned for ticker '{ticker}'.")
+            raise DataFetchError(
+                f"No market data was returned for ticker '{ticker}'.",
+                kind=ProviderFailureKind.NO_DATA,
+                provider_id=YFINANCE_PROVIDER_ID,
+            )
+        if not isinstance(result, pd.DataFrame):
+            raise DataFetchError(
+                f"yfinance returned {type(result).__name__} instead of a data frame for '{ticker}'.",
+                kind=ProviderFailureKind.UNEXPECTED_RESPONSE,
+                provider_id=YFINANCE_PROVIDER_ID,
+            )
+        df = result
 
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
 
-        return cast(pd.DataFrame, df)
+        missing = [column for column in YFINANCE_HISTORY_COLUMNS if column not in df.columns]
+        if missing:
+            raise DataFetchError(
+                f"yfinance history for '{ticker}' is missing columns: {', '.join(missing)}.",
+                kind=ProviderFailureKind.UNEXPECTED_RESPONSE,
+                provider_id=YFINANCE_PROVIDER_ID,
+            )
+
+        return df
 
     def fetch_data_with_context(
         self,
@@ -133,22 +201,45 @@ class YFinanceClient(BaseDataClient):
         logger.info(f"Resolving current quote for '{ticker}' via yfinance")
 
         stderr_buffer = io.StringIO()
-        try:
+
+        def read_quote() -> tuple[Any, object]:
             with contextlib.redirect_stderr(stderr_buffer):
                 fast_info = yf.Ticker(ticker).fast_info
-                quote = float(fast_info["last_price"])
+                raw_price = fast_info["last_price"]
                 try:
-                    raw_currency = fast_info["currency"]
+                    return raw_price, fast_info["currency"]
                 except (KeyError, TypeError):
-                    raw_currency = None
-        except Exception as err:
-            logger.debug("Quote provider lookup failed for %r: %s", ticker, err)
+                    return raw_price, None
+
+        try:
+            raw_price, raw_currency = call_library(
+                read_quote,
+                rules=_YFINANCE_FAILURE_RULES,
+                provider_id=YFINANCE_PROVIDER_ID,
+                message=f"Unable to resolve a current quote for '{ticker}' via yfinance",
+                error_type=DataFetchError,
+            )
+        except DataFetchError as failure:
+            logger.debug("Quote provider lookup failed for %r: %s", ticker, failure)
             logger.debug(f"Stderr buffer contents: {stderr_buffer.getvalue()} - Ticker: {ticker}")
-            raise DataFetchError(f"Unable to resolve a current quote for '{ticker}' via yfinance.") from err
+            raise
+
+        try:
+            quote = float(raw_price)
+        except (TypeError, ValueError) as err:
+            raise DataFetchError(
+                f"Current quote for '{ticker}' is not numeric (received {raw_price!r}).",
+                kind=ProviderFailureKind.UNEXPECTED_RESPONSE,
+                provider_id=YFINANCE_PROVIDER_ID,
+            ) from err
 
         if not math.isfinite(quote) or quote <= 0:
             logger.error(f"Resolved non-finite or non-positive quote {quote!r} for '{ticker}'")
-            raise DataFetchError(f"Current quote for '{ticker}' must be finite and positive (received {quote!r}).")
+            raise DataFetchError(
+                f"Current quote for '{ticker}' must be finite and positive (received {quote!r}).",
+                kind=ProviderFailureKind.UNEXPECTED_RESPONSE,
+                provider_id=YFINANCE_PROVIDER_ID,
+            )
 
         currency: str | None = None
         if isinstance(raw_currency, str):
@@ -217,15 +308,24 @@ class YFinanceClient(BaseDataClient):
             return cached
 
         stderr_buffer = io.StringIO()
-        try:
+
+        def read_info() -> object:
             with contextlib.redirect_stderr(stderr_buffer):
-                raw_metadata = yf.Ticker(ticker).info
-        except Exception as err:
-            logger.debug("Optional instrument metadata unavailable for %r: %s", ticker, err)
+                return yf.Ticker(ticker).info
+
+        try:
+            raw_metadata = call_library(
+                read_info,
+                rules=_YFINANCE_FAILURE_RULES,
+                provider_id=YFINANCE_PROVIDER_ID,
+                message=f"Unable to resolve instrument metadata for '{ticker}' via yfinance",
+                error_type=DataFetchError,
+            )
+        except DataFetchError as failure:
+            logger.debug("Optional instrument metadata unavailable for %r: %s", ticker, failure)
             logger.debug(f"Stderr buffer contents: {stderr_buffer.getvalue()} - Ticker: {ticker}")
-            failure = DataFetchError(f"Unable to resolve instrument metadata for '{ticker}' via yfinance.")
             self._metadata_by_ticker[ticker] = failure
-            raise failure from err
+            raise
 
         metadata = dict(raw_metadata) if isinstance(raw_metadata, Mapping) else None
         snapshot = _YFinanceMetadataSnapshot(metadata=metadata, resolved_at=self._clock())
@@ -233,13 +333,30 @@ class YFinanceClient(BaseDataClient):
         return snapshot
 
     def _fetch_currency(self, ticker: str) -> str | None:
-        """Best-effort currency enrichment that never invalidates usable price history."""
+        """Best-effort currency enrichment that never invalidates usable price history.
+
+        A typed provider failure, or the ``KeyError`` that a connection fault surfaces as here, returns no currency;
+        any other exception is a defect and propagates.
+        """
         stderr_buffer = io.StringIO()
-        try:
+
+        def read_currency() -> object:
             with contextlib.redirect_stderr(stderr_buffer):
-                raw_currency = yf.Ticker(ticker).fast_info["currency"]
-        except Exception as err:
-            logger.debug("Optional currency metadata unavailable for %r: %s", ticker, err)
+                try:
+                    return yf.Ticker(ticker).fast_info["currency"]
+                except KeyError:
+                    return None
+
+        try:
+            raw_currency = call_library(
+                read_currency,
+                rules=_YFINANCE_FAILURE_RULES,
+                provider_id=YFINANCE_PROVIDER_ID,
+                message=f"Optional currency metadata unavailable for '{ticker}'",
+                error_type=DataFetchError,
+            )
+        except DataFetchError as failure:
+            logger.debug("Optional currency metadata unavailable for %r (%s): %s", ticker, failure.kind, failure)
             logger.debug(f"Stderr buffer contents: {stderr_buffer.getvalue()} - Ticker: {ticker}")
             return None
 

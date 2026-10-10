@@ -2,21 +2,33 @@
 
 from __future__ import annotations
 
+import os
+import socket
+import ssl
 import threading
 import time
+import urllib.request
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
+from urllib.parse import urlsplit
 
 import pandas as pd
 import pytest
+import yfinance.const as yfinance_const
+import yfinance.scrapers.history as yfinance_history
+import yfinance.scrapers.quote as yfinance_quote
 
 from src.core.provider_failure_kind import ProviderFailureKind
+from src.data.base_client import DataFetchError
+from src.data.financial.facts import FinancialProviderError
 from src.data.provider_checks import (
     MAX_REQUESTS_PER_CHECK,
     PROVIDER_CHECKS,
     SEC_EDGAR_SPEC,
     YAHOO_SPEC,
+    ConnectionStep,
     ProviderCheckResult,
     ProviderClients,
     SecEdgarCheckSpec,
@@ -28,9 +40,12 @@ from src.data.provider_checks import (
     _Deadline,
     check_sec_edgar,
     check_yfinance,
+    configured_https_proxy,
+    open_tls_connection,
+    yahoo_probe_description,
 )
 from src.data.sec_edgar import financial_facts
-from src.data.yfinance.client import YFinanceQuote
+from src.data.yfinance.client import YFINANCE_DATA_HOST, YFinanceQuote
 
 _NOW = datetime(2026, 10, 5, tzinfo=UTC)
 _COLUMNS = ("Open", "High", "Low", "Close", "Volume")
@@ -56,11 +71,11 @@ class _FakeYahoo:
         history: object | None = None,
         quote: float | Exception = 190.0,
         block: threading.Event | None = None,
-        history_delay: float = 0.0,
-        block_quote: threading.Event | None = None,
+        quote_delay: float = 0.0,
+        block_history: threading.Event | None = None,
     ) -> None:
-        self.history_delay = history_delay
-        self.block_quote = block_quote
+        self.quote_delay = quote_delay
+        self.block_history = block_history
         self.history = _frame() if history is None else history
         self.quote = quote
         self.block = block
@@ -74,24 +89,57 @@ class _FakeYahoo:
         end_date: str | None = None,  # noqa: ARG002
     ) -> pd.DataFrame:
         self.history_calls.append((ticker, start_date))
-        time.sleep(self.history_delay)
-        if self.block is not None:
-            self.block.wait()
+        if self.block_history is not None:
+            self.block_history.wait()
         if isinstance(self.history, Exception):
             raise self.history
         return self.history  # type: ignore[return-value]
 
     def fetch_current_quote(self, ticker: str) -> YFinanceQuote:
         self.quote_calls.append(ticker)
-        if self.block_quote is not None:
-            self.block_quote.wait()
+        time.sleep(self.quote_delay)
+        if self.block is not None:
+            self.block.wait()
         if isinstance(self.quote, Exception):
             raise self.quote
         return YFinanceQuote(price=self.quote, currency="USD")
 
 
-def _yahoo(client: _FakeYahoo, spec: YahooCheckSpec = YAHOO_SPEC) -> ProviderCheckResult:
-    return check_yfinance(client, spec=spec, clock=_ticks(), now=lambda: _NOW)
+def _no_proxy(host: str) -> str | None:  # noqa: ARG001
+    """Proxy detection on a machine with no proxy."""
+    return None
+
+
+def _proxy(host: str) -> str | None:  # noqa: ARG001
+    """Proxy detection on a machine with an HTTPS proxy (the address carries credentials)."""
+    return _PROXY
+
+
+class _Connector:
+    """Fake opening connection: records each attempt and the time it was given, and fails or hangs on request."""
+
+    def __init__(
+        self, failure: Exception | None = None, delay: float = 0.0, block: threading.Event | None = None
+    ) -> None:
+        self.failure = failure
+        self.delay = delay
+        self.block = block
+        self.calls: list[tuple[str, int, float]] = []
+
+    def __call__(self, host: str, port: int, timeout_seconds: float) -> None:
+        self.calls.append((host, port, timeout_seconds))
+        time.sleep(self.delay)
+        if self.block is not None:
+            self.block.wait()
+        if self.failure is not None:
+            raise self.failure
+
+
+def _yahoo(
+    client: _FakeYahoo, spec: YahooCheckSpec = YAHOO_SPEC, connector: _Connector | None = None
+) -> ProviderCheckResult:
+    step = ConnectionStep(connect=connector or _Connector(), https_proxy=_no_proxy)
+    return check_yfinance(client, spec=spec, clock=_ticks(), now=lambda: _NOW, connection=step)
 
 
 def test_yahoo_well_formed_response_passes_with_elapsed_from_the_injected_clock() -> None:
@@ -151,32 +199,35 @@ def test_yahoo_quote_must_be_positive_and_finite(price: float) -> None:
     assert result.detail.startswith("quote last price is not a positive finite number")
 
 
-def test_yahoo_history_exception_fails_the_check_and_skips_the_quote_request() -> None:
-    client = _FakeYahoo(history=ConnectionError("boom"))
+def test_yahoo_quote_is_requested_before_history_and_a_quote_exception_skips_the_history_request() -> None:
+    client = _FakeYahoo(quote=ConnectionError("boom"))
 
     result = _yahoo(client)
 
     assert result.detail == "ConnectionError: boom"
-    assert client.quote_calls == []
+    assert client.history_calls == []
 
 
-def test_yahoo_quote_exception_fails_the_check() -> None:
-    result = _yahoo(_FakeYahoo(quote=ValueError("no quote")))
+def test_yahoo_history_exception_fails_the_check_after_a_good_quote() -> None:
+    client = _FakeYahoo(history=ValueError("no history"))
 
-    assert result.detail == "ValueError: no quote"
+    result = _yahoo(client)
+
+    assert result.detail == "ValueError: no history"
+    assert client.quote_calls == ["AAPL"]
 
 
 def test_yahoo_timeout_is_a_deadline_for_the_whole_check() -> None:
     release = threading.Event()
     spec = replace(YAHOO_SPEC, timeout_seconds=_DEADLINE)
-    client = _FakeYahoo(history_delay=_DEADLINE * 2 / 3, block_quote=release)
+    client = _FakeYahoo(quote_delay=_DEADLINE * 2 / 3, block_history=release)
     try:
         started = time.monotonic()
         result = _yahoo(client, spec)
         waited = time.monotonic() - started
 
         assert result.detail == f"timed out after {_DEADLINE:g} s"
-        assert client.quote_calls == ["AAPL"]
+        assert client.history_calls
         assert waited < _DEADLINE * 1.5
     finally:
         release.set()
@@ -186,7 +237,7 @@ def test_yahoo_hung_adapter_times_out_on_a_daemon_worker_thread() -> None:
     release = threading.Event()
     spec = YahooCheckSpec("AAPL", 30, _COLUMNS, _SHORT_TIMEOUT)
     try:
-        result = _yahoo(_FakeYahoo(block=release), spec)
+        result = _yahoo(_FakeYahoo(block_history=release), spec)
 
         workers = [thread for thread in threading.enumerate() if thread.name == "provider-check"]
         assert result.detail == "timed out after 0.2 s"
@@ -377,7 +428,11 @@ def test_sec_urls_match_the_adapter_constants() -> None:
 
 
 def test_the_check_tuple_lists_yfinance_then_sec_edgar_and_each_entry_runs_its_own_body() -> None:
-    clients = ProviderClients(yahoo=_FakeYahoo(), sec=SecTransport(_FakeSec(_documents()), "Agent a@example.com"))
+    clients = ProviderClients(
+        yahoo=_FakeYahoo(),
+        sec=SecTransport(_FakeSec(_documents()), "Agent a@example.com"),
+        connection=ConnectionStep(connect=_Connector(), https_proxy=_no_proxy),
+    )
 
     results = [entry.run(clients) for entry in PROVIDER_CHECKS]
 
@@ -385,3 +440,399 @@ def test_the_check_tuple_lists_yfinance_then_sec_edgar_and_each_entry_runs_its_o
     assert [result.provider_id for result in results] == ["yfinance", "sec_edgar"]
     assert [result.probe for result in results] == [entry.probe for entry in PROVIDER_CHECKS]
     assert all(result.passed for result in results)
+
+
+def _typed(kind: ProviderFailureKind, provider_id: str = "yfinance") -> DataFetchError:
+    return DataFetchError("typed failure", kind=kind, provider_id=provider_id)
+
+
+@pytest.mark.parametrize("kind", list(ProviderFailureKind))
+def test_a_typed_quote_failure_from_the_adapter_keeps_its_own_kind(kind: ProviderFailureKind) -> None:
+    result = _yahoo(_FakeYahoo(quote=_typed(kind)))
+
+    assert not result.passed
+    assert result.kind is kind
+    assert result.detail == "DataFetchError: typed failure"
+
+
+@pytest.mark.parametrize("kind", list(ProviderFailureKind))
+def test_a_typed_history_failure_from_the_adapter_keeps_its_own_kind(kind: ProviderFailureKind) -> None:
+    result = _yahoo(_FakeYahoo(history=_typed(kind)))
+
+    assert result.kind is kind
+
+
+def test_a_typed_sec_transport_failure_keeps_its_own_kind() -> None:
+    failure = FinancialProviderError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar")
+
+    result = _sec(_FakeSec(_documents(facts=failure)))
+
+    assert result.kind is ProviderFailureKind.UNREACHABLE
+
+
+def test_an_unclassified_typed_failure_has_no_kind() -> None:
+    result = _yahoo(_FakeYahoo(quote=DataFetchError("not classified")))
+
+    assert not result.passed
+    assert result.kind is None
+
+
+def test_yahoo_timeout_is_unreachable() -> None:
+    release = threading.Event()
+    try:
+        result = _yahoo(_FakeYahoo(block=release), YahooCheckSpec("AAPL", 30, _COLUMNS, _SHORT_TIMEOUT))
+    finally:
+        release.set()
+
+    assert result.kind is ProviderFailureKind.UNREACHABLE
+
+
+def test_sec_timeout_is_unreachable() -> None:
+    release = threading.Event()
+    spec = replace(SEC_EDGAR_SPEC, timeout_seconds=_SHORT_TIMEOUT)
+    try:
+        result = _sec(_FakeSec(_documents(), block=release), spec)
+    finally:
+        release.set()
+
+    assert result.kind is ProviderFailureKind.UNREACHABLE
+
+
+def test_yahoo_empty_history_is_no_data() -> None:
+    assert _yahoo(_FakeYahoo(history=_frame().iloc[0:0])).kind is ProviderFailureKind.NO_DATA
+
+
+@pytest.mark.parametrize(
+    "client",
+    [
+        _FakeYahoo(history={"Close": [1.0]}),
+        _FakeYahoo(history=_frame(("Close",))),
+        _FakeYahoo(history=_frame(index=pd.Index([0, 1, 2]))),
+        _FakeYahoo(quote=float("nan")),
+        _FakeYahoo(quote=-1.0),
+    ],
+    ids=["not a frame", "missing columns", "bad index", "non-finite quote", "non-positive quote"],
+)
+def test_yahoo_wrong_shape_is_an_unexpected_response(client: _FakeYahoo) -> None:
+    assert _yahoo(client).kind is ProviderFailureKind.UNEXPECTED_RESPONSE
+
+
+@pytest.mark.parametrize(
+    "documents",
+    [
+        _documents(ticker_map=[]),
+        _documents(ticker_map={"0": _OTHER_ENTRY}),
+        _documents(facts=[]),
+        _documents(facts={"facts": {}}),
+    ],
+    ids=["ticker map not an object", "probe ticker absent", "facts not an object", "no taxonomy"],
+)
+def test_sec_wrong_document_shape_is_an_unexpected_response(documents: dict[str, object]) -> None:
+    assert _sec(_FakeSec(documents)).kind is ProviderFailureKind.UNEXPECTED_RESPONSE
+
+
+def test_sec_not_configured_has_no_kind_by_design() -> None:
+    result = check_sec_edgar(SecUnavailable("SEC EDGAR access is not configured."), clock=_ticks())
+
+    assert not result.passed
+    assert result.kind is None
+
+
+def test_an_unexpected_exception_inside_a_check_has_no_kind_by_design() -> None:
+    result = _yahoo(_FakeYahoo(quote=ValueError("no quote")))
+
+    assert not result.passed
+    assert result.kind is None
+
+
+def test_a_passed_check_has_no_kind() -> None:
+    assert _yahoo(_FakeYahoo()).kind is None
+
+
+_CONNECTION_FAULTS = [
+    ConnectionRefusedError("refused"),
+    TimeoutError("timed out"),
+    socket.gaierror(11001, "getaddrinfo failed"),
+    ssl.SSLError("handshake failed"),
+]
+
+
+@pytest.mark.parametrize("fault", _CONNECTION_FAULTS, ids=[type(fault).__name__ for fault in _CONNECTION_FAULTS])
+def test_a_failed_connection_is_unreachable_and_ends_the_check_before_any_yahoo_call(fault: OSError) -> None:
+    client = _FakeYahoo()
+    connector = _Connector(failure=fault)
+
+    result = _yahoo(client, connector=connector)
+
+    assert not result.passed
+    assert result.kind is ProviderFailureKind.UNREACHABLE
+    assert result.detail is not None
+    assert result.detail.startswith("DataFetchError: Cannot open a TLS connection to query2.finance.yahoo.com:443")
+    assert [call[:2] for call in connector.calls] == [("query2.finance.yahoo.com", 443)]
+    assert client.quote_calls == []
+    assert client.history_calls == []
+
+
+@pytest.mark.parametrize(
+    ("client", "kind"),
+    [
+        (
+            _FakeYahoo(
+                quote=DataFetchError("odd", kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id="yfinance")
+            ),
+            ProviderFailureKind.UNEXPECTED_RESPONSE,
+        ),
+        (
+            _FakeYahoo(quote=DataFetchError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance")),
+            ProviderFailureKind.UNREACHABLE,
+        ),
+        (_FakeYahoo(history=_frame().iloc[0:0]), ProviderFailureKind.NO_DATA),
+        (_FakeYahoo(history=_frame(("Close",))), ProviderFailureKind.UNEXPECTED_RESPONSE),
+        (_FakeYahoo(quote=ValueError("defect")), None),
+    ],
+    ids=["quote unexpected", "quote unreachable", "history empty", "history shape", "unclassified"],
+)
+def test_after_a_good_connection_each_later_failure_keeps_its_own_kind(
+    client: _FakeYahoo, kind: ProviderFailureKind | None
+) -> None:
+    connector = _Connector()
+
+    result = _yahoo(client, connector=connector)
+
+    assert not result.passed
+    assert result.kind is kind
+    assert len(connector.calls) == 1
+    assert client.quote_calls == ["AAPL"]
+
+
+def test_a_good_connection_lets_the_quote_and_history_reads_run_and_the_check_pass() -> None:
+    client = _FakeYahoo()
+    connector = _Connector()
+
+    result = _yahoo(client, connector=connector)
+
+    assert result.passed
+    assert result.kind is None
+    assert client.quote_calls == ["AAPL"]
+    assert len(client.history_calls) == 1
+
+
+def test_the_yahoo_check_makes_exactly_three_requests_within_the_budget() -> None:
+    client = _FakeYahoo()
+    connector = _Connector()
+
+    _yahoo(client, connector=connector)
+
+    assert len(connector.calls) + len(client.quote_calls) + len(client.history_calls) == 3
+    assert MAX_REQUESTS_PER_CHECK == 3
+
+
+def test_the_connection_is_given_the_time_remaining_in_the_whole_check_deadline() -> None:
+    connector = _Connector()
+
+    _yahoo(_FakeYahoo(), spec=replace(YAHOO_SPEC, timeout_seconds=_DEADLINE), connector=connector)
+
+    assert 0 < connector.calls[0][2] <= _DEADLINE + 1e-6
+
+
+def test_the_connection_shares_the_deadline_with_the_later_reads() -> None:
+    release = threading.Event()
+    spec = replace(YAHOO_SPEC, timeout_seconds=_DEADLINE)
+    client = _FakeYahoo(quote_delay=_DEADLINE * 2 / 3, block_history=release)
+    connector = _Connector(delay=_DEADLINE * 2 / 3)
+    try:
+        started = time.monotonic()
+        result = _yahoo(client, spec, connector)
+        waited = time.monotonic() - started
+
+        assert result.detail == f"timed out after {_DEADLINE:g} s"
+        assert result.kind is ProviderFailureKind.UNREACHABLE
+        assert client.history_calls == []
+        assert waited < _DEADLINE * 1.5  # a fresh allowance per step would wait about 1.67 x the deadline
+    finally:
+        release.set()
+
+
+def test_a_connection_that_never_returns_times_out_without_a_quote_or_history_call() -> None:
+    release = threading.Event()
+    client = _FakeYahoo()
+    try:
+        result = _yahoo(client, replace(YAHOO_SPEC, timeout_seconds=_SHORT_TIMEOUT), _Connector(block=release))
+    finally:
+        release.set()
+
+    assert result.detail == "timed out after 0.2 s"
+    assert result.kind is ProviderFailureKind.UNREACHABLE
+    assert client.quote_calls == []
+
+
+def test_the_connection_host_is_the_one_yfinance_requests_data_from() -> None:
+    assert urlsplit(yfinance_const._BASE_URL_).hostname == YFINANCE_DATA_HOST
+    assert yfinance_history._BASE_URL_ == yfinance_const._BASE_URL_
+    assert yfinance_quote._BASE_URL_ == yfinance_const._BASE_URL_
+
+
+def test_the_probe_description_names_the_connection_the_quote_and_the_history() -> None:
+    assert yahoo_probe_description() == "connection to query2.finance.yahoo.com, AAPL quote and daily history"
+
+
+def test_opening_a_tls_connection_handshakes_with_the_host_name_and_sends_nothing() -> None:
+    raw = MagicMock()
+    raw.__enter__.return_value = raw
+    wrapped = MagicMock()
+    wrapped.__enter__.return_value = wrapped
+    context = MagicMock()
+    context.wrap_socket.return_value = wrapped
+    with (
+        patch("src.data.provider_checks.socket.create_connection", return_value=raw) as connect,
+        patch("src.data.provider_checks.ssl.create_default_context", return_value=context),
+    ):
+        open_tls_connection("example.test", 443, 1.5)
+
+    connect.assert_called_once_with(("example.test", 443), timeout=1.5)
+    context.wrap_socket.assert_called_once_with(raw, server_hostname="example.test")
+    wrapped.send.assert_not_called()
+    wrapped.sendall.assert_not_called()
+
+
+_PROXY = "http://user:secret@proxy.example.test:8080"
+
+
+def _yahoo_behind_proxy(client: _FakeYahoo, connector: _Connector) -> ProviderCheckResult:
+    step = ConnectionStep(connect=connector, https_proxy=_proxy)
+    return check_yfinance(client, clock=_ticks(), now=lambda: _NOW, connection=step)
+
+
+def test_with_a_proxy_configured_the_connection_step_is_skipped_and_the_reads_run() -> None:
+    client = _FakeYahoo()
+    connector = _Connector()
+
+    result = _yahoo_behind_proxy(client, connector)
+
+    assert result.passed
+    assert connector.calls == []
+    assert client.quote_calls == ["AAPL"]
+    assert len(client.history_calls) == 1
+
+
+def test_with_a_proxy_configured_the_probe_says_the_step_was_skipped_without_the_proxy_address() -> None:
+    result = _yahoo_behind_proxy(_FakeYahoo(), _Connector())
+
+    assert result.probe == "AAPL quote and daily history (connection step skipped: a proxy is configured)"
+    assert "secret" not in result.probe
+    assert "proxy.example.test" not in result.probe
+
+
+def test_with_a_proxy_configured_the_check_makes_two_requests_within_the_budget() -> None:
+    client = _FakeYahoo()
+    connector = _Connector()
+
+    _yahoo_behind_proxy(client, connector)
+
+    assert len(connector.calls) + len(client.quote_calls) + len(client.history_calls) == 2 <= MAX_REQUESTS_PER_CHECK
+
+
+@pytest.mark.parametrize(
+    ("client", "kind"),
+    [
+        (_FakeYahoo(history=_frame().iloc[0:0]), ProviderFailureKind.NO_DATA),
+        (
+            _FakeYahoo(quote=DataFetchError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance")),
+            ProviderFailureKind.UNREACHABLE,
+        ),
+    ],
+    ids=["history empty", "quote unreachable"],
+)
+def test_with_a_proxy_configured_a_failed_read_keeps_its_own_kind(
+    client: _FakeYahoo, kind: ProviderFailureKind
+) -> None:
+    connector = _Connector(failure=ConnectionRefusedError("would be unreachable"))
+
+    result = _yahoo_behind_proxy(client, connector)
+
+    assert result.kind is kind
+    assert connector.calls == []
+
+
+def test_without_a_proxy_the_connection_step_runs_and_the_probe_names_it() -> None:
+    connector = _Connector()
+
+    result = _yahoo(_FakeYahoo(), connector=connector)
+
+    assert len(connector.calls) == 1
+    assert result.probe == yahoo_probe_description()
+
+
+def test_the_detected_https_proxy_is_asked_about_the_connection_host() -> None:
+    hosts: list[str] = []
+    step = ConnectionStep(connect=_Connector(), https_proxy=hosts.append)
+
+    check_yfinance(_FakeYahoo(), clock=_ticks(), now=lambda: _NOW, connection=step)
+
+    assert hosts == ["query2.finance.yahoo.com"]
+
+
+_PROXY_ADDRESS = "http://proxy.example.test:8080"
+
+
+@pytest.fixture
+def no_proxy_environment(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
+    """Remove every proxy variable (in any case) from the environment of the test."""
+    for name in [name for name in os.environ if name.lower().endswith("_proxy")]:
+        monkeypatch.delenv(name)
+    return monkeypatch
+
+
+@pytest.mark.parametrize(
+    ("variables", "expected"),
+    [
+        ({}, None),
+        ({"http_proxy": "http://only-http.example.test:3128"}, None),
+        ({"https_proxy": ""}, None),
+        ({"https_proxy": _PROXY_ADDRESS}, _PROXY_ADDRESS),
+        ({"HTTPS_PROXY": _PROXY_ADDRESS}, _PROXY_ADDRESS),
+        ({"all_proxy": _PROXY_ADDRESS}, _PROXY_ADDRESS),
+        ({"https_proxy": _PROXY_ADDRESS, "no_proxy": "query2.finance.yahoo.com"}, None),
+        ({"https_proxy": _PROXY_ADDRESS, "NO_PROXY": ".finance.yahoo.com"}, None),
+        ({"https_proxy": _PROXY_ADDRESS, "no_proxy": "*"}, None),
+        ({"https_proxy": _PROXY_ADDRESS, "no_proxy": "other.example.test"}, _PROXY_ADDRESS),
+    ],
+    ids=[
+        "none",
+        "http only",
+        "blank",
+        "https_proxy",
+        "HTTPS_PROXY",
+        "all_proxy",
+        "no_proxy names the host",
+        "NO_PROXY names the domain",
+        "no_proxy star",
+        "no_proxy names another host",
+    ],
+)
+def test_https_proxy_detection_reads_the_proxy_variables_and_no_proxy(
+    no_proxy_environment: pytest.MonkeyPatch, variables: dict[str, str], expected: str | None
+) -> None:
+    for name, value in variables.items():
+        no_proxy_environment.setenv(name, value)
+
+    assert configured_https_proxy("query2.finance.yahoo.com") == expected
+
+
+def test_a_proxy_only_in_the_system_settings_does_not_skip_the_connection_step(
+    no_proxy_environment: pytest.MonkeyPatch,
+) -> None:
+    """The HTTP layer yfinance uses ignores the Windows and macOS settings, so the step must still run."""
+    connector = _Connector()
+    system = {"https": _PROXY_ADDRESS, "http": _PROXY_ADDRESS}
+    # getproxies and proxy_bypass are what read the Windows registry and the macOS system configuration.
+    no_proxy_environment.setattr(urllib.request, "getproxies", lambda: system)
+    no_proxy_environment.setattr(urllib.request, "proxy_bypass", lambda _host: False)
+
+    assert configured_https_proxy("query2.finance.yahoo.com") is None
+    result = check_yfinance(
+        _FakeYahoo(), clock=_ticks(), now=lambda: _NOW, connection=ConnectionStep(connect=connector)
+    )
+
+    assert len(connector.calls) == 1
+    assert result.probe == yahoo_probe_description()

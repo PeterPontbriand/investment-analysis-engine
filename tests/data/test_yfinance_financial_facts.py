@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
+from yfinance.exceptions import YFDataException, YFTickerMissingError
 
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialFactRequest, FinancialField, FinancialProviderError
 from src.data.financial.provenance import FinancialSubjectKind
@@ -101,3 +103,51 @@ def test_naive_adapter_clock_is_provider_error() -> None:
         adapter.fetch_facts(_quote_request(), effective_as_of=NOW)
 
     client.fetch_current_quote.assert_not_called()
+
+
+@pytest.mark.parametrize("kind", list(ProviderFailureKind))
+def test_quote_client_failure_keeps_the_original_kind_and_provider_identity(kind: ProviderFailureKind) -> None:
+    client = MagicMock(spec=YFinanceClient)
+    client.fetch_current_quote.side_effect = DataFetchError("simulated", kind=kind, provider_id=YFINANCE_PROVIDER_ID)
+    adapter = YFinanceFinancialFactsAdapter(client=client, clock=lambda: NOW)
+
+    with pytest.raises(FinancialProviderError) as raised:
+        adapter.fetch_facts(_quote_request(), effective_as_of=NOW)
+
+    assert raised.value.kind is kind
+    assert raised.value.provider_id == YFINANCE_PROVIDER_ID
+    assert isinstance(raised.value.__cause__, DataFetchError)
+
+
+def test_an_unclassified_client_failure_stays_unclassified() -> None:
+    client = MagicMock(spec=YFinanceClient)
+    client.fetch_current_quote.side_effect = DataFetchError("not classified")
+    adapter = YFinanceFinancialFactsAdapter(client=client, clock=lambda: NOW)
+
+    with pytest.raises(FinancialProviderError) as raised:
+        adapter.fetch_facts(_quote_request(), effective_as_of=NOW)
+
+    assert raised.value.kind is None
+    assert raised.value.provider_id is None
+
+
+@pytest.mark.parametrize(
+    ("fault", "kind"),
+    [
+        (ConnectionError("down"), ProviderFailureKind.UNREACHABLE),
+        (YFDataException("unreadable"), ProviderFailureKind.UNEXPECTED_RESPONSE),
+        (YFTickerMissingError("KO", "unknown"), ProviderFailureKind.NO_DATA),
+    ],
+    ids=["unreachable", "unexpected response", "no data"],
+)
+def test_each_kind_reaches_the_facts_adapter_from_the_library_call(fault: Exception, kind: ProviderFailureKind) -> None:
+    adapter = YFinanceFinancialFactsAdapter(client=YFinanceClient(), clock=lambda: NOW)
+
+    with (
+        patch("src.data.yfinance.client.yf.Ticker", side_effect=fault),
+        pytest.raises(FinancialProviderError) as raised,
+    ):
+        adapter.fetch_facts(_quote_request(), effective_as_of=NOW)
+
+    assert raised.value.kind is kind
+    assert raised.value.provider_id == YFINANCE_PROVIDER_ID

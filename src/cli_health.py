@@ -13,9 +13,11 @@ import typer
 
 from src.cli_composition import build_sec_production_provider
 from src.config import settings
+from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.http_json import fetch_json
 from src.data.provider_checks import (
     PROVIDER_CHECKS,
+    ConnectionStep,
     ProviderCheckEntry,
     ProviderCheckResult,
     ProviderClients,
@@ -35,12 +37,28 @@ def build_provider_clients() -> ProviderClients:
         sec = SecUnavailable(str(exc))
     else:
         sec = SecTransport(fetch_json, (settings.sec_user_agent or "").strip())
-    return ProviderClients(yahoo=YFinanceClient(), sec=sec)
+    return ProviderClients(
+        yahoo=YFinanceClient(),
+        sec=sec,
+        connection=ConnectionStep(),
+    )
+
+
+_KIND_VERDICTS = {
+    ProviderFailureKind.UNREACHABLE: "unreachable",
+    ProviderFailureKind.UNEXPECTED_RESPONSE: "unexpected response",
+    ProviderFailureKind.NO_DATA: "no data",
+}
 
 
 def format_result(result: ProviderCheckResult) -> str:
-    """Render one check as ``<provider>: <verdict> (probe: <description>, <elapsed> s)`` plus any failure detail."""
-    verdict = "ok" if result.passed else "failed"
+    """Render one check as ``<provider>: <verdict> (probe: <description>, <elapsed> s)`` plus any failure detail.
+
+    The verdict is ``ok``; for a failed check, the name of its kind (``unreachable``, ``unexpected response`` or
+    ``no data``); and ``failed`` for a failed check that has no kind.
+    """
+    failed_verdict = "failed" if result.kind is None else _KIND_VERDICTS[result.kind]
+    verdict = "ok" if result.passed else failed_verdict
     line = f"{result.provider_id}: {verdict} (probe: {result.probe}, {result.elapsed_seconds:.2f} s)"
     return line if result.detail is None else f"{line} - {result.detail}"
 

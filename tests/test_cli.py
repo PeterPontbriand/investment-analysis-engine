@@ -7,6 +7,7 @@ from dataclasses import replace
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 from typer.testing import CliRunner
 
@@ -837,3 +838,32 @@ def test_graham_quote_provider_routing_is_method_aware() -> None:
 def growth_fixture_resolver() -> GrahamGrowthInputResolver:
     """Return the deterministic Slice-D resolver used by CLI tests."""
     return GrahamGrowthInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
+
+
+def test_cli_momentum_download_exception_names_the_unreachable_service_without_the_log() -> None:
+    """D-b: an exception that escapes ``yf.download`` reaches the command's own output."""
+    with patch("src.data.yfinance.client.yf.download", side_effect=ConnectionError("connection refused")):
+        text = runner.invoke(app, ["momentum", "FCIM", "--no-cache"])
+        document = json.loads(runner.invoke(app, ["momentum", "FCIM", "--no-cache", "--json"]).stdout)
+
+    sentence = "Unable to analyze FCIM: yfinance did not serve the request."
+    assert text.exit_code == 1
+    assert text.stderr.strip() == sentence
+    assert document["reason_code"] == "provider_unreachable"
+    assert document["reason"] == sentence
+    assert document["provider_failure"]["inputs"] == [{"input": None, "provider_id": "yfinance", "kind": "unreachable"}]
+
+
+def test_cli_momentum_swallowed_download_fault_is_no_data_and_does_not_call_the_ticker_unknown() -> None:
+    """D-b: ``yf.download`` swallows a per-ticker fault into an empty frame; the sentence stays factual."""
+    with patch("src.data.yfinance.client.yf.download", return_value=pd.DataFrame()):
+        text = runner.invoke(app, ["momentum", "FCIM", "--no-cache"])
+        document = json.loads(runner.invoke(app, ["momentum", "FCIM", "--no-cache", "--json"]).stdout)
+
+    sentence = "Unable to analyze FCIM: yfinance returned no data for it."
+    assert text.exit_code == 1
+    assert text.stderr.strip() == sentence
+    assert document["reason_code"] == "provider_no_data"
+    assert document["reason"] == sentence
+    for claim in ("unknown", "invalid", "does not exist", "not found", "delisted"):
+        assert claim not in text.stderr.lower()
