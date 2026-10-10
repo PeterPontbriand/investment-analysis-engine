@@ -194,6 +194,7 @@ Every strategy document has the same header and the same tail. Keys are written 
 | | `analysis`, `method` | Which strategy and method wrote it |
 | | `ticker` | The instrument |
 | | `status` | Whether the calculation ran, as a calculation status (`ok`, `not_applicable`, `invalid_input`, `input_unavailable` or `provider_error`). Never a verdict |
+| | `provider_failure` | Why a `provider_error` status happened, when the adapter classified the failure: one of `provider_unreachable`, `provider_unexpected_response` or `provider_no_data` as `reason_code`, and `inputs`, each failed input with its `provider_id` and `kind`. `null` for every other status, and for a provider failure the adapter could not classify. It is the element the failure document carries |
 | | `requested_as_of` | The point in time you asked for with `--as-of`; `null` means now |
 | | `effective_as_of` | The instant the analysis was evaluated at: `requested_as_of` when given, else the execution time |
 | | `security_identity`, `instrument_kind` | The identity and instrument-kind evidence the run retained |
@@ -204,7 +205,7 @@ A verdict lives in the body: Momentum's trend is `result.trend` (`BULLISH`, `BEA
 
 A Graham document's body begins with `price_comparison` (`status`, `reason`, `percent`, `security_unit_evidence`, `provenance`, `quote_freshness`); its `percent` matches `result.margin_of_safety_percent`, and a comparison that was not made is `null`.
 
-Presentation versions: Momentum **6**, Graham Number **7**, Graham Growth **7**, FCF Growth **6**. FCF's canonical result schema is **3** and its method version **2**.
+Presentation versions: Momentum **7**, Graham Number **8**, Graham Growth **8**, FCF Growth **7**. FCF's canonical result schema is **4** and its method version **2**.
 
 Each strategy's document is described by a published schema: `schemas/momentum.schema.json`, `schemas/graham-number.schema.json`, `schemas/graham-growth.schema.json` and `schemas/fcf-growth.schema.json`. `runs show --json` writes the saved run's own strategy document, described by the same schema as the direct command's. Every key is always present: a value that is absent is `null`, not an omitted key. The document's `schema_version` is independent of the method version and of the stored result's schema version, which FCF Growth also writes (`method_version`, `result_schema_version`, directly after the header).
 

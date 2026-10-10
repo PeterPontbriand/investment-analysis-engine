@@ -6,11 +6,12 @@ different families. The two exception types defined here are raised by command c
 only through this module, which is why they live beside the table that classifies them.
 """
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from src.core.provider_failure_kind import ProviderFailureKind
+from src.core.analysis_status import CalculationStatus
+from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 from src.data.market_data import NoEligibleObservationsError
@@ -61,6 +62,14 @@ PROVIDER_CODE_BY_KIND: Mapping[ProviderFailureKind, FailureReasonCode] = Mapping
     }
 )
 
+# An outage on any input outranks a shape change, which outranks an absent answer, so the one code names the
+# condition most likely to need action.
+PROVIDER_KIND_PRECEDENCE: tuple[ProviderFailureKind, ...] = (
+    ProviderFailureKind.UNREACHABLE,
+    ProviderFailureKind.UNEXPECTED_RESPONSE,
+    ProviderFailureKind.NO_DATA,
+)
+
 # Most specific first: every entry but the last is a ``ValueError`` subtype, and several are subtypes of one another.
 # ``DataFetchError`` and ``FinancialProviderError`` are classified by ``classify_failure`` from their kind.
 CLASSIFICATION_RULES: tuple[tuple[type[BaseException], FailureReasonCode], ...] = (
@@ -93,6 +102,38 @@ def classify_failure(exception: BaseException) -> FailureClassification:
                 code = rule_code
                 break
     return FailureClassification(reason_code=code, status=status_for(code))
+
+
+def provider_failure_of(records: Iterable[ProviderFailureRecord | None]) -> ProviderFailure | None:
+    """Return the shared ``provider_failure`` element for the failed inputs, or ``None`` when none failed.
+
+    A ``None`` record is an input that did not fail, or whose adapter did not classify its failure. The single
+    code is the mapped code of the highest-precedence kind among the inputs, whatever their order.
+    """
+    inputs = tuple(
+        ProviderFailureInput(input=record.input, provider_id=record.provider_id, kind=record.kind)
+        for record in records
+        if record is not None
+    )
+    if not inputs:
+        return None
+    kind = min((item.kind for item in inputs), key=PROVIDER_KIND_PRECEDENCE.index)
+    return ProviderFailure(reason_code=PROVIDER_CODE_BY_KIND[kind], inputs=inputs)
+
+
+def failure_reason_code(
+    native_status: CalculationStatus, provider_failure: ProviderFailure | None
+) -> FailureReasonCode:
+    """Return the stable code of a failed run or refresh job from its native status and recorded failure.
+
+    A provider error is the mapped provider code, or ``provider_error`` when the adapter did not classify it;
+    invalid input is ``invalid_input``; any other native status is ``execution_error``.
+    """
+    if native_status is CalculationStatus.PROVIDER_ERROR:
+        return FailureReasonCode.PROVIDER_ERROR if provider_failure is None else provider_failure.reason_code
+    if native_status is CalculationStatus.INVALID_INPUT:
+        return FailureReasonCode.INVALID_INPUT
+    return FailureReasonCode.EXECUTION_ERROR
 
 
 def failure_envelope(  # noqa: PLR0913
@@ -130,10 +171,7 @@ def failure_envelope(  # noqa: PLR0913
         and cause.provider_id is not None
         and PROVIDER_CODE_BY_KIND[cause.kind] is reason_code
     ):
-        provider_failure = ProviderFailure(
-            reason_code=reason_code,
-            inputs=(ProviderFailureInput(input=None, provider_id=cause.provider_id, kind=cause.kind),),
-        )
+        provider_failure = provider_failure_of((ProviderFailureRecord(cause.kind, cause.provider_id),))
     return FailureEnvelope(
         status=status_for(reason_code),
         reason_code=reason_code,
@@ -150,9 +188,12 @@ def failure_envelope(  # noqa: PLR0913
 __all__ = [
     "CLASSIFICATION_RULES",
     "PROVIDER_CODE_BY_KIND",
+    "PROVIDER_KIND_PRECEDENCE",
     "AnalysisConfigurationError",
     "FailureClassification",
     "InvalidParameterError",
     "classify_failure",
     "failure_envelope",
+    "failure_reason_code",
+    "provider_failure_of",
 ]

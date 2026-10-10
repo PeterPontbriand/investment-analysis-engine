@@ -8,6 +8,7 @@ from datetime import datetime
 
 from src.analysis.shared.financial_resolution import resolve_normalized_eps, resolve_optional_quote
 from src.core.analysis_status import CalculationStatus
+from src.core.provider_failure_kind import ProviderFailureRecord
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from src.data.financial.quote_freshness import QuoteFreshnessEvidence
@@ -44,6 +45,8 @@ class GrowthValueInputAssembly:
         reason: Explanation when assembly ``status`` is not OK.
         resolution_trace: Ordered resolver events across attempted method inputs.
         method: Always ``"graham_growth_value"``.
+        provider_failure: The kind and provider of the input whose provider failed, recorded against that input,
+            when ``status`` is ``PROVIDER_ERROR`` and the adapter classified the failure.
     """
 
     status: CalculationStatus
@@ -57,6 +60,12 @@ class GrowthValueInputAssembly:
     reason: str | None = None
     resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
     method: MethodId = field(init=False, default=METHOD_ID)
+    provider_failure: ProviderFailureRecord | None = None
+
+    def __post_init__(self) -> None:
+        """Keep a recorded provider failure tied to a provider-error assembly."""
+        if self.provider_failure is not None and self.status is not CalculationStatus.PROVIDER_ERROR:
+            raise ValueError("provider_failure requires a provider_error assembly.")
 
 
 @dataclass(frozen=True)
@@ -230,6 +239,11 @@ def compute_graham_growth_value(  # noqa: PLR0913,PLR0917,PLR0911,PLR0912
     )
 
 
+def _recorded(result: InputResolutionResult, input_name: str) -> ProviderFailureRecord | None:
+    """Return the failure a resolution recorded, against the strategy input it was resolved for."""
+    return None if result.provider_failure is None else result.provider_failure.for_input(input_name)
+
+
 class GrahamGrowthInputResolver(InputResolver):
     """Assemble method inputs using borrowed provider, cache, and clock dependencies."""
 
@@ -278,6 +292,7 @@ class GrahamGrowthInputResolver(InputResolver):
                 status=eps_result.status,
                 reason=f"eps: {eps_result.reason}",
                 resolution_trace=trace,
+                provider_failure=_recorded(eps_result, "eps"),
             )
         eps_input = eps_result.resolved_input
 
@@ -289,6 +304,7 @@ class GrahamGrowthInputResolver(InputResolver):
                 eps=eps_input,
                 reason=f"expected_growth: {growth_result.reason}",
                 resolution_trace=trace,
+                provider_failure=_recorded(growth_result, "expected_growth"),
             )
         growth_input = growth_result.resolved_input
 
@@ -308,6 +324,7 @@ class GrahamGrowthInputResolver(InputResolver):
                 expected_growth=growth_input,
                 reason=f"current_aaa_yield: {aaa_result.reason}",
                 resolution_trace=trace,
+                provider_failure=_recorded(aaa_result, "current_aaa_yield"),
             )
         aaa_input = aaa_result.resolved_input
 

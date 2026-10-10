@@ -1,9 +1,19 @@
 {
-  "schema_version": 7,
+  "schema_version": 8,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "INCOMPATIBLE",
   "status": "provider_error",
+  "provider_failure": {
+    "reason_code": "provider_unexpected_response",
+    "inputs": [
+      {
+        "input": "eps",
+        "provider_id": "sec_edgar",
+        "kind": "unexpected_response"
+      }
+    ]
+  },
   "requested_as_of": null,
   "effective_as_of": "<wall-clock>",
   "security_identity": {

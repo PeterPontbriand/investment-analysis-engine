@@ -30,7 +30,7 @@ from src.strategies.fcf_growth.vocabulary import (
     TrendClassification,
 )
 
-DOCUMENT_SCHEMA_VERSION: Final = 6
+DOCUMENT_SCHEMA_VERSION: Final = 7
 
 
 class FCFResolvedInputPart(DocumentPart):
@@ -133,7 +133,7 @@ class FCFBody(DocumentPart):
 
 
 class FCFDocument(StrategyDocumentTail, FCFBody, StrategyDocumentHeader[AnalysisId, MethodId]):
-    """The FCF Growth document, version 6, as ``fcf-growth --json`` and ``runs show --json`` write it.
+    """The FCF Growth document, version 7, as ``fcf-growth --json`` and ``runs show --json`` write it.
 
     The shared header and tail come from :mod:`src.reporting.documents.strategy_document`.
     """

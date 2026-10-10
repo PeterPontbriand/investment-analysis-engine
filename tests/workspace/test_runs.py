@@ -51,7 +51,7 @@ def test_valid_completed_run_constructs_and_normalizes_ticker() -> None:
     run = AnalysisRun.model_validate(_base_run())
     assert run.ticker == "KO"
     assert run.status is RunOutcome.COMPLETED
-    assert run.run_schema_version == 1
+    assert run.run_schema_version == 2
     assert run.projection_version == 1
 
 

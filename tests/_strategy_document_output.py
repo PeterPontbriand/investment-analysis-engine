@@ -24,6 +24,7 @@ import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack
 from dataclasses import dataclass, fields, replace
+from datetime import datetime
 from functools import cache
 from pathlib import Path
 from types import ModuleType
@@ -38,7 +39,14 @@ from src.cli import app
 from src.config import ProjectSettings
 from src.config import settings as real_settings
 from src.core.analysis_status import CalculationStatus
-from src.data.financial.facts import FinancialField, ProviderFact
+from src.core.provider_failure_kind import ProviderFailureKind
+from src.data.financial.facts import (
+    FinancialFactRequest,
+    FinancialFactsProvider,
+    FinancialField,
+    FinancialProviderError,
+    ProviderFact,
+)
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.financial.provenance import ResolvedInput
 from src.data.instrument_profile import (
@@ -53,18 +61,21 @@ from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 from src.data.yfinance import YFinanceFinancialFactsAdapter
 from src.data.yfinance.client import YFinanceClient
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.evaluation.fixtures.graham import PROVIDER_ID, SECURITY_ID
+from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID
 from src.evaluation.fixtures.instrument_profiles import FIXTURE_PROFILE_RESOLVED_AT, fixture_known_etf_profile
 from src.evaluation.fixtures.market_data import FixtureMarketDataProvider, momentum_boundary_frame
 from src.strategies.fcf_growth.input_resolver import _failure_metric
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, ReasonCode
 from src.strategies.fcf_growth.vocabulary import Classification, TrendClassification
+from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.workspace.runs import AnalysisRun, RunQuery
 from tests._direct_command_output import (
     _COMMANDS,
     CommandOutput,
+    SecLabeledGrahamProvider,
     _FixtureYahoo,
     enter_fixture_providers,
     normalize,
@@ -129,6 +140,8 @@ class Case:
     yahoo: type[_FixtureYahoo] = _FixtureYahoo
     fcf_facts: Callable[[], tuple[ProviderFact, ...]] | None = None
     fcf_error_field: FinancialField | None = None
+    failure_kind: ProviderFailureKind | None = None
+    """When set, the fixture provider's failure is raised carrying this kind, as a classifying adapter would."""
 
 
 def _fcf_success_facts() -> tuple[ProviderFact, ...]:
@@ -203,7 +216,43 @@ CASES: tuple[Case, ...] = (
         1,
         fcf_error_field=FinancialField.OPERATING_CASH_FLOW,
     ),
+    Case(
+        "graham-number-provider-unreachable",
+        "graham-number",
+        _with_ticker("graham-number", "ERROR"),
+        1,
+        failure_kind=ProviderFailureKind.UNREACHABLE,
+    ),
+    Case(
+        "graham-growth-provider-unreachable",
+        "graham-growth",
+        _with_ticker("graham-growth", "ERROR"),
+        1,
+        failure_kind=ProviderFailureKind.UNREACHABLE,
+    ),
+    Case(
+        "fcf-growth-provider-unreachable",
+        "fcf-growth",
+        _arguments("fcf-growth"),
+        1,
+        fcf_error_field=FinancialField.OPERATING_CASH_FLOW,
+        failure_kind=ProviderFailureKind.UNREACHABLE,
+    ),
 )
+
+
+class _ClassifyingProvider:
+    """Wraps a fixture provider, raising its provider failures with a kind and the provider the request named."""
+
+    def __init__(self, delegate: FinancialFactsProvider, kind: ProviderFailureKind) -> None:
+        self._delegate = delegate
+        self._kind = kind
+
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
+        try:
+            return self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
+        except FinancialProviderError as error:
+            raise FinancialProviderError(str(error), kind=self._kind, provider_id=request.provider_id) from error
 
 
 def _fcf_provider(case: Case, yahoo: type[_FixtureYahoo]) -> ProductionFinancialFactsProvider:
@@ -213,8 +262,11 @@ def _fcf_provider(case: Case, yahoo: type[_FixtureYahoo]) -> ProductionFinancial
         replace(fact, provider_id=SEC_PROVIDER_ID, provider_fact_id=f"fy-{fact.fiscal_year}:{fact.field_name.value}")
         for fact in facts
     )
+    sec_edgar: FinancialFactsProvider = FixtureAnnualFinancialFactsProvider(relabeled, error_field=case.fcf_error_field)
+    if case.failure_kind is not None:
+        sec_edgar = _ClassifyingProvider(sec_edgar, case.failure_kind)
     return ProductionFinancialFactsProvider(
-        sec_edgar=FixtureAnnualFinancialFactsProvider(relabeled, error_field=case.fcf_error_field),
+        sec_edgar=sec_edgar,
         yfinance=YFinanceFinancialFactsAdapter(client=cast(YFinanceClient, yahoo())),
     )
 
@@ -222,6 +274,11 @@ def _fcf_provider(case: Case, yahoo: type[_FixtureYahoo]) -> ProductionFinancial
 def _enter_providers(stack: ExitStack, case: Case) -> None:
     """Replace the command's providers with the case's deterministic fixtures."""
     enter_fixture_providers(stack, case.command, sec_labeled=True)
+    if case.failure_kind is not None and case.command != "fcf-growth":
+        resolver_type = GrahamGrowthInputResolver if case.command == "graham-growth" else GrahamNumberInputResolver
+        resolver = resolver_type(_ClassifyingProvider(SecLabeledGrahamProvider(), case.failure_kind), clock=lambda: NOW)
+        for graham in ("graham_number", "graham_growth"):
+            stack.enter_context(patch(f"src.strategies.{graham}.cli.build_graham_resolver", return_value=resolver))
     for strategy in ("momentum", "graham_number", "graham_growth"):
         stack.enter_context(patch(f"src.strategies.{strategy}.cli.YFinanceClient", case.yahoo))
     stack.enter_context(
@@ -266,11 +323,12 @@ def _single_run(settings: ProjectSettings) -> AnalysisRun:
 
 
 @cache
-def run_pair(case: Case) -> tuple[CommandOutput, CommandOutput]:
+def run_saved(case: Case) -> tuple[CommandOutput, CommandOutput, AnalysisRun]:
     """Run the case's direct command once with ``--json --save-run``, then replay the run it saved.
 
-    Returns the direct command's output and the replay's output. Both come from the one run, in a temporary
-    database, against the one set of providers; a repeated call for the same case returns the first result.
+    Returns the direct command's output, the replay's output and the saved run. All three come from the one run, in
+    a temporary database, against the one set of providers; a repeated call for the same case returns the first
+    result.
     """
     with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
         settings = _migrated(Path(directory))
@@ -281,7 +339,13 @@ def run_pair(case: Case) -> tuple[CommandOutput, CommandOutput]:
         direct = CommandOutput(result.exit_code, normalize(result.stdout_bytes), result.stderr_bytes)
         assert direct.exit_code == case.exit_code, result.output
         run = _single_run(settings)
-        return direct, _replay(settings, str(run.analysis_run_id))
+        return direct, _replay(settings, str(run.analysis_run_id)), run
+
+
+def run_pair(case: Case) -> tuple[CommandOutput, CommandOutput]:
+    """Return the direct command's output and the replay's output for ``case``; see :func:`run_saved`."""
+    direct, replayed, _run = run_saved(case)
+    return direct, replayed
 
 
 def replay_stored_run(run: AnalysisRun) -> CommandOutput:

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind
+from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 from src.data.financial.provenance import ResolvedInput, SourceKind
@@ -426,6 +426,9 @@ def test_a_typed_provider_failure_is_a_provider_error_resolution(fault: Exceptio
     ):
         resolution = adapter.resolve_security_unit(_transport_request())
     assert resolution.reason is SecurityUnitResolutionReason.PROVIDER_ERROR
+    assert isinstance(fault, FinancialProviderError | DataFetchError)
+    expected = None if fault.kind is None else ProviderFailureRecord(kind=fault.kind, provider_id="sec_edgar")
+    assert resolution.provider_failure == expected
 
 
 @pytest.mark.parametrize(
@@ -456,3 +459,6 @@ def test_a_filing_the_provider_lists_but_cannot_be_addressed_is_an_unexpected_re
     with adapter.analysis_scope(subject_id="KO", provider_id="sec_edgar", as_of=None):
         resolution = adapter.resolve_security_unit(_transport_request())
     assert resolution.reason is SecurityUnitResolutionReason.PROVIDER_ERROR
+    assert resolution.provider_failure == ProviderFailureRecord(
+        kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id="sec_edgar"
+    )

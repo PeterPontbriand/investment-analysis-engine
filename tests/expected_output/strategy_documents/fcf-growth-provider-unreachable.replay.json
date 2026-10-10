@@ -1,0 +1,126 @@
+{
+  "schema_version": 7,
+  "analysis": "fcf_earnings_growth",
+  "method": "reported_fcf_eps_cagr",
+  "ticker": "ACME",
+  "status": "provider_error",
+  "provider_failure": {
+    "reason_code": "provider_unreachable",
+    "inputs": [
+      {
+        "input": "operating_cash_flow",
+        "provider_id": "sec_edgar",
+        "kind": "unreachable"
+      }
+    ]
+  },
+  "requested_as_of": null,
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "ACME",
+    "instrument_name": null,
+    "listing_venue": null,
+    "issuer_identifier": null,
+    "instrument_identifier": null,
+    "provider_id": null,
+    "resolved_at": null
+  },
+  "instrument_kind": null,
+  "result_schema_version": 4,
+  "method_version": 2,
+  "policy": {
+    "historical_horizon": "longest_available",
+    "classification_basis": "total_fcf",
+    "forward_policy": "display_only",
+    "include_fcf_yield": true
+  },
+  "classification": "indeterminate",
+  "classification_reason_code": "provider_error",
+  "classification_reason": "operating_cash_flow provider failed: fixture provider failure",
+  "selected_horizon_years": null,
+  "selected_observation_count": 0,
+  "used_horizon_fallback": false,
+  "period_start": null,
+  "period_end": null,
+  "annual_observations": [],
+  "fcf_cagr": {
+    "status": "unavailable",
+    "value": null,
+    "reason_code": "provider_error",
+    "reason": "operating_cash_flow provider failed: fixture provider failure"
+  },
+  "fcf_per_share_cagr": {
+    "status": "unavailable",
+    "value": null,
+    "reason_code": "provider_error",
+    "reason": "operating_cash_flow provider failed: fixture provider failure"
+  },
+  "eps_cagr": {
+    "status": "unavailable",
+    "value": null,
+    "reason_code": "provider_error",
+    "reason": "operating_cash_flow provider failed: fixture provider failure"
+  },
+  "trend_classification": "insufficient_or_nonmeaningful_growth",
+  "market_capitalization": null,
+  "fcf_yield": {
+    "status": "unavailable",
+    "value": null,
+    "reason_code": "market_cap_unavailable",
+    "reason": "No evidence-approved market-capitalization provider mapping is available."
+  },
+  "forward_evidence": {
+    "status": "unavailable",
+    "latest_actual_eps": null,
+    "fy1_consensus_eps": null,
+    "fy2_consensus_eps": null,
+    "actual_to_fy1_growth": {
+      "status": "unavailable",
+      "value": null,
+      "reason_code": "consensus_unavailable",
+      "reason": "No evidence-approved FY1/FY2 consensus EPS provider mapping is available."
+    },
+    "fy1_to_fy2_growth": {
+      "status": "unavailable",
+      "value": null,
+      "reason_code": "consensus_unavailable",
+      "reason": "No evidence-approved FY1/FY2 consensus EPS provider mapping is available."
+    },
+    "confirms_positive_growth": null
+  },
+  "warnings": [
+    "No evidence-approved market-capitalization provider mapping is available."
+  ],
+  "limitations": [
+    "Historical financial strength does not establish market opportunity, scarcity, durability of moat, or an investment recommendation."
+  ],
+  "diagnostics": [
+    {
+      "field_name": "operating_cash_flow",
+      "stage": "provider",
+      "outcome": "error",
+      "message": "operating_cash_flow provider failed: fixture provider failure"
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider 'sec_edgar' returned no security identity metadata.",
+      "provider_id": "sec_edgar"
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider 'yfinance' returned no security identity metadata.",
+      "provider_id": "yfinance"
+    },
+    {
+      "field_name": "instrument_kind",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
+      "provider_id": "yfinance"
+    }
+  ]
+}

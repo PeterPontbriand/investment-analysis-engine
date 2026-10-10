@@ -55,7 +55,7 @@ def test_put_mints_a_new_profile_on_first_resolution(repository: SQLiteInstrumen
         identity_anchor="0000021344",
         cached_at=NOW,
         refreshed_at=NOW,
-        schema_version=1,
+        schema_version=2,
         evidence={"provider_id": "yfinance", "kind": "equity"},
     )
     assert record.superseded_at is None

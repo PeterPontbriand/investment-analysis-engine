@@ -84,12 +84,16 @@ def _momentum_request() -> AnalysisRequest:
     return AnalysisRequest(ticker="AAPL", selection=MomentumSelection(short_window=2, long_window=3))
 
 
-def _fake_capture(outcome: RunOutcome) -> ExecutionCapture:
-    """A capture using real native evidence (so encoding works) with a chosen outcome."""
+def _fake_capture(outcome: RunOutcome, failure_reason_code: str | None = None) -> ExecutionCapture:
+    """A capture using real native evidence (so encoding works) with a chosen outcome.
+
+    A ``failed`` outcome carries ``failure_reason_code``, which the capture requires.
+    """
     return ExecutionCapture(
         native_evidence=_momentum_native_evidence(),
         profile=fixture_instrument_profile("AAPL", kind=InstrumentKind.EQUITY, provider_value="EQUITY"),
         outcome=outcome,
+        failure_reason_code=failure_reason_code,
     )
 
 
@@ -119,8 +123,8 @@ def test_execute_assembles_and_inserts_a_completed_run() -> None:
     assert run.method_id == "sma_crossover"
     assert run.config_schema_version == 2
     assert run.method_version == 1
-    assert run.result_schema_version == 2
-    assert run.evidence_codec_version == 1
+    assert run.result_schema_version == 3
+    assert run.evidence_codec_version == 2
     assert run.projection_version == 1
     assert run.status is RunOutcome.COMPLETED
     assert run.failure_reason_code is None
@@ -187,14 +191,14 @@ def test_execute_only_sets_failure_reason_code_for_failed(outcome: RunOutcome) -
 def test_execute_sets_a_stable_failure_reason_code_when_failed() -> None:
     run = execute(
         _momentum_request(),
-        capture=lambda: _fake_capture(RunOutcome.FAILED),
+        capture=lambda: _fake_capture(RunOutcome.FAILED, "provider_unreachable"),
         repository=_FakeSink(),
         id_factory=lambda: RUN_ID,
         clock=lambda: NOW,
         spec=run_spec_for(_momentum_request().selection),
     )
     assert run.status is RunOutcome.FAILED
-    assert run.failure_reason_code == "execution_failed"
+    assert run.failure_reason_code == "provider_unreachable"
 
 
 def test_execute_does_not_insert_when_capture_raises() -> None:
@@ -267,13 +271,14 @@ def test_from_momentum_capture_maps_fields() -> None:
 def test_from_graham_number_capture_maps_fields() -> None:
     evidence = _momentum_native_evidence()  # any object works; the normalizer only reshapes fields
     profile = fixture_instrument_profile("KO", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
-    capture = GrahamNumberCapture(analysis=evidence, profile=profile, outcome=RunOutcome.FAILED)  # type: ignore[arg-type]
+    capture = GrahamNumberCapture(analysis=evidence, profile=profile, outcome=RunOutcome.COMPLETED)  # type: ignore[arg-type]
 
     result = from_graham_number_capture(capture)
 
     assert result.native_evidence is evidence
     assert result.profile is profile
-    assert result.outcome is RunOutcome.FAILED
+    assert result.outcome is RunOutcome.COMPLETED
+    assert result.failure_reason_code is None
     assert result.presentation_inputs == {}
 
 

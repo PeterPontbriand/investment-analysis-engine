@@ -42,6 +42,41 @@
       "title": "DiagnosticPart",
       "type": "object"
     },
+    "FailureReasonCode": {
+      "description": "Stable failure categories a caller may branch on.\n\nA value is never renamed, repurposed or removed within the public contract. New values may be\nadded, so a caller must treat an unrecognized value as a generic failure and use ``status`` for the\ncategory.",
+      "enum": [
+        "execution_error",
+        "historical_quality",
+        "provider_error",
+        "provider_unreachable",
+        "provider_unexpected_response",
+        "provider_no_data",
+        "configuration_error",
+        "no_eligible_observations",
+        "invalid_input",
+        "invalid_parameter",
+        "database_upgrade_required",
+        "database_incompatible_schema",
+        "database_busy",
+        "database_permission_denied",
+        "database_invalid_file",
+        "database_io_error",
+        "database_resources_unavailable",
+        "database_initialization_failed",
+        "database_migration_failed",
+        "invalid_stored_run",
+        "unsupported_run_version",
+        "watchlist_not_found",
+        "watchlist_entry_not_found",
+        "watchlist_empty",
+        "watchlist_name_conflict",
+        "analysis_run_not_found",
+        "stored_selection_unreadable",
+        "unsupported_projection"
+      ],
+      "title": "FailureReasonCode",
+      "type": "string"
+    },
     "GrahamNumberInputsPart": {
       "additionalProperties": false,
       "description": "The inputs the method needs, each null when it could not be resolved.",
@@ -293,6 +328,72 @@
       ],
       "title": "ProviderDiagnosticPart",
       "type": "object"
+    },
+    "ProviderFailure": {
+      "additionalProperties": false,
+      "description": "Why an analysis outcome is a provider failure: one of three codes and the inputs that caused it.\n\nThe same element is carried by the failure envelope and by every document that reports an analysis\noutcome. ``reason_code`` is the single code derived from the kinds in ``inputs``.",
+      "properties": {
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/ProviderFailureInput"
+          },
+          "minItems": 1,
+          "title": "Inputs",
+          "type": "array"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/FailureReasonCode"
+        }
+      },
+      "required": [
+        "reason_code",
+        "inputs"
+      ],
+      "title": "ProviderFailure",
+      "type": "object"
+    },
+    "ProviderFailureInput": {
+      "additionalProperties": false,
+      "description": "One failed input: which provider failed it and what the adapter observed.",
+      "properties": {
+        "input": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The strategy input the failure was recorded against; null when the failure was raised.",
+          "title": "Input"
+        },
+        "kind": {
+          "$ref": "#/$defs/ProviderFailureKind"
+        },
+        "provider_id": {
+          "description": "The provider that failed.",
+          "title": "Provider Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "input",
+        "provider_id",
+        "kind"
+      ],
+      "title": "ProviderFailureInput",
+      "type": "object"
+    },
+    "ProviderFailureKind": {
+      "description": "What a provider failure was, as observed by the adapter.\n\n``UNREACHABLE``: the service did not serve the request (DNS, connection, timeout, throttling or blocking,\nserver errors). ``UNEXPECTED_RESPONSE``: the service answered, but not in the form the adapter reads.\n``NO_DATA``: the service answered correctly and has nothing for this request.",
+      "enum": [
+        "unreachable",
+        "unexpected_response",
+        "no_data"
+      ],
+      "title": "ProviderFailureKind",
+      "type": "string"
     },
     "QuoteFreshnessPart": {
       "additionalProperties": false,
@@ -850,7 +951,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "The Graham Number document, version 7, as ``graham-number --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`src.reporting.documents.strategy_document`.",
+  "description": "The Graham Number document, version 8, as ``graham-number --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`src.reporting.documents.strategy_document`.",
   "properties": {
     "analysis": {
       "const": "graham_number",
@@ -906,6 +1007,16 @@
       "anyOf": [
         {
           "$ref": "#/$defs/PriceComparisonPart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "provider_failure": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProviderFailure"
         },
         {
           "type": "null"
@@ -970,6 +1081,7 @@
     "method",
     "ticker",
     "status",
+    "provider_failure",
     "requested_as_of",
     "effective_as_of",
     "security_identity",
