@@ -19,7 +19,7 @@ The header's key order is part of the contract:
 ``provider_failure``
     Why the status is a provider failure: the single code and the failed inputs, each with its provider and kind;
     null when the outcome is not a provider failure whose kind the adapter recorded. The element is the one the
-    failure envelope carries, :class:`~src.reporting.documents.failure.ProviderFailure`.
+    failure envelope carries, :class:`~src.core.provider_failure_element.ProviderFailure`.
 ``requested_as_of``
     The point in time the user asked for; null means now.
 ``effective_as_of``
@@ -37,7 +37,7 @@ import json
 from pydantic import BaseModel
 
 from src.core.analysis_status import CalculationStatus
-from src.reporting.documents.failure import ProviderFailure
+from src.core.provider_failure_element import ProviderFailure
 from src.reporting.documents.shared_parts import (
     DiagnosticEntry,
     DocumentPart,

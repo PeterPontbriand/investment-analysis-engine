@@ -7,7 +7,9 @@ handled as another strategy's.
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import ClassVar
 
+from src.core.failure_codes import FailureReasonCode
 from src.core.strategy_errors import find
 from src.workspace.models import StrictJsonMapping
 from src.workspace.runs import AnalysisRun
@@ -17,13 +19,13 @@ from src.workspace.strategy_types import NativeEvidence
 class UnsupportedRunVersionError(ValueError):
     """The stored method or version has no supported evidence decoder."""
 
-    reason_code = "unsupported_run_version"
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.UNSUPPORTED_RUN_VERSION
 
 
 class InvalidStoredRunError(ValueError):
     """Stored evidence violates its declared schema or envelope identity."""
 
-    reason_code = "invalid_stored_run"
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.INVALID_STORED_RUN
 
 
 @dataclass(frozen=True)

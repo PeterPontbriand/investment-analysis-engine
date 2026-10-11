@@ -13,7 +13,7 @@ from pydantic.types import AwareDatetime, FutureDatetime, NaiveDatetime, PastDat
 
 from scripts.generate_schemas import DOCUMENTS, expected_schemas
 from src.cli_workspace import _refresh_json, _watchlist_json
-from src.reporting.documents.failure import FailureReasonCode
+from src.core.failure_codes import FailureReasonCode
 from src.reporting.documents.refresh import RefreshResultDocument, RefreshSummaryDocument
 from src.reporting.documents.runs import RunsListDocument, RunSummaryDocument
 from src.reporting.documents.timestamp import DocumentTimestamp

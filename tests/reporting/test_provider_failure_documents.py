@@ -11,8 +11,8 @@ from dataclasses import replace
 
 import pytest
 
+from src.core.failure_codes import PROVIDER_CODE_BY_KIND
 from src.core.provider_failure_kind import ProviderFailureKind
-from src.reporting.failure_classification import PROVIDER_CODE_BY_KIND
 from src.workspace.models import RunOutcome
 from tests._strategy_document_output import CASES, Case, run_saved
 

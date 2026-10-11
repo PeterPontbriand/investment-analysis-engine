@@ -54,10 +54,11 @@ from collections.abc import Callable, Mapping
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
+from typing import ClassVar, Protocol
 from uuid import UUID, uuid4
 
 from src.core.clock import utc_now
+from src.core.failure_codes import FailureReasonCode
 from src.core.strategy_errors import require
 from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import AnalysisRunSink, BatchContext, RunSpec, execute
@@ -74,6 +75,8 @@ class EmptyRefreshTargetError(ValueError):
     Raised before any job runs, matching the contract's "usage error before
     work begins" requirement — never a zero-job refresh silently succeeding.
     """
+
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.WATCHLIST_EMPTY
 
 
 class WatchlistLookup(Protocol):

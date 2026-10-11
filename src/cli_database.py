@@ -7,6 +7,7 @@ import typer
 from pydantic import ValidationError
 
 from src.config import ProjectSettings, settings
+from src.core.failure_codes import FailureReasonCode
 from src.data.repositories.readiness import (
     DatabaseReadinessError,
     DatabaseState,
@@ -16,7 +17,6 @@ from src.data.repositories.readiness import (
 )
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.reporting.documents.database import DatabaseMaintenanceReport
-from src.reporting.documents.failure import FailureReasonCode
 
 app = typer.Typer(help="Inspect or explicitly migrate application storage.", add_completion=False)
 

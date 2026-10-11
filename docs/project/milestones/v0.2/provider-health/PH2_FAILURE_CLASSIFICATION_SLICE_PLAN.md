@@ -11,10 +11,12 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 - **What it does:** a provider failure says which of three things happened: the service was `unreachable`, it
   answered in an `unexpected_response`, or it had `no_data` for this request. The kind is a typed field from the
   adapter to every report, and becomes one of three new stable reason codes.
-- **Three slices, in this order, after SWC.4c:** PH.2a (the kind, the classifier, SEC EDGAR and Massive, the
+- **Four slices, in this order, after SWC.4c:** PH.2a (the kind, the classifier, SEC EDGAR and Massive, the
   raised path), PH.2b (Yahoo, `ian health`, the completion test, the runbook), PH.2c (the kind in stored
-  evidence, the saved run, the refresh job and the strategy documents). All three are complete, so PH.2 is
-  complete. The package dependency map (PD) is next, then [issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40), then PH.3.
+  evidence, the saved run, the refresh job and the strategy documents), PH.2d (the failure codes and the
+  classifier move to `src/core`, each exception stating its own code). All four are complete, so PH.2 is
+  complete. [Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) is next and
+  calls the classifier in `core`, so `orchestrator` gains no dependency on `reporting`; then PH.3.
 - **What it does not do:** probe a provider, put a verdict on the first line, or add `ian health --json` (PH.3);
   retry, fall back or remediate; change any analysis result, formula or classification.
 - **Rules:** a provider failure stays a recorded, stored outcome with its resolution trace; the
@@ -25,12 +27,12 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 
 | # | Decision |
 | :--- | :--- |
-| D1 | Three slices, not one: PH.2a, PH.2b, PH.2c ([§4](#4-slices)). |
+| D1 | Four slices, not one: PH.2a, PH.2b, PH.2c, PH.2d ([§4](#4-slices)). |
 | D2 | One named helper in `src/data/provider_failure.py` wraps a third-party library call, and only that call, never project code that reads its result. It classifies an exception raised inside the call in this order: the listed `unreachable` types, the listed `unexpected_response` types, the listed `no_data` types; the listed defect types propagate unchanged; and only an unlisted exception becomes `unexpected_response`. The lists are in [§8](#8-verified-against-main). Adapters call the helper and contain no broad handler. |
 | D3 | `fetch_json` and `fetch_filing` take the kind of an HTTP 404 from the caller through the required keyword `not_found`, and the provider through the required keyword `provider_id`, both keyword-only with no default, on the `JsonFetcher` and `FilingFetcher` protocols and every fetcher. Per-company documents and filings pass `no_data`; fixed endpoints pass `unexpected_response`. |
 | D4 | The reason-code change for existing failures is an approved output change ([§3](#3-output-changes)). `provider_error` stays valid and stable for failures an adapter cannot classify. |
 | D5 | The kind is stored: typed fields on the resolver result and on the instrument-profile and security-identity diagnostics, beside the unchanged `PROVIDER_ERROR` status. Affected versions are bumped; nothing is migrated. A provider failure is not turned into a raised error. |
-| D6 | Issue #40 follows PH.2c as its own small change, after the package dependency map (PD). |
+| D6 | Issue #40 follows PH.2d as its own small change. The package dependency map (PD) has merged. |
 | D7 | One shared typed element, `provider_failure`, under the same key in every document that reports an analysis outcome ([§5](#5-the-shared-provider_failure-element)). |
 | D8 | One fixed precedence picks the single code when several inputs failed: `unreachable`, then `unexpected_response`, then `no_data` ([§5](#5-the-shared-provider_failure-element)). |
 | D9 | A refresh job carries a `reason_code` if and only if it raised or its run is `failed`; an `unavailable` run is an analysis outcome, not a failure ([§6](#6-refresh-job-reason_codes)). |
@@ -38,7 +40,7 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 | D11 | `yf.download` cannot be made to raise by any supported setting ([§8](#8-verified-against-main)), so a throttled or unreachable history download is `no_data`, and the sentence says Yahoo returned no data for the ticker, never that the ticker is unknown. |
 | D12 | `fetch_json` and `fetch_filing` raise `FinancialProviderError`, carrying the kind and the provider. The resolvers already catch that type, so a transport failure stays a recorded outcome, and the adapters' passthrough handlers let it through. |
 | D13 | A missing CIK is its own condition. `_resolve_cik` raises a private subclass of `FinancialProviderError` (kind `no_data`) for a ticker absent from SEC's map, and the two handlers that mean "no CIK mapping" (`create_analysis_snapshot` and the top of `fetch_facts`) catch only that subclass, so an outage while loading the ticker map is not turned into an empty snapshot or an empty fact tuple. |
-| D14 | `ProviderFailureKind` lives in `src/core/provider_failure_kind.py`, which imports nothing from the application. The library-call helper stays in `src/data/provider_failure.py`. `documents/failure.py` stays a leaf under a wider rule: it imports only modules that themselves import nothing from the application. The shared `provider_failure` element models live in that module, so the failure envelope and the strategy documents import the same types. |
+| D14 | `ProviderFailureKind` lives in `src/core/provider_failure_kind.py`, which imports nothing from the application. The library-call helper stays in `src/data/provider_failure.py`. `documents/failure.py` stays a leaf under a wider rule: it imports only modules that themselves import nothing from the application. The shared `provider_failure` element models lived in that module; PH.2d moved them to `src/core/provider_failure_element.py` ([D29](#2-decisions)), so the failure envelope and the strategy documents still import the same types. |
 | D15 | `provider_failure.inputs[].input` is nullable: null if and only if the failure was raised and not recorded against a strategy input. Every entry PH.2a produces has a null `input`. |
 | D16 | A plain `DataQualityError` cannot be raised: for freshly fetched data the historical-quality check either raises `HistoricalDataQualityError` itself or returns nothing. The three unreachable `raise DataQualityError(...)` branches in `cached_client.py`, the classifier rule for the plain type and the tests that built one by hand are removed; the class stays as the base of the historical error. |
 | D17 | `_fail_with` in `cli_workspace.py` is called only with watchlist, stored-run, readiness and parameter errors. It stays outside the sentence table and is not changed. |
@@ -52,7 +54,14 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 | D25 | The Yahoo clock guard (PH.2c, decision c). A naive datetime from the injected clock in `YFinanceFinancialFactsAdapter.fetch_facts` is a defect, not a provider failure: it raises `RuntimeError`, which the classifier reports as `execution_error` (a `ValueError` would be reported as `invalid_input`), and it propagates. Every other raise of a provider failure without a kind is in an evaluation fixture; none is in a production adapter ([§8](#8-verified-against-main)). |
 | D28 | Several failed candidates (PH.2c review). An identity resolution that summarizes several failed profile candidates reports the kind with the highest precedence (`PROVIDER_KIND_PRECEDENCE`, now in `src/core/provider_failure_kind.py`, the order the document element uses); candidate order breaks a tie. A failed optional quote of Graham Number or Graham Growth is stored as `quote_provider_failure` (input `current_price`) beside the quote status, which stays `provider_error` without changing the analysis status, and the document's `quote` part carries `provider_failure`. No version beyond this PR's. |
 | D26 | The profile cache version (PH.2c, decision d). The stored profile record's existing `schema_version` column carries the version: its constant is 2 and the cache reads it. A record whose version is not current is treated as absent on the fresh-reuse path and on the fail-open path that reuses a stored profile when a refresh cannot confirm an identity anchor; the next anchored resolution overwrites it, including its version. The payload has no version field of its own. |
-| D27 | One function from a result to its failure code (PH.2c, decision e). `failure_reason_code` in `failure_classification.py` returns the mapped provider code when the native status is a provider error (`provider_error` when no kind was recorded), `invalid_input` for invalid input, otherwise `execution_error`. Each strategy's capture calls it once, for a `failed` outcome, so a saved run and an unsaved refresh job read the same code; `execution_failed` is no longer written. A refresh job carries a `reason_code` if and only if it raised or its outcome is `failed`, with saving on or off. |
+| D27 | One function from a result to its failure code (PH.2c, decision e). `failure_reason_code` in `failure_classification.py` (now `src/core/failure_classification.py`, D29) returns the mapped provider code when the native status is a provider error (`provider_error` when no kind was recorded), `invalid_input` for invalid input, otherwise `execution_error`. Each strategy's capture calls it once, for a `failed` outcome, so a saved run and an unsaved refresh job read the same code; `execution_failed` is no longer written. A refresh job carries a `reason_code` if and only if it raised or its outcome is `failed`, with saving on or off. |
+| D29 | PH.2d, decision D1. The failure vocabulary and the classifier move to `src/core`, in modules that import nothing outside `src.core`, the standard library and pydantic: `src/core/failure_codes.py` (`FailureReasonCode`, `FailureStatus`, `PROVIDER_FAILURE_CODES`, `INPUT_UNAVAILABLE_CODES`, `status_for`, `PROVIDER_CODE_BY_KIND` and the helper `provider_reason_code`), `src/core/provider_failure_element.py` (`ProviderFailureInput`, `ProviderFailure`) and `src/core/failure_classification.py` (`FailureClassification`, `classify_failure`, `provider_failure_of`, `failure_reason_code`). |
+| D30 | PH.2d, decision D2. `FailureEnvelope`, `FailureDiagnostic` and `FailureDatabase` stay in `src/reporting/documents/failure.py` and import the vocabulary from `core`. `failure_envelope` stays in `reporting`, in `src/reporting/failure_envelope.py`, because it reads diagnostics and database facts from the historical-quality, readiness and provider exception types. |
+| D31 | PH.2d, decision D3. Every classified exception states its own code where it is defined, in a `reason_code` attribute, and the classifier imports no exception type. A class with one code declares it on the class (`ClassVar[FailureReasonCode]`). `DatabaseReadinessError` gives the code of its reason; `DataFetchError` and `FinancialProviderError` give the code of their kind, or `provider_error` with no kind, through `provider_reason_code`. The classifier reads the declared code; otherwise a `ValueError` is `invalid_input`; otherwise `execution_error`. `CLASSIFICATION_RULES` is removed. The attribute `reason_code` already existed as a string on `UnsupportedRunVersionError` and `InvalidStoredRunError`; it is now the enum member, which equals the same string. |
+| D32 | PH.2d, decision D4. `AnalysisConfigurationError` and `InvalidParameterError` move to `src/core/operator_errors.py` and declare their codes like the others. |
+| D33 | PH.2d, decision D5. No moved name is re-exported from its old module; every importer in `src/`, `tests/` and `scripts/` is updated, and `src/reporting/failure_classification.py` is removed. |
+| D34 | PH.2d, decision D6. `tests/_failure_code_table.py` pins, as explicit literals, the code and status the classifier returns for every classified exception class, `DatabaseReadinessError` for every `ReadinessReason`, `DataFetchError` and `FinancialProviderError` for each kind and for none, and a plain `ValueError`, `RuntimeError` and `Exception`. It was recorded from the classifier before the move and has the same meaning after it. The tests that iterated `CLASSIFICATION_RULES` read it, and a test requires every exception class under `src/` that declares a code to appear in it. |
+| D35 | PH.2d, decision D7. Proof of no output change: `uv run python scripts/generate_schemas.py --check` passes, and the branch changes no file under `schemas/` and none under `tests/expected_output/`. Issue #40 calls the classifier in `core`, so `orchestrator` gains no dependency on `reporting`. |
 
 ## 3. Output changes
 
@@ -156,11 +165,29 @@ PH.2c extend.
   presenter. No strategy envelope changes. The shape test `tests/reporting/test_strategy_document_shape.py` then
   covers every descriptor's `json_envelope` and the failure envelope.
 - **Derived reports.** Every report derives from the stored kind through the one kind-to-code mapping and the one
-  precedence function in `failure_classification.py` (`provider_failure_of`): the strategy documents and, through
+  precedence function in `failure_classification.py` (`provider_failure_of`; now in `src/core`): the strategy documents and, through
   `failure_reason_code`, the saved run's `failure_reason_code`. The refresh job copies the code its run or its
   unsaved capture holds ([D27](#2-decisions)).
 - **Conformance.** The check in [§5](#5-the-shared-provider_failure-element).
 - **Gate.** The complete managed gate.
+
+### PH.2d — Failure codes and classifier move to core
+
+`refactor/failure-codes-to-core`, after PH.2c. Complete 2026-10-10.
+
+- **Why.** The codes and the classifier lived in `src/reporting`, so anything that classifies a failure had to
+  depend on `reporting`. The classifier sat there only because it was one central table that imported every
+  exception type.
+- **What moved** ([D29 to D33](#2-decisions)). The vocabulary, the `provider_failure` element and the classifier
+  to `src/core`; the two operator errors to `src/core/operator_errors.py`; each classified exception now states
+  its code. The central table is gone.
+- **Exceptions that declare a code.** `HistoricalDataQualityError`, `NoEligibleObservationsError`,
+  `UnsupportedRunVersionError`, `InvalidStoredRunError`, `UnsupportedProjectionError`, `StoredSelectionError`,
+  `WatchlistNotFoundError`, `EmptyRefreshTargetError`, `WatchlistEntryNotFoundError`, `WatchlistConflictError`,
+  `AnalysisConfigurationError` and `InvalidParameterError` on the class; `DatabaseReadinessError`,
+  `DataFetchError` and `FinancialProviderError` through a property.
+- **No output change** ([D34 and D35](#2-decisions)). The pinned table and `generate_schemas.py --check`.
+- **Gate.** The complete managed gate, with the 3.14 pass.
 
 ## 5. The shared `provider_failure` element
 
@@ -259,9 +286,10 @@ before PH.2c unless they say otherwise.
   Growth: a document with `status: "provider_error"`, a sentence in `reason`, null `result` and `inputs`, and no
   code. FCF Growth: the whole result with `status` and per-metric `reason_code` `provider_error`.
 - **Failure envelope.** `FailureEnvelope.schema_version` is `Literal[6]` in `src/reporting/documents/failure.py`,
-  a leaf module that imports nothing from the application. `FailureReasonCode` and `INPUT_UNAVAILABLE_CODES` are
-  there too; `DatabaseMaintenanceReport` shares the code vocabulary, so its schema also regenerates.
-- **Classifier.** `src/reporting/failure_classification.py`. `CLASSIFICATION_RULES` maps `DataFetchError` and
+  a leaf module that imports nothing from the application. `FailureReasonCode` and `INPUT_UNAVAILABLE_CODES` were
+  there too (PH.2d moved them to `src/core/failure_codes.py`); `DatabaseMaintenanceReport` shares the code vocabulary, so its schema also regenerates.
+- **Classifier** (as verified for PH.2a; PH.2d moved it to `src/core/failure_classification.py` and replaced the
+  table with a code each exception declares, [D31](#2-decisions)). `src/reporting/failure_classification.py`. `CLASSIFICATION_RULES` maps `DataFetchError` and
   `DataQualityError` to `provider_error`; it does not know `FinancialProviderError`, which is not a
   `ValueError`. It imports the readiness, watchlist, stored-run, replay and `workspace.refresh` exception
   types. Callers: `execution_errors` in `cli_support.py`, `_fail_with` in `cli_workspace.py` (which shows

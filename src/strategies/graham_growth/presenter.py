@@ -8,6 +8,7 @@ from datetime import datetime
 
 from src.analysis.shared.financial_resolution import PriceComparison
 from src.core.analysis_status import CalculationStatus
+from src.core.failure_classification import provider_failure_of
 from src.data.financial.provenance import SourceKind
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from src.data.security_identity import SecurityIdentityResolution
@@ -38,7 +39,6 @@ from src.reporting.evidence_presentation import (
     validate_presentation_as_of,
     validate_ticker,
 )
-from src.reporting.failure_classification import provider_failure_of
 from src.reporting.input_provenance import investor_input_lines
 from src.reporting.presentation import PresentationMode, format_money, format_number
 from src.reporting.valuation_presentation import (

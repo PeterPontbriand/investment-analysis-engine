@@ -439,13 +439,13 @@ version and result-schema version distinct and do not silently reinterpret histo
   names. Failures are reported, never self-remediated. Momentum's window validation, which exited with code 2
   on the direct command and raised a parameter error on the watchlist commands, reports one
   `invalid_parameter` failure through the envelope on both ([B.10](#b10-swc4a-momentum-window-failure-2026-10-06)).
-- **Scope:** `src/reporting/documents/{__init__,failure,database}.py`, `src/reporting/failure_classification.py`,
+- **Scope:** `src/reporting/documents/{__init__,failure,database}.py`, `src/reporting/failure_classification.py` (since moved to `src/core`, PH.2d),
   `src/cli_support.py`, `src/reporting/presentation.py`, the `execution_errors` call sites in the strategy
   command files (the Momentum file also holds the window check), `src/cli_workspace.py` (`--json`-aware failures),
   `src/cli_database.py`, `src/workspace/refresh.py` (injected classifier and per-job code), one
   `WatchlistNotFoundError` in `src/workspace/watchlists.py` and its two importers
   (`src/data/repositories/watchlists.py`, `src/workspace/refresh.py`), `AnalysisConfigurationError` moved to the
-  classifier module with its two importers (`src/cli_composition.py`, `src/cli_health.py`),
+  classifier module (since moved to `src/core/operator_errors.py`, PH.2d) with its two importers (`src/cli_composition.py`, `src/cli_health.py`),
   `docs/user/DATABASE.md`, `docs/user/USAGE.md` and `docs/user/WORKSPACE.md` (prose that described the
   old failure output), `refresh` of an empty watchlist as a `watchlist_empty` failure
   ([B.11](#b11-swc4a-an-empty-watchlist-is-a-refresh-failure-2026-10-06)), a new `scripts/generate_schemas.py`, `schemas/` (failure, database report), tests T18 to
@@ -492,7 +492,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   [design H.31](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h31-typed-strategy-documents-and-replay-dispatch-2026-10-07)
   records: `src/reporting/documents/shared_parts.py` (the parts several strategy documents share),
   `scripts/generate_schemas.py` and `scripts/strategy_conformance.py`, the one-line import retargets in
-  `src/cli_workspace.py` and `src/reporting/failure_classification.py`, the stored strategy-document output in
+  `src/cli_workspace.py` and `src/reporting/failure_classification.py` (since moved to `src/core`, PH.2d), the stored strategy-document output in
   `tests/expected_output/strategy_documents/` and its harness (captured from the hand-written builders before any
   builder changed), `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`, and one line in the Step 3.5 plan's
   repetition checkpoint.

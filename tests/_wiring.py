@@ -3,8 +3,8 @@
 from collections.abc import Callable, Mapping
 from dataclasses import replace
 
+from src.core.failure_classification import classify_failure
 from src.core.strategy_errors import find
-from src.reporting.failure_classification import classify_failure
 from src.strategy_wiring import BY_METHOD_ID, BY_RESULT_TYPE, EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
 from src.workspace.codecs import EvidenceCodec
 from src.workspace.models import StrictJsonMapping

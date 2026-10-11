@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
+from src.core.failure_codes import FailureReasonCode, provider_reason_code
 from src.core.provider_failure_kind import ProviderFailureKind, require_provider_identity
 from src.data.market_data import HistoricalMarketData, MarketDataContext, latest_observation_date
 
@@ -24,6 +25,11 @@ class DataFetchError(ValueError):
         super().__init__(*args)
         self.kind = kind
         self.provider_id = provider_id
+
+    @property
+    def reason_code(self) -> FailureReasonCode:
+        """Return the stable code of the recorded kind, or ``provider_error`` when the adapter did not classify it."""
+        return provider_reason_code(self.kind)
 
 
 class BaseDataClient(ABC):

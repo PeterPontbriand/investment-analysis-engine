@@ -28,6 +28,9 @@ from src.cli_support import _production_instrument_profile_cache
 from src.cli_watchlist_flags import WatchlistFlags
 from src.config import settings
 from src.core.clock import utc_now
+from src.core.failure_classification import classify_failure
+from src.core.failure_codes import FailureReasonCode
+from src.core.operator_errors import InvalidParameterError
 from src.core.strategy_errors import find, require
 from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
@@ -40,11 +43,11 @@ from src.data.repositories.watchlists import (
     WatchlistEntryNotFoundError,
 )
 from src.reporting.analysis_runs import project_run
-from src.reporting.documents.failure import FailureEnvelope, FailureReasonCode
+from src.reporting.documents.failure import FailureEnvelope
 from src.reporting.documents.refresh import RefreshResultDocument, RefreshSummaryDocument
 from src.reporting.documents.runs import RunsListDocument, RunSummaryDocument
 from src.reporting.documents.watchlist import WatchlistDeleteDocument, WatchlistDocument, WatchlistEntryDocument
-from src.reporting.failure_classification import InvalidParameterError, classify_failure, failure_envelope
+from src.reporting.failure_envelope import failure_envelope
 from src.reporting.presentation import PresentationMode, failure_document
 from src.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
 from src.strategies.momentum.analyzer import MomentumConfig

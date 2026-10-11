@@ -12,16 +12,12 @@ from datetime import UTC, datetime
 import pytest
 
 from src.core.analysis_status import CalculationStatus
+from src.core.failure_classification import failure_reason_code, provider_failure_of
+from src.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode
 from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from src.data.instrument_profile import InstrumentKind
 from src.data.repositories.analysis_runs import AnalysisRunConflictError  # noqa: F401 - keeps the import graph warm
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from src.reporting.documents.failure import FailureReasonCode
-from src.reporting.failure_classification import (
-    PROVIDER_CODE_BY_KIND,
-    failure_reason_code,
-    provider_failure_of,
-)
 from src.strategies.fcf_growth.execution import FCFGrowthCapture, from_fcf_growth_capture
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly

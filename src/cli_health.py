@@ -13,6 +13,7 @@ import typer
 
 from src.cli_composition import build_sec_production_provider
 from src.config import settings
+from src.core.operator_errors import AnalysisConfigurationError
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.http_json import fetch_json
 from src.data.provider_checks import (
@@ -25,7 +26,6 @@ from src.data.provider_checks import (
     SecUnavailable,
 )
 from src.data.yfinance import YFinanceClient
-from src.reporting.failure_classification import AnalysisConfigurationError
 
 
 def build_provider_clients() -> ProviderClients:

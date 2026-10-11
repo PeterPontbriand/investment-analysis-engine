@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from yfinance.exceptions import YFDataException, YFTickerMissingError
 
+from src.core.failure_classification import classify_failure
+from src.core.failure_codes import FailureReasonCode
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialFactRequest, FinancialField, FinancialProviderError
@@ -19,8 +21,6 @@ from src.data.yfinance import (
     YFinanceFinancialFactsAdapter,
     YFinanceQuote,
 )
-from src.reporting.documents.failure import FailureReasonCode
-from src.reporting.failure_classification import classify_failure
 
 NOW = datetime(2026, 8, 23, 22, 30, tzinfo=UTC)
 

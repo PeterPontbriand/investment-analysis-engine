@@ -16,6 +16,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 from sqlalchemy.pool import NullPool
 
+from src.core.failure_codes import FailureReasonCode
 from src.data.repositories.migrations import (
     MigrationResources,
     migration_resources,
@@ -107,6 +108,11 @@ class DatabaseReadinessError(RuntimeError):
     def reason(self) -> ReadinessReason:
         """Return the stable error category."""
         return self._reason
+
+    @property
+    def reason_code(self) -> FailureReasonCode:
+        """Return the stable failure code of the category."""
+        return FailureReasonCode(self._reason.value)
 
     @property
     def database_path(self) -> Path | None:

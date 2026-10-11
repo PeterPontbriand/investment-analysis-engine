@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Literal, Protocol, runtime_checkable
+from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
 
 import pandas as pd
 
+from src.core.failure_codes import FailureReasonCode
 from src.data.financial.provenance import SourceKind
 
 HistoricalIndexKind = Literal["datetime", "date"]
@@ -29,6 +30,8 @@ def historical_index_kind(index: pd.Index[Any]) -> HistoricalIndexKind | None:
 
 class NoEligibleObservationsError(ValueError):
     """No observation exists at or before the requested point-in-time boundary."""
+
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.NO_ELIGIBLE_OBSERVATIONS
 
 
 @dataclass(frozen=True)

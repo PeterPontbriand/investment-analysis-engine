@@ -7,7 +7,9 @@ leaf module holds the types both sides share, so a projector in a strategy packa
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import ClassVar
 
+from src.core.failure_codes import FailureReasonCode
 from src.data.instrument_profile import InstrumentProfile
 from src.reporting.presentation import PresentationMode
 from src.workspace.models import StrictJsonMapping
@@ -15,6 +17,8 @@ from src.workspace.models import StrictJsonMapping
 
 class UnsupportedProjectionError(ValueError):
     """The run's projection version, or its (analysis_id, method_id), has no v1 replay."""
+
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.UNSUPPORTED_PROJECTION
 
 
 @dataclass(frozen=True)

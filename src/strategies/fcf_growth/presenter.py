@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from src.core.failure_classification import provider_failure_of
 from src.data.financial.provenance import ResolvedInput
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from src.data.security_identity import SecurityIdentityResolution, security_display_label
@@ -14,7 +15,6 @@ from src.reporting.documents.shared_parts import (
     trace_parts,
 )
 from src.reporting.documents.strategy_document import strategy_document_json
-from src.reporting.failure_classification import provider_failure_of
 from src.reporting.input_provenance import input_detail_lines, investor_value
 from src.reporting.presentation import (
     PresentationMode,

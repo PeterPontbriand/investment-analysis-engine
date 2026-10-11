@@ -7,7 +7,7 @@ import pytest
 
 from scripts import generate_schemas
 from scripts.generate_schemas import DOCUMENTS, SCHEMA_DIRECTORY, expected_schemas, schema_gaps, write_schemas
-from src.reporting.documents.failure import FailureReasonCode
+from src.core.failure_codes import FailureReasonCode
 
 
 def test_published_schemas_are_current() -> None:

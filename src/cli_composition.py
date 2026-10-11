@@ -26,6 +26,7 @@ from datetime import datetime, timedelta
 
 from src.config import settings
 from src.core.constants import ConfigKeys
+from src.core.operator_errors import AnalysisConfigurationError
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheProtocol
 from src.data.financial.facts import FinancialFactsProvider
 from src.data.financial.providers import (
@@ -34,7 +35,6 @@ from src.data.financial.providers import (
     SecEdgarFinancialFactsAdapter,
 )
 from src.data.financial.quote_freshness import QuoteFreshnessPolicy
-from src.reporting.failure_classification import AnalysisConfigurationError
 from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 

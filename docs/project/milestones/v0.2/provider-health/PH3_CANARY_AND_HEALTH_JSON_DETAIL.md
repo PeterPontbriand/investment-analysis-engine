@@ -64,7 +64,7 @@ cannot read `ian health`. PH.3 adds the canary, the first line of the message an
 `src/data/provider_canary.py` (new), `src/data/provider_checks.py`, `src/cli_health.py`, `src/cli_support.py`
 (`execution_errors` receives the injected canary), `src/cli_workspace.py` and `src/workspace/refresh.py`
 (post-batch probe through an injected callable), `src/config.py` (two settings),
-`src/reporting/documents/failure.py` and a new health document, the regenerated `schemas/`,
+`src/reporting/documents/failure.py` (the envelope; the codes and the classifier are in `src/core`) and a new health document, the regenerated `schemas/`,
 `docs/user/INSTALLATION.md` §4 (an entry that explains the verdict line), `docs/user/SMOKE_TESTING.md` (points
 to `ian health` for the provider part), `docs/project/PROVIDER_DEBUGGING.md`, and tests.
 

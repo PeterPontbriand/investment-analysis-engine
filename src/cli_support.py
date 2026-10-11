@@ -11,6 +11,8 @@ from typer._click.exceptions import UsageError
 
 from src.config import settings
 from src.core.constants import ConfigKeys
+from src.core.failure_classification import classify_failure
+from src.core.failure_codes import PROVIDER_FAILURE_CODES, FailureReasonCode
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.core.telemetry.quality import record_cli_quality
 from src.data.base_client import DataFetchError
@@ -28,8 +30,7 @@ from src.data.repositories import (
 from src.data.repositories.readiness import ensure_database_ready
 from src.data.yfinance import YFinanceClient
 from src.data.yfinance.client import YFINANCE_HISTORICAL_INTERVAL, YFINANCE_PRICE_ADJUSTMENT
-from src.reporting.documents.failure import PROVIDER_FAILURE_CODES, FailureReasonCode
-from src.reporting.failure_classification import classify_failure, failure_envelope
+from src.reporting.failure_envelope import failure_envelope
 from src.reporting.presentation import PresentationMode, failure_document
 from src.workspace.selection_base import FrozenSelection
 

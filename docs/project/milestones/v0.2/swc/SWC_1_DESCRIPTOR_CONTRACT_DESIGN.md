@@ -384,7 +384,7 @@ T10 or T11.
 | SWC.3b | `src/cli_workspace.py`: `_parse_analysis`, the alias lookups SWC.3a rewired to the root, `--analysis` help, `_build_selection`, `_refresh_executor`, the four `_execute_*` | The CLI tier supplies the alias vocabulary, `build` and `refresh`; a missing key raises `UndeclaredStrategyError`, replacing the `AssertionError` fallthrough. | The selection builder and refresh executor of each strategy, in `src/strategies/<strategy>/cli.py`. |
 | SWC.3c | `src/cli.py`: the four direct commands and their helpers | `cli.py` adds the commands by iterating `CLI_STRATEGIES`. `_maybe_save_run` and `get_cli_run_context` move to `src/cli_run_support.py`. | Each command, in `src/strategies/<strategy>/cli.py`; it uses no decorator and does not import the Typer app. |
 | SWC.4a | `src/cli_support.py`: `execution_errors`; `src/reporting/presentation.py`: `analysis_failure_document`; the `execution_errors(analysis=, method=)` calls in the strategy command files | Identity for the envelope (`analysis`, `method`), read from the strategy's identity leaf. | Failure classification. The `analysis == "momentum"` string test becomes an explicit parameter passed by the Momentum command. |
-| SWC.4a | `src/cli_workspace.py`: `_fail` and its `--json` call sites; `src/workspace/refresh.py` | None. | One exception-to-code classifier in `src/reporting/failure_classification.py` ([§13](#13-failure-envelope-contract)); `refresh_watchlist` receives it as a parameter. |
+| SWC.4a | `src/cli_workspace.py`: `_fail` and its `--json` call sites; `src/workspace/refresh.py` | None. | One exception-to-code classifier in `src/reporting/failure_classification.py` (now `src/core/failure_classification.py`, PH.2d) ([§13](#13-failure-envelope-contract)); `refresh_watchlist` receives it as a parameter. |
 | SWC.4b | `src/cli_workspace.py` JSON builders for watchlist, delete outcome, runs list and refresh summary | Nothing per strategy; `method_id` strings stay `str`. | The documents, now typed. `entries[].selection` is typed by the `AnalysisSelection` union ([§13.6](#136-every-json-document-is-typed)). |
 | SWC.4c | `src/reporting/analysis_runs.py`: `project_run` | `project_run(run, options, codecs, replays)`; a missing key raises `UnsupportedProjectionError`. | Each projector, in `src/strategies/<strategy>/replay.py`, over decoded evidence and selection. |
 | SWC.4c | `src/reporting/{momentum,graham_number,graham_growth}.py` builders | `analysis` and `method` strings from the identity leaf. | Builders and presenters. FCF reads its native ids. |
@@ -616,7 +616,7 @@ approval. Each slice makes its moves in the same change as the consumer it serve
 | SWC.3a | `feat/swc-3a-workspace-consumers` | `src/strategy_wiring.py`, `src/workspace/{codecs,execution,requests,refresh,capture}.py` (`capture.py` new), the four `src/strategies/<strategy>/execution.py` adapters (each gains its normalizer; Momentum's gains `compose_momentum_profile`), delete `src/workspace/method_aliases.py`, `src/data/repositories/watchlists.py`, `src/cli_workspace.py` (the repository helper), `src/cli.py` (Momentum composition only), tests (T1, T8, T10, T11 extended; `test_method_aliases.py` folded in). | `_METHOD_VERSIONS`; `_EXPECTED_VERSIONS`; both label chains; both codec isinstance chains; `method_aliases.py`; the `parse_selection` alias tuple and Momentum fall-through; the `getattr(selection, "as_of", None)` probe; the Momentum composition copies. | Momentum helper first (independent), then descriptor fields and the `selection_type`, `parse`, `encode`, `decode`, `ticker_of` members, then codecs and execution, then aliases and `parse_selection`, then the repository alias resolver and `refresh_watchlist`. `ExecutionCapture` and the normalizers move here. |
 | SWC.3b | `feat/swc-3b-cli-tier` | New: `src/cli_strategy_wiring.py`, `src/cli_watchlist_flags.py`, `src/strategies/<strategy>/cli.py`. Edited: `src/cli_workspace.py`, `scripts/strategy_conformance.py`, tests (T10 CLI-tier surface; two patch-target retargets). | `_build_selection` and its helpers; `_refresh_executor`; the four `_execute_*`; the `--analysis` help literals. | One strategy at a time: selection builder and refresh executor into its `cli.py`, then the tier tuple, then the lookups in `cli_workspace.py`. |
 | SWC.3c | `feat/swc-3c-direct-commands` | `src/cli.py`, `src/cli_run_support.py` (new), the four `src/strategies/<strategy>/cli.py`, tests (T7, T22; retargeted patch strings in 13 test modules). | The four `@app.command` functions and their helpers in `cli.py`; `_maybe_save_run` and `get_cli_run_context` leave it. | Shared run helpers first, then one command at a time, then `cli.py` iterating `CLI_STRATEGIES`, then T7 and T22. |
-| SWC.4a | `feat/swc-4a-failure-envelope` | New `src/reporting/documents/{__init__,failure,database}.py`, `src/reporting/failure_classification.py`, `scripts/generate_schemas.py`, `schemas/` (failure, database report). Edited: `src/cli_support.py`, `src/reporting/presentation.py`, the `execution_errors` call sites in the strategy `cli.py` files, `src/cli_workspace.py`, `src/cli_database.py`, `src/workspace/refresh.py`, `src/workspace/watchlists.py`, `src/data/repositories/watchlists.py`, `docs/user/DATABASE.md`, tests (T18 to T20). | `analysis_failure_document`'s hand-built dict and its wrong docstring; the `analysis == "momentum"` test; the six literal id pairs in `execution_errors` calls; the duplicate `WatchlistNotFoundError` in `refresh.py`. | Failure model and classifier, then direct commands, then workspace `--json` paths, then `refresh_watchlist`'s injected classifier and per-job codes, then the database report rename, then the generator and T20. |
+| SWC.4a | `feat/swc-4a-failure-envelope` | New `src/reporting/documents/{__init__,failure,database}.py`, `src/reporting/failure_classification.py` (since moved to `src/core`, PH.2d), `scripts/generate_schemas.py`, `schemas/` (failure, database report). Edited: `src/cli_support.py`, `src/reporting/presentation.py`, the `execution_errors` call sites in the strategy `cli.py` files, `src/cli_workspace.py`, `src/cli_database.py`, `src/workspace/refresh.py`, `src/workspace/watchlists.py`, `src/data/repositories/watchlists.py`, `docs/user/DATABASE.md`, tests (T18 to T20). | `analysis_failure_document`'s hand-built dict and its wrong docstring; the `analysis == "momentum"` test; the six literal id pairs in `execution_errors` calls; the duplicate `WatchlistNotFoundError` in `refresh.py`. | Failure model and classifier, then direct commands, then workspace `--json` paths, then `refresh_watchlist`'s injected classifier and per-job codes, then the database report rename, then the generator and T20. |
 | SWC.4b | `feat/swc-4b-workspace-documents` | New `src/reporting/documents/{watchlist,runs,refresh}.py`; `src/cli_workspace.py` JSON builders; `schemas/` (watchlist, watchlist delete, runs list, refresh summary); tests (T20 extended). | The hand-built dicts in `_watchlist_payload`, the delete outcome and `_refresh_json`; the `model_dump` list in `runs list`. | One model per document, each proved byte-identical to the current output except the listed changes, then the schemas. |
 | SWC.4c | `feat/swc-4c-strategy-json-envelopes` | `src/strategy_wiring.py`; new `src/strategies/<strategy>/envelope.py`, `replay.py` and `vocabulary.py` (four each), `src/strategies/_graham/replay.py`, `src/reporting/{json_documents,replay_inputs}.py`; `src/reporting/analysis_runs.py`; `schemas/` (four strategy documents); tests (T8, T10, T20, T21, T24 extended). | Literal ids in three builders; the `project_run` pair chain; the four `_project_*_v1` functions leave `analysis_runs.py`; `ReplayOptions` and `UnsupportedProjectionError` move to `replay_inputs.py`. | Envelope models and `json_envelope`, then the builders' boundary validation, then the projectors and the injected `project_run`, then `JSON_DOCUMENTS` and T21 last, when every command is covered. `json_documents.py` lists the failure, workspace and database documents only; the generator and T20, T21 add each descriptor's `json_envelope` from the root. |
 | SWC.5 | `feat/swc-5-site-data-and-status` | New: `scripts/strategy_sites.toml`, `scripts/strategy_sites.py`, `scripts/strategy_status.py`, `scripts/generate_strategy_docs.py`; `scripts/strategy_conformance.py` (extended); marked blocks in `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`; the watchlist option rows move into the strategy guides; `FCF_EARNINGS_GROWTH.md` renamed; tests T25, T26. | The hand-written strategy lists and the watchlist option table in the two pages. | Site data and loader, then conformance functions in report mode, then the status command, then the generated lists and their drift test. |
@@ -747,11 +747,11 @@ value means, requires a `schema_version` bump and explicit project-owner approva
 `diagnostics[].reason` are prose and carry no guarantee. The generated schema lists the enumeration,
 so the drift check (T20) shows any change, and T18 requires every source code to be a member.
 
-One classifier, `classify_failure(exception)` in `src/reporting/failure_classification.py`, maps an
+One classifier, `classify_failure(exception)` in `src/reporting/failure_classification.py` (now `src/core/failure_classification.py`, declared by each exception, PH.2d), maps an
 exception to a code and a status. `execution_errors`, the workspace commands and `refresh_watchlist`
 (which receives it as a required parameter, so the workspace layer imports nothing from `reporting`)
-all use it, so the families cannot diverge. The model and enumeration live in the separate leaf module
-`src/reporting/documents/failure.py`. There is one `WatchlistNotFoundError` ([§18](#18-findings-assigned-to-a-slice)).
+all use it, so the families cannot diverge. The model lives in the separate leaf module
+`src/reporting/documents/failure.py`; the enumeration is now `src/core/failure_codes.py` (PH.2d). There is one `WatchlistNotFoundError` ([§18](#18-findings-assigned-to-a-slice)).
 
 **`invalid_input` versus `invalid_parameter`.** Both mean the request cannot proceed, but they tell a caller
 different things to do, so they stay separate codes.
@@ -2019,18 +2019,18 @@ exits with code 2). The edit-site count is unchanged at 19: the `command` member
 Decided while implementing SWC.4a.
 
 - **Homes.** `FailureReasonCode`, `FailureEnvelope` and its two nested models are in the leaf module
-  `src/reporting/documents/failure.py`, with `status_for`, the one function that derives a status from a code. The
+  `src/reporting/documents/failure.py` (PH.2d moved `FailureReasonCode` and `status_for` to `src/core/failure_codes.py`), with `status_for`, the one function that derives a status from a code. The
   envelope's validator rejects a status that does not follow from its code and `database` on a code that is not a
   `database_*` code. `DatabaseMaintenanceReport` is a frozen pydantic model in `src/reporting/documents/database.py`,
   with the field order of the dataclass it replaces, so `db status --json` keeps its key order.
-- **The classifier** is `classify_failure` in `src/reporting/failure_classification.py`: a closed, ordered tuple of
+- **The classifier** was `classify_failure` in `src/reporting/failure_classification.py` (PH.2d moved it to `src/core/failure_classification.py` and removed the table: each exception states its own code): a closed, ordered tuple of
   `(exception type, code)` rules (most specific first, `ValueError` last) plus the readiness branch, which maps
   `ReadinessReason` by value. `failure_envelope` builds the envelope from a code, a sentence and the exception that
   caused it, which is where the diagnostics and the `database` facts come from.
 - **Two exceptions live beside the table.** `AnalysisConfigurationError` moved from `src/cli_support.py` to the classifier
   module, because a classifier under `src/reporting` cannot import the CLI layer without a cycle, and
   `InvalidParameterError` is new there. `src/cli_composition.py` and `src/cli_health.py` import the first from its new
-  home; no re-export is left behind.
+  home; no re-export is left behind. PH.2d later moved both exceptions to `src/core/operator_errors.py`.
 - **`refresh_watchlist` takes the classifier as the required keyword `classify`,** a `Callable[[BaseException], str]`,
   so `src/workspace` imports nothing from `src/reporting`. `RefreshJobResult.reason_code` is a string, set if and only if
   `error` is; `error` keeps `str(exception)`, and the code is classified from the same object.
@@ -2194,7 +2194,7 @@ Decided while implementing SWC.4b.
 
 ### H.31 Typed strategy documents and replay dispatch (2026-10-07)
 
-Decided while implementing SWC.4c. The project owner approved the shared-parts file, `ReplayInputs`, the `cli_workspace.py` import retarget and the documentation edits; the `failure_classification.py` import retarget is reported for review.
+Decided while implementing SWC.4c. The project owner approved the shared-parts file, `ReplayInputs`, the `cli_workspace.py` import retarget and the documentation edits; the `failure_classification.py` import retarget (then in `src/reporting`, since moved to `src/core`) is reported for review.
 
 - **Models.** Each strategy's `envelope.py` holds its document `schema_version` (`DOCUMENT_SCHEMA_VERSION`) and its
   frozen document model (its identity constants moved to `vocabulary.py`, [H.32](#h32-one-vocabulary-file-per-strategy-2026-10-07)), and imports only the vocabulary of its
@@ -2241,7 +2241,7 @@ Decided while implementing SWC.4c. The project owner approved the shared-parts f
 - **Output changes.** None.
 - **Files outside the plan's original scope list.** `src/reporting/documents/shared_parts.py`;
   `scripts/generate_schemas.py` and `scripts/strategy_conformance.py`; the one-line import retargets in
-  `src/cli_workspace.py` and `src/reporting/failure_classification.py`; `docs/user/USAGE.md`, `docs/user/WORKSPACE.md` and
+  `src/cli_workspace.py` and `src/reporting/failure_classification.py` (since moved to `src/core`, PH.2d); `docs/user/USAGE.md`, `docs/user/WORKSPACE.md` and
   the Step 3.5 plan's repetition checkpoint (the project owner pre-approved the last three).
 
 ### H.32 One vocabulary file per strategy (2026-10-07)
