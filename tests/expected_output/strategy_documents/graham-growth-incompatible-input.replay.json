@@ -1,5 +1,5 @@
 {
-  "schema_version": 9,
+  "schema_version": 10,
   "analysis": "graham_growth_value",
   "method": "graham_growth_value",
   "ticker": "INCOMPATIBLE",
@@ -14,6 +14,7 @@
       }
     ]
   },
+  "provider_check": null,
   "requested_as_of": null,
   "effective_as_of": "<wall-clock>",
   "security_identity": {

@@ -81,6 +81,13 @@ from tests._direct_command_output import (
     normalize,
 )
 
+REPLAY_EXCLUDED_KEYS = frozenset({"provider_check"})
+"""The one top-level key the direct-equals-replay comparison leaves out, by name.
+
+A replay runs no live check, so it always writes ``provider_check`` null, while a direct command that failed on a
+provider writes what the check found. Every other key must agree.
+"""
+
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "strategy_documents"
 _REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 
@@ -127,6 +134,14 @@ class _ShortYahoo(_FixtureYahoo):
     def __init__(self) -> None:
         super().__init__()
         self._provider = FixtureMarketDataProvider(momentum_boundary_frame())
+
+
+def without_excluded_keys(text: bytes) -> str:
+    """Return a document's text with the excluded keys removed, written as a strategy command writes a document."""
+    document = json.loads(text)
+    for key in REPLAY_EXCLUDED_KEYS:
+        del document[key]
+    return json.dumps(document, indent=2, ensure_ascii=False, allow_nan=False)
 
 
 @dataclass(frozen=True)

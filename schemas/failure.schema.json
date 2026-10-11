@@ -92,6 +92,39 @@
       "title": "FailureReasonCode",
       "type": "string"
     },
+    "ProviderCheckItem": {
+      "additionalProperties": false,
+      "description": "The verdict for one provider.",
+      "properties": {
+        "provider_id": {
+          "description": "The provider the test request went to.",
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/ProviderCheckVerdict"
+        }
+      },
+      "required": [
+        "provider_id",
+        "verdict"
+      ],
+      "title": "ProviderCheckItem",
+      "type": "object"
+    },
+    "ProviderCheckVerdict": {
+      "description": "What a test request to a provider found: five provider conditions, or that nothing was checked.",
+      "enum": [
+        "healthy",
+        "unreachable",
+        "rate_limited",
+        "unexpected_response",
+        "no_data",
+        "not_checked"
+      ],
+      "title": "ProviderCheckVerdict",
+      "type": "string"
+    },
     "ProviderFailure": {
       "additionalProperties": false,
       "description": "Why an analysis outcome is a provider failure: one of four codes and the inputs that caused it.\n\nThe same element is carried by the failure envelope and by every document that reports an analysis\noutcome. ``reason_code`` is the single code derived from the kinds in ``inputs``.",
@@ -209,6 +242,22 @@
       "description": "The method of a direct command; null otherwise.",
       "title": "Method"
     },
+    "provider_check": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/ProviderCheckItem"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "What one test request found for each provider provider_failure names; null when no check ran or provider_failure is null.",
+      "title": "Provider Check"
+    },
     "provider_failure": {
       "anyOf": [
         {
@@ -235,8 +284,8 @@
       "type": "null"
     },
     "schema_version": {
-      "const": 8,
-      "default": 8,
+      "const": 9,
+      "default": 9,
       "title": "Schema Version",
       "type": "integer"
     },

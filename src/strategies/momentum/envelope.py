@@ -15,7 +15,7 @@ from src.reporting.documents.strategy_document import StrategyDocumentHeader, St
 from src.reporting.documents.timestamp import DocumentTimestamp
 from src.strategies.momentum.vocabulary import AnalysisId, CrossoverState, MethodId, PriceBasis, TrendRelationship
 
-DOCUMENT_SCHEMA_VERSION: Final = 8
+DOCUMENT_SCHEMA_VERSION: Final = 9
 
 
 class MomentumResultPart(DocumentPart):

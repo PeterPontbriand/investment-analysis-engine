@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from src.core.failure_classification import provider_failure_of
+from src.core.provider_check_element import ProviderCheckItem
 from src.data.financial.provenance import ResolvedInput
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from src.data.security_identity import SecurityIdentityResolution, security_display_label
@@ -320,6 +321,7 @@ def _document(
     result: FCFEarningsGrowthResult,
     identity_resolution: SecurityIdentityResolution | None,
     profile: InstrumentProfile | None,
+    provider_check: tuple[ProviderCheckItem, ...] | None,
 ) -> FCFDocument:
     """Build the typed FCF Growth document; validation of the model is the output boundary.
 
@@ -333,6 +335,7 @@ def _document(
         ticker=result.ticker,
         status=result.execution_status,
         provider_failure=provider_failure_of((result.provider_failure,)),
+        provider_check=provider_check,
         requested_as_of=result.requested_as_of,
         effective_as_of=result.effective_as_of,
         security_identity=security_identity_part(result.ticker, identity_resolution),
@@ -377,8 +380,12 @@ def render_fcf_earnings_growth(
     mode: PresentationMode,
     identity_resolution: SecurityIdentityResolution | None = None,
     instrument_profile: InstrumentProfile | None = None,
+    provider_check: tuple[ProviderCheckItem, ...] | None = None,
 ) -> str:
-    """Render one canonical result without recalculation or reclassification."""
+    """Render one canonical result without recalculation or reclassification.
+
+    ``provider_check`` is what the provider check found; only the JSON document carries it, and a replay passes none.
+    """
     profile = instrument_profile or result.instrument_profile
     resolved_identity = (
         identity_resolution
@@ -386,7 +393,7 @@ def render_fcf_earnings_growth(
         else profile_identity_resolution(profile)
     )
     if mode is PresentationMode.JSON:
-        return strategy_document_json(_document(result, resolved_identity, profile))
+        return strategy_document_json(_document(result, resolved_identity, profile, provider_check))
     if mode is PresentationMode.DETAILS:
         return "\n".join(_details(result, resolved_identity, profile))
     if mode is PresentationMode.DIAGNOSTICS:

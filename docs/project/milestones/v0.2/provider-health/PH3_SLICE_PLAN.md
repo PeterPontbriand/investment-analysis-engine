@@ -2,7 +2,7 @@
 
 Owned by [PH](PH_CONTRACT_AND_SLICE_PLAN.md#ph3a--health-json-and-the-not-configured-outcome). The decisions are in
 the [PH.3 decisions](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md) and are not repeated here: this plan holds the files,
-tests and output changes of PH.3a and PH.3b as built, and of PH.3c as planned.
+tests and output changes of PH.3a, PH.3b and PH.3c as built.
 
 ## 1. At a glance
 
@@ -10,9 +10,9 @@ tests and output changes of PH.3a and PH.3b as built, and of PH.3c as planned.
   is not set up is `not_configured`, apart from `failed`, which now means only an unexpected error inside a check.
 - **PH.3b (built):** after a provider failure, one bounded probe of the implicated provider puts a verdict on
   a first line in the text modes, with the `--no-provider-check` option and the `PROVIDER_CHECK` settings. In
-  `--json` mode it prints nothing extra, so JSON carries no verdict until PH.3c.
-- **PH.3c (planned):** the `provider_check` element in the failure envelope, the four strategy documents and the
-  refresh summary.
+  `--json` mode it prints nothing extra, so JSON carried no verdict until PH.3c.
+- **PH.3c (built):** the `provider_check` element in the failure envelope, the four strategy documents and the
+  refresh summary, and the check now runs in `--json` mode.
 - **What neither does:** change a check's requests, probe ticker or timeout; change an exit code; retry, repair or
   switch provider.
 - **Rules:** stored data has no compatibility value; no new dependency; no real service in a test.
@@ -23,7 +23,7 @@ tests and output changes of PH.3a and PH.3b as built, and of PH.3c as planned.
 | :--- | :--- | :--- | :--- |
 | PH.3a | [`ian health --json` and the not-configured outcome](#3-ph3a-as-built) | Complete | 2026-10-11 |
 | PH.3b | [The automatic provider check](#4-ph3b-as-built) | Complete | 2026-10-11 |
-| PH.3c | [The provider check in the documents](#5-ph3c-as-planned) | Next | |
+| PH.3c | [The provider check in the documents](#5-ph3c-as-built) | Complete | 2026-10-11 |
 
 ## 3. PH.3a as built
 
@@ -174,25 +174,91 @@ calls a real service.
 | Existing tests that exercise a provider failure in a text mode. | `tests/test_cli.py` (six Momentum cases) and `tests/utils/test_operational_logging.py`, changed; `tests/test_cli_support.py` calls `execution_errors` without a check and is unchanged. No golden text file shows a provider failure; the provider-failure golden files are JSON and unchanged. |
 | Some fixtures use provider identities with no health check. | True: the Graham fixtures use `fixture-synth`; B5 covers it. |
 
-## 5. PH.3c as planned
+## 5. PH.3c as built
 
 - **Problem:** a script reading `--json` output gets no verdict, because PH.3b writes the verdict in text modes only.
-- **Decision:** [P1, P3 and P4](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-and-ph3c-the-automatic-provider-check).
-- **Scope:** the files below. The slice may refine them when it is drafted against that day's `main`, but not the
-  decisions.
-- **Branch:** `feat/ph-3c-provider-check-element`, from `main` after PH.3b has merged.
+- **Decision:** [P1, P3 and P4](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-and-ph3c-the-automatic-provider-check),
+  and the build rules B1 to B11 below.
+- **Scope:** the files below.
+- **Branch:** `feat/ph-3c-provider-check-element`, from `main` after PH.3b merged.
+
+### Build rules
+
+| # | Rule |
+| :--- | :--- |
+| B1 | The element is a typed model in `src/core/provider_check_element.py`, beside the `provider_failure` element: a list entry (`ProviderCheckItem`) holds `provider_id` and `verdict`, and `verdict` is one of the six values of `ProviderCheckVerdict`. The probe's vocabulary lives in `src/data`, which `core` may not import, so a test pins the two enums equal in value and order. |
+| B2 | Placement: directly after `provider_failure` in the strategy document header (`src/reporting/documents/strategy_document.py`, so all four documents take it, and the key list the conformance test reads) and in the failure envelope; the last key of the refresh summary. |
+| B3 | Value (P4): null on success, on every replay, and for a failure that names no provider. Otherwise a list with one entry per implicated provider, in the existing kind order. When the check is switched off, the entries are present with `not_checked`. |
+| B4 | Consistency, enforced in the models by two functions in the element's module: in a strategy document and in the failure envelope, `provider_check` is non-null only when `provider_failure` is non-null and names exactly the providers that element names, each once; in the refresh summary, entries are unique by provider. |
+| B5 | The check runs in `--json` mode at all three call sites. In `--json` mode nothing extra is printed to either stream. |
+| B6 | One function, `provider_check_findings` in `src/cli_provider_check.py`, produces the findings once per command invocation. The text lines (`ProviderCheckFindings.lines`) and the JSON element (`ProviderCheckFindings.element`) are both built from them. A test pins that the probe is called only there. |
+| B7 | A presenter does not call the probe. The command obtains the findings and passes the element to the document builder (a field of the Graham presentations, a parameter of the FCF renderer); Momentum's builder writes null because its provider failure is never recorded; replay passes none. |
+| B8 | Replay: `runs show` always writes `provider_check` null. The direct-equals-replay comparison excludes this one top-level key by name (`REPLAY_EXCLUDED_KEYS`), and its byte-for-byte assertion compares the two documents with that key removed. The negative control is extended: a difference in any other key still fails, and a nested key of the same name is not excluded. |
+| B9 | Versions: Momentum 8 to 9, Graham Number 9 to 10, Graham Growth 9 to 10, FCF Growth 8 to 9, the failure envelope 8 to 9, the refresh summary 1 to 2. No stored version changes: result, evidence codec, run and cache versions stay as they are. The health document is unchanged. |
+| B10 | Out of scope: the orchestrator and its tool results. They carry strategy results, not these documents, and run no probe. |
+| B11 | The tests listed below. |
+
+### What was built
+
+- `ProviderCheckFindings` (in `src/cli_provider_check.py`) holds the probe's findings in the order of the
+  implicated providers' most severe failed kind. `provider_check_findings(failures, choice)` is the one function that
+  asks the probe; `with_provider_check` and `echo_provider_check` write its lines, and `element()` is its document form.
+- **Raised failures.** `execution_errors` builds the failure envelope, asks for the findings from the envelope's
+  `provider_failure`, and writes either the lines (text) or the envelope carrying the element
+  (`FailureEnvelope.with_provider_check`, which validates it against `provider_failure`).
+- **Returned failures.** `graham-number`, `graham-growth` and `fcf-growth` take the findings from the captured
+  `provider_failure`, pass the element into the presentation (or the FCF renderer), and prefix the lines in text modes.
+- **Refresh.** After the batch, one set of findings comes from the jobs' in-memory `provider_failure` elements; text
+  mode prints the lines before the summary and `--json` writes the element as the summary's last key.
+- The refresh help text no longer says the finding is printed in text output only.
 
 ### Files
 
-| Area | Files |
+| Rule | Files |
 | :--- | :--- |
-| The shared element | A `provider_check` model beside the `provider_failure` element in `src/core`, added to the failure envelope, the four strategy documents and the refresh summary, with each document's `schema_version` bumped (the refresh summary from 1 to 2) and every affected schema and expected output regenerated. |
-| Replay | The "direct equals replay" comparison excludes the `provider_check` element by name; a replay writes it null. |
-| Documents | `docs/user/USAGE.md`, `docs/user/WORKSPACE.md`, `docs/project/PROVIDER_DEBUGGING.md`. |
+| B1, B4 | `src/core/provider_check_element.py` (new). |
+| B2, B4, B9 | `src/reporting/documents/strategy_document.py`, `src/reporting/documents/failure.py`, `src/reporting/documents/refresh.py`, `src/strategies/{momentum,graham_number,graham_growth,fcf_growth}/envelope.py`. |
+| B3, B5, B6 | `src/cli_provider_check.py`, `src/cli_support.py`, `src/cli_workspace.py`, `src/strategies/{graham_number,graham_growth,fcf_growth}/cli.py`. |
+| B7 | `src/strategies/{momentum,graham_number,graham_growth,fcf_growth}/presenter.py`. |
+| B8 | `tests/_strategy_document_output.py`, `tests/reporting/test_strategy_document_shape.py`, `tests/reporting/test_provider_failure_documents.py`. |
+| Schemas and expected output | `schemas/{failure,refresh-summary,momentum,graham-number,graham-growth,fcf-growth}.schema.json`; the strategy documents, direct commands and refresh outputs under `tests/expected_output/`. |
+| Documents | `docs/user/USAGE.md`, `docs/user/WORKSPACE.md`, `docs/user/INSTALLATION.md`, `docs/project/PROVIDER_DEBUGGING.md`, these plans and the milestone plan. |
+
+### Output changes
+
+| Where | Before | After |
+| :--- | :--- | :--- |
+| The four strategy documents | No `provider_check`; `schema_version` 8, 9, 9, 8 (Momentum, Graham Number, Graham Growth, FCF Growth) | `provider_check` directly after `provider_failure`; `schema_version` 9, 10, 10, 9 |
+| The failure envelope | `schema_version` 8 | `provider_check` after `provider_failure`; `schema_version` 9 |
+| The refresh summary | `schema_version` 1 | `provider_check` as the last key; `schema_version` 2 |
+| `--json` after a provider failure | No test request | One test request per implicated provider before the document is written; up to 12 seconds longer per provider at the default limit |
+| `ian refresh --help` | "(text output only)" | The finding is printed before the summary, or carried in the summary document with `--json` |
+
+Nothing else differs. No text-mode output, exit code, health document, analysis result, stored value or
+classification changed. The golden documents under `tests/expected_output/` changed only by the new key and a version
+number: in the direct documents of the provider-failure cases the key holds the `not_checked` entries (the suite
+switches the check off), and every replay holds null.
 
 ### Tests
 
-The element is null on success, on every replay and for a failure that names no provider; otherwise one entry per
-implicated provider in the existing kind order, each with `provider_id` and `verdict`; the direct-equals-replay
-comparison excludes it; every document that reports an analysis outcome validates against its regenerated schema.
-No test calls a real service.
+The element is null on success, on every replay, for a failure that names no provider and for a failed optional
+quote; otherwise one entry per implicated provider in the existing kind order, each with `provider_id` and `verdict`;
+the switched-off case in `--json`, by option and by setting; several providers in order, in the findings and in the
+refresh summary; each model rejects what B4 forbids (a check beside a null failure, a missing, extra or duplicate
+provider, an unknown verdict, a duplicate in the refresh summary); the probe is called once when a command builds both
+the lines and the element, and only by the shared function; no presenter imports the probe or the module that runs
+it; nothing extra on either stream in `--json`, for the raised path, the three returned paths and `refresh`; the
+core verdicts equal the probe's; the placement and type of the key in every document; each regenerated schema
+(the drift check); the direct-equals-replay comparison with the exclusion and its extended negative control. No test
+calls a real service.
+
+### Verified against `main`
+
+| Assumption | Result |
+| :--- | :--- |
+| Six documents report an analysis outcome, and the four strategy documents share one header. | True: a key added to `StrategyDocumentHeader` reached all four. |
+| The check ran in text modes only, at three call sites. | True: `execution_errors`, the shared `with_provider_check` for the three result-returning commands, and `refresh`. |
+| The Momentum document's `provider_failure` is always null. | True; its provider failure reaches the failure envelope. |
+| `runs show --json` writes the strategy document through the same presenter, and direct-equals-replay compares them byte for byte. | True; only the one key differs. |
+| The verdict vocabulary lives in `src/data`, which `core` may not import. | True; the model declares its own six values and a test pins them equal. |
+| The verdict is stored nowhere. | True. The stored shapes are the schema metadata, trajectory events, the resolved-input cache, the market-data cache, instrument profiles, analysis runs and watchlists; none holds it, and the documents are rendered from stored evidence, never stored. |

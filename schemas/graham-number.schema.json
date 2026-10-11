@@ -295,6 +295,39 @@
       "title": "PriceComparisonPart",
       "type": "object"
     },
+    "ProviderCheckItem": {
+      "additionalProperties": false,
+      "description": "The verdict for one provider.",
+      "properties": {
+        "provider_id": {
+          "description": "The provider the test request went to.",
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/ProviderCheckVerdict"
+        }
+      },
+      "required": [
+        "provider_id",
+        "verdict"
+      ],
+      "title": "ProviderCheckItem",
+      "type": "object"
+    },
+    "ProviderCheckVerdict": {
+      "description": "What a test request to a provider found: five provider conditions, or that nothing was checked.",
+      "enum": [
+        "healthy",
+        "unreachable",
+        "rate_limited",
+        "unexpected_response",
+        "no_data",
+        "not_checked"
+      ],
+      "title": "ProviderCheckVerdict",
+      "type": "string"
+    },
     "ProviderDiagnosticPart": {
       "additionalProperties": false,
       "description": "One diagnostics entry for an instrument-profile capability, which names the provider consulted.",
@@ -1026,6 +1059,20 @@
         }
       ]
     },
+    "provider_check": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/ProviderCheckItem"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Provider Check"
+    },
     "provider_failure": {
       "anyOf": [
         {
@@ -1095,6 +1142,7 @@
     "ticker",
     "status",
     "provider_failure",
+    "provider_check",
     "requested_as_of",
     "effective_as_of",
     "security_identity",

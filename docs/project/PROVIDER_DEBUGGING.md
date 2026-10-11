@@ -88,7 +88,8 @@ The SEC check needs the declared identity in the `SEC_USER_AGENT` setting. When 
 
 After `momentum`, `graham-number`, `graham-growth` or `fcf-growth` fails on a provider, or `refresh` has a job that
 did, the application runs the same check body for the provider the failure names (read from the failure's typed
-`provider_failure` element, never from message text) and prints one line before the failure text. The probe is
+`provider_failure` element, never from message text) and reports what it found: a line before the failure text in the
+text modes, and the `provider_check` element in `--json`. The probe is
 [`src/data/provider_probe.py`](../../src/data/provider_probe.py); the wording and the rules are in
 [`src/cli_provider_check.py`](../../src/cli_provider_check.py). It is built once, at the composition root in
 `src/cli.py`, and reaches the commands through the Typer context.
@@ -101,7 +102,13 @@ did, the application runs the same check body for the provider the failure names
 - A health outcome maps to a verdict: `ok` is `healthy`; `unreachable`, `rate_limited`, `unexpected_response` and
   `no_data` carry over; `not_configured` and `failed` are `not_checked`. A provider with no health check, and a
   switched-off check, are also `not_checked` and make no request.
-- `--no-provider-check` and `IAN_PROVIDER_CHECK=false` switch it off. With `--json` it does not run.
+- `--no-provider-check` and `IAN_PROVIDER_CHECK=false` switch it off. The switched-off verdict is still reported:
+  in `--json` the entries are present with `not_checked`.
+- A command runs it once and builds the text lines and the JSON element from the same findings (`provider_check_findings`
+  in `src/cli_provider_check.py`); no presenter calls the probe.
+- The wait is bounded: the limit plus a 2-second grace period, so up to 12 seconds per implicated provider at the
+  default, and up to 24 seconds when a `refresh` implicates both. In `--json` mode this wait now comes before the
+  document is written; `--no-provider-check` or `IAN_PROVIDER_CHECK=false` avoids it.
 
 The seven first lines (Yahoo shown) and what each tells you:
 
@@ -115,7 +122,23 @@ The seven first lines (Yahoo shown) and what each tells you:
 | `Yahoo Finance was not checked (the provider check is turned off).` | `not_checked` | The option or setting is off. |
 | `Yahoo Finance could not be checked.` | `not_checked` | The check could not run (SEC access not set up, a provider with no check, or an error inside the check). |
 
-Until the next release of this feature, `--json` output carries no verdict.
+#### The `provider_check` element in `--json`
+
+The element is the last piece of the finding a script can read. It sits directly after `provider_failure` in the
+failure document and the four strategy documents, and is the last key of the `refresh` summary.
+
+- **Value.** `null` on success, for a failure that names no provider (`provider_error`), for a failed optional
+  input on an analysis that otherwise succeeded, and in every document `runs show --json` writes. Otherwise a list
+  with one entry per implicated provider, each with `provider_id` and `verdict`, in the order `unreachable`,
+  `rate_limited`, `unexpected_response`, `no_data` of the provider's most severe failed kind.
+- **Verdicts.** `healthy`, `unreachable`, `rate_limited`, `unexpected_response`, `no_data` and `not_checked`, mapped
+  from the health outcomes as above.
+- **Replay.** A replay runs no live check, so it writes `null`; a direct command and its replay differ in this one key
+  and no other. The verdict is never stored.
+- **Consistency.** A document carries a non-null element only beside a non-null `provider_failure`, naming exactly the
+  providers that element names. A `refresh` summary lists each provider once.
+- **Versions.** The failure document is `schema_version` 9, the strategy documents 9 (Momentum), 10 (Graham Number),
+  10 (Graham Growth) and 9 (FCF Growth), and the refresh summary 2. No stored version changed.
 
 ## 2. The scheduled and on-demand run
 

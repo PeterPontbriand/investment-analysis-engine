@@ -1,5 +1,7 @@
 """The automatic provider check in the text modes: the first line after a provider failure.
 
+The finding in the ``--json`` documents is tested in ``tests/test_provider_check_element.py``.
+
 The suite switches the check off through ``IAN_PROVIDER_CHECK`` (tests/conftest.py). A test of the check injects a
 probe built over fake check bodies through the Typer context, so no test reaches a provider.
 """
@@ -17,7 +19,7 @@ from typer.main import get_command
 from typer.testing import CliRunner, Result
 
 from src.cli import app
-from src.cli_provider_check import ProviderCheckChoice, provider_check_lines
+from src.cli_provider_check import ProviderCheckChoice, provider_check_findings
 from src.core.failure_classification import provider_failure_of
 from src.core.provider_failure_element import ProviderFailure
 from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
@@ -268,8 +270,9 @@ def test_the_setting_turns_the_check_off() -> None:
 
 
 @pytest.mark.parametrize("command", list(_SCENARIOS))
-def test_json_output_carries_nothing_extra_and_runs_no_probe(command: str) -> None:
-    fake = _probe()
+def test_json_output_prints_nothing_extra_and_carries_the_finding_in_the_document(command: str) -> None:
+    scenario = _SCENARIOS[command]
+    fake = _probe({scenario.provider_id: CheckVerdict.UNREACHABLE})
 
     with _failing(command) as arguments:
         result = _invoke(arguments, fake.probe, "--json")
@@ -277,9 +280,9 @@ def test_json_output_carries_nothing_extra_and_runs_no_probe(command: str) -> No
     assert result.exit_code == 1
     document = json.loads(result.stdout)
     assert document["provider_failure"]["inputs"][0]["kind"] == "unreachable"
-    assert "provider_check" not in document
+    assert document["provider_check"] == [{"provider_id": scenario.provider_id, "verdict": "unreachable"}]
     assert result.stderr == ""
-    assert fake.calls == []
+    assert fake.calls == [scenario.provider_id]
 
 
 def test_the_command_is_given_the_probe_built_from_the_settings_when_none_is_injected() -> None:
@@ -398,7 +401,7 @@ def test_several_providers_follow_the_kind_order_and_each_appears_once() -> None
         None,
     ]
 
-    lines = provider_check_lines(failures, choice)
+    lines = provider_check_findings(failures, choice).lines()
 
     assert lines == (
         "SEC EDGAR answered a test request normally. The failure may be specific to this request.",
@@ -410,7 +413,9 @@ def test_several_providers_follow_the_kind_order_and_each_appears_once() -> None
 def test_only_the_implicated_provider_is_probed() -> None:
     fake = _probe()
 
-    provider_check_lines([_element((ProviderFailureKind.NO_DATA, "sec_edgar"))], ProviderCheckChoice(fake.probe, True))
+    provider_check_findings(
+        [_element((ProviderFailureKind.NO_DATA, "sec_edgar"))], ProviderCheckChoice(fake.probe, True)
+    )
 
     assert fake.calls == ["sec_edgar"]
 
@@ -418,12 +423,14 @@ def test_only_the_implicated_provider_is_probed() -> None:
 def test_no_failure_and_no_probe_give_no_lines() -> None:
     fake = _probe()
 
-    assert provider_check_lines([None, None], ProviderCheckChoice(fake.probe, True)) == ()
-    assert provider_check_lines([_element((ProviderFailureKind.NO_DATA, "yfinance"))], None) == ()
-    assert (
-        provider_check_lines([_element((ProviderFailureKind.NO_DATA, "yfinance"))], ProviderCheckChoice(None, True))
-        == ()
-    )
+    one = [_element((ProviderFailureKind.NO_DATA, "yfinance"))]
+    for findings in (
+        provider_check_findings([None, None], ProviderCheckChoice(fake.probe, True)),
+        provider_check_findings(one, None),
+        provider_check_findings(one, ProviderCheckChoice(None, True)),
+    ):
+        assert findings.lines() == ()
+        assert findings.element() is None
     assert fake.calls == []
 
 
@@ -526,16 +533,17 @@ def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop() -> N
     assert events == ["job", "job", "probe"]
 
 
-def test_refresh_json_prints_nothing_extra_and_runs_no_probe() -> None:
-    fake = _probe()
+def test_refresh_json_prints_nothing_extra_and_carries_one_finding_in_the_summary() -> None:
+    fake = _probe({"yfinance": CheckVerdict.RATE_LIMITED})
 
     result = _refresh_failing(fake.probe, "--json")
 
     assert result.exit_code == 1
     document = json.loads(result.stdout)
     assert document["counts"] == {"error": 3}
+    assert document["provider_check"] == [{"provider_id": "yfinance", "verdict": "rate_limited"}]
     assert result.stderr == ""
-    assert fake.calls == []
+    assert fake.calls == ["yfinance"]  # three failed tickers, one test request
 
 
 def test_refresh_option_turns_the_check_off_without_changing_the_summary() -> None:

@@ -9,6 +9,7 @@ from datetime import datetime
 from src.analysis.shared.financial_resolution import PriceComparison
 from src.core.analysis_status import CalculationStatus
 from src.core.failure_classification import provider_failure_of
+from src.core.provider_check_element import ProviderCheckItem
 from src.data.financial.provenance import SourceKind
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from src.data.security_identity import SecurityIdentityResolution
@@ -81,6 +82,8 @@ class GrahamGrowthPresentation:
     identity_resolution: SecurityIdentityResolution | None = None
     instrument_profile: InstrumentProfile | None = None
     price_comparison: PriceComparison | None = None
+    provider_check: tuple[ProviderCheckItem, ...] | None = None
+    """What the provider check found, written to the document; a replay passes none."""
 
     def __post_init__(self) -> None:
         """Validate presentation-only coherence without performing finance math."""
@@ -294,6 +297,7 @@ def _growth_document(p: GrahamGrowthPresentation) -> GrahamGrowthDocument:
         ticker=p.ticker.upper(),
         status=status,
         provider_failure=provider_failure_of((p.assembly.provider_failure,)),
+        provider_check=p.provider_check,
         requested_as_of=p.as_of,
         effective_as_of=p.effective_as_of,
         security_identity=security_identity_part(p.ticker, p.identity_resolution),

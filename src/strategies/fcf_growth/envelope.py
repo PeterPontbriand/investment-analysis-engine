@@ -30,7 +30,7 @@ from src.strategies.fcf_growth.vocabulary import (
     TrendClassification,
 )
 
-DOCUMENT_SCHEMA_VERSION: Final = 8
+DOCUMENT_SCHEMA_VERSION: Final = 9
 
 
 class FCFResolvedInputPart(DocumentPart):

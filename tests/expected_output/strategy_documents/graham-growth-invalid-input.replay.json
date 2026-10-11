@@ -1,10 +1,11 @@
 {
-  "schema_version": 9,
+  "schema_version": 10,
   "analysis": "graham_growth_value",
   "method": "graham_growth_value",
   "ticker": "KO",
   "status": "invalid_input",
   "provider_failure": null,
+  "provider_check": null,
   "requested_as_of": "2026-09-19T12:00:00+00:00",
   "effective_as_of": "<wall-clock>",
   "security_identity": {

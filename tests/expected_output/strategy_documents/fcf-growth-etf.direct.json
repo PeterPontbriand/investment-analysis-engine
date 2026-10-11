@@ -1,10 +1,11 @@
 {
-  "schema_version": 8,
+  "schema_version": 9,
   "analysis": "fcf_earnings_growth",
   "method": "reported_fcf_eps_cagr",
   "ticker": "ACME",
   "status": "not_applicable",
   "provider_failure": null,
+  "provider_check": null,
   "requested_as_of": null,
   "effective_as_of": "<wall-clock>",
   "security_identity": {
