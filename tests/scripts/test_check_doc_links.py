@@ -9,8 +9,10 @@ import pytest
 
 from scripts.check_doc_links import (
     check_repository,
+    check_repository_diagrams,
     file_heading_slugs,
     find_broken_links_in_file,
+    find_mermaid_blocks_in_file,
     list_tracked_markdown_files,
     slugify,
 )
@@ -190,3 +192,29 @@ class TestRepositoryIntegration:
         broken = check_repository(tmp_path)
         assert len(broken) == 1
         assert broken[0].source_file.name == "bad.md"
+
+
+class TestMermaidBlocks:
+    def test_reports_the_opening_line_of_a_mermaid_block(self) -> None:
+        lines = ["Text\n", "```mermaid\n", "flowchart LR\n", "```\n"]
+        found = find_mermaid_blocks_in_file(Path("doc.md"), lines)
+        assert [block.line_number for block in found] == [2]
+        assert "doc.md:2" in str(found[0])
+
+    def test_reports_a_tilde_fence_and_an_uppercase_language(self) -> None:
+        assert len(find_mermaid_blocks_in_file(Path("doc.md"), ["~~~Mermaid\n", "graph TD\n", "~~~\n"])) == 1
+
+    def test_ignores_other_languages_and_mermaid_text_inside_another_fence(self) -> None:
+        lines = ["```text\n", "```mermaid\n", "```\n", "```python\n", "x = 1\n", "```\n"]
+        assert find_mermaid_blocks_in_file(Path("doc.md"), lines) == []
+
+    def test_check_repository_diagrams_fails_on_a_tracked_mermaid_block(self, tmp_path: Path) -> None:
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        (tmp_path / "bad.md").write_text("```mermaid\ngraph TD\n```\n", encoding="utf-8")
+        (tmp_path / "good.md").write_text("```text\nA -> B\n```\n", encoding="utf-8")
+        subprocess.run(["git", "add", "bad.md", "good.md"], cwd=tmp_path, check=True)
+        found = check_repository_diagrams(tmp_path)
+        assert [block.source_file.name for block in found] == ["bad.md"]
+
+    def test_repository_markdown_has_no_mermaid_blocks(self) -> None:
+        assert check_repository_diagrams(Path(__file__).resolve().parents[2]) == []

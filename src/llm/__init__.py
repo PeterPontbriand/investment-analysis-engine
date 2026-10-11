@@ -1,1 +1,1 @@
-"""LLM client and schema boundary."""
+"""The local-model client."""

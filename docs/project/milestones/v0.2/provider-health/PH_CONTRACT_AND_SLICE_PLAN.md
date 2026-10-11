@@ -18,7 +18,7 @@ packages: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
   canary; live calls only under the `live_network` marker, never in the default run or the managed gate;
   no formula or classification change; no new dependency and no `pyproject.toml` edit; the complete managed
   gate at each slice end; explicit project-owner authorization before the next slice begins.
-- **Sequence:** PH.1 now, independent of SWC. Then, after SWC.4c: PH.2a, PH.2b, PH.2c, issue #40 and PH.3,
+- **Sequence:** PH.1 now, independent of SWC. Then, after SWC.4c: PH.2a, PH.2b, PH.2c, then PD (the package dependency map), issue #40 and PH.3,
   in that order, because they build on the failure envelope and the typed strategy envelopes. All finish
   before Step 3.5 begins.
 - **Where the history lives:** why this exists is in [Background](#6-background-origin-of-this-work-package);

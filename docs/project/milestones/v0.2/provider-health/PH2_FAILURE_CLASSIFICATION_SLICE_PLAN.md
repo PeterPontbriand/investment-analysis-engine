@@ -14,7 +14,7 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 - **Three slices, in this order, after SWC.4c:** PH.2a (the kind, the classifier, SEC EDGAR and Massive, the
   raised path), PH.2b (Yahoo, `ian health`, the completion test, the runbook), PH.2c (the kind in stored
   evidence, the saved run, the refresh job and the strategy documents). All three are complete, so PH.2 is
-  complete. [Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) is next.
+  complete. The package dependency map (PD) is next, then [issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40), then PH.3.
 - **What it does not do:** probe a provider, put a verdict on the first line, or add `ian health --json` (PH.3);
   retry, fall back or remediate; change any analysis result, formula or classification.
 - **Rules:** a provider failure stays a recorded, stored outcome with its resolution trace; the
@@ -30,7 +30,7 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 | D3 | `fetch_json` and `fetch_filing` take the kind of an HTTP 404 from the caller through the required keyword `not_found`, and the provider through the required keyword `provider_id`, both keyword-only with no default, on the `JsonFetcher` and `FilingFetcher` protocols and every fetcher. Per-company documents and filings pass `no_data`; fixed endpoints pass `unexpected_response`. |
 | D4 | The reason-code change for existing failures is an approved output change ([§3](#3-output-changes)). `provider_error` stays valid and stable for failures an adapter cannot classify. |
 | D5 | The kind is stored: typed fields on the resolver result and on the instrument-profile and security-identity diagnostics, beside the unchanged `PROVIDER_ERROR` status. Affected versions are bumped; nothing is migrated. A provider failure is not turned into a raised error. |
-| D6 | Issue #40 is immediately after PH.2c, as its own small change. |
+| D6 | Issue #40 follows PH.2c as its own small change, after the package dependency map (PD). |
 | D7 | One shared typed element, `provider_failure`, under the same key in every document that reports an analysis outcome ([§5](#5-the-shared-provider_failure-element)). |
 | D8 | One fixed precedence picks the single code when several inputs failed: `unreachable`, then `unexpected_response`, then `no_data` ([§5](#5-the-shared-provider_failure-element)). |
 | D9 | A refresh job carries a `reason_code` if and only if it raised or its run is `failed`; an `unavailable` run is an analysis outcome, not a failure ([§6](#6-refresh-job-reason_codes)). |

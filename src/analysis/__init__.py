@@ -1,1 +1,1 @@
-"""Analysis modules for financial metrics."""
+"""The analyzer contract and the strategy-neutral financial-resolution helpers."""

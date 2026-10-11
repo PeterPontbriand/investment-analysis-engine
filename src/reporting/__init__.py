@@ -1,1 +1,1 @@
-"""Report generation (Markdown / PDF, charts, Jinja templates)."""
+"""Shared presentation helpers, JSON document models, failure classification, and saved-run replay."""

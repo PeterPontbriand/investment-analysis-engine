@@ -20,6 +20,10 @@ CommonMark flanking-delimiter rules that this small checker does not
 implement -- no heading in this repository currently depends on that
 distinction, and inline code spans already cover the common case.
 
+Separately, a fenced block whose language is ``mermaid`` is reported: this
+repository's documentation draws diagrams as plain text blocks or tables, never
+as Mermaid.
+
 Only inline links (``[text](target)``) are recognized; reference-style links
 (``[text][ref]``) are not used anywhere in this repository's Markdown and are
 out of scope.
@@ -78,6 +82,43 @@ def slugify(heading_text: str) -> str:
     text = strip_markdown_markup(heading_text).strip().lower()
     text = _SLUG_PUNCTUATION_RE.sub("", text)
     return re.sub(r"\s", "-", text)
+
+
+@dataclass(frozen=True)
+class MermaidBlock:
+    """One fenced block whose language is ``mermaid``."""
+
+    source_file: Path
+    line_number: int
+
+    def __str__(self) -> str:
+        """Render as ``path:line: mermaid block -- ...``."""
+        return (
+            f"{self.source_file}:{self.line_number}: mermaid block -- "
+            "draw the diagram as a plain text block or a table instead"
+        )
+
+
+def find_mermaid_blocks_in_file(source_file: Path, lines: list[str]) -> list[MermaidBlock]:
+    """Return every opening fence in one file's lines whose language is ``mermaid``."""
+    found: list[MermaidBlock] = []
+    in_fence = False
+    fence_marker = ""
+    for index, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        fence_match = _FENCE_RE.match(stripped)
+        if fence_match is None:
+            continue
+        if in_fence:
+            if stripped.startswith(fence_marker):
+                in_fence = False
+            continue
+        in_fence = True
+        fence_marker = fence_match.group(1)[0] * 3
+        info = stripped[len(fence_match.group(1)) :].strip().split(maxsplit=1)
+        if info and info[0].lower() == "mermaid":
+            found.append(MermaidBlock(source_file, index))
+    return found
 
 
 def iter_non_fenced_lines(lines: list[str]) -> list[tuple[int, str]]:
@@ -215,6 +256,15 @@ def check_repository(repo_root: Path) -> list[BrokenLink]:
     return broken
 
 
+def check_repository_diagrams(repo_root: Path) -> list[MermaidBlock]:
+    """Return every Mermaid block in the tracked Markdown files of ``repo_root``."""
+    found: list[MermaidBlock] = []
+    for markdown_file in list_tracked_markdown_files(repo_root):
+        lines = markdown_file.read_text(encoding="utf-8").splitlines(keepends=True)
+        found.extend(find_mermaid_blocks_in_file(markdown_file, lines))
+    return found
+
+
 def main() -> int:
     """Check the repository this script lives in; print every break; return the process exit code."""
     repo_root = Path(
@@ -223,12 +273,19 @@ def main() -> int:
         ).stdout.strip()
     )
     broken_links = check_repository(repo_root)
-    if not broken_links:
-        print("check_doc_links: no broken local links or anchors found.")
+    mermaid_blocks = check_repository_diagrams(repo_root)
+    if not broken_links and not mermaid_blocks:
+        print("check_doc_links: no broken local links or anchors and no Mermaid blocks found.")
         return 0
     for broken in broken_links:
         print(broken)
-    print(f"check_doc_links: {len(broken_links)} broken local link(s)/anchor(s) found.", file=sys.stderr)
+    for block in mermaid_blocks:
+        print(block)
+    print(
+        f"check_doc_links: {len(broken_links)} broken local link(s)/anchor(s) and "
+        f"{len(mermaid_blocks)} Mermaid block(s) found.",
+        file=sys.stderr,
+    )
     return 1
 
 

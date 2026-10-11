@@ -15,7 +15,8 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
   expressions, trading signals, or ranking against an implicit market-wide universe. Full list:
   [Out of scope](#4-out-of-scope).
 - **Entry condition:** implementation waits for integration readiness (IR), strategy wiring
-  consolidation (SWC), the dead code audit (R3) and the package rename (PKG). 3.5.0 begins by
+  consolidation (SWC), the dead code audit (R3), provider health (PH), the package rename (PKG) and a decision on the two-way package
+  dependencies filed as [issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114). 3.5.0 begins by
   removing `AGENTS.md` §0, as that section requires.
 - **Rules every slice follows:**
   - One definition per shared metric, used everywhere, with no per-strategy fallback variants.

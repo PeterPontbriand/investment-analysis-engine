@@ -1,0 +1,292 @@
+"""Package dependency checker for the top-level units under ``src/``.
+
+Reads the package table in ``docs/project/ARCHITECTURE.md`` (the section titled
+"Module boundaries"), computes the real import graph from the code, and reports
+every disagreement between the two in one run. Standard library only; it never
+modifies a file.
+
+A *unit* is each directory directly under ``src/``, plus each top-level module
+under ``src/`` by its file name (``config``, ``strategy_wiring``). The one
+exception is ``cli``, which groups ``src/main.py`` and every ``src/cli*.py``.
+``src/__init__.py`` is ignored.
+
+A *dependency* is any ``import src.X...`` or ``from src.X... import ...``
+anywhere in a file under ``src/``, including imports inside functions. Imports
+within one unit are ignored. Two units are *two-way* when each depends on the
+other.
+
+The table has the columns ``Package | Owns | Imports | Two-way with``. Package
+names are written in backticks; the ``Imports`` and ``Two-way with`` cells list
+unit names in backticks. Exit status is 1 when any finding is reported.
+"""
+
+from __future__ import annotations
+
+import ast
+import re
+import subprocess
+import sys
+from collections import defaultdict
+from dataclasses import dataclass
+from pathlib import Path
+
+SOURCE_ROOT_NAME = "src"
+ARCHITECTURE_DOC = Path("docs/project/ARCHITECTURE.md")
+TABLE_SECTION_TITLE = "Module boundaries"
+TABLE_HEADER = ("Package", "Owns", "Imports", "Two-way with")
+CLI_UNIT = "cli"
+
+_SECTION_HEADING_RE = re.compile(r"^##\s+(?:\d+\.\s+)?(.*?)\s*$")
+_BACKTICKED_RE = re.compile(r"`([^`]+)`")
+
+Edge = tuple[str, str]
+Occurrence = tuple[Path, int]
+
+
+@dataclass(frozen=True)
+class DeclaredRow:
+    """One row of the package table."""
+
+    package: str
+    imports: frozenset[str]
+    two_way: frozenset[str]
+
+
+def unit_of_path(relative_path: Path) -> str | None:
+    """Return the unit a path (relative to the source root) belongs to, or ``None`` if ignored."""
+    parts = relative_path.parts
+    if not parts or "__pycache__" in parts:
+        return None
+    if len(parts) > 1:
+        return None if parts[0].startswith(("_", ".")) else parts[0]
+    stem = relative_path.stem
+    if relative_path.suffix != ".py" or stem == "__init__":
+        return None
+    if stem in {"main", CLI_UNIT} or stem.startswith(f"{CLI_UNIT}_"):
+        return CLI_UNIT
+    return stem
+
+
+def _top_level_unit_for_module(name_parts: list[str], source_root: Path) -> str | None:
+    """Map the first component after ``src`` of an imported module to its unit."""
+    if not name_parts:
+        return None
+    first = name_parts[0]
+    if (source_root / first).is_dir():
+        return first
+    return unit_of_path(Path(f"{first}.py"))
+
+
+def _imported_units(node: ast.stmt, relative_path: Path, source_root: Path) -> list[str]:
+    """Return the units a single import statement refers to (possibly several)."""
+    candidates: list[list[str]] = []
+    if isinstance(node, ast.Import):
+        candidates = [alias.name.split(".")[1:] for alias in node.names if alias.name.split(".")[0] == SOURCE_ROOT_NAME]
+    elif isinstance(node, ast.ImportFrom):
+        candidates = _from_import_candidates(node, relative_path)
+    units = (_top_level_unit_for_module(parts, source_root) for parts in candidates)
+    return [unit for unit in units if unit is not None]
+
+
+def _from_import_candidates(node: ast.ImportFrom, relative_path: Path) -> list[list[str]]:
+    """Return the module paths below the source root that a ``from`` import refers to."""
+    module_parts = node.module.split(".") if node.module else []
+    if node.level:
+        package = list(relative_path.parts[:-1])
+        module_parts = package[: len(package) - (node.level - 1)] + module_parts
+    elif module_parts[:1] == [SOURCE_ROOT_NAME]:
+        module_parts = module_parts[1:]
+    else:
+        return []
+    if module_parts:
+        return [module_parts]
+    return [[alias.name] for alias in node.names]
+
+
+def list_units(source_root: Path) -> set[str]:
+    """Return every unit that has at least one Python file below ``source_root``."""
+    units: set[str] = set()
+    for path in source_root.rglob("*.py"):
+        unit = unit_of_path(path.relative_to(source_root))
+        if unit is not None:
+            units.add(unit)
+    return units
+
+
+def collect_imports(source_root: Path) -> dict[Edge, list[Occurrence]]:
+    """Return every cross-unit import as ``{(importer, imported): [(file, line), ...]}``."""
+    edges: dict[Edge, list[Occurrence]] = defaultdict(list)
+    for path in sorted(source_root.rglob("*.py")):
+        relative_path = path.relative_to(source_root)
+        importer = unit_of_path(relative_path)
+        if importer is None:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Import, ast.ImportFrom)):
+                continue
+            for imported in _imported_units(node, relative_path, source_root):
+                if imported != importer:
+                    edges[(importer, imported)].append((relative_path, node.lineno))
+    return dict(edges)
+
+
+def two_way_pairs(edges: set[Edge]) -> set[frozenset[str]]:
+    """Return the unordered unit pairs that depend on each other."""
+    return {frozenset(edge) for edge in edges if (edge[1], edge[0]) in edges}
+
+
+def read_declared_table(architecture_text: str) -> tuple[list[DeclaredRow], list[str]]:
+    """Parse the package table; return its rows and any problems found reading it."""
+    lines = architecture_text.splitlines()
+    problems: list[str] = []
+    in_section = False
+    table_lines: list[str] = []
+    for line in lines:
+        heading = _SECTION_HEADING_RE.match(line)
+        if heading is not None:
+            if in_section:
+                break
+            in_section = heading.group(1) == TABLE_SECTION_TITLE
+            continue
+        if in_section and line.lstrip().startswith("|"):
+            table_lines.append(line)
+    if not table_lines:
+        return [], [f"{ARCHITECTURE_DOC}: no table found in the section titled '{TABLE_SECTION_TITLE}'."]
+    header = tuple(cell.strip() for cell in table_lines[0].strip().strip("|").split("|"))
+    if header != TABLE_HEADER:
+        problems.append(
+            f"{ARCHITECTURE_DOC}: table header must be '{' | '.join(TABLE_HEADER)}', found '{' | '.join(header)}'."
+        )
+        return [], problems
+    rows: list[DeclaredRow] = []
+    for line in table_lines[2:]:
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) != len(TABLE_HEADER):
+            problems.append(f"{ARCHITECTURE_DOC}: table row has {len(cells)} cells, expected 4: {line.strip()[:60]}")
+            continue
+        names = _BACKTICKED_RE.findall(cells[0])
+        if len(names) != 1:
+            problems.append(f"{ARCHITECTURE_DOC}: the Package cell must hold one backticked name, found '{cells[0]}'.")
+            continue
+        rows.append(
+            DeclaredRow(
+                package=names[0],
+                imports=frozenset(_BACKTICKED_RE.findall(cells[2])),
+                two_way=frozenset(_BACKTICKED_RE.findall(cells[3])),
+            )
+        )
+    return rows, problems
+
+
+def _example(occurrences: list[Occurrence]) -> str:
+    path, line = occurrences[0]
+    return f"{SOURCE_ROOT_NAME}/{path.as_posix()}:{line}"
+
+
+def _compare_units(rows: list[DeclaredRow], units: set[str]) -> list[str]:
+    """Return the findings about units without rows, rows without units, and duplicate or unknown names."""
+    findings: list[str] = []
+    by_package = {row.package: row for row in rows}
+    seen: set[str] = set()
+    for row in rows:
+        if row.package in seen:
+            findings.append(f"Table lists '{row.package}' twice; keep one row.")
+        seen.add(row.package)
+    for unit in sorted(units - set(by_package)):
+        findings.append(f"Unit '{unit}' exists under {SOURCE_ROOT_NAME}/ but has no table row; add a row for it.")
+    for package in sorted(set(by_package) - units):
+        findings.append(f"Table row '{package}' has no unit under {SOURCE_ROOT_NAME}/; remove the row.")
+    for package in sorted(by_package):
+        for target in sorted(by_package[package].imports | by_package[package].two_way):
+            if target not in units and target != package:
+                findings.append(f"Row '{package}' names '{target}', which is not a unit; remove it from the row.")
+    return findings
+
+
+def _compare_imports(rows: list[DeclaredRow], units: set[str], edges: dict[Edge, list[Occurrence]]) -> list[str]:
+    """Return the findings about imports the table does not declare or declares without a use."""
+    findings: list[str] = []
+    by_package = {row.package: row for row in rows}
+    actual: dict[str, set[str]] = defaultdict(set)
+    for importer, imported in edges:
+        actual[importer].add(imported)
+    for unit in sorted(units & set(by_package)):
+        declared = by_package[unit].imports
+        for target in sorted(actual[unit] - declared):
+            findings.append(
+                f"'{unit}' imports '{target}' (first at {_example(edges[(unit, target)])}) but its Imports cell "
+                f"does not list it; add '{target}' to the Imports cell of '{unit}'."
+            )
+        for target in sorted(declared - actual[unit]):
+            findings.append(
+                f"'{unit}' lists '{target}' in its Imports cell but no code imports it; "
+                f"remove '{target}' from the Imports cell of '{unit}'."
+            )
+    return findings
+
+
+def _compare_two_way(rows: list[DeclaredRow], edges: dict[Edge, list[Occurrence]]) -> list[str]:
+    """Return the findings about two-way pairs that are undeclared, stale, or declared on one side only."""
+    findings: list[str] = []
+    by_package = {row.package: row for row in rows}
+    actual_pairs = two_way_pairs(set(edges))
+    declared_pairs = {frozenset((row.package, other)) for row in rows for other in row.two_way}
+    for pair in sorted(actual_pairs - declared_pairs, key=sorted):
+        first, second = sorted(pair)
+        findings.append(
+            f"'{first}' and '{second}' import each other but are not declared two-way; "
+            f"add each to the Two-way with cell of the other."
+        )
+    for pair in sorted(declared_pairs - actual_pairs, key=sorted):
+        first, second = sorted(pair)
+        findings.append(
+            f"'{first}' and '{second}' are declared two-way but no longer import each other; "
+            f"remove each from the Two-way with cell of the other."
+        )
+    for row in rows:
+        for other in row.two_way:
+            if other in by_package and row.package not in by_package[other].two_way:
+                findings.append(
+                    f"'{row.package}' lists '{other}' in Two-way with but '{other}' does not list '{row.package}'; "
+                    f"make the two cells agree."
+                )
+    return findings
+
+
+def compare(rows: list[DeclaredRow], units: set[str], edges: dict[Edge, list[Occurrence]]) -> list[str]:
+    """Return one message per disagreement between the table and the code."""
+    return _compare_units(rows, units) + _compare_imports(rows, units, edges) + _compare_two_way(rows, edges)
+
+
+def check_repository(repo_root: Path) -> list[str]:
+    """Check the table against the code under ``repo_root`` and return every finding."""
+    source_root = repo_root / SOURCE_ROOT_NAME
+    architecture_path = repo_root / ARCHITECTURE_DOC
+    rows, problems = read_declared_table(architecture_path.read_text(encoding="utf-8"))
+    if problems:
+        return problems
+    return compare(rows, list_units(source_root), collect_imports(source_root))
+
+
+def main() -> int:
+    """Check the repository this script lives in; print every finding; return the exit code."""
+    repo_root = Path(
+        subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"], capture_output=True, check=True, text=True
+        ).stdout.strip()
+    )
+    findings = check_repository(repo_root)
+    if not findings:
+        print("check_package_dependencies: the package table matches the code.")
+        return 0
+    for finding in findings:
+        print(finding)
+    print(
+        f"check_package_dependencies: {len(findings)} finding(s); fix the table in {ARCHITECTURE_DOC}.", file=sys.stderr
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

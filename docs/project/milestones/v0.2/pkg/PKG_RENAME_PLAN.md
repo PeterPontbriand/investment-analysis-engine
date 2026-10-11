@@ -51,6 +51,8 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
   - update `pyproject.toml`: the `include` of `[tool.setuptools.packages.find]`, the entry point
     (`ian = "src.main:main"` becomes `ian = "investment_analysis_engine.main:main"`) and any other literal
     `src` reference;
+  - update the [§13 package table](../../../ARCHITECTURE.md#13-module-boundaries) and the root name in
+    `scripts/check_package_dependencies.py`;
   - update `AGENTS.md`'s `uv run ...` examples and the layering test's package name;
   - run the SWC.2a patch-target resolution test unchanged against the new package name; PKG adds no check
     of its own.

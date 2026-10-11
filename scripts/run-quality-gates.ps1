@@ -75,6 +75,15 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Sequence-table check failed with exit code $LASTEXITCODE`: scripts/check_sequence_tables.py"
     }
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+        & py -3 scripts/check_package_dependencies.py
+    }
+    else {
+        & python scripts/check_package_dependencies.py
+    }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Package dependency check failed with exit code $LASTEXITCODE`: scripts/check_package_dependencies.py"
+    }
     Invoke-QualityCommand -Arguments @("run", "--no-sync", "ruff", "check", "--no-cache", ".")
     Invoke-QualityCommand -Arguments @("run", "--no-sync", "ruff", "format", "--check", ".")
     Invoke-QualityCommand -Arguments @(

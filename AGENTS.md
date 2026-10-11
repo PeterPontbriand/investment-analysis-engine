@@ -78,6 +78,11 @@ Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-r
 - Put decision records, renumbering history, branching rationale, and accepted exceptions in a verbatim appendix at the end.
 - Keep detail in the lowest-level document that owns it. A parent summarizes and links; it does not duplicate a child's inventory, design decisions, or history.
 
+### Diagrams in documentation
+
+- Documentation contains no Mermaid. Draw a diagram as a plain text block or express it as a table. `scripts/check_doc_links.py` fails on a fenced block whose language is `mermaid`.
+- The top-level package map and the imports between packages are declared once, in the table in [`ARCHITECTURE.md`](docs/project/ARCHITECTURE.md#13-module-boundaries); `scripts/check_package_dependencies.py` fails when the table and the code disagree. Do not add a second listing or a diagram of that graph.
+
 ### Implementation preservation
 
 - Treat the active task's approved file scope as an edit boundary. Before changing a file outside that scope, request explicit user authorization and identify the file, proposed change, and why it is needed. This includes previously accepted implementation and test files, even for a correct, minimal compatibility or typing adjustment. A dependency on earlier work, passing checks, or recording the change afterward does not authorize a scope extension. Continue independent work within scope while awaiting approval. Files explicitly included in the active task's approved scope, such as shared dispatch files, remain authorized even if an earlier task also changed them.
@@ -114,7 +119,7 @@ When editing a legacy file that currently uses a different logging pattern, do n
 - Mock external APIs and local LLM endpoints in deterministic tests.
 - Project target: ≥85% line coverage overall; new financial-analysis code should directly exercise meaningful branches and edge cases.
 - Run the complete quality gate specified by the active milestone plan before completion of any change that touches Python source, tests, or a file the tooling actually parses/executes. A change confined to non-executable declarative metadata (e.g. a single `pyproject.toml` project-metadata field such as `license`) or a prose-only documentation edit does not require the full pytest run — see `docs/project/README.md`'s Quality gates section for the exact boundary. When in doubt, run the full gate.
-- For a documentation-only change, run `python scripts/check_doc_links.py`, `python scripts/check_sequence_tables.py`, and both Ruff checks (`uv run ruff check .` and `uv run ruff format --check .`). Ruff also lints and formats Python code blocks in Markdown. CI runs MyPy and pytest for every pull request; the documentation-only local gate may omit those unless the change also affects code or test behavior.
+- For a documentation-only change, run `python scripts/check_doc_links.py`, `python scripts/check_sequence_tables.py`, `python scripts/check_package_dependencies.py`, and both Ruff checks (`uv run ruff check .` and `uv run ruff format --check .`). Ruff also lints and formats Python code blocks in Markdown. CI runs MyPy and pytest for every pull request; the documentation-only local gate may omit those unless the change also affects code or test behavior.
 
 ## 8. Financial-analysis guardrails
 
