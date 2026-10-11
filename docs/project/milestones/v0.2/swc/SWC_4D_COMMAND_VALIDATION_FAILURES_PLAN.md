@@ -8,7 +8,7 @@ its decision record is [B.14](SWC_CONTRACT_AND_SLICE_PLAN.md#b14-swc4d-command-v
 
 - **What this slice does:** every check a command makes in its own code and rejects with `typer.BadParameter` becomes an
   `invalid_parameter` failure: the sentence on standard error with exit 1, or under `--json` the failure envelope on
-  standard output with exit 1. That is 41 raise sites in 8 files, which this plan reads as 44 distinct checks (40 that
+  standard output with exit 1. That is 41 raise sites in 8 files, which this plan reads as 45 distinct checks (41 that
   exit 2 today and Momentum's 4 that already exit 1). The envelope gains a `parameters` field naming the offending
   options and arguments.
 - **What it does not do:** change a formula or a classification; add `--json` to a command; turn a check into a
@@ -50,7 +50,7 @@ its decision record is [B.14](SWC_CONTRACT_AND_SLICE_PLAN.md#b14-swc4d-command-v
 ### Step 2 — Implementation
 
 - **Problem:** as above.
-- **Decision:** implement section C once, convert the 44 checks of section A, apply the dispositions of section B,
+- **Decision:** implement section C once, convert the 45 checks of section A, apply the dispositions of section B,
   bump the failure schema version, and update the documents of section E.
 - **Scope:** the files, tests and documents of [section E](#e-file-scope-tests-and-documents-for-step-2).
 - **Branch:** the same branch; the pull request is opened only on the project owner's approval.
@@ -64,7 +64,7 @@ Scope limits:
 - No new `--json` option. A command without it reports in text.
 - No parser-declared constraint (`min=`, `max=`, `click.Choice`, a required option) replaces a check, and no parser
   error is caught or reworded.
-- No reason code is added, renamed, repurposed or removed. Every converted check reports `invalid_parameter`
+- No reason code is added, renamed, repurposed or removed. Every converted check reports `invalid_parameter`, except `DB-3` (F6),
   ([5.3](#53-invalid_parameter-under-the-stability-rule)); the residual `ValueError` cases of [section B](#b-the-valueerror-audit)
   report under codes the classifier already gives them.
 - No formula, classification or provider behavior changes.
@@ -73,7 +73,7 @@ Scope limits:
 Acceptance criteria for step 2:
 
 - A test fails when any file under `src/` raises `typer.BadParameter`, and a negative control proves the test can fail.
-- Every row of section A behaves as its columns say: exit 1, the sentence in the "after" column on standard error, and
+- Every row of section A behaves as its columns say (`DB-3` reports `configuration_error`): exit 1, the sentence in the "after" column on standard error, and
   for a command with `--json` the envelope on standard output, `reason_code` `invalid_parameter` and the stated
   `parameters`, with nothing on standard error.
 - A parser rejection (unknown option, wrong type, missing required argument or option, value outside a declared
@@ -102,16 +102,16 @@ usage error without a `raise typer.BadParameter` line of its own, and those are 
 | `src/cli_support.py` | 9 | 9 (`SUP-1` to `SUP-9`) |
 | `src/cli_workspace.py` | 16 | 17 (`WRK-1` to `WRK-17`) |
 | `src/cli.py` (`evaluate`) | 4 | 4 (`EVL-1` to `EVL-4`) |
-| `src/cli_database.py` | 3 | 2 (`DB-1`, `DB-2`); the third site is unreachable ([B](#b-the-valueerror-audit)) |
+| `src/cli_database.py` | 3 | 3 (`DB-1` to `DB-3`); the in-memory site is two rows by origin (F6), and the second `ValueError` handler is unreachable ([B](#b-the-valueerror-audit)) |
 | `src/cli_health.py` | 1 | 1 (`HLT-1`) |
 | `src/strategies/fcf_growth/cli.py` | 5 | 4 (`FCF-1` to `FCF-4`); the currency check is raised at two sites |
 | `src/strategies/graham_growth/cli.py` | 2 | 2 (`GGR-1`, `GGR-2`) |
 | `src/strategies/momentum/cli.py` | 1 | 1 (`MOM-5`) |
 | `src/strategies/graham_number/cli.py` | 0 | 0 (uses the shared helpers) |
-| **Total** | **41** | **40** |
+| **Total** | **41** | **41** |
 
-The 40 checks exit 2 today. Momentum's four window and period checks (`MOM-1` to `MOM-4`) are
-`InvalidParameterError` raises at 4 further sites and already exit 1, so section A has 44 rows. `WRK-4`, `WRK-8`, `WRK-10`,
+The 41 checks exit 2 today. Momentum's four window and period checks (`MOM-1` to `MOM-4`) are
+`InvalidParameterError` raises at 4 further sites and already exit 1, so section A has 45 rows once `DB-3` (F6) is counted. `WRK-4`, `WRK-8`, `WRK-10`,
 `WRK-14`, `WRK-15` and `WRK-17` are checks that no line of the CLI file raises: a `ValueError` or `ValidationError` from
 the workspace layer is caught and re-raised as a usage error ([section B](#b-the-valueerror-audit)).
 
@@ -221,7 +221,7 @@ The direct `graham-growth` command declares both options required to the parser,
 | WRK-2 | `watchlist create` | `--analysis`, `TICKER` | Tickers given, no `--analysis` | `--analysis is required to seed TICKER... at creation.` | unchanged | `["--analysis", "TICKER"]` | 2 | 1 | no |
 | WRK-3 | `watchlist create` | `TICKER`, `--analysis` | `--analysis` given, no tickers | `At least one TICKER is required with --analysis.` | unchanged | `["TICKER", "--analysis"]` | 2 | 1 | no |
 | WRK-4 | `watchlist create` | `NAME` | Blank after trimming | `1 validation error for Watchlist`, `Value error, display_name must not be blank.`, `[type=value_error, input_value={...}, input_type=dict]` and a pydantic URL (one block of text) | `NAME must not be blank.` | `["NAME"]` | 2 | 1 | no |
-| WRK-5 | `watchlist create` (seed tickers), `watchlist add-selection`, `watchlist remove-ticker` | `TICKER` | Any ticker blank after trimming | `ticker must not be empty.` | `TICKER must not be empty.` | `["TICKER"]` | 2 | 1 | no |
+| WRK-5 | `watchlist create` (seed tickers, checked before the watchlist is created), `watchlist add-selection`, `watchlist remove-ticker` | `TICKER` | Any ticker blank after trimming | `ticker must not be empty.` | `TICKER must not be empty.` | `["TICKER"]` | 2 | 1 | no |
 | WRK-6 | `watchlist remove-entry` | `INDEX` | Below 1 | `INDEX must be 1 or greater.` | unchanged | `["INDEX"]` | 2 | 1 | no |
 | WRK-7 | `watchlist delete` | `--yes` | Not given and standard input is not interactive | hint `--yes`: `--yes is required when input is not interactive.` | unchanged | `["--yes"]` | 2 | 1 | yes |
 | WRK-8 | `watchlist rename` | `NEW_NAME` | Blank after trimming | `display_name must not be blank.` | `NEW_NAME must not be blank.` | `["NEW_NAME"]` | 2 | 1 | yes |
@@ -244,7 +244,8 @@ order and the first failing one is reported, like Momentum's windows.
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | ---: | ---: | :--- |
 | HLT-1 | `health` | `--provider` | Not `yfinance` or `sec_edgar` | hint `--provider`: `Unknown provider 'bogus'; valid providers are: yfinance, sec_edgar.` | `Unknown --provider 'bogus'; valid providers are: yfinance, sec_edgar.` | `["--provider"]` | 2 | 1 | yes |
 | DB-1 | `db status`, `db upgrade` | `--database-url` | A supplied URL the settings validators reject (not SQLite, credentials, host, port or query, a file URI, a partly anchored Windows path) | `Select a valid local SQLite database URL: <validator message>` | `Select a valid local SQLite database URL for --database-url: <validator message>` | `["--database-url"]` | 2 | 1 | yes |
-| DB-2 | `db status`, `db upgrade` | `--database-url` | The target is private memory | `Database maintenance requires a file-backed target; private memory is not supported.` | `Database maintenance requires a file-backed target for --database-url; private memory is not supported.` when supplied; see F6 when it comes from the settings | `["--database-url"]` when supplied | 2 | 1 | yes |
+| DB-2 | `db status`, `db upgrade` | `--database-url` | The target is private memory and the option was supplied | `Database maintenance requires a file-backed target; private memory is not supported.` | `Database maintenance requires a file-backed target for --database-url; private memory is not supported.` | `["--database-url"]` | 2 | 1 | yes |
+| DB-3 | `db status`, `db upgrade` | none (the configured `database_url` setting) | The target is private memory and the option was not supplied | the sentence of `DB-2` | unchanged; reported as `configuration_error`, not `invalid_parameter` | null | 2 | 1 | yes |
 | EVL-1 | `evaluate` | `--report` | A path Windows would only partly anchor | hint `--report`: `--report path '/e/x/y.json' has a root but no drive letter, ... 'cygpath -m <path>' prints the Windows form.` | unchanged | `["--report"]` | 2 | 1 | no |
 | EVL-2 | `evaluate` | `--case` | Not a Golden case ID | hint `--case`: `Unknown Golden case ID 'ZZZ'. Available IDs: MOM-01, ...` | `Unknown Golden case ID 'ZZZ' for --case. Available IDs: MOM-01, ...` | `["--case"]` | 2 | 1 | no |
 | EVL-3 | `evaluate` | `--mode` | An Ollama-only option given while the mode is deterministic | hint `--mode`: `Ollama options require --mode ollama.` | unchanged | `["--mode"]` | 2 | 1 | no |
@@ -277,7 +278,7 @@ the two surprises were reproduced by running.
 | Site | Guarded call | Exceptions it can catch and where raised | Disposition |
 | :--- | :--- | :--- | :--- |
 | `watchlist create`, around `repository.create` | `SQLiteWatchlistRepository.create` | Blank name: `pydantic.ValidationError` (a `ValueError`) from `Watchlist._validate_watchlist` in `src/workspace/runs.py`, whose text is the pydantic block of `WRK-4`. `WatchlistConflictError` is caught first and already reported as `watchlist_name_conflict`. `_utc` raises `ValueError` only for a naive clock; the clock is `utc_now`. | The blank name is an explicit `NAME` check, `WRK-4`, immediately before the call. The rest cannot occur. |
-| `watchlist create`, around `repository.add_entries` | `add_entries` on the watchlist just created | `normalize_ticker`: blank ticker. `WatchlistNotFoundError` and `StoredSelectionError` (from `_load`) cannot occur on rows written a moment earlier. `ValueError` from a corrupt stored row (`UUID`, `fromisoformat`, a `Watchlist` validation) cannot occur on a fresh row. | The blank ticker is an explicit `TICKER` check, `WRK-5`, placed after `create` so the order is kept (F3). Anything else is reported by the generic path below. |
+| `watchlist create`, around `repository.add_entries` | `add_entries` on the watchlist just created | `normalize_ticker`: blank ticker. `WatchlistNotFoundError` and `StoredSelectionError` (from `_load`) cannot occur on rows written a moment earlier. `ValueError` from a corrupt stored row (`UUID`, `fromisoformat`, a `Watchlist` validation) cannot occur on a fresh row. | The blank ticker is an explicit `TICKER` check, `WRK-5`, made for every seed ticker before the watchlist is created (F3, ruled), so a blank ticker leaves nothing behind. Anything else is reported by the generic path below. |
 | `watchlist add-selection` | `add_entries` on an existing watchlist | Blank ticker (`normalize_ticker`). `WatchlistNotFoundError`, caught first, `watchlist_not_found`. **`StoredSelectionError` from `_load` when any existing entry is unreadable: reproduced, it exits 2 today as a usage error whose text ends "Remove it with: ian watchlist remove-entry ...".** The insert rolls back with it. | The blank ticker is an explicit `WRK-5` check before the call. `StoredSelectionError` is reported under `stored_selection_unreadable`, exit 1, with its own sentence unchanged, the way every other command that reads the watchlist already reports it. |
 | `watchlist remove-ticker` | `remove_entries_for_ticker` | Blank ticker only; the method decodes no entry. `WatchlistNotFoundError` is caught first. | Explicit `WRK-5` check before the call. |
 | `watchlist rename` | `repository.rename` | Blank new name: a plain `ValueError("display_name must not be blank.")`. `WatchlistNotFoundError` and `WatchlistConflictError` are caught first. | Explicit `WRK-8` check before the call. |
@@ -342,14 +343,14 @@ Order of the checks within each command, unchanged:
 | `graham-number`, `graham-growth` | `SUP-2`, `SUP-3`, `SUP-4`, `SUP-1`, `SUP-6`, `SUP-7`, `SUP-8`, `SUP-5`, `SUP-9` |
 | `fcf-growth` | `SUP-4`, `SUP-1`, `FCF-1`, `SUP-6`, `SUP-7`, `SUP-8`, `SUP-5`, `FCF-4`, `FCF-3`, `FCF-2` |
 | selection builders | Momentum: `MOM-1` to `MOM-4`, then `SUP-6` to `SUP-8`. Graham Number: `SUP-6` to `SUP-8`, `SUP-5`, `SUP-9`. Graham Growth: `SUP-6` to `SUP-8`, `SUP-5`, `GGR-1`, `GGR-2`, `SUP-9`. FCF Growth: `SUP-6` to `SUP-8`, `SUP-5`, `FCF-4`, `FCF-1`, `FCF-3`, `FCF-2`. |
-| `watchlist create` | `WRK-2`, `WRK-3`, `WRK-1`, the builder, then the database, `WRK-4`, `WRK-5` |
+| `watchlist create` | `WRK-2`, `WRK-3`, `WRK-1`, the builder, then the database, `WRK-5` (every seed ticker), `WRK-4`, then the create |
 | `watchlist add-selection` | `WRK-1`, the builder, then the database, `WRK-5` |
 | `watchlist remove-ticker` | the database, then `WRK-5` |
 | `watchlist rename` | the database, then `WRK-8`, then not-found and name conflict |
 | `watchlist remove-entry`, `remove-method`, `delete`, `show`, `refresh` | `WRK-6`, `WRK-1`, `WRK-7`, `WRK-9`, `WRK-17` respectively, before the database |
 | `runs list` | `WRK-10`, `WRK-1`, `WRK-11`, `WRK-12`, `WRK-14`, `WRK-15`, then the database |
 | `runs show` | `WRK-16`, `WRK-13`, then the database |
-| `db status`, `db upgrade` | `DB-1`, `DB-2` |
+| `db status`, `db upgrade` | `DB-1`, then `DB-2` or `DB-3` |
 | `evaluate` | `EVL-1`, `EVL-2`, `EVL-3`, `EVL-4` |
 
 ### D. The pydantic-derived Graham messages
@@ -363,8 +364,8 @@ name appeared in the message, in map order. Every message below is reached by ru
 | :--- | :--- | :--- | :--- |
 | `eps_basis` outside the declared literal | direct commands and builders; the allowed values differ by model | `Invalid --eps-basis: Input should be 'three_year_average' or 'ttm'` (Graham Number direct); `'three_year_average'` (Number builder); `'three_year_average', 'ttm' or 'fiscal_year'` (Growth direct); `'three_year_average' or 'fiscal_year'` (Growth builder) | `["--eps-basis"]` |
 | Model-level SEC rule in `validate_method` | direct commands, `--eps-basis ttm` with the default provider | `SEC EDGAR requires --eps-basis to be one of (three_year_average) (received 'ttm').` (Growth lists `fiscal_year, three_year_average`) | `["--eps-basis"]` |
-| `security_provider_id` not a supported provider | builders only (the direct config accepts any provider id) | `Invalid --data-provider: Value error, Unsupported security provider 'bogus'; supported provider is 'sec_edgar'.` | `["--data-provider"]` |
-| Non-finite `--eps`, `--bvps`, `--current-price`, `--expected-growth`, `--aaa-yield` | builders only; the direct configurations have no finiteness check (F10) | `Invalid --eps: Value error, Financial override must be a finite number.` | the option |
+| `security_provider_id` not a supported provider | builders only (the direct config accepts any provider id) | `Invalid --data-provider: Unsupported security provider 'bogus'; supported provider is 'sec_edgar'.` (F10b: the `Value error, ` prefix is stripped) | `["--data-provider"]` |
+| Non-finite `--eps`, `--bvps`, `--current-price`, `--expected-growth`, `--aaa-yield` | builders only; the direct configurations have no finiteness check (F10) | `Invalid --eps: Financial override must be a finite number.` (F10b: prefix stripped) | the option |
 | Blank provider id, `as_of`, unknown field, strict `use_cache`, `quote_provider_id` | not reachable: `SUP-5` rejects a blank provider first, the builders pass an already validated `as_of`, and no option feeds the others | none | none |
 
 Can a message expose an input value it should not? No message does.
@@ -379,7 +380,7 @@ Can a message expose an input value it should not? No message does.
   already restricted the provider and basis to the sets the configuration accepts, so it is not reachable today.
 - Step 2 extends that test to the builders, and adds one that fails if any mapped sentence contains `input_value`,
   `validation error for` or `errors.pydantic.dev`.
-- `config_usage_errors` has a fallback option name, `Graham options`, for a field absent from the map. No reachable field is absent; see F10.
+- `config_usage_errors` has a fallback option name, `Graham options`, for a field absent from the map. No reachable field is absent, so step 2 replaces the fallback with a strict lookup that fails loudly (F10a).
 
 ### E. File scope, tests and documents for step 2
 
@@ -409,7 +410,7 @@ Tests to add:
 - Order tests: one command line violating two checks per command of the order table in section C.
 - The output-flag failure with `--json` (envelope) and without (sentence), including with a blank ticker.
 - The `parameters`/sentence invariant over every row; the model tests for `parameters` (null unless `invalid_parameter`, non-empty when set).
-- The residual `ValueError` test of section B, the unreadable-entry `add-selection` test, and a test pinning the current partial-create order (F3).
+- The residual `ValueError` test of section B, the unreadable-entry `add-selection` test, and a test that the watchlist does not exist after a blank seed ticker fails (F3).
 - The Graham message tests of section D.
 
 Existing tests that change (command-level checks assert exit 1 and the new sentence; parser rejections keep exit 2):
@@ -457,15 +458,31 @@ Each is for the project owner. I resolved none.
 9. **The same mistake exits differently by where it is made.** A missing `--expected-growth` or `--aaa-yield` exits 2 on `graham-growth` (the parser requires it) and 1 on `watchlist create` (`GGR-1`, `GGR-2`); a missing ticker exits 2 on `fcf-growth` and 1 on `graham-number` (`SUP-3`). Decision 3 rules out converting a check to a parser constraint, so this follows from it. **Recommendation:** accept, and document "exit 2 means the parser rejected the command line" in `USAGE.md` and `WORKSPACE.md`.
 10. **Loose ends in `config_usage_errors` (section D).** (a) The fallback name `Graham options` is unreachable and would put a made-up name in `parameters`; recommend a strict lookup so an unmapped field fails loudly. (b) Three reachable sentences carry pydantic's `Value error, ` prefix on the field-level branch only; decision 5 keeps them, recommend stripping it as the model-level branch does. (c) The direct Graham configurations accept `--eps nan` (no finiteness check, by reading the models; not run) while the builders reject it. That is a correctness item outside this slice; recommend a separate note under the existing-strategy correctness process.
 
+### Rulings on the findings (project owner, before step 2)
+
+| Finding | Ruling |
+| :--- | :--- |
+| F1 | Approved: `NAME must not be blank.`, `--limit must be between 1 and 100.`, `--offset must be 0 or greater.` |
+| F2 | Approved: `parameters` holds each option's declared primary long spelling and each argument's upper-case name as the sentences use it. This replaces "exactly as typed" in decision 7. |
+| F3 | Fix in this slice: `watchlist create` checks every seed ticker before it creates the watchlist. The accepted order change: a name that already exists together with a blank ticker now reports the blank ticker. A test checks the watchlist does not exist after the failure. |
+| F4 | Accepted; listed with the output changes. |
+| F5 | Accepted; stated in `DATABASE.md` and `USAGE.md`. |
+| F6 | Approved: `invalid_parameter` with `["--database-url"]` when the option was supplied (`DB-2`); `configuration_error` with the existing sentence when the target came from the settings (`DB-3`). |
+| F7 | **Moved to SWC.4e.** The direct Graham commands keep `configuration_error` from `build_graham_resolver` for an unsupported `--data-provider`, and the watchlist builders keep `invalid_parameter`; the two codes remain until SWC.4e removes the permissive configuration the direct commands use so tests can inject a synthetic provider ([B.15](SWC_CONTRACT_AND_SLICE_PLAN.md#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11)). Nothing in SWC.4d touches that configuration or the tests that use it. |
+| F8, F9 | Accepted; the documents say exit 2 means the parser rejected the command line. |
+| F10a, F10b | Approved: a strict lookup in `config_usage_errors`; the `Value error, ` prefix is stripped. |
+| F10c | Not fixed here. Reproduced through the CLI test runner with no network in step 2; if a non-finite override is accepted a GitHub issue is opened and referenced from the existing-strategy correctness plan. |
+| Scope | Editing `src/workspace/refresh.py` and `src/workspace/runs.py` is approved, only to define the worker and limit bounds once. |
+
 ## Appendix A: Decision record
 
-The eight decisions the project owner approved for this slice are recorded verbatim in
+The eight decisions (with the rulings above, which supersede the plan where they differ) the project owner approved for this slice are recorded verbatim in
 [B.14](SWC_CONTRACT_AND_SLICE_PLAN.md#b14-swc4d-command-validation-failures-2026-10-11) and are not reopened here. Where this
 plan applies each:
 
 | Decision | Subject | Applied in |
 | :--- | :--- | :--- |
-| 1 | Every check a command raises itself moves into the envelope | [Section A](#a-the-check-table), 44 rows |
+| 1 | Every check a command raises itself moves into the envelope | [Section A](#a-the-check-table), 45 rows |
 | 2 | A test fails if any file under `src/` raises `typer.BadParameter` | [Section E](#e-file-scope-tests-and-documents-for-step-2), first new test |
 | 3 | Exit 1 with `invalid_parameter`; exit 2 means the parser rejected the command line | [Section C](#c-the-mechanism) item 5; [5.3](#53-invalid_parameter-under-the-stability-rule) |
 | 4 | A command with no `--json` writes the sentence to standard error and exits 1 | [Section C](#c-the-mechanism) item 4 |

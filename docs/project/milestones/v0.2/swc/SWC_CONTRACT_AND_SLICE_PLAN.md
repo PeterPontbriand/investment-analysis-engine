@@ -57,6 +57,7 @@ document-link check and applicable documentation checks.
 | SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Complete | 2026-10-07 |
 | SWC.4c.1 | [Common header and tail for strategy documents](#swc4c1--common-header-and-tail-for-strategy-documents) | Complete | 2026-10-09 |
 | SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Next | |
+| SWC.4e | [The direct Graham commands reject an unsupported provider](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) | Planned | |
 | SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
@@ -546,6 +547,19 @@ version and result-schema version distinct and do not silently reinterpret histo
   the implementation.
 - **Detail:** [SWC.4d plan](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md).
 
+#### SWC.4e — The direct Graham commands reject an unsupported provider
+
+- **Problem:** the direct `graham-number` and `graham-growth` commands accept any provider id in their configuration so tests can
+  inject a synthetic one. An unsupported `--data-provider` is therefore `configuration_error` on those commands (from
+  `build_graham_resolver`) and `invalid_parameter` on `watchlist create` and `watchlist add-selection` (from the strict selection).
+- **Decision:** remove the seam ([B.15](#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11)). The direct
+  commands reject an unsupported provider with the builders' check, sentence and code. Tests pass `sec_edgar` with the resolver
+  replaced, and the stored direct-command output is re-captured; the only stored-output difference permitted is the provider id.
+- **Scope:** the Graham direct-command configuration and its command files, and the tests listed in B.15.
+- **Branch:** `feat/swc-4e-direct-graham-provider`, from `main` after SWC.4d has merged.
+- **Detail:** ⚠ no slice plan yet. The affected files and invocation counts are in
+  [B.15](#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11).
+
 ### SWC.5 — Site data, status command and generated lists
 
 - **Problem:** a contributor learns what is missing from a strategy only by running tests, the edit-site
@@ -1016,5 +1030,47 @@ The project owner decided, for SWC.4d (the open question of [B.12](#b12-swc4a-pa
    existing checks supply it too. The failure schema version is bumped. Nothing is migrated.
 8. **The slice runs in two steps on one branch.** The first writes the [slice plan](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md) and stops.
 
+Rulings on the slice plan's findings, made before step 2 (the plan's "Rulings on the findings" table holds them all):
+
+- `parameters` holds each option's declared primary long spelling and each argument's upper-case name as the sentences use it; this
+  replaces "exactly as typed" in decision 7.
+- `watchlist create` checks every seed ticker before it creates the watchlist. A name that already exists together with a blank ticker
+  now reports the blank ticker.
+- A private-memory `db` target reports `invalid_parameter` with `["--database-url"]` when the option was supplied and
+  `configuration_error` with the existing sentence when the target came from the settings.
+- The direct Graham commands keep `configuration_error` for an unsupported `--data-provider` here; that moved to
+  [SWC.4e](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) ([B.15](#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11)).
+- `config_usage_errors` uses a strict lookup and drops pydantic's `Value error, ` prefix; exit 2 is documented as "the parser rejected
+  the command line".
+
 The plan lists every check, the audit of each caught `ValueError`, the shared reporting path and the findings for the project owner. No
 behavior changes until step 2 runs.
+
+### B.15 SWC.4e: the direct Graham commands reject an unsupported provider (2026-10-11)
+
+The project owner decided, when SWC.4d step 2 found the cause of the difference between the direct Graham commands and the watchlist
+builders:
+
+- **What was found.** Both support exactly one security-fact provider, `sec_edgar` (`CLI_SECURITY_PROVIDERS`; `build_graham_resolver`). The
+  direct commands validate a permissive `GrahamNumberConfig` / `GrahamGrowthConfig` that accepts any provider id, by design, so tests can
+  inject a synthetic one with the resolver builder patched; an unsupported id is then rejected later, as `configuration_error`. The
+  builders validate the strict selection and report `invalid_parameter`.
+- **SWC.4d keeps today's behavior** and does not touch the permissive configuration or the tests that use it.
+- **SWC.4e removes the seam.** The direct commands reject an unsupported provider with the builders' check, sentence and code, at the
+  position in the command's check order where the configuration is validated today. Tests pass `sec_edgar` with the resolver replaced.
+  The stored direct-command output is re-captured; the only stored-output difference permitted is the provider id.
+- **Affected, found with** `grep -rn '"--data-provider"' tests --include=*.py` and a count of the occurrences followed by the
+  synthetic constant (`PROVIDER_ID`, `"fixture-synth"`, defined in `src/evaluation/fixtures/graham.py`): 19 invocation sites, all
+  through the direct `graham-number` and `graham-growth` commands.
+
+  | File | Sites using `fixture-synth` |
+  | :--- | ---: |
+  | `tests/test_cli.py` | 14 |
+  | `tests/test_cli_graham_commands.py` | 2 (one is parametrized over both commands and the output modes) |
+  | `tests/test_cli_graham_nonpositive_growth.py` | 1 |
+  | `tests/_direct_command_output.py` | 2 (the stored-output harness) |
+
+  Stored output carrying the id: `tests/expected_output/direct_commands/graham-number.json`, `graham-number.txt`,
+  `graham-growth.json`, `graham-growth.txt`. Other `--data-provider` values in tests are `sec_edgar` (including `" SEC_EDGAR "`),
+  `not-a-provider` (`tests/test_cli.py`, expects the unsupported-provider failure) and `unapproved` (`fcf-growth`, which never rejects
+  a provider id).
