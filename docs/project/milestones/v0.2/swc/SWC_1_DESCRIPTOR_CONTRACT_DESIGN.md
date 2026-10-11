@@ -2168,7 +2168,8 @@ Decided while implementing SWC.4b.
   typing is written. `FailureReasonCode` types each refresh result's `reason_code`; no second list of codes exists, and
   `RefreshJobResult.reason_code` stays the string the injected classifier returns.
 - **Unversioned.** The four documents carry no `schema_version`, and each schema's description says so. The refresh
-  summary has never carried one; SWC.4a's new `reason_code` key bumped nothing, and this slice adds none.
+  summary has never carried one; SWC.4a's new `reason_code` key bumped nothing, and this slice adds none. (PH.2e later
+  gave the refresh summary `schema_version` 1.)
 - **One timestamp type.** Pydantic writes a UTC instant as `Z`; `datetime.isoformat()` writes `+00:00`. Before this slice
   `runs list` wrote `Z` (`completed_at`) while the watchlist, `runs show` and the strategy documents wrote `+00:00`, so
   `+00:00` was the majority. `DocumentTimestamp` writes the `isoformat()` spelling for every document model, and a

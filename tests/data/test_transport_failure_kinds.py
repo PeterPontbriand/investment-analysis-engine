@@ -22,6 +22,7 @@ _HEADERS = {"User-Agent": "Synthetic test"}
 _NO_DATA = ProviderFailureKind.NO_DATA
 _UNEXPECTED = ProviderFailureKind.UNEXPECTED_RESPONSE
 _UNREACHABLE = ProviderFailureKind.UNREACHABLE
+_RATE_LIMITED = ProviderFailureKind.RATE_LIMITED
 
 
 def _http_error(code: int) -> HTTPError:
@@ -72,7 +73,6 @@ def test_a_json_404_takes_the_kind_the_caller_passes(caller_kind: ProviderFailur
     "fault",
     [
         _http_error(403),
-        _http_error(429),
         _http_error(400),
         _http_error(401),
         _http_error(410),
@@ -90,6 +90,29 @@ def test_other_transport_faults_are_unreachable_whatever_the_404_kind(fault: Bas
     assert caught.value.kind is _UNREACHABLE
     assert caught.value.provider_id == "sec_edgar"
     assert caught.value.__cause__ is fault
+
+
+@pytest.mark.parametrize("caller_kind", [_NO_DATA, _UNEXPECTED])
+def test_a_json_429_is_rate_limited_whatever_the_404_kind(caller_kind: ProviderFailureKind) -> None:
+    fault = _http_error(429)
+    with _patched_json(fault), pytest.raises(FinancialProviderError) as caught:
+        _json(not_found=caller_kind)
+    assert (caught.value.kind, caught.value.provider_id) == (_RATE_LIMITED, "sec_edgar")
+    assert caught.value.__cause__ is fault
+
+
+def test_an_http_403_stays_unreachable_because_a_rejected_identity_looks_the_same() -> None:
+    with _patched_json(_http_error(403)), pytest.raises(FinancialProviderError) as caught:
+        _json()
+    assert caught.value.kind is _UNREACHABLE
+
+
+def test_a_filing_429_is_rate_limited_and_a_403_stays_unreachable() -> None:
+    with _patched_filing(_http_error(429)), pytest.raises(FinancialProviderError) as limited:
+        _filing()
+    with _patched_filing(_http_error(403)), pytest.raises(FinancialProviderError) as rejected:
+        _filing()
+    assert (limited.value.kind, rejected.value.kind) == (_RATE_LIMITED, _UNREACHABLE)
 
 
 @pytest.mark.parametrize("body", [b"<html>not json</html>", b"\xff\xfe\x00bad"])

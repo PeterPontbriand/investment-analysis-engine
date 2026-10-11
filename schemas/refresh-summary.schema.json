@@ -7,6 +7,7 @@
         "historical_quality",
         "provider_error",
         "provider_unreachable",
+        "provider_rate_limited",
         "provider_unexpected_response",
         "provider_no_data",
         "configuration_error",
@@ -124,7 +125,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "The one document ``refresh --json`` writes when the refresh completes.\n\nThis document is unversioned: it has no ``schema_version``.",
+  "description": "The one document ``refresh --json`` writes when the refresh completes.\n\n``schema_version`` is this document's own lineage and is independent of every other document's.",
   "properties": {
     "counts": {
       "additionalProperties": {
@@ -145,6 +146,12 @@
       },
       "title": "Results",
       "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
     },
     "watchlist_id": {
       "format": "uuid",

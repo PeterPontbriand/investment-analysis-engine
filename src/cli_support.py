@@ -53,6 +53,7 @@ _DIRECT_CODES = frozenset(
 # provider (when known) and the ticker, says what was observed, and offers no remedy.
 _PROVIDER_FAILURE_SENTENCES = {
     ProviderFailureKind.UNREACHABLE: "Unable to analyze {subject}: {provider} did not serve the request.",
+    ProviderFailureKind.RATE_LIMITED: "Unable to analyze {subject}: {provider} is limiting requests.",
     ProviderFailureKind.UNEXPECTED_RESPONSE: (
         "Unable to analyze {subject}: {provider} answered in a form the application does not read."
     ),

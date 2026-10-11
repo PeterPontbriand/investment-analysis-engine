@@ -8,16 +8,17 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 
 - **Massive:** removed by [MR](../massive-removal/MR_MASSIVE_REMOVAL_PLAN.md) after PH.2a and PH.2b delivered; the Massive
   text in §4 and §8 records what was delivered.
-- **What it does:** a provider failure says which of three things happened: the service was `unreachable`, it
-  answered in an `unexpected_response`, or it had `no_data` for this request. The kind is a typed field from the
-  adapter to every report, and becomes one of three new stable reason codes.
+- **What it does:** a provider failure says which of four things happened: the service was `unreachable`, it was
+  `rate_limited`, it answered in an `unexpected_response`, or it had `no_data` for this request. The kind is a
+  typed field from the adapter to every report, and becomes one of four new stable reason codes. PH.2a to PH.2d
+  delivered three kinds; PH.2e added `rate_limited`.
 - **Four slices, in this order, after SWC.4c:** PH.2a (the kind, the classifier, SEC EDGAR and Massive, the
   raised path), PH.2b (Yahoo, `ian health`, the completion test, the runbook), PH.2c (the kind in stored
   evidence, the saved run, the refresh job and the strategy documents), PH.2d (the failure codes and the
   classifier move to `src/core`, each exception stating its own code). All four are complete, so PH.2 is
   complete. [Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) is complete
-  (2026-10-11); it called the classifier in `core`, so `orchestrator` gained no dependency on `reporting`. PH.3a is complete (2026-10-11), and PH.3b is next.
-- **What it does not do:** probe a provider, put a verdict on the first line, or add `ian health --json` (PH.3a and PH.3b);
+  (2026-10-11); it called the classifier in `core`, so `orchestrator` gained no dependency on `reporting`. PH.3a is complete (2026-10-11). PH.2e (2026-10-11) added a fourth kind, and PH.3b is next.
+- **What it does not do:** probe a provider, put a verdict on the first line, or add `ian health --json` (PH.3a, PH.3b and PH.3c);
   retry, fall back or remediate; change any analysis result, formula or classification.
 - **Rules:** a provider failure stays a recorded, stored outcome with its resolution trace; the
   `PROVIDER_ERROR` status is not split; stored data has no compatibility value, so versions are bumped and
@@ -62,6 +63,17 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
 | D33 | PH.2d, decision D5. No moved name is re-exported from its old module; every importer in `src/`, `tests/` and `scripts/` is updated, and `src/reporting/failure_classification.py` is removed. |
 | D34 | PH.2d, decision D6. `tests/_failure_code_table.py` pins, as explicit literals, the code and status the classifier returns for every classified exception class, `DatabaseReadinessError` for every `ReadinessReason`, `DataFetchError` and `FinancialProviderError` for each kind and for none, and a plain `ValueError`, `RuntimeError` and `Exception`. It was recorded from the classifier before the move and has the same meaning after it. The tests that iterated `CLASSIFICATION_RULES` read it, and a test requires every exception class under `src/` that declares a code to appear in it. |
 | D35 | PH.2d, decision D7. Proof of no output change: `uv run python scripts/generate_schemas.py --check` passes, and the branch changes no file under `schemas/` and none under `tests/expected_output/`. Issue #40 calls the classifier in `core`, so `orchestrator` gains no dependency on `reporting`. |
+| D36 | PH.2e, decision D1. A new kind `rate_limited` in `ProviderFailureKind` and a new stable code `provider_rate_limited` in `FailureReasonCode`. The code joins `PROVIDER_FAILURE_CODES` (so also the input-unavailable codes and the direct-command codes) and `PROVIDER_CODE_BY_KIND`. |
+| D37 | PH.2e, decision D2. Yahoo: the library's rate-limit error (`YFRateLimitError`) is `rate_limited` wherever the adapter's rule table sees it, which is the quote, instrument-metadata (profile and identity) and currency reads. It no longer shares a rule with connection errors. |
+| D38 | PH.2e, decision D3. SEC and every other caller of `http_failure_rules` (the JSON fetcher and the filing fetcher): an HTTP 429 is `rate_limited`. An HTTP 403 stays `unreachable`, because SEC answers it for a blocked client and for a rejected identity alike. |
+| D39 | PH.2e, decision D4. The Yahoo history download is unchanged. `yf.download` swallows the rate-limit error and returns an empty frame, so a throttled download is indistinguishable from an empty answer and stays `no_data`. `yf.download` is not replaced and the library's logs and error text are not read. A test runs the real library against a stubbed HTTP 429 and pins this. |
+| D40 | PH.2e, decision D5. The one order that picks among several failed kinds is `unreachable`, `rate_limited`, `unexpected_response`, `no_data`. |
+| D41 | PH.2e, decision D6. The sentence for the new kind, in the shared sentence table: "Unable to analyze {subject}: {provider} is limiting requests." |
+| D42 | PH.2e, decision D7. `ian health` has seven outcomes, adding `rate_limited` ("rate limited" in text, `rate_limited` in `--json`). A check with that outcome did not pass, so the command exits 1. A timeout inside a check stays `unreachable`. |
+| D43 | PH.2e, decision D8. Every version field whose stored shape or document names a kind or a code is bumped and nothing is migrated ([§4](#ph2e--a-fourth-provider-failure-kind-rate-limited)). |
+| D44 | PH.2e, decision D9. The refresh summary document gains `schema_version` 1 as its first key. It was unversioned before. |
+| D45 | PH.2e, decision D10. The tests call no real service: each rule site; the pinned classification table with the `rate_limited` rows for both provider exception types; the precedence with all four kinds; the sentence; the failure envelope and one strategy document; `ian health` text and JSON; the D39 pin; the schema drift check. |
+| D46 | PH.2e, decision D11. The evaluation fixtures keep simulating `unreachable` and are unchanged. The one new expected-output case, `graham-number-provider-rate-limited`, wraps the fixture provider and re-raises its failure with the new kind, as the existing classifying wrapper does. |
 
 ## 3. Output changes
 
@@ -83,6 +95,19 @@ the same slice and the diff is what the review approves.
 | 11 | Refresh job `reason_code` | Set only for a raised exception | Set if and only if the job raised or its run is `failed`; a failed run's job copies the stored code ([§6](#6-refresh-job-reason_codes)) | PH.2c |
 | 12 | Refresh summary schema | `reason_code` set if and only if `error` is set | Set if and only if the job raised or its run is `failed` | PH.2c |
 | 13 | Profile-cache payload | Stored under `schema_version` 1, no kind | Stored under `schema_version` 2 and carries the kind; a record of another version is treated as absent on the fresh path and the fail-open path ([D26](#2-decisions)) | PH.2c |
+| 14 | A 429 from Yahoo's library (quote, profile, identity, currency reads) or an HTTP 429 from SEC | `unreachable`: code `provider_unreachable`, sentence "did not serve the request" | `rate_limited`: code `provider_rate_limited`, sentence "is limiting requests" ([D36 to D41](#2-decisions)) | PH.2e |
+| 15 | Several failed inputs | Precedence `unreachable`, `unexpected_response`, `no_data` | `unreachable`, `rate_limited`, `unexpected_response`, `no_data` | PH.2e |
+| 16 | `ian health` | Six outcomes | Seven: `rate_limited` ("rate limited" in text) added; exit 1 | PH.2e |
+| 17 | Generated schemas | Three provider codes; health verdicts six | `failure`, `database-maintenance-report`, `refresh-summary`: `provider_rate_limited` joins the code enumeration; the four strategy schemas: the `rate_limited` kind and code; `provider-health`: the seventh verdict | PH.2e |
+| 18 | Stored and document versions | See [§4](#ph2e--a-fourth-provider-failure-kind-rate-limited) | Bumped | PH.2e | PH.2e |
+| 19 | Refresh summary document | Unversioned | `schema_version` 1 as the first key | PH.2e |
+
+A Yahoo history download that is throttled stays `no_data` (row 6 and [D39](#2-decisions)), and an SEC HTTP 403 stays
+`unreachable` ([D38](#2-decisions)); neither is an output change.
+
+**Stored `unreachable` may have been throttling.** Before PH.2e a throttled Yahoo quote read or SEC request was
+stored as `unreachable`, and a throttled history download as `no_data`. A run saved before this slice that holds
+`unreachable` may therefore have been throttled; the stored value is not rewritten and nothing is migrated.
 
 Text-mode sentences keep their wording except where they state a cause the kind contradicts: the Yahoo
 transport sentence (row 6) and Momentum's "returned no usable price history" (row 3).
@@ -189,9 +214,46 @@ PH.2c extend.
 - **No output change** ([D34 and D35](#2-decisions)). The pinned table and `generate_schemas.py --check`.
 - **Gate.** The complete managed gate, with the 3.14 pass.
 
+### PH.2e — A fourth provider failure kind, rate limited
+
+`feat/ph-2e-rate-limited-kind`, after PH.3a. Complete 2026-10-11. It builds neither the automatic provider check
+nor the `provider_check` element; their approved decisions are recorded in the
+[PH.3 decisions](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-and-ph3c-the-automatic-provider-check).
+
+- **The kind and its code** ([D36](#2-decisions)): `src/core/provider_failure_kind.py` (the kind and the
+  precedence, [D40](#2-decisions)) and `src/core/failure_codes.py` (the code and its mapping).
+- **Rule sites** ([D37, D38](#2-decisions)): the Yahoo rule table in `src/data/yfinance/client.py` splits
+  `YFRateLimitError` from the `OSError` rule, and `http_failure_rules` in `src/data/http_json.py` gains an HTTP 429
+  rule before the general `unreachable` rule. The SEC filing fetch uses `http_failure_rules`, so it follows. No
+  other site classifies a provider failure; the health check in `src/data/provider_checks.py` carries the kind of
+  a typed provider failure unchanged and adds the `rate_limited` outcome.
+- **Sentence and health** ([D41, D42](#2-decisions)): the sentence table in `src/cli_support.py`,
+  `CheckVerdict` and the health document.
+- **Versions** ([D43](#2-decisions)), bumped with nothing migrated:
+
+  | Version | Before | After |
+  | :--- | :--- | :--- |
+  | `AnalysisRun.run_schema_version` (and its paired check in `decode_evidence`) | 2 | 3 |
+  | `result_schema_version`: Momentum, Graham Number, Graham Growth, FCF Growth | 3, 3, 3, 4 | 4, 4, 4, 5 |
+  | `evidence_codec_version`: Momentum, Graham Number, Graham Growth, FCF Growth | 2, 3, 3, 2 | 3, 4, 4, 3 |
+  | Document `schema_version`: Momentum, Graham Number, Graham Growth, FCF Growth | 7, 8, 8, 7 | 8, 9, 9, 8 |
+  | Failure envelope `schema_version` | 7 | 8 |
+  | Database maintenance report `schema_version` | 2 | 3 |
+  | Provider health document `schema_version` | 1 | 2 |
+  | Refresh summary `schema_version` ([D44](#2-decisions)) | none | 1 |
+  | Instrument-profile record `schema_version` | 2 | 3 |
+
+  Not bumped, with the reason: the trajectory event `schema_version` (1) versions an envelope whose `details` is
+  an open mapping with no enumeration of codes or kinds; the resolved-input and market-data cache versions, whose
+  records hold facts and never a failure.
+- **Expected output.** The 91 stored strategy, direct-command and workspace-command documents that change differ
+  only by a version number and, for the refresh summary, the new first key; two files are added for the new case
+  ([D46](#2-decisions)).
+- **Gate.** The complete managed gate, with the 3.14 pass.
+
 ## 5. The shared `provider_failure` element
 
-- **Shape.** `provider_failure` is null, or an object with `reason_code` (one of the three codes) and `inputs`,
+- **Shape.** `provider_failure` is null, or an object with `reason_code` (one of the four codes) and `inputs`,
   an array of `{input, provider_id, kind}`: each failed input with the provider that failed and its kind (`input` is null for a raised failure, D15). It is
   populated when the analysis outcome is a provider failure, and lists the inputs that caused it. A failed
   optional input (identity, kind, share unit) that does not change the outcome stays in the profile
@@ -200,8 +262,9 @@ PH.2c extend.
   (PH.2a) and the Momentum, Graham Number, Graham Growth and FCF Growth documents, direct and replayed (PH.2c).
   The refresh summary does not carry it; a job carries a `reason_code` ([§6](#6-refresh-job-reason_codes)).
 - **Precedence.** The single code is derived from the kinds of the listed inputs by one function with a fixed
-  order: `unreachable`, then `unexpected_response`, then `no_data`. An outage on any input outranks a shape
-  change, which outranks an absent answer, so the code names the condition most likely to need action. The
+  order: `unreachable`, then `rate_limited`, then `unexpected_response`, then `no_data` (PH.2e inserted
+  `rate_limited`, [D40](#2-decisions)). An outage on any input outranks throttling, which outranks a shape change,
+  which outranks an absent answer, so the code names the condition most likely to need action. The
   document, the saved run and the refresh job all call that function. In the code as it stands every assembly
   returns at its first failed input, so the list holds one entry today (FCF Growth skips a failed diluted-share
   field when it classifies on total free cash flow; that failure is not part of the element, and its trace event,
@@ -236,15 +299,16 @@ hold `execution_failed` need no handling.
 
 ## 7. Tests
 
-- **Per adapter and kind:** each of the three kinds is produced by a tested path in each live adapter (Yahoo,
-  SEC EDGAR), using fakes; no test calls a real service.
+- **Per adapter and kind:** each kind is produced by a tested path in each live adapter (Yahoo, SEC EDGAR) that
+  can observe it, using fakes; no test calls a real service. A throttled Yahoo history download is `no_data`
+  ([D39](#2-decisions)).
 - **Classifier:** each kind maps to its code and status; a provider failure with no kind maps to
   `provider_error`; both exception types classify identically in every command family.
 - **Carried, not lost:** a kind raised in an adapter reaches the failure envelope, and a stored kind reaches the
   strategy document, the saved run and the refresh job.
 - **Helper order:** each listed type maps to its kind, a listed defect type propagates, and only an unlisted
   exception becomes `unexpected_response`.
-- **Precedence:** every ordering of the three kinds yields the §5 code, and the document, the saved run and the
+- **Precedence:** every ordering of the four kinds yields the §5 code, and the document, the saved run and the
   refresh job agree on it.
 - **Defects propagate:** a non-provider exception raised inside each narrowed handler is not reported as a
   provider failure.
@@ -402,6 +466,25 @@ before PH.2c unless they say otherwise.
   `provider-error` pairs (direct and replay) for Graham Number, Graham Growth and FCF Growth; PH.2c regenerates
   all of them. Momentum has no provider-failure golden, since it raises. The failure envelope has no golden;
   it is covered by the Python tests that assert `provider_error` and by the schemas.
+
+## 8a. Verified against `main` for PH.2e
+
+Checked on 2026-10-11 against `yfinance` 1.6.0 (the version in `uv.lock`, unchanged), with the HTTP layer stubbed
+to answer HTTP 429 and no network:
+
+- **Rule sites.** Provider failures are classified at four sites: the Yahoo rule table (`_YFINANCE_FAILURE_RULES`,
+  used by the history download, the quote, the instrument-metadata and the currency reads), `http_failure_rules`
+  in `src/data/http_json.py` (used by `fetch_json` and the SEC filing fetch), and the health check in
+  `src/data/provider_checks.py`, which carries a typed failure's own kind and sets only its own timeout and shape
+  failures. No other site classifies one.
+- **The library's error.** `YFRateLimitError` is raised from the cookie and crumb setup and from the request
+  helper when Yahoo answers 429. It reached the adapter's rule table from `fast_info["last_price"]` and from
+  `Ticker.info`, so it covers the quote, profile and identity reads. It is a plain `YFException` subclass and not
+  an `OSError`; the rule that treats an exact `YFException` as a defect matches by exact type and does not catch it.
+- **The download.** `yf.download` returned an empty frame for the same stub. The error is swallowed inside the
+  library, so the history path never sees it ([D39](#2-decisions)).
+- **The transport.** `urlopen` raises `HTTPError` with `code` 429, which `http_failure_rules` now classifies.
+- **Timeouts.** A timeout inside a health check is `unreachable` and stays so.
 
 ## 9. Question carried forward
 

@@ -147,10 +147,10 @@ def test_current_quote_retains_normalized_currency() -> None:
 _UNREACHABLE_FAULTS = [
     ConnectionError("connection refused"),
     TimeoutError("timed out"),
-    YFRateLimitError(),
     curl_exceptions.ConnectionError("curl connection failure"),
     requests_exceptions.SSLError("tls failure"),
 ]
+_RATE_LIMITED_FAULTS = [YFRateLimitError()]
 _UNEXPECTED_FAULTS = [
     YFDataException("unreadable payload"),
     curl_exceptions.JSONDecodeError("not json", 0, "{"),
@@ -171,6 +171,7 @@ _DEFECTS = [
 ]
 _KIND_FAULTS = [
     *[(fault, ProviderFailureKind.UNREACHABLE) for fault in _UNREACHABLE_FAULTS],
+    *[(fault, ProviderFailureKind.RATE_LIMITED) for fault in _RATE_LIMITED_FAULTS],
     *[(fault, ProviderFailureKind.UNEXPECTED_RESPONSE) for fault in _UNEXPECTED_FAULTS],
     *[(fault, ProviderFailureKind.NO_DATA) for fault in _NO_DATA_FAULTS],
 ]
@@ -184,7 +185,7 @@ def _assert_failure(failure: DataFetchError, kind: ProviderFailureKind) -> None:
 
 
 class TestHistoryFailureKinds:
-    """``fetch_data`` reports what it observed as one of the three kinds, with provider identity."""
+    """``fetch_data`` reports what it observed as one of the four kinds, with provider identity."""
 
     @pytest.mark.parametrize(("fault", "kind"), _KIND_FAULTS, ids=_FAULT_IDS)
     def test_exception_escaping_the_download_is_classified(self, fault: Exception, kind: ProviderFailureKind) -> None:

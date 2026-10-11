@@ -1,4 +1,4 @@
-"""The three kinds of provider failure.
+"""The four kinds of provider failure.
 
 This is a leaf module: it imports nothing from the application, so the data adapters, the classifier and the
 failure documents can all depend on it without a cycle.
@@ -11,22 +11,25 @@ from enum import StrEnum
 class ProviderFailureKind(StrEnum):
     """What a provider failure was, as observed by the adapter.
 
-    ``UNREACHABLE``: the service did not serve the request (DNS, connection, timeout, throttling or blocking,
-    server errors). ``UNEXPECTED_RESPONSE``: the service answered, but not in the form the adapter reads.
+    ``UNREACHABLE``: the service did not serve the request (DNS, connection, timeout, blocking, server errors).
+    ``RATE_LIMITED``: the service refused the request because it is limiting requests (HTTP 429, or the library's
+    rate-limit error). ``UNEXPECTED_RESPONSE``: the service answered, but not in the form the adapter reads.
     ``NO_DATA``: the service answered correctly and has nothing for this request.
     """
 
     UNREACHABLE = "unreachable"
+    RATE_LIMITED = "rate_limited"
     UNEXPECTED_RESPONSE = "unexpected_response"
     NO_DATA = "no_data"
 
 
 PROVIDER_KIND_PRECEDENCE: tuple[ProviderFailureKind, ...] = (
     ProviderFailureKind.UNREACHABLE,
+    ProviderFailureKind.RATE_LIMITED,
     ProviderFailureKind.UNEXPECTED_RESPONSE,
     ProviderFailureKind.NO_DATA,
 )
-"""The one order that picks among several failed kinds: an outage, then a shape change, then an absent answer."""
+"""The one order that picks among several failed kinds: an outage, throttling, a shape change, an absent answer."""
 
 
 def require_provider_identity(kind: ProviderFailureKind | None, provider_id: str | None) -> None:

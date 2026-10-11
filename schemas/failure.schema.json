@@ -63,6 +63,7 @@
         "historical_quality",
         "provider_error",
         "provider_unreachable",
+        "provider_rate_limited",
         "provider_unexpected_response",
         "provider_no_data",
         "configuration_error",
@@ -93,7 +94,7 @@
     },
     "ProviderFailure": {
       "additionalProperties": false,
-      "description": "Why an analysis outcome is a provider failure: one of three codes and the inputs that caused it.\n\nThe same element is carried by the failure envelope and by every document that reports an analysis\noutcome. ``reason_code`` is the single code derived from the kinds in ``inputs``.",
+      "description": "Why an analysis outcome is a provider failure: one of four codes and the inputs that caused it.\n\nThe same element is carried by the failure envelope and by every document that reports an analysis\noutcome. ``reason_code`` is the single code derived from the kinds in ``inputs``.",
       "properties": {
         "inputs": {
           "items": {
@@ -148,9 +149,10 @@
       "type": "object"
     },
     "ProviderFailureKind": {
-      "description": "What a provider failure was, as observed by the adapter.\n\n``UNREACHABLE``: the service did not serve the request (DNS, connection, timeout, throttling or blocking,\nserver errors). ``UNEXPECTED_RESPONSE``: the service answered, but not in the form the adapter reads.\n``NO_DATA``: the service answered correctly and has nothing for this request.",
+      "description": "What a provider failure was, as observed by the adapter.\n\n``UNREACHABLE``: the service did not serve the request (DNS, connection, timeout, blocking, server errors).\n``RATE_LIMITED``: the service refused the request because it is limiting requests (HTTP 429, or the library's\nrate-limit error). ``UNEXPECTED_RESPONSE``: the service answered, but not in the form the adapter reads.\n``NO_DATA``: the service answered correctly and has nothing for this request.",
       "enum": [
         "unreachable",
+        "rate_limited",
         "unexpected_response",
         "no_data"
       ],
@@ -217,7 +219,7 @@
         }
       ],
       "default": null,
-      "description": "Set exactly when reason_code is one of the three provider failure codes; null otherwise."
+      "description": "Set exactly when reason_code is one of the four provider failure codes; null otherwise."
     },
     "reason": {
       "title": "Reason",
@@ -233,8 +235,8 @@
       "type": "null"
     },
     "schema_version": {
-      "const": 7,
-      "default": 7,
+      "const": 8,
+      "default": 8,
       "title": "Schema Version",
       "type": "integer"
     },

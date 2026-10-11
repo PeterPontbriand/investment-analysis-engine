@@ -1,5 +1,5 @@
 {
-  "schema_version": 7,
+  "schema_version": 8,
   "analysis": "fcf_earnings_growth",
   "method": "reported_fcf_eps_cagr",
   "ticker": "ACME",
@@ -17,7 +17,7 @@
     "resolved_at": null
   },
   "instrument_kind": null,
-  "result_schema_version": 4,
+  "result_schema_version": 5,
   "method_version": 2,
   "policy": {
     "historical_horizon": "3",

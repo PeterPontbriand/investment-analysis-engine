@@ -9,8 +9,10 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-HealthVerdict = Literal["ok", "unreachable", "unexpected_response", "no_data", "not_configured", "failed"]
-"""The six outcomes of a provider check."""
+HealthVerdict = Literal[
+    "ok", "unreachable", "rate_limited", "unexpected_response", "no_data", "not_configured", "failed"
+]
+"""The seven outcomes of a provider check."""
 
 
 class ProviderHealthEntry(BaseModel):
@@ -21,9 +23,9 @@ class ProviderHealthEntry(BaseModel):
     provider_id: str = Field(description="The provider's stable identity, as `--provider` names it.")
     verdict: HealthVerdict = Field(
         description=(
-            "ok: every request answered in the shape the adapter reads. unreachable, unexpected_response and "
-            "no_data: the provider failed in that way. not_configured: SEC access is not set up, so the check could "
-            "not run. failed: an unexpected error inside the check."
+            "ok: every request answered in the shape the adapter reads. unreachable, rate_limited, "
+            "unexpected_response and no_data: the provider failed in that way. not_configured: SEC access is not "
+            "set up, so the check could not run. failed: an unexpected error inside the check."
         )
     )
     probe: str = Field(description="What the check requests; a sentence for people, not stable.")
@@ -38,5 +40,5 @@ class ProviderHealthDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     providers: tuple[ProviderHealthEntry, ...]

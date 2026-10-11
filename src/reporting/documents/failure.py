@@ -45,7 +45,7 @@ class FailureEnvelope(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[7] = 7
+    schema_version: Literal[8] = 8
     status: FailureStatus
     reason_code: FailureReasonCode
     reason: str
@@ -59,7 +59,7 @@ class FailureEnvelope(BaseModel):
     )
     provider_failure: ProviderFailure | None = Field(
         default=None,
-        description="Set exactly when reason_code is one of the three provider failure codes; null otherwise.",
+        description="Set exactly when reason_code is one of the four provider failure codes; null otherwise.",
     )
 
     @model_validator(mode="after")

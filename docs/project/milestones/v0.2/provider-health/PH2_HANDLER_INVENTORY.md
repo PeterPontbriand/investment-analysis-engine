@@ -15,8 +15,11 @@ The three kinds are `unreachable`, `unexpected_response` and `no_data`; the deci
 - **Typed, never parsed from prose.** A `ProviderFailureKind` enum and the provider identity are fields on the
   failure, carried by the existing `DataFetchError` and `FinancialProviderError` as additive attributes
   (`src/core/provider_failure_kind.py` defines the enum; the helper is in `src/data/provider_failure.py`). No public exception is removed or renamed.
-- **`unreachable`:** the service did not serve the request: DNS, connect, timeout, throttling or blocking such
-  as HTTP 403 and 429, server errors.
+- **`unreachable`:** the service did not serve the request: DNS, connect, timeout, blocking such as HTTP 403,
+  server errors. (Before PH.2e this included throttling, HTTP 429 and the Yahoo library's rate-limit error; both are
+  now `rate_limited`.)
+- **`rate_limited`:** the service refused the request because it is limiting requests: HTTP 429, or the Yahoo
+  library's rate-limit error. Added by PH.2e.
 - **`unexpected_response`:** the service answered, but not in the form the adapter reads: invalid JSON, missing
   keys or columns, a non-numeric or non-positive quote.
 - **`no_data`:** the service answered correctly and has nothing for this request: an unknown ticker, an empty
@@ -25,8 +28,8 @@ The three kinds are `unreachable`, `unexpected_response` and `no_data`; the deci
   per-ticker exception itself and returns an empty frame, so a throttled or unreachable Yahoo history request is
   indistinguishable from an unknown ticker; no supported setting changes that
   ([slice plan §8](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#8-verified-against-main)). The adapter's `no_data` is
-  an observation, its sentence says the provider returned no data for the ticker, and the canary
-  ([PH.3](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-the-automatic-provider-check)) separates "this ticker has nothing" from
+  an observation, its sentence says the provider returned no data for the ticker, and the automatic
+  provider check ([PH.3](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-and-ph3c-the-automatic-provider-check)) separates "this ticker has nothing" from
   "Yahoo is not answering".
   The same holds for the quote: with yfinance's time zone cache populated, a connection fault surfaces from
   `fast_info["last_price"]` as `KeyError('currentTradingPeriod')`, which the adapter reports as

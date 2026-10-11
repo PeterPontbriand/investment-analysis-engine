@@ -40,8 +40,13 @@ def _raise(error: BaseException) -> None:
     raise error
 
 
-def test_the_three_kinds_have_stable_values() -> None:
-    assert {kind.value for kind in ProviderFailureKind} == {"unreachable", "unexpected_response", "no_data"}
+def test_the_four_kinds_have_stable_values() -> None:
+    assert {kind.value for kind in ProviderFailureKind} == {
+        "unreachable",
+        "rate_limited",
+        "unexpected_response",
+        "no_data",
+    }
 
 
 @pytest.mark.parametrize("exception_type", [DataFetchError, FinancialProviderError])

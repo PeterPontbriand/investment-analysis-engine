@@ -228,6 +228,13 @@ CASES: tuple[Case, ...] = (
         unclassified=True,
     ),
     Case(
+        "graham-number-provider-rate-limited",
+        "graham-number",
+        _with_ticker("graham-number", "ERROR"),
+        1,
+        failure_kind=ProviderFailureKind.RATE_LIMITED,
+    ),
+    Case(
         "graham-number-quote-provider-failure",
         "graham-number",
         _arguments("graham-number"),

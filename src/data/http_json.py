@@ -29,9 +29,18 @@ class JsonFetcher(Protocol):
 
 
 def http_failure_rules(not_found: ProviderFailureKind) -> tuple[FailureRule, ...]:
-    """Classify an HTTP failure: a 404 by the caller's kind, any other transport fault as unreachable."""
+    """Classify an HTTP failure: a 404 by the caller's kind, a 429 as rate limited, any other fault as unreachable.
+
+    An HTTP 403 stays unreachable: SEC answers it for a blocked client and for a rejected identity alike, so it
+    cannot be told apart from a rejected identity.
+    """
     return (
         FailureRule((HTTPError,), not_found, when=lambda error: isinstance(error, HTTPError) and error.code == 404),
+        FailureRule(
+            (HTTPError,),
+            ProviderFailureKind.RATE_LIMITED,
+            when=lambda error: isinstance(error, HTTPError) and error.code == 429,
+        ),
         FailureRule((HTTPError, URLError, TimeoutError, OSError, HTTPException), ProviderFailureKind.UNREACHABLE),
         FailureRule((ValueError, TypeError), DEFECT),
     )

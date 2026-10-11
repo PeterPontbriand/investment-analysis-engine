@@ -42,7 +42,7 @@ _ENVELOPE_KEYS = {
 def _envelope(result_stdout: str) -> dict[str, object]:
     document = json.loads(result_stdout)
     assert set(document) == _ENVELOPE_KEYS
-    assert document["schema_version"] == 7
+    assert document["schema_version"] == 8
     assert document["result"] is None
     assert document["diagnostics"] == []
     return dict(document)

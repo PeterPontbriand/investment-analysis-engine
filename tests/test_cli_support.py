@@ -97,6 +97,7 @@ def test_ticker_provider_and_presentation_normalization() -> None:
 
 _KIND_SENTENCES = [
     (ProviderFailureKind.UNREACHABLE, "Unable to analyze AAPL: sec_edgar did not serve the request."),
+    (ProviderFailureKind.RATE_LIMITED, "Unable to analyze AAPL: sec_edgar is limiting requests."),
     (
         ProviderFailureKind.UNEXPECTED_RESPONSE,
         "Unable to analyze AAPL: sec_edgar answered in a form the application does not read.",

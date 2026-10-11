@@ -178,7 +178,7 @@ def test_json_contracts_expose_same_snapshot_and_deliberate_versions() -> None:
         json.loads(render_fcf_earnings_growth(fcf_result, PresentationMode.JSON, identity)),
     )
 
-    assert [document["schema_version"] for document in documents] == [7, 8, 8, 7]
+    assert [document["schema_version"] for document in documents] == [8, 9, 9, 8]
     for document in documents:
         snapshot = document["security_identity"]
         assert snapshot["ticker"] == "ACME"

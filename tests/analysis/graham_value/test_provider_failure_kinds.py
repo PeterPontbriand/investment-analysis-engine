@@ -39,7 +39,7 @@ from tests.analysis.graham_value.test_resolver import (
     _three_fy_facts,
 )
 
-_FAILED = {ProviderFailureKind.UNREACHABLE, ProviderFailureKind.UNEXPECTED_RESPONSE, ProviderFailureKind.NO_DATA}
+_FAILED = set(ProviderFailureKind)
 
 
 class _Provider:

@@ -6,6 +6,7 @@ that was not saved call it through the capture, so the two never disagree.
 
 from __future__ import annotations
 
+import itertools
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -146,6 +147,7 @@ def test_every_other_status_maps_to_invalid_input_or_execution_error(
 
 _PRECEDENCE = [
     ProviderFailureKind.UNREACHABLE,
+    ProviderFailureKind.RATE_LIMITED,
     ProviderFailureKind.UNEXPECTED_RESPONSE,
     ProviderFailureKind.NO_DATA,
 ]
@@ -153,13 +155,7 @@ _PRECEDENCE = [
 
 @pytest.mark.parametrize(
     "ordering",
-    [
-        (first, second, third)
-        for first in _PRECEDENCE
-        for second in _PRECEDENCE
-        for third in _PRECEDENCE
-        if len({first, second, third}) == 3
-    ],
+    list(itertools.permutations(_PRECEDENCE)),
 )
 def test_precedence_picks_the_same_code_for_every_ordering_of_the_kinds(
     ordering: tuple[ProviderFailureKind, ...],
@@ -187,6 +183,20 @@ def test_precedence_picks_the_same_code_for_every_ordering_of_the_kinds(
         ),
         ((ProviderFailureKind.NO_DATA, ProviderFailureKind.NO_DATA), FailureReasonCode.PROVIDER_NO_DATA),
         ((ProviderFailureKind.NO_DATA, ProviderFailureKind.UNREACHABLE), FailureReasonCode.PROVIDER_UNREACHABLE),
+        (
+            (ProviderFailureKind.UNEXPECTED_RESPONSE, ProviderFailureKind.RATE_LIMITED),
+            FailureReasonCode.PROVIDER_RATE_LIMITED,
+        ),
+        (
+            (ProviderFailureKind.RATE_LIMITED, ProviderFailureKind.UNEXPECTED_RESPONSE),
+            FailureReasonCode.PROVIDER_RATE_LIMITED,
+        ),
+        (
+            (ProviderFailureKind.NO_DATA, ProviderFailureKind.RATE_LIMITED),
+            FailureReasonCode.PROVIDER_RATE_LIMITED,
+        ),
+        ((ProviderFailureKind.RATE_LIMITED, ProviderFailureKind.UNREACHABLE), FailureReasonCode.PROVIDER_UNREACHABLE),
+        ((ProviderFailureKind.UNREACHABLE, ProviderFailureKind.RATE_LIMITED), FailureReasonCode.PROVIDER_UNREACHABLE),
     ],
 )
 def test_precedence_between_two_kinds(kinds: tuple[ProviderFailureKind, ...], expected: FailureReasonCode) -> None:

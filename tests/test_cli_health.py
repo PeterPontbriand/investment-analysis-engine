@@ -118,6 +118,7 @@ class _FailingYahoo(_FakeYahoo):
     ("failure", "verdict"),
     [
         (DataFetchError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance"), "unreachable"),
+        (DataFetchError("slow", kind=ProviderFailureKind.RATE_LIMITED, provider_id="yfinance"), "rate limited"),
         (
             DataFetchError("odd", kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id="yfinance"),
             "unexpected response",
@@ -125,7 +126,7 @@ class _FailingYahoo(_FakeYahoo):
         (DataFetchError("none", kind=ProviderFailureKind.NO_DATA, provider_id="yfinance"), "no data"),
         (RuntimeError("defect"), "failed"),
     ],
-    ids=["unreachable", "unexpected response", "no data", "no kind"],
+    ids=["unreachable", "rate limited", "unexpected response", "no data", "no kind"],
 )
 def test_a_failed_check_prints_its_verdict_and_keeps_the_detail(failure: Exception, verdict: str) -> None:
     exit_code, output = _invoke(_clients(_FailingYahoo(failure)), "--provider", "yfinance")
@@ -204,6 +205,9 @@ def _outcome_clients(verdict: CheckVerdict) -> tuple[ProviderClients, str]:
         return replace(_clients(), sec=_NOT_CONFIGURED), "sec_edgar"
     failures: dict[CheckVerdict, Exception] = {
         CheckVerdict.UNREACHABLE: DataFetchError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance"),
+        CheckVerdict.RATE_LIMITED: DataFetchError(
+            "slow", kind=ProviderFailureKind.RATE_LIMITED, provider_id="yfinance"
+        ),
         CheckVerdict.UNEXPECTED_RESPONSE: DataFetchError(
             "odd", kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id="yfinance"
         ),
@@ -216,6 +220,7 @@ def _outcome_clients(verdict: CheckVerdict) -> tuple[ProviderClients, str]:
 _TEXT_WORDS = {
     CheckVerdict.OK: "ok",
     CheckVerdict.UNREACHABLE: "unreachable",
+    CheckVerdict.RATE_LIMITED: "rate limited",
     CheckVerdict.UNEXPECTED_RESPONSE: "unexpected response",
     CheckVerdict.NO_DATA: "no data",
     CheckVerdict.NOT_CONFIGURED: "not configured",
@@ -224,7 +229,7 @@ _TEXT_WORDS = {
 
 
 @pytest.mark.parametrize("verdict", list(CheckVerdict), ids=lambda verdict: verdict.value)
-def test_each_of_the_six_outcomes_is_printed_in_text_with_the_matching_exit_code(verdict: CheckVerdict) -> None:
+def test_each_of_the_seven_outcomes_is_printed_in_text_with_the_matching_exit_code(verdict: CheckVerdict) -> None:
     clients, provider = _outcome_clients(verdict)
 
     exit_code, output = _invoke(clients, "--provider", provider)
@@ -235,7 +240,7 @@ def test_each_of_the_six_outcomes_is_printed_in_text_with_the_matching_exit_code
 
 
 @pytest.mark.parametrize("verdict", list(CheckVerdict), ids=lambda verdict: verdict.value)
-def test_each_of_the_six_outcomes_is_written_in_json_with_the_matching_exit_code(verdict: CheckVerdict) -> None:
+def test_each_of_the_seven_outcomes_is_written_in_json_with_the_matching_exit_code(verdict: CheckVerdict) -> None:
     clients, provider = _outcome_clients(verdict)
 
     exit_code, stdout, document = _invoke_json(clients, "--provider", provider)
@@ -245,7 +250,7 @@ def test_each_of_the_six_outcomes_is_written_in_json_with_the_matching_exit_code
     assert entry.provider_id == provider
     assert entry.verdict == verdict.value
     assert (entry.detail is None) is (verdict is CheckVerdict.OK)
-    assert document.schema_version == 1
+    assert document.schema_version == 2
     assert stdout.endswith("\n")
     assert len(stdout.strip().splitlines()) == 1
 
@@ -303,7 +308,7 @@ def test_the_document_is_a_report_and_not_the_failure_envelope() -> None:
     assert set(json.loads(stdout)) == {"schema_version", "providers"}
 
 
-def test_the_checked_in_schema_lists_the_six_verdicts_in_order() -> None:
+def test_the_checked_in_schema_lists_the_seven_verdicts_in_order() -> None:
     schema = json.loads((_REPOSITORY_ROOT / "schemas" / "provider-health.schema.json").read_text(encoding="utf-8"))
 
     verdicts = schema["$defs"]["ProviderHealthEntry"]["properties"]["verdict"]["enum"]

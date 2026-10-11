@@ -2,14 +2,17 @@
 
 Owned by [PH](PH_CONTRACT_AND_SLICE_PLAN.md#ph3a--health-json-and-the-not-configured-outcome). The decisions are in
 the [PH.3 decisions](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md) and are not repeated here: this plan holds the files,
-tests and output changes of PH.3a as built, and of PH.3b as planned.
+tests and output changes of PH.3a as built, and of PH.3b and PH.3c as planned.
 
 ## 1. At a glance
 
 - **PH.3a (built):** `ian health --json` writes one typed document; a check that cannot run because SEC access
   is not set up is `not_configured`, apart from `failed`, which now means only an unexpected error inside a check.
 - **PH.3b (planned):** after a provider failure, one bounded probe of the implicated provider puts a verdict on
-  the first line in text and in a `provider_check` element in JSON.
+  a first line in the text modes, with the `--no-provider-check` option and the `PROVIDER_CHECK` settings. In
+  `--json` mode it prints nothing extra, so JSON carries no verdict until PH.3c.
+- **PH.3c (planned):** the `provider_check` element in the failure envelope, the four strategy documents and the
+  refresh summary.
 - **What neither does:** change a check's requests, probe ticker or timeout; change an exit code; retry, repair or
   switch provider.
 - **Rules:** stored data has no compatibility value; no new dependency; no real service in a test.
@@ -20,6 +23,7 @@ tests and output changes of PH.3a as built, and of PH.3b as planned.
 | :--- | :--- | :--- | :--- |
 | PH.3a | [`ian health --json` and the not-configured outcome](#3-ph3a-as-built) | Complete | 2026-10-11 |
 | PH.3b | [The automatic provider check](#4-ph3b-as-planned) | Next | |
+| PH.3c | [The provider check in the documents](#5-ph3c-as-planned) | Planned | |
 
 ## 3. PH.3a as built
 
@@ -72,7 +76,7 @@ help is unchanged because the command's one-line summary is unchanged.
 | `ian health` exits 1 when any check did not pass, including not configured, and 0 otherwise. | True; unchanged. |
 | A command that offers `--json` needs a typed document, a row in `src/reporting/json_documents.py` and a schema, or the conformance test fails by name. | True (`json_command_gaps`). |
 | The live test suite and `ian health` call the same check bodies. | True: both use `PROVIDER_CHECKS` and `build_provider_clients`. |
-| On a returned provider failure, `ian graham-number` and `ian graham-growth` exit 0 and `ian fcf-growth` exits 1. | False as stated. When the failed input is required (EPS, operating cash flow), all three exit 1: the Graham commands take their failure-output path when the input assembly failed, and `fcf-growth` exits 1 for any execution status other than `ok` or `not_applicable`. The Graham commands exit 0 only when the failed input is the optional current quote, because the calculation still runs; that is not a provider failure outcome under [R2](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-the-automatic-provider-check). Found by running each command against its fixture with an injected `unreachable` failure. |
+| On a returned provider failure, `ian graham-number` and `ian graham-growth` exit 0 and `ian fcf-growth` exits 1. | False as stated. When the failed input is required (EPS, operating cash flow), all three exit 1: the Graham commands take their failure-output path when the input assembly failed, and `fcf-growth` exits 1 for any execution status other than `ok` or `not_applicable`. The Graham commands exit 0 only when the failed input is the optional current quote, because the calculation still runs; that is not a provider failure outcome under [P2](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-and-ph3c-the-automatic-provider-check). Found by running each command against its fixture with an injected `unreachable` failure. |
 
 The last row changes nothing in PH.3a, which changes no exit code. It is recorded as a related observation on
 [issue #111](https://github.com/PeterPontbriand/investment-analysis-engine/issues/111).
@@ -85,28 +89,53 @@ The troubleshooting entry in `docs/user/INSTALLATION.md` §4 that explains the v
 ## 4. PH.3b as planned
 
 - **Problem:** a classified failure still does not say whether the provider is down or the request was wrong.
-- **Decision:** [R1 to R7](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-the-automatic-provider-check).
+- **Decision:** [P1, P2 and P5 to P11](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-and-ph3c-the-automatic-provider-check).
 - **Scope:** the files below. The slice may refine them when it is drafted against that day's `main`, but not the
   decisions.
-- **Branch:** `feat/ph-3b-automatic-provider-check`, from `main` after PH.3a has merged.
+- **Branch:** `feat/ph-3b-automatic-provider-check`, from `main` after PH.2e has merged.
 
 ### Files
 
 | Area | Files |
 | :--- | :--- |
-| The probe | `src/data/provider_canary.py` (new): runs the shared check body for one provider under the timeout, once per provider per process, failing open; `src/data/provider_checks.py` (a caller of the existing timeout parameter). |
-| Settings | `src/config.py`: the timeout and the `PROVIDER_CANARY` switch, typed and documented. |
-| Composition and text | `src/cli_support.py` (`execution_errors` receives the injected probe), the four strategy commands, `src/cli_workspace.py` and `src/workspace/refresh.py` (a post-batch probe through an injected callable), and the `--no-canary` option on the commands that use it. |
-| The shared element | A `provider_check` model beside the `provider_failure` element in `src/core`, added to the failure envelope, the four strategy documents and the refresh summary, with each document's `schema_version` bumped and every affected schema and expected output regenerated. |
-| Replay | The "direct equals replay" comparison excludes the `provider_check` element by name; a replay writes it empty. |
+| The probe | A new module under `src/data/` that runs the shared check body for one provider under the timeout, once per provider per process, failing open, and maps a health outcome to a verdict (P6); `src/data/provider_checks.py` (a caller of the existing timeout parameter). |
+| Settings | `src/config.py`: `PROVIDER_CHECK` and `PROVIDER_CHECK_TIMEOUT_SECONDS`, typed and documented. |
+| Composition and text | `src/cli_support.py` (`execution_errors` receives the injected probe and writes the line to the failure text's stream, immediately before it), the four strategy commands, `src/cli_workspace.py` and `src/workspace/refresh.py` (a post-batch probe through an injected callable; a job's in-memory result carries the `provider_failure` element, P2), and the `--no-provider-check` option on the commands that use it. |
+| The health document | `src/reporting/documents/health.py`: the installed library version for each provider that has one (P9), with a schema version bump. |
 | Documents | `docs/user/INSTALLATION.md` §4, `docs/user/SMOKE_TESTING.md`, `docs/user/USAGE.md`, `docs/project/PROVIDER_DEBUGGING.md`. |
+
+If the `provider_failure` element cannot be obtained for a refresh job without storing something new, PH.3b stops and
+reports (P2).
 
 ### Tests
 
-Each of the five verdicts and its first line; disabled by setting and by option (`not_checked`, entry present);
-timed out; once per provider per process, including a refresh over many tickers; implicated provider only; several
-providers in the existing order; a failure that names no provider runs no probe and prints the one-line notice;
-fails open when the probe raises; never retries the failed call; a failed optional input does not trigger it; the
-element is empty with no provider failure and on every replay; the direct-equals-replay comparison excludes it;
-every document that reports an analysis outcome validates against its regenerated schema. No test calls a real
-service.
+Each of the six verdicts and its first line; the line written to the failure text's stream immediately before it;
+nothing extra in `--json`; disabled by setting and by option (`not_checked`, switched-off wording); a check that
+could not run (`not_checked`, other-cause wording); timed out; once per provider per process, including a refresh
+over many tickers; implicated provider only; several providers in the existing kind order; a failure that names no
+provider runs no probe and prints no line; fails open when the probe raises; never retries the failed call; a
+failed optional input does not trigger it; the health document carries the library version where there is one. No
+test calls a real service.
+
+## 5. PH.3c as planned
+
+- **Problem:** a script reading `--json` output gets no verdict, because PH.3b writes the verdict in text modes only.
+- **Decision:** [P1, P3 and P4](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-and-ph3c-the-automatic-provider-check).
+- **Scope:** the files below. The slice may refine them when it is drafted against that day's `main`, but not the
+  decisions.
+- **Branch:** `feat/ph-3c-provider-check-element`, from `main` after PH.3b has merged.
+
+### Files
+
+| Area | Files |
+| :--- | :--- |
+| The shared element | A `provider_check` model beside the `provider_failure` element in `src/core`, added to the failure envelope, the four strategy documents and the refresh summary, with each document's `schema_version` bumped (the refresh summary from 1 to 2) and every affected schema and expected output regenerated. |
+| Replay | The "direct equals replay" comparison excludes the `provider_check` element by name; a replay writes it null. |
+| Documents | `docs/user/USAGE.md`, `docs/user/WORKSPACE.md`, `docs/project/PROVIDER_DEBUGGING.md`. |
+
+### Tests
+
+The element is null on success, on every replay and for a failure that names no provider; otherwise one entry per
+implicated provider in the existing kind order, each with `provider_id` and `verdict`; the direct-equals-replay
+comparison excludes it; every document that reports an analysis outcome validates against its regenerated schema.
+No test calls a real service.

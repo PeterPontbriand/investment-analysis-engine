@@ -32,4 +32,4 @@ class DatabaseMaintenanceReport(BaseModel):
     expected_revision: str | None
     reason_code: FailureReasonCode | None = Field(description="The stable code, or null when there is none.")
     reason: str = Field(description="A sentence for people; not stable.")
-    schema_version: Literal[2] = 2
+    schema_version: Literal[3] = 3

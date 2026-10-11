@@ -501,6 +501,25 @@ def test_sec_timeout_is_unreachable() -> None:
     assert result.kind is ProviderFailureKind.UNREACHABLE
 
 
+def test_a_provider_that_limits_requests_is_rate_limited_and_a_timeout_stays_unreachable() -> None:
+    yahoo = _yahoo(
+        _FakeYahoo(quote=DataFetchError("slow", kind=ProviderFailureKind.RATE_LIMITED, provider_id="yfinance"))
+    )
+    sec = _sec(
+        _FakeSec(
+            _documents()
+            | {
+                SEC_EDGAR_SPEC.ticker_map_url: FinancialProviderError(
+                    "slow", kind=ProviderFailureKind.RATE_LIMITED, provider_id="sec_edgar"
+                )
+            }
+        )
+    )
+
+    assert (yahoo.kind, sec.kind) == (ProviderFailureKind.RATE_LIMITED, ProviderFailureKind.RATE_LIMITED)
+    assert (yahoo.verdict, sec.verdict) == (CheckVerdict.RATE_LIMITED, CheckVerdict.RATE_LIMITED)
+
+
 def test_yahoo_empty_history_is_no_data() -> None:
     assert _yahoo(_FakeYahoo(history=_frame().iloc[0:0])).kind is ProviderFailureKind.NO_DATA
 
@@ -577,7 +596,7 @@ def test_a_passed_check_has_the_ok_verdict() -> None:
     assert _yahoo(_FakeYahoo()).verdict is CheckVerdict.OK
 
 
-def test_the_verdict_names_are_the_six_outcomes_the_health_document_declares() -> None:
+def test_the_verdict_names_are_the_seven_outcomes_the_health_document_declares() -> None:
     assert {verdict.value for verdict in CheckVerdict} == set(get_args(HealthVerdict))
 
 

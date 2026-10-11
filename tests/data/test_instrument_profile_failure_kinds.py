@@ -279,7 +279,7 @@ def test_the_profile_cache_payload_round_trips_the_kind(
     assert any(item.capability is InstrumentProfileCapability.CACHE for item in reused.diagnostics)
     record = repository.get("KO")
     assert record is not None
-    assert record.schema_version == INSTRUMENT_PROFILE_SCHEMA_VERSION == 2
+    assert record.schema_version == INSTRUMENT_PROFILE_SCHEMA_VERSION == 3
 
 
 def test_a_version_one_record_is_not_reused_on_the_fresh_path(

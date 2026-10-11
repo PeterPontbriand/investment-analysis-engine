@@ -1,4 +1,4 @@
-"""Classify a failure raised inside a third-party library call as one of the three provider failure kinds.
+"""Classify a failure raised inside a third-party library call as one of the four provider failure kinds.
 
 The helper wraps the library call only, never project code that reads its result. Each caller lists the exception
 types it knows, in the order they are checked; the first rule that matches decides. A rule either names a kind or

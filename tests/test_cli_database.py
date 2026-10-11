@@ -61,7 +61,7 @@ def test_hidden_help_and_read_only_missing_status(target: Path) -> None:
     assert report["state"] == "missing"
     assert report["status"] == "success"
     assert report["database_path"] == str(target)
-    assert report["schema_version"] == 2
+    assert report["schema_version"] == 3
     assert not target.parent.exists()
     assert not result.stderr
 

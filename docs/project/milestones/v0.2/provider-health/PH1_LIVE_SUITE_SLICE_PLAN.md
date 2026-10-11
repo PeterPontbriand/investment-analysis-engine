@@ -12,7 +12,7 @@ check bodies, a text-only `ian health` command, two live tests, a scheduled and 
 results, the policy amendment and the maintainer runbook.
 
 It does not change any adapter, classify failures (PH.2), add `--json` to the command (PH.3a), or add the automatic
-canary (PH.3b).
+provider check (PH.3b).
 
 ## 2. Marker and selection
 
@@ -50,7 +50,7 @@ filer, a typed constant. Massive is not checked: its adapter is a placeholder wi
 **Timeout.** Each body runs the adapter call in a worker thread and stops waiting at the spec's timeout,
 reporting a failed check "timed out after N s". The worker is a daemon thread, so a call that never returns
 cannot keep the process alive: the command and the pytest session exit after a timed-out check.
-The default is 20 seconds, matching the transport timeout in `src/data/http_json.py`; PH.3's canary passes a
+The default is 20 seconds, matching the transport timeout in `src/data/http_json.py`; PH.3's provider check passes a
 shorter one. Making the timeout a parameter now means PH.3 adds a caller, not a second body.
 
 **Request budget.** At most three requests per check. Yahoo makes three (an opening
@@ -169,7 +169,7 @@ covers setup problems only) and the manually run `docs/user/SMOKE_TESTING.md`. P
 - how to add a check for a new provider.
 
 PH.2 adds the three failure kinds to it, PH.3a the `--json` form and the not-configured outcome, and PH.3b the
-canary and the verdict line. The user-facing counterpart, a troubleshooting entry in
+provider check and the verdict line (PH.2e later added a fourth kind, `rate_limited`). The user-facing counterpart, a troubleshooting entry in
 `docs/user/INSTALLATION.md` §4, is added by PH.3b.
 
 ## 9. Files

@@ -196,7 +196,7 @@ def test_the_document_has_the_documented_keys_and_stable_formatting() -> None:
     )
     text = failure_document(envelope)
     assert json.loads(text) == {
-        "schema_version": 7,
+        "schema_version": 8,
         "status": "input_unavailable",
         "reason_code": "provider_error",
         "reason": "No usable history.",
@@ -271,7 +271,7 @@ def test_maintenance_report_shares_the_envelopes_names_and_code_vocabulary() -> 
         "reason",
         "schema_version",
     }
-    assert DatabaseMaintenanceReport.model_fields["schema_version"].default == 2
+    assert DatabaseMaintenanceReport.model_fields["schema_version"].default == 3
 
 
 def test_no_command_remediates_for_the_caller(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -307,6 +307,7 @@ def test_invalid_parameter_and_invalid_input_stay_distinct() -> None:
 _EXCEPTION_TYPES = [DataFetchError, FinancialProviderError]
 _KIND_CODES = [
     (ProviderFailureKind.UNREACHABLE, FailureReasonCode.PROVIDER_UNREACHABLE),
+    (ProviderFailureKind.RATE_LIMITED, FailureReasonCode.PROVIDER_RATE_LIMITED),
     (ProviderFailureKind.UNEXPECTED_RESPONSE, FailureReasonCode.PROVIDER_UNEXPECTED_RESPONSE),
     (ProviderFailureKind.NO_DATA, FailureReasonCode.PROVIDER_NO_DATA),
 ]
@@ -319,6 +320,7 @@ def test_the_kind_to_code_mapping_covers_every_kind_and_the_codes_are_input_unav
         assert status_for(code) == "input_unavailable"
     assert [code.value for code in PROVIDER_CODE_BY_KIND.values()] == [
         "provider_unreachable",
+        "provider_rate_limited",
         "provider_unexpected_response",
         "provider_no_data",
     ]
@@ -405,5 +407,5 @@ def test_the_element_accepts_only_provider_codes_and_at_least_one_input() -> Non
 def test_the_failure_envelope_is_version_7_and_its_json_carries_the_element_key() -> None:
     envelope = failure_envelope(FailureReasonCode.INVALID_INPUT, "s")
     document = json.loads(failure_document(envelope))
-    assert document["schema_version"] == 7
+    assert document["schema_version"] == 8
     assert document["provider_failure"] is None
