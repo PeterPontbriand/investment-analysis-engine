@@ -15,7 +15,7 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
   ([§6](#6-folder-layout-outcome)); PKG renames it and does not regroup it.
 - **Rules it follows:** the managed quality gate at the end; no new dependency without explicit user
   permission; scope and contract review before implementation, as for any nontrivial work package.
-- **Where it sits:** after IR (milestone row 10), R3 (row 11) and SWC (row 12), and before Step 3.5. Seven
+- **Where it sits:** after IR (milestone row 10), R3 (row 11), SWC (row 12) and LAY (row 12A), and before Step 3.5. Seven
   new analyzers land in Step 3.5 and every one will use the `from <package>.xxx import ...` pattern this
   rename changes, so doing the rename first means those files are written once, under the final import
   path.
@@ -56,7 +56,10 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
   - update `AGENTS.md`'s `uv run ...` examples and the layering test's package name;
   - run the SWC.2a patch-target resolution test unchanged against the new package name; PKG adds no check
     of its own.
-- **Branch:** `feat/pkg-rename`, from `main` after SWC.7 has merged.
+- **Branch:** `feat/pkg-rename`, from `main` after SWC.7 and LAY have merged. LAY moves files and rewrites imports under the
+  old name, so the rename must follow it ([LAY decision L10](../layering/LAY_CONTRACT_AND_SLICE_PLAN.md#a1-decisions-l1-to-l10-2026-10-11)).
+  LAY.7 removes `scripts/simulate_package_layers.py`; the graph engine that stays with the dependency check carries a
+  root name that this rename updates, as it does in `check_package_dependencies.py`.
 - **Detail:** ⚠ no slice plan yet
 
 ## 4. Scope limits and acceptance criteria
