@@ -173,7 +173,7 @@ PH.2c extend.
 
 ### PH.2d — Failure codes and classifier move to core
 
-`refactor/failure-codes-to-core`, after PH.2c. Complete 2026-10-10.
+`refactor/failure-codes-to-core`, after PH.2c. Complete 2026-10-11.
 
 - **Why.** The codes and the classifier lived in `src/reporting`, so anything that classifies a failure had to
   depend on `reporting`. The classifier sat there only because it was one central table that imported every

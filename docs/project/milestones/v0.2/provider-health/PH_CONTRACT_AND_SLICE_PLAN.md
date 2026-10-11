@@ -36,7 +36,7 @@ before the next begins. A prose-only documentation slice follows the documentati
 | PH.2a | [Kind and raised failures](#ph2a--kind-and-raised-failures) | Complete | 2026-10-09 |
 | PH.2b | [Yahoo, health and completion](#ph2b--yahoo-health-and-completion) | Complete | 2026-10-09 |
 | PH.2c | [Stored provider failures](#ph2c--stored-provider-failures) | Complete | 2026-10-10 |
-| PH.2d | [Failure codes and classifier move to core](#ph2d--failure-codes-and-classifier-move-to-core) | Complete | 2026-10-10 |
+| PH.2d | [Failure codes and classifier move to core](#ph2d--failure-codes-and-classifier-move-to-core) | Complete | 2026-10-11 |
 | PH.3 | [Automatic canary and health JSON](#ph3--automatic-canary-and-health-json) | Planned | |
 
 PH.2a does not start before [SWC.4c](../swc/SWC_CONTRACT_AND_SLICE_PLAN.md#swc4c--typed-strategy-envelopes-and-replay-dispatch)

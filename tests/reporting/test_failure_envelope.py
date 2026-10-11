@@ -1,5 +1,7 @@
 """The failure envelope's code vocabulary (T18) and its closed, report-only shape (T19)."""
 
+import ast
+import importlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -39,15 +41,41 @@ from tests._failure_code_table import PINNED_CLASSIFICATIONS, PinnedClassificati
 _COMMAND_CONTEXT_CODES = {FailureReasonCode.ANALYSIS_RUN_NOT_FOUND}
 
 
-def _all_exception_types() -> set[type[BaseException]]:
-    """Every loaded exception class, found through the subclass tree."""
+_SOURCE_ROOT = Path(__file__).resolve().parents[2] / "src"
+
+
+def _declares_reason_code(node: ast.ClassDef) -> bool:
+    """Whether a class body binds ``reason_code`` as a class attribute or defines it as a property or method."""
+    for item in node.body:
+        if isinstance(item, ast.FunctionDef) and item.name == "reason_code":
+            return True
+        if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name) and item.target.id == "reason_code":
+            return True
+        if isinstance(item, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "reason_code" for t in item.targets
+        ):
+            return True
+    return False
+
+
+def _declaring_exception_types() -> set[type[BaseException]]:
+    """Every exception class under ``src/`` that declares ``reason_code``, found by reading the source.
+
+    The search parses each file and imports only a module that defines a declaring class, so the result does not
+    depend on which modules other tests loaded and no command-line entry point runs.
+    """
     found: set[type[BaseException]] = set()
-    pending: list[type[BaseException]] = [BaseException]
-    while pending:
-        for subclass in pending.pop().__subclasses__():
-            if subclass not in found:
-                found.add(subclass)
-                pending.append(subclass)
+    for path in sorted(_SOURCE_ROOT.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        names = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef) and _declares_reason_code(node)]
+        if not names:
+            continue
+        parts = path.relative_to(_SOURCE_ROOT.parent).with_suffix("").parts
+        module = importlib.import_module(".".join(parts[:-1] if parts[-1] == "__init__" else parts))
+        for name in names:
+            candidate = getattr(module, name, None)
+            if isinstance(candidate, type) and issubclass(candidate, BaseException):
+                found.add(candidate)
     return found
 
 
@@ -80,8 +108,8 @@ def test_every_exception_reason_code_attribute_is_a_failure_reason_code() -> Non
     """T18: a code an exception carries is classified to itself, so a new one cannot be forgotten."""
     carrying = {
         exception_type
-        for exception_type in _all_exception_types()
-        if isinstance(exception_type.__dict__.get("reason_code"), str) and exception_type.__module__.startswith("src.")
+        for exception_type in _declaring_exception_types()
+        if isinstance(exception_type.__dict__.get("reason_code"), str)
     }
     assert {InvalidStoredRunError, UnsupportedRunVersionError} <= carrying
     for exception_type in carrying:
@@ -108,11 +136,7 @@ def test_each_pinned_exception_classifies_to_its_pinned_code(row: PinnedClassifi
 
 def test_every_exception_that_declares_a_code_is_in_the_pinned_table() -> None:
     """A class that states its own code must be pinned, so a new or changed code cannot pass unnoticed."""
-    declaring = {
-        exception_type
-        for exception_type in _all_exception_types()
-        if exception_type.__module__.startswith("src.") and "reason_code" in exception_type.__dict__
-    }
+    declaring = _declaring_exception_types()
     pinned = {row.exception_type for row in PINNED_CLASSIFICATIONS}
     assert declaring, "no exception declares a code"
     assert declaring <= pinned, sorted(item.__name__ for item in declaring - pinned)
