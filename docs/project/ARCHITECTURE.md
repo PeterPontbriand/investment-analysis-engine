@@ -567,10 +567,10 @@ This table is the single declaration of the top-level units under `src/` and the
 | `data` | Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite repositories. | `config`, `core`, `workspace` | `core`, `workspace` |
 | `evaluation` | The Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting. | `core`, `data`, `llm`, `orchestrator`, `schema`, `strategies`, `strategy_wiring`, `tools`, `workspace` | `strategies` |
 | `llm` | The local-model client. | `config` | |
-| `orchestrator` | LLM tool selection and dispatch, the reliability limits, and the analysis-tool handlers registered on the dispatcher. | `config`, `core`, `data`, `llm`, `schema`, `tools` | `config`, `core` |
-| `reporting` | The direct strategy presenters and the saved-run report documents. | `analysis`, `core`, `data`, `workspace` | |
+| `orchestrator` | The LLM tool-selection loop, the tool dispatcher and reliability limits, the registration of analysis-tool handlers, and the shared base for tool arguments and handlers. | `config`, `core`, `data`, `llm`, `schema`, `tools` | `config`, `core` |
+| `reporting` | The presentation helpers the strategy presenters share, the typed models of the `--json` documents no single strategy owns and of the parts several documents share, failure classification, and saved-run replay. | `analysis`, `core`, `data`, `workspace` | |
 | `schema` | The structured-output schema constraint and its validation of model output. | `config` | `config` |
-| `strategies` | One package per analysis strategy, each with its analyzer, configuration, result, selection, and tool arguments, plus the code several strategies share. | `analysis`, `cli`, `config`, `core`, `data`, `evaluation`, `orchestrator`, `reporting`, `workspace` | `cli`, `evaluation`, `workspace` |
+| `strategies` | One package per analysis strategy, each with its analyzer, configuration, result, selection, tool arguments and handler, presenter, CLI command, evaluation fixture composition, replay projector, and `--json` document model, plus the code several strategies share. | `analysis`, `cli`, `config`, `core`, `data`, `evaluation`, `orchestrator`, `reporting`, `workspace` | `cli`, `evaluation`, `workspace` |
 | `strategy_wiring` | The closed, statically declared list of supported strategies and their shared wiring. | `core`, `orchestrator`, `reporting`, `strategies`, `workspace` | |
 | `tools` | The tool registry, tool-argument schema generation, and parsing of tool calls from model output. | | |
 | `utils` | Logging setup and path validation. | `config` | `config` |

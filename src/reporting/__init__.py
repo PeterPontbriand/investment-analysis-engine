@@ -1,1 +1,1 @@
-"""Direct strategy presenters and saved-run report documents."""
+"""Shared presentation helpers, JSON document models, failure classification, and saved-run replay."""

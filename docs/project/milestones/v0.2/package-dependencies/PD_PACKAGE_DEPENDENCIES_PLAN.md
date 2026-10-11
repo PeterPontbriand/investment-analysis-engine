@@ -78,8 +78,9 @@ Acceptance criteria:
 
 ## 5. Background and origin
 
-The two-way pairs and the unparseable sequence diagram were found while reviewing the dependency structure
-before the package rename. The reference figures on `main` at `d06a1bb`: 15 units, 61 dependencies between
+The two-way pairs were found while preparing issue #40, when a proposed import from `orchestrator` to
+`reporting` was questioned and the existing imports between packages were counted. The sequence diagram was found to
+be unparseable in the same review. The reference figures on `main` at `d06a1bb`: 15 units, 61 dependencies between
 units, ten two-way pairs, 14 of 15 units mutually reachable (`tools` imports no other unit).
 
 ## Appendix A: Decision records
