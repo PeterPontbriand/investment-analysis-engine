@@ -18,9 +18,9 @@ packages: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
   canary; live calls only under the `live_network` marker, never in the default run or the managed gate;
   no formula or classification change; no new dependency and no `pyproject.toml` edit; the complete managed
   gate at each slice end; explicit project-owner authorization before the next slice begins.
-- **Sequence:** PH.1 now, independent of SWC. Then, after SWC.4c: PH.2a, PH.2b, PH.2c, then PD (the package dependency map), issue #40 and PH.3,
-  in that order, because they build on the failure envelope and the typed strategy envelopes. All finish
-  before Step 3.5 begins.
+- **Sequence:** PH.1 now, independent of SWC. Then, after SWC.4c: PH.2a, PH.2b, PH.2c, PH.2d, issue #40 and PH.3,
+  in that order (PD, the package dependency map, has merged), because they build on the failure envelope and the
+  typed strategy envelopes. All finish before Step 3.5 begins.
 - **Where the history lives:** why this exists is in [Background](#6-background-origin-of-this-work-package);
   decision records are in [Appendix A](#appendix-a-decision-records-and-history).
 
@@ -36,16 +36,18 @@ before the next begins. A prose-only documentation slice follows the documentati
 | PH.2a | [Kind and raised failures](#ph2a--kind-and-raised-failures) | Complete | 2026-10-09 |
 | PH.2b | [Yahoo, health and completion](#ph2b--yahoo-health-and-completion) | Complete | 2026-10-09 |
 | PH.2c | [Stored provider failures](#ph2c--stored-provider-failures) | Complete | 2026-10-10 |
+| PH.2d | [Failure codes and classifier move to core](#ph2d--failure-codes-and-classifier-move-to-core) | Complete | 2026-10-11 |
 | PH.3 | [Automatic canary and health JSON](#ph3--automatic-canary-and-health-json) | Planned | |
 
 PH.2a does not start before [SWC.4c](../swc/SWC_CONTRACT_AND_SLICE_PLAN.md#swc4c--typed-strategy-envelopes-and-replay-dispatch)
-has merged. PH.2b follows PH.2a, PH.2c follows PH.2b, and PH.3 does not start before PH.2c has merged. PH.1 has
-no dependency and may run alongside SWC.
+has merged. PH.2b follows PH.2a, PH.2c follows PH.2b, and PH.3 does not start before PH.2d has merged. PH.1 has
+no dependency and may run alongside SWC. PH.2d follows PH.2c.
 
 [Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) (orchestrator
-classification of `DataQualityError` in trajectory events) comes immediately after PH.2c, as its own small
-change, because it reuses the reason codes and failure kinds PH.2 delivers. It is next, and it is complete before
-Step 3.5 begins; PH.3 follows it.
+classification of `DataQualityError` in trajectory events) comes immediately after PH.2d, as its own small
+change, because it reuses the reason codes and failure kinds PH.2 delivers. It calls the classifier in `core`, so
+`orchestrator` gains no dependency on `reporting`. It is next, and it is complete before Step 3.5 begins; PH.3
+follows it.
 
 ## 3. The slices
 
@@ -105,6 +107,22 @@ outcome with its resolution trace, and the existing `PROVIDER_ERROR` status is n
 - **Detail:** [PH.2 slice plan](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#ph2c--stored-provider-failures) and the
   [handler inventory](PH2_HANDLER_INVENTORY.md#4-carriers-handlers-that-keep-the-class-from-reaching-the-envelope).
 
+### PH.2d — Failure codes and classifier move to core
+
+- **Problem:** the stable failure codes and the classifier lived in `src/reporting`, so anything that needs to
+  classify a failure had to depend on `reporting`; the classifier sat that high only because it was one central
+  table that imported every exception type.
+- **Decision:** each classified exception states its own code where it is defined, the classifier reads that
+  code and imports no exception type, and the codes, the `provider_failure` element and the classifier move to
+  `src/core`. The failure envelope stays in `reporting`. A pure move: no command output, stored value, schema or
+  classification result changes. Issue #40 calls the classifier in `core`, so `orchestrator` gains no
+  dependency on `reporting`.
+- **Scope:** new `src/core` modules for the codes, the `provider_failure` element, the classifier and the two
+  operator errors; the exceptions that now declare a code; every importer; the pinned classification test; the
+  package map and the plans.
+- **Branch:** `refactor/failure-codes-to-core`, from `main` after PH.2c.
+- **Detail:** [PH.2 slice plan](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#ph2d--failure-codes-and-classifier-move-to-core).
+
 ### PH.3 — Automatic canary and health JSON
 
 - **Problem:** a classified failure still does not say whether the provider is down or the request was wrong,
@@ -113,7 +131,7 @@ outcome with its resolution trace, and the existing `PROVIDER_ERROR` status is n
   health` gains `--json` with a typed document and schema.
 - **Scope:** the canary, the settings, `execution_errors` and `refresh`, the failure and health documents,
   user troubleshooting text.
-- **Branch:** `feat/ph-3-canary-and-health-json`, from `main` after PH.2c has merged.
+- **Branch:** `feat/ph-3-canary-and-health-json`, from `main` after PH.2d and issue #40 have merged.
 - **Detail:** [PH.3 decisions](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md). ⚠ no slice plan yet.
 
 ## 4. Scope limits
@@ -159,7 +177,7 @@ outcome with its resolution trace, and the existing `PROVIDER_ERROR` status is n
 - **Policy and documentation:** `AGENTS.md` §0 and §3 and `docs/project/README.md` carry the amended rule and
   `docs/project/PROVIDER_DEBUGGING.md` exists and is linked; no planning label appears outside
   `docs/project/` and `.github/` planning artifacts.
-- **Quality gate:** the complete managed gate passes after PH.1, PH.2a, PH.2b, PH.2c and PH.3, with at least 85% coverage;
+- **Quality gate:** the complete managed gate passes after PH.1, PH.2a, PH.2b, PH.2c, PH.2d and PH.3, with at least 85% coverage;
   the final link and sequence-table checks pass.
 - **Before Step 3.5:** every slice and issue #40 are complete before Step 3.5 begins; the Step 3.5 plan's entry
   condition lists PH.

@@ -17,7 +17,7 @@ left behind by a deletion.
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import delete, func, select, update
@@ -25,6 +25,7 @@ from sqlalchemy.engine import Connection, RowMapping
 from sqlalchemy.exc import IntegrityError
 
 from src.core.clock import utc_now
+from src.core.failure_codes import FailureReasonCode
 from src.data.repositories.schema import watchlist_entries, watchlists
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.workspace.runs import Watchlist, WatchlistEntry, WatchlistSummary
@@ -42,9 +43,13 @@ from src.workspace.watchlists import (
 class WatchlistConflictError(ValueError):
     """A watchlist with the same normalized name already exists."""
 
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.WATCHLIST_NAME_CONFLICT
+
 
 class WatchlistEntryNotFoundError(ValueError):
     """No entry exists at the requested 0-based position."""
+
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.WATCHLIST_ENTRY_NOT_FOUND
 
 
 @dataclass(frozen=True)

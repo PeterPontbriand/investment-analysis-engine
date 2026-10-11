@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.reporting.documents.failure import FailureReasonCode
+from src.core.failure_codes import FailureReasonCode
 
 
 class DatabaseMaintenanceReport(BaseModel):

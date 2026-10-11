@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, WithJsonSchema
 from src.analysis.shared.financial_resolution import PriceComparison, PriceComparisonStatus
 from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
+from src.core.provider_failure_element import ProviderFailureInput
 from src.core.provider_failure_kind import ProviderFailureRecord
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.quote_freshness import QuoteFreshnessStatus
@@ -30,7 +31,6 @@ from src.data.instrument_profile import (
     InstrumentProfileDiagnostic,
 )
 from src.data.security_identity import IdentityResolutionStatus, SecurityIdentityResolution
-from src.reporting.documents.failure import ProviderFailureInput
 from src.reporting.documents.timestamp import DocumentTimestamp
 
 JsonNumber = Annotated[

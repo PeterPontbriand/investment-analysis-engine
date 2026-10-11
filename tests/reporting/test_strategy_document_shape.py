@@ -15,7 +15,9 @@ from pydantic import BaseModel
 
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import TrendStatus
-from src.reporting.documents.failure import PROVIDER_FAILURE_CODES, FailureEnvelope
+from src.core.failure_codes import PROVIDER_CODE_BY_KIND, PROVIDER_FAILURE_CODES
+from src.core.provider_failure_kind import PROVIDER_KIND_PRECEDENCE
+from src.reporting.documents.failure import FailureEnvelope
 from src.reporting.documents.shared_parts import DocumentPart
 from src.reporting.documents.strategy_document import (
     HEADER_KEYS,
@@ -23,7 +25,6 @@ from src.reporting.documents.strategy_document import (
     StrategyDocumentHeader,
     StrategyDocumentTail,
 )
-from src.reporting.failure_classification import PROVIDER_CODE_BY_KIND, PROVIDER_KIND_PRECEDENCE
 from src.strategy_wiring import STRATEGIES
 from tests._strategy_document_output import CASES, Case, cases, expected_path, run_pair
 

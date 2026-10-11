@@ -1,5 +1,7 @@
 """The failure envelope's code vocabulary (T18) and its closed, report-only shape (T19)."""
 
+import ast
+import importlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -9,6 +11,10 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 import src.cli  # noqa: F401 - loads every module that defines an exception with a reason_code
+from src.core.failure_classification import classify_failure
+from src.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode, status_for
+from src.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
+from src.core.provider_failure_element import ProviderFailure, ProviderFailureInput
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
@@ -21,43 +27,55 @@ from src.data.quality import (
 from src.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
 from src.data.repositories.watchlists import WatchlistConflictError, WatchlistEntryNotFoundError
 from src.reporting.documents.database import DatabaseMaintenanceReport
-from src.reporting.documents.failure import (
-    FailureDatabase,
-    FailureDiagnostic,
-    FailureEnvelope,
-    FailureReasonCode,
-    ProviderFailure,
-    ProviderFailureInput,
-    status_for,
-)
-from src.reporting.failure_classification import (
-    CLASSIFICATION_RULES,
-    PROVIDER_CODE_BY_KIND,
-    AnalysisConfigurationError,
-    InvalidParameterError,
-    classify_failure,
-    failure_envelope,
-)
+from src.reporting.documents.failure import FailureDatabase, FailureDiagnostic, FailureEnvelope
+from src.reporting.failure_envelope import failure_envelope
 from src.reporting.presentation import failure_document
 from src.reporting.replay_inputs import UnsupportedProjectionError
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from src.workspace.refresh import EmptyRefreshTargetError
 from src.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
+from tests._failure_code_table import PINNED_CLASSIFICATIONS, PinnedClassification
 
 # Codes raised by a command with no exception to classify: the run a command looked up does not exist.
 _COMMAND_CONTEXT_CODES = {FailureReasonCode.ANALYSIS_RUN_NOT_FOUND}
 
 
-def _all_exception_types() -> set[type[BaseException]]:
-    """Every loaded exception class, found through the subclass tree."""
+_SOURCE_ROOT = Path(__file__).resolve().parents[2] / "src"
+
+
+def _declares_reason_code(node: ast.ClassDef) -> bool:
+    """Whether a class body binds ``reason_code`` as a class attribute or defines it as a property or method."""
+    for item in node.body:
+        if isinstance(item, ast.FunctionDef) and item.name == "reason_code":
+            return True
+        if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name) and item.target.id == "reason_code":
+            return True
+        if isinstance(item, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "reason_code" for t in item.targets
+        ):
+            return True
+    return False
+
+
+def _declaring_exception_types() -> set[type[BaseException]]:
+    """Every exception class under ``src/`` that declares ``reason_code``, found by reading the source.
+
+    The search parses each file and imports only a module that defines a declaring class, so the result does not
+    depend on which modules other tests loaded and no command-line entry point runs.
+    """
     found: set[type[BaseException]] = set()
-    pending: list[type[BaseException]] = [BaseException]
-    while pending:
-        for subclass in pending.pop().__subclasses__():
-            if subclass not in found:
-                found.add(subclass)
-                pending.append(subclass)
+    for path in sorted(_SOURCE_ROOT.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        names = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef) and _declares_reason_code(node)]
+        if not names:
+            continue
+        parts = path.relative_to(_SOURCE_ROOT.parent).with_suffix("").parts
+        module = importlib.import_module(".".join(parts[:-1] if parts[-1] == "__init__" else parts))
+        for name in names:
+            candidate = getattr(module, name, None)
+            if isinstance(candidate, type) and issubclass(candidate, BaseException):
+                found.add(candidate)
     return found
 
 
@@ -90,8 +108,8 @@ def test_every_exception_reason_code_attribute_is_a_failure_reason_code() -> Non
     """T18: a code an exception carries is classified to itself, so a new one cannot be forgotten."""
     carrying = {
         exception_type
-        for exception_type in _all_exception_types()
-        if isinstance(exception_type.__dict__.get("reason_code"), str) and exception_type.__module__.startswith("src.")
+        for exception_type in _declaring_exception_types()
+        if isinstance(exception_type.__dict__.get("reason_code"), str)
     }
     assert {InvalidStoredRunError, UnsupportedRunVersionError} <= carrying
     for exception_type in carrying:
@@ -101,31 +119,27 @@ def test_every_exception_reason_code_attribute_is_a_failure_reason_code() -> Non
 
 def test_every_code_the_classifier_can_return_is_a_member_and_every_member_can_be_returned() -> None:
     """T18: the rules, the readiness codes and the default cover the enumeration, except command-context codes."""
-    returned = {code for _type, code in CLASSIFICATION_RULES}
-    returned |= {FailureReasonCode(item.value) for item in ReadinessReason}
-    returned |= {FailureReasonCode.PROVIDER_ERROR, *PROVIDER_CODE_BY_KIND.values()}
+    returned = {FailureReasonCode(row.reason_code) for row in PINNED_CLASSIFICATIONS}
     returned.add(classify_failure(RuntimeError("unrecognized")).reason_code)
     assert returned | _COMMAND_CONTEXT_CODES == set(FailureReasonCode)
     assert not returned & _COMMAND_CONTEXT_CODES
     assert classify_failure(RuntimeError("unrecognized")).reason_code is FailureReasonCode.EXECUTION_ERROR
 
 
-@pytest.mark.parametrize(("exception_type", "code"), CLASSIFICATION_RULES)
-def test_each_rule_classifies_its_exception_to_its_code(
-    exception_type: type[BaseException], code: FailureReasonCode
-) -> None:
-    classified = classify_failure(_sample(exception_type))
-    assert classified.reason_code is code
-    assert classified.status == status_for(code)
+@pytest.mark.parametrize("row", PINNED_CLASSIFICATIONS, ids=[row.label for row in PINNED_CLASSIFICATIONS])
+def test_each_pinned_exception_classifies_to_its_pinned_code(row: PinnedClassification) -> None:
+    classified = classify_failure(row.build())
+    assert classified.reason_code.value == row.reason_code
+    assert classified.status == row.status
+    assert status_for(classified.reason_code) == row.status
 
 
-def test_a_more_specific_exception_is_never_shadowed_by_its_base() -> None:
-    """The rules are ordered most specific first: each exception reaches its own rule."""
-    for position, (exception_type, code) in enumerate(CLASSIFICATION_RULES):
-        for earlier_type, earlier_code in CLASSIFICATION_RULES[:position]:
-            assert not issubclass(exception_type, earlier_type) or earlier_code is code, (
-                f"{exception_type.__name__} is shadowed by {earlier_type.__name__}"
-            )
+def test_every_exception_that_declares_a_code_is_in_the_pinned_table() -> None:
+    """A class that states its own code must be pinned, so a new or changed code cannot pass unnoticed."""
+    declaring = _declaring_exception_types()
+    pinned = {row.exception_type for row in PINNED_CLASSIFICATIONS}
+    assert declaring, "no exception declares a code"
+    assert declaring <= pinned, sorted(item.__name__ for item in declaring - pinned)
 
 
 @pytest.mark.parametrize(
@@ -279,16 +293,13 @@ def test_no_command_remediates_for_the_caller(monkeypatch: pytest.MonkeyPatch) -
 def test_invalid_parameter_and_invalid_input_stay_distinct() -> None:
     """``invalid_parameter`` is an option the command rejected itself; ``invalid_input`` is bad data.
 
-    ``InvalidParameterError`` is a ``ValueError``, so only its place in the ordered rules keeps it from being reported
+    ``InvalidParameterError`` is a ``ValueError``, so only the code it declares keeps it from being reported
     as ``invalid_input``. Pinning both directions keeps a caller able to tell a mistake in its own request (fix the
     option) from invalid data (retry later or report it).
     """
     assert issubclass(InvalidParameterError, ValueError)
     assert classify_failure(InvalidParameterError("x")).reason_code is FailureReasonCode.INVALID_PARAMETER
     assert classify_failure(ValueError("x")).reason_code is FailureReasonCode.INVALID_INPUT
-    parameter_position = [exception_type for exception_type, _code in CLASSIFICATION_RULES].index(InvalidParameterError)
-    value_error_position = [exception_type for exception_type, _code in CLASSIFICATION_RULES].index(ValueError)
-    assert parameter_position < value_error_position
 
 
 # --- provider failure kinds (PH.2a) -----------------------------------------------------------------------------

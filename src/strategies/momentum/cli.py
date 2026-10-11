@@ -21,13 +21,13 @@ from src.cli_support import (
 from src.cli_watchlist_flags import WatchlistFlags
 from src.config import settings
 from src.core.clock import utc_now
+from src.core.operator_errors import InvalidParameterError
 from src.data.instrument_profile import profile_identity_resolution
 from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.readiness import ensure_database_ready
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.yfinance import YFinanceClient
-from src.reporting.failure_classification import InvalidParameterError
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategies.momentum.execution import (
     capture_momentum,

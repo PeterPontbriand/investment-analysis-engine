@@ -8,12 +8,13 @@ their method-specific requirements for using an input.
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import StrEnum
-from typing import cast
+from typing import ClassVar, cast
 
 import numpy as np
 import pandas as pd
 
 from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
+from src.core.failure_codes import FailureReasonCode
 from src.data.market_data import HistoricalMarketData, historical_index_kind
 
 
@@ -77,6 +78,8 @@ class DataQualityError(ValueError):
 
 class HistoricalDataQualityError(DataQualityError):
     """Sanitized historical validation failure with bounded field/date evidence."""
+
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.HISTORICAL_QUALITY
 
     def __init__(self, decisions: tuple[QualityDecision, ...], frame: pd.DataFrame) -> None:
         """Retain rule decisions without exposing raw observations or provider payloads."""

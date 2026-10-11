@@ -33,9 +33,9 @@ from datetime import datetime
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.core.analysis_status import CalculationStatus
+from src.core.failure_classification import failure_reason_code, provider_failure_of
 from src.data.instrument_profile import InstrumentProfile
 from src.data.instrument_profile_cache import InstrumentProfileResolver
-from src.reporting.failure_classification import failure_reason_code, provider_failure_of
 from src.strategies._shared.profile import compose_graham_profile
 from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver

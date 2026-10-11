@@ -9,7 +9,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.reporting.documents.failure import FailureReasonCode
+from src.core.failure_codes import FailureReasonCode
 from src.workspace.models import RunOutcome
 
 

@@ -8,9 +8,11 @@ live in :mod:`src.workspace.runs`.
 """
 
 import json
+from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
+from src.core.failure_codes import FailureReasonCode
 from src.workspace.strategy_types import AnalysisSelection
 
 _SELECTION_ADAPTER: TypeAdapter[AnalysisSelection] = TypeAdapter(AnalysisSelection)
@@ -24,9 +26,13 @@ class StoredSelectionError(ValueError):
     that knows which entry it was decoding adds the watchlist, position and remedy.
     """
 
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.STORED_SELECTION_UNREADABLE
+
 
 class WatchlistNotFoundError(ValueError):
     """No watchlist exists with the requested name."""
+
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.WATCHLIST_NOT_FOUND
 
 
 class WatchlistSpec(BaseModel):
