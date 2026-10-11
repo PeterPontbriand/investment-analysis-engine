@@ -136,7 +136,7 @@ outcome with its resolution trace, and the existing `PROVIDER_ERROR` status is n
 - **Scope:** `ToolCallResult`, the dispatcher, the loop's failure recording, the recorder's error record, the
   shared element function and the failure envelope's use of it, the architecture text and these plans.
 - **Branch:** `feat/orchestrator-tool-failure-codes`, from `main` after PH.2d.
-- **Detail:** ⚠ no slice plan yet.
+- **Detail:** [Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) holds the detail; no slice plan was written.
 
 ### PH.3 — Automatic canary and health JSON
 
