@@ -23,6 +23,7 @@ from uuid import UUID
 import typer
 from pydantic import BaseModel
 
+from src.cli_provider_check import echo_provider_check, provider_check_choice
 from src.cli_strategy_wiring import CLI_BUILDERS, build_selection_for, refresh_executor_for
 from src.cli_support import _production_instrument_profile_cache
 from src.cli_watchlist_flags import WatchlistFlags
@@ -969,14 +970,22 @@ def _refresh_json(summary: RefreshSummary) -> str:
     )
 
 
-def refresh(
+def refresh(  # noqa: PLR0913
+    context: typer.Context,
     name: Annotated[str, typer.Argument(help="Watchlist name to refresh.")],
+    *,
     workers: Annotated[int, typer.Option("--workers", help="Concurrent job count, 1-4; defaults to 2.")] = 2,
     no_save: Annotated[
         bool,
         typer.Option("--no-save", help="Preview current numbers across the watchlist without saving any Analysis Run."),
     ] = False,
     json_output: Annotated[bool, typer.Option("--json", help="Emit one final JSON summary document.")] = False,
+    no_provider_check: Annotated[
+        bool,
+        typer.Option(
+            "--no-provider-check", help="Do not send a test request to a provider whose failure the summary reports"
+        ),
+    ] = False,
 ) -> None:
     """Execute every entry in a watchlist and, by default, persist each result.
 
@@ -986,7 +995,9 @@ def refresh(
     running finish and persist normally, and exits 130 without a fabricated
     row for a job that never started. ``--no-save`` still runs every entry,
     but nothing is written to storage; each result is shown but has no
-    Analysis Run ID to browse or replay afterward.
+    Analysis Run ID to browse or replay afterward. When a job failed on a provider, one test request per
+    implicated provider runs after the batch ends and its finding is printed before the summary (text output
+    only); ``--no-provider-check`` turns it off.
     """
     try:
         policy = RefreshPolicy(workers=workers)
@@ -1025,6 +1036,12 @@ def refresh(
     finally:
         signal.signal(signal.SIGINT, previous_handler)
 
+    if not json_output:
+        echo_provider_check(
+            (result.provider_failure for result in summary.results),
+            provider_check_choice(context, no_provider_check=no_provider_check),
+            err=False,
+        )
     typer.echo(_refresh_json(summary) if json_output else _refresh_text(summary))
 
     if cancellation.is_set():

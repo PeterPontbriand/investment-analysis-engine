@@ -34,6 +34,7 @@ from datetime import datetime
 from src.analysis.base_analyzer import AnalysisContext
 from src.core.analysis_status import CalculationStatus
 from src.core.failure_classification import failure_reason_code, provider_failure_of
+from src.core.provider_failure_element import ProviderFailure
 from src.data.instrument_profile import InstrumentProfile
 from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.strategies._shared.profile import compose_graham_profile
@@ -113,13 +114,18 @@ def execute_fcf_growth(  # noqa: PLR0913
     return FCFGrowthCapture(result=result, profile=profile, outcome=classify_fcf_growth_outcome(result))
 
 
+def capture_provider_failure(capture: FCFGrowthCapture) -> ProviderFailure | None:
+    """Return the ``provider_failure`` element of a failed run, or ``None`` when it did not fail on a provider."""
+    if capture.outcome is not RunOutcome.FAILED:
+        return None
+    return provider_failure_of((capture.result.provider_failure,))
+
+
 def _failure_code(capture: FCFGrowthCapture) -> str | None:
     """Return the stable code of a failed run, derived from the stored native status and provider failure."""
     if capture.outcome is not RunOutcome.FAILED:
         return None
-    return failure_reason_code(
-        capture.result.execution_status, provider_failure_of((capture.result.provider_failure,))
-    ).value
+    return failure_reason_code(capture.result.execution_status, capture_provider_failure(capture)).value
 
 
 def from_fcf_growth_capture(capture: FCFGrowthCapture) -> ExecutionCapture:
@@ -129,10 +135,12 @@ def from_fcf_growth_capture(capture: FCFGrowthCapture) -> ExecutionCapture:
         profile=capture.profile,
         outcome=capture.outcome,
         failure_reason_code=_failure_code(capture),
+        provider_failure=capture_provider_failure(capture),
     )
 
 
 __all__ = [
+    "capture_provider_failure",
     "from_fcf_growth_capture",
     "FCFGrowthCapture",
     "classify_fcf_growth_outcome",

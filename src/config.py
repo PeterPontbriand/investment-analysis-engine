@@ -139,6 +139,25 @@ class ProjectSettings(BaseSettings):
     # External data-provider settings
     sec_user_agent: str | None = Field(default=None, validation_alias="SEC_USER_AGENT")
 
+    # Automatic provider check: after a provider failure, one bounded test request to the implicated provider
+    provider_check: bool = Field(
+        default=True,
+        description=(
+            "After a provider failure, send one bounded test request to the implicated provider and print what it "
+            "found; false turns the check off. Read as IAN_PROVIDER_CHECK."
+        ),
+    )
+    provider_check_timeout_seconds: float = Field(
+        default=10.0,
+        gt=0,
+        le=60,
+        allow_inf_nan=False,
+        description=(
+            "Time limit in seconds for the whole test request of the automatic provider check; ten seconds by "
+            "default. Read as IAN_PROVIDER_CHECK_TIMEOUT_SECONDS."
+        ),
+    )
+
     # Human-readable operational logging
     log_level: str = "INFO"
     log_file_name: str = "app.log"

@@ -11,6 +11,7 @@ from typing import Annotated
 import typer
 
 from src.cli_database import app as database_app
+from src.cli_health import build_provider_clients
 from src.cli_health import register as register_health_command
 from src.cli_run_support import get_cli_run_context
 from src.cli_strategy_wiring import add_strategy_commands
@@ -19,6 +20,7 @@ from src.config import settings
 from src.core.clock import utc_now
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.run_context import get_current_run_context, set_current_run_context
+from src.data.provider_probe import ProviderProbe
 from src.evaluation.catalog import (
     DETERMINISTIC_FIXTURE_SET_VERSION,
     DETERMINISTIC_SUITE_ID,
@@ -54,11 +56,26 @@ class EvaluationCliMode(StrEnum):
 type EvaluationCommandResult = EvaluationReport | OllamaEvaluationResult
 
 
+def build_provider_probe() -> ProviderProbe:
+    """Build the one automatic provider check of this process from the settings.
+
+    This is the only place the probe is built; the commands that report a provider failure receive it through the
+    Typer context. It contacts no provider until a command reports a provider failure.
+    """
+    return ProviderProbe(
+        enabled=settings.provider_check,
+        timeout_seconds=settings.provider_check_timeout_seconds,
+        clients=build_provider_clients,
+    )
+
+
 @app.callback()
-def main_entry_point() -> None:
-    """Initialize one RunContext for this CLI invocation if main.py did not."""
+def main_entry_point(context: typer.Context) -> None:
+    """Initialize one RunContext for this CLI invocation if main.py did not, and hand the commands the probe."""
     if get_current_run_context() is None:
         set_current_run_context(RunContext.new())
+    if context.obj is None:
+        context.obj = build_provider_probe()
 
 
 @app.command(name="evaluate")

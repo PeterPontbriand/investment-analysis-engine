@@ -8,7 +8,9 @@ switches provider.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as installed_version
 from typing import Annotated
 
 import typer
@@ -27,7 +29,7 @@ from src.data.provider_checks import (
     SecUnavailable,
 )
 from src.data.yfinance import YFinanceClient
-from src.reporting.documents.health import ProviderHealthDocument, ProviderHealthEntry
+from src.reporting.documents.health import ProviderHealthDocument, ProviderHealthEntry, ProviderLibrary
 
 
 def build_provider_clients() -> ProviderClients:
@@ -57,8 +59,24 @@ def format_result(result: ProviderCheckResult) -> str:
     return line if result.detail is None else f"{line} - {result.detail}"
 
 
-def health_document(results: Sequence[ProviderCheckResult]) -> ProviderHealthDocument:
-    """Build the typed ``--json`` document from the check results, in the order given."""
+def _library_of(provider_id: str, library_version: Callable[[str], str]) -> ProviderLibrary | None:
+    """Return a provider's library and installed version, or ``None`` when it has none or is not installed."""
+    entry = next((candidate for candidate in PROVIDER_CHECKS if candidate.provider_id == provider_id), None)
+    if entry is None or entry.library is None:
+        return None
+    try:
+        return ProviderLibrary(name=entry.library, version=library_version(entry.library))
+    except PackageNotFoundError:
+        return None
+
+
+def health_document(
+    results: Sequence[ProviderCheckResult], *, library_version: Callable[[str], str] = installed_version
+) -> ProviderHealthDocument:
+    """Build the typed ``--json`` document from the check results, in the order given.
+
+    ``library_version`` reads a library's installed version from the package metadata.
+    """
     return ProviderHealthDocument(
         providers=tuple(
             ProviderHealthEntry(
@@ -67,6 +85,7 @@ def health_document(results: Sequence[ProviderCheckResult]) -> ProviderHealthDoc
                 probe=result.probe,
                 elapsed_seconds=round(result.elapsed_seconds, 2),
                 detail=result.detail,
+                library=_library_of(result.provider_id, library_version),
             )
             for result in results
         )

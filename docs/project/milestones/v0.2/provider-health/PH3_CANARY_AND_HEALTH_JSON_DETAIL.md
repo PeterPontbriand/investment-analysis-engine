@@ -7,14 +7,14 @@ project-owner review.
 
 ## 1. Three slices
 
-PH.3 is three slices. PH.3a is complete; PH.3b is next, after [PH.2e](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#ph2e--a-fourth-provider-failure-kind-rate-limited),
+PH.3 is three slices. PH.3a and PH.3b are complete; PH.3c is next. PH.3b followed [PH.2e](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#ph2e--a-fourth-provider-failure-kind-rate-limited),
 which added the fourth failure kind.
 
 | Slice | What it adds | Status |
 | :--- | :--- | :--- |
 | PH.3a | `ian health --json` with a typed document and schema, and the `not_configured` outcome | Complete |
-| PH.3b | The probe, its settings, the `--no-provider-check` option and the first line in the text modes | Next |
-| PH.3c | The `provider_check` element in the six documents that report an analysis outcome | Planned |
+| PH.3b | The probe, its settings, the `--no-provider-check` option and the first line in the text modes | Complete |
+| PH.3c | The `provider_check` element in the six documents that report an analysis outcome | Next |
 
 Between PH.3b and PH.3c, `--json` output carries no verdict.
 

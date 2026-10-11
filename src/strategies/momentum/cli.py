@@ -7,6 +7,7 @@ registers itself.
 import typer
 
 from src.analysis.base_analyzer import require_ticker
+from src.cli_provider_check import provider_check_choice
 from src.cli_run_support import save_run_execution
 from src.cli_support import (
     _default_history_start_date,
@@ -107,6 +108,7 @@ _MOMENTUM_CLI_DEFAULTS = MomentumConfig()
 
 
 def command(  # noqa: PLR0913
+    context: typer.Context,
     ticker: str | None = typer.Argument(None, help="Target stock/asset ticker symbol (e.g., AAPL, BTC-USD)"),
     *,
     ticker_option: str | None = typer.Option(
@@ -142,6 +144,9 @@ def command(  # noqa: PLR0913
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show retained execution diagnostics"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
     save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
+    no_provider_check: bool = typer.Option(
+        False, "--no-provider-check", help="Do not send a test request to a provider after it fails"
+    ),
 ) -> None:
     """Execute SMA crossover momentum analysis over daily historical market prices."""
     requested_ticker = _resolve_ticker(ticker, ticker_option, required=False, command="momentum")
@@ -152,6 +157,7 @@ def command(  # noqa: PLR0913
         mode=mode,
         selection_type=MomentumSelection,
         ticker=requested_ticker,
+        provider_check=provider_check_choice(context, no_provider_check=no_provider_check),
         invalid_detail=True,
         invalid=lambda _exc: (
             f"Unable to complete momentum analysis for {label}: the returned price history could not be analyzed."

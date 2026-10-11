@@ -37,6 +37,10 @@ from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_c
 
 runner = CliRunner()
 
+# The suite switches the automatic provider check off (tests/conftest.py), which the first line after a Yahoo
+# failure says.
+_YAHOO_NOT_CHECKED_SWITCHED_OFF = "Yahoo Finance was not checked (the provider check is turned off)."
+
 
 def test_root_help_exposes_analysis_commands_without_shell_setup() -> None:
     """Keep shell script generation out of the public investor interface."""
@@ -382,7 +386,7 @@ def test_cli_momentum_classified_failure_names_its_kind_in_text_and_json(
 
     text = runner.invoke(app, ["momentum", "FCIM"])
     assert text.exit_code == 1
-    assert text.stderr.strip() == sentence
+    assert text.stderr.strip() == f"{_YAHOO_NOT_CHECKED_SWITCHED_OFF}\n{sentence}"
     assert "library detail" not in text.output
 
     document = json.loads(runner.invoke(app, ["momentum", "FCIM", "--json"]).stdout)
@@ -845,7 +849,7 @@ def test_cli_momentum_download_exception_names_the_unreachable_service_without_t
 
     sentence = "Unable to analyze FCIM: yfinance did not serve the request."
     assert text.exit_code == 1
-    assert text.stderr.strip() == sentence
+    assert text.stderr.strip() == f"{_YAHOO_NOT_CHECKED_SWITCHED_OFF}\n{sentence}"
     assert document["reason_code"] == "provider_unreachable"
     assert document["reason"] == sentence
     assert document["provider_failure"]["inputs"] == [{"input": None, "provider_id": "yfinance", "kind": "unreachable"}]
@@ -859,7 +863,7 @@ def test_cli_momentum_swallowed_download_fault_is_no_data_and_does_not_call_the_
 
     sentence = "Unable to analyze FCIM: yfinance returned no data for it."
     assert text.exit_code == 1
-    assert text.stderr.strip() == sentence
+    assert text.stderr.strip() == f"{_YAHOO_NOT_CHECKED_SWITCHED_OFF}\n{sentence}"
     assert document["reason_code"] == "provider_no_data"
     assert document["reason"] == sentence
     for claim in ("unknown", "invalid", "does not exist", "not found", "delisted"):

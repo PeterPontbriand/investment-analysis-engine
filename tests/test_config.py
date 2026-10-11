@@ -301,3 +301,40 @@ def test_partly_anchored_database_url_is_rejected_by_real_windows_rules(database
     with pytest.raises(ValidationError, match="Windows would"):
         ProjectSettings(base_dir=tmp_path, database_url=database_url)
     assert list(tmp_path.iterdir()) == []
+
+
+def test_provider_check_settings_default_to_on_and_ten_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("IAN_PROVIDER_CHECK", raising=False)
+    monkeypatch.delenv("IAN_PROVIDER_CHECK_TIMEOUT_SECONDS", raising=False)
+
+    configured = ProjectSettings()
+
+    assert configured.provider_check is True
+    assert configured.provider_check_timeout_seconds == 10.0
+
+
+def test_provider_check_settings_are_read_from_ian_prefixed_variables(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IAN_PROVIDER_CHECK", "false")
+    monkeypatch.setenv("IAN_PROVIDER_CHECK_TIMEOUT_SECONDS", "4.5")
+
+    configured = ProjectSettings()
+
+    assert configured.provider_check is False
+    assert configured.provider_check_timeout_seconds == 4.5
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "nan", "inf", "61", "ten"])
+def test_provider_check_timeout_rejects_a_value_that_is_not_a_positive_bounded_number(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("IAN_PROVIDER_CHECK_TIMEOUT_SECONDS", value)
+
+    with pytest.raises(ValidationError):
+        ProjectSettings()
+
+
+def test_the_suite_turns_the_provider_check_off_in_one_place() -> None:
+    """tests/conftest.py sets the variable before any import, so the settings every command reads have it off."""
+    from src.config import settings  # noqa: PLC0415 - the process-wide settings the commands read
+
+    assert settings.provider_check is False

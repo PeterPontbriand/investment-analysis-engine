@@ -21,6 +21,17 @@
           "title": "Elapsed Seconds",
           "type": "number"
         },
+        "library": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProviderLibrary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The library behind the provider and its installed version; null when the provider has none."
+        },
         "probe": {
           "description": "What the check requests; a sentence for people, not stable.",
           "title": "Probe",
@@ -51,9 +62,32 @@
         "verdict",
         "probe",
         "elapsed_seconds",
-        "detail"
+        "detail",
+        "library"
       ],
       "title": "ProviderHealthEntry",
+      "type": "object"
+    },
+    "ProviderLibrary": {
+      "additionalProperties": false,
+      "description": "The installed library the application reaches a provider through.",
+      "properties": {
+        "name": {
+          "description": "The library's distribution name, as installed.",
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "description": "The installed version. The library is pinned, so an unchanged version means a new failure came from the provider's side.",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "ProviderLibrary",
       "type": "object"
     }
   },
@@ -68,8 +102,8 @@
       "type": "array"
     },
     "schema_version": {
-      "const": 2,
-      "default": 2,
+      "const": 3,
+      "default": 3,
       "title": "Schema Version",
       "type": "integer"
     }

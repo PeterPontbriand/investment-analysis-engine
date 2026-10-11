@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 
+from src.core.provider_failure_element import ProviderFailure
 from src.data.instrument_profile import InstrumentProfile
 from src.workspace.models import RunOutcome, StrictJsonMapping
 from src.workspace.strategy_types import NativeEvidence
@@ -15,7 +16,9 @@ class ExecutionCapture:
     :func:`src.workspace.execution.execute`; each strategy's execution module owns the function that
     builds this capture from its own raw capture type. ``failure_reason_code`` is the stable code of a
     ``failed`` outcome, derived once from the native status and the stored provider failure, and is ``None``
-    for every other outcome.
+    for every other outcome. ``provider_failure`` is the ``provider_failure`` element of a ``failed`` outcome
+    whose cause was a classified provider failure; it is carried in memory for the automatic provider check and
+    is never stored.
     """
 
     native_evidence: NativeEvidence
@@ -23,8 +26,11 @@ class ExecutionCapture:
     outcome: RunOutcome
     presentation_inputs: StrictJsonMapping = field(default_factory=dict)
     failure_reason_code: str | None = None
+    provider_failure: ProviderFailure | None = None
 
     def __post_init__(self) -> None:
-        """Require a stable failure code exactly when the outcome is ``failed``."""
+        """Require a stable failure code exactly when the outcome is ``failed``, and a provider failure only then."""
         if (self.outcome is RunOutcome.FAILED) != (self.failure_reason_code is not None):
             raise ValueError("failure_reason_code is set if and only if the outcome is failed.")
+        if self.provider_failure is not None and self.outcome is not RunOutcome.FAILED:
+            raise ValueError("provider_failure requires the failed outcome.")

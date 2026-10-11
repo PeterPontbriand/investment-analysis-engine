@@ -262,6 +262,42 @@ Common reasons include:
 
 Start with the ordinary error message. Use `--details` or `--diagnostics` when you need more evidence.
 
+## After a provider failure: the first line
+
+When `momentum`, `graham-number`, `graham-growth` or `fcf-growth` fails because a data provider failed, or `refresh`
+has a job that failed that way, the application sends one small test request to that provider and prints what it
+found as the first line, before the usual failure text. The provider is the one the failure names. The test request
+tests the provider, not your request, so a line states only what the test request found. It offers no remedy.
+
+| First line (Yahoo Finance shown) | What it means |
+| :--- | :--- |
+| `Yahoo Finance is not answering: a test request also failed.` | The test request did not get a response. |
+| `Yahoo Finance is limiting requests: a test request was also refused.` | The provider refused the test request because it is limiting requests. |
+| `Yahoo Finance answered a test request in a form this application does not read.` | The provider answered, but not in the shape the application reads. |
+| `Yahoo Finance returned no data for a known test ticker. It may be limiting requests.` | The provider answered with nothing for a ticker that always has data. |
+| `Yahoo Finance answered a test request normally. The failure may be specific to this request.` | The test request worked, so the failure may lie with your ticker, date or other inputs. |
+| `Yahoo Finance was not checked (the provider check is turned off).` | You turned the check off, with `--no-provider-check` or the `IAN_PROVIDER_CHECK` setting. No request was made. |
+| `Yahoo Finance could not be checked.` | The check could not run (for example SEC access is not set up), the provider has no check, or the check itself failed. No verdict was reached. |
+
+The line goes to the same stream as the failure text it precedes: standard error in the concise and details views,
+and where `--diagnostics` writes the report to standard output, there. For `refresh` the line precedes the summary
+on standard output. A command that failed on two providers prints one line for each. A failure that names no
+provider (`provider_error`) gets no line, and neither does a failed optional input, such as a current quote, on an
+analysis that otherwise succeeded.
+
+A command sends the test request at most once per provider per run, and `refresh` sends it once after the whole
+batch, however many tickers failed. It does not retry the failed call, repair anything, or change the exit code or
+the failure text; if the test request itself goes wrong, the failure is still reported as before.
+
+With `--json` the test request is not sent and the document is unchanged: JSON output carries no verdict until the
+next release of this feature. The option `--no-provider-check` is on exactly these five commands. Two engine
+settings, read as environment variables in the same way as the others, control the check everywhere:
+
+| Setting | Default | Meaning |
+| :--- | :--- | :--- |
+| `IAN_PROVIDER_CHECK` | `true` | Set to `false` to turn the check off for every command. |
+| `IAN_PROVIDER_CHECK_TIMEOUT_SECONDS` | `10` | The time limit for the whole test request, above 0 and at most 60 seconds. |
+
 ## Checking that Yahoo and SEC EDGAR still answer
 
 ```bash
@@ -280,6 +316,10 @@ With `--json` the command writes one document to standard output and nothing els
 passed; it is not the failure document described above. The document is published as
 `schemas/provider-health.schema.json`. Branch on each provider's `verdict`, which is `ok`, `unreachable`,
 `rate_limited`, `unexpected_response`, `no_data`, `not_configured` or `failed`; `probe` and `detail` are sentences for people.
+Each provider also has a `library` object, `{"name": "yfinance", "version": "..."}`, with the installed version of the
+library the application reaches the provider through, or `null` where there is none (SEC EDGAR). The library is
+pinned, so an unchanged version means a new failure came from the provider's side. The document's `schema_version`
+is 3. The text output is unchanged.
 `rate limited` means the provider is limiting requests (HTTP 429, or Yahoo's own rate-limit error), and it exits `1`
 like every outcome but `ok`. Two cases are deliberately not `rate limited`. An empty Yahoo history is still `no data`:
 the yfinance library hides its rate-limit error inside the history download and returns an empty frame, so a

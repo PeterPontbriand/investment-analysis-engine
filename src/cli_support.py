@@ -9,6 +9,7 @@ import typer
 from pydantic import ValidationError
 from typer._click.exceptions import UsageError
 
+from src.cli_provider_check import ProviderCheckChoice, echo_provider_check
 from src.config import settings
 from src.core.constants import ConfigKeys
 from src.core.failure_classification import classify_failure
@@ -243,6 +244,7 @@ def execution_errors(  # noqa: PLR0912, PLR0913
     mode: PresentationMode | None = None,
     selection_type: type[FrozenSelection] | None = None,
     ticker: str | None = None,
+    provider_check: ProviderCheckChoice | None = None,
 ) -> Iterator[None]:
     """Translate execution failures while preserving deliberate CLI exits.
 
@@ -252,7 +254,9 @@ def execution_errors(  # noqa: PLR0912, PLR0913
     or no ``mode`` is given, for a plain ``ValueError``. A plain ``ValueError`` otherwise reports the generic
     sentence, so exception text from provider data is not exposed. A failure whose callback is absent is reported
     as an unexpected one, exactly as before. ``selection_type`` is the command's own selection class,
-    whose fixed ``analysis_id`` and ``method_id`` name the analysis in the failure document.
+    whose fixed ``analysis_id`` and ``method_id`` name the analysis in the failure document. When a raised
+    provider failure names its provider and ``provider_check`` is given, the lines of the automatic provider check
+    are written to standard error immediately before the failure text, in every mode but ``--json``.
     """
     try:
         with record_cli_quality():
@@ -284,6 +288,7 @@ def execution_errors(  # noqa: PLR0912, PLR0913
         if mode is PresentationMode.JSON:
             typer.echo(failure_document(envelope))
         else:
+            echo_provider_check((envelope.provider_failure,), provider_check, err=True)
             typer.echo(message, err=True)
             if mode is PresentationMode.DIAGNOSTICS:
                 for diagnostic in envelope.diagnostics:

@@ -28,4 +28,6 @@ derivation lineage
 result
 --save-run Persist this attempt as a durable
 Analysis Run
+--no-provider-check Do not send a test request to a
+provider after it fails
 --help Show this message and exit.
