@@ -686,7 +686,7 @@ def test_t10_names_a_strategy_whose_schema_is_missing_or_out_of_date(tmp_path: P
 
 def test_t21_every_json_command_has_a_typed_document_and_a_current_schema() -> None:
     """The commands come from the real command tree; none is exempt."""
-    assert len(conformance.json_command_paths(app)) == 12
+    assert len(conformance.json_command_paths(app)) == 13
     assert conformance.json_command_gaps(STRATEGIES, app) == []
 
 

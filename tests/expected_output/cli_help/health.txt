@@ -1,0 +1,8 @@
+Usage: root health [OPTIONS]
+Check that Yahoo and SEC EDGAR still answer in the shape the adapters read.
+Options
+--provider <str> Check one provider (yfinance or sec_edgar) instead
+of all of them
+--json Write one JSON document to standard output instead
+of one line per provider
+--help Show this message and exit.

@@ -21,8 +21,8 @@ from tests._cli_helpers import normalize_cli_output
 
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "cli_help"
 
-# The application itself, then each direct strategy command; "" is the application's own help.
-HELP_TARGETS: tuple[str, ...] = ("", "momentum", "graham-number", "graham-growth", "fcf-growth")
+# The application itself, then ``health`` and each direct strategy command; "" is the application's own help.
+HELP_TARGETS: tuple[str, ...] = ("", "health", "momentum", "graham-number", "graham-growth", "fcf-growth")
 
 # Typer reads TERMINAL_WIDTH once, when ``typer.rich_utils`` is imported, and Rich otherwise takes the width from
 # the runner's terminal, so the width is fixed on the module value Typer passes to every Rich console it builds.

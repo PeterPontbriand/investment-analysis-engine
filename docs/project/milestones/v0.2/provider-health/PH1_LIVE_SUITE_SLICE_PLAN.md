@@ -11,8 +11,8 @@ Yahoo and SEC EDGAR still answer in the shape the adapters read. It delivers the
 check bodies, a text-only `ian health` command, two live tests, a scheduled and on-demand run with kept
 results, the policy amendment and the maintainer runbook.
 
-It does not change any adapter, classify failures (PH.2), add `--json` to the command, or add the automatic
-canary (PH.3).
+It does not change any adapter, classify failures (PH.2), add `--json` to the command (PH.3a), or add the automatic
+canary (PH.3b).
 
 ## 2. Marker and selection
 
@@ -66,7 +66,7 @@ review.
   detail after a dash when the check failed. In PH.1 the verdict is `ok` or `failed`; PH.2 refines `failed`
   into the three kinds. Exit 0 when every selected check passes, 1 otherwise. An unknown `--provider` value is a
   usage error (exit 2) that lists the valid ids.
-- **No `--json` in PH.1.** PH.3 adds it with its typed document and generated schema. Without `--json`, the
+- **No `--json` in PH.1.** PH.3a adds it with its typed document and generated schema. Without `--json`, the
   command is outside the rule that every command offering `--json` has a typed model and schema.
 - **Composition.** `src/cli_health.py` builds the two adapters from settings, as the direct commands do, and
   hands them to the shared bodies. A missing SEC identity (`SEC_USER_AGENT`) is a failed check with the
@@ -168,8 +168,9 @@ covers setup problems only) and the manually run `docs/user/SMOKE_TESTING.md`. P
 - how to move the Yahoo check to the fallback, and back;
 - how to add a check for a new provider.
 
-PH.2 adds the three failure kinds to it and PH.3 the canary and the verdict line. The user-facing counterpart,
-a troubleshooting entry in `docs/user/INSTALLATION.md` §4, is added by PH.3.
+PH.2 adds the three failure kinds to it, PH.3a the `--json` form and the not-configured outcome, and PH.3b the
+canary and the verdict line. The user-facing counterpart, a troubleshooting entry in
+`docs/user/INSTALLATION.md` §4, is added by PH.3b.
 
 ## 9. Files
 

@@ -1,12 +1,14 @@
 """The ``health`` command: run the shared provider shape checks and print one line per provider.
 
 The command composes the two production adapters from settings and hands them to the check bodies in
-``src.data.provider_checks``, which the live test suite also uses; it carries no probe logic of its own. It is
-text only and reports a condition; it never retries, repairs or switches provider.
+``src.data.provider_checks``, which the live test suite also uses; it carries no probe logic of its own. It prints
+one line per provider, or with ``--json`` one typed document, and reports a condition; it never retries, repairs or
+switches provider.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import typer
@@ -14,7 +16,6 @@ import typer
 from src.cli_composition import build_sec_production_provider
 from src.config import settings
 from src.core.operator_errors import AnalysisConfigurationError
-from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.http_json import fetch_json
 from src.data.provider_checks import (
     PROVIDER_CHECKS,
@@ -26,6 +27,7 @@ from src.data.provider_checks import (
     SecUnavailable,
 )
 from src.data.yfinance import YFinanceClient
+from src.reporting.documents.health import ProviderHealthDocument, ProviderHealthEntry
 
 
 def build_provider_clients() -> ProviderClients:
@@ -44,23 +46,31 @@ def build_provider_clients() -> ProviderClients:
     )
 
 
-_KIND_VERDICTS = {
-    ProviderFailureKind.UNREACHABLE: "unreachable",
-    ProviderFailureKind.UNEXPECTED_RESPONSE: "unexpected response",
-    ProviderFailureKind.NO_DATA: "no data",
-}
-
-
 def format_result(result: ProviderCheckResult) -> str:
     """Render one check as ``<provider>: <verdict> (probe: <description>, <elapsed> s)`` plus any failure detail.
 
-    The verdict is ``ok``; for a failed check, the name of its kind (``unreachable``, ``unexpected response`` or
-    ``no data``); and ``failed`` for a failed check that has no kind.
+    The verdict is the check's outcome with underscores read as spaces: ``ok``, ``unreachable``,
+    ``unexpected response``, ``no data``, ``not configured`` or ``failed``.
     """
-    failed_verdict = "failed" if result.kind is None else _KIND_VERDICTS[result.kind]
-    verdict = "ok" if result.passed else failed_verdict
+    verdict = result.verdict.value.replace("_", " ")
     line = f"{result.provider_id}: {verdict} (probe: {result.probe}, {result.elapsed_seconds:.2f} s)"
     return line if result.detail is None else f"{line} - {result.detail}"
+
+
+def health_document(results: Sequence[ProviderCheckResult]) -> ProviderHealthDocument:
+    """Build the typed ``--json`` document from the check results, in the order given."""
+    return ProviderHealthDocument(
+        providers=tuple(
+            ProviderHealthEntry(
+                provider_id=result.provider_id,
+                verdict=result.verdict.value,
+                probe=result.probe,
+                elapsed_seconds=round(result.elapsed_seconds, 2),
+                detail=result.detail,
+            )
+            for result in results
+        )
+    )
 
 
 def _select(provider: str | None) -> tuple[ProviderCheckEntry, ...]:
@@ -81,16 +91,23 @@ def health(
         str | None,
         typer.Option("--provider", help="Check one provider (yfinance or sec_edgar) instead of all of them"),
     ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Write one JSON document to standard output instead of one line per provider"),
+    ] = False,
 ) -> None:
     """Check that Yahoo and SEC EDGAR still answer in the shape the adapters read."""
     entries = _select(provider)
     clients = build_provider_clients()
-    all_passed = True
+    results: list[ProviderCheckResult] = []
     for entry in entries:
         result = entry.run(clients)
-        all_passed = all_passed and result.passed
-        typer.echo(format_result(result))
-    if not all_passed:
+        results.append(result)
+        if not json_output:
+            typer.echo(format_result(result))
+    if json_output:
+        typer.echo(health_document(results).model_dump_json())
+    if not all(result.passed for result in results):
         raise typer.Exit(code=1)
 
 

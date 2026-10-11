@@ -11,6 +11,7 @@ import urllib.request
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from datetime import UTC, datetime
+from typing import get_args
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlsplit
 
@@ -28,6 +29,7 @@ from src.data.provider_checks import (
     PROVIDER_CHECKS,
     SEC_EDGAR_SPEC,
     YAHOO_SPEC,
+    CheckVerdict,
     ConnectionStep,
     ProviderCheckResult,
     ProviderClients,
@@ -46,6 +48,7 @@ from src.data.provider_checks import (
 )
 from src.data.sec_edgar import financial_facts
 from src.data.yfinance.client import YFINANCE_DATA_HOST, YFinanceQuote
+from src.reporting.documents.health import HealthVerdict
 
 _NOW = datetime(2026, 10, 5, tzinfo=UTC)
 _COLUMNS = ("Open", "High", "Low", "Close", "Volume")
@@ -536,6 +539,8 @@ def test_sec_not_configured_has_no_kind_by_design() -> None:
 
     assert not result.passed
     assert result.kind is None
+    assert result.not_configured
+    assert result.verdict is CheckVerdict.NOT_CONFIGURED
 
 
 def test_an_unexpected_exception_inside_a_check_has_no_kind_by_design() -> None:
@@ -543,6 +548,37 @@ def test_an_unexpected_exception_inside_a_check_has_no_kind_by_design() -> None:
 
     assert not result.passed
     assert result.kind is None
+    assert not result.not_configured
+    assert result.verdict is CheckVerdict.FAILED
+
+
+def test_an_unclassified_typed_failure_is_a_failed_check_not_a_missing_configuration() -> None:
+    result = _yahoo(_FakeYahoo(quote=DataFetchError("not classified")))
+
+    assert not result.not_configured
+    assert result.verdict is CheckVerdict.FAILED
+
+
+def test_the_not_configured_field_does_not_depend_on_the_detail_text() -> None:
+    result = check_sec_edgar(SecUnavailable("any other wording"), clock=_ticks())
+
+    assert result.verdict is CheckVerdict.NOT_CONFIGURED
+
+
+@pytest.mark.parametrize("kind", list(ProviderFailureKind))
+def test_a_failed_check_with_a_kind_has_that_kind_as_its_verdict(kind: ProviderFailureKind) -> None:
+    result = _yahoo(_FakeYahoo(quote=_typed(kind)))
+
+    assert result.verdict.value == kind.value
+    assert not result.not_configured
+
+
+def test_a_passed_check_has_the_ok_verdict() -> None:
+    assert _yahoo(_FakeYahoo()).verdict is CheckVerdict.OK
+
+
+def test_the_verdict_names_are_the_six_outcomes_the_health_document_declares() -> None:
+    assert {verdict.value for verdict in CheckVerdict} == set(get_args(HealthVerdict))
 
 
 def test_a_passed_check_has_no_kind() -> None:

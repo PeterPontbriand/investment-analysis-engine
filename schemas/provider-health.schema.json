@@ -1,0 +1,81 @@
+{
+  "$defs": {
+    "ProviderHealthEntry": {
+      "additionalProperties": false,
+      "description": "The outcome of the check of one provider.",
+      "properties": {
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The failure detail, a sentence for people that is not stable; null when the check passed.",
+          "title": "Detail"
+        },
+        "elapsed_seconds": {
+          "description": "Wall-clock seconds the check took, rounded to hundredths.",
+          "title": "Elapsed Seconds",
+          "type": "number"
+        },
+        "probe": {
+          "description": "What the check requests; a sentence for people, not stable.",
+          "title": "Probe",
+          "type": "string"
+        },
+        "provider_id": {
+          "description": "The provider's stable identity, as `--provider` names it.",
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "verdict": {
+          "description": "ok: every request answered in the shape the adapter reads. unreachable, unexpected_response and no_data: the provider failed in that way. not_configured: SEC access is not set up, so the check could not run. failed: an unexpected error inside the check.",
+          "enum": [
+            "ok",
+            "unreachable",
+            "unexpected_response",
+            "no_data",
+            "not_configured",
+            "failed"
+          ],
+          "title": "Verdict",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id",
+        "verdict",
+        "probe",
+        "elapsed_seconds",
+        "detail"
+      ],
+      "title": "ProviderHealthEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The whole ``health --json`` output, in the order the providers were checked.",
+  "properties": {
+    "providers": {
+      "items": {
+        "$ref": "#/$defs/ProviderHealthEntry"
+      },
+      "title": "Providers",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "providers"
+  ],
+  "title": "ProviderHealthDocument",
+  "type": "object"
+}

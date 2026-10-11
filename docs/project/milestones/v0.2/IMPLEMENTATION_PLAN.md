@@ -38,7 +38,7 @@ current codes:
   ([contract](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md)): an opt-in live suite, scheduled run and
   failure classification so that a broken or changed online service (Yahoo, SEC EDGAR) is visible to the
   project owner from a scheduled run and to a user from the first line of the error message. PH.1 runs now;
-  PH.2a to PH.2c and PH.3 follow SWC.4c; all finish before Step 3.5 begins.
+  PH.2a to PH.2d, issue #40, PH.3a and PH.3b follow SWC.4c; all finish before Step 3.5 begins.
 - `MR` — short for "Massive Removal" ([plan](massive-removal/MR_MASSIVE_REMOVAL_PLAN.md)): removes the unfinished,
   untested Massive provider until a requirement makes it worth bringing back. Its row is numbered `11A` so the
   rows after it keep their numbers and sits among the complete rows; it ran inside `PH`, after PH.2b and before PH.2c, and before `PKG`.
