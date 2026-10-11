@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.core.failure_codes import FailureReasonCode
+from src.core.provider_failure_element import ProviderFailure
 from src.orchestrator.reliability import ReliabilityFailure
 
 
@@ -54,6 +56,20 @@ class ToolCallResult(BaseModel):
     success: bool
     result: Any
     error_message: str | None = None
+    reason_code: FailureReasonCode | None = None
+    provider_failure: ProviderFailure | None = None
+
+    @model_validator(mode="after")
+    def validate_failure_classification(self) -> ToolCallResult:
+        """Require a stable code on a failure, and nothing on a success."""
+        if self.success:
+            if self.reason_code is not None or self.provider_failure is not None:
+                raise ValueError("A successful tool call carries no failure code or provider failure.")
+        elif self.reason_code is None:
+            raise ValueError("A failed tool call requires a failure reason code.")
+        elif self.provider_failure is not None and self.provider_failure.reason_code is not self.reason_code:
+            raise ValueError("The provider failure must carry the same code as the failed tool call.")
+        return self
 
 
 class AgentStepResult(BaseModel):

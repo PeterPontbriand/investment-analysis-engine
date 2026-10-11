@@ -19,7 +19,7 @@ from src.core.failure_codes import (
     status_for,
 )
 from src.core.provider_failure_element import ProviderFailure, ProviderFailureInput
-from src.core.provider_failure_kind import PROVIDER_KIND_PRECEDENCE, ProviderFailureRecord
+from src.core.provider_failure_kind import PROVIDER_KIND_PRECEDENCE, ProviderFailureKind, ProviderFailureRecord
 
 
 @dataclass(frozen=True)
@@ -63,6 +63,21 @@ def provider_failure_of(records: Iterable[ProviderFailureRecord | None]) -> Prov
     return ProviderFailure(reason_code=PROVIDER_CODE_BY_KIND[kind], inputs=inputs)
 
 
+def provider_failure_of_exception(exception: BaseException) -> ProviderFailure | None:
+    """Return the ``provider_failure`` element of a raised provider failure, or ``None``.
+
+    A raised provider failure carries a ``kind`` and a ``provider_id`` beside its message; the element is built
+    from them with a null input, because the failure was raised rather than recorded against an input. Any
+    other exception, and a provider failure the adapter did not classify, has no element. The function names no
+    exception type, like :func:`classify_failure`.
+    """
+    kind = getattr(exception, "kind", None)
+    provider_id = getattr(exception, "provider_id", None)
+    if not isinstance(kind, ProviderFailureKind) or not isinstance(provider_id, str):
+        return None
+    return provider_failure_of((ProviderFailureRecord(kind, provider_id),))
+
+
 def failure_reason_code(
     native_status: CalculationStatus, provider_failure: ProviderFailure | None
 ) -> FailureReasonCode:
@@ -83,4 +98,5 @@ __all__ = [
     "classify_failure",
     "failure_reason_code",
     "provider_failure_of",
+    "provider_failure_of_exception",
 ]

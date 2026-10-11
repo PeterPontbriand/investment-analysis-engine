@@ -4,12 +4,9 @@ The code and the classifier live in ``src.core``; this module adds the facts onl
 failure document, which is why it is the one place that names the exception types that carry them.
 """
 
-from src.core.failure_classification import provider_failure_of
-from src.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode, status_for
+from src.core.failure_classification import provider_failure_of_exception
+from src.core.failure_codes import FailureReasonCode, status_for
 from src.core.provider_failure_element import ProviderFailure
-from src.core.provider_failure_kind import ProviderFailureRecord
-from src.data.base_client import DataFetchError
-from src.data.financial.facts import FinancialProviderError
 from src.data.quality import HistoricalDataQualityError, QualityOutcome
 from src.data.repositories.readiness import DatabaseReadinessError
 from src.reporting.documents.failure import FailureDatabase, FailureDiagnostic, FailureEnvelope
@@ -44,13 +41,10 @@ def failure_envelope(  # noqa: PLR0913
         database = FailureDatabase(
             database_path=None if path is None else str(path), expected_revision=cause.expected_revision
         )
-    if (
-        isinstance(cause, DataFetchError | FinancialProviderError)
-        and cause.kind is not None
-        and cause.provider_id is not None
-        and PROVIDER_CODE_BY_KIND[cause.kind] is reason_code
-    ):
-        provider_failure = provider_failure_of((ProviderFailureRecord(cause.kind, cause.provider_id),))
+    if cause is not None:
+        element = provider_failure_of_exception(cause)
+        if element is not None and element.reason_code is reason_code:
+            provider_failure = element
     return FailureEnvelope(
         status=status_for(reason_code),
         reason_code=reason_code,

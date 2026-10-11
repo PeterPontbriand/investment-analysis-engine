@@ -37,7 +37,8 @@ before the next begins. A prose-only documentation slice follows the documentati
 | PH.2b | [Yahoo, health and completion](#ph2b--yahoo-health-and-completion) | Complete | 2026-10-09 |
 | PH.2c | [Stored provider failures](#ph2c--stored-provider-failures) | Complete | 2026-10-10 |
 | PH.2d | [Failure codes and classifier move to core](#ph2d--failure-codes-and-classifier-move-to-core) | Complete | 2026-10-11 |
-| PH.3 | [Automatic canary and health JSON](#ph3--automatic-canary-and-health-json) | Planned | |
+| Issue #40 | [Tool failure codes](#issue-40--tool-failure-codes) | Complete | 2026-10-11 |
+| PH.3 | [Automatic canary and health JSON](#ph3--automatic-canary-and-health-json) | Next | |
 
 PH.2a does not start before [SWC.4c](../swc/SWC_CONTRACT_AND_SLICE_PLAN.md#swc4c--typed-strategy-envelopes-and-replay-dispatch)
 has merged. PH.2b follows PH.2a, PH.2c follows PH.2b, and PH.3 does not start before PH.2d has merged. PH.1 has
@@ -46,8 +47,7 @@ no dependency and may run alongside SWC. PH.2d follows PH.2c.
 [Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) (orchestrator
 classification of `DataQualityError` in trajectory events) comes immediately after PH.2d, as its own small
 change, because it reuses the reason codes and failure kinds PH.2 delivers. It calls the classifier in `core`, so
-`orchestrator` gains no dependency on `reporting`. It is next, and it is complete before Step 3.5 begins; PH.3
-follows it.
+`orchestrator` gains no dependency on `reporting`. It is complete (2026-10-11), and PH.3 is next.
 
 ## 3. The slices
 
@@ -122,6 +122,21 @@ outcome with its resolution trace, and the existing `PROVIDER_ERROR` status is n
   package map and the plans.
 - **Branch:** `refactor/failure-codes-to-core`, from `main` after PH.2c.
 - **Detail:** [PH.2 slice plan](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#ph2d--failure-codes-and-classifier-move-to-core).
+
+### Issue #40 — Tool failure codes
+
+- **Problem:** the dispatcher kept only the message of a failed tool call and the loop recorded every failure as
+  `ToolExecutionError`, so a data-quality rejection, an unreachable provider, bad arguments and a defect were
+  indistinguishable in the trajectory.
+- **Decision:** every failed tool call is classified with the `core` classifier where the dispatcher catches it;
+  `ToolCallResult` carries the stable `reason_code` and, for a provider failure with a kind and a provider, the
+  shared `provider_failure` element, built by one function in `src/core` that the failure envelope also calls;
+  an unregistered tool is `invalid_input`; the error event and the failed `tool_result` summary carry both
+  values; the trajectory schema version, the text sent to the model and every command output are unchanged.
+- **Scope:** `ToolCallResult`, the dispatcher, the loop's failure recording, the recorder's error record, the
+  shared element function and the failure envelope's use of it, the architecture text and these plans.
+- **Branch:** `feat/orchestrator-tool-failure-codes`, from `main` after PH.2d.
+- **Detail:** [Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) holds the detail; no slice plan was written.
 
 ### PH.3 — Automatic canary and health JSON
 

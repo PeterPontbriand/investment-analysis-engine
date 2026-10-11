@@ -65,6 +65,8 @@ class TrajectoryErrorRecord:
     span_id: UUID | None = None
     parent_span_id: UUID | None = None
     error_type: str | None = None
+    reason_code: str | None = None
+    provider_failure: Mapping[str, Any] | None = None
 
 
 class TrajectoryRecorder:
@@ -207,6 +209,14 @@ class TrajectoryRecorder:
 
     def record_error(self, error: TrajectoryErrorRecord) -> TrajectoryEvent | None:
         """Record a sanitized runtime error event."""
+        details: dict[str, Any] = {
+            "type": error.error_type or "RuntimeError",
+            "message": sanitize_exception_message(error.message),
+        }
+        if error.reason_code is not None:
+            details["reason_code"] = error.reason_code
+        if error.provider_failure is not None:
+            details["provider_failure"] = dict(error.provider_failure)
         return self.record(
             TrajectoryRecord(
                 event_type=TrajectoryEventType.ERROR,
@@ -214,10 +224,7 @@ class TrajectoryRecorder:
                 step_index=error.step_index,
                 span_id=error.span_id,
                 parent_span_id=error.parent_span_id,
-                error={
-                    "type": error.error_type or "RuntimeError",
-                    "message": sanitize_exception_message(error.message),
-                },
+                error=details,
             )
         )
 
