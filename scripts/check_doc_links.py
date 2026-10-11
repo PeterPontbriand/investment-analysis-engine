@@ -1,6 +1,6 @@
 """Repo-wide Markdown local-link and heading-anchor checker.
 
-Walks every git-tracked ``.md`` file, resolves every local ``[text](path)``,
+Walks every ``.md`` file that git tracks or that is untracked and not ignored, resolves every local ``[text](path)``,
 ``[text](#anchor)``, and ``[text](path#anchor)`` link, and reports every break
 in one run. External links (anything with a URL scheme, e.g. ``https://`` or
 ``mailto:``) are skipped entirely -- this script makes no network access.
@@ -233,19 +233,23 @@ def find_broken_links_in_file(
 
 
 def list_tracked_markdown_files(repo_root: Path) -> list[Path]:
-    """Return every git-tracked ``.md`` file's absolute path."""
+    """Return the absolute path of every ``.md`` file git tracks, plus every untracked one it does not ignore.
+
+    A new document is checked before it is staged; a file matched by ``.gitignore`` is skipped.
+    """
     output = subprocess.run(
-        ["git", "ls-files", "*.md"],
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "--", "*.md"],
         cwd=repo_root,
         capture_output=True,
         check=True,
         text=True,
     ).stdout
-    return [repo_root / line for line in output.splitlines() if line]
+    paths = dict.fromkeys(repo_root / line for line in output.splitlines() if line)
+    return [path for path in paths if path.is_file()]
 
 
 def check_repository(repo_root: Path) -> list[BrokenLink]:
-    """Check every tracked Markdown file in ``repo_root`` and return all breaks found."""
+    """Check every tracked or untracked-and-unignored Markdown file in ``repo_root`` and return all breaks found."""
     heading_slug_cache: dict[Path, set[str]] = {}
     broken: list[BrokenLink] = []
     for markdown_file in list_tracked_markdown_files(repo_root):
@@ -257,7 +261,7 @@ def check_repository(repo_root: Path) -> list[BrokenLink]:
 
 
 def check_repository_diagrams(repo_root: Path) -> list[MermaidBlock]:
-    """Return every Mermaid block in the tracked Markdown files of ``repo_root``."""
+    """Return every Mermaid block in the Markdown files of ``repo_root``."""
     found: list[MermaidBlock] = []
     for markdown_file in list_tracked_markdown_files(repo_root):
         lines = markdown_file.read_text(encoding="utf-8").splitlines(keepends=True)

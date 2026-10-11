@@ -147,12 +147,44 @@ def find_sequence_table_violations(source_file: Path, lines: list[str]) -> list[
 
 
 def list_markdown_files(repo_root: Path) -> list[Path]:
-    """List Markdown files under docs and at the repository root."""
-    files = set(repo_root.glob("*.md"))
-    docs = repo_root / "docs"
-    if docs.is_dir():
-        files.update(path for path in docs.rglob("*.md") if path.is_file())
+    """List Markdown files under docs and at the repository root.
+
+    In a git repository these are the files git tracks plus the untracked ones it does not ignore, so a new
+    document is checked before it is staged and an ignored file is skipped. Outside a git repository every
+    such file on disk is listed.
+    """
+    files = _git_markdown_files(repo_root)
+    if files is None:
+        files = set(repo_root.glob("*.md"))
+        docs = repo_root / "docs"
+        if docs.is_dir():
+            files.update(path for path in docs.rglob("*.md") if path.is_file())
     return sorted(files)
+
+
+def _git_markdown_files(repo_root: Path) -> set[Path] | None:
+    """Return the root and docs Markdown files git lists, or ``None`` when ``repo_root`` is not a repository root."""
+    try:
+        top = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"], cwd=repo_root, capture_output=True, check=True, text=True
+        ).stdout.strip()
+        if Path(top).resolve() != repo_root.resolve():
+            return None
+        output = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "--", "*.md"],
+            cwd=repo_root,
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+    listed = {repo_root / line for line in output.splitlines() if line}
+    return {
+        path
+        for path in listed
+        if path.is_file() and (path.parent == repo_root or path.relative_to(repo_root).parts[0] == "docs")
+    }
 
 
 def check_repository(repo_root: Path) -> list[Violation]:
