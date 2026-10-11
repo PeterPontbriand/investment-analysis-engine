@@ -1,10 +1,10 @@
 """The ``refresh --json`` summary document.
 
-The document is unversioned: it has no ``schema_version``. SWC.4a added ``reason_code`` to every result without
-a version change, and this module records that the document has never carried one.
+The document carries ``schema_version``, its own lineage, first among its keys. It was unversioned until it gained
+the ``rate_limited`` provider failure code; ``reason_code`` was added to every result before that without a version.
 """
 
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -48,11 +48,12 @@ class RefreshResultDocument(BaseModel):
 class RefreshSummaryDocument(BaseModel):
     """The one document ``refresh --json`` writes when the refresh completes.
 
-    This document is unversioned: it has no ``schema_version``.
+    ``schema_version`` is this document's own lineage and is independent of every other document's.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
+    schema_version: Literal[1] = 1
     refresh_id: UUID
     watchlist_id: UUID
     watchlist_name: str

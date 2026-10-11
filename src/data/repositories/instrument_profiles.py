@@ -25,7 +25,7 @@ from src.data.repositories.schema import instrument_profiles
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.security_identity import _normalized_required
 
-INSTRUMENT_PROFILE_SCHEMA_VERSION = 2
+INSTRUMENT_PROFILE_SCHEMA_VERSION = 3
 """The version of the stored profile record and its evidence payload; bumped whenever the payload's shape changes."""
 
 

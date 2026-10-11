@@ -56,16 +56,17 @@ says what each check found. It is described by
 }
 ```
 
-Branch on `verdict`, which is one of the six words in the table below with underscores (`unexpected_response`,
-`no_data`, `not_configured`). `probe` and `detail` are sentences for people and may change. `detail` is
+Branch on `verdict`, which is one of the seven words in the table below with underscores (`rate_limited`,
+`unexpected_response`, `no_data`, `not_configured`). `probe` and `detail` are sentences for people and may change. `detail` is
 `null` when the check passed.
 
 | Verdict | What it means | Look at first |
 | :--- | :--- | :--- |
 | `ok` | Every request answered in the shape the adapter reads. | Nothing. |
-| `unreachable` | The service did not serve the request: connection, DNS or TLS fault, a timeout, throttling or blocking (HTTP 403 or 429), a server error. For Yahoo the opening connection step reports only a connection, DNS, TLS or timeout fault; it does not detect throttling. | The network, a proxy, and for SEC the declared identity or request rate. |
+| `unreachable` | The service did not serve the request: connection, DNS or TLS fault, a timeout, blocking (HTTP 403, which SEC also answers for a rejected identity), a server error. For Yahoo the opening connection step reports only a connection, DNS, TLS or timeout fault; it does not detect throttling. | The network, a proxy, and for SEC the declared identity. |
+| `rate limited` | The service refused the request because it is limiting requests: HTTP 429, or the yfinance library's own rate-limit error. | Wait before the next run, and check that nothing else is calling the same service. |
 | `unexpected response` | The service answered, but not in the form the adapter reads: a missing field or column, invalid JSON, a non-numeric or non-positive quote. | The detail names what is missing; the provider changed its format or the library changed. |
-| `no data` | The service answered correctly and has nothing for the probe: an empty history, or SEC has no document for the probe company. | See "`no_data` from a history download" below. |
+| `no data` | The service answered correctly and has nothing for the probe: an empty history, or SEC has no document for the probe company. | See "`no_data` from a history download" below. A throttled Yahoo history download also lands here. |
 | `not configured` | SEC access is not set up, so the SEC check could not run. It is never skipped. | Set `SEC_USER_AGENT` (locally, or the repository secret for the cloud run). |
 | `failed` | An unexpected exception was raised inside the check, or an adapter failed without saying which kind. It is a defect, not a provider condition. | The detail: the exception name points at a defect in the check or the adapter. |
 
@@ -150,7 +151,8 @@ whether Yahoo was reachable. The check therefore first opens a direct TCP and TL
 | Verdict and detail | What to look at first |
 | :--- | :--- |
 | `unreachable`: `Cannot open a TLS connection to query2.finance.yahoo.com:443: ...` | The machine cannot reach Yahoo directly: the network, DNS or a firewall. |
-| `unreachable`: `timed out after 20 s` | The connection, the quote or the history did not finish within the whole-check deadline. The network or a proxy. |
+| `unreachable`: `timed out after 20 s` | The connection, the quote or the history did not finish within the whole-check deadline. The network or a proxy. A timeout is always `unreachable`. |
+| `rate limited`: `DataFetchError: ... Too Many Requests` | Yahoo answered HTTP 429 to the quote read and yfinance raised its rate-limit error. Wait, then run the check again. |
 | `unexpected response`: `history is missing columns: ...`, `history index is not a monotonic date index`, `history is not a data frame` | The yfinance library changed the shape it returns. Compare the installed version with the one the lock file pins, read its release notes, and read `fetch_data` in [`src/data/yfinance/client.py`](../../src/data/yfinance/client.py). |
 | `unexpected response`: `quote last price is not a positive finite number`, or a quote error | The connection opened, so the machine reaches Yahoo, but the quote read (`fast_info`) failed in a way yfinance reports as a shape error. Yahoo changed what it returns, or throttled or refused the request and yfinance hid that. Read `fetch_current_quote` in the same module. |
 | `no data`: `history is empty` | See the next section. |
@@ -158,9 +160,12 @@ whether Yahoo was reachable. The check therefore first opens a direct TCP and TL
 
 #### `no_data` from a history download
 
-yfinance's `download` catches every per-ticker exception itself and returns an empty frame, and no supported setting
-changes that. So an empty history means only that Yahoo returned no rows. It can be an unknown or delisted ticker,
-a throttled request, or an unreachable service, and a command cannot tell which.
+yfinance's `download` catches every per-ticker exception itself, including its own rate-limit error, and returns an
+empty frame, and no supported setting changes that. So an empty history means only that Yahoo returned no rows. It
+can be an unknown or delisted ticker, a throttled request, or an unreachable service, and a command cannot tell
+which. For that reason an empty history is still `no_data` and is never `rate_limited`: telling them apart would
+mean replacing `yf.download` or reading the library's log text, and neither is done. Throttling is reported as
+`rate_limited` only where the library raises its error: the quote, instrument-profile and identity reads.
 
 - **What it can tell you:** Yahoo returned nothing for this request. In `ian health` the connection step comes
   first, so a `no data` verdict there means the machine reached Yahoo and the quote read passed; only the history
@@ -181,7 +186,8 @@ The check reads the ticker map and one company-facts document for the probe tick
 | Detail | What to look at first |
 | :--- | :--- |
 | `not configured`: `SEC EDGAR access is not configured` | `SEC_USER_AGENT` is not set (locally, or the repository secret for the cloud run). |
-| `unreachable`: `FinancialProviderError: HTTP request failed ... 403` or `429` | SEC rejected the identity or the rate. SEC requires a declared identity and limits request rates; check the value and that nothing else was calling at the same time. |
+| `unreachable`: `FinancialProviderError: HTTP request failed ... 403` | SEC refused the request. A blocked client and a rejected identity both get HTTP 403, so it cannot be told apart from a rejected identity and stays `unreachable`. SEC requires a declared identity; check the value of `SEC_USER_AGENT`. |
+| `rate limited`: `FinancialProviderError: HTTP request failed ... 429` | SEC is limiting the request rate. Wait, and check that nothing else was calling at the same time. |
 | `unexpected response`: `ticker map entries are missing fields: ...`, `ticker map entry for AAPL is missing fields: ...`, `ticker map has no entry for AAPL` | The ticker map document changed. Read `_ticker_cik_map` in [`src/data/sec_edgar/financial_facts.py`](../../src/data/sec_edgar/financial_facts.py). |
 | `unexpected response`: `company facts document has no 'facts' mapping` or no `'us-gaap'` mapping | The company-facts document changed. Read how the same module parses `facts`. |
 | `unreachable`: `timed out after 20 s` | The network, or SEC is slow; retry once. |
@@ -195,8 +201,8 @@ file rotates daily or at 1 MB, keeps five backups and compresses older ones to `
 
 Standard output and standard error carry only the command's own result and messages, so `--json` output is unaffected.
 That means a provider failure's cause may be in the log and not on the screen. A command's own message names the
-kind of the failure (the service did not serve the request, answered in a form the application does not read, or
-returned no data) and the provider, but not the library's error text. For example, a connection failure that
+kind of the failure (the service did not serve the request, is limiting requests, answered in a form the
+application does not read, or returned no data) and the provider, but not the library's error text. For example, a connection failure that
 escapes a history download writes `yfinance download for '<ticker>' failed (unreachable): <error>` to the
 log and the command prints that yfinance did not serve the request. A fault that yfinance's `download` swallows
 reaches the command only as `no data`, and the cause, if yfinance recorded one, is in the log. When a command fails and its message is

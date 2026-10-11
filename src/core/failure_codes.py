@@ -25,6 +25,7 @@ class FailureReasonCode(StrEnum):
     HISTORICAL_QUALITY = "historical_quality"
     PROVIDER_ERROR = "provider_error"
     PROVIDER_UNREACHABLE = "provider_unreachable"
+    PROVIDER_RATE_LIMITED = "provider_rate_limited"
     PROVIDER_UNEXPECTED_RESPONSE = "provider_unexpected_response"
     PROVIDER_NO_DATA = "provider_no_data"
     CONFIGURATION_ERROR = "configuration_error"
@@ -56,6 +57,7 @@ FailureStatus = Literal["error", "input_unavailable"]
 PROVIDER_FAILURE_CODES = frozenset(
     {
         FailureReasonCode.PROVIDER_UNREACHABLE,
+        FailureReasonCode.PROVIDER_RATE_LIMITED,
         FailureReasonCode.PROVIDER_UNEXPECTED_RESPONSE,
         FailureReasonCode.PROVIDER_NO_DATA,
     }
@@ -74,6 +76,7 @@ INPUT_UNAVAILABLE_CODES = frozenset(
 PROVIDER_CODE_BY_KIND: Mapping[ProviderFailureKind, FailureReasonCode] = MappingProxyType(
     {
         ProviderFailureKind.UNREACHABLE: FailureReasonCode.PROVIDER_UNREACHABLE,
+        ProviderFailureKind.RATE_LIMITED: FailureReasonCode.PROVIDER_RATE_LIMITED,
         ProviderFailureKind.UNEXPECTED_RESPONSE: FailureReasonCode.PROVIDER_UNEXPECTED_RESPONSE,
         ProviderFailureKind.NO_DATA: FailureReasonCode.PROVIDER_NO_DATA,
     }

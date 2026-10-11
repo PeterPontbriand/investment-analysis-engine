@@ -50,7 +50,7 @@ def format_result(result: ProviderCheckResult) -> str:
     """Render one check as ``<provider>: <verdict> (probe: <description>, <elapsed> s)`` plus any failure detail.
 
     The verdict is the check's outcome with underscores read as spaces: ``ok``, ``unreachable``,
-    ``unexpected response``, ``no data``, ``not configured`` or ``failed``.
+    ``rate limited``, ``unexpected response``, ``no data``, ``not configured`` or ``failed``.
     """
     verdict = result.verdict.value.replace("_", " ")
     line = f"{result.provider_id}: {verdict} (probe: {result.probe}, {result.elapsed_seconds:.2f} s)"

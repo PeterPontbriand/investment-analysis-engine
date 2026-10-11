@@ -470,7 +470,8 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Known at SWC.4a:** the `refresh --json` document has no `schema_version`, so SWC.4a's new `reason_code` key on
   each result bumped no version ([design H.27](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h27-output-changes-and-the-check-that-success-output-is-unchanged-2026-10-06)).
   SWC.4b publishes the refresh summary schema and states, in the schema and the design, that the document is unversioned
-  or what version it carries; adding a version is an output change it lists.
+  or what version it carries; adding a version is an output change it lists. (PH.2e later gave the refresh summary
+  `schema_version` 1.)
 - **Branch:** `feat/swc-4b-workspace-documents`, from `main` after SWC.4a has merged.
 - **Detail:** [SWC.1 design §13.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#136-every-json-document-is-typed).
 

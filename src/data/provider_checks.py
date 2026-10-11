@@ -10,7 +10,7 @@ provider call runs in a daemon worker thread, and the spec's timeout is a deadli
 is given the time remaining and the check never waits longer than the timeout in total. The thread cannot
 keep the process alive if the call never returns. A check never raises for a provider fault: it returns a failed
 :class:`ProviderCheckResult` whose detail names the missing field or the transport error and whose ``kind`` says
-which of the three provider failure kinds it was: a typed provider failure carries its own kind, a timeout is
+which of the four provider failure kinds it was: a typed provider failure carries its own kind, a timeout is
 ``unreachable``, a wrong shape is ``unexpected_response`` and an empty history is ``no_data``. A failure with no
 kind is deliberate: SEC access that is not configured, and an unexpected exception inside a check.
 """
@@ -52,15 +52,16 @@ YAHOO_DATA_PORT = 443
 
 
 class CheckVerdict(StrEnum):
-    """The six outcomes of a provider check.
+    """The seven outcomes of a provider check.
 
-    The first four mirror ``passed`` and the three provider failure kinds. ``NOT_CONFIGURED``: SEC access is not set
+    The first five mirror ``passed`` and the four provider failure kinds. ``NOT_CONFIGURED``: SEC access is not set
     up, so the check could not run. ``FAILED``: an unexpected error inside the check, which is a defect and not a
     provider condition.
     """
 
     OK = "ok"
     UNREACHABLE = "unreachable"
+    RATE_LIMITED = "rate_limited"
     UNEXPECTED_RESPONSE = "unexpected_response"
     NO_DATA = "no_data"
     NOT_CONFIGURED = "not_configured"
@@ -71,7 +72,7 @@ class CheckVerdict(StrEnum):
 class ProviderCheckResult:
     """Outcome of one provider shape check.
 
-    ``kind`` is set when the provider failed in one of the three ways. A failed check with no ``kind`` is either
+    ``kind`` is set when the provider failed in one of the four ways. A failed check with no ``kind`` is either
     not configured (``not_configured`` is true) or an unexpected error inside the check.
     """
 
@@ -85,7 +86,7 @@ class ProviderCheckResult:
 
     @property
     def verdict(self) -> CheckVerdict:
-        """Return the one of the six outcomes this result is."""
+        """Return the one of the seven outcomes this result is."""
         if self.passed:
             return CheckVerdict.OK
         if self.not_configured:

@@ -57,7 +57,7 @@ class AnalysisRun(_FrozenModel):
     source_retrieval_at: AwareDatetime | None = None
 
     # Versions
-    run_schema_version: Literal[2] = 2
+    run_schema_version: Literal[3] = 3
     method_version: int = Field(ge=1)
     result_schema_version: int = Field(ge=1)
     evidence_codec_version: int = Field(ge=1)

@@ -32,10 +32,11 @@
           "type": "string"
         },
         "verdict": {
-          "description": "ok: every request answered in the shape the adapter reads. unreachable, unexpected_response and no_data: the provider failed in that way. not_configured: SEC access is not set up, so the check could not run. failed: an unexpected error inside the check.",
+          "description": "ok: every request answered in the shape the adapter reads. unreachable, rate_limited, unexpected_response and no_data: the provider failed in that way. not_configured: SEC access is not set up, so the check could not run. failed: an unexpected error inside the check.",
           "enum": [
             "ok",
             "unreachable",
+            "rate_limited",
             "unexpected_response",
             "no_data",
             "not_configured",
@@ -67,8 +68,8 @@
       "type": "array"
     },
     "schema_version": {
-      "const": 1,
-      "default": 1,
+      "const": 2,
+      "default": 2,
       "title": "Schema Version",
       "type": "integer"
     }

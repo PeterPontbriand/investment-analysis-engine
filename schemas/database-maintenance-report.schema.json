@@ -7,6 +7,7 @@
         "historical_quality",
         "provider_error",
         "provider_unreachable",
+        "provider_rate_limited",
         "provider_unexpected_response",
         "provider_no_data",
         "configuration_error",
@@ -97,8 +98,8 @@
       "description": "The stable code, or null when there is none."
     },
     "schema_version": {
-      "const": 2,
-      "default": 2,
+      "const": 3,
+      "default": 3,
       "title": "Schema Version",
       "type": "integer"
     },

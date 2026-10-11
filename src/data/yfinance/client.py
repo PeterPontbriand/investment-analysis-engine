@@ -70,7 +70,8 @@ _YFINANCE_FAILURE_RULES = (
         DEFECT,
     ),
     FailureRule((YFException,), DEFECT, when=lambda error: type(error) is YFException),
-    FailureRule((OSError, YFRateLimitError), ProviderFailureKind.UNREACHABLE),
+    FailureRule((YFRateLimitError,), ProviderFailureKind.RATE_LIMITED),
+    FailureRule((OSError,), ProviderFailureKind.UNREACHABLE),
 )
 
 

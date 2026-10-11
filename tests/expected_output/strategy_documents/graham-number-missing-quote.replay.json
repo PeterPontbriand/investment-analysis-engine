@@ -1,5 +1,5 @@
 {
-  "schema_version": 8,
+  "schema_version": 9,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "MISSING_QUOTE",

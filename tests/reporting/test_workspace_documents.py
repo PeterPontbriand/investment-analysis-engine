@@ -30,8 +30,7 @@ from src.workspace.strategy_types import AnalysisSelection, SelectionMember
 _DATETIME_LEAVES: tuple[Any, ...] = (datetime, AwareDatetime, NaiveDatetime, PastDatetime, FutureDatetime)
 _TIMESTAMP_METADATA: tuple[Any, ...] = get_args(DocumentTimestamp)[1:]
 _SELECTION_MEMBERS: tuple[Any, ...] = get_args(SelectionMember)
-_WORKSPACE_FILES = (
-    "refresh-summary.schema.json",
+_UNVERSIONED_WORKSPACE_FILES = (
     "runs-list.schema.json",
     "watchlist-delete.schema.json",
     "watchlist.schema.json",
@@ -98,11 +97,17 @@ def test_a_timestamp_keeps_the_offset_it_carries() -> None:
         Holder(at=datetime(2026, 1, 2))  # noqa: DTZ001 - a naive instant is exactly what must be rejected
 
 
-@pytest.mark.parametrize("file_name", _WORKSPACE_FILES)
-def test_each_workspace_schema_states_that_the_document_is_unversioned(file_name: str) -> None:
+@pytest.mark.parametrize("file_name", _UNVERSIONED_WORKSPACE_FILES)
+def test_each_unversioned_workspace_schema_states_that_the_document_is_unversioned(file_name: str) -> None:
     schema = json.loads(expected_schemas()[file_name])
     assert "unversioned" in schema["description"]
     assert "schema_version" not in schema.get("properties", {})
+
+
+def test_the_refresh_summary_schema_is_versioned_from_one() -> None:
+    schema = json.loads(expected_schemas()["refresh-summary.schema.json"])
+    assert schema["properties"]["schema_version"]["const"] == 1
+    assert "unversioned" not in schema["description"]
 
 
 def test_the_refresh_summary_reuses_the_failure_envelopes_reason_codes() -> None:
@@ -280,7 +285,8 @@ def test_the_refresh_summary_reports_an_unsaved_outcome_and_a_failed_job() -> No
         ),
     )
     document = json.loads(_refresh_json(summary))
-    assert list(document) == ["refresh_id", "watchlist_id", "watchlist_name", "results", "counts"]
+    assert list(document) == ["schema_version", "refresh_id", "watchlist_id", "watchlist_name", "results", "counts"]
+    assert document["schema_version"] == 1
     assert document["results"] == [
         {
             "ticker": "AAPL",
@@ -337,7 +343,11 @@ def test_a_refresh_result_document_enforces_its_consistency_rules() -> None:
 
 
 def test_the_generator_publishes_the_four_workspace_documents() -> None:
-    assert {name: model for name, model in DOCUMENTS if name in _WORKSPACE_FILES} == {
+    assert {
+        name: model
+        for name, model in DOCUMENTS
+        if name in {*_UNVERSIONED_WORKSPACE_FILES, "refresh-summary.schema.json"}
+    } == {
         "watchlist.schema.json": WatchlistDocument,
         "watchlist-delete.schema.json": WatchlistDeleteDocument,
         "runs-list.schema.json": RunsListDocument,

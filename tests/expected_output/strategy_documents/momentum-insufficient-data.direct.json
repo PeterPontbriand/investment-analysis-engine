@@ -1,5 +1,5 @@
 {
-  "schema_version": 7,
+  "schema_version": 8,
   "analysis": "momentum",
   "method": "sma_crossover",
   "ticker": "BTC-USD",

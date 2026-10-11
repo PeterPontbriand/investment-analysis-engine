@@ -324,7 +324,7 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
     assert result.exit_code == 0
     assert "NaN" not in result.output
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 7
+    assert payload["schema_version"] == 8
     assert payload["result"]["short_sma"] is None
     assert payload["result"]["long_sma"] is None
     assert payload["result"]["crossover_signal"] is None
@@ -366,6 +366,7 @@ def test_cli_momentum_data_fetch_failure_is_one_clean_message(mock_run: MagicMoc
     ("kind", "sentence"),
     [
         (ProviderFailureKind.UNREACHABLE, "Unable to analyze FCIM: yfinance did not serve the request."),
+        (ProviderFailureKind.RATE_LIMITED, "Unable to analyze FCIM: yfinance is limiting requests."),
         (
             ProviderFailureKind.UNEXPECTED_RESPONSE,
             "Unable to analyze FCIM: yfinance answered in a form the application does not read.",
@@ -500,7 +501,7 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 8
+    assert payload["schema_version"] == 9
     assert payload["analysis"] == "graham_number"
     assert payload["method"] == "graham_number"
     assert payload["ticker"] == SECURITY_ID

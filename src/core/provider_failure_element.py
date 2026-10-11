@@ -25,7 +25,7 @@ class ProviderFailureInput(BaseModel):
 
 
 class ProviderFailure(BaseModel):
-    """Why an analysis outcome is a provider failure: one of three codes and the inputs that caused it.
+    """Why an analysis outcome is a provider failure: one of four codes and the inputs that caused it.
 
     The same element is carried by the failure envelope and by every document that reports an analysis
     outcome. ``reason_code`` is the single code derived from the kinds in ``inputs``.
@@ -38,7 +38,7 @@ class ProviderFailure(BaseModel):
 
     @model_validator(mode="after")
     def _provider_code(self) -> Self:
-        """Require one of the three provider failure codes."""
+        """Require one of the four provider failure codes."""
         if self.reason_code not in PROVIDER_FAILURE_CODES:
             raise ValueError(f"reason_code {self.reason_code.value!r} is not a provider failure code.")
         return self

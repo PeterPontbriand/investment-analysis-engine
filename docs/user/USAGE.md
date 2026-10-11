@@ -194,7 +194,7 @@ Every strategy document has the same header and the same tail. Keys are written 
 | | `analysis`, `method` | Which strategy and method wrote it |
 | | `ticker` | The instrument |
 | | `status` | Whether the calculation ran, as a calculation status (`ok`, `not_applicable`, `invalid_input`, `input_unavailable` or `provider_error`). Never a verdict |
-| | `provider_failure` | Why a `provider_error` status happened, when the adapter classified the failure: one of `provider_unreachable`, `provider_unexpected_response` or `provider_no_data` as `reason_code`, and `inputs`, each failed input with its `provider_id` and `kind`. `null` for every other status, and for a provider failure the adapter could not classify. It is the element the failure document carries |
+| | `provider_failure` | Why a `provider_error` status happened, when the adapter classified the failure: one of `provider_unreachable`, `provider_rate_limited`, `provider_unexpected_response` or `provider_no_data` as `reason_code`, and `inputs`, each failed input with its `provider_id` and `kind`. `null` for every other status, and for a provider failure the adapter could not classify. It is the element the failure document carries |
 | | `requested_as_of` | The point in time you asked for with `--as-of`; `null` means now |
 | | `effective_as_of` | The instant the analysis was evaluated at: `requested_as_of` when given, else the execution time |
 | | `security_identity`, `instrument_kind` | The identity and instrument-kind evidence the run retained |
@@ -271,7 +271,7 @@ uv run ian health --json
 ```
 
 `ian health` makes a few small requests to each online data provider and prints one line per provider: the
-verdict (`ok`, `unreachable`, `unexpected response`, `no data`, `not configured` or `failed`), what it
+verdict (`ok`, `unreachable`, `rate limited`, `unexpected response`, `no data`, `not configured` or `failed`), what it
 requested and how long it took, and the reason when it did not pass. `not configured` means SEC EDGAR access is
 not set up (see [Installation](INSTALLATION.md)); `failed` means an unexpected error inside the check. The exit
 code is 0 when every check passed and 1 otherwise; an unknown `--provider` is a usage error (exit 2).
@@ -279,8 +279,13 @@ code is 0 when every check passed and 1 otherwise; an unknown `--provider` is a 
 With `--json` the command writes one document to standard output and nothing else, whether or not every check
 passed; it is not the failure document described above. The document is published as
 `schemas/provider-health.schema.json`. Branch on each provider's `verdict`, which is `ok`, `unreachable`,
-`unexpected_response`, `no_data`, `not_configured` or `failed`; `probe` and `detail` are sentences for people.
-The maintainer's runbook is [Provider Debugging](../project/PROVIDER_DEBUGGING.md).
+`rate_limited`, `unexpected_response`, `no_data`, `not_configured` or `failed`; `probe` and `detail` are sentences for people.
+`rate limited` means the provider is limiting requests (HTTP 429, or Yahoo's own rate-limit error), and it exits `1`
+like every outcome but `ok`. Two cases are deliberately not `rate limited`. An empty Yahoo history is still `no data`:
+the yfinance library hides its rate-limit error inside the history download and returns an empty frame, so a
+throttled download cannot be told from an empty answer. An SEC HTTP 403 is still `unreachable`: SEC answers it for a
+blocked client and for a rejected identity alike, so it cannot be told apart from a rejected identity. The
+maintainer's runbook is [Provider Debugging](../project/PROVIDER_DEBUGGING.md).
 
 ## Optional local AI
 

@@ -64,7 +64,7 @@ def decode_evidence(run: AnalysisRun, codecs: Mapping[tuple[str, str], EvidenceC
     if (
         codec is None
         or type(run.run_schema_version) is not int
-        or run.run_schema_version != 2
+        or run.run_schema_version != 3
         or type(run.projection_version) is not int
         or run.projection_version != 1
         or type(run.evidence_codec_version) is not int
