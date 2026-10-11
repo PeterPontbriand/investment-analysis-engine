@@ -15,6 +15,20 @@ HealthVerdict = Literal[
 """The seven outcomes of a provider check."""
 
 
+class ProviderLibrary(BaseModel):
+    """The installed library the application reaches a provider through."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: str = Field(description="The library's distribution name, as installed.")
+    version: str = Field(
+        description=(
+            "The installed version. The library is pinned, so an unchanged version means a new failure came "
+            "from the provider's side."
+        )
+    )
+
+
 class ProviderHealthEntry(BaseModel):
     """The outcome of the check of one provider."""
 
@@ -33,6 +47,9 @@ class ProviderHealthEntry(BaseModel):
     detail: str | None = Field(
         description="The failure detail, a sentence for people that is not stable; null when the check passed."
     )
+    library: ProviderLibrary | None = Field(
+        description="The library behind the provider and its installed version; null when the provider has none."
+    )
 
 
 class ProviderHealthDocument(BaseModel):
@@ -40,5 +57,5 @@ class ProviderHealthDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[2] = 2
+    schema_version: Literal[3] = 3
     providers: tuple[ProviderHealthEntry, ...]

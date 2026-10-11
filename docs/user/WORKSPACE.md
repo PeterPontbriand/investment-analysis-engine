@@ -206,6 +206,15 @@ One ticker's failure never stops the rest of the watchlist: a method that could 
 | `2` | A usage error, such as an invalid `--workers`. |
 | `130` | You interrupted the refresh (Ctrl+C). |
 
+### After a provider failure
+
+When a job failed because a data provider failed, the text summary is preceded by one line per implicated provider
+saying what one test request to it found, for example `Yahoo Finance is not answering: a test request also
+failed.` The request is sent once per provider after the whole batch ends, however many tickers failed, and never
+changes the summary or the exit code. `--no-provider-check` or `IAN_PROVIDER_CHECK=false` turns it off, and
+`--json` never sends it and adds nothing to the summary. The seven wordings are explained in
+[Usage](USAGE.md#after-a-provider-failure-the-first-line).
+
 ### Concurrency and interruption
 
 `--workers N` (1–4, default 2) controls how many tickers refresh concurrently. A higher number can finish a large watchlist faster, at the cost of a proportionally higher burst of calls to your configured data source(s) at once.

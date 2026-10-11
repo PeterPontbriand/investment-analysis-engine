@@ -11,6 +11,7 @@ import typer
 
 from src.analysis.shared.financial_resolution import PriceComparison
 from src.cli_composition import build_graham_resolver
+from src.cli_provider_check import ProviderCheckChoice, provider_check_choice, with_provider_check
 from src.cli_run_support import maybe_save_run
 from src.cli_support import (
     _canonical_provider_id,
@@ -33,7 +34,11 @@ from src.reporting.evidence_presentation import friendly_valuation_failure
 from src.reporting.presentation import PresentationMode
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
 from src.strategies.graham_number.config import GrahamNumberConfig
-from src.strategies.graham_number.execution import execute_graham_number, from_graham_number_capture
+from src.strategies.graham_number.execution import (
+    capture_provider_failure,
+    execute_graham_number,
+    from_graham_number_capture,
+)
 from src.strategies.graham_number.presenter import (
     GrahamNumberPresentation,
     number_with_public_quote_reason,
@@ -93,6 +98,7 @@ def refresh(
 
 
 def command(  # noqa: PLR0913
+    context: typer.Context,
     ticker: str | None = typer.Argument(None, help="Target stock ticker symbol (e.g., AAPL, KO)"),
     *,
     ticker_option: str | None = typer.Option(
@@ -135,6 +141,9 @@ def command(  # noqa: PLR0913
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show resolver execution trace"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
     save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
+    no_provider_check: bool = typer.Option(
+        False, "--no-provider-check", help="Do not send a test request to a provider after it fails"
+    ),
 ) -> None:
     """Execute the Graham Number earnings-and-book-value screen."""
     target_ticker = _resolve_ticker(ticker, ticker_option, required=True, command="graham-number")
@@ -144,6 +153,7 @@ def command(  # noqa: PLR0913
     provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
     use_cache = not no_cache
     executed_at = utc_now()
+    provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
     # Permissive by design: this config accepts any injected provider id (a synthetic
     # test-only id included) exactly as the CLI's Graham configs always have. The
     # strict, CLI-supported-providers-only GrahamNumberSelection is built lazily,
@@ -164,6 +174,7 @@ def command(  # noqa: PLR0913
             mode=mode,
             selection_type=GrahamNumberSelection,
             ticker=target_ticker,
+            provider_check=provider_check,
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ),
         _production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache,
@@ -191,6 +202,7 @@ def command(  # noqa: PLR0913
             executed_at=executed_at,
             use_cache=use_cache,
             save_run=save_run,
+            provider_check=provider_check,
         )
     typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
     if exit_code:
@@ -208,6 +220,7 @@ def _run_graham_number(  # noqa: PLR0913
     executed_at: datetime,
     use_cache: bool,
     save_run: bool = False,
+    provider_check: ProviderCheckChoice | None = None,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham Number analysis."""
     capture = maybe_save_run(
@@ -258,7 +271,7 @@ def _run_graham_number(  # noqa: PLR0913
                 instrument_profile=profile,
             )
             return render_graham_number(presentation, mode), 0
-        return _number_failure_output(
+        failure_output, failure_exit_code = _number_failure_output(
             ticker=ticker,
             assembly=assembly,
             as_of=as_of,
@@ -267,6 +280,10 @@ def _run_graham_number(  # noqa: PLR0913
             identity_resolution=identity_resolution,
             instrument_profile=profile,
             price_comparison=analysis.price_comparison,
+        )
+        return (
+            with_provider_check(failure_output, capture_provider_failure(capture), provider_check, mode),
+            failure_exit_code,
         )
 
     presentation_assembly = number_with_public_quote_reason(assembly)

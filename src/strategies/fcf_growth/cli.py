@@ -7,6 +7,7 @@ registers itself.
 import typer
 
 from src.cli_composition import build_sec_production_provider
+from src.cli_provider_check import provider_check_choice, with_provider_check
 from src.cli_run_support import maybe_save_run
 from src.cli_support import (
     _canonical_provider_id,
@@ -23,7 +24,7 @@ from src.data.financial.providers import SEC_PROVIDER_ID
 from src.data.instrument_profile import profile_identity_resolution
 from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.reporting.presentation import PresentationMode
-from src.strategies.fcf_growth.execution import execute_fcf_growth, from_fcf_growth_capture
+from src.strategies.fcf_growth.execution import capture_provider_failure, execute_fcf_growth, from_fcf_growth_capture
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
 from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
@@ -111,6 +112,7 @@ def refresh(
 
 
 def command(  # noqa: PLR0913
+    context: typer.Context,
     ticker: str = typer.Argument(..., help="Target stock ticker symbol (e.g., AAPL, KO)"),
     *,
     growth_years: int | None = typer.Option(
@@ -138,6 +140,9 @@ def command(  # noqa: PLR0913
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show resolver execution trace"),
     json_output: bool = typer.Option(False, "--json", help="Emit the complete versioned typed result"),
     save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
+    no_provider_check: bool = typer.Option(
+        False, "--no-provider-check", help="Do not send a test request to a provider after it fails"
+    ),
 ) -> None:
     """Execute the historical free-cash-flow and diluted-EPS growth screen."""
     target_ticker = _resolve_ticker(ticker, None, required=True, command="fcf-growth")
@@ -155,6 +160,7 @@ def command(  # noqa: PLR0913
         forward_policy=_fcf_forward_policy(forward_policy),
     )
     executed_at = utc_now()
+    provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
     # The command always uses the SEC production provider regardless of --data-provider
     # (see the adapter's own docstring); provider_id here only labels the requested
     # config/result, exactly as before this refactor — not the resolver actually used.
@@ -165,6 +171,7 @@ def command(  # noqa: PLR0913
             mode=mode,
             selection_type=FCFGrowthSelection,
             ticker=target_ticker,
+            provider_check=provider_check,
             invalid=lambda exc: f"Unable to start FCF & earnings-growth analysis: {exc}",
             unexpected=lambda _exc: f"FCF & earnings-growth analysis failed unexpectedly for {target_ticker}.",
         ),
@@ -210,6 +217,8 @@ def command(  # noqa: PLR0913
 
     output = render_fcf_earnings_growth(result, mode, identity_resolution, profile)
     exit_code = 0 if result.execution_status in (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE) else 1
+    if exit_code:
+        output = with_provider_check(output, capture_provider_failure(capture), provider_check, mode)
     typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
     if exit_code:
         raise typer.Exit(code=exit_code)

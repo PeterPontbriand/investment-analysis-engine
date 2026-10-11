@@ -2,13 +2,13 @@
 
 Owned by [PH](PH_CONTRACT_AND_SLICE_PLAN.md#ph3a--health-json-and-the-not-configured-outcome). The decisions are in
 the [PH.3 decisions](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md) and are not repeated here: this plan holds the files,
-tests and output changes of PH.3a as built, and of PH.3b and PH.3c as planned.
+tests and output changes of PH.3a and PH.3b as built, and of PH.3c as planned.
 
 ## 1. At a glance
 
 - **PH.3a (built):** `ian health --json` writes one typed document; a check that cannot run because SEC access
   is not set up is `not_configured`, apart from `failed`, which now means only an unexpected error inside a check.
-- **PH.3b (planned):** after a provider failure, one bounded probe of the implicated provider puts a verdict on
+- **PH.3b (built):** after a provider failure, one bounded probe of the implicated provider puts a verdict on
   a first line in the text modes, with the `--no-provider-check` option and the `PROVIDER_CHECK` settings. In
   `--json` mode it prints nothing extra, so JSON carries no verdict until PH.3c.
 - **PH.3c (planned):** the `provider_check` element in the failure envelope, the four strategy documents and the
@@ -22,8 +22,8 @@ tests and output changes of PH.3a as built, and of PH.3b and PH.3c as planned.
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | PH.3a | [`ian health --json` and the not-configured outcome](#3-ph3a-as-built) | Complete | 2026-10-11 |
-| PH.3b | [The automatic provider check](#4-ph3b-as-planned) | Next | |
-| PH.3c | [The provider check in the documents](#5-ph3c-as-planned) | Planned | |
+| PH.3b | [The automatic provider check](#4-ph3b-as-built) | Complete | 2026-10-11 |
+| PH.3c | [The provider check in the documents](#5-ph3c-as-planned) | Next | |
 
 ## 3. PH.3a as built
 
@@ -84,38 +84,95 @@ The last row changes nothing in PH.3a, which changes no exit code. It is recorde
 ### Left for PH.3b
 
 The troubleshooting entry in `docs/user/INSTALLATION.md` §4 that explains the verdict line, and the pointer from
-`docs/user/SMOKE_TESTING.md`, describe behavior that does not exist until PH.3b, so they belong there.
+`docs/user/SMOKE_TESTING.md`, describe behavior that did not exist until PH.3b; PH.3b wrote them.
 
-## 4. PH.3b as planned
+## 4. PH.3b as built
 
 - **Problem:** a classified failure still does not say whether the provider is down or the request was wrong.
-- **Decision:** [P1, P2 and P5 to P11](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-and-ph3c-the-automatic-provider-check).
-- **Scope:** the files below. The slice may refine them when it is drafted against that day's `main`, but not the
-  decisions.
-- **Branch:** `feat/ph-3b-automatic-provider-check`, from `main` after PH.2e has merged.
+- **Decision:** [P1, P2 and P5 to P11](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-and-ph3c-the-automatic-provider-check),
+  and the build rules B1 to B9 below.
+- **Scope:** the files below.
+- **Branch:** `feat/ph-3b-automatic-provider-check`, from `main` after PH.2e merged.
+
+### Build rules
+
+| # | Rule |
+| :--- | :--- |
+| B1 | The probe is one object built at the composition root (`build_provider_probe` in `src/cli.py`, reading the two settings) and handed to the commands through the Typer context. It holds the once-per-provider-per-process memory under a lock, so it is safe to call from the thread that runs after a refresh batch. No module below the root imports it. |
+| B2 | One function, `provider_check_lines` in `src/cli_provider_check.py`, turns typed `provider_failure` elements and the probe into the lines to print. The raised path (`execution_errors`), the two Graham commands, `fcf-growth` and `refresh` all call it; none holds wording or ordering of its own. |
+| B3 | The lines go to the stream of the failure text they precede: standard error for a raised failure and for the concise and details views of a returned one, standard output where `--diagnostics` writes the report, and standard output before the summary for `refresh` in text mode. |
+| B4 | With `--json` the probe does not run and nothing extra is printed. |
+| B5 | A provider identity with no health check (a fixture's identity, for example) gives `not_checked` with the "could not be checked" wording and makes no request. |
+| B6 | `--no-provider-check` is on `momentum`, `graham-number`, `graham-growth`, `fcf-growth` and `refresh`, and on no other command. The settings follow `src/config.py`: `IAN_PROVIDER_CHECK` (default `true`) and `IAN_PROVIDER_CHECK_TIMEOUT_SECONDS` (default `10`, above 0 and at most 60). |
+| B7 | The health document gains, per provider, a nullable `library` object with `name` and `version`, read from the installed package metadata: yfinance for Yahoo, `null` for SEC. Its `schema_version` goes from 2 to 3. `ian health` text output is unchanged. |
+| B8 | Tests never probe. `tests/conftest.py` sets `IAN_PROVIDER_CHECK=false` once, before any import; tests of the check inject a probe over fake check bodies through the Typer context. The expected text of existing provider-failure cases gains the switched-off line. |
+| B9 | The tests listed below. |
+
+### What was built
+
+- The probe, `ProviderProbe` in [`src/data/provider_probe.py`](../../../../../src/data/provider_probe.py), runs the shared
+  check body of one provider in a daemon thread under the time limit (passed through the body's spec, not by changing
+  the body), waits at most the limit plus a short documented grace period, and maps the health outcome to a verdict
+  (P6). A raised exception, a hang or a value that is not a check result gives `not_checked`; the probe never raises.
+  Each entry of `PROVIDER_CHECKS` now accepts an optional time limit and names its library.
+- **Grace beyond the time limit.** The check body enforces its own whole-check deadline, so the probe normally returns
+  at the limit. The probe also waits an extra 2 seconds (`_BODY_GRACE_SECONDS`) for the body to return before it stops
+  waiting and reports `not_checked`, so a body that fails to honour its limit still cannot hold a command. The
+  worst-case wait is therefore 12 seconds per provider at the default limit of 10 seconds (the limit plus 2 seconds), and
+  at most 24 seconds for a command that implicates both providers, since they are checked one after the other.
+- Each strategy's execution module exposes `capture_provider_failure`, which the normalizing function, the two
+  Graham commands and `fcf-growth` use; `ExecutionCapture` and `RefreshJobResult` carry the `provider_failure`
+  element in memory only, for all three job outcomes: a saved run (from the capture), an unsaved outcome (from the
+  capture) and a raised job (from the exception). Nothing new is stored and the refresh document is unchanged.
+- `refresh` runs the check once after the batch, for the providers the jobs' elements implicate.
 
 ### Files
 
 | Area | Files |
 | :--- | :--- |
-| The probe | A new module under `src/data/` that runs the shared check body for one provider under the timeout, once per provider per process, failing open, and maps a health outcome to a verdict (P6); `src/data/provider_checks.py` (a caller of the existing timeout parameter). |
-| Settings | `src/config.py`: `PROVIDER_CHECK` and `PROVIDER_CHECK_TIMEOUT_SECONDS`, typed and documented. |
-| Composition and text | `src/cli_support.py` (`execution_errors` receives the injected probe and writes the line to the failure text's stream, immediately before it), the four strategy commands, `src/cli_workspace.py` and `src/workspace/refresh.py` (a post-batch probe through an injected callable; a job's in-memory result carries the `provider_failure` element, P2), and the `--no-provider-check` option on the commands that use it. |
-| The health document | `src/reporting/documents/health.py`: the installed library version for each provider that has one (P9), with a schema version bump. |
-| Documents | `docs/user/INSTALLATION.md` §4, `docs/user/SMOKE_TESTING.md`, `docs/user/USAGE.md`, `docs/project/PROVIDER_DEBUGGING.md`. |
+| The probe (B1, B5) | `src/data/provider_probe.py` (new); `src/data/provider_checks.py` (entries take a time limit and name a library); `src/cli.py` (builds the probe). |
+| The lines (B2, B3, B4) | `src/cli_provider_check.py` (new); `src/cli_support.py` (`execution_errors`); `src/strategies/{momentum,graham_number,graham_growth,fcf_growth}/cli.py`; `src/cli_workspace.py`. |
+| The carried element | `src/workspace/capture.py`, `src/workspace/refresh.py`, `src/strategies/{graham_number,graham_growth,fcf_growth}/execution.py`. |
+| Settings and option (B6) | `src/config.py`; the five commands. |
+| The health document (B7) | `src/reporting/documents/health.py`, `src/cli_health.py`, `schemas/provider-health.schema.json`. |
+| Documents | `docs/user/INSTALLATION.md` §4, `docs/user/SMOKE_TESTING.md`, `docs/user/USAGE.md`, `docs/project/PROVIDER_DEBUGGING.md`, these plans. |
 
-If the `provider_failure` element cannot be obtained for a refresh job without storing something new, PH.3b stops and
-reports (P2).
+### Output changes
+
+| Where | Before | After |
+| :--- | :--- | :--- |
+| Text output after a provider failure | The failure text | One line per implicated provider, then the failure text, on the same stream |
+| `--help` of the five commands | No such option | `--no-provider-check` |
+| `ian health --json` | `schema_version` 2 | `schema_version` 3 and a `library` object per provider |
+| `tests/expected_output/cli_help/` | Four command files | The same four, rewrapped for the new option, and a new `refresh.txt` |
+
+No other JSON document, exit code, failure envelope, refresh summary or analysis result changes.
 
 ### Tests
 
-Each of the six verdicts and its first line; the line written to the failure text's stream immediately before it;
-nothing extra in `--json`; disabled by setting and by option (`not_checked`, switched-off wording); a check that
-could not run (`not_checked`, other-cause wording); timed out; once per provider per process, including a refresh
-over many tickers; implicated provider only; several providers in the existing kind order; a failure that names no
-provider runs no probe and prints no line; fails open when the probe raises; never retries the failed call; a
-failed optional input does not trigger it; the health document carries the library version where there is one. No
-test calls a real service.
+Each of the six verdicts and its first line, and the two not-checked wordings; the line written to the stream of the
+failure text immediately before it, in the concise, details and diagnostics views of each of the four commands;
+nothing extra in `--json`, with no probe run; disabled by setting and by option; a check that could not run; timed
+out; once per provider per process, including a refresh over many tickers (one test request, after the batch); the
+implicated provider only; several providers in the existing kind order; a failure that names no provider runs no
+probe and prints no line; fails open for a probe that raises, hangs past the limit or returns an unexpected value;
+never retries the failed call; a failed optional quote does not trigger it; a provider with no health check; the
+option on exactly the five commands; the two settings and their defaults; the `library` object for each provider and
+the health schema; the in-memory element for a saved, an unsaved and a raised refresh job. Existing provider-failure
+cases in `tests/test_cli.py` and `tests/utils/test_operational_logging.py` expect the switched-off line. No test
+calls a real service.
+
+### Verified against `main`
+
+| Assumption | Result |
+| :--- | :--- |
+| Momentum is the only direct command whose provider failure is raised. | True in practice. The other three convert a provider failure into a returned result before it can escape, but all four commands pass the check to `execution_errors`, so a raised failure from any of them is covered. |
+| The three result-returning commands hold the typed failure before printing and use standard error in the concise and details views and standard output otherwise. | True. |
+| A failed optional quote on a successful Graham analysis exits 0 and is not a provider failure. | True; a test pins it. |
+| A refresh job result can carry the `provider_failure` element without storing anything new, for all three outcomes. | True. |
+| Each shared check body takes its time limit through its spec. | True; the entries needed a parameter to pass it, the bodies none. |
+| Existing tests that exercise a provider failure in a text mode. | `tests/test_cli.py` (six Momentum cases) and `tests/utils/test_operational_logging.py`, changed; `tests/test_cli_support.py` calls `execution_errors` without a check and is unchanged. No golden text file shows a provider failure; the provider-failure golden files are JSON and unchanged. |
+| Some fixtures use provider identities with no health check. | True: the Graham fixtures use `fixture-synth`; B5 covers it. |
 
 ## 5. PH.3c as planned
 

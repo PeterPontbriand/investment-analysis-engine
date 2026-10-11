@@ -192,6 +192,29 @@ Confirm that:
 - your Python version satisfies the project requirement; and
 - your Internet connection can reach the package sources used by `uv`.
 
+### An error starts with a line about Yahoo Finance or SEC EDGAR
+
+After a command fails because a data provider failed, the application sends one small test request to that provider
+and prints what it found as the first line. It tests the provider, not your request. The line is one of seven; the
+examples name Yahoo Finance, and SEC EDGAR reads the same.
+
+- **"is not answering: a test request also failed"**: the provider could not be reached. Check your connection, a
+  proxy, and for SEC EDGAR the `SEC_USER_AGENT` identity, then try again.
+- **"is limiting requests: a test request was also refused"**: the provider is throttling you. Wait before trying again.
+- **"answered a test request in a form this application does not read"**: the provider changed what it sends. This is
+  not caused by your command or your settings; report it.
+- **"returned no data for a known test ticker. It may be limiting requests."**: the provider answered with nothing for
+  a ticker that always has data. Yahoo Finance can do this when it throttles, so wait and try again.
+- **"answered a test request normally. The failure may be specific to this request."**: the provider works, so look
+  at the ticker, the date or the options you used.
+- **"was not checked (the provider check is turned off)"**: you used `--no-provider-check` or set
+  `IAN_PROVIDER_CHECK=false`. Remove either to see a verdict.
+- **"could not be checked"**: no verdict was reached, for example SEC access is not set up (see above).
+
+Set `IAN_PROVIDER_CHECK=false` to turn the check off for every command, and `IAN_PROVIDER_CHECK_TIMEOUT_SECONDS`
+(default `10`) to change its time limit. With `--json` no test request is sent and no line is printed. See
+[Usage](USAGE.md#after-a-provider-failure-the-first-line) for the details.
+
 ### A ticker returns no usable result
 
 That does not necessarily mean installation failed. A security may lack data required by a particular method. See the relevant [Analysis Strategy Guide](strategies/README.md) and use `--details` / `--diagnostics` where appropriate.

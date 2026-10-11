@@ -103,6 +103,7 @@ Provider data changes over time, so exact values are not prescribed. For each co
 - JSON output parses as JSON and uses `null`, never non-standard numeric sentinels. If a runtime failure occurs during either JSON command, stdout must still contain a versioned failure document with `result: null` and a reason; `$LASTEXITCODE` must be nonzero. Historical numeric-quality failures should identify affected fields/dates without dumping raw payloads or secrets. Do not manufacture a live provider failure merely to complete this smoke test.
 - Historical requests do not use information published after the requested boundary.
 - Optional quote failure does not discard an otherwise valid Graham calculation.
+- If a text run does fail on a provider (do not manufacture one), its first line says what a test request to that provider found, or that it was not checked; the seven wordings are explained in [Installation, troubleshooting](INSTALLATION.md#4-troubleshooting). `--json` output carries no such line.
 - Any unavailable result gives a classified reason rather than silently substituting zero.
 
 Do not treat a changed market value, screening classification, or unavailable optional quote as a deployment failure by itself. Investigate malformed output, unclassified exceptions, unsupported-option errors for the commands above, missing provenance, or unexplained provider failures.

@@ -24,7 +24,7 @@ import threading
 import time
 import urllib.request
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Protocol
@@ -175,13 +175,22 @@ class ProviderClients:
     connection: ConnectionStep
 
 
+class ProviderCheckRunner(Protocol):
+    """Runs one provider's check; ``timeout_seconds`` replaces the spec's whole-check deadline when given."""
+
+    def __call__(self, clients: ProviderClients, *, timeout_seconds: float | None = None) -> ProviderCheckResult:
+        """Return the check's result, within *timeout_seconds* when that is given."""
+        ...
+
+
 @dataclass(frozen=True)
 class ProviderCheckEntry:
-    """One provider's identity, probe description and runnable check."""
+    """One provider's identity, probe description, runnable check and, where there is one, its library's name."""
 
     provider_id: str
     probe: str
-    run: Callable[[ProviderClients], ProviderCheckResult]
+    run: ProviderCheckRunner
+    library: str | None = None
 
 
 class _CheckFailureError(Exception):
@@ -447,15 +456,26 @@ def _require_company_facts_shape(company_facts: object, spec: SecEdgarCheckSpec)
         raise _wrong_shape(msg)
 
 
+def _run_yahoo_check(clients: ProviderClients, *, timeout_seconds: float | None = None) -> ProviderCheckResult:
+    spec = YAHOO_SPEC if timeout_seconds is None else replace(YAHOO_SPEC, timeout_seconds=timeout_seconds)
+    return check_yfinance(clients.yahoo, spec=spec, connection=clients.connection)
+
+
+def _run_sec_edgar_check(clients: ProviderClients, *, timeout_seconds: float | None = None) -> ProviderCheckResult:
+    spec = SEC_EDGAR_SPEC if timeout_seconds is None else replace(SEC_EDGAR_SPEC, timeout_seconds=timeout_seconds)
+    return check_sec_edgar(clients.sec, spec=spec)
+
+
 PROVIDER_CHECKS: tuple[ProviderCheckEntry, ...] = (
     ProviderCheckEntry(
         provider_id=YFINANCE_PROVIDER_ID,
         probe=yahoo_probe_description(),
-        run=lambda clients: check_yfinance(clients.yahoo, connection=clients.connection),
+        run=_run_yahoo_check,
+        library="yfinance",
     ),
     ProviderCheckEntry(
         provider_id=SEC_PROVIDER_ID,
         probe=sec_edgar_probe_description(),
-        run=lambda clients: check_sec_edgar(clients.sec),
+        run=_run_sec_edgar_check,
     ),
 )

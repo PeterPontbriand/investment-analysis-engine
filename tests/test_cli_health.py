@@ -8,6 +8,7 @@ import sys
 import textwrap
 from collections.abc import Mapping
 from dataclasses import replace
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,9 +21,16 @@ from src.cli import app
 from src.config import settings
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
-from src.data.provider_checks import CheckVerdict, ConnectionStep, ProviderClients, SecTransport, SecUnavailable
+from src.data.provider_checks import (
+    CheckVerdict,
+    ConnectionStep,
+    ProviderCheckResult,
+    ProviderClients,
+    SecTransport,
+    SecUnavailable,
+)
 from src.data.yfinance.client import YFinanceQuote
-from src.reporting.documents.health import ProviderHealthDocument
+from src.reporting.documents.health import ProviderHealthDocument, ProviderLibrary
 from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()
@@ -250,7 +258,7 @@ def test_each_of_the_seven_outcomes_is_written_in_json_with_the_matching_exit_co
     assert entry.provider_id == provider
     assert entry.verdict == verdict.value
     assert (entry.detail is None) is (verdict is CheckVerdict.OK)
-    assert document.schema_version == 2
+    assert document.schema_version == 3
     assert stdout.endswith("\n")
     assert len(stdout.strip().splitlines()) == 1
 
@@ -313,6 +321,68 @@ def test_the_checked_in_schema_lists_the_seven_verdicts_in_order() -> None:
 
     verdicts = schema["$defs"]["ProviderHealthEntry"]["properties"]["verdict"]["enum"]
     assert verdicts == [verdict.value for verdict in CheckVerdict]
+
+
+def test_each_provider_names_its_library_where_it_has_one() -> None:
+    from importlib.metadata import version  # noqa: PLC0415 - the installed version is what the document must carry
+
+    _exit_code, _stdout, document = _invoke_json(_clients())
+
+    yahoo, sec = document.providers
+    assert (yahoo.provider_id, sec.provider_id) == ("yfinance", "sec_edgar")
+    assert yahoo.library is not None
+    assert (yahoo.library.name, yahoo.library.version) == ("yfinance", version("yfinance"))
+    assert sec.library is None
+
+
+def test_the_library_version_is_read_from_package_metadata() -> None:
+    results = [
+        ProviderCheckResult("yfinance", "probe", True, 0.0),
+        ProviderCheckResult("sec_edgar", "probe", True, 0.0),
+    ]
+    seen: list[str] = []
+
+    def fake_version(name: str) -> str:
+        seen.append(name)
+        return "9.8.7"
+
+    document = cli_health.health_document(results, library_version=fake_version)
+
+    assert seen == ["yfinance"]
+    assert document.providers[0].library == ProviderLibrary(name="yfinance", version="9.8.7")
+    assert document.providers[1].library is None
+
+
+def test_a_library_that_is_not_installed_is_reported_as_null_and_not_as_a_failure() -> None:
+    def missing(name: str) -> str:
+        raise PackageNotFoundError(name)
+
+    document = cli_health.health_document(
+        [ProviderCheckResult("yfinance", "probe", True, 0.0)], library_version=missing
+    )
+
+    assert document.providers[0].library is None
+
+
+def test_the_library_is_in_json_only_and_text_output_is_unchanged() -> None:
+    exit_code, output = _invoke(_clients(), "--provider", "yfinance")
+
+    assert exit_code == 0
+    assert "yfinance" in output
+    assert "library" not in output.lower()
+    assert len(output.strip().splitlines()) == 1
+
+
+def test_the_checked_in_schema_requires_a_nullable_library_and_is_version_three() -> None:
+    schema = json.loads((_REPOSITORY_ROOT / "schemas" / "provider-health.schema.json").read_text(encoding="utf-8"))
+
+    entry = schema["$defs"]["ProviderHealthEntry"]
+    assert "library" in entry["required"]
+    assert {"type": "null"} in entry["properties"]["library"]["anyOf"]
+    library = schema["$defs"]["ProviderLibrary"]
+    assert sorted(library["properties"]) == ["name", "version"]
+    assert schema["properties"]["schema_version"]["const"] == 3
+    assert ProviderHealthDocument.model_validate({"schema_version": 3, "providers": []}).schema_version == 3
 
 
 _HUNG_ADAPTER_SCRIPT = textwrap.dedent(

@@ -36,21 +36,23 @@ says what each check found. It is described by
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "providers": [
     {
       "provider_id": "yfinance",
       "verdict": "ok",
       "probe": "connection to query2.finance.yahoo.com, AAPL quote and daily history",
       "elapsed_seconds": 0.84,
-      "detail": null
+      "detail": null,
+      "library": {"name": "yfinance", "version": "1.6.0"}
     },
     {
       "provider_id": "sec_edgar",
       "verdict": "not_configured",
       "probe": "AAPL ticker map and company facts",
       "elapsed_seconds": 0.0,
-      "detail": "SEC EDGAR access is not configured. ..."
+      "detail": "SEC EDGAR access is not configured. ...",
+      "library": null
     }
   ]
 }
@@ -58,7 +60,10 @@ says what each check found. It is described by
 
 Branch on `verdict`, which is one of the seven words in the table below with underscores (`rate_limited`,
 `unexpected_response`, `no_data`, `not_configured`). `probe` and `detail` are sentences for people and may change. `detail` is
-`null` when the check passed.
+`null` when the check passed. `library` names the library the application reaches the provider through and its
+installed version, read from the installed package metadata; it is `null` for a provider with no such library (SEC
+EDGAR). The library is pinned, so when a new failure appears and the version is unchanged, the cause came from the
+provider's side. Compare the version in a failing run's document with an earlier one before suspecting the code.
 
 | Verdict | What it means | Look at first |
 | :--- | :--- | :--- |
@@ -78,6 +83,39 @@ that has not finished by then fails with `timed out after 20 s`, and the process
 
 The SEC check needs the declared identity in the `SEC_USER_AGENT` setting. When it is missing, the check reports
 `not configured` with the detail "SEC EDGAR access is not configured"; it is never skipped.
+
+### The check after a command failure
+
+After `momentum`, `graham-number`, `graham-growth` or `fcf-growth` fails on a provider, or `refresh` has a job that
+did, the application runs the same check body for the provider the failure names (read from the failure's typed
+`provider_failure` element, never from message text) and prints one line before the failure text. The probe is
+[`src/data/provider_probe.py`](../../src/data/provider_probe.py); the wording and the rules are in
+[`src/cli_provider_check.py`](../../src/cli_provider_check.py). It is built once, at the composition root in
+`src/cli.py`, and reaches the commands through the Typer context.
+
+- It runs one check under a 10-second limit (`IAN_PROVIDER_CHECK_TIMEOUT_SECONDS`), passed to the check body through
+  its spec, at most once per provider per process; a refresh over many tickers probes once, after the batch.
+- It never retries the failed call, repairs anything, or reads or writes a cache, and it fails open: an error,
+  a hang past the limit or an unexpected value inside the check gives `not_checked` and leaves the failure, its
+  message and its exit code unchanged.
+- A health outcome maps to a verdict: `ok` is `healthy`; `unreachable`, `rate_limited`, `unexpected_response` and
+  `no_data` carry over; `not_configured` and `failed` are `not_checked`. A provider with no health check, and a
+  switched-off check, are also `not_checked` and make no request.
+- `--no-provider-check` and `IAN_PROVIDER_CHECK=false` switch it off. With `--json` it does not run.
+
+The seven first lines (Yahoo shown) and what each tells you:
+
+| First line | Verdict | What it tells you |
+| :--- | :--- | :--- |
+| `Yahoo Finance is not answering: a test request also failed.` | `unreachable` | The provider is down or unreachable from this machine; run `ian health` for the detail. |
+| `Yahoo Finance is limiting requests: a test request was also refused.` | `rate_limited` | The provider is throttling this machine. |
+| `Yahoo Finance answered a test request in a form this application does not read.` | `unexpected_response` | The provider or the library changed its format; compare `library.version` in `ian health --json`. |
+| `Yahoo Finance returned no data for a known test ticker. It may be limiting requests.` | `no_data` | Yahoo's history download hides a throttled answer as an empty frame, so this can be throttling. |
+| `Yahoo Finance answered a test request normally. The failure may be specific to this request.` | `healthy` | The provider works for the test ticker; look at the ticker, date or options that failed. |
+| `Yahoo Finance was not checked (the provider check is turned off).` | `not_checked` | The option or setting is off. |
+| `Yahoo Finance could not be checked.` | `not_checked` | The check could not run (SEC access not set up, a provider with no check, or an error inside the check). |
+
+Until the next release of this feature, `--json` output carries no verdict.
 
 ## 2. The scheduled and on-demand run
 
@@ -236,6 +274,8 @@ To move back, disable the scheduled task and restore the original `SELECTOR` lin
    and one entry in the `PROVIDER_CHECKS` tuple. It is a plain tuple: no registration, base class or discovery.
 2. Keep to at most three requests per check, assert shape and never a value, and run each provider call through the
    existing timeout helper so a hung call cannot keep the process alive.
-3. Add the new client to the injected clients and to `build_provider_clients` in `src/cli_health.py`.
+3. Add the new client to the injected clients and to `build_provider_clients` in `src/cli_health.py`. Give the
+   entry the `library` name when the provider is reached through an installed library, so `ian health --json`
+   reports its version.
 4. Add offline tests of the check body against fakes (a passing response, each missing field, an exception, a
    timeout), and one `live_network` test in `tests/live/` that calls the shared body.

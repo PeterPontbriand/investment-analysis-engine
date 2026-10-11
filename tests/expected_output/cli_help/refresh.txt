@@ -1,0 +1,24 @@
+Usage: root refresh [OPTIONS] {name}
+Execute every entry in a watchlist and, by default, persist each result.
+Nothing is printed until the refresh completes or is interrupted: no
+per-job progress chatter reaches stdout, only the final summary. A
+Ctrl+C during the refresh stops admitting new jobs, lets any job already
+running finish and persist normally, and exits 130 without a fabricated
+row for a job that never started. ``--no-save`` still runs every entry,
+but nothing is written to storage; each result is shown but has no
+Analysis Run ID to browse or replay afterward. When a job failed on a
+provider, one test request per
+implicated provider runs after the batch ends and its finding is printed
+before the summary (text output
+only); ``--no-provider-check`` turns it off.
+Arguments
+* name <str> Watchlist name to refresh. [required]
+Options
+--workers <int> Concurrent job count, 1-4; defaults to 2.
+[default: 2]
+--no-save Preview current numbers across the
+watchlist without saving any Analysis Run.
+--json Emit one final JSON summary document.
+--no-provider-check Do not send a test request to a provider
+whose failure the summary reports
+--help Show this message and exit.

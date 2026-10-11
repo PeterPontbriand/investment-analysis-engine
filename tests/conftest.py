@@ -7,6 +7,11 @@ import os
 # CLI-text assertion fail locally exactly as it would on a CI runner, rather than only in CI.
 os.environ["FORCE_COLOR"] = "1"
 
+# The automatic provider check sends a test request to a provider after a provider failure. No test may do that, so
+# the suite turns the check off here, once, through the setting every command reads. A test of the check injects a
+# fake probe instead; a test of the setting's default removes this variable first.
+os.environ["IAN_PROVIDER_CHECK"] = "false"
+
 import logging  # noqa: E402
 from collections.abc import Generator  # noqa: E402
 
