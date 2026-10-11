@@ -78,6 +78,9 @@ _BENIGN_CYCLE_PACKAGES = frozenset(
     }
 )
 _SAMPLE_STRATEGIES = frozenset({"momentum", "graham_number", "graham_growth"})
+# The adapter roles: for the package map each belongs to the layer it adapts the strategy to (``cli``,
+# ``evaluation`` and ``workspace``), so no other file of a strategy package may import one.
+_ADAPTER_ROLES = frozenset({"cli", "evaluation", "execution"})
 
 
 def _module_name(path: Path) -> str:
@@ -299,6 +302,22 @@ def _edge_violations(
         ):
             errors.append(f"external import exceeds analyzer/selection roles: {source} -> {target}")
     errors.extend(f"stale T13 transition entry: {source} -> {target}" for source, target in sorted(permitted - edges))
+    return errors
+
+
+def _adapter_role_violations(edges: set[tuple[str, str]]) -> list[str]:
+    """Report each import of an adapter-role file by a file of a strategy package that is not an adapter."""
+    errors: list[str] = []
+    for source, target in sorted(edges):
+        source_parts, target_parts = source.split("."), target.split(".")
+        if (
+            len(source_parts) == 4
+            and len(target_parts) == 4
+            and source_parts[:2] == target_parts[:2] == ["src", "strategies"]
+            and source_parts[3] not in _ADAPTER_ROLES
+            and target_parts[3] in _ADAPTER_ROLES
+        ):
+            errors.append(f"core file of a strategy imports an adapter role file: {source} -> {target}")
     return errors
 
 
@@ -797,4 +816,28 @@ def test_t13_lists_the_cli_tier_as_an_importer_of_the_root() -> None:
     assert _edge_violations({(_CLI_TIER, _ROOT)}, _SAMPLE_STRATEGIES, set()) == []
     assert _edge_violations({("src.strategies.momentum.cli", _ROOT)}, _SAMPLE_STRATEGIES, set()) == [
         f"module imports the composition root: src.strategies.momentum.cli -> {_ROOT}"
+    ]
+
+
+def test_no_core_file_of_a_strategy_imports_its_cli_evaluation_or_execution_file() -> None:
+    """The package map counts the three adapter files as other layers, so the strategy core must not import them."""
+    _, edges, _ = _source_graph()
+    assert _adapter_role_violations(edges) == []
+
+
+def test_the_adapter_role_rule_names_each_offending_import() -> None:
+    """A presenter or replay file importing an execution file fails, as does a vocabulary file importing a cli file."""
+    package = "src.strategies.momentum"
+    edges = {
+        (f"{package}.presenter", f"{package}.execution"),
+        (f"{package}.replay", f"{package}.execution"),
+        (f"{package}.vocabulary", f"{package}.cli"),
+        (f"{package}.cli", f"{package}.execution"),
+        (f"{package}.evaluation", "src.strategies._graham.evaluation"),
+        (f"{package}.analyzer", f"{package}.calculators"),
+    }
+    assert _adapter_role_violations(edges) == [
+        f"core file of a strategy imports an adapter role file: {package}.presenter -> {package}.execution",
+        f"core file of a strategy imports an adapter role file: {package}.replay -> {package}.execution",
+        f"core file of a strategy imports an adapter role file: {package}.vocabulary -> {package}.cli",
     ]

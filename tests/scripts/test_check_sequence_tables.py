@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from scripts.check_sequence_tables import (
@@ -104,6 +105,33 @@ def test_file_listing_includes_root_and_docs_but_not_other_subtrees(tmp_path: Pa
     docs_file.touch()
     other_file.touch()
     assert set(list_markdown_files(tmp_path)) == {root_file, docs_file}
+
+
+_BACKWARDS_TABLE = (
+    "| Slice | Scope | Status | Completed |\n| :--- | :--- | :--- | :--- |\n"
+    "| A | first | Planned | |\n| B | second | Complete | 2026-01-01 |\n"
+)
+
+
+def test_an_untracked_unignored_file_is_checked_and_an_ignored_file_is_skipped(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / ".gitignore").write_text("docs/skipped/\n", encoding="utf-8")
+    (tmp_path / "docs" / "skipped").mkdir(parents=True)
+    (tmp_path / "docs" / "skipped" / "ignored.md").write_text(_BACKWARDS_TABLE, encoding="utf-8")
+    (tmp_path / "docs" / "new.md").write_text(_BACKWARDS_TABLE, encoding="utf-8")
+
+    assert [path.name for path in list_markdown_files(tmp_path)] == ["new.md"]
+    violations = check_repository(tmp_path)
+    assert violations
+    assert {violation.source_file.name for violation in violations} == {"new.md"}
+
+
+def test_a_git_repository_still_limits_the_listing_to_root_and_docs(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / "other").mkdir()
+    (tmp_path / "other" / "outside.md").write_text(_BACKWARDS_TABLE, encoding="utf-8")
+    (tmp_path / "README.md").write_text("# Root\n", encoding="utf-8")
+    assert [path.name for path in list_markdown_files(tmp_path)] == ["README.md"]
 
 
 def test_repository_sequence_tables_pass() -> None:

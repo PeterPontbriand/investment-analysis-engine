@@ -193,6 +193,24 @@ class TestRepositoryIntegration:
         assert len(broken) == 1
         assert broken[0].source_file.name == "bad.md"
 
+    def test_an_untracked_unignored_file_is_checked_and_an_ignored_file_is_skipped(self, tmp_path: Path) -> None:
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        (tmp_path / ".gitignore").write_text("skipped/\n", encoding="utf-8")
+        (tmp_path / "skipped").mkdir()
+        (tmp_path / "skipped" / "ignored.md").write_text("[dangling](missing.md)\n", encoding="utf-8")
+        (tmp_path / "new.md").write_text("[dangling](missing.md)\n", encoding="utf-8")
+
+        assert {path.name for path in list_tracked_markdown_files(tmp_path)} == {"new.md"}
+        broken = check_repository(tmp_path)
+        assert [item.source_file.name for item in broken] == ["new.md"]
+
+    def test_a_tracked_file_deleted_from_disk_is_not_read(self, tmp_path: Path) -> None:
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        (tmp_path / "gone.md").write_text("# Gone\n", encoding="utf-8")
+        subprocess.run(["git", "add", "gone.md"], cwd=tmp_path, check=True)
+        (tmp_path / "gone.md").unlink()
+        assert list_tracked_markdown_files(tmp_path) == []
+
 
 class TestMermaidBlocks:
     def test_reports_the_opening_line_of_a_mermaid_block(self) -> None:

@@ -1,0 +1,242 @@
+# The move list of the package layering work: every file and every top-level name that changes unit.
+#
+# Read by scripts/simulate_package_layers.py (`py -3 -m scripts.simulate_package_layers`). The target the
+# script reports is today's code with every entry below applied, so a slice deletes its entries in the change
+# that makes the moves; a test fails for an entry whose source no longer exists. `serves` names the decision in
+# LAY_DESIGN.md that the entry carries out. `destination` is the recommended path after the move; it fixes which
+# package initializers the moved file depends on. The destination names marked "decision" in LAY_DESIGN.md §8
+# are the recommendations, not settled.
+
+# --- Role rule (L5): three role files of each strategy package belong to the layer they adapt it to. --------
+# No file moves for this rule; only the unit the dependency check assigns to the file changes.
+
+[[role_rule]]
+under = "src/strategies"
+roles = { cli = "cli", evaluation = "evaluation", execution = "workspace" }
+
+# --- L2: trajectory telemetry leaves `core`; the plain event model stays. ------------------------------------
+
+[[file]]
+path = "src/core/telemetry/__init__.py"
+unit = "telemetry"
+serves = "L2"
+destination = "src/telemetry/__init__.py"
+
+[[file]]
+path = "src/core/telemetry/recorder.py"
+unit = "telemetry"
+serves = "L2"
+destination = "src/telemetry/recorder.py"
+
+[[file]]
+path = "src/core/telemetry/quality.py"
+unit = "telemetry"
+serves = "L2"
+destination = "src/telemetry/quality.py"
+
+[[file]]
+path = "src/core/telemetry/redaction.py"
+unit = "telemetry"
+serves = "L2"
+destination = "src/telemetry/redaction.py"
+
+[[file]]
+path = "src/core/telemetry/run_context.py"
+unit = "telemetry"
+serves = "L2"
+destination = "src/telemetry/run_context.py"
+
+[[file]]
+path = "src/core/telemetry/sinks/__init__.py"
+unit = "telemetry"
+serves = "L2"
+destination = "src/telemetry/sinks/__init__.py"
+
+[[file]]
+path = "src/core/telemetry/sinks/base.py"
+unit = "telemetry"
+serves = "L2"
+destination = "src/telemetry/sinks/base.py"
+
+[[file]]
+path = "src/core/telemetry/sinks/jsonl.py"
+unit = "telemetry"
+serves = "L2"
+destination = "src/telemetry/sinks/jsonl.py"
+
+[[file]]
+path = "src/core/telemetry/sinks/sqlite.py"
+unit = "telemetry"
+serves = "L2"
+destination = "src/telemetry/sinks/sqlite.py"
+
+[[file]]
+path = "src/core/telemetry/models.py"
+unit = "core"
+serves = "L2"
+destination = "src/core/trajectory_events.py"
+
+[[name]]
+path = "src/orchestrator/reliability.py"
+name = "RecentEventSummary"
+unit = "telemetry"
+serves = "L2"
+destination = "src/telemetry/recent_events.py"
+
+# --- L3: `config` becomes a package holding the settings shapes and the path helper it borrows. ----------------
+
+[[file]]
+path = "src/config.py"
+unit = "config"
+serves = "L3"
+destination = "src/config/__init__.py"
+
+[[name]]
+path = "src/orchestrator/reliability.py"
+name = "ReliabilityLimits"
+unit = "config"
+serves = "L3"
+destination = "src/config/reliability_limits.py"
+
+[[name]]
+path = "src/schema/config.py"
+name = "SchemaConfig"
+unit = "config"
+serves = "L3"
+destination = "src/config/schema_config.py"
+
+[[file]]
+path = "src/utils/paths.py"
+unit = "config"
+serves = "L3"
+destination = "src/config/paths.py"
+
+# --- L4: the analysis-run and watchlist repositories move to the workspace side. ----------------------------
+
+[[file]]
+path = "src/data/repositories/analysis_runs.py"
+unit = "workspace"
+serves = "L4"
+destination = "src/workspace/repositories/analysis_runs.py"
+
+[[file]]
+path = "src/data/repositories/watchlists.py"
+unit = "workspace"
+serves = "L4"
+destination = "src/workspace/repositories/watchlists.py"
+
+# --- L6: the workspace modules strategy core files depend on move beside the analyzer contract. -------------
+
+[[file]]
+path = "src/workspace/selection_base.py"
+unit = "analysis"
+serves = "L6"
+destination = "src/analysis/selection_base.py"
+
+[[file]]
+path = "src/workspace/models.py"
+unit = "analysis"
+serves = "L6"
+destination = "src/analysis/run_models.py"
+
+# --- L7: saved-run replay and the refresh, runs and watchlist documents move up to the workspace side. ------
+
+[[file]]
+path = "src/reporting/analysis_runs.py"
+unit = "workspace_documents"
+serves = "L7"
+destination = "src/workspace_documents/analysis_runs.py"
+
+[[file]]
+path = "src/reporting/documents/refresh.py"
+unit = "workspace_documents"
+serves = "L7"
+destination = "src/workspace_documents/refresh.py"
+
+[[file]]
+path = "src/reporting/documents/runs.py"
+unit = "workspace_documents"
+serves = "L7"
+destination = "src/workspace_documents/runs.py"
+
+[[file]]
+path = "src/reporting/documents/watchlist.py"
+unit = "workspace_documents"
+serves = "L7"
+destination = "src/workspace_documents/watchlist.py"
+
+[[file]]
+path = "src/reporting/json_documents.py"
+unit = "workspace_documents"
+serves = "L7"
+destination = "src/workspace_documents/json_documents.py"
+
+# --- Target units: the text of the Owns column of the target package table. -------------------------------
+
+[[unit]]
+name = "core"
+owns = "The shared clock, result and status types, strategy errors, constants, stable failure codes and their classifier, and the trajectory event model."
+
+[[unit]]
+name = "tools"
+owns = "The tool registry, tool-argument schema generation, and parsing of tool calls from model output."
+
+[[unit]]
+name = "config"
+owns = "The application settings object and its environment and profile loading, with the reliability-limits and schema-configuration shapes it holds and the path validation it uses."
+
+[[unit]]
+name = "data"
+owns = "Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite database layer with the provider-data and cache repositories."
+
+[[unit]]
+name = "llm"
+owns = "The local-model client."
+
+[[unit]]
+name = "schema"
+owns = "The structured-output schema constraint and its validation of model output."
+
+[[unit]]
+name = "utils"
+owns = "Logging setup."
+
+[[unit]]
+name = "analysis"
+owns = "The analyzer and analysis-context contract, the strategy-neutral financial-resolution helpers, the selection base and the run-outcome models."
+
+[[unit]]
+name = "telemetry"
+owns = "Trajectory telemetry: the recorder, its sinks, redaction, run context and data-quality events."
+
+[[unit]]
+name = "orchestrator"
+owns = "The LLM tool-selection loop, the tool dispatcher and reliability policy, the registration of analysis-tool handlers, and the shared base for tool arguments and handlers."
+
+[[unit]]
+name = "reporting"
+owns = "The presentation helpers the strategy presenters share, the typed models of the shared and failure `--json` documents, and the failure envelope."
+
+[[unit]]
+name = "strategies"
+owns = "One package per analysis strategy with its analyzer, configuration, result, selection, tool, presenter, codec, replay projector and document model, plus shared strategy code. The `cli`, `evaluation` and `execution` files of each package belong to the `cli`, `evaluation` and `workspace` units."
+
+[[unit]]
+name = "workspace"
+owns = "The closed selection and native-evidence unions, analysis requests, run capture, watchlists, refresh, the run and watchlist repositories, and each strategy's `execution` file."
+
+[[unit]]
+name = "strategy_wiring"
+owns = "The closed, statically declared list of supported strategies and their shared wiring."
+
+[[unit]]
+name = "workspace_documents"
+owns = "Saved-run replay and the typed refresh, runs and watchlist documents, with the table of all published `--json` documents."
+
+[[unit]]
+name = "evaluation"
+owns = "The Golden case catalog, deterministic evaluator, fixtures and evaluation reporting, plus each strategy's `evaluation` file."
+
+[[unit]]
+name = "cli"
+owns = "The Typer commands, their production wiring and the process entry point, plus each strategy's `cli` file."
