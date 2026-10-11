@@ -528,14 +528,23 @@ version and result-schema version distinct and do not silently reinterpret histo
   check is an `invalid_parameter` failure through the envelope with exit 1 ([B.10](#b10-swc4a-momentum-window-failure-2026-10-06)),
   while the Graham and FCF parameter checks, and the other checks raised as `typer.BadParameter`, exit 2 as plain text, even
   under `--json`.
-- **Decision:** SWC.4d decides whether those validation failures move into the failure envelope, starting with the Graham and
-  FCF parameter checks, and which of the rest follow. It does not revisit failures the parser rejects before a command runs,
-  which are decided ([B.12](#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06)). SWC.4d lists its own output
-  changes, by command, when it is planned. No behavior changes until it runs.
-- **Scope:** to be set by the SWC.4d plan; the question and the current behavior are in
-  [design §13.3](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#which-option-values-are-invalid-parameter-today).
-- **Branch:** `feat/swc-4d-command-validation-failures`, from `main` after SWC.4c has merged.
-- **Detail:** ⚠ no slice plan yet.
+- **Decision:** every check a command raises itself moves into the failure envelope ([B.14](#b14-swc4d-command-validation-failures-2026-10-11)):
+  - the strategy option checks, the shared ones (ticker, `--as-of`, `--data-provider`, the exclusive output flags), the workspace
+    ones, and those on `health`, `database` and `evaluate`;
+  - each reports `invalid_parameter` with exit 1; exit 2 keeps one meaning, that the parser rejected the command line and no command
+    code ran ([B.12](#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06)), so no check becomes a parser constraint and no
+    parser error is intercepted;
+  - a command with no `--json` writes the sentence to standard error and exits 1, and no command gains `--json`;
+  - each sentence is kept except where it must be reworded to keep an option name that Typer's usage output carried, and every
+    sentence names its option or argument;
+  - a caught `ValueError` from the workspace layer is audited per site: a real check becomes an explicit check, anything else reports
+    under the code the classifier already gives it;
+  - the failure envelope gains `parameters`, the offending option or argument names, and its `schema_version` is bumped;
+  - a test fails if any file under `src/` raises `typer.BadParameter`.
+- **Scope:** set by the [SWC.4d plan](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md#e-file-scope-tests-and-documents-for-step-2).
+- **Branch:** `feat/swc-4d-command-validation-failures`, from `main` after SWC.4c has merged. Two steps on the branch: the plan, then
+  the implementation.
+- **Detail:** [SWC.4d plan](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md).
 
 ### SWC.5 — Site data, status command and generated lists
 
@@ -984,3 +993,28 @@ The project owner decided, after a review of what production calls:
   `run_spec_for(selection).encode`.
 - **Edit sites.** Unchanged at 20 sites in 25 files; the SWC.3a scope above no longer lists a parser. Detail:
   [SWC.1 design H.33](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h33-one-dispatch-path-per-job-2026-10-08).
+
+### B.14 SWC.4d: command validation failures (2026-10-11)
+
+The project owner decided, for SWC.4d (the open question of [B.12](#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06)):
+
+1. **Every check a command raises itself moves into the failure envelope in this slice:** the strategy option checks, the shared ones
+   (ticker, `--as-of`, `--data-provider`, the exclusive output flags), the workspace ones, and those on `health`, `database` and `evaluate`.
+2. **A test fails if any file under `src/` raises `typer.BadParameter`.**
+3. **These failures exit 1 with `reason_code` `invalid_parameter`.** Exit 2 keeps one meaning: the parser rejected the command line and no
+   command code ran ([B.12](#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06), unchanged). No check becomes a
+   parser-declared constraint, and no parser error is intercepted.
+4. **A command with no `--json` writes the sentence to standard error and exits 1.** No command gains `--json` in this slice.
+5. **Each existing sentence is kept.** Reword only where the option name was carried by Typer's usage output (a `param_hint`, or the usage
+   box) and would otherwise be lost. Every sentence names its option or argument. A sentence reports; it does not tell the user what to do
+   next unless the existing sentence already does.
+6. **The places that catch any `ValueError` from the workspace layer and re-raise it as a usage error are not relabelled wholesale.** For
+   each, find what it can actually catch. A real option or argument check moves into the command as an explicit check. Anything else is
+   reported under the code the classifier already gives it.
+7. **The failure envelope gains a `parameters` field:** the list of offending option or argument names exactly as typed on the command
+   line (for example `["--short-window", "--long-window"]`), and null for every failure that is not `invalid_parameter`. Momentum's
+   existing checks supply it too. The failure schema version is bumped. Nothing is migrated.
+8. **The slice runs in two steps on one branch.** The first writes the [slice plan](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md) and stops.
+
+The plan lists every check, the audit of each caught `ValueError`, the shared reporting path and the findings for the project owner. No
+behavior changes until step 2 runs.
