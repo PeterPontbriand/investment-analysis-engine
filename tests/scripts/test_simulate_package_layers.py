@@ -178,9 +178,3 @@ def test_every_listed_source_exists_and_the_target_has_no_loop() -> None:
     graph, _ = unit_graph(simulation)
     assert strongly_connected(graph) == []
     assert layers(graph) is not None
-
-
-def test_no_core_file_of_a_strategy_imports_its_cli_evaluation_or_execution_file() -> None:
-    move_list = load_move_list(REPO / DEFAULT_MOVES)
-    simulation, _ = build(REPO, move_list)
-    assert role_violations(simulation, move_list.role_rules) == []

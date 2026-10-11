@@ -50,8 +50,9 @@ current codes:
 - `LAY` — short for "Layering" ([plan](layering/LAY_CONTRACT_AND_SLICE_PLAN.md)): moves a fixed set of files and names so
   the top-level `src/` packages form layers with no import loop of any length, and changes the dependency check to
   keep it so (the decision on [issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)).
-  Its row is numbered `12A` so the rows after it keep their numbers; it runs before `PKG`, and is recommended to run
-  after SWC.4d and before SWC.5 ([design](layering/LAY_DESIGN.md#10-interaction-with-swc-and-pkg)).
+  Its row is numbered `12A` so the rows after it keep their numbers; it runs before `PKG`. Provisional order, until the SWC
+  plan is reviewed: the next SWC slice, LAY.1 to LAY.8, the remaining SWC slices, then PKG
+  ([design](layering/LAY_DESIGN.md#10-interaction-with-swc-and-pkg)).
 - `PKG` — the `src` → real top-level package rename ([plan](pkg/PKG_RENAME_PLAN.md)), split out of `IR`
   given its scale. Not `R4`, deliberately: that code is already used as a document-local
   requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted

@@ -14,8 +14,7 @@ commands in [§9](#9-reproducing-the-figures).
   constraint (LAY.4 before LAY.5) and one gap in the test that guards the role rule ([§4](#4-the-role-rule)).
 - **No move changes behavior:** a move rewrites import lines, file locations and the comments that name a path
   ([plan §1](LAY_CONTRACT_AND_SLICE_PLAN.md#1-at-a-glance)).
-- **Decisions for the project owner:** [§8](#8-decisions-for-the-project-owner), each with a recommendation. The move
-  list uses the recommended names.
+- **Decisions of the project owner:** [§8](#8-decisions-for-the-project-owner). The move list uses them.
 
 ## 2. Assumptions checked
 
@@ -58,12 +57,12 @@ Target package table, in the form of ARCHITECTURE §13 without the `Two-way with
 
 | Package | Owns | Imports |
 | --- | --- | --- |
-| `core` | The shared clock, result and status types, strategy errors, constants, stable failure codes and their classifier, the trajectory event model, the reliability-limits and schema-configuration shapes, and path validation. |  |
+| `core` | The shared clock, result and status types, strategy errors, constants, stable failure codes and their classifier, and the trajectory event model. |  |
 | `tools` | The tool registry, tool-argument schema generation, and parsing of tool calls from model output. |  |
-| `config` | The application settings object and its environment and profile loading. | `core` |
+| `config` | The application settings object and its environment and profile loading, with the reliability-limits and schema-configuration shapes it holds and the path validation it uses. | `core` |
 | `data` | Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite database layer with the provider-data and cache repositories. | `config`, `core` |
 | `llm` | The local-model client. | `config` |
-| `schema` | The structured-output schema constraint and its validation of model output. | `config`, `core` |
+| `schema` | The structured-output schema constraint and its validation of model output. | `config` |
 | `utils` | Logging setup. | `config` |
 | `analysis` | The analyzer and analysis-context contract, the strategy-neutral financial-resolution helpers, the selection base and the run-outcome models. | `core`, `data` |
 | `telemetry` | Trajectory telemetry: the recorder, its sinks, redaction, run context and data-quality events. | `config`, `core`, `data` |
@@ -110,10 +109,10 @@ adapter depends on its core and the core depends on no adapter.
 | `evaluation.py` | `src/evaluation/strategy_fixtures.py`, and a member's `evaluation.py` for `_graham/evaluation.py` | the same test: rank 5, with the evaluation tier the only outside importer |
 | `execution.py` | its own package's `cli.py` | **not fully.** The test ranks `execution` 2, so `presenter.py` (rank 3) and `replay.py` (rank 4) may import it. None does today. |
 
-**The gap and its closure.** `tests/scripts/test_simulate_package_layers.py` adds
+**The gap and its closure.** `tests/test_strategy_import_layering.py` adds
 `test_no_core_file_of_a_strategy_imports_its_cli_evaluation_or_execution_file`, which fails on any import from a
-core file of a strategy to one of the three, so `execution.py` is covered too. LAY.1 keeps the test when the check takes
-over the rule.
+core file of a strategy to one of the three, so `execution.py` is covered too. The test lives in `tests/test_strategy_import_layering.py`, so it outlives the simulation
+script.
 
 In the target no strategy core file imports a role file (0 imports; the script's last report line).
 
@@ -153,10 +152,12 @@ The chosen order and the state after each slice (pairs, size of the largest loop
 | LAY.4 (repositories) | 1 | 3 |
 | LAY.5 (contract modules) | 0 | 3 |
 | LAY.6 (workspace documents) | 0 | none |
+| LAY.7 (Momentum wiring) | 0 | none |
+| LAY.8 (loop-free check) | 0 | none |
 
 **How the dependency check stays green.** The check compares the §13 table with the code. A move slice edits the rows
 it changes, adds a row for a new unit (`telemetry` in LAY.3, `workspace_documents` in LAY.6) and removes a
-`Two-way with` entry when its pair disappears, in the same change. No slice adds a pair. LAY.7 changes the check itself.
+`Two-way with` entry when its pair disappears, in the same change. No slice adds a pair. LAY.8 changes the check itself.
 
 ## 7. Size of each move
 
@@ -165,9 +166,10 @@ themselves, test files, files outside `src` and `tests`, and test files that nam
 
 | Slice | Entry | Src staying | Src moving | Tests | Other | Strings |
 | :--- | :--- | ---: | ---: | ---: | ---: | ---: |
-| LAY.2 | `orchestrator/reliability.py::ReliabilityLimits` | 2 | 0 | 3 | 0 | 0 |
-| LAY.2 | `schema/config.py::SchemaConfig` | 4 | 0 | 7 | 0 | 0 |
-| LAY.2 | `utils/paths.py` | 3 | 0 | 1 | 0 | 2 |
+| LAY.2 | `config.py` becomes `config/__init__.py` (import paths unchanged) | 18 | 1 | 39 | 0 | 7 |
+| LAY.2 | `orchestrator/reliability.py::ReliabilityLimits` | 1 | 1 | 3 | 0 | 0 |
+| LAY.2 | `schema/config.py::SchemaConfig` | 3 | 1 | 7 | 0 | 0 |
+| LAY.2 | `utils/paths.py` | 2 | 1 | 1 | 0 | 2 |
 | LAY.3 | `core/telemetry/__init__.py` | 0 | 0 | 0 | 0 | 2 |
 | LAY.3 | `core/telemetry/recorder.py` | 5 | 2 | 15 | 0 | 0 |
 | LAY.3 | `core/telemetry/quality.py` | 2 | 0 | 1 | 0 | 1 |
@@ -189,8 +191,8 @@ themselves, test files, files outside `src` and `tests`, and test files that nam
 | LAY.6 | `reporting/documents/watchlist.py` | 1 | 1 | 1 | 0 | 0 |
 | LAY.6 | `reporting/json_documents.py` | 0 | 0 | 0 | 2 | 0 |
 
-Totals by slice: LAY.1 touches no `src` file; LAY.2 moves two names and one file (about 9 importing source files, 11
-tests); LAY.3 moves ten files and one name (about 14 importing source files, about 20 test files, plus the tests of the
+Totals by slice: LAY.1 touches no `src` file; LAY.2 moves two names and one file into a package (about 6 importing source files and 11
+tests for the moved items; the 18 importers of `src.config` change nothing); LAY.3 moves ten files and one name (about 14 importing source files, about 20 test files, plus the tests of the
 moved files); LAY.4 moves two files (4 importing source files, 16 tests); LAY.5 moves two files (about 22 importing
 source files, 24 tests, one script); LAY.6 moves five files (4 importing source files, 7 tests, two scripts).
 Test files for moved sources move with them, mirroring the source layout.
@@ -205,20 +207,30 @@ rows), `docs/user/USAGE.md` (settings shape names), and the plans that name a mo
 
 ## 8. Decisions for the project owner
 
-Not decided here. Each lists the recommendation and the alternative; the simulation confirms both are loop-free.
+Decided 2026-10-11. Each row shows the question, the decision and the alternative that was not taken. The simulation was
+re-run with these decisions (17 units, no pair, no loop; script output in [§3](#3-today-and-the-target)).
 
-| # | Question | Recommendation | Alternative |
+| # | Question | Decision | Alternative not taken |
 | :--- | :--- | :--- | :--- |
-| 1 | Name of the telemetry package | `telemetry` (`src/telemetry/`): the term the code, tests and AGENTS §6 already use | `trajectory`, which names what is recorded but not the concern |
-| 2 | Where the settings shapes (`ReliabilityLimits`, `SchemaConfig`) and the path helper go, and whether `config` becomes a package | `core`, as three small modules; `config` stays one file. They import nothing from the application, and `config` then imports only `core` | into `config` (needs `config` to become a package, which puts the `src.config` patch targets in tests at risk) |
-| 3 | Where the selection base and the run-outcome models go | `analysis`, beside the analyzer contract, as `selection_base.py` and `run_models.py` (L6 says "beside the analyzer contract") | a new package (for example `contracts`); it would sit at layer 0 and `reporting` and `strategies` would import it directly |
-| 4 | Upper half of L7: inside `workspace` or its own package, and its name | its own package, `workspace_documents`: the check can then enforce that `workspace` never imports replay or the documents; inside `workspace` is also loop-free (16 units) but loses that guard | inside `src/workspace/` |
-| 5 | Where the two repositories sit in the workspace side | a subpackage `src/workspace/repositories/`, keeping the file names and mirroring `src/data/repositories/` | flat files `analysis_run_repository.py` and `watchlist_repository.py` in `src/workspace/` |
-| 6 | What Momentum receives under L8, and from where | a frozen `MomentumDefaults` (the two window sizes; the RSI period keeps its fixed default), built once at the composition root from `settings.get_momentum_analysis()` and passed where it is built: the selection builder and the CLI and tool defaults. `MomentumConfig` loses its settings-reading default factories | the whole momentum settings mapping passed through (looser typing) |
-| 7 | The simulation script and move list after LAY | remove both in LAY.7; the graph engine stays with the check. They describe a state that no longer exists, and PKG would have to rename them | keep the script as a reporting tool |
-| 8 | Whether LAY.7 carries both Momentum and the loop-free check | yes, so L1 and L8 both hold literally ([plan A.2](LAY_CONTRACT_AND_SLICE_PLAN.md#a2-reading-of-l1-and-l8-2026-10-11)) | two slices: the check first, Momentum last |
-| 9 | `json_documents.py` moves with L7 | yes: it imports the three documents | split the table, leaving the failure, database and health entries behind |
-| 10 | `refresh` and `runs` documents import only the run models and could stay in `reporting` once L6 moves | follow L7 as approved and move all three | keep them in `reporting`; fewer files move but the three documents are no longer together |
+| 1 | Name of the telemetry package | `telemetry` (`src/telemetry/`) | `trajectory` |
+| 2 | Where the settings shapes (`ReliabilityLimits`, `SchemaConfig`) and the path helper go, and whether `config` becomes a package | **`config` becomes a package** holding the two shapes and the path helper (`src/config/reliability_limits.py`, `schema_config.py`, `paths.py`). `src/config.py` becomes `src/config/__init__.py`; every `from src.config import ...` and every `src.config` patch target keeps working. If that cannot be done without changing behavior, LAY.2 stops and reports. | `core` (recommended; not chosen) |
+| 3 | Where the selection base and the run-outcome models go | `analysis`: `selection_base.py` and `run_models.py` | a new package |
+| 4 | Upper half of L7 | its own package, `workspace_documents` | inside `src/workspace/` |
+| 5 | Where the two repositories sit | `src/workspace/repositories/`, file names kept | flat files in `src/workspace/` |
+| 6 | What Momentum receives under L8 | a frozen `MomentumDefaults` (the two window sizes) built once at the composition root from `settings.get_momentum_analysis()` and passed where it is built; `MomentumConfig` loses its settings-reading default factories | the whole momentum settings mapping |
+| 7 | The simulation script and move list after LAY | removed in LAY.8; the graph engine stays with the check | keep the script |
+| 8 | Whether one slice carries both Momentum and the loop-free check | **two slices:** LAY.7 is the Momentum wiring; LAY.8 is the loop-free check, the layered listing, the closing of issue #114 and the removal of the script and move list | one slice (recommended; not chosen) |
+| 9 | `json_documents.py` moves with L7 | yes | split the table |
+| 10 | `refresh` and `runs` documents | move all three documents, as L7 approved | keep them in `reporting` |
+
+**Feasibility of decision 2.** `config` can be a package without changing behavior: the only code in `src/config.py` that
+depends on the file's depth is the three `Path(__file__).resolve().parent.parent` expressions that derive the project root,
+which take one more `.parent`; `tests/test_config.py` asserts the resulting `base_dir`. The 15 test patch targets into
+`src.config` (`src.config.ProjectSettings.*`) name an attribute of the package and are unchanged. Two test patch targets
+name `src.utils.paths.is_windows` and follow the moved file. `pyproject.toml` omits `src/config.py` from coverage and
+needs the matching line changed, which requires explicit user permission. One effect to confirm in LAY.2: importing the
+path helper imports the `config` package, which creates the settings object; every current importer of the helper already
+imports `config` directly or through the CLI.
 
 ## 9. Reproducing the figures
 
@@ -238,10 +250,10 @@ loop.
 
 ## 10. Interaction with SWC and PKG
 
-| Next work | Interaction | Recommended order |
+| Next work | Interaction | Provisional order |
 | :--- | :--- | :--- |
-| SWC.4d (command validation failures; next SWC slice, no plan yet) | touches strategy `cli.py` files, `cli_support.py` and the failure envelope; none of them moves under LAY, and `json_documents.py` moves only in LAY.6 | SWC.4d first: it is authorized and independent; any import line it adds is retargeted by the LAY slice that moves the target |
+| SWC.4d (command validation failures; next SWC slice, no plan yet) | touches strategy `cli.py` files, `cli_support.py` and the failure envelope; none of them moves under LAY, and `json_documents.py` moves only in LAY.6 | SWC.4d first: it is the next SWC slice and and independent; any import line it adds is retargeted by the LAY slice that moves the target |
 | SWC.5 to SWC.7 | build tooling around file locations: the edit-site data file, `scripts/strategy_conformance.py` (imports `workspace.models`, `reporting.analysis_runs`, `json_documents`), the generator, the contributor guide | after LAY, so those paths and the guide are written once against the final layout |
 | PKG | rewrites every `src.` import and the check's root name; LAY moves must not follow it | after LAY (L10); the PKG plan records it |
 
-Recommended sequence: SWC.4d, LAY.1 to LAY.7, SWC.5 to SWC.7, PKG, Step 3.5.
+Provisional sequence (until the SWC plan is reviewed): SWC.4d, LAY.1 to LAY.8, SWC.5 to SWC.7, PKG, Step 3.5.

@@ -32,14 +32,19 @@ work-package status. The design, the proof and the owner decisions are in [LAY_D
 | :--- | :--- | :--- | :--- |
 | LAY.0 | [Design, simulation script and slice plan](#lay0--design-and-slice-plan) | Complete | 2026-10-11 |
 | LAY.1 | [Role rule in the dependency check](#lay1--role-rule-in-the-dependency-check) | Next | |
-| LAY.2 | [Configuration becomes a base layer](#lay2--configuration-base-layer) | Planned | |
+| LAY.2 | [Configuration becomes a package and a base layer](#lay2--configuration-package-and-base-layer) | Planned | |
 | LAY.3 | [Telemetry leaves core](#lay3--telemetry-package) | Planned | |
 | LAY.4 | [Run and watchlist repositories move to the workspace side](#lay4--repositories) | Planned | |
 | LAY.5 | [Selection base and run-outcome models move beside the analyzer contract](#lay5--contract-modules) | Planned | |
 | LAY.6 | [Saved-run replay and workspace documents move up](#lay6--workspace-documents) | Planned | |
-| LAY.7 | [Momentum wiring, loop-free check and layered listing](#lay7--momentum-wiring-and-loop-free-check) | Planned | |
+| LAY.7 | [Momentum receives its defaults when built](#lay7--momentum-wiring) | Planned | |
+| LAY.8 | [Loop-free check, layered listing and closing](#lay8--loop-free-check-and-closing) | Planned | |
 
-The order is forced by the graph, not chosen for convenience ([LAY_DESIGN.md §6](LAY_DESIGN.md#6-slice-order)):
+**Provisional order with the other work packages:** the next SWC slice (SWC.4d), then LAY.1 to LAY.8, then the remaining SWC
+slices (SWC.5 to SWC.7), then PKG. It is provisional until the SWC plan is reviewed
+([Appendix A.5](#a5-provisional-order-with-swc-and-pkg-2026-10-11)).
+
+The order within LAY is forced by the graph, not chosen for convenience ([LAY_DESIGN.md §6](LAY_DESIGN.md#6-slice-order)):
 LAY.4 must precede LAY.5 (moving the run-outcome models first would create a new two-way pair between `analysis` and
 `data`), LAY.2 should precede LAY.3 (so `telemetry` never sits in a loop with `config`), and LAY.1 comes first so every
 later slice is checked against the final definition of a unit.
@@ -68,17 +73,26 @@ later slice is checked against the final definition of a unit.
   (imports the engine), their tests, and the §13 definition sentence and rows (`cli`, `evaluation`, `strategies`,
   `workspace`). Pairs after: 8. No `src/` change.
 - **Branch:** `refactor/lay-1-role-rule`, from `main`.
-- **Detail:** [LAY_DESIGN.md §4](LAY_DESIGN.md#4-the-role-rule) and [§7](#7-size-of-each-move).
+- **Detail:** [LAY_DESIGN.md §4](LAY_DESIGN.md#4-the-role-rule) and [§7](LAY_DESIGN.md#7-size-of-each-move).
 
-### LAY.2 — Configuration base layer
+### LAY.2 — Configuration package and base layer
 
 - **Problem:** `config` imports `orchestrator` (`ReliabilityLimits`), `schema` (`SchemaConfig`) and `utils`
   (`paths`), and each imports `config` back.
-- **Decision:** the two settings shapes and the path helper move to `core` (decision for the project owner,
-  [LAY_DESIGN.md §8](LAY_DESIGN.md#8-decisions-for-the-project-owner)); `config` then imports only `core`.
-- **Scope:** the three `serves = "L3"` entries of the move list; the `src/schema/__init__.py` re-export of
-  `SchemaConfig`; §13 rows. Pairs after: 5.
-- **Branch:** `refactor/lay-2-config-base`, from `main` after LAY.1.
+- **Decision:** `config` becomes a package, `src/config/`, that holds the two settings shapes and the path helper
+  ([decision 2](LAY_DESIGN.md#8-decisions-for-the-project-owner)); `config` then imports only `core`.
+  `src/config.py` becomes `src/config/__init__.py` unchanged except that the three places that derive the project root
+  from `__file__` take one more `.parent`, so every value is the same. Every `from src.config import ...` and every test
+  patch target into `src.config` (`src.config.ProjectSettings.*`) keeps working with no edit.
+- **Scope:** the file entries and name entries marked `serves = "L3"` in the move list; the three `__file__` sites; the
+  `src/schema/__init__.py` re-export of `SchemaConfig`; the two test patch targets of `src.utils.paths.is_windows`,
+  which follow the moved file; the `src/config.py` sentences in ARCHITECTURE §13 and `MASTER_PLAN.md`; §13 rows.
+  `pyproject.toml` names `src/config.py` in the coverage `omit` list and needs the matching line changed, which requires
+  explicit user permission before the slice edits it. Pairs after: 5.
+- **Stop condition:** if the package cannot keep every `from src.config import ...` and patch target working without a
+  change of behavior (a settings value, a default path, the import-time effects of loading settings), the slice stops
+  and reports; it does not choose another home for the shapes.
+- **Branch:** `refactor/lay-2-config-package`, from `main` after LAY.1.
 - **Detail:** [LAY_DESIGN.md §7](LAY_DESIGN.md#7-size-of-each-move).
 
 ### LAY.3 — Telemetry package
@@ -122,18 +136,29 @@ later slice is checked against the final definition of a unit.
 - **Branch:** `refactor/lay-6-workspace-documents`, from `main` after LAY.5.
 - **Detail:** [LAY_DESIGN.md §7](LAY_DESIGN.md#7-size-of-each-move).
 
-### LAY.7 — Momentum wiring and loop-free check
+### LAY.7 — Momentum wiring
 
 - **Problem:** Momentum's analyzer and selection read the global settings object; every other strategy receives what it
-  needs when built. The check still allows a loop of any length.
-- **Decision:** Momentum receives a typed defaults value built at the composition root (decision for the project owner,
-  [LAY_DESIGN.md §8](LAY_DESIGN.md#8-decisions-for-the-project-owner)). The check then fails on any loop, §13 gains the
-  layered listing, issue #114 is closed, and the simulation script and move list are removed (the engine stays with
-  the check). This is the one slice that changes how something is wired, and it changes no output.
-- **Scope:** the Momentum analyzer, selection, tool, CLI file and composition; the tests that patch
-  `get_momentum_analysis`; `scripts/check_package_dependencies.py` and its tests; §13; this plan's status; the
-  milestone row.
+  needs when built.
+- **Decision:** Momentum receives a frozen `MomentumDefaults` (the two window sizes; the RSI period keeps its fixed
+  default), built once at the composition root from `settings.get_momentum_analysis()` and passed where it is built: the
+  selection builder and the CLI and tool defaults. `MomentumConfig` loses its settings-reading default factories. This is
+  the one slice that changes how something is wired, and it changes no output.
+- **Scope:** the Momentum analyzer, selection, tool and CLI files and the composition that builds them; the tests that
+  patch `get_momentum_analysis` (13 test files use `MomentumConfig(`, `MomentumSelection.from_settings` or
+  `MomentumAnalyzer(`).
 - **Branch:** `refactor/lay-7-momentum-wiring`, from `main` after LAY.6.
+- **Detail:** ⚠ no slice plan yet
+
+### LAY.8 — Loop-free check and closing
+
+- **Problem:** the check still allows a loop of any length; issue #114 is open; the simulation has served its purpose.
+- **Decision:** the check fails on any loop, §13 gains the layered listing, issue #114 is closed, and the simulation
+  script and move list are removed (decision 7). The graph engine stays with the check.
+- **Scope:** `scripts/check_package_dependencies.py`, `scripts/package_graph.py` and their tests; removal of
+  `scripts/simulate_package_layers.py`, its tests and `LAY_MOVE_LIST.toml`; ARCHITECTURE §13; the layering plan's
+  status and the milestone row.
+- **Branch:** `refactor/lay-8-loop-free-check`, from `main` after LAY.7.
 - **Detail:** ⚠ no slice plan yet
 
 ## 4. Scope limits and acceptance criteria
@@ -151,8 +176,9 @@ Acceptance criteria:
 - **Layered listing:** §13 lists the packages in layers, each importing only from layers before it, and the listing
   matches the check's computation.
 - **No output change:** every move slice passes the proof in [§1](#1-at-a-glance).
-- **Role rule:** a test fails when a strategy's core file imports its `cli`, `evaluation` or `execution` file.
-- **Issue #114:** closed by LAY.7.
+- **Role rule:** `tests/test_strategy_import_layering.py` fails when a strategy's core file imports its `cli`, `evaluation` or
+  `execution` file; the test is permanent and does not depend on the simulation script.
+- **Issue #114:** closed by LAY.8.
 - **Quality gate:** the complete managed gate, with the 3.14 pass, at the end of every slice.
 
 ## 5. Background and origin
@@ -186,13 +212,25 @@ Approved by the project owner before this plan was written.
 | L9 | Every move slice is a pure move: no command output, schema, golden document, stored value or classification changes, proven as PH.2d proved it. L8 is the one slice that changes how something is wired, and it too changes no output. |
 | L10 | LAY completes before the `src` package rename (PKG). |
 
-### A.2 Reading of L1 and L8 (2026-10-11)
+### A.2 L1 and L8: two slices (2026-10-11)
 
-L1 puts the check change in "the final LAY slice" and L8 says Momentum is "the last LAY slice". LAY.7 carries both, so
-each statement holds literally. The check change does not depend on Momentum, so the owner may split them; the plan
-then gains a slice and the order of the other slices is unchanged.
+L1 puts the check change in "the final LAY slice" and L8 says Momentum is "the last LAY slice". The project owner decided
+two slices: LAY.7 is the Momentum wiring; LAY.8 is the loop-free check, the layered listing, the closing of issue #114
+and the removal of the script and move list.
 
 ### A.3 Additions to L7 (2026-10-11)
 
 `src/reporting/json_documents.py` imports the three documents L7 moves, so it moves with them. Nothing in `src` imports
 it; `scripts/generate_schemas.py` and `scripts/strategy_conformance.py` do.
+
+### A.4 Decisions on the questions in the design (2026-10-11)
+
+The project owner decided the ten questions of [LAY_DESIGN.md §8](LAY_DESIGN.md#8-decisions-for-the-project-owner):
+1, 3, 4, 5, 6, 7, 9 and 10 as recommended; 2 differently (`config` becomes a package, not `core`; LAY.2 stops and
+reports if that cannot be done without changing behavior); 8 as two slices (A.2). The simulation was re-run with them:
+17 units, no two-way pair, no loop, the same layered order.
+
+### A.5 Provisional order with SWC and PKG (2026-10-11)
+
+The next SWC slice (SWC.4d), then LAY.1 to LAY.8, then the remaining SWC slices (SWC.5 to SWC.7), then PKG. Provisional
+until the SWC plan is reviewed; the SWC plan is not edited by LAY.0.

@@ -83,27 +83,33 @@ unit = "telemetry"
 serves = "L2"
 destination = "src/telemetry/recent_events.py"
 
-# --- L3: the settings shapes and the path helper `config` borrows move below it. ----------------------------
+# --- L3: `config` becomes a package holding the settings shapes and the path helper it borrows. ----------------
+
+[[file]]
+path = "src/config.py"
+unit = "config"
+serves = "L3"
+destination = "src/config/__init__.py"
 
 [[name]]
 path = "src/orchestrator/reliability.py"
 name = "ReliabilityLimits"
-unit = "core"
+unit = "config"
 serves = "L3"
-destination = "src/core/reliability_limits.py"
+destination = "src/config/reliability_limits.py"
 
 [[name]]
 path = "src/schema/config.py"
 name = "SchemaConfig"
-unit = "core"
+unit = "config"
 serves = "L3"
-destination = "src/core/schema_config.py"
+destination = "src/config/schema_config.py"
 
 [[file]]
 path = "src/utils/paths.py"
-unit = "core"
+unit = "config"
 serves = "L3"
-destination = "src/core/paths.py"
+destination = "src/config/paths.py"
 
 # --- L4: the analysis-run and watchlist repositories move to the workspace side. ----------------------------
 
@@ -169,7 +175,7 @@ destination = "src/workspace_documents/json_documents.py"
 
 [[unit]]
 name = "core"
-owns = "The shared clock, result and status types, strategy errors, constants, stable failure codes and their classifier, the trajectory event model, the reliability-limits and schema-configuration shapes, and path validation."
+owns = "The shared clock, result and status types, strategy errors, constants, stable failure codes and their classifier, and the trajectory event model."
 
 [[unit]]
 name = "tools"
@@ -177,7 +183,7 @@ owns = "The tool registry, tool-argument schema generation, and parsing of tool 
 
 [[unit]]
 name = "config"
-owns = "The application settings object and its environment and profile loading."
+owns = "The application settings object and its environment and profile loading, with the reliability-limits and schema-configuration shapes it holds and the path validation it uses."
 
 [[unit]]
 name = "data"

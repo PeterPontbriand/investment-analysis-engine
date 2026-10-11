@@ -58,7 +58,7 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
     of its own.
 - **Branch:** `feat/pkg-rename`, from `main` after SWC.7 and LAY have merged. LAY moves files and rewrites imports under the
   old name, so the rename must follow it ([LAY decision L10](../layering/LAY_CONTRACT_AND_SLICE_PLAN.md#a1-decisions-l1-to-l10-2026-10-11)).
-  LAY.7 removes `scripts/simulate_package_layers.py`; the graph engine that stays with the dependency check carries a
+  LAY.8 removes `scripts/simulate_package_layers.py`; the graph engine that stays with the dependency check carries a
   root name that this rename updates, as it does in `check_package_dependencies.py`.
 - **Detail:** ⚠ no slice plan yet
 
