@@ -1,8 +1,4 @@
-"""Native Schema Enforcement Module (Step 2.2).
-
-Provides Ollama native JSON-schema constraint formatting and Pydantic validation
-as a second line of defense against unstructured/drifting LLM output.
-"""
+"""Structured-output schema constraint formatting and validation of model output."""
 
 from src.schema.config import SchemaConfig, get_schema_config, set_schema_config
 from src.schema.constraint import (

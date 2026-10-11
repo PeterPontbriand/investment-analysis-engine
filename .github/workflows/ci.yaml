@@ -8,7 +8,7 @@ on:
 
 jobs:
   markdown-checks:
-    name: Check Markdown links and sequence tables
+    name: Check Markdown links, sequence tables, and package dependencies
     runs-on: ubuntu-latest
 
     steps:
@@ -25,6 +25,9 @@ jobs:
 
       - name: Check Planning Sequence Tables
         run: python scripts/check_sequence_tables.py
+
+      - name: Check Package Dependency Table
+        run: python scripts/check_package_dependencies.py
 
   quality-and-test:
     name: Validate on ${{ matrix.os }} (Python ${{ matrix.python-version }})

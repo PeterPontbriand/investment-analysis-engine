@@ -42,6 +42,10 @@ current codes:
 - `MR` — short for "Massive Removal" ([plan](massive-removal/MR_MASSIVE_REMOVAL_PLAN.md)): removes the unfinished,
   untested Massive provider until a requirement makes it worth bringing back. Its row is numbered `11A` so the
   rows after it keep their numbers and sits among the complete rows; it ran inside `PH`, after PH.2b and before PH.2c, and before `PKG`.
+- `PD` — short for "Package Dependencies" ([plan](package-dependencies/PD_PACKAGE_DEPENDENCIES_PLAN.md)): declares what
+  each top-level `src/` package owns and imports in one table, checks it against the code, removes Mermaid from the
+  documentation, and files the two-way package pairs ([issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)).
+  Its row is numbered `11B` and sits among the complete rows; it ran after `MR` and PH.2c, before issue #40 and PH.3.
 - `PKG` — the `src` → real top-level package rename ([plan](pkg/PKG_RENAME_PLAN.md)), split out of `IR`
   given its scale. Not `R4`, deliberately: that code is already used as a document-local
   requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted
@@ -74,6 +78,7 @@ sequencing meaning.
 | 10 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-01 |
 | 11 | [Repository-wide dead code audit (R3)](r3/R3_DEAD_CODE_AUDIT_PLAN.md) | Complete | 2026-10-01 |
 | 11A | [Massive provider removal (MR)](massive-removal/MR_MASSIVE_REMOVAL_PLAN.md#2-sequence-and-status) | Complete | 2026-10-10 |
+| 11B | [Package dependency map (PD)](package-dependencies/PD_PACKAGE_DEPENDENCIES_PLAN.md#2-sequence-and-status) | Complete | 2026-10-10 |
 | 12 | [Strategy wiring consolidation (SWC)](swc/SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
 | 13 | [Provider health (PH)](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
 | 14 | [`src` package rename (PKG)](pkg/PKG_RENAME_PLAN.md) | Planned | |
@@ -366,7 +371,7 @@ The model may summarize, compare, flag tensions, and suggest what the investor m
 
 The following quality checks must pass on every pull request within this milestone:
 
-* `python scripts/check_doc_links.py` and `python scripts/check_sequence_tables.py`
+* `python scripts/check_doc_links.py`, `python scripts/check_sequence_tables.py`, and `python scripts/check_package_dependencies.py`
 * `ruff check . && ruff format --check .`
 * `mypy --strict src tests scripts`
 * `pytest` (unit and integration) with monitored coverage trends

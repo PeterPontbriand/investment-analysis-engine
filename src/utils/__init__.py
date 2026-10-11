@@ -1,1 +1,1 @@
-"""Utilities including logging and configuration."""
+"""Logging setup and path validation."""

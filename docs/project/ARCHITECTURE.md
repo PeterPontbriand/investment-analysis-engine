@@ -77,6 +77,8 @@ For work-package sequencing and status, see the [milestone table](milestones/v0.
 
 `BaseAnalyzer` remains the existing common analyzer abstraction where applicable. The diagram does **not** imply a new strategy registry, plugin system, factory hierarchy, or unified strategy-result model.
 
+For the top-level packages, what each owns, and which they import, see [*Module boundaries*](#13-module-boundaries).
+
 The presentation boundary is intentionally downstream of deterministic calculation and provenance. Persisted Analysis Runs are rendered through the same presentation contract rather than recalculated merely to display historical results.
 
 ---
@@ -554,20 +556,25 @@ Private model reasoning is never reconstructed.
 
 ## 13. Module boundaries
 
-This is a package-level map, not a generated file listing — it names what each top-level `src/` package owns, not every file in it:
+This table is the single declaration of the top-level units under `src/` and the imports between them. A unit is each directory directly under `src/`, plus `config` (`src/config.py`), `strategy_wiring` (`src/strategy_wiring.py`), and `cli` (`src/main.py` and every `src/cli*.py`). An import is any `import src.X` or `from src.X import ...` in a file under `src/`, including one inside a function; imports within one unit are not listed. `scripts/check_package_dependencies.py` compares this table with the code and fails on any difference, so change the table in the same change that adds or removes an import between units.
 
-- `src/analysis/` — the generic `BaseAnalyzer`/`AnalysisContext` contract and strategy-neutral helpers (`shared/financial_resolution.py`: EPS/quote resolution, price-relationship comparison, ticker normalization).
-- `src/strategies/` — one package per strategy, each file named for its role (analyzer modules, `selection.py` for the persisted selection snapshot, `tool.py` for the analysis-tool arguments model, `codec.py`, `execution.py`, `presenter.py`), plus `_shared/` and `_graham/` for code several strategies share.
-- `src/core/` — the shared clock (`clock.py`), core result/status types, and trajectory telemetry.
-- `src/data/` — provider contracts and adapters (`base_client.py`, `market_data.py`, `sec_edgar/`, `yfinance/`), financial provenance and resolution (`financial/`), instrument identity/profiles, and SQLite repositories under `repositories/`.
-- `src/evaluation/` — the Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting.
-- `src/llm/` — the local-model client.
-- `src/orchestrator/` — LLM tool selection/dispatch and the analysis-tool handlers registered on it.
-- `src/reporting/` — direct strategy presenters and saved-run report projections.
-- `src/schema/` — structured-output schema constraints and validation.
-- `src/tools/` — the tool-dispatch protocol and argument-schema generation.
-- `src/utils/` — logging and worker/concurrency helpers.
-- `src/workspace/` — the selection base and the closed selection and native-evidence unions (`selection_base.py`, `strategy_types.py`), analysis requests, run capture, watchlists, and refresh.
+| Package | Owns | Imports | Two-way with |
+| --- | --- | --- | --- |
+| `analysis` | The `BaseAnalyzer` and `AnalysisContext` contract and the strategy-neutral financial-resolution helpers. | `core`, `data` | |
+| `cli` | The Typer commands, their production wiring, and the process entry point. | `config`, `core`, `data`, `evaluation`, `llm`, `reporting`, `strategies`, `strategy_wiring`, `utils`, `workspace` | `strategies` |
+| `config` | The application settings object and its environment and profile loading. | `core`, `orchestrator`, `schema`, `utils` | `core`, `orchestrator`, `schema`, `utils` |
+| `core` | The shared clock, core result and status types, strategy errors, constants, and trajectory telemetry. | `config`, `data`, `orchestrator` | `config`, `data`, `orchestrator` |
+| `data` | Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite repositories. | `config`, `core`, `workspace` | `core`, `workspace` |
+| `evaluation` | The Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting. | `core`, `data`, `llm`, `orchestrator`, `schema`, `strategies`, `strategy_wiring`, `tools`, `workspace` | `strategies` |
+| `llm` | The local-model client. | `config` | |
+| `orchestrator` | LLM tool selection and dispatch, the reliability limits, and the analysis-tool handlers registered on the dispatcher. | `config`, `core`, `data`, `llm`, `schema`, `tools` | `config`, `core` |
+| `reporting` | The direct strategy presenters and the saved-run report documents. | `analysis`, `core`, `data`, `workspace` | |
+| `schema` | The structured-output schema constraint and its validation of model output. | `config` | `config` |
+| `strategies` | One package per analysis strategy, each with its analyzer, configuration, result, selection, and tool arguments, plus the code several strategies share. | `analysis`, `cli`, `config`, `core`, `data`, `evaluation`, `orchestrator`, `reporting`, `workspace` | `cli`, `evaluation`, `workspace` |
+| `strategy_wiring` | The closed, statically declared list of supported strategies and their shared wiring. | `core`, `orchestrator`, `reporting`, `strategies`, `workspace` | |
+| `tools` | The tool registry, tool-argument schema generation, and parsing of tool calls from model output. | | |
+| `utils` | Logging setup and path validation. | `config` | `config` |
+| `workspace` | The selection base and the closed selection and native-evidence unions, analysis requests, run capture, watchlists, and refresh. | `core`, `data`, `strategies` | `data`, `strategies` |
 
 The provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. Production SQLite persistence is implemented under `src/data/repositories/`; callers consume typed domain objects rather than SQL rows.
 

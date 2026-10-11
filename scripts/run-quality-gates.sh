@@ -69,6 +69,7 @@ if [ "${#system_python[@]}" -eq 0 ]; then
 fi
 "${system_python[@]}" scripts/check_doc_links.py
 "${system_python[@]}" scripts/check_sequence_tables.py
+"${system_python[@]}" scripts/check_package_dependencies.py
 uv run --no-sync ruff check --no-cache .
 uv run --no-sync ruff format --check .
 uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" src tests scripts

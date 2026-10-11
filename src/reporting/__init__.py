@@ -1,1 +1,1 @@
-"""Report generation (Markdown / PDF, charts, Jinja templates)."""
+"""Direct strategy presenters and saved-run report documents."""
