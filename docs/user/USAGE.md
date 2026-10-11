@@ -262,6 +262,26 @@ Common reasons include:
 
 Start with the ordinary error message. Use `--details` or `--diagnostics` when you need more evidence.
 
+## Checking that Yahoo and SEC EDGAR still answer
+
+```bash
+uv run ian health
+uv run ian health --provider yfinance
+uv run ian health --json
+```
+
+`ian health` makes a few small requests to each online data provider and prints one line per provider: the
+verdict (`ok`, `unreachable`, `unexpected response`, `no data`, `not configured` or `failed`), what it
+requested and how long it took, and the reason when it did not pass. `not configured` means SEC EDGAR access is
+not set up (see [Installation](INSTALLATION.md)); `failed` means an unexpected error inside the check. The exit
+code is 0 when every check passed and 1 otherwise; an unknown `--provider` is a usage error (exit 2).
+
+With `--json` the command writes one document to standard output and nothing else, whether or not every check
+passed; it is not the failure document described above. The document is published as
+`schemas/provider-health.schema.json`. Branch on each provider's `verdict`, which is `ok`, `unreachable`,
+`unexpected_response`, `no_data`, `not_configured` or `failed`; `probe` and `detail` are sentences for people.
+The maintainer's runbook is [Provider Debugging](../project/PROVIDER_DEBUGGING.md).
+
 ## Optional local AI
 
 The commands above are deterministic analysis commands and do not require a local LLM.

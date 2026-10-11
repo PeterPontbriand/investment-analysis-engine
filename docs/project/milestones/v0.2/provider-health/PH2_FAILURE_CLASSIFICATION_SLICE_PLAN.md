@@ -16,8 +16,8 @@ changes in §3, delivery in §4; what was checked against `main` is in §8. The
   evidence, the saved run, the refresh job and the strategy documents), PH.2d (the failure codes and the
   classifier move to `src/core`, each exception stating its own code). All four are complete, so PH.2 is
   complete. [Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) is complete
-  (2026-10-11); it called the classifier in `core`, so `orchestrator` gained no dependency on `reporting`. PH.3 is next.
-- **What it does not do:** probe a provider, put a verdict on the first line, or add `ian health --json` (PH.3);
+  (2026-10-11); it called the classifier in `core`, so `orchestrator` gained no dependency on `reporting`. PH.3a is complete (2026-10-11), and PH.3b is next.
+- **What it does not do:** probe a provider, put a verdict on the first line, or add `ian health --json` (PH.3a and PH.3b);
   retry, fall back or remediate; change any analysis result, formula or classification.
 - **Rules:** a provider failure stays a recorded, stored outcome with its resolution trace; the
   `PROVIDER_ERROR` status is not split; stored data has no compatibility value, so versions are bumped and

@@ -1,80 +1,102 @@
-# PH.3 — Automatic canary and health JSON: decisions
+# PH.3 — Provider check and health JSON: decisions
 
-Owned by [PH](PH_CONTRACT_AND_SLICE_PLAN.md#ph3--automatic-canary-and-health-json). It holds the PH.3
-decisions settled at planning time. The slice plan proper is written after
-[PH.2](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md) merges, against that day's `main`,
-and may refine files and tests but not these decisions without project-owner review.
+Owned by [PH](PH_CONTRACT_AND_SLICE_PLAN.md#ph3a--health-json-and-the-not-configured-outcome). It holds the
+PH.3 decisions settled by the project owner. Files, tests and output changes are in the
+[PH.3 slice plan](PH3_SLICE_PLAN.md). A slice plan may refine files and tests but not these decisions without
+project-owner review.
 
-## 1. What PH.1 and PH.2 leave
+## 1. Two slices
 
-After [PH.1](PH1_LIVE_SUITE_SLICE_PLAN.md) the project has the shared check bodies and a text-only
-`ian health`. After PH.2 a failure carries one of three kinds and reaches the failure envelope as a stable
-reason code. The user still cannot tell whether the provider is down or the request was wrong, and a script
-cannot read `ian health`. PH.3 adds the canary, the first line of the message and the JSON form.
+PH.3 is two slices. PH.3a is complete; PH.3b is next.
 
-## 2. `ian health --json`
+| Slice | What it adds | Status |
+| :--- | :--- | :--- |
+| PH.3a | `ian health --json` with a typed document and schema, and the `not_configured` outcome | Complete |
+| PH.3b | The automatic provider check after a provider failure, and the `provider_check` element | Next |
 
-- Adds `--json` to the PH.1 command. The document is a typed model with a generated, checked-in schema, built
-  by SWC.4a's schema generator, with the document table entry SWC's JSON-document conformance test requires
-  (T21, [design §10](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#10-conformance-tests-and-negative-control)). A
-  command that offers `--json` without a typed document fails that test by name, so PH.3 cannot land without it.
-- Fields: a schema version, and per provider the identity, verdict, probe description and elapsed seconds, plus
-  the failure detail when the check failed. Verdicts are the three failure kinds from PH.2 plus `ok`; a failed
-  check carries its kind.
-- Text output keeps PH.1's one line per provider, now with the kind as the verdict. Exit codes are unchanged.
-- The failure envelope remains the shape for a command that fails; `ian health` reports a result, so it is a
-  report document, as `db status` is, and does not use the envelope.
+After [PH.1](PH1_LIVE_SUITE_SLICE_PLAN.md) the project has the shared check bodies and a text-only `ian health`.
+After [PH.2](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md) a failure carries one of three kinds and reaches the
+failure envelope as a stable reason code. The user still cannot tell whether the provider is down or the request
+was wrong, and a script cannot read `ian health`. PH.3a fixes the second; PH.3b the first.
 
-## 3. The automatic canary
+## 2. PH.3a: `ian health --json` and the not-configured outcome
 
-- **Trigger.** When a command ends in a failure whose code is `provider_unreachable`,
-  `provider_unexpected_response`, `provider_no_data` or `provider_error`, the canary runs the shared check body
-  for the *implicated provider only*. The provider comes from the typed field PH.2 carries, never from the
-  message text. `no_data` also triggers it, because an empty Yahoo answer can mean an unknown ticker or a
-  throttled service, and the probe is what tells them apart.
-- **Verdicts.** The three kinds, plus `healthy` (the probe passed, so the fault is likely specific to the
-  request) and `not_checked` (the canary was disabled, or could not run).
-- **The first line.** The verdict is the first line of the message, for example `Yahoo Finance is not
-  answering (probe timed out after 10 s). Your request was not the problem.` In `--json` output the failure
-  envelope gains a typed `provider` object (provider identity, verdict, whether a probe ran). That is an
-  output-shape change: the envelope's `schema_version` is bumped and the schema regenerated in the same change.
-- **Bounds, all settled.**
-  - It never runs the test suite and does not import pytest.
-  - It never retries the failed call.
-  - It never remediates: no cache clearing, credential change or migration.
-  - It runs one probe under a timeout, 10 seconds by default, passed to the shared body's timeout parameter.
-  - It runs at most once per provider per process; a refresh over many tickers probes once and reuses the
-    verdict.
-  - It does not read or write any cache.
-  - It can be disabled by the setting `PROVIDER_CANARY=off` and by a `--no-canary` option on the commands that
-    use it; disabled reports `not_checked`.
-  - Its timeout and switch are typed settings in `src/config.py` with documented defaults, not constants in a
-    function body.
-- **Fails open.** Any error inside the canary leaves the original failure, its message and its exit code
-  unchanged, and reports `not_checked`. The canary can add a first line; it can never replace or hide the
-  failure.
-- **`refresh`.** Jobs keep their per-job `reason_code`. The canary runs once per implicated provider after the
-  batch ends, never inside the job loop, and its verdict is the first line of the text summary.
-- **Layering.** The canary is built at the composition root and passed in to `execution_errors` and the
-  workspace commands; no module below the root imports it
+| # | Decision |
+| :--- | :--- |
+| D1 | A health check has six outcomes: `ok`, `unreachable`, `unexpected_response`, `no_data`, `not_configured` (SEC access is not set up) and `failed` (an unexpected error inside a check). `ProviderCheckResult` tells the last two apart with a typed field, never by reading the detail text. `passed` and `kind` keep their meaning. |
+| D2 | Text output keeps one line per provider in its present form. Only the not-configured case changes: it prints `not configured` where it printed `failed`. |
+| D3 | `ian health --json` writes one typed document to standard output and nothing else: a schema version, and per provider its identity, verdict (one of the six), probe description, elapsed seconds and, when the check did not pass, the failure detail. `--provider` works with `--json`. |
+| D4 | The document is a report, as `db status` is: it is written whether or not every check passed, and it is not the failure envelope. Exit codes are unchanged: 1 when any check did not pass, 0 otherwise. |
+| D5 | The model lives with the other shared documents under `src/reporting/documents/`, is listed in the document table in `src/reporting/json_documents.py`, and has a generated, checked-in schema. |
+| D6 | Tests call no real service: each of the six outcomes in text and in JSON; the JSON validates against its model and schema; `--provider` with `--json`; exit codes; standard output holds only the document; the schema drift check; the JSON-command conformance test passes with `health` listed. |
+| D7 | The user documents change: the provider debugging runbook, the usage guide's section on `ian health`, and any text that calls the command text only. |
+
+How the six outcomes arise:
+
+| Outcome | Produced when |
+| :--- | :--- |
+| `ok` | The check passed. |
+| `unreachable`, `unexpected_response`, `no_data` | The check failed and carries that kind. |
+| `not_configured` | The SEC identity is not set, so the SEC check cannot run. The typed field `not_configured` is true. |
+| `failed` | The check failed with no kind and `not_configured` is false: an exception no rule classified, or an adapter failure that carries no kind. |
+
+## 3. PH.3b: the automatic provider check
+
+PH.3b is recorded here and not built in PH.3a. The settled behavior:
+
+| # | Decision |
+| :--- | :--- |
+| R1 | PH.3 is two slices, PH.3a and PH.3b. |
+| R2 | **Trigger.** Any direct command or refresh whose outcome is a provider failure, whether raised or returned as a result. The provider comes from the typed `provider_failure` element, never from message text. A failed optional input on an otherwise successful analysis does not trigger it. |
+| R3 | **Where the verdict appears.** In text modes, one line per implicated provider, printed first. In `--json`, a shared element `provider_check` beside `provider_failure` in every document that reports an analysis outcome: the failure envelope, the four strategy documents and the refresh summary. Each entry holds `provider_id` and `verdict`. The element is empty when there was no provider failure and on every replay of a stored run, because a replay runs no live check; the "direct equals replay" comparison excludes this one element by name. The verdict is never stored. |
+| R4 | **No provider named.** A failure that names no provider (`provider_error`) gets one line saying the provider was not checked because the failure did not identify one. No probe runs. |
+| R5 | **Several providers.** Each implicated provider is probed once; lines and entries follow the existing order: unreachable, unexpected response, no data. |
+| R6 | **Verdicts.** Five, with the first lines below. When the switch is off the entry is present with `not_checked`. |
+| R7 | **Unchanged bounds.** One probe under a 10-second limit, once per provider per process, no retry, no cache, no repair, fails open, the `PROVIDER_CANARY` setting and the `--no-canary` option, and injection from the composition root. |
+
+First lines (Yahoo shown; the provider's display name is used):
+
+| Verdict | First line |
+| :--- | :--- |
+| `unreachable` | Yahoo Finance is not answering (probe timed out after 10 s). Your request was not the problem. |
+| `unexpected_response` | Yahoo Finance answered a test request in a form this application does not read. Your request was not the problem. |
+| `no_data` | Yahoo Finance returned no data for a known test ticker. It may be limiting requests. |
+| `healthy` | Yahoo Finance answered a test request normally. The problem is specific to this request. |
+| `not_checked` | Yahoo Finance was not checked (the provider check is turned off). |
+
+### Bounds, all settled
+
+- It never runs the test suite and does not import pytest.
+- It never retries the failed call, never remediates (no cache clearing, credential change or migration), and
+  reads and writes no cache.
+- It runs one probe under a timeout, 10 seconds by default, passed to the shared body's timeout parameter, and at
+  most once per provider per process; a refresh over many tickers probes once and reuses the verdict.
+- The timeout and the switch are typed settings in `src/config.py` with documented defaults.
+- **Fails open.** An error inside the check leaves the original failure, its message and its exit code unchanged
+  and reports `not_checked`. The check can add a first line; it can never replace or hide the failure.
+- **`refresh`.** Jobs keep their per-job `reason_code`. The check runs once per implicated provider after the
+  batch ends, never inside the job loop.
+- **Layering.** It is built at the composition root and passed in; no module below the root imports it
   ([SWC §3.3](../swc/SWC_CONTRACT_AND_SLICE_PLAN.md#33-static-declaration-typing-and-conformance)).
 
-## 4. Files
+## 4. Files and tests
 
-`src/data/provider_canary.py` (new), `src/data/provider_checks.py`, `src/cli_health.py`, `src/cli_support.py`
-(`execution_errors` receives the injected canary), `src/cli_workspace.py` and `src/workspace/refresh.py`
-(post-batch probe through an injected callable), `src/config.py` (two settings),
-`src/reporting/documents/failure.py` (the envelope; the codes and the classifier are in `src/core`) and a new health document, the regenerated `schemas/`,
-`docs/user/INSTALLATION.md` §4 (an entry that explains the verdict line), `docs/user/SMOKE_TESTING.md` (points
-to `ian health` for the provider part), `docs/project/PROVIDER_DEBUGGING.md`, and tests.
+Per slice, in the [PH.3 slice plan](PH3_SLICE_PLAN.md).
 
-## 5. Tests
+## 5. Branches
 
-The canary on each verdict; disabled by setting and by option; timed out; once per provider per process;
-implicated provider only; fails open when the probe itself raises; never retries the failed call; the first
-line in text and the `provider` object in JSON; `ian health --json` validates against its schema; the schema
-drift check. No test calls a real service.
+PH.3a: `feat/ph-3a-health-json`, from `main`. PH.3b: `feat/ph-3b-automatic-provider-check`, from `main` after
+PH.3a has merged.
 
-## 6. Branch
+## 6. What changed and why
 
-`feat/ph-3-canary-and-health-json`, from `main` after PH.2 has merged.
+Recorded when PH.3 was split into two slices (2026-10-11). The earlier version of this document described one
+slice.
+
+| Earlier decision | Now | Why |
+| :--- | :--- | :--- |
+| One slice, PH.3. | PH.3a and PH.3b. | `ian health --json` and the outcome split need no probe, so they land first and give the second slice a stable document to build on. |
+| Health verdicts are `ok` plus the three failure kinds; a failed check with no kind is `failed`. | Six outcomes; `not_configured` is separate from `failed`. | Missing SEC access and an unexpected error inside a check were reported with the same word, though one is the user's setup and the other a defect. A typed field carries the difference. |
+| Trigger: a command that ends in a failure whose code is one of the four provider codes. | Any direct command or refresh whose outcome is a provider failure, raised or returned. | Since PH.2c three of four strategies return a provider failure as a result, so a trigger on the failure envelope alone would miss them. |
+| Only the failure envelope gains a typed `provider` object. | A shared `provider_check` element beside `provider_failure` in every document that reports an analysis outcome. | The same reason: a returned provider failure never reaches the failure envelope, so the envelope alone cannot carry the verdict. |
+| Verdicts: the three kinds, `healthy` and `not_checked`; no rule for a failure that names no provider. | Five verdicts with fixed first lines; `provider_error` gets one line and no probe; several providers follow the existing order. | The earlier text left both cases open. |

@@ -26,7 +26,7 @@ The three kinds are `unreachable`, `unexpected_response` and `no_data`; the deci
   indistinguishable from an unknown ticker; no supported setting changes that
   ([slice plan §8](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#8-verified-against-main)). The adapter's `no_data` is
   an observation, its sentence says the provider returned no data for the ticker, and the canary
-  ([PH.3](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-the-automatic-canary)) separates "this ticker has nothing" from
+  ([PH.3](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-the-automatic-provider-check)) separates "this ticker has nothing" from
   "Yahoo is not answering".
   The same holds for the quote: with yfinance's time zone cache populated, a connection fault surfaces from
   `fast_info["last_price"]` as `KeyError('currentTradingPeriod')`, which the adapter reports as

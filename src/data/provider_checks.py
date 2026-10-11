@@ -26,6 +26,7 @@ import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import StrEnum
 from typing import Protocol
 from urllib.request import getproxies_environment
 
@@ -50,9 +51,29 @@ MAX_REQUESTS_PER_CHECK = 3  # SEC fair-access and guarded-egress budget; a fourt
 YAHOO_DATA_PORT = 443
 
 
+class CheckVerdict(StrEnum):
+    """The six outcomes of a provider check.
+
+    The first four mirror ``passed`` and the three provider failure kinds. ``NOT_CONFIGURED``: SEC access is not set
+    up, so the check could not run. ``FAILED``: an unexpected error inside the check, which is a defect and not a
+    provider condition.
+    """
+
+    OK = "ok"
+    UNREACHABLE = "unreachable"
+    UNEXPECTED_RESPONSE = "unexpected_response"
+    NO_DATA = "no_data"
+    NOT_CONFIGURED = "not_configured"
+    FAILED = "failed"
+
+
 @dataclass(frozen=True)
 class ProviderCheckResult:
-    """Outcome of one provider shape check."""
+    """Outcome of one provider shape check.
+
+    ``kind`` is set when the provider failed in one of the three ways. A failed check with no ``kind`` is either
+    not configured (``not_configured`` is true) or an unexpected error inside the check.
+    """
 
     provider_id: str
     probe: str
@@ -60,6 +81,18 @@ class ProviderCheckResult:
     elapsed_seconds: float
     detail: str | None = None
     kind: ProviderFailureKind | None = None
+    not_configured: bool = False
+
+    @property
+    def verdict(self) -> CheckVerdict:
+        """Return the one of the six outcomes this result is."""
+        if self.passed:
+            return CheckVerdict.OK
+        if self.not_configured:
+            return CheckVerdict.NOT_CONFIGURED
+        if self.kind is None:
+            return CheckVerdict.FAILED
+        return CheckVerdict(self.kind.value)
 
 
 @dataclass(frozen=True)
@@ -153,9 +186,10 @@ class ProviderCheckEntry:
 class _CheckFailureError(Exception):
     """Internal: a failure the check itself found, carrying the detail and, unless deliberate, its kind."""
 
-    def __init__(self, detail: str, kind: ProviderFailureKind | None = None) -> None:
+    def __init__(self, detail: str, kind: ProviderFailureKind | None = None, *, not_configured: bool = False) -> None:
         super().__init__(detail)
         self.kind = kind
+        self.not_configured = not_configured
 
 
 def _wrong_shape(detail: str) -> _CheckFailureError:
@@ -206,17 +240,19 @@ def _finish(
     started = clock()
     detail: str | None = None
     kind: ProviderFailureKind | None = None
+    not_configured = False
     try:
         body()
     except _CheckFailureError as failure:
         detail = str(failure)
         kind = failure.kind
+        not_configured = failure.not_configured
     except (DataFetchError, FinancialProviderError) as failure:
         detail = f"{type(failure).__name__}: {failure}"
         kind = failure.kind
     except Exception as exc:
         detail = f"{type(exc).__name__}: {exc}"
-    return ProviderCheckResult(provider_id, probe, detail is None, clock() - started, detail, kind)
+    return ProviderCheckResult(provider_id, probe, detail is None, clock() - started, detail, kind, not_configured)
 
 
 def yahoo_probe_description(spec: YahooCheckSpec = YAHOO_SPEC, *, connection_step: bool = True) -> str:
@@ -345,7 +381,7 @@ def check_sec_edgar(
 
     def body() -> None:
         if isinstance(transport, SecUnavailable):
-            raise _CheckFailureError(transport.detail)
+            raise _CheckFailureError(transport.detail, not_configured=True)
         deadline = _Deadline(spec.timeout_seconds)
         headers = {"User-Agent": transport.user_agent, "Accept": "application/json"}
         ticker_map = _call_with_timeout(

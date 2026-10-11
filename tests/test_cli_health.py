@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import textwrap
 from collections.abc import Mapping
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -18,8 +20,9 @@ from src.cli import app
 from src.config import settings
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
-from src.data.provider_checks import ConnectionStep, ProviderClients, SecTransport, SecUnavailable
+from src.data.provider_checks import CheckVerdict, ConnectionStep, ProviderClients, SecTransport, SecUnavailable
 from src.data.yfinance.client import YFinanceQuote
+from src.reporting.documents.health import ProviderHealthDocument
 from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()
@@ -70,6 +73,13 @@ def _invoke(clients: ProviderClients, *arguments: str) -> tuple[int, str]:
     with patch.object(cli_health, "build_provider_clients", return_value=clients):
         result = runner.invoke(app, ["health", *arguments])
     return result.exit_code, result.output
+
+
+def _invoke_json(clients: ProviderClients, *arguments: str) -> tuple[int, str, ProviderHealthDocument]:
+    """Run ``health --json``; return the exit code, standard output exactly, and the document it holds."""
+    with patch.object(cli_health, "build_provider_clients", return_value=clients):
+        result = runner.invoke(app, ["health", "--json", *arguments])
+    return result.exit_code, result.stdout, ProviderHealthDocument.model_validate_json(result.stdout)
 
 
 def test_all_checks_passing_exits_zero_with_one_line_per_provider() -> None:
@@ -151,7 +161,7 @@ def test_unknown_provider_is_a_usage_error_listing_the_valid_ids() -> None:
     assert "yfinance, sec_edgar" in normalize_cli_output(output)
 
 
-def test_missing_sec_identity_fails_the_sec_check_with_the_not_configured_wording() -> None:
+def test_missing_sec_identity_is_reported_as_not_configured_and_exits_one() -> None:
     with patch.object(settings, "sec_user_agent", None):
         clients = cli_health.build_provider_clients()
         with patch.object(cli_health, "build_provider_clients", return_value=clients):
@@ -160,8 +170,9 @@ def test_missing_sec_identity_fails_the_sec_check_with_the_not_configured_wordin
     output = normalize_cli_output(result.output)
     assert isinstance(clients.sec, SecUnavailable)
     assert result.exit_code == 1
-    assert "sec_edgar: failed" in output
+    assert output.startswith("sec_edgar: not configured (probe: AAPL ticker map and company facts, ")
     assert "SEC EDGAR access is not configured" in output
+    assert "failed" not in output
 
 
 def test_configured_sec_identity_composes_a_transport_with_the_stripped_identity() -> None:
@@ -172,13 +183,131 @@ def test_configured_sec_identity_composes_a_transport_with_the_stripped_identity
     assert clients.sec.user_agent == _SEC_AGENT
 
 
-def test_health_is_listed_among_the_commands_and_has_no_json_option() -> None:
+def test_health_help_lists_the_provider_and_json_options() -> None:
     result = runner.invoke(app, ["health", "--help"])
 
     help_text = normalize_cli_output(result.output)
     assert result.exit_code == 0
     assert "--provider" in help_text
-    assert "--json" not in help_text
+    assert "--json" in help_text
+
+
+_NOT_CONFIGURED = SecUnavailable("SEC EDGAR access is not configured.")
+_UNEXPECTED_ERROR = RuntimeError("defect")
+
+
+def _outcome_clients(verdict: CheckVerdict) -> tuple[ProviderClients, str]:
+    """Return fake clients that produce *verdict* for the provider named by the second value."""
+    if verdict is CheckVerdict.OK:
+        return _clients(), "yfinance"
+    if verdict is CheckVerdict.NOT_CONFIGURED:
+        return replace(_clients(), sec=_NOT_CONFIGURED), "sec_edgar"
+    failures: dict[CheckVerdict, Exception] = {
+        CheckVerdict.UNREACHABLE: DataFetchError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance"),
+        CheckVerdict.UNEXPECTED_RESPONSE: DataFetchError(
+            "odd", kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id="yfinance"
+        ),
+        CheckVerdict.NO_DATA: DataFetchError("none", kind=ProviderFailureKind.NO_DATA, provider_id="yfinance"),
+        CheckVerdict.FAILED: _UNEXPECTED_ERROR,
+    }
+    return _clients(_FailingYahoo(failures[verdict])), "yfinance"
+
+
+_TEXT_WORDS = {
+    CheckVerdict.OK: "ok",
+    CheckVerdict.UNREACHABLE: "unreachable",
+    CheckVerdict.UNEXPECTED_RESPONSE: "unexpected response",
+    CheckVerdict.NO_DATA: "no data",
+    CheckVerdict.NOT_CONFIGURED: "not configured",
+    CheckVerdict.FAILED: "failed",
+}
+
+
+@pytest.mark.parametrize("verdict", list(CheckVerdict), ids=lambda verdict: verdict.value)
+def test_each_of_the_six_outcomes_is_printed_in_text_with_the_matching_exit_code(verdict: CheckVerdict) -> None:
+    clients, provider = _outcome_clients(verdict)
+
+    exit_code, output = _invoke(clients, "--provider", provider)
+
+    assert exit_code == (0 if verdict is CheckVerdict.OK else 1)
+    assert output.startswith(f"{provider}: {_TEXT_WORDS[verdict]} (probe: ")
+    assert len(output.strip().splitlines()) == 1
+
+
+@pytest.mark.parametrize("verdict", list(CheckVerdict), ids=lambda verdict: verdict.value)
+def test_each_of_the_six_outcomes_is_written_in_json_with_the_matching_exit_code(verdict: CheckVerdict) -> None:
+    clients, provider = _outcome_clients(verdict)
+
+    exit_code, stdout, document = _invoke_json(clients, "--provider", provider)
+
+    assert exit_code == (0 if verdict is CheckVerdict.OK else 1)
+    (entry,) = document.providers
+    assert entry.provider_id == provider
+    assert entry.verdict == verdict.value
+    assert (entry.detail is None) is (verdict is CheckVerdict.OK)
+    assert document.schema_version == 1
+    assert stdout.endswith("\n")
+    assert len(stdout.strip().splitlines()) == 1
+
+
+def test_json_standard_output_holds_only_the_document_for_a_mixed_result() -> None:
+    clients = replace(_clients(_FailingYahoo(_UNEXPECTED_ERROR)), sec=_NOT_CONFIGURED)
+
+    exit_code, stdout, document = _invoke_json(clients)
+
+    assert exit_code == 1
+    assert json.loads(stdout) == document.model_dump(mode="json")
+    assert [(entry.provider_id, entry.verdict) for entry in document.providers] == [
+        ("yfinance", "failed"),
+        ("sec_edgar", "not_configured"),
+    ]
+    yahoo, sec = document.providers
+    assert yahoo.detail == "RuntimeError: defect"
+    assert sec.detail == "SEC EDGAR access is not configured."
+    assert yahoo.probe.startswith("connection to query2.finance.yahoo.com")
+    assert sec.probe == "AAPL ticker map and company facts"
+
+
+def test_json_with_every_check_passing_exits_zero_and_lists_both_providers_with_null_details() -> None:
+    exit_code, _stdout, document = _invoke_json(_clients())
+
+    assert exit_code == 0
+    assert [(entry.provider_id, entry.verdict, entry.detail) for entry in document.providers] == [
+        ("yfinance", "ok", None),
+        ("sec_edgar", "ok", None),
+    ]
+    assert all(entry.elapsed_seconds >= 0 for entry in document.providers)
+
+
+def test_json_provider_option_runs_only_the_named_provider() -> None:
+    yahoo = _FakeYahoo()
+
+    exit_code, _stdout, document = _invoke_json(_clients(yahoo), "--provider", " SEC_EDGAR ")
+
+    assert exit_code == 0
+    assert [entry.provider_id for entry in document.providers] == ["sec_edgar"]
+    assert yahoo.calls == 0
+
+
+def test_json_with_an_unknown_provider_is_a_usage_error_and_writes_no_document() -> None:
+    with patch.object(cli_health, "build_provider_clients", return_value=_clients()):
+        result = runner.invoke(app, ["health", "--json", "--provider", "unknown"])
+
+    assert result.exit_code == 2
+    assert result.stdout == ""
+
+
+def test_the_document_is_a_report_and_not_the_failure_envelope() -> None:
+    _exit_code, stdout, _document = _invoke_json(_clients(_FailingYahoo(_UNEXPECTED_ERROR)))
+
+    assert set(json.loads(stdout)) == {"schema_version", "providers"}
+
+
+def test_the_checked_in_schema_lists_the_six_verdicts_in_order() -> None:
+    schema = json.loads((_REPOSITORY_ROOT / "schemas" / "provider-health.schema.json").read_text(encoding="utf-8"))
+
+    verdicts = schema["$defs"]["ProviderHealthEntry"]["properties"]["verdict"]["enum"]
+    assert verdicts == [verdict.value for verdict in CheckVerdict]
 
 
 _HUNG_ADAPTER_SCRIPT = textwrap.dedent(

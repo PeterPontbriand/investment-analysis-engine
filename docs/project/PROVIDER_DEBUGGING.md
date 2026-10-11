@@ -19,6 +19,7 @@ tests and the `health` command call the same functions, so a probe is written on
 | :--- | :--- |
 | Every provider, printed one line each | `uv run ian health` |
 | One provider | `uv run ian health --provider yfinance` or `--provider sec_edgar` |
+| The same results as one JSON document, for a script | `uv run ian health --json`, with or without `--provider` |
 | The live tests, with kept results (PowerShell) | `& scripts/run-live-checks.ps1` |
 | The live tests, with kept results (Git Bash, Linux, macOS) | `bash scripts/run-live-checks.sh` |
 | One live test only | add `-k yahoo` or `-k sec_edgar` to either wrapper |
@@ -28,13 +29,45 @@ tests and the `health` command call the same functions, so a probe is written on
 dash when the check failed. The exit status is 0 when every selected check passes and 1 otherwise; an unknown
 `--provider` value exits 2 and lists the valid ids.
 
+`ian health --json` writes one document to standard output and nothing else, whether or not every check passed.
+It is a report, not the failure document: the exit status says whether every check passed, and the document
+says what each check found. It is described by
+[`schemas/provider-health.schema.json`](../../schemas/provider-health.schema.json) and has this shape:
+
+```json
+{
+  "schema_version": 1,
+  "providers": [
+    {
+      "provider_id": "yfinance",
+      "verdict": "ok",
+      "probe": "connection to query2.finance.yahoo.com, AAPL quote and daily history",
+      "elapsed_seconds": 0.84,
+      "detail": null
+    },
+    {
+      "provider_id": "sec_edgar",
+      "verdict": "not_configured",
+      "probe": "AAPL ticker map and company facts",
+      "elapsed_seconds": 0.0,
+      "detail": "SEC EDGAR access is not configured. ..."
+    }
+  ]
+}
+```
+
+Branch on `verdict`, which is one of the six words in the table below with underscores (`unexpected_response`,
+`no_data`, `not_configured`). `probe` and `detail` are sentences for people and may change. `detail` is
+`null` when the check passed.
+
 | Verdict | What it means | Look at first |
 | :--- | :--- | :--- |
 | `ok` | Every request answered in the shape the adapter reads. | Nothing. |
 | `unreachable` | The service did not serve the request: connection, DNS or TLS fault, a timeout, throttling or blocking (HTTP 403 or 429), a server error. For Yahoo the opening connection step reports only a connection, DNS, TLS or timeout fault; it does not detect throttling. | The network, a proxy, and for SEC the declared identity or request rate. |
 | `unexpected response` | The service answered, but not in the form the adapter reads: a missing field or column, invalid JSON, a non-numeric or non-positive quote. | The detail names what is missing; the provider changed its format or the library changed. |
 | `no data` | The service answered correctly and has nothing for the probe: an empty history, or SEC has no document for the probe company. | See "`no_data` from a history download" below. |
-| `failed` | The check failed without a kind: SEC access is not configured, or an unexpected exception was raised inside the check. | The detail: for the first, set `SEC_USER_AGENT`; for the second, the exception name points at a defect in the check or the adapter. |
+| `not configured` | SEC access is not set up, so the SEC check could not run. It is never skipped. | Set `SEC_USER_AGENT` (locally, or the repository secret for the cloud run). |
+| `failed` | An unexpected exception was raised inside the check, or an adapter failed without saying which kind. It is a defect, not a provider condition. | The detail: the exception name points at a defect in the check or the adapter. |
 
 The wrappers write each run to its own new directory under the ignored `.tmp/live-runs/`, never delete earlier
 runs, and return pytest's exit status. The results file is `live-results.xml` in the run directory.
@@ -42,8 +75,8 @@ runs, and return pytest's exit status. The results file is `live-results.xml` in
 A check has a 20-second deadline for the whole check, not per request: each request gets the time remaining. A check
 that has not finished by then fails with `timed out after 20 s`, and the process still exits normally.
 
-The SEC check needs the declared identity in the `SEC_USER_AGENT` setting. When it is missing, the check fails with
-"SEC EDGAR access is not configured"; it is never skipped.
+The SEC check needs the declared identity in the `SEC_USER_AGENT` setting. When it is missing, the check reports
+`not configured` with the detail "SEC EDGAR access is not configured"; it is never skipped.
 
 ## 2. The scheduled and on-demand run
 
@@ -147,7 +180,7 @@ The check reads the ticker map and one company-facts document for the probe tick
 
 | Detail | What to look at first |
 | :--- | :--- |
-| `failed`: `SEC EDGAR access is not configured` | `SEC_USER_AGENT` is not set (locally, or the repository secret for the cloud run). |
+| `not configured`: `SEC EDGAR access is not configured` | `SEC_USER_AGENT` is not set (locally, or the repository secret for the cloud run). |
 | `unreachable`: `FinancialProviderError: HTTP request failed ... 403` or `429` | SEC rejected the identity or the rate. SEC requires a declared identity and limits request rates; check the value and that nothing else was calling at the same time. |
 | `unexpected response`: `ticker map entries are missing fields: ...`, `ticker map entry for AAPL is missing fields: ...`, `ticker map has no entry for AAPL` | The ticker map document changed. Read `_ticker_cik_map` in [`src/data/sec_edgar/financial_facts.py`](../../src/data/sec_edgar/financial_facts.py). |
 | `unexpected response`: `company facts document has no 'facts' mapping` or no `'us-gaap'` mapping | The company-facts document changed. Read how the same module parses `facts`. |

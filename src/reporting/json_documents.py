@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from src.reporting.documents.database import DatabaseMaintenanceReport
 from src.reporting.documents.failure import FailureEnvelope
+from src.reporting.documents.health import ProviderHealthDocument
 from src.reporting.documents.refresh import RefreshSummaryDocument
 from src.reporting.documents.runs import RunsListDocument
 from src.reporting.documents.watchlist import WatchlistDeleteDocument, WatchlistDocument
@@ -39,6 +40,7 @@ DOCUMENTS: Final = (
     JsonDocument("watchlist-delete.schema.json", WatchlistDeleteDocument, ("watchlist delete",)),
     JsonDocument("runs-list.schema.json", RunsListDocument, ("runs list",)),
     JsonDocument("refresh-summary.schema.json", RefreshSummaryDocument, ("refresh",)),
+    JsonDocument("provider-health.schema.json", ProviderHealthDocument, ("health",)),
 )
 """Every document this module lists, in the order the schemas are published."""
 
