@@ -12,6 +12,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.types import AwareDatetime, FutureDatetime, NaiveDatetime, PastDatetime
 
 from scripts.generate_schemas import DOCUMENTS, expected_schemas
+from src.cli_provider_check import ProviderCheckFindings
 from src.cli_workspace import _refresh_json, _watchlist_json
 from src.core.failure_codes import FailureReasonCode
 from src.reporting.documents.refresh import RefreshResultDocument, RefreshSummaryDocument
@@ -104,9 +105,9 @@ def test_each_unversioned_workspace_schema_states_that_the_document_is_unversion
     assert "schema_version" not in schema.get("properties", {})
 
 
-def test_the_refresh_summary_schema_is_versioned_from_one() -> None:
+def test_the_refresh_summary_schema_is_version_two() -> None:
     schema = json.loads(expected_schemas()["refresh-summary.schema.json"])
-    assert schema["properties"]["schema_version"]["const"] == 1
+    assert schema["properties"]["schema_version"]["const"] == 2
     assert "unversioned" not in schema["description"]
 
 
@@ -284,9 +285,18 @@ def test_the_refresh_summary_reports_an_unsaved_outcome_and_a_failed_job() -> No
             RefreshJobResult(ticker="BAD", method_id="sma_crossover", error="boom", reason_code="provider_error"),
         ),
     )
-    document = json.loads(_refresh_json(summary))
-    assert list(document) == ["schema_version", "refresh_id", "watchlist_id", "watchlist_name", "results", "counts"]
-    assert document["schema_version"] == 1
+    document = json.loads(_refresh_json(summary, ProviderCheckFindings()))
+    assert list(document) == [
+        "schema_version",
+        "refresh_id",
+        "watchlist_id",
+        "watchlist_name",
+        "results",
+        "counts",
+        "provider_check",
+    ]
+    assert document["schema_version"] == 2
+    assert document["provider_check"] is None
     assert document["results"] == [
         {
             "ticker": "AAPL",
@@ -318,7 +328,7 @@ def test_a_refresh_job_with_an_unknown_reason_code_is_rejected() -> None:
         results=(RefreshJobResult(ticker="X", method_id="m", error="boom", reason_code="not_a_code"),),
     )
     with pytest.raises(ValueError, match="not_a_code"):
-        _refresh_json(summary)
+        _refresh_json(summary, ProviderCheckFindings())
 
 
 def test_a_refresh_result_document_enforces_its_consistency_rules() -> None:

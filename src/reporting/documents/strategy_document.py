@@ -20,6 +20,11 @@ The header's key order is part of the contract:
     Why the status is a provider failure: the single code and the failed inputs, each with its provider and kind;
     null when the outcome is not a provider failure whose kind the adapter recorded. The element is the one the
     failure envelope carries, :class:`~src.core.provider_failure_element.ProviderFailure`.
+``provider_check``
+    What one test request found for each provider that element names, as
+    :class:`~src.core.provider_check_element.ProviderCheckItem` entries; null on success, on every replay of a stored
+    run and whenever ``provider_failure`` is null. It is non-null only beside a non-null ``provider_failure``, and then
+    names exactly the providers that element names. The verdict is never stored.
 ``requested_as_of``
     The point in time the user asked for; null means now.
 ``effective_as_of``
@@ -33,10 +38,12 @@ The tail is ``warnings``, ``limitations`` and ``diagnostics``, in that order.
 from __future__ import annotations
 
 import json
+from typing import Self
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from src.core.analysis_status import CalculationStatus
+from src.core.provider_check_element import ProviderCheckItem, require_check_matches_failure
 from src.core.provider_failure_element import ProviderFailure
 from src.reporting.documents.shared_parts import (
     DiagnosticEntry,
@@ -53,6 +60,7 @@ HEADER_KEYS: tuple[str, ...] = (
     "ticker",
     "status",
     "provider_failure",
+    "provider_check",
     "requested_as_of",
     "effective_as_of",
     "security_identity",
@@ -73,10 +81,17 @@ class StrategyDocumentHeader[AnalysisIdT: str, MethodIdT: str](DocumentPart):
     ticker: str
     status: CalculationStatus
     provider_failure: ProviderFailure | None
+    provider_check: tuple[ProviderCheckItem, ...] | None
     requested_as_of: DocumentTimestamp | None
     effective_as_of: DocumentTimestamp
     security_identity: SecurityIdentityPart
     instrument_kind: InstrumentKindPart | None
+
+    @model_validator(mode="after")
+    def _check_follows_failure(self) -> Self:
+        """Require ``provider_check`` to be null or to name exactly the providers ``provider_failure`` names."""
+        require_check_matches_failure(self.provider_failure, self.provider_check)
+        return self
 
 
 class StrategyDocumentTail(DocumentPart):

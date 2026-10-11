@@ -9,7 +9,7 @@ import typer
 from pydantic import ValidationError
 from typer._click.exceptions import UsageError
 
-from src.cli_provider_check import ProviderCheckChoice, echo_provider_check
+from src.cli_provider_check import ProviderCheckChoice, echo_provider_check, provider_check_findings
 from src.config import settings
 from src.core.constants import ConfigKeys
 from src.core.failure_classification import classify_failure
@@ -255,8 +255,9 @@ def execution_errors(  # noqa: PLR0912, PLR0913
     sentence, so exception text from provider data is not exposed. A failure whose callback is absent is reported
     as an unexpected one, exactly as before. ``selection_type`` is the command's own selection class,
     whose fixed ``analysis_id`` and ``method_id`` name the analysis in the failure document. When a raised
-    provider failure names its provider and ``provider_check`` is given, the lines of the automatic provider check
-    are written to standard error immediately before the failure text, in every mode but ``--json``.
+    provider failure names its provider and ``provider_check`` is given, the check runs once: its lines are written
+    to standard error immediately before the failure text in every mode but ``--json``, and in ``--json`` mode the
+    failure envelope carries its findings as ``provider_check`` and nothing extra is printed.
     """
     try:
         with record_cli_quality():
@@ -285,10 +286,11 @@ def execution_errors(  # noqa: PLR0912, PLR0913
             message = unexpected(exc)
             logger.exception("Unexpected failure reported to the user as: %s", message)
         envelope = failure_envelope(code, message, cause=exc, analysis=analysis, method=method, ticker=ticker)
+        findings = provider_check_findings((envelope.provider_failure,), provider_check)
         if mode is PresentationMode.JSON:
-            typer.echo(failure_document(envelope))
+            typer.echo(failure_document(envelope.with_provider_check(findings.element())))
         else:
-            echo_provider_check((envelope.provider_failure,), provider_check, err=True)
+            echo_provider_check(findings, err=True)
             typer.echo(message, err=True)
             if mode is PresentationMode.DIAGNOSTICS:
                 for diagnostic in envelope.diagnostics:

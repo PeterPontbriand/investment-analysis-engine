@@ -23,7 +23,12 @@ from uuid import UUID
 import typer
 from pydantic import BaseModel
 
-from src.cli_provider_check import echo_provider_check, provider_check_choice
+from src.cli_provider_check import (
+    ProviderCheckFindings,
+    echo_provider_check,
+    provider_check_choice,
+    provider_check_findings,
+)
 from src.cli_strategy_wiring import CLI_BUILDERS, build_selection_for, refresh_executor_for
 from src.cli_support import _production_instrument_profile_cache
 from src.cli_watchlist_flags import WatchlistFlags
@@ -957,8 +962,8 @@ def _refresh_result_document(result: RefreshJobResult) -> RefreshResultDocument:
     )
 
 
-def _refresh_json(summary: RefreshSummary) -> str:
-    """Emit the refresh summary document."""
+def _refresh_json(summary: RefreshSummary, findings: ProviderCheckFindings) -> str:
+    """Emit the refresh summary document, carrying what the provider check found."""
     return _document_json(
         RefreshSummaryDocument(
             refresh_id=summary.refresh_id,
@@ -966,6 +971,7 @@ def _refresh_json(summary: RefreshSummary) -> str:
             watchlist_name=summary.watchlist_name,
             results=tuple(_refresh_result_document(result) for result in summary.results),
             counts=summary.counts,
+            provider_check=findings.element(),
         )
     )
 
@@ -996,8 +1002,8 @@ def refresh(  # noqa: PLR0913
     row for a job that never started. ``--no-save`` still runs every entry,
     but nothing is written to storage; each result is shown but has no
     Analysis Run ID to browse or replay afterward. When a job failed on a provider, one test request per
-    implicated provider runs after the batch ends and its finding is printed before the summary (text output
-    only); ``--no-provider-check`` turns it off.
+    implicated provider runs after the batch ends; its finding is printed before the summary, or
+    carried in the summary document as ``provider_check`` with ``--json``. ``--no-provider-check`` turns it off.
     """
     try:
         policy = RefreshPolicy(workers=workers)
@@ -1036,13 +1042,15 @@ def refresh(  # noqa: PLR0913
     finally:
         signal.signal(signal.SIGINT, previous_handler)
 
-    if not json_output:
-        echo_provider_check(
-            (result.provider_failure for result in summary.results),
-            provider_check_choice(context, no_provider_check=no_provider_check),
-            err=False,
-        )
-    typer.echo(_refresh_json(summary) if json_output else _refresh_text(summary))
+    findings = provider_check_findings(
+        (result.provider_failure for result in summary.results),
+        provider_check_choice(context, no_provider_check=no_provider_check),
+    )
+    if json_output:
+        typer.echo(_refresh_json(summary, findings))
+    else:
+        echo_provider_check(findings, err=False)
+        typer.echo(_refresh_text(summary))
 
     if cancellation.is_set():
         raise typer.Exit(code=130)

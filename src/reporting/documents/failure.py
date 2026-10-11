@@ -13,6 +13,7 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.core.failure_codes import PROVIDER_FAILURE_CODES, FailureReasonCode, FailureStatus, status_for
+from src.core.provider_check_element import ProviderCheckItem, require_check_matches_failure
 from src.core.provider_failure_element import ProviderFailure
 
 
@@ -45,7 +46,7 @@ class FailureEnvelope(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[8] = 8
+    schema_version: Literal[9] = 9
     status: FailureStatus
     reason_code: FailureReasonCode
     reason: str
@@ -60,6 +61,13 @@ class FailureEnvelope(BaseModel):
     provider_failure: ProviderFailure | None = Field(
         default=None,
         description="Set exactly when reason_code is one of the four provider failure codes; null otherwise.",
+    )
+    provider_check: tuple[ProviderCheckItem, ...] | None = Field(
+        default=None,
+        description=(
+            "What one test request found for each provider provider_failure names; null when no check ran or "
+            "provider_failure is null."
+        ),
     )
 
     @model_validator(mode="after")
@@ -76,7 +84,13 @@ class FailureEnvelope(BaseModel):
                 raise ValueError("provider_failure.reason_code must equal reason_code.")
         elif self.provider_failure is not None:
             raise ValueError("provider_failure is set only for a provider failure reason_code.")
+        require_check_matches_failure(self.provider_failure, self.provider_check)
         return self
+
+    def with_provider_check(self, provider_check: tuple[ProviderCheckItem, ...] | None) -> Self:
+        """Return this envelope carrying ``provider_check``, validated against its ``provider_failure``."""
+        values = {name: getattr(self, name) for name in type(self).model_fields}
+        return type(self).model_validate({**values, "provider_check": provider_check})
 
 
 __all__ = [

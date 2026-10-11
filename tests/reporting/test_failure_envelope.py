@@ -196,7 +196,7 @@ def test_the_document_has_the_documented_keys_and_stable_formatting() -> None:
     )
     text = failure_document(envelope)
     assert json.loads(text) == {
-        "schema_version": 8,
+        "schema_version": 9,
         "status": "input_unavailable",
         "reason_code": "provider_error",
         "reason": "No usable history.",
@@ -207,6 +207,7 @@ def test_the_document_has_the_documented_keys_and_stable_formatting() -> None:
         "diagnostics": [],
         "database": None,
         "provider_failure": None,
+        "provider_check": None,
     }
     assert text.startswith('{\n  "analysis": "momentum",\n')
 
@@ -229,6 +230,7 @@ def test_envelope_fields_are_exactly_the_documented_set() -> None:
         "diagnostics",
         "database",
         "provider_failure",
+        "provider_check",
     }
     assert _model_field_names(FailureDatabase) == {"database_path", "expected_revision"}
     assert _model_field_names(FailureDiagnostic) == {"rule", "reason"}
@@ -404,8 +406,9 @@ def test_the_element_accepts_only_provider_codes_and_at_least_one_input() -> Non
         ProviderFailure(reason_code=FailureReasonCode.PROVIDER_UNREACHABLE, inputs=())
 
 
-def test_the_failure_envelope_is_version_7_and_its_json_carries_the_element_key() -> None:
+def test_the_failure_envelope_is_version_9_and_its_json_carries_the_element_keys() -> None:
     envelope = failure_envelope(FailureReasonCode.INVALID_INPUT, "s")
     document = json.loads(failure_document(envelope))
-    assert document["schema_version"] == 8
+    assert document["schema_version"] == 9
     assert document["provider_failure"] is None
+    assert document["provider_check"] is None

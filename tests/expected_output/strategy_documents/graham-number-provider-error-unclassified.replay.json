@@ -1,10 +1,11 @@
 {
-  "schema_version": 9,
+  "schema_version": 10,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "ERROR",
   "status": "provider_error",
   "provider_failure": null,
+  "provider_check": null,
   "requested_as_of": null,
   "effective_as_of": "<wall-clock>",
   "security_identity": {

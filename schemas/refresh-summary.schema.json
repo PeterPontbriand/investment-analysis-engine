@@ -36,6 +36,39 @@
       "title": "FailureReasonCode",
       "type": "string"
     },
+    "ProviderCheckItem": {
+      "additionalProperties": false,
+      "description": "The verdict for one provider.",
+      "properties": {
+        "provider_id": {
+          "description": "The provider the test request went to.",
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/ProviderCheckVerdict"
+        }
+      },
+      "required": [
+        "provider_id",
+        "verdict"
+      ],
+      "title": "ProviderCheckItem",
+      "type": "object"
+    },
+    "ProviderCheckVerdict": {
+      "description": "What a test request to a provider found: five provider conditions, or that nothing was checked.",
+      "enum": [
+        "healthy",
+        "unreachable",
+        "rate_limited",
+        "unexpected_response",
+        "no_data",
+        "not_checked"
+      ],
+      "title": "ProviderCheckVerdict",
+      "type": "string"
+    },
     "RefreshResultDocument": {
       "additionalProperties": false,
       "description": "One (ticker, selection) job of a refresh.\n\nExactly one of a saved run (``analysis_run_id``), an unsaved outcome (``status`` with no run) and a failure\n(``error``) describes the job, and ``reason_code`` is set if and only if the job raised (``error``) or its\n``status`` is ``failed``. An ``unavailable`` job is an analysis outcome and carries none.",
@@ -135,6 +168,21 @@
       "title": "Counts",
       "type": "object"
     },
+    "provider_check": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/ProviderCheckItem"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "What one test request found for each provider a failed job implicates, one entry per provider; null when no job failed on a provider.",
+      "title": "Provider Check"
+    },
     "refresh_id": {
       "format": "uuid",
       "title": "Refresh Id",
@@ -148,8 +196,8 @@
       "type": "array"
     },
     "schema_version": {
-      "const": 1,
-      "default": 1,
+      "const": 2,
+      "default": 2,
       "title": "Schema Version",
       "type": "integer"
     },
@@ -168,7 +216,8 @@
     "watchlist_id",
     "watchlist_name",
     "results",
-    "counts"
+    "counts",
+    "provider_check"
   ],
   "title": "RefreshSummaryDocument",
   "type": "object"

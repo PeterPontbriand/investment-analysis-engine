@@ -14,7 +14,7 @@ import pytest
 from src.core.failure_codes import PROVIDER_CODE_BY_KIND
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.workspace.models import RunOutcome
-from tests._strategy_document_output import CASES, Case, run_saved
+from tests._strategy_document_output import CASES, Case, run_saved, without_excluded_keys
 
 _BASE_CASES = {
     case.name: case
@@ -44,7 +44,9 @@ def test_the_document_the_replay_and_the_saved_run_agree_on_the_code(name: str, 
     }
     assert json.loads(direct.stdout)["provider_failure"] == expected
     assert json.loads(replayed.stdout)["provider_failure"] == expected
-    assert direct.stdout == replayed.stdout
+    assert json.loads(direct.stdout)["provider_check"] == [{"provider_id": "sec_edgar", "verdict": "not_checked"}]
+    assert json.loads(replayed.stdout)["provider_check"] is None
+    assert without_excluded_keys(direct.stdout) == without_excluded_keys(replayed.stdout)
     assert json.loads(direct.stdout)["status"] == "provider_error"
     assert run.status is RunOutcome.FAILED
     assert run.failure_reason_code == code

@@ -212,8 +212,10 @@ examples name Yahoo Finance, and SEC EDGAR reads the same.
 - **"could not be checked"**: no verdict was reached, for example SEC access is not set up (see above).
 
 Set `IAN_PROVIDER_CHECK=false` to turn the check off for every command, and `IAN_PROVIDER_CHECK_TIMEOUT_SECONDS`
-(default `10`) to change its time limit. With `--json` no test request is sent and no line is printed. See
-[Usage](USAGE.md#after-a-provider-failure-the-first-line) for the details.
+(default `10`) to change its time limit. With `--json` the same request is sent, no line is printed, and the finding
+is the document's `provider_check` element; a failed call can then take up to 12 seconds longer per implicated
+provider, which `--no-provider-check` avoids. See [Usage](USAGE.md#after-a-provider-failure-the-first-line) for the
+details.
 
 ### A ticker returns no usable result
 

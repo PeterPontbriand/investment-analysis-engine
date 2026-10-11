@@ -42,7 +42,7 @@ before the next begins. A prose-only documentation slice follows the documentati
 | PH.3a | [Health JSON and the not-configured outcome](#ph3a--health-json-and-the-not-configured-outcome) | Complete | 2026-10-11 |
 | PH.2e | [A fourth provider failure kind, rate limited](#ph2e--a-fourth-provider-failure-kind-rate-limited) | Complete | 2026-10-11 |
 | PH.3b | [The automatic provider check](#ph3b--the-automatic-provider-check) | Complete | 2026-10-11 |
-| PH.3c | [The provider check in the documents](#ph3c--the-provider-check-in-the-documents) | Next | |
+| PH.3c | [The provider check in the documents](#ph3c--the-provider-check-in-the-documents) | Complete | 2026-10-11 |
 
 PH.2a does not start before [SWC.4c](../swc/SWC_CONTRACT_AND_SLICE_PLAN.md#swc4c--typed-strategy-envelopes-and-replay-dispatch)
 has merged. PH.2b follows PH.2a, PH.2c follows PH.2b, and PH.3a does not start before PH.2d has merged. PH.2e follows PH.3a, PH.3b follows PH.2e and PH.3c follows PH.3b. PH.1 has
@@ -51,7 +51,7 @@ no dependency and may run alongside SWC. PH.2d follows PH.2c.
 [Issue #40](https://github.com/PeterPontbriand/investment-analysis-engine/issues/40) (orchestrator
 classification of `DataQualityError` in trajectory events) comes immediately after PH.2d, as its own small
 change, because it reuses the reason codes and failure kinds PH.2 delivers. It calls the classifier in `core`, so
-`orchestrator` gains no dependency on `reporting`. It is complete (2026-10-11). PH.3a, PH.2e and PH.3b are complete (2026-10-11), and PH.3c is next.
+`orchestrator` gains no dependency on `reporting`. It is complete (2026-10-11). PH.3a, PH.2e, PH.3b and PH.3c are complete (2026-10-11); every slice of the work package is complete.
 
 ## 3. The slices
 
@@ -196,7 +196,7 @@ outcome with its resolution trace, and the existing `PROVIDER_ERROR` status is n
 - **Scope:** the shared element in `src/core`, the six documents and their versions, every affected schema and
   expected output, and the user documents.
 - **Branch:** `feat/ph-3c-provider-check-element`, from `main` after PH.3b has merged.
-- **Detail:** [PH.3 slice plan](PH3_SLICE_PLAN.md#5-ph3c-as-planned) and the
+- **Detail:** [PH.3 slice plan](PH3_SLICE_PLAN.md#5-ph3c-as-built) and the
   [PH.3 decisions](PH3_CANARY_AND_HEALTH_JSON_DETAIL.md#3-ph3b-and-ph3c-the-automatic-provider-check).
 
 ## 4. Scope limits

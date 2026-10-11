@@ -7,7 +7,7 @@ registers itself.
 import typer
 
 from src.cli_composition import build_sec_production_provider
-from src.cli_provider_check import provider_check_choice, with_provider_check
+from src.cli_provider_check import provider_check_choice, provider_check_findings, with_provider_check
 from src.cli_run_support import maybe_save_run
 from src.cli_support import (
     _canonical_provider_id,
@@ -215,10 +215,11 @@ def command(  # noqa: PLR0913
         profile = capture.profile
         identity_resolution = profile_identity_resolution(profile)
 
-    output = render_fcf_earnings_growth(result, mode, identity_resolution, profile)
     exit_code = 0 if result.execution_status in (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE) else 1
+    findings = provider_check_findings((capture_provider_failure(capture),) if exit_code else (), provider_check)
+    output = render_fcf_earnings_growth(result, mode, identity_resolution, profile, findings.element())
     if exit_code:
-        output = with_provider_check(output, capture_provider_failure(capture), provider_check, mode)
+        output = with_provider_check(output, findings, mode)
     typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
     if exit_code:
         raise typer.Exit(code=exit_code)

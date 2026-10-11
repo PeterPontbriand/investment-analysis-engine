@@ -37,8 +37,9 @@ current codes:
 - `PH` — short for "Provider Health"
   ([contract](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md)): an opt-in live suite, scheduled run and
   failure classification so that a broken or changed online service (Yahoo, SEC EDGAR) is visible to the
-  project owner from a scheduled run and to a user from the first line of the error message. PH.1 runs now;
-  PH.2a to PH.2d, issue #40, PH.3a and PH.3b follow SWC.4c; all finish before Step 3.5 begins.
+  project owner from a scheduled run and to a user from the first line of the error message. PH.1 ran first;
+  PH.2a to PH.2e, issue #40 and PH.3a to PH.3c followed SWC.4c. All finished (2026-10-11), so its row is numbered `13`
+  and sits among the complete rows, above `SWC`, which is still in progress.
 - `MR` — short for "Massive Removal" ([plan](massive-removal/MR_MASSIVE_REMOVAL_PLAN.md)): removes the unfinished,
   untested Massive provider until a requirement makes it worth bringing back. Its row is numbered `11A` so the
   rows after it keep their numbers and sits among the complete rows; it ran inside `PH`, after PH.2b and before PH.2c, and before `PKG`.
@@ -79,8 +80,8 @@ sequencing meaning.
 | 11 | [Repository-wide dead code audit (R3)](r3/R3_DEAD_CODE_AUDIT_PLAN.md) | Complete | 2026-10-01 |
 | 11A | [Massive provider removal (MR)](massive-removal/MR_MASSIVE_REMOVAL_PLAN.md#2-sequence-and-status) | Complete | 2026-10-10 |
 | 11B | [Package dependency map (PD)](package-dependencies/PD_PACKAGE_DEPENDENCIES_PLAN.md#2-sequence-and-status) | Complete | 2026-10-10 |
+| 13 | [Provider health (PH)](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-11 |
 | 12 | [Strategy wiring consolidation (SWC)](swc/SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
-| 13 | [Provider health (PH)](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
 | 14 | [`src` package rename (PKG)](pkg/PKG_RENAME_PLAN.md) | Planned | |
 | 15 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
 | 16 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |

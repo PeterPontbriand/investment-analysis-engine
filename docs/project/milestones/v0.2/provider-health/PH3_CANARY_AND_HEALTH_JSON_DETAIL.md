@@ -7,16 +7,16 @@ project-owner review.
 
 ## 1. Three slices
 
-PH.3 is three slices. PH.3a and PH.3b are complete; PH.3c is next. PH.3b followed [PH.2e](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#ph2e--a-fourth-provider-failure-kind-rate-limited),
+PH.3 is three slices, all complete. PH.3b followed [PH.2e](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md#ph2e--a-fourth-provider-failure-kind-rate-limited),
 which added the fourth failure kind.
 
 | Slice | What it adds | Status |
 | :--- | :--- | :--- |
 | PH.3a | `ian health --json` with a typed document and schema, and the `not_configured` outcome | Complete |
 | PH.3b | The probe, its settings, the `--no-provider-check` option and the first line in the text modes | Complete |
-| PH.3c | The `provider_check` element in the six documents that report an analysis outcome | Next |
+| PH.3c | The `provider_check` element in the six documents that report an analysis outcome | Complete |
 
-Between PH.3b and PH.3c, `--json` output carries no verdict.
+Between PH.3b and PH.3c, `--json` output carried no verdict; since PH.3c it carries the `provider_check` element.
 
 After [PH.1](PH1_LIVE_SUITE_SLICE_PLAN.md) the project has the shared check bodies and a text-only `ian health`.
 After [PH.2](PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md) a failure carries one of four kinds and reaches the
@@ -46,8 +46,8 @@ How the six outcomes arise:
 
 ## 3. PH.3b and PH.3c: the automatic provider check
 
-PH.3b and PH.3c are recorded here and not built. PH.3b builds the probe and the first line in the text modes; PH.3c
-adds the `provider_check` element to the documents. The settled behavior:
+PH.3b built the probe and the first line in the text modes; PH.3c added the `provider_check` element to the
+documents. The settled behavior:
 
 | # | Decision |
 | :--- | :--- |

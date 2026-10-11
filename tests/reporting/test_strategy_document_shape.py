@@ -26,7 +26,15 @@ from src.reporting.documents.strategy_document import (
     StrategyDocumentTail,
 )
 from src.strategy_wiring import STRATEGIES
-from tests._strategy_document_output import CASES, Case, cases, expected_path, run_pair
+from tests._strategy_document_output import (
+    CASES,
+    REPLAY_EXCLUDED_KEYS,
+    Case,
+    cases,
+    expected_path,
+    run_pair,
+    without_excluded_keys,
+)
 
 _IDENTIFIERS = ("analysis", "method")
 
@@ -76,6 +84,32 @@ def test_every_strategy_document_carries_the_provider_failure_element_directly_a
     assert (
         descriptor.json_envelope.model_fields["provider_failure"].annotation
         == StrategyDocumentHeader.model_fields["provider_failure"].annotation
+    )
+
+
+@pytest.mark.parametrize("descriptor", STRATEGIES, ids=lambda item: item.alias)
+def test_every_strategy_document_carries_the_provider_check_element_directly_after_provider_failure(
+    descriptor: Any,
+) -> None:
+    """The element is added once, in the header, so no strategy can omit it or place it elsewhere."""
+    names = list(descriptor.json_envelope.model_fields)
+
+    assert names.index("provider_check") == names.index("provider_failure") + 1
+    assert HEADER_KEYS.index("provider_check") == HEADER_KEYS.index("provider_failure") + 1
+    assert (
+        descriptor.json_envelope.model_fields["provider_check"].annotation
+        == StrategyDocumentHeader.model_fields["provider_check"].annotation
+    )
+
+
+def test_the_failure_envelope_carries_the_same_provider_check_element_directly_after_provider_failure() -> None:
+    """The failure envelope and the strategy documents share one element type, placed after ``provider_failure``."""
+    names = list(FailureEnvelope.model_fields)
+
+    assert names.index("provider_check") == names.index("provider_failure") + 1
+    assert (
+        FailureEnvelope.model_fields["provider_check"].annotation
+        == StrategyDocumentHeader.model_fields["provider_check"].annotation
     )
 
 
@@ -149,11 +183,18 @@ def test_status_is_a_calculation_status_never_a_verdict(stem: str) -> None:
         assert document["result"]["trend"] in {item.value for item in TrendStatus}
 
 
-def differing_paths(direct: object, replayed: object, path: str = "$") -> list[str]:
-    """Return the path of every value that differs between two parsed documents, including a missing key."""
+def differing_paths(
+    direct: object, replayed: object, path: str = "$", *, excluded: frozenset[str] = frozenset()
+) -> list[str]:
+    """Return the path of every value that differs between two parsed documents, including a missing key.
+
+    ``excluded`` names top-level keys the comparison leaves out; it applies to the document's own keys only.
+    """
     if isinstance(direct, dict) and isinstance(replayed, dict):
         paths: list[str] = []
         for key in dict.fromkeys([*direct, *replayed]):
+            if path == "$" and key in excluded:
+                continue
             if key not in direct or key not in replayed:
                 paths.append(f"{path}.{key}")
             else:
@@ -177,8 +218,9 @@ def test_the_direct_and_replayed_documents_agree(case: Case) -> None:
     """
     direct, replayed = run_pair(case)
     assert replayed.exit_code == 0
-    assert differing_paths(json.loads(direct.stdout), json.loads(replayed.stdout)) == []
-    assert direct.stdout == replayed.stdout
+    assert differing_paths(json.loads(direct.stdout), json.loads(replayed.stdout), excluded=REPLAY_EXCLUDED_KEYS) == []
+    assert without_excluded_keys(direct.stdout) == without_excluded_keys(replayed.stdout)
+    assert json.loads(replayed.stdout)["provider_check"] is None
 
 
 def test_the_comparison_fails_when_a_body_key_differs() -> None:
@@ -198,3 +240,37 @@ def test_the_comparison_fails_when_a_body_key_differs() -> None:
     extended = json.loads(replayed.stdout)
     extended["diagnostics"].append("extra")
     assert differing_paths(document, extended) == ["$.diagnostics"]
+
+
+def test_the_exclusion_is_the_one_key_and_a_difference_in_any_other_key_still_fails() -> None:
+    """Negative control for the exclusion: it hides ``provider_check`` and nothing else, in either comparison."""
+    direct, replayed = run_pair(next(item for item in CASES if item.name == "graham-number-provider-error"))
+    document = json.loads(direct.stdout)
+    replay = json.loads(replayed.stdout)
+
+    # The direct command wrote a finding where the replay wrote null; only the exclusion makes them agree.
+    assert document["provider_check"] == [{"provider_id": "sec_edgar", "verdict": "not_checked"}]
+    assert replay["provider_check"] is None
+    assert differing_paths(document, replay) == ["$.provider_check"]
+    assert differing_paths(document, replay, excluded=REPLAY_EXCLUDED_KEYS) == []
+    assert without_excluded_keys(direct.stdout) == without_excluded_keys(replayed.stdout)
+    assert {"provider_check"} == REPLAY_EXCLUDED_KEYS
+
+    for key in (key for key in replay if key != "provider_check"):
+        changed = json.loads(replayed.stdout)
+        changed[key] = "a different value" if changed[key] != "a different value" else "another"
+        assert differing_paths(document, changed, excluded=REPLAY_EXCLUDED_KEYS) == [f"$.{key}"]
+        assert without_excluded_keys(direct.stdout) != without_excluded_keys(json.dumps(changed).encode())
+
+    dropped = json.loads(replayed.stdout)
+    del dropped["status"]
+    assert differing_paths(document, dropped, excluded=REPLAY_EXCLUDED_KEYS) == ["$.status"]
+
+    extended = json.loads(replayed.stdout)
+    extended["extra"] = 1
+    assert differing_paths(document, extended, excluded=REPLAY_EXCLUDED_KEYS) == ["$.extra"]
+
+    # A nested key of the same name is not excluded: the exclusion applies to the document's own keys.
+    nested = json.loads(replayed.stdout)
+    nested["provider_failure"] = {"provider_check": 1}
+    assert "$.provider_failure.provider_check" in differing_paths(document, nested, excluded=REPLAY_EXCLUDED_KEYS)

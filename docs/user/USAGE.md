@@ -195,6 +195,7 @@ Every strategy document has the same header and the same tail. Keys are written 
 | | `ticker` | The instrument |
 | | `status` | Whether the calculation ran, as a calculation status (`ok`, `not_applicable`, `invalid_input`, `input_unavailable` or `provider_error`). Never a verdict |
 | | `provider_failure` | Why a `provider_error` status happened, when the adapter classified the failure: one of `provider_unreachable`, `provider_rate_limited`, `provider_unexpected_response` or `provider_no_data` as `reason_code`, and `inputs`, each failed input with its `provider_id` and `kind`. `null` for every other status, and for a provider failure the adapter could not classify. It is the element the failure document carries |
+| | `provider_check` | What one test request found for each provider `provider_failure` names, as a list of `provider_id` and `verdict` entries; see [After a provider failure](#after-a-provider-failure-the-first-line). `null` on success, for a failure that names no provider, and for every document `runs show --json` writes |
 | | `requested_as_of` | The point in time you asked for with `--as-of`; `null` means now |
 | | `effective_as_of` | The instant the analysis was evaluated at: `requested_as_of` when given, else the execution time |
 | | `security_identity`, `instrument_kind` | The identity and instrument-kind evidence the run retained |
@@ -205,13 +206,13 @@ A verdict lives in the body: Momentum's trend is `result.trend` (`BULLISH`, `BEA
 
 A Graham document's `quote` part carries `provider_failure` (`input` `current_price`, `provider_id`, `kind`) when the optional quote failed with a classified provider failure, otherwise `null`; it does not change `status`. A Graham document's body begins with `price_comparison` (`status`, `reason`, `percent`, `security_unit_evidence`, `provenance`, `quote_freshness`); its `percent` matches `result.margin_of_safety_percent`, and a comparison that was not made is `null`.
 
-Presentation versions: Momentum **7**, Graham Number **8**, Graham Growth **8**, FCF Growth **7**. FCF's canonical result schema is **4** and its method version **2**.
+Presentation versions: Momentum **9**, Graham Number **10**, Graham Growth **10**, FCF Growth **9**. FCF's canonical result schema is **5** and its method version **2**.
 
 Each strategy's document is described by a published schema: `schemas/momentum.schema.json`, `schemas/graham-number.schema.json`, `schemas/graham-growth.schema.json` and `schemas/fcf-growth.schema.json`. `runs show --json` writes the saved run's own strategy document, described by the same schema as the direct command's. Every key is always present: a value that is absent is `null`, not an omitted key. The document's `schema_version` is independent of the method version and of the stored result's schema version, which FCF Growth also writes (`method_version`, `result_schema_version`, directly after the header).
 
 Quote timing distinguishes original retrieval from market observation. Filing venue evidence is separate from current identity. Momentum retains cache/provider resolution evidence and a typed crossover result. Missing numeric values remain `null`, never zero or non-standard `NaN`.
 
-Post-parse execution failures also produce one JSON failure document with a null result, a stable `reason_code`, a `reason` sentence and sanitized diagnostics; the process exits with code 1. The same document is written by the workspace commands that offer `--json` (`watchlist show`, `watchlist rename`, `watchlist delete`, `runs list`, `runs show` and `refresh`), with `analysis`, `method` and `ticker` null. A `reason_code` value is never renamed or removed, so branch on it and not on `reason`; treat a value you do not recognise as a generic failure and read `status`. Parser/usage errors retain exit code 2. Momentum's window and period checks (`--short-window`, `--long-window`, `--rsi-period`) are execution failures, not usage errors: they report `invalid_parameter` (a sentence that names the offending option) and exit 1, from `momentum` and from `watchlist create` and `watchlist add-selection` alike. The schema is published as `schemas/failure.schema.json`. A successfully calculated FCF screen `FAIL` is not an execution failure.
+Post-parse execution failures also produce one JSON failure document with a null result, a stable `reason_code`, a `reason` sentence and sanitized diagnostics; the process exits with code 1. The same document is written by the workspace commands that offer `--json` (`watchlist show`, `watchlist rename`, `watchlist delete`, `runs list`, `runs show` and `refresh`), with `analysis`, `method` and `ticker` null. A `reason_code` value is never renamed or removed, so branch on it and not on `reason`; treat a value you do not recognise as a generic failure and read `status`. Parser/usage errors retain exit code 2. Momentum's window and period checks (`--short-window`, `--long-window`, `--rsi-period`) are execution failures, not usage errors: they report `invalid_parameter` (a sentence that names the offending option) and exit 1, from `momentum` and from `watchlist create` and `watchlist add-selection` alike. The failure document's `schema_version` is 9; after a provider failure it carries `provider_check` beside `provider_failure`, as the strategy documents do. The schema is published as `schemas/failure.schema.json`. A successfully calculated FCF screen `FAIL` is not an execution failure.
 
 Financial cache bypass is available through `--no-cache` on both Graham commands and `fcf-growth`. Quote responses expire independently after 300 seconds by default, even when annual-fact cache reuse is unlimited. Set the `IAN_QUOTE_CACHE_TTL_SECONDS` environment setting to a finite nonnegative value; zero disables quote reuse. An expired quote is refreshed once without substituting a stale value on failure. Old quotes with an unspecified cache basis are refreshed under the descriptive quote basis; annual caches and database schema are unchanged.
 
@@ -266,8 +267,9 @@ Start with the ordinary error message. Use `--details` or `--diagnostics` when y
 
 When `momentum`, `graham-number`, `graham-growth` or `fcf-growth` fails because a data provider failed, or `refresh`
 has a job that failed that way, the application sends one small test request to that provider and prints what it
-found as the first line, before the usual failure text. The provider is the one the failure names. The test request
-tests the provider, not your request, so a line states only what the test request found. It offers no remedy.
+found as the first line, before the usual failure text, and in `--json` as the `provider_check` element of the
+document. The provider is the one the failure names. The test request tests the provider, not your request, so a
+line states only what the test request found. It offers no remedy.
 
 | First line (Yahoo Finance shown) | What it means |
 | :--- | :--- |
@@ -289,9 +291,26 @@ A command sends the test request at most once per provider per run, and `refresh
 batch, however many tickers failed. It does not retry the failed call, repair anything, or change the exit code or
 the failure text; if the test request itself goes wrong, the failure is still reported as before.
 
-With `--json` the test request is not sent and the document is unchanged: JSON output carries no verdict until the
-next release of this feature. The option `--no-provider-check` is on exactly these five commands. Two engine
-settings, read as environment variables in the same way as the others, control the check everywhere:
+With `--json` the test request is sent in the same way, nothing extra is printed to either stream, and the finding is
+the document's `provider_check` element. It sits directly after `provider_failure` in the failure document and in
+each strategy document, and is the last key of the `refresh` summary. Its value is:
+
+- `null` when there is nothing to report: on success, for a failure that names no provider (`provider_error`),
+  for a failed optional input on an analysis that otherwise succeeded, and in every document `runs show --json`
+  writes, because replaying a saved run makes no live request and the verdict is never stored;
+- otherwise a list with one entry per provider the failure names, in the order of their most severe failed kind
+  (`unreachable`, `rate_limited`, `unexpected_response`, `no_data`), each with `provider_id` and `verdict`. The
+  `refresh` summary lists each provider once, whichever jobs failed on it.
+
+`verdict` is one of six values, matching the lines above in order: `unreachable`, `rate_limited`,
+`unexpected_response`, `no_data`, `healthy` and `not_checked`. When the check is turned off the entries are still
+present, with `not_checked`. Branch on `verdict`; the lines are sentences for people.
+
+In `--json` mode a failed call can therefore take up to 12 seconds longer for each provider it names (the time limit
+plus a short grace period, 24 seconds when a `refresh` implicates both providers), because the test request runs before
+the document is written. Use `--no-provider-check`, or set `IAN_PROVIDER_CHECK=false`, to avoid the wait. The option
+`--no-provider-check` is on exactly these five commands. Two engine settings, read as environment variables in the
+same way as the others, control the check everywhere:
 
 | Setting | Default | Meaning |
 | :--- | :--- | :--- |

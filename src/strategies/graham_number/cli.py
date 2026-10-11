@@ -11,7 +11,12 @@ import typer
 
 from src.analysis.shared.financial_resolution import PriceComparison
 from src.cli_composition import build_graham_resolver
-from src.cli_provider_check import ProviderCheckChoice, provider_check_choice, with_provider_check
+from src.cli_provider_check import (
+    ProviderCheckChoice,
+    provider_check_choice,
+    provider_check_findings,
+    with_provider_check,
+)
 from src.cli_run_support import maybe_save_run
 from src.cli_support import (
     _canonical_provider_id,
@@ -25,6 +30,7 @@ from src.cli_support import (
 from src.cli_watchlist_flags import WatchlistFlags
 from src.core.analysis_status import CalculationStatus
 from src.core.clock import utc_now
+from src.core.provider_check_element import ProviderCheckItem
 from src.data.financial.providers import SEC_PROVIDER_ID
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from src.data.instrument_profile_cache import InstrumentProfileResolver
@@ -271,6 +277,7 @@ def _run_graham_number(  # noqa: PLR0913
                 instrument_profile=profile,
             )
             return render_graham_number(presentation, mode), 0
+        findings = provider_check_findings((capture_provider_failure(capture),), provider_check)
         failure_output, failure_exit_code = _number_failure_output(
             ticker=ticker,
             assembly=assembly,
@@ -280,11 +287,9 @@ def _run_graham_number(  # noqa: PLR0913
             identity_resolution=identity_resolution,
             instrument_profile=profile,
             price_comparison=analysis.price_comparison,
+            provider_check=findings.element(),
         )
-        return (
-            with_provider_check(failure_output, capture_provider_failure(capture), provider_check, mode),
-            failure_exit_code,
-        )
+        return with_provider_check(failure_output, findings, mode), failure_exit_code
 
     presentation_assembly = number_with_public_quote_reason(assembly)
     presentation = GrahamNumberPresentation(
@@ -312,6 +317,7 @@ def _number_failure_output(  # noqa: PLR0913
     identity_resolution: SecurityIdentityResolution,
     instrument_profile: InstrumentProfile,
     price_comparison: PriceComparison | None = None,
+    provider_check: tuple[ProviderCheckItem, ...] | None = None,
 ) -> tuple[str, int]:
     """Render a failed Number analysis without leaking low-level details by default."""
     reason = friendly_valuation_failure(ticker, assembly.status, assembly.reason)
@@ -325,5 +331,6 @@ def _number_failure_output(  # noqa: PLR0913
         effective_as_of=effective_as_of,
         identity_resolution=identity_resolution,
         instrument_profile=instrument_profile,
+        provider_check=provider_check,
     )
     return render_graham_number(presentation, mode), 1

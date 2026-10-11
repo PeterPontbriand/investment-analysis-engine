@@ -8,9 +8,10 @@ row for a job that never started. ``--no-save`` still runs every entry,
 but nothing is written to storage; each result is shown but has no
 Analysis Run ID to browse or replay afterward. When a job failed on a
 provider, one test request per
-implicated provider runs after the batch ends and its finding is printed
-before the summary (text output
-only); ``--no-provider-check`` turns it off.
+implicated provider runs after the batch ends; its finding is printed before
+the summary, or
+carried in the summary document as ``provider_check`` with ``--json``.
+``--no-provider-check`` turns it off.
 Arguments
 * name <str> Watchlist name to refresh. [required]
 Options

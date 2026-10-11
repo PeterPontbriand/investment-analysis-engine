@@ -11,7 +11,7 @@ from src.reporting.documents.shared_parts import DocumentPart, PriceComparisonPa
 from src.reporting.documents.strategy_document import StrategyDocumentHeader, StrategyDocumentTail
 from src.strategies.graham_number.vocabulary import AnalysisId, MethodId
 
-DOCUMENT_SCHEMA_VERSION: Final = 9
+DOCUMENT_SCHEMA_VERSION: Final = 10
 
 
 class GrahamNumberResultPart(DocumentPart):
