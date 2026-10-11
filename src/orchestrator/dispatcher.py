@@ -4,6 +4,8 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from src.core.failure_classification import classify_failure, provider_failure_of_exception
+from src.core.failure_codes import FailureReasonCode
 from src.orchestrator.types import ToolCallRequest, ToolCallResult
 
 logger = logging.getLogger(__name__)
@@ -33,6 +35,7 @@ class AsyncToolDispatcher:
                 success=False,
                 result=None,
                 error_message=f"Unregistered tool: '{call.tool_name}'",
+                reason_code=FailureReasonCode.INVALID_INPUT,
             )
         handler = self._handlers[call.tool_name]
         try:
@@ -44,7 +47,13 @@ class AsyncToolDispatcher:
         except Exception as exc:
             logger.exception(f"Tool '{call.tool_name}' execution failed.")
             return ToolCallResult(
-                call_id=call.call_id, tool_name=call.tool_name, success=False, result=None, error_message=str(exc)
+                call_id=call.call_id,
+                tool_name=call.tool_name,
+                success=False,
+                result=None,
+                error_message=str(exc),
+                reason_code=classify_failure(exc).reason_code,
+                provider_failure=provider_failure_of_exception(exc),
             )
 
     def cancellation_is_cooperative(self, tool_name: str) -> bool:

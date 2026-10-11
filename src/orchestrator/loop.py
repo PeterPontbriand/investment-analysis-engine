@@ -131,6 +131,16 @@ class _RecoveryAttemptTelemetry:
     maximum: int
 
 
+def _failure_fields(response: ToolCallResult) -> dict[str, Any]:
+    """Return the stable code, and the provider failure when there is one, of a failed tool call for telemetry."""
+    fields: dict[str, Any] = {}
+    if response.reason_code is not None:
+        fields["reason_code"] = response.reason_code.value
+    if response.provider_failure is not None:
+        fields["provider_failure"] = response.provider_failure.model_dump(mode="json")
+    return fields
+
+
 class AgentOrchestrator:
     """Orchestrates the LLM, tool dispatcher, parser, and observational telemetry."""
 
@@ -825,6 +835,7 @@ class AgentOrchestrator:
                 )
             )
         else:
+            failure_fields = _failure_fields(response)
             self.recorder.record_error(
                 TrajectoryErrorRecord(
                     component="tool_dispatcher",
@@ -833,6 +844,8 @@ class AgentOrchestrator:
                     span_id=tool_span_id,
                     parent_span_id=step_span_id,
                     error_type="ToolExecutionError",
+                    reason_code=failure_fields.get("reason_code"),
+                    provider_failure=failure_fields.get("provider_failure"),
                 )
             )
             self.recorder.record(
@@ -844,7 +857,7 @@ class AgentOrchestrator:
                     step_index=step,
                     tool_name=response.tool_name,
                     latency_ms=tool_latency_ms,
-                    tool_result_summary={"success": False, "error": response.error_message},
+                    tool_result_summary={"success": False, "error": response.error_message, **failure_fields},
                     payload={"call_id": response.call_id},
                 )
             )
