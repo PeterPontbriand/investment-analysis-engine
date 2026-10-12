@@ -1,12 +1,12 @@
-SYNTH — Graham Number (maximum indicated price): 44.70 USD
+SYNTH — Graham Number (maximum indicated price): 36.69 USD
 Latest available quote: 52.30 USD
 Quote retrieved: 2025-07-01 12:00 UTC
 Quote response age: 0 seconds
 Market observation: 2025-06-30 16:00 UTC
 Price comparison: unavailable (share-unit evidence is unsupported by this provider)
 
-Basis: TTM EPS + BVPS basis unspecified
-EPS (TTM): 4.80 USD
+Basis: 3-year average EPS + BVPS basis unspecified
+EPS (3-year average): 3.23 USD
 Book value per common share: 18.50 USD
-Sources / freshness: EPS — provider (fixture-synth) (available 2025-06-30); BVPS — provider (fixture-synth) (available 2025-02-10)
+Sources / freshness: EPS — derived from SEC EDGAR (available 2024-09-13); BVPS — provider (SEC EDGAR) (available 2025-02-10)
 Limitation: The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation.

@@ -22,8 +22,6 @@ from src.config import ProjectSettings
 from src.config import settings as real_settings
 from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.sec_edgar import SEC_PROVIDER_ID
-from src.evaluation.fixtures.graham import PROVIDER_ID
 from src.strategy_wiring import STRATEGIES
 from src.workspace.runs import AnalysisRun, RunQuery
 from tests._direct_command_output import _COMMANDS, enter_fixture_providers
@@ -43,12 +41,9 @@ def _stored_runs(directory: Path, monkeypatch: pytest.MonkeyPatch, alias: str) -
         isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
         monkeypatch.setattr("src.cli_run_support.settings", isolated)
         monkeypatch.setattr("src.strategies.momentum.cli.settings", isolated)
-        # A saved run's selection admits only the providers the CLI supports, so the fixture provider's id is
-        # replaced by SEC EDGAR, and the fixture facts are relabeled to agree with it.
-        arguments = [SEC_PROVIDER_ID if argument == PROVIDER_ID else argument for argument in _COMMANDS[alias]]
         with ExitStack() as stack:
-            enter_fixture_providers(stack, alias, sec_labeled=True)
-            result = CliRunner().invoke(app, [*arguments, "--save-run"])
+            enter_fixture_providers(stack, alias)
+            result = CliRunner().invoke(app, [*_COMMANDS[alias], "--save-run"])
         assert result.exit_code == 0, result.output
         repository = SQLiteAnalysisRunRepository(SQLiteDatabase(isolated))
         runs = (repository.get(summary.analysis_run_id) for summary in repository.list(RunQuery()))

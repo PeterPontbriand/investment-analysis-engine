@@ -36,9 +36,9 @@ def test_growth_default_routes_sec_three_year_average_and_yahoo_quote() -> None:
     mock_build.assert_called_once_with(
         resolver_type=GrahamGrowthInputResolver, data_provider=SEC_PROVIDER_ID, cache=ANY, clock=ANY
     )
-    assert mock_run.call_args.kwargs["config"].security_provider_id == SEC_PROVIDER_ID
-    assert mock_run.call_args.kwargs["config"].quote_provider_id == YFINANCE_PROVIDER_ID
-    assert mock_run.call_args.kwargs["config"].eps_basis == "three_year_average"
+    assert mock_run.call_args.kwargs["selection"].security_provider_id == SEC_PROVIDER_ID
+    assert mock_run.call_args.kwargs["selection"].quote_provider_id == YFINANCE_PROVIDER_ID
+    assert mock_run.call_args.kwargs["selection"].eps_basis == "three_year_average"
 
 
 def test_growth_rejects_ttm_with_sec_before_provider_access() -> None:
@@ -49,5 +49,5 @@ def test_growth_rejects_ttm_with_sec_before_provider_access() -> None:
 
     assert result.exit_code == 1
     normalized = normalize_cli_output(result.output)
-    assert "SEC EDGAR requires --eps-basis to be one of (fiscal_year, three_year_average)" in normalized
+    assert "Invalid --eps-basis: Input should be 'three_year_average' or 'fiscal_year'" in normalized
     assert "--eps-basis" in normalized

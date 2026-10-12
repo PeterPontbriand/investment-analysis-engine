@@ -21,6 +21,8 @@ import src.cli_workspace
 from src.cli import app
 from src.config import ProjectSettings
 from src.reporting.documents.failure import FailureEnvelope
+from src.strategies.graham_growth import cli as graham_growth_cli
+from src.strategies.graham_number import cli as graham_number_cli
 from src.workspace.runs import RunQuery
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 
@@ -197,8 +199,8 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
             )
         )
     # SUP-9: direct commands
-    number_basis = "Invalid --eps-basis: Input should be 'three_year_average' or 'ttm'"
-    growth_basis = "Invalid --eps-basis: Input should be 'three_year_average', 'ttm' or 'fiscal_year'"
+    number_basis = "Invalid --eps-basis: Input should be 'three_year_average'"
+    growth_basis = "Invalid --eps-basis: Input should be 'three_year_average' or 'fiscal_year'"
     add(
         _check(
             "SUP-9", _direct("graham-number", "--eps-basis", "bogus"), number_basis, ("--eps-basis",), json_flag=True
@@ -213,7 +215,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         _check(
             "SUP-9",
             _direct("graham-number", "--eps-basis", "ttm"),
-            "SEC EDGAR requires --eps-basis to be one of (three_year_average) (received 'ttm').",
+            number_basis,
             ("--eps-basis",),
             json_flag=True,
         )
@@ -222,11 +224,64 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         _check(
             "SUP-9",
             _direct("graham-growth", "--eps-basis", "ttm"),
-            "SEC EDGAR requires --eps-basis to be one of (fiscal_year, three_year_average) (received 'ttm').",
+            growth_basis,
             ("--eps-basis",),
             json_flag=True,
         )
     )
+    provider_sentence = (
+        "Invalid --data-provider: Unsupported security provider 'bogus'; supported provider is 'sec_edgar'."
+    )
+    for command in ("graham-number", "graham-growth"):
+        add(
+            _check(
+                "SUP-9",
+                _direct(command, "--data-provider", "bogus"),
+                provider_sentence,
+                ("--data-provider",),
+                json_flag=True,
+            )
+        )
+    finite = "Financial override must be a finite number."
+    for value in ("nan", "inf", "-inf"):
+        for option in ("--eps", "--bvps", "--current-price"):
+            add(
+                _check(
+                    "SUP-9",
+                    _direct("graham-number", f"{option}={value}"),
+                    f"Invalid {option}: {finite}",
+                    (option,),
+                    json_flag=True,
+                )
+            )
+        for option in ("--eps", "--current-price"):
+            add(
+                _check(
+                    "SUP-9",
+                    _direct("graham-growth", f"{option}={value}"),
+                    f"Invalid {option}: {finite}",
+                    (option,),
+                    json_flag=True,
+                )
+            )
+        add(
+            _check(
+                "SUP-9",
+                ("graham-growth", "AAPL", f"--expected-growth={value}", "--aaa-yield", "4"),
+                f"Invalid --expected-growth: {finite}",
+                ("--expected-growth",),
+                json_flag=True,
+            )
+        )
+        add(
+            _check(
+                "SUP-9",
+                ("graham-growth", "AAPL", "--expected-growth", "5", f"--aaa-yield={value}"),
+                f"Invalid --aaa-yield: {finite}",
+                ("--aaa-yield",),
+                json_flag=True,
+            )
+        )
     # SUP-9: builders
     for method, basis in (
         ("graham-number", "Invalid --eps-basis: Input should be 'three_year_average'"),
@@ -916,3 +971,48 @@ def test_exit_code_1_is_not_the_parser_for_any_command_check() -> None:
         "EVL-2",
         "EVL-3",
     }  # EVL-1 and EVL-4 have their own tests; DB-3 has its own test
+
+
+_DIRECT_MODULES = {"graham-number": graham_number_cli, "graham-growth": graham_growth_cli}
+_PARITY_GROWTH = ("--expected-growth", "5", "--aaa-yield", "4")
+_PARITY_CASES = [
+    ("graham-number", ()),
+    ("graham-number", ("--eps", "3")),
+    ("graham-number", ("--bvps", "20", "--current-price", "50")),
+    ("graham-number", ("--eps=nan",)),
+    ("graham-number", ("--bvps=inf",)),
+    ("graham-number", ("--current-price=-inf",)),
+    ("graham-number", ("--eps-basis", "ttm")),
+    ("graham-number", ("--eps-basis", " Three_Year_Average ")),
+    ("graham-number", ("--data-provider", "bogus")),
+    ("graham-number", ("--data-provider", " SEC_EDGAR ")),
+    ("graham-number", ("--as-of", "2025-01-31")),
+    ("graham-growth", _PARITY_GROWTH),
+    ("graham-growth", (*_PARITY_GROWTH, "--eps", "3", "--current-price", "50")),
+    ("graham-growth", (*_PARITY_GROWTH, "--eps=nan")),
+    ("graham-growth", (*_PARITY_GROWTH, "--current-price=inf")),
+    ("graham-growth", ("--expected-growth=nan", "--aaa-yield", "4")),
+    ("graham-growth", ("--expected-growth", "5", "--aaa-yield=-inf")),
+    ("graham-growth", (*_PARITY_GROWTH, "--eps-basis", "ttm")),
+    ("graham-growth", (*_PARITY_GROWTH, "--eps-basis", "fiscal_year")),
+    ("graham-growth", (*_PARITY_GROWTH, "--data-provider", "bogus")),
+    ("graham-growth", (*_PARITY_GROWTH, "--as-of", "2025-01-31")),
+]
+
+
+@pytest.mark.parametrize(("command", "options"), _PARITY_CASES, ids=[" ".join((c, *o)) for c, o in _PARITY_CASES])
+def test_the_direct_command_and_watchlist_create_accept_and_reject_the_same_values(
+    command: str, options: tuple[str, ...]
+) -> None:
+    module = _DIRECT_MODULES[command]
+    with (
+        patch.object(module, "build_graham_resolver"),
+        patch.object(module, f"_run_{command.replace('-', '_')}", return_value=("ok", 0)),
+    ):
+        direct = runner.invoke(app, [command, "AAPL", *options])
+    watchlist = runner.invoke(app, ["watchlist", "create", "W", "AAPL", "-a", command, *options])
+
+    assert direct.exit_code == watchlist.exit_code
+    if direct.exit_code:
+        assert direct.stderr.strip() == watchlist.stderr.strip()
+        assert direct.stderr.strip() != ""

@@ -61,7 +61,7 @@ from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 from src.data.yfinance import YFinanceFinancialFactsAdapter
 from src.data.yfinance.client import YFinanceClient
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID
+from src.evaluation.fixtures.graham import NOW, SECURITY_ID
 from src.evaluation.fixtures.instrument_profiles import FIXTURE_PROFILE_RESOLVED_AT, fixture_known_etf_profile
 from src.evaluation.fixtures.market_data import FixtureMarketDataProvider, momentum_boundary_frame
 from src.strategies.fcf_growth.input_resolver import _failure_metric
@@ -75,11 +75,11 @@ from src.workspace.runs import AnalysisRun, RunQuery
 from tests._direct_command_output import (
     _COMMANDS,
     CommandOutput,
-    SecLabeledGrahamProvider,
     _FixtureYahoo,
     enter_fixture_providers,
     normalize,
 )
+from tests._sec_labeled_graham import SecLabeledGrahamProvider
 
 REPLAY_EXCLUDED_KEYS = frozenset({"provider_check"})
 """The one top-level key the direct-equals-replay comparison leaves out, by name.
@@ -313,7 +313,7 @@ def _fcf_provider(case: Case, yahoo: type[_FixtureYahoo]) -> ProductionFinancial
 
 def _enter_providers(stack: ExitStack, case: Case) -> None:
     """Replace the command's providers with the case's deterministic fixtures."""
-    enter_fixture_providers(stack, case.command, sec_labeled=True)
+    enter_fixture_providers(stack, case.command)
     wrapper: FinancialFactsProvider | None = None
     if case.command != "fcf-growth":
         if case.failure_kind is not None or case.unclassified:
@@ -333,11 +333,6 @@ def _enter_providers(stack: ExitStack, case: Case) -> None:
             side_effect=lambda *_a, **_k: _fcf_provider(case, case.yahoo),
         )
     )
-
-
-def _provider_arguments(arguments: tuple[str, ...]) -> list[str]:
-    """Return ``arguments`` naming SEC EDGAR, the one provider a saved run's selection admits."""
-    return [SEC_PROVIDER_ID if item == PROVIDER_ID else item for item in arguments]
 
 
 def _migrated(directory: Path) -> ProjectSettings:
@@ -381,7 +376,7 @@ def run_saved(case: Case) -> tuple[CommandOutput, CommandOutput, AnalysisRun]:
         for module in ("src.cli_run_support", "src.strategies.momentum.cli"):
             stack.enter_context(patch(f"{module}.settings", settings))
         _enter_providers(stack, case)
-        result = CliRunner().invoke(app, [*_provider_arguments(case.arguments), "--json", "--save-run"])
+        result = CliRunner().invoke(app, [*case.arguments, "--json", "--save-run"])
         direct = CommandOutput(result.exit_code, normalize(result.stdout_bytes), result.stderr_bytes)
         assert direct.exit_code == case.exit_code, result.output
         run = _single_run(settings)
