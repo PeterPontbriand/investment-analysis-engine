@@ -19,6 +19,7 @@ from src.cli_provider_check import (
 )
 from src.cli_run_support import maybe_save_run
 from src.cli_support import (
+    SaveStage,
     _canonical_provider_id,
     _parse_as_of,
     _presentation_mode,
@@ -26,6 +27,9 @@ from src.cli_support import (
     _resolve_ticker,
     config_usage_errors,
     execution_errors,
+    require_job_ticker,
+    saving_failures,
+    stored_configuration,
 )
 from src.cli_watchlist_flags import WatchlistFlags
 from src.core.analysis_status import CalculationStatus
@@ -90,7 +94,8 @@ def refresh(
     ticker: str, selection: GrahamGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
     """Execute one Graham Growth refresh job with freshly composed, job-scoped dependencies."""
-    config = selection.to_graham_growth_config()
+    require_job_ticker(ticker)
+    config = stored_configuration(selection.to_graham_growth_config)
     policy = growth_assumptions()
     executed_at = utc_now()
     with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
@@ -181,7 +186,6 @@ def command(  # noqa: PLR0913
         json_output=json_output,
         selection_type=GrahamGrowthSelection,
         provider_check=provider_check,
-        unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {scope.ticker}.",
     ) as scope:
         target_ticker = _resolve_ticker(ticker, ticker_option, required=True, command="graham-growth")
         assert target_ticker is not None
@@ -208,8 +212,6 @@ def command(  # noqa: PLR0913
                 mode=mode,
                 selection_type=GrahamGrowthSelection,
                 ticker=target_ticker,
-                invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
-                unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
             ):
                 resolver = build_graham_resolver(
                     resolver_type=GrahamGrowthInputResolver,
@@ -248,23 +250,25 @@ def _run_graham_growth(  # noqa: PLR0913
     config = selection.to_graham_growth_config()
     as_of = selection.as_of
     use_cache = selection.use_cache
-    capture = maybe_save_run(
-        save_run=save_run,
-        executed_at=executed_at,
-        request_factory=lambda: AnalysisRequest(ticker=ticker, selection=selection),
-        run_adapter=lambda profile_cache: execute_graham_growth(
-            resolver,
-            ticker,
-            config,
-            policy,
-            profile_provider,
-            as_of=as_of,
+    stage = SaveStage()
+    with saving_failures(stage):
+        capture = maybe_save_run(
+            save_run=save_run,
             executed_at=executed_at,
-            use_cache=use_cache,
-            profile_cache=profile_cache,
-        ),
-        normalize=from_graham_growth_capture,
-    )
+            request_factory=lambda: AnalysisRequest(ticker=ticker, selection=selection),
+            run_adapter=lambda profile_cache: execute_graham_growth(
+                resolver,
+                ticker,
+                config,
+                policy,
+                profile_provider,
+                as_of=as_of,
+                executed_at=executed_at,
+                use_cache=use_cache,
+                profile_cache=profile_cache,
+            ),
+            normalize=stage.after_analysis(from_graham_growth_capture),
+        )
     analysis = capture.analysis
     profile = capture.profile
     assembly = analysis.assembly

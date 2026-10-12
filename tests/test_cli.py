@@ -176,7 +176,7 @@ def test_cli_momentum_presents_only_the_profile_embedded_in_the_run(
     result = runner.invoke(app, ["momentum", "BTC-USD"])
 
     assert result.exit_code == 1
-    assert "Unable to complete momentum analysis for BTC-USD" in normalize_cli_output(result.output)
+    assert "Unable to analyze BTC-USD: invalid analysis inputs or provider data." in normalize_cli_output(result.output)
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
@@ -407,7 +407,7 @@ def test_cli_momentum_analysis_failure_does_not_expose_internal_text(mock_run: M
     result = runner.invoke(app, ["momentum", "AAPL"])
 
     assert result.exit_code == 1
-    assert "returned price history could not be analyzed" in result.output
+    assert "Unable to analyze AAPL: invalid analysis inputs or provider data." in result.output
     assert "pydantic.dev" not in result.output
 
 
@@ -784,7 +784,7 @@ def test_cli_graham_unexpected_failure_does_not_leak_exception_text() -> None:
         result = runner.invoke(app, ["graham-number", "AAPL"])
 
     assert result.exit_code == 1
-    assert "Graham analysis failed unexpectedly for AAPL" in result.output
+    assert "Unable to analyze AAPL: the analysis failed unexpectedly." in result.output
     assert "secret provider implementation detail" not in result.output
     assert "Traceback" not in result.output
 

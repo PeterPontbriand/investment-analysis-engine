@@ -12,13 +12,14 @@ cross-checks the full envelope against its own relational columns.
 import json
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 from uuid import UUID
 
 from pydantic import TypeAdapter
 from sqlalchemy import and_, select, true
 from sqlalchemy.exc import IntegrityError
 
+from src.core.failure_codes import FailureReasonCode
 from src.data.repositories.schema import analysis_runs
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.workspace.models import RunOutcome
@@ -28,7 +29,9 @@ _ENVELOPE_ADAPTER: TypeAdapter[AnalysisRun] = TypeAdapter(AnalysisRun)
 
 
 class AnalysisRunConflictError(ValueError):
-    """A run with the same ``analysis_run_id`` already exists."""
+    """A run with the same ``analysis_run_id`` already exists; only a defect can cause it."""
+
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.EXECUTION_ERROR
 
 
 def _utc(value: datetime) -> str:

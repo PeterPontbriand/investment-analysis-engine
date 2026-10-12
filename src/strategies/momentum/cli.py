@@ -10,6 +10,7 @@ from src.analysis.base_analyzer import require_ticker
 from src.cli_provider_check import provider_check_choice
 from src.cli_run_support import save_run_execution
 from src.cli_support import (
+    SaveStage,
     _default_history_start_date,
     _default_ticker,
     _parse_as_of,
@@ -18,6 +19,8 @@ from src.cli_support import (
     _production_instrument_profile_cache,
     _resolve_ticker,
     execution_errors,
+    require_job_ticker,
+    saving_failures,
 )
 from src.cli_watchlist_flags import WatchlistFlags
 from src.config import settings
@@ -94,7 +97,7 @@ def refresh(
     """Execute one Momentum refresh job with freshly composed, job-scoped dependencies."""
     data_client = YFinanceClient()
     executed_at = utc_now()
-    normalized_ticker = require_ticker(ticker)
+    normalized_ticker = require_ticker(require_job_ticker(ticker))
     profile = compose_momentum_profile(normalized_ticker, data_client=data_client, profile_cache=profile_cache)
     with _production_historical_client(
         data_client, use_cache=selection.use_cache, clock=lambda: executed_at
@@ -155,19 +158,10 @@ def command(  # noqa: PLR0913
     ),
 ) -> None:
     """Execute SMA crossover momentum analysis over daily historical market prices."""
-
-    def label() -> str:
-        return scope.ticker or "the configured default ticker"
-
     with execution_errors(
         json_output=json_output,
         selection_type=MomentumSelection,
         provider_check=provider_check_choice(context, no_provider_check=no_provider_check),
-        invalid_detail=True,
-        invalid=lambda _exc: (
-            f"Unable to complete momentum analysis for {label()}: the returned price history could not be analyzed."
-        ),
-        unexpected=lambda _exc: f"Momentum analysis failed unexpectedly for {label()}.",
     ) as scope:
         requested_ticker = _resolve_ticker(ticker, ticker_option, required=False, command="momentum")
         scope.ticker = requested_ticker
@@ -215,11 +209,12 @@ def command(  # noqa: PLR0913
                         instrument_profile=profile,
                     )
                 momentum_capture = capture_momentum(run)
-                saved = save_run_execution(
-                    AnalysisRequest(ticker=target_ticker, selection=selection),
-                    capture=lambda: from_momentum_capture(momentum_capture),
-                    repository=SQLiteAnalysisRunRepository(database),
-                )
+                with saving_failures(SaveStage(analyzed=True)):
+                    saved = save_run_execution(
+                        AnalysisRequest(ticker=target_ticker, selection=selection),
+                        capture=lambda: from_momentum_capture(momentum_capture),
+                        repository=SQLiteAnalysisRunRepository(database),
+                    )
                 typer.echo(f"Saved Analysis Run: {saved.analysis_run_id}", err=True)
             finally:
                 database.close()

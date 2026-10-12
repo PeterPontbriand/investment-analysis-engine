@@ -208,7 +208,7 @@ def test_a_readiness_error_without_json_stays_text_on_standard_error(tmp_path: P
     assert normalize_cli_output(result.stderr) == normalize_cli_output(str(error))
 
 
-def test_refresh_json_gives_each_failed_job_a_stable_code_and_keeps_its_text() -> None:
+def test_refresh_json_gives_each_failed_job_a_stable_code_and_one_message() -> None:
     selection = MomentumSelection(short_window=2, long_window=3)
     database = SQLiteDatabase(src.cli_workspace.settings)
     try:
@@ -240,11 +240,17 @@ def test_refresh_json_gives_each_failed_job_a_stable_code_and_keeps_its_text() -
         "KO": "invalid_input",
         "IBM": "database_busy",
     }
+    messages = {
+        "AAPL": "Unable to analyze AAPL: a data provider failed; the failure was not classified.",
+        "MSFT": "Unable to analyze MSFT: the analysis failed unexpectedly.",
+        "KO": "Unable to analyze KO: invalid analysis inputs or provider data.",
+        "IBM": str(failures["IBM"]),
+    }
     for ticker, item in jobs.items():
-        assert item["error"] == str(failures[ticker])
+        assert item["error"] == messages[ticker]
         assert item["analysis_run_id"] is None
         assert item["saved"] is False
-    assert "error: provider down" in normalize_cli_output(text.stdout)
+    assert f"error: {messages['AAPL']}" in normalize_cli_output(text.stdout)
     assert "reason_code" not in text.stdout
 
 

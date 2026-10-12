@@ -10,12 +10,16 @@ from src.cli_composition import build_sec_production_provider
 from src.cli_provider_check import provider_check_choice, provider_check_findings, with_provider_check
 from src.cli_run_support import maybe_save_run
 from src.cli_support import (
+    SaveStage,
     _canonical_provider_id,
     _parse_as_of,
     _presentation_mode,
     _production_financial_cache,
     _resolve_ticker,
     execution_errors,
+    require_job_ticker,
+    saving_failures,
+    stored_configuration,
 )
 from src.cli_watchlist_flags import WatchlistFlags
 from src.core.analysis_status import CalculationStatus
@@ -104,7 +108,8 @@ def refresh(
     ticker: str, selection: FCFGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
     """Execute one FCF Growth refresh job with freshly composed, job-scoped dependencies."""
-    config = selection.to_fcf_config()
+    require_job_ticker(ticker)
+    config = stored_configuration(selection.to_fcf_config)
     executed_at = utc_now()
     with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
         provider = build_sec_production_provider()
@@ -163,8 +168,6 @@ def command(  # noqa: PLR0913
         json_output=json_output,
         selection_type=FCFGrowthSelection,
         provider_check=provider_check,
-        invalid=lambda exc: f"Unable to start FCF & earnings-growth analysis: {exc}",
-        unexpected=lambda _exc: f"FCF & earnings-growth analysis failed unexpectedly for {scope.ticker}.",
     ) as scope:
         target_ticker = _resolve_ticker(ticker, None, required=True, command="fcf-growth")
         assert target_ticker is not None
@@ -191,34 +194,36 @@ def command(  # noqa: PLR0913
                 cache=cache,
                 clock=lambda: executed_at,
             )
-            capture = maybe_save_run(
-                save_run=save_run,
-                executed_at=executed_at,
-                request_factory=lambda: AnalysisRequest(
-                    ticker=target_ticker,
-                    # The command always uses the SEC production provider regardless of
-                    # --data-provider (see the adapter's own docstring); the selection
-                    # reflects the provider actually used, not a possibly-mislabeled flag.
-                    selection=FCFGrowthSelection(
-                        policy=FCFPolicySnapshot.model_validate(policy),
-                        currency=normalized_currency,
-                        provider_id="sec_edgar",
-                        as_of=analysis_as_of,
-                        use_cache=not no_cache,
-                    ),
-                ),
-                run_adapter=lambda profile_cache: execute_fcf_growth(
-                    resolver,
-                    target_ticker,
-                    config=config,
-                    as_of=analysis_as_of,
+            stage = SaveStage()
+            with saving_failures(stage):
+                capture = maybe_save_run(
+                    save_run=save_run,
                     executed_at=executed_at,
-                    use_cache=not no_cache,
-                    provider=provider,
-                    profile_cache=profile_cache,
-                ),
-                normalize=from_fcf_growth_capture,
-            )
+                    request_factory=lambda: AnalysisRequest(
+                        ticker=target_ticker,
+                        # The command always uses the SEC production provider regardless of
+                        # --data-provider (see the adapter's own docstring); the selection
+                        # reflects the provider actually used, not a possibly-mislabeled flag.
+                        selection=FCFGrowthSelection(
+                            policy=FCFPolicySnapshot.model_validate(policy),
+                            currency=normalized_currency,
+                            provider_id="sec_edgar",
+                            as_of=analysis_as_of,
+                            use_cache=not no_cache,
+                        ),
+                    ),
+                    run_adapter=lambda profile_cache: execute_fcf_growth(
+                        resolver,
+                        target_ticker,
+                        config=config,
+                        as_of=analysis_as_of,
+                        executed_at=executed_at,
+                        use_cache=not no_cache,
+                        provider=provider,
+                        profile_cache=profile_cache,
+                    ),
+                    normalize=stage.after_analysis(from_fcf_growth_capture),
+                )
             result = capture.result
             profile = capture.profile
             identity_resolution = profile_identity_resolution(profile)

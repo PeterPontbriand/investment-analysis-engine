@@ -41,7 +41,7 @@ from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import RefreshJobResult, refresh_watchlist
-from tests._wiring import failure_code
+from tests._wiring import failure_text
 from tests.workspace.test_execution import _FakeSink as _ExecutionSink
 from tests.workspace.test_execution import _momentum_native_evidence, _momentum_request
 from tests.workspace.test_refresh import (
@@ -325,7 +325,7 @@ def _refresh(outcome: RunOutcome, code: str | None, *, save: bool, raises: bool 
         repository=_FakeSink(),
         executor=executor,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
         save=save,
     )
     return summary.results[0]
@@ -375,7 +375,7 @@ def test_the_saved_run_and_the_unsaved_job_report_the_same_code(save: bool) -> N
         repository=_FakeSink(),
         executor=lambda _ticker, _selection: capture,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
         save=save,
     )
 

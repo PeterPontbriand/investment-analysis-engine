@@ -30,7 +30,9 @@ class RefreshResultDocument(BaseModel):
     analysis_run_id: UUID | None = Field(description="The saved run; null when nothing was saved.")
     saved: bool
     status: RunOutcome | None = Field(description="The run's or the unsaved outcome's status; null for a raised job.")
-    error: str | None = Field(description="The failure's message for people; null unless the job raised.")
+    error: str | None = Field(
+        description="The message the application wrote for the failure, chosen by its code; null unless the job raised."
+    )
     reason_code: FailureReasonCode | None = Field(
         description="The stable code of the failure; null unless the job raised or its status is failed."
     )

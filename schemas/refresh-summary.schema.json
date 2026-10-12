@@ -95,7 +95,7 @@
               "type": "null"
             }
           ],
-          "description": "The failure's message for people; null unless the job raised.",
+          "description": "The message the application wrote for the failure, chosen by its code; null unless the job raised.",
           "title": "Error"
         },
         "method_id": {

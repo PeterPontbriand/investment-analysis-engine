@@ -5,7 +5,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
-from typing import NoReturn
+from typing import ClassVar, NoReturn
 
 import typer
 from pydantic import ValidationError
@@ -36,22 +36,13 @@ from src.data.yfinance.client import YFINANCE_HISTORICAL_INTERVAL, YFINANCE_PRIC
 from src.reporting.documents.failure import FailureEnvelope
 from src.reporting.failure_envelope import failure_envelope
 from src.reporting.presentation import PresentationMode, failure_document
+from src.workspace.capture import ExecutionCapture
 from src.workspace.selection_base import FrozenSelection
 
 logger = logging.getLogger(__name__)
-
-_DIRECT_CODES = frozenset(
-    {
-        FailureReasonCode.EXECUTION_ERROR,
-        FailureReasonCode.HISTORICAL_QUALITY,
-        FailureReasonCode.PROVIDER_ERROR,
-        *PROVIDER_FAILURE_CODES,
-        FailureReasonCode.CONFIGURATION_ERROR,
-        FailureReasonCode.NO_ELIGIBLE_OBSERVATIONS,
-        FailureReasonCode.INVALID_INPUT,
-        FailureReasonCode.INVALID_PARAMETER,
-    }
-)
+# Without a configured handler (``--no-logging``) Python's last-resort handler would write the logged failure and its
+# traceback to standard error; the null handler keeps standard error to the failure message alone.
+logger.addHandler(logging.NullHandler())
 
 # One sentence per kind of provider failure, then one for a failure the adapter did not classify. Each names the
 # provider (when known) and the ticker, says what was observed, and offers no remedy.
@@ -76,15 +67,126 @@ def provider_failure_sentence(error: DataFetchError | FinancialProviderError, ti
     return _PROVIDER_FAILURE_SENTENCES[error.kind].format(subject=subject, provider=error.provider_id)
 
 
-# Failures whose own message was written to be shown: the database and quality sentences, and the
-# command's own parameter guidance. No other exception's text is shown by default.
+# Failures whose own message was written to be shown: the quality, parameter and configuration messages, and the
+# database messages (every code that starts with ``database_``). No other exception's text is shown.
 _SHOWN_AS_RAISED = frozenset(
     {
         FailureReasonCode.HISTORICAL_QUALITY,
         FailureReasonCode.NO_ELIGIBLE_OBSERVATIONS,
         FailureReasonCode.INVALID_PARAMETER,
+        FailureReasonCode.CONFIGURATION_ERROR,
     }
 )
+_PROVIDER_CODES = frozenset({FailureReasonCode.PROVIDER_ERROR, *PROVIDER_FAILURE_CODES})
+
+
+class InternalDefectError(Exception):
+    """A failure only a defect can cause, such as a stored selection that no longer converts to a configuration."""
+
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.EXECUTION_ERROR
+
+
+def stored_configuration[ConfigT](convert: Callable[[], ConfigT]) -> ConfigT:
+    """Return the configuration ``convert`` builds from a stored selection; a validation failure is a defect."""
+    try:
+        return convert()
+    except ValidationError as exc:
+        raise InternalDefectError("A stored selection no longer converts to a configuration.") from exc
+
+
+def require_job_ticker(ticker: str) -> str:
+    """Return ``ticker`` unchanged; a blank ticker in a refresh job is a defect."""
+    if not ticker.strip():
+        raise InternalDefectError("A refresh job has a blank ticker.")
+    return ticker
+
+
+@dataclass(frozen=True)
+class FailureDescription:
+    """The code of a failure and the one message shown for it."""
+
+    code: FailureReasonCode
+    message: str
+
+
+def describe_failure(exception: BaseException, ticker: str | None, *, saving: bool) -> FailureDescription:
+    """Return the code and the message of a failure; the direct commands and refresh share this rule.
+
+    The failure code chooses the message and no message names a strategy. A provider code gives
+    :func:`provider_failure_sentence`; the codes in ``_SHOWN_AS_RAISED`` and every ``database_*`` code show the
+    exception's own text; ``invalid_input`` and ``execution_error`` each have one fixed message. A failure while the
+    analysis result is being saved (``saving``) has the save message and the code it classifies to. Any other code
+    is reported as ``execution_error``. Wherever a fixed message replaces the exception's text, the exception is
+    logged with its traceback.
+
+    Args:
+        exception: The failure.
+        ticker: The ticker the job or command resolved, or ``None`` before one was.
+        saving: Whether the analysis had finished and its result was being saved.
+
+    Returns:
+        The code and the message.
+    """
+    code = classify_failure(exception).reason_code
+    subject = ticker or "the requested instrument"
+    if saving:
+        message = f"{ticker or 'The requested instrument'} was analyzed, but the result could not be saved."
+    elif code in _PROVIDER_CODES and isinstance(exception, DataFetchError | FinancialProviderError):
+        message = provider_failure_sentence(exception, ticker)
+    elif code.value.startswith("database_") or code in _SHOWN_AS_RAISED:
+        return FailureDescription(code=code, message=str(exception))
+    elif code is FailureReasonCode.INVALID_INPUT:
+        message = f"Unable to analyze {subject}: invalid analysis inputs or provider data."
+    else:
+        code = FailureReasonCode.EXECUTION_ERROR
+        message = f"Unable to analyze {subject}: the analysis failed unexpectedly."
+    logger.error("Failure reported to the user as: %s", message, exc_info=exception)
+    return FailureDescription(code=code, message=message)
+
+
+class SaveStage:
+    """Tells ``saving_failures`` whether the analysis has finished, so a later failure is a failure while saving."""
+
+    def __init__(self, *, analyzed: bool = False) -> None:
+        """Start before the analysis, or after it when ``analyzed`` is true."""
+        self.analyzed = analyzed
+
+    def after_analysis[RawCaptureT](
+        self, normalize: Callable[[RawCaptureT], ExecutionCapture]
+    ) -> Callable[[RawCaptureT], ExecutionCapture]:
+        """Wrap ``normalize`` so that the stage is marked analyzed once it has returned."""
+
+        def marked(raw: RawCaptureT) -> ExecutionCapture:
+            capture = normalize(raw)
+            self.analyzed = True
+            return capture
+
+        return marked
+
+
+class SavingFailureError(Exception):
+    """An exception raised after the analysis finished, while its result was saved; ``cause`` is the original."""
+
+    def __init__(self, cause: Exception) -> None:
+        """Keep the original exception."""
+        super().__init__(str(cause))
+        self.cause = cause
+
+
+@contextmanager
+def saving_failures(stage: SaveStage) -> Iterator[None]:
+    """Re-raise an exception from the block as :class:`SavingFailureError` once ``stage`` says the analysis finished.
+
+    ``typer.Exit`` and an exception raised before the analysis finished pass through unchanged.
+    """
+    try:
+        yield
+    except typer.Exit:
+        raise
+    except Exception as exc:
+        if stage.analyzed:
+            raise SavingFailureError(exc) from exc
+        raise
 
 
 @contextmanager
@@ -287,11 +389,8 @@ def parameter_failures(*, json_output: bool) -> Iterator[None]:
 
 
 @contextmanager
-def execution_errors(  # noqa: PLR0912, PLR0913
+def execution_errors(
     *,
-    unexpected: Callable[[Exception], str],
-    invalid: Callable[[ValueError], str] | None = None,
-    invalid_detail: bool = False,
     json_output: bool = False,
     mode: PresentationMode | None = None,
     selection_type: type[FrozenSelection] | None = None,
@@ -300,16 +399,13 @@ def execution_errors(  # noqa: PLR0912, PLR0913
 ) -> Iterator[FailureScope]:
     """Translate execution failures while preserving deliberate CLI exits.
 
-    The code and status of a failure come from :func:`classify_failure`, shared with the workspace
-    commands. A provider failure's sentence comes from :func:`provider_failure_sentence`; the callbacks
-    only choose the sentence shown: ``invalid`` for configuration guidance and, when ``invalid_detail`` is true
-    or no mode is known, for a plain ``ValueError``. A plain ``ValueError`` otherwise reports the generic
-    sentence, so exception text from provider data is not exposed. A failure whose callback is absent is reported
-    as an unexpected one, exactly as before. ``selection_type`` is the command's own selection class,
-    whose fixed ``analysis_id`` and ``method_id`` name the analysis in the failure document. When a raised
-    provider failure names its provider and ``provider_check`` is given, the check runs once: its lines are written
-    to standard error immediately before the failure text in every mode but ``--json``, and in ``--json`` mode the
-    failure envelope carries its findings as ``provider_check`` and nothing extra is printed.
+    The code and message of a failure come from :func:`describe_failure`, shared with refresh. A
+    :class:`SavingFailureError` is described as a failure while saving, from its original exception. ``selection_type``
+    is the command's own selection class, whose fixed ``analysis_id`` and ``method_id`` name the analysis in the
+    failure document. When a raised provider failure names its provider and ``provider_check`` is given, the check
+    runs once: its lines are written to standard error immediately before the failure text in every mode but
+    ``--json``, and in ``--json`` mode the failure envelope carries its findings as ``provider_check`` and nothing
+    extra is printed.
 
     A command enters the block before it checks its own arguments and sets ``scope.ticker`` and ``scope.mode`` on
     the yielded :class:`FailureScope` as it resolves them, so a rejected argument is reported through the same
@@ -324,37 +420,21 @@ def execution_errors(  # noqa: PLR0912, PLR0913
         raise
     except Exception as exc:
         analysis, method = _selection_identity(selection_type)
-        code = classify_failure(exc).reason_code
-        if code not in _DIRECT_CODES and not code.value.startswith("database_"):
-            # A workspace code (for example a stored-run error raised while saving a run) is reported
-            # by the direct commands as it always was: a plain invalid input, or an unexpected failure.
-            code = FailureReasonCode.INVALID_INPUT if isinstance(exc, ValueError) else FailureReasonCode.EXECUTION_ERROR
-        if code is FailureReasonCode.INVALID_INPUT and invalid is None:
-            code = FailureReasonCode.EXECUTION_ERROR
-        if code.value.startswith("database_") or code in _SHOWN_AS_RAISED:
-            message = str(exc)
-        elif isinstance(exc, DataFetchError | FinancialProviderError):
-            message = provider_failure_sentence(exc, scope.ticker)
-        elif code is FailureReasonCode.CONFIGURATION_ERROR:
-            message = invalid(exc) if invalid is not None and isinstance(exc, ValueError) else str(exc)
-        elif code is FailureReasonCode.INVALID_INPUT and invalid is not None and isinstance(exc, ValueError):
-            detail = scope.mode is None or invalid_detail
-            message = invalid(exc) if detail else "Invalid analysis inputs or provider data."
-        else:
-            code = FailureReasonCode.EXECUTION_ERROR
-            message = unexpected(exc)
-            logger.exception("Unexpected failure reported to the user as: %s", message)
-        envelope = failure_envelope(code, message, cause=exc, analysis=analysis, method=method, ticker=scope.ticker)
+        cause = exc.cause if isinstance(exc, SavingFailureError) else exc
+        description = describe_failure(cause, scope.ticker, saving=isinstance(exc, SavingFailureError))
+        envelope = failure_envelope(
+            description.code, description.message, cause=cause, analysis=analysis, method=method, ticker=scope.ticker
+        )
         findings = provider_check_findings((envelope.provider_failure,), provider_check)
         if scope.mode is PresentationMode.JSON:
             typer.echo(failure_document(envelope.with_provider_check(findings.element())))
         else:
             echo_provider_check(findings, err=True)
-            typer.echo(message, err=True)
+            typer.echo(description.message, err=True)
             if scope.mode is PresentationMode.DIAGNOSTICS:
                 for diagnostic in envelope.diagnostics:
                     typer.echo(f"{diagnostic.rule}: {diagnostic.reason}", err=True)
-        raise typer.Exit(code=1) from exc
+        raise typer.Exit(code=1) from cause
 
 
 @contextmanager

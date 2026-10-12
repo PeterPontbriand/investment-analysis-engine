@@ -8,6 +8,7 @@ from src.core.strategy_errors import find
 from src.strategy_wiring import BY_METHOD_ID, BY_RESULT_TYPE, EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
 from src.workspace.codecs import EvidenceCodec
 from src.workspace.models import StrictJsonMapping
+from src.workspace.refresh import JobFailure
 from src.workspace.strategy_types import NativeEvidence
 
 
@@ -33,3 +34,9 @@ def codecs_with_decode(
 def failure_code(exception: BaseException) -> str:
     """Return the stable reason code the command line assigns to ``exception``, as ``refresh_watchlist`` receives it."""
     return classify_failure(exception).reason_code.value
+
+
+def failure_text(exception: BaseException, ticker: str, saving: bool) -> JobFailure:
+    """Return a job failure carrying the exception's own text and code, for tests of the refresh service alone."""
+    del ticker, saving
+    return JobFailure(reason_code=failure_code(exception), error=str(exception))
