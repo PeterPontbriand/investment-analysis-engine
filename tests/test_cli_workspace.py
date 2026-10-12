@@ -8,7 +8,9 @@ from unittest.mock import patch
 from uuid import UUID
 
 import pytest
+import typer
 from alembic.config import Config
+from pydantic import ValidationError
 from sqlalchemy import update
 from typer.testing import CliRunner
 
@@ -19,6 +21,7 @@ from src.config import ProjectSettings
 from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.schema import analysis_runs
 from src.data.repositories.sqlite import SQLiteDatabase
+from src.data.repositories.watchlists import SQLiteWatchlistRepository
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
@@ -27,7 +30,8 @@ from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
-from src.workspace.runs import AnalysisRun
+from src.workspace.runs import AnalysisRun, RunQuery
+from src.workspace.watchlists import WatchlistNotFoundError
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 from tests._wiring import encode_native
 
@@ -58,7 +62,7 @@ def test_watchlist_create_duplicate_name_exits_1() -> None:
 
 def test_watchlist_create_blank_name_is_a_usage_error() -> None:
     result = runner.invoke(app, ["watchlist", "create", "   "])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_watchlist_list_reports_no_watchlists_then_summaries() -> None:
@@ -109,32 +113,32 @@ def test_watchlist_create_seeds_one_method_across_multiple_tickers() -> None:
 
 def test_watchlist_create_seeding_requires_analysis_with_tickers() -> None:
     result = runner.invoke(app, ["watchlist", "create", "Bad", "AAPL"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--analysis is required" in normalize_cli_output(result.output)
 
 
 def test_watchlist_create_seeding_requires_tickers_with_analysis() -> None:
     result = runner.invoke(app, ["watchlist", "create", "Bad", "--analysis", "momentum"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "At least one TICKER is required" in normalize_cli_output(result.output)
 
 
 def test_watchlist_create_rejects_an_unknown_analysis_alias() -> None:
     result = runner.invoke(app, ["watchlist", "create", "Bad", "--analysis", "bogus", "AAPL"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--analysis must be one of" in normalize_cli_output(result.output)
 
 
 def test_watchlist_create_graham_growth_requires_its_assumptions() -> None:
     """Amendment A1 (§12): a method missing a required flag is a usage error, as the direct command produces."""
     result = runner.invoke(app, ["watchlist", "create", "Bad", "--analysis", "graham-growth", "AAPL"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--expected-growth" in normalize_cli_output(result.output)
 
     result = runner.invoke(
         app, ["watchlist", "create", "Bad", "--analysis", "graham-growth", "--expected-growth", "6.0", "AAPL"]
     )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--aaa-yield" in normalize_cli_output(result.output)
 
 
@@ -230,7 +234,7 @@ def test_watchlist_create_fcf_growth_rejects_an_invalid_growth_years() -> None:
     result = runner.invoke(
         app, ["watchlist", "create", "Bad FCF", "--analysis", "fcf-growth", "--growth-years", "7", "AAPL"]
     )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--growth-years must be 3, 4, or 5" in normalize_cli_output(result.output)
 
 
@@ -238,7 +242,7 @@ def test_watchlist_create_fcf_growth_rejects_an_invalid_forward_policy() -> None
     result = runner.invoke(
         app, ["watchlist", "create", "Bad FCF", "--analysis", "fcf-growth", "--forward-policy", "bogus", "AAPL"]
     )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--forward-policy must be" in normalize_cli_output(result.output)
 
 
@@ -247,7 +251,7 @@ def test_watchlist_create_fcf_growth_rejects_an_invalid_classification_basis() -
         app,
         ["watchlist", "create", "Bad FCF", "--analysis", "fcf-growth", "--classification-basis", "bogus", "AAPL"],
     )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--classification-basis must be" in normalize_cli_output(result.output)
 
 
@@ -255,13 +259,13 @@ def test_watchlist_create_fcf_growth_rejects_an_invalid_currency() -> None:
     result = runner.invoke(
         app, ["watchlist", "create", "Bad FCF", "--analysis", "fcf-growth", "--currency", "US", "AAPL"]
     )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--currency must be a three-letter ISO 4217 code" in normalize_cli_output(result.output)
 
 
 def test_watchlist_create_rejects_a_blank_seed_ticker() -> None:
     result = runner.invoke(app, ["watchlist", "create", "Blank Ticker", "--analysis", "momentum", "  "])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_watchlist_add_selection_appends_and_allows_the_same_method_twice() -> None:
@@ -304,7 +308,7 @@ def test_watchlist_add_selection_requires_at_least_one_ticker() -> None:
 def test_watchlist_add_selection_rejects_a_blank_ticker() -> None:
     _create("Blank Ticker Add")
     result = runner.invoke(app, ["watchlist", "add-selection", "Blank Ticker Add", "  ", "--analysis", "momentum"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_watchlist_remove_entry_by_1_based_index_and_renumbers_survivors() -> None:
@@ -331,7 +335,7 @@ def test_watchlist_remove_entry_out_of_range_exits_1() -> None:
 def test_watchlist_remove_entry_rejects_an_index_below_1() -> None:
     _create("Zero Index")
     result = runner.invoke(app, ["watchlist", "remove-entry", "Zero Index", "0"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "INDEX must be 1 or greater" in normalize_cli_output(result.output)
 
 
@@ -344,7 +348,7 @@ def test_watchlist_remove_entry_missing_watchlist_exits_1() -> None:
 def test_watchlist_remove_rejects_a_blank_ticker() -> None:
     _create("Blank Ticker Remove")
     result = runner.invoke(app, ["watchlist", "remove-ticker", "Blank Ticker Remove", "  "])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_watchlist_remove_removes_every_entry_for_a_ticker_across_methods() -> None:
@@ -436,7 +440,7 @@ def test_watchlist_show_groups_by_ticker_by_default_and_by_method_on_request() -
 def test_watchlist_show_rejects_an_invalid_group_by() -> None:
     _create("Bad Group By")
     result = runner.invoke(app, ["watchlist", "show", "Bad Group By", "--group-by", "bogus"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--group-by must be" in normalize_cli_output(result.output)
 
 
@@ -467,12 +471,12 @@ def test_runs_list_reports_no_matches_then_summaries() -> None:
 
 def test_runs_list_rejects_an_invalid_status_as_a_usage_error() -> None:
     result = runner.invoke(app, ["runs", "list", "--status", "bogus"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_runs_list_rejects_the_removed_cancelled_status_as_a_usage_error() -> None:
     result = runner.invoke(app, ["runs", "list", "--status", "cancelled"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "cancelled" not in normalize_cli_output(result.output).split("must be one of:")[-1]
 
 
@@ -484,7 +488,7 @@ def test_runs_show_missing_id_exits_1() -> None:
 
 def test_runs_show_invalid_id_is_a_usage_error() -> None:
     result = runner.invoke(app, ["runs", "show", "not-a-uuid"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     output = normalize_cli_output(result.output)
     assert "not a shortened or partial value" in output
     assert "RUN_ID" in output
@@ -493,7 +497,7 @@ def test_runs_show_invalid_id_is_a_usage_error() -> None:
 def test_runs_show_rejects_conflicting_view_flags() -> None:
     run_id = "11111111-1111-4111-8111-111111111111"
     result = runner.invoke(app, ["runs", "show", run_id, "--details", "--json"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 class _FixtureClient(FixtureDataClient):
@@ -562,6 +566,44 @@ def test_runs_show_replays_a_real_persisted_run_and_exits_0_even_when_failed() -
     assert "AAPL" in normalize_cli_output(result.output)
 
 
+def _unreadable_run_sentence(run_id: UUID) -> str:
+    return f"Analysis Run {run_id} could not be read: its stored record is malformed or does not match its summary."
+
+
+_LIBRARY_TEXT = ("input_value", "validation error for", "errors.pydantic.dev", "Malformed or inconsistent")
+
+
+def test_runs_show_reports_an_envelope_that_fails_validation_in_one_sentence(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Issue 113: the validation library's text goes to the log, never to the user."""
+    run = _insert_momentum_run()
+    database = SQLiteDatabase(src.cli_workspace.settings)
+    try:
+        with database.transaction() as connection:
+            connection.execute(
+                update(analysis_runs)
+                .where(analysis_runs.c.analysis_run_id == str(run.analysis_run_id))
+                .values(envelope_json='{"requested_config": {}}')
+            )
+    finally:
+        database.close()
+    sentence = _unreadable_run_sentence(run.analysis_run_id)
+
+    text = runner.invoke(app, ["runs", "show", str(run.analysis_run_id)])
+    as_json = runner.invoke(app, ["runs", "show", str(run.analysis_run_id), "--json"])
+
+    assert text.exit_code == as_json.exit_code == 1
+    assert text.stdout == ""
+    assert as_json.stderr == ""
+    assert text.stderr.strip() == sentence
+    document = json.loads(as_json.stdout)
+    assert (document["reason_code"], document["reason"]) == ("invalid_stored_run", sentence)
+    for output in (text.stderr, as_json.stdout):
+        assert not any(token in output for token in _LIBRARY_TEXT)
+    assert any(record.exc_info and "validation error" in str(record.exc_info[1]) for record in caplog.records)
+
+
 def test_runs_show_rejects_a_corrupted_stored_envelope_without_a_raw_traceback() -> None:
     """A row whose relational columns disagree with its own envelope is a sanitized exit 1.
 
@@ -587,7 +629,14 @@ def test_runs_show_rejects_a_corrupted_stored_envelope_without_a_raw_traceback()
     assert result.exit_code == 1
     assert isinstance(result.exception, SystemExit)  # a deliberate typer.Exit, not an unhandled traceback
     assert "Traceback" not in result.output
-    assert "Malformed or inconsistent" in normalize_cli_output(result.output)
+    assert normalize_cli_output(result.output) == _unreadable_run_sentence(run.analysis_run_id)
+    as_json = runner.invoke(app, ["runs", "show", str(run.analysis_run_id), "--json"])
+    document = json.loads(as_json.stdout)
+    assert (document["reason_code"], document["reason"]) == (
+        "invalid_stored_run",
+        _unreadable_run_sentence(run.analysis_run_id),
+    )
+    assert not any(token in as_json.stdout + result.output for token in _LIBRARY_TEXT)
 
 
 def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
@@ -635,10 +684,10 @@ def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
 
 def test_runs_list_rejects_an_invalid_ticker_or_refresh_id_as_a_usage_error() -> None:
     result = runner.invoke(app, ["runs", "list", "--ticker", "   "])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
     result = runner.invoke(app, ["runs", "list", "--refresh-id", "not-a-uuid"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     output = normalize_cli_output(result.output)
     assert "not a shortened or partial value" in output
     assert "--refresh-id" in output
@@ -730,7 +779,7 @@ def test_runs_list_filters_by_analysis_alias() -> None:
 def test_runs_list_rejects_a_canonical_method_id_or_unknown_alias_as_a_usage_error() -> None:
     for value in ("sma_crossover", "bogus"):
         result = runner.invoke(app, ["runs", "list", "--analysis", value])
-        assert result.exit_code == 2, value
+        assert result.exit_code == 1, value
         assert "--analysis must be one of: momentum, graham-number, graham-growth, fcf-growth." in (
             normalize_cli_output(result.output)
         )
@@ -766,8 +815,8 @@ def test_the_analysis_help_text_names_every_declared_alias_as_before(args: list[
 def test_every_analysis_option_rejects_an_unknown_alias_with_the_same_usage_error(args: list[str]) -> None:
     """The validation error lists the declared aliases, in declaration order, with no ``or``."""
     result = runner.invoke(app, args, env={"COLUMNS": "200"})
-    assert result.exit_code == 2, result.output
-    assert "Invalid value: --analysis must be one of: momentum, graham-number, graham-growth, fcf-growth." in (
+    assert result.exit_code == 1, result.output
+    assert "--analysis must be one of: momentum, graham-number, graham-growth, fcf-growth." in (
         normalize_cli_output(result.output)
     )
 
@@ -866,7 +915,7 @@ def test_watchlist_delete_non_interactive_without_yes_is_a_usage_error_and_chang
     with patch("src.cli_workspace._stdin_is_interactive", return_value=False):
         result = runner.invoke(app, ["watchlist", "delete", "Scratch"])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--yes" in normalize_cli_output(result.output)
     assert _database_path().read_bytes() == before
 
@@ -878,7 +927,7 @@ def test_watchlist_delete_non_interactive_check_happens_before_the_database_is_o
     ):
         result = runner.invoke(app, ["watchlist", "delete", "Scratch"])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_watchlist_delete_interactive_confirm_shows_name_id_and_count_then_deletes() -> None:
@@ -1011,7 +1060,7 @@ def test_watchlist_rename_to_a_blank_name_is_a_usage_error() -> None:
 
     result = runner.invoke(app, ["watchlist", "rename", "Keep", "   "])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "Keep" in _listed_names()
 
 
@@ -1057,3 +1106,73 @@ def test_on_windows_a_terminal_report_must_be_confirmed_as_a_real_console(consol
         patch("src.cli_workspace._windows_console_attached", return_value=console_attached),
     ):
         assert src.cli_workspace._stdin_is_interactive() is console_attached
+
+
+# --- the catch-all in _workspace_database ---------------------------------------------------------------------
+
+
+def _a_real_validation_error() -> ValidationError:
+    try:
+        RunQuery(limit=0)
+    except ValidationError as error:
+        return error
+    raise AssertionError("RunQuery accepted limit 0")
+
+
+_UNEXPECTED = [
+    pytest.param(_a_real_validation_error(), id="validation-error"),
+    pytest.param(ValueError("plain detail"), id="value-error"),
+    pytest.param(RuntimeError("runtime detail"), id="runtime-error"),
+]
+
+
+@pytest.mark.parametrize("error", _UNEXPECTED)
+@pytest.mark.parametrize(
+    ("typed", "target", "json_flag"),
+    [
+        ("watchlist show", (SQLiteWatchlistRepository, "get"), True),
+        ("watchlist list", (SQLiteWatchlistRepository, "list"), False),
+        ("runs list", (SQLiteAnalysisRunRepository, "list"), True),
+    ],
+)
+def test_an_exception_without_its_own_code_is_an_unexpected_failure_with_one_fixed_sentence(
+    error: Exception, typed: str, target: tuple[type, str], json_flag: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    _create("Core")
+    arguments = [*typed.split(), *(["Core"] if typed == "watchlist show" else [])]
+    sentence = f"{typed} failed unexpectedly."
+    owner, attribute = target
+    with patch.object(owner, attribute, side_effect=error):
+        text = runner.invoke(app, arguments)
+        as_json = runner.invoke(app, [*arguments, "--json"]) if json_flag else None
+
+    assert text.exit_code == 1
+    assert text.stdout == ""
+    assert text.stderr.strip() == sentence
+    outputs = [text.stderr]
+    if as_json is not None:
+        assert as_json.exit_code == 1
+        assert as_json.stderr == ""
+        document = json.loads(as_json.stdout)
+        assert (document["reason_code"], document["reason"]) == ("execution_error", sentence)
+        outputs.append(as_json.stdout)
+    for output in outputs:
+        assert not any(token in output for token in _LIBRARY_TEXT)
+        assert str(error).splitlines()[0] not in output
+    assert any(record.exc_info and record.exc_info[1] is error for record in caplog.records)
+
+
+def test_an_exception_that_declares_its_own_code_keeps_its_own_sentence() -> None:
+    _create("Core")
+    with patch("src.cli_workspace.SQLiteWatchlistRepository.get", side_effect=WatchlistNotFoundError("own sentence")):
+        result = runner.invoke(app, ["watchlist", "show", "Core", "--json"])
+    document = json.loads(result.stdout)
+    assert result.exit_code == 1
+    assert (document["reason_code"], document["reason"]) == ("watchlist_not_found", "own sentence")
+
+
+def test_a_deliberate_exit_passes_through_the_catch_all() -> None:
+    _create("Core")
+    with patch("src.cli_workspace.SQLiteWatchlistRepository.get", side_effect=typer.Exit(7)):
+        result = runner.invoke(app, ["watchlist", "show", "Core"])
+    assert result.exit_code == 7

@@ -51,18 +51,24 @@ def _validate_momentum_windows(short_window: int, long_window: int, rsi_period: 
     """
     if short_window <= 0:
         raise InvalidParameterError(
-            f"Invalid momentum window: --short-window must be positive (received {short_window})."
+            f"Invalid momentum window: --short-window must be positive (received {short_window}).",
+            parameters=("--short-window",),
         )
     if long_window <= 0:
         raise InvalidParameterError(
-            f"Invalid momentum window: --long-window must be positive (received {long_window})."
+            f"Invalid momentum window: --long-window must be positive (received {long_window}).",
+            parameters=("--long-window",),
         )
     if rsi_period <= 0:
-        raise InvalidParameterError(f"Invalid momentum period: --rsi-period must be positive (received {rsi_period}).")
+        raise InvalidParameterError(
+            f"Invalid momentum period: --rsi-period must be positive (received {rsi_period}).",
+            parameters=("--rsi-period",),
+        )
     if short_window >= long_window:
         raise InvalidParameterError(
             f"Invalid momentum windows: --short-window ({short_window}) "
-            f"must be smaller than --long-window ({long_window})."
+            f"must be smaller than --long-window ({long_window}).",
+            parameters=("--short-window", "--long-window"),
         )
 
 
@@ -149,26 +155,30 @@ def command(  # noqa: PLR0913
     ),
 ) -> None:
     """Execute SMA crossover momentum analysis over daily historical market prices."""
-    requested_ticker = _resolve_ticker(ticker, ticker_option, required=False, command="momentum")
-    mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
 
-    label = requested_ticker or "the configured default ticker"
+    def label() -> str:
+        return scope.ticker or "the configured default ticker"
+
     with execution_errors(
-        mode=mode,
+        json_output=json_output,
         selection_type=MomentumSelection,
-        ticker=requested_ticker,
         provider_check=provider_check_choice(context, no_provider_check=no_provider_check),
         invalid_detail=True,
         invalid=lambda _exc: (
-            f"Unable to complete momentum analysis for {label}: the returned price history could not be analyzed."
+            f"Unable to complete momentum analysis for {label()}: the returned price history could not be analyzed."
         ),
-        unexpected=lambda _exc: f"Momentum analysis failed unexpectedly for {label}.",
-    ):
+        unexpected=lambda _exc: f"Momentum analysis failed unexpectedly for {label()}.",
+    ) as scope:
+        requested_ticker = _resolve_ticker(ticker, ticker_option, required=False, command="momentum")
+        scope.ticker = requested_ticker
+        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+        scope.mode = mode
         _validate_momentum_windows(short_window, long_window, rsi_period)
         boundary = _parse_as_of(as_of)
         if save_run and requested_ticker is None:
-            raise typer.BadParameter(
-                "--save-run requires an explicit ticker; the configured default ticker is not saved."
+            raise InvalidParameterError(
+                "--save-run requires an explicit ticker; the configured default ticker is not saved.",
+                parameters=("--save-run",),
             )
         target_ticker = require_ticker(requested_ticker if requested_ticker is not None else _default_ticker())
         start_date = _default_history_start_date()

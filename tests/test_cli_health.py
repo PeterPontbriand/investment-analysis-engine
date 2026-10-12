@@ -163,10 +163,10 @@ def test_provider_option_is_case_insensitive() -> None:
     assert output.strip().startswith("yfinance: ok")
 
 
-def test_unknown_provider_is_a_usage_error_listing_the_valid_ids() -> None:
+def test_unknown_provider_is_an_invalid_parameter_listing_the_valid_ids() -> None:
     exit_code, output = _invoke(_clients(), "--provider", "unknown")
 
-    assert exit_code == 2
+    assert exit_code == 1
     assert "yfinance, sec_edgar" in normalize_cli_output(output)
 
 
@@ -302,12 +302,16 @@ def test_json_provider_option_runs_only_the_named_provider() -> None:
     assert yahoo.calls == 0
 
 
-def test_json_with_an_unknown_provider_is_a_usage_error_and_writes_no_document() -> None:
+def test_json_with_an_unknown_provider_writes_the_failure_envelope_and_no_health_document() -> None:
     with patch.object(cli_health, "build_provider_clients", return_value=_clients()):
         result = runner.invoke(app, ["health", "--json", "--provider", "unknown"])
 
-    assert result.exit_code == 2
-    assert result.stdout == ""
+    assert result.exit_code == 1
+    assert result.stderr == ""
+    document = json.loads(result.stdout)
+    assert document["reason_code"] == "invalid_parameter"
+    assert document["parameters"] == ["--provider"]
+    assert "providers" not in document
 
 
 def test_the_document_is_a_report_and_not_the_failure_envelope() -> None:

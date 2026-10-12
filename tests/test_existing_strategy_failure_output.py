@@ -116,7 +116,8 @@ def test_momentum_boundary_before_the_first_observation_is_input_unavailable_in_
     assert payload["reason_code"] == "no_eligible_observations"
     assert payload["reason"] == _NO_HISTORY_REASON
     assert payload["result"] is None
-    assert payload["schema_version"] == 9
+    assert payload["schema_version"] == 10
+    assert payload["parameters"] is None
     assert payload["database"] is None
     assert payload["provider_failure"] is None
     assert payload["provider_check"] is None

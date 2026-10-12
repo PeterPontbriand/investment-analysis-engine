@@ -9,6 +9,7 @@ import typer
 from typer.testing import CliRunner
 
 from src.cli import app
+from src.core.operator_errors import InvalidParameterError
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
 from src.strategies.graham_growth import cli as graham_growth_cli
 from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
@@ -122,7 +123,8 @@ def test_both_commands_execute_real_analyzers_with_fixture_evidence(command: str
 
 @pytest.mark.parametrize("command", ["graham-number", "graham-growth"])
 @pytest.mark.parametrize(
-    "error", [RuntimeError("private details"), typer.Exit(2), typer.BadParameter("invalid option")]
+    "error",
+    [RuntimeError("private details"), typer.Exit(2), InvalidParameterError("invalid option", parameters=("--option",))],
 )
 def test_command_exception_closes_cache_and_preserves_exit(command: str, error: Exception) -> None:
     database = MagicMock()
@@ -132,7 +134,7 @@ def test_command_exception_closes_cache_and_preserves_exit(command: str, error: 
         patch(f"src.strategies.{command.replace('-', '_')}.cli.build_graham_resolver", side_effect=error),
     ):
         result = CliRunner().invoke(app, _arguments(command))
-    assert result.exit_code == (2 if isinstance(error, (typer.Exit, typer.BadParameter)) else 1)
+    assert result.exit_code == (2 if isinstance(error, typer.Exit) else 1)
     database.close.assert_called_once_with()
     assert "private details" not in result.output
 
@@ -147,9 +149,10 @@ def test_usage_validation_precedes_resources(command: str, options: list[str]) -
         patch(f"src.strategies.{command.replace('-', '_')}.cli.build_graham_resolver") as build,
     ):
         result = CliRunner().invoke(app, [*_arguments(command), *options])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "input_value" not in result.output
     assert "validation error for" not in result.output
+    assert "errors.pydantic.dev" not in result.output
     database.assert_not_called()
     build.assert_not_called()
 
@@ -189,5 +192,5 @@ def test_missing_ticker_names_the_invoking_command(command: str) -> None:
     arguments = _arguments(command)
     arguments.remove(SECURITY_ID)
     result = CliRunner().invoke(app, arguments)
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert f"ian {command} TICKER" in normalize_cli_output(result.output)

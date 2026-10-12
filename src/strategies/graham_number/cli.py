@@ -152,64 +152,63 @@ def command(  # noqa: PLR0913
     ),
 ) -> None:
     """Execute the Graham Number earnings-and-book-value screen."""
-    target_ticker = _resolve_ticker(ticker, ticker_option, required=True, command="graham-number")
-    assert target_ticker is not None
-    mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
-    boundary = _parse_as_of(as_of)
-    provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
     use_cache = not no_cache
     executed_at = utc_now()
     provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
-    # Permissive by design: this config accepts any injected provider id (a synthetic
-    # test-only id included) exactly as the CLI's Graham configs always have. The
-    # strict, CLI-supported-providers-only GrahamNumberSelection is built lazily,
-    # only when --save-run is set (inside _run_graham_number's request_factory) —
-    # constructing it eagerly here would reject inputs this permissive path accepts.
-    with config_usage_errors():
-        config = GrahamNumberConfig.model_validate(
-            {
-                "security_provider_id": provider_id,
-                "eps_basis": eps_basis,
-                "eps_override": eps,
-                "quote_override": current_price,
-                "bvps_override": bvps,
-            }
-        )
-    with (
-        execution_errors(
-            mode=mode,
-            selection_type=GrahamNumberSelection,
-            ticker=target_ticker,
-            provider_check=provider_check,
-            unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
-        ),
-        _production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache,
-    ):
-        with execution_errors(
-            mode=mode,
-            selection_type=GrahamNumberSelection,
-            ticker=target_ticker,
-            invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
-            unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
-        ):
-            resolver = build_graham_resolver(
-                resolver_type=GrahamNumberInputResolver,
-                data_provider=config.security_provider_id,
-                cache=cache,
-                clock=lambda: executed_at,
+    with execution_errors(
+        json_output=json_output,
+        selection_type=GrahamNumberSelection,
+        provider_check=provider_check,
+        unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {scope.ticker}.",
+    ) as scope:
+        target_ticker = _resolve_ticker(ticker, ticker_option, required=True, command="graham-number")
+        assert target_ticker is not None
+        scope.ticker = target_ticker
+        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+        scope.mode = mode
+        boundary = _parse_as_of(as_of)
+        provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
+        # Permissive by design: this config accepts any injected provider id (a synthetic
+        # test-only id included) exactly as the CLI's Graham configs always have. The
+        # strict, CLI-supported-providers-only GrahamNumberSelection is built lazily,
+        # only when --save-run is set (inside _run_graham_number's request_factory) —
+        # constructing it eagerly here would reject inputs this permissive path accepts.
+        with config_usage_errors():
+            config = GrahamNumberConfig.model_validate(
+                {
+                    "security_provider_id": provider_id,
+                    "eps_basis": eps_basis,
+                    "eps_override": eps,
+                    "quote_override": current_price,
+                    "bvps_override": bvps,
+                }
             )
-        output, exit_code = _run_graham_number(
-            resolver=resolver,
-            ticker=target_ticker,
-            config=config,
-            mode=mode,
-            profile_provider=YFinanceClient(),
-            as_of=boundary,
-            executed_at=executed_at,
-            use_cache=use_cache,
-            save_run=save_run,
-            provider_check=provider_check,
-        )
+        with _production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache:
+            with execution_errors(
+                mode=mode,
+                selection_type=GrahamNumberSelection,
+                ticker=target_ticker,
+                invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
+                unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
+            ):
+                resolver = build_graham_resolver(
+                    resolver_type=GrahamNumberInputResolver,
+                    data_provider=config.security_provider_id,
+                    cache=cache,
+                    clock=lambda: executed_at,
+                )
+            output, exit_code = _run_graham_number(
+                resolver=resolver,
+                ticker=target_ticker,
+                config=config,
+                mode=mode,
+                profile_provider=YFinanceClient(),
+                as_of=boundary,
+                executed_at=executed_at,
+                use_cache=use_cache,
+                save_run=save_run,
+                provider_check=provider_check,
+            )
     typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
     if exit_code:
         raise typer.Exit(code=exit_code)

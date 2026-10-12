@@ -152,7 +152,8 @@ def test_refresh_empty_target_is_a_failure_exiting_1() -> None:
 def test_refresh_rejects_an_out_of_range_worker_count() -> None:
     _create_momentum_only("My Watch", ["BTC-USD"])
     result = runner.invoke(app, ["refresh", "My Watch", "--workers", "5"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
+    assert result.stderr.strip() == "--workers must be between 1 and 4."
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")

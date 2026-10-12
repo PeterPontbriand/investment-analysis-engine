@@ -242,6 +242,22 @@
       "description": "The method of a direct command; null otherwise.",
       "title": "Method"
     },
+    "parameters": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Set exactly when reason_code is invalid_parameter: the offending options (declared primary long spelling) and arguments (upper-case name); null otherwise.",
+      "title": "Parameters"
+    },
     "provider_check": {
       "anyOf": [
         {
@@ -284,8 +300,8 @@
       "type": "null"
     },
     "schema_version": {
-      "const": 9,
-      "default": 9,
+      "const": 10,
+      "default": 10,
       "title": "Schema Version",
       "type": "integer"
     },

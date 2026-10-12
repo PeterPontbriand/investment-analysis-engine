@@ -32,6 +32,7 @@ _ENVELOPE_KEYS = {
     "analysis",
     "method",
     "ticker",
+    "parameters",
     "result",
     "diagnostics",
     "database",
@@ -43,7 +44,7 @@ _ENVELOPE_KEYS = {
 def _envelope(result_stdout: str) -> dict[str, object]:
     document = json.loads(result_stdout)
     assert set(document) == _ENVELOPE_KEYS
-    assert document["schema_version"] == 9
+    assert document["schema_version"] == 10
     assert document["result"] is None
     assert document["diagnostics"] == []
     return dict(document)
@@ -79,6 +80,7 @@ def test_direct_momentum_window_failure_is_an_invalid_parameter_envelope(flags: 
     assert envelope["reason"] == sentence
     assert (envelope["analysis"], envelope["method"], envelope["ticker"]) == ("momentum", "sma_crossover", "ACME")
     assert envelope["database"] is None
+    assert envelope["parameters"] == [item for item in flags if item.startswith("--") and item in sentence]
 
 
 @pytest.mark.parametrize(("flags", "sentence"), _MOMENTUM_WINDOW_CASES)
@@ -113,11 +115,14 @@ def test_momentum_window_failure_is_reported_before_an_invalid_as_of() -> None:
     assert _envelope(result.stdout)["reason_code"] == "invalid_parameter"
 
 
-def test_momentum_usage_errors_other_than_the_windows_stay_usage_errors() -> None:
+def test_a_momentum_as_of_check_is_an_invalid_parameter_envelope_not_a_usage_error() -> None:
     result = runner.invoke(app, ["momentum", "ACME", "--as-of", "not-a-date", "--json"])
 
-    assert result.exit_code == 2
-    assert result.stdout == ""
+    assert result.exit_code == 1
+    assert not result.stderr
+    envelope = _envelope(result.stdout)
+    assert envelope["reason_code"] == "invalid_parameter"
+    assert envelope["parameters"] == ["--as-of"]
 
 
 @pytest.mark.parametrize(

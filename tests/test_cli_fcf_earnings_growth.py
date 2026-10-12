@@ -111,21 +111,21 @@ def test_cli_fcf_growth_selects_per_share_classification_basis() -> None:
 
 def test_cli_fcf_growth_rejects_invalid_classification_basis() -> None:
     result = runner.invoke(app, ["fcf-growth", "ACME", "--classification-basis", "per-company"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--classification-basis must be total-fcf or fcf-per-share" in normalize_cli_output(result.output)
 
 
 def test_cli_fcf_growth_rejects_invalid_horizon_before_provider_setup() -> None:
     result = runner.invoke(app, ["fcf-growth", "ACME", "--growth-years", "2"])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--growth-years must be 3, 4, or 5" in normalize_cli_output(result.output)
 
 
 def test_cli_fcf_growth_modes_are_mutually_exclusive() -> None:
     result = runner.invoke(app, ["fcf-growth", "ACME", "--details", "--json"])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "Choose only one" in result.output
 
 

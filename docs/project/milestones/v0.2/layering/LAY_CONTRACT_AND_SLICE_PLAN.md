@@ -40,8 +40,8 @@ work-package status. The design, the proof and the owner decisions are in [LAY_D
 | LAY.7 | [Momentum receives its defaults when built](#lay7--momentum-wiring) | Planned | |
 | LAY.8 | [Loop-free check, layered listing and closing](#lay8--loop-free-check-and-closing) | Planned | |
 
-**Provisional order with the other work packages:** the next SWC slice (SWC.4d), then LAY.1 to LAY.8, then the remaining SWC
-slices (SWC.5 to SWC.7), then PKG. It is provisional until the SWC plan is reviewed
+**Provisional order with the other work packages:** SWC.4e, SWC.4f, then LAY.1 to LAY.8, then the remaining SWC
+slices (SWC.5 to SWC.7), then PKG. SWC.4d is complete. It is provisional until the SWC plan is reviewed
 ([Appendix A.5](#a5-provisional-order-with-swc-and-pkg-2026-10-11)).
 
 The order within LAY is forced by the graph, not chosen for convenience ([LAY_DESIGN.md §6](LAY_DESIGN.md#6-slice-order)):
@@ -232,5 +232,5 @@ reports if that cannot be done without changing behavior); 8 as two slices (A.2)
 
 ### A.5 Provisional order with SWC and PKG (2026-10-11)
 
-The next SWC slice (SWC.4d), then LAY.1 to LAY.8, then the remaining SWC slices (SWC.5 to SWC.7), then PKG. Provisional
+SWC.4e, SWC.4f, then LAY.1 to LAY.8, then the remaining SWC slices (SWC.5 to SWC.7), then PKG. SWC.4d is complete. Provisional
 until the SWC plan is reviewed; the SWC plan is not edited by LAY.0.

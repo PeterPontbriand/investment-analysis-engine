@@ -6,24 +6,27 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
-from typer._click.exceptions import UsageError
+from pydantic import BaseModel, field_validator
 
 from src.cli_support import (
     _canonical_provider_id,
     _parse_as_of,
     _presentation_mode,
     _resolve_ticker,
+    config_usage_errors,
     execution_errors,
+    parameter_failures,
     provider_failure_sentence,
 )
+from src.core.operator_errors import InvalidParameterError
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 from src.reporting.presentation import PresentationMode
 
 
-@pytest.mark.parametrize("error", [typer.Exit(2), typer.BadParameter("bad option"), UsageError("bad usage")])
-def test_intentional_cli_errors_propagate_without_output(error: Exception) -> None:
+@pytest.mark.parametrize("error", [typer.Exit(2), typer.Exit(0)])
+def test_intentional_cli_exits_propagate_without_output(error: Exception) -> None:
     callback = MagicMock()
     with (
         patch("src.cli_support.typer.echo") as echo,
@@ -76,23 +79,32 @@ def test_date_and_timestamp_boundaries_retain_timezone_semantics() -> None:
 
 
 @pytest.mark.parametrize("value", ["", "bad", "2025-02-30", "2025-12-31T12:00:00"])
-def test_invalid_boundaries_are_usage_errors(value: str) -> None:
-    with pytest.raises(typer.BadParameter):
+def test_invalid_boundaries_are_invalid_parameters(value: str) -> None:
+    with pytest.raises(InvalidParameterError) as caught:
         _parse_as_of(value)
+    assert caught.value.parameters == ("--as-of",)
 
 
 def test_ticker_provider_and_presentation_normalization() -> None:
     assert _resolve_ticker(" ko ", "KO", required=True, command="graham-number") == "KO"
     assert _resolve_ticker(None, None, required=False, command="momentum") is None
-    with pytest.raises(typer.BadParameter, match="graham-growth TICKER"):
+    with pytest.raises(InvalidParameterError, match="graham-growth TICKER") as missing:
         _resolve_ticker(None, None, required=True, command="graham-growth")
+    assert missing.value.parameters == ("TICKER",)
+    with pytest.raises(InvalidParameterError) as blank:
+        _resolve_ticker(" ", None, required=False, command="momentum")
+    assert (str(blank.value), blank.value.parameters) == ("TICKER must be a non-empty symbol.", ("TICKER",))
+    with pytest.raises(InvalidParameterError) as blank_option:
+        _resolve_ticker(None, " ", required=False, command="momentum")
+    assert blank_option.value.parameters == ("--ticker",)
     assert _canonical_provider_id(" SEC_EDGAR ") == "sec_edgar"
     assert _canonical_provider_id(None) is None
-    with pytest.raises(typer.BadParameter):
+    with pytest.raises(InvalidParameterError):
         _canonical_provider_id(" ")
     assert _presentation_mode(details=False, diagnostics=False, json_output=True) is PresentationMode.JSON
-    with pytest.raises(typer.BadParameter):
+    with pytest.raises(InvalidParameterError) as exclusive:
         _presentation_mode(details=True, diagnostics=True, json_output=False)
+    assert exclusive.value.parameters == ("--details", "--diagnostics")
 
 
 _KIND_SENTENCES = [
@@ -158,3 +170,77 @@ def test_a_command_with_no_callbacks_still_reports_a_raised_provider_failure_as_
     ):
         raise error
     assert json.loads(echo.call_args.args[0])["reason_code"] == "provider_unreachable"
+
+
+def test_a_parameter_failure_before_the_mode_is_known_writes_the_envelope_when_json_was_given() -> None:
+    with (
+        patch("src.cli_support.typer.echo") as echo,
+        pytest.raises(typer.Exit) as caught,
+        execution_errors(json_output=True, unexpected=lambda _exc: "unexpected"),
+    ):
+        raise InvalidParameterError("--a is wrong.", parameters=("--a",))
+    assert caught.value.exit_code == 1
+    document = json.loads(echo.call_args.args[0])
+    assert (document["reason_code"], document["parameters"], document["ticker"]) == ("invalid_parameter", ["--a"], None)
+
+
+def test_the_scope_carries_what_the_command_resolved_before_the_failure() -> None:
+    def run() -> None:
+        with execution_errors(json_output=True, unexpected=lambda _exc: "unexpected") as scope:
+            scope.ticker = "KO"
+            scope.mode = PresentationMode.JSON
+            raise InvalidParameterError("--a is wrong.", parameters=("--a",))
+
+    with patch("src.cli_support.typer.echo") as echo, pytest.raises(typer.Exit):
+        run()
+    assert json.loads(echo.call_args.args[0])["ticker"] == "KO"
+
+
+def test_a_parameter_failure_in_text_goes_to_standard_error() -> None:
+    with (
+        patch("src.cli_support.typer.echo") as echo,
+        pytest.raises(typer.Exit) as caught,
+        execution_errors(unexpected=lambda _exc: "unexpected"),
+    ):
+        raise InvalidParameterError("--a is wrong.", parameters=("--a",))
+    assert caught.value.exit_code == 1
+    echo.assert_called_once_with("--a is wrong.", err=True)
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+def test_parameter_failures_reports_only_an_invalid_parameter(json_output: bool) -> None:
+    with (
+        patch("src.cli_support.typer.echo") as echo,
+        pytest.raises(typer.Exit) as caught,
+        parameter_failures(json_output=json_output),
+    ):
+        raise InvalidParameterError("--a is wrong.", parameters=("--a",))
+    assert caught.value.exit_code == 1
+    written = echo.call_args.args[0]
+    assert (json.loads(written)["parameters"] == ["--a"]) if json_output else (written == "--a is wrong.")
+    with pytest.raises(RuntimeError), parameter_failures(json_output=json_output):
+        raise RuntimeError("not a parameter")
+
+
+def test_config_usage_errors_fails_loudly_for_a_field_it_does_not_map() -> None:
+    class Model(BaseModel):
+        mystery: int
+
+    with pytest.raises(KeyError), config_usage_errors():
+        Model.model_validate({"mystery": "x"})
+
+
+def test_config_usage_errors_names_the_option_and_strips_the_library_prefix() -> None:
+    class Model(BaseModel):
+        eps_override: float
+
+        @field_validator("eps_override")
+        @classmethod
+        def _positive(cls, value: float) -> float:
+            del value
+            raise ValueError("Financial override must be a finite number.")
+
+    with pytest.raises(InvalidParameterError) as caught, config_usage_errors():
+        Model.model_validate({"eps_override": 1.0})
+    assert str(caught.value) == "Invalid --eps: Financial override must be a finite number."
+    assert caught.value.parameters == ("--eps",)

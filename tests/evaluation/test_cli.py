@@ -124,7 +124,7 @@ def test_evaluate_cli_rejects_unknown_case_and_does_not_create_report(tmp_path: 
 
     result = runner.invoke(app, ["evaluate", "--case", "NOT-A-CASE", "--report", str(target)])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "Unknown Golden case ID" in result.output
     assert not target.exists()
 
@@ -139,7 +139,7 @@ def test_evaluate_cli_rejects_a_partly_anchored_windows_report_path(
 
     result = runner.invoke(app, ["evaluate", "--report", report])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     output = normalize_cli_output(result.output)
     assert "--report path" in output
     assert "Windows would" in output
@@ -159,7 +159,7 @@ def test_evaluate_cli_protects_existing_report_unless_overwrite_is_explicit(tmp_
         terminal_width=80,
     )
 
-    assert blocked.exit_code == 2
+    assert blocked.exit_code == 1
     assert "Use --overwrite" in normalize_cli_output(blocked.output)
     assert target.read_text(encoding="utf-8") == "preserve me"
 
@@ -252,6 +252,6 @@ def test_evaluate_cli_rejects_ollama_options_in_default_mode(tmp_path: Path) -> 
         terminal_width=80,
     )
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "Ollama options require --mode ollama" in normalize_cli_output(result.output)
     assert not target.exists()

@@ -56,7 +56,9 @@ document-link check and applicable documentation checks.
 | SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Complete | 2026-10-07 |
 | SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Complete | 2026-10-07 |
 | SWC.4c.1 | [Common header and tail for strategy documents](#swc4c1--common-header-and-tail-for-strategy-documents) | Complete | 2026-10-09 |
-| SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Next | |
+| SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Complete | 2026-10-11 |
+| SWC.4e | [The direct Graham commands reject an unsupported provider](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) | Next | |
+| SWC.4f | [One sentence per failure for the direct commands and refresh](#swc4f--one-sentence-per-failure-for-the-direct-commands-and-refresh) | Planned | |
 | SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
@@ -528,14 +530,49 @@ version and result-schema version distinct and do not silently reinterpret histo
   check is an `invalid_parameter` failure through the envelope with exit 1 ([B.10](#b10-swc4a-momentum-window-failure-2026-10-06)),
   while the Graham and FCF parameter checks, and the other checks raised as `typer.BadParameter`, exit 2 as plain text, even
   under `--json`.
-- **Decision:** SWC.4d decides whether those validation failures move into the failure envelope, starting with the Graham and
-  FCF parameter checks, and which of the rest follow. It does not revisit failures the parser rejects before a command runs,
-  which are decided ([B.12](#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06)). SWC.4d lists its own output
-  changes, by command, when it is planned. No behavior changes until it runs.
-- **Scope:** to be set by the SWC.4d plan; the question and the current behavior are in
-  [design §13.3](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#which-option-values-are-invalid-parameter-today).
-- **Branch:** `feat/swc-4d-command-validation-failures`, from `main` after SWC.4c has merged.
-- **Detail:** ⚠ no slice plan yet.
+- **Decision:** every check a command raises itself moves into the failure envelope ([B.14](#b14-swc4d-command-validation-failures-2026-10-11)):
+  - the strategy option checks, the shared ones (ticker, `--as-of`, `--data-provider`, the exclusive output flags), the workspace
+    ones, and those on `health`, `database` and `evaluate`;
+  - each reports `invalid_parameter` with exit 1; exit 2 keeps one meaning, that the parser rejected the command line and no command
+    code ran ([B.12](#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06)), so no check becomes a parser constraint and no
+    parser error is intercepted;
+  - a command with no `--json` writes the sentence to standard error and exits 1, and no command gains `--json`;
+  - each sentence is kept except where it must be reworded to keep an option name that Typer's usage output carried, and every
+    sentence names its option or argument;
+  - a caught `ValueError` from the workspace layer is audited per site: a real check becomes an explicit check, and anything else that
+    declares no code of its own reports as `execution_error` with `<command> failed unexpectedly.` ([B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12));
+  - the failure envelope gains `parameters`, the offending option or argument names, and its `schema_version` is bumped;
+  - a test fails if any file under `src/` raises `typer.BadParameter`.
+- **Scope:** set by the [SWC.4d plan](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md#e-file-scope-tests-and-documents-for-step-2).
+- **Branch:** `feat/swc-4d-command-validation-failures`, from `main` after SWC.4c has merged. Two steps on the branch: the plan, then
+  the implementation.
+- **Detail:** [SWC.4d plan](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md).
+
+#### SWC.4e — The direct Graham commands reject an unsupported provider
+
+- **Problem:** the direct `graham-number` and `graham-growth` commands accept any provider id in their configuration so tests can
+  inject a synthetic one. An unsupported `--data-provider` is therefore `configuration_error` on those commands (from
+  `build_graham_resolver`) and `invalid_parameter` on `watchlist create` and `watchlist add-selection` (from the strict selection).
+- **Decision:** remove the seam ([B.15](#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11)). The direct
+  commands reject an unsupported provider with the builders' check, sentence and code. Tests pass `sec_edgar` with the resolver
+  replaced, and the stored direct-command output is re-captured; the only stored-output difference permitted is the provider id.
+- **Scope:** the Graham direct-command configuration and its command files, and the tests listed in B.15.
+- **Branch:** `feat/swc-4e-direct-graham-provider`, from `main` after SWC.4d has merged.
+- **Detail:** ⚠ no slice plan yet. The affected files and invocation counts are in
+  [B.15](#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11).
+
+#### SWC.4f — One sentence per failure for the direct commands and refresh
+
+- **Problem:** a failed refresh job reports the exception's own text (`RefreshJobResult.error`), while the same failure on a direct
+  command reports an application-written sentence. Refresh can therefore show raw validation text or text from provider data.
+- **Decision:** a failure's sentence is written once and used by both the direct command and the refresh job
+  ([B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12)). Where that single source lives is decided when
+  the slice is planned, under the layering rules.
+- **Scope:** `src/workspace/refresh.py` (`_failed`), the direct commands' sentence code in `src/cli_support.py`, the `error` key of the
+  `refresh --json` document and its schema, and their tests; the exact list is set by the slice plan.
+- **Branch:** `feat/swc-4f-failure-sentences`, from `main` after SWC.4e has merged.
+- **Detail:** ⚠ no slice plan yet. What can reach `_failed` today is listed in
+  [B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12).
 
 ### SWC.5 — Site data, status command and generated lists
 
@@ -984,3 +1021,122 @@ The project owner decided, after a review of what production calls:
   `run_spec_for(selection).encode`.
 - **Edit sites.** Unchanged at 20 sites in 25 files; the SWC.3a scope above no longer lists a parser. Detail:
   [SWC.1 design H.33](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h33-one-dispatch-path-per-job-2026-10-08).
+
+### B.14 SWC.4d: command validation failures (2026-10-11)
+
+The project owner decided, for SWC.4d (the open question of [B.12](#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06)):
+
+1. **Every check a command raises itself moves into the failure envelope in this slice:** the strategy option checks, the shared ones
+   (ticker, `--as-of`, `--data-provider`, the exclusive output flags), the workspace ones, and those on `health`, `database` and `evaluate`.
+2. **A test fails if any file under `src/` raises `typer.BadParameter`.**
+3. **These failures exit 1 with `reason_code` `invalid_parameter`.** Exit 2 keeps one meaning: the parser rejected the command line and no
+   command code ran ([B.12](#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06), unchanged). No check becomes a
+   parser-declared constraint, and no parser error is intercepted.
+4. **A command with no `--json` writes the sentence to standard error and exits 1.** No command gains `--json` in this slice.
+5. **Each existing sentence is kept.** Reword only where the option name was carried by Typer's usage output (a `param_hint`, or the usage
+   box) and would otherwise be lost. Every sentence names its option or argument. A sentence reports; it does not tell the user what to do
+   next unless the existing sentence already does.
+6. **The places that catch any `ValueError` from the workspace layer and re-raise it as a usage error are not relabelled wholesale.** For
+   each, find what it can actually catch. A real option or argument check moves into the command as an explicit check. Anything else is
+   reported under the code the classifier already gives it.
+7. **The failure envelope gains a `parameters` field:** the list of offending option or argument names exactly as typed on the command
+   line (for example `["--short-window", "--long-window"]`), and null for every failure that is not `invalid_parameter`. Momentum's
+   existing checks supply it too. The failure schema version is bumped. Nothing is migrated.
+8. **The slice runs in two steps on one branch.** The first writes the [slice plan](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md) and stops.
+
+Rulings on the slice plan's findings, made before step 2 (the plan's "Rulings on the findings" table holds them all):
+
+- `parameters` holds each option's declared primary long spelling and each argument's upper-case name as the sentences use it; this
+  replaces "exactly as typed" in decision 7.
+- `watchlist create` checks every seed ticker before it creates the watchlist. A name that already exists together with a blank ticker
+  now reports the blank ticker.
+- A private-memory `db` target reports `invalid_parameter` with `["--database-url"]` when the option was supplied and
+  `configuration_error` with the existing sentence when the target came from the settings.
+- The direct Graham commands keep `configuration_error` for an unsupported `--data-provider` here; that moved to
+  [SWC.4e](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) ([B.15](#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11)).
+- `config_usage_errors` uses a strict lookup and drops pydantic's `Value error, ` prefix; exit 2 is documented as "the parser rejected
+  the command line".
+
+The plan lists every check, the audit of each caught `ValueError`, the shared reporting path and the findings for the project owner.
+Resulting output changes, by command (rows are the checks of the
+[plan's section A](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md#a-the-check-table)). "Before" is the usage box on standard error with
+exit 2 and, even under `--json`, no JSON, unless stated. "After" is the sentence on standard error with exit 1 and, for a command with
+`--json`, the failure envelope on standard output with nothing on standard error; `parameters` names the offending options and arguments.
+
+| Command | Checks | After (sentence changes only where listed) |
+| :--- | :--- | :--- |
+| Every failure envelope | all | New key `parameters` (`null` unless `invalid_parameter`); `schema_version` 9 to 10. Momentum's window and period failures (already exit 1) gain `parameters` only. |
+| `momentum` | ticker (`TICKER`/`--ticker`), `--details`/`--diagnostics`/`--json`, `--as-of`, `--save-run` | Exit 1. A blank ticker reads `TICKER must be a non-empty symbol.` or `--ticker must be a non-empty symbol.`. |
+| `graham-number`, `graham-growth` | ticker, output flags, `--as-of`, `--data-provider` (blank), `--eps-basis`, the SEC basis rule | Exit 1. A blank ticker is worded as for `momentum`. A pydantic message loses its `Value error, ` prefix. An unsupported `--data-provider` is unchanged (`configuration_error`, [SWC.4e](SWC_CONTRACT_AND_SLICE_PLAN.md#swc4e--the-direct-graham-commands-reject-an-unsupported-provider)). |
+| `fcf-growth` | ticker, output flags, `--as-of`, `--data-provider` (blank), `--growth-years`, `--forward-policy`, `--classification-basis`, `--currency` | Exit 1. A blank ticker is worded as for `momentum`. |
+| `watchlist create` | `--analysis`, seed tickers, name, every strategy option | Exit 1. A blank name reads `NAME must not be blank.` (it was a pydantic block with `input_value`). A blank seed ticker reads `TICKER must not be empty.` and is checked before the watchlist is created, so none is left behind; a name that exists together with a blank ticker now reports the blank ticker. A missing `--expected-growth` or `--aaa-yield` reads `--expected-growth is required when --analysis is graham-growth.` (and the same for `--aaa-yield`). Momentum's windows were already exit 1. |
+| `watchlist add-selection` | `--analysis`, tickers, strategy options | Exit 1; wording as for `create`. A watchlist holding an unreadable entry is no longer a usage error: it reports `stored_selection_unreadable`, exit 1, with the same sentence. |
+| `watchlist remove-entry`, `remove-ticker`, `remove-method` | `INDEX`, tickers, `--analysis` | Exit 1; `remove-ticker` reads `TICKER must not be empty.`. |
+| `watchlist delete` | `--yes` without a terminal | Exit 1; under `--json` the envelope (nothing was written before). The `Invalid value for --yes:` prefix is gone. |
+| `watchlist rename` | blank new name | Exit 1; `NEW_NAME must not be blank.`; under `--json` the envelope. |
+| `watchlist show` | `--group-by` | Exit 1; under `--json` the envelope. |
+| `runs list` | `--ticker`, `--analysis`, `--status`, `--refresh-id`, `--limit`, `--offset` | Exit 1; under `--json` the envelope. `--ticker` reads `--ticker must not be empty.`; `--refresh-id` reads `--refresh-id 'x' is not a valid Analysis Run ID. ...`; `--limit` and `--offset` read `--limit must be between 1 and 100.` and `--offset must be 0 or greater.` (they were pydantic blocks), and only the first failing one is reported. |
+| `runs show` | output flags, `RUN_ID` | Exit 1; under `--json` the envelope. `RUN_ID 'x' is not a valid Analysis Run ID. ...`. |
+| `refresh` | `--workers` | Exit 1; under `--json` the envelope; reads `--workers must be between 1 and 4.`. |
+| `health` | `--provider` | Exit 1; under `--json` the envelope, not the health document; reads `Unknown --provider 'x'; valid providers are: ...`. |
+| `db status`, `db upgrade` | `--database-url`, private-memory target | Exit 1; under `--json` the envelope, not a maintenance report. Reads `Select a valid local SQLite database URL for --database-url: ...` and `Database maintenance requires a file-backed target for --database-url; ...`. A private-memory target that came from the settings is `configuration_error` with the old sentence. |
+| `evaluate` | `--report` (partly anchored path, existing file), `--case`, `--mode` | Exit 1, sentence only. `--case` reads `Unknown Golden case ID 'x' for --case. Available IDs: ...`; an existing report reads `--report target already exists: <path>. Use --overwrite to replace it.`. |
+
+### B.15 SWC.4e: the direct Graham commands reject an unsupported provider (2026-10-11)
+
+The project owner decided, when SWC.4d step 2 found the cause of the difference between the direct Graham commands and the watchlist
+builders:
+
+- **What was found.** Both support exactly one security-fact provider, `sec_edgar` (`CLI_SECURITY_PROVIDERS`; `build_graham_resolver`). The
+  direct commands validate a permissive `GrahamNumberConfig` / `GrahamGrowthConfig` that accepts any provider id, by design, so tests can
+  inject a synthetic one with the resolver builder patched; an unsupported id is then rejected later, as `configuration_error`. The
+  builders validate the strict selection and report `invalid_parameter`.
+- **SWC.4d keeps today's behavior** and does not touch the permissive configuration or the tests that use it.
+- **SWC.4e removes the seam.** The direct commands reject an unsupported provider with the builders' check, sentence and code, at the
+  position in the command's check order where the configuration is validated today. Tests pass `sec_edgar` with the resolver replaced.
+  The stored direct-command output is re-captured; the only stored-output difference permitted is the provider id.
+- **Affected, found with** `grep -rn '"--data-provider"' tests --include=*.py` and a count of the occurrences followed by the
+  synthetic constant (`PROVIDER_ID`, `"fixture-synth"`, defined in `src/evaluation/fixtures/graham.py`): 19 invocation sites, all
+  through the direct `graham-number` and `graham-growth` commands.
+
+  | File | Sites using `fixture-synth` |
+  | :--- | ---: |
+  | `tests/test_cli.py` | 14 |
+  | `tests/test_cli_graham_commands.py` | 2 (one is parametrized over both commands and the output modes) |
+  | `tests/test_cli_graham_nonpositive_growth.py` | 1 |
+  | `tests/_direct_command_output.py` | 2 (the stored-output harness) |
+
+  Stored output carrying the id: `tests/expected_output/direct_commands/graham-number.json`, `graham-number.txt`,
+  `graham-growth.json`, `graham-growth.txt`. Other `--data-provider` values in tests are `sec_edgar` (including `" SEC_EDGAR "`),
+  `not-a-provider` (`tests/test_cli.py`, expects the unsupported-provider failure) and `unapproved` (`fcf-growth`, which never rejects
+  a provider id).
+
+### B.16 SWC.4d follow-up: the workspace catch-all, `runs show` and refresh (2026-10-12)
+
+The project owner decided, on review of PR #125:
+
+- **`runs show`.** Both ways the run repository's `get` fails to read a stored run (the envelope fails validation; the envelope disagrees
+  with its own row) report `reason_code` `invalid_stored_run` with one sentence: `Analysis Run <full run ID> could not be read: its
+  stored record is malformed or does not match its summary.` The exception detail goes to the log with its traceback. This resolves
+  issue 113.
+- **The catch-all in `_workspace_database`.** An exception that declares its own code keeps its own sentence. Every other exception raised
+  inside the block, not only `ValueError`, is an `execution_error` with the sentence `<command> failed unexpectedly.`, where
+  `<command>` is the command as typed after `ian` (for example `watchlist show failed unexpectedly.`); the detail goes to the log with
+  its traceback and `typer.Exit` passes through. `invalid_input` is not used there.
+- **`evaluate`** keeps its raw error text by decision: it is a developer command whose readers need the detail.
+- **Refresh job error text** (`src/workspace/refresh.py`, the `error` field) is not changed in SWC.4d; it becomes
+  [SWC.4f](#swc4f--one-sentence-per-failure-for-the-direct-commands-and-refresh).
+- **Order of work.** SWC.4e, SWC.4f, then LAY.1 to LAY.8, then SWC.5 to SWC.7, then PKG.
+
+What can reach `_failed` (and so the `error` text, in the text summary and the `refresh --json` document) today, found by reading
+`src/workspace/refresh.py` and the refresh executors in each strategy's `cli.py`:
+
+| Path | Exceptions that reach it |
+| :--- | :--- |
+| `--no-save`, sequential | anything the executor raises (the call to `executor(ticker, selection)`) |
+| saved, sequential | the executor's exceptions, and anything `execute` raises: a run-spec or codec error, an undeclared-strategy error, and the repository's insert errors (storage errors, an existing-run conflict) |
+| concurrent | a worker's executor exception, passed to the coordinator, then the same `execute` exceptions on the coordinator thread |
+| inside an executor | a provider failure (`DataFetchError`, `FinancialProviderError`, with provider text), a historical-quality or no-eligible-observations error, `AnalysisConfigurationError` (a missing SEC identity), a `pydantic.ValidationError` from building a configuration from a stored selection, a blank-ticker `ValueError`, a database-readiness error from the cache or run storage, and any other exception from provider libraries |
+
+The first three rows are the paths in `refresh.py`; each ends in `_failed(..., exception, ...)`, which stores `str(exception)` as the
+job's `error` and the classifier's code as `reason_code`.

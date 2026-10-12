@@ -711,7 +711,7 @@ T24 and the review checklist check them; each is concrete.
 
 | Field | Type | Meaning |
 | :--- | :--- | :--- |
-| `schema_version` | `Literal[6]` | The document's shape version. It was 5; adding `database` is the change. |
+| `schema_version` | `Literal[10]` | The document's shape version. It was 9; adding `parameters` is the change (SWC.4d). |
 | `status` | `Literal["error", "input_unavailable"]` | Unchanged. `input_unavailable` for `historical_quality`, `provider_error`, `no_eligible_observations`. |
 | `reason_code` | `FailureReasonCode` | Stable ([§13.3](#133-reason-codes-and-stability)). |
 | `reason` | `str` | A sanitized sentence for people. Not stable. |
@@ -719,6 +719,7 @@ T24 and the review checklist check them; each is concrete.
 | `result` | `None` | Always null, so success and failure documents share top-level keys. Unchanged. |
 | `diagnostics` | `list[{rule, reason}]` | Unchanged; empty unless historical quality failed. |
 | `database` | `{database_path, expected_revision} \| null` | New. Set only for `database_*` codes. |
+| `parameters` | `list[str] \| null` | New (SWC.4d). The offending options (each by its declared primary long spelling) and arguments (each by its upper-case name), non-empty exactly when `reason_code` is `invalid_parameter`; `null` otherwise. |
 
 `DatabaseMaintenanceReport` version 2 has `command`, `status`, `database_path`, `state`,
 `current_revision`, `expected_revision`, `reason_code` (the stable code or null), `reason` (the prose)
@@ -735,7 +736,7 @@ key order does not matter.
 | Group | Codes | Source |
 | :--- | :--- | :--- |
 | Direct execution | `execution_error`, `historical_quality`, `provider_error`, `configuration_error`, `no_eligible_observations`, `invalid_input` | Existing, unchanged strings from `execution_errors`. `execution_error` is also the classifier's result for an exception it does not recognize. |
-| Direct execution, new | `invalid_parameter` | A command option value rejected before any work, raised as `InvalidParameterError`. Today only Momentum's three window and period options use it ([below](#which-option-values-are-invalid-parameter-today), [H.24](#h24-codes-beyond-this-table-2026-10-06)). |
+| Direct execution, new | `invalid_parameter` | A command option or argument rejected before any work, raised as `InvalidParameterError`. Every check a command makes itself uses it ([below](#which-checks-are-invalid-parameter), [H.24](#h24-codes-beyond-this-table-2026-10-06), [SWC.4d](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md)). |
 | Database readiness | `database_upgrade_required`, `database_incompatible_schema`, `database_busy`, `database_permission_denied`, `database_invalid_file`, `database_io_error`, `database_resources_unavailable`, `database_initialization_failed`, `database_migration_failed` | Existing `ReadinessReason` values, unchanged. |
 | Workspace, existing | `invalid_stored_run`, `unsupported_run_version` | Existing `reason_code` attributes on `InvalidStoredRunError` and `UnsupportedRunVersionError`. |
 | Workspace, new | `watchlist_not_found`, `watchlist_name_conflict`, `analysis_run_not_found`, `stored_selection_unreadable`, `unsupported_projection`, `watchlist_entry_not_found`, `watchlist_empty` | New, for the `--json` failure paths listed in [§13.4](#134-what-changes), for `watchlist remove-entry`, which has no `--json` ([H.24](#h24-codes-beyond-this-table-2026-10-06)), and for `refresh` of a watchlist with no entries ([H.29](#h29-an-empty-watchlist-is-a-refresh-failure-2026-10-06)). |
@@ -759,26 +760,28 @@ different things to do, so they stay separate codes.
 | Code | Covers | Exceptions that map to it | What the caller does |
 | :--- | :--- | :--- | :--- |
 | `invalid_input` | Data or inputs the analysis rejected: a plain `ValueError` raised below the command (provider data, a resolver, a codec, a calculation). The sentence is generic on every direct command except Momentum, because exception text from provider data is not shown. | Any `ValueError` not matched by a more specific rule | Treat it as a problem with the data or the environment; retrying the same request may or may not help. |
-| `invalid_parameter` | An option value that the command's own code rejects, as a raised `InvalidParameterError`, before any work begins. The sentence is authored by the command, names the offending option and is shown as written. It is not the code for every rejected option value ([below](#which-option-values-are-invalid-parameter-today)). | `InvalidParameterError` (a `ValueError` subtype, matched before the `ValueError` rule) | Correct the option and retry; the same request will always fail. |
+| `invalid_parameter` | An option or argument that the command's own code rejects, as a raised `InvalidParameterError`, before any work begins. The sentence is authored by the command, names the offending parameters (which the envelope also lists in `parameters`) and is shown as written ([below](#which-checks-are-invalid-parameter)). | `InvalidParameterError` (a `ValueError` subtype, matched before the `ValueError` rule) | Correct the option or argument and retry; the request fails as given. |
 
-#### Which option values are invalid parameter today
+#### Which checks are invalid parameter
 
-Exactly three: Momentum's
-`--short-window`, `--long-window` and `--rsi-period` (each must be positive and the short window smaller than the long one),
-on `momentum`, `watchlist create` and `watchlist add-selection`. Every other rejected option value is still a usage error:
-exit 2, text on standard error, no envelope, even under `--json`. That covers two groups. Anything Typer or Click rejects
-while parsing (an unknown option, a wrong type, a missing argument) stays a usage error by decision
-([plan B.12](SWC_CONTRACT_AND_SLICE_PLAN.md#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06)). Every check the
-commands raise themselves as `typer.BadParameter` is also still a usage error, and whether those move is the open question: the ticker, `--as-of`,
-`--data-provider`, the exclusive `--details`, `--diagnostics` and `--json`, `--group-by`, `--status`, a run or refresh ID,
-`--workers`, `--yes` without a terminal, `--analysis`, a blank watchlist name, `--database-url`, and the Graham and FCF
-option checks. The reason is mechanical, not a judgement: `execution_errors` and the workspace helpers re-raise a
-`typer.Exit` or usage error untouched, so those rejections never reach the classifier. Whether the command-raised checks move into the envelope is
-owned by [SWC.4d](SWC_CONTRACT_AND_SLICE_PLAN.md#swc4d--command-validation-failures-and-the-failure-envelope), which starts with the Graham and
-FCF parameter checks; until it runs nothing changes, and SWC.4a moved only the check the project owner approved
-([plan B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-momentum-window-failure-2026-10-06)).
-A code is therefore `invalid_parameter` because the command's own code raised `InvalidParameterError`, not because the
-cause is an option value; a caller must not infer that a failure with another code was not caused by an option.
+Every check a command makes in its own code after the parser has accepted the command line: the ticker, `--as-of`,
+`--data-provider`, the exclusive `--details`, `--diagnostics` and `--json`, Momentum's windows and `--save-run`, the Graham and FCF
+options, `--group-by`, `--status`, `--analysis`, a run or refresh ID, a watchlist name or ticker, `--limit`, `--offset`, `--workers`,
+`--yes` without a terminal, `--provider`, `--database-url`, and `evaluate`'s `--report`, `--case` and `--mode`. The full list, with
+each sentence and its `parameters`, is section A of the [SWC.4d plan](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md#a-the-check-table);
+the decision is [B.14](SWC_CONTRACT_AND_SLICE_PLAN.md#b14-swc4d-command-validation-failures-2026-10-11). They exit 1, as a sentence on
+standard error or, under `--json`, the envelope.
+
+Exit 2 keeps one meaning: Typer or Click rejected the command line while parsing (an unknown option, a wrong type, a missing argument
+or required option, a value outside a declared choice), so no command code ran and there is no failure to classify
+([plan B.12](SWC_CONTRACT_AND_SLICE_PLAN.md#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06)). No check is a
+parser-declared constraint, so one mistake can exit differently by where it is checked: a missing `--expected-growth` is exit 2 on
+`graham-growth` and exit 1 on `watchlist create`. A code is `invalid_parameter` because the command's own code raised
+`InvalidParameterError`, not because the cause is a particular kind of value; a caller must not infer that a failure with another
+code was not caused by an option. One option can therefore report two codes until SWC.4e: an unsupported `--data-provider` is
+`configuration_error` on the direct Graham commands and `invalid_parameter` on the watchlist builders
+([B.15](SWC_CONTRACT_AND_SLICE_PLAN.md#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11)). A private-memory
+`db` target that came from the settings is `configuration_error`, not `invalid_parameter`, because no parameter is at fault.
 
 Momentum's window check is `invalid_parameter` because it rejects `--short-window`, `--long-window` and `--rsi-period` values,
 not data, and its sentence is built from the option names. It cannot be folded into `invalid_input`: that would hide from a
@@ -796,9 +799,10 @@ distinction in both directions and the order of the two rules.
 | 5 | `momentum` with an invalid window or RSI period; `watchlist create` and `watchlist add-selection` with the same values | One `invalid_parameter` failure with one sentence, reported through the envelope on `momentum` and as that sentence on the watchlist commands, which have no `--json`. Exit code 2 becomes 1 on both ([plan B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-momentum-window-failure-2026-10-06)). |
 | 6 | `runs list --json`, each `completed_at` (SWC.4b) | The UTC offset is written `+00:00` instead of `Z`, the spelling every other document uses; a non-UTC offset is written as the value carries it ([H.30](#h30-typed-workspace-documents-2026-10-07)). |
 | 7 | `watchlist show`, `watchlist rename` and `watchlist delete` with `--json`, each entry's `selection.as_of` (SWC.4b) | The same change: `+00:00` instead of `Z`. No selection model or stored shape changes ([H.30](#h30-typed-workspace-documents-2026-10-07)). |
+| 8 | Every other check a command makes itself (SWC.4d) | Usage text and exit 2 become one `invalid_parameter` failure with exit 1: the sentence on standard error, or under `--json` the envelope, whose new `parameters` key names the offending options and arguments. `schema_version` 9 to 10. The by-command table is in [B.14](SWC_CONTRACT_AND_SLICE_PLAN.md#b14-swc4d-command-validation-failures-2026-10-11). |
 
 Unchanged: every strategy success document; the watchlist, delete-outcome and `runs show` success
-documents, and `runs list` and the watchlist documents apart from rows 6 and 7; text modes of every command; commands without `--json`; usage errors (exit 2,
+documents, and `runs list` and the watchlist documents apart from rows 6 and 7; text modes of every command; commands without `--json`; usage errors the parser raises (exit 2,
 text); the declined-confirmation message in `watchlist delete`.
 
 Per-job failures keep their existing text. `RefreshJobResult.error` is `str(exception)` today and
