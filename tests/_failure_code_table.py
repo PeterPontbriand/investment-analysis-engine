@@ -13,12 +13,14 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.cli_support import InternalDefectError
 from src.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
 from src.data.quality import HistoricalDataQualityError, QualityContext, evaluate_historical_quality
+from src.data.repositories.analysis_runs import AnalysisRunConflictError
 from src.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
 from src.data.repositories.watchlists import WatchlistConflictError, WatchlistEntryNotFoundError
 from src.reporting.replay_inputs import UnsupportedProjectionError
@@ -117,6 +119,8 @@ PINNED_CLASSIFICATIONS: tuple[PinnedClassification, ...] = (
     _row(EmptyRefreshTargetError, "watchlist_empty", "error"),
     _row(WatchlistEntryNotFoundError, "watchlist_entry_not_found", "error"),
     _row(WatchlistConflictError, "watchlist_name_conflict", "error"),
+    _row(AnalysisRunConflictError, "execution_error", "error"),
+    _row(InternalDefectError, "execution_error", "error"),
     _readiness_row(ReadinessReason.UPGRADE_REQUIRED, "database_upgrade_required"),
     _readiness_row(ReadinessReason.INCOMPATIBLE_SCHEMA, "database_incompatible_schema"),
     _readiness_row(ReadinessReason.BUSY, "database_busy"),

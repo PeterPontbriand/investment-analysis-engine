@@ -24,7 +24,7 @@ from src.workspace.codecs import decode_evidence
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import refresh_watchlist
 from tests._strategy_document_output import CASES, run_saved
-from tests._wiring import failure_code
+from tests._wiring import failure_text
 from tests.workspace.test_refresh import _FakeSink, _FakeWatchlists, _watchlist
 
 _CASE = next(item for item in CASES if item.name == "graham-number-nonpositive-eps")
@@ -68,7 +68,7 @@ def test_a_refresh_job_for_it_carries_no_reason_code(save: bool) -> None:
         repository=_FakeSink(),
         executor=executor,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
         save=save,
     )
 

@@ -58,8 +58,8 @@ document-link check and applicable documentation checks.
 | SWC.4c.1 | [Common header and tail for strategy documents](#swc4c1--common-header-and-tail-for-strategy-documents) | Complete | 2026-10-09 |
 | SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Complete | 2026-10-11 |
 | SWC.4e | [The direct Graham commands reject an unsupported provider](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) | Complete | 2026-10-12 |
-| SWC.4f | [One failure message rule for the direct commands and refresh](#swc4f--one-failure-message-rule-for-the-direct-commands-and-refresh) | Next | |
-| SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
+| SWC.4f | [One failure message rule for the direct commands and refresh](#swc4f--one-failure-message-rule-for-the-direct-commands-and-refresh) | Complete | 2026-10-12 |
+| SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Next | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
 
@@ -1260,7 +1260,8 @@ executors, `execute` and the run repository. The paths are the three of [B.16](#
 `--no-save`, saved and concurrent. An exception raised inside the executor reaches all three; an exception raised by `execute` after
 the executor returned (rows 15 to 17, and a run that fails validation in row 11) reaches only saved and concurrent, because `--no-save`
 never calls `execute`. Row 14 is raised by the run-spec lookup, which `refresh.py` makes before the executor runs on the sequential path
-and after it on the concurrent path; the rule treats it as a failure of the analysis step on both, so step 2 makes the order the same.
+and after it on the concurrent path; the rule treats it as a failure of the analysis step on both, and step 2 gives the lookup its
+own step so that it is never a failure while saving.
 Under concurrent admission `_failed` runs on the coordinator thread in every case.
 
 The "today" columns were confirmed by running (below). Letters: **M** Momentum, **G** Graham Number and Graham Growth, **F** FCF Growth.
@@ -1362,7 +1363,7 @@ concurrent path, where the function runs on the coordinator thread outside any `
 **Marking the saving step.** `maybe_save_run` runs the analysis and the save in one call, and `src/cli_run_support.py` is outside this
 slice's file scope, so the strategy `cli.py` files mark the step. `src/cli_support.py` gains `SaveStage` (a flag that is set when the
 wrapped `normalize` of `maybe_save_run` returns, that is, when the analysis has finished) and the context manager `saving_failures`,
-which re-raises an exception from its block as `SavingFailure` when the flag is set. `execution_errors` unwraps `SavingFailure` and
+which re-raises an exception from its block as `SavingFailureError` when the flag is set. `execution_errors` unwraps `SavingFailureError` and
 passes `saving=True` and the original exception, which stays the `cause` of the envelope. Graham and FCF wrap only their call of
 `maybe_save_run`; Momentum has already analyzed when it calls `save_run_execution`, so it wraps that call with the flag already set.
 The readiness check that precedes the analysis is outside the marked step, so it keeps its own code and text.
@@ -1402,7 +1403,7 @@ envelope and output it builds now. The four commands drop their callbacks. The C
 
 **Source.**
 
-- `src/cli_support.py`: `FailureDescription`, `describe_failure`, `SaveStage`, `SavingFailure`, `saving_failures`, `InternalDefectError`
+- `src/cli_support.py`: `FailureDescription`, `describe_failure`, `SaveStage`, `SavingFailureError`, `saving_failures`, `InternalDefectError`
   and its two helpers; `execution_errors` loses its wording parameters.
 - `src/strategies/momentum/cli.py`, `fcf_growth/cli.py`, `graham_number/cli.py`, `graham_growth/cli.py`: drop the callbacks; mark the
   saving step; the refresh executors call the defect helpers.
@@ -1428,3 +1429,14 @@ direct command and from a refresh job. Tests of `describe_failure` over every ro
 (the conflict error's code); `tests/test_cli_refresh.py`; the schema drift test; and the stored output
 `tests/expected_output/workspace_commands/refresh-failed-job.txt` and `refresh-failed-job-json.txt` (`fixture provider failure` becomes
 `Unable to analyze BAD: the analysis failed unexpectedly.`).
+
+#### E. Implemented as designed, with these differences (2026-10-12)
+
+- `SavingFailure` is named `SavingFailureError` (the project's lint rule requires the suffix).
+- `src/cli_support.py` attaches a `logging.NullHandler` to its logger. With `--no-logging` no handler is configured, and Python's
+  last-resort handler would write the logged traceback to standard error; the null handler keeps standard error to the message.
+- The direct commands' failure log line is `Failure reported to the user as: <message>` for every fixed message; the earlier
+  `Unexpected failure reported to the user as:` line is gone.
+- The sequential refresh path needed no restructuring for row 14 (its lookup already runs before the executor); only `_settle` gained a
+  separate lookup step.
+

@@ -120,6 +120,14 @@ _SEQUENTIAL_POLICY = RefreshPolicy(workers=1)
 
 
 @dataclass(frozen=True)
+class JobFailure:
+    """The code and the message a caller chose for one job's exception."""
+
+    reason_code: str
+    error: str
+
+
+@dataclass(frozen=True)
 class RefreshJobResult:
     """One (ticker, selection) attempt's outcome within a refresh.
 
@@ -132,11 +140,11 @@ class RefreshJobResult:
     financial outcome but no addressable run, so it is never given a
     fabricated ``analysis_run_id``; ``error`` for an attempt whose adapter
     or persistence step raised before a result could be assembled. ``error``
-    carries the exception's own message for caller-side diagnosis — it is
-    not persisted anywhere, and any user-facing sanitization is the
-    caller's (eventual CLI) responsibility, mirroring how ``execution_errors``
-    sanitizes at the presentation boundary rather than deep in a service.
-    ``reason_code`` is the stable code of a failure: the code the caller's classifier assigned to the
+    carries the message the caller's ``describe`` chose for the exception — it is
+    not persisted anywhere, and what it shows is the caller's responsibility,
+    mirroring how ``execution_errors`` chooses the message at the presentation
+    boundary rather than deep in a service.
+    ``reason_code`` is the stable code of a failure: the code the caller's ``describe`` assigned to the
     exception when the job raised, or the failed run's (or unsaved outcome's) own stored code. It is set if and
     only if the job raised or its run or outcome is ``failed``; an ``unavailable`` run is an analysis outcome,
     not a failure, and carries none. ``provider_failure`` is the typed ``provider_failure`` element of a failure
@@ -199,7 +207,7 @@ def refresh_watchlist(  # noqa: PLR0913
     repository: AnalysisRunSink,
     executor: Callable[[str, AnalysisSelection], ExecutionCapture],
     run_specs: Mapping[tuple[str, str], RunSpec],
-    classify: Callable[[BaseException], str],
+    describe: Callable[[BaseException, str, bool], JobFailure],
     save: bool = True,
     policy: RefreshPolicy = _SEQUENTIAL_POLICY,
     refresh_id_factory: Callable[[], UUID] = uuid4,
@@ -226,8 +234,9 @@ def refresh_watchlist(  # noqa: PLR0913
             -bearing, not merely a style preference.
         run_specs: The versions and evidence encoder of each declared strategy, keyed by
             ``(analysis_id, method_id)``; a job whose selection has no entry fails closed as that job's error.
-        classify: Maps the exception of a failed job to its stable reason code. The caller supplies it, so
-            this module imports nothing from the reporting layer; ``error`` keeps the exception's own text.
+        describe: Maps the exception of a failed job, the job's ticker and whether the analysis had finished and
+            its result was being saved to the job's stable reason code and its message. The caller supplies it, so
+            this module imports nothing from the command or reporting layers.
         save: When ``True`` (the default), every finished job is persisted
             exactly as before. When ``False``, every entry still executes
             but no job is persisted and no :class:`AnalysisRun` is ever
@@ -293,7 +302,7 @@ def refresh_watchlist(  # noqa: PLR0913
                     result = capture()
                     results.append(_unsaved(ticker, selection, result))
                 except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
-                    results.append(_failed(ticker, selection, exc, classify))
+                    results.append(_failed(ticker, selection, exc, describe, saving=False))
                 continue
 
             batch = BatchContext(
@@ -314,7 +323,7 @@ def refresh_watchlist(  # noqa: PLR0913
                 )
                 results.append(_saved(ticker, selection, run, captured[0]))
             except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
-                results.append(_failed(ticker, selection, exc, classify))
+                results.append(_failed(ticker, selection, exc, describe, saving=bool(captured)))
 
         return RefreshSummary(
             refresh_id=refresh_id,
@@ -331,7 +340,7 @@ def refresh_watchlist(  # noqa: PLR0913
         repository=repository,
         executor=executor,
         run_specs=run_specs,
-        classify=classify,
+        describe=describe,
         save=save,
         id_factory=id_factory,
         clock=resolved_clock,
@@ -340,14 +349,20 @@ def refresh_watchlist(  # noqa: PLR0913
 
 
 def _failed(
-    ticker: str, selection: AnalysisSelection, exception: BaseException, classify: Callable[[BaseException], str]
+    ticker: str,
+    selection: AnalysisSelection,
+    exception: BaseException,
+    describe: Callable[[BaseException, str, bool], JobFailure],
+    *,
+    saving: bool,
 ) -> RefreshJobResult:
-    """Record one job's failure: the exception's own text and the code classified from the same exception."""
+    """Record one job's failure: the message and the code ``describe`` chose for the same exception."""
+    failure = describe(exception, ticker, saving)
     return RefreshJobResult(
         ticker=ticker,
         method_id=selection.method_id,
-        error=str(exception),
-        reason_code=classify(exception),
+        error=failure.error,
+        reason_code=failure.reason_code,
         provider_failure=provider_failure_of_exception(exception),
     )
 
@@ -422,7 +437,7 @@ def _refresh_concurrently(  # noqa: PLR0913
     repository: AnalysisRunSink,
     executor: Callable[[str, AnalysisSelection], ExecutionCapture],
     run_specs: Mapping[tuple[str, str], RunSpec],
-    classify: Callable[[BaseException], str],
+    describe: Callable[[BaseException, str, bool], JobFailure],
     save: bool,
     id_factory: Callable[[], UUID],
     clock: Callable[[], datetime],
@@ -488,7 +503,7 @@ def _refresh_concurrently(  # noqa: PLR0913
                     batch=batch,
                     repository=repository,
                     run_specs=run_specs,
-                    classify=classify,
+                    describe=describe,
                     save=save,
                     id_factory=id_factory,
                 )
@@ -514,7 +529,7 @@ def _settle(  # noqa: PLR0913
     batch: BatchContext,
     repository: AnalysisRunSink,
     run_specs: Mapping[tuple[str, str], RunSpec],
-    classify: Callable[[BaseException], str],
+    describe: Callable[[BaseException, str, bool], JobFailure],
     save: bool,
     id_factory: Callable[[], UUID],
 ) -> RefreshJobResult:
@@ -525,15 +540,19 @@ def _settle(  # noqa: PLR0913
     calling :func:`execute`/``repository.insert``.
     """
     if outcome.error is not None:
-        return _failed(ticker, selection, outcome.error, classify)
+        return _failed(ticker, selection, outcome.error, describe, saving=False)
     captured = outcome.capture
     assert captured is not None  # enforced by _JobOutcome's own capture-xor-error invariant
     if not save:
         return _unsaved(ticker, selection, captured)
     try:
+        spec = _spec_for(run_specs, selection)
+    except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
+        return _failed(ticker, selection, exc, describe, saving=False)
+    try:
         run = execute(
             AnalysisRequest(ticker=ticker, selection=selection),
-            spec=_spec_for(run_specs, selection),
+            spec=spec,
             capture=lambda: captured,
             repository=repository,
             id_factory=id_factory,
@@ -542,11 +561,12 @@ def _settle(  # noqa: PLR0913
         )
         return _saved(ticker, selection, run, captured)
     except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
-        return _failed(ticker, selection, exc, classify)
+        return _failed(ticker, selection, exc, describe, saving=True)
 
 
 __all__ = [
     "EmptyRefreshTargetError",
+    "JobFailure",
     "RefreshJobResult",
     "RefreshPolicy",
     "RefreshSummary",

@@ -141,8 +141,11 @@ def test_an_unexpected_error_reports_the_same_sentence_and_logs_its_cause_and_tr
 
     assert run.returncode == 1
     assert run.stdout == ""
-    assert run.stderr == "Momentum analysis failed unexpectedly for OFFLINE.\n"
-    assert "ERROR | Unexpected failure reported to the user as: Momentum analysis failed unexpectedly" in run.log
+    assert run.stderr == "Unable to analyze OFFLINE: the analysis failed unexpectedly.\n"
+    assert (
+        "ERROR | Failure reported to the user as: Unable to analyze OFFLINE: the analysis failed unexpectedly."
+        in run.log
+    )
     assert "Traceback (most recent call last):" in run.log
     assert "RuntimeError: driver unexpected" in run.log
 

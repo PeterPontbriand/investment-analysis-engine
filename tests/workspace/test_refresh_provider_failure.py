@@ -14,7 +14,7 @@ from src.workspace.capture import ExecutionCapture
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import RefreshJobResult, RefreshPolicy, RefreshSummary, refresh_watchlist
 from src.workspace.strategy_types import AnalysisSelection
-from tests._wiring import failure_code
+from tests._wiring import failure_text
 from tests.workspace.test_refresh import (
     NOW,
     _FakeSink,
@@ -49,7 +49,7 @@ def _refresh(
         executor=executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
         save=save,
         policy=RefreshPolicy(workers=workers),
     )

@@ -2,7 +2,7 @@
 
 import json
 from datetime import UTC, datetime, time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 import typer
@@ -27,15 +27,13 @@ from src.reporting.presentation import PresentationMode
 
 @pytest.mark.parametrize("error", [typer.Exit(2), typer.Exit(0)])
 def test_intentional_cli_exits_propagate_without_output(error: Exception) -> None:
-    callback = MagicMock()
     with (
         patch("src.cli_support.typer.echo") as echo,
         pytest.raises(type(error)) as caught,
-        execution_errors(unexpected=callback),
+        execution_errors(),
     ):
         raise error
     assert caught.value is error
-    callback.assert_not_called()
     echo.assert_not_called()
 
 
@@ -50,18 +48,18 @@ def test_intentional_cli_exits_propagate_without_output(error: Exception) -> Non
             FinancialProviderError("private"),
             "Unable to analyze the requested instrument: a data provider failed; the failure was not classified.",
         ),
-        (ValueError("private"), "invalid"),
-        (RuntimeError("private"), "unexpected"),
+        (
+            ValueError("private"),
+            "Unable to analyze the requested instrument: invalid analysis inputs or provider data.",
+        ),
+        (RuntimeError("private"), "Unable to analyze the requested instrument: the analysis failed unexpectedly."),
     ],
 )
 def test_execution_errors_classify_without_exposing_exception(error: Exception, message: str) -> None:
     with (
         patch("src.cli_support.typer.echo") as echo,
         pytest.raises(typer.Exit) as caught,
-        execution_errors(
-            invalid=lambda _exc: "invalid",
-            unexpected=lambda _exc: "unexpected",
-        ),
+        execution_errors(),
     ):
         raise error
     assert caught.value.exit_code == 1
@@ -145,7 +143,7 @@ def test_a_raised_provider_failure_is_reported_under_its_code_with_its_element(
     with (
         patch("src.cli_support.typer.echo") as echo,
         pytest.raises(typer.Exit) as caught,
-        execution_errors(mode=PresentationMode.JSON, ticker="AAPL", unexpected=lambda _exc: "unexpected"),
+        execution_errors(mode=PresentationMode.JSON, ticker="AAPL"),
     ):
         raise error
     assert caught.value.exit_code == 1
@@ -160,13 +158,13 @@ def test_a_raised_provider_failure_is_reported_under_its_code_with_its_element(
     assert "private detail" not in echo.call_args.args[0]
 
 
-def test_a_command_with_no_callbacks_still_reports_a_raised_provider_failure_as_one() -> None:
+def test_a_raised_provider_failure_is_reported_as_one_without_a_ticker() -> None:
     """Before, a command that passed no ``data_error`` reported a provider failure as invalid input."""
     error = FinancialProviderError("private", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar")
     with (
         patch("src.cli_support.typer.echo") as echo,
         pytest.raises(typer.Exit),
-        execution_errors(mode=PresentationMode.JSON, unexpected=lambda _exc: "unexpected"),
+        execution_errors(mode=PresentationMode.JSON),
     ):
         raise error
     assert json.loads(echo.call_args.args[0])["reason_code"] == "provider_unreachable"
@@ -176,7 +174,7 @@ def test_a_parameter_failure_before_the_mode_is_known_writes_the_envelope_when_j
     with (
         patch("src.cli_support.typer.echo") as echo,
         pytest.raises(typer.Exit) as caught,
-        execution_errors(json_output=True, unexpected=lambda _exc: "unexpected"),
+        execution_errors(json_output=True),
     ):
         raise InvalidParameterError("--a is wrong.", parameters=("--a",))
     assert caught.value.exit_code == 1
@@ -186,7 +184,7 @@ def test_a_parameter_failure_before_the_mode_is_known_writes_the_envelope_when_j
 
 def test_the_scope_carries_what_the_command_resolved_before_the_failure() -> None:
     def run() -> None:
-        with execution_errors(json_output=True, unexpected=lambda _exc: "unexpected") as scope:
+        with execution_errors(json_output=True) as scope:
             scope.ticker = "KO"
             scope.mode = PresentationMode.JSON
             raise InvalidParameterError("--a is wrong.", parameters=("--a",))
@@ -200,7 +198,7 @@ def test_a_parameter_failure_in_text_goes_to_standard_error() -> None:
     with (
         patch("src.cli_support.typer.echo") as echo,
         pytest.raises(typer.Exit) as caught,
-        execution_errors(unexpected=lambda _exc: "unexpected"),
+        execution_errors(),
     ):
         raise InvalidParameterError("--a is wrong.", parameters=("--a",))
     assert caught.value.exit_code == 1

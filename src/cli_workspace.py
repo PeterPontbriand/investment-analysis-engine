@@ -31,7 +31,13 @@ from src.cli_provider_check import (
     provider_check_findings,
 )
 from src.cli_strategy_wiring import CLI_BUILDERS, build_selection_for, refresh_executor_for
-from src.cli_support import _presentation_mode, _production_instrument_profile_cache, parameter_failures, report_failure
+from src.cli_support import (
+    _presentation_mode,
+    _production_instrument_profile_cache,
+    describe_failure,
+    parameter_failures,
+    report_failure,
+)
 from src.cli_watchlist_flags import WatchlistFlags
 from src.config import settings
 from src.core.clock import utc_now
@@ -65,6 +71,7 @@ from src.workspace.refresh import (
     MAX_WORKERS,
     MIN_WORKERS,
     EmptyRefreshTargetError,
+    JobFailure,
     RefreshJobResult,
     RefreshPolicy,
     RefreshSummary,
@@ -948,6 +955,12 @@ def _refresh_executor(
     return refresh_executor_for(selection)(ticker, selection, profile_cache=profile_cache)
 
 
+def _describe_job_failure(exception: BaseException, ticker: str, saving: bool) -> JobFailure:
+    """Choose a failed refresh job's code and message with the rule the direct commands use."""
+    description = describe_failure(exception, ticker, saving=saving)
+    return JobFailure(reason_code=description.code.value, error=description.message)
+
+
 def _refresh_has_failure(summary: RefreshSummary) -> bool:
     """True if any job failed to produce a result, or produced an unavailable/failed outcome."""
     for result in summary.results:
@@ -1058,7 +1071,7 @@ def refresh(  # noqa: PLR0913
                         ticker, selection, profile_cache=profile_cache
                     ),
                     run_specs=RUN_SPECS_BY_KEY,
-                    classify=lambda exception: classify_failure(exception).reason_code.value,
+                    describe=_describe_job_failure,
                     save=not no_save,
                     policy=policy,
                     cancellation=cancellation,

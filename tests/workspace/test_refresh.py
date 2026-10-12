@@ -27,6 +27,7 @@ from src.workspace.capture import ExecutionCapture
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import (
     EmptyRefreshTargetError,
+    JobFailure,
     RefreshJobResult,
     RefreshPolicy,
     RefreshSummary,
@@ -35,7 +36,7 @@ from src.workspace.refresh import (
 from src.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
 from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import WatchlistNotFoundError
-from tests._wiring import encode_native, failure_code
+from tests._wiring import encode_native, failure_text
 
 WATCHLIST_ID = UUID("11111111-1111-4111-8111-111111111111")
 NOW = datetime(2026, 9, 19, 12, 0, 0, tzinfo=UTC)
@@ -119,7 +120,7 @@ def test_refresh_watchlist_raises_for_missing_watchlist() -> None:
             repository=_FakeSink(),
             executor=_momentum_only_executor,
             run_specs=RUN_SPECS_BY_KEY,
-            classify=failure_code,
+            describe=failure_text,
         )
 
 
@@ -132,7 +133,7 @@ def test_refresh_watchlist_raises_for_empty_membership() -> None:
             repository=_FakeSink(),
             executor=_momentum_only_executor,
             run_specs=RUN_SPECS_BY_KEY,
-            classify=failure_code,
+            describe=failure_text,
         )
 
 
@@ -145,7 +146,7 @@ def test_refresh_watchlist_raises_for_zero_selections() -> None:
             repository=_FakeSink(),
             executor=_momentum_only_executor,
             run_specs=RUN_SPECS_BY_KEY,
-            classify=failure_code,
+            describe=failure_text,
         )
 
 
@@ -178,7 +179,7 @@ def test_refresh_watchlist_iterates_member_then_selection_position_order() -> No
         executor=executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     assert [(r.ticker, r.method_id) for r in summary.results] == [
@@ -200,7 +201,7 @@ def test_refresh_watchlist_stamps_shared_refresh_and_watchlist_identity() -> Non
         refresh_id_factory=lambda: UUID("22222222-2222-4222-8222-222222222222"),
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     assert summary.refresh_id == UUID("22222222-2222-4222-8222-222222222222")
@@ -229,7 +230,7 @@ def test_refresh_watchlist_isolates_one_jobs_executor_exception() -> None:
         executor=executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     assert [r.ticker for r in summary.results] == ["AAPL", "BROKEN", "MSFT"]
@@ -254,7 +255,7 @@ def test_refresh_watchlist_isolates_one_jobs_persistence_failure() -> None:
         executor=_momentum_only_executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     failed, succeeded = summary.results
@@ -278,7 +279,7 @@ def test_refresh_watchlist_repeated_calls_produce_distinct_runs() -> None:
         executor=_momentum_only_executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
     second = refresh_watchlist(
         "My Watch",
@@ -287,7 +288,7 @@ def test_refresh_watchlist_repeated_calls_produce_distinct_runs() -> None:
         executor=_momentum_only_executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     assert first.refresh_id != second.refresh_id
@@ -320,7 +321,7 @@ def test_refresh_watchlist_persists_each_job_before_the_next_executes() -> None:
         executor=executor,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     assert events == [
@@ -346,7 +347,7 @@ def test_refresh_watchlist_with_save_false_executes_but_persists_nothing() -> No
         save=False,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     assert [r.ticker for r in summary.results] == ["AAPL", "MSFT"]
@@ -375,7 +376,7 @@ def test_refresh_watchlist_with_save_false_still_isolates_one_jobs_executor_exce
         save=False,
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     assert [r.ticker for r in summary.results] == ["AAPL", "BROKEN", "MSFT"]
@@ -532,7 +533,7 @@ def test_g2_bounds_admission_and_gates_replacement_on_persisted_completion() -> 
                 policy=RefreshPolicy(workers=2),
                 clock=lambda: NOW,
                 run_specs=RUN_SPECS_BY_KEY,
-                classify=failure_code,
+                describe=failure_text,
             )
         )
     )
@@ -587,7 +588,7 @@ def test_g2_preserves_snapshot_order_despite_out_of_order_completion() -> None:
                 policy=RefreshPolicy(workers=2),
                 clock=lambda: NOW,
                 run_specs=RUN_SPECS_BY_KEY,
-                classify=failure_code,
+                describe=failure_text,
             )
         )
     )
@@ -634,7 +635,7 @@ def test_g2_repository_insert_always_runs_on_the_calling_thread_not_a_worker() -
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     assert insert_thread_ids == {caller_thread_id}
@@ -659,7 +660,7 @@ def test_g2_persists_worker_measured_timing_via_replay_clock() -> None:
         policy=RefreshPolicy(workers=2),
         clock=clock,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     run = summary.results[0].run
@@ -685,7 +686,7 @@ def test_g2_isolates_one_jobs_executor_exception() -> None:
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     assert [r.ticker for r in summary.results] == ["AAPL", "BROKEN", "MSFT"]
@@ -710,7 +711,7 @@ def test_g2_isolates_one_jobs_persistence_failure() -> None:
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     results_by_ticker = {r.ticker: r for r in summary.results}
@@ -731,7 +732,7 @@ def test_g2_workers_greater_than_job_count_runs_every_job_without_error() -> Non
         policy=RefreshPolicy(workers=4),
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
     assert len(summary.results) == 1
     assert summary.results[0].run is not None
@@ -751,7 +752,7 @@ def test_g2_with_save_false_executes_but_persists_nothing() -> None:
         policy=RefreshPolicy(workers=2),
         clock=lambda: NOW,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     assert {r.ticker for r in summary.results} == {"AAPL", "MSFT"}
@@ -828,7 +829,7 @@ def test_g2_concurrent_refresh_saves_are_visible_to_another_connection_before_th
                     policy=RefreshPolicy(workers=2),
                     clock=lambda: NOW,
                     run_specs=RUN_SPECS_BY_KEY,
-                    classify=failure_code,
+                    describe=failure_text,
                 )
             )
         )
@@ -878,7 +879,7 @@ def test_g3_sequential_refresh_admits_nothing_when_already_cancelled() -> None:
         clock=lambda: NOW,
         cancellation=already_cancelled,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     assert summary.results == ()
@@ -901,7 +902,7 @@ def test_g3_sequential_refresh_stops_admitting_once_cancelled_mid_batch() -> Non
         clock=lambda: NOW,
         cancellation=cancellation,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     # AAPL was already admitted when cancellation fired inside its own executor
@@ -924,7 +925,7 @@ def test_g3_concurrent_refresh_admits_nothing_when_already_cancelled() -> None:
         clock=lambda: NOW,
         cancellation=already_cancelled,
         run_specs=RUN_SPECS_BY_KEY,
-        classify=failure_code,
+        describe=failure_text,
     )
 
     assert summary.results == ()
@@ -950,7 +951,7 @@ def test_g3_concurrent_refresh_stops_admitting_and_lets_running_jobs_settle() ->
                 clock=lambda: NOW,
                 cancellation=cancellation,
                 run_specs=RUN_SPECS_BY_KEY,
-                classify=failure_code,
+                describe=failure_text,
             )
         )
     )
@@ -977,3 +978,64 @@ def test_g3_concurrent_refresh_stops_admitting_and_lets_running_jobs_settle() ->
     summary = outcome[0]
     assert {r.ticker for r in summary.results} == {"A", "B"}
     assert all(r.run is not None for r in summary.results)
+
+
+@pytest.mark.parametrize("workers", [1, 2])
+@pytest.mark.parametrize("save", [True, False])
+def test_refresh_watchlist_asks_describe_once_per_failed_job_and_marks_a_failure_while_saving(
+    workers: int, save: bool
+) -> None:
+    watchlist = _watchlist(("AAPL", "BROKEN", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    calls: list[tuple[str, str, bool]] = []
+
+    def describe(exception: BaseException, ticker: str, saving: bool) -> JobFailure:
+        calls.append((type(exception).__name__, ticker, saving))
+        return JobFailure(reason_code="execution_error", error=f"message for {ticker}")
+
+    def executor(ticker: str, _selection: AnalysisSelection) -> ExecutionCapture:
+        if ticker == "BROKEN":
+            raise RuntimeError("raw executor text")
+        return _momentum_capture(ticker)
+
+    summary = refresh_watchlist(
+        "My Watch",
+        watchlists=_FakeWatchlists({"my watch": watchlist}),
+        repository=_FakeSink(fail_for_tickers=frozenset({"AAPL"})),
+        executor=executor,
+        clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
+        describe=describe,
+        save=save,
+        policy=RefreshPolicy(workers=workers),
+    )
+
+    errors = {item.ticker: item.error for item in summary.results if item.error is not None}
+    expected = {"BROKEN": ("RuntimeError", False)}
+    if save:
+        expected["AAPL"] = ("RuntimeError", True)
+    assert errors == {ticker: f"message for {ticker}" for ticker in expected}
+    assert {ticker: (name, saving) for name, ticker, saving in calls} == expected
+    assert len(calls) == len(expected)
+
+
+@pytest.mark.parametrize("workers", [1, 2])
+def test_a_missing_run_spec_is_not_a_failure_while_saving(workers: int) -> None:
+    watchlist = _watchlist(("AAPL",), (MomentumSelection(short_window=2, long_window=3),))
+    calls: list[tuple[str, bool]] = []
+
+    def describe(exception: BaseException, ticker: str, saving: bool) -> JobFailure:
+        calls.append((type(exception).__name__, saving))
+        return JobFailure(reason_code="execution_error", error=ticker)
+
+    refresh_watchlist(
+        "My Watch",
+        watchlists=_FakeWatchlists({"my watch": watchlist}),
+        repository=_FakeSink(),
+        executor=_momentum_only_executor,
+        clock=lambda: NOW,
+        run_specs={},
+        describe=describe,
+        policy=RefreshPolicy(workers=workers),
+    )
+
+    assert calls == [("UndeclaredStrategyError", False)]
