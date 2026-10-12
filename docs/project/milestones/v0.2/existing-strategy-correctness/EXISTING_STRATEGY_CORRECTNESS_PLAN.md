@@ -26,7 +26,7 @@ Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequen
 | ESC-D | [Refresh lifecycle/output evidence and full gate](ESC_D_RENEWAL_PLAN.md) | Complete | 2026-09-23 |
 | ESC-E | [Re-run after integration readiness (IR)](ESC_E_RENEWAL_PLAN.md) | Complete | 2026-10-01 |
 
-Open ledger item found after ESC-E: [ESC-30](ESC_A_DEFECT_LEDGER.md#esc-30--the-direct-graham-commands-accept-a-non-finite-override-that-the-watchlist-path-rejects), [issue #124](https://github.com/PeterPontbriand/investment-analysis-engine/issues/124): the direct Graham commands accept a non-finite override option that the watchlist path rejects.
+Ledger item found after ESC-E, resolved by SWC.4e on 2026-10-12: [ESC-30](ESC_A_DEFECT_LEDGER.md#esc-30--the-direct-graham-commands-accept-a-non-finite-override-that-the-watchlist-path-rejects), [issue #124](https://github.com/PeterPontbriand/investment-analysis-engine/issues/124): the direct Graham commands now reject a non-finite override as the watchlist path does.
 
 ## The work units
 
