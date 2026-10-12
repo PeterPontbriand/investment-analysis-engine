@@ -268,11 +268,13 @@ Any of (ii) and (iii) changes a classification for an input no real filing produ
 
 ### ESC-30 — The direct Graham commands accept a non-finite override that the watchlist path rejects
 
-**Scope/severity:** Graham Number (`--eps`, `--bvps`, `--current-price`) and Graham Growth (`--eps`, `--current-price`, `--expected-growth`, `--aaa-yield`), direct commands; low; found in SWC.4d. **Tracking:** [issue #124](https://github.com/PeterPontbriand/investment-analysis-engine/issues/124). Open; no fix in SWC.4d.
+**Scope/severity:** Graham Number (`--eps`, `--bvps`, `--current-price`) and Graham Growth (`--eps`, `--current-price`, `--expected-growth`, `--aaa-yield`), direct commands; low; found in SWC.4d. **Tracking:** [issue #124](https://github.com/PeterPontbriand/investment-analysis-engine/issues/124). Resolved by SWC.4e (2026-10-12).
 
 **Reproduction (2026-10-11, CLI test runner, deterministic fixture resolver, no network):** each of those options with `nan`, `inf` and `-inf` on `graham-number` and `graham-growth` (21 invocations, `--json`). The command line and `GrahamNumberConfig` / `GrahamGrowthConfig` (`StrictFloat`, no finiteness check) accept the value.
 
 **Actual:** every invocation exits 1 with a strategy document of `status` `invalid_input` and the generic reason "Unable to analyze SYNTH: the requested inputs are invalid."; no non-finite number is computed or written. **Watchlist path:** `watchlist create` and `watchlist add-selection` reject the same values before any analysis with `Invalid --eps: Financial override must be a finite number.`
 
-**Expected contract (question for the project owner):** whether the direct commands should reject a non-finite override at the command line with the watchlist path's check and sentence.
+**Expected contract (answered by the project owner):** the direct commands reject a non-finite override at the command line with the watchlist path's check and sentence.
+
+**Finding and fix (SWC.4e, 2026-10-12; closed):** each direct command validates the strict selection where it validated the permissive configuration, so a non-finite override reports `Invalid --eps: Financial override must be a finite number.` (and the equivalents for the other options), `invalid_parameter`, exit 1, before any analysis. See [B.15](../swc/SWC_CONTRACT_AND_SLICE_PLAN.md#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11). Tests: the `SUP-9` rows and the parity test in `tests/test_command_validation_failures.py`.
 

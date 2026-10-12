@@ -39,7 +39,6 @@ from src.data.yfinance import YFinanceClient
 from src.reporting.evidence_presentation import friendly_valuation_failure
 from src.reporting.presentation import PresentationMode
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
-from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.graham_number.execution import (
     capture_provider_failure,
     execute_graham_number,
@@ -168,19 +167,16 @@ def command(  # noqa: PLR0913
         scope.mode = mode
         boundary = _parse_as_of(as_of)
         provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
-        # Permissive by design: this config accepts any injected provider id (a synthetic
-        # test-only id included) exactly as the CLI's Graham configs always have. The
-        # strict, CLI-supported-providers-only GrahamNumberSelection is built lazily,
-        # only when --save-run is set (inside _run_graham_number's request_factory) —
-        # constructing it eagerly here would reject inputs this permissive path accepts.
         with config_usage_errors():
-            config = GrahamNumberConfig.model_validate(
+            selection = GrahamNumberSelection.model_validate(
                 {
                     "security_provider_id": provider_id,
                     "eps_basis": eps_basis,
                     "eps_override": eps,
                     "quote_override": current_price,
                     "bvps_override": bvps,
+                    "as_of": boundary,
+                    "use_cache": use_cache,
                 }
             )
         with _production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache:
@@ -193,19 +189,17 @@ def command(  # noqa: PLR0913
             ):
                 resolver = build_graham_resolver(
                     resolver_type=GrahamNumberInputResolver,
-                    data_provider=config.security_provider_id,
+                    data_provider=selection.security_provider_id,
                     cache=cache,
                     clock=lambda: executed_at,
                 )
             output, exit_code = _run_graham_number(
                 resolver=resolver,
                 ticker=target_ticker,
-                config=config,
+                selection=selection,
                 mode=mode,
                 profile_provider=YFinanceClient(),
-                as_of=boundary,
                 executed_at=executed_at,
-                use_cache=use_cache,
                 save_run=save_run,
                 provider_check=provider_check,
             )
@@ -218,34 +212,21 @@ def _run_graham_number(  # noqa: PLR0913
     *,
     resolver: GrahamNumberInputResolver,
     ticker: str,
-    config: GrahamNumberConfig,
+    selection: GrahamNumberSelection,
     mode: PresentationMode,
     profile_provider: object,
-    as_of: datetime | None,
     executed_at: datetime,
-    use_cache: bool,
     save_run: bool = False,
     provider_check: ProviderCheckChoice | None = None,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham Number analysis."""
+    config = selection.to_graham_number_config()
+    as_of = selection.as_of
+    use_cache = selection.use_cache
     capture = maybe_save_run(
         save_run=save_run,
         executed_at=executed_at,
-        request_factory=lambda: AnalysisRequest(
-            ticker=ticker,
-            selection=GrahamNumberSelection.model_validate(
-                {
-                    "security_provider_id": config.security_provider_id,
-                    "quote_provider_id": config.quote_provider_id,
-                    "eps_basis": config.eps_basis,
-                    "eps_override": config.eps_override,
-                    "bvps_override": config.bvps_override,
-                    "quote_override": config.quote_override,
-                    "as_of": as_of,
-                    "use_cache": use_cache,
-                }
-            ),
-        ),
+        request_factory=lambda: AnalysisRequest(ticker=ticker, selection=selection),
         run_adapter=lambda profile_cache: execute_graham_number(
             resolver,
             ticker,

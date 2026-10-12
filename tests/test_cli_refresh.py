@@ -31,7 +31,6 @@ from typer.testing import CliRunner
 import src.cli_workspace
 from src.cli import app
 from src.core.constants import TrendStatus
-from src.data.financial.facts import FinancialFactRequest, ProviderFact
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.market_data import MarketDataContext
 from src.data.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
@@ -39,17 +38,16 @@ from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.repositories.watchlists import SQLiteWatchlistRepository
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.evaluation.fixtures.graham import NOW, SUBJECT_MISSING, FixtureFinancialFactsProvider
+from src.evaluation.fixtures.graham import SUBJECT_MISSING
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
 from src.strategies.fcf_growth.selection import FCFGrowthSelection
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.strategy_types import AnalysisSelection
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
+from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 from tests._wiring import alias_for
 
 runner = CliRunner()
@@ -103,27 +101,6 @@ def _mock_momentum_run(ticker: str = "BTC-USD") -> MomentumRun:
             observation_count=500,
         ),
     )
-
-
-class _SecLabeledGrahamProvider:
-    """Wraps the Graham fixture provider, relabeling facts as `sec_edgar` (matches B1's restriction)."""
-
-    def __init__(self) -> None:
-        self._delegate = FixtureFinancialFactsProvider()
-
-    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
-        return tuple(
-            replace(fact, provider_id="sec_edgar")
-            for fact in self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
-        )
-
-
-def _graham_resolver() -> GrahamNumberInputResolver:
-    return GrahamNumberInputResolver(_SecLabeledGrahamProvider(), clock=lambda: NOW)
-
-
-def _graham_growth_resolver() -> GrahamGrowthInputResolver:
-    return GrahamGrowthInputResolver(_SecLabeledGrahamProvider(), clock=lambda: NOW)
 
 
 def _fcf_provider() -> ProductionFinancialFactsProvider:
@@ -350,7 +327,7 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0() -> No
     _seed("My Watch", [("FLSW", GrahamNumberSelection())])
 
     with (
-        patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()),
+        patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()),
         patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
     ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
@@ -413,7 +390,7 @@ def test_refresh_graham_growth_selection_persists_with_configured_assumptions() 
     growth = GrahamGrowthSelection(expected_growth=6.0, aaa_yield_override=4.4)
     _seed("My Watch", [("SYNTH", growth)])
 
-    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=_graham_growth_resolver()):
+    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=sec_labeled_growth_resolver()):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 0, result.output
@@ -441,7 +418,7 @@ def test_refresh_unavailable_outcome_still_persists_and_exits_1() -> None:
     """An unavailable (not failed-to-execute) financial outcome still triggers exit 1."""
     _seed("My Watch", [(SUBJECT_MISSING, GrahamNumberSelection())])
 
-    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 1
@@ -488,7 +465,7 @@ def test_refresh_no_save_unavailable_outcome_still_exits_1() -> None:
     """--no-save still reflects a real financial outcome in the exit code, not just storage failures."""
     _seed("My Watch", [(SUBJECT_MISSING, GrahamNumberSelection())])
 
-    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1", "--no-save"])
 
     assert result.exit_code == 1

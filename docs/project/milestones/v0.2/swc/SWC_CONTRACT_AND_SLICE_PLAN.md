@@ -57,8 +57,8 @@ document-link check and applicable documentation checks.
 | SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Complete | 2026-10-07 |
 | SWC.4c.1 | [Common header and tail for strategy documents](#swc4c1--common-header-and-tail-for-strategy-documents) | Complete | 2026-10-09 |
 | SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Complete | 2026-10-11 |
-| SWC.4e | [The direct Graham commands reject an unsupported provider](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) | Next | |
-| SWC.4f | [One sentence per failure for the direct commands and refresh](#swc4f--one-sentence-per-failure-for-the-direct-commands-and-refresh) | Planned | |
+| SWC.4e | [The direct Graham commands reject an unsupported provider](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) | Complete | 2026-10-12 |
+| SWC.4f | [One sentence per failure for the direct commands and refresh](#swc4f--one-sentence-per-failure-for-the-direct-commands-and-refresh) | Next | |
 | SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
@@ -555,10 +555,11 @@ version and result-schema version distinct and do not silently reinterpret histo
   `build_graham_resolver`) and `invalid_parameter` on `watchlist create` and `watchlist add-selection` (from the strict selection).
 - **Decision:** remove the seam ([B.15](#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11)). The direct
   commands reject an unsupported provider with the builders' check, sentence and code. Tests pass `sec_edgar` with the resolver
-  replaced, and the stored direct-command output is re-captured; the only stored-output difference permitted is the provider id.
+  replaced, and the stored direct-command output is re-captured. The re-capture also changed the EPS basis, from TTM to the
+  three-year average, because the default basis follows the provider id (approved by the project owner; recorded in B.15).
 - **Scope:** the Graham direct-command configuration and its command files, and the tests listed in B.15.
 - **Branch:** `feat/swc-4e-direct-graham-provider`, from `main` after SWC.4d has merged.
-- **Detail:** ⚠ no slice plan yet. The affected files and invocation counts are in
+- **Detail:** no separate slice plan; the comparison, the output changes and the test changes are in
   [B.15](#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11).
 
 #### SWC.4f — One sentence per failure for the direct commands and refresh
@@ -1067,7 +1068,7 @@ exit 2 and, even under `--json`, no JSON, unless stated. "After" is the sentence
 | :--- | :--- | :--- |
 | Every failure envelope | all | New key `parameters` (`null` unless `invalid_parameter`); `schema_version` 9 to 10. Momentum's window and period failures (already exit 1) gain `parameters` only. |
 | `momentum` | ticker (`TICKER`/`--ticker`), `--details`/`--diagnostics`/`--json`, `--as-of`, `--save-run` | Exit 1. A blank ticker reads `TICKER must be a non-empty symbol.` or `--ticker must be a non-empty symbol.`. |
-| `graham-number`, `graham-growth` | ticker, output flags, `--as-of`, `--data-provider` (blank), `--eps-basis`, the SEC basis rule | Exit 1. A blank ticker is worded as for `momentum`. A pydantic message loses its `Value error, ` prefix. An unsupported `--data-provider` is unchanged (`configuration_error`, [SWC.4e](SWC_CONTRACT_AND_SLICE_PLAN.md#swc4e--the-direct-graham-commands-reject-an-unsupported-provider)). |
+| `graham-number`, `graham-growth` | ticker, output flags, `--as-of`, `--data-provider` (blank), `--eps-basis`, the SEC basis rule | Exit 1. A blank ticker is worded as for `momentum`. A pydantic message loses its `Value error, ` prefix. Changed by [SWC.4e](SWC_CONTRACT_AND_SLICE_PLAN.md#swc4e--the-direct-graham-commands-reject-an-unsupported-provider): an unsupported `--data-provider`, a non-finite override and `--eps-basis ttm` now report the watchlist path's sentences and `invalid_parameter`. |
 | `fcf-growth` | ticker, output flags, `--as-of`, `--data-provider` (blank), `--growth-years`, `--forward-policy`, `--classification-basis`, `--currency` | Exit 1. A blank ticker is worded as for `momentum`. |
 | `watchlist create` | `--analysis`, seed tickers, name, every strategy option | Exit 1. A blank name reads `NAME must not be blank.` (it was a pydantic block with `input_value`). A blank seed ticker reads `TICKER must not be empty.` and is checked before the watchlist is created, so none is left behind; a name that exists together with a blank ticker now reports the blank ticker. A missing `--expected-growth` or `--aaa-yield` reads `--expected-growth is required when --analysis is graham-growth.` (and the same for `--aaa-yield`). Momentum's windows were already exit 1. |
 | `watchlist add-selection` | `--analysis`, tickers, strategy options | Exit 1; wording as for `create`. A watchlist holding an unreadable entry is no longer a usage error: it reports `stored_selection_unreadable`, exit 1, with the same sentence. |
@@ -1110,6 +1111,77 @@ builders:
   `graham-growth.json`, `graham-growth.txt`. Other `--data-provider` values in tests are `sec_edgar` (including `" SEC_EDGAR "`),
   `not-a-provider` (`tests/test_cli.py`, expects the unsupported-provider failure) and `unapproved` (`fcf-growth`, which never rejects
   a provider id).
+
+#### B.15 implementation record (2026-10-12)
+
+The project owner approved the slice's work and, when the re-capture changed more than the provider id, approved the full re-capture to
+the three-year-average result. No separate slice plan was written.
+
+**Field-by-field comparison** of `GrahamNumberConfig` / `GrahamGrowthConfig` (before) with `GrahamNumberSelection` /
+`GrahamGrowthSelection` (after), for every input the command line supplies:
+
+| Input | Configuration | Selection | Difference |
+| :--- | :--- | :--- | :--- |
+| `--data-provider` | trimmed, lower-cased, not blank; any id accepted | the same, then restricted to `CLI_SECURITY_PROVIDERS` (`sec_edgar`) | **1.** The provider id. |
+| `--eps`, `--current-price`, `--bvps` (Number), `--expected-growth`, `--aaa-yield` (Growth) | `StrictFloat`, no finiteness check | `StrictFloat` plus a finiteness check | **2.** Non-finite overrides. |
+| `--eps-basis` | trimmed, lower-cased; Number `three_year_average` or `ttm`, Growth `three_year_average`, `ttm` or `fiscal_year`; the SEC rule then rejects `ttm` | trimmed, lower-cased; Number `three_year_average`, Growth `three_year_average` or `fiscal_year` | **3.** The bases the selection excludes: `ttm`, and the allowed-values list that a rejected value (`bogus`) now prints. |
+| default basis, quote provider | `default_eps_basis_for_provider`, `validate_method` | the selection builds its configuration with the same `validate_method` | none |
+| `--as-of`, `--no-cache` | not part of the configuration | `as_of` (aware datetime) and `use_cache`, taken from the values the command already parsed | none; no new input |
+| unknown fields | `extra="forbid"` | `extra="forbid"` | none |
+
+The differences are exactly the three expected. The only consequence beyond them: when a rejected provider is combined with another
+rejected value, the provider is reported, because its field is validated first; before, the other value was reported at this point and
+the provider failed later in the resolver builder. The order of the command's checks is otherwise unchanged: ticker, output flags,
+`--as-of`, blank provider, then the configuration (now selection) validation, then composition. Only `--save-run` read the selection
+late; the command now builds it once, and `--save-run` uses that object. The Golden suite does not go through these commands:
+`src/evaluation` imports no CLI module, and its Graham cases call the tool handlers, which still build the permissive configuration.
+`tool.py`, `execution.py` and the analyzers still use the configuration; nothing on those paths changed.
+
+**Output changes, by command** (the same for `graham-number` and `graham-growth` unless stated):
+
+| Input | Before | After |
+| :--- | :--- | :--- |
+| `--data-provider bogus` | `configuration_error`, `Unsupported valuation data provider 'bogus'; supported provider is 'sec_edgar'.` | `invalid_parameter`, `Invalid --data-provider: Unsupported security provider 'bogus'; supported provider is 'sec_edgar'.`, `parameters` `["--data-provider"]`, exit 1, in text and under `--json` |
+| `--eps`, `--current-price`, `--bvps`, `--expected-growth`, `--aaa-yield` with `nan`, `inf`, `-inf` | exit 1 with a strategy document, `status` `invalid_input`, `Unable to analyze SYNTH: the requested inputs are invalid.` | `invalid_parameter`, `Invalid --eps: Financial override must be a finite number.` (and the equivalents), exit 1, the failure envelope under `--json` |
+| `--eps-basis ttm` | Number: `SEC EDGAR requires --eps-basis to be one of (three_year_average) (received 'ttm').`; Growth: `... (fiscal_year, three_year_average) ...` | Number: `Invalid --eps-basis: Input should be 'three_year_average'`; Growth: `Invalid --eps-basis: Input should be 'three_year_average' or 'fiscal_year'` |
+| `--eps-basis bogus` | Number: `... 'three_year_average' or 'ttm'`; Growth: `... 'three_year_average', 'ttm' or 'fiscal_year'` | the same sentences as for `ttm` above |
+
+**Stored direct-command output.** The default EPS basis follows the provider id: `sec_edgar` defaults to the three-year average, and any
+other id (only a test or fixture can supply one) to TTM. Invoking the commands with `sec_edgar`, the only supported provider, therefore
+changes the basis and not only the provider id. The previous files recorded a TTM result that a real run cannot produce.
+
+| Command | Item | Before | After |
+| :--- | :--- | :--- | :--- |
+| `graham-number` | EPS basis and value | TTM, 4.80 (provider fact) | three-year average, 3.2333 (derived from fiscal years 2022 to 2024: 2.10, 3.40, 4.20) |
+| `graham-number` | Result (maximum indicated price) | 44.70 USD | 36.69 USD |
+| `graham-growth` | EPS basis and value | TTM, 4.80 (provider fact) | three-year average, 3.2333 (derived) |
+| `graham-growth` | Result (growth value) | 86.83 USD | 58.49 USD |
+
+The kinds of difference in the four files (`graham-number.txt`, `.json`, `graham-growth.txt`, `.json`):
+
+1. Provider id strings: `fixture-synth` becomes `sec_edgar` for the security facts and `yfinance` for the quote (the relabelling in
+   the shared helper answers each request with its own provider id).
+2. The EPS basis, value and `source_kind` (`provider` to `derived`), with the retained lineage of three fiscal-year components in the JSON.
+3. The result values above, and the text lines that carry the basis (`Basis:`, `EPS (...)`) and the sources (`derived from SEC EDGAR`).
+4. The EPS notes and the resolver trace messages, which describe the three-year-average derivation instead of a single TTM fact.
+
+No other field changed.
+
+**Tests.** One helper, `tests/_sec_labeled_graham.py`, replaces the copies in `tests/test_cli_save_run.py`, `tests/test_cli_refresh.py`,
+`tests/test_workspace_integration.py` and the relabelling in `tests/_direct_command_output.py`. Direct-command tests pass
+`--data-provider sec_edgar`. The tests that asserted a TTM result on the direct commands now assert the three-year average. The test
+that asserted a non-finite override reaches the analysis was removed; the rejections are table rows `SUP-9` in
+`tests/test_command_validation_failures.py` (every option and value, both commands, text and `--json`), with a parity test that runs
+one set of inputs through the direct command and `watchlist create` and compares the result and the sentence.
+
+**The TTM basis is now reachable only from tests** ([issue 126](https://github.com/PeterPontbriand/investment-analysis-engine/issues/126)).
+The selections exclude it, so the direct commands, the watchlist and refresh cannot run it; the tool path that the Golden suite uses is
+composed only from the evaluation fixtures, with a fixture provider id. The TTM code is not changed in this slice. Tests below the
+command level still exercise it: `tests/analysis/graham_value/test_resolver.py`, `test_facts.py`, `test_resolution_trace.py`,
+`test_cache.py`, `test_provenance.py`, `test_analyzer_config.py`, `test_fixture_provider.py` (`test_ttm_eps_returns_single_fact`,
+`test_growth_value_assembly_ttm_eps`), `tests/analysis/shared/test_financial_resolution.py`, `tests/reporting/test_graham_presenter.py`,
+`tests/reporting/test_display_labels.py` (`test_basis_display_name_ttm`), and the Golden cases `tests/evaluation/cases/test_graham_number.py`
+and `test_graham_g3.py`.
 
 ### B.16 SWC.4d follow-up: the workspace catch-all, `runs show` and refresh (2026-10-12)
 

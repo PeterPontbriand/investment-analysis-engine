@@ -40,7 +40,6 @@ from src.data.yfinance import YFinanceClient
 from src.reporting.evidence_presentation import friendly_valuation_failure
 from src.reporting.presentation import PresentationMode
 from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver, GrowthValueInputAssembly
-from src.strategies.graham_growth.config import GrahamGrowthConfig
 from src.strategies.graham_growth.execution import (
     capture_provider_failure,
     execute_graham_growth,
@@ -191,9 +190,8 @@ def command(  # noqa: PLR0913
         scope.mode = mode
         boundary = _parse_as_of(as_of)
         provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
-        # Permissive by design: see graham_number's identical comment above.
         with config_usage_errors():
-            config = GrahamGrowthConfig.model_validate(
+            selection = GrahamGrowthSelection.model_validate(
                 {
                     "security_provider_id": provider_id,
                     "eps_basis": eps_basis,
@@ -201,6 +199,8 @@ def command(  # noqa: PLR0913
                     "quote_override": current_price,
                     "expected_growth": expected_growth,
                     "aaa_yield_override": aaa_yield,
+                    "as_of": boundary,
+                    "use_cache": use_cache,
                 }
             )
         with _production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache:
@@ -213,19 +213,17 @@ def command(  # noqa: PLR0913
             ):
                 resolver = build_graham_resolver(
                     resolver_type=GrahamGrowthInputResolver,
-                    data_provider=config.security_provider_id,
+                    data_provider=selection.security_provider_id,
                     cache=cache,
                     clock=lambda: executed_at,
                 )
             output, exit_code = _run_graham_growth(
                 resolver=resolver,
                 ticker=target_ticker,
-                config=config,
+                selection=selection,
                 mode=mode,
                 profile_provider=YFinanceClient(),
-                as_of=boundary,
                 executed_at=executed_at,
-                use_cache=use_cache,
                 save_run=save_run,
                 provider_check=provider_check,
             )
@@ -238,36 +236,22 @@ def _run_graham_growth(  # noqa: PLR0913
     *,
     resolver: GrahamGrowthInputResolver,
     ticker: str,
-    config: GrahamGrowthConfig,
+    selection: GrahamGrowthSelection,
     mode: PresentationMode,
     profile_provider: object,
-    as_of: datetime | None,
     executed_at: datetime,
-    use_cache: bool,
     save_run: bool = False,
     provider_check: ProviderCheckChoice | None = None,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham growth-value analysis."""
     policy = growth_assumptions()
+    config = selection.to_graham_growth_config()
+    as_of = selection.as_of
+    use_cache = selection.use_cache
     capture = maybe_save_run(
         save_run=save_run,
         executed_at=executed_at,
-        request_factory=lambda: AnalysisRequest(
-            ticker=ticker,
-            selection=GrahamGrowthSelection.model_validate(
-                {
-                    "security_provider_id": config.security_provider_id,
-                    "quote_provider_id": config.quote_provider_id,
-                    "eps_basis": config.eps_basis,
-                    "eps_override": config.eps_override,
-                    "quote_override": config.quote_override,
-                    "expected_growth": config.expected_growth,
-                    "aaa_yield_override": config.aaa_yield_override,
-                    "as_of": as_of,
-                    "use_cache": use_cache,
-                }
-            ),
-        ),
+        request_factory=lambda: AnalysisRequest(ticker=ticker, selection=selection),
         run_adapter=lambda profile_cache: execute_graham_growth(
             resolver,
             ticker,

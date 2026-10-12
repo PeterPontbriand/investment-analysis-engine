@@ -14,7 +14,6 @@ import re
 from collections.abc import Iterator
 from contextlib import ExitStack, nullcontext
 from dataclasses import dataclass, replace
-from datetime import datetime
 from pathlib import Path
 from typing import cast
 from unittest.mock import patch
@@ -24,27 +23,25 @@ from typer.testing import CliRunner
 from src.cli import app
 from src.core.clock import utc_now
 from src.data.financial.cache import InMemoryResolvedInputCache
-from src.data.financial.facts import FinancialFactRequest, ProviderFact
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.market_data import HistoricalMarketData
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.data.yfinance import YFinanceFinancialFactsAdapter
 from src.data.yfinance.client import YFinanceClient
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
+from src.evaluation.fixtures.graham import SECURITY_ID
 from src.evaluation.fixtures.market_data import FixtureMarketDataProvider, momentum_success_frame
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "direct_commands"
 
 _WALL_CLOCK_FIELDS = re.compile(rb'("(?:resolved_at|effective_as_of|analysis_timestamp|retrieved_at)": ")[^"]+')
 _COMMANDS = {
     "momentum": ["momentum", "BTC-USD", "--short-window", "2", "--long-window", "3", "--rsi-period", "3", "--no-cache"],
-    "graham-number": ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID, "--no-cache"],
+    "graham-number": ["graham-number", SECURITY_ID, "--data-provider", SEC_PROVIDER_ID, "--no-cache"],
     "graham-growth": [
         *("graham-growth", SECURITY_ID, "--expected-growth", "5", "--aaa-yield", "4.5"),
-        *("--data-provider", PROVIDER_ID, "--no-cache"),
+        *("--data-provider", SEC_PROVIDER_ID, "--no-cache"),
     ],
     "fcf-growth": ["fcf-growth", "ACME", "--no-cache"],
 }
@@ -96,36 +93,13 @@ def normalize(stdout: bytes) -> bytes:
     return _WALL_CLOCK_FIELDS.sub(rb"\1<wall-clock>", stdout.replace(b"\r\n", b"\n"))
 
 
-class SecLabeledGrahamProvider:
-    """The Graham fixture provider answering the way the production provider router does.
-
-    A saved run's selection admits only the providers the CLI supports, so ``--save-run`` needs the resolved
-    facts' provider id to agree with the ``sec_edgar`` value requested on the command line. The production router
-    answers each request with facts labelled by that request's provider, so the security facts answer as
-    ``sec_edgar`` and the quote, which the resolver requests from ``yfinance``, answers as ``yfinance``. Relabelling
-    every fact as ``sec_edgar`` instead would make the resolver reject the quote for a provider mismatch, a failure
-    no production composition can produce.
-    """
-
-    def __init__(self) -> None:
-        self._delegate = FixtureFinancialFactsProvider()
-
-    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
-        """Return the fixture facts, each labelled with the provider the request names."""
-        return tuple(
-            replace(fact, provider_id=request.provider_id)
-            for fact in self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
-        )
-
-
-def enter_fixture_providers(stack: ExitStack, command: str, *, sec_labeled: bool = False) -> None:
+def enter_fixture_providers(stack: ExitStack, command: str) -> None:
     """Replace each direct command's providers with deterministic fixtures for the life of ``stack``.
 
-    ``sec_labeled`` relabels the Graham facts as SEC EDGAR, which the commands need when they save a run.
+    The Graham commands accept only the CLI-supported providers, so their fixture facts carry the provider ids a
+    production composition gives them.
     """
-    resolver_type = GrahamGrowthInputResolver if command == "graham-growth" else GrahamNumberInputResolver
-    provider = SecLabeledGrahamProvider() if sec_labeled else FixtureFinancialFactsProvider()
-    resolver = resolver_type(provider, clock=lambda: NOW)
+    resolver = sec_labeled_growth_resolver() if command == "graham-growth" else sec_labeled_number_resolver()
     for graham in ("graham_number", "graham_growth"):
         stack.enter_context(patch(f"src.strategies.{graham}.cli.build_graham_resolver", return_value=resolver))
     stack.enter_context(

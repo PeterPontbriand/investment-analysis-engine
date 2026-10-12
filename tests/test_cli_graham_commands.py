@@ -10,14 +10,14 @@ from typer.testing import CliRunner
 
 from src.cli import app
 from src.core.operator_errors import InvalidParameterError
-from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
+from src.data.financial.providers import SEC_PROVIDER_ID
+from src.evaluation.fixtures.graham import SECURITY_ID
 from src.strategies.graham_growth import cli as graham_growth_cli
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from src.strategies.graham_growth.config import GrahamGrowthConfig
+from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number import cli as graham_number_cli
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
-from src.strategies.graham_number.config import GrahamNumberConfig
+from src.strategies.graham_number.selection import GrahamNumberSelection
 from tests._cli_helpers import normalize_cli_output
+from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 
 _STRATEGY_CLI = {"graham-number": graham_number_cli, "graham-growth": graham_growth_cli}
 
@@ -88,15 +88,15 @@ def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
             ],
         )
     assert result.exit_code == 0, result.output
-    config = run.call_args.kwargs["config"]
-    assert isinstance(config, GrahamGrowthConfig if command == "graham-growth" else GrahamNumberConfig)
-    assert config.security_provider_id == "sec_edgar"
-    assert config.quote_provider_id == "yfinance"
-    assert config.eps_basis == "three_year_average"
-    assert config.eps_override == 3.0
-    assert config.quote_override == 20.0
-    assert run.call_args.kwargs["as_of"] == datetime(2025, 12, 31, 12, tzinfo=UTC)
-    assert run.call_args.kwargs["use_cache"] is False
+    selection = run.call_args.kwargs["selection"]
+    assert isinstance(selection, GrahamGrowthSelection if command == "graham-growth" else GrahamNumberSelection)
+    assert selection.security_provider_id == "sec_edgar"
+    assert selection.quote_provider_id == "yfinance"
+    assert selection.eps_basis == "three_year_average"
+    assert selection.eps_override == 3.0
+    assert selection.quote_override == 20.0
+    assert selection.as_of == datetime(2025, 12, 31, 12, tzinfo=UTC)
+    assert selection.use_cache is False
     assert run.call_args.kwargs["ticker"] == "KO"
     build.assert_called_once()
 
@@ -104,14 +104,15 @@ def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
 @pytest.mark.parametrize("command", ["graham-number", "graham-growth"])
 @pytest.mark.parametrize("mode", [[], ["--details"], ["--diagnostics"], ["--json"]])
 def test_both_commands_execute_real_analyzers_with_fixture_evidence(command: str, mode: list[str]) -> None:
-    resolver_type = GrahamGrowthInputResolver if command == "graham-growth" else GrahamNumberInputResolver
-    resolver = resolver_type(FixtureFinancialFactsProvider(), clock=lambda: NOW)
+    resolver = sec_labeled_growth_resolver() if command == "graham-growth" else sec_labeled_number_resolver()
     with (
         patch(f"src.strategies.{command.replace('-', '_')}.cli.build_graham_resolver", return_value=resolver),
         patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None),
         patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None),
     ):
-        result = CliRunner().invoke(app, [*_arguments(command), "--data-provider", PROVIDER_ID, "--no-cache", *mode])
+        result = CliRunner().invoke(
+            app, [*_arguments(command), "--data-provider", SEC_PROVIDER_ID, "--no-cache", *mode]
+        )
     assert result.exit_code == 0, result.output
     assert result.stderr == ""
     if mode == ["--json"]:
@@ -155,36 +156,6 @@ def test_usage_validation_precedes_resources(command: str, options: list[str]) -
     assert "errors.pydantic.dev" not in result.output
     database.assert_not_called()
     build.assert_not_called()
-
-
-@pytest.mark.parametrize("command", ["graham-number", "graham-growth"])
-@pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
-@pytest.mark.parametrize("option", ["--eps", "--current-price"])
-def test_nonfinite_inputs_keep_typed_financial_outcomes(command: str, value: str, option: str) -> None:
-    resolver_type = GrahamGrowthInputResolver if command == "graham-growth" else GrahamNumberInputResolver
-    resolver = resolver_type(FixtureFinancialFactsProvider(), clock=lambda: NOW)
-    with (
-        patch(f"src.strategies.{command.replace('-', '_')}.cli.build_graham_resolver", return_value=resolver),
-        patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None),
-        patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None),
-    ):
-        result = CliRunner().invoke(
-            app,
-            [
-                *_arguments(command),
-                "--data-provider",
-                PROVIDER_ID,
-                "--no-cache",
-                "--json",
-                f"{option}={value}",
-            ],
-        )
-    assert result.exit_code == 1, result.output
-    payload = json.loads(result.stdout)
-    assert payload["status"] == "invalid_input"
-    assert payload["result"]["margin_of_safety_percent"] is None
-    assert "NaN" not in result.stdout
-    assert "Infinity" not in result.stdout
 
 
 @pytest.mark.parametrize("command", ["graham-number", "graham-growth"])

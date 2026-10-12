@@ -29,23 +29,20 @@ from src.cli import app
 from src.config import ProjectSettings
 from src.config import settings as real_settings
 from src.core.constants import TrendStatus
-from src.data.financial.facts import FinancialFactRequest, ProviderFact
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.market_data import MarketDataContext
 from src.data.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.models import RunOutcome
 from src.workspace.runs import RunQuery
 from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_cli_output  # noqa: F401
+from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 
 runner = CliRunner()
 
@@ -110,36 +107,6 @@ def _mock_momentum_run(ticker: str = "BTC-USD") -> MomentumRun:
             observation_count=500,
         ),
     )
-
-
-class _SecLabeledGrahamProvider:
-    """Wraps the Graham fixture provider, relabeling facts as `sec_edgar`.
-
-    The fixture provider natively tags its facts `fixture-synth` (matching
-    the `--data-provider` value every other Graham CLI test uses); the
-    workspace `AnalysisSelection` types restrict `security_provider_id` to
-    `sec_edgar` only (B1), so `--save-run` tests need the resolved
-    facts' own `provider_id` to agree with the `sec_edgar` value requested
-    on the command line, or the resolver's own provider-identity check
-    rejects every candidate before composition.
-    """
-
-    def __init__(self) -> None:
-        self._delegate = FixtureFinancialFactsProvider()
-
-    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
-        return tuple(
-            replace(fact, provider_id="sec_edgar")
-            for fact in self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
-        )
-
-
-def _graham_resolver() -> GrahamNumberInputResolver:
-    return GrahamNumberInputResolver(_SecLabeledGrahamProvider(), clock=lambda: NOW)
-
-
-def _graham_growth_resolver() -> GrahamGrowthInputResolver:
-    return GrahamGrowthInputResolver(_SecLabeledGrahamProvider(), clock=lambda: NOW)
 
 
 def _fcf_provider() -> ProductionFinancialFactsProvider:
@@ -224,7 +191,7 @@ def test_momentum_save_run_without_explicit_ticker_is_an_invalid_parameter() -> 
 
 
 def test_graham_number_save_run_persists_a_completed_run() -> None:
-    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()):
         result = runner.invoke(app, ["graham-number", "SYNTH", "--data-provider", "sec_edgar", "--save-run"])
 
     assert result.exit_code == 0
@@ -239,7 +206,7 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome() -> None:
     """A typed not_applicable/unavailable outcome must still be persisted, not skipped."""
     profile = fixture_known_etf_profile()
     with (
-        patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()),
+        patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()),
         patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
     ):
         result = runner.invoke(
@@ -256,7 +223,7 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome() -> None:
 
 
 def test_graham_number_no_cache_plus_save_run_still_saves() -> None:
-    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()):
         result = runner.invoke(
             app,
             ["graham-number", "SYNTH", "--data-provider", "sec_edgar", "--no-cache", "--save-run"],
@@ -270,7 +237,7 @@ def test_graham_number_no_cache_plus_save_run_still_saves() -> None:
 
 
 def test_graham_number_default_call_saves_nothing() -> None:
-    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()):
+    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()):
         result = runner.invoke(app, ["graham-number", "SYNTH", "--data-provider", "sec_edgar"])
 
     assert result.exit_code == 0
@@ -281,7 +248,7 @@ def test_graham_number_default_call_saves_nothing() -> None:
 
 def test_graham_number_save_run_storage_failure_is_visible_and_nonzero_exit() -> None:
     with (
-        patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=_graham_resolver()),
+        patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()),
         patch.object(SQLiteAnalysisRunRepository, "insert", side_effect=AnalysisRunConflictError("duplicate")),
     ):
         result = runner.invoke(app, ["graham-number", "SYNTH", "--data-provider", "sec_edgar", "--save-run"])
@@ -297,7 +264,7 @@ def test_graham_number_save_run_storage_failure_is_visible_and_nonzero_exit() ->
 
 
 def test_graham_growth_save_run_persists_with_stored_assumptions() -> None:
-    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=_graham_growth_resolver()):
+    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=sec_labeled_growth_resolver()):
         result = runner.invoke(
             app,
             [

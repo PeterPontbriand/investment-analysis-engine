@@ -37,8 +37,6 @@ def _no_clients() -> ProviderClients:
     return cast(ProviderClients, object())
 
 
-_FIXTURE_PROVIDER = "fixture-synth"
-
 _FINDING_LINES = {
     CheckVerdict.UNREACHABLE: "Yahoo Finance is not answering: a test request also failed.",
     CheckVerdict.RATE_LIMITED: "Yahoo Finance is limiting requests: a test request was also refused.",
@@ -72,8 +70,8 @@ class _Probe:
 
 
 def _probe(verdicts: dict[str, CheckVerdict] | None = None, *, enabled: bool = True) -> _Probe:
-    """Build a probe whose checks return the given verdicts; the default makes Yahoo, SEC and the fixture healthy."""
-    chosen = {"yfinance": CheckVerdict.OK, "sec_edgar": CheckVerdict.OK, _FIXTURE_PROVIDER: CheckVerdict.OK}
+    """Build a probe whose checks return the given verdicts; the default makes Yahoo and SEC healthy."""
+    chosen = {"yfinance": CheckVerdict.OK, "sec_edgar": CheckVerdict.OK}
     chosen.update(verdicts or {})
     calls: list[str] = []
 
@@ -105,8 +103,8 @@ class _Scenario:
 
 _SCENARIOS = {
     "momentum": _Scenario("momentum", ("momentum", "FCIM"), "yfinance"),
-    "graham-number": _Scenario("graham-number", (), _FIXTURE_PROVIDER),
-    "graham-growth": _Scenario("graham-growth", (), _FIXTURE_PROVIDER),
+    "graham-number": _Scenario("graham-number", (), "sec_edgar"),
+    "graham-growth": _Scenario("graham-growth", (), "sec_edgar"),
     "fcf-growth": _Scenario("fcf-growth", (), "sec_edgar"),
 }
 _CASE_OF = {
@@ -162,7 +160,7 @@ def test_the_first_line_is_written_to_the_stream_of_the_failure_text_immediately
 ) -> None:
     scenario = _SCENARIOS[command]
     fake = _probe({scenario.provider_id: CheckVerdict.UNREACHABLE})
-    display = {"yfinance": "Yahoo Finance", "sec_edgar": "SEC EDGAR"}.get(scenario.provider_id, scenario.provider_id)
+    display = {"yfinance": "Yahoo Finance", "sec_edgar": "SEC EDGAR"}[scenario.provider_id]
 
     with _failing(command) as arguments:
         result = _invoke(arguments, fake.probe, *([mode] if mode else []))
@@ -239,15 +237,13 @@ def test_a_provider_with_no_health_check_could_not_be_checked_and_no_request_is_
         result = _invoke(arguments, probe)
 
     assert result.exit_code == 1
-    assert result.stderr.splitlines()[0] == f"{_FIXTURE_PROVIDER} could not be checked."
+    assert result.stderr.splitlines()[0] == "SEC EDGAR could not be checked."
 
 
 @pytest.mark.parametrize("command", list(_SCENARIOS))
 def test_the_option_turns_the_check_off_for_the_invocation(command: str) -> None:
     fake = _probe()
-    display = {"yfinance": "Yahoo Finance", "sec_edgar": "SEC EDGAR"}.get(
-        _SCENARIOS[command].provider_id, _FIXTURE_PROVIDER
-    )
+    display = {"yfinance": "Yahoo Finance", "sec_edgar": "SEC EDGAR"}[_SCENARIOS[command].provider_id]
 
     with _failing(command) as arguments:
         result = _invoke(arguments, fake.probe, "--no-provider-check")
@@ -368,7 +364,7 @@ class _WrongValueProbe:
 @pytest.mark.parametrize("command", list(_SCENARIOS))
 def test_the_check_fails_open_and_never_changes_the_failure_or_its_exit_code(command: str, probe: object) -> None:
     scenario = _SCENARIOS[command]
-    display = {"yfinance": "Yahoo Finance", "sec_edgar": "SEC EDGAR"}.get(scenario.provider_id, scenario.provider_id)
+    display = {"yfinance": "Yahoo Finance", "sec_edgar": "SEC EDGAR"}[scenario.provider_id]
 
     with _failing(command) as arguments:
         result = _invoke(arguments, probe)

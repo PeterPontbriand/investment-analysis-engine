@@ -5,20 +5,18 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from src.cli import app
+from src.data.financial.providers import SEC_PROVIDER_ID
 from src.evaluation.fixtures.graham import (
-    NOW,
-    PROVIDER_ID,
     SECURITY_ID,
-    FixtureFinancialFactsProvider,
 )
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
+from tests._sec_labeled_graham import sec_labeled_growth_resolver
 
 runner = CliRunner()
 
 
 def test_cli_growth_non_positive_value_explains_omitted_price_comparison() -> None:
-    resolver = GrahamGrowthInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
+    resolver = sec_labeled_growth_resolver()
 
     with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=resolver):
         result = runner.invoke(
@@ -27,7 +25,7 @@ def test_cli_growth_non_positive_value_explains_omitted_price_comparison() -> No
                 "graham-growth",
                 SECURITY_ID,
                 "--data-provider",
-                PROVIDER_ID,
+                SEC_PROVIDER_ID,
                 "--eps",
                 "-1.5",
                 "--expected-growth",

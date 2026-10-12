@@ -18,7 +18,6 @@ a user actually types.
 """
 
 import json
-from dataclasses import replace
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
@@ -26,28 +25,13 @@ from typer.testing import CliRunner
 
 from src.cli import app
 from src.core.constants import TrendStatus
-from src.data.financial.facts import FinancialFactRequest, ProviderFact
 from src.data.market_data import MarketDataContext
-from src.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
+from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 
 runner = CliRunner()
-
-
-class _SecLabeledGrahamProvider:
-    """Wraps the Graham fixture provider, relabeling facts as `sec_edgar` (matches B1's restriction)."""
-
-    def __init__(self) -> None:
-        self._delegate = FixtureFinancialFactsProvider()
-
-    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
-        return tuple(
-            replace(fact, provider_id="sec_edgar")
-            for fact in self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
-        )
 
 
 def _resolver_side_effect(
@@ -55,8 +39,8 @@ def _resolver_side_effect(
 ) -> object:
     del data_provider, cache, clock
     if resolver_type is GrahamNumberInputResolver:
-        return GrahamNumberInputResolver(_SecLabeledGrahamProvider(), clock=lambda: NOW)
-    return GrahamGrowthInputResolver(_SecLabeledGrahamProvider(), clock=lambda: NOW)
+        return sec_labeled_number_resolver()
+    return sec_labeled_growth_resolver()
 
 
 def _mock_momentum_run(ticker: str) -> MomentumRun:
