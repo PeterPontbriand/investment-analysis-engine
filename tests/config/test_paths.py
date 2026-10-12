@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.utils.paths import require_anchored_path
+from src.config.paths import require_anchored_path
 
 _ACCEPTED = [
     "data/x.sqlite3",

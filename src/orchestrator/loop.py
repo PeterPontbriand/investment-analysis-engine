@@ -13,6 +13,8 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
 from src.config import settings
+from src.config.reliability_limits import ReliabilityLimits
+from src.config.schema_config import SchemaConfig
 from src.core.telemetry import (
     RunContext,
     TelemetryMode,
@@ -31,11 +33,9 @@ from src.orchestrator.reliability import (
     MonotonicClock,
     ReliabilityFailure,
     ReliabilityLimitReachedError,
-    ReliabilityLimits,
     ReliabilityTripReason,
 )
 from src.orchestrator.types import AgentStepResult, ChatMessage, Role, ToolCallRequest, ToolCallResult
-from src.schema.config import SchemaConfig
 from src.schema.constraint import (
     build_schema_constraint,
     detect_ollama_schema_support,

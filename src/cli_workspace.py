@@ -40,6 +40,7 @@ from src.cli_support import (
 )
 from src.cli_watchlist_flags import WatchlistFlags
 from src.config import settings
+from src.config.paths import is_windows
 from src.core.clock import utc_now
 from src.core.failure_classification import classify_failure
 from src.core.failure_codes import FailureReasonCode
@@ -63,7 +64,6 @@ from src.reporting.failure_envelope import failure_envelope
 from src.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategy_wiring import BY_ALIAS, BY_METHOD_ID, EVIDENCE_BY_KEY, REPLAYS_BY_KEY, RUN_SPECS_BY_KEY
-from src.utils.paths import is_windows
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from src.workspace.models import RunOutcome

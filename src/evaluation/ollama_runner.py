@@ -13,6 +13,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
+from src.config.schema_config import SchemaConfig
 from src.core.strategy_errors import require
 from src.core.telemetry import (
     RunContext,
@@ -59,7 +60,6 @@ from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, Orchest
 from src.orchestrator.prompts import SystemPromptBuilder
 from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import AgentStepResult, ToolCallRequest, ToolCallResult
-from src.schema.config import SchemaConfig
 from src.strategy_wiring import BY_TOOL, STRATEGIES, tool_for_arguments
 from src.tools.parser import ToolParser
 from src.tools.schema_generator import ToolRegistry

@@ -17,7 +17,7 @@ from src.cli_run_support import get_cli_run_context
 from src.cli_strategy_wiring import add_strategy_commands
 from src.cli_support import parameter_failures
 from src.cli_workspace import register as register_workspace_commands
-from src.config import settings
+from src.config import paths, settings
 from src.core.clock import utc_now
 from src.core.operator_errors import InvalidParameterError
 from src.core.telemetry import RunContext, TrajectoryRecorder
@@ -37,7 +37,6 @@ from src.evaluation.ollama_runner import (
 from src.evaluation.reporting import EvaluationReport
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.llm.client import LLMClient
-from src.utils import paths
 
 app = typer.Typer(
     help="Analyze financial data with transparent calculations and supporting evidence.", add_completion=False

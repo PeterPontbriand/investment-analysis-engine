@@ -172,7 +172,7 @@ Deep-tier model selection (when used) remains a configuration choice rather than
 
 ## 7. Configuration Strategy
 
-System settings are managed through the project's centralized `ProjectSettings` model in `src/config.py`, using `pydantic-settings` and environment-variable overrides.
+System settings are managed through the project's centralized `ProjectSettings` model in `src/config/__init__.py`, using `pydantic-settings` and environment-variable overrides.
 
 - **LLM Settings:** Local Ollama base URL and model selection, with Light Mode as the recommended adoption mode.
 - **Ask Settings (v0.3):** Which local model understands questions and writes answers, which reads filings and checks sentences, the accuracy bars each must meet, and how many filings one question may read.

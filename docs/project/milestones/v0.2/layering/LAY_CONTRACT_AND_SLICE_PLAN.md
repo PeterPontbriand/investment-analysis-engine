@@ -32,8 +32,8 @@ work-package status. The design, the proof and the owner decisions are in [LAY_D
 | :--- | :--- | :--- | :--- |
 | LAY.0 | [Design, simulation script and slice plan](#lay0--design-and-slice-plan) | Complete | 2026-10-11 |
 | LAY.1 | [Role rule in the dependency check](#lay1--role-rule-in-the-dependency-check) | Complete | 2026-10-12 |
-| LAY.2 | [Configuration becomes a package and a base layer](#lay2--configuration-package-and-base-layer) | Next | |
-| LAY.3 | [Telemetry leaves core](#lay3--telemetry-package) | Planned | |
+| LAY.2 | [Configuration becomes a package and a base layer](#lay2--configuration-package-and-base-layer) | Complete | 2026-10-12 |
+| LAY.3 | [Telemetry leaves core](#lay3--telemetry-package) | Next | |
 | LAY.4 | [Run and watchlist repositories move to the workspace side](#lay4--repositories) | Planned | |
 | LAY.5 | [Selection base and run-outcome models move beside the analyzer contract](#lay5--contract-modules) | Planned | |
 | LAY.6 | [Saved-run replay and workspace documents move up](#lay6--workspace-documents) | Planned | |
@@ -253,3 +253,40 @@ Approved by the project owner for LAY.1.
 6. New tests build a small source tree in a temporary directory and show that a strategy's `cli.py`, `evaluation.py`
    and `execution.py` are attributed to `cli`, `evaluation` and `workspace` in both import forms, and that any other
    file of a strategy package, including one in `_graham`, stays in `strategies`.
+
+### A.7 LAY.2 implementation decisions (2026-10-12)
+
+Approved by the project owner for LAY.2.
+
+1. `src/config.py` becomes `src/config/__init__.py`, unchanged except that the three expressions that derive a
+   directory from `__file__` take one more `.parent`, so every value is the same. `ReliabilityLimits` moves to
+   `src/config/reliability_limits.py`, `SchemaConfig` to `src/config/schema_config.py`, and `src/utils/paths.py` to
+   `src/config/paths.py`. Afterwards `config` imports only `core`.
+2. Every importer and every test patch target moves to the new home. Nothing is re-exported from an old location:
+   `src/orchestrator/reliability.py` and `src/schema/config.py` import the names from the new modules, and
+   `src/schema/__init__.py` drops its re-export of `SchemaConfig`. Every `from src.config import ...` and every patch
+   target into `src.config.ProjectSettings.*` keeps working unedited.
+3. The settings code stays whole in `src/config/__init__.py`.
+4. Importing any `src.config` submodule runs `src/config/__init__.py` and loads the settings. The condition for
+   every source file that imports a moved name is restated as: for every entry point, the point at which the settings
+   load does not change. Importing `src.schema` or `src.orchestrator.reliability` on its own may now load the
+   settings; that is accepted.
+5. `src/orchestrator/reliability.py` and `src/schema/config.py` import the moved names with ordinary module-level
+   imports, not `TYPE_CHECKING`. In `src/schema/config.py` the function-level `from src.config import settings`
+   became a module-level import and its `noqa` comment was removed, because the loop it broke no longer exists.
+6. A test shows that the directories and the default database location the settings derive from `__file__` equal the
+   repository root and the paths built from it; it was run against `main` as well.
+7. The four `serves = "L3"` entries left the move list in the same change, as its header requires, and `src.config`
+   joined the re-exporting package initializers that the layering test allows in an import cycle (the plan already
+   lists that test's allowlist among the files a layering slice changes).
+8. `tests/utils/test_paths.py` moved to `tests/config/test_paths.py`. The `pyproject.toml` coverage `omit` entry
+   `src/config.py` became `src/config/__init__.py`; no other line of `pyproject.toml` and no part of `uv.lock`
+   changed.
+
+Entry points, whether `src.config` is loaded once the entry point's imports finish, in a fresh interpreter:
+
+| Entry point | On `main` | After LAY.2 |
+| :--- | :--- | :--- |
+| `src.main` | loaded | loaded |
+| `scripts.generate_schemas` | loaded | loaded |
+| `scripts.strategy_conformance` | loaded | loaded |
