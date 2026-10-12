@@ -539,8 +539,8 @@ version and result-schema version distinct and do not silently reinterpret histo
   - a command with no `--json` writes the sentence to standard error and exits 1, and no command gains `--json`;
   - each sentence is kept except where it must be reworded to keep an option name that Typer's usage output carried, and every
     sentence names its option or argument;
-  - a caught `ValueError` from the workspace layer is audited per site: a real check becomes an explicit check, anything else reports
-    under the code the classifier already gives it;
+  - a caught `ValueError` from the workspace layer is audited per site: a real check becomes an explicit check, and anything else that
+    declares no code of its own reports as `execution_error` with `<command> failed unexpectedly.` ([B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12));
   - the failure envelope gains `parameters`, the offending option or argument names, and its `schema_version` is bumped;
   - a test fails if any file under `src/` raises `typer.BadParameter`.
 - **Scope:** set by the [SWC.4d plan](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md#e-file-scope-tests-and-documents-for-step-2).

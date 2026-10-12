@@ -65,8 +65,8 @@ Scope limits:
 - No parser-declared constraint (`min=`, `max=`, `click.Choice`, a required option) replaces a check, and no parser
   error is caught or reworded.
 - No reason code is added, renamed, repurposed or removed. Every converted check reports `invalid_parameter`, except `DB-3` (F6),
-  ([5.3](#53-invalid_parameter-under-the-stability-rule)); the residual `ValueError` cases of [section B](#b-the-valueerror-audit)
-  report under codes the classifier already gives them.
+  ([5.3](#53-invalid_parameter-under-the-stability-rule)); an exception raised inside a workspace command that
+  declares no code of its own ([section B](#b-the-valueerror-audit)) reports as `execution_error`.
 - No formula, classification or provider behavior changes.
 - Stored data shapes do not change. The failure envelope's `schema_version` goes 9 to 10; nothing is migrated.
 
@@ -285,11 +285,19 @@ the two surprises were reproduced by running.
 | `runs list` | `RunQuery(...)` and the argument conversions | `normalize_ticker` (blank `--ticker`), `RunQuery` field bounds for `limit` and `offset` (a `ValidationError`). The alias, status and refresh-ID conversions raise `typer.BadParameter`, which is not a `ValueError` and passes through unchanged today. | Explicit checks `WRK-10`, `WRK-14`, `WRK-15`, in the order the arguments are evaluated today, with `WRK-1`, `WRK-11` and `WRK-12` between them. |
 | `refresh` | `RefreshPolicy(workers=...)` | The one `ValueError` in `RefreshPolicy.__post_init__`: the worker range. | Explicit `WRK-17` check. |
 
-The residual: a `ValueError` that none of the explicit checks names (a corrupt stored watchlist row is the only way to reach one) is not
-caught as a usage error. `_workspace_database` reports it through the classifier, as it does `StoredSelectionError`, which is
-`invalid_input` with the exception's own text, the same treatment `runs show` gives a `ValueError` from the run repository. No existing
-code describes "a corrupt watchlist row" more precisely than `invalid_input`; nothing in the tests or the code can produce it, so step 2
-adds a test that injects one and pins the code and the exit.
+The residual: an exception that none of the explicit checks names (a corrupt stored watchlist row is the only way to reach a
+`ValueError` here) is not caught as a usage error. `_workspace_database` takes the command as typed after `ian` and catches every
+exception raised inside its block. An exception that declares its own code, such as `StoredSelectionError`, keeps its own sentence. Any
+other exception, a `pydantic.ValidationError` included, is an `execution_error` with the fixed sentence `<command> failed unexpectedly.`
+(for example `watchlist add-selection failed unexpectedly.`); its detail goes to the log with its traceback, so no library text
+reaches the user. `typer.Exit` and `typer.Abort` pass through. `invalid_input` is not used there. Nothing in the tests or the code can
+produce a corrupt row, so step 2 injects a real `ValidationError` and a plain `ValueError` and pins the code, the sentence and the
+absence of `input_value`, `validation error for` and `errors.pydantic.dev`.
+
+`runs show` has its own read failure: the run repository's `get` raises a plain `ValueError` when the stored envelope fails validation
+and when the envelope disagrees with its own row. Both report `invalid_stored_run` with the one sentence `Analysis Run <full run ID>
+could not be read: its stored record is malformed or does not match its summary.`; the exception detail goes to the log with its
+traceback.
 
 The other catch-and-re-raise sites are not workspace-layer sites. Each guards one standard-library or model call whose only
 `ValueError` is the check itself, so each stays an explicit check at its own position:
@@ -393,8 +401,8 @@ Source files:
 - `src/cli_support.py`: `execution_errors` (`json_output`, `FailureScope`), `parameter_failures`, `report_failure`, every `raise` in the
   helpers, `config_usage_errors`, removal of the `UsageError` arm and import.
 - `src/cli_workspace.py`: all 16 raise sites, the explicit checks of section B, `_report` replaced by `report_failure`, the
-  `except InvalidParameterError` in `_build_selection` removed, `runs show` using the shared mode helper, the residual `ValueError`
-  path in `_workspace_database`, docstrings that say "usage error".
+  `except InvalidParameterError` in `_build_selection` removed, `runs show` using the shared mode helper, the catch-all
+  in `_workspace_database`, the `runs show` read-failure sentence, docstrings that say "usage error".
 - `src/cli.py` (`evaluate`), `src/cli_health.py`, `src/cli_database.py`.
 - `src/strategies/momentum/cli.py`, `fcf_growth/cli.py`, `graham_growth/cli.py`, `graham_number/cli.py`.
 - `src/workspace/refresh.py` and `src/workspace/runs.py`: the worker range and the `limit` bounds become named constants that the
@@ -410,7 +418,7 @@ Tests to add:
 - Order tests: one command line violating two checks per command of the order table in section C.
 - The output-flag failure with `--json` (envelope) and without (sentence), including with a blank ticker.
 - The `parameters`/sentence invariant over every row; the model tests for `parameters` (null unless `invalid_parameter`, non-empty when set).
-- The residual `ValueError` test of section B, the unreadable-entry `add-selection` test, and a test that the watchlist does not exist after a blank seed ticker fails (F3).
+- The catch-all and `runs show` read-failure tests of section B, the unreadable-entry `add-selection` test, and a test that the watchlist does not exist after a blank seed ticker fails (F3).
 - The Graham message tests of section D.
 
 Existing tests that change (command-level checks assert exit 1 and the new sentence; parser rejections keep exit 2):
@@ -481,13 +489,13 @@ Found while implementing step 2; each is small and none changes a row of section
 - **Create order.** The plan's order table put `WRK-5` before `WRK-4`; the implementation checks the name first, then every seed ticker, then creates, so only the accepted change (a taken name with a blank ticker reports the blank ticker) differs from today.
 - **`execution_errors` signature.** It gains `json_output` and yields the `FailureScope`, and keeps its `mode` parameter as the scope's initial mode instead of replacing it.
 - **Moved into the handler.** The FCF command's policy and configuration are now built inside its handler, so a `ValueError` from them is reported as a failure; before it would have escaped as a traceback.
-- **Workspace residual path.** `_workspace_database` reports any `ValueError` that reaches it through the classifier (this includes an `InvalidParameterError` raised inside the block), and the pre-check regions of the commands use `parameter_failures`. `_report` is replaced by `report_failure` in `src/cli_support.py`.
+- **Workspace catch-all.** `_workspace_database` reports an exception that declares its own code (an `InvalidParameterError` raised inside the block included) under that code and sentence, and any other exception as an `execution_error` (see the next bullets), and the pre-check regions of the commands use `parameter_failures`. `_report` is replaced by `report_failure` in `src/cli_support.py`.
 - **Database commands.** The target is opened by a new `_open_database` helper that holds `DB-1` to `DB-3`; the unreachable second `ValueError` handler is removed.
 - **Strict lookup.** `config_usage_errors` re-raises the original `ValidationError` when a model-level message names no mapped field, so nothing is reported under an invented option.
 - **Constants.** `MIN_WORKERS` and `MAX_WORKERS` in `src/workspace/refresh.py` and `RUN_QUERY_MIN_LIMIT` and `RUN_QUERY_MAX_LIMIT` in `src/workspace/runs.py`, as approved.
 - **A test seam.** The logging driver's "crash" scenario patched `_presentation_mode`, which now runs inside the handler; it patches `provider_check_choice`, which still runs before it.
 - **`runs show`.** A stored run that cannot be read reports one sentence, `Analysis Run <full run ID> could not be read: its stored record is malformed or does not match its summary.`, under `invalid_stored_run`; the validation text goes to the log. This resolves issue 113 ([B.16](SWC_CONTRACT_AND_SLICE_PLAN.md#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12)).
-- **The workspace catch-all.** `_workspace_database` takes the command as typed after `ian` and catches every exception, not only `ValueError`. One that declares its own `reason_code` keeps its sentence; any other is an `execution_error` with `<command> failed unexpectedly.` and its detail in the log; `typer.Exit` and `typer.Abort` pass through. This replaces the plan's `invalid_input` for a residual `ValueError` in section B. No sentence of section A changes.
+- **The workspace catch-all.** `_workspace_database` takes the command as typed after `ian` and catches every exception, not only `ValueError`. One that declares its own `reason_code` keeps its sentence; any other is an `execution_error` with `<command> failed unexpectedly.` and its detail in the log; `typer.Exit` and `typer.Abort` pass through. This replaced the `invalid_input` the plan first named for a residual `ValueError`; section B now states the catch-all. No sentence of section A changes.
 - **`evaluate`.** It keeps its raw error text (`Evaluation failed: ...`) by decision: it is a developer command whose readers need the detail.
 - **Refresh job text.** The `error` field of a failed refresh job still carries the exception's own text; that is [SWC.4f](SWC_CONTRACT_AND_SLICE_PLAN.md#swc4f--one-sentence-per-failure-for-the-direct-commands-and-refresh).
 - **F7 and F10c.** F7 moved to SWC.4e ([B.15](SWC_CONTRACT_AND_SLICE_PLAN.md#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11)); F10c is [ESC-30](../existing-strategy-correctness/ESC_A_DEFECT_LEDGER.md#esc-30--the-direct-graham-commands-accept-a-non-finite-override-that-the-watchlist-path-rejects), issue 124.
