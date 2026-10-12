@@ -572,8 +572,8 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Scope:** `src/workspace/refresh.py` (`_failed`), the direct commands' sentence code in `src/cli_support.py`, the `error` key of the
   `refresh --json` document and its schema, and their tests; the exact list is set by the slice plan.
 - **Branch:** `feat/swc-4f-failure-sentences`, from `main` after SWC.4e has merged.
-- **Detail:** ⚠ no slice plan yet. What can reach `_failed` today is listed in
-  [B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12).
+- **Detail:** no separate slice plan; the failure table, the design and the file list are in
+  [B.17](#b17-swc4f-one-sentence-per-failure-for-the-direct-commands-and-refresh-2026-10-12).
 
 ### SWC.5 — Site data, status command and generated lists
 
@@ -1212,3 +1212,244 @@ What can reach `_failed` (and so the `error` text, in the text summary and the `
 
 The first three rows are the paths in `refresh.py`; each ends in `_failed(..., exception, ...)`, which stores `str(exception)` as the
 job's `error` and the classifier's code as `reason_code`.
+
+### B.17 SWC.4f: one sentence per failure for the direct commands and refresh (2026-10-12)
+
+The project owner approved these decisions before the slice was designed:
+
+1. One function in `src/cli_support.py` produces a failure's sentence from the exception, the ticker and the strategy's wording.
+   The direct commands and refresh both use it. Refresh receives it by injection from the `refresh` command, as it receives
+   `classify` today; nothing under `src/workspace/` imports from the command layer.
+2. Each strategy declares its wording once, in its own `cli.py`, and the refresh path reaches it through the per-strategy CLI-tier
+   entries. Every direct-command sentence stays exactly as it is today.
+3. Failure codes stay unchanged on both paths. This is provisional until the project owner confirms it against the table in A.
+4. Wherever a job shows a fixed sentence instead of the exception text, the detail goes to the log with its traceback.
+5. The refresh document is not versioned again: `error` keeps its type and meaning.
+
+No stop condition was met. No direct-command sentence has to change; the wording reaches refresh through the CLI tier without
+`src/workspace/` importing the command layer and without a per-strategy entry in generic code; and this step changes nothing under
+`src/` or `tests/`. Section C lists what does not fit the decisions.
+
+#### A. The failure table
+
+Every kind of exception that can reach `_failed` in `src/workspace/refresh.py`, found by reading `refresh.py`, the four refresh
+executors, `execute` and the run repository. The paths are the three of [B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12):
+`--no-save`, saved and concurrent. An exception raised inside the executor reaches all three; an exception raised by `execute` (rows
+14 to 17 and a run that fails validation) reaches only saved and concurrent, because `--no-save` never calls `execute`. Under
+concurrent admission `_failed` runs on the coordinator thread in every case.
+
+Letters in the sentence columns: **M** Momentum, **F** FCF Growth, **G** Graham Number and Graham Growth. `T` is the ticker. Flags:
+**A** the code refresh keeps (decision 3) and the sentence after this slice disagree, or the sentence blames a cause the exception
+does not have; **N** the exception has no direct-command counterpart.
+
+| # | Exception and where it is raised | Refresh today: code and `error` | Direct command today: code and sentence | Refresh after this slice: `error` | Flags |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | `DataFetchError` with a kind: the Yahoo historical client (Momentum's executor); inside the executor | the kind's code (`provider_unreachable`, `provider_rate_limited`, `provider_unexpected_response`, `provider_no_data`); the provider's own text | the same code; `Unable to analyze AAPL: yfinance did not serve the request.` (one sentence per kind) | the direct sentence, with the job's ticker | none |
+| 2 | `DataFetchError` without a kind; same sites | `provider_error`; the provider's own text | `provider_error`; `Unable to analyze AAPL: a data provider failed; the failure was not classified.` | the direct sentence | none |
+| 3 | `FinancialProviderError` with a kind: the SEC provider, where the Graham and FCF resolvers do not capture it; inside the executor | the kind's code; the provider's own text | the same code; `Unable to analyze KO: sec_edgar is limiting requests.` | the direct sentence | none |
+| 4 | `FinancialProviderError` without a kind; same sites | `provider_error`; the provider's own text | `provider_error`; the unclassified sentence of row 2 | the direct sentence | none |
+| 5 | `HistoricalDataQualityError`: the cached historical client (Momentum); inside the executor | `historical_quality`; the exception's text (it names the affected observations) | the same code and text | unchanged: the exception's text | none |
+| 6 | `NoEligibleObservationsError`: market data (Momentum); inside the executor | `no_eligible_observations`; the exception's text | the same code and text | unchanged: the exception's text | none |
+| 7 | `AnalysisConfigurationError`: `build_sec_production_provider` (no SEC identity) in the Graham and FCF executors, and `build_graham_resolver` (an unsupported provider, which a validated selection no longer produces) | `configuration_error`; the text (`SEC EDGAR access is not configured. Set SEC_USER_AGENT ...`) | the same code. F: `Unable to start FCF & earnings-growth analysis: <text>`. G at the resolver build: `Unable to start Graham analysis: <text>`; G at the analysis stage: `<text>`. M: `Unable to complete momentum analysis for AAPL: the returned price history could not be analyzed.` | F: the direct sentence. G: `<text>`, the analysis-stage form. M: the price-history sentence | A (M only: a configuration code with a price-history sentence; Momentum composes no SEC provider, so it cannot occur, and the direct command does the same) |
+| 8 | `DatabaseReadinessError`, nine `database_*` codes: `ensure_database_ready` in the cache and historical-client helpers; inside the executor | the `database_*` code; the exception's text | the same code and text | unchanged: the exception's text | none |
+| 9 | `pydantic.ValidationError`: `selection.to_*_config()` at the start of the Graham and FCF executors, for a stored selection that no longer validates as a configuration; inside the executor | `invalid_input`; Pydantic's multi-line text | none: the direct commands validate their options first and report `invalid_parameter` | F: `Invalid analysis inputs or provider data.` G: `Graham analysis failed unexpectedly for KO.` | A (G: `invalid_input` with a "failed unexpectedly" sentence), N |
+| 10 | `ValueError("A nonblank ticker is required.")`: `require_ticker` in Momentum's executor; inside the executor | `invalid_input`; `A nonblank ticker is required.` | none: the direct commands reject a blank ticker first, as `invalid_parameter` | M: the price-history sentence. F: `Invalid analysis inputs or provider data.` G: the "failed unexpectedly" sentence | A (M: the sentence blames the price history; G: as row 9), N |
+| 11 | any other `ValueError`, including a `ValidationError` while `execute` builds the run: provider libraries, pandas, Pydantic; inside the executor, or in `execute` | `invalid_input`; the exception's text | M: `invalid_input`; the price-history sentence. F: `invalid_input`; `Invalid analysis inputs or provider data.` G at the analysis stage: `execution_error`; `Graham analysis failed unexpectedly for KO.` G at the resolver build: `invalid_input`; `Invalid analysis inputs or provider data.` | the same sentences as the direct analysis stage | A (G: refresh keeps `invalid_input`, the direct analysis stage reports `execution_error`) |
+| 12 | any other `Exception` (`RuntimeError`, `KeyError`, library errors); anywhere in an executor | `execution_error`; the exception's text | `execution_error`. M: `Momentum analysis failed unexpectedly for AAPL.` F: `FCF & earnings-growth analysis failed unexpectedly for KO.` G: `Graham analysis failed unexpectedly for KO.` | the same sentences | none |
+| 13 | `UndeclaredStrategyError`: `refresh_executor_for` in `_refresh_executor`, a selection with no CLI-tier entry; as the executor's exception | `execution_error`; `No declared strategy for refresh executor (...)` | none: a direct command is the strategy | `Analysis failed unexpectedly for KO.`, a new generic sentence, because no strategy wording exists for the selection | N |
+| 14 | `UndeclaredStrategyError`: `_spec_for`, a selection with no run spec; in `refresh.py`, before `execute` runs | `execution_error`; `No declared strategy for run spec (...)` | none | the strategy's "failed unexpectedly" sentence | N |
+| 15 | `InvalidStoredRunError`: `encode_with` in `execute`, evidence that does not encode | `invalid_stored_run`; `Invalid Momentum evidence.` | through `--save-run`, the workspace code is folded: M and F `invalid_input` with their row 11 sentences, G `execution_error` with the "failed unexpectedly" sentence | the row 11 sentences | A (a specific code with a generic sentence; the direct code differs) |
+| 16 | `AnalysisRunConflictError`: `repository.insert`, the run ID exists (a `ValueError` with no code of its own) | `invalid_input`; `Analysis run <id> already exists.` | through `--save-run`, as row 15 | the row 11 sentences | A (M blames the price history for a storage failure; G as row 9) |
+| 17 | `sqlalchemy.exc.SQLAlchemyError` subclasses (`OperationalError` and others): `repository.insert` | `execution_error`; the driver's text, including the SQL statement | `execution_error`; the "failed unexpectedly" sentences of row 12 | the same sentences | none |
+
+17 rows. Flag A: rows 7, 9, 10, 11, 15 and 16 (six). Flag N: rows 9, 10, 13 and 14 (four); rows 9 and 10 carry both.
+
+Exceptions that never reach `_failed`: `WatchlistNotFoundError` and `EmptyRefreshTargetError` (raised before any job), `StoredSelectionError`
+(raised when the watchlist's snapshot is read), `InvalidParameterError` (no executor raises it), `UnsupportedRunVersionError` (raised only
+when decoding), and `typer.Exit` and `KeyboardInterrupt` (not caught).
+
+**Confirmed by running.** A throwaway probe under the ignored `.tmp/` folder (removed afterwards, not committed) ran through
+`typer.testing.CliRunner` with a disposable migrated database, the suite's socket guard and `--no-provider-check`, so no network and no
+real database were touched. It built 16 exceptions that stand for the 17 rows (one `UndeclaredStrategyError` serves rows 13 and 14; row 11 by a plain
+`ValueError`) and raised each at the executor boundary, patching `_refresh_executor`, through `refresh --workers 1 --no-save`,
+`refresh --workers 1` and `refresh --workers 2`. It raised the exceptions of rows 8, 11 (a `ValidationError`), 14, 15, 16 and 17
+again at the persistence boundary, patching `src.workspace.refresh.execute`, through the saved and concurrent paths. Every "Refresh today" cell was identical on the paths that
+reach it. The same exceptions were raised in each of the four direct commands at the point where the analysis runs, and the resolver-build
+block of both Graham commands was probed separately. That gave 68 direct results; every "Direct command today" cell comes from them.
+The probe raises exceptions at the boundaries and does not reproduce their real origins, so the "where it is raised" cells come from
+reading the code. Row 12 is also pinned from a real origin by the stored output `refresh-failed-job` (`RuntimeError` from the fixture
+Yahoo client, `execution_error`, text `fixture provider failure`).
+
+#### B. The design
+
+**The function.** `src/cli_support.py`, beside `provider_failure_sentence`:
+
+```text
+describe_failure(exception: Exception, ticker: str | None, wording: FailureWording, *, detail: bool) -> FailureDescription
+
+FailureDescription(code: FailureReasonCode, sentence: str)
+FailureWording(
+    unexpected: Callable[[str | None], str],
+    invalid: Callable[[ValueError, str | None], str] | None = None,
+    invalid_detail: bool = False,
+)
+GENERIC_WORDING = FailureWording(unexpected=<"Analysis failed unexpectedly for {ticker}.">)
+```
+
+The body of `describe_failure` is the chain that `execution_errors` runs today, moved without change: classify, fold a workspace code
+into `invalid_input` or `execution_error`, then choose the exception's own text (the `database_*` codes and `_SHOWN_AS_RAISED`), the
+provider sentence, the `invalid` callback for a configuration error, the `invalid` callback or the generic input sentence for a
+`ValueError`, and otherwise the `unexpected` callback. Two things differ from the present closure form: the callbacks receive the ticker as
+an argument instead of reading `scope.ticker`, and the old test `scope.mode is None` is the argument `detail`. The function also does the
+logging of decision 4 (below). `detail` means "show the strategy's invalid-input sentence even though a presentation mode exists"; the
+direct commands pass `scope.mode is None`, refresh passes `False`, so for a plain `ValueError` refresh shows the generic input
+sentence instead of FCF's `invalid` text, which embeds the exception's text; Momentum's fixed sentence still shows because its
+`invalid_detail` is `True`. A configuration error still shows the strategy's `invalid` sentence, as on the direct command.
+
+**How each strategy declares its wording.** Each strategy's `cli.py` holds one module constant, built from the callbacks that are now
+inline lambdas in its `execution_errors` call:
+
+- `MOMENTUM_WORDING`: `unexpected` is `Momentum analysis failed unexpectedly for <ticker, or "the configured default ticker">.`;
+  `invalid` is `Unable to complete momentum analysis for <ticker, or the default>: the returned price history could not be analyzed.`;
+  `invalid_detail=True`.
+- `FCF_GROWTH_WORDING`: `unexpected` is `FCF & earnings-growth analysis failed unexpectedly for <ticker>.`; `invalid` is
+  `Unable to start FCF & earnings-growth analysis: <exception text>`.
+- `GRAHAM_NUMBER_WORDING` and `GRAHAM_GROWTH_WORDING`: `unexpected` is `Graham analysis failed unexpectedly for <ticker>.` and `invalid` is
+  absent, which is the outer direct block today. Each Graham `cli.py` also keeps `*_START_WORDING`, the same `unexpected` plus
+  `invalid` = `Unable to start Graham analysis: <exception text>`, for the inner block that builds the resolver. Two constants are needed
+  because the two blocks report one exception differently today (rows 7 and 11), and no direct sentence may change.
+
+**How the CLI tier carries it.** `CliComposition` and `CliStrategy` in `src/cli_strategy_wiring.py` gain a `wording: FailureWording`
+field, `pair_cli` passes it through, and each entry in `CLI_STRATEGIES` names its strategy's constant. Next to
+`refreshers_by_key` and `refresh_executor_for` come `failure_wordings_by_key(descriptors, tier)`, the constant `CLI_WORDINGS`, and
+`failure_wording_for(selection, wordings=CLI_WORDINGS) -> FailureWording | None`. The last uses `find`, not `require`: `_failed` must not
+raise while it reports the very failure of an undeclared selection (row 13), so a miss returns `None` and the command layer substitutes
+`GENERIC_WORDING`. Nothing in generic code names a strategy.
+
+**How `refresh_watchlist` receives it.** One new keyword parameter beside `classify`:
+`describe: Callable[[BaseException, str, AnalysisSelection], str]`. It is threaded through `_refresh_concurrently` and `_settle` like
+`classify`, and `_failed` stores `error=describe(exception, ticker, selection)` and `reason_code=classify(exception)`. The `refresh`
+command in `src/cli_workspace.py` builds it:
+
+```text
+_failure_sentence(exception, ticker, selection):
+    wording = failure_wording_for(selection) or GENERIC_WORDING
+    return describe_failure(exception, ticker, wording, detail=False).sentence
+```
+
+`src/workspace/refresh.py` keeps importing nothing from the command layer; its `RefreshJobResult.error` docstring changes from
+"carries the exception's own message" to "carries the sentence the caller's `describe` chose".
+
+**How the direct commands are fed.** `execution_errors` loses the `unexpected`, `invalid` and `invalid_detail` parameters and takes
+`wording: FailureWording`; its `except` branch becomes `description = describe_failure(exc, scope.ticker, wording, detail=scope.mode is None)`
+followed by the envelope and output code it has now. The four commands pass their constants (Momentum, FCF, and for each Graham command the
+analysis wording on the outer block and the start wording on the inner block, which also keeps its `mode` and `ticker` arguments).
+Because the function body is the existing chain and its two inputs are the values the closures used, every direct sentence is unchanged by
+construction. It is also checked: the 68 direct results of the probe become a table of literals in a test, so a changed sentence fails it
+(section D).
+
+**Where the detail is logged.** Inside `describe_failure`, in every branch that shows a sentence other than the exception's text: the
+provider sentences, the strategy's `invalid` sentence, the generic input sentence and the unexpected sentence. It calls
+`logger.error(..., exc_info=exception)` with the ticker in the message. The explicit `exc_info` keeps the worker's traceback on the
+concurrent path, where `describe` runs on the coordinator thread inside `_settle` and outside any `except` block, so the log call carries
+what `logger.exception` would not. The existing message of the unexpected branch is kept. The direct commands gain log records for the
+branches that did not log before, with no change to any sentence or exit code.
+
+#### C. Findings that do not fit the decisions
+
+These are not resolved. Each flagged row has a recommendation; the rows that carry both flags are covered once.
+
+1. **Rows 9 and 10 (A, N): a stored selection that no longer validates as a configuration, and a blank ticker.** Both are defects, not
+   user mistakes: a watchlist stores selections that validated and tickers the command normalized, and no supported path produces
+   either. For G they pair `invalid_input` with "failed unexpectedly"; for M the price-history sentence names a cause that is not there.
+   Recommend: keep the code and accept the strategy's sentence (for G, the one finding 2 gives), with the detail in the log. A specific sentence per defect has nothing to
+   say that the log does not, and a code change (the alternative of decision 3) would only move the disagreement. Confirm in step 2 that
+   no supported path produces row 10.
+2. **Row 11 for G (A): Graham pairs `invalid_input` with "failed unexpectedly".** The direct analysis stage reports `execution_error`;
+   the direct resolver-build block reports `invalid_input` with `Invalid analysis inputs or provider data.`; refresh keeps
+   `invalid_input` (decision 3). Recommend: keep the code and make the Graham `CliComposition.wording` the start constant (the one with
+   `invalid`), so refresh shows `Invalid analysis inputs or provider data.` with `invalid_input`, and for row 7 `Unable to start Graham analysis: <text>`,
+   the sentence the direct resolver-build block gives for the same exception. The direct analysis block keeps its own constant and its
+   sentence. This also clears the G part of the flags on rows 9, 10, 15 and 16. The cost is that Graham declares two constants, one of which refresh uses. The alternative, taking the
+   direct code, has no single direct code to take (the two Graham blocks disagree) and would change the stored `reason_code` for these
+   jobs.
+3. **Rows 15 and 16 (A): a failure in the save step gets an analysis sentence.** `InvalidStoredRunError` and `AnalysisRunConflictError`
+   come from `execute` after the executor has returned, yet M names the price history for them and G pairs `invalid_input` with "failed
+   unexpectedly"; on the direct `--save-run` path they do the same today. Row 15 also keeps `invalid_stored_run` while the direct
+   command folds it to `invalid_input` or `execution_error`. Recommend: keep the codes and have refresh show the strategy's
+   "failed unexpectedly" sentence for any failure that arises after the executor returned. `refresh.py` already knows that stage (a
+   non-empty `captured` list on the sequential path, a set `capture` on the concurrent one), so `describe` would take a fourth argument,
+   `saving: bool`, and `describe_failure` a matching `during_save` parameter that sends a `ValueError` without a code of its own to the
+   `unexpected` callback. The direct `--save-run` path would keep its present sentences, because decision 2 holds them; whether the
+   direct path should change is a separate decision for the project owner. The rejected alternative is to take the direct code and
+   sentence, which would report a storage failure as a price-history problem.
+4. **Row 7 for M (A): a configuration code with a price-history sentence.** It cannot occur (Momentum builds no SEC provider) and the
+   direct command already behaves so. Recommend: accept; do not give Momentum a second wording for an impossible case.
+5. **Rows 13 and 14 (N): an undeclared strategy.** Row 13 has no wording to use because the lookup that failed is the CLI-tier lookup. A
+   new generic sentence is therefore unavoidable if `_failed` is not to raise. Recommend: `GENERIC_WORDING` for row 13, as designed, and
+   the strategy's own sentence for row 14, with `No declared strategy ...` in the log in both cases. Both are programming errors that the
+   conformance tests already guard.
+6. **Graham has two direct sentences for one exception (rows 7 and 11).** The resolver-build block and the analysis block differ only in
+   how the Graham commands are written, not in a deliberate rule. Recommend: leave both, since decision 2 holds every direct sentence;
+   finding 2 shows the one place it costs something. Unifying them is a separate, owner-approved sentence change.
+7. **Text that still reaches `error` as written.** Rows 5, 6 and 8 (and an `InvalidParameterError`, which no executor raises) show the
+   exception's text, as the direct commands do. Each is application-written, but the quality sentence names affected observation dates.
+   Recommend: no change; it matches the direct command, and the plan's concern is raw library and provider text.
+8. **The direct commands gain log records.** `describe_failure` logs every fixed-sentence branch for both callers, so a provider
+   failure on a direct command now writes a traceback to the log where it wrote none before. Recommend: accept, because it is what
+   decision 4 asks for on the refresh side and a shared function cannot log for one caller only without a flag; no sentence, exit code
+   or JSON key changes.
+9. **`_failed` has no guard if `describe` raises.** `classify` has the same property today. Recommend: no guard; `describe_failure` is
+   total over `Exception` (its wording callbacks are lambdas over the ticker and the exception), and a test passes every exception of
+   the table through every strategy's wording.
+
+#### D. Files and tests for step 2
+
+**Source.**
+
+- `src/cli_support.py`: `FailureWording`, `FailureDescription`, `GENERIC_WORDING`, `describe_failure`; `execution_errors` takes `wording`.
+- `src/cli_strategy_wiring.py`: the `wording` field on `CliComposition` and `CliStrategy`, `pair_cli`, `failure_wordings_by_key`,
+  `CLI_WORDINGS`, `failure_wording_for`.
+- `src/strategies/momentum/cli.py`, `src/strategies/fcf_growth/cli.py`, `src/strategies/graham_number/cli.py`,
+  `src/strategies/graham_growth/cli.py`: the wording constants; the commands pass them; Graham passes the start constant to the inner block.
+- `src/workspace/refresh.py`: the `describe` parameter through `refresh_watchlist`, `_refresh_concurrently`, `_settle` and `_failed`;
+  docstrings.
+- `src/cli_workspace.py`: `_failure_sentence` and its injection into `refresh_watchlist`.
+- `src/reporting/documents/refresh.py`: the `error` field description (it says "message for people"; it becomes "one sentence the
+  application wrote; the detail is in the log"), and `schemas/refresh-summary.schema.json` regenerated. The change is a description only;
+  `schema_version` stays 2 (decision 5).
+- `docs/user/WORKSPACE.md` (the sentence about `error` as "the failure's own text") and this plan (the SWC.4f row and section).
+
+**Tests added.**
+
+- `tests/test_cli_support.py`: a table test of `describe_failure` over the 16 exceptions and the four wordings plus `GENERIC_WORDING`,
+  with the 68 direct results of the probe as literals (code and sentence), so every direct sentence is pinned; a test
+  that Momentum's sentences use its default-ticker label when the ticker is `None`; a test that each fixed-sentence branch logs the
+  exception with its traceback and the exception-text branches do not.
+- `tests/test_cli_strategy_wiring.py`: every CLI-tier entry carries a wording; `failure_wording_for` returns `None` for an undeclared
+  selection; `pair_cli` passes the wording through.
+- `tests/test_cli_refresh.py`: through `CliRunner`, one case per row of A on the three paths (the table's "after" column), asserting that
+  neither the text nor the JSON `error` contains the exception's text for the fixed-sentence rows, that `reason_code` is unchanged, and
+  that a log record carries the exception with its traceback on the concurrent path; a case for an undeclared selection that proves the
+  batch continues.
+- `tests/workspace/test_refresh.py`: `describe` is called once per failed job with the exception, the ticker and the selection, on the
+  sequential, concurrent and `--no-save` paths; `error` is its return value; a `describe` that returns a fixed string never exposes
+  `str(exception)`.
+
+**Existing tests and stored output that change.**
+
+- `tests/_wiring.py` gains a `failure_text` helper (`str(exception)`), next to `failure_code`. The 32 `refresh_watchlist(` calls that pass `classify=` (25 in
+  `tests/workspace/test_refresh.py`, and `test_refresh_provider_failure.py`, `test_failure_reason_codes.py`, `test_workspace_fail_closed.py`,
+  `test_not_applicable_calculation.py` and `tests/data/repositories/test_watchlist_repository.py`) pass `describe=failure_text`; their assertions on `error` (for example `"simulated unexpected adapter
+  failure" in broken.error`) stay valid.
+- `tests/test_cli_support.py`: the tests that call `execution_errors(unexpected=...)`, `invalid=` or `invalid_detail=` take a
+  `FailureWording`; their expected sentences are unchanged.
+- `tests/test_cli_refresh.py`: `test_refresh_storage_failure_is_visible_and_nonzero_exit` keeps passing; it asserts only the count.
+- `tests/test_cli_strategy_wiring.py`: the `CliComposition(...)` constructions at line 115 take `wording`.
+- `tests/reporting/test_workspace_documents.py`: the schema drift test follows the regenerated `schemas/refresh-summary.schema.json`.
+- Stored output under `tests/expected_output/workspace_commands/`: `refresh-failed-job.txt` and `refresh-failed-job-json.txt` change
+  `fixture provider failure` to `Momentum analysis failed unexpectedly for BAD.`; `reason_code` stays `execution_error`. No other
+  stored file changes, and none of the direct-command stored files under `tests/expected_output/` may change.
+- Unchanged, and the evidence that no direct sentence moved: `tests/test_existing_strategy_failure_output.py`,
+  `tests/test_cli_failure_envelope.py`, `tests/test_cli_graham_commands.py`, `tests/test_cli_fcf_earnings_growth.py`,
+  `tests/test_save_run_every_direct_command.py` and `tests/test_direct_command_output.py`.
