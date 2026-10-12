@@ -252,8 +252,8 @@ loop.
 
 | Next work | Interaction | Provisional order |
 | :--- | :--- | :--- |
-| SWC.4d (command validation failures; next SWC slice, no plan yet) | touches strategy `cli.py` files, `cli_support.py` and the failure envelope; none of them moves under LAY, and `json_documents.py` moves only in LAY.6 | SWC.4d first: it is the next SWC slice and and independent; any import line it adds is retargeted by the LAY slice that moves the target |
+| SWC.4d (command validation failures; complete), then SWC.4e and SWC.4f (no slice plans yet) | SWC.4d touched strategy `cli.py` files, `cli_support.py` and the failure envelope; none of them moves under LAY, and `json_documents.py` moves only in LAY.6. SWC.4e touches the direct Graham commands and their tests; SWC.4f places one failure sentence for the direct commands and refresh, and where it lives is decided under the layering rules | SWC.4e and SWC.4f first, before LAY.1: they are the next SWC slices and independent of the moves; any import line they add is retargeted by the LAY slice that moves the target |
 | SWC.5 to SWC.7 | build tooling around file locations: the edit-site data file, `scripts/strategy_conformance.py` (imports `workspace.models`, `reporting.analysis_runs`, `json_documents`), the generator, the contributor guide | after LAY, so those paths and the guide are written once against the final layout |
 | PKG | rewrites every `src.` import and the check's root name; LAY moves must not follow it | after LAY (L10); the PKG plan records it |
 
-Provisional sequence (until the SWC plan is reviewed): SWC.4d, LAY.1 to LAY.8, SWC.5 to SWC.7, PKG, Step 3.5.
+Provisional sequence (until the SWC plan is reviewed): SWC.4e, SWC.4f, LAY.1 to LAY.8, SWC.5 to SWC.7, PKG, Step 3.5. SWC.4d is complete.

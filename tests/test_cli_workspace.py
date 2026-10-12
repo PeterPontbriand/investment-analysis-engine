@@ -8,7 +8,9 @@ from unittest.mock import patch
 from uuid import UUID
 
 import pytest
+import typer
 from alembic.config import Config
+from pydantic import ValidationError
 from sqlalchemy import update
 from typer.testing import CliRunner
 
@@ -27,7 +29,8 @@ from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
-from src.workspace.runs import AnalysisRun
+from src.workspace.runs import AnalysisRun, RunQuery
+from src.workspace.watchlists import WatchlistNotFoundError
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 from tests._wiring import encode_native
 
@@ -562,6 +565,44 @@ def test_runs_show_replays_a_real_persisted_run_and_exits_0_even_when_failed() -
     assert "AAPL" in normalize_cli_output(result.output)
 
 
+def _unreadable_run_sentence(run_id: UUID) -> str:
+    return f"Analysis Run {run_id} could not be read: its stored record is malformed or does not match its summary."
+
+
+_LIBRARY_TEXT = ("input_value", "validation error for", "errors.pydantic.dev", "Malformed or inconsistent")
+
+
+def test_runs_show_reports_an_envelope_that_fails_validation_in_one_sentence(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Issue 113: the validation library's text goes to the log, never to the user."""
+    run = _insert_momentum_run()
+    database = SQLiteDatabase(src.cli_workspace.settings)
+    try:
+        with database.transaction() as connection:
+            connection.execute(
+                update(analysis_runs)
+                .where(analysis_runs.c.analysis_run_id == str(run.analysis_run_id))
+                .values(envelope_json='{"requested_config": {}}')
+            )
+    finally:
+        database.close()
+    sentence = _unreadable_run_sentence(run.analysis_run_id)
+
+    text = runner.invoke(app, ["runs", "show", str(run.analysis_run_id)])
+    as_json = runner.invoke(app, ["runs", "show", str(run.analysis_run_id), "--json"])
+
+    assert text.exit_code == as_json.exit_code == 1
+    assert text.stdout == ""
+    assert as_json.stderr == ""
+    assert text.stderr.strip() == sentence
+    document = json.loads(as_json.stdout)
+    assert (document["reason_code"], document["reason"]) == ("invalid_stored_run", sentence)
+    for output in (text.stderr, as_json.stdout):
+        assert not any(token in output for token in _LIBRARY_TEXT)
+    assert any(record.exc_info and "validation error" in str(record.exc_info[1]) for record in caplog.records)
+
+
 def test_runs_show_rejects_a_corrupted_stored_envelope_without_a_raw_traceback() -> None:
     """A row whose relational columns disagree with its own envelope is a sanitized exit 1.
 
@@ -587,7 +628,14 @@ def test_runs_show_rejects_a_corrupted_stored_envelope_without_a_raw_traceback()
     assert result.exit_code == 1
     assert isinstance(result.exception, SystemExit)  # a deliberate typer.Exit, not an unhandled traceback
     assert "Traceback" not in result.output
-    assert "Malformed or inconsistent" in normalize_cli_output(result.output)
+    assert normalize_cli_output(result.output) == _unreadable_run_sentence(run.analysis_run_id)
+    as_json = runner.invoke(app, ["runs", "show", str(run.analysis_run_id), "--json"])
+    document = json.loads(as_json.stdout)
+    assert (document["reason_code"], document["reason"]) == (
+        "invalid_stored_run",
+        _unreadable_run_sentence(run.analysis_run_id),
+    )
+    assert not any(token in as_json.stdout + result.output for token in _LIBRARY_TEXT)
 
 
 def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
@@ -1057,3 +1105,72 @@ def test_on_windows_a_terminal_report_must_be_confirmed_as_a_real_console(consol
         patch("src.cli_workspace._windows_console_attached", return_value=console_attached),
     ):
         assert src.cli_workspace._stdin_is_interactive() is console_attached
+
+
+# --- the catch-all in _workspace_database ---------------------------------------------------------------------
+
+
+def _a_real_validation_error() -> ValidationError:
+    try:
+        RunQuery(limit=0)
+    except ValidationError as error:
+        return error
+    raise AssertionError("RunQuery accepted limit 0")
+
+
+_UNEXPECTED = [
+    pytest.param(_a_real_validation_error(), id="validation-error"),
+    pytest.param(ValueError("plain detail"), id="value-error"),
+    pytest.param(RuntimeError("runtime detail"), id="runtime-error"),
+]
+
+
+@pytest.mark.parametrize("error", _UNEXPECTED)
+@pytest.mark.parametrize(
+    ("typed", "target", "json_flag"),
+    [
+        ("watchlist show", "SQLiteWatchlistRepository.get", True),
+        ("watchlist list", "SQLiteWatchlistRepository.list", False),
+        ("runs list", "SQLiteAnalysisRunRepository.list", True),
+    ],
+)
+def test_an_exception_without_its_own_code_is_an_unexpected_failure_with_one_fixed_sentence(
+    error: Exception, typed: str, target: str, json_flag: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    _create("Core")
+    arguments = [*typed.split(), *(["Core"] if typed == "watchlist show" else [])]
+    sentence = f"{typed} failed unexpectedly."
+    with patch(f"src.cli_workspace.{target}", side_effect=error):
+        text = runner.invoke(app, arguments)
+        as_json = runner.invoke(app, [*arguments, "--json"]) if json_flag else None
+
+    assert text.exit_code == 1
+    assert text.stdout == ""
+    assert text.stderr.strip() == sentence
+    outputs = [text.stderr]
+    if as_json is not None:
+        assert as_json.exit_code == 1
+        assert as_json.stderr == ""
+        document = json.loads(as_json.stdout)
+        assert (document["reason_code"], document["reason"]) == ("execution_error", sentence)
+        outputs.append(as_json.stdout)
+    for output in outputs:
+        assert not any(token in output for token in _LIBRARY_TEXT)
+        assert str(error).splitlines()[0] not in output
+    assert any(record.exc_info and record.exc_info[1] is error for record in caplog.records)
+
+
+def test_an_exception_that_declares_its_own_code_keeps_its_own_sentence() -> None:
+    _create("Core")
+    with patch("src.cli_workspace.SQLiteWatchlistRepository.get", side_effect=WatchlistNotFoundError("own sentence")):
+        result = runner.invoke(app, ["watchlist", "show", "Core", "--json"])
+    document = json.loads(result.stdout)
+    assert result.exit_code == 1
+    assert (document["reason_code"], document["reason"]) == ("watchlist_not_found", "own sentence")
+
+
+def test_a_deliberate_exit_passes_through_the_catch_all() -> None:
+    _create("Core")
+    with patch("src.cli_workspace.SQLiteWatchlistRepository.get", side_effect=typer.Exit(7)):
+        result = runner.invoke(app, ["watchlist", "show", "Core"])
+    assert result.exit_code == 7

@@ -58,6 +58,7 @@ document-link check and applicable documentation checks.
 | SWC.4c.1 | [Common header and tail for strategy documents](#swc4c1--common-header-and-tail-for-strategy-documents) | Complete | 2026-10-09 |
 | SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Complete | 2026-10-11 |
 | SWC.4e | [The direct Graham commands reject an unsupported provider](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) | Next | |
+| SWC.4f | [One sentence per failure for the direct commands and refresh](#swc4f--one-sentence-per-failure-for-the-direct-commands-and-refresh) | Planned | |
 | SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
@@ -559,6 +560,19 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Branch:** `feat/swc-4e-direct-graham-provider`, from `main` after SWC.4d has merged.
 - **Detail:** ⚠ no slice plan yet. The affected files and invocation counts are in
   [B.15](#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11).
+
+#### SWC.4f — One sentence per failure for the direct commands and refresh
+
+- **Problem:** a failed refresh job reports the exception's own text (`RefreshJobResult.error`), while the same failure on a direct
+  command reports an application-written sentence. Refresh can therefore show raw validation text or text from provider data.
+- **Decision:** a failure's sentence is written once and used by both the direct command and the refresh job
+  ([B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12)). Where that single source lives is decided when
+  the slice is planned, under the layering rules.
+- **Scope:** `src/workspace/refresh.py` (`_failed`), the direct commands' sentence code in `src/cli_support.py`, the `error` key of the
+  `refresh --json` document and its schema, and their tests; the exact list is set by the slice plan.
+- **Branch:** `feat/swc-4f-failure-sentences`, from `main` after SWC.4e has merged.
+- **Detail:** ⚠ no slice plan yet. What can reach `_failed` today is listed in
+  [B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12).
 
 ### SWC.5 — Site data, status command and generated lists
 
@@ -1096,3 +1110,33 @@ builders:
   `graham-growth.json`, `graham-growth.txt`. Other `--data-provider` values in tests are `sec_edgar` (including `" SEC_EDGAR "`),
   `not-a-provider` (`tests/test_cli.py`, expects the unsupported-provider failure) and `unapproved` (`fcf-growth`, which never rejects
   a provider id).
+
+### B.16 SWC.4d follow-up: the workspace catch-all, `runs show` and refresh (2026-10-12)
+
+The project owner decided, on review of PR #125:
+
+- **`runs show`.** Both ways the run repository's `get` fails to read a stored run (the envelope fails validation; the envelope disagrees
+  with its own row) report `reason_code` `invalid_stored_run` with one sentence: `Analysis Run <full run ID> could not be read: its
+  stored record is malformed or does not match its summary.` The exception detail goes to the log with its traceback. This resolves
+  issue 113.
+- **The catch-all in `_workspace_database`.** An exception that declares its own code keeps its own sentence. Every other exception raised
+  inside the block, not only `ValueError`, is an `execution_error` with the sentence `<command> failed unexpectedly.`, where
+  `<command>` is the command as typed after `ian` (for example `watchlist show failed unexpectedly.`); the detail goes to the log with
+  its traceback and `typer.Exit` passes through. `invalid_input` is not used there.
+- **`evaluate`** keeps its raw error text by decision: it is a developer command whose readers need the detail.
+- **Refresh job error text** (`src/workspace/refresh.py`, the `error` field) is not changed in SWC.4d; it becomes
+  [SWC.4f](#swc4f--one-sentence-per-failure-for-the-direct-commands-and-refresh).
+- **Order of work.** SWC.4e, SWC.4f, then LAY.1 to LAY.8, then SWC.5 to SWC.7, then PKG.
+
+What can reach `_failed` (and so the `error` text, in the text summary and the `refresh --json` document) today, found by reading
+`src/workspace/refresh.py` and the refresh executors in each strategy's `cli.py`:
+
+| Path | Exceptions that reach it |
+| :--- | :--- |
+| `--no-save`, sequential | anything the executor raises (the call to `executor(ticker, selection)`) |
+| saved, sequential | the executor's exceptions, and anything `execute` raises: a run-spec or codec error, an undeclared-strategy error, and the repository's insert errors (storage errors, an existing-run conflict) |
+| concurrent | a worker's executor exception, passed to the coordinator, then the same `execute` exceptions on the coordinator thread |
+| inside an executor | a provider failure (`DataFetchError`, `FinancialProviderError`, with provider text), a historical-quality or no-eligible-observations error, `AnalysisConfigurationError` (a missing SEC identity), a `pydantic.ValidationError` from building a configuration from a stored selection, a blank-ticker `ValueError`, a database-readiness error from the cache or run storage, and any other exception from provider libraries |
+
+The first three rows are the paths in `refresh.py`; each ends in `_failed(..., exception, ...)`, which stores `str(exception)` as the
+job's `error` and the classifier's code as `reason_code`.

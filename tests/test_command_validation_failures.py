@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 from typer.testing import CliRunner
 
 import src.cli_database
@@ -20,6 +21,7 @@ import src.cli_workspace
 from src.cli import app
 from src.config import ProjectSettings
 from src.reporting.documents.failure import FailureEnvelope
+from src.workspace.runs import RunQuery
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 
 runner = CliRunner()
@@ -855,12 +857,17 @@ def test_add_selection_on_a_watchlist_with_an_unreadable_entry_reports_the_store
     assert "Usage:" not in result.stderr
 
 
-def test_a_value_error_no_check_names_is_reported_under_the_code_the_classifier_gives_it() -> None:
+def test_a_corrupt_stored_row_is_an_unexpected_failure_that_shows_none_of_the_library_text() -> None:
     assert runner.invoke(app, ["watchlist", "create", "Odd"]).exit_code == 0
-    with patch("src.cli_workspace.SQLiteWatchlistRepository.add_entries", side_effect=ValueError("corrupt row")):
+    try:
+        RunQuery(limit=0)
+    except ValidationError as error:
+        corrupt = error
+    with patch("src.cli_workspace.SQLiteWatchlistRepository.add_entries", side_effect=corrupt):
         result = runner.invoke(app, ["watchlist", "add-selection", "Odd", "-a", "momentum", "AAPL"])
     assert result.exit_code == 1
-    assert result.stderr.strip() == "corrupt row"
+    assert result.stderr.strip() == "watchlist add-selection failed unexpectedly."
+    assert not any(token in result.stderr for token in _FORBIDDEN)
     assert "Usage:" not in result.stderr
 
 

@@ -12,6 +12,7 @@ to dispatch one refresh job per stored selection.
 
 import ctypes
 import json
+import logging
 import signal
 import sys
 import threading
@@ -81,6 +82,8 @@ from src.workspace.runs import (
 from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError, WatchlistSpec, normalize_ticker
 
+logger = logging.getLogger(__name__)
+
 watchlist_app = typer.Typer(help="Manage named watchlists of tickers and their analysis selections.")
 runs_app = typer.Typer(help="Browse persisted Analysis Run history.")
 
@@ -97,11 +100,15 @@ _ANALYSIS_CHOICES = _alias_choices()
 
 
 @contextmanager
-def _workspace_database(*, json_output: bool = False) -> Iterator[SQLiteDatabase]:
+def _workspace_database(command: str, *, json_output: bool = False) -> Iterator[SQLiteDatabase]:
     """Own one invocation's readiness-checked database connection.
 
     A readiness failure is reported as a sanitized message and exit 1 here,
     at the one place every command shares, rather than repeated per command.
+    ``command`` is the command as the user types it after ``ian``. An exception raised inside the block that
+    declares its own ``reason_code`` (a rejected parameter, an unreadable stored selection, a missing watchlist)
+    keeps its own sentence; any other exception is an ``execution_error`` with one fixed sentence naming the
+    command, and its detail goes to the log with its traceback, so no library text reaches the user.
     ``json_output`` selects the failure envelope on standard output instead of text on standard error.
     """
     database = SQLiteDatabase(settings)
@@ -112,10 +119,13 @@ def _workspace_database(*, json_output: bool = False) -> Iterator[SQLiteDatabase
             _fail_with(exc, json_output=json_output)
         try:
             yield database
-        except ValueError as exc:
-            # A stored selection no entry can be read from, a rejected parameter, or any other value error is
-            # reported under the code the classifier gives it, never as a usage error.
-            _fail_with(exc, json_output=json_output)
+        except (typer.Exit, typer.Abort):
+            raise
+        except Exception as exc:
+            if isinstance(getattr(exc, "reason_code", None), FailureReasonCode):
+                _fail_with(exc, json_output=json_output)
+            logger.exception("Unexpected failure in 'ian %s'.", command)
+            _fail(FailureReasonCode.EXECUTION_ERROR, f"{command} failed unexpectedly.", json_output=json_output)
     finally:
         database.close()
 
@@ -427,7 +437,7 @@ def watchlist_create(  # noqa: PLR0913
             )
             entries = [(ticker, selection) for ticker in seed_tickers]
 
-    with _workspace_database() as database:
+    with _workspace_database("watchlist create") as database:
         repository = _watchlist_repository(database)
         # Every argument is checked before the watchlist is created, so a rejected one leaves nothing behind.
         if not name.strip():
@@ -553,7 +563,7 @@ def watchlist_add_selection(  # noqa: PLR0913
             currency=currency,
         )
     entries = [(ticker, selection) for ticker in tickers]
-    with _workspace_database() as database:
+    with _workspace_database("watchlist add-selection") as database:
         repository = _watchlist_repository(database)
         _require_tickers(tickers)
         try:
@@ -602,7 +612,7 @@ def watchlist_remove_entry(
     with parameter_failures(json_output=False):
         if index < 1:
             raise InvalidParameterError("INDEX must be 1 or greater.", parameters=("INDEX",))
-    with _workspace_database() as database:
+    with _workspace_database("watchlist remove-entry") as database:
         repository = _watchlist_repository(database)
         try:
             removed = repository.remove_entry(name, index - 1)
@@ -618,7 +628,7 @@ def watchlist_remove_ticker(
     tickers: Annotated[list[str], typer.Argument(help="Tickers to remove every entry for, across every method.")],
 ) -> None:
     """Remove every entry for the given ticker(s), across every method (bulk, idempotent)."""
-    with _workspace_database() as database:
+    with _workspace_database("watchlist remove-ticker") as database:
         repository = _watchlist_repository(database)
         _require_tickers(tickers)
         try:
@@ -640,7 +650,7 @@ def watchlist_remove_method(
     """Remove every entry for the given method, across every ticker (bulk, idempotent)."""
     with parameter_failures(json_output=False):
         method = _parse_analysis(analysis)
-    with _workspace_database() as database:
+    with _workspace_database("watchlist remove-method") as database:
         repository = _watchlist_repository(database)
         try:
             removed = repository.remove_entries_for_method(name, _method_id_for_alias(method))
@@ -688,7 +698,7 @@ def watchlist_delete(
         if not yes and not _stdin_is_interactive():
             raise InvalidParameterError("--yes is required when input is not interactive.", parameters=("--yes",))
     deleted: DeletedWatchlist | None = None
-    with _workspace_database(json_output=json_output) as database:
+    with _workspace_database("watchlist delete", json_output=json_output) as database:
         repository = _watchlist_repository(database)
         try:
             if not yes:
@@ -735,7 +745,7 @@ def watchlist_rename(
     json_output: Annotated[bool, typer.Option("--json", help="Emit the renamed watchlist document.")] = False,
 ) -> None:
     """Rename a watchlist. Saved Analysis Runs keep the name it had when they ran."""
-    with _workspace_database(json_output=json_output) as database:
+    with _workspace_database("watchlist rename", json_output=json_output) as database:
         repository = _watchlist_repository(database)
         if not new_name.strip():
             raise InvalidParameterError("NEW_NAME must not be blank.", parameters=("NEW_NAME",))
@@ -762,7 +772,7 @@ def watchlist_rename(
 @watchlist_app.command("list")
 def watchlist_list() -> None:
     """List every watchlist with its entry count."""
-    with _workspace_database() as database:
+    with _workspace_database("watchlist list") as database:
         summaries = _watchlist_repository(database).list()
     if not summaries:
         typer.echo("No watchlists exist yet.")
@@ -785,7 +795,7 @@ def watchlist_show(
     with parameter_failures(json_output=json_output):
         if normalized_group_by not in ("ticker", "method"):
             raise InvalidParameterError("--group-by must be 'ticker' or 'method'.", parameters=("--group-by",))
-    with _workspace_database(json_output=json_output) as database:
+    with _workspace_database("watchlist show", json_output=json_output) as database:
         watchlist = _watchlist_repository(database).get(name)
     if watchlist is None:
         _fail(FailureReasonCode.WATCHLIST_NOT_FOUND, f"No watchlist named {name!r} exists.", json_output=json_output)
@@ -829,7 +839,7 @@ def runs_list(  # noqa: PLR0913
             limit=limit,
             offset=offset,
         )
-    with _workspace_database(json_output=json_output) as database:
+    with _workspace_database("runs list", json_output=json_output) as database:
         summaries = SQLiteAnalysisRunRepository(database).list(query)
     if json_output:
         runs = RunsListDocument(
@@ -865,13 +875,19 @@ def runs_show(
     with parameter_failures(json_output=json_output):
         mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
         parsed_id = _parse_run_id(run_id, field="RUN_ID")
-    with _workspace_database(json_output=json_output) as database:
+    with _workspace_database("runs show", json_output=json_output) as database:
         try:
             run = SQLiteAnalysisRunRepository(database).get(parsed_id)
-        except ValueError as exc:
-            # The repository's own documented contract: a malformed or internally
-            # inconsistent stored envelope raises a plain ValueError from get().
-            _fail(FailureReasonCode.INVALID_STORED_RUN, str(exc), json_output=json_output)
+        except ValueError:
+            # The repository's own documented contract: a malformed or internally inconsistent stored envelope
+            # raises a plain ValueError from get(); its text is the validation library's, so it goes to the log.
+            logger.exception("Analysis Run %s could not be read.", parsed_id)
+            _fail(
+                FailureReasonCode.INVALID_STORED_RUN,
+                f"Analysis Run {parsed_id} could not be read: "
+                "its stored record is malformed or does not match its summary.",
+                json_output=json_output,
+            )
     if run is None:
         _fail(
             FailureReasonCode.ANALYSIS_RUN_NOT_FOUND,
@@ -1031,7 +1047,7 @@ def refresh(  # noqa: PLR0913
 
     signal.signal(signal.SIGINT, _handle_sigint)
     try:
-        with _workspace_database(json_output=json_output) as database:
+        with _workspace_database("refresh", json_output=json_output) as database:
             try:
                 profile_cache = _production_instrument_profile_cache(database, clock=utc_now)
                 summary = refresh_watchlist(
