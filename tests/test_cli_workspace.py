@@ -21,6 +21,7 @@ from src.config import ProjectSettings
 from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.schema import analysis_runs
 from src.data.repositories.sqlite import SQLiteDatabase
+from src.data.repositories.watchlists import SQLiteWatchlistRepository
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
@@ -1129,18 +1130,19 @@ _UNEXPECTED = [
 @pytest.mark.parametrize(
     ("typed", "target", "json_flag"),
     [
-        ("watchlist show", "SQLiteWatchlistRepository.get", True),
-        ("watchlist list", "SQLiteWatchlistRepository.list", False),
-        ("runs list", "SQLiteAnalysisRunRepository.list", True),
+        ("watchlist show", (SQLiteWatchlistRepository, "get"), True),
+        ("watchlist list", (SQLiteWatchlistRepository, "list"), False),
+        ("runs list", (SQLiteAnalysisRunRepository, "list"), True),
     ],
 )
 def test_an_exception_without_its_own_code_is_an_unexpected_failure_with_one_fixed_sentence(
-    error: Exception, typed: str, target: str, json_flag: bool, caplog: pytest.LogCaptureFixture
+    error: Exception, typed: str, target: tuple[type, str], json_flag: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
     _create("Core")
     arguments = [*typed.split(), *(["Core"] if typed == "watchlist show" else [])]
     sentence = f"{typed} failed unexpectedly."
-    with patch(f"src.cli_workspace.{target}", side_effect=error):
+    owner, attribute = target
+    with patch.object(owner, attribute, side_effect=error):
         text = runner.invoke(app, arguments)
         as_json = runner.invoke(app, [*arguments, "--json"]) if json_flag else None
 
