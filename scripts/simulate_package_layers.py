@@ -1,13 +1,12 @@
 """Simulate a set of file and name moves and report the package graph before and after.
 
-Reads a committed move list (TOML) naming files and single names that change unit, plus an optional
-role rule that assigns some files of each strategy package to another unit by file name. For the code
+Reads a committed move list (TOML) naming files and single names that change unit. For the code
 as it is ("today") and for the code with every listed move applied ("target") it reports the units, the
 dependencies between them, the two-way pairs, every loop with its members and, when there is no loop,
 the layered order. It also reports loops between modules at import time and the function-level imports
 that close one. Standard library only; it never modifies a file.
 
-A *unit* is as ``scripts/check_package_dependencies.py`` defines it. A move changes the unit of one file
+A *unit* is as ``scripts/package_graph.py`` defines it, role rule included. A move changes the unit of one file
 (``[[file]]``) or of one top-level name of a file (``[[name]]``). The simulation models the code after
 each move slice: an import of a moved file or name is retargeted to its new home, an index file
 (``__init__.py``) that only re-exports a moved file or name loses that re-export, and the file a name
@@ -32,12 +31,12 @@ import ast
 import subprocess
 import sys
 import tomllib
-from collections import defaultdict, deque
+from collections import defaultdict
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from scripts.check_package_dependencies import unit_of_path
+from scripts.package_graph import ROLE_RULES, Graph, layers, shortest_cycle, strongly_connected, two_way, unit_of_path
 
 SOURCE_ROOT = "src"
 TESTS_ROOT = "tests"
@@ -51,8 +50,6 @@ IMPORTER_COLUMNS = (
     "other files",
     "test files naming it in a string",
 )
-
-Graph = dict[str, set[str]]
 
 
 @dataclass(frozen=True)
@@ -72,19 +69,10 @@ class Move:
 
 
 @dataclass(frozen=True)
-class RoleRule:
-    """Files named ``<role>.py`` directly inside a package under ``under`` belong to the mapped unit."""
-
-    under: str
-    roles: Mapping[str, str]
-
-
-@dataclass(frozen=True)
 class MoveList:
-    """The committed moves, the role rule and the owner text of each target unit."""
+    """The committed moves and the owner text of each target unit."""
 
     moves: tuple[Move, ...]
-    role_rules: tuple[RoleRule, ...]
     owns: Mapping[str, str]
 
 
@@ -350,13 +338,9 @@ def _owner_of_line(moved: Mapping[str, ast.stmt], lineno: int) -> str | None:
     return None
 
 
-def unit_for_path(path: str, role_rules: Sequence[RoleRule]) -> str | None:
-    """Return the unit of a repository-relative path by the role rule or the unit definition."""
+def unit_for_path(path: str) -> str | None:
+    """Return the unit of a repository-relative path by the unit definition, which includes the role rule."""
     pure = Path(path)
-    for rule in role_rules:
-        under = Path(rule.under)
-        if pure.parent.parent == under and pure.stem in rule.roles:
-            return rule.roles[pure.stem]
     if pure.parts[0] != SOURCE_ROOT:
         return None
     return unit_of_path(Path(*pure.parts[1:]))
@@ -396,7 +380,6 @@ class _Builder:
         self.modules = modules
         self.resolver = Resolver(modules)
         moves = move_list.moves if move_list is not None else ()
-        self.role_rules = move_list.role_rules if move_list is not None else ()
         self.file_moves = {move.path: move for move in moves if move.name is None}
         self.module_paths = {module.name: module.path for module in modules.values()}
         by_path = {module.path: module for module in modules.values()}
@@ -415,7 +398,7 @@ class _Builder:
                 self.name_moves[(by_path[move.path].name, move.name)] = move
         for module in modules.values():
             file_move = self.file_moves.get(module.path)
-            unit = file_move.unit if file_move is not None else unit_for_path(module.path, self.role_rules)
+            unit = file_move.unit if file_move is not None else unit_for_path(module.path)
             if unit is not None:
                 self.unit_of[module.name] = unit
                 self.paths[module.name] = module.path
@@ -545,7 +528,7 @@ def apply_overrides(
         if unit != move.unit and destination:
             destination = f"{SOURCE_ROOT}/{unit}/{Path(destination).name}"
         moves.append(Move(move.path, move.name, unit, move.serves, destination))
-    return MoveList(tuple(moves), move_list.role_rules, move_list.owns), dict(relabels)
+    return MoveList(tuple(moves), move_list.owns), dict(relabels)
 
 
 # --- graph analysis -------------------------------------------------------------------------------------
@@ -574,84 +557,6 @@ def unit_graph(
             graph[source].add(target)
             causes[(source, target)].add((simulation.paths[source_node], 0))
     return graph, dict(causes)
-
-
-def strongly_connected(graph: Mapping[str, Iterable[str]]) -> list[list[str]]:
-    """Return the strongly connected components with more than one member (or a self edge), sorted."""
-    index = 0
-    indices: dict[str, int] = {}
-    lowlink: dict[str, int] = {}
-    stack: list[str] = []
-    on_stack: set[str] = set()
-    result: list[list[str]] = []
-
-    def visit(node: str) -> None:
-        nonlocal index
-        indices[node] = lowlink[node] = index
-        index += 1
-        stack.append(node)
-        on_stack.add(node)
-        for target in sorted(graph.get(node, ())):
-            if target not in indices:
-                visit(target)
-                lowlink[node] = min(lowlink[node], lowlink[target])
-            elif target in on_stack:
-                lowlink[node] = min(lowlink[node], indices[target])
-        if lowlink[node] == indices[node]:
-            component: list[str] = []
-            while True:
-                member = stack.pop()
-                on_stack.discard(member)
-                component.append(member)
-                if member == node:
-                    break
-            if len(component) > 1 or node in set(graph.get(node, ())):
-                result.append(sorted(component))
-
-    sys.setrecursionlimit(max(sys.getrecursionlimit(), 10_000))
-    for node in sorted(graph):
-        if node not in indices:
-            visit(node)
-    return sorted(result)
-
-
-def two_way(graph: Mapping[str, set[str]]) -> list[tuple[str, str]]:
-    """Return the unit pairs that import each other, sorted."""
-    return sorted((a, b) for a, targets in graph.items() for b in targets if a < b and a in graph.get(b, set()))
-
-
-def layers(graph: Mapping[str, set[str]]) -> list[list[str]] | None:
-    """Return the units grouped by the longest import path below them, or ``None`` when there is a loop."""
-    if strongly_connected(graph):
-        return None
-    level: dict[str, int] = {}
-
-    def depth(node: str) -> int:
-        if node not in level:
-            level[node] = 1 + max((depth(target) for target in graph.get(node, ())), default=-1)
-        return level[node]
-
-    for node in graph:
-        depth(node)
-    grouped: dict[int, list[str]] = defaultdict(list)
-    for node, value in level.items():
-        grouped[value].append(node)
-    return [sorted(grouped[value]) for value in sorted(grouped)]
-
-
-def shortest_cycle(graph: Mapping[str, set[str]], through: str) -> list[str] | None:
-    """Return a shortest cycle that passes ``through``, as a list starting and ending with it."""
-    queue: deque[list[str]] = deque([[through]])
-    seen = {through}
-    while queue:
-        path = queue.popleft()
-        for target in sorted(graph.get(path[-1], ())):
-            if target == through:
-                return [*path, through]
-            if target not in seen:
-                seen.add(target)
-                queue.append([*path, target])
-    return None
 
 
 def _reaches(graph: Mapping[str, set[str]], start: str, goal: str) -> bool:
@@ -721,9 +626,8 @@ def load_move_list(path: Path) -> MoveList:
     keys = [move.key for move in moves]
     if len(keys) != len(set(keys)):
         raise ValueError(f"{path}: a path or name is listed twice")
-    rules = tuple(RoleRule(entry["under"], dict(entry["roles"])) for entry in data.get("role_rule", []))
     owns = {entry["name"]: entry["owns"] for entry in data.get("unit", [])}
-    return MoveList(tuple(moves), rules, owns)
+    return MoveList(tuple(moves), owns)
 
 
 # --- importers ------------------------------------------------------------------------------------------
@@ -900,9 +804,9 @@ def _shown(simulation: Simulation, nodes: Iterable[str]) -> list[str]:
     return sorted(simulation.names.get(node, node) for node in nodes)
 
 
-def role_violations(simulation: Simulation, role_rules: Sequence[RoleRule]) -> list[str]:
+def role_violations(simulation: Simulation) -> list[str]:
     """List imports from a strategy's core files to a file the role rule assigns to another layer."""
-    rule_roles = {role for rule in role_rules for role in rule.roles}
+    rule_roles = {role for rule in ROLE_RULES for role in rule.roles}
     problems: list[str] = []
     for edge in simulation.edges:
         source_path, target_path = simulation.paths.get(edge.source, ""), simulation.paths.get(edge.target, "")
@@ -960,7 +864,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         target, _ = build(root, move_list)
         lines += [""] if lines else []
         lines += _describe("target", target, relabel)
-        violations = role_violations(target, move_list.role_rules)
+        violations = role_violations(target)
         lines.append(
             f"Imports from a strategy's core files to its cli, evaluation or execution files ({len(violations)}):"
         )

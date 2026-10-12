@@ -7,21 +7,17 @@ from pathlib import Path
 import pytest
 
 from scripts.check_package_dependencies import collect_imports
+from scripts.package_graph import layers, shortest_cycle, strongly_connected, two_way
 from scripts.simulate_package_layers import (
     DEFAULT_MOVES,
     Move,
     MoveList,
-    RoleRule,
     build,
     count_importers,
-    layers,
     load_move_list,
     main,
     module_cycles,
     role_violations,
-    shortest_cycle,
-    strongly_connected,
-    two_way,
     unit_graph,
 )
 
@@ -44,9 +40,9 @@ def units(root: Path, moves: MoveList | None = None) -> dict[str, set[str]]:
     return graph
 
 
-def moves_of(*moves: Move, rules: tuple[RoleRule, ...] = ()) -> MoveList:
+def moves_of(*moves: Move) -> MoveList:
     """Build a move list."""
-    return MoveList(moves, rules, {})
+    return MoveList(moves, {})
 
 
 BASE = {
@@ -131,13 +127,12 @@ def test_the_role_rule_assigns_role_files_to_other_units(tmp_path: Path) -> None
         "src/strategies/s/presenter.py": "from src.strategies.s import execution\n",
         "src/strategies/s/execution.py": "from src.strategies.s import analyzer\n",
     }
-    rules = (RoleRule("src/strategies", {"cli": "cli", "execution": "workspace"}),)
     root = tree(tmp_path, files)
-    simulation, _ = build(root, moves_of(rules=rules))
+    simulation, _ = build(root, moves_of())
     graph, _ = unit_graph(simulation)
     assert graph["cli"] == {"strategies"}
     assert graph["workspace"] == {"strategies"}
-    assert role_violations(simulation, rules) == ["src/strategies/s/presenter.py:1 -> src/strategies/s/execution.py"]
+    assert role_violations(simulation) == ["src/strategies/s/presenter.py:1 -> src/strategies/s/execution.py"]
 
 
 def test_importers_are_counted_by_kind(tmp_path: Path) -> None:

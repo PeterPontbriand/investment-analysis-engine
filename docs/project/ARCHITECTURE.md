@@ -556,25 +556,25 @@ Private model reasoning is never reconstructed.
 
 ## 13. Module boundaries
 
-This table is the single declaration of the top-level units under `src/` and the imports between them. A unit is each directory directly under `src/`, plus `config` (`src/config.py`), `strategy_wiring` (`src/strategy_wiring.py`), and `cli` (`src/main.py` and every `src/cli*.py`). An import is any `import src.X` or `from src.X import ...` in a file under `src/`, including one inside a function; imports within one unit are not listed. `scripts/check_package_dependencies.py` compares this table with the code and fails on any difference, so change the table in the same change that adds or removes an import between units.
+This table is the single declaration of the top-level units under `src/` and the imports between them. A unit is each directory directly under `src/`, plus `config` (`src/config.py`), `strategy_wiring` (`src/strategy_wiring.py`), and `cli` (`src/main.py` and every `src/cli*.py`), except that a file named `cli.py`, `evaluation.py` or `execution.py` directly inside a package under `src/strategies/` belongs to the unit `cli`, `evaluation` or `workspace` respectively. An import is any `import src.X` or `from src.X import ...` in a file under `src/`, including one inside a function, attributed to the file it names; imports within one unit are not listed. `scripts/check_package_dependencies.py` compares this table with the code and fails on any difference, so change the table in the same change that adds or removes an import between units.
 
 | Package | Owns | Imports | Two-way with |
 | --- | --- | --- | --- |
 | `analysis` | The `BaseAnalyzer` and `AnalysisContext` contract and the strategy-neutral financial-resolution helpers. | `core`, `data` | |
-| `cli` | The Typer commands, their production wiring, and the process entry point. | `config`, `core`, `data`, `evaluation`, `llm`, `reporting`, `strategies`, `strategy_wiring`, `utils`, `workspace` | `strategies` |
+| `cli` | The Typer commands, their production wiring, and the process entry point. | `analysis`, `config`, `core`, `data`, `evaluation`, `llm`, `reporting`, `strategies`, `strategy_wiring`, `utils`, `workspace` | |
 | `config` | The application settings object and its environment and profile loading. | `core`, `orchestrator`, `schema`, `utils` | `core`, `orchestrator`, `schema`, `utils` |
 | `core` | The shared clock, core result and status types, strategy errors, constants, the stable failure codes and the classifier that maps an exception to one, and trajectory telemetry. | `config`, `data`, `orchestrator` | `config`, `data`, `orchestrator` |
 | `data` | Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite repositories. | `config`, `core`, `workspace` | `core`, `workspace` |
-| `evaluation` | The Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting. | `core`, `data`, `llm`, `orchestrator`, `schema`, `strategies`, `strategy_wiring`, `tools`, `workspace` | `strategies` |
+| `evaluation` | The Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting. | `config`, `core`, `data`, `llm`, `orchestrator`, `schema`, `strategies`, `strategy_wiring`, `tools`, `workspace` | |
 | `llm` | The local-model client. | `config` | |
 | `orchestrator` | The LLM tool-selection loop, the tool dispatcher and reliability limits, the registration of analysis-tool handlers, and the shared base for tool arguments and handlers. | `config`, `core`, `data`, `llm`, `schema`, `tools` | `config`, `core` |
 | `reporting` | The presentation helpers the strategy presenters share, the typed models of the `--json` documents no single strategy owns and of the parts several documents share, the failure envelope, and saved-run replay. | `analysis`, `core`, `data`, `workspace` | |
 | `schema` | The structured-output schema constraint and its validation of model output. | `config` | `config` |
-| `strategies` | One package per analysis strategy, each with its analyzer, configuration, result, selection, tool arguments and handler, presenter, CLI command, evaluation fixture composition, replay projector, and `--json` document model, plus the code several strategies share. | `analysis`, `cli`, `config`, `core`, `data`, `evaluation`, `orchestrator`, `reporting`, `workspace` | `cli`, `evaluation`, `workspace` |
+| `strategies` | One package per analysis strategy, each with its analyzer, configuration, result, selection, tool arguments and handler, presenter, CLI command, evaluation fixture composition, replay projector, and `--json` document model, plus the code several strategies share. | `analysis`, `config`, `core`, `data`, `orchestrator`, `reporting`, `workspace` | `workspace` |
 | `strategy_wiring` | The closed, statically declared list of supported strategies and their shared wiring. | `core`, `orchestrator`, `reporting`, `strategies`, `workspace` | |
 | `tools` | The tool registry, tool-argument schema generation, and parsing of tool calls from model output. | | |
 | `utils` | Logging setup and path validation. | `config` | `config` |
-| `workspace` | The selection base and the closed selection and native-evidence unions, analysis requests, run capture, watchlists, and refresh. | `core`, `data`, `strategies` | `data`, `strategies` |
+| `workspace` | The selection base and the closed selection and native-evidence unions, analysis requests, run capture, watchlists, and refresh. | `analysis`, `core`, `data`, `strategies` | `data`, `strategies` |
 
 The provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. Production SQLite persistence is implemented under `src/data/repositories/`; callers consume typed domain objects rather than SQL rows.
 
