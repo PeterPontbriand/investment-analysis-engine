@@ -31,8 +31,8 @@ work-package status. The design, the proof and the owner decisions are in [LAY_D
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | LAY.0 | [Design, simulation script and slice plan](#lay0--design-and-slice-plan) | Complete | 2026-10-11 |
-| LAY.1 | [Role rule in the dependency check](#lay1--role-rule-in-the-dependency-check) | Next | |
-| LAY.2 | [Configuration becomes a package and a base layer](#lay2--configuration-package-and-base-layer) | Planned | |
+| LAY.1 | [Role rule in the dependency check](#lay1--role-rule-in-the-dependency-check) | Complete | 2026-10-12 |
+| LAY.2 | [Configuration becomes a package and a base layer](#lay2--configuration-package-and-base-layer) | Next | |
 | LAY.3 | [Telemetry leaves core](#lay3--telemetry-package) | Planned | |
 | LAY.4 | [Run and watchlist repositories move to the workspace side](#lay4--repositories) | Planned | |
 | LAY.5 | [Selection base and run-outcome models move beside the analyzer contract](#lay5--contract-modules) | Planned | |
@@ -234,3 +234,22 @@ reports if that cannot be done without changing behavior); 8 as two slices (A.2)
 
 SWC.4e, SWC.4f, then LAY.1 to LAY.8, then the remaining SWC slices (SWC.5 to SWC.7), then PKG. SWC.4d is complete. Provisional
 until the SWC plan is reviewed; the SWC plan is not edited by LAY.0.
+
+### A.6 LAY.1 implementation decisions (2026-10-12)
+
+Approved by the project owner for LAY.1.
+
+1. A file named `cli.py`, `evaluation.py` or `execution.py` directly inside a package under `src/strategies/`
+   (including `_graham`) belongs to the unit `cli`, `evaluation` or `workspace`; every other file under
+   `src/strategies/` belongs to `strategies`. No file moves and nothing under `src/` changes.
+2. The check attributes an import to the file it names, so `import src.strategies.x.cli` and
+   `from src.strategies.x import cli` both land in `cli`.
+3. The graph code of the simulation script moves to `scripts/package_graph.py`, used by both the check and the
+   simulation script. The role rule is written once, as data in that module; ARCHITECTURE §13's definition sentence
+   states it in words, and no test matches that prose against the code.
+4. The simulation's full output is identical before and after the move, except that the "today" figures apply the
+   role rule. The PR description holds the output before the first edit and after the last, with their diff.
+5. The check's messages and exit codes are unchanged; only the assignment of files to units changes.
+6. New tests build a small source tree in a temporary directory and show that a strategy's `cli.py`, `evaluation.py`
+   and `execution.py` are attributed to `cli`, `evaluation` and `workspace` in both import forms, and that any other
+   file of a strategy package, including one in `_graham`, stays in `strategies`.

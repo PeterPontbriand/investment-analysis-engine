@@ -5,14 +5,7 @@
 # that makes the moves; a test fails for an entry whose source no longer exists. `serves` names the decision in
 # LAY_DESIGN.md that the entry carries out. `destination` is the recommended path after the move; it fixes which
 # package initializers the moved file depends on. The destination names marked "decision" in LAY_DESIGN.md §8
-# are the recommendations, not settled.
-
-# --- Role rule (L5): three role files of each strategy package belong to the layer they adapt it to. --------
-# No file moves for this rule; only the unit the dependency check assigns to the file changes.
-
-[[role_rule]]
-under = "src/strategies"
-roles = { cli = "cli", evaluation = "evaluation", execution = "workspace" }
+# are the recommendations, not settled. The role rule (L5) is not a move: it is data in scripts/package_graph.py.
 
 # --- L2: trajectory telemetry leaves `core`; the plain event model stays. ------------------------------------
 

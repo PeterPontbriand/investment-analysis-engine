@@ -6,14 +6,19 @@ every disagreement between the two in one run. Standard library only; it never
 modifies a file.
 
 A *unit* is each directory directly under ``src/``, plus each top-level module
-under ``src/`` by its file name (``config``, ``strategy_wiring``). The one
-exception is ``cli``, which groups ``src/main.py`` and every ``src/cli*.py``.
+under ``src/`` by its file name (``config``, ``strategy_wiring``). The exceptions
+are ``cli``, which groups ``src/main.py`` and every ``src/cli*.py``, and the role
+files: a file named ``cli.py``, ``evaluation.py`` or ``execution.py`` directly
+inside a package under ``src/strategies/`` belongs to ``cli``, ``evaluation`` or
+``workspace`` respectively (the rule is data in ``scripts/package_graph.py``).
 ``src/__init__.py`` is ignored.
 
 A *dependency* is any ``import src.X...`` or ``from src.X... import ...``
-anywhere in a file under ``src/``, including imports inside functions. Imports
-within one unit are ignored. Two units are *two-way* when each depends on the
-other.
+anywhere in a file under ``src/``, including imports inside functions, attributed
+to the file the import names: ``import src.strategies.x.cli`` and
+``from src.strategies.x import cli`` both depend on the unit of ``cli.py``.
+Imports within one unit are ignored. Two units are *two-way* when each depends on
+the other.
 
 The table has the columns ``Package | Owns | Imports | Two-way with``. Package
 names are written in backticks; the ``Imports`` and ``Two-way with`` cells list
@@ -30,11 +35,16 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
+if __package__ in (None, ""):
+    # Run as ``python scripts/check_package_dependencies.py``: the repository root is not on the path yet.
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from scripts.package_graph import unit_of_path  # noqa: E402
+
 SOURCE_ROOT_NAME = "src"
 ARCHITECTURE_DOC = Path("docs/project/ARCHITECTURE.md")
 TABLE_SECTION_TITLE = "Module boundaries"
 TABLE_HEADER = ("Package", "Owns", "Imports", "Two-way with")
-CLI_UNIT = "cli"
 
 _SECTION_HEADING_RE = re.compile(r"^##\s+(?:\d+\.\s+)?(.*?)\s*$")
 _BACKTICKED_RE = re.compile(r"`([^`]+)`")
@@ -52,29 +62,25 @@ class DeclaredRow:
     two_way: frozenset[str]
 
 
-def unit_of_path(relative_path: Path) -> str | None:
-    """Return the unit a path (relative to the source root) belongs to, or ``None`` if ignored."""
-    parts = relative_path.parts
-    if not parts or "__pycache__" in parts:
-        return None
-    if len(parts) > 1:
-        return None if parts[0].startswith(("_", ".")) else parts[0]
-    stem = relative_path.stem
-    if relative_path.suffix != ".py" or stem == "__init__":
-        return None
-    if stem in {"main", CLI_UNIT} or stem.startswith(f"{CLI_UNIT}_"):
-        return CLI_UNIT
-    return stem
+def _unit_for_module(name_parts: list[str], source_root: Path) -> str | None:
+    """Map an imported module path below the source root to the unit of the file it names.
 
-
-def _top_level_unit_for_module(name_parts: list[str], source_root: Path) -> str | None:
-    """Map the first component after ``src`` of an imported module to its unit."""
+    The longest leading run of parts that names a directory or a module file is followed; a name that is
+    not a module (an attribute of the last package) resolves to that package's ``__init__.py``.
+    """
     if not name_parts:
         return None
-    first = name_parts[0]
-    if (source_root / first).is_dir():
-        return first
-    return unit_of_path(Path(f"{first}.py"))
+    path = Path()
+    for part in name_parts:
+        if (source_root / path / part).is_dir():
+            path /= part
+        elif (source_root / path / f"{part}.py").is_file():
+            return unit_of_path(path / f"{part}.py")
+        else:
+            break
+    if path.parts:
+        return unit_of_path(path / "__init__.py")
+    return unit_of_path(Path(f"{name_parts[0]}.py"))
 
 
 def _imported_units(node: ast.stmt, relative_path: Path, source_root: Path) -> list[str]:
@@ -84,7 +90,7 @@ def _imported_units(node: ast.stmt, relative_path: Path, source_root: Path) -> l
         candidates = [alias.name.split(".")[1:] for alias in node.names if alias.name.split(".")[0] == SOURCE_ROOT_NAME]
     elif isinstance(node, ast.ImportFrom):
         candidates = _from_import_candidates(node, relative_path)
-    units = (_top_level_unit_for_module(parts, source_root) for parts in candidates)
+    units = (_unit_for_module(parts, source_root) for parts in candidates)
     return [unit for unit in units if unit is not None]
 
 
@@ -98,9 +104,7 @@ def _from_import_candidates(node: ast.ImportFrom, relative_path: Path) -> list[l
         module_parts = module_parts[1:]
     else:
         return []
-    if module_parts:
-        return [module_parts]
-    return [[alias.name] for alias in node.names]
+    return [[*module_parts, alias.name] for alias in node.names]
 
 
 def list_units(source_root: Path) -> set[str]:
