@@ -78,6 +78,18 @@ def provider_failure_of_exception(exception: BaseException) -> ProviderFailure |
     return provider_failure_of((ProviderFailureRecord(kind, provider_id),))
 
 
+def parameters_of_exception(exception: BaseException) -> tuple[str, ...] | None:
+    """Return the offending option and argument names an exception declares in ``parameters``, or ``None``.
+
+    Like :func:`provider_failure_of_exception`, the function names no exception type: an exception that carries a
+    non-empty tuple of strings in ``parameters`` reports it.
+    """
+    names = getattr(exception, "parameters", None)
+    if isinstance(names, tuple) and names and all(isinstance(name, str) and name for name in names):
+        return names
+    return None
+
+
 def failure_reason_code(
     native_status: CalculationStatus, provider_failure: ProviderFailure | None
 ) -> FailureReasonCode:
@@ -97,6 +109,7 @@ __all__ = [
     "FailureClassification",
     "classify_failure",
     "failure_reason_code",
+    "parameters_of_exception",
     "provider_failure_of",
     "provider_failure_of_exception",
 ]

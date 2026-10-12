@@ -30,7 +30,7 @@ from src.cli_provider_check import (
     provider_check_findings,
 )
 from src.cli_strategy_wiring import CLI_BUILDERS, build_selection_for, refresh_executor_for
-from src.cli_support import _production_instrument_profile_cache
+from src.cli_support import _presentation_mode, _production_instrument_profile_cache, parameter_failures, report_failure
 from src.cli_watchlist_flags import WatchlistFlags
 from src.config import settings
 from src.core.clock import utc_now
@@ -49,12 +49,10 @@ from src.data.repositories.watchlists import (
     WatchlistEntryNotFoundError,
 )
 from src.reporting.analysis_runs import project_run
-from src.reporting.documents.failure import FailureEnvelope
 from src.reporting.documents.refresh import RefreshResultDocument, RefreshSummaryDocument
 from src.reporting.documents.runs import RunsListDocument, RunSummaryDocument
 from src.reporting.documents.watchlist import WatchlistDeleteDocument, WatchlistDocument, WatchlistEntryDocument
 from src.reporting.failure_envelope import failure_envelope
-from src.reporting.presentation import PresentationMode, failure_document
 from src.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategy_wiring import BY_ALIAS, BY_METHOD_ID, EVIDENCE_BY_KEY, REPLAYS_BY_KEY, RUN_SPECS_BY_KEY
@@ -63,13 +61,23 @@ from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import (
+    MAX_WORKERS,
+    MIN_WORKERS,
     EmptyRefreshTargetError,
     RefreshJobResult,
     RefreshPolicy,
     RefreshSummary,
     refresh_watchlist,
 )
-from src.workspace.runs import AnalysisRunSummary, RunQuery, Watchlist, WatchlistEntry, WatchlistSummary
+from src.workspace.runs import (
+    RUN_QUERY_MAX_LIMIT,
+    RUN_QUERY_MIN_LIMIT,
+    AnalysisRunSummary,
+    RunQuery,
+    Watchlist,
+    WatchlistEntry,
+    WatchlistSummary,
+)
 from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError, WatchlistSpec, normalize_ticker
 
@@ -104,7 +112,9 @@ def _workspace_database(*, json_output: bool = False) -> Iterator[SQLiteDatabase
             _fail_with(exc, json_output=json_output)
         try:
             yield database
-        except StoredSelectionError as exc:
+        except ValueError as exc:
+            # A stored selection no entry can be read from, a rejected parameter, or any other value error is
+            # reported under the code the classifier gives it, never as a usage error.
             _fail_with(exc, json_output=json_output)
     finally:
         database.close()
@@ -116,22 +126,14 @@ def _fail(reason_code: FailureReasonCode, message: str, *, json_output: bool = F
     With ``json_output`` the failure envelope is written to standard output and nothing to standard
     error, as the direct commands do; otherwise the sentence goes to standard error.
     """
-    _report(failure_envelope(reason_code, message), json_output=json_output)
+    report_failure(failure_envelope(reason_code, message), json_output=json_output)
 
 
 def _fail_with(exception: Exception, *, json_output: bool = False) -> NoReturn:
     """Report a classified failure with the exception's own sanitized message and exit 1."""
     classification = classify_failure(exception)
-    _report(failure_envelope(classification.reason_code, str(exception), cause=exception), json_output=json_output)
-
-
-def _report(envelope: FailureEnvelope, *, json_output: bool) -> NoReturn:
-    """Write one failure envelope or its sentence and exit 1."""
-    if json_output:
-        typer.echo(failure_document(envelope))
-    else:
-        typer.echo(envelope.reason, err=True)
-    raise typer.Exit(code=1)
+    envelope = failure_envelope(classification.reason_code, str(exception), cause=exception)
+    report_failure(envelope, json_output=json_output)
 
 
 def _alias_for_method_id(method_id: str) -> str:
@@ -238,8 +240,14 @@ def _parse_analysis(value: str) -> str:
     normalized = value.strip().lower()
     if normalized not in CLI_BUILDERS:
         allowed = ", ".join(CLI_BUILDERS)
-        raise typer.BadParameter(f"--analysis must be one of: {allowed}.")
+        raise InvalidParameterError(f"--analysis must be one of: {allowed}.", parameters=("--analysis",))
     return normalized
+
+
+def _require_tickers(tickers: list[str]) -> None:
+    """Reject a blank ticker argument before any repository call."""
+    if any(not ticker.strip() for ticker in tickers):
+        raise InvalidParameterError("TICKER must not be empty.", parameters=("TICKER",))
 
 
 def _build_selection(  # noqa: PLR0913
@@ -286,10 +294,7 @@ def _build_selection(  # noqa: PLR0913
         classification_basis=classification_basis,
         currency=currency,
     )
-    try:
-        return build_selection_for(method, flags)
-    except InvalidParameterError as exc:
-        _fail_with(exc)
+    return build_selection_for(method, flags)
 
 
 @watchlist_app.command("create")
@@ -389,48 +394,51 @@ def watchlist_create(  # noqa: PLR0913
     create an empty watchlist, exactly as before.
     """
     seed_tickers = tickers or []
-    if analysis is None and seed_tickers:
-        raise typer.BadParameter("--analysis is required to seed TICKER... at creation.")
-    if analysis is not None and not seed_tickers:
-        raise typer.BadParameter("At least one TICKER is required with --analysis.")
-
     entries: list[tuple[str, AnalysisSelection]] = []
-    if analysis is not None:
-        method = _parse_analysis(analysis)
-        selection = _build_selection(
-            method,
-            short_window=short_window,
-            long_window=long_window,
-            rsi_period=rsi_period,
-            as_of=as_of,
-            data_provider=data_provider,
-            no_cache=no_cache,
-            eps=eps,
-            eps_basis=eps_basis,
-            bvps=bvps,
-            current_price=current_price,
-            expected_growth=expected_growth,
-            aaa_yield=aaa_yield,
-            growth_years=growth_years,
-            forward_policy=forward_policy,
-            classification_basis=classification_basis,
-            currency=currency,
-        )
-        entries = [(ticker, selection) for ticker in seed_tickers]
+    with parameter_failures(json_output=False):
+        if analysis is None and seed_tickers:
+            raise InvalidParameterError(
+                "--analysis is required to seed TICKER... at creation.", parameters=("--analysis", "TICKER")
+            )
+        if analysis is not None and not seed_tickers:
+            raise InvalidParameterError(
+                "At least one TICKER is required with --analysis.", parameters=("TICKER", "--analysis")
+            )
+        if analysis is not None:
+            method = _parse_analysis(analysis)
+            selection = _build_selection(
+                method,
+                short_window=short_window,
+                long_window=long_window,
+                rsi_period=rsi_period,
+                as_of=as_of,
+                data_provider=data_provider,
+                no_cache=no_cache,
+                eps=eps,
+                eps_basis=eps_basis,
+                bvps=bvps,
+                current_price=current_price,
+                expected_growth=expected_growth,
+                aaa_yield=aaa_yield,
+                growth_years=growth_years,
+                forward_policy=forward_policy,
+                classification_basis=classification_basis,
+                currency=currency,
+            )
+            entries = [(ticker, selection) for ticker in seed_tickers]
 
     with _workspace_database() as database:
         repository = _watchlist_repository(database)
+        # Every argument is checked before the watchlist is created, so a rejected one leaves nothing behind.
+        if not name.strip():
+            raise InvalidParameterError("NAME must not be blank.", parameters=("NAME",))
+        _require_tickers(seed_tickers)
         try:
             watchlist = repository.create(WatchlistSpec(display_name=name))
         except WatchlistConflictError as exc:
             _fail_with(exc)
-        except ValueError as exc:
-            raise typer.BadParameter(str(exc)) from exc
         if entries:
-            try:
-                watchlist = repository.add_entries(watchlist.display_name, entries)
-            except ValueError as exc:
-                raise typer.BadParameter(str(exc)) from exc
+            watchlist = repository.add_entries(watchlist.display_name, entries)
     typer.echo(_watchlist_text(watchlist))
 
 
@@ -523,35 +531,35 @@ def watchlist_add_selection(  # noqa: PLR0913
     Method-specific flags mirror the matching direct command's own flags
     exactly, including which are required.
     """
-    method = _parse_analysis(analysis)
-    selection = _build_selection(
-        method,
-        short_window=short_window,
-        long_window=long_window,
-        rsi_period=rsi_period,
-        as_of=as_of,
-        data_provider=data_provider,
-        no_cache=no_cache,
-        eps=eps,
-        eps_basis=eps_basis,
-        bvps=bvps,
-        current_price=current_price,
-        expected_growth=expected_growth,
-        aaa_yield=aaa_yield,
-        growth_years=growth_years,
-        forward_policy=forward_policy,
-        classification_basis=classification_basis,
-        currency=currency,
-    )
+    with parameter_failures(json_output=False):
+        method = _parse_analysis(analysis)
+        selection = _build_selection(
+            method,
+            short_window=short_window,
+            long_window=long_window,
+            rsi_period=rsi_period,
+            as_of=as_of,
+            data_provider=data_provider,
+            no_cache=no_cache,
+            eps=eps,
+            eps_basis=eps_basis,
+            bvps=bvps,
+            current_price=current_price,
+            expected_growth=expected_growth,
+            aaa_yield=aaa_yield,
+            growth_years=growth_years,
+            forward_policy=forward_policy,
+            classification_basis=classification_basis,
+            currency=currency,
+        )
     entries = [(ticker, selection) for ticker in tickers]
     with _workspace_database() as database:
         repository = _watchlist_repository(database)
+        _require_tickers(tickers)
         try:
             watchlist = repository.add_entries(name, entries)
         except WatchlistNotFoundError as exc:
             _fail_with(exc)
-        except ValueError as exc:
-            raise typer.BadParameter(str(exc)) from exc
     typer.echo(_watchlist_text(watchlist))
 
 
@@ -591,8 +599,9 @@ def watchlist_remove_entry(
     index: Annotated[int, typer.Argument(help="1-based entry number, as shown by 'watchlist show'.")],
 ) -> None:
     """Remove exactly one entry by its displayed 1-based index (Amendment A1, §12)."""
-    if index < 1:
-        raise typer.BadParameter("INDEX must be 1 or greater.")
+    with parameter_failures(json_output=False):
+        if index < 1:
+            raise InvalidParameterError("INDEX must be 1 or greater.", parameters=("INDEX",))
     with _workspace_database() as database:
         repository = _watchlist_repository(database)
         try:
@@ -611,12 +620,11 @@ def watchlist_remove_ticker(
     """Remove every entry for the given ticker(s), across every method (bulk, idempotent)."""
     with _workspace_database() as database:
         repository = _watchlist_repository(database)
+        _require_tickers(tickers)
         try:
             removed = repository.remove_entries_for_ticker(name, tickers)
         except WatchlistNotFoundError as exc:
             _fail_with(exc)
-        except ValueError as exc:
-            raise typer.BadParameter(str(exc)) from exc
         watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, ", ".join(tickers)))
     typer.echo(_watchlist_text(watchlist))
 
@@ -630,7 +638,8 @@ def watchlist_remove_method(
     ],
 ) -> None:
     """Remove every entry for the given method, across every ticker (bulk, idempotent)."""
-    method = _parse_analysis(analysis)
+    with parameter_failures(json_output=False):
+        method = _parse_analysis(analysis)
     with _workspace_database() as database:
         repository = _watchlist_repository(database)
         try:
@@ -675,8 +684,9 @@ def watchlist_delete(
 
     Asks for confirmation on an interactive terminal; without one, --yes is required.
     """
-    if not yes and not _stdin_is_interactive():
-        raise typer.BadParameter("--yes is required when input is not interactive.", param_hint="--yes")
+    with parameter_failures(json_output=json_output):
+        if not yes and not _stdin_is_interactive():
+            raise InvalidParameterError("--yes is required when input is not interactive.", parameters=("--yes",))
     deleted: DeletedWatchlist | None = None
     with _workspace_database(json_output=json_output) as database:
         repository = _watchlist_repository(database)
@@ -727,12 +737,12 @@ def watchlist_rename(
     """Rename a watchlist. Saved Analysis Runs keep the name it had when they ran."""
     with _workspace_database(json_output=json_output) as database:
         repository = _watchlist_repository(database)
+        if not new_name.strip():
+            raise InvalidParameterError("NEW_NAME must not be blank.", parameters=("NEW_NAME",))
         try:
             repository.rename(name, new_name)
         except (WatchlistNotFoundError, WatchlistConflictError) as exc:
             _fail_with(exc, json_output=json_output)
-        except ValueError as exc:
-            raise typer.BadParameter(str(exc)) from exc
         confirmation = f"Renamed watchlist {name!r} to {new_name.strip()!r}."
         if not json_output:
             typer.echo(confirmation)
@@ -772,8 +782,9 @@ def watchlist_show(
 ) -> None:
     """Show one watchlist's entries, numbered from 1 (see 'remove-entry')."""
     normalized_group_by = group_by.strip().lower()
-    if normalized_group_by not in ("ticker", "method"):
-        raise typer.BadParameter("--group-by must be 'ticker' or 'method'.")
+    with parameter_failures(json_output=json_output):
+        if normalized_group_by not in ("ticker", "method"):
+            raise InvalidParameterError("--group-by must be 'ticker' or 'method'.", parameters=("--group-by",))
     with _workspace_database(json_output=json_output) as database:
         watchlist = _watchlist_repository(database).get(name)
     if watchlist is None:
@@ -798,17 +809,26 @@ def runs_list(  # noqa: PLR0913
     json_output: Annotated[bool, typer.Option("--json", help="Emit one JSON array of summaries.")] = False,
 ) -> None:
     """List Analysis Run summaries, most recently completed first."""
-    try:
+    with parameter_failures(json_output=json_output):
+        if ticker is not None and not ticker.strip():
+            raise InvalidParameterError("--ticker must not be empty.", parameters=("--ticker",))
+        method_id = None if analysis is None else _method_id_for_alias(_parse_analysis(analysis))
+        outcome = None if status is None else _parse_status(status)
+        refresh_batch = None if refresh_id is None else _parse_run_id(refresh_id, field="--refresh-id")
+        if not RUN_QUERY_MIN_LIMIT <= limit <= RUN_QUERY_MAX_LIMIT:
+            raise InvalidParameterError(
+                f"--limit must be between {RUN_QUERY_MIN_LIMIT} and {RUN_QUERY_MAX_LIMIT}.", parameters=("--limit",)
+            )
+        if offset < 0:
+            raise InvalidParameterError("--offset must be 0 or greater.", parameters=("--offset",))
         query = RunQuery(
             ticker=None if ticker is None else normalize_ticker(ticker),
-            method_id=None if analysis is None else _method_id_for_alias(_parse_analysis(analysis)),
-            status=None if status is None else _parse_status(status),
-            refresh_id=None if refresh_id is None else _parse_run_id(refresh_id, field="--refresh-id"),
+            method_id=method_id,
+            status=outcome,
+            refresh_id=refresh_batch,
             limit=limit,
             offset=offset,
         )
-    except ValueError as exc:
-        raise typer.BadParameter(str(exc)) from exc
     with _workspace_database(json_output=json_output) as database:
         summaries = SQLiteAnalysisRunRepository(database).list(query)
     if json_output:
@@ -842,19 +862,9 @@ def runs_show(
     json_output: Annotated[bool, typer.Option("--json", help="Emit the versioned run projection.")] = False,
 ) -> None:
     """Replay one stored run using only its own captured evidence."""
-    selected_count = sum((details, diagnostics, json_output))
-    if selected_count > 1:
-        raise typer.BadParameter("Choose only one of --details, --diagnostics, or --json.")
-    parsed_id = _parse_run_id(run_id, field="RUN_ID")
-    mode = (
-        PresentationMode.JSON
-        if json_output
-        else PresentationMode.DIAGNOSTICS
-        if diagnostics
-        else PresentationMode.DETAILS
-        if details
-        else PresentationMode.CONCISE
-    )
+    with parameter_failures(json_output=json_output):
+        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+        parsed_id = _parse_run_id(run_id, field="RUN_ID")
     with _workspace_database(json_output=json_output) as database:
         try:
             run = SQLiteAnalysisRunRepository(database).get(parsed_id)
@@ -879,10 +889,10 @@ def _parse_run_id(value: str, *, field: str) -> UUID:
     try:
         return UUID(value)
     except ValueError as exc:
-        raise typer.BadParameter(
-            f"{value!r} is not a valid Analysis Run ID. Use the full ID exactly as shown "
+        raise InvalidParameterError(
+            f"{field} {value!r} is not a valid Analysis Run ID. Use the full ID exactly as shown "
             "by 'runs list' or 'refresh' — not a shortened or partial value.",
-            param_hint=field,
+            parameters=(field,),
         ) from exc
 
 
@@ -891,7 +901,7 @@ def _parse_status(value: str) -> RunOutcome:
         return RunOutcome(value)
     except ValueError as exc:
         allowed = ", ".join(item.value for item in RunOutcome)
-        raise typer.BadParameter(f"--status must be one of: {allowed}.") from exc
+        raise InvalidParameterError(f"--status must be one of: {allowed}.", parameters=("--status",)) from exc
 
 
 def _run_summary_line(summary: AnalysisRunSummary) -> str:
@@ -1005,10 +1015,12 @@ def refresh(  # noqa: PLR0913
     implicated provider runs after the batch ends; its finding is printed before the summary, or
     carried in the summary document as ``provider_check`` with ``--json``. ``--no-provider-check`` turns it off.
     """
-    try:
+    with parameter_failures(json_output=json_output):
+        if not MIN_WORKERS <= workers <= MAX_WORKERS:
+            raise InvalidParameterError(
+                f"--workers must be between {MIN_WORKERS} and {MAX_WORKERS}.", parameters=("--workers",)
+            )
         policy = RefreshPolicy(workers=workers)
-    except ValueError as exc:
-        raise typer.BadParameter(str(exc)) from exc
 
     cancellation = threading.Event()
     previous_handler = signal.getsignal(signal.SIGINT)

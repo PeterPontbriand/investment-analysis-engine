@@ -58,7 +58,7 @@ def test_watchlist_create_duplicate_name_exits_1() -> None:
 
 def test_watchlist_create_blank_name_is_a_usage_error() -> None:
     result = runner.invoke(app, ["watchlist", "create", "   "])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_watchlist_list_reports_no_watchlists_then_summaries() -> None:
@@ -109,32 +109,32 @@ def test_watchlist_create_seeds_one_method_across_multiple_tickers() -> None:
 
 def test_watchlist_create_seeding_requires_analysis_with_tickers() -> None:
     result = runner.invoke(app, ["watchlist", "create", "Bad", "AAPL"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--analysis is required" in normalize_cli_output(result.output)
 
 
 def test_watchlist_create_seeding_requires_tickers_with_analysis() -> None:
     result = runner.invoke(app, ["watchlist", "create", "Bad", "--analysis", "momentum"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "At least one TICKER is required" in normalize_cli_output(result.output)
 
 
 def test_watchlist_create_rejects_an_unknown_analysis_alias() -> None:
     result = runner.invoke(app, ["watchlist", "create", "Bad", "--analysis", "bogus", "AAPL"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--analysis must be one of" in normalize_cli_output(result.output)
 
 
 def test_watchlist_create_graham_growth_requires_its_assumptions() -> None:
     """Amendment A1 (§12): a method missing a required flag is a usage error, as the direct command produces."""
     result = runner.invoke(app, ["watchlist", "create", "Bad", "--analysis", "graham-growth", "AAPL"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--expected-growth" in normalize_cli_output(result.output)
 
     result = runner.invoke(
         app, ["watchlist", "create", "Bad", "--analysis", "graham-growth", "--expected-growth", "6.0", "AAPL"]
     )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--aaa-yield" in normalize_cli_output(result.output)
 
 
@@ -230,7 +230,7 @@ def test_watchlist_create_fcf_growth_rejects_an_invalid_growth_years() -> None:
     result = runner.invoke(
         app, ["watchlist", "create", "Bad FCF", "--analysis", "fcf-growth", "--growth-years", "7", "AAPL"]
     )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--growth-years must be 3, 4, or 5" in normalize_cli_output(result.output)
 
 
@@ -238,7 +238,7 @@ def test_watchlist_create_fcf_growth_rejects_an_invalid_forward_policy() -> None
     result = runner.invoke(
         app, ["watchlist", "create", "Bad FCF", "--analysis", "fcf-growth", "--forward-policy", "bogus", "AAPL"]
     )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--forward-policy must be" in normalize_cli_output(result.output)
 
 
@@ -247,7 +247,7 @@ def test_watchlist_create_fcf_growth_rejects_an_invalid_classification_basis() -
         app,
         ["watchlist", "create", "Bad FCF", "--analysis", "fcf-growth", "--classification-basis", "bogus", "AAPL"],
     )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--classification-basis must be" in normalize_cli_output(result.output)
 
 
@@ -255,13 +255,13 @@ def test_watchlist_create_fcf_growth_rejects_an_invalid_currency() -> None:
     result = runner.invoke(
         app, ["watchlist", "create", "Bad FCF", "--analysis", "fcf-growth", "--currency", "US", "AAPL"]
     )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--currency must be a three-letter ISO 4217 code" in normalize_cli_output(result.output)
 
 
 def test_watchlist_create_rejects_a_blank_seed_ticker() -> None:
     result = runner.invoke(app, ["watchlist", "create", "Blank Ticker", "--analysis", "momentum", "  "])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_watchlist_add_selection_appends_and_allows_the_same_method_twice() -> None:
@@ -304,7 +304,7 @@ def test_watchlist_add_selection_requires_at_least_one_ticker() -> None:
 def test_watchlist_add_selection_rejects_a_blank_ticker() -> None:
     _create("Blank Ticker Add")
     result = runner.invoke(app, ["watchlist", "add-selection", "Blank Ticker Add", "  ", "--analysis", "momentum"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_watchlist_remove_entry_by_1_based_index_and_renumbers_survivors() -> None:
@@ -331,7 +331,7 @@ def test_watchlist_remove_entry_out_of_range_exits_1() -> None:
 def test_watchlist_remove_entry_rejects_an_index_below_1() -> None:
     _create("Zero Index")
     result = runner.invoke(app, ["watchlist", "remove-entry", "Zero Index", "0"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "INDEX must be 1 or greater" in normalize_cli_output(result.output)
 
 
@@ -344,7 +344,7 @@ def test_watchlist_remove_entry_missing_watchlist_exits_1() -> None:
 def test_watchlist_remove_rejects_a_blank_ticker() -> None:
     _create("Blank Ticker Remove")
     result = runner.invoke(app, ["watchlist", "remove-ticker", "Blank Ticker Remove", "  "])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_watchlist_remove_removes_every_entry_for_a_ticker_across_methods() -> None:
@@ -436,7 +436,7 @@ def test_watchlist_show_groups_by_ticker_by_default_and_by_method_on_request() -
 def test_watchlist_show_rejects_an_invalid_group_by() -> None:
     _create("Bad Group By")
     result = runner.invoke(app, ["watchlist", "show", "Bad Group By", "--group-by", "bogus"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--group-by must be" in normalize_cli_output(result.output)
 
 
@@ -467,12 +467,12 @@ def test_runs_list_reports_no_matches_then_summaries() -> None:
 
 def test_runs_list_rejects_an_invalid_status_as_a_usage_error() -> None:
     result = runner.invoke(app, ["runs", "list", "--status", "bogus"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_runs_list_rejects_the_removed_cancelled_status_as_a_usage_error() -> None:
     result = runner.invoke(app, ["runs", "list", "--status", "cancelled"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "cancelled" not in normalize_cli_output(result.output).split("must be one of:")[-1]
 
 
@@ -484,7 +484,7 @@ def test_runs_show_missing_id_exits_1() -> None:
 
 def test_runs_show_invalid_id_is_a_usage_error() -> None:
     result = runner.invoke(app, ["runs", "show", "not-a-uuid"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     output = normalize_cli_output(result.output)
     assert "not a shortened or partial value" in output
     assert "RUN_ID" in output
@@ -493,7 +493,7 @@ def test_runs_show_invalid_id_is_a_usage_error() -> None:
 def test_runs_show_rejects_conflicting_view_flags() -> None:
     run_id = "11111111-1111-4111-8111-111111111111"
     result = runner.invoke(app, ["runs", "show", run_id, "--details", "--json"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 class _FixtureClient(FixtureDataClient):
@@ -635,10 +635,10 @@ def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
 
 def test_runs_list_rejects_an_invalid_ticker_or_refresh_id_as_a_usage_error() -> None:
     result = runner.invoke(app, ["runs", "list", "--ticker", "   "])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
     result = runner.invoke(app, ["runs", "list", "--refresh-id", "not-a-uuid"])
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     output = normalize_cli_output(result.output)
     assert "not a shortened or partial value" in output
     assert "--refresh-id" in output
@@ -730,7 +730,7 @@ def test_runs_list_filters_by_analysis_alias() -> None:
 def test_runs_list_rejects_a_canonical_method_id_or_unknown_alias_as_a_usage_error() -> None:
     for value in ("sma_crossover", "bogus"):
         result = runner.invoke(app, ["runs", "list", "--analysis", value])
-        assert result.exit_code == 2, value
+        assert result.exit_code == 1, value
         assert "--analysis must be one of: momentum, graham-number, graham-growth, fcf-growth." in (
             normalize_cli_output(result.output)
         )
@@ -766,8 +766,8 @@ def test_the_analysis_help_text_names_every_declared_alias_as_before(args: list[
 def test_every_analysis_option_rejects_an_unknown_alias_with_the_same_usage_error(args: list[str]) -> None:
     """The validation error lists the declared aliases, in declaration order, with no ``or``."""
     result = runner.invoke(app, args, env={"COLUMNS": "200"})
-    assert result.exit_code == 2, result.output
-    assert "Invalid value: --analysis must be one of: momentum, graham-number, graham-growth, fcf-growth." in (
+    assert result.exit_code == 1, result.output
+    assert "--analysis must be one of: momentum, graham-number, graham-growth, fcf-growth." in (
         normalize_cli_output(result.output)
     )
 
@@ -866,7 +866,7 @@ def test_watchlist_delete_non_interactive_without_yes_is_a_usage_error_and_chang
     with patch("src.cli_workspace._stdin_is_interactive", return_value=False):
         result = runner.invoke(app, ["watchlist", "delete", "Scratch"])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "--yes" in normalize_cli_output(result.output)
     assert _database_path().read_bytes() == before
 
@@ -878,7 +878,7 @@ def test_watchlist_delete_non_interactive_check_happens_before_the_database_is_o
     ):
         result = runner.invoke(app, ["watchlist", "delete", "Scratch"])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_watchlist_delete_interactive_confirm_shows_name_id_and_count_then_deletes() -> None:
@@ -1011,7 +1011,7 @@ def test_watchlist_rename_to_a_blank_name_is_a_usage_error() -> None:
 
     result = runner.invoke(app, ["watchlist", "rename", "Keep", "   "])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "Keep" in _listed_names()
 
 

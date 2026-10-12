@@ -55,7 +55,7 @@ def main(argv: list[str]) -> None:
         )
     if mode == "crash":
         patches.append(
-            patch("src.strategies.momentum.cli._presentation_mode", side_effect=RuntimeError("driver crash"))
+            patch("src.strategies.momentum.cli.provider_check_choice", side_effect=RuntimeError("driver crash"))
         )
     if no_logging:
         patches.append(patch("src.main.setup_global_logging", lambda: None))

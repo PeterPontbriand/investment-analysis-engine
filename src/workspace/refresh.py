@@ -89,6 +89,11 @@ class WatchlistLookup(Protocol):
         ...
 
 
+MIN_WORKERS = 1
+MAX_WORKERS = 4
+"""The bounds of a refresh's worker count, shared by the policy and the command's own check."""
+
+
 @dataclass(frozen=True)
 class RefreshPolicy:
     """Bounded worker count for a refresh.
@@ -107,8 +112,8 @@ class RefreshPolicy:
 
     def __post_init__(self) -> None:
         """Reject an out-of-range worker count."""
-        if not 1 <= self.workers <= 4:
-            raise ValueError("workers must be between 1 and 4.")
+        if not MIN_WORKERS <= self.workers <= MAX_WORKERS:
+            raise ValueError(f"workers must be between {MIN_WORKERS} and {MAX_WORKERS}.")
 
 
 _SEQUENTIAL_POLICY = RefreshPolicy(workers=1)

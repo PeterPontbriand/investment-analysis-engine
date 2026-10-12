@@ -46,13 +46,20 @@ class FailureEnvelope(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[9] = 9
+    schema_version: Literal[10] = 10
     status: FailureStatus
     reason_code: FailureReasonCode
     reason: str
     analysis: str | None = Field(default=None, description="The analysis of a direct command; null otherwise.")
     method: str | None = Field(default=None, description="The method of a direct command; null otherwise.")
     ticker: str | None = Field(default=None, description="The requested ticker of a direct command; null otherwise.")
+    parameters: tuple[str, ...] | None = Field(
+        default=None,
+        description=(
+            "Set exactly when reason_code is invalid_parameter: the offending options (declared primary long "
+            "spelling) and arguments (upper-case name); null otherwise."
+        ),
+    )
     result: None = Field(default=None, description="Always null, so success and failure share top-level keys.")
     diagnostics: tuple[FailureDiagnostic, ...] = ()
     database: FailureDatabase | None = Field(
@@ -75,6 +82,10 @@ class FailureEnvelope(BaseModel):
         """Require the status to follow from the code and ``database`` to accompany only database codes."""
         if self.status != status_for(self.reason_code):
             raise ValueError(f"status {self.status!r} does not match reason_code {self.reason_code.value!r}.")
+        if (self.parameters is not None) != (self.reason_code is FailureReasonCode.INVALID_PARAMETER):
+            raise ValueError("parameters is set exactly when reason_code is invalid_parameter.")
+        if self.parameters is not None and (not self.parameters or not all(self.parameters)):
+            raise ValueError("parameters must name at least one parameter, each non-empty.")
         if self.database is not None and not self.reason_code.value.startswith("database_"):
             raise ValueError("database is set only for a database_* reason_code.")
         if self.reason_code in PROVIDER_FAILURE_CODES:

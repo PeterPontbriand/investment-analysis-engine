@@ -20,6 +20,7 @@ from src.cli_support import (
 from src.cli_watchlist_flags import WatchlistFlags
 from src.core.analysis_status import CalculationStatus
 from src.core.clock import utc_now
+from src.core.operator_errors import InvalidParameterError
 from src.data.financial.providers import SEC_PROVIDER_ID
 from src.data.instrument_profile import profile_identity_resolution
 from src.data.instrument_profile_cache import InstrumentProfileResolver
@@ -42,7 +43,7 @@ def _fcf_historical_horizon(growth_years: int | None) -> HistoricalHorizon:
     try:
         return mapping[growth_years]
     except KeyError as exc:
-        raise typer.BadParameter("--growth-years must be 3, 4, or 5.") from exc
+        raise InvalidParameterError("--growth-years must be 3, 4, or 5.", parameters=("--growth-years",)) from exc
 
 
 def _fcf_forward_policy(value: str) -> ForwardPolicy:
@@ -51,7 +52,9 @@ def _fcf_forward_policy(value: str) -> ForwardPolicy:
     try:
         return ForwardPolicy(normalized)
     except ValueError as exc:
-        raise typer.BadParameter("--forward-policy must be display-only, confirmation, or hard-gate.") from exc
+        raise InvalidParameterError(
+            "--forward-policy must be display-only, confirmation, or hard-gate.", parameters=("--forward-policy",)
+        ) from exc
 
 
 def _fcf_classification_basis(value: str) -> FCFClassificationBasis:
@@ -60,7 +63,17 @@ def _fcf_classification_basis(value: str) -> FCFClassificationBasis:
     try:
         return FCFClassificationBasis(normalized)
     except ValueError as exc:
-        raise typer.BadParameter("--classification-basis must be total-fcf or fcf-per-share.") from exc
+        raise InvalidParameterError(
+            "--classification-basis must be total-fcf or fcf-per-share.", parameters=("--classification-basis",)
+        ) from exc
+
+
+def _fcf_currency(value: str) -> str:
+    """Normalize the reporting currency, which must be a three-letter ISO 4217 code."""
+    normalized = value.strip().upper()
+    if len(normalized) != 3 or not normalized.isalpha():
+        raise InvalidParameterError("--currency must be a three-letter ISO 4217 code.", parameters=("--currency",))
+    return normalized
 
 
 def build_selection(flags: WatchlistFlags) -> FCFGrowthSelection:
@@ -72,9 +85,7 @@ def build_selection(flags: WatchlistFlags) -> FCFGrowthSelection:
     """
     boundary = _parse_as_of(flags.as_of)
     _canonical_provider_id(flags.data_provider)
-    normalized_currency = flags.currency.strip().upper()
-    if len(normalized_currency) != 3 or not normalized_currency.isalpha():
-        raise typer.BadParameter("--currency must be a three-letter ISO 4217 code.")
+    normalized_currency = _fcf_currency(flags.currency)
     policy = FCFEarningsGrowthPolicy(
         historical_horizon=_fcf_historical_horizon(flags.growth_years),
         classification_basis=_fcf_classification_basis(flags.classification_basis),
@@ -145,75 +156,72 @@ def command(  # noqa: PLR0913
     ),
 ) -> None:
     """Execute the historical free-cash-flow and diluted-EPS growth screen."""
-    target_ticker = _resolve_ticker(ticker, None, required=True, command="fcf-growth")
-    assert target_ticker is not None
-    mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
-    horizon = _fcf_historical_horizon(growth_years)
-    analysis_as_of = _parse_as_of(as_of)
-    provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
-    normalized_currency = currency.strip().upper()
-    if len(normalized_currency) != 3 or not normalized_currency.isalpha():
-        raise typer.BadParameter("--currency must be a three-letter ISO 4217 code.")
-    policy = FCFEarningsGrowthPolicy(
-        historical_horizon=horizon,
-        classification_basis=_fcf_classification_basis(classification_basis),
-        forward_policy=_fcf_forward_policy(forward_policy),
-    )
     executed_at = utc_now()
     provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
-    # The command always uses the SEC production provider regardless of --data-provider
-    # (see the adapter's own docstring); provider_id here only labels the requested
-    # config/result, exactly as before this refactor — not the resolver actually used.
-    config = FCFEarningsGrowthConfig(policy=policy, currency=normalized_currency, provider_id=provider_id)
 
-    with (
-        execution_errors(
-            mode=mode,
-            selection_type=FCFGrowthSelection,
-            ticker=target_ticker,
-            provider_check=provider_check,
-            invalid=lambda exc: f"Unable to start FCF & earnings-growth analysis: {exc}",
-            unexpected=lambda _exc: f"FCF & earnings-growth analysis failed unexpectedly for {target_ticker}.",
-        ),
-        _production_financial_cache(use_cache=not no_cache, clock=lambda: executed_at) as cache,
-    ):
-        provider = build_sec_production_provider()
-        resolver = ProductionAnnualGrowthSeriesResolver(
-            provider,
-            cache=cache,
-            clock=lambda: executed_at,
+    with execution_errors(
+        json_output=json_output,
+        selection_type=FCFGrowthSelection,
+        provider_check=provider_check,
+        invalid=lambda exc: f"Unable to start FCF & earnings-growth analysis: {exc}",
+        unexpected=lambda _exc: f"FCF & earnings-growth analysis failed unexpectedly for {scope.ticker}.",
+    ) as scope:
+        target_ticker = _resolve_ticker(ticker, None, required=True, command="fcf-growth")
+        assert target_ticker is not None
+        scope.ticker = target_ticker
+        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+        scope.mode = mode
+        horizon = _fcf_historical_horizon(growth_years)
+        analysis_as_of = _parse_as_of(as_of)
+        provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
+        normalized_currency = _fcf_currency(currency)
+        policy = FCFEarningsGrowthPolicy(
+            historical_horizon=horizon,
+            classification_basis=_fcf_classification_basis(classification_basis),
+            forward_policy=_fcf_forward_policy(forward_policy),
         )
-        capture = maybe_save_run(
-            save_run=save_run,
-            executed_at=executed_at,
-            request_factory=lambda: AnalysisRequest(
-                ticker=target_ticker,
-                # The command always uses the SEC production provider regardless of
-                # --data-provider (see the adapter's own docstring); the selection
-                # reflects the provider actually used, not a possibly-mislabeled flag.
-                selection=FCFGrowthSelection(
-                    policy=FCFPolicySnapshot.model_validate(policy),
-                    currency=normalized_currency,
-                    provider_id="sec_edgar",
-                    as_of=analysis_as_of,
-                    use_cache=not no_cache,
-                ),
-            ),
-            run_adapter=lambda profile_cache: execute_fcf_growth(
-                resolver,
-                target_ticker,
-                config=config,
-                as_of=analysis_as_of,
+        # The command always uses the SEC production provider regardless of --data-provider
+        # (see the adapter's own docstring); provider_id here only labels the requested
+        # config/result, exactly as before this refactor — not the resolver actually used.
+        config = FCFEarningsGrowthConfig(policy=policy, currency=normalized_currency, provider_id=provider_id)
+        with _production_financial_cache(use_cache=not no_cache, clock=lambda: executed_at) as cache:
+            provider = build_sec_production_provider()
+            resolver = ProductionAnnualGrowthSeriesResolver(
+                provider,
+                cache=cache,
+                clock=lambda: executed_at,
+            )
+            capture = maybe_save_run(
+                save_run=save_run,
                 executed_at=executed_at,
-                use_cache=not no_cache,
-                provider=provider,
-                profile_cache=profile_cache,
-            ),
-            normalize=from_fcf_growth_capture,
-        )
-        result = capture.result
-        profile = capture.profile
-        identity_resolution = profile_identity_resolution(profile)
+                request_factory=lambda: AnalysisRequest(
+                    ticker=target_ticker,
+                    # The command always uses the SEC production provider regardless of
+                    # --data-provider (see the adapter's own docstring); the selection
+                    # reflects the provider actually used, not a possibly-mislabeled flag.
+                    selection=FCFGrowthSelection(
+                        policy=FCFPolicySnapshot.model_validate(policy),
+                        currency=normalized_currency,
+                        provider_id="sec_edgar",
+                        as_of=analysis_as_of,
+                        use_cache=not no_cache,
+                    ),
+                ),
+                run_adapter=lambda profile_cache: execute_fcf_growth(
+                    resolver,
+                    target_ticker,
+                    config=config,
+                    as_of=analysis_as_of,
+                    executed_at=executed_at,
+                    use_cache=not no_cache,
+                    provider=provider,
+                    profile_cache=profile_cache,
+                ),
+                normalize=from_fcf_growth_capture,
+            )
+            result = capture.result
+            profile = capture.profile
+            identity_resolution = profile_identity_resolution(profile)
 
     exit_code = 0 if result.execution_status in (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE) else 1
     findings = provider_check_findings((capture_provider_failure(capture),) if exit_code else (), provider_check)

@@ -30,6 +30,7 @@ from src.cli_support import (
 from src.cli_watchlist_flags import WatchlistFlags
 from src.core.analysis_status import CalculationStatus
 from src.core.clock import utc_now
+from src.core.operator_errors import InvalidParameterError
 from src.core.provider_check_element import ProviderCheckItem
 from src.data.financial.providers import SEC_PROVIDER_ID
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
@@ -65,9 +66,13 @@ def build_selection(flags: WatchlistFlags) -> GrahamGrowthSelection:
     provider_id = _canonical_provider_id(flags.data_provider) or SEC_PROVIDER_ID
     with config_usage_errors():
         if flags.expected_growth is None:
-            raise typer.BadParameter("Required when --analysis is graham-growth.", param_hint="--expected-growth")
+            raise InvalidParameterError(
+                "--expected-growth is required when --analysis is graham-growth.", parameters=("--expected-growth",)
+            )
         if flags.aaa_yield is None:
-            raise typer.BadParameter("Required when --analysis is graham-growth.", param_hint="--aaa-yield")
+            raise InvalidParameterError(
+                "--aaa-yield is required when --analysis is graham-growth.", parameters=("--aaa-yield",)
+            )
         return GrahamGrowthSelection.model_validate(
             {
                 "security_provider_id": provider_id,
@@ -170,61 +175,60 @@ def command(  # noqa: PLR0913
     ),
 ) -> None:
     """Execute Graham Growth Value with explicit growth and AAA-yield assumptions."""
-    target_ticker = _resolve_ticker(ticker, ticker_option, required=True, command="graham-growth")
-    assert target_ticker is not None
-    mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
-    boundary = _parse_as_of(as_of)
-    provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
     use_cache = not no_cache
     executed_at = utc_now()
     provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
-    # Permissive by design: see graham_number's identical comment above.
-    with config_usage_errors():
-        config = GrahamGrowthConfig.model_validate(
-            {
-                "security_provider_id": provider_id,
-                "eps_basis": eps_basis,
-                "eps_override": eps,
-                "quote_override": current_price,
-                "expected_growth": expected_growth,
-                "aaa_yield_override": aaa_yield,
-            }
-        )
-    with (
-        execution_errors(
-            mode=mode,
-            selection_type=GrahamGrowthSelection,
-            ticker=target_ticker,
-            provider_check=provider_check,
-            unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
-        ),
-        _production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache,
-    ):
-        with execution_errors(
-            mode=mode,
-            selection_type=GrahamGrowthSelection,
-            ticker=target_ticker,
-            invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
-            unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
-        ):
-            resolver = build_graham_resolver(
-                resolver_type=GrahamGrowthInputResolver,
-                data_provider=config.security_provider_id,
-                cache=cache,
-                clock=lambda: executed_at,
+    with execution_errors(
+        json_output=json_output,
+        selection_type=GrahamGrowthSelection,
+        provider_check=provider_check,
+        unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {scope.ticker}.",
+    ) as scope:
+        target_ticker = _resolve_ticker(ticker, ticker_option, required=True, command="graham-growth")
+        assert target_ticker is not None
+        scope.ticker = target_ticker
+        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+        scope.mode = mode
+        boundary = _parse_as_of(as_of)
+        provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
+        # Permissive by design: see graham_number's identical comment above.
+        with config_usage_errors():
+            config = GrahamGrowthConfig.model_validate(
+                {
+                    "security_provider_id": provider_id,
+                    "eps_basis": eps_basis,
+                    "eps_override": eps,
+                    "quote_override": current_price,
+                    "expected_growth": expected_growth,
+                    "aaa_yield_override": aaa_yield,
+                }
             )
-        output, exit_code = _run_graham_growth(
-            resolver=resolver,
-            ticker=target_ticker,
-            config=config,
-            mode=mode,
-            profile_provider=YFinanceClient(),
-            as_of=boundary,
-            executed_at=executed_at,
-            use_cache=use_cache,
-            save_run=save_run,
-            provider_check=provider_check,
-        )
+        with _production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache:
+            with execution_errors(
+                mode=mode,
+                selection_type=GrahamGrowthSelection,
+                ticker=target_ticker,
+                invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
+                unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
+            ):
+                resolver = build_graham_resolver(
+                    resolver_type=GrahamGrowthInputResolver,
+                    data_provider=config.security_provider_id,
+                    cache=cache,
+                    clock=lambda: executed_at,
+                )
+            output, exit_code = _run_graham_growth(
+                resolver=resolver,
+                ticker=target_ticker,
+                config=config,
+                mode=mode,
+                profile_provider=YFinanceClient(),
+                as_of=boundary,
+                executed_at=executed_at,
+                use_cache=use_cache,
+                save_run=save_run,
+                provider_check=provider_check,
+            )
     typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
     if exit_code:
         raise typer.Exit(code=exit_code)

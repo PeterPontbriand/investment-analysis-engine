@@ -6,8 +6,10 @@ from typing import Literal
 import typer
 from pydantic import ValidationError
 
+from src.cli_support import parameter_failures, report_failure
 from src.config import ProjectSettings, settings
 from src.core.failure_codes import FailureReasonCode
+from src.core.operator_errors import InvalidParameterError
 from src.data.repositories.readiness import (
     DatabaseReadinessError,
     DatabaseState,
@@ -17,6 +19,7 @@ from src.data.repositories.readiness import (
 )
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.reporting.documents.database import DatabaseMaintenanceReport
+from src.reporting.failure_envelope import failure_envelope
 
 app = typer.Typer(help="Inspect or explicitly migrate application storage.", add_completion=False)
 
@@ -27,25 +30,51 @@ def _first_reason(error: ValidationError) -> str:
     return message.removeprefix("Value error, ")
 
 
-def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
-    try:
-        if database_url is None:
-            selected = settings
-        else:
-            selected = ProjectSettings(**(settings.model_dump() | {"database_url": database_url}))
+_MEMORY_TARGET_SENTENCE = "Database maintenance requires a file-backed target; private memory is not supported."
+
+
+def _open_database(database_url: str | None, *, json_output: bool) -> SQLiteDatabase:
+    """Open the selected target, which must be a validated file-backed SQLite database.
+
+    A supplied ``--database-url`` the settings reject, or one that selects private memory, is an
+    ``invalid_parameter`` failure. A private-memory target that came from the settings is a
+    ``configuration_error``: no parameter is at fault.
+    """
+    with parameter_failures(json_output=json_output):
+        try:
+            selected = (
+                settings
+                if database_url is None
+                else ProjectSettings(**(settings.model_dump() | {"database_url": database_url}))
+            )
+        except ValidationError as exc:
+            raise InvalidParameterError(
+                f"Select a valid local SQLite database URL for --database-url: {_first_reason(exc)}",
+                parameters=("--database-url",),
+            ) from exc
         database = SQLiteDatabase(selected)
-    except ValidationError as exc:
-        raise typer.BadParameter(f"Select a valid local SQLite database URL: {_first_reason(exc)}") from exc
-    except ValueError as exc:
-        raise typer.BadParameter(f"Select a valid local SQLite database URL: {exc}") from exc
+        if database.database_path is None:
+            database.close()
+            if database_url is None:
+                report_failure(
+                    failure_envelope(FailureReasonCode.CONFIGURATION_ERROR, _MEMORY_TARGET_SENTENCE),
+                    json_output=json_output,
+                )
+            raise InvalidParameterError(
+                "Database maintenance requires a file-backed target for --database-url; "
+                "private memory is not supported.",
+                parameters=("--database-url",),
+            )
+        return database
+
+
+def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
+    database = _open_database(database_url, json_output=json_output)
     report: DatabaseMaintenanceReport
     code = 0
     try:
         path = database.database_path
-        if path is None:
-            raise typer.BadParameter(
-                "Database maintenance requires a file-backed target; private memory is not supported."
-            )
+        assert path is not None  # _open_database refuses private memory
         command: Literal["db upgrade", "db status"] = "db upgrade" if upgrade else "db status"
         try:
             if upgrade:

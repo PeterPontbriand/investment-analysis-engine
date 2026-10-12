@@ -16,8 +16,9 @@ from typing import Annotated
 import typer
 
 from src.cli_composition import build_sec_production_provider
+from src.cli_support import parameter_failures
 from src.config import settings
-from src.core.operator_errors import AnalysisConfigurationError
+from src.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
 from src.data.http_json import fetch_json
 from src.data.provider_checks import (
     PROVIDER_CHECKS,
@@ -99,8 +100,8 @@ def _select(provider: str | None) -> tuple[ProviderCheckEntry, ...]:
     selected = tuple(entry for entry in PROVIDER_CHECKS if entry.provider_id == wanted)
     if not selected:
         valid = ", ".join(entry.provider_id for entry in PROVIDER_CHECKS)
-        raise typer.BadParameter(
-            f"Unknown provider {provider!r}; valid providers are: {valid}.", param_hint="--provider"
+        raise InvalidParameterError(
+            f"Unknown --provider {provider!r}; valid providers are: {valid}.", parameters=("--provider",)
         )
     return selected
 
@@ -116,7 +117,8 @@ def health(
     ] = False,
 ) -> None:
     """Check that Yahoo and SEC EDGAR still answer in the shape the adapters read."""
-    entries = _select(provider)
+    with parameter_failures(json_output=json_output):
+        entries = _select(provider)
     clients = build_provider_clients()
     results: list[ProviderCheckResult] = []
     for entry in entries:

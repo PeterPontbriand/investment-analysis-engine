@@ -145,6 +145,11 @@ class AnalysisRunSummary(_FrozenModel):
     refresh_id: UUID | None = None
 
 
+RUN_QUERY_MIN_LIMIT = 1
+RUN_QUERY_MAX_LIMIT = 100
+"""The bounds of a run query's row limit, shared by the model and the command's own check."""
+
+
 class RunQuery(_FrozenModel):
     """Bounded filter set for querying run summaries."""
 
@@ -152,7 +157,7 @@ class RunQuery(_FrozenModel):
     method_id: str | None = None
     status: RunOutcome | None = None
     refresh_id: UUID | None = None
-    limit: int = Field(default=20, ge=1, le=100)
+    limit: int = Field(default=20, ge=RUN_QUERY_MIN_LIMIT, le=RUN_QUERY_MAX_LIMIT)
     offset: int = Field(default=0, ge=0)
 
 
@@ -212,6 +217,8 @@ class WatchlistSummary(_FrozenModel):
 
 
 __all__ = [
+    "RUN_QUERY_MAX_LIMIT",
+    "RUN_QUERY_MIN_LIMIT",
     "AnalysisRun",
     "AnalysisRunSummary",
     "RunQuery",

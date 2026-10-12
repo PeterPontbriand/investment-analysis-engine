@@ -439,8 +439,8 @@ def test_cli_momentum_help_explains_daily_windows_and_defaults() -> None:
 def test_cli_presentation_modes_are_mutually_exclusive() -> None:
     result = runner.invoke(app, ["momentum", "AAPL", "--details", "--json"])
 
-    assert result.exit_code == 2
-    assert "Choose only one" in result.output
+    assert result.exit_code == 1
+    assert "Choose only one" in json.loads(result.stdout)["reason"]
 
 
 def test_cli_graham_missing_sec_user_agent_is_clean_configuration_error() -> None:
@@ -747,10 +747,10 @@ def test_cli_graham_details_shows_financial_provenance(fixture_resolver: GrahamN
     assert "derivation: arithmetic_mean" not in result.output
 
 
-def test_cli_graham_conflicting_positional_and_option_tickers_are_usage_error() -> None:
+def test_cli_graham_conflicting_positional_and_option_tickers_are_an_invalid_parameter() -> None:
     result = runner.invoke(app, ["graham-number", "AAPL", "--ticker", "MSFT"])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "refer to different symbols" in result.output
 
 

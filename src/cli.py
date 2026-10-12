@@ -15,9 +15,11 @@ from src.cli_health import build_provider_clients
 from src.cli_health import register as register_health_command
 from src.cli_run_support import get_cli_run_context
 from src.cli_strategy_wiring import add_strategy_commands
+from src.cli_support import parameter_failures
 from src.cli_workspace import register as register_workspace_commands
 from src.config import settings
 from src.core.clock import utc_now
+from src.core.operator_errors import InvalidParameterError
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.run_context import get_current_run_context, set_current_run_context
 from src.data.provider_probe import ProviderProbe
@@ -115,25 +117,25 @@ def evaluate(  # noqa: PLR0913
     ),
 ) -> None:
     """Run the versioned Golden Suite and write one machine-readable report."""
-    try:
-        paths.require_anchored_path(report_path.as_posix(), name="--report", windows=paths.is_windows())
-    except ValueError as exc:
-        raise typer.BadParameter(str(exc), param_hint="--report") from exc
-    requests = _select_evaluation_requests(case_id)
-    _validate_evaluation_mode_options(
-        mode,
-        ollama_endpoint=ollama_endpoint,
-        model_id=model_id,
-        temperature=temperature,
-        repetitions=repetitions,
-        max_steps=max_steps,
-    )
-    target = report_path.expanduser().resolve()
-    if target.exists() and not overwrite:
-        raise typer.BadParameter(
-            f"Report already exists: {target}. Use --overwrite to replace it.",
-            param_hint="--report",
+    with parameter_failures(json_output=False):
+        try:
+            paths.require_anchored_path(report_path.as_posix(), name="--report", windows=paths.is_windows())
+        except ValueError as exc:
+            raise InvalidParameterError(str(exc), parameters=("--report",)) from exc
+        requests = _select_evaluation_requests(case_id)
+        _validate_evaluation_mode_options(
+            mode,
+            ollama_endpoint=ollama_endpoint,
+            model_id=model_id,
+            temperature=temperature,
+            repetitions=repetitions,
+            max_steps=max_steps,
         )
+        target = report_path.expanduser().resolve()
+        if target.exists() and not overwrite:
+            raise InvalidParameterError(
+                f"--report target already exists: {target}. Use --overwrite to replace it.", parameters=("--report",)
+            )
 
     try:
         result = asyncio.run(
@@ -174,9 +176,8 @@ def _select_evaluation_requests(case_id: str | None) -> tuple[DeterministicCaseR
     if selected:
         return selected
     available = ", ".join(request.case.case_id for request in requests)
-    raise typer.BadParameter(
-        f"Unknown Golden case ID {case_id!r}. Available IDs: {available}.",
-        param_hint="--case",
+    raise InvalidParameterError(
+        f"Unknown Golden case ID {case_id!r} for --case. Available IDs: {available}.", parameters=("--case",)
     )
 
 
@@ -192,10 +193,7 @@ def _validate_evaluation_mode_options(  # noqa: PLR0913
     """Reject empirical-only controls when deterministic execution is selected."""
     empirical_options = (ollama_endpoint, model_id, temperature, repetitions, max_steps)
     if mode is EvaluationCliMode.DETERMINISTIC and any(value is not None for value in empirical_options):
-        raise typer.BadParameter(
-            "Ollama options require --mode ollama.",
-            param_hint="--mode",
-        )
+        raise InvalidParameterError("Ollama options require --mode ollama.", parameters=("--mode",))
 
 
 async def _run_evaluation_command(  # noqa: PLR0913

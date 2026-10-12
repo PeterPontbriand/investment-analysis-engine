@@ -92,6 +92,8 @@ def _sample(exception_type: type[BaseException]) -> BaseException:
     """Return an instance of ``exception_type`` for the classifier."""
     if exception_type is HistoricalDataQualityError:
         return _historical_quality_error()
+    if exception_type is InvalidParameterError:
+        return InvalidParameterError("sample", parameters=("--sample",))
     return exception_type("sample")
 
 
@@ -149,7 +151,7 @@ def test_every_exception_that_declares_a_code_is_in_the_pinned_table() -> None:
         (FinancialProviderError("x"), "provider_error", "input_unavailable"),
         (NoEligibleObservationsError("x"), "no_eligible_observations", "input_unavailable"),
         (AnalysisConfigurationError("x"), "configuration_error", "error"),
-        (InvalidParameterError("x"), "invalid_parameter", "error"),
+        (InvalidParameterError("x", parameters=("--x",)), "invalid_parameter", "error"),
         (WatchlistNotFoundError("x"), "watchlist_not_found", "error"),
         (WatchlistEntryNotFoundError("x"), "watchlist_entry_not_found", "error"),
         (EmptyRefreshTargetError("x"), "watchlist_empty", "error"),
@@ -196,13 +198,14 @@ def test_the_document_has_the_documented_keys_and_stable_formatting() -> None:
     )
     text = failure_document(envelope)
     assert json.loads(text) == {
-        "schema_version": 9,
+        "schema_version": 10,
         "status": "input_unavailable",
         "reason_code": "provider_error",
         "reason": "No usable history.",
         "analysis": "momentum",
         "method": "sma_crossover",
         "ticker": "ACME",
+        "parameters": None,
         "result": None,
         "diagnostics": [],
         "database": None,
@@ -226,6 +229,7 @@ def test_envelope_fields_are_exactly_the_documented_set() -> None:
         "analysis",
         "method",
         "ticker",
+        "parameters",
         "result",
         "diagnostics",
         "database",
@@ -300,7 +304,10 @@ def test_invalid_parameter_and_invalid_input_stay_distinct() -> None:
     option) from invalid data (retry later or report it).
     """
     assert issubclass(InvalidParameterError, ValueError)
-    assert classify_failure(InvalidParameterError("x")).reason_code is FailureReasonCode.INVALID_PARAMETER
+    assert (
+        classify_failure(InvalidParameterError("x", parameters=("--x",))).reason_code
+        is FailureReasonCode.INVALID_PARAMETER
+    )
     assert classify_failure(ValueError("x")).reason_code is FailureReasonCode.INVALID_INPUT
 
 
@@ -406,9 +413,45 @@ def test_the_element_accepts_only_provider_codes_and_at_least_one_input() -> Non
         ProviderFailure(reason_code=FailureReasonCode.PROVIDER_UNREACHABLE, inputs=())
 
 
-def test_the_failure_envelope_is_version_9_and_its_json_carries_the_element_keys() -> None:
+def test_the_failure_envelope_is_version_10_and_its_json_carries_the_element_keys() -> None:
     envelope = failure_envelope(FailureReasonCode.INVALID_INPUT, "s")
     document = json.loads(failure_document(envelope))
-    assert document["schema_version"] == 9
+    assert document["schema_version"] == 10
+    assert document["parameters"] is None
     assert document["provider_failure"] is None
     assert document["provider_check"] is None
+
+
+# --- parameters (SWC.4d) ------------------------------------------------------------------------------------------
+
+
+def test_an_invalid_parameter_exception_needs_the_names_of_the_parameters() -> None:
+    with pytest.raises(TypeError):
+        InvalidParameterError("x")  # type: ignore[call-arg]
+    with pytest.raises(ValueError, match="non-empty name"):
+        InvalidParameterError("x", parameters=())
+    with pytest.raises(ValueError, match="non-empty name"):
+        InvalidParameterError("x", parameters=("",))
+    assert InvalidParameterError("x", parameters=["--a", "--b"]).parameters == ("--a", "--b")
+
+
+def test_the_envelope_carries_parameters_exactly_for_an_invalid_parameter_failure() -> None:
+    error = InvalidParameterError("--a is wrong.", parameters=("--a",))
+    envelope = failure_envelope(FailureReasonCode.INVALID_PARAMETER, str(error), cause=error)
+    assert envelope.parameters == ("--a",)
+    assert json.loads(failure_document(envelope))["parameters"] == ["--a"]
+    other = failure_envelope(FailureReasonCode.INVALID_INPUT, "x", cause=error)
+    assert other.parameters is None
+
+
+def test_the_model_refuses_parameters_unless_the_code_is_invalid_parameter() -> None:
+    with pytest.raises(ValidationError):
+        failure_envelope(FailureReasonCode.INVALID_PARAMETER, "x")
+    with pytest.raises(ValidationError):
+        FailureEnvelope(status="error", reason_code=FailureReasonCode.INVALID_INPUT, reason="x", parameters=("--a",))
+    with pytest.raises(ValidationError):
+        FailureEnvelope(status="error", reason_code=FailureReasonCode.INVALID_PARAMETER, reason="x", parameters=())
+    with pytest.raises(ValidationError):
+        FailureEnvelope(status="error", reason_code=FailureReasonCode.INVALID_PARAMETER, reason="x", parameters=("",))
+    with pytest.raises(ValidationError):
+        FailureEnvelope(status="error", reason_code=FailureReasonCode.INVALID_PARAMETER, reason="x")

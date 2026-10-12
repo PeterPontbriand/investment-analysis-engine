@@ -89,7 +89,9 @@ def test_override_and_invalid_memory_target(target: Path, tmp_path: Path, comman
     assert json.loads(result.stdout)["database_path"] == str(other)
     assert not target.parent.exists()
     invalid = CliRunner().invoke(app, ["db", command, "--database-url", "sqlite:///:memory:"])
-    assert invalid.exit_code == 2
+    assert invalid.exit_code == 1
+    assert not invalid.stdout
+    assert "private memory is not supported" in invalid.stderr
 
 
 def test_incompatible_status_and_upgrade_preserve_storage(target: Path) -> None:
@@ -185,10 +187,13 @@ def test_empty_status_is_fresh_and_does_not_create_sidecars(target: Path, json_o
 @pytest.mark.parametrize(
     "url", ["not-a-url", "postgresql://user:private-password@host/db", "sqlite:///file.db?mode=ro"]
 )
-def test_invalid_target_is_sanitized_usage_error(target: Path, command: str, url: str) -> None:
+def test_invalid_target_is_a_sanitized_invalid_parameter_failure(target: Path, command: str, url: str) -> None:
     result = CliRunner().invoke(app, ["db", command, "--database-url", url, "--json"])
-    assert result.exit_code == 2
-    assert not result.stdout
+    assert result.exit_code == 1
+    assert not result.stderr
+    document = json.loads(result.stdout)
+    assert document["reason_code"] == "invalid_parameter"
+    assert document["parameters"] == ["--database-url"]
     assert "private-password" not in result.output
     assert not target.parent.exists()
 
@@ -204,9 +209,9 @@ def test_a_partly_anchored_windows_path_is_rejected_with_the_reason(target: Path
     """
     result = CliRunner().invoke(app, ["db", command, "--database-url", "sqlite:////e/ir8-probe/x.sqlite3"])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     output = normalize_cli_output(result.output)
-    assert "Select a valid local SQLite database URL: " in output
+    assert "Select a valid local SQLite database URL for --database-url: " in output
     assert "database_url path '/e/ir8-probe/x.sqlite3' has a root but no drive letter" in output
     assert "Use a full path such as 'E:/ir8-probe/x.sqlite3'" in output
     assert "Value error" not in output
@@ -228,9 +233,9 @@ def test_existing_validation_reasons_are_shown_without_leaking_input(
 ) -> None:
     result = CliRunner().invoke(app, ["db", command, "--database-url", url])
 
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     output = normalize_cli_output(result.output)
-    assert f"Select a valid local SQLite database URL: {reason}" in output
+    assert f"Select a valid local SQLite database URL for --database-url: {reason}" in output
     assert "private-password" not in output
     assert "Value error" not in output
     assert not target.parent.exists()
