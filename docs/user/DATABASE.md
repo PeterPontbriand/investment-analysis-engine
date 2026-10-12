@@ -53,7 +53,7 @@ uv run --no-sync ian db upgrade --database-url "sqlite:///E:/FinancialData/trial
 ```
 
 Exit 0 means ready or successfully initialized/upgraded; exit 1 means not ready
-or an operational failure; exit 2 means invalid usage/configuration. A completed
+or an operational failure, including a rejected `--database-url`; exit 2 means the parser rejected the command line. A completed
 inspection of non-ready storage has report `status=success` but exit 1. JSON
 reports have `schema_version=2`, `command`, `status`, `database_path`, `state`,
 `current_revision`, `expected_revision`, `reason_code` (the stable code) and `reason`
@@ -64,7 +64,7 @@ envelope's names and its code vocabulary; the published schema is
 `schemas/database-maintenance-report.schema.json`. Upgrade success states are `initialized`, `upgraded` and `ready`.
 Untrusted revision strings are not exposed. JSON operational reports use stdout
 only, without migration chatter. Text reports use stdout, operational failures
-stderr; parser-level usage errors retain normal CLI behavior.
+stderr; parser-level usage errors retain normal CLI behavior (exit 2). A `--database-url` the command rejects, or a private-memory target, is not a maintenance report: it is the failure document (`reason_code` `invalid_parameter` with `parameters` `["--database-url"]`; a private-memory target that came from the settings is `configuration_error`), so `--json` can write a maintenance report or a failure document, told apart by the `command` key, which only the report has.
 
 Direct Alembic commands remain available for explicit operator maintenance.
 

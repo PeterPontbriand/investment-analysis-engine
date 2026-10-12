@@ -56,8 +56,8 @@ document-link check and applicable documentation checks.
 | SWC.4b | [Typed workspace documents](#swc4b--typed-workspace-documents) | Complete | 2026-10-07 |
 | SWC.4c | [Typed strategy envelopes and replay dispatch](#swc4c--typed-strategy-envelopes-and-replay-dispatch) | Complete | 2026-10-07 |
 | SWC.4c.1 | [Common header and tail for strategy documents](#swc4c1--common-header-and-tail-for-strategy-documents) | Complete | 2026-10-09 |
-| SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Next | |
-| SWC.4e | [The direct Graham commands reject an unsupported provider](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) | Planned | |
+| SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Complete | 2026-10-11 |
+| SWC.4e | [The direct Graham commands reject an unsupported provider](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) | Next | |
 | SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
@@ -1043,8 +1043,30 @@ Rulings on the slice plan's findings, made before step 2 (the plan's "Rulings on
 - `config_usage_errors` uses a strict lookup and drops pydantic's `Value error, ` prefix; exit 2 is documented as "the parser rejected
   the command line".
 
-The plan lists every check, the audit of each caught `ValueError`, the shared reporting path and the findings for the project owner. No
-behavior changes until step 2 runs.
+The plan lists every check, the audit of each caught `ValueError`, the shared reporting path and the findings for the project owner.
+Resulting output changes, by command (rows are the checks of the
+[plan's section A](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md#a-the-check-table)). "Before" is the usage box on standard error with
+exit 2 and, even under `--json`, no JSON, unless stated. "After" is the sentence on standard error with exit 1 and, for a command with
+`--json`, the failure envelope on standard output with nothing on standard error; `parameters` names the offending options and arguments.
+
+| Command | Checks | After (sentence changes only where listed) |
+| :--- | :--- | :--- |
+| Every failure envelope | all | New key `parameters` (`null` unless `invalid_parameter`); `schema_version` 9 to 10. Momentum's window and period failures (already exit 1) gain `parameters` only. |
+| `momentum` | ticker (`TICKER`/`--ticker`), `--details`/`--diagnostics`/`--json`, `--as-of`, `--save-run` | Exit 1. A blank ticker reads `TICKER must be a non-empty symbol.` or `--ticker must be a non-empty symbol.`. |
+| `graham-number`, `graham-growth` | ticker, output flags, `--as-of`, `--data-provider` (blank), `--eps-basis`, the SEC basis rule | Exit 1. A blank ticker is worded as for `momentum`. A pydantic message loses its `Value error, ` prefix. An unsupported `--data-provider` is unchanged (`configuration_error`, [SWC.4e](SWC_CONTRACT_AND_SLICE_PLAN.md#swc4e--the-direct-graham-commands-reject-an-unsupported-provider)). |
+| `fcf-growth` | ticker, output flags, `--as-of`, `--data-provider` (blank), `--growth-years`, `--forward-policy`, `--classification-basis`, `--currency` | Exit 1. A blank ticker is worded as for `momentum`. |
+| `watchlist create` | `--analysis`, seed tickers, name, every strategy option | Exit 1. A blank name reads `NAME must not be blank.` (it was a pydantic block with `input_value`). A blank seed ticker reads `TICKER must not be empty.` and is checked before the watchlist is created, so none is left behind; a name that exists together with a blank ticker now reports the blank ticker. A missing `--expected-growth` or `--aaa-yield` reads `--expected-growth is required when --analysis is graham-growth.` (and the same for `--aaa-yield`). Momentum's windows were already exit 1. |
+| `watchlist add-selection` | `--analysis`, tickers, strategy options | Exit 1; wording as for `create`. A watchlist holding an unreadable entry is no longer a usage error: it reports `stored_selection_unreadable`, exit 1, with the same sentence. |
+| `watchlist remove-entry`, `remove-ticker`, `remove-method` | `INDEX`, tickers, `--analysis` | Exit 1; `remove-ticker` reads `TICKER must not be empty.`. |
+| `watchlist delete` | `--yes` without a terminal | Exit 1; under `--json` the envelope (nothing was written before). The `Invalid value for --yes:` prefix is gone. |
+| `watchlist rename` | blank new name | Exit 1; `NEW_NAME must not be blank.`; under `--json` the envelope. |
+| `watchlist show` | `--group-by` | Exit 1; under `--json` the envelope. |
+| `runs list` | `--ticker`, `--analysis`, `--status`, `--refresh-id`, `--limit`, `--offset` | Exit 1; under `--json` the envelope. `--ticker` reads `--ticker must not be empty.`; `--refresh-id` reads `--refresh-id 'x' is not a valid Analysis Run ID. ...`; `--limit` and `--offset` read `--limit must be between 1 and 100.` and `--offset must be 0 or greater.` (they were pydantic blocks), and only the first failing one is reported. |
+| `runs show` | output flags, `RUN_ID` | Exit 1; under `--json` the envelope. `RUN_ID 'x' is not a valid Analysis Run ID. ...`. |
+| `refresh` | `--workers` | Exit 1; under `--json` the envelope; reads `--workers must be between 1 and 4.`. |
+| `health` | `--provider` | Exit 1; under `--json` the envelope, not the health document; reads `Unknown --provider 'x'; valid providers are: ...`. |
+| `db status`, `db upgrade` | `--database-url`, private-memory target | Exit 1; under `--json` the envelope, not a maintenance report. Reads `Select a valid local SQLite database URL for --database-url: ...` and `Database maintenance requires a file-backed target for --database-url; ...`. A private-memory target that came from the settings is `configuration_error` with the old sentence. |
+| `evaluate` | `--report` (partly anchored path, existing file), `--case`, `--mode` | Exit 1, sentence only. `--case` reads `Unknown Golden case ID 'x' for --case. Available IDs: ...`; an existing report reads `--report target already exists: <path>. Use --overwrite to replace it.`. |
 
 ### B.15 SWC.4e: the direct Graham commands reject an unsupported provider (2026-10-11)
 

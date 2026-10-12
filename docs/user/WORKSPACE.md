@@ -36,7 +36,7 @@ An empty watchlist like this one has nothing to refresh yet. The common case —
 uv run ian watchlist create "Core Holdings" --analysis momentum AAPL MSFT KO
 ```
 
-`--analysis` accepts `momentum`, `graham-number`, `graham-growth`, or `fcf-growth` — the same names used everywhere else in this guide — and each one's flags are exactly its direct command's own flags (see the table below). A method that needs your own assumptions still needs them here: Graham Growth Value requires `--expected-growth`/`--aaa-yield` whether you run it directly or seed it into a watchlist, and omitting either is a usage error, not a silently-unselected method:
+`--analysis` accepts `momentum`, `graham-number`, `graham-growth`, or `fcf-growth` — the same names used everywhere else in this guide — and each one's flags are exactly its direct command's own flags (see the table below). A method that needs your own assumptions still needs them here: Graham Growth Value requires `--expected-growth`/`--aaa-yield` whether you run it directly or seed it into a watchlist, and omitting either is an `invalid_parameter` failure (exit `1`), not a silently-unselected method:
 
 ```bash
 uv run ian watchlist create "Value Watch" --analysis graham-growth --expected-growth 6.0 --aaa-yield 4.4 AAPL
@@ -111,7 +111,7 @@ Every command that removes entries starts with `remove-`, and text output names 
 uv run ian watchlist rename "Core Holdings" "Long-Term Holdings"
 ```
 
-Renaming is not destructive, so it never asks for confirmation. It prints `Renamed watchlist 'Core Holdings' to 'Long-Term Holdings'.` and then the renamed watchlist as `watchlist show` would. With `--json` it prints only the `watchlist show --json` document, or on a failure the failure document described in [USAGE](USAGE.md#--json--machine-readable-output). The watchlist keeps its ID and its entries. Changing only the capitalization (`core holdings` to `Core Holdings`) is allowed; renaming to another watchlist's name is exit `1`, and a blank new name is a usage error (exit `2`).
+Renaming is not destructive, so it never asks for confirmation. It prints `Renamed watchlist 'Core Holdings' to 'Long-Term Holdings'.` and then the renamed watchlist as `watchlist show` would. With `--json` it prints only the `watchlist show --json` document, or on a failure the failure document described in [USAGE](USAGE.md#--json--machine-readable-output). The watchlist keeps its ID and its entries. Changing only the capitalization (`core holdings` to `Core Holdings`) is allowed; renaming to another watchlist's name is exit `1`, and a blank new name is an `invalid_parameter` failure (exit `1`).
 
 Saved Analysis Runs keep the name the watchlist had when they ran, by design: each run stores its own snapshot of the watchlist's name and ID, and a rename changes neither the snapshot nor anything else about a saved run. Today `runs list` and `runs show` do not print that snapshot.
 
@@ -123,7 +123,7 @@ If the watchlist holds an entry saved by an earlier version that this version ca
 uv run ian watchlist delete "Scratch"
 ```
 
-On an interactive terminal this shows the watchlist's name, ID and entry count and asks for confirmation; answering no deletes nothing and exits `1`. Anywhere else (a script, an agent, a pipe) there is no one to ask, so `--yes` is required and its absence is a usage error (exit `2`) before the database is opened:
+On an interactive terminal this shows the watchlist's name, ID and entry count and asks for confirmation; answering no deletes nothing and exits `1`. Anywhere else (a script, an agent, a pipe) there is no one to ask, so `--yes` is required and its absence is an `invalid_parameter` failure (exit `1`, the failure document with `--json`) before the database is opened:
 
 ```bash
 uv run ian watchlist delete "Scratch" --yes
@@ -203,7 +203,7 @@ One ticker's failure never stops the rest of the watchlist: a method that could 
 |---|---|
 | `0` | Every attempt completed, or did not apply (a known ETF, and similar). |
 | `1` | At least one attempt was unavailable, failed, or could not be saved; or the refresh could not start: the watchlist does not exist, or it has no entries (`watchlist_empty`). |
-| `2` | A usage error, such as an invalid `--workers`. |
+| `2` | The parser rejected the command line (an unknown option, a missing argument, a value of the wrong type); no command code ran. A value the command rejects itself, such as an invalid `--workers`, is an `invalid_parameter` failure with exit `1`. |
 | `130` | You interrupted the refresh (Ctrl+C). |
 
 ### After a provider failure

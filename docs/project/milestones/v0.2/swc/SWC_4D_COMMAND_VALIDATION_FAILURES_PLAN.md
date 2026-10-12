@@ -32,7 +32,7 @@ its decision record is [B.14](SWC_CONTRACT_AND_SLICE_PLAN.md#b14-swc4d-command-v
 | Step | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | 1 | [Write this plan](#step-1--the-slice-plan) | Complete | 2026-10-11 |
-| 2 | [Implement the plan](#step-2--implementation) | Next | |
+| 2 | [Implement the plan](#step-2--implementation) | Complete | 2026-10-11 |
 
 ## 3. The steps
 
@@ -343,7 +343,7 @@ Order of the checks within each command, unchanged:
 | `graham-number`, `graham-growth` | `SUP-2`, `SUP-3`, `SUP-4`, `SUP-1`, `SUP-6`, `SUP-7`, `SUP-8`, `SUP-5`, `SUP-9` |
 | `fcf-growth` | `SUP-4`, `SUP-1`, `FCF-1`, `SUP-6`, `SUP-7`, `SUP-8`, `SUP-5`, `FCF-4`, `FCF-3`, `FCF-2` |
 | selection builders | Momentum: `MOM-1` to `MOM-4`, then `SUP-6` to `SUP-8`. Graham Number: `SUP-6` to `SUP-8`, `SUP-5`, `SUP-9`. Graham Growth: `SUP-6` to `SUP-8`, `SUP-5`, `GGR-1`, `GGR-2`, `SUP-9`. FCF Growth: `SUP-6` to `SUP-8`, `SUP-5`, `FCF-4`, `FCF-1`, `FCF-3`, `FCF-2`. |
-| `watchlist create` | `WRK-2`, `WRK-3`, `WRK-1`, the builder, then the database, `WRK-5` (every seed ticker), `WRK-4`, then the create |
+| `watchlist create` | `WRK-2`, `WRK-3`, `WRK-1`, the builder, then the database, `WRK-4`, `WRK-5` (every seed ticker), then the create |
 | `watchlist add-selection` | `WRK-1`, the builder, then the database, `WRK-5` |
 | `watchlist remove-ticker` | the database, then `WRK-5` |
 | `watchlist rename` | the database, then `WRK-8`, then not-found and name conflict |
@@ -473,6 +473,20 @@ Each is for the project owner. I resolved none.
 | F10a, F10b | Approved: a strict lookup in `config_usage_errors`; the `Value error, ` prefix is stripped. |
 | F10c | Not fixed here. Reproduced through the CLI test runner with no network in step 2; if a non-finite override is accepted a GitHub issue is opened and referenced from the existing-strategy correctness plan. |
 | Scope | Editing `src/workspace/refresh.py` and `src/workspace/runs.py` is approved, only to define the worker and limit bounds once. |
+
+### G. Differences between this plan and the implementation
+
+Found while implementing step 2; each is small and none changes a row of section A.
+
+- **Create order.** The plan's order table put `WRK-5` before `WRK-4`; the implementation checks the name first, then every seed ticker, then creates, so only the accepted change (a taken name with a blank ticker reports the blank ticker) differs from today.
+- **`execution_errors` signature.** It gains `json_output` and yields the `FailureScope`, and keeps its `mode` parameter as the scope's initial mode instead of replacing it.
+- **Moved into the handler.** The FCF command's policy and configuration are now built inside its handler, so a `ValueError` from them is reported as a failure; before it would have escaped as a traceback.
+- **Workspace residual path.** `_workspace_database` reports any `ValueError` that reaches it through the classifier (this includes an `InvalidParameterError` raised inside the block), and the pre-check regions of the commands use `parameter_failures`. `_report` is replaced by `report_failure` in `src/cli_support.py`.
+- **Database commands.** The target is opened by a new `_open_database` helper that holds `DB-1` to `DB-3`; the unreachable second `ValueError` handler is removed.
+- **Strict lookup.** `config_usage_errors` re-raises the original `ValidationError` when a model-level message names no mapped field, so nothing is reported under an invented option.
+- **Constants.** `MIN_WORKERS` and `MAX_WORKERS` in `src/workspace/refresh.py` and `RUN_QUERY_MIN_LIMIT` and `RUN_QUERY_MAX_LIMIT` in `src/workspace/runs.py`, as approved.
+- **A test seam.** The logging driver's "crash" scenario patched `_presentation_mode`, which now runs inside the handler; it patches `provider_check_choice`, which still runs before it.
+- **F7 and F10c.** F7 moved to SWC.4e ([B.15](SWC_CONTRACT_AND_SLICE_PLAN.md#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11)); F10c is [ESC-30](../existing-strategy-correctness/ESC_A_DEFECT_LEDGER.md#esc-30--the-direct-graham-commands-accept-a-non-finite-override-that-the-watchlist-path-rejects), issue 124.
 
 ## Appendix A: Decision record
 
