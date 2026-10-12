@@ -59,7 +59,7 @@ document-link check and applicable documentation checks.
 | SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Complete | 2026-10-11 |
 | SWC.4e | [The direct Graham commands reject an unsupported provider](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) | Complete | 2026-10-12 |
 | SWC.4f | [One failure message rule for the direct commands and refresh](#swc4f--one-failure-message-rule-for-the-direct-commands-and-refresh) | Complete | 2026-10-12 |
-| SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Next | |
+| SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
 
@@ -591,6 +591,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   the strategy guides; `docs/user/strategies/FCF_EARNINGS_GROWTH.md` renamed `FCF_GROWTH.md` with its links;
   tests T25 and T26.
 - **Branch:** `feat/swc-5-site-data-and-status`, from `main` after SWC.4c has merged.
+- **Order:** starts after LAY.8, as recorded in [B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12).
 - **Detail:** [SWC.1 design §19.1, §19.2 and §10](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#19-contributor-tooling).
 
 ### SWC.6 — Specimen strategy and generator
