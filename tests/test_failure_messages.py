@@ -10,7 +10,7 @@ import json
 import logging
 import re
 from collections.abc import Callable
-from contextlib import ExitStack
+from contextlib import AbstractContextManager, ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -254,11 +254,11 @@ def test_refresh_gives_every_row_its_code_and_message(row: Row, caplog: pytest.L
         runner.invoke(app, ["watchlist", "delete", "W", "--yes"])
 
 
-_ANALYSIS_TARGETS = {
-    "momentum": "src.strategies.momentum.cli.run_momentum",
-    "graham-number": "src.strategies.graham_number.cli.execute_graham_number",
-    "graham-growth": "src.strategies.graham_growth.cli.execute_graham_growth",
-    "fcf-growth": "src.strategies.fcf_growth.cli.execute_fcf_growth",
+_ANALYSIS_PATCHES: dict[str, Callable[[BaseException], AbstractContextManager[MagicMock]]] = {
+    "momentum": lambda exc: patch("src.strategies.momentum.cli.run_momentum", side_effect=exc),
+    "graham-number": lambda exc: patch("src.strategies.graham_number.cli.execute_graham_number", side_effect=exc),
+    "graham-growth": lambda exc: patch("src.strategies.graham_growth.cli.execute_graham_growth", side_effect=exc),
+    "fcf-growth": lambda exc: patch("src.strategies.fcf_growth.cli.execute_fcf_growth", side_effect=exc),
 }
 
 
@@ -284,7 +284,7 @@ def _direct(
             stack.enter_context(patch.object(SQLiteAnalysisRunRepository, "insert", side_effect=exception))
             arguments = [*_COMMANDS[alias], "--save-run"]
         else:
-            stack.enter_context(patch(_ANALYSIS_TARGETS[alias], side_effect=exception))
+            stack.enter_context(_ANALYSIS_PATCHES[alias](exception))
             arguments = list(_COMMANDS[alias])
         result = runner.invoke(app, [*arguments, *mode, "--no-provider-check"])
     return exception, result
@@ -403,15 +403,28 @@ def _raise_validation_error() -> int:
 
 
 @pytest.mark.parametrize(
-    ("alias", "patched"),
+    ("alias", "patch_conversion"),
     [
-        ("graham-number", "src.strategies.graham_number.selection.GrahamNumberSelection.to_graham_number_config"),
-        ("graham-growth", "src.strategies.graham_growth.selection.GrahamGrowthSelection.to_graham_growth_config"),
-        ("fcf-growth", "src.strategies.fcf_growth.selection.FCFGrowthSelection.to_fcf_config"),
+        (
+            "graham-number",
+            lambda exc: patch(
+                "src.strategies.graham_number.selection.GrahamNumberSelection.to_graham_number_config", side_effect=exc
+            ),
+        ),
+        (
+            "graham-growth",
+            lambda exc: patch(
+                "src.strategies.graham_growth.selection.GrahamGrowthSelection.to_graham_growth_config", side_effect=exc
+            ),
+        ),
+        (
+            "fcf-growth",
+            lambda exc: patch("src.strategies.fcf_growth.selection.FCFGrowthSelection.to_fcf_config", side_effect=exc),
+        ),
     ],
 )
 def test_a_stored_selection_that_does_not_convert_is_an_execution_error_from_the_real_executor(
-    alias: str, patched: str
+    alias: str, patch_conversion: Callable[[BaseException], AbstractContextManager[MagicMock]]
 ) -> None:
     flags = WatchlistFlags(
         short_window=20,
@@ -432,6 +445,6 @@ def test_a_stored_selection_that_does_not_convert_is_an_execution_error_from_the
         currency="USD",
     )
     selection = CLI_BUILDERS[alias](flags)
-    with patch(patched, side_effect=_validation_error()), pytest.raises(InternalDefectError) as caught:
+    with patch_conversion(_validation_error()), pytest.raises(InternalDefectError) as caught:
         src.cli_workspace._refresh_executor("KO", selection, profile_cache=MagicMock())
     assert classify_failure(caught.value).reason_code is FailureReasonCode.EXECUTION_ERROR
