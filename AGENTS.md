@@ -175,6 +175,14 @@ mutates dependencies nor requires network access. Standard-library-only gate
 scripts run with system Python (`py -3` on Windows), not through `uv run` or the
 project virtualenv.
 
+Each wrapper keeps its complete, unfiltered output (every command's standard
+output and standard error, in order) in `gate-output.txt` in the run's own
+directory below `/.tmp/quality-runs/` while also printing it, and the last line
+it prints is the path of that file. Keep that file as the evidence of a run; do
+not filter or retype the output. Each step prints its elapsed time when it
+ends, each pytest pass lists its failing and erroring tests by full name, and a
+closing summary shows every step with its time and result and the total time.
+
 Interactive developers and CI environments with normal user-directory access
 may continue to run the underlying `uv run ...` commands directly. Focused
 agent checks may also use direct commands when they do not require writable
