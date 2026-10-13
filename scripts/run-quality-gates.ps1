@@ -84,6 +84,33 @@ function Write-Summary {
     Write-Gate ('  {0,-44} {1,-7} {2,9} s' -f "total", $Overall, (Format-Seconds $gateTimer.ElapsedMilliseconds))
 }
 
+# Ask the active environment for "<python version>|<pandas version>". Anything the command writes to
+# standard error is part of the run's output, so it is printed and kept.
+function Get-VersionInfo {
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $output = @(& uv run --no-sync python -c "import sys, pandas; print(f'{sys.version.split()[0]}|{pandas.__version__}')" 2>&1)
+        $code = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    $standardOutput = @()
+    foreach ($item in $output) {
+        if ($item -is [System.Management.Automation.ErrorRecord]) {
+            Write-Gate $item.Exception.Message
+        }
+        else {
+            $standardOutput += "$item"
+        }
+    }
+    if ($code -ne 0) {
+        throw "Quality command failed with exit code $code`: uv run --no-sync python -c <version check>"
+    }
+    return $standardOutput | Select-Object -Last 1
+}
+
 # Run one step, print its elapsed time, record it for the summary, and stop the gate at the first
 # failing step.
 function Invoke-Step {
@@ -146,11 +173,7 @@ try {
     $env:UV_CACHE_DIR = $uvCache
     $env:COVERAGE_FILE = $coverageFile
 
-    $versionInfo = & uv run --no-sync python -c "import sys, pandas; print(f'{sys.version.split()[0]}|{pandas.__version__}')"
-    if ($LASTEXITCODE -ne 0) {
-        throw "Quality command failed with exit code $LASTEXITCODE`: uv run --no-sync python -c <version check>"
-    }
-    $pythonVersion, $pandasVersion = ($versionInfo | Select-Object -Last 1) -split '\|'
+    $pythonVersion, $pandasVersion = (Get-VersionInfo) -split '\|'
     Write-Gate "Quality gate running on Python $pythonVersion, pandas $pandasVersion"
 
     # The Markdown checkers import only the standard library, so they run with system Python
@@ -205,11 +228,7 @@ try {
         $extraEnv = Join-Path $repositoryRoot ".tmp\envs\py$ExtraPython"
         $env:UV_PROJECT_ENVIRONMENT = $extraEnv
         Invoke-Step -Name "uv sync (Python $ExtraPython)" -Executable "uv" -Arguments @("sync", "--frozen", "--python", $ExtraPython)
-        $extraInfo = & uv run --no-sync python -c "import sys, pandas; print(f'{sys.version.split()[0]}|{pandas.__version__}')"
-        if ($LASTEXITCODE -ne 0) {
-            throw "Quality command failed with exit code $LASTEXITCODE`: uv run --no-sync python -c <version check>"
-        }
-        $extraVersion, $extraPandas = ($extraInfo | Select-Object -Last 1) -split '\|'
+        $extraVersion, $extraPandas = (Get-VersionInfo) -split '\|'
         if (-not $extraVersion.StartsWith("$ExtraPython.")) {
             throw "Second pass requested Python $ExtraPython but the environment runs $extraVersion"
         }
