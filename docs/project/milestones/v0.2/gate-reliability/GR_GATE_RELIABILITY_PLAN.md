@@ -21,7 +21,7 @@ position and work-package status.
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| GR.1 | [The gate wrappers keep their evidence](#gr1--the-gate-wrappers-keep-their-evidence) | In progress | |
+| GR.1 | [The gate wrappers keep their evidence](#gr1--the-gate-wrappers-keep-their-evidence) | Complete | 2026-10-13 |
 | GR.2 | [Unclosed event loops](#gr2--unclosed-event-loops) | Planned | |
 
 ## 3. The slices
