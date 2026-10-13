@@ -10,6 +10,8 @@ import pytest
 from pydantic import ValidationError
 
 from src.config import ProjectSettings
+from src.config.reliability_limits import ReliabilityLimits
+from src.config.schema_config import SchemaConfig
 from src.core.telemetry import TrajectoryEventType
 from src.orchestrator.loop import OrchestratorConfig
 from src.orchestrator.reliability import (
@@ -19,11 +21,9 @@ from src.orchestrator.reliability import (
     RecentEventSummary,
     ReliabilityFailure,
     ReliabilityLimitReachedError,
-    ReliabilityLimits,
     ReliabilityTripReason,
     SystemMonotonicClock,
 )
-from src.schema.config import SchemaConfig
 
 
 @dataclass

@@ -109,7 +109,7 @@ source = ["src"]
 [tool.coverage.report]
 # Do not count configuration files or tests against code coverage percentages
 omit = [
-    "src/config.py",
+    "src/config/__init__.py",
     "tests/*",
 ]
 # Highlight missing statements clearly in the terminal output

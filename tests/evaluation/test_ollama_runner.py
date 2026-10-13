@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
+from src.config.schema_config import SchemaConfig
 from src.core.telemetry import RunContext, TrajectoryEvent, TrajectoryEventType, TrajectoryRecorder
 from src.evaluation import ollama_runner
 from src.evaluation.catalog import build_deterministic_requests
@@ -25,7 +26,6 @@ from src.evaluation.runner import DeterministicCaseRequest
 from src.llm.client import LLMClient, LLMGenerateResult
 from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import ToolCallRequest
-from src.schema.config import SchemaConfig
 from src.tools.parser import ToolNotFoundError
 
 EXECUTED_AT = datetime(2026, 8, 31, 20, 0, tzinfo=UTC)

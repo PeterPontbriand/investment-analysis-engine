@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
+from src.config.reliability_limits import ReliabilityLimits
+from src.config.schema_config import SchemaConfig
 from src.core.telemetry import RunContext, TelemetryMode, TrajectoryEventType, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
 from src.core.telemetry.recorder import TrajectoryRecorderConfig
@@ -19,9 +21,8 @@ from src.llm.client import LLMClient, LLMGenerateResult
 from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
-from src.orchestrator.reliability import ReliabilityLimits, ReliabilityTripReason
+from src.orchestrator.reliability import ReliabilityTripReason
 from src.orchestrator.types import AgentStepResult, ToolCallResult
-from src.schema.config import SchemaConfig
 from src.tools.parser import ParsedToolCall, ToolParser, ToolParsingError
 
 

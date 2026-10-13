@@ -1,6 +1,6 @@
 """Structured-output schema constraint formatting and validation of model output."""
 
-from src.schema.config import SchemaConfig, get_schema_config, set_schema_config
+from src.schema.config import get_schema_config, set_schema_config
 from src.schema.constraint import (
     SchemaConstraint,
     build_schema_constraint,
@@ -29,7 +29,6 @@ from src.schema.validator import (
 
 __all__ = [
     "SchemaCompatibilityError",
-    "SchemaConfig",
     "SchemaConstraint",
     "SchemaConstraintError",
     "SchemaError",

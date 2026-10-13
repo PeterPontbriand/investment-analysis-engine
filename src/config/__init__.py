@@ -1,4 +1,4 @@
-# src/config.py
+# src/config/__init__.py
 """Application configurations managed via Pydantic-settings and external TOML profiles."""
 
 import dataclasses
@@ -17,10 +17,10 @@ from pydantic_settings import BaseSettings, EnvSettingsSource, PydanticBaseSetti
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import ArgumentError
 
+import src.config.paths as anchored_paths  # noqa: PLR0402 - the initializer cannot name its own package in a from-import
+from src.config.reliability_limits import ReliabilityLimits
+from src.config.schema_config import SchemaConfig
 from src.core.settings_error import SettingsEnvironmentError
-from src.orchestrator.reliability import ReliabilityLimits
-from src.schema.config import SchemaConfig
-from src.utils import paths
 
 # Ensure core environment variables are populated
 load_dotenv()
@@ -169,7 +169,7 @@ class ProjectSettings(BaseSettings):
 
     # Structured trajectory telemetry
     telemetry_sink: Literal["jsonl", "sqlite"] = "jsonl"
-    telemetry_log_dir: Path = Path(__file__).resolve().parent.parent / "logs"
+    telemetry_log_dir: Path = Path(__file__).resolve().parent.parent.parent / "logs"
     telemetry_level: Literal["INFO", "DEBUG", "OFF"] = "INFO"
     telemetry_max_log_files: int = 100
     telemetry_max_total_size: int = 100 * 1024 * 1024
@@ -211,7 +211,7 @@ class ProjectSettings(BaseSettings):
     )
 
     # Project Root Directory
-    base_dir: Path = Path(__file__).resolve().parent.parent
+    base_dir: Path = Path(__file__).resolve().parent.parent.parent
 
     # Core Paths
     data_dir: Path = base_dir / "data"
@@ -245,15 +245,17 @@ class ProjectSettings(BaseSettings):
         database paths anchor to base_dir, independent of the caller's cwd.
         Explicit SQLite memory URLs remain available for injected tests. On Windows, a configured path
         that is only partly anchored (a root without a drive, or a drive without a root) is rejected
-        before any resolution; see :func:`src.utils.paths.require_anchored_path`.
+        before any resolution; see :func:`src.config.paths.require_anchored_path`.
         """
         # Assignments below add fields to model_fields_set, so the user's choices are captured first:
         # only values the user set are checked, never the paths this validator derives.
         user_set = frozenset(self.model_fields_set)
         for name in ("base_dir", "data_dir", "log_dir", "telemetry_log_dir"):
             if name in user_set:
-                paths.require_anchored_path(getattr(self, name).as_posix(), name=name, windows=paths.is_windows())
-        application_root = Path(__file__).resolve().parent.parent
+                anchored_paths.require_anchored_path(
+                    getattr(self, name).as_posix(), name=name, windows=anchored_paths.is_windows()
+                )
+        application_root = Path(__file__).resolve().parent.parent.parent
         self.base_dir = (application_root / self.base_dir).resolve()
         data_path = self.data_dir if "data_dir" in user_set else Path("data")
         self.data_dir = (self.base_dir / data_path).resolve()
@@ -277,7 +279,9 @@ class ProjectSettings(BaseSettings):
             if url.database.startswith("file:"):
                 raise ValueError("SQLite file URI databases are not supported; use a filesystem path.")
             if "database_url" in user_set:
-                paths.require_anchored_path(url.database, name="database_url", windows=paths.is_windows())
+                anchored_paths.require_anchored_path(
+                    url.database, name="database_url", windows=anchored_paths.is_windows()
+                )
             url = url.set(database=(self.base_dir / database_path).resolve().as_posix())
         self.database_url = url.render_as_string()
         return self

@@ -12,6 +12,8 @@ import pandas as pd
 import pytest
 from pydantic import BaseModel, ValidationError
 
+from src.config.reliability_limits import ReliabilityLimits
+from src.config.schema_config import SchemaConfig
 from src.core.failure_codes import FailureReasonCode
 from src.core.provider_failure_element import ProviderFailure, ProviderFailureInput
 from src.core.provider_failure_kind import ProviderFailureKind
@@ -26,10 +28,9 @@ from src.llm.client import LLMClient
 from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
-from src.orchestrator.reliability import CircuitBreaker, ReliabilityLimits
+from src.orchestrator.reliability import CircuitBreaker
 from src.orchestrator.types import ToolCallRequest, ToolCallResult
 from src.reporting.failure_envelope import failure_envelope
-from src.schema.config import SchemaConfig
 from src.tools.parser import ToolParser
 
 

@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
+from src.config.schema_config import SchemaConfig
 from src.llm.client import LLMClient, LLMGenerateResult
 from src.orchestrator.context import ContextConfig, MessageContext
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
 from src.orchestrator.prompts import SystemPromptBuilder
-from src.schema.config import SchemaConfig
 from src.tools.parser import ToolParsingError
 
 

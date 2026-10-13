@@ -134,7 +134,7 @@ def test_evaluate_cli_rejects_a_partly_anchored_windows_report_path(
     report: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A path Windows would anchor to the wrong place fails as a usage error before any work or file creation."""
-    monkeypatch.setattr("src.utils.paths.is_windows", lambda: True)
+    monkeypatch.setattr("src.config.paths.is_windows", lambda: True)
     monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(app, ["evaluate", "--report", report])
