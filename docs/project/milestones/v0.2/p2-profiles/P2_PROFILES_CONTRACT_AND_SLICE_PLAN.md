@@ -641,7 +641,7 @@ than trusting the plan:
   or (after Slice D) `CachedInstrumentProfileResolver.resolve()` makes no
   difference, since either way it is a plain immutable dataclass value by the
   time `execute()` sees it.
-- [`src/data/repositories/analysis_runs.py`](../../../../../src/data/repositories/analysis_runs.py)
+- [`src/workspace/repositories/analysis_runs.py`](../../../../../src/workspace/repositories/analysis_runs.py)
   persists the *entire* `AnalysisRun` — including `instrument_profile`, with
   its identity/kind evidence and diagnostics — verbatim as `envelope_json` via
   `model_dump(mode="json")`, and `get()` only ever re-validates and returns

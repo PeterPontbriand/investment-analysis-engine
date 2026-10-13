@@ -28,7 +28,6 @@ from src.core.clock import utc_now
 from src.core.operator_errors import InvalidParameterError
 from src.data.instrument_profile import profile_identity_resolution
 from src.data.instrument_profile_cache import InstrumentProfileResolver
-from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.readiness import ensure_database_ready
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.yfinance import YFinanceClient
@@ -42,6 +41,7 @@ from src.strategies.momentum.execution import (
 from src.strategies.momentum.presenter import MomentumPresentation, render_momentum
 from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.capture import ExecutionCapture
+from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.workspace.requests import AnalysisRequest
 
 

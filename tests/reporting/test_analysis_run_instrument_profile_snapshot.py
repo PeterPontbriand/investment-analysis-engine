@@ -27,7 +27,6 @@ from src.data.instrument_profile import (
     InstrumentProfileCandidate,
 )
 from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
-from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
@@ -41,6 +40,7 @@ from src.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
 from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
+from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.workspace.requests import AnalysisRequest
 
 NOW = datetime(2026, 9, 22, 12, 0, 0, tzinfo=UTC)

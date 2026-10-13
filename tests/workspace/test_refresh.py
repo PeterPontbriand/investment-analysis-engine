@@ -13,7 +13,6 @@ from alembic import command
 from src.config import ProjectSettings
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
@@ -33,6 +32,7 @@ from src.workspace.refresh import (
     RefreshSummary,
     refresh_watchlist,
 )
+from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
 from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import WatchlistNotFoundError

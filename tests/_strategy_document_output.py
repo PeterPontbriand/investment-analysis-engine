@@ -54,7 +54,6 @@ from src.data.instrument_profile import (
     InstrumentKindEvidence,
     InstrumentKindRequest,
 )
-from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
@@ -71,6 +70,7 @@ from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.service import GrahamNumberAnalysis
+from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.workspace.runs import AnalysisRun, RunQuery
 from tests._direct_command_output import (
     _COMMANDS,

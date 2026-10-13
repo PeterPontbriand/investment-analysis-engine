@@ -20,9 +20,9 @@ from scripts import strategy_conformance as conformance
 from src.cli import app
 from src.config import ProjectSettings
 from src.config import settings as real_settings
-from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.strategy_wiring import STRATEGIES
+from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.workspace.runs import AnalysisRun, RunQuery
 from tests._direct_command_output import _COMMANDS, enter_fixture_providers
 

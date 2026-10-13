@@ -13,7 +13,6 @@ from sqlalchemy import delete, select, update
 from alembic import command
 from src.config import ProjectSettings
 from src.data.instrument_profile import InstrumentKind
-from src.data.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from src.data.repositories.schema import (
     analysis_runs,
     market_data_cache_entries,
@@ -21,9 +20,10 @@ from src.data.repositories.schema import (
     trajectory_events,
 )
 from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.repositories.watchlists import SQLiteWatchlistRepository
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.workspace.models import RunOutcome
+from src.workspace.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
+from src.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from src.workspace.runs import AnalysisRun, RunQuery
 from src.workspace.watchlists import WatchlistSpec
 from tests._wiring import alias_for

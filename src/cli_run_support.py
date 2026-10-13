@@ -8,13 +8,13 @@ import typer
 from src.cli_support import _production_instrument_profile_cache
 from src.config import settings
 from src.data.instrument_profile_cache import InstrumentProfileResolver
-from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.readiness import ensure_database_ready
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.strategy_wiring import run_spec_for
 from src.telemetry.run_context import RunContext, get_current_run_context
 from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import execute
+from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
 

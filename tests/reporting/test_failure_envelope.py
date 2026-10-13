@@ -25,7 +25,6 @@ from src.data.quality import (
     evaluate_historical_quality,
 )
 from src.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
-from src.data.repositories.watchlists import WatchlistConflictError, WatchlistEntryNotFoundError
 from src.reporting.documents.database import DatabaseMaintenanceReport
 from src.reporting.documents.failure import FailureDatabase, FailureDiagnostic, FailureEnvelope
 from src.reporting.failure_envelope import failure_envelope
@@ -33,6 +32,7 @@ from src.reporting.presentation import failure_document
 from src.reporting.replay_inputs import UnsupportedProjectionError
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from src.workspace.refresh import EmptyRefreshTargetError
+from src.workspace.repositories.watchlists import WatchlistConflictError, WatchlistEntryNotFoundError
 from src.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 from tests._failure_code_table import PINNED_CLASSIFICATIONS, PinnedClassification

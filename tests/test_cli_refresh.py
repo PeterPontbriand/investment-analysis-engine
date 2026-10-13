@@ -33,9 +33,7 @@ from src.cli import app
 from src.core.constants import TrendStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.market_data import MarketDataContext
-from src.data.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.repositories.watchlists import SQLiteWatchlistRepository
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import SUBJECT_MISSING
@@ -45,6 +43,8 @@ from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.strategies.momentum.selection import MomentumSelection
+from src.workspace.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
+from src.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from src.workspace.strategy_types import AnalysisSelection
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver

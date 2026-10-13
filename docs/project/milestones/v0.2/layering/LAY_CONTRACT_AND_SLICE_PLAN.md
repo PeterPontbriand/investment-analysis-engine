@@ -34,15 +34,15 @@ work-package status. The design, the proof and the owner decisions are in [LAY_D
 | LAY.1 | [Role rule in the dependency check](#lay1--role-rule-in-the-dependency-check) | Complete | 2026-10-12 |
 | LAY.2 | [Configuration becomes a package and a base layer](#lay2--configuration-package-and-base-layer) | Complete | 2026-10-12 |
 | LAY.3 | [Telemetry leaves core](#lay3--telemetry-package) | Complete | 2026-10-13 |
-| LAY.4 | [Run and watchlist repositories move to the workspace side](#lay4--repositories) | Next | |
-| LAY.5 | [Selection base and run-outcome models move beside the analyzer contract](#lay5--contract-modules) | Planned | |
+| LAY.4 | [Run and watchlist repositories move to the workspace side](#lay4--repositories) | Complete | 2026-10-13 |
+| LAY.5 | [Selection base and run-outcome models move beside the analyzer contract](#lay5--contract-modules) | Next | |
 | LAY.6 | [Saved-run replay and workspace documents move up](#lay6--workspace-documents) | Planned | |
 | LAY.7 | [Momentum receives its defaults when built](#lay7--momentum-wiring) | Planned | |
 | LAY.8 | [Loop-free check, layered listing and closing](#lay8--loop-free-check-and-closing) | Planned | |
 
-**Provisional order with the other work packages:** SWC.4e, SWC.4f, then LAY.1 to LAY.8, then the remaining SWC
-slices (SWC.5 to SWC.7), then PKG. SWC.4d is complete. It is provisional until the SWC plan is reviewed
-([Appendix A.5](#a5-provisional-order-with-swc-and-pkg-2026-10-11)).
+**Order with the other work packages:** LAY.4 to LAY.8, then 12B (removal of the TTM EPS basis), then PKG.1 and PKG.2,
+then Step 3.5. SWC.5 to SWC.7 run after LAY.8; GR.2 runs whenever no LAY branch is open. This replaces the provisional
+order of [A.5](#a5-provisional-order-with-swc-and-pkg-2026-10-11).
 
 The order within LAY is forced by the graph, not chosen for convenience ([LAY_DESIGN.md §6](LAY_DESIGN.md#6-slice-order)):
 LAY.4 must precede LAY.5 (moving the run-outcome models first would create a new two-way pair between `analysis` and
@@ -113,6 +113,7 @@ later slice is checked against the final definition of a unit.
   database layer. The sentence of ARCHITECTURE that places all production SQLite persistence in `src/data/repositories/`
   is rewritten in this slice.
 - **Scope:** the two entries marked `serves = "L4"`; the ARCHITECTURE sentence; §13 rows. Pairs after: 1.
+  Implementation decisions: [A.9](#a9-lay4-implementation-decisions-2026-10-13).
 - **Branch:** `refactor/lay-4-repositories`, from `main` after LAY.3.
 - **Detail:** [LAY_DESIGN.md §7](LAY_DESIGN.md#7-size-of-each-move).
 
@@ -308,3 +309,31 @@ Approved by the project owner for LAY.3.
    `alembic.ini` with `parents[2]` instead of `parents[3]`, because the file is one directory shallower.
 4. Behavior is unchanged: telemetry still fails open and never alters business execution, and recorded events are
    identical. Two-way pairs after the slice: `data` and `workspace`; `strategies` and `workspace`.
+
+### A.9 LAY.4 implementation decisions (2026-10-13)
+
+Approved by the project owner for LAY.4.
+
+1. Two files move with `git mv`, and their contents change only in import lines: `src/data/repositories/analysis_runs.py`
+   and `src/data/repositories/watchlists.py` become `src/workspace/repositories/analysis_runs.py` and
+   `src/workspace/repositories/watchlists.py`. The new `src/workspace/repositories/__init__.py` holds only a module
+   docstring.
+2. Table definitions, the connection, migrations and readiness stay in `data`. The moved files keep importing `schema`
+   and `sqlite` from `src.data.repositories`.
+3. One home per name. Nothing is re-exported from `src/data/repositories/`, whose initializer is not edited, and every
+   importer and test patch target names the defining module. `_BENIGN_CYCLE_PACKAGES` is unchanged and the new package
+   is not added to it.
+4. `tests/data/repositories/test_analysis_runs.py` and `test_watchlist_repository.py` moved to
+   `tests/workspace/repositories/`. They changed only in import lines and patch targets. No `parents[N]` changed,
+   because the new folder is at the same depth.
+5. ARCHITECTURE: the closing sentence of §13 and the persistence guardrail of §14 name both repository folders; the
+   `data` row of the §13 table drops `workspace` from Imports and from Two-way with; the `workspace` row owns the run
+   and watchlist repositories and is two-way with `strategies` only. §8 is not edited.
+6. The `data` Owns text names the trajectory repository, in both §13 and the move list.
+7. The link in the P2 profiles plan to the analysis-run repository points at the new path. Other mentions of the old
+   paths in completed-plan and evidence documents are history and stay as they are.
+8. The provisional order of A.5 is replaced by the order in §2: LAY.4 to LAY.8, then 12B, then PKG.1 and PKG.2, then
+   Step 3.5; SWC.5 to SWC.7 after LAY.8; GR.2 whenever no LAY branch is open. A.5 stays verbatim.
+9. The file name `watchlists.py` stays, although `src/workspace/watchlists.py` exists; the path tells them apart.
+10. Behavior and stored data are unchanged: no schema change, no migration, no message change. Two-way pairs after the
+    slice: `strategies` and `workspace`.

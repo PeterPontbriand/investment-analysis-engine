@@ -18,10 +18,8 @@ import src.cli_workspace
 from alembic import command
 from src.cli import app
 from src.config import ProjectSettings
-from src.data.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.data.repositories.schema import analysis_runs
 from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.repositories.watchlists import SQLiteWatchlistRepository
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
@@ -29,6 +27,8 @@ from src.strategy_wiring import run_spec_for
 from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
+from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
+from src.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun, RunQuery
 from src.workspace.watchlists import WatchlistNotFoundError

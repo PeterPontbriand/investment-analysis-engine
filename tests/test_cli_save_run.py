@@ -31,7 +31,6 @@ from src.config import settings as real_settings
 from src.core.constants import TrendStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.market_data import MarketDataContext
-from src.data.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
@@ -40,6 +39,7 @@ from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.models import RunOutcome
+from src.workspace.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from src.workspace.runs import RunQuery
 from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_cli_output  # noqa: F401
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
@@ -344,7 +344,7 @@ def test_interrupt_while_storing_leaves_no_partial_run(mock_run: MagicMock) -> N
     mock_run.return_value = _mock_momentum_run()
     carry_profile(mock_run)
 
-    with patch("src.data.repositories.analysis_runs._row", side_effect=KeyboardInterrupt):
+    with patch("src.workspace.repositories.analysis_runs._row", side_effect=KeyboardInterrupt):
         result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
 
     assert "Saved Analysis Run" not in result.output

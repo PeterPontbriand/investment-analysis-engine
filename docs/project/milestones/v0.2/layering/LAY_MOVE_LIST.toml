@@ -7,20 +7,6 @@
 # package initializers the moved file depends on. The destination names marked "decision" in LAY_DESIGN.md §8
 # are the recommendations, not settled. The role rule (L5) is not a move: it is data in scripts/package_graph.py.
 
-# --- L4: the analysis-run and watchlist repositories move to the workspace side. ----------------------------
-
-[[file]]
-path = "src/data/repositories/analysis_runs.py"
-unit = "workspace"
-serves = "L4"
-destination = "src/workspace/repositories/analysis_runs.py"
-
-[[file]]
-path = "src/data/repositories/watchlists.py"
-unit = "workspace"
-serves = "L4"
-destination = "src/workspace/repositories/watchlists.py"
-
 # --- L6: the workspace modules strategy core files depend on move beside the analyzer contract. -------------
 
 [[file]]
@@ -83,7 +69,7 @@ owns = "The application settings object and its environment and profile loading,
 
 [[unit]]
 name = "data"
-owns = "Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite database layer with the provider-data and cache repositories."
+owns = "Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite database layer with the provider-data, cache and trajectory repositories."
 
 [[unit]]
 name = "llm"
