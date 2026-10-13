@@ -8,8 +8,7 @@ from uuid import UUID
 import pytest
 
 from src.core.analysis_status import CalculationStatus
-from src.core.telemetry import RunContext, TrajectoryRecorder
-from src.core.telemetry.models import TrajectoryEvent
+from src.core.trajectory_events import TrajectoryEvent
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheKey
 from src.data.financial.facts import FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
@@ -33,6 +32,8 @@ from src.orchestrator.tool_names import ToolName
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
+from src.telemetry.recorder import TrajectoryRecorder
+from src.telemetry.run_context import RunContext
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("b0000000-0000-0000-0000-00000000000b")

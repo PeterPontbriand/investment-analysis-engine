@@ -6,11 +6,12 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
 
 ## 1. At a glance
 
-- **What this work does:** moves the `src/` package to `investment_analysis_engine/`, rewrites every
-  absolute import and every dotted patch target to the new name, and updates `pyproject.toml`,
-  `AGENTS.md` and any document that names an import path literally.
-- **What it is not:** a restructuring of the package's internal layout, or any change of behavior,
-  formula, presentation contract or public CLI surface. `ian` stays the CLI command name; it is
+- **What this work does:** in two slices. PKG.1 empties the package initializers that re-export their
+  children, so every name has one import path. PKG.2 moves the `src/` package to
+  `investment_analysis_engine/`, rewrites every absolute import and every dotted patch target to the new
+  name, and updates `pyproject.toml`, `AGENTS.md` and any document that names an import path literally.
+- **What it is not:** a restructuring of the package's internal layout beyond PKG.1's change to the
+  initializers, or any change of behavior, formula, presentation contract or public CLI surface. `ian` stays the CLI command name; it is
   independent of the import name. The strategy folder layout is already settled by SWC
   ([§6](#6-folder-layout-outcome)); PKG renames it and does not regroup it.
 - **Rules it follows:** the managed quality gate at the end; no new dependency without explicit user
@@ -27,11 +28,28 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| PKG | [Rename the src package](#pkg--rename-the-src-package) | Planned | |
+| PKG.1 | [One home per name](#pkg1--one-home-per-name) | Planned | |
+| PKG.2 | [Rename the src package](#pkg2--rename-the-src-package) | Planned | |
 
-## 3. The work
+## 3. The slices
 
-### PKG — Rename the `src` package
+### PKG.1 — One home per name
+
+- **Problem:** package initializers that re-export their children give each name two import paths, and they create
+  the initializer loops that `tests/test_strategy_import_layering.py` must allow in `_BENIGN_CYCLE_PACKAGES`.
+- **Decision:** each initializer holds only a docstring, and every importer names the defining module, as LAY.2
+  and LAY.3 did. Nothing is re-exported from an old location. `_BENIGN_CYCLE_PACKAGES` ends empty, except for
+  `src.config`: its initializer holds the settings code itself ([LAY decision A.7.3](../layering/LAY_CONTRACT_AND_SLICE_PLAN.md#a7-lay2-implementation-decisions-2026-10-12)),
+  not a re-export, so emptying it is not part of this slice and its entry stays with that explanation.
+- **Scope:** the initializers that still re-export their children after LAY.3: `src/data/repositories/`,
+  `src/schema/`, `src/evaluation/fixtures/`, `src/data/yfinance/`, `src/evaluation/` and `src/data/sec_edgar/`
+  (checked against the code at LAY.3; re-check when the slice starts, because LAY.4 moves two files,
+  `analysis_runs.py` and `watchlists.py`, out of `src/data/repositories/`); every importer of a name they
+  re-export, including test patch targets; and `_BENIGN_CYCLE_PACKAGES`.
+- **Branch:** `refactor/pkg-1-one-home-per-name`, from `main` after LAY.8 and SWC.7, before PKG.2.
+- **Detail:** ⚠ no slice plan yet
+
+### PKG.2 — Rename the `src` package
 
 - **Problem:** `pyproject.toml`'s `[tool.setuptools.packages.find]` (`where = ["."]`,
   `include = ["src*"]`) packages the literal directory `src` as the project's distributed module, and every
@@ -56,7 +74,7 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
   - update `AGENTS.md`'s `uv run ...` examples and the layering test's package name;
   - run the SWC.2a patch-target resolution test unchanged against the new package name; PKG adds no check
     of its own.
-- **Branch:** `feat/pkg-rename`, from `main` after SWC.7 and LAY have merged. LAY moves files and rewrites imports under the
+- **Branch:** `feat/pkg-rename`, from `main` after SWC.7, LAY and PKG.1 have merged. LAY moves files and rewrites imports under the
   old name, so the rename must follow it ([LAY decision L10](../layering/LAY_CONTRACT_AND_SLICE_PLAN.md#a1-decisions-l1-to-l10-2026-10-11)).
   LAY.8 removes `scripts/simulate_package_layers.py`; the graph engine that stays with the dependency check carries a
   root name that this rename updates, as it does in `check_package_dependencies.py`.
@@ -66,7 +84,8 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
 
 Scope limits:
 
-- Any restructuring of the package's internal module layout beyond the rename itself.
+- Any restructuring of the package's internal module layout beyond the rename itself and PKG.1's change to the
+  package initializers.
 - Any change of behavior, formula, presentation contract or public CLI surface.
 - Any change to the `ian` command name.
 
@@ -143,3 +162,11 @@ design's eight matches this plan's earlier figure.
 
 The resolution test is built in SWC.2a, not here, because SWC.2a relocates modules across 101 importer files
 and carries the same risk of a string target left pointing at a moved name. PKG reuses the test and adds none.
+
+### A.5 Package initializers become docstring-only (2026-10-12)
+
+The project owner decided, during LAY.3, to add a slice before the rename. LAY.2 and LAY.3 each removed a re-exporting
+initializer, and each time the layering test's list of allowed initializer loops shrank. PKG.1 does the same for the
+initializers that remain, so that no name has two import paths and the list ends empty, apart from `src.config`, which
+holds the settings code and is not a re-export. The rename follows as PKG.2 and rewrites each import line once, under
+its final path.

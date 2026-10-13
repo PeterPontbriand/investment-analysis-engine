@@ -13,11 +13,13 @@ import pytest
 from typer.testing import CliRunner
 
 from src.cli import app
-from src.core.telemetry import RunContext, TrajectoryEvent, TrajectoryRecorder
+from src.core.trajectory_events import TrajectoryEvent
 from src.evaluation.catalog import DETERMINISTIC_CASES
 from src.evaluation.models import ComponentKind, ComponentOutcome, ComponentResult, ExecutionMode
 from src.evaluation.reporting import EvaluationReport, build_case_result, build_evaluation_report
 from src.evaluation.runner import DETERMINISTIC_REQUIRED_COMPONENT_KINDS
+from src.telemetry.recorder import TrajectoryRecorder
+from src.telemetry.run_context import RunContext
 from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()

@@ -8,8 +8,7 @@ from uuid import UUID
 import pytest
 
 from src.core.strategy_errors import UndeclaredStrategyError
-from src.core.telemetry import RunContext, TrajectoryRecorder
-from src.core.telemetry.models import TrajectoryEvent, TrajectoryEventType
+from src.core.trajectory_events import TrajectoryEvent, TrajectoryEventType
 from src.evaluation import runner
 from src.evaluation.fixtures.instrument_profiles import KNOWN_ETF_PROFILE_FIXTURE_ID
 from src.evaluation.fixtures.market_data import (
@@ -35,6 +34,8 @@ from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import ToolCallResult
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.tool import MomentumToolArguments
+from src.telemetry.recorder import TrajectoryRecorder
+from src.telemetry.run_context import RunContext
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("10000000-0000-0000-0000-000000000001")

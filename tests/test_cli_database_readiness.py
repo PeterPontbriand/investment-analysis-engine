@@ -17,12 +17,12 @@ from src.cli import app
 from src.cli_support import _production_financial_cache
 from src.config import ProjectSettings
 from src.core.clock import utc_now
-from src.core.telemetry.models import TrajectoryEventType
-from src.core.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
-from src.core.telemetry.run_context import RunContext
-from src.core.telemetry.sinks import SQLiteTrajectorySink
+from src.core.trajectory_events import TrajectoryEventType
 from src.data.repositories import SQLiteDatabase, migrations, readiness
 from src.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from src.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
+from src.telemetry.run_context import RunContext
+from src.telemetry.sinks.sqlite import SQLiteTrajectorySink
 from tests._cli_helpers import stub_yahoo_identity_metadata  # noqa: F401
 
 COMMANDS = ["momentum", "graham-number", "graham-growth", "fcf-growth"]

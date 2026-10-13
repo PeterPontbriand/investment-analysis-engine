@@ -33,8 +33,8 @@ work-package status. The design, the proof and the owner decisions are in [LAY_D
 | LAY.0 | [Design, simulation script and slice plan](#lay0--design-and-slice-plan) | Complete | 2026-10-11 |
 | LAY.1 | [Role rule in the dependency check](#lay1--role-rule-in-the-dependency-check) | Complete | 2026-10-12 |
 | LAY.2 | [Configuration becomes a package and a base layer](#lay2--configuration-package-and-base-layer) | Complete | 2026-10-12 |
-| LAY.3 | [Telemetry leaves core](#lay3--telemetry-package) | Next | |
-| LAY.4 | [Run and watchlist repositories move to the workspace side](#lay4--repositories) | Planned | |
+| LAY.3 | [Telemetry leaves core](#lay3--telemetry-package) | Complete | 2026-10-12 |
+| LAY.4 | [Run and watchlist repositories move to the workspace side](#lay4--repositories) | Next | |
 | LAY.5 | [Selection base and run-outcome models move beside the analyzer contract](#lay5--contract-modules) | Planned | |
 | LAY.6 | [Saved-run replay and workspace documents move up](#lay6--workspace-documents) | Planned | |
 | LAY.7 | [Momentum receives its defaults when built](#lay7--momentum-wiring) | Planned | |
@@ -102,7 +102,7 @@ later slice is checked against the final definition of a unit.
   with the recorder that produces it.
 - **Scope:** the ten file entries and the one name entry marked `serves = "L2"`; `AGENTS.md` §6 (names
   `src/core/telemetry/`); the layering test's list of re-exporting package initializers; §13 rows including a new
-  `telemetry` row. Pairs after: 2.
+  `telemetry` row. Pairs after: 2. Implementation decisions: [A.8](#a8-lay3-implementation-decisions-2026-10-12).
 - **Branch:** `refactor/lay-3-telemetry`, from `main` after LAY.2.
 - **Detail:** [LAY_DESIGN.md §7](LAY_DESIGN.md#7-size-of-each-move).
 
@@ -290,3 +290,20 @@ Entry points, whether `src.config` is loaded once the entry point's imports fini
 | `src.main` | loaded | loaded |
 | `scripts.generate_schemas` | loaded | loaded |
 | `scripts.strategy_conformance` | loaded | loaded |
+
+### A.8 LAY.3 implementation decisions (2026-10-12)
+
+Approved by the project owner for LAY.3.
+
+1. The moves are the entries of the move list and nothing else: the nine `src/core/telemetry/` files that stay in
+   telemetry (including `sinks/`) move to `src/telemetry/`, `models.py` becomes `src/core/trajectory_events.py`, and
+   `RecentEventSummary` moves from `src/orchestrator/reliability.py` to `src/telemetry/recent_events.py`. Afterwards
+   `core` imports nothing from `config`, `data` or `orchestrator`.
+2. One home per name. `src/telemetry/__init__.py` and `src/telemetry/sinks/__init__.py` hold only a docstring, and every
+   importer and every test patch target names the module that defines what it imports. Nothing is re-exported from an
+   old location. `src.core.telemetry` and `src.core.telemetry.sinks` left `_BENIGN_CYCLE_PACKAGES` and no entry was added;
+   no loop through an initializer involves telemetry any more.
+3. `tests/core/telemetry/` moved to `tests/telemetry/`. The existing telemetry tests changed only in their import lines
+   and patch targets.
+4. Behavior is unchanged: telemetry still fails open and never alters business execution, and recorded events are
+   identical. Two-way pairs after the slice: `data` and `workspace`; `strategies` and `workspace`.

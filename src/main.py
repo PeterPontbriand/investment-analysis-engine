@@ -12,8 +12,7 @@ except SettingsEnvironmentError as error:
     print(error, file=sys.stderr)
     sys.exit(2)
 
-from src.core.telemetry import RunContext
-from src.core.telemetry.run_context import set_current_run_context
+from src.telemetry.run_context import RunContext, set_current_run_context
 from src.utils.logger_util import setup_global_logging, teardown_global_logging
 
 

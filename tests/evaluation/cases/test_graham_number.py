@@ -8,8 +8,7 @@ from uuid import UUID
 import pytest
 
 from src.core.analysis_status import CalculationStatus
-from src.core.telemetry import RunContext, TrajectoryRecorder
-from src.core.telemetry.models import TrajectoryEvent
+from src.core.trajectory_events import TrajectoryEvent
 from src.evaluation.cases.graham_number import (
     GRA_ETF_01,
     GRAHAM_NUMBER_ARGUMENTS,
@@ -26,6 +25,8 @@ from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.tool_names import ToolName
 from src.strategies.graham_number.service import GrahamNumberAnalysis
+from src.telemetry.recorder import TrajectoryRecorder
+from src.telemetry.run_context import RunContext
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("70000000-0000-0000-0000-000000000007")

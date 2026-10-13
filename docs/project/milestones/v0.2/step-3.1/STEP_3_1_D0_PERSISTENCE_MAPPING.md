@@ -9,7 +9,7 @@ Local sequence and status: [companion plan](STEP_3_1_SQLITE_SLICE_PLAN.md#sequen
 This mapping follows the current source contracts, rather than the older
 illustrative telemetry vocabulary in the milestone overview:
 
-- [`TrajectoryEvent`](../../../../../src/core/telemetry/models.py)
+- [`TrajectoryEvent`](../../../../../src/core/trajectory_events.py)
 - [`ResolvedInputCacheKey`, `ResolvedInputCacheEntry`, and in-memory behavior](../../../../../src/data/financial/cache.py)
 - [`ResolvedInput` and `ComponentLineage`](../../../../../src/data/financial/provenance.py)
 - [`HistoricalMarketData` and `MarketDataContext`](../../../../../src/data/market_data.py)

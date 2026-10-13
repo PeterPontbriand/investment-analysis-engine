@@ -7,7 +7,6 @@ from datetime import datetime
 from types import MappingProxyType
 from typing import Final
 
-from src.core.telemetry import TrajectoryRecorder
 from src.evaluation.cases.fcf_growth import FCF_01, FCF_02, FCF_03, FCF_ETF_01, FCF_GROWTH_ARGUMENTS, FPI_03
 from src.evaluation.cases.graham_growth import FPI_01, FPI_02, FPI_04, GRAHAM_GROWTH_ARGUMENTS, GRG_01, GRG_ETF_01
 from src.evaluation.cases.graham_number import (
@@ -29,6 +28,7 @@ from src.evaluation.models import Case
 from src.evaluation.reporting import EvaluationReport
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
+from src.telemetry.recorder import TrajectoryRecorder
 
 DETERMINISTIC_SUITE_ID: Final = "step-2.5-golden-minimum"
 DETERMINISTIC_SUITE_VERSION: Final = "h1-v4"

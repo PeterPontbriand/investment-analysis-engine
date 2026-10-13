@@ -275,7 +275,7 @@ Planned for v0.3, a question passes through five fixed stages: understand, gathe
 
 ```text
 src/
-├── core/telemetry/
+├── telemetry/
 ├── llm/
 ├── tools/
 ├── orchestrator/

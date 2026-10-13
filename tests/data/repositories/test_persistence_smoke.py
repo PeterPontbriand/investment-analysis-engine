@@ -11,8 +11,7 @@ from pandas.testing import assert_frame_equal
 
 from alembic import command
 from src.config import ProjectSettings
-from src.core.telemetry.models import TelemetryMode, TrajectoryEvent, TrajectoryEventType
-from src.core.telemetry.sinks import SQLiteTrajectorySink, read_trajectory
+from src.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
 from src.data.financial.cache import ResolvedInputCacheEntry, ResolvedInputCacheKey
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from src.data.market_data import HistoricalMarketData, MarketDataContext
@@ -25,6 +24,7 @@ from src.data.repositories import (
     SQLiteTrajectoryRepository,
 )
 from src.evaluation.fixtures.market_data import momentum_success_frame
+from src.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory
 
 
 def test_fresh_database_persistence_lifecycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

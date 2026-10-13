@@ -15,16 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 from src.config import settings
 from src.config.reliability_limits import ReliabilityLimits
 from src.config.schema_config import SchemaConfig
-from src.core.telemetry import (
-    RunContext,
-    TelemetryMode,
-    TrajectoryErrorRecord,
-    TrajectoryEventType,
-    TrajectoryRecord,
-    TrajectoryRecorder,
-)
-from src.core.telemetry.quality import record_quality
-from src.core.telemetry.run_context import get_current_run_context
+from src.core.trajectory_events import TelemetryMode, TrajectoryEventType
 from src.llm.client import LLMClient
 from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
@@ -43,6 +34,9 @@ from src.schema.constraint import (
 )
 from src.schema.models import ToolCallResponse
 from src.schema.validator import build_retry_messages, validate_response
+from src.telemetry.quality import record_quality
+from src.telemetry.recorder import TrajectoryErrorRecord, TrajectoryRecord, TrajectoryRecorder
+from src.telemetry.run_context import RunContext, get_current_run_context
 from src.tools.parser import ToolParser
 
 

@@ -13,12 +13,14 @@ from uuid import UUID, uuid4
 
 from src.config import settings
 from src.core.clock import utc_now
-from src.core.telemetry.models import TelemetryMode, TrajectoryEvent, TrajectoryEventType
-from src.core.telemetry.redaction import redact_value, sanitize_exception_message
-from src.core.telemetry.run_context import RunContext
-from src.core.telemetry.sinks import JSONLTrajectorySink, SQLiteTrajectorySink, TrajectorySink
+from src.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
 from src.data.repositories.sqlite import SQLiteDatabase
-from src.orchestrator.reliability import RecentEventSummary
+from src.telemetry.recent_events import RecentEventSummary
+from src.telemetry.redaction import redact_value, sanitize_exception_message
+from src.telemetry.run_context import RunContext
+from src.telemetry.sinks.base import TrajectorySink
+from src.telemetry.sinks.jsonl import JSONLTrajectorySink
+from src.telemetry.sinks.sqlite import SQLiteTrajectorySink
 
 logger = logging.getLogger(__name__)
 

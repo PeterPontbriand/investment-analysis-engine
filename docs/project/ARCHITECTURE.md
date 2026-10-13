@@ -561,17 +561,18 @@ This table is the single declaration of the top-level units under `src/` and the
 | Package | Owns | Imports | Two-way with |
 | --- | --- | --- | --- |
 | `analysis` | The `BaseAnalyzer` and `AnalysisContext` contract and the strategy-neutral financial-resolution helpers. | `core`, `data` | |
-| `cli` | The Typer commands, their production wiring, and the process entry point. | `analysis`, `config`, `core`, `data`, `evaluation`, `llm`, `reporting`, `strategies`, `strategy_wiring`, `utils`, `workspace` | |
-| `config` | The application settings object and its environment and profile loading, the reliability-limits and schema-enforcement settings shapes it holds, and path validation. | `core` | `core` |
-| `core` | The shared clock, core result and status types, strategy errors, constants, the stable failure codes and the classifier that maps an exception to one, and trajectory telemetry. | `config`, `data`, `orchestrator` | `config`, `data`, `orchestrator` |
-| `data` | Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite repositories. | `config`, `core`, `workspace` | `core`, `workspace` |
-| `evaluation` | The Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting. | `config`, `core`, `data`, `llm`, `orchestrator`, `strategies`, `strategy_wiring`, `tools`, `workspace` | |
+| `cli` | The Typer commands, their production wiring, and the process entry point. | `analysis`, `config`, `core`, `data`, `evaluation`, `llm`, `reporting`, `strategies`, `strategy_wiring`, `telemetry`, `utils`, `workspace` | |
+| `config` | The application settings object and its environment and profile loading, the reliability-limits and schema-enforcement settings shapes it holds, and path validation. | `core` | |
+| `core` | The shared clock, core result and status types, strategy errors, constants, the stable failure codes and the classifier that maps an exception to one, and the trajectory event model. | | |
+| `data` | Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite repositories. | `config`, `core`, `workspace` | `workspace` |
+| `evaluation` | The Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting. | `config`, `core`, `data`, `llm`, `orchestrator`, `strategies`, `strategy_wiring`, `telemetry`, `tools`, `workspace` | |
 | `llm` | The local-model client. | `config` | |
-| `orchestrator` | The LLM tool-selection loop, the tool dispatcher and the reliability circuit and failure models, the registration of analysis-tool handlers, and the shared base for tool arguments and handlers. | `config`, `core`, `data`, `llm`, `schema`, `tools` | `core` |
+| `orchestrator` | The LLM tool-selection loop, the tool dispatcher and the reliability circuit and failure models, the registration of analysis-tool handlers, and the shared base for tool arguments and handlers. | `config`, `core`, `data`, `llm`, `schema`, `telemetry`, `tools` | |
 | `reporting` | The presentation helpers the strategy presenters share, the typed models of the `--json` documents no single strategy owns and of the parts several documents share, the failure envelope, and saved-run replay. | `analysis`, `core`, `data`, `workspace` | |
 | `schema` | The structured-output schema constraint and its validation of model output. | `config` | |
 | `strategies` | One package per analysis strategy, each with its analyzer, configuration, result, selection, tool arguments and handler, presenter, CLI command, evaluation fixture composition, replay projector, and `--json` document model, plus the code several strategies share. | `analysis`, `config`, `core`, `data`, `orchestrator`, `reporting`, `workspace` | `workspace` |
 | `strategy_wiring` | The closed, statically declared list of supported strategies and their shared wiring. | `core`, `orchestrator`, `reporting`, `strategies`, `workspace` | |
+| `telemetry` | Structured trajectory telemetry for the agent runtime: the recorder, its sinks, redaction, the run context, the quality-decision hook, and the recent-event summary. | `config`, `core`, `data` | |
 | `tools` | The tool registry, tool-argument schema generation, and parsing of tool calls from model output. | | |
 | `utils` | Logging setup. | `config` | |
 | `workspace` | The selection base and the closed selection and native-evidence unions, analysis requests, run capture, watchlists, and refresh. | `analysis`, `core`, `data`, `strategies` | `data`, `strategies` |

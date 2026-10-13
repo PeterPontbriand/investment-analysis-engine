@@ -15,15 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from src.config.schema_config import SchemaConfig
 from src.core.strategy_errors import require
-from src.core.telemetry import (
-    RunContext,
-    TelemetryMode,
-    TrajectoryEvent,
-    TrajectoryEventType,
-    TrajectoryRecord,
-    TrajectoryRecorder,
-    TrajectoryRecorderConfig,
-)
+from src.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
 from src.evaluation.catalog import (
     DETERMINISTIC_FIXTURE_SET_VERSION,
     DETERMINISTIC_SUITE_ID,
@@ -61,6 +53,8 @@ from src.orchestrator.prompts import SystemPromptBuilder
 from src.orchestrator.tool_names import ToolName
 from src.orchestrator.types import AgentStepResult, ToolCallRequest, ToolCallResult
 from src.strategy_wiring import BY_TOOL, STRATEGIES, tool_for_arguments
+from src.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder, TrajectoryRecorderConfig
+from src.telemetry.run_context import RunContext
 from src.tools.parser import ToolParser
 from src.tools.schema_generator import ToolRegistry
 
