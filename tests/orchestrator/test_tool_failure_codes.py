@@ -17,9 +17,7 @@ from src.config.schema_config import SchemaConfig
 from src.core.failure_codes import FailureReasonCode
 from src.core.provider_failure_element import ProviderFailure, ProviderFailureInput
 from src.core.provider_failure_kind import ProviderFailureKind
-from src.core.telemetry import RunContext, TelemetryMode, TrajectoryEventType, TrajectoryRecorder
-from src.core.telemetry.models import TrajectoryEvent
-from src.core.telemetry.recorder import TrajectoryRecorderConfig
+from src.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 from src.data.market_data import HistoricalMarketData, MarketDataContext
@@ -31,6 +29,8 @@ from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, Orchest
 from src.orchestrator.reliability import CircuitBreaker
 from src.orchestrator.types import ToolCallRequest, ToolCallResult
 from src.reporting.failure_envelope import failure_envelope
+from src.telemetry.recorder import TrajectoryRecorder, TrajectoryRecorderConfig
+from src.telemetry.run_context import RunContext
 from src.tools.parser import ToolParser
 
 

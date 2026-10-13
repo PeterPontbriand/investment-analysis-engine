@@ -17,7 +17,6 @@ from src.core.failure_classification import classify_failure
 from src.core.failure_codes import PROVIDER_FAILURE_CODES, FailureReasonCode
 from src.core.operator_errors import InvalidParameterError
 from src.core.provider_failure_kind import ProviderFailureKind
-from src.core.telemetry.quality import record_cli_quality
 from src.data.base_client import DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.financial.cache import ResolvedInputSeriesCacheProtocol
@@ -36,6 +35,7 @@ from src.data.yfinance.client import YFINANCE_HISTORICAL_INTERVAL, YFINANCE_PRIC
 from src.reporting.documents.failure import FailureEnvelope
 from src.reporting.failure_envelope import failure_envelope
 from src.reporting.presentation import PresentationMode, failure_document
+from src.telemetry.quality import record_cli_quality
 from src.workspace.capture import ExecutionCapture
 from src.workspace.selection_base import FrozenSelection
 

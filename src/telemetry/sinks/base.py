@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from src.core.telemetry.models import TrajectoryEvent
+from src.core.trajectory_events import TrajectoryEvent
 
 
 class TrajectorySink(Protocol):

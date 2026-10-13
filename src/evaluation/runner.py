@@ -11,12 +11,7 @@ from typing import Final
 from uuid import UUID
 
 from src.core.strategy_errors import UndeclaredStrategyError, require, undeclared
-from src.core.telemetry import (
-    TrajectoryErrorRecord,
-    TrajectoryEventType,
-    TrajectoryRecord,
-    TrajectoryRecorder,
-)
+from src.core.trajectory_events import TrajectoryEventType
 from src.evaluation.composition import dispatch_fixture_case
 from src.evaluation.evaluator import (
     evaluate_domain_outcomes,
@@ -43,6 +38,7 @@ from src.evaluation.reporting import (
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.orchestrator.types import ToolCallResult
 from src.strategy_wiring import BY_RESULT_TYPE, tool_for_arguments
+from src.telemetry.recorder import TrajectoryErrorRecord, TrajectoryRecord, TrajectoryRecorder
 from src.workspace.strategy_types import NativeEvidence
 
 logger = logging.getLogger(__name__)

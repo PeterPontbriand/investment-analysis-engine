@@ -9,8 +9,7 @@ import pytest
 
 from src.core.constants import TrendStatus
 from src.core.metric_result import MetricStatus, ReasonCode
-from src.core.telemetry import RunContext, TrajectoryRecorder
-from src.core.telemetry.models import TrajectoryEvent
+from src.core.trajectory_events import TrajectoryEvent
 from src.evaluation.cases.momentum import (
     MOMENTUM_ARGUMENTS,
     MOMENTUM_BOUNDARY_CASE,
@@ -32,6 +31,8 @@ from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_su
 from src.orchestrator.tool_names import ToolName
 from src.strategies.momentum.analyzer import MomentumRun
 from src.strategies.momentum.tool import MomentumToolArguments
+from src.telemetry.recorder import TrajectoryRecorder
+from src.telemetry.run_context import RunContext
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("30000000-0000-0000-0000-000000000003")

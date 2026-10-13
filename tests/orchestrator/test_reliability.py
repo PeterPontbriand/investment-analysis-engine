@@ -12,18 +12,18 @@ from pydantic import ValidationError
 from src.config import ProjectSettings
 from src.config.reliability_limits import ReliabilityLimits
 from src.config.schema_config import SchemaConfig
-from src.core.telemetry import TrajectoryEventType
+from src.core.trajectory_events import TrajectoryEventType
 from src.orchestrator.loop import OrchestratorConfig
 from src.orchestrator.reliability import (
     CircuitBreaker,
     CircuitSnapshot,
     CircuitState,
-    RecentEventSummary,
     ReliabilityFailure,
     ReliabilityLimitReachedError,
     ReliabilityTripReason,
     SystemMonotonicClock,
 )
+from src.telemetry.recent_events import RecentEventSummary
 
 
 @dataclass

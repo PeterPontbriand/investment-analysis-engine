@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TextIO
 
-from src.core.telemetry.models import TrajectoryEvent
+from src.core.trajectory_events import TrajectoryEvent
 
 
 class JSONLTrajectorySink:

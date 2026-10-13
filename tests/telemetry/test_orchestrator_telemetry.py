@@ -8,13 +8,14 @@ from typing import Any, cast
 import pytest
 
 from src.config.schema_config import SchemaConfig
-from src.core.telemetry import RunContext, TrajectoryRecorder
-from src.core.telemetry.models import TrajectoryEvent
-from src.core.telemetry.sinks import JSONLTrajectorySink
+from src.core.trajectory_events import TrajectoryEvent
 from src.llm.client import LLMClient, LLMGenerateResult
 from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
+from src.telemetry.recorder import TrajectoryRecorder
+from src.telemetry.run_context import RunContext
+from src.telemetry.sinks.jsonl import JSONLTrajectorySink
 from src.tools.parser import ParsedToolCall, ToolParser
 
 

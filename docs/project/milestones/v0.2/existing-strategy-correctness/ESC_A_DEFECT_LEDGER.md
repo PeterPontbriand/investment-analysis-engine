@@ -278,3 +278,12 @@ Any of (ii) and (iii) changes a classification for an input no real filing produ
 
 **Finding and fix (SWC.4e, 2026-10-12; closed):** each direct command validates the strict selection where it validated the permissive configuration, so a non-finite override reports `Invalid --eps: Financial override must be a finite number.` (and the equivalents for the other options), `invalid_parameter`, exit 1, before any analysis. See [B.15](../swc/SWC_CONTRACT_AND_SLICE_PLAN.md#b15-swc4e-the-direct-graham-commands-reject-an-unsupported-provider-2026-10-11). Tests: the `SUP-9` rows and the parity test in `tests/test_command_validation_failures.py`.
 
+### ESC-31 — The TTM EPS basis is reachable only from tests and evaluation fixtures
+
+**Scope/severity:** Graham Number and Graham Growth, the `ttm` EPS basis; low; found in SWC.4e. **Tracking:** [issue #126](https://github.com/PeterPontbriand/investment-analysis-engine/issues/126). Planned: work package 12B ([plan section](EXISTING_STRATEGY_CORRECTNESS_PLAN.md#esc-ttm--remove-the-unreachable-ttm-eps-basis)).
+
+**Evidence (issue #126):** with SEC EDGAR the only supported security-fact provider, no production path can run with the `ttm` basis. The direct commands and the watchlist and refresh paths use selections that accept only `three_year_average` (Graham Number) or `three_year_average` and `fiscal_year` (Graham Growth); `build_graham_resolver` raises for any provider but `sec_edgar`; `default_eps_basis_for_provider` returns `ttm` only for a provider id that is not `sec_edgar`; the tool handlers are built only from the Golden fixture context. The Golden TTM cases are the only callers that pass `eps_basis="ttm"`.
+
+**Expected contract (answered by the project owner, 2026-10-13):** remove the TTM basis, because no production path can reach it. No formula changes.
+
+**Finding and fix:** pending; work package 12B, after LAY.8 and before PKG.

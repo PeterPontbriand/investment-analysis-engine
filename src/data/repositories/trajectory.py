@@ -8,7 +8,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert
 
-from src.core.telemetry.models import TrajectoryEvent
+from src.core.trajectory_events import TrajectoryEvent
 from src.data.repositories.schema import schema_metadata, trajectory_events
 from src.data.repositories.sqlite import SQLiteDatabase
 

@@ -10,13 +10,14 @@ from alembic.config import Config
 
 from alembic import command
 from src.config import ProjectSettings
-from src.core.telemetry import RunContext, TrajectoryRecorder
-from src.core.telemetry.models import TrajectoryEvent
-from src.core.telemetry.quality import record_cli_quality, record_quality
-from src.core.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory
+from src.core.trajectory_events import TrajectoryEvent
 from src.data.quality import QualityContext, QualityDecision, QualityOutcome
 from src.data.quality_reporting import publish_quality, quality_observer
 from src.data.repositories import SQLiteDatabase
+from src.telemetry.quality import record_cli_quality, record_quality
+from src.telemetry.recorder import TrajectoryRecorder
+from src.telemetry.run_context import RunContext
+from src.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory
 
 
 def decision() -> QualityDecision:
@@ -135,7 +136,7 @@ def test_cli_quality_uses_existing_run_and_closes_lazily(monkeypatch: pytest.Mon
         if close_fails:
             raise RuntimeError("close unavailable")
 
-    monkeypatch.setattr("src.core.telemetry.quality.get_current_run_context", lambda: context)
+    monkeypatch.setattr("src.telemetry.quality.get_current_run_context", lambda: context)
     monkeypatch.setattr(TrajectoryRecorder, "from_settings", factory)
     monkeypatch.setattr(recorder, "close", close)
     with record_cli_quality():
@@ -149,6 +150,6 @@ def test_cli_quality_uses_existing_run_and_closes_lazily(monkeypatch: pytest.Mon
 
 
 def test_cli_without_run_context_does_not_invent_a_trajectory(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("src.core.telemetry.quality.get_current_run_context", lambda: None)
+    monkeypatch.setattr("src.telemetry.quality.get_current_run_context", lambda: None)
     with record_cli_quality():
         publish_quality((decision(),))

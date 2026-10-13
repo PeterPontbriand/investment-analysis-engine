@@ -8,8 +8,7 @@ from uuid import UUID
 import pytest
 
 from src.core.analysis_status import CalculationStatus
-from src.core.telemetry import RunContext, TrajectoryRecorder
-from src.core.telemetry.models import TrajectoryEvent
+from src.core.trajectory_events import TrajectoryEvent
 from src.evaluation.cases.fcf_growth import (
     FCF_01,
     FCF_02,
@@ -35,6 +34,8 @@ from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_su
 from src.orchestrator.tool_names import ToolName
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, MetricStatus, ReasonCode
 from src.strategies.fcf_growth.vocabulary import Classification, TrendClassification
+from src.telemetry.recorder import TrajectoryRecorder
+from src.telemetry.run_context import RunContext
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("d0000000-0000-0000-0000-00000000000d")

@@ -6,11 +6,11 @@ from contextlib import contextmanager
 from dataclasses import asdict
 from uuid import UUID, uuid4
 
-from src.core.telemetry.models import TrajectoryEventType
-from src.core.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
-from src.core.telemetry.run_context import get_current_run_context
+from src.core.trajectory_events import TrajectoryEventType
 from src.data.quality import QualityDecision
 from src.data.quality_reporting import quality_observer
+from src.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
+from src.telemetry.run_context import get_current_run_context
 
 logger = logging.getLogger(__name__)
 

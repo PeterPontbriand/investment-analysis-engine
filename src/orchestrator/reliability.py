@@ -11,6 +11,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.config.reliability_limits import ReliabilityLimits
+from src.telemetry.recent_events import RecentEventSummary
 
 
 class ReliabilityTripReason(StrEnum):
@@ -30,17 +31,6 @@ class CircuitState(StrEnum):
 
     CLOSED = "closed"
     TRIPPED = "tripped"
-
-
-class RecentEventSummary(BaseModel):
-    """Sanitized trajectory metadata safe to include in terminal diagnostics."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    sequence: int = Field(ge=1)
-    event_type: str = Field(min_length=1)
-    component: str = Field(min_length=1)
-    step_index: int | None = Field(default=None, ge=1)
 
 
 class ReliabilityFailure(BaseModel):

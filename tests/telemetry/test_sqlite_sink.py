@@ -15,14 +15,16 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 from alembic import command
 from src.config import ProjectSettings
-from src.core.telemetry import recorder as recorder_module
-from src.core.telemetry.models import TelemetryMode, TrajectoryEvent, TrajectoryEventType
-from src.core.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
-from src.core.telemetry.run_context import RunContext
-from src.core.telemetry.sinks import JSONLTrajectorySink, SQLiteTrajectorySink, TrajectorySink, read_trajectory
+from src.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
 from src.data.repositories.schema import schema_metadata, trajectory_events
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.repositories.trajectory import SQLiteTrajectoryRepository
+from src.telemetry import recorder as recorder_module
+from src.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
+from src.telemetry.run_context import RunContext
+from src.telemetry.sinks.base import TrajectorySink
+from src.telemetry.sinks.jsonl import JSONLTrajectorySink
+from src.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory
 
 
 def test_repository_and_sink_share_immutable_storage(
@@ -94,7 +96,7 @@ def test_repository_preserves_write_and_read_encoding_policy(
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'telemetry.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))

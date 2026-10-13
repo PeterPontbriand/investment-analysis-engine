@@ -12,8 +12,8 @@ import pytest
     [
         "src.data.repositories",
         "src.data.repositories.trajectory",
-        "src.core.telemetry",
-        "src.core.telemetry.sinks.sqlite",
+        "src.telemetry",
+        "src.telemetry.sinks.sqlite",
     ],
 )
 def test_repository_and_telemetry_import_order(first_module: str) -> None:
@@ -21,7 +21,7 @@ def test_repository_and_telemetry_import_order(first_module: str) -> None:
         f"import {first_module}\n"
         "from src.data.repositories import SQLiteTrajectoryRepository\n"
         "from src.data.repositories.trajectory import SQLiteTrajectoryRepository as direct\n"
-        "from src.core.telemetry.sinks import SQLiteTrajectorySink, read_trajectory\n"
+        "from src.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory\n"
         "assert SQLiteTrajectoryRepository is direct\n"
     )
     result = subprocess.run(

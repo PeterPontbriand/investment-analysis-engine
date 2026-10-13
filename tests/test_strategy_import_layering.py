@@ -63,16 +63,13 @@ _RESTRICTED_MODULES = MappingProxyType(
 # Each tier's report name and the one strategy role it may import.
 _TIER_ROLES = MappingProxyType({_TIER: ("evaluation tier", "evaluation"), _CLI_TIER: ("CLI tier", "cli")})
 _TRANSITIONS: set[tuple[str, str, str]] = set()
-# Re-exporting package initializers that sit in an import cycle. They belong to nine components: the
-# telemetry component also holds the ``src.core.telemetry.sinks`` and ``src.data.repositories`` initializers.
+# Package initializers that sit in an import cycle. They belong to seven components, one each.
 _BENIGN_CYCLE_PACKAGES = frozenset(
     {
         "src.config",
         "src.data.sec_edgar",
         "src.data.yfinance",
         "src.schema",
-        "src.core.telemetry",
-        "src.core.telemetry.sinks",
         "src.data.repositories",
         "src.evaluation",
         "src.evaluation.fixtures",

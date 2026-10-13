@@ -106,7 +106,7 @@ Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-r
 
 - Use the project's operational logging conventions for human-readable diagnostics.
 - Do not introduce a second logging framework as part of unrelated work.
-- Structured trajectory telemetry under `src/core/telemetry/` is a separate machine-readable concern.
+- Structured trajectory telemetry under `src/telemetry/` is a separate machine-readable concern.
 - Telemetry must fail open and must not alter business execution semantics.
 - Never persist secrets in telemetry payloads.
 

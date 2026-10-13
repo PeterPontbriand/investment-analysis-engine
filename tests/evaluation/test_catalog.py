@@ -8,8 +8,7 @@ from uuid import UUID
 
 import pytest
 
-from src.core.telemetry import RunContext, TrajectoryRecorder
-from src.core.telemetry.models import TrajectoryEvent
+from src.core.trajectory_events import TrajectoryEvent
 from src.evaluation import catalog
 from src.evaluation.cases.fcf_growth import FCF_GROWTH_ARGUMENTS, FCF_GROWTH_CASES
 from src.evaluation.cases.graham_growth import GRAHAM_GROWTH_ARGUMENTS, GRAHAM_GROWTH_CASES
@@ -31,6 +30,8 @@ from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
 from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
 from src.strategies.graham_number.tool import GrahamNumberToolArguments
 from src.strategies.momentum.tool import MomentumToolArguments
+from src.telemetry.recorder import TrajectoryRecorder
+from src.telemetry.run_context import RunContext
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("f0000000-0000-0000-0000-00000000000f")
