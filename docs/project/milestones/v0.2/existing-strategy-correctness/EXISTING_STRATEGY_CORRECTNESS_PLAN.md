@@ -57,6 +57,19 @@ Ledger item found after ESC-E, resolved by SWC.4e on 2026-10-12: [ESC-30](ESC_A_
 - **Branch:** `audit/esc-e-renewal`.
 - **Detail:** [ESC_E_RENEWAL_PLAN.md](ESC_E_RENEWAL_PLAN.md).
 
+### ESC-TTM — Remove the unreachable TTM EPS basis
+
+- **Problem:** with SEC EDGAR the only supported security-fact provider, no production path can run Graham Number or
+  Graham Growth with the `ttm` EPS basis; only tests and the evaluation fixtures reach it
+  ([issue #126](https://github.com/PeterPontbriand/investment-analysis-engine/issues/126),
+  [ESC-31](ESC_A_DEFECT_LEDGER.md#esc-31--the-ttm-eps-basis-is-reachable-only-from-tests-and-evaluation-fixtures)).
+- **Decision:** the project owner decided on 2026-10-13 to remove the TTM basis. No formula changes.
+- **Scope:** the `ttm` literal in the Graham configurations, selections and tool arguments; the non-SEC default in
+  `default_eps_basis_for_provider`; the resolver and presenter handling; the Golden TTM cases; their tests and
+  documents. It runs after LAY.8 and before PKG.
+- **Branch:** `refactor/esc-ttm-removal`, from `main` after LAY.8.
+- **Detail:** ⚠ no slice plan yet
+
 ## 1. Scope and outcomes
 
 Audit the four existing public analyses: Graham Number (`graham-number`), Graham Growth (`graham-growth`), Momentum (`momentum`), and FCF/Earnings Growth (`fcf-growth`). Graham's two methods remain distinct analyses within one strategy family; this work does not change the strategy architecture.

@@ -89,6 +89,7 @@ sequencing meaning.
 | 13 | [Provider health (PH)](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-11 |
 | 12 | [Strategy wiring consolidation (SWC)](swc/SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
 | 12A | [Package layering (LAY)](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
+| 12B | [Remove the unreachable TTM EPS basis](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md#esc-ttm--remove-the-unreachable-ttm-eps-basis) | Planned | |
 | 14 | [`src` package rename (PKG)](pkg/PKG_RENAME_PLAN.md) | Planned | |
 | 15 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
 | 16 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |

@@ -96,7 +96,7 @@ def test_repository_preserves_write_and_read_encoding_policy(
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'telemetry.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))

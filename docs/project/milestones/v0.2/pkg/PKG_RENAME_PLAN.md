@@ -45,7 +45,11 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
   `src/schema/`, `src/evaluation/fixtures/`, `src/data/yfinance/`, `src/evaluation/` and `src/data/sec_edgar/`
   (checked against the code at LAY.3; re-check when the slice starts, because LAY.4 moves two files,
   `analysis_runs.py` and `watchlists.py`, out of `src/data/repositories/`); every importer of a name they
-  re-export, including test patch targets; and `_BENIGN_CYCLE_PACKAGES`.
+  re-export, including test patch targets; `_BENIGN_CYCLE_PACKAGES`; and tests locate the repository root through
+  one shared constant instead of counting `Path(__file__).parents[N]`. Search used on 2026-10-13: a literal
+  search for `parents[` followed by a digit and `]` under `tests/` (`git grep -n "parents\[[0-9]\]" -- tests`) finds
+  50 lines in 40 files; another 15 lines under `tests/` spell the same count as `.parent.parent`. A test moved one
+  directory (LAY.3) broke on its count, which is why this slice replaces them.
 - **Branch:** `refactor/pkg-1-one-home-per-name`, from `main` after LAY.8 and SWC.7, before PKG.2.
 - **Detail:** ⚠ no slice plan yet
 
