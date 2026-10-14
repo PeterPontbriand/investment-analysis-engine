@@ -97,6 +97,11 @@ A point-in-time market price used for current valuation comparison. For an analy
 
 The report calls this the latest available quote. Retrieval time records when the provider response was obtained; market observation time records when the market price was observed, if actually supplied. A five-minute response-reuse bound does not prove that the underlying trade is five minutes old. The current Yahoo adapter retains retrieval time and explicitly reports unknown market observation time.
 
+### Ticker
+The short symbol that identifies a security on an exchange, such as `KO` for The Coca-Cola Company. Commands
+take a ticker to name the security to analyze. A ticker is not permanent identity: it can be reassigned after a
+delisting (see [Security Identity](#security-identity)).
+
 ### Security Identity
 Best-effort descriptive metadata that associates a ticker with an instrument name and, when available, listing venue and issuer/instrument identifiers at a recorded resolution time. A ticker is not permanent identity and may be reused. Missing identity metadata never changes a financial result, and historical Analysis Runs retain their original identity snapshot rather than silently re-resolving the ticker later.
 
@@ -302,6 +307,12 @@ The no-growth earnings multiple used as a configurable constant in the selected 
 
 ### Growth Multiplier (`growth_multiplier`)
 The configurable constant multiplying `g` inside the growth-value formula. The initial conventional value is `2.0`.
+
+### Valuation
+Estimating what a security may be worth under a stated method and assumptions, usually to compare with its
+market price. In Investment Analysis Engine a valuation result is one method’s reference value, such as the
+Graham Number’s maximum indicated price, not a complete intrinsic-value conclusion or a recommendation (see
+[Intrinsic Value](#intrinsic-value) and [Reference Value](#reference-value)).
 
 ### Intrinsic Value
 An estimate of what an investment is economically worth based on a stated model and assumptions, rather than its current market price. Different models can produce different intrinsic-value estimates. Investment Analysis Engine avoids using this term without qualification for the Graham Number.

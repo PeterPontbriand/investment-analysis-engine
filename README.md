@@ -2,15 +2,15 @@
 
 > **Deterministic investment analysis with provenance-aware financial data — built for agents, usable from the CLI.**
 
+**New to financial analysis?** You’re not alone. Start with the [plain-language beginner guide](docs/user/BEGINNER_GUIDE.md) to learn what this project measures, how its analyses fit together, and what its results can—and can’t—tell you.
+
 Investment Analysis Engine performs quantitative investment research for investors and for the scripts and AI agents they use, **without treating an AI model as a calculator or an oracle**. Financial calculations are performed by deterministic Python [analysis strategies](docs/user/GLOSSARY.md#analysis-strategy); financial values retain [provenance](docs/user/GLOSSARY.md#provenance), measurement basis, and time boundaries so that a result can be inspected rather than merely accepted.
 
-The [Analysis Strategy Guides](docs/user/strategies/README.md) describe available analytical capabilities, their inputs, data sources, and limitations. Every result is typed and structured so it can be consumed by a script, an agent, or a person reading the terminal directly. Local [LLM](docs/user/GLOSSARY.md#llm-large-language-model) tool-calling through Ollama currently exists as an internal evaluation harness (see the `evaluate` command) rather than a general-purpose assistant workflow; where it is user-facing, AI may help select, organize, or explain [typed evidence](docs/user/GLOSSARY.md#typed-evidence), but it does not perform financial arithmetic or silently invent missing values.
+The [Analysis Strategy Guides](docs/user/strategies/README.md) describe available analytical capabilities, their inputs, data sources, and limitations. Every result is typed and structured so it can be consumed by a script, an agent, or a person reading the terminal directly. AI may help select, organize, or explain [typed evidence](docs/user/GLOSSARY.md#typed-evidence), but it never performs financial arithmetic or invents missing values; see [How AI fits](#how-ai-fits--and-where-it-does-not).
 
 **Status:** Active development — pre-v1.0.
 
 > Investment Analysis Engine is research/educational software, not investment advice. See [Limitations & disclaimer](#limitations--disclaimer).
-
-**New to financial analysis?** You’re not alone. Start with the [plain-language beginner guide](docs/user/BEGINNER_GUIDE.md) to learn what this project measures, how its analyses fit together, and what its results can—and can’t—tell you.
 
 ---
 
@@ -41,7 +41,13 @@ Limitation: The Graham Number is a maximum indicated price / screening ceiling, 
 
 Live prices and newly published filings change, so the numbers above are illustrative. When supported provider evidence supplies an instrument name, the heading uses `Instrument Name (TICKER)`; otherwise it safely falls back to the ticker alone. The important part is the shape of the answer: the result names the method, shows the market comparison, identifies the financial basis, summarizes data sources/freshness, and states the method limitation.
 
-Quote responses are reused for at most five minutes by default. This bounds retrieval age, not exchange-trade age: Yahoo's market observation timestamp is not supplied by the current adapter. An expired quote is refreshed automatically; a failed refresh leaves the valuation available but does not substitute the stale quote. `--no-cache` bypasses financial cache reads and writes.
+The current share price — a [quote](docs/user/GLOSSARY.md#current-quote--current-market-price) — comes from
+Yahoo Finance. By default the program reuses a quote for up to five minutes before asking for a fresh one. If a
+fresh price can’t be obtained, the report leaves out the price comparison rather than showing it with an old
+price; the Graham Number itself is still shown. “Market observation time not supplied” in the sample means Yahoo
+doesn’t tell the program when that price was last traded. The [Graham Number Strategy
+Guide](docs/user/strategies/GRAHAM_NUMBER.md) gives the exact timing rules. `--no-cache` makes the program
+fetch fresh data instead of reusing stored copies.
 
 Want to inspect more?
 
@@ -62,7 +68,7 @@ For ordinary usage, see the [Usage Guide](docs/user/USAGE.md). For the formula, 
 Investment Analysis Engine is being built for several overlapping audiences, with investors first:
 
 - **Experienced investors who already maintain spreadsheets, databases, screens, or scripts** and want calculations whose data and assumptions they can challenge, compare, override, and audit.
-- **Experienced investors who are not software specialists** and want a low-friction way to go from a ticker symbol to a useful, intelligible result. The project does not yet have a one-click installer, so the installation guide deliberately assumes very little prior software-development knowledge.
+- **Experienced investors who are not software specialists** and want a low-friction way to go from a [ticker symbol](docs/user/GLOSSARY.md#ticker) to a useful, intelligible result. The project does not yet have a one-click installer, so the installation guide deliberately assumes very little prior software-development knowledge.
 - **New to investing or financial analysis** and looking for an approachable explanation before trying the software? Start with the [Beginner’s Guide](docs/user/BEGINNER_GUIDE.md); no prior financial-analysis background is assumed.
 - **Technically comfortable people learning investing** who want the running software and its documentation to reinforce one another.
 - **AI agents and other programs** that consume typed, provenance-aware results rather than free-form text.
@@ -125,6 +131,11 @@ The core rule is simple: **AI may help reason about structured evidence, but it 
 - Missing financial facts do not silently become zero.
 - Analysis strategies never receive invented financial values from the model.
 - Structured model output is schema-validated rather than trusted as free-form application state.
+
+Today, the project uses a local [LLM](docs/user/GLOSSARY.md#llm-large-language-model) (run through
+[Ollama](https://ollama.com/)) only on a test bench: the `evaluate` command checks how well a local model picks
+the right analysis for a request, using the project's [Golden Suite](docs/EVALUATIONS.md). It is not yet an
+assistant you can talk to. See [Golden Suite evaluation](docs/user/USAGE.md#golden-suite-evaluation).
 
 A GPU is not required for direct deterministic analysis. See [Hardware & Local AI](docs/user/HARDWARE.md) if you want to use optional local-model features.
 
