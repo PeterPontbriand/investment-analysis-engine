@@ -348,12 +348,12 @@ Approved by the project owner for LAY.5.
    unchanged apart from the label in item 5.
 2. No class, function or constant is renamed; `CLI_SECURITY_PROVIDERS` and `CLI_QUOTE_PROVIDERS` keep their names.
 3. One home per name. Nothing is re-exported from `src/workspace/`, whose initializer is not edited; every importer
-   names the new module. The `src/analysis/__init__.py` docstring becomes "The analyzer contract, the
-   strategy-neutral financial-resolution helpers, the selection base and the run-outcome models." and the initializer
-   stays docstring-only.
+   names the new module. The `src/analysis/__init__.py` docstring becomes "The analyzer contract,
+   financial-resolution helpers, selection base and run-outcome models." and the initializer stays docstring-only.
 4. `tests/workspace/test_workspace_models.py` moved to `tests/analysis/test_run_models.py` and changed only in import
    lines.
-5. The label "B1" is removed from the `run_models.py` module docstring ("shared with the selection snapshots").
+5. The label "B1" is removed from the `run_models.py` module docstring ("shared with the selection snapshots"). The cross-reference in the `src/workspace/requests.py` module docstring names the new
+   module path.
 6. A new `tests/analysis/test_selection_base.py` gives `FrozenSelection` tests of its own: 6 cases (the integer
    version accepted; `True`, `1.0` and `"1"` each rejected; a frozen instance; an unknown extra field rejected).
 7. ARCHITECTURE §13: `analysis` owns the selection base and the run-outcome models; `strategies` drops `workspace`
