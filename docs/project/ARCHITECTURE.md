@@ -564,7 +564,7 @@ This table is the single declaration of the top-level units under `src/` and the
 | `cli` | The Typer commands, their production wiring, and the process entry point. | `analysis`, `config`, `core`, `data`, `evaluation`, `llm`, `reporting`, `strategies`, `strategy_wiring`, `telemetry`, `utils`, `workspace` | |
 | `config` | The application settings object and its environment and profile loading, the reliability-limits and schema-enforcement settings shapes it holds, and path validation. | `core` | |
 | `core` | The shared clock, core result and status types, strategy errors, constants, the stable failure codes and the classifier that maps an exception to one, and the trajectory event model. | | |
-| `data` | Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite repositories. | `config`, `core`, `workspace` | `workspace` |
+| `data` | Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite database layer with the provider-data, cache and trajectory repositories. | `config`, `core` | |
 | `evaluation` | The Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting. | `config`, `core`, `data`, `llm`, `orchestrator`, `strategies`, `strategy_wiring`, `telemetry`, `tools`, `workspace` | |
 | `llm` | The local-model client. | `config` | |
 | `orchestrator` | The LLM tool-selection loop, the tool dispatcher and the reliability circuit and failure models, the registration of analysis-tool handlers, and the shared base for tool arguments and handlers. | `config`, `core`, `data`, `llm`, `schema`, `telemetry`, `tools` | |
@@ -575,9 +575,9 @@ This table is the single declaration of the top-level units under `src/` and the
 | `telemetry` | Structured trajectory telemetry for the agent runtime: the recorder, its sinks, redaction, the run context, the quality-decision hook, and the recent-event summary. | `config`, `core`, `data` | |
 | `tools` | The tool registry, tool-argument schema generation, and parsing of tool calls from model output. | | |
 | `utils` | Logging setup. | `config` | |
-| `workspace` | The selection base and the closed selection and native-evidence unions, analysis requests, run capture, watchlists, and refresh. | `analysis`, `core`, `data`, `strategies` | `data`, `strategies` |
+| `workspace` | The selection base and the closed selection and native-evidence unions, analysis requests, run capture, watchlists, refresh, and the run and watchlist repositories. | `analysis`, `core`, `data`, `strategies` | `strategies` |
 
-The provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. Production SQLite persistence is implemented under `src/data/repositories/`; callers consume typed domain objects rather than SQL rows.
+The provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. `data` owns the SQLite database layer (connection, schema, migrations and readiness) and the provider-data, cache and trajectory repositories, under `src/data/repositories/`; `workspace` owns the repositories of its own records, analysis runs and watchlists, under `src/workspace/repositories/`; callers consume typed domain objects rather than SQL rows.
 
 ---
 
@@ -593,6 +593,6 @@ The provider/resolver/cache seams live with the narrowest responsible package ra
 - Do not use operational logger lines as the primary investor-facing result renderer.
 - Do not force heterogeneous strategies into one generic result object merely for presentation.
 - Do not build a daemon, scheduler, proactive-monitoring service, notification system, full-screen TUI, or executive-report generator before the roadmap step that owns it.
-- Keep application persistence SQL in `src/data/repositories/`; migration DDL and test setup/assertion SQL retain their established owners.
+- Keep application persistence SQL in the repositories of `data` (`src/data/repositories/`) and `workspace` (`src/workspace/repositories/`); migration DDL and test setup/assertion SQL retain their established owners.
 - Run Ruff, `mypy --strict`, and pytest according to the active milestone plan.
 - Never read the wall clock directly; use an injected clock (see [*Time and the analysis boundary*](#5-time-and-the-analysis-boundary)).

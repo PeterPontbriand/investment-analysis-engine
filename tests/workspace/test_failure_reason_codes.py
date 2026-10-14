@@ -17,7 +17,6 @@ from src.core.failure_classification import failure_reason_code, provider_failur
 from src.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode
 from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from src.data.instrument_profile import InstrumentKind
-from src.data.repositories.analysis_runs import AnalysisRunConflictError  # noqa: F401 - keeps the import graph warm
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.strategies.fcf_growth.execution import FCFGrowthCapture, from_fcf_growth_capture
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
@@ -41,6 +40,9 @@ from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import execute
 from src.workspace.models import RunOutcome
 from src.workspace.refresh import RefreshJobResult, refresh_watchlist
+from src.workspace.repositories.analysis_runs import (
+    AnalysisRunConflictError,  # noqa: F401 - keeps the import graph warm
+)
 from tests._wiring import failure_text
 from tests.workspace.test_execution import _FakeSink as _ExecutionSink
 from tests.workspace.test_execution import _momentum_native_evidence, _momentum_request

@@ -38,9 +38,9 @@ from src.core.strategy_errors import undeclared
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 from src.data.market_data import NoEligibleObservationsError
-from src.data.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from src.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
 from src.workspace.codecs import InvalidStoredRunError
+from src.workspace.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
 from tests._direct_command_output import _COMMANDS, enter_fixture_providers
 from tests._failure_code_table import _historical_quality_error
