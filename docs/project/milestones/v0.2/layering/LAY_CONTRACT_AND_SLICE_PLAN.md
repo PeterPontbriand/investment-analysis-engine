@@ -314,7 +314,7 @@ Approved by the project owner for LAY.3.
 
 Approved by the project owner for LAY.4.
 
-1. Two files move with `git mv`, and their contents change only in import lines: `src/data/repositories/analysis_runs.py`
+1. Two files move with `git mv`, and their contents are unchanged: `src/data/repositories/analysis_runs.py`
    and `src/data/repositories/watchlists.py` become `src/workspace/repositories/analysis_runs.py` and
    `src/workspace/repositories/watchlists.py`. The new `src/workspace/repositories/__init__.py` holds only a module
    docstring.
