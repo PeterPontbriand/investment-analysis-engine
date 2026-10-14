@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import AwareDatetime, Field, model_validator
 
 from src.analysis.base_analyzer import AnalysisContext
+from src.analysis.selection_base import FrozenSelection
 from src.config import settings
 from src.core.constants import ConfigKeys
 from src.data.instrument_profile import InstrumentProfile
@@ -17,7 +18,6 @@ from src.strategies.momentum.vocabulary import (
     ConfigSchemaVersion,
     MethodId,
 )
-from src.workspace.selection_base import FrozenSelection
 
 
 class MomentumSelection(FrozenSelection):

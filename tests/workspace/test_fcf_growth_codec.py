@@ -6,6 +6,7 @@ from uuid import UUID
 
 import pytest
 
+from src.analysis.run_models import RunOutcome
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
@@ -38,7 +39,6 @@ from src.strategies.fcf_growth.vocabulary import (
 )
 from src.strategy_wiring import EVIDENCE_BY_KEY
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence
-from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun
 from tests._wiring import codecs_with_decode, encode_native
 

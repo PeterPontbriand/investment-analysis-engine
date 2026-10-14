@@ -6,6 +6,7 @@ from uuid import UUID
 
 import pytest
 
+from src.analysis.run_models import RunOutcome
 from src.analysis.shared.financial_resolution import PriceComparison
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
@@ -30,7 +31,6 @@ from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategy_wiring import EVIDENCE_BY_KEY
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence
-from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun
 from tests._wiring import codecs_with_decode, encode_native
 

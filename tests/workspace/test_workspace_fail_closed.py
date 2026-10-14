@@ -7,6 +7,7 @@ from uuid import UUID
 
 import pytest
 
+from src.analysis.run_models import RunOutcome
 from src.cli_workspace import _method_id_for_alias
 from src.core.strategy_errors import UndeclaredStrategyError
 from src.strategies.fcf_growth.selection import FCFGrowthSelection
@@ -17,7 +18,6 @@ from src.strategies.momentum.selection import MomentumSelection
 from src.strategy_wiring import EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY, STRATEGIES, run_spec_for
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence
-from src.workspace.models import RunOutcome
 from src.workspace.refresh import refresh_watchlist
 from src.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
 from src.workspace.strategy_types import NativeEvidence, SelectionMember

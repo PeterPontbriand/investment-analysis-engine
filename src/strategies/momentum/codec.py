@@ -9,8 +9,8 @@ import json
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from src.analysis.run_models import StrictJsonMapping, _validate_json_value
 from src.strategies.momentum.analyzer import MomentumRun
-from src.workspace.models import StrictJsonMapping, _validate_json_value
 
 
 class _MomentumEvidence(BaseModel):

@@ -12,6 +12,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.types import AwareDatetime, FutureDatetime, NaiveDatetime, PastDatetime
 
 from scripts.generate_schemas import DOCUMENTS, expected_schemas
+from src.analysis.run_models import RunOutcome
 from src.cli_provider_check import ProviderCheckFindings
 from src.cli_workspace import _refresh_json, _watchlist_json
 from src.core.failure_codes import FailureReasonCode
@@ -23,7 +24,6 @@ from src.strategies.fcf_growth.selection import FCFGrowthSelection
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.selection import MomentumSelection
-from src.workspace.models import RunOutcome
 from src.workspace.refresh import RefreshJobResult, RefreshSummary
 from src.workspace.runs import Watchlist, WatchlistEntry
 from src.workspace.strategy_types import AnalysisSelection, SelectionMember

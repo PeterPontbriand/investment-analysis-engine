@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
+from src.analysis.run_models import RunOutcome
 from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.instrument_profile import InstrumentKind
@@ -28,7 +29,6 @@ from src.strategies.fcf_growth.models import (
     ForwardEvidence,
 )
 from src.strategies.fcf_growth.vocabulary import Classification, ForwardEvidenceStatus, TrendClassification
-from src.workspace.models import RunOutcome
 
 NOW = datetime(2026, 9, 18, 12, tzinfo=UTC)
 

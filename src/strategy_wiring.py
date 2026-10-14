@@ -16,6 +16,7 @@ from typing import Final, Protocol
 
 from pydantic import BaseModel
 
+from src.analysis.run_models import StrictJsonMapping
 from src.core.strategy_errors import require, undeclared
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.orchestrator.tool_names import ToolName
@@ -88,7 +89,6 @@ from src.strategies.momentum.vocabulary import CONFIG_SCHEMA_VERSION as MOMENTUM
 from src.strategies.momentum.vocabulary import METHOD_ID as MOMENTUM_METHOD_ID
 from src.workspace.codecs import EvidenceCodec, encode_with
 from src.workspace.execution import RunSpec
-from src.workspace.models import StrictJsonMapping
 from src.workspace.strategy_types import NativeEvidence, SelectionMember
 
 

@@ -57,6 +57,7 @@ from datetime import datetime
 from typing import ClassVar, Protocol
 from uuid import UUID, uuid4
 
+from src.analysis.run_models import RunOutcome
 from src.core.clock import utc_now
 from src.core.failure_classification import provider_failure_of_exception
 from src.core.failure_codes import FailureReasonCode
@@ -64,7 +65,6 @@ from src.core.provider_failure_element import ProviderFailure
 from src.core.strategy_errors import require
 from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import AnalysisRunSink, BatchContext, RunSpec, execute
-from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun, Watchlist
 from src.workspace.strategy_types import AnalysisSelection

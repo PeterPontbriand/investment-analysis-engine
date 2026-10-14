@@ -10,9 +10,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.analysis.run_models import RunOutcome
 from src.core.failure_codes import FailureReasonCode
 from src.core.provider_check_element import ProviderCheckItem, require_unique_providers
-from src.workspace.models import RunOutcome
 
 
 class RefreshResultDocument(BaseModel):

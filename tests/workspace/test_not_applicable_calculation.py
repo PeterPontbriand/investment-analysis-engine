@@ -11,6 +11,7 @@ import json
 
 import pytest
 
+from src.analysis.run_models import RunOutcome
 from src.core.analysis_status import CalculationStatus
 from src.strategies.graham_number.execution import (
     GrahamNumberCapture,
@@ -21,7 +22,6 @@ from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategy_wiring import EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import decode_evidence
-from src.workspace.models import RunOutcome
 from src.workspace.refresh import refresh_watchlist
 from tests._strategy_document_output import CASES, run_saved
 from tests._wiring import failure_text

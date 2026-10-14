@@ -11,6 +11,7 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
+from src.analysis.run_models import RunOutcome
 from src.config import ProjectSettings
 from src.data.instrument_profile import InstrumentKind
 from src.data.repositories.sqlite import SQLiteDatabase
@@ -29,7 +30,6 @@ from src.workspace.execution import (
     BatchContext,
     execute,
 )
-from src.workspace.models import RunOutcome
 from src.workspace.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun

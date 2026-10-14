@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
 from src.analysis.base_analyzer import AnalysisContext
+from src.analysis.selection_base import FrozenSelection
 from src.data.instrument_profile import InstrumentProfile
 from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
 from src.strategies.fcf_growth.vocabulary import (
@@ -19,7 +20,6 @@ from src.strategies.fcf_growth.vocabulary import (
     HistoricalHorizon,
     MethodId,
 )
-from src.workspace.selection_base import FrozenSelection
 
 
 class FCFPolicySnapshot(FrozenSelection):

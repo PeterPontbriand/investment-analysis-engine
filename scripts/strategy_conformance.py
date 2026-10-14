@@ -28,6 +28,7 @@ from typer.core import TyperGroup
 
 from scripts.generate_schemas import SCHEMA_DIRECTORY, schema_text, strategy_schema_file
 from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from src.analysis.run_models import RunOutcome
 from src.cli_strategy_wiring import (
     CLI_STRATEGIES,
     CliComposition,
@@ -70,7 +71,6 @@ from src.strategy_wiring import (
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import UnsupportedRunVersionError, decode_evidence
 from src.workspace.execution import execute
-from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
 from src.workspace.strategy_types import NativeEvidence, SelectionMember

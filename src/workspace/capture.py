@@ -2,9 +2,9 @@
 
 from dataclasses import dataclass, field
 
+from src.analysis.run_models import RunOutcome, StrictJsonMapping
 from src.core.provider_failure_element import ProviderFailure
 from src.data.instrument_profile import InstrumentProfile
-from src.workspace.models import RunOutcome, StrictJsonMapping
 from src.workspace.strategy_types import NativeEvidence
 
 

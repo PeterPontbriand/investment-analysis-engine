@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
+from src.analysis.run_models import RunOutcome
 from src.core.analysis_status import CalculationStatus
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 from src.evaluation.fixtures.graham import NOW, SECURITY_ID, FixtureFinancialFactsProvider
@@ -25,7 +26,6 @@ from src.strategies.graham_growth.execution import (
     execute_graham_growth,
 )
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.workspace.models import RunOutcome
 
 _POLICY = GrahamGrowthCalculationPolicy(base_pe=8.5, growth_multiplier=2.0, baseline_aaa_yield=4.4)
 

@@ -7,20 +7,6 @@
 # package initializers the moved file depends on. The destination names marked "decision" in LAY_DESIGN.md §8
 # are the recommendations, not settled. The role rule (L5) is not a move: it is data in scripts/package_graph.py.
 
-# --- L6: the workspace modules strategy core files depend on move beside the analyzer contract. -------------
-
-[[file]]
-path = "src/workspace/selection_base.py"
-unit = "analysis"
-serves = "L6"
-destination = "src/analysis/selection_base.py"
-
-[[file]]
-path = "src/workspace/models.py"
-unit = "analysis"
-serves = "L6"
-destination = "src/analysis/run_models.py"
-
 # --- L7: saved-run replay and the refresh, runs and watchlist documents move up to the workspace side. ------
 
 [[file]]

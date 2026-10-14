@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from src.analysis.base_analyzer import AnalysisContext
+from src.analysis.run_models import RunOutcome
 from src.core.analysis_status import CalculationStatus
 from src.core.failure_classification import failure_reason_code, provider_failure_of
 from src.core.provider_failure_element import ProviderFailure
@@ -42,7 +43,6 @@ from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthResult
 from src.workspace.capture import ExecutionCapture
-from src.workspace.models import RunOutcome
 
 
 @dataclass(frozen=True)

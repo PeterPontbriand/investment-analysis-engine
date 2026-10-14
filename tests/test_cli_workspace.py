@@ -16,6 +16,7 @@ from typer.testing import CliRunner
 
 import src.cli_workspace
 from alembic import command
+from src.analysis.run_models import RunOutcome
 from src.cli import app
 from src.config import ProjectSettings
 from src.data.repositories.schema import analysis_runs
@@ -26,7 +27,6 @@ from src.strategies.momentum.selection import MomentumSelection
 from src.strategy_wiring import run_spec_for
 from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import execute
-from src.workspace.models import RunOutcome
 from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from src.workspace.requests import AnalysisRequest

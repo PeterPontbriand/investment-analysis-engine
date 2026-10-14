@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
+from src.analysis.run_models import RunOutcome
 from src.core.analysis_status import CalculationStatus
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 from src.evaluation.fixtures.graham import NOW, SECURITY_ID, FixtureFinancialFactsProvider
@@ -24,7 +25,6 @@ from src.strategies.graham_number.execution import (
     execute_graham_number,
 )
 from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.workspace.models import RunOutcome
 
 
 def _resolver() -> GrahamNumberInputResolver:

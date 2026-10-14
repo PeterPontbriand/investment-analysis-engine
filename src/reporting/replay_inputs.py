@@ -9,10 +9,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import ClassVar
 
+from src.analysis.run_models import StrictJsonMapping
 from src.core.failure_codes import FailureReasonCode
 from src.data.instrument_profile import InstrumentProfile
 from src.reporting.presentation import PresentationMode
-from src.workspace.models import StrictJsonMapping
 
 
 class UnsupportedProjectionError(ValueError):

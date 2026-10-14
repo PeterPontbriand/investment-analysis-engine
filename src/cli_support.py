@@ -10,6 +10,7 @@ from typing import ClassVar, NoReturn
 import typer
 from pydantic import ValidationError
 
+from src.analysis.selection_base import FrozenSelection
 from src.cli_provider_check import ProviderCheckChoice, echo_provider_check, provider_check_findings
 from src.config import settings
 from src.core.constants import ConfigKeys
@@ -37,7 +38,6 @@ from src.reporting.failure_envelope import failure_envelope
 from src.reporting.presentation import PresentationMode, failure_document
 from src.telemetry.quality import record_cli_quality
 from src.workspace.capture import ExecutionCapture
-from src.workspace.selection_base import FrozenSelection
 
 logger = logging.getLogger(__name__)
 # Without a configured handler (``--no-logging``) Python's last-resort handler would write the logged failure and its

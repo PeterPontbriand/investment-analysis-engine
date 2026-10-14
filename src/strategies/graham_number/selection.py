@@ -7,6 +7,11 @@ from typing import Literal
 from pydantic import AwareDatetime, Field, StrictFloat, field_validator, model_validator
 
 from src.analysis.base_analyzer import AnalysisContext
+from src.analysis.selection_base import (
+    CLI_QUOTE_PROVIDERS,
+    CLI_SECURITY_PROVIDERS,
+    FrozenSelection,
+)
 from src.data.instrument_profile import InstrumentProfile
 from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.graham_number.vocabulary import (
@@ -16,11 +21,6 @@ from src.strategies.graham_number.vocabulary import (
     AnalysisId,
     ConfigSchemaVersion,
     MethodId,
-)
-from src.workspace.selection_base import (
-    CLI_QUOTE_PROVIDERS,
-    CLI_SECURITY_PROVIDERS,
-    FrozenSelection,
 )
 
 GrahamNumberSelectionEPSBasis = Literal["three_year_average"]
