@@ -43,9 +43,9 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID, uuid4
 
+from src.analysis.run_models import StrictJsonMapping
 from src.core.clock import utc_now
 from src.workspace.capture import ExecutionCapture
-from src.workspace.models import StrictJsonMapping
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
 from src.workspace.strategy_types import NativeEvidence

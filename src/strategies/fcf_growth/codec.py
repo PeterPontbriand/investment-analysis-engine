@@ -4,13 +4,13 @@ import json
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from src.analysis.run_models import StrictJsonMapping, _validate_json_value
 from src.strategies.fcf_growth.models import (
     METHOD_VERSION,
     SCHEMA_VERSION,
     FCFEarningsGrowthResult,
 )
 from src.strategies.fcf_growth.vocabulary import ANALYSIS_ID, METHOD_ID
-from src.workspace.models import StrictJsonMapping, _validate_json_value
 
 
 class _FCFEvidence(BaseModel):

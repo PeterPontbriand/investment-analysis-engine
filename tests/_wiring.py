@@ -3,11 +3,11 @@
 from collections.abc import Callable, Mapping
 from dataclasses import replace
 
+from src.analysis.run_models import StrictJsonMapping
 from src.core.failure_classification import classify_failure
 from src.core.strategy_errors import find
 from src.strategy_wiring import BY_METHOD_ID, BY_RESULT_TYPE, EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
 from src.workspace.codecs import EvidenceCodec
-from src.workspace.models import StrictJsonMapping
 from src.workspace.refresh import JobFailure
 from src.workspace.strategy_types import NativeEvidence
 

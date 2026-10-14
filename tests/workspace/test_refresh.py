@@ -10,6 +10,7 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
+from src.analysis.run_models import RunOutcome
 from src.config import ProjectSettings
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
@@ -23,7 +24,6 @@ from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
 from src.strategy_wiring import RUN_SPECS_BY_KEY
 from src.workspace.capture import ExecutionCapture
-from src.workspace.models import RunOutcome
 from src.workspace.refresh import (
     EmptyRefreshTargetError,
     JobFailure,

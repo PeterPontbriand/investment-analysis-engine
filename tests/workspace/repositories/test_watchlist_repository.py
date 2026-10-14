@@ -12,6 +12,7 @@ from alembic.config import Config
 from sqlalchemy import select, text
 
 from alembic import command
+from src.analysis.run_models import RunOutcome
 from src.config import ProjectSettings
 from src.data.repositories.schema import analysis_runs, watchlist_entries, watchlists
 from src.data.repositories.sqlite import SQLiteDatabase
@@ -22,7 +23,6 @@ from src.strategies.momentum.execution import run_momentum
 from src.strategies.momentum.selection import MomentumSelection
 from src.strategy_wiring import RUN_SPECS_BY_KEY
 from src.workspace.capture import ExecutionCapture
-from src.workspace.models import RunOutcome
 from src.workspace.refresh import refresh_watchlist
 from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.workspace.repositories.watchlists import (

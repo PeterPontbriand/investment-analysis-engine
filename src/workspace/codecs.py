@@ -9,9 +9,9 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import ClassVar
 
+from src.analysis.run_models import StrictJsonMapping
 from src.core.failure_codes import FailureReasonCode
 from src.core.strategy_errors import find
-from src.workspace.models import StrictJsonMapping
 from src.workspace.runs import AnalysisRun
 from src.workspace.strategy_types import NativeEvidence
 

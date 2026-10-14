@@ -24,6 +24,7 @@ from uuid import UUID
 import typer
 from pydantic import BaseModel
 
+from src.analysis.run_models import RunOutcome
 from src.cli_provider_check import (
     ProviderCheckFindings,
     echo_provider_check,
@@ -59,7 +60,6 @@ from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategy_wiring import BY_ALIAS, BY_METHOD_ID, EVIDENCE_BY_KEY, REPLAYS_BY_KEY, RUN_SPECS_BY_KEY
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
-from src.workspace.models import RunOutcome
 from src.workspace.refresh import (
     MAX_WORKERS,
     MIN_WORKERS,

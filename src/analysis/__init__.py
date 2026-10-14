@@ -1,1 +1,1 @@
-"""The analyzer contract and the strategy-neutral financial-resolution helpers."""
+"""The analyzer contract, financial-resolution helpers, selection base and run-outcome models."""

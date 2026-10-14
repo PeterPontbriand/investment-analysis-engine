@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.analysis.run_models import RunOutcome
 from src.core.analysis_status import CalculationStatus
 from src.core.failure_classification import failure_reason_code, provider_failure_of
 from src.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode
@@ -38,7 +39,6 @@ from src.strategies.momentum.selection import MomentumSelection
 from src.strategy_wiring import RUN_SPECS_BY_KEY, run_spec_for
 from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import execute
-from src.workspace.models import RunOutcome
 from src.workspace.refresh import RefreshJobResult, refresh_watchlist
 from src.workspace.repositories.analysis_runs import (
     AnalysisRunConflictError,  # noqa: F401 - keeps the import graph warm

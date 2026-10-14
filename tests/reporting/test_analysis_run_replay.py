@@ -9,6 +9,7 @@ from uuid import UUID
 
 import pytest
 
+from src.analysis.run_models import RunOutcome
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
@@ -36,7 +37,6 @@ from src.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import decode_evidence
 from src.workspace.execution import execute
-from src.workspace.models import RunOutcome
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
 from tests._wiring import encode_native

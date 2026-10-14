@@ -2,7 +2,7 @@
 
 An :class:`AnalysisRequest` binds a normalized ticker to one immutable per-method selection. The
 selection classes live in each strategy's ``selection`` module, their shared base and the provider
-vocabulary in :mod:`src.workspace.selection_base`, and the closed selection union in
+vocabulary in :mod:`src.analysis.selection_base`, and the closed selection union in
 :mod:`src.workspace.strategy_types`. Selection variants freeze one method's effective configuration at
 creation time: defaults are materialized from the current configured policy or explicit caller inputs,
 unknown fields are rejected, non-finite financial values are rejected, and later changes to settings or
@@ -22,7 +22,7 @@ validation time.
 
 from pydantic import field_validator
 
-from src.workspace.selection_base import FrozenSelection
+from src.analysis.selection_base import FrozenSelection
 from src.workspace.strategy_types import AnalysisSelection
 
 

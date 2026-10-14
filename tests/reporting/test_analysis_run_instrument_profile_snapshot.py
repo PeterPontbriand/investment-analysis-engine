@@ -17,6 +17,7 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
+from src.analysis.run_models import RunOutcome
 from src.config import ProjectSettings
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
@@ -39,7 +40,6 @@ from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
 from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import execute
-from src.workspace.models import RunOutcome
 from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.workspace.requests import AnalysisRequest
 

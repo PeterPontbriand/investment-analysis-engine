@@ -7,8 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
+from src.analysis.run_models import RunOutcome
 from src.reporting.documents.timestamp import DocumentTimestamp
-from src.workspace.models import RunOutcome
 
 
 class RunSummaryDocument(BaseModel):

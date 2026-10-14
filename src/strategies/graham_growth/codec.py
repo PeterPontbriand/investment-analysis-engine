@@ -4,10 +4,10 @@ import json
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from src.analysis.run_models import StrictJsonMapping, _validate_json_value
 from src.core.analysis_status import CalculationStatus
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
 from src.strategies.graham_growth.vocabulary import METHOD_ID
-from src.workspace.models import StrictJsonMapping, _validate_json_value
 
 
 class _GrowthEvidence(BaseModel):

@@ -25,6 +25,7 @@ from typer.testing import CliRunner
 
 import src.cli_run_support
 from alembic import command
+from src.analysis.run_models import RunOutcome
 from src.cli import app
 from src.config import ProjectSettings
 from src.config import settings as real_settings
@@ -38,7 +39,6 @@ from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profil
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from src.strategies.momentum.selection import MomentumSelection
-from src.workspace.models import RunOutcome
 from src.workspace.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from src.workspace.runs import RunQuery
 from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_cli_output  # noqa: F401

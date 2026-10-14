@@ -11,6 +11,7 @@ from alembic.config import Config
 from sqlalchemy import delete, select, update
 
 from alembic import command
+from src.analysis.run_models import RunOutcome
 from src.config import ProjectSettings
 from src.data.instrument_profile import InstrumentKind
 from src.data.repositories.schema import (
@@ -21,7 +22,6 @@ from src.data.repositories.schema import (
 )
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from src.workspace.models import RunOutcome
 from src.workspace.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from src.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from src.workspace.runs import AnalysisRun, RunQuery

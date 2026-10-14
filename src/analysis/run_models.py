@@ -4,7 +4,7 @@ This module owns only the shared value types referenced by the run/watchlist
 envelope models in :mod:`src.workspace.runs`: the terminal outcome enum, a strict
 recursive JSON value type that rejects non-finite numbers and non-primitives, an
 inclusive date boundary, and the frozen/extra-forbid base convention shared with
-the B1 selection snapshots. It performs no persistence, codec, or analysis work.
+the selection snapshots. It performs no persistence, codec, or analysis work.
 """
 
 import math

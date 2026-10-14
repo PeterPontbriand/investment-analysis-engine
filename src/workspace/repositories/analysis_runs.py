@@ -19,10 +19,10 @@ from pydantic import TypeAdapter
 from sqlalchemy import and_, select, true
 from sqlalchemy.exc import IntegrityError
 
+from src.analysis.run_models import RunOutcome
 from src.core.failure_codes import FailureReasonCode
 from src.data.repositories.schema import analysis_runs
 from src.data.repositories.sqlite import SQLiteDatabase
-from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun, AnalysisRunSummary, RunQuery
 
 _ENVELOPE_ADAPTER: TypeAdapter[AnalysisRun] = TypeAdapter(AnalysisRun)

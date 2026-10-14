@@ -35,8 +35,8 @@ work-package status. The design, the proof and the owner decisions are in [LAY_D
 | LAY.2 | [Configuration becomes a package and a base layer](#lay2--configuration-package-and-base-layer) | Complete | 2026-10-12 |
 | LAY.3 | [Telemetry leaves core](#lay3--telemetry-package) | Complete | 2026-10-13 |
 | LAY.4 | [Run and watchlist repositories move to the workspace side](#lay4--repositories) | Complete | 2026-10-13 |
-| LAY.5 | [Selection base and run-outcome models move beside the analyzer contract](#lay5--contract-modules) | Next | |
-| LAY.6 | [Saved-run replay and workspace documents move up](#lay6--workspace-documents) | Planned | |
+| LAY.5 | [Selection base and run-outcome models move beside the analyzer contract](#lay5--contract-modules) | Complete | 2026-10-14 |
+| LAY.6 | [Saved-run replay and workspace documents move up](#lay6--workspace-documents) | Next | |
 | LAY.7 | [Momentum receives its defaults when built](#lay7--momentum-wiring) | Planned | |
 | LAY.8 | [Loop-free check, layered listing and closing](#lay8--loop-free-check-and-closing) | Planned | |
 
@@ -123,7 +123,8 @@ later slice is checked against the final definition of a unit.
   the strategies.
 - **Decision:** both modules import nothing from the application and move beside the analyzer contract.
 - **Scope:** the two entries marked `serves = "L6"`; `scripts/strategy_conformance.py` (imports the models); §13 rows.
-  Pairs after: 0; one loop of three units remains.
+  Pairs after: 0; one loop of three units remains. Implementation decisions:
+  [A.10](#a10-lay5-implementation-decisions-2026-10-14).
 - **Branch:** `refactor/lay-5-contract-modules`, from `main` after LAY.4.
 - **Detail:** [LAY_DESIGN.md §7](LAY_DESIGN.md#7-size-of-each-move).
 
@@ -337,3 +338,27 @@ Approved by the project owner for LAY.4.
 9. The file name `watchlists.py` stays, although `src/workspace/watchlists.py` exists; the path tells them apart.
 10. Behavior and stored data are unchanged: no schema change, no migration, no message change. Two-way pairs after the
     slice: `strategies` and `workspace`.
+
+### A.10 LAY.5 implementation decisions (2026-10-14)
+
+Approved by the project owner for LAY.5.
+
+1. Two files move with `git mv`: `src/workspace/selection_base.py` becomes `src/analysis/selection_base.py`, and
+   `src/workspace/models.py` becomes `src/analysis/run_models.py`, as design decision 3 and §7 set out. Contents are
+   unchanged apart from the label in item 5.
+2. No class, function or constant is renamed; `CLI_SECURITY_PROVIDERS` and `CLI_QUOTE_PROVIDERS` keep their names.
+3. One home per name. Nothing is re-exported from `src/workspace/`, whose initializer is not edited; every importer
+   names the new module. The `src/analysis/__init__.py` docstring becomes "The analyzer contract,
+   financial-resolution helpers, selection base and run-outcome models." and the initializer stays docstring-only.
+4. `tests/workspace/test_workspace_models.py` moved to `tests/analysis/test_run_models.py` and changed only in import
+   lines.
+5. The label "B1" is removed from the `run_models.py` module docstring ("shared with the selection snapshots"). The cross-reference in the `src/workspace/requests.py` module docstring names the new
+   module path.
+6. A new `tests/analysis/test_selection_base.py` gives `FrozenSelection` tests of its own: 6 cases (the integer
+   version accepted; `True`, `1.0` and `"1"` each rejected; a frozen instance; an unknown extra field rejected).
+7. ARCHITECTURE §13: `analysis` owns the selection base and the run-outcome models; `strategies` drops `workspace`
+   from Imports and has no two-way entry; `strategy_wiring` adds `analysis` to Imports; `workspace` no longer owns the
+   selection base and has no two-way entry.
+8. Mentions of the old paths in completed plans and evidence documents are history and stay as they are.
+9. Behavior and stored data are unchanged.
+10. Result: no two-way pairs. One loop of three units (`reporting`, `strategies`, `workspace`) is left for LAY.6.
