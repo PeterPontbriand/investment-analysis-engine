@@ -7,38 +7,6 @@
 # package initializers the moved file depends on. The destination names marked "decision" in LAY_DESIGN.md §8
 # are the recommendations, not settled. The role rule (L5) is not a move: it is data in scripts/package_graph.py.
 
-# --- L7: saved-run replay and the refresh, runs and watchlist documents move up to the workspace side. ------
-
-[[file]]
-path = "src/reporting/analysis_runs.py"
-unit = "workspace_documents"
-serves = "L7"
-destination = "src/workspace_documents/analysis_runs.py"
-
-[[file]]
-path = "src/reporting/documents/refresh.py"
-unit = "workspace_documents"
-serves = "L7"
-destination = "src/workspace_documents/refresh.py"
-
-[[file]]
-path = "src/reporting/documents/runs.py"
-unit = "workspace_documents"
-serves = "L7"
-destination = "src/workspace_documents/runs.py"
-
-[[file]]
-path = "src/reporting/documents/watchlist.py"
-unit = "workspace_documents"
-serves = "L7"
-destination = "src/workspace_documents/watchlist.py"
-
-[[file]]
-path = "src/reporting/json_documents.py"
-unit = "workspace_documents"
-serves = "L7"
-destination = "src/workspace_documents/json_documents.py"
-
 # --- Target units: the text of the Owns column of the target package table. -------------------------------
 
 [[unit]]
@@ -83,7 +51,7 @@ owns = "The LLM tool-selection loop, the tool dispatcher and reliability policy,
 
 [[unit]]
 name = "reporting"
-owns = "The presentation helpers the strategy presenters share, the typed models of the shared and failure `--json` documents, and the failure envelope."
+owns = "The presentation helpers the strategy presenters share, the replay-projector contract the strategies implement, the typed models of the `--json` documents no single strategy or workspace command owns and of the parts several documents share, and the failure envelope."
 
 [[unit]]
 name = "strategies"
@@ -99,7 +67,7 @@ owns = "The closed, statically declared list of supported strategies and their s
 
 [[unit]]
 name = "workspace_documents"
-owns = "Saved-run replay and the typed refresh, runs and watchlist documents, with the table of all published `--json` documents."
+owns = "Saved-run replay and the typed refresh, runs and watchlist documents, with the table of the `--json` documents no single strategy owns."
 
 [[unit]]
 name = "evaluation"

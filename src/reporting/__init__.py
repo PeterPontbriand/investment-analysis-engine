@@ -1,1 +1,1 @@
-"""Shared presentation helpers, JSON document models, failure classification, and saved-run replay."""
+"""Presentation helpers, the replay contract, the shared and failure JSON documents, and the failure envelope."""

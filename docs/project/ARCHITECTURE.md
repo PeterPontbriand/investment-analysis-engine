@@ -561,14 +561,14 @@ This table is the single declaration of the top-level units under `src/` and the
 | Package | Owns | Imports | Two-way with |
 | --- | --- | --- | --- |
 | `analysis` | The `BaseAnalyzer` and `AnalysisContext` contract, the strategy-neutral financial-resolution helpers, the selection base, and the run-outcome models. | `core`, `data` | |
-| `cli` | The Typer commands, their production wiring, and the process entry point. | `analysis`, `config`, `core`, `data`, `evaluation`, `llm`, `reporting`, `strategies`, `strategy_wiring`, `telemetry`, `utils`, `workspace` | |
+| `cli` | The Typer commands, their production wiring, and the process entry point. | `analysis`, `config`, `core`, `data`, `evaluation`, `llm`, `reporting`, `strategies`, `strategy_wiring`, `telemetry`, `utils`, `workspace`, `workspace_documents` | |
 | `config` | The application settings object and its environment and profile loading, the reliability-limits and schema-enforcement settings shapes it holds, and path validation. | `core` | |
 | `core` | The shared clock, core result and status types, strategy errors, constants, the stable failure codes and the classifier that maps an exception to one, and the trajectory event model. | | |
 | `data` | Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite database layer with the provider-data, cache and trajectory repositories. | `config`, `core` | |
 | `evaluation` | The Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting. | `config`, `core`, `data`, `llm`, `orchestrator`, `strategies`, `strategy_wiring`, `telemetry`, `tools`, `workspace` | |
 | `llm` | The local-model client. | `config` | |
 | `orchestrator` | The LLM tool-selection loop, the tool dispatcher and the reliability circuit and failure models, the registration of analysis-tool handlers, and the shared base for tool arguments and handlers. | `config`, `core`, `data`, `llm`, `schema`, `telemetry`, `tools` | |
-| `reporting` | The presentation helpers the strategy presenters share, the typed models of the `--json` documents no single strategy owns and of the parts several documents share, the failure envelope, and saved-run replay. | `analysis`, `core`, `data`, `workspace` | |
+| `reporting` | The presentation helpers the strategy presenters share, the replay-projector contract the strategies implement, the typed models of the `--json` documents no single strategy or workspace command owns and of the parts several documents share, and the failure envelope. | `analysis`, `core`, `data` | |
 | `schema` | The structured-output schema constraint and its validation of model output. | `config` | |
 | `strategies` | One package per analysis strategy, each with its analyzer, configuration, result, selection, tool arguments and handler, presenter, CLI command, evaluation fixture composition, replay projector, and `--json` document model, plus the code several strategies share. | `analysis`, `config`, `core`, `data`, `orchestrator`, `reporting` | |
 | `strategy_wiring` | The closed, statically declared list of supported strategies and their shared wiring. | `analysis`, `core`, `orchestrator`, `reporting`, `strategies`, `workspace` | |
@@ -576,6 +576,7 @@ This table is the single declaration of the top-level units under `src/` and the
 | `tools` | The tool registry, tool-argument schema generation, and parsing of tool calls from model output. | | |
 | `utils` | Logging setup. | `config` | |
 | `workspace` | The closed selection and native-evidence unions, analysis requests, run capture, watchlists, refresh, and the run and watchlist repositories. | `analysis`, `core`, `data`, `strategies` | |
+| `workspace_documents` | Saved-run replay and the typed refresh, runs and watchlist documents, with the table of the `--json` documents no single strategy owns. | `analysis`, `core`, `reporting`, `workspace` | |
 
 The provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. `data` owns the SQLite database layer (connection, schema, migrations and readiness) and the provider-data, cache and trajectory repositories, under `src/data/repositories/`; `workspace` owns the repositories of its own records, analysis runs and watchlists, under `src/workspace/repositories/`; callers consume typed domain objects rather than SQL rows.
 

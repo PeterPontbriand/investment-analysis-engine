@@ -51,8 +51,6 @@ from src.orchestrator.analysis_tools import register_analysis_tools
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.tool_names import ToolName
 from src.orchestrator.tool_runtime import AnalysisToolHandler
-from src.reporting.analysis_runs import project_run
-from src.reporting.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
 from src.reporting.presentation import PresentationMode
 from src.reporting.replay_inputs import ReplayInputs, ReplayOptions, UnsupportedProjectionError
 from src.strategy_wiring import (
@@ -74,6 +72,8 @@ from src.workspace.execution import execute
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
 from src.workspace.strategy_types import NativeEvidence, SelectionMember
+from src.workspace_documents.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
+from src.workspace_documents.run_replay import project_run
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _SRC_ROOT = _REPO_ROOT / "src"

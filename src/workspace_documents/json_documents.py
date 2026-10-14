@@ -16,9 +16,9 @@ from pydantic import BaseModel
 from src.reporting.documents.database import DatabaseMaintenanceReport
 from src.reporting.documents.failure import FailureEnvelope
 from src.reporting.documents.health import ProviderHealthDocument
-from src.reporting.documents.refresh import RefreshSummaryDocument
-from src.reporting.documents.runs import RunsListDocument
-from src.reporting.documents.watchlist import WatchlistDeleteDocument, WatchlistDocument
+from src.workspace_documents.refresh import RefreshSummaryDocument
+from src.workspace_documents.runs import RunsListDocument
+from src.workspace_documents.watchlist import WatchlistDeleteDocument, WatchlistDocument
 
 
 @dataclass(frozen=True)

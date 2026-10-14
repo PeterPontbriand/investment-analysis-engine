@@ -81,7 +81,7 @@ def _number(
 
 
 def _growth(status: CalculationStatus, failure: ProviderFailureRecord | None = None) -> GrahamGrowthAnalysis:
-    from tests.reporting.test_analysis_run_replay import _GROWTH_POLICY  # noqa: PLC0415
+    from tests.workspace_documents.test_analysis_run_replay import _GROWTH_POLICY  # noqa: PLC0415
 
     assembly = GrowthValueInputAssembly(status=status, reason="eps: failed", provider_failure=failure)
     return GrahamGrowthAnalysis(
@@ -97,7 +97,7 @@ def _growth(status: CalculationStatus, failure: ProviderFailureRecord | None = N
 
 def _fcf(status: CalculationStatus, failure: ProviderFailureRecord | None = None) -> FCFEarningsGrowthResult:
     from tests._strategy_document_output import _fcf_invalid_input_result  # noqa: PLC0415
-    from tests.reporting import test_analysis_run_replay as replay  # noqa: PLC0415
+    from tests.workspace_documents import test_analysis_run_replay as replay  # noqa: PLC0415
 
     return replace(_fcf_invalid_input_result(replay), execution_status=status, provider_failure=failure)
 

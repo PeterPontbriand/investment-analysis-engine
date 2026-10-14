@@ -435,9 +435,11 @@ def _at_boundary[AnalysisT: (GrahamNumberAnalysis, GrahamGrowthAnalysis)](analys
 
 def stored_runs() -> Iterator[tuple[str, Callable[[], AnalysisRun]]]:
     """Yield ``(name, builder)`` for each shape built as a stored run instead of through a command."""
-    from tests.reporting import test_analysis_run_replay as replay  # noqa: PLC0415 - test helpers, imported late
     from tests.workspace import test_graham_growth_codec as growth_codec  # noqa: PLC0415
     from tests.workspace import test_graham_number_codec as number_codec  # noqa: PLC0415
+    from tests.workspace_documents import (  # noqa: PLC0415 - test helpers, imported late
+        test_analysis_run_replay as replay,
+    )
 
     etf = fixture_known_etf_profile
     yield "momentum-stored-spread", replay._build_run

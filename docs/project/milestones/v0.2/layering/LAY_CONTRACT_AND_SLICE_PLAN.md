@@ -36,8 +36,8 @@ work-package status. The design, the proof and the owner decisions are in [LAY_D
 | LAY.3 | [Telemetry leaves core](#lay3--telemetry-package) | Complete | 2026-10-13 |
 | LAY.4 | [Run and watchlist repositories move to the workspace side](#lay4--repositories) | Complete | 2026-10-13 |
 | LAY.5 | [Selection base and run-outcome models move beside the analyzer contract](#lay5--contract-modules) | Complete | 2026-10-14 |
-| LAY.6 | [Saved-run replay and workspace documents move up](#lay6--workspace-documents) | Next | |
-| LAY.7 | [Momentum receives its defaults when built](#lay7--momentum-wiring) | Planned | |
+| LAY.6 | [Saved-run replay and workspace documents move up](#lay6--workspace-documents) | Complete | 2026-10-14 |
+| LAY.7 | [Momentum receives its defaults when built](#lay7--momentum-wiring) | Next | |
 | LAY.8 | [Loop-free check, layered listing and closing](#lay8--loop-free-check-and-closing) | Planned | |
 
 **Order with the other work packages:** LAY.4 to LAY.8, then 12B (removal of the TTM EPS basis), then PKG.1 and PKG.2,
@@ -135,6 +135,7 @@ later slice is checked against the final definition of a unit.
   (`json_documents.py`, which imports them) move up to a package above `workspace`.
 - **Scope:** the five entries marked `serves = "L7"`; `scripts/generate_schemas.py` and
   `scripts/strategy_conformance.py` (import `json_documents`); §13 rows including a new row. Loops after: 0.
+  Implementation decisions: [A.11](#a11-lay6-implementation-decisions-2026-10-14).
 - **Branch:** `refactor/lay-6-workspace-documents`, from `main` after LAY.5.
 - **Detail:** [LAY_DESIGN.md §7](LAY_DESIGN.md#7-size-of-each-move).
 
@@ -352,8 +353,8 @@ Approved by the project owner for LAY.5.
    financial-resolution helpers, selection base and run-outcome models." and the initializer stays docstring-only.
 4. `tests/workspace/test_workspace_models.py` moved to `tests/analysis/test_run_models.py` and changed only in import
    lines.
-5. The label "B1" is removed from the `run_models.py` module docstring ("shared with the selection snapshots"). The cross-reference in the `src/workspace/requests.py` module docstring names the new
-   module path.
+5. The label "B1" is removed from the `run_models.py` module docstring ("shared with the selection snapshots"). The
+   cross-reference in the `src/workspace/requests.py` module docstring names the new module path.
 6. A new `tests/analysis/test_selection_base.py` gives `FrozenSelection` tests of its own: 6 cases (the integer
    version accepted; `True`, `1.0` and `"1"` each rejected; a frozen instance; an unknown extra field rejected).
 7. ARCHITECTURE §13: `analysis` owns the selection base and the run-outcome models; `strategies` drops `workspace`
@@ -362,3 +363,42 @@ Approved by the project owner for LAY.5.
 8. Mentions of the old paths in completed plans and evidence documents are history and stay as they are.
 9. Behavior and stored data are unchanged.
 10. Result: no two-way pairs. One loop of three units (`reporting`, `strategies`, `workspace`) is left for LAY.6.
+
+### A.11 LAY.6 implementation decisions (2026-10-14)
+
+Approved by the project owner for LAY.6.
+
+1. Five files move with `git mv` into the new flat package `src/workspace_documents/`: `src/reporting/analysis_runs.py`
+   (renamed, item 2), `src/reporting/documents/refresh.py`, `runs.py` and `watchlist.py`, and
+   `src/reporting/json_documents.py`. Contents change only in import lines and in the docstring and comment references
+   to the moved modules. The new `src/workspace_documents/__init__.py` holds only a docstring.
+2. The replay module is renamed `run_replay.py`. It holds only `project_run`, the saved-run replay, and the name keeps
+   it apart from `src/workspace/repositories/analysis_runs.py`, the run repository. This is a third file rename beyond
+   the two LAY_DESIGN §7 lists; LAY_DESIGN.md itself is not edited.
+3. Since LAY.5, `refresh.py` and `runs.py` import only `analysis` and `core`, so the loop would break without them. All
+   three documents still move, because they are the documents the workspace commands write and `cli_workspace.py` is
+   their only `src` user.
+4. One home per name. Nothing is re-exported from `src/reporting/`; every importer names the new module.
+   `src/reporting/documents/__init__.py` is not edited, `_BENIGN_CYCLE_PACKAGES` is unchanged and the new package is
+   not added to it.
+5. `tests/reporting/test_analysis_run_replay.py` and `test_workspace_documents.py` moved to
+   `tests/workspace_documents/`, changing only in import lines (and a path in one failure message).
+   `tests/reporting/test_analysis_run_instrument_profile_snapshot.py` stays, with its import retargeted. No
+   `parents[N]` changed. Three test files outside the original list changed only to follow the moved test module:
+   `tests/analysis/graham_value/test_effective_as_of.py`, `tests/workspace/test_failure_reason_codes.py` and
+   `tests/_strategy_document_output.py` import helpers from `test_analysis_run_replay`, so each import line names
+   `tests.workspace_documents.test_analysis_run_replay`.
+6. The synthetic strings naming `src.reporting.analysis_runs` in `tests/test_strategy_import_layering.py` are made-up
+   input to the edge-check helper, not references to the module, and are left unchanged.
+7. The `src/reporting/__init__.py` docstring becomes "Presentation helpers, the replay contract, the shared and failure
+   JSON documents, and the failure envelope." The old text named "failure classification", which moved to
+   `src/core/failure_classification.py` earlier, and "saved-run replay", which leaves now.
+8. ARCHITECTURE §13: the `reporting` row owns the replay-projector contract and drops `workspace` from Imports; a new
+   `workspace_documents` row follows `workspace`; the `cli` row adds `workspace_documents`. In the move list the five
+   `serves = "L7"` entries are deleted, and the `owns` texts of `reporting` and `workspace_documents` match §13. The
+   old `workspace_documents` text wrongly said "all published" documents; it now says the `--json` documents no single
+   strategy owns.
+9. The link in the P2 profiles plan to the replay module points at `src/workspace_documents/run_replay.py`. Other
+   mentions of the old paths in completed plans and evidence documents are history and stay as they are.
+10. Behavior and stored data are unchanged, including every published JSON schema.
+11. Result: no two-way pairs and no loops. `workspace_documents` sits in the same layer as `strategy_wiring`.

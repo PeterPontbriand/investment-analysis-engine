@@ -16,10 +16,7 @@ from src.analysis.run_models import RunOutcome
 from src.cli_provider_check import ProviderCheckFindings
 from src.cli_workspace import _refresh_json, _watchlist_json
 from src.core.failure_codes import FailureReasonCode
-from src.reporting.documents.refresh import RefreshResultDocument, RefreshSummaryDocument
-from src.reporting.documents.runs import RunsListDocument, RunSummaryDocument
 from src.reporting.documents.timestamp import DocumentTimestamp
-from src.reporting.documents.watchlist import WatchlistDeleteDocument, WatchlistDocument
 from src.strategies.fcf_growth.selection import FCFGrowthSelection
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_number.selection import GrahamNumberSelection
@@ -27,6 +24,9 @@ from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.refresh import RefreshJobResult, RefreshSummary
 from src.workspace.runs import Watchlist, WatchlistEntry
 from src.workspace.strategy_types import AnalysisSelection, SelectionMember
+from src.workspace_documents.refresh import RefreshResultDocument, RefreshSummaryDocument
+from src.workspace_documents.runs import RunsListDocument, RunSummaryDocument
+from src.workspace_documents.watchlist import WatchlistDeleteDocument, WatchlistDocument
 
 _DATETIME_LEAVES: tuple[Any, ...] = (datetime, AwareDatetime, NaiveDatetime, PastDatetime, FutureDatetime)
 _TIMESTAMP_METADATA: tuple[Any, ...] = get_args(DocumentTimestamp)[1:]
@@ -122,7 +122,7 @@ def test_the_watchlist_selection_is_the_analysis_selection_union() -> None:
     selection = schema["$defs"]["WatchlistEntryDocument"]["properties"]["selection"]
     assert "oneOf" in selection, (
         "the entry selection lost its oneOf over the selection models: the selection serializer in "
-        "src/reporting/documents/watchlist.py must stay unannotated, because any return annotation "
+        "src/workspace_documents/watchlist.py must stay unannotated, because any return annotation "
         "makes pydantic drop the union from the generated schema"
     )
     members = {reference["$ref"].rsplit("/", 1)[1] for reference in selection["oneOf"]}

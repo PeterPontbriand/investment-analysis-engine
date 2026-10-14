@@ -15,7 +15,6 @@ from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile, fixture_known_etf_profile
 from src.evaluation.fixtures.market_data import FixtureDataClient
-from src.reporting.analysis_runs import project_run
 from src.reporting.presentation import PresentationMode
 from src.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
 from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, MetricResult
@@ -39,6 +38,7 @@ from src.workspace.codecs import decode_evidence
 from src.workspace.execution import execute
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun
+from src.workspace_documents.run_replay import project_run
 from tests._wiring import encode_native
 from tests.workspace.test_fcf_growth_codec import _result as _fcf_codec_result
 
