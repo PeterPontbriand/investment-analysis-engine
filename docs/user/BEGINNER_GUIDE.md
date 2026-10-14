@@ -2,31 +2,20 @@
 
 You do not need a background in finance to start exploring Investment Analysis Engine. This guide introduces the basic ideas behind the numbers it works with, shows how those numbers become an analysis, and points to deeper explanations. It is an orientation, not an investing course.
 
-## Words you’ll meet first
+## Words you'll meet first
 
 A few everyday investing words appear throughout this guide and the rest of the documentation:
 
-- **Share (stock):** a small unit of ownership in a company. Owning shares means owning a slice of the company;
-  “stock” usually means shares in general.
-- **Stock exchange:** a regulated marketplace where shares of publicly traded companies are bought and sold, such
-  as the New York Stock Exchange.
-- **Ticker symbol:** the short code that identifies a company’s shares on an exchange, such as KO for Coca-Cola.
-  You give the program a [ticker](GLOSSARY.md#ticker) to say which company to analyze.
-- **Market price and quote:** the market price is what shares have recently been bought and sold for. A
-  [quote](GLOSSARY.md#current-quote--current-market-price) is the price a data service reports at a given moment;
-  it changes throughout the trading day.
-- **Valuation:** estimating what a share might be worth by a stated method, usually to compare that estimate with
-  the market price. Different methods give different answers, and no [valuation](GLOSSARY.md#valuation) is a
-  prediction or a recommendation.
-- **Financial report (filing):** a document a company publishes about its finances. In the United States,
-  companies file these reports with the [SEC](GLOSSARY.md#sec).
-- **Fiscal year:** a company’s twelve-month accounting year, which need not match the calendar year. See
-  [fiscal year](GLOSSARY.md#fiscal-year).
-- **Data provider:** a service the program gets information from. This project uses Yahoo Finance for share
-  prices and the SEC’s [EDGAR](GLOSSARY.md#edgar) system for company reports.
+- **Share (stock):** a small unit of ownership in a company. Owning shares means owning a slice of the company; “stock” usually means shares in general.
+- **Stock exchange:** a regulated marketplace where shares of publicly traded companies are bought and sold, such as the New York Stock Exchange.
+- **Ticker symbol:** the short code that identifies a company's shares on an exchange, such as KO for Coca-Cola. You give the program a [ticker](GLOSSARY.md#ticker) to say which company to analyze.
+- **Market price and quote:** the market price is what shares have recently been bought and sold for. A [quote](GLOSSARY.md#current-quote--current-market-price) is the price a data service reports at a given moment; it changes throughout the trading day.
+- **Valuation:** estimating what a share might be worth by a stated method, usually to compare that estimate with the market price. Different methods give different answers, and no [valuation](GLOSSARY.md#valuation) is a prediction or a recommendation.
+- **Financial report (filing):** a document a company publishes about its finances. In the United States, companies file these reports with the [SEC](GLOSSARY.md#sec).
+- **Fiscal year:** a company's twelve-month accounting year, which need not match the calendar year. See [fiscal year](GLOSSARY.md#fiscal-year).
+- **Data provider:** a service the program gets information from. This project uses Yahoo Finance for share prices and the SEC's [EDGAR](GLOSSARY.md#edgar) system for company reports.
 
-For more everyday investing terms, the SEC’s investor-education site has a plain-language
-[glossary](https://www.investor.gov/introduction-investing/investing-basics/glossary).
+For more everyday investing terms, the SEC's investor-education site has a plain-language [glossary](https://www.investor.gov/introduction-investing/investing-basics/glossary).
 
 ## Investment analysis, in everyday terms
 
@@ -157,4 +146,4 @@ The README's sample result is illustrative; live prices and newly published fili
 - [Financial Math & Data Conventions](FINANCE_MATH.md) — authoritative formulas and calculation semantics.
 - [Usage Guide](USAGE.md) — how to run analyses and inspect their output.
 - [Project & Technical Documentation](../project/README.md) — architecture and implementation details for readers who want to go deeper.
-- [Investor.gov glossary](https://www.investor.gov/introduction-investing/investing-basics/glossary) — the SEC’s plain-language definitions of everyday investing terms.
+- [Investor.gov glossary](https://www.investor.gov/introduction-investing/investing-basics/glossary) — the SEC's plain-language definitions of everyday investing terms.
