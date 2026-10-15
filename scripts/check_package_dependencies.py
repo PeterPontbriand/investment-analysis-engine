@@ -17,12 +17,20 @@ A *dependency* is any ``import src.X...`` or ``from src.X... import ...``
 anywhere in a file under ``src/``, including imports inside functions, attributed
 to the file the import names: ``import src.strategies.x.cli`` and
 ``from src.strategies.x import cli`` both depend on the unit of ``cli.py``.
-Imports within one unit are ignored. Two units are *two-way* when each depends on
-the other.
+Imports within one unit are ignored.
 
-The table has the columns ``Package | Owns | Imports | Two-way with``. Package
-names are written in backticks; the ``Imports`` and ``Two-way with`` cells list
-unit names in backticks. Exit status is 1 when any finding is reported.
+The table has the columns ``Package | Layer | Owns | Imports``. Package names are
+written in backticks; the ``Imports`` cell lists unit names in backticks; the
+``Layer`` cell holds a whole number. A unit that imports no other unit is in
+layer 0, and any other unit is one more than the highest layer among the units it
+imports (``layers`` in ``scripts/package_graph.py``). Rows are ordered by layer,
+then by package name.
+
+The check fails on any import loop between units, reporting each loop once with an
+example import per edge; while a loop exists, layers are undefined and no layer or
+order finding is reported. It also fails on any difference between the table and the
+code: a missing, stale or unknown row, an undeclared or stale import, a wrong Layer
+cell, or rows out of order. Exit status is 1 when any finding is reported.
 """
 
 from __future__ import annotations
@@ -39,12 +47,12 @@ if __package__ in (None, ""):
     # Run as ``python scripts/check_package_dependencies.py``: the repository root is not on the path yet.
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.package_graph import unit_of_path  # noqa: E402
+from scripts.package_graph import layers, shortest_cycle, strongly_connected, unit_of_path  # noqa: E402
 
 SOURCE_ROOT_NAME = "src"
 ARCHITECTURE_DOC = Path("docs/project/ARCHITECTURE.md")
 TABLE_SECTION_TITLE = "Module boundaries"
-TABLE_HEADER = ("Package", "Owns", "Imports", "Two-way with")
+TABLE_HEADER = ("Package", "Layer", "Owns", "Imports")
 
 _SECTION_HEADING_RE = re.compile(r"^##\s+(?:\d+\.\s+)?(.*?)\s*$")
 _BACKTICKED_RE = re.compile(r"`([^`]+)`")
@@ -58,8 +66,8 @@ class DeclaredRow:
     """One row of the package table."""
 
     package: str
+    layer_cell: str
     imports: frozenset[str]
-    two_way: frozenset[str]
 
 
 def _unit_for_module(name_parts: list[str], source_root: Path) -> str | None:
@@ -135,11 +143,6 @@ def collect_imports(source_root: Path) -> dict[Edge, list[Occurrence]]:
     return dict(edges)
 
 
-def two_way_pairs(edges: set[Edge]) -> set[frozenset[str]]:
-    """Return the unordered unit pairs that depend on each other."""
-    return {frozenset(edge) for edge in edges if (edge[1], edge[0]) in edges}
-
-
 def read_declared_table(architecture_text: str) -> tuple[list[DeclaredRow], list[str]]:
     """Parse the package table; return its rows and any problems found reading it."""
     lines = architecture_text.splitlines()
@@ -167,7 +170,10 @@ def read_declared_table(architecture_text: str) -> tuple[list[DeclaredRow], list
     for line in table_lines[2:]:
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
         if len(cells) != len(TABLE_HEADER):
-            problems.append(f"{ARCHITECTURE_DOC}: table row has {len(cells)} cells, expected 4: {line.strip()[:60]}")
+            problems.append(
+                f"{ARCHITECTURE_DOC}: table row has {len(cells)} cells, "
+                f"expected {len(TABLE_HEADER)}: {line.strip()[:60]}"
+            )
             continue
         names = _BACKTICKED_RE.findall(cells[0])
         if len(names) != 1:
@@ -176,8 +182,8 @@ def read_declared_table(architecture_text: str) -> tuple[list[DeclaredRow], list
         rows.append(
             DeclaredRow(
                 package=names[0],
-                imports=frozenset(_BACKTICKED_RE.findall(cells[2])),
-                two_way=frozenset(_BACKTICKED_RE.findall(cells[3])),
+                layer_cell=cells[1],
+                imports=frozenset(_BACKTICKED_RE.findall(cells[3])),
             )
         )
     return rows, problems
@@ -202,7 +208,7 @@ def _compare_units(rows: list[DeclaredRow], units: set[str]) -> list[str]:
     for package in sorted(set(by_package) - units):
         findings.append(f"Table row '{package}' has no unit under {SOURCE_ROOT_NAME}/; remove the row.")
     for package in sorted(by_package):
-        for target in sorted(by_package[package].imports | by_package[package].two_way):
+        for target in sorted(by_package[package].imports):
             if target not in units and target != package:
                 findings.append(f"Row '{package}' names '{target}', which is not a unit; remove it from the row.")
     return findings
@@ -230,37 +236,78 @@ def _compare_imports(rows: list[DeclaredRow], units: set[str], edges: dict[Edge,
     return findings
 
 
-def _compare_two_way(rows: list[DeclaredRow], edges: dict[Edge, list[Occurrence]]) -> list[str]:
-    """Return the findings about two-way pairs that are undeclared, stale, or declared on one side only."""
+def _actual_graph(units: set[str], edges: dict[Edge, list[Occurrence]]) -> dict[str, set[str]]:
+    """Return the unit graph, with every unit present, built from the collected imports."""
+    graph: dict[str, set[str]] = {unit: set() for unit in units}
+    for importer, imported in edges:
+        graph.setdefault(importer, set()).add(imported)
+        graph.setdefault(imported, set())
+    return graph
+
+
+def _compare_loops(graph: dict[str, set[str]], edges: dict[Edge, list[Occurrence]]) -> list[str]:
+    """Return one finding per import loop, written as the shortest cycle through the loop's first unit."""
     findings: list[str] = []
-    by_package = {row.package: row for row in rows}
-    actual_pairs = two_way_pairs(set(edges))
-    declared_pairs = {frozenset((row.package, other)) for row in rows for other in row.two_way}
-    for pair in sorted(actual_pairs - declared_pairs, key=sorted):
-        first, second = sorted(pair)
-        findings.append(
-            f"'{first}' and '{second}' import each other but are not declared two-way; "
-            f"add each to the Two-way with cell of the other."
+    for component in strongly_connected(graph):
+        cycle = shortest_cycle(graph, component[0])
+        if cycle is None:  # pragma: no cover - a component always holds a cycle through each member
+            continue
+        units = [f"'{unit}'" for unit in component]
+        listed = units[0] if len(units) == 1 else f"{', '.join(units[:-1])} and {units[-1]}"
+        route = " -> ".join(cycle)
+        examples = "; ".join(
+            f"{source} -> {target} at {_example(edges[(source, target)])}"
+            for source, target in zip(cycle, cycle[1:], strict=False)
         )
-    for pair in sorted(declared_pairs - actual_pairs, key=sorted):
-        first, second = sorted(pair)
         findings.append(
-            f"'{first}' and '{second}' are declared two-way but no longer import each other; "
-            f"remove each from the Two-way with cell of the other."
+            f"{listed} form an import loop: {route} ({examples}). "
+            f"Remove one of these imports, or move the code, so the loop breaks."
         )
+    return findings
+
+
+def _compare_layers(rows: list[DeclaredRow], units: set[str], graph: dict[str, set[str]]) -> list[str]:
+    """Return the findings about wrong Layer cells and rows out of layer-then-name order."""
+    grouped = layers(graph)
+    if grouped is None:  # pragma: no cover - the caller reports loops instead of calling this
+        return []
+    actual = {unit: number for number, members in enumerate(grouped) for unit in members}
+    findings: list[str] = []
+    numbered: list[tuple[int, str]] = []
     for row in rows:
-        for other in row.two_way:
-            if other in by_package and row.package not in by_package[other].two_way:
-                findings.append(
-                    f"'{row.package}' lists '{other}' in Two-way with but '{other}' does not list '{row.package}'; "
-                    f"make the two cells agree."
-                )
+        if row.package not in units:
+            continue
+        number = actual[row.package]
+        if not row.layer_cell.isdecimal():
+            findings.append(f"The Layer cell of '{row.package}' is not a whole number; write its layer, {number}.")
+        elif int(row.layer_cell) != number:
+            findings.append(
+                f"'{row.package}' is in layer {number}, but its Layer cell says {int(row.layer_cell)}; "
+                f"change the cell to {number}."
+            )
+        numbered.append((number, row.package))
+    for (earlier_layer, earlier), (later_layer, later) in zip(numbered, numbered[1:], strict=False):
+        if (earlier_layer, earlier) > (later_layer, later):
+            findings.append(
+                f"The row for '{later}' (layer {later_layer}) comes after the row for '{earlier}' "
+                f"(layer {earlier_layer}); order the rows by layer, then by name."
+            )
+            break
     return findings
 
 
 def compare(rows: list[DeclaredRow], units: set[str], edges: dict[Edge, list[Occurrence]]) -> list[str]:
-    """Return one message per disagreement between the table and the code."""
-    return _compare_units(rows, units) + _compare_imports(rows, units, edges) + _compare_two_way(rows, edges)
+    """Return one message per disagreement between the table and the code.
+
+    While an import loop exists, layers are undefined, so the loops are reported in place of the layer and order
+    findings.
+    """
+    graph = _actual_graph(units, edges)
+    findings = _compare_units(rows, units) + _compare_imports(rows, units, edges)
+    loops = _compare_loops(graph, edges)
+    if loops:
+        return findings + loops
+    return findings + _compare_layers(rows, units, graph)
 
 
 def check_repository(repo_root: Path) -> list[str]:

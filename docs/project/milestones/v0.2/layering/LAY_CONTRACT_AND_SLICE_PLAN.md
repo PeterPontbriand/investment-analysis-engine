@@ -15,8 +15,8 @@ work-package status. The design, the proof and the owner decisions are in [LAY_D
   LAY), or add a registry, plugin loader or framework.
 - **Today:** 15 units, ten two-way pairs and one loop that contains 14 units. After the moves: 17 units, no pair and no
   loop ([LAY_DESIGN.md §3](LAY_DESIGN.md#3-today-and-the-target)).
-- **Rules every slice follows:** the moves are exactly the entries of
-  [LAY_MOVE_LIST.toml](LAY_MOVE_LIST.toml), and a slice deletes its entries in the change that makes them; the
+- **Rules every slice follows:** the moves were exactly the entries of
+  `LAY_MOVE_LIST.toml`, which LAY.8 removed with the simulation script, and a slice deleted its entries in the change that made them; the
   dependency check stays green in the same change (the slice edits the §13 rows it changes); the complete managed
   gate, with the 3.14 pass; no stored shape changes, so no version bump; explicit authorization before the next slice.
 - **Proof of no output change, every move slice:** `uv run python scripts/generate_schemas.py --check` passes, the
@@ -38,7 +38,7 @@ work-package status. The design, the proof and the owner decisions are in [LAY_D
 | LAY.5 | [Selection base and run-outcome models move beside the analyzer contract](#lay5--contract-modules) | Complete | 2026-10-14 |
 | LAY.6 | [Saved-run replay and workspace documents move up](#lay6--workspace-documents) | Complete | 2026-10-14 |
 | LAY.7 | [Strategy settings files](#lay7--strategy-settings-files) | Complete | 2026-10-15 |
-| LAY.8 | [Loop-free check, layered listing and closing](#lay8--loop-free-check-and-closing) | Next | |
+| LAY.8 | [Loop-free check, layered listing and closing](#lay8--loop-free-check-and-closing) | Complete | 2026-10-15 |
 
 **Order with the other work packages:** LAY.4 to LAY.8, then 12B (removal of the TTM EPS basis), then PKG.1 and PKG.2,
 then Step 3.5. SWC.5 to SWC.7 run after LAY.8; GR.2 runs whenever no LAY branch is open. This replaces the provisional
@@ -159,7 +159,7 @@ later slice is checked against the final definition of a unit.
   script and move list are removed (decision 7). The graph engine stays with the check.
 - **Scope:** `scripts/check_package_dependencies.py`, `scripts/package_graph.py` and their tests; removal of
   `scripts/simulate_package_layers.py`, its tests and `LAY_MOVE_LIST.toml`; ARCHITECTURE §13; the layering plan's
-  status and the milestone row.
+  status and the milestone row. Implementation decisions: [A.13](#a13-lay8-implementation-decisions-2026-10-15).
 - **Branch:** `refactor/lay-8-loop-free-check`, from `main` after LAY.7.
 - **Detail:** ⚠ no slice plan yet
 
@@ -412,3 +412,33 @@ local-model prompt. LAY.7 becomes two slices, LAY.7a and LAY.7b. LAY_DESIGN.md i
 A second exception, recorded when LAY.7b was approved: the published watchlist schemas (`watchlist.schema.json` and
 `watchlist-delete.schema.json`) make Momentum's `rsi_period` required
 ([LAY.7 plan A.2](LAY_7_STRATEGY_SETTINGS_PLAN.md#a2-lay7b-implementation-decisions-2026-10-15)).
+
+### A.13 LAY.8 implementation decisions (2026-10-15)
+
+Approved by the project owner for LAY.8.
+
+1. The check builds the unit graph from the collected imports and computes its strongly connected components with
+   `strongly_connected`. Each component is one finding that names the units, the shortest cycle through the first unit
+   in sorted order, and one example `file:line` per edge. While any loop exists the check reports no layer or order
+   finding, since layers are undefined. Exit status is 1 on any finding, as before.
+2. The "Two-way with" column leaves the §13 table. `DeclaredRow.two_way`, `two_way_pairs`, `_compare_two_way` and their
+   findings leave the check, and `two_way()` leaves `scripts/package_graph.py`.
+3. The listing is a Layer column in the existing table, not a second list, because AGENTS.md §4 declares the package map
+   once. The header is `Package | Layer | Owns | Imports`, the Layer cell is a whole number, and rows are ordered by
+   layer, then by package name.
+4. A unit that imports no other unit is in layer 0; any other unit is one more than the highest layer among the units it
+   imports. This is `layers()` in `scripts/package_graph.py`, and the check compares each Layer cell with it.
+5. New findings: a wrong layer, a Layer cell that is not a whole number, and rows out of order (only the first
+   out-of-order pair is reported). The existing findings keep their wording, apart from references to the removed
+   column.
+6. `scripts/simulate_package_layers.py`, its tests and `LAY_MOVE_LIST.toml` are removed with `git rm`.
+   `scripts/package_graph.py` keeps the role rule, `unit_of_path`, `strongly_connected`, `layers` and `shortest_cycle`.
+   The two links to the move list become plain code text; other mentions of the deleted files in planning documents are
+   history and stay.
+7. Tests: the two-way tests and the `two_way` parameter of the test helper are removed; tests are added for a loop of two
+   units, a loop of three, no layer or order finding while a loop exists, a wrong Layer cell, a Layer cell that is not a
+   whole number, rows out of layer order, rows out of name order within a layer, the old four-column header, and the
+   check passing on the repository itself.
+8. Documentation: the ARCHITECTURE §13 introduction, the AGENTS.md §4 package-map bullet and the module docstring of the
+   check describe the Layer column, the layer rule and the loop rule.
+9. Issue #114 is closed by this slice.

@@ -2,7 +2,7 @@
 
 Fixes exactly which files and names move, proves the target has no loop, and sizes the slices. The sequence and status
 are in the [contract and slice plan](LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status). Every figure below is output
-of `scripts/simulate_package_layers.py` on the move list [LAY_MOVE_LIST.toml](LAY_MOVE_LIST.toml); reproduce it with the
+of `scripts/simulate_package_layers.py` on the move list `LAY_MOVE_LIST.toml`; reproduce it with the
 commands in [§9](#9-reproducing-the-figures).
 
 ## 1. At a glance
@@ -233,6 +233,9 @@ path helper imports the `config` package, which creates the settings object; eve
 imports `config` directly or through the CLI.
 
 ## 9. Reproducing the figures
+
+LAY.8 removed the simulation script and the move list; run these commands from a checkout of commit 008bcbe, the
+last commit that has both.
 
 From the repository root:
 
