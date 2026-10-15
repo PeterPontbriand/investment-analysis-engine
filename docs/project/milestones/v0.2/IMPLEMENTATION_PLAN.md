@@ -50,9 +50,9 @@ current codes:
 - `LAY` — short for "Layering" ([plan](layering/LAY_CONTRACT_AND_SLICE_PLAN.md)): moves a fixed set of files and names so
   the top-level `src/` packages form layers with no import loop of any length, and changes the dependency check to
   keep it so (the decision on [issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)).
-  Its row is numbered `12A` so the rows after it keep their numbers; it runs before `PKG`. Provisional order, until the SWC
-  plan is reviewed: the next SWC slice, LAY.1 to LAY.8, the remaining SWC slices, then PKG
-  ([design](layering/LAY_DESIGN.md#10-interaction-with-swc-and-pkg)).
+  Its row is numbered `12A` so the rows after it keep their numbers; it runs before `PKG`. LAY.4 to LAY.8 are complete; then 12B, PKG.1 and PKG.2, then Step 3.5;
+  SWC.5 to SWC.7 run after LAY.8; GR.2 runs when no LAY branch is open
+  ([order](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).
 - `PKG` — the `src` → real top-level package rename ([plan](pkg/PKG_RENAME_PLAN.md)), split out of `IR`
   given its scale. Not `R4`, deliberately: that code is already used as a document-local
   requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted
@@ -87,10 +87,10 @@ sequencing meaning.
 | 11A | [Massive provider removal (MR)](massive-removal/MR_MASSIVE_REMOVAL_PLAN.md#2-sequence-and-status) | Complete | 2026-10-10 |
 | 11B | [Package dependency map (PD)](package-dependencies/PD_PACKAGE_DEPENDENCIES_PLAN.md#2-sequence-and-status) | Complete | 2026-10-10 |
 | 13 | [Provider health (PH)](provider-health/PH_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-11 |
+| 12A | [Package layering (LAY)](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-15 |
 | 12 | [Strategy wiring consolidation (SWC)](swc/SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
-| 12A | [Package layering (LAY)](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
 | 14A | [Gate reliability (GR)](gate-reliability/GR_GATE_RELIABILITY_PLAN.md#2-sequence-and-status) | In progress | |
-| 12B | [Remove the unreachable TTM EPS basis](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md#esc-ttm--remove-the-unreachable-ttm-eps-basis) | Planned | |
+| 12B | [Remove the unreachable TTM EPS basis](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md#esc-ttm--remove-the-unreachable-ttm-eps-basis) | Next | |
 | 14 | [`src` package rename (PKG)](pkg/PKG_RENAME_PLAN.md) | Planned | |
 | 15 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
 | 16 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |

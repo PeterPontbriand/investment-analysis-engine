@@ -2,7 +2,7 @@
 
 Fixes exactly which files and names move, proves the target has no loop, and sizes the slices. The sequence and status
 are in the [contract and slice plan](LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status). Every figure below is output
-of `scripts/simulate_package_layers.py` on the move list [LAY_MOVE_LIST.toml](LAY_MOVE_LIST.toml); reproduce it with the
+of `scripts/simulate_package_layers.py` on the move list `LAY_MOVE_LIST.toml`; reproduce it with the
 commands in [§9](#9-reproducing-the-figures).
 
 ## 1. At a glance

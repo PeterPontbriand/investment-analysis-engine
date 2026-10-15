@@ -1,4 +1,4 @@
-"""The package map and graph analysis shared by the dependency check and the layering simulation.
+"""The package map and graph analysis used by the dependency check.
 
 Standard library only. This module defines which unit a file under ``src/`` belongs to and analyzes a graph of
 units; it reads no file and modifies none.
@@ -103,11 +103,6 @@ def strongly_connected(graph: Mapping[str, Iterable[str]]) -> list[list[str]]:
         if node not in indices:
             visit(node)
     return sorted(result)
-
-
-def two_way(graph: Mapping[str, set[str]]) -> list[tuple[str, str]]:
-    """Return the unit pairs that import each other, sorted."""
-    return sorted((a, b) for a, targets in graph.items() for b in targets if a < b and a in graph.get(b, set()))
 
 
 def layers(graph: Mapping[str, set[str]]) -> list[list[str]] | None:

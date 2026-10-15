@@ -81,7 +81,7 @@ Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-r
 ### Diagrams in documentation
 
 - Documentation contains no Mermaid. Draw a diagram as a plain text block or express it as a table. `scripts/check_doc_links.py` fails on a fenced block whose language is `mermaid`.
-- The top-level package map and the imports between packages are declared once, in the table in [`ARCHITECTURE.md`](docs/project/ARCHITECTURE.md#13-module-boundaries); `scripts/check_package_dependencies.py` fails when the table and the code disagree. Do not add a second listing or a diagram of that graph.
+- The top-level package map, its layers and the imports between packages are declared once, in the table in [`ARCHITECTURE.md`](docs/project/ARCHITECTURE.md#13-module-boundaries); `scripts/check_package_dependencies.py` fails when the table and the code disagree and on any import loop between packages. Do not add a second listing or a diagram of that graph.
 
 ### Implementation preservation
 
