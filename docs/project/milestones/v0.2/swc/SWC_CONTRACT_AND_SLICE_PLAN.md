@@ -621,6 +621,9 @@ version and result-schema version distinct and do not silently reinterpret histo
   - **One contributor guide.** Move `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` to
     `docs/TOOL_DEVELOPMENT.md` and extend it with the strategy-addition workflow, the status command and
     the generator. Keep its existing content, update every link to it, and leave no second guide behind.
+  - **Strategy settings.** The guide's strategy-addition workflow includes the strategy settings convention
+    ([LAY_7_STRATEGY_SETTINGS_PLAN.md §3](../layering/LAY_7_STRATEGY_SETTINGS_PLAN.md#3-the-convention)): when a
+    strategy gets a settings file, its typed model, its descriptor field and the four entry points.
   - **Permanent authorization.** Amend `AGENTS.md` §3 so that the closed, statically declared
     strategy descriptor is permitted in its own right, with dynamic discovery, plugins,
     self-registration and factory hierarchies still prohibited. Step 3.5.0 removes `AGENTS.md` §0,
