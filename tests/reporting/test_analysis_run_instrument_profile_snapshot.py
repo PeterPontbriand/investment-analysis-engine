@@ -31,7 +31,6 @@ from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
 from src.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
-from src.reporting.analysis_runs import project_run
 from src.reporting.presentation import PresentationMode
 from src.reporting.replay_inputs import ReplayOptions
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
@@ -42,6 +41,7 @@ from src.workspace.capture import ExecutionCapture
 from src.workspace.execution import execute
 from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.workspace.requests import AnalysisRequest
+from src.workspace_documents.run_replay import project_run
 
 NOW = datetime(2026, 9, 22, 12, 0, 0, tzinfo=UTC)
 LATER = NOW + timedelta(days=31)

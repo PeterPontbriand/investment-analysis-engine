@@ -10,7 +10,6 @@ import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
-from src.reporting.analysis_runs import project_run
 from src.reporting.presentation import PresentationMode
 from src.reporting.replay_inputs import ReplayOptions
 from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
@@ -23,8 +22,9 @@ from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY
 from src.workspace.codecs import decode_evidence
+from src.workspace_documents.run_replay import project_run
 from tests._wiring import encode_native
-from tests.reporting.test_analysis_run_replay import _graham_run, _growth_run
+from tests.workspace_documents.test_analysis_run_replay import _graham_run, _growth_run
 
 LATER = NOW + timedelta(days=1)
 POLICY = GrahamGrowthCalculationPolicy(base_pe=8.5, growth_multiplier=2.0, baseline_aaa_yield=4.4)

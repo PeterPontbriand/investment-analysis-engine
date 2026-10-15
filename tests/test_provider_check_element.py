@@ -33,9 +33,9 @@ from src.data.base_client import DataFetchError
 from src.data.provider_checks import CheckVerdict
 from src.data.provider_probe import ProbeFinding, ProbeVerdict
 from src.reporting.documents.failure import FailureEnvelope
-from src.reporting.documents.refresh import RefreshSummaryDocument
 from src.reporting.failure_envelope import failure_envelope
 from src.strategy_wiring import STRATEGIES
+from src.workspace_documents.refresh import RefreshSummaryDocument
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 from tests._strategy_document_output import CASES, _enter_providers
 from tests.test_cli_provider_check import (

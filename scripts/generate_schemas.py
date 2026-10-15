@@ -21,8 +21,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from src.reporting.json_documents import DOCUMENTS as GENERIC_DOCUMENTS
 from src.strategy_wiring import STRATEGIES, StrategyDescriptor
+from src.workspace_documents.json_documents import DOCUMENTS as GENERIC_DOCUMENTS
 
 SCHEMA_DIRECTORY = Path(__file__).resolve().parent.parent / "schemas"
 
@@ -33,8 +33,8 @@ def strategy_schema_file(descriptor: StrategyDescriptor) -> str:
 
 
 # One entry per document: the file name and the typed model it describes. The failure, workspace and database
-# documents come from the table in ``src/reporting/json_documents.py``; each strategy's model is its descriptor's
-# ``json_envelope``, added here because only the composition root may read the descriptors.
+# documents come from the table in ``src/workspace_documents/json_documents.py``; each strategy's model is its
+# descriptor's ``json_envelope``, added here because only the composition root may read the descriptors.
 DOCUMENTS: tuple[tuple[str, type[BaseModel]], ...] = (
     *((document.schema_file, document.model) for document in GENERIC_DOCUMENTS),
     *((strategy_schema_file(item), item.json_envelope) for item in STRATEGIES),

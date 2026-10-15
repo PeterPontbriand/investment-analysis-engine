@@ -647,7 +647,7 @@ than trusting the plan:
   `model_dump(mode="json")`, and `get()` only ever re-validates and returns
   that same stored value. Nothing about a later durable-cache supersession
   can reach an already-inserted row.
-- [`src/reporting/analysis_runs.py`](../../../../../src/reporting/analysis_runs.py)'s
+- [`src/workspace_documents/run_replay.py`](../../../../../src/workspace_documents/run_replay.py)'s
   `project_run()` reads `run.instrument_profile` exclusively — its own module
   docstring already states it "must never call ... profile resolvers ...
   mutable caches" — so replay was already immune to Slice D's wiring before
