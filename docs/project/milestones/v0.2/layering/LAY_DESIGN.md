@@ -234,6 +234,9 @@ imports `config` directly or through the CLI.
 
 ## 9. Reproducing the figures
 
+LAY.8 removed the simulation script and the move list; run these commands from a checkout of commit 008bcbe, the
+last commit that has both.
+
 From the repository root:
 
 ```text
