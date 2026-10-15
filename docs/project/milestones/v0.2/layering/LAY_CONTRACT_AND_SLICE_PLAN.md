@@ -37,7 +37,7 @@ work-package status. The design, the proof and the owner decisions are in [LAY_D
 | LAY.4 | [Run and watchlist repositories move to the workspace side](#lay4--repositories) | Complete | 2026-10-13 |
 | LAY.5 | [Selection base and run-outcome models move beside the analyzer contract](#lay5--contract-modules) | Complete | 2026-10-14 |
 | LAY.6 | [Saved-run replay and workspace documents move up](#lay6--workspace-documents) | Complete | 2026-10-14 |
-| LAY.7 | [Momentum receives its defaults when built](#lay7--momentum-wiring) | Next | |
+| LAY.7 | [Strategy settings files](#lay7--strategy-settings-files) | In progress | |
 | LAY.8 | [Loop-free check, layered listing and closing](#lay8--loop-free-check-and-closing) | Planned | |
 
 **Order with the other work packages:** LAY.4 to LAY.8, then 12B (removal of the TTM EPS basis), then PKG.1 and PKG.2,
@@ -139,19 +139,18 @@ later slice is checked against the final definition of a unit.
 - **Branch:** `refactor/lay-6-workspace-documents`, from `main` after LAY.5.
 - **Detail:** [LAY_DESIGN.md §7](LAY_DESIGN.md#7-size-of-each-move).
 
-### LAY.7 — Momentum wiring
+### LAY.7 — Strategy settings files
 
-- **Problem:** Momentum's analyzer and selection read the global settings object; every other strategy receives what it
-  needs when built.
-- **Decision:** Momentum receives a frozen `MomentumDefaults` (the two window sizes; the RSI period keeps its fixed
-  default), built once at the composition root from `settings.get_momentum_analysis()` and passed where it is built: the
-  selection builder and the CLI and tool defaults. `MomentumConfig` loses its settings-reading default factories. This is
-  the one slice that changes how something is wired, and it changes no output.
-- **Scope:** the Momentum analyzer, selection, tool and CLI files and the composition that builds them; the tests that
-  patch `get_momentum_analysis` (13 test files use `MomentumConfig(`, `MomentumSelection.from_settings` or
-  `MomentumAnalyzer(`).
-- **Branch:** `refactor/lay-7-momentum-wiring`, from `main` after LAY.6.
-- **Detail:** ⚠ no slice plan yet
+- **Problem:** Momentum's analyzer, selection and tool read its settings file from inside the strategy, at import;
+  Graham Growth's file is read by the command line on every call; neither is typed, and the two strategies every Step
+  3.5 strategy copies do it differently.
+- **Decision:** one strategy-settings convention for every strategy: a TOML file per strategy under
+  `config/strategies/`, a typed settings model in the strategy's package declared by its descriptor, one generic loader
+  in `config`, and composition roots that pass the typed settings in. Replaces design decision 6
+  ([A.12](#a12-lay7-strategy-settings-files-replace-design-decision-6-2026-10-14)).
+- **Scope:** two slices: LAY.7a (the plan) and LAY.7b (Momentum and Graham Growth).
+- **Branch:** per slice, in the slice plan.
+- **Detail:** [LAY_7_STRATEGY_SETTINGS_PLAN.md](LAY_7_STRATEGY_SETTINGS_PLAN.md)
 
 ### LAY.8 — Loop-free check and closing
 
@@ -402,3 +401,11 @@ Approved by the project owner for LAY.6.
    mentions of the old paths in completed plans and evidence documents are history and stay as they are.
 10. Behavior and stored data are unchanged, including every published JSON schema.
 11. Result: no two-way pairs and no loops. `workspace_documents` sits in the same layer as `strategy_wiring`.
+
+### A.12 LAY.7: strategy settings files replace design decision 6 (2026-10-14)
+
+Approved by the project owner. Design decision 6 ([LAY_DESIGN.md §8](LAY_DESIGN.md#8-decisions-for-the-project-owner))
+is replaced by the strategy settings convention in
+[LAY_7_STRATEGY_SETTINGS_PLAN.md](LAY_7_STRATEGY_SETTINGS_PLAN.md), whose Appendix A records the reasons and the
+alternatives not taken. L9's "changes no output" holds for LAY.7 with one exception: the Momentum tool schema in the
+local-model prompt. LAY.7 becomes two slices, LAY.7a and LAY.7b. LAY_DESIGN.md is not edited.
