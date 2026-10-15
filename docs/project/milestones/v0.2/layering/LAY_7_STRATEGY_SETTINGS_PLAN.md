@@ -19,7 +19,7 @@
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | LAY.7a | [This plan](#lay7a--plan) | Complete | 2026-10-14 |
-| LAY.7b | [Strategy settings for Momentum and Graham Growth](#lay7b--momentum-and-graham-growth) | Next | |
+| LAY.7b | [Strategy settings for Momentum and Graham Growth](#lay7b--momentum-and-graham-growth) | Complete | 2026-10-14 |
 
 ## 2. The slices
 
@@ -179,3 +179,22 @@ Approved by the project owner.
 3. Momentum's `rsi_period` and history start date move into `momentum.toml`.
 4. Process: this plan first (LAY.7a), then one implementation slice covering both Momentum and Graham Growth
    (LAY.7b), so the mechanism is proven generic by two users.
+
+### A.2 LAY.7b implementation decisions (2026-10-14)
+
+Approved by the project owner.
+
+1. Loader: `load_strategy_settings(alias, model, directory)` in `src/config/strategy_settings.py`, cached per process on `(alias, model, directory)`, clearable for tests, raising `StrategySettingsError` (a `ValueError` in `src/core/settings_error.py`); production passes `config/strategies`.
+2. Messages: missing file, unreadable TOML and validation failure each give one message naming `config/strategies/<alias>.toml`; a validation message names the key and the rule, never the value, and a whole-model rule names no key.
+3. Startup: `load_all_strategy_settings()` in `src/cli_composition.py` loads every declared file once, before any command is defined; `src/main.py` prints the message to stderr and exits with code 2, with no traceback and no log entry.
+4. Accessors: `momentum_settings()` and `graham_growth_settings()` in `src/cli_composition.py`; the Momentum option defaults come from `momentum_settings()`, and `--help` is unchanged.
+5. Descriptor: `StrategyDescriptor.settings_type` (`MomentumSettings`, `GrahamGrowthSettings`, `None` for the other two), added to the conformance script's field table.
+6. `MomentumSettings`: frozen, no extra keys, no defaults, window order checked; `MomentumConfig` and `MomentumSelection.rsi_period` lose their defaults; `MomentumSelection.from_settings` and `cli_support._default_history_start_date` are deleted, and composition passes `history_start_date` as the analyzer's start date.
+7. Momentum tool: `short_window`, `long_window` and `rsi_period` become optional ("Omit to use the configured value."), the handler fills them from `MomentumToolDependencies.settings`, and the pinned prompt hash is updated.
+8. `GrahamGrowthSettings`: frozen, no extra keys, no defaults, one validator per constant, `to_policy()` returns the existing policy; `growth_assumptions()` is deleted and its three callers use `graham_growth_settings().to_policy()`.
+9. Golden: `GOLDEN_MOMENTUM_SETTINGS` in `src/evaluation/fixtures/market_data.py` is passed by Momentum's evaluation composition; nothing under evaluation calls the loader.
+10. Files: `config/strategies/momentum.toml` and `graham-growth.toml` are added; the two old strategy files and folders, `data_start_date`, `ProjectSettings.get_momentum_analysis` and `get_graham_value_analysis`, and the unused `ConfigKeys` entries are deleted.
+11. Tests: the settings patches become explicit settings objects; new tests cover the loader, the cache, the startup exit, the §3.8 conformance check, the tool handler and `to_policy()`.
+12. Documentation: ARCHITECTURE §6 and §13, AGENTS.md §9, INSTALLATION §2 and the two strategy guides.
+
+Second exception to "no published schema changes": the published watchlist schemas (`schemas/watchlist.schema.json`, and `schemas/watchlist-delete.schema.json`, which embeds the same Momentum selection) make `rsi_period` required and drop its default of 14, a consequence of decision 6. The first exception is the Momentum tool schema (decision 7).

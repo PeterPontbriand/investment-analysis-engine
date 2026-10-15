@@ -210,7 +210,7 @@ def test_cli_momentum_without_ticker_uses_the_normalized_configured_default(
 ) -> None:
     mock_run.return_value = mock_momentum_run
     carry_profile(mock_run)
-    configured = {"default": {"default_ticker": " btc-usd ", "data_start_date": "2026-01-01"}}
+    configured = {"default": {"default_ticker": " btc-usd "}}
 
     with patch("src.config.ProjectSettings.get_analysis_settings", return_value=configured):
         result = runner.invoke(app, ["momentum"])

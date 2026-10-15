@@ -3,8 +3,8 @@
 These functions build the SEC EDGAR financial-fact provider and the
 Graham input resolvers used by the direct commands (``src.strategies.<strategy>.cli``) and by the
 refresh service's dispatch executor (``src.cli_workspace``). They read
-declared application identity and growth-assumption constants from
-``settings`` — configuration entirely independent of database access.
+declared application identity from ``settings`` and each strategy's typed settings from its settings
+file; neither depends on database access.
 
 This is deliberately its own module, not ``src.cli_support``: the shared
 test fixture ``isolated_cli_database`` (``tests/_cli_helpers.py``) rebinds
@@ -23,9 +23,10 @@ provider/resolver composition here always reads the real settings singleton.
 
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from src.config import settings
-from src.core.constants import ConfigKeys
+from src.config.strategy_settings import load_strategy_settings
 from src.core.operator_errors import AnalysisConfigurationError
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheProtocol
 from src.data.financial.facts import FinancialFactsProvider
@@ -35,8 +36,11 @@ from src.data.financial.providers import (
     SecEdgarFinancialFactsAdapter,
 )
 from src.data.financial.quote_freshness import QuoteFreshnessPolicy
-from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from src.strategies.graham_growth.settings import GrahamGrowthSettings
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from src.strategies.momentum.settings import MomentumSettings
+from src.strategy_wiring import GRAHAM_GROWTH, MOMENTUM, STRATEGIES
 
 
 def build_sec_production_provider() -> ProductionFinancialFactsProvider:
@@ -80,18 +84,39 @@ def build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInp
     )
 
 
-def growth_assumptions() -> GrahamGrowthCalculationPolicy:
-    """Read the configured constants for the growth-value method."""
-    values = settings.get_graham_value_analysis()[ConfigKeys.GRAHAM_VALUES]
-    return GrahamGrowthCalculationPolicy(
-        base_pe=float(values[ConfigKeys.BASE_PE]),
-        growth_multiplier=float(values[ConfigKeys.GROWTH_MULTIPLIER]),
-        baseline_aaa_yield=float(values[ConfigKeys.BASELINE_AAA_YIELD]),
-    )
+def _strategy_settings_directory() -> Path:
+    """Return the folder that holds the strategy settings files."""
+    return settings.base_dir / "config" / "strategies"
+
+
+def momentum_settings() -> MomentumSettings:
+    """Return Momentum's validated settings, loaded once per process."""
+    return load_strategy_settings(MOMENTUM.alias, MomentumSettings, _strategy_settings_directory())
+
+
+def graham_growth_settings() -> GrahamGrowthSettings:
+    """Return Graham Growth's validated settings, loaded once per process."""
+    return load_strategy_settings(GRAHAM_GROWTH.alias, GrahamGrowthSettings, _strategy_settings_directory())
+
+
+def load_all_strategy_settings() -> None:
+    """Load and validate the settings file of every strategy that declares one.
+
+    Called once at startup, so a missing or invalid file stops every command with one message.
+
+    Raises:
+        StrategySettingsError: If a declared file is missing, is not valid TOML or does not satisfy its model.
+    """
+    directory = _strategy_settings_directory()
+    for descriptor in STRATEGIES:
+        if descriptor.settings_type is not None:
+            load_strategy_settings(descriptor.alias, descriptor.settings_type, directory)
 
 
 __all__ = [
     "build_graham_resolver",
     "build_sec_production_provider",
-    "growth_assumptions",
+    "graham_growth_settings",
+    "load_all_strategy_settings",
+    "momentum_settings",
 ]

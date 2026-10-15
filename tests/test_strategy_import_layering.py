@@ -2,7 +2,7 @@
 
 The role rule is design §4: a file's role is its file name inside its strategy package; within a
 package a file may import only a lower-ranked role, except that analyzer-level files may import each
-other; no strategy imports another; code outside ``src/strategies`` may import only analyzer and
+other; no strategy imports another; code outside ``src/strategies`` may import only analyzer, settings and
 selection roles, except that a case module under ``src/evaluation/cases`` may also import the tool and vocabulary
 roles of the strategy package it is named for. The vocabulary role ranks below every other and imports nothing
 from its package. Only a strategy's ``evaluation`` file imports from
@@ -25,7 +25,7 @@ _GRAHAM_MEMBERS = frozenset({"graham_number", "graham_growth"})
 _ROOT = "src.strategy_wiring"
 # The composition root may import these strategy roles and no others: not execution, presenter, cli or
 # evaluation files, which belong to the layers below it and to the tiers.
-_ROOT_ROLES = ANALYZER_ROLES | {"codec", "envelope", "replay", "selection", "tool", "vocabulary"}
+_ROOT_ROLES = ANALYZER_ROLES | {"codec", "envelope", "replay", "selection", "settings", "tool", "vocabulary"}
 # The only importers of the root, listed exactly. An entry must exist and import the root, so a slice adds
 # its module here in the change that first makes it import the root (the tier modules and the CLI modules
 # are added by the slices that create or rewire them).
@@ -36,6 +36,7 @@ _ROOT_IMPORTERS = frozenset(
         "src.evaluation.ollama_runner",
         "src.evaluation.strategy_fixtures",
         "src.cli_strategy_wiring",
+        "src.cli_composition",
         "src.cli_run_support",
         "src.cli_workspace",
     }
@@ -294,7 +295,7 @@ def _edge_violations(
             errors.append(f"_graham is imported outside its member strategies: {source} -> {target}")
         elif (
             target_parts[2] in strategies
-            and _role(target_parts) not in {*ANALYZER_ROLES, "selection"}
+            and _role(target_parts) not in {*ANALYZER_ROLES, "selection", "settings"}
             and (source, target) not in permitted
             and not _is_own_case_tool(source_parts, target_parts)
         ):

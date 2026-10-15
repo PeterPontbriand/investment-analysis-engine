@@ -12,6 +12,7 @@ import pytest
 from src.core.strategy_errors import UndeclaredStrategyError
 from src.evaluation.catalog import build_deterministic_requests
 from src.evaluation.composition import compose_fixture_dependencies, dispatch_fixture_case
+from src.evaluation.fixtures.market_data import GOLDEN_MOMENTUM_SETTINGS
 from src.evaluation.runner import DeterministicCaseRequest
 from src.orchestrator.tool_names import ToolName
 from src.orchestrator.tool_runtime import ToolRuntime
@@ -130,7 +131,7 @@ def test_a_behavior_rejects_another_strategys_object() -> None:
         FCF_GROWTH.behavior.native_status_of(momentum_result)
     with pytest.raises(UndeclaredStrategyError, match="MomentumToolDependencies"):
         FCF_GROWTH.behavior.bind_handler(
-            MomentumToolDependencies(analyzer=None),  # type: ignore[arg-type]
+            MomentumToolDependencies(analyzer=None, settings=GOLDEN_MOMENTUM_SETTINGS),  # type: ignore[arg-type]
             ToolRuntime(clock=lambda: EXECUTED_AT),
         )
 

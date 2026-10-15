@@ -209,7 +209,7 @@ def test_a_readiness_error_without_json_stays_text_on_standard_error(tmp_path: P
 
 
 def test_refresh_json_gives_each_failed_job_a_stable_code_and_one_message() -> None:
-    selection = MomentumSelection(short_window=2, long_window=3)
+    selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     database = SQLiteDatabase(src.cli_workspace.settings)
     try:
         _create("Core")

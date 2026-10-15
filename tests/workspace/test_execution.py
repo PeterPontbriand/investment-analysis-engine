@@ -50,7 +50,7 @@ class _FixtureClient(FixtureDataClient):
 @pytest.fixture(autouse=True)
 def mock_momentum_settings() -> Iterator[None]:
     """Materialize deterministic Momentum defaults for the analyzer's fallback ticker."""
-    mock_analysis = {"default": {"default_ticker": "BTC-USD", "data_start_date": "2026-01-01"}}
+    mock_analysis = {"default": {"default_ticker": "BTC-USD"}}
     with patch("src.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
         yield
 
@@ -71,7 +71,7 @@ class _FakeSink:
 def _momentum_native_evidence() -> MomentumRun:
     client = _FixtureClient()
     return run_momentum(
-        MomentumSelection(short_window=2, long_window=3),
+        MomentumSelection(short_window=2, long_window=3, rsi_period=14),
         "AAPL",
         client,
         start_date="2026-01-01",
@@ -81,7 +81,7 @@ def _momentum_native_evidence() -> MomentumRun:
 
 
 def _momentum_request() -> AnalysisRequest:
-    return AnalysisRequest(ticker="AAPL", selection=MomentumSelection(short_window=2, long_window=3))
+    return AnalysisRequest(ticker="AAPL", selection=MomentumSelection(short_window=2, long_window=3, rsi_period=14))
 
 
 def _fake_capture(outcome: RunOutcome, failure_reason_code: str | None = None) -> ExecutionCapture:
@@ -128,7 +128,9 @@ def test_execute_assembles_and_inserts_a_completed_run() -> None:
     assert run.projection_version == 1
     assert run.status is RunOutcome.COMPLETED
     assert run.failure_reason_code is None
-    assert run.requested_config == run.effective_config == MomentumSelection(short_window=2, long_window=3)
+    assert (
+        run.requested_config == run.effective_config == MomentumSelection(short_window=2, long_window=3, rsi_period=14)
+    )
     assert run.result_evidence is not None
     assert decode_evidence(run, EVIDENCE_BY_KEY) is not None
     assert run.refresh_id is None
@@ -251,7 +253,7 @@ def test_from_momentum_capture_maps_fields() -> None:
     client = _FixtureClient()
     profile = fixture_instrument_profile("AAPL", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
     run = run_momentum(
-        MomentumSelection(short_window=2, long_window=3),
+        MomentumSelection(short_window=2, long_window=3, rsi_period=14),
         "AAPL",
         client,
         start_date="2026-01-01",

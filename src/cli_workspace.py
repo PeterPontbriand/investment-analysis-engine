@@ -25,6 +25,7 @@ import typer
 from pydantic import BaseModel
 
 from src.analysis.run_models import RunOutcome
+from src.cli_composition import momentum_settings
 from src.cli_provider_check import (
     ProviderCheckFindings,
     echo_provider_check,
@@ -52,7 +53,6 @@ from src.data.repositories.readiness import DatabaseReadinessError, ensure_datab
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.reporting.failure_envelope import failure_envelope
 from src.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
-from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategy_wiring import BY_ALIAS, BY_METHOD_ID, EVIDENCE_BY_KEY, REPLAYS_BY_KEY, RUN_SPECS_BY_KEY
 from src.workspace.capture import ExecutionCapture
 from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
@@ -94,7 +94,7 @@ logger = logging.getLogger(__name__)
 watchlist_app = typer.Typer(help="Manage named watchlists of tickers and their analysis selections.")
 runs_app = typer.Typer(help="Browse persisted Analysis Run history.")
 
-_MOMENTUM_CLI_DEFAULTS = MomentumConfig()
+_MOMENTUM_CLI_DEFAULTS = momentum_settings()
 
 
 def _alias_choices() -> str:

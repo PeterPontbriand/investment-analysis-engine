@@ -10,6 +10,7 @@ from typing import Annotated
 
 import typer
 
+from src.cli_composition import load_all_strategy_settings
 from src.cli_database import app as database_app
 from src.cli_health import build_provider_clients
 from src.cli_health import register as register_health_command
@@ -37,6 +38,8 @@ from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_su
 from src.llm.client import LLMClient
 from src.telemetry.recorder import TrajectoryRecorder
 from src.telemetry.run_context import RunContext, get_current_run_context, set_current_run_context
+
+load_all_strategy_settings()
 
 app = typer.Typer(
     help="Analyze financial data with transparent calculations and supporting evidence.", add_completion=False

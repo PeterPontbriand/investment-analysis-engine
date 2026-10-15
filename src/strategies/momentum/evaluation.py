@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Final
 
-from src.config import settings
-from src.core.constants import ConfigKeys
 from src.evaluation.fixture_context import FixtureContext, FixtureRequirement, selected_variant
 from src.evaluation.fixtures.market_data import (
+    GOLDEN_MOMENTUM_SETTINGS,
     MOMENTUM_BOUNDARY_FIXTURE_ID,
     MOMENTUM_LONG_WINDOW,
     MOMENTUM_RSI_PERIOD,
@@ -46,6 +45,7 @@ def compose(context: FixtureContext) -> MomentumToolDependencies:
     return MomentumToolDependencies(
         analyzer=MomentumAnalyzer(
             market_data_provider=FixtureMarketDataProvider(momentum_frame),
-            start_date=str(settings.get_analysis_settings()[ConfigKeys.DEFAULT_SECTION][ConfigKeys.START_DATE]),
-        )
+            start_date=GOLDEN_MOMENTUM_SETTINGS.history_start_date.isoformat(),
+        ),
+        settings=GOLDEN_MOMENTUM_SETTINGS,
     )

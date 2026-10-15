@@ -93,6 +93,7 @@ DESCRIPTOR_FIELDS: dict[str, object] = {
     "result_schema_version": int,
     "evidence_codec_version": int,
     "json_envelope": type[BaseModel],
+    "settings_type": type[BaseModel] | None,
 }
 """The documented descriptor fields and their types; a change here is a reviewed change to the contract."""
 

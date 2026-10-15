@@ -78,7 +78,7 @@ def _seed(name: str, entries: list[tuple[str, AnalysisSelection]]) -> None:
 
 def _create_momentum_only(name: str, members: list[str]) -> None:
     """A watchlist with only a Momentum entry for each given ticker."""
-    momentum = MomentumSelection(short_window=2, long_window=3)
+    momentum = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     _seed(name, [(ticker, momentum) for ticker in members])
 
 
@@ -264,7 +264,7 @@ def test_remove_by_ticker_commits_when_another_entry_is_unreadable() -> None:
 
 
 def test_remove_by_ticker_counts_every_entry_it_removes_when_another_is_unreadable() -> None:
-    momentum = MomentumSelection(short_window=2, long_window=3)
+    momentum = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     _seed("Old Watch", [("AAPL", momentum), ("KO", momentum), ("AAPL", GrahamNumberSelection())])
     _retire_momentum_entries("KO")
 
@@ -276,7 +276,10 @@ def test_remove_by_ticker_counts_every_entry_it_removes_when_another_is_unreadab
 
 
 def test_remove_by_method_commits_when_another_entry_is_unreadable() -> None:
-    _seed("Old Watch", [("KO", GrahamNumberSelection()), ("AAPL", MomentumSelection(short_window=2, long_window=3))])
+    _seed(
+        "Old Watch",
+        [("KO", GrahamNumberSelection()), ("AAPL", MomentumSelection(short_window=2, long_window=3, rsi_period=14))],
+    )
     _retire_momentum_entries("AAPL")
 
     result = runner.invoke(app, ["watchlist", "remove-method", "Old Watch", "--analysis", "graham-number"])
@@ -292,7 +295,7 @@ def test_remove_by_method_commits_when_another_entry_is_unreadable() -> None:
 def test_refresh_reuses_a_momentum_selections_as_of_and_no_cache(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     boundary = datetime(2026, 8, 1, tzinfo=UTC)
-    selection = MomentumSelection(short_window=2, long_window=3, as_of=boundary, use_cache=False)
+    selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14, as_of=boundary, use_cache=False)
     _seed("My Watch", [("AAPL", selection)])
 
     result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])

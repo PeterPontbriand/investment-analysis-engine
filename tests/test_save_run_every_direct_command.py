@@ -40,7 +40,7 @@ def _stored_runs(directory: Path, monkeypatch: pytest.MonkeyPatch, alias: str) -
         command.upgrade(config, "head")
         isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
         monkeypatch.setattr("src.cli_run_support.settings", isolated)
-        monkeypatch.setattr("src.strategies.momentum.cli.settings", isolated)
+        monkeypatch.setattr("src.cli_support.settings", isolated)
         with ExitStack() as stack:
             enter_fixture_providers(stack, alias)
             result = CliRunner().invoke(app, [*_COMMANDS[alias], "--save-run"])

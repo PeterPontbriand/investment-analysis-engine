@@ -290,7 +290,7 @@ def _momentum_presentation() -> MomentumPresentation:
     )
     return MomentumPresentation(
         metrics=metrics,
-        config=MomentumConfig(short_window=20, long_window=50),
+        config=MomentumConfig(short_window=20, long_window=50, rsi_period=14),
         market_data=context,
     )
 

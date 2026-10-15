@@ -50,7 +50,7 @@ def _presentation() -> MomentumPresentation:
     )
     return MomentumPresentation(
         metrics=metrics,
-        config=MomentumConfig(short_window=20, long_window=50),
+        config=MomentumConfig(short_window=20, long_window=50, rsi_period=14),
         market_data=context,
     )
 
@@ -172,7 +172,7 @@ def test_momentum_missing_source_metadata_is_compact_not_repeated_as_warnings() 
     )
     presentation = MomentumPresentation(
         metrics=metrics,
-        config=MomentumConfig(short_window=20, long_window=50),
+        config=MomentumConfig(short_window=20, long_window=50, rsi_period=14),
     )
 
     rendered = render_momentum(presentation)
@@ -195,7 +195,9 @@ def test_momentum_json_keeps_unknown_data_date_separate_from_analysis_timestamp(
         crossover_signal=0.0,
         timestamp=NOW,
     )
-    presentation = MomentumPresentation(metrics=metrics, config=MomentumConfig(short_window=20, long_window=50))
+    presentation = MomentumPresentation(
+        metrics=metrics, config=MomentumConfig(short_window=20, long_window=50, rsi_period=14)
+    )
 
     payload = json.loads(render_momentum(presentation, PresentationMode.JSON))
 
@@ -219,7 +221,7 @@ def test_momentum_equal_smas_are_reported_as_equal_not_below() -> None:
     )
     presentation = MomentumPresentation(
         metrics=metrics,
-        config=MomentumConfig(short_window=20, long_window=50),
+        config=MomentumConfig(short_window=20, long_window=50, rsi_period=14),
     )
 
     concise = render_momentum(presentation)
@@ -249,7 +251,7 @@ def test_momentum_insufficient_history_names_both_unmet_sma_requirements() -> No
     )
     presentation = MomentumPresentation(
         metrics=metrics,
-        config=MomentumConfig(short_window=50, long_window=200),
+        config=MomentumConfig(short_window=50, long_window=200, rsi_period=14),
         market_data=context,
     )
 
@@ -277,7 +279,7 @@ def test_momentum_unavailable_sma_explains_insufficient_history_without_nan() ->
     )
     presentation = MomentumPresentation(
         metrics=metrics,
-        config=MomentumConfig(short_window=2, long_window=5),
+        config=MomentumConfig(short_window=2, long_window=5, rsi_period=14),
         market_data=context,
     )
 
@@ -310,7 +312,7 @@ def test_momentum_json_carries_the_requested_boundary_apart_from_the_evaluated_i
         timestamp=boundary,
     )
     presentation = MomentumPresentation(
-        metrics=metrics, config=MomentumConfig(short_window=20, long_window=50), requested_as_of=boundary
+        metrics=metrics, config=MomentumConfig(short_window=20, long_window=50, rsi_period=14), requested_as_of=boundary
     )
 
     payload = json.loads(render_momentum(presentation, PresentationMode.JSON))

@@ -418,7 +418,7 @@ def _retire_entry(database: SQLiteDatabase, *, position: int) -> None:
 
 def _seed_momentum(repository: SQLiteWatchlistRepository, name: str, tickers: list[str]) -> Watchlist:
     watchlist = repository.create(WatchlistSpec(display_name=name))
-    momentum = MomentumSelection(short_window=2, long_window=3)
+    momentum = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     return repository.add_entries(watchlist.display_name, [(ticker, momentum) for ticker in tickers])
 
 

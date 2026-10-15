@@ -40,6 +40,8 @@ growth multiplier = 2.0
 baseline AAA yield = 4.4
 ```
 
+They are read from the file `config/strategies/graham-growth.toml`, whose keys are `base_pe`, `growth_multiplier` and `baseline_aaa_yield`, each time an analysis runs. See [Strategy settings files](../INSTALLATION.md#strategy-settings-files).
+
 Expected growth and both yields are expressed in **percentage points**. For example, `--expected-growth 5` means 5%, not `0.05`.
 
 This method is forecast-dependent. It is not the Graham Number and should not be interpreted as a universally precise intrinsic value.

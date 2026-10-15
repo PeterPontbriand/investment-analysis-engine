@@ -6,8 +6,6 @@ from pydantic import AwareDatetime, Field, model_validator
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.selection_base import FrozenSelection
-from src.config import settings
-from src.core.constants import ConfigKeys
 from src.data.instrument_profile import InstrumentProfile
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategies.momentum.vocabulary import (
@@ -37,7 +35,7 @@ class MomentumSelection(FrozenSelection):
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     short_window: int = Field(gt=0, strict=True)
     long_window: int = Field(gt=0, strict=True)
-    rsi_period: int = Field(default=14, gt=0, strict=True)
+    rsi_period: int = Field(gt=0, strict=True)
     as_of: AwareDatetime | None = None
     use_cache: bool = Field(default=True, strict=True)
 
@@ -47,41 +45,6 @@ class MomentumSelection(FrozenSelection):
         if self.short_window >= self.long_window:
             raise ValueError("short_window must be smaller than long_window.")
         return self
-
-    @classmethod
-    def from_settings(
-        cls,
-        *,
-        short_window: int | None = None,
-        long_window: int | None = None,
-        rsi_period: int | None = None,
-        **overrides: object,
-    ) -> "MomentumSelection":
-        """Create a selection, materializing omitted values from configured policy.
-
-        Window defaults follow the same ``window_sizes`` configuration table used by
-        :class:`MomentumConfig`; the RSI period keeps that config's fixed 14 default
-        because it is not part of the momentum settings file. Unknown keyword arguments
-        are forwarded to validation so they are rejected with a standard extra-field
-        error rather than a constructor TypeError.
-        """
-        values: dict[str, object] = {**overrides}
-        window_sizes = (
-            settings.get_momentum_analysis()[ConfigKeys.WINDOW_SIZES]
-            if short_window is None or long_window is None
-            else {}
-        )
-        if short_window is not None:
-            values["short_window"] = short_window
-        else:
-            values["short_window"] = int(window_sizes[ConfigKeys.SHORT_WINDOW])
-        if long_window is not None:
-            values["long_window"] = long_window
-        else:
-            values["long_window"] = int(window_sizes[ConfigKeys.LONG_WINDOW])
-        if rsi_period is not None:
-            values["rsi_period"] = rsi_period
-        return cls.model_validate(values)
 
     def to_momentum_config(self) -> MomentumConfig:
         """Return the existing analyzer config carrying this snapshot's values."""

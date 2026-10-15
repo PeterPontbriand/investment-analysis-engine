@@ -57,7 +57,7 @@ class _FixtureClient(FixtureDataClient):
 @pytest.fixture(autouse=True)
 def mock_momentum_settings() -> Iterator[None]:
     """Materialize deterministic Momentum defaults for the analyzer's fallback ticker."""
-    mock_analysis = {"default": {"default_ticker": "BTC-USD", "data_start_date": "2026-01-01"}}
+    mock_analysis = {"default": {"default_ticker": "BTC-USD"}}
     with patch("src.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
         yield
 
@@ -76,7 +76,7 @@ def _build_run(profile: InstrumentProfile | None = None) -> AnalysisRun:
     what the real fixture SMAs would produce if recomputed, so tests can prove
     replay consumes the stored value rather than recalculating it.
     """
-    selection = MomentumSelection(short_window=2, long_window=3)
+    selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     request = AnalysisRequest(ticker="AAPL", selection=selection)
 
     def capture() -> ExecutionCapture:
@@ -248,7 +248,8 @@ def test_project_run_never_calls_the_live_analyzer_or_settings() -> None:
     run = _build_run()
     with (
         patch.object(MomentumAnalyzer, "run_analysis", forbidden),
-        patch("src.config.ProjectSettings.get_momentum_analysis", forbidden),
+        patch("src.config.strategy_settings.load_strategy_settings", forbidden),
+        patch("src.cli_composition.load_strategy_settings", forbidden),
     ):
         assert project_run(
             run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
@@ -568,8 +569,8 @@ def test_growth_project_run_renders_the_stored_result_not_a_recomputed_one() -> 
 def test_growth_project_run_uses_the_stored_assumptions_not_current_settings() -> None:
     """Replay must never read the live command's current growth assumptions.
 
-    Patches `ProjectSettings.get_graham_value_analysis` (the source `growth_assumptions()`
-    reads) to raise; replay must still succeed and must show the *stored* policy
+    Patches `load_strategy_settings` (the source `graham_growth_settings()` reads) to raise;
+    replay must still succeed and must show the *stored* policy
     (base_pe=8.5, growth_multiplier=2.0, baseline_aaa_yield=4.4), never a live default.
     """
     run = _growth_run()
@@ -577,7 +578,10 @@ def test_growth_project_run_uses_the_stored_assumptions_not_current_settings() -
     def forbidden(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("Replay must not read current Graham Growth assumption settings.")
 
-    with patch("src.config.ProjectSettings.get_graham_value_analysis", forbidden):
+    with (
+        patch("src.config.strategy_settings.load_strategy_settings", forbidden),
+        patch("src.cli_composition.load_strategy_settings", forbidden),
+    ):
         rendered = project_run(
             run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
         )
@@ -759,7 +763,8 @@ def test_growth_project_run_never_calls_the_live_analyzer_or_settings() -> None:
     run = _growth_run()
     with (
         patch("src.strategies.graham_growth.analyzer.GrahamGrowthAnalyzer.run_analysis", forbidden),
-        patch("src.config.ProjectSettings.get_graham_value_analysis", forbidden),
+        patch("src.config.strategy_settings.load_strategy_settings", forbidden),
+        patch("src.cli_composition.load_strategy_settings", forbidden),
     ):
         assert project_run(
             run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY

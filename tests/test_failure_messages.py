@@ -269,7 +269,7 @@ def _migrated(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     command.upgrade(config, "head")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
     monkeypatch.setattr("src.cli_run_support.settings", isolated)
-    monkeypatch.setattr("src.strategies.momentum.cli.settings", isolated)
+    monkeypatch.setattr("src.cli_support.settings", isolated)
 
 
 def _direct(

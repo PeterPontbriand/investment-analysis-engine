@@ -373,7 +373,7 @@ def run_saved(case: Case) -> tuple[CommandOutput, CommandOutput, AnalysisRun]:
     """
     with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
         settings = _migrated(Path(directory))
-        for module in ("src.cli_run_support", "src.strategies.momentum.cli"):
+        for module in ("src.cli_run_support", "src.cli_support"):
             stack.enter_context(patch(f"{module}.settings", settings))
         _enter_providers(stack, case)
         result = CliRunner().invoke(app, [*case.arguments, "--json", "--save-run"])

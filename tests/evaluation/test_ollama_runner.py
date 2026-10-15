@@ -360,8 +360,9 @@ async def test_empirical_runner_records_model_failure_as_execution_failure() -> 
 
 # SHA-256 of the serialized schemas of the four existing tools as produced before the descriptor declared them.
 # The prompt must not change for these four contracts when they are declared elsewhere; a strategy appended
-# after them adds its own schema and leaves this hash alone.
-_PRE_DESCRIPTOR_TOOL_SCHEMAS_SHA256 = "ce7d879a55d3e1670730d26cbc39325217642e1581753306edbf4d45b6c23a43"
+# after them adds its own schema and leaves this hash alone. LAY.7b made Momentum's window and RSI arguments
+# optional, and the hash was updated deliberately.
+_PRE_DESCRIPTOR_TOOL_SCHEMAS_SHA256 = "cdf8eb78c4d38e5f1c0f3cae449caae24adf2ab494a21819c9356a89abea9c3c"
 
 
 def test_tool_schemas_are_the_four_declared_contracts_in_declaration_order() -> None:

@@ -1,7 +1,6 @@
 """Slice F regression coverage for Momentum's shared contracts."""
 
 from datetime import UTC, datetime
-from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -66,7 +65,7 @@ def test_momentum_config_validates_all_periods() -> None:
     config = MomentumConfig(short_window=20, long_window=50, rsi_period=10)
     assert (config.short_window, config.long_window, config.rsi_period) == (20, 50, 10)
     with pytest.raises(ValueError, match="smaller than Long window"):
-        MomentumConfig(short_window=50, long_window=20)
+        MomentumConfig(short_window=50, long_window=20, rsi_period=14)
 
 
 def test_first_valid_long_window_does_not_invent_a_crossover() -> None:
@@ -94,15 +93,11 @@ def test_run_analysis_rejects_invalid_values_outside_latest_windows(invalid: flo
         {"Close": [invalid, 2.0, 3.0, 4.0]},
         index=pd.date_range("2026-01-01", periods=4, tz=UTC),
     )
-    momentum_settings = {"window_sizes": {"short_window": 2, "long_window": 3}}
     context = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 5, tzinfo=UTC), use_cache=True)
-    with (
-        patch("src.config.ProjectSettings.get_momentum_analysis", return_value=momentum_settings),
-    ):
-        analyzer = MomentumAnalyzer(market_data_provider=FixtureMarketDataProvider(frame), start_date="2026-01-01")
-        with pytest.raises(HistoricalDataQualityError, match="finite"):
-            analyzer.run_analysis(
-                ticker="ACME",
-                config=MomentumConfig(short_window=2, long_window=3, rsi_period=2),
-                context=context,
-            )
+    analyzer = MomentumAnalyzer(market_data_provider=FixtureMarketDataProvider(frame), start_date="2026-01-01")
+    with pytest.raises(HistoricalDataQualityError, match="finite"):
+        analyzer.run_analysis(
+            ticker="ACME",
+            config=MomentumConfig(short_window=2, long_window=3, rsi_period=2),
+            context=context,
+        )

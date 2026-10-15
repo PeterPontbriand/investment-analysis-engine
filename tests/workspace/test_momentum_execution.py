@@ -38,7 +38,7 @@ class _FixtureClient(FixtureDataClient):
 @pytest.fixture(autouse=True)
 def mock_settings_config() -> Generator[None, None, None]:
     """Stub out configured analysis defaults; the adapter's tests supply their own."""
-    mock_analysis = {"default": {"default_ticker": "BTC-USD", "data_start_date": "2026-01-01"}}
+    mock_analysis = {"default": {"default_ticker": "BTC-USD"}}
     with patch("src.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
         yield
 
