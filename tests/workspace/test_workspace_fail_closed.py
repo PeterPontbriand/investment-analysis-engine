@@ -45,7 +45,7 @@ def _run(analysis_id: str = "momentum", method_id: str = "sma_crossover") -> Ana
         analysis_id="momentum",
         method_id="sma_crossover",
         config_schema_version=2,
-        requested_config=MomentumSelection(short_window=2, long_window=3),
+        requested_config=MomentumSelection(short_window=2, long_window=3, rsi_period=14),
         started_at=STAMP,
         completed_at=STAMP,
         method_version=1,
@@ -64,20 +64,20 @@ def _encode(selection: SelectionMember, evidence: object) -> object:
 
 def test_an_undeclared_evidence_type_is_rejected_not_encoded_as_momentum() -> None:
     with pytest.raises(UndeclaredStrategyError, match="_UndeclaredEvidence"):
-        _encode(MomentumSelection(short_window=2, long_window=3), _UndeclaredEvidence())
+        _encode(MomentumSelection(short_window=2, long_window=3, rsi_period=14), _UndeclaredEvidence())
 
 
 def test_a_subclass_of_a_declared_result_type_is_rejected() -> None:
     subclassed = object.__new__(_SubclassedMomentumRun)
     with pytest.raises(UndeclaredStrategyError, match="_SubclassedMomentumRun") as error:
-        _encode(MomentumSelection(short_window=2, long_window=3), subclassed)
+        _encode(MomentumSelection(short_window=2, long_window=3, rsi_period=14), subclassed)
     assert not isinstance(error.value, InvalidStoredRunError)
 
 
 @pytest.mark.parametrize(
     "selection",
     [
-        MomentumSelection(short_window=2, long_window=3),
+        MomentumSelection(short_window=2, long_window=3, rsi_period=14),
         GrahamNumberSelection(),
         GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5),
         FCFGrowthSelection(),
@@ -121,7 +121,7 @@ def test_an_undeclared_alias_is_rejected_where_the_command_line_resolves_it() ->
 
 
 def test_run_spec_for_names_a_selection_whose_strategy_is_not_declared() -> None:
-    selection = MomentumSelection(short_window=2, long_window=3)
+    selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     assert run_spec_for(selection) is RUN_SPECS_BY_KEY[("momentum", "sma_crossover")]
     with pytest.raises(UndeclaredStrategyError, match="sma_crossover"):
         run_spec_for(selection, {})
@@ -143,7 +143,7 @@ class _Sink:
 
 
 def test_a_refresh_job_whose_strategy_has_no_run_spec_fails_as_that_jobs_error() -> None:
-    selection = MomentumSelection(short_window=2, long_window=3)
+    selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     watchlist = Watchlist(
         watchlist_id=RUN_ID,
         display_name="W",

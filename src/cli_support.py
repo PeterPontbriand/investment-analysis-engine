@@ -301,9 +301,9 @@ def _default_ticker() -> str:
     return str(settings.get_analysis_settings()[ConfigKeys.DEFAULT_SECTION][ConfigKeys.TICKER])
 
 
-def _default_history_start_date() -> str:
-    """Return the configured start date for historical price series."""
-    return str(settings.get_analysis_settings()[ConfigKeys.DEFAULT_SECTION][ConfigKeys.START_DATE])
+def _production_database() -> SQLiteDatabase:
+    """Return the application database, which the caller opens, checks for readiness and closes."""
+    return SQLiteDatabase(settings)
 
 
 def _canonical_provider_id(value: str | None) -> str | None:

@@ -1,0 +1,8 @@
+# Short SMA window, in daily market observations.
+short_window = 50
+# Long SMA window, in daily market observations; must be larger than short_window.
+long_window = 200
+# RSI lookback period, in daily market observations.
+rsi_period = 14
+# First day of the historical price series (YYYY-MM-DD).
+history_start_date = "2021-01-01"

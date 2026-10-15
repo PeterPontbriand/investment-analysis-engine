@@ -95,7 +95,7 @@ def _watchlist(members: tuple[str, ...], selections: tuple[AnalysisSelection, ..
 
 
 def _momentum_capture(ticker: str, outcome: RunOutcome = RunOutcome.COMPLETED) -> ExecutionCapture:
-    selection = MomentumSelection(short_window=2, long_window=3)
+    selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     native: MomentumRun = run_momentum(
         selection, ticker, _FixtureClient(), start_date="2026-01-01", executed_at=NOW, instrument_profile=None
     )
@@ -125,7 +125,7 @@ def test_refresh_watchlist_raises_for_missing_watchlist() -> None:
 
 
 def test_refresh_watchlist_raises_for_empty_membership() -> None:
-    watchlist = _watchlist((), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist((), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     with pytest.raises(EmptyRefreshTargetError, match="has no entries"):
         refresh_watchlist(
             "My Watch",
@@ -151,7 +151,7 @@ def test_refresh_watchlist_raises_for_zero_selections() -> None:
 
 
 def test_refresh_watchlist_iterates_member_then_selection_position_order() -> None:
-    momentum = MomentumSelection(short_window=2, long_window=3)
+    momentum = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     number = GrahamNumberSelection()
     watchlist = _watchlist(("AAPL", "MSFT"), (momentum, number))
     sink = _FakeSink()
@@ -192,7 +192,7 @@ def test_refresh_watchlist_iterates_member_then_selection_position_order() -> No
 
 
 def test_refresh_watchlist_stamps_shared_refresh_and_watchlist_identity() -> None:
-    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     summary = refresh_watchlist(
         "My Watch",
         watchlists=_FakeWatchlists({"my watch": watchlist}),
@@ -215,7 +215,9 @@ def test_refresh_watchlist_stamps_shared_refresh_and_watchlist_identity() -> Non
 
 
 def test_refresh_watchlist_isolates_one_jobs_executor_exception() -> None:
-    watchlist = _watchlist(("AAPL", "BROKEN", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(
+        ("AAPL", "BROKEN", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),)
+    )
     sink = _FakeSink()
 
     def executor(ticker: str, _selection: AnalysisSelection) -> ExecutionCapture:
@@ -245,7 +247,7 @@ def test_refresh_watchlist_isolates_one_jobs_executor_exception() -> None:
 
 
 def test_refresh_watchlist_isolates_one_jobs_persistence_failure() -> None:
-    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     sink = _FakeSink(fail_for_tickers=frozenset({"AAPL"}))
 
     summary = refresh_watchlist(
@@ -269,7 +271,7 @@ def test_refresh_watchlist_isolates_one_jobs_persistence_failure() -> None:
 
 
 def test_refresh_watchlist_repeated_calls_produce_distinct_runs() -> None:
-    watchlist = _watchlist(("AAPL",), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL",), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     sink = _FakeSink()
 
     first = refresh_watchlist(
@@ -302,7 +304,7 @@ def test_refresh_watchlist_repeated_calls_produce_distinct_runs() -> None:
 
 def test_refresh_watchlist_persists_each_job_before_the_next_executes() -> None:
     """Per-completion durability: job N's insert happens before job N+1's executor runs."""
-    watchlist = _watchlist(("AAPL", "MSFT", "KO"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL", "MSFT", "KO"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     events: list[str] = []
 
     class _RecordingSink(_FakeSink):
@@ -336,7 +338,7 @@ def test_refresh_watchlist_persists_each_job_before_the_next_executes() -> None:
 
 def test_refresh_watchlist_with_save_false_executes_but_persists_nothing() -> None:
     """`save=False` still runs every entry; nothing reaches the repository."""
-    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     sink = _FakeSink()
 
     summary = refresh_watchlist(
@@ -360,7 +362,9 @@ def test_refresh_watchlist_with_save_false_executes_but_persists_nothing() -> No
 
 
 def test_refresh_watchlist_with_save_false_still_isolates_one_jobs_executor_exception() -> None:
-    watchlist = _watchlist(("AAPL", "BROKEN", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(
+        ("AAPL", "BROKEN", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),)
+    )
     sink = _FakeSink()
 
     def executor(ticker: str, _selection: AnalysisSelection) -> ExecutionCapture:
@@ -409,7 +413,7 @@ def test_refresh_summary_counts_by_outcome() -> None:
 
 def _build_run(*, status: RunOutcome, failure_reason_code: str | None = None) -> AnalysisRun:
     native = run_momentum(
-        MomentumSelection(short_window=2, long_window=3),
+        MomentumSelection(short_window=2, long_window=3, rsi_period=14),
         "AAPL",
         _FixtureClient(),
         start_date="2026-01-01",
@@ -422,7 +426,7 @@ def _build_run(*, status: RunOutcome, failure_reason_code: str | None = None) ->
         analysis_id="momentum",
         method_id="sma_crossover",
         config_schema_version=2,
-        requested_config=MomentumSelection(short_window=2, long_window=3),
+        requested_config=MomentumSelection(short_window=2, long_window=3, rsi_period=14),
         started_at=NOW,
         completed_at=NOW,
         method_version=1,
@@ -517,7 +521,7 @@ class _LoggingSink(_FakeSink):
 
 def test_g2_bounds_admission_and_gates_replacement_on_persisted_completion() -> None:
     """At most `workers` jobs run at once; a freed slot is only replaced after its job is persisted."""
-    watchlist = _watchlist(("A", "B", "C"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("A", "B", "C"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     log = _ThreadSafeLog()
     gated = _GatedExecutor(log)
     sink = _LoggingSink(log)
@@ -567,7 +571,7 @@ def test_g2_bounds_admission_and_gates_replacement_on_persisted_completion() -> 
 
 def test_g2_preserves_snapshot_order_despite_out_of_order_completion() -> None:
     """The summary is always in watchlist snapshot order, regardless of which job finishes first."""
-    watchlist = _watchlist(("SLOW", "FAST"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("SLOW", "FAST"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     slow_admitted = threading.Event()
     slow_may_finish = threading.Event()
 
@@ -610,7 +614,7 @@ def test_g2_preserves_snapshot_order_despite_out_of_order_completion() -> None:
 
 def test_g2_repository_insert_always_runs_on_the_calling_thread_not_a_worker() -> None:
     """The coordinator (the calling thread) is the only thread that ever writes."""
-    watchlist = _watchlist(("AAPL", "MSFT", "KO"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL", "MSFT", "KO"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     caller_thread_id = threading.get_ident()
     executor_thread_ids: set[int] = set()
     insert_thread_ids: set[int] = set()
@@ -644,7 +648,7 @@ def test_g2_repository_insert_always_runs_on_the_calling_thread_not_a_worker() -
 
 def test_g2_persists_worker_measured_timing_via_replay_clock() -> None:
     """A job's started_at/completed_at reflect the worker's own measured window, not coordinator time."""
-    watchlist = _watchlist(("AAPL",), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL",), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     ticks = iter([NOW, NOW + timedelta(seconds=5)])
     lock = threading.Lock()
 
@@ -670,7 +674,9 @@ def test_g2_persists_worker_measured_timing_via_replay_clock() -> None:
 
 
 def test_g2_isolates_one_jobs_executor_exception() -> None:
-    watchlist = _watchlist(("AAPL", "BROKEN", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(
+        ("AAPL", "BROKEN", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),)
+    )
     sink = _FakeSink()
 
     def executor(ticker: str, _selection: AnalysisSelection) -> ExecutionCapture:
@@ -700,7 +706,7 @@ def test_g2_isolates_one_jobs_executor_exception() -> None:
 
 
 def test_g2_isolates_one_jobs_persistence_failure() -> None:
-    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     sink = _FakeSink(fail_for_tickers=frozenset({"AAPL"}))
 
     summary = refresh_watchlist(
@@ -723,7 +729,7 @@ def test_g2_isolates_one_jobs_persistence_failure() -> None:
 
 
 def test_g2_workers_greater_than_job_count_runs_every_job_without_error() -> None:
-    watchlist = _watchlist(("AAPL",), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL",), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     summary = refresh_watchlist(
         "My Watch",
         watchlists=_FakeWatchlists({"my watch": watchlist}),
@@ -740,7 +746,7 @@ def test_g2_workers_greater_than_job_count_runs_every_job_without_error() -> Non
 
 def test_g2_with_save_false_executes_but_persists_nothing() -> None:
     """The concurrent path's coordinator-only settle step also honors `save=False`."""
-    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     sink = _FakeSink()
 
     summary = refresh_watchlist(
@@ -809,7 +815,7 @@ def test_g2_concurrent_refresh_saves_are_visible_to_another_connection_before_th
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
 
-    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     admitted = {"AAPL": threading.Event(), "MSFT": threading.Event()}
     release = {"AAPL": threading.Event(), "MSFT": threading.Event()}
     aapl_persisted = threading.Event()
@@ -867,7 +873,7 @@ def _assert_visible_from_a_fresh_connection(url: str, run_id: UUID) -> None:
 
 
 def test_g3_sequential_refresh_admits_nothing_when_already_cancelled() -> None:
-    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     already_cancelled = threading.Event()
     already_cancelled.set()
 
@@ -886,7 +892,7 @@ def test_g3_sequential_refresh_admits_nothing_when_already_cancelled() -> None:
 
 
 def test_g3_sequential_refresh_stops_admitting_once_cancelled_mid_batch() -> None:
-    watchlist = _watchlist(("AAPL", "MSFT", "KO"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL", "MSFT", "KO"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     cancellation = threading.Event()
 
     def executor(ticker: str, _selection: AnalysisSelection) -> ExecutionCapture:
@@ -912,7 +918,7 @@ def test_g3_sequential_refresh_stops_admitting_once_cancelled_mid_batch() -> Non
 
 
 def test_g3_concurrent_refresh_admits_nothing_when_already_cancelled() -> None:
-    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     already_cancelled = threading.Event()
     already_cancelled.set()
 
@@ -933,7 +939,7 @@ def test_g3_concurrent_refresh_admits_nothing_when_already_cancelled() -> None:
 
 def test_g3_concurrent_refresh_stops_admitting_and_lets_running_jobs_settle() -> None:
     """Cancellation stops admission but never a fabricated row, and running jobs still persist."""
-    watchlist = _watchlist(("A", "B", "C"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("A", "B", "C"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     log = _ThreadSafeLog()
     gated = _GatedExecutor(log)
     sink = _LoggingSink(log)
@@ -985,7 +991,9 @@ def test_g3_concurrent_refresh_stops_admitting_and_lets_running_jobs_settle() ->
 def test_refresh_watchlist_asks_describe_once_per_failed_job_and_marks_a_failure_while_saving(
     workers: int, save: bool
 ) -> None:
-    watchlist = _watchlist(("AAPL", "BROKEN", "MSFT"), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(
+        ("AAPL", "BROKEN", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),)
+    )
     calls: list[tuple[str, str, bool]] = []
 
     def describe(exception: BaseException, ticker: str, saving: bool) -> JobFailure:
@@ -1020,7 +1028,7 @@ def test_refresh_watchlist_asks_describe_once_per_failed_job_and_marks_a_failure
 
 @pytest.mark.parametrize("workers", [1, 2])
 def test_a_missing_run_spec_is_not_a_failure_while_saving(workers: int) -> None:
-    watchlist = _watchlist(("AAPL",), (MomentumSelection(short_window=2, long_window=3),))
+    watchlist = _watchlist(("AAPL",), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     calls: list[tuple[str, bool]] = []
 
     def describe(exception: BaseException, ticker: str, saving: bool) -> JobFailure:

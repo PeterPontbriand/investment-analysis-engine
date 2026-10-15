@@ -26,19 +26,9 @@ def mock_settings_config() -> Generator[None, None, None]:
     mock_analysis = {
         "default": {
             "default_ticker": "BTC-USD",
-            "data_start_date": "2026-01-01",
         }
     }
-    mock_momentum = {
-        "window_sizes": {
-            "short_window": 2,
-            "long_window": 5,
-        }
-    }
-    with (
-        patch("src.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis),
-        patch("src.config.ProjectSettings.get_momentum_analysis", return_value=mock_momentum),
-    ):
+    with patch("src.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
         yield
 
 
@@ -72,15 +62,15 @@ def bearish_dataframe() -> pd.DataFrame:
     return pd.DataFrame(data, index=dates)
 
 
-def test_momentum_config_dynamic_factory_defaults() -> None:
-    config = MomentumConfig()
-    assert config.short_window == 2
-    assert config.long_window == 5
+def test_momentum_config_has_no_defaults() -> None:
+    with pytest.raises(ValueError, match="Field required"):
+        MomentumConfig()  # type: ignore[call-arg]
+    assert all(field.is_required() for field in MomentumConfig.model_fields.values())
 
 
 def test_momentum_config_rejects_non_positive_windows() -> None:
     with pytest.raises(ValueError, match="greater than 0"):
-        MomentumConfig(short_window=0, long_window=5)
+        MomentumConfig(short_window=0, long_window=5, rsi_period=14)
 
 
 @patch("src.data.yfinance.client.yf.download")
@@ -98,7 +88,7 @@ def test_fetch_market_data_handles_multiindex_flattening(mock_download: MagicMoc
 def test_analyze_momentum_bullish(bullish_dataframe: pd.DataFrame) -> None:
     metrics = compute_momentum_metrics(
         df=bullish_dataframe,
-        config=MomentumConfig(short_window=2, long_window=5),
+        config=MomentumConfig(short_window=2, long_window=5, rsi_period=14),
         ticker="BTC-USD",
         timestamp=datetime(2026, 1, 20, tzinfo=UTC),
     )
@@ -115,7 +105,7 @@ def test_analyze_momentum_bullish(bullish_dataframe: pd.DataFrame) -> None:
 def test_analyze_momentum_bearish(bearish_dataframe: pd.DataFrame) -> None:
     metrics = compute_momentum_metrics(
         df=bearish_dataframe,
-        config=MomentumConfig(short_window=2, long_window=5),
+        config=MomentumConfig(short_window=2, long_window=5, rsi_period=14),
         ticker="BTC-USD",
         timestamp=datetime(2026, 1, 20, tzinfo=UTC),
     )
@@ -144,7 +134,7 @@ def test_run_analysis_retains_market_metadata(bullish_dataframe: pd.DataFrame) -
 
     run = analyzer.run_analysis(
         ticker="BTC-USD",
-        config=MomentumConfig(short_window=2, long_window=5),
+        config=MomentumConfig(short_window=2, long_window=5, rsi_period=14),
         context=_CONTEXT,
     )
 
@@ -171,7 +161,9 @@ def test_run_analysis_embeds_the_context_instrument_profile(
     )
     analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
 
-    run = analyzer.run_analysis(ticker="BTC-USD", config=MomentumConfig(short_window=2, long_window=5), context=context)
+    run = analyzer.run_analysis(
+        ticker="BTC-USD", config=MomentumConfig(short_window=2, long_window=5, rsi_period=14), context=context
+    )
 
     assert run.instrument_profile is (profile if with_profile else None)
 
@@ -195,7 +187,7 @@ def test_run_analysis_forwards_disabled_cache_to_the_client(bullish_dataframe: p
 
     analyzer.run_analysis(
         ticker="BTC-USD",
-        config=MomentumConfig(short_window=2, long_window=5),
+        config=MomentumConfig(short_window=2, long_window=5, rsi_period=14),
         context=context,
     )
 
@@ -207,7 +199,7 @@ def test_insufficient_window_history_returns_unknown_without_nan() -> None:
 
     metrics = compute_momentum_metrics(
         df=df,
-        config=MomentumConfig(short_window=2, long_window=5),
+        config=MomentumConfig(short_window=2, long_window=5, rsi_period=14),
         ticker="SHORT",
         timestamp=datetime(2026, 1, 20, tzinfo=UTC),
     )
@@ -225,7 +217,7 @@ def test_non_finite_latest_price_is_rejected() -> None:
     with pytest.raises(ValueError, match="Momentum latest close must be finite"):
         compute_momentum_metrics(
             df=df,
-            config=MomentumConfig(short_window=2, long_window=3),
+            config=MomentumConfig(short_window=2, long_window=3, rsi_period=14),
             ticker="BAD",
             timestamp=datetime(2026, 1, 20, tzinfo=UTC),
         )
@@ -234,7 +226,7 @@ def test_non_finite_latest_price_is_rejected() -> None:
 def test_analyze_momentum_ticker_override_invariant(sample_ohlcv_data: pd.DataFrame) -> None:
     metrics = compute_momentum_metrics(
         df=sample_ohlcv_data,
-        config=MomentumConfig(short_window=3, long_window=7),
+        config=MomentumConfig(short_window=3, long_window=7, rsi_period=14),
         ticker="ETH-USD",
         timestamp=datetime(2026, 1, 20, tzinfo=UTC),
     )
@@ -244,7 +236,7 @@ def test_analyze_momentum_ticker_override_invariant(sample_ohlcv_data: pd.DataFr
 
 def test_analyze_momentum_window_validation() -> None:
     with pytest.raises(ValueError, match="must be smaller than Long window"):
-        MomentumConfig(short_window=20, long_window=10)
+        MomentumConfig(short_window=20, long_window=10, rsi_period=14)
 
 
 @patch("src.data.yfinance.client.YFinanceClient.fetch_data_with_context")
@@ -253,4 +245,6 @@ def test_analyze_momentum_empty_dataset_fault(mock_fetch: MagicMock) -> None:
 
     analyzer = MomentumAnalyzer(market_data_provider=YFinanceClient(), start_date="2026-01-01")
     with pytest.raises(DataFetchError, match="No market data was returned"):
-        analyzer.run_analysis(ticker="XYZ", config=MomentumConfig(), context=_CONTEXT)
+        analyzer.run_analysis(
+            ticker="XYZ", config=MomentumConfig(short_window=2, long_window=5, rsi_period=14), context=_CONTEXT
+        )

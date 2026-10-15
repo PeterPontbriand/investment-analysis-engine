@@ -10,7 +10,7 @@ from datetime import datetime
 import typer
 
 from src.analysis.shared.financial_resolution import PriceComparison
-from src.cli_composition import build_graham_resolver, growth_assumptions
+from src.cli_composition import build_graham_resolver, graham_growth_settings
 from src.cli_provider_check import (
     ProviderCheckChoice,
     provider_check_choice,
@@ -96,7 +96,7 @@ def refresh(
     """Execute one Graham Growth refresh job with freshly composed, job-scoped dependencies."""
     require_job_ticker(ticker)
     config = stored_configuration(selection.to_graham_growth_config)
-    policy = growth_assumptions()
+    policy = graham_growth_settings().to_policy()
     executed_at = utc_now()
     with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
         resolver = build_graham_resolver(
@@ -246,7 +246,7 @@ def _run_graham_growth(  # noqa: PLR0913
     provider_check: ProviderCheckChoice | None = None,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham growth-value analysis."""
-    policy = growth_assumptions()
+    policy = graham_growth_settings().to_policy()
     config = selection.to_graham_growth_config()
     as_of = selection.as_of
     use_cache = selection.use_cache
@@ -338,7 +338,7 @@ def _growth_failure_output(  # noqa: PLR0913
     """Render a failed growth analysis without leaking low-level details by default."""
     reason = friendly_valuation_failure(ticker, assembly.status, assembly.reason)
     safe_assembly = growth_with_public_quote_reason(replace(assembly, reason=reason))
-    policy = growth_assumptions()
+    policy = graham_growth_settings().to_policy()
     presentation = GrahamGrowthPresentation(
         ticker=ticker,
         assembly=safe_assembly,

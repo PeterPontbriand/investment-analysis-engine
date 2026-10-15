@@ -179,6 +179,19 @@ No two strategies share a strategy-specific base beyond `BaseAnalyzer` itself: e
 
 For which strategies exist today and what each one computes, see the [user strategy guides](../user/strategies/README.md). For how to add a new one, trace an existing strategy end to end in the [Analysis Strategy Contributor Guide](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md) rather than here.
 
+### Strategy settings
+
+A strategy's editable defaults, such as window lengths or configured constants, live in one TOML file per strategy, `config/strategies/<alias>.toml`, where `<alias>` is the strategy's descriptor alias. Values that define the method itself stay in code. A strategy with nothing to configure has no file.
+
+- **Typed model.** The strategy declares a settings model in its own package: a frozen model that forbids unknown keys, with strict types and no defaults, so the file is the single source of every value. Validators enforce the invariants, and each field's docstring documents its key.
+- **Descriptor.** `StrategyDescriptor.settings_type` names the model, or is `None` for a strategy with no file.
+- **Loader.** One generic loader in `config` reads a file and validates it into the model it is given. It knows no strategy and caches each file for the life of the process.
+- **Entry points.** Strategies never read settings. The composition roots load them and pass them in: the direct commands take their option defaults from them, the watchlist commands copy the values into the selection they create (so a later edit never changes a saved entry and replay never reads settings), calculation constants are given to the analyzer when it is built, and the local-model tool handler receives the settings with its dependencies and uses them for any argument the model omits.
+- **Evaluation.** Golden composition passes fixed settings of its own and never reads a settings file, so editing a file cannot change Golden results or the model prompt.
+- **Startup validation.** Every declared file is loaded when the commands are defined, so a missing or invalid file stops every command, including `--help`, with exit code 2 and one message that names the file and the key and never repeats the value.
+
+A test checks that every declared model has a file that validates, that every file belongs to a descriptor with a model, and that every model is frozen, forbids unknown keys and has no defaults.
+
 ---
 
 ## 7. Data providers and input resolution
@@ -562,7 +575,7 @@ This table is the single declaration of the top-level units under `src/` and the
 | --- | --- | --- | --- |
 | `analysis` | The `BaseAnalyzer` and `AnalysisContext` contract, the strategy-neutral financial-resolution helpers, the selection base, and the run-outcome models. | `core`, `data` | |
 | `cli` | The Typer commands, their production wiring, and the process entry point. | `analysis`, `config`, `core`, `data`, `evaluation`, `llm`, `reporting`, `strategies`, `strategy_wiring`, `telemetry`, `utils`, `workspace`, `workspace_documents` | |
-| `config` | The application settings object and its environment and profile loading, the reliability-limits and schema-enforcement settings shapes it holds, and path validation. | `core` | |
+| `config` | The application settings object and its environment and profile loading, the reliability-limits and schema-enforcement settings shapes it holds, path validation, and the strategy-settings loader. | `core` | |
 | `core` | The shared clock, core result and status types, strategy errors, constants, the stable failure codes and the classifier that maps an exception to one, and the trajectory event model. | | |
 | `data` | Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite database layer with the provider-data, cache and trajectory repositories. | `config`, `core` | |
 | `evaluation` | The Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting. | `config`, `core`, `data`, `llm`, `orchestrator`, `strategies`, `strategy_wiring`, `telemetry`, `tools`, `workspace` | |
@@ -570,7 +583,7 @@ This table is the single declaration of the top-level units under `src/` and the
 | `orchestrator` | The LLM tool-selection loop, the tool dispatcher and the reliability circuit and failure models, the registration of analysis-tool handlers, and the shared base for tool arguments and handlers. | `config`, `core`, `data`, `llm`, `schema`, `telemetry`, `tools` | |
 | `reporting` | The presentation helpers the strategy presenters share, the replay-projector contract the strategies implement, the typed models of the `--json` documents no single strategy or workspace command owns and of the parts several documents share, and the failure envelope. | `analysis`, `core`, `data` | |
 | `schema` | The structured-output schema constraint and its validation of model output. | `config` | |
-| `strategies` | One package per analysis strategy, each with its analyzer, configuration, result, selection, tool arguments and handler, presenter, CLI command, evaluation fixture composition, replay projector, and `--json` document model, plus the code several strategies share. | `analysis`, `config`, `core`, `data`, `orchestrator`, `reporting` | |
+| `strategies` | One package per analysis strategy, each with its analyzer, configuration, settings model, result, selection, tool arguments and handler, presenter, CLI command, evaluation fixture composition, replay projector, and `--json` document model, plus the code several strategies share. | `analysis`, `core`, `data`, `orchestrator`, `reporting` | |
 | `strategy_wiring` | The closed, statically declared list of supported strategies and their shared wiring. | `analysis`, `core`, `orchestrator`, `reporting`, `strategies`, `workspace` | |
 | `telemetry` | Structured trajectory telemetry for the agent runtime: the recorder, its sinks, redaction, the run context, the quality-decision hook, and the recent-event summary. | `config`, `core`, `data` | |
 | `tools` | The tool registry, tool-argument schema generation, and parsing of tool calls from model output. | | |

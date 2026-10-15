@@ -45,7 +45,7 @@ def test_normalize_ticker_rejects_blank(raw: str) -> None:
 @pytest.mark.parametrize(
     "selection",
     [
-        MomentumSelection(short_window=2, long_window=5),
+        MomentumSelection(short_window=2, long_window=5, rsi_period=14),
         GrahamNumberSelection(),
         GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5),
         FCFGrowthSelection(),
@@ -79,7 +79,7 @@ def test_decode_selection_rejects_version_mismatch() -> None:
 
 def test_decode_selection_rejects_a_stored_momentum_selection_from_before_as_of_and_no_cache() -> None:
     """An entry saved with the retired version 1 shape is rejected, never read as version 2."""
-    payload = json.loads(encode_selection(MomentumSelection(short_window=2, long_window=5)))
+    payload = json.loads(encode_selection(MomentumSelection(short_window=2, long_window=5, rsi_period=14)))
     payload["config_schema_version"] = 1
     del payload["as_of"], payload["use_cache"]
     with pytest.raises(StoredSelectionError, match=r"saved by an earlier version \(selection version 1\)"):
@@ -87,7 +87,7 @@ def test_decode_selection_rejects_a_stored_momentum_selection_from_before_as_of_
 
 
 def test_decode_selection_rejects_a_momentum_version_column_that_disagrees() -> None:
-    encoded = encode_selection(MomentumSelection(short_window=2, long_window=5))
+    encoded = encode_selection(MomentumSelection(short_window=2, long_window=5, rsi_period=14))
     with pytest.raises(ValueError, match="does not match"):
         decode_selection("sma_crossover", 1, encoded)
 

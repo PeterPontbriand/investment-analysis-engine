@@ -14,6 +14,7 @@ ROLE_RANK: Final = {
     **dict.fromkeys(ANALYZER_ROLES, 0),
     "envelope": 0,
     "selection": 1,
+    "settings": 1,
     "codec": 1,
     "tool": 2,
     "execution": 2,

@@ -23,7 +23,7 @@ from tests.workspace.test_refresh import (
     _watchlist,
 )
 
-_SELECTION = MomentumSelection(short_window=2, long_window=3)
+_SELECTION = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
 _UNREACHABLE = provider_failure_of((ProviderFailureRecord(ProviderFailureKind.UNREACHABLE, "yfinance"),))
 
 

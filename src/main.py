@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from src.core.settings_error import SettingsEnvironmentError
+from src.core.settings_error import SettingsEnvironmentError, StrategySettingsError
 
 try:
     # The settings are built when this module loads, and many modules read them on import. A bad engine
@@ -27,7 +27,14 @@ def main() -> None:
         print(f"Critical initialization failure: {e}", file=sys.stderr)
         sys.exit(1)
 
-    from src.cli import app  # noqa: PLC0415
+    try:
+        from src.cli import app  # noqa: PLC0415
+    except StrategySettingsError as error:
+        # A strategy's settings file is read when the commands are defined, so a bad file stops every command
+        # here, with the engine-settings handling above: one message on standard error and no traceback.
+        print(error, file=sys.stderr)
+        teardown_global_logging()
+        sys.exit(2)
 
     try:
         app()

@@ -11,7 +11,9 @@ from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
+import typer.main
 
+from src.cli_composition import momentum_settings
 from src.cli_strategy_wiring import (
     CLI_BUILDERS,
     CLI_REFRESHERS,
@@ -25,6 +27,7 @@ from src.cli_strategy_wiring import (
     refreshers_by_key,
 )
 from src.cli_watchlist_flags import WatchlistFlags
+from src.cli_workspace import watchlist_app
 from src.core.strategy_errors import UndeclaredStrategyError
 from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.strategies.fcf_growth.selection import FCFGrowthSelection
@@ -53,6 +56,26 @@ _FLAGS = WatchlistFlags(
     currency="USD",
 )
 _WITHOUT_FCF = tuple(entry for entry in CLI_STRATEGIES if entry.behavior is not FCF_GROWTH.behavior)
+
+
+@pytest.mark.parametrize("command", ["create", "add-selection"])
+def test_the_watchlist_momentum_options_default_to_the_configured_values(command: str) -> None:
+    """The window and RSI options default to the settings file, so a selection built from them carries it."""
+    configured = momentum_settings()
+    group = typer.main.get_group(watchlist_app)
+    defaults = {parameter.name: parameter.default for parameter in group.commands[command].params}
+    assert defaults["short_window"] == configured.short_window
+    assert defaults["long_window"] == configured.long_window
+    assert defaults["rsi_period"] == configured.rsi_period
+    flags = replace(
+        _FLAGS,
+        short_window=defaults["short_window"],
+        long_window=defaults["long_window"],
+        rsi_period=defaults["rsi_period"],
+    )
+    assert build_selection_for(MOMENTUM.alias, flags) == MomentumSelection(
+        short_window=configured.short_window, long_window=configured.long_window, rsi_period=configured.rsi_period
+    )
 
 
 def test_every_declared_strategy_has_a_builder_and_a_refresh_executor() -> None:

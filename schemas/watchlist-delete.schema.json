@@ -377,7 +377,6 @@
           "type": "string"
         },
         "rsi_period": {
-          "default": 14,
           "exclusiveMinimum": 0,
           "title": "Rsi Period",
           "type": "integer"
@@ -395,7 +394,8 @@
       },
       "required": [
         "short_window",
-        "long_window"
+        "long_window",
+        "rsi_period"
       ],
       "title": "MomentumSelection",
       "type": "object"

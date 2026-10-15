@@ -311,7 +311,7 @@ _OUTCOMES = [
 
 
 def _refresh(outcome: RunOutcome, code: str | None, *, save: bool, raises: bool = False) -> RefreshJobResult:
-    selection = MomentumSelection(short_window=2, long_window=3)
+    selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
 
     def executor(ticker: str, _selection: object) -> ExecutionCapture:
         if raises:
@@ -368,7 +368,7 @@ def test_a_job_that_raised_carries_the_classifier_code(save: bool) -> None:
 def test_the_saved_run_and_the_unsaved_job_report_the_same_code(save: bool) -> None:
     analysis = _number(CalculationStatus.PROVIDER_ERROR, _record(ProviderFailureKind.UNEXPECTED_RESPONSE, "bvps"))
     capture = _number_capture(analysis)
-    selection = MomentumSelection(short_window=2, long_window=3)
+    selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     capture = replace(capture, native_evidence=_momentum_native_evidence())
 
     summary = refresh_watchlist(

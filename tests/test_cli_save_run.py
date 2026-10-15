@@ -60,7 +60,7 @@ def isolated_save_run_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     command.upgrade(config, "head")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
     monkeypatch.setattr("src.cli_run_support.settings", isolated)
-    monkeypatch.setattr("src.strategies.momentum.cli.settings", isolated)
+    monkeypatch.setattr("src.cli_support.settings", isolated)
 
 
 @pytest.fixture(autouse=True)

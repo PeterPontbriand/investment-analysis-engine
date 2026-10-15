@@ -104,7 +104,7 @@ def _momentum(identity: SecurityIdentityResolution, *, ticker: str = "ACME") -> 
             crossover_signal=1.0,
             timestamp=NOW,
         ),
-        config=MomentumConfig(short_window=20, long_window=50),
+        config=MomentumConfig(short_window=20, long_window=50, rsi_period=14),
         identity_resolution=identity,
     )
 

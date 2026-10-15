@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import cast
+from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
@@ -33,7 +34,7 @@ from src.evaluation.fixtures.graham import (
     FixtureFinancialFactsProvider,
 )
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from src.evaluation.fixtures.market_data import FixtureMarketDataProvider
+from src.evaluation.fixtures.market_data import GOLDEN_MOMENTUM_SETTINGS, FixtureMarketDataProvider
 from src.orchestrator.analysis_tools import register_analysis_tools
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.tool_names import ToolName
@@ -51,8 +52,9 @@ from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 from src.strategies.graham_number.tool import GrahamNumberToolDependencies
-from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumRun
-from src.strategies.momentum.tool import MomentumToolDependencies
+from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
+from src.strategies.momentum.settings import MomentumSettings
+from src.strategies.momentum.tool import MomentumToolDependencies, MomentumToolHandler
 from src.strategy_wiring import STRATEGIES, bind_handlers
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
@@ -118,7 +120,7 @@ def _dependencies(*, clock: datetime = EXECUTION_TIME) -> _Composition:
     annual_provider = ProductionFinancialFactsProvider(sec_edgar=FixtureAnnualFinancialFactsProvider(annual_facts))
     fcf = FCFEarningsGrowthAnalyzer(ProductionAnnualGrowthSeriesResolver(annual_provider, clock=lambda: clock))
     return _Composition(
-        momentum=MomentumToolDependencies(analyzer=momentum),
+        momentum=MomentumToolDependencies(analyzer=momentum, settings=GOLDEN_MOMENTUM_SETTINGS),
         graham_number=GrahamNumberToolDependencies(
             analyzer=graham_number_analyzer,
             security_provider_id=GRAHAM_PROVIDER_ID,
@@ -214,7 +216,8 @@ async def test_momentum_tool_use_cache_argument_reaches_the_provider(
     dependencies = replace(
         _dependencies(),
         momentum=MomentumToolDependencies(
-            analyzer=MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
+            analyzer=MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01"),
+            settings=GOLDEN_MOMENTUM_SETTINGS,
         ),
     )
     dispatcher = AsyncToolDispatcher()
@@ -376,3 +379,42 @@ def test_dependency_classes_reject_blank_provider_ids() -> None:
         replace(composition.graham_growth, quote_provider_id=" ")
     with pytest.raises(ValueError, match="provider IDs must be non-empty"):
         replace(composition.fcf, provider_id="  ")
+
+
+_CONFIGURED = MomentumSettings(short_window=4, long_window=9, rsi_period=6, history_start_date=date(2026, 1, 1))
+
+
+def _momentum_handler() -> tuple[MomentumToolHandler, MagicMock]:
+    """Bind a Momentum handler to a recording analyzer and the configured settings above."""
+    analyzer = MagicMock(spec=MomentumAnalyzer)
+    handler = MomentumToolHandler(
+        MomentumToolDependencies(analyzer=analyzer, settings=_CONFIGURED),
+        ToolRuntime(clock=lambda: EXECUTION_TIME),
+    )
+    return handler, analyzer
+
+
+def test_momentum_tool_fills_every_omitted_argument_from_its_settings() -> None:
+    handler, analyzer = _momentum_handler()
+
+    handler(ticker="MOM")
+
+    config = analyzer.run_analysis.call_args.kwargs["config"]
+    assert config == MomentumConfig(short_window=4, long_window=9, rsi_period=6)
+
+
+def test_momentum_tool_explicit_arguments_win_over_its_settings() -> None:
+    handler, analyzer = _momentum_handler()
+
+    handler(ticker="MOM", short_window=2, rsi_period=3)
+
+    config = analyzer.run_analysis.call_args.kwargs["config"]
+    assert config == MomentumConfig(short_window=2, long_window=9, rsi_period=3)
+
+
+def test_momentum_tool_validates_a_given_window_against_the_configured_other_one() -> None:
+    handler, analyzer = _momentum_handler()
+
+    with pytest.raises(ValueError, match="must be smaller than Long window"):
+        handler(ticker="MOM", short_window=9)
+    analyzer.run_analysis.assert_not_called()

@@ -13,8 +13,7 @@ import pandas as pd
 from pydantic import BaseModel, Field, model_validator
 
 from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
-from src.config import settings
-from src.core.constants import ConfigKeys, DataColumns, TrendStatus
+from src.core.constants import DataColumns, TrendStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
@@ -75,25 +74,12 @@ class MomentumRun:
     data_resolution: HistoricalDataResolution | None = None
 
 
-def _get_default_short_window() -> int:
-    """Read the configured default short SMA window."""
-    return int(settings.get_momentum_analysis()[ConfigKeys.WINDOW_SIZES][ConfigKeys.SHORT_WINDOW])
-
-
-def _get_default_long_window() -> int:
-    """Read the configured default long SMA window."""
-    return int(settings.get_momentum_analysis()[ConfigKeys.WINDOW_SIZES][ConfigKeys.LONG_WINDOW])
-
-
 class MomentumConfig(BaseModel):
-    """Parameter definitions specific to SMA momentum indicators.
+    """Parameter definitions specific to SMA momentum indicators."""
 
-    Defaults are evaluated dynamically from the configuration TOML settings.
-    """
-
-    short_window: int = Field(default_factory=_get_default_short_window, gt=0)
-    long_window: int = Field(default_factory=_get_default_long_window, gt=0)
-    rsi_period: int = Field(default=14, gt=0)
+    short_window: int = Field(gt=0)
+    long_window: int = Field(gt=0)
+    rsi_period: int = Field(gt=0)
 
     @model_validator(mode="after")
     def validate_windows(self) -> MomentumConfig:

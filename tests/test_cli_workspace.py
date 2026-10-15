@@ -522,7 +522,7 @@ def _insert_momentum_run(
     database = SQLiteDatabase(src.cli_workspace.settings)
     try:
         repository = SQLiteAnalysisRunRepository(database)
-        selection = MomentumSelection(short_window=2, long_window=3)
+        selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
         request = AnalysisRequest(ticker=ticker, selection=selection)
 
         def capture() -> ExecutionCapture:
@@ -647,7 +647,7 @@ def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
     `int`, so a genuinely stored, self-consistent row with an unsupported value is
     possible — and must surface as the same sanitized exit 1, not a raw traceback.
     """
-    selection = MomentumSelection(short_window=2, long_window=3)
+    selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     native = run_momentum(
         selection,
         "AAPL",

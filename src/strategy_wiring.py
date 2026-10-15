@@ -52,6 +52,7 @@ from src.strategies.graham_growth.envelope import GrahamGrowthDocument
 from src.strategies.graham_growth.replay import project_graham_growth
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from src.strategies.graham_growth.settings import GrahamGrowthSettings
 from src.strategies.graham_growth.tool import (
     GrahamGrowthToolDependencies,
     GrahamGrowthToolHandler,
@@ -83,6 +84,7 @@ from src.strategies.momentum.codec import decode_momentum, encode_momentum, mome
 from src.strategies.momentum.envelope import MomentumDocument
 from src.strategies.momentum.replay import project_momentum
 from src.strategies.momentum.selection import MomentumSelection
+from src.strategies.momentum.settings import MomentumSettings
 from src.strategies.momentum.tool import MomentumToolArguments, MomentumToolDependencies, MomentumToolHandler
 from src.strategies.momentum.vocabulary import ANALYSIS_ID as MOMENTUM_ANALYSIS_ID
 from src.strategies.momentum.vocabulary import CONFIG_SCHEMA_VERSION as MOMENTUM_CONFIG_SCHEMA_VERSION
@@ -195,6 +197,7 @@ class StrategyDescriptor:
     result_schema_version: int
     evidence_codec_version: int
     json_envelope: type[BaseModel]
+    settings_type: type[BaseModel] | None
 
 
 MOMENTUM_BEHAVIOR: Final = StrategyBehavior[MomentumSelection, MomentumRun, MomentumToolDependencies](
@@ -262,6 +265,7 @@ MOMENTUM: Final = StrategyDescriptor(
     result_schema_version=4,
     evidence_codec_version=3,
     json_envelope=MomentumDocument,
+    settings_type=MomentumSettings,
 )
 GRAHAM_NUMBER: Final = StrategyDescriptor(
     analysis_id=GRAHAM_NUMBER_ANALYSIS_ID,
@@ -277,6 +281,7 @@ GRAHAM_NUMBER: Final = StrategyDescriptor(
     result_schema_version=4,
     evidence_codec_version=4,
     json_envelope=GrahamNumberDocument,
+    settings_type=None,
 )
 GRAHAM_GROWTH: Final = StrategyDescriptor(
     analysis_id=GRAHAM_GROWTH_ANALYSIS_ID,
@@ -292,6 +297,7 @@ GRAHAM_GROWTH: Final = StrategyDescriptor(
     result_schema_version=4,
     evidence_codec_version=4,
     json_envelope=GrahamGrowthDocument,
+    settings_type=GrahamGrowthSettings,
 )
 FCF_GROWTH: Final = StrategyDescriptor(
     analysis_id=FCF_GROWTH_ANALYSIS_ID,
@@ -307,6 +313,7 @@ FCF_GROWTH: Final = StrategyDescriptor(
     result_schema_version=FCF_GROWTH_RESULT_SCHEMA_VERSION,
     evidence_codec_version=3,
     json_envelope=FCFDocument,
+    settings_type=None,
 )
 
 STRATEGIES: Final = (MOMENTUM, GRAHAM_NUMBER, GRAHAM_GROWTH, FCF_GROWTH)

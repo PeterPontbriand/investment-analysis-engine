@@ -18,8 +18,8 @@ def project_graham_growth(
 
     ``base_pe``/``growth_multiplier``/``baseline_aaa_yield`` come from the evidence's own captured ``policy``
     (the effective assumptions actually used at execution time), never from the live command's current
-    `growth_assumptions()` settings lookup — a future change to those defaults must never alter what an old run
-    replays as.
+    configured Graham Growth settings (``GrahamGrowthSettings.to_policy()``, built at the composition root) — a
+    future change to those defaults must never alter what an old run replays as.
     """
     del selection
     presentation = GrahamGrowthPresentation(

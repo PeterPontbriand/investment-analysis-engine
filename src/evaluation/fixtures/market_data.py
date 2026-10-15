@@ -4,6 +4,7 @@ Implements the full `BaseDataClient` contract with synthetic data so
 Golden evaluation and analyzer tests never touch external market-data providers.
 """
 
+from datetime import date
 from typing import Final
 
 import pandas as pd
@@ -11,6 +12,7 @@ import pandas as pd
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.market_data import HistoricalMarketData, MarketDataContext, latest_observation_date
+from src.strategies.momentum.settings import MomentumSettings
 
 MOMENTUM_SUCCESS_FIXTURE_ID: Final = "momentum_success"
 MOMENTUM_BOUNDARY_FIXTURE_ID: Final = "momentum_boundary"
@@ -18,6 +20,10 @@ MOMENTUM_BOUNDARY_FIXTURE_ID: Final = "momentum_boundary"
 MOMENTUM_SHORT_WINDOW: Final = 2
 MOMENTUM_LONG_WINDOW: Final = 3
 MOMENTUM_RSI_PERIOD: Final = 3
+GOLDEN_MOMENTUM_SETTINGS: Final = MomentumSettings(
+    short_window=50, long_window=200, rsi_period=14, history_start_date=date(2021, 1, 1)
+)
+"""The fixed Momentum settings Golden composition uses; no settings file is read."""
 MOMENTUM_SUCCESS_CLOSES: Final = (100.0, 101.0, 102.0, 103.0, 104.0)
 MOMENTUM_BOUNDARY_CLOSES: Final = MOMENTUM_SUCCESS_CLOSES[:2]
 MOMENTUM_FIRST_OBSERVATION: Final = "2026-01-02"

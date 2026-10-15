@@ -7,14 +7,15 @@ registers itself.
 import typer
 
 from src.analysis.base_analyzer import require_ticker
+from src.cli_composition import momentum_settings
 from src.cli_provider_check import provider_check_choice
 from src.cli_run_support import save_run_execution
 from src.cli_support import (
     SaveStage,
-    _default_history_start_date,
     _default_ticker,
     _parse_as_of,
     _presentation_mode,
+    _production_database,
     _production_historical_client,
     _production_instrument_profile_cache,
     _resolve_ticker,
@@ -23,13 +24,11 @@ from src.cli_support import (
     saving_failures,
 )
 from src.cli_watchlist_flags import WatchlistFlags
-from src.config import settings
 from src.core.clock import utc_now
 from src.core.operator_errors import InvalidParameterError
 from src.data.instrument_profile import profile_identity_resolution
 from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.data.repositories.readiness import ensure_database_ready
-from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.yfinance import YFinanceClient
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategies.momentum.execution import (
@@ -106,14 +105,14 @@ def refresh(
             selection,
             normalized_ticker,
             historical_client,
-            start_date=_default_history_start_date(),
+            start_date=momentum_settings().history_start_date.isoformat(),
             executed_at=executed_at,
             instrument_profile=profile,
         )
     return from_momentum_capture(capture_momentum(run))
 
 
-_MOMENTUM_CLI_DEFAULTS = MomentumConfig()
+_MOMENTUM_CLI_DEFAULTS = momentum_settings()
 
 
 def command(  # noqa: PLR0913
@@ -175,7 +174,7 @@ def command(  # noqa: PLR0913
                 parameters=("--save-run",),
             )
         target_ticker = require_ticker(requested_ticker if requested_ticker is not None else _default_ticker())
-        start_date = _default_history_start_date()
+        start_date = momentum_settings().history_start_date.isoformat()
         data_client = YFinanceClient()
         config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
         selection = MomentumSelection(
@@ -192,7 +191,7 @@ def command(  # noqa: PLR0913
             # Momentum's profile is composed CLI-side (outside the D1 adapter). Readiness is
             # checked before the historical-data provider call, matching every other
             # command's "preflight before provider work" ordering.
-            database = SQLiteDatabase(settings)
+            database = _production_database()
             try:
                 ensure_database_ready(database)
                 profile_cache = _production_instrument_profile_cache(database, clock=lambda: executed_at)

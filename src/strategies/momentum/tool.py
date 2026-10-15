@@ -10,31 +10,33 @@ from src.analysis.base_analyzer import AnalysisContext
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.orchestrator.tool_runtime import ToolRuntime
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
+from src.strategies.momentum.settings import MomentumSettings
 
-_MOMENTUM_DEFAULTS = MomentumConfig()
+_OMIT_TO_USE_CONFIGURED = "Omit to use the configured value."
 
 
 class MomentumToolArguments(AnalysisToolArguments):
     """Validated arguments for Momentum analysis."""
 
-    short_window: int = Field(default=_MOMENTUM_DEFAULTS.short_window, gt=0)
-    long_window: int = Field(default=_MOMENTUM_DEFAULTS.long_window, gt=0)
-    rsi_period: int = Field(default=_MOMENTUM_DEFAULTS.rsi_period, gt=0)
+    short_window: int | None = Field(default=None, gt=0, description=_OMIT_TO_USE_CONFIGURED)
+    long_window: int | None = Field(default=None, gt=0, description=_OMIT_TO_USE_CONFIGURED)
+    rsi_period: int | None = Field(default=None, gt=0, description=_OMIT_TO_USE_CONFIGURED)
     use_cache: bool = True
 
     @model_validator(mode="after")
     def require_ordered_windows(self) -> MomentumToolArguments:
-        """Require the short window to precede the long window."""
-        if self.short_window >= self.long_window:
+        """Require the short window to precede the long window when both are given."""
+        if self.short_window is not None and self.long_window is not None and self.short_window >= self.long_window:
             raise ValueError("short_window must be smaller than long_window.")
         return self
 
 
 @dataclass(frozen=True)
 class MomentumToolDependencies:
-    """Injected Momentum analyzer."""
+    """Injected Momentum analyzer and the configured values that fill omitted arguments."""
 
     analyzer: MomentumAnalyzer
+    settings: MomentumSettings
 
 
 class MomentumToolHandler:
@@ -48,10 +50,11 @@ class MomentumToolHandler:
     def __call__(self, **raw_arguments: object) -> MomentumRun:
         """Validate, resolve, and calculate one Momentum run."""
         arguments = MomentumToolArguments.model_validate(raw_arguments)
+        configured = self._dependencies.settings
         config = MomentumConfig(
-            short_window=arguments.short_window,
-            long_window=arguments.long_window,
-            rsi_period=arguments.rsi_period,
+            short_window=configured.short_window if arguments.short_window is None else arguments.short_window,
+            long_window=configured.long_window if arguments.long_window is None else arguments.long_window,
+            rsi_period=configured.rsi_period if arguments.rsi_period is None else arguments.rsi_period,
         )
         executed_at = self._runtime.validated_clock_value()
         profile = self._runtime.resolve_profile(arguments.ticker)

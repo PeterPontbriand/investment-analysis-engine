@@ -1,0 +1,6 @@
+# P/E ratio of a no-growth company (positive).
+base_pe = 8.5
+# P/E added per percentage point of expected growth (zero or more).
+growth_multiplier = 2.0
+# AAA bond yield, in percent, that the formula is calibrated to (positive).
+baseline_aaa_yield = 4.4

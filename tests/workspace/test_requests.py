@@ -1,8 +1,7 @@
 """Focused tests for typed, immutable workspace analysis selections."""
 
 import json
-from collections.abc import Generator
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 import pytest
@@ -17,24 +16,26 @@ from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.graham_number.selection import GrahamNumberSelection
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategies.momentum.selection import MomentumSelection
+from src.strategies.momentum.settings import MomentumSettings
 from src.workspace.requests import AnalysisRequest
 from src.workspace.strategy_types import AnalysisSelection
 from src.workspace.watchlists import StoredSelectionError, decode_selection, encode_selection
 
+_SETTINGS = MomentumSettings(short_window=2, long_window=5, rsi_period=14, history_start_date=date(2026, 1, 1))
 
-@pytest.fixture(autouse=True)
-def mock_settings_config(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
-    """Materialize deterministic configured-policy defaults for selection snapshots."""
-    with monkeypatch.context() as ctx:
-        ctx.setattr(
-            "src.config.ProjectSettings.get_momentum_analysis",
-            lambda self: {"window_sizes": {"short_window": 2, "long_window": 5}},  # noqa: ARG005
-        )
-        yield
+
+def _momentum(**overrides: Any) -> MomentumSelection:
+    """Build a selection from the test settings, with any further field given explicitly."""
+    return MomentumSelection(
+        short_window=_SETTINGS.short_window,
+        long_window=_SETTINGS.long_window,
+        rsi_period=_SETTINGS.rsi_period,
+        **overrides,
+    )
 
 
 def test_fixed_identifiers_and_schema_version() -> None:
-    momentum = MomentumSelection.from_settings()
+    momentum = _momentum()
     assert momentum.analysis_id == "momentum"
     assert (momentum.method_id, momentum.config_schema_version) == ("sma_crossover", 2)
 
@@ -43,8 +44,8 @@ def test_fixed_identifiers_and_schema_version() -> None:
     assert (graham.method_id, graham.config_schema_version) == ("graham_number", 1)
 
 
-def test_momentum_defaults_materialized_from_configured_policy() -> None:
-    selection = MomentumSelection.from_settings()
+def test_momentum_selection_carries_the_given_values_into_its_config() -> None:
+    selection = _momentum()
     assert (selection.short_window, selection.long_window, selection.rsi_period) == (2, 5, 14)
 
     config = selection.to_momentum_config()
@@ -53,14 +54,14 @@ def test_momentum_defaults_materialized_from_configured_policy() -> None:
 
 
 def test_momentum_as_of_and_use_cache_default_and_reach_the_context() -> None:
-    default = MomentumSelection.from_settings()
+    default = _momentum()
     assert (default.as_of, default.use_cache) == (None, True)
     executed_at = datetime(2026, 9, 1, tzinfo=UTC)
     context = default.to_analysis_context(executed_at)
     assert (context.as_of, context.use_cache, context.executed_at) == (None, True, executed_at)
 
     boundary = datetime(2025, 1, 1, tzinfo=UTC)
-    explicit = MomentumSelection.from_settings(as_of=boundary, use_cache=False)
+    explicit = _momentum(as_of=boundary, use_cache=False)
     context = explicit.to_analysis_context(executed_at)
     assert (context.as_of, context.use_cache) == (boundary, False)
     assert MomentumSelection.model_validate_json(explicit.model_dump_json()) == explicit
@@ -68,9 +69,9 @@ def test_momentum_as_of_and_use_cache_default_and_reach_the_context() -> None:
 
 def test_momentum_rejects_naive_as_of_and_non_boolean_use_cache() -> None:
     with pytest.raises(ValidationError, match="timezone_aware"):
-        MomentumSelection.from_settings(as_of=datetime(2025, 1, 1))
+        _momentum(as_of=datetime(2025, 1, 1))
     with pytest.raises(ValidationError, match="bool"):
-        MomentumSelection.from_settings(use_cache="no")
+        _momentum(use_cache="no")
 
 
 def test_momentum_rejects_the_previous_selection_version() -> None:
@@ -78,13 +79,8 @@ def test_momentum_rejects_the_previous_selection_version() -> None:
         MomentumSelection.model_validate({"short_window": 2, "long_window": 5, "config_schema_version": 1})
 
 
-def test_momentum_explicit_inputs_win_over_settings() -> None:
-    selection = MomentumSelection.from_settings(short_window=3, rsi_period=9)
-    assert (selection.short_window, selection.long_window, selection.rsi_period) == (3, 5, 9)
-
-
 def test_momentum_snapshot_is_independent_of_caller_inputs() -> None:
-    caller_values = {"short_window": 20, "long_window": 60}
+    caller_values = {"short_window": 20, "long_window": 60, "rsi_period": 14}
     selection = MomentumSelection.model_validate(caller_values)
     caller_values.update(short_window=1, long_window=2)
 
@@ -100,19 +96,19 @@ def test_momentum_rejects_foreign_fields() -> None:
 def test_momentum_rejects_invalid_windows() -> None:
     for value in (0, -1):
         with pytest.raises(ValidationError):
-            MomentumSelection(short_window=value, long_window=5)
+            MomentumSelection(short_window=value, long_window=5, rsi_period=14)
         with pytest.raises(ValidationError):
             MomentumSelection(short_window=2, long_window=5, rsi_period=value)
 
     with pytest.raises(ValidationError, match="smaller than long_window"):
-        MomentumSelection(short_window=5, long_window=5)
+        MomentumSelection(short_window=5, long_window=5, rsi_period=14)
     with pytest.raises(ValidationError, match="smaller than long_window"):
-        MomentumSelection.from_settings(short_window=10, long_window=2)
+        MomentumSelection(short_window=10, long_window=2, rsi_period=14)
 
 
 @pytest.mark.parametrize("field", ["short_window", "long_window", "rsi_period"])
 def test_momentum_selection_is_frozen(field: str) -> None:
-    selection = MomentumSelection.from_settings()
+    selection = _momentum()
     with pytest.raises(ValidationError):
         setattr(selection, field, 1)
 
@@ -211,7 +207,9 @@ def test_graham_selection_is_frozen() -> None:
 def test_identity_overrides_rejected(
     model: type[MomentumSelection] | type[GrahamNumberSelection], field: str, value: object
 ) -> None:
-    values: dict[str, object] = {"short_window": 2, "long_window": 5} if model is MomentumSelection else {}
+    values: dict[str, object] = (
+        {"short_window": 2, "long_window": 5, "rsi_period": 14} if model is MomentumSelection else {}
+    )
     values[field] = value
     with pytest.raises(ValidationError) as error:
         model.model_validate(values)
@@ -248,13 +246,8 @@ def test_rsi_period_one_preserves_existing_config_semantics() -> None:
     assert selection.to_momentum_config().rsi_period == 1
 
 
-def test_settings_mutation_and_converted_config_cannot_change_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
-    selection = MomentumSelection.from_settings()
-    monkeypatch.setattr(
-        "src.config.ProjectSettings.get_momentum_analysis",
-        lambda self: {"window_sizes": {"short_window": 10, "long_window": 30}},  # noqa: ARG005
-    )
-    assert MomentumSelection.from_settings().short_window == 10
+def test_converted_config_cannot_change_snapshot() -> None:
+    selection = _momentum()
     converted = selection.to_momentum_config()
     converted.short_window = 1
     assert selection.short_window == 2
@@ -262,18 +255,18 @@ def test_settings_mutation_and_converted_config_cannot_change_snapshot(monkeypat
 
 
 def test_round_trip_and_conversion_do_not_read_settings(monkeypatch: pytest.MonkeyPatch) -> None:
-    momentum = MomentumSelection.from_settings()
+    momentum = _momentum()
     graham = GrahamNumberSelection(as_of=datetime(2025, 1, 1, tzinfo=UTC))
 
-    def forbidden_settings(_self: object) -> None:
+    def forbidden_settings(*_args: object, **_kwargs: object) -> None:
         pytest.fail("Snapshot reconstruction must not read settings")
 
-    monkeypatch.setattr("src.config.ProjectSettings.get_momentum_analysis", forbidden_settings)
+    monkeypatch.setattr("src.config.strategy_settings.load_strategy_settings", forbidden_settings)
     assert MomentumSelection.model_validate_json(momentum.model_dump_json()) == momentum
     assert GrahamNumberSelection.model_validate_json(graham.model_dump_json()) == graham
     assert momentum.to_momentum_config().short_window == 2
     assert graham.to_analysis_context(executed_at=graham.as_of or datetime.now(UTC)).as_of == graham.as_of
-    assert MomentumSelection.from_settings(short_window=2, long_window=5) == momentum
+    assert _momentum() == momentum
 
 
 @pytest.mark.parametrize("missing", ["expected_growth", "aaa_yield_override"])
@@ -427,7 +420,7 @@ def test_fcf_policy_copies_input_and_converts_independently() -> None:
 @pytest.fixture
 def all_selections() -> tuple[AnalysisSelection, ...]:
     return (
-        MomentumSelection.from_settings(),
+        _momentum(),
         GrahamNumberSelection(),
         FCFGrowthSelection(),
         GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5),
@@ -437,10 +430,10 @@ def all_selections() -> tuple[AnalysisSelection, ...]:
 def test_all_request_variants_round_trip_without_settings(
     all_selections: tuple[AnalysisSelection, ...], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def forbidden_settings(_self: object) -> None:
+    def forbidden_settings(*_args: object, **_kwargs: object) -> None:
         pytest.fail("Request replay must not read settings")
 
-    monkeypatch.setattr("src.config.ProjectSettings.get_momentum_analysis", forbidden_settings)
+    monkeypatch.setattr("src.config.strategy_settings.load_strategy_settings", forbidden_settings)
     for selection in all_selections:
         request = AnalysisRequest(ticker=" cnr.to ", selection=selection)
         assert request.ticker == "CNR.TO"
@@ -491,7 +484,7 @@ def test_stored_selection_round_trips_without_settings_or_external_activity(
         pytest.fail("Decoding a stored selection must not read mutable/external state")
 
     # Imports have already completed; these guards cover the encode and decode operations.
-    monkeypatch.setattr("src.config.ProjectSettings.get_momentum_analysis", forbidden)
+    monkeypatch.setattr("src.config.strategy_settings.load_strategy_settings", forbidden)
     monkeypatch.setattr("builtins.open", forbidden)
     monkeypatch.setattr("pathlib.Path.open", forbidden)
     monkeypatch.setattr("socket.socket", forbidden)
