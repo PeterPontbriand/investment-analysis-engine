@@ -136,7 +136,7 @@ At startup (including `ian --help`) the application prints one sentence naming t
 
 Some analysis methods keep their tunable values in a file of their own in the `config/strategies/` folder of the installation: `momentum.toml` (the two moving-average windows, the RSI period and the first day of the price history) and `graham-growth.toml` (the Graham Growth constants). Each key in a file has a comment saying what it is.
 
-Changes take effect at the next command you run. A watchlist selection keeps the windows it was created with, so editing `momentum.toml` changes only selections created afterwards. Graham Growth's constants apply when an analysis runs, and each saved run records the constants it used.
+Changes take effect at the next command you run. A watchlist selection keeps the windows and RSI period it was created with, so editing those values changes only selections created afterwards; the first day of the price history applies whenever an analysis or refresh runs. Graham Growth's constants apply when an analysis runs, and each saved run records the constants it used.
 
 Every file is checked at startup, including by `ian --help`. If one is missing, is not valid TOML or holds an unknown key, a missing key or an invalid value, every command stops with exit code 2 and prints one message that names the file and the key and says what is wrong. The message never repeats the value. Restore the file from the project or correct the key it names.
 

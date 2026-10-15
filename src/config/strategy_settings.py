@@ -58,7 +58,7 @@ def load_strategy_settings[T: BaseModel](alias: str, model: type[T], directory: 
 
 
 def _describe(shown: str, error: ValidationError) -> str:
-    """Describe the first invalid key as one sentence that names the file and key and never the value."""
+    """Describe the first invalid key in a message that names the file and key and never the value."""
     first = error.errors(include_input=False, include_url=False, include_context=False)[0]
     rule = first["msg"].removeprefix("Value error, ").rstrip(".")
     location = ".".join(str(part) for part in first["loc"])
