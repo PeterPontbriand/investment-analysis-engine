@@ -19,7 +19,7 @@
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | LAY.7a | [This plan](#lay7a--plan) | Complete | 2026-10-14 |
-| LAY.7b | [Strategy settings for Momentum and Graham Growth](#lay7b--momentum-and-graham-growth) | Complete | 2026-10-14 |
+| LAY.7b | [Strategy settings for Momentum and Graham Growth](#lay7b--momentum-and-graham-growth) | Complete | 2026-10-15 |
 
 ## 2. The slices
 
@@ -180,7 +180,7 @@ Approved by the project owner.
 4. Process: this plan first (LAY.7a), then one implementation slice covering both Momentum and Graham Growth
    (LAY.7b), so the mechanism is proven generic by two users.
 
-### A.2 LAY.7b implementation decisions (2026-10-14)
+### A.2 LAY.7b implementation decisions (2026-10-15)
 
 Approved by the project owner.
 
@@ -196,5 +196,8 @@ Approved by the project owner.
 10. Files: `config/strategies/momentum.toml` and `graham-growth.toml` are added; the two old strategy files and folders, `data_start_date`, `ProjectSettings.get_momentum_analysis` and `get_graham_value_analysis`, and the unused `ConfigKeys` entries are deleted.
 11. Tests: the settings patches become explicit settings objects; new tests cover the loader, the cache, the startup exit, the §3.8 conformance check, the tool handler and `to_policy()`.
 12. Documentation: ARCHITECTURE §6 and §13, AGENTS.md §9, INSTALLATION §2 and the two strategy guides.
+13. `schemas/watchlist-delete.schema.json` changes exactly as `schemas/watchlist.schema.json` does, because it embeds the same `MomentumSelection`.
+14. `_production_database()` in `src/cli_support.py` gives Momentum's command its database, as the other strategies' commands get theirs, so no file under `src/strategies/` imports `src.config`; `tests/test_cli_save_run.py`, `tests/test_failure_messages.py` and `tests/test_save_run_every_direct_command.py` now patch `src.cli_support.settings`.
+15. The layering test gains the `settings` file role at rank 1, importable from outside the strategy package and by the composition root, and `src.cli_composition` joins the composition-root importers.
 
 Second exception to "no published schema changes": the published watchlist schemas (`schemas/watchlist.schema.json`, and `schemas/watchlist-delete.schema.json`, which embeds the same Momentum selection) make `rsi_period` required and drop its default of 14, a consequence of decision 6. The first exception is the Momentum tool schema (decision 7).

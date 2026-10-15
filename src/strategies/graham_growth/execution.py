@@ -6,8 +6,8 @@ direct command and a future save/refresh service call identical code.
 Presentation, exit-code selection, and friendly failure rendering stay in
 the command (``src.strategies.graham_growth.cli``); this module captures execution evidence only. The effective
 calculation policy (base P/E, growth multiplier, baseline AAA yield) is
-supplied by the caller — exactly as ``src.cli_composition``'s
-``growth_assumptions`` already resolves it — and retained unmodified inside the native
+supplied by the caller — exactly as the composition root builds it from the configured Graham Growth
+settings (``GrahamGrowthSettings.to_policy()``) — and retained unmodified inside the native
 ``GrahamGrowthAnalysis.policy`` field; no new assumption is derived here.
 
 ``classify_graham_growth_outcome`` freezes the exact native-status mapping

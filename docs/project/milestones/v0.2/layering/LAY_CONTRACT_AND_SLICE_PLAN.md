@@ -37,7 +37,7 @@ work-package status. The design, the proof and the owner decisions are in [LAY_D
 | LAY.4 | [Run and watchlist repositories move to the workspace side](#lay4--repositories) | Complete | 2026-10-13 |
 | LAY.5 | [Selection base and run-outcome models move beside the analyzer contract](#lay5--contract-modules) | Complete | 2026-10-14 |
 | LAY.6 | [Saved-run replay and workspace documents move up](#lay6--workspace-documents) | Complete | 2026-10-14 |
-| LAY.7 | [Strategy settings files](#lay7--strategy-settings-files) | Complete | 2026-10-14 |
+| LAY.7 | [Strategy settings files](#lay7--strategy-settings-files) | Complete | 2026-10-15 |
 | LAY.8 | [Loop-free check, layered listing and closing](#lay8--loop-free-check-and-closing) | Next | |
 
 **Order with the other work packages:** LAY.4 to LAY.8, then 12B (removal of the TTM EPS basis), then PKG.1 and PKG.2,
@@ -409,5 +409,6 @@ is replaced by the strategy settings convention in
 [LAY_7_STRATEGY_SETTINGS_PLAN.md](LAY_7_STRATEGY_SETTINGS_PLAN.md), whose Appendix A records the reasons and the
 alternatives not taken. L9's "changes no output" holds for LAY.7 with one exception: the Momentum tool schema in the
 local-model prompt. LAY.7 becomes two slices, LAY.7a and LAY.7b. LAY_DESIGN.md is not edited.
-A second exception, recorded when LAY.7b was approved: the published watchlist schemas make Momentum's `rsi_period`
-required ([LAY.7 plan A.2](LAY_7_STRATEGY_SETTINGS_PLAN.md#a2-lay7b-implementation-decisions-2026-10-14)).
+A second exception, recorded when LAY.7b was approved: the published watchlist schemas (`watchlist.schema.json` and
+`watchlist-delete.schema.json`) make Momentum's `rsi_period` required
+([LAY.7 plan A.2](LAY_7_STRATEGY_SETTINGS_PLAN.md#a2-lay7b-implementation-decisions-2026-10-15)).
