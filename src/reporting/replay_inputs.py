@@ -2,7 +2,7 @@
 
 ``project_run`` decodes a stored run and hands each strategy's projector the facts the run itself captured. This
 leaf module holds the types both sides share, so a projector in a strategy package and the generic replay in
-``analysis_runs`` agree on them without importing each other.
+``run_replay`` agree on them without importing each other.
 """
 
 from collections.abc import Callable
