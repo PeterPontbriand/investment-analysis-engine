@@ -7,8 +7,9 @@ position and work-package status.
 ## 1. At a glance
 
 - **What this work does:** GR.1 makes the gate wrappers keep their complete output, time each step and name each
-  failing test. GR.2 follows a lead on the intermittent `WinError 10055` failures: event loops and sockets that
-  tests leave open.
+  failing test. GR.2 followed a lead on the intermittent `WinError 10055` failures, refuted it (no event loop is
+  left open), fixed the three leaks it found, and makes a leaked socket, file or event loop fail the suite. GR.3 will
+  record the machine's socket state when a test pass fails.
 - **What it is not:** a change to what the gate checks, to its order, to its arguments, to its isolation directories
   or to its exit codes, and not a change to any strategy, formula or output.
 - **Rules every slice follows:** the complete managed gate, with the 3.14 pass, at the end of the slice; no
@@ -22,7 +23,8 @@ position and work-package status.
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | GR.1 | [The gate wrappers keep their evidence](#gr1--the-gate-wrappers-keep-their-evidence) | Complete | 2026-10-13 |
-| GR.2 | [Unclosed event loops](#gr2--unclosed-event-loops) | Planned | |
+| GR.2 | [Resource leaks fail the suite](#gr2--resource-leaks-fail-the-suite) | Complete | 2026-10-15 |
+| GR.3 | [Record the machine's socket state when a test pass fails](#gr3--record-the-machines-socket-state-when-a-test-pass-fails) | Planned | |
 
 ## 3. The slices
 
@@ -42,20 +44,39 @@ position and work-package status.
 - **Detail:** the three items (full output kept, step timings, failing tests named) are stated in
   [Quality gates](../../../README.md#quality-gates).
 
-### GR.2 — Unclosed event loops
+### GR.2 — Resource leaks fail the suite
 
 - **Problem:** the local gate has failed four times with `OSError: [WinError 10055]` (Windows ran out of socket
   buffers), in a different test each time, each passing on rerun ([#116](https://github.com/PeterPontbriand/investment-analysis-engine/issues/116)
-  and its comments). Gate output carries warnings that Python prints when an asyncio event loop is discarded
-  unclosed (`_ssock`, "never awaited"). On Windows each event loop holds a socket pair, so unclosed loops could
-  exhaust socket buffers over a long run. This is a lead, not a cause.
-- **Decision:** run the suite once with `ResourceWarning` raised as an error to name each test that leaves a loop or
-  socket open; fix each at its source; then make such a leak fail the suite permanently through pytest's warning
-  settings. Close #116 with the cause found, or record that none was found.
-- **Scope:** the tests and any application code that leave a loop or socket open; one line of pytest warning
-  settings in `pyproject.toml`, which needs the project owner's explicit permission before the slice edits it.
-- **Branch:** `fix/gr-2-unclosed-event-loops`, from `main` after GR.1 has merged. It does not run while a LAY
-  slice's branch is open.
+  and its comments). The lead was unclosed event loops. A census of the suite on Windows (Python 3.12 and 3.14)
+  found 260 event loops and 790 sockets per pass and no loop left open, so the lead is refuted
+  ([A.3](#a3-the-event-loop-lead-was-refuted-2026-10-15)). It found three real leaks: the test socket guard left the
+  socket it blocked open, because `socket.create_connection` cleans up only on `OSError` and the guard raises an
+  `AssertionError`; one guard test never closed its socket; and on Python 3.14 an `HTTPError` that production code let
+  propagate unclosed raises a `ResourceWarning`.
+- **Decision:** close each leak at its source and make a leak fail the suite permanently with two pytest warning
+  filters (`error::ResourceWarning`, `error::pytest.PytestUnraisableExceptionWarning`). The guard closes the socket it
+  blocks before it raises; the guard test closes its socket; `fetch_json` and `fetch_filing` close an `HTTPError`
+  before it propagates, and classification still reads only its code. Nothing a caller sees changes.
+- **Scope:** `tests/_network_guard.py`, `tests/test_network_guard.py`, `src/data/http_json.py`,
+  `src/data/sec_edgar/filing_document.py`, `tests/data/test_transport_failure_kinds.py`, one line in
+  `pyproject.toml` (permitted by the project owner), this plan, `AGENTS.md` §7 and the quality-gate section of
+  `docs/project/README.md`.
+- **Branch:** `fix/gr-2-resource-leaks`, from `main`.
+- **Detail:** a leaked socket or file fails a test, which may be a different test from the one that created it because
+  the warning is reported when the object is freed; a leaked event loop fails the pass at session end with no test
+  named. `PYTHONTRACEMALLOC=25` on a rerun locates the source in both cases. Regression tests: a blocked socket's `fileno()` is
+  `-1` after the blocked `connect` and `connect_ex`; an `HTTPError`'s stream is closed after `fetch_json` and
+  `fetch_filing` raise. #116 stays open until a captured occurrence explains the failure.
+
+### GR.3 — Record the machine's socket state when a test pass fails
+
+- **Problem:** no leak in the suite explains the `WinError 10055` failures, and the gate output does not show the
+  machine's socket state when one occurs, so the next occurrence would again lack evidence.
+- **Decision:** when a pytest step fails, the PowerShell wrapper appends the TCP connection counts by state and by
+  owning process, and the dynamic port range, to `gate-output.txt`.
+- **Scope:** `scripts/run-quality-gates.ps1` and the quality-gate section of `docs/project/README.md`.
+- **Branch:** to be named when the slice starts.
 - **Detail:** ⚠ no slice plan yet
 
 ## 4. Scope limits and acceptance criteria
@@ -75,8 +96,10 @@ Acceptance criteria:
   and the closing summary lists every step with its time and result; a deliberately failing test is named, the
   summary shows the failure, and the exit code is not zero.
 - **Same on both shells (GR.1):** the PowerShell and shell wrappers print the same summary.
-- **Leaks named and closed (GR.2):** every test that leaves a loop or socket open is named and fixed, and a new leak
-  fails the suite.
+- **Leaks named and closed (GR.2):** a leaked socket or file fails a test (not necessarily the one that created it,
+  because the warning is reported when the object is freed), a leaked event loop fails the pass at session end
+  without a test name, a rerun with `PYTHONTRACEMALLOC=25` locates the source of either, and a new leak fails the
+  suite.
 - **Quality gate:** the complete managed gate, with the 3.14 pass, at the end of every slice.
 
 ## 5. Background and origin
@@ -106,3 +129,21 @@ Unclosed event loops are a lead because the gate output carries the warnings Pyt
 because a Windows loop holds a socket pair. No test has been shown to leak enough to exhaust the buffers. GR.2 closes
 [#116](https://github.com/PeterPontbriand/investment-analysis-engine/issues/116) with the cause it finds, or records
 that it found none.
+
+### A.3 The event-loop lead was refuted (2026-10-15)
+
+A census of every event loop and socket the suite creates, run on Windows 11 with Python 3.12 and 3.14, found 260 event
+loops and 790 sockets per pass, no event loop left open or freed unclosed, and a sampled TCP state that peaked at 301
+connections in total (140 and 143 in `TimeWait` on the two passes) against a dynamic port range of 16384 ports. The
+`_ssock` `AttributeError` and the "coroutine 'dispatch_fixture_case' was never awaited" warning are effects of the
+failure, not causes: when `socket.socketpair()` raises, the loop's constructor stops before it sets `_ssock`, and
+`asyncio.run` never awaits the coroutine. The census did find three leaks, all fixed in GR.2: the socket guard left the
+socket it blocked open, one guard test never closed its socket, and on Python 3.14 `fetch_json` and `fetch_filing` let an
+`HTTPError` propagate unclosed. [#116](https://github.com/PeterPontbriand/investment-analysis-engine/issues/116) stays
+open until a captured occurrence explains the failure; GR.3 records the machine's socket state for it.
+
+In the Python 3.14 diagnostic pass two tests outside the three leak sources also failed, because warnings for the leaked
+objects were reported when those objects were freed during these tests:
+`tests/reporting/test_failure_envelope.py::test_every_exception_reason_code_attribute_is_a_failure_reason_code` and
+`tests/data/test_yfinance_client.py::TestHistoryFailureKinds::test_exception_escaping_the_download_is_classified[builtins.TimeoutError]`.
+Both passed once the three sources were fixed.

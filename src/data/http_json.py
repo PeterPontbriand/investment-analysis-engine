@@ -55,8 +55,12 @@ def fetch_json(url: str, *, headers: Mapping[str, str], not_found: ProviderFailu
     request = Request(url, headers=dict(headers))
 
     def read() -> bytes:
-        with urlopen(request, timeout=20.0) as response:  # noqa: S310
-            body: bytes = response.read()
+        try:
+            with urlopen(request, timeout=20.0) as response:  # noqa: S310
+                body: bytes = response.read()
+        except HTTPError as error:
+            error.close()  # an HTTPError holds the response stream; classification reads only its code
+            raise
         return body
 
     payload = call_library(

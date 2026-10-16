@@ -5,6 +5,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
+from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from src.core.provider_failure_kind import ProviderFailureKind
@@ -91,8 +92,12 @@ def fetch_filing(
     request = Request(url, headers=request_headers)
 
     def read() -> bytes:
-        with build_opener(_NoRedirect()).open(request, timeout=policy.timeout_seconds) as response:
-            body: bytes = response.read(policy.max_document_bytes + 1)
+        try:
+            with build_opener(_NoRedirect()).open(request, timeout=policy.timeout_seconds) as response:
+                body: bytes = response.read(policy.max_document_bytes + 1)
+        except HTTPError as error:
+            error.close()  # an HTTPError holds the response stream; classification reads only its code
+            raise
         return body
 
     data = call_library(

@@ -121,6 +121,8 @@ class SocketGuard:
         def guarded(sock: socket.socket, address: Any) -> Any:
             if not is_loopback_address(address):
                 self.blocked_calls.append(f"socket.{name}{address!r} (from {_caller(4)})")
+                # Cleanup in socket.create_connection handles only OSError, so the blocked socket is closed here.
+                sock.close()
                 msg = (
                     f"socket.{name} to {address!r} was reached without a stub, which would make a live network "
                     "call. Inject a fake transport or patch the calling module for this test."
