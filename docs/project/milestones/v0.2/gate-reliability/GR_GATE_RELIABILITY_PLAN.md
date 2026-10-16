@@ -63,8 +63,9 @@ position and work-package status.
   `pyproject.toml` (permitted by the project owner), this plan, `AGENTS.md` §7 and the quality-gate section of
   `docs/project/README.md`.
 - **Branch:** `fix/gr-2-resource-leaks`, from `main`.
-- **Detail:** a leaked socket or file fails its own test; a leaked event loop fails the pass at session end with no
-  test named, and `PYTHONTRACEMALLOC=25` on a rerun locates it. Regression tests: a blocked socket's `fileno()` is
+- **Detail:** a leaked socket or file fails a test, which may be a different test from the one that created it because
+  the warning is reported when the object is freed; a leaked event loop fails the pass at session end with no test
+  named. `PYTHONTRACEMALLOC=25` on a rerun locates the source in both cases. Regression tests: a blocked socket's `fileno()` is
   `-1` after the blocked `connect` and `connect_ex`; an `HTTPError`'s stream is closed after `fetch_json` and
   `fetch_filing` raise. #116 stays open until a captured occurrence explains the failure.
 
@@ -95,8 +96,10 @@ Acceptance criteria:
   and the closing summary lists every step with its time and result; a deliberately failing test is named, the
   summary shows the failure, and the exit code is not zero.
 - **Same on both shells (GR.1):** the PowerShell and shell wrappers print the same summary.
-- **Leaks named and closed (GR.2):** a leaked socket or file fails its test, a leaked event loop fails the pass at
-  session end without a test name, and a new leak fails the suite.
+- **Leaks named and closed (GR.2):** a leaked socket or file fails a test (not necessarily the one that created it,
+  because the warning is reported when the object is freed), a leaked event loop fails the pass at session end
+  without a test name, a rerun with `PYTHONTRACEMALLOC=25` locates the source of either, and a new leak fails the
+  suite.
 - **Quality gate:** the complete managed gate, with the 3.14 pass, at the end of every slice.
 
 ## 5. Background and origin
@@ -138,3 +141,9 @@ failure, not causes: when `socket.socketpair()` raises, the loop's constructor s
 socket it blocked open, one guard test never closed its socket, and on Python 3.14 `fetch_json` and `fetch_filing` let an
 `HTTPError` propagate unclosed. [#116](https://github.com/PeterPontbriand/investment-analysis-engine/issues/116) stays
 open until a captured occurrence explains the failure; GR.3 records the machine's socket state for it.
+
+In the Python 3.14 diagnostic pass two tests outside the three leak sources also failed, because warnings for the leaked
+objects were reported when those objects were freed during these tests:
+`tests/reporting/test_failure_envelope.py::test_every_exception_reason_code_attribute_is_a_failure_reason_code` and
+`tests/data/test_yfinance_client.py::TestHistoryFailureKinds::test_exception_escaping_the_download_is_classified[builtins.TimeoutError]`.
+Both passed once the three sources were fixed.
