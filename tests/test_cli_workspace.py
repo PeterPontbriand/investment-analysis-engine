@@ -33,7 +33,7 @@ from src.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from src.workspace.requests import AnalysisRequest
 from src.workspace.runs import AnalysisRun, RunQuery
 from src.workspace.watchlists import WatchlistNotFoundError
-from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
+from tests._cli_helpers import cli_settings, isolated_cli_database, normalize_cli_output  # noqa: F401
 from tests._wiring import encode_native
 
 runner = CliRunner()
@@ -520,7 +520,7 @@ def _insert_momentum_run(
 ) -> AnalysisRun:
     """Insert one real, genuinely-executed Momentum run through the isolated database."""
     resolved_run_id = run_id if run_id is not None else _DEFAULT_RUN_ID
-    database = SQLiteDatabase(src.cli_workspace.settings)
+    database = SQLiteDatabase(cli_settings())
     try:
         repository = SQLiteAnalysisRunRepository(database)
         selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
@@ -579,7 +579,7 @@ def test_runs_show_reports_an_envelope_that_fails_validation_in_one_sentence(
 ) -> None:
     """Issue 113: the validation library's text goes to the log, never to the user."""
     run = _insert_momentum_run()
-    database = SQLiteDatabase(src.cli_workspace.settings)
+    database = SQLiteDatabase(cli_settings())
     try:
         with database.transaction() as connection:
             connection.execute(
@@ -615,7 +615,7 @@ def test_runs_show_rejects_a_corrupted_stored_envelope_without_a_raw_traceback()
     the sanitized message the contract requires.
     """
     run = _insert_momentum_run()
-    database = SQLiteDatabase(src.cli_workspace.settings)
+    database = SQLiteDatabase(cli_settings())
     try:
         with database.transaction() as connection:
             connection.execute(
@@ -672,7 +672,7 @@ def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(native),
     )
-    database = SQLiteDatabase(src.cli_workspace.settings)
+    database = SQLiteDatabase(cli_settings())
     try:
         SQLiteAnalysisRunRepository(database).insert(run)
     finally:
@@ -717,7 +717,7 @@ def test_workspace_commands_report_a_sanitized_readiness_error(tmp_path: Path) -
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "0001_persistence")  # older head: newer workspace tables never created
 
-    with patch("src.cli_workspace.settings", ProjectSettings(database_url=url)):
+    with patch("cli_settings()", ProjectSettings(database_url=url)):
         result = runner.invoke(app, ["watchlist", "list"])
     assert result.exit_code == 1
     assert "Traceback" not in result.output
@@ -874,7 +874,7 @@ def test_removal_confirmation_lines_name_the_alias_never_the_canonical_id() -> N
 
 
 def _database_path() -> Path:
-    return Path(src.cli_workspace.settings.database_url.removeprefix("sqlite:///"))
+    return Path(cli_settings().database_url.removeprefix("sqlite:///"))
 
 
 def _seed_for_delete(name: str = "Scratch") -> None:

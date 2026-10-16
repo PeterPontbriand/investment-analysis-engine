@@ -28,7 +28,6 @@ from uuid import UUID
 import pytest
 from typer.testing import CliRunner
 
-import src.cli_workspace
 from src.cli import app
 from src.core.constants import TrendStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
@@ -46,7 +45,12 @@ from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from src.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from src.workspace.strategy_types import AnalysisSelection
-from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
+from tests._cli_helpers import (  # noqa: F401
+    cli_settings,
+    isolated_cli_database,
+    normalize_cli_output,
+    stub_yahoo_identity_metadata,
+)
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 from tests._wiring import alias_for
 
@@ -69,7 +73,7 @@ def _seed(name: str, entries: list[tuple[str, AnalysisSelection]]) -> None:
     """
     _create(name)
     if entries:
-        database = SQLiteDatabase(src.cli_workspace.settings)
+        database = SQLiteDatabase(cli_settings())
         try:
             SQLiteWatchlistRepository(database, alias_for=alias_for).add_entries(name, entries)
         finally:
@@ -150,7 +154,7 @@ def test_refresh_sequential_persists_every_member_and_exits_0(mock_run: MagicMoc
 
 def _retire_momentum_entries(*retired: str) -> None:
     """Rewrite the named tickers' Momentum entries into the retired version-1 stored shape."""
-    path = src.cli_workspace.settings.database_url.removeprefix("sqlite:///")
+    path = cli_settings().database_url.removeprefix("sqlite:///")
     with closing(sqlite3.connect(path)) as connection:
         for ticker in retired:
             ((selection_json,),) = connection.execute(
@@ -171,7 +175,7 @@ def _retire_momentum_entries(*retired: str) -> None:
 
 def _stored_tickers() -> list[str]:
     """Return the stored entries' tickers in position order, read without decoding any selection."""
-    path = src.cli_workspace.settings.database_url.removeprefix("sqlite:///")
+    path = cli_settings().database_url.removeprefix("sqlite:///")
     with closing(sqlite3.connect(path)) as connection:
         rows = connection.execute("SELECT ticker FROM watchlist_entries ORDER BY position").fetchall()
     return [ticker for (ticker,) in rows]
@@ -572,7 +576,7 @@ def test_rename_leaves_a_saved_run_showing_the_name_the_watchlist_had_when_it_ra
     shown = runner.invoke(app, ["runs", "show", saved["analysis_run_id"]])
 
     assert shown.exit_code == 0, shown.output
-    database = SQLiteDatabase(src.cli_workspace.settings)
+    database = SQLiteDatabase(cli_settings())
     try:
         stored = SQLiteAnalysisRunRepository(database).get(UUID(saved["analysis_run_id"]))
     finally:

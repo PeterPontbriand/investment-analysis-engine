@@ -24,7 +24,7 @@ from src.reporting.documents.failure import FailureEnvelope
 from src.strategies.graham_growth import cli as graham_growth_cli
 from src.strategies.graham_number import cli as graham_number_cli
 from src.workspace.runs import RunQuery
-from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
+from tests._cli_helpers import cli_settings, isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 
 runner = CliRunner()
 
@@ -878,7 +878,7 @@ def test_a_blank_ticker_leaves_the_watchlist_unchanged() -> None:
 
 
 def _corrupt_the_stored_selection() -> None:
-    path = src.cli_workspace.settings.database_url.removeprefix("sqlite:///")
+    path = cli_settings().database_url.removeprefix("sqlite:///")
     connection = sqlite3.connect(path)
     connection.execute("update watchlist_entries set selection_json = ?", ('{"x":1}',))
     connection.commit()
