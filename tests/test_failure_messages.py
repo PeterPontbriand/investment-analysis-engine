@@ -6,7 +6,6 @@ command that has a counterpart are run through the real command line against a d
 service. The detail of a fixed message is in the log with its traceback.
 """
 
-# ruff: noqa: F811 - a test takes the imported autouse fixture by name to use its value.
 import json
 import logging
 import re
@@ -240,9 +239,12 @@ def _paths(row: Row) -> list[str]:
     return ["no-save", "saved", "concurrent"] if row.step == "executor" else ["saved", "concurrent"]
 
 
+# A test takes the imported autouse fixture by name to use its value, which Ruff reports as a redefinition.
 @pytest.mark.parametrize("row", ROWS, ids=[row.number for row in ROWS])
 def test_refresh_gives_every_row_its_code_and_message(
-    row: Row, caplog: pytest.LogCaptureFixture, isolated_cli_database: ProjectSettings
+    row: Row,
+    caplog: pytest.LogCaptureFixture,
+    isolated_cli_database: ProjectSettings,  # noqa: F811
 ) -> None:
     for path in _paths(row):
         caplog.clear()
@@ -344,7 +346,10 @@ def test_the_graham_resolver_build_gives_the_same_code_and_message(
 
 @pytest.mark.parametrize("row", [row for row in DIRECT_ROWS if row.step != "save"], ids=lambda row: row.number)
 def test_the_same_exception_gives_the_same_code_and_message_from_a_direct_command_and_a_refresh_job(
-    row: Row, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, isolated_cli_database: ProjectSettings
+    row: Row,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_cli_database: ProjectSettings,  # noqa: F811
 ) -> None:
     exception, job, _ = _refresh(isolated_cli_database, row, _PATHS["saved"])
     direct_exception, result = _direct(row, "momentum", ["--json"], tmp_path, monkeypatch)

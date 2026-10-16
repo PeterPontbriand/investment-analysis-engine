@@ -7,7 +7,6 @@ null. The text lines are tested in ``tests/test_cli_provider_check.py``. No test
 over fake check bodies and handed to the command through the Typer context.
 """
 
-# ruff: noqa: F811 - a test takes the imported autouse fixture by name to use its value.
 from __future__ import annotations
 
 import ast
@@ -466,8 +465,9 @@ def test_a_failure_in_json_mode_still_exits_one_and_writes_one_document() -> Non
 # ---------------------------------------------------------------------------
 
 
+# A test takes the imported autouse fixture by name to use its value, which Ruff reports as a redefinition.
 def test_the_refresh_summary_carries_one_entry_per_implicated_provider_in_the_kind_order(
-    isolated_cli_database: ProjectSettings,
+    isolated_cli_database: ProjectSettings,  # noqa: F811
 ) -> None:
     fake = _probe({"sec_edgar": CheckVerdict.UNREACHABLE, "yfinance": CheckVerdict.RATE_LIMITED})
     _seed_momentum(isolated_cli_database, "Two Providers", ["AAPL", "MSFT", "KO"])
@@ -494,7 +494,7 @@ def test_the_refresh_summary_carries_one_entry_per_implicated_provider_in_the_ki
     assert sorted(fake.calls) == ["sec_edgar", "yfinance"]
 
 
-def test_the_refresh_summary_is_null_when_no_job_failed_on_a_provider(isolated_cli_database: ProjectSettings) -> None:
+def test_the_refresh_summary_is_null_when_no_job_failed_on_a_provider(isolated_cli_database: ProjectSettings) -> None:  # noqa: F811
     fake = _probe()
 
     result = _refresh_failing(isolated_cli_database, fake.probe, "--json", kind=None)
@@ -505,7 +505,7 @@ def test_the_refresh_summary_is_null_when_no_job_failed_on_a_provider(isolated_c
 
 
 def test_the_refresh_summary_with_the_check_switched_off_has_the_entry_with_not_checked(
-    isolated_cli_database: ProjectSettings,
+    isolated_cli_database: ProjectSettings,  # noqa: F811
 ) -> None:
     fake = _probe()
 
@@ -516,7 +516,7 @@ def test_the_refresh_summary_with_the_check_switched_off_has_the_entry_with_not_
     assert fake.calls == []
 
 
-def test_the_refresh_text_and_the_summary_come_from_the_same_findings(isolated_cli_database: ProjectSettings) -> None:
+def test_the_refresh_text_and_the_summary_come_from_the_same_findings(isolated_cli_database: ProjectSettings) -> None:  # noqa: F811
     text_probe = _probe({"yfinance": CheckVerdict.NO_DATA})
     json_probe = _probe({"yfinance": CheckVerdict.NO_DATA})
 

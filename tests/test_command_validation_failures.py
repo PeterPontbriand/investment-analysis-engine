@@ -5,7 +5,6 @@ sentence to standard error and nothing to standard output; a ``--json`` run writ
 output and nothing to standard error. Exit 2 stays what the parser returns before any command code runs.
 """
 
-# ruff: noqa: F811 - a test takes the imported autouse fixture by name to use its value.
 import json
 import sqlite3
 from collections.abc import Iterator
@@ -886,8 +885,9 @@ def _corrupt_the_stored_selection(settings: ProjectSettings) -> None:
     connection.close()
 
 
+# A test takes the imported autouse fixture by name to use its value, which Ruff reports as a redefinition.
 def test_add_selection_on_a_watchlist_with_an_unreadable_entry_reports_the_stored_selection(
-    isolated_cli_database: ProjectSettings,
+    isolated_cli_database: ProjectSettings,  # noqa: F811
 ) -> None:
     assert runner.invoke(app, ["watchlist", "create", "Old", "-a", "momentum", "AAPL"]).exit_code == 0
     _corrupt_the_stored_selection(isolated_cli_database)

@@ -6,7 +6,6 @@ The suite switches the check off through ``IAN_PROVIDER_CHECK`` (tests/conftest.
 probe built over fake check bodies through the Typer context, so no test reaches a provider.
 """
 
-# ruff: noqa: F811 - a test takes the imported autouse fixture by name to use its value.
 import itertools
 import json
 from collections.abc import Iterator
@@ -496,8 +495,9 @@ def _refresh_failing(
         return runner.invoke(app, ["refresh", name, "--workers", "1", *extra], obj=probe)
 
 
+# A test takes the imported autouse fixture by name to use its value, which Ruff reports as a redefinition.
 def test_refresh_prints_the_line_before_the_summary_on_the_summary_stream_and_probes_once(
-    isolated_cli_database: ProjectSettings,
+    isolated_cli_database: ProjectSettings,  # noqa: F811
 ) -> None:
     fake = _probe({"yfinance": CheckVerdict.UNREACHABLE})
 
@@ -512,7 +512,7 @@ def test_refresh_prints_the_line_before_the_summary_on_the_summary_stream_and_pr
 
 
 def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop(
-    isolated_cli_database: ProjectSettings,
+    isolated_cli_database: ProjectSettings,  # noqa: F811
 ) -> None:
     events: list[str] = []
     probe = MagicMock()
@@ -537,7 +537,7 @@ def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop(
 
 
 def test_refresh_json_prints_nothing_extra_and_carries_one_finding_in_the_summary(
-    isolated_cli_database: ProjectSettings,
+    isolated_cli_database: ProjectSettings,  # noqa: F811
 ) -> None:
     fake = _probe({"yfinance": CheckVerdict.RATE_LIMITED})
 
@@ -552,7 +552,7 @@ def test_refresh_json_prints_nothing_extra_and_carries_one_finding_in_the_summar
 
 
 def test_refresh_option_turns_the_check_off_without_changing_the_summary(
-    isolated_cli_database: ProjectSettings,
+    isolated_cli_database: ProjectSettings,  # noqa: F811
 ) -> None:
     fake = _probe()
     checked = _refresh_failing(isolated_cli_database, _probe().probe)
@@ -568,7 +568,7 @@ def test_refresh_option_turns_the_check_off_without_changing_the_summary(
 
 
 def test_refresh_without_a_provider_failure_prints_no_line_and_runs_no_probe(
-    isolated_cli_database: ProjectSettings,
+    isolated_cli_database: ProjectSettings,  # noqa: F811
 ) -> None:
     fake = _probe()
 
@@ -579,7 +579,7 @@ def test_refresh_without_a_provider_failure_prints_no_line_and_runs_no_probe(
     assert fake.calls == []
 
 
-def test_refresh_fails_open_when_the_probe_raises(isolated_cli_database: ProjectSettings) -> None:
+def test_refresh_fails_open_when_the_probe_raises(isolated_cli_database: ProjectSettings) -> None:  # noqa: F811
     result = _refresh_failing(isolated_cli_database, _RaisingProbe())
 
     assert result.exit_code == 1
@@ -589,7 +589,8 @@ def test_refresh_fails_open_when_the_probe_raises(isolated_cli_database: Project
 
 @pytest.mark.parametrize("flag", [None, "--no-provider-check"], ids=["checked", "declined"])
 def test_refresh_exit_code_is_the_same_with_and_without_the_check(
-    flag: str | None, isolated_cli_database: ProjectSettings
+    flag: str | None,
+    isolated_cli_database: ProjectSettings,  # noqa: F811
 ) -> None:
     extra = (flag,) if flag else ()
     assert (
