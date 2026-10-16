@@ -88,10 +88,10 @@ def test_valid_security_eps_request() -> None:
         subject_id="AAPL",
         field_name=FinancialField.EPS,
         provider_id="yfinance",
-        basis="ttm",
+        basis="fiscal_year",
     )
     assert req.field_name is FinancialField.EPS
-    assert req.basis == "ttm"
+    assert req.basis == "fiscal_year"
 
 
 def test_valid_security_bvps_request() -> None:
@@ -258,7 +258,7 @@ def test_multiple_observations_require_fiscal_year_basis(field_name: FinancialFi
             subject_id="AAPL",
             field_name=field_name,
             provider_id="fixture",
-            basis="ttm",
+            basis="three_year_average",
             observation_count=3,
         )
 
@@ -350,11 +350,11 @@ def test_valid_eps_fact() -> None:
         provider_id="yfinance",
         provider_field="trailingEps",
         retrieved_at=AW,
-        basis="ttm",
+        basis="fiscal_year",
         currency="USD",
     )
     assert fact.field_name is FinancialField.EPS
-    assert fact.basis == "ttm"
+    assert fact.basis == "fiscal_year"
 
 
 def test_valid_bvps_fact() -> None:

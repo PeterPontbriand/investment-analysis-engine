@@ -145,8 +145,7 @@ def command(  # noqa: PLR0913
         None,
         "--eps-basis",
         help=(
-            "EPS basis; Number accepts three_year_average (the default); "
-            "Growth defaults to three_year_average (also accepts an explicit "
+            "EPS basis; defaults to three_year_average (also accepts an explicit "
             "fiscal_year basis for reviewed workflows)"
         ),
     ),

@@ -25,6 +25,7 @@ Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequen
 | ESC-A → ESC-B → ESC-C | [Evidence and repair contract](ESC_A_EVIDENCE_AND_REPAIR_CONTRACT.md), [implementation](ESC_B_IMPLEMENTATION_AND_REVIEW.md), [initial acceptance](ESC_C_FINAL_ACCEPTANCE.md) | Complete | 2026-09-11 |
 | ESC-D | [Refresh lifecycle/output evidence and full gate](ESC_D_RENEWAL_PLAN.md) | Complete | 2026-09-23 |
 | ESC-E | [Re-run after integration readiness (IR)](ESC_E_RENEWAL_PLAN.md) | Complete | 2026-10-01 |
+| ESC-TTM | [Remove the unreachable TTM EPS basis](#esc-ttm--remove-the-unreachable-ttm-eps-basis) | Complete | 2026-10-15 |
 
 Ledger item found after ESC-E, resolved by SWC.4e on 2026-10-12: [ESC-30](ESC_A_DEFECT_LEDGER.md#esc-30--the-direct-graham-commands-accept-a-non-finite-override-that-the-watchlist-path-rejects), [issue #124](https://github.com/PeterPontbriand/investment-analysis-engine/issues/124): the direct Graham commands now reject a non-finite override as the watchlist path does.
 
@@ -63,12 +64,19 @@ Ledger item found after ESC-E, resolved by SWC.4e on 2026-10-12: [ESC-30](ESC_A_
   Graham Growth with the `ttm` EPS basis; only tests and the evaluation fixtures reach it
   ([issue #126](https://github.com/PeterPontbriand/investment-analysis-engine/issues/126),
   [ESC-31](ESC_A_DEFECT_LEDGER.md#esc-31--the-ttm-eps-basis-is-reachable-only-from-tests-and-evaluation-fixtures)).
-- **Decision:** the project owner decided on 2026-10-13 to remove the TTM basis. No formula changes.
-- **Scope:** the `ttm` literal in the Graham configurations, selections and tool arguments; the non-SEC default in
-  `default_eps_basis_for_provider`; the resolver and presenter handling; the Golden TTM cases; their tests and
-  documents. It runs after LAY.8 and before PKG.
+- **Decision:** the project owner decided on 2026-10-13 to remove the TTM basis. No formula changes. One basis rule
+  now holds for every provider: Graham Growth defaults to `three_year_average` and also accepts `fiscal_year`.
+  As decided on 2026-10-15, Graham Number's now one-value basis option is removed: it has no `eps_basis` in its
+  configuration, selection or tool arguments and no `--eps-basis` option, and it always resolves the
+  three-year average (a named constant in the strategy). Its stored selection version is 2; nothing is migrated.
+- **Scope:** the `ttm` literal in the Graham configurations and tool arguments; `default_eps_basis_for_provider`,
+  the SEC accepted-basis sets and `src/data/financial/eps_basis.py`; the evaluation fixture provider's TTM fact; the
+  `TTM` display labels; Golden case GRN-02 (deleted) and the arguments of GRG-01 (now `three_year_average`),
+  GRG-ETF-01 and the Graham Number cases; their tests and documents. `PeriodKind.TTM`, the `period_kind` cache
+  constraint and the `fcf-growth` schema are unchanged. The Golden suite is `h1-v5` over fixture set
+  `step-2.5-h1-v4`, with eighteen cases.
 - **Branch:** `refactor/esc-ttm-removal`, from `main` after LAY.8.
-- **Detail:** ⚠ no slice plan yet
+- **Detail:** [ESC-31 in the defect ledger](ESC_A_DEFECT_LEDGER.md#esc-31--the-ttm-eps-basis-is-reachable-only-from-tests-and-evaluation-fixtures)
 
 ## 1. Scope and outcomes
 

@@ -247,7 +247,7 @@ Implemented production adapters are deliberately narrow:
 - **SEC EDGAR (`sec_edgar`)** — completed annual duration facts from `10-K`, `10-K/A`, `20-F`, `20-F/A`, `40-F`, and `40-F/A`. Existing exact US-GAAP mappings cover diluted EPS, diluted weighted-average shares, operating cash flow, and CapEx. Exact IFRS mappings cover diluted EPS, diluted weighted-average shares, operating cash flow, and physical-PP&E CapEx. Fiscal-year-end balance-sheet components and conservative BVPS derivation remain US-GAAP-only; IFRS BVPS and preferred-zero inference are unsupported.
 - **Yahoo Finance (`yfinance`)** — narrow current-price financial-facts adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts. It does not claim historical quote support through the financial-facts contract.
 
-The Graham Number's default SEC route pairs SEC financial facts with Yahoo current quote comparison. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote. Unsupported provider/basis combinations are rejected before provider work.
+The Graham Number's default SEC route pairs SEC financial facts with Yahoo current quote comparison. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote. An unsupported EPS basis is rejected before provider work.
 
 ### Security identity and instrument applicability
 `SecurityIdentityProvider` is a narrow optional capability beside, not inside, numeric financial facts. The identity capability returns an immutable current descriptive snapshot with normalized ticker, optional instrument name/listing venue/issuer and instrument identifiers, provider identity, and timezone-aware `resolved_at`. SEC retains current ticker-title/CIK evidence from its ticker mapping; Yahoo retains supported instrument metadata, including non-company names where available.
@@ -277,7 +277,7 @@ Typed records preserve value, units/currency, source kind, provider field/series
 Fixture-backed data capabilities prove the historical-price and financial-fact contracts:
 - deterministic;
 - historical data for Momentum;
-- quote, EPS history/TTM EPS, BVPS facts/components, and AAA-yield observations for Graham;
+- quote, EPS history, BVPS facts/components, and AAA-yield observations for Graham;
 - annual operating-cash-flow, CapEx, and diluted-EPS series for FCF & Earnings Growth;
 - override/cache/provider/unavailable resolution branches;
 - realistic reporting, availability, `as_of`, and retrieval metadata;

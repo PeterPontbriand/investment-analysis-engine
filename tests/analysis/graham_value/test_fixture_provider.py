@@ -39,7 +39,6 @@ from src.evaluation.fixtures.graham import (
     EPS_FY2022,
     EPS_FY2023,
     EPS_FY2024,
-    EPS_TTM,
     MACRO_ID,
     NOW,
     PROVIDER_ID,
@@ -199,33 +198,19 @@ class TestFixtureProviderContract:
         with pytest.raises(FinancialProviderError):
             provider.fetch_facts(request, effective_as_of=NOW)
 
-    def test_unsupported_eps_basis_returns_empty(self) -> None:
-        """Unsupported EPS basis (not ttm, not observation_count=3) returns empty."""
+    @pytest.mark.parametrize("basis", ["unsupported_basis", "fiscal_year"])
+    def test_unsupported_eps_basis_returns_empty(self, basis: str) -> None:
+        """A single-observation EPS request (not observation_count=3) returns empty."""
         provider = FixtureFinancialFactsProvider()
         request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.EPS,
             provider_id=PROVIDER_ID,
-            basis="unsupported_basis",
+            basis=basis,
         )
         facts = provider.fetch_facts(request, effective_as_of=NOW)
         assert facts == ()
-
-    def test_ttm_eps_returns_single_fact(self) -> None:
-        """EPS with basis='ttm' returns exactly one TTM fact."""
-        provider = FixtureFinancialFactsProvider()
-        request = FinancialFactRequest(
-            subject_kind=FinancialSubjectKind.SECURITY,
-            subject_id=SECURITY_ID,
-            field_name=FinancialField.EPS,
-            provider_id=PROVIDER_ID,
-            basis="ttm",
-        )
-        facts = provider.fetch_facts(request, effective_as_of=NOW)
-        assert len(facts) == 1
-        assert facts[0].value == EPS_TTM
-        assert facts[0].basis == "ttm"
 
     def test_three_year_eps_returns_three_facts(self) -> None:
         """EPS with observation_count=3 returns three fiscal-year facts."""
@@ -303,7 +288,7 @@ class TestResolverSingleFact:
             subject_id=SUBJECT_INCOMPATIBLE,
             field_name=FinancialField.EPS,
             provider_id=PROVIDER_ID,
-            basis="ttm",
+            basis="fiscal_year",
         )
         result = resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.PROVIDER_ERROR
@@ -604,7 +589,6 @@ class TestC2DAssembly:
         result = resolver.assemble_graham_number(
             security_subject_id=SECURITY_ID,
             security_provider_id=PROVIDER_ID,
-            eps_basis="three_year_average",
         )
 
         assert result.status is CalculationStatus.OK
@@ -627,8 +611,8 @@ class TestC2DAssembly:
         assert result.current_price.value == pytest.approx(QUOTE_VALUE)
         assert result.current_price.provider_id == PROVIDER_ID
 
-    def test_growth_value_assembly_ttm_eps(self) -> None:
-        """assemble_growth_value() succeeds via fixture-backed TTM EPS and AAA yield."""
+    def test_growth_value_assembly_three_year_avg_eps(self) -> None:
+        """assemble_growth_value() succeeds via fixture-backed three-year-average EPS and AAA yield."""
         provider = FixtureFinancialFactsProvider()
         resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
 
@@ -636,7 +620,7 @@ class TestC2DAssembly:
         result = resolver.assemble_growth_value(
             security_subject_id=SECURITY_ID,
             security_provider_id=PROVIDER_ID,
-            eps_basis="ttm",
+            eps_basis="three_year_average",
             expected_growth=expected_growth,
             aaa_subject_id=MACRO_ID,
             aaa_provider_id=PROVIDER_ID,
@@ -644,11 +628,11 @@ class TestC2DAssembly:
 
         assert result.status is CalculationStatus.OK
 
-        # EPS: TTM from fixture provider
+        # EPS: derived (three-year average)
         assert result.eps is not None
-        assert result.eps.source_kind is SourceKind.PROVIDER
-        assert result.eps.value == pytest.approx(EPS_TTM)
-        assert result.eps.basis == "ttm"
+        assert result.eps.source_kind is SourceKind.DERIVED
+        assert result.eps.value == pytest.approx((EPS_FY2022 + EPS_FY2023 + EPS_FY2024) / 3.0)
+        assert result.eps.basis == "three_year_average"
 
         # Expected growth: override
         assert result.expected_growth is not None

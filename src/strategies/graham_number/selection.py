@@ -2,7 +2,6 @@
 
 import math
 from datetime import datetime
-from typing import Literal
 
 from pydantic import AwareDatetime, Field, StrictFloat, field_validator, model_validator
 
@@ -23,9 +22,6 @@ from src.strategies.graham_number.vocabulary import (
     MethodId,
 )
 
-GrahamNumberSelectionEPSBasis = Literal["three_year_average"]
-"""The EPS bases a stored selection accepts: the one SEC EDGAR supplies for Graham Number."""
-
 
 class GrahamNumberSelection(FrozenSelection):
     """Immutable Graham Number selection with an optional book-value override."""
@@ -35,7 +31,6 @@ class GrahamNumberSelection(FrozenSelection):
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     security_provider_id: str = "sec_edgar"
     quote_provider_id: str | None = None
-    eps_basis: GrahamNumberSelectionEPSBasis | None = None
     eps_override: StrictFloat | None = None
     quote_override: StrictFloat | None = None
     bvps_override: StrictFloat | None = None
@@ -74,23 +69,16 @@ class GrahamNumberSelection(FrozenSelection):
             raise ValueError("Financial override must be a finite number.")
         return value
 
-    @field_validator("eps_basis", mode="before")
-    @classmethod
-    def _normalize_basis(cls, value: object) -> object:
-        """Normalize explicit basis strings before validating supported literals."""
-        return value.strip().lower() if isinstance(value, str) else value
-
     @model_validator(mode="after")
     def _resolve_configuration(self) -> "GrahamNumberSelection":
-        """Resolve the effective EPS basis/quote provider by constructing this method's own config.
+        """Resolve the effective quote provider by constructing this method's own config.
 
         ``GrahamNumberConfig.validate_method`` is the single definition of Graham Number's
-        entire accept/default rule (EPS basis and quote provider); this
+        entire accept/default rule (the quote provider); this
         Selection validates by delegating to it rather than reimplementing the rule, so the
         CLI-direct and ``--save-run``/workspace entry points cannot silently diverge.
         """
         config = self.to_graham_number_config()
-        object.__setattr__(self, "eps_basis", config.eps_basis)
         object.__setattr__(self, "quote_provider_id", config.quote_provider_id)
         return self
 
@@ -99,7 +87,6 @@ class GrahamNumberSelection(FrozenSelection):
         return GrahamNumberConfig(
             security_provider_id=self.security_provider_id,
             quote_provider_id=self.quote_provider_id,
-            eps_basis=self.eps_basis,
             eps_override=self.eps_override,
             bvps_override=self.bvps_override,
             quote_override=self.quote_override,

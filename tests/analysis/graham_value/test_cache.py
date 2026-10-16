@@ -148,8 +148,8 @@ def test_key_empty_basis_rejected() -> None:
 
 
 def test_key_basis_normalization() -> None:
-    key = _make_key(basis="  ttm  ")
-    assert key.basis == "ttm"
+    key = _make_key(basis="  fiscal_year  ")
+    assert key.basis == "fiscal_year"
 
 
 def test_key_provider_normalization() -> None:
@@ -198,7 +198,7 @@ def test_entry_field_mismatch_rejected() -> None:
 
 
 def test_entry_basis_mismatch_rejected() -> None:
-    key = _make_key(basis="ttm")
+    key = _make_key(basis="fiscal_year")
     ri = _make_provider_input(basis="three_year_average")
     with pytest.raises(ValueError, match="basis"):
         ResolvedInputCacheEntry(key=key, resolved_input=ri, cached_at=AW)
@@ -599,13 +599,13 @@ def test_different_field_no_collision() -> None:
 
 def test_different_basis_no_collision() -> None:
     cache = InMemoryResolvedInputCache(clock=_fixed_clock())
-    key_ttm = _make_key(basis="ttm")
+    key_fy = _make_key(basis="fiscal_year")
     key_3yr = _make_key(basis="three_year_average")
-    ri_ttm = _make_provider_input(basis="ttm")
+    ri_fy = _make_provider_input(basis="fiscal_year")
     ri_3yr = _make_provider_input(basis="three_year_average")
-    cache.put(key_ttm, ri_ttm)
+    cache.put(key_fy, ri_fy)
     cache.put(key_3yr, ri_3yr)
-    assert cache.get(key_ttm) is not None
+    assert cache.get(key_fy) is not None
     assert cache.get(key_3yr) is not None
 
 

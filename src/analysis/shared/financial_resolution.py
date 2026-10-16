@@ -88,7 +88,7 @@ def resolve_normalized_eps(  # noqa: PLR0913
 
     Delegates to ``resolve_three_year_average_eps`` for the
     ``three_year_average`` basis, or the single-fact ``resolve`` for
-    ``ttm`` and any other single-observation basis.  An explicit
+    ``fiscal_year`` and any other single-observation basis.  An explicit
     override always bypasses cache/provider.
     """
     if eps_override is not None:
@@ -115,7 +115,7 @@ def resolve_normalized_eps(  # noqa: PLR0913
         )
         return resolver.resolve_three_year_average_eps(request, use_cache=use_cache)
 
-    # Single-observation basis (ttm, etc.)
+    # Single-observation basis (fiscal_year, etc.)
     request = FinancialFactRequest(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=security_subject_id,

@@ -134,7 +134,7 @@ def _graham_run(
         ticker=analysis.ticker,
         analysis_id="graham_number",
         method_id="graham_number",
-        config_schema_version=1,
+        config_schema_version=2,
         requested_config=GrahamNumberSelection(),
         started_at=NOW,
         completed_at=NOW,

@@ -9,44 +9,42 @@ from src.strategies.graham_growth.config import GrahamGrowthConfig
 from src.strategies.graham_number.config import GrahamNumberConfig
 
 
-@pytest.mark.parametrize("growth", [False, True])
 @pytest.mark.parametrize("provider", ["sec_edgar", "injected"])
-@pytest.mark.parametrize("basis", [None, "three_year_average", "ttm"])
+@pytest.mark.parametrize("basis", [None, "three_year_average", "fiscal_year"])
+def test_growth_basis_default_is_provider_independent(provider: str, basis: str | None) -> None:
+    config = GrahamGrowthConfig.model_validate(
+        {"security_provider_id": provider, "eps_basis": basis, "expected_growth": 5.0, "aaa_yield_override": 4.5}
+    )
+    assert config.eps_basis == (basis or "three_year_average")
+    assert config.quote_provider_id == ("yfinance" if provider == "sec_edgar" else provider)
+
+
+@pytest.mark.parametrize("provider", ["sec_edgar", "injected"])
 @pytest.mark.parametrize("bvps", [None, 20.0])
-def test_provider_basis_matrix(growth: bool, provider: str, basis: str | None, bvps: float | None) -> None:
-    values: dict[str, Any] = {"security_provider_id": provider, "eps_basis": basis}
-    config_type: type[GrahamNumberConfig] | type[GrahamGrowthConfig]
-    if growth:
-        config_type = GrahamGrowthConfig
-        values.update(expected_growth=5.0, aaa_yield_override=4.5)
-    else:
-        config_type = GrahamNumberConfig
-        values["bvps_override"] = bvps
-    effective = basis or ("three_year_average" if provider == "sec_edgar" else "ttm")
-    invalid = provider == "sec_edgar" and effective != "three_year_average"
-    if invalid:
-        with pytest.raises(ValidationError):
-            config_type.model_validate(values)
-    else:
-        config = config_type.model_validate(values)
-        assert config.eps_basis == effective
-        assert config.quote_provider_id == ("yfinance" if provider == "sec_edgar" else provider)
+def test_number_quote_provider_default(provider: str, bvps: float | None) -> None:
+    config = GrahamNumberConfig.model_validate({"security_provider_id": provider, "bvps_override": bvps})
+    assert config.quote_provider_id == ("yfinance" if provider == "sec_edgar" else provider)
+
+
+@pytest.mark.parametrize("basis", [None, "three_year_average", "fiscal_year"])
+def test_number_has_no_eps_basis_field(basis: str | None) -> None:
+    with pytest.raises(ValidationError, match="extra_forbidden"):
+        GrahamNumberConfig.model_validate({"eps_basis": basis})
+    assert "eps_basis" not in GrahamNumberConfig.model_fields
 
 
 @pytest.mark.parametrize("config_type", [GrahamNumberConfig, GrahamGrowthConfig])
 def test_normalization_frozen_and_roundtrip(config_type: type[GrahamNumberConfig] | type[GrahamGrowthConfig]) -> None:
-    values: dict[str, Any] = {
-        "security_provider_id": " CUSTOM ",
-        "quote_provider_id": " QUOTES ",
-        "eps_basis": " TTM ",
-    }
+    values: dict[str, Any] = {"security_provider_id": " CUSTOM ", "quote_provider_id": " QUOTES "}
     if config_type is GrahamGrowthConfig:
-        values.update(expected_growth=5.0, aaa_yield_override=4.5)
+        values.update(eps_basis=" FISCAL_YEAR ", expected_growth=5.0, aaa_yield_override=4.5)
     config = config_type.model_validate(values)
-    assert (config.security_provider_id, config.quote_provider_id, config.eps_basis) == ("custom", "quotes", "ttm")
+    assert (config.security_provider_id, config.quote_provider_id) == ("custom", "quotes")
+    if isinstance(config, GrahamGrowthConfig):
+        assert config.eps_basis == "fiscal_year"
     assert config_type.model_validate_json(config.model_dump_json()) == config
     with pytest.raises(ValidationError, match="frozen"):
-        config.eps_basis = "ttm"
+        config.eps_override = 1.0
 
 
 @pytest.mark.parametrize(
@@ -57,6 +55,7 @@ def test_normalization_frozen_and_roundtrip(config_type: type[GrahamNumberConfig
         ("quote_provider_id", " "),
         ("eps_basis", " "),
         ("eps_basis", "annual"),
+        ("eps_basis", "ttm"),
         ("eps_basis", 1),
         ("eps_override", "4.5"),
         ("quote_override", True),

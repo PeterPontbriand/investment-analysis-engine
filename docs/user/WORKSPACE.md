@@ -54,8 +54,8 @@ ID: 5f1c9e2a-...
 Entries (4):
   AAPL:
     [1] momentum: long_window=200, rsi_period=14, short_window=50
-    [2] graham-number: as_of=None, bvps_override=None, eps_basis=three_year_average, security_provider_id=sec_edgar, ...
-    [3] graham-number: as_of=None, bvps_override=12.5, eps_basis=three_year_average, security_provider_id=sec_edgar, ...
+    [2] graham-number: as_of=None, bvps_override=None, security_provider_id=sec_edgar, ...
+    [3] graham-number: as_of=None, bvps_override=12.5, security_provider_id=sec_edgar, ...
   MSFT:
     [4] momentum: long_window=200, rsi_period=14, short_window=50
 ```
@@ -155,8 +155,8 @@ These are the flags `watchlist create --analysis METHOD` and `watchlist add-sele
 | `--analysis` value | Flags | Notes |
 |---|---|---|
 | `momentum` | `--short-window`, `--long-window`, `--rsi-period`, `--as-of`, `--no-cache` | Window defaults match the configured Momentum policy. `--no-cache` bypasses the historical price cache. |
-| `graham-number` | `--as-of`, `--data-provider`, `--no-cache`, `--eps`, `--eps-basis`, `--bvps`, `--current-price` | |
-| `graham-growth` | Same as `graham-number`, plus `--expected-growth`/`--aaa-yield` | The growth/yield assumptions are required; there is no default. |
+| `graham-number` | `--as-of`, `--data-provider`, `--no-cache`, `--eps`, `--bvps`, `--current-price` | |
+| `graham-growth` | Same as `graham-number` without `--bvps`, plus `--eps-basis`, `--expected-growth`/`--aaa-yield` | The growth/yield assumptions are required; there is no default. |
 | `fcf-growth` | `--growth-years`, `--forward-policy`, `--classification-basis`, `--currency` | Always uses SEC EDGAR data, matching the direct `fcf-growth` command. |
 
 ## Refreshing a watchlist

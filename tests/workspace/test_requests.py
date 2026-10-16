@@ -41,7 +41,7 @@ def test_fixed_identifiers_and_schema_version() -> None:
 
     graham = GrahamNumberSelection()
     assert graham.analysis_id == "graham_number"
-    assert (graham.method_id, graham.config_schema_version) == ("graham_number", 1)
+    assert (graham.method_id, graham.config_schema_version) == ("graham_number", 2)
 
 
 def test_momentum_selection_carries_the_given_values_into_its_config() -> None:
@@ -118,17 +118,13 @@ def test_graham_defaults_resolve_like_analyzer_config() -> None:
     config = selection.to_graham_number_config()
 
     assert isinstance(config, GrahamNumberConfig)
-    assert (selection.eps_basis, selection.quote_provider_id) == ("three_year_average", "yfinance")
+    assert selection.quote_provider_id == "yfinance"
     assert selection.use_cache is True
 
 
 def test_graham_number_defaults() -> None:
     selection = GrahamNumberSelection()
-    assert (selection.security_provider_id, selection.quote_provider_id, selection.eps_basis) == (
-        "sec_edgar",
-        "yfinance",
-        "three_year_average",
-    )
+    assert (selection.security_provider_id, selection.quote_provider_id) == ("sec_edgar", "yfinance")
     assert selection.use_cache is True
 
 
@@ -138,7 +134,6 @@ def test_graham_normalization_and_explicit_values() -> None:
         {
             "security_provider_id": " SEC_EDGAR ",
             "quote_provider_id": " YFINANCE ",
-            "eps_basis": " THREE_YEAR_AVERAGE ",
             "eps_override": 4.5,
             "bvps_override": 20.0,
             "quote_override": 100.0,
@@ -165,10 +160,10 @@ def test_graham_snapshot_is_independent_of_caller_inputs() -> None:
 @pytest.mark.parametrize(
     ("values", "message"),
     [
-        ({"security_provider_id": "sec_edgar", "eps_basis": "ttm"}, "three_year_average"),
         ({"security_provider_id": "massive"}, "Unsupported security provider"),
         ({"quote_provider_id": "massive"}, "Unsupported quote provider"),
-        ({"eps_basis": "annual"}, "literal_error"),
+        ({"eps_basis": "three_year_average"}, "extra_forbidden"),
+        ({"eps_basis": "ttm"}, "extra_forbidden"),
     ],
 )
 def test_graham_rejects_incompatible_provider_combinations(values: dict[str, Any], message: str) -> None:

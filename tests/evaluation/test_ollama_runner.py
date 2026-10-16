@@ -151,11 +151,7 @@ async def test_empirical_runner_uses_production_orchestration_and_suppresses_pri
     secret = "private-reasoning-must-not-persist"
     client = ScriptedLLMClient(
         (
-            (
-                f"<think>{secret}</think>"
-                '{"name":"analyze_graham_number","parameters":'
-                '{"ticker":"SYNTH","eps_basis":"three_year_average"}}'
-            ),
+            (f'<think>{secret}</think>{{"name":"analyze_graham_number","parameters":{{"ticker":"SYNTH"}}}}'),
             f"<think>{secret}</think>Finished.",
         )
     )
@@ -216,7 +212,7 @@ async def test_empirical_runner_uses_production_orchestration_and_suppresses_pri
 @pytest.mark.asyncio
 async def test_empirical_runner_reports_typed_reliability_failure_with_run_identity() -> None:
     """A circuit trip becomes inspectable evaluation evidence rather than an exception."""
-    tool_call = '{"tool_name":"analyze_graham_number","tool_args":{"ticker":"SYNTH","eps_basis":"three_year_average"}}'
+    tool_call = '{"tool_name":"analyze_graham_number","tool_args":{"ticker":"SYNTH"}}'
     client = ScriptedLLMClient((tool_call, tool_call, tool_call))
     factory = RecordingFactory()
 
@@ -246,7 +242,7 @@ async def test_empirical_runner_classifies_wrong_case_arguments_as_selection_fai
     """Correct tool/method selection does not hide a wrong normalized argument choice."""
     client = ScriptedLLMClient(
         (
-            ('{"tool_name":"analyze_graham_number","tool_args":{"ticker":"SYNTH","eps_basis":"ttm"}}'),
+            ('{"tool_name":"analyze_graham_number","tool_args":{"ticker":"SYNTH","eps_override":5.0}}'),
             "Finished.",
         )
     )
@@ -267,7 +263,7 @@ async def test_empirical_runner_classifies_wrong_case_arguments_as_selection_fai
     assert case.outcome is CaseOutcome.FAIL
     assert selection.outcome is ComponentOutcome.FAIL
     assert selection.failure_reason is not None
-    assert "eps_basis" in selection.failure_reason
+    assert "eps_override" in selection.failure_reason
     assert _component(case, ComponentKind.EXECUTION_STATUS).outcome is ComponentOutcome.PASS
 
 
@@ -276,11 +272,11 @@ async def test_empirical_repetitions_preserve_pass_and_failure_without_majority_
     """Nondeterministic outcomes remain separate, ordered reports with unique trajectories."""
     client = ScriptedLLMClient(
         (
-            ('{"tool_name":"analyze_graham_number","tool_args":{"ticker":"SYNTH","eps_basis":"three_year_average"}}'),
+            ('{"tool_name":"analyze_graham_number","tool_args":{"ticker":"SYNTH"}}'),
             "Finished.",
             (
                 '{"tool_name":"analyze_graham_growth_value","tool_args":'
-                '{"ticker":"SYNTH","eps_basis":"ttm","expected_growth":6.5,"current_aaa_yield":4.15}}'
+                '{"ticker":"SYNTH","eps_basis":"fiscal_year","expected_growth":6.5,"current_aaa_yield":4.15}}'
             ),
             "Finished.",
         )
@@ -362,7 +358,7 @@ async def test_empirical_runner_records_model_failure_as_execution_failure() -> 
 # The prompt must not change for these four contracts when they are declared elsewhere; a strategy appended
 # after them adds its own schema and leaves this hash alone. LAY.7b made Momentum's window and RSI arguments
 # optional, and the hash was updated deliberately.
-_PRE_DESCRIPTOR_TOOL_SCHEMAS_SHA256 = "cdf8eb78c4d38e5f1c0f3cae449caae24adf2ab494a21819c9356a89abea9c3c"
+_PRE_DESCRIPTOR_TOOL_SCHEMAS_SHA256 = "7aca37b8235097334663f1958dd5483a3f28b583c9d754dea1a28168385a210a"
 
 
 def test_tool_schemas_are_the_four_declared_contracts_in_declaration_order() -> None:

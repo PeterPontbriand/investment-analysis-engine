@@ -70,7 +70,6 @@ def build_selection(flags: WatchlistFlags) -> GrahamNumberSelection:
         return GrahamNumberSelection.model_validate(
             {
                 "security_provider_id": provider_id,
-                "eps_basis": flags.eps_basis,
                 "eps_override": flags.eps,
                 "quote_override": flags.current_price,
                 "as_of": boundary,
@@ -129,15 +128,6 @@ def command(  # noqa: PLR0913
     ),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass resolved-input cache reads and writes"),
     eps: float | None = typer.Option(None, "--eps", "-e", help="Explicit EPS override"),
-    eps_basis: str | None = typer.Option(
-        None,
-        "--eps-basis",
-        help=(
-            "EPS basis; Number accepts three_year_average (the default); "
-            "Growth defaults to three_year_average (also accepts an explicit "
-            "fiscal_year basis for reviewed workflows)"
-        ),
-    ),
     bvps: float | None = typer.Option(
         None, "--bvps", help="Explicit book value per common share override (Number only)"
     ),
@@ -175,7 +165,6 @@ def command(  # noqa: PLR0913
             selection = GrahamNumberSelection.model_validate(
                 {
                     "security_provider_id": provider_id,
-                    "eps_basis": eps_basis,
                     "eps_override": eps,
                     "quote_override": current_price,
                     "bvps_override": bvps,

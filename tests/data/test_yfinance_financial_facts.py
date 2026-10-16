@@ -90,7 +90,7 @@ def test_unsupported_field_is_unavailable_without_quote_lookup() -> None:
         subject_id="KO",
         field_name=FinancialField.EPS,
         provider_id=YFINANCE_PROVIDER_ID,
-        basis="ttm",
+        basis="fiscal_year",
     )
 
     assert adapter.fetch_facts(request, effective_as_of=NOW) == ()

@@ -51,7 +51,6 @@ def run_graham_number_analysis(  # noqa: PLR0913
     ticker: str,
     security_provider_id: str,
     quote_provider_id: str,
-    eps_basis: str,
     eps_override: float | None,
     bvps_override: float | None,
     quote_override: float | None,
@@ -81,7 +80,6 @@ def run_graham_number_analysis(  # noqa: PLR0913
             assembly = resolver.assemble_graham_number(
                 security_subject_id=ticker,
                 security_provider_id=security_provider_id,
-                eps_basis=eps_basis,
                 eps_override=eps_override,
                 bvps_override=bvps_override,
                 quote_override=quote_override,

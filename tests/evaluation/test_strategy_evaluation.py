@@ -175,7 +175,7 @@ def _graham_growth(context: FixtureContext, arguments: GrahamGrowthValueToolArgu
 def _growth_arguments() -> GrahamGrowthValueToolArguments:
     """Build the reviewed growth-value arguments for the synthetic security."""
     return GrahamGrowthValueToolArguments(
-        ticker=SECURITY_ID, eps_basis="ttm", expected_growth=6.5, current_aaa_yield=4.15
+        ticker=SECURITY_ID, eps_basis="three_year_average", expected_growth=6.5, current_aaa_yield=4.15
     )
 
 
@@ -186,7 +186,7 @@ def test_graham_growth_composes_the_selected_facts_with_the_reviewed_policy() ->
     assert dependencies.security_provider_id == GRAHAM_PROVIDER_ID
     assert dependencies.quote_provider_id == GRAHAM_PROVIDER_ID
     result = _graham_growth(context, _growth_arguments())
-    assert result.result.growth_value == pytest.approx(109.41686746987952, abs=1e-9)
+    assert result.result.growth_value == pytest.approx(73.70441767068273, abs=1e-9)
 
 
 def test_graham_growth_without_selected_facts_reports_every_fact_as_absent() -> None:

@@ -14,7 +14,6 @@ from src.evaluation.fixtures.graham import (
     EPS_FY2022,
     EPS_FY2023,
     EPS_FY2024,
-    EPS_TTM,
     GOLDEN_BASELINE_AAA_YIELD,
     GOLDEN_EXPECTED_GROWTH,
     GOLDEN_GROWTH_BASE_PE,
@@ -100,24 +99,17 @@ def test_graham_three_year_reference_arithmetic() -> None:
     assert margin == pytest.approx(-42.56053806073687, abs=1e-12)
 
 
-def test_graham_ttm_reference_arithmetic() -> None:
-    indicated_price = math.sqrt(22.5 * EPS_TTM * BVPS_VALUE)
-    margin = (indicated_price - QUOTE_VALUE) / indicated_price * 100.0
-
-    assert indicated_price == pytest.approx(44.69899327725402, abs=1e-12)
-    assert margin == pytest.approx(-17.00487229231157, abs=1e-12)
-
-
 def test_graham_growth_reference_arithmetic_and_method_discrimination() -> None:
     valuation_pe = GOLDEN_GROWTH_BASE_PE + GOLDEN_GROWTH_MULTIPLIER * GOLDEN_EXPECTED_GROWTH
-    growth_value = EPS_TTM * valuation_pe * GOLDEN_BASELINE_AAA_YIELD / AAA_YIELD_VALUE
+    average_eps = (EPS_FY2022 + EPS_FY2023 + EPS_FY2024) / 3.0
+    growth_value = average_eps * valuation_pe * GOLDEN_BASELINE_AAA_YIELD / AAA_YIELD_VALUE
     margin = (growth_value - QUOTE_VALUE) / growth_value * 100.0
-    ttm_graham_number = math.sqrt(22.5 * EPS_TTM * BVPS_VALUE)
+    graham_number = math.sqrt(22.5 * average_eps * BVPS_VALUE)
 
     assert valuation_pe == 21.5
-    assert growth_value == pytest.approx(109.41686746987952, abs=1e-12)
-    assert margin == pytest.approx(52.20115398167724, abs=1e-12)
-    assert growth_value != pytest.approx(ttm_graham_number, abs=1e-9)
+    assert growth_value == pytest.approx(73.70441767068273, abs=1e-12)
+    assert margin == pytest.approx(29.04088838517033, abs=1e-12)
+    assert growth_value != pytest.approx(graham_number, abs=1e-9)
 
 
 def test_precedence_reference_inputs_produce_reviewed_value() -> None:

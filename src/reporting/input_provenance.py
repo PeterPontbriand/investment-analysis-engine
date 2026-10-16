@@ -12,7 +12,6 @@ from src.reporting.presentation import (
 def _basis_label(basis: str) -> str:
     return {
         "three_year_average": "3-year average",
-        "ttm": "TTM",
         "fiscal_year_end": "fiscal-year-end",
         "fiscal_year": "fiscal year",
         "latest_provider_quote": "latest provider quote",
