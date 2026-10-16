@@ -270,8 +270,7 @@ def test_fresh_upgrade_requires_active_transaction() -> None:
 def test_resource_discovery_checks_actual_synthetic_graph(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shape: str
 ) -> None:
-    fake_module = tmp_path / "src" / "data" / "repositories" / "migrations.py"
-    monkeypatch.setattr(migrations, "__file__", str(fake_module))
+    monkeypatch.setattr(migrations, "REPOSITORY_ROOT", tmp_path)
     scripts = tmp_path / "alembic"
     if shape != "missing":
         (scripts / "versions").mkdir(parents=True)

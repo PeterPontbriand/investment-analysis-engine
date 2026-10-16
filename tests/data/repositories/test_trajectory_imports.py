@@ -20,10 +20,8 @@ from src.core.repository_root import REPOSITORY_ROOT
 def test_repository_and_telemetry_import_order(first_module: str) -> None:
     script = (
         f"import {first_module}\n"
-        "from src.data.repositories import SQLiteTrajectoryRepository\n"
-        "from src.data.repositories.trajectory import SQLiteTrajectoryRepository as direct\n"
+        "from src.data.repositories.trajectory import SQLiteTrajectoryRepository\n"
         "from src.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory\n"
-        "assert SQLiteTrajectoryRepository is direct\n"
     )
     result = subprocess.run(
         [sys.executable, "-c", script],

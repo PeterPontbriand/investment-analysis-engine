@@ -717,7 +717,7 @@ def test_workspace_commands_report_a_sanitized_readiness_error(tmp_path: Path) -
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "0001_persistence")  # older head: newer workspace tables never created
 
-    with patch("cli_settings()", ProjectSettings(database_url=url)):
+    with patch("src.cli_workspace.settings", ProjectSettings(database_url=url)):
         result = runner.invoke(app, ["watchlist", "list"])
     assert result.exit_code == 1
     assert "Traceback" not in result.output
