@@ -122,6 +122,26 @@ def test_a_body_that_is_not_json_is_an_unexpected_response(body: bytes) -> None:
     assert caught.value.kind is _UNEXPECTED
 
 
+def _http_error_over(body: BytesIO, code: int) -> HTTPError:
+    return HTTPError("https://example.test/x", code, "status", {}, body)  # type: ignore[arg-type]
+
+
+def test_a_json_http_error_is_closed_before_it_propagates() -> None:
+    body = BytesIO(b"")
+    with _patched_json(_http_error_over(body, 500)), pytest.raises(FinancialProviderError) as caught:
+        _json()
+    assert body.closed
+    assert caught.value.kind is _UNREACHABLE
+
+
+def test_a_filing_http_error_is_closed_before_it_propagates() -> None:
+    body = BytesIO(b"")
+    with _patched_filing(_http_error_over(body, 500)), pytest.raises(FinancialProviderError) as caught:
+        _filing()
+    assert body.closed
+    assert caught.value.kind is _UNREACHABLE
+
+
 def test_a_programming_error_inside_the_request_is_not_reported_as_a_provider_failure() -> None:
     with _patched_json(ValueError("unknown url type")), pytest.raises(ValueError, match="unknown url type"):
         _json()

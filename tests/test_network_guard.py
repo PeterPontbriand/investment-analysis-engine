@@ -99,6 +99,25 @@ def test_urllib_request_is_blocked_before_it_leaves_the_process(pytester: pytest
     result.assert_outcomes(passed=1, errors=1)
 
 
+@pytest.mark.parametrize("method", ["connect", "connect_ex"])
+def test_a_blocked_socket_is_closed_before_the_error_is_raised(pytester: pytest.Pytester, method: str) -> None:
+    result = _run(
+        pytester,
+        f"""
+        import socket
+
+        def test_closed() -> None:
+            sock = socket.socket()
+            try:
+                sock.{method}({_EXTERNAL_ADDRESS})
+            except Exception:
+                pass
+            assert sock.fileno() == -1
+        """,
+    )
+    result.assert_outcomes(passed=1, errors=1)
+
+
 def test_loopback_connections_and_socket_pairs_stay_allowed(pytester: pytest.Pytester) -> None:
     result = _run(
         pytester,
@@ -132,7 +151,8 @@ def test_explicit_socket_stub_overrides_the_guard(pytester: pytest.Pytester) -> 
 
         def test_stubbed() -> None:
             with patch.object(socket.socket, "connect", return_value=None):
-                socket.socket().connect({_EXTERNAL_ADDRESS})
+                with socket.socket() as sock:
+                    sock.connect({_EXTERNAL_ADDRESS})
         """,
     )
     result.assert_outcomes(passed=1)

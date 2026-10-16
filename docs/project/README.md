@@ -94,6 +94,8 @@ The default gate runs on the interpreter pinned in `.python-version` (3.12, the 
 
 The test suite forces coloured CLI output itself (`tests/conftest.py` sets `FORCE_COLOR=1`), so every pytest run sees the same ANSI styling as a CI runner. CLI help and output assertions must therefore go through `normalize_cli_output` (`tests/_cli_helpers.py`) rather than compare raw text.
 
+The suite fails on a `ResourceWarning` and on an unraisable exception, so a socket, file or `HTTPError` a test leaves open fails that test. An event loop left open is reported at the end of the session with no test named; rerun with `PYTHONTRACEMALLOC=25` to see where it was created.
+
 When local repair is required, the recommended order is:
 
 ```bash
