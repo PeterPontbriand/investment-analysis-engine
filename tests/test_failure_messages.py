@@ -239,16 +239,15 @@ def _paths(row: Row) -> list[str]:
     return ["no-save", "saved", "concurrent"] if row.step == "executor" else ["saved", "concurrent"]
 
 
-# A test takes the imported autouse fixture by name to use its value, which Ruff reports as a redefinition.
 @pytest.mark.parametrize("row", ROWS, ids=[row.number for row in ROWS])
 def test_refresh_gives_every_row_its_code_and_message(
     row: Row,
     caplog: pytest.LogCaptureFixture,
-    isolated_cli_database: ProjectSettings,  # noqa: F811
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
     for path in _paths(row):
         caplog.clear()
-        exception, job, exit_code = _refresh(isolated_cli_database, row, _PATHS[path])
+        exception, job, exit_code = _refresh(isolated_cli_settings, row, _PATHS[path])
         message = row.expected(exception, "AAPL")
         assert (job["reason_code"], job["error"]) == (row.code, message), path
         assert exit_code == 1
@@ -349,9 +348,9 @@ def test_the_same_exception_gives_the_same_code_and_message_from_a_direct_comman
     row: Row,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    isolated_cli_database: ProjectSettings,  # noqa: F811
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
-    exception, job, _ = _refresh(isolated_cli_database, row, _PATHS["saved"])
+    exception, job, _ = _refresh(isolated_cli_settings, row, _PATHS["saved"])
     direct_exception, result = _direct(row, "momentum", ["--json"], tmp_path, monkeypatch)
     document = json.loads(result.stdout)
     assert (document["reason_code"], document["reason"].replace("AAPL", "BTC-USD")) == (

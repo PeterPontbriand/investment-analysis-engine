@@ -495,13 +495,12 @@ def _refresh_failing(
         return runner.invoke(app, ["refresh", name, "--workers", "1", *extra], obj=probe)
 
 
-# A test takes the imported autouse fixture by name to use its value, which Ruff reports as a redefinition.
 def test_refresh_prints_the_line_before_the_summary_on_the_summary_stream_and_probes_once(
-    isolated_cli_database: ProjectSettings,  # noqa: F811
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
     fake = _probe({"yfinance": CheckVerdict.UNREACHABLE})
 
-    result = _refresh_failing(isolated_cli_database, fake.probe)
+    result = _refresh_failing(isolated_cli_settings, fake.probe)
 
     assert result.exit_code == 1
     lines = result.stdout.splitlines()
@@ -512,7 +511,7 @@ def test_refresh_prints_the_line_before_the_summary_on_the_summary_stream_and_pr
 
 
 def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop(
-    isolated_cli_database: ProjectSettings,  # noqa: F811
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
     events: list[str] = []
     probe = MagicMock()
@@ -523,7 +522,7 @@ def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop(
         return ProbeFinding(provider_id, ProbeVerdict.HEALTHY)
 
     probe.check = check
-    _seed_momentum(isolated_cli_database, "My Watch", ["AAPL", "MSFT"])
+    _seed_momentum(isolated_cli_settings, "My Watch", ["AAPL", "MSFT"])
 
     def failing(**_kwargs: object) -> None:
         events.append("job")
@@ -537,11 +536,11 @@ def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop(
 
 
 def test_refresh_json_prints_nothing_extra_and_carries_one_finding_in_the_summary(
-    isolated_cli_database: ProjectSettings,  # noqa: F811
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
     fake = _probe({"yfinance": CheckVerdict.RATE_LIMITED})
 
-    result = _refresh_failing(isolated_cli_database, fake.probe, "--json")
+    result = _refresh_failing(isolated_cli_settings, fake.probe, "--json")
 
     assert result.exit_code == 1
     document = json.loads(result.stdout)
@@ -552,12 +551,12 @@ def test_refresh_json_prints_nothing_extra_and_carries_one_finding_in_the_summar
 
 
 def test_refresh_option_turns_the_check_off_without_changing_the_summary(
-    isolated_cli_database: ProjectSettings,  # noqa: F811
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
     fake = _probe()
-    checked = _refresh_failing(isolated_cli_database, _probe().probe)
+    checked = _refresh_failing(isolated_cli_settings, _probe().probe)
 
-    result = _refresh_failing(isolated_cli_database, fake.probe, "--no-provider-check")
+    result = _refresh_failing(isolated_cli_settings, fake.probe, "--no-provider-check")
 
     assert result.exit_code == checked.exit_code == 1
     assert result.stdout.splitlines()[0] == _SWITCHED_OFF
@@ -568,19 +567,19 @@ def test_refresh_option_turns_the_check_off_without_changing_the_summary(
 
 
 def test_refresh_without_a_provider_failure_prints_no_line_and_runs_no_probe(
-    isolated_cli_database: ProjectSettings,  # noqa: F811
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
     fake = _probe()
 
-    result = _refresh_failing(isolated_cli_database, fake.probe, kind=None)
+    result = _refresh_failing(isolated_cli_settings, fake.probe, kind=None)
 
     assert result.exit_code == 1
     assert result.stdout.startswith("Refresh ")
     assert fake.calls == []
 
 
-def test_refresh_fails_open_when_the_probe_raises(isolated_cli_database: ProjectSettings) -> None:  # noqa: F811
-    result = _refresh_failing(isolated_cli_database, _RaisingProbe())
+def test_refresh_fails_open_when_the_probe_raises(isolated_cli_settings: ProjectSettings) -> None:
+    result = _refresh_failing(isolated_cli_settings, _RaisingProbe())
 
     assert result.exit_code == 1
     assert result.stdout.splitlines()[0] == _COULD_NOT_CHECK
@@ -590,11 +589,11 @@ def test_refresh_fails_open_when_the_probe_raises(isolated_cli_database: Project
 @pytest.mark.parametrize("flag", [None, "--no-provider-check"], ids=["checked", "declined"])
 def test_refresh_exit_code_is_the_same_with_and_without_the_check(
     flag: str | None,
-    isolated_cli_database: ProjectSettings,  # noqa: F811
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
     extra = (flag,) if flag else ()
     assert (
-        _refresh_failing(isolated_cli_database, _probe().probe, *extra).exit_code
-        == _refresh_failing(isolated_cli_database, None).exit_code
+        _refresh_failing(isolated_cli_settings, _probe().probe, *extra).exit_code
+        == _refresh_failing(isolated_cli_settings, None).exit_code
         == 1
     )

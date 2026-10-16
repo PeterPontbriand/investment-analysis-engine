@@ -213,12 +213,11 @@ def test_a_readiness_error_without_json_stays_text_on_standard_error(tmp_path: P
     assert normalize_cli_output(result.stderr) == normalize_cli_output(str(error))
 
 
-# A test takes the imported autouse fixture by name to use its value, which Ruff reports as a redefinition.
 def test_refresh_json_gives_each_failed_job_a_stable_code_and_one_message(
-    isolated_cli_database: ProjectSettings,  # noqa: F811
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
     selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
-    database = SQLiteDatabase(isolated_cli_database)
+    database = SQLiteDatabase(isolated_cli_settings)
     try:
         _create("Core")
         src.cli_workspace._watchlist_repository(database).add_entries(

@@ -885,12 +885,11 @@ def _corrupt_the_stored_selection(settings: ProjectSettings) -> None:
     connection.close()
 
 
-# A test takes the imported autouse fixture by name to use its value, which Ruff reports as a redefinition.
 def test_add_selection_on_a_watchlist_with_an_unreadable_entry_reports_the_stored_selection(
-    isolated_cli_database: ProjectSettings,  # noqa: F811
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
     assert runner.invoke(app, ["watchlist", "create", "Old", "-a", "momentum", "AAPL"]).exit_code == 0
-    _corrupt_the_stored_selection(isolated_cli_database)
+    _corrupt_the_stored_selection(isolated_cli_settings)
     result = runner.invoke(app, ["watchlist", "add-selection", "Old", "-a", "momentum", "MSFT"])
     assert result.exit_code == 1
     assert "its stored selection is not in a shape this version can read" in result.stderr

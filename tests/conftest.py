@@ -1,5 +1,7 @@
 """Global pytest configurations and safety cleanups."""
 
+from __future__ import annotations
+
 import os
 
 # Typer and Rich read FORCE_COLOR when they are imported or first render, so it must be set before
@@ -14,11 +16,15 @@ os.environ["IAN_PROVIDER_CHECK"] = "false"
 
 import logging  # noqa: E402
 from collections.abc import Generator  # noqa: E402
+from typing import TYPE_CHECKING  # noqa: E402
 
 import pytest
 
 from tests._live_selection import pytest_addoption, pytest_collection_modifyitems, pytest_configure
 from tests._network_guard import block_external_sockets, block_live_yahoo
+
+if TYPE_CHECKING:
+    from src.config import ProjectSettings
 
 __all__ = [
     "block_external_sockets",
@@ -41,3 +47,9 @@ def cleanup_logging_handlers() -> Generator[None, None, None]:
             root_logger.removeHandler(handler)
         except Exception:
             pass
+
+
+@pytest.fixture
+def isolated_cli_settings(isolated_cli_database: ProjectSettings) -> ProjectSettings:
+    """The isolated settings the CLI commands use; requires the module to import isolated_cli_database."""
+    return isolated_cli_database
