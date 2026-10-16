@@ -70,7 +70,6 @@ FY2024_AVAIL = datetime(2024, 9, 13, tzinfo=UTC)
 
 FY2025_START = datetime(2024, 7, 1, tzinfo=UTC)
 FY2025_END = datetime(2025, 6, 30, tzinfo=UTC)
-FY2025_AVAIL = datetime(2025, 6, 30, 12, 0, tzinfo=UTC)  # available_at > period_end, <= NOW
 
 # BVPS
 BVPS_PERIOD_END = datetime(2024, 12, 31, tzinfo=UTC)
@@ -462,16 +461,16 @@ class FixtureFinancialFactsProvider:
                 subject_kind=FinancialSubjectKind.SECURITY,
                 subject_id=SUBJECT_INCOMPATIBLE,
                 field_name=FinancialField.EPS,
-                value=EPS_FY2025,
+                value=EPS_FY2024,
                 units=FinancialUnit.CURRENCY_PER_SHARE,
                 provider_id=PROVIDER_ID,
                 provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
                 basis=mismatched,
                 currency=CURRENCY,
-                observation_period_start=FY2025_START,
-                observation_period_end=FY2025_END,
-                available_at=FY2025_AVAIL,
+                observation_period_start=FY2024_START,
+                observation_period_end=FY2024_END,
+                available_at=FY2024_AVAIL,
                 notes=("fixture: semantically incompatible basis",),
             ),
         )
