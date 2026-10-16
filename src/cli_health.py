@@ -29,7 +29,7 @@ from src.data.provider_checks import (
     SecTransport,
     SecUnavailable,
 )
-from src.data.yfinance import YFinanceClient
+from src.data.yfinance.client import YFinanceClient
 from src.reporting.documents.health import ProviderHealthDocument, ProviderHealthEntry, ProviderLibrary
 
 

@@ -4,16 +4,15 @@ Each case runs a tiny inner test session that loads the real guard fixtures, so 
 as every other test sees them. No live call is made: the guards reject it before it leaves the process.
 """
 
-from pathlib import Path
-
 import pytest
 
+from src.core.repository_root import REPOSITORY_ROOT
 from tests._network_guard import is_loopback_address
 
 pytest_plugins = ["pytester"]
 
 _INNER_CONFTEST = "from tests._network_guard import block_external_sockets, block_live_yahoo  # noqa: F401\n"
-_REPOSITORY_ROOT = Path(__file__).resolve().parent.parent.as_posix()
+_REPOSITORY_ROOT = REPOSITORY_ROOT.as_posix()
 _EXTERNAL_ADDRESS = "('203.0.113.1', 80)"
 
 

@@ -12,7 +12,7 @@ from src.analysis.run_models import RunOutcome
 from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.instrument_profile import InstrumentKind
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.instrument_profiles import (
     GOLDEN_ETF_TICKER,

@@ -17,12 +17,13 @@ from src.cli import app
 from src.cli_composition import build_graham_resolver
 from src.cli_support import _production_financial_cache
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentProfile
-from src.data.repositories import SQLiteDatabase
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.repositories.sqlite import SQLiteDatabase
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, FixtureFinancialFactsProvider
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
@@ -51,7 +52,7 @@ class GrahamProvider:
 def configured_database(tmp_path: Path, request: pytest.FixtureRequest) -> Iterator[Path]:
     path = tmp_path / "financial.sqlite3"
     settings = ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")
-    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
     if request.param == "ready":
         command.upgrade(config, "head")

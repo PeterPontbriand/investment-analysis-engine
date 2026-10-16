@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 from alembic import command
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
 from src.data.repositories.schema import schema_metadata, trajectory_events
 from src.data.repositories.sqlite import SQLiteDatabase
@@ -96,7 +97,7 @@ def test_repository_preserves_write_and_read_encoding_policy(
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'telemetry.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))

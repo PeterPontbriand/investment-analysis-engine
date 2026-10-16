@@ -14,7 +14,7 @@ from src.data.base_client import DataFetchError
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.data.security_identity import (
     SecurityIdentity,
     SecurityIdentityRequest,

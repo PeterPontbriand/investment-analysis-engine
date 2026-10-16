@@ -15,7 +15,7 @@ from typing import Final
 
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactRequest, FinancialFactsProvider, ProviderFact
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixture_context import FixtureContext, FixtureRequirement, SharedKey
 from src.evaluation.fixtures.graham import (
     GRAHAM_FACTS_FIXTURE_ID,

@@ -13,6 +13,7 @@ from sqlalchemy import delete, select, update
 from alembic import command
 from src.analysis.run_models import RunOutcome
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.instrument_profile import InstrumentKind
 from src.data.repositories.schema import (
     analysis_runs,
@@ -51,7 +52,7 @@ def _four_runs() -> tuple[AnalysisRun, AnalysisRun, AnalysisRun, AnalysisRun]:
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'analysis_runs.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))
@@ -68,7 +69,7 @@ def repository(database: SQLiteDatabase) -> SQLiteAnalysisRunRepository:
 
 def test_four_typed_round_trips_after_reopen(tmp_path: Path) -> None:
     url = f"sqlite:///{(tmp_path / 'reopen.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     runs = _four_runs()
@@ -94,7 +95,7 @@ def test_four_typed_round_trips_after_reopen(tmp_path: Path) -> None:
 
 def test_captured_instrument_profile_round_trips_after_reopen(tmp_path: Path) -> None:
     url = f"sqlite:///{(tmp_path / 'reopen_profile.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     profile = fixture_instrument_profile("CNR.TO", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
@@ -249,7 +250,7 @@ def test_no_network_access(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(socket, "create_connection", reject_network)
     monkeypatch.setattr(socket.socket, "connect", reject_network)
     url = f"sqlite:///{(tmp_path / 'offline.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))

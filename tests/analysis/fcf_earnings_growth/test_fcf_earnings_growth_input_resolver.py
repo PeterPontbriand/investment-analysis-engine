@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from src.core.analysis_status import CalculationStatus
+from src.core.metric_result import MetricStatus, ReasonCode
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputSeriesCacheQuery
 from src.data.financial.facts import FinancialField
 from src.data.financial.provenance import AccountingScope, CapitalExpenditureSign, FinancialSubjectKind
@@ -23,7 +24,7 @@ from src.strategies.fcf_growth.input_resolver import (
     FinancialFieldProvider,
     resolve_annual_growth_series,
 )
-from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy, MetricStatus, ReasonCode
+from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from src.strategies.fcf_growth.vocabulary import FCFClassificationBasis, HistoricalHorizon
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)

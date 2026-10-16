@@ -21,10 +21,11 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from src.core.repository_root import REPOSITORY_ROOT
 from src.strategy_wiring import STRATEGIES, StrategyDescriptor
 from src.workspace_documents.json_documents import DOCUMENTS as GENERIC_DOCUMENTS
 
-SCHEMA_DIRECTORY = Path(__file__).resolve().parent.parent / "schemas"
+SCHEMA_DIRECTORY = REPOSITORY_ROOT / "schemas"
 
 
 def strategy_schema_file(descriptor: StrategyDescriptor) -> str:

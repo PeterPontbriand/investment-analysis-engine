@@ -19,6 +19,7 @@ import typer
 from scripts import strategy_conformance as conformance
 from src.cli import app
 from src.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy, add_strategy_commands
+from src.core.repository_root import REPOSITORY_ROOT
 from src.core.strategy_errors import UndeclaredStrategyError, require
 from src.evaluation.composition import FixtureDependencies, compose_fixture_dependencies
 from src.evaluation.models import Case
@@ -40,7 +41,7 @@ from src.strategy_wiring import (
     run_specs_by_key,
 )
 
-_SRC = Path(__file__).resolve().parents[1] / "src"
+_SRC = REPOSITORY_ROOT / "src"
 _WIRING = _SRC / "strategy_wiring.py"
 _TIER = _SRC / "evaluation" / "strategy_fixtures.py"
 _CLI_TIER = _SRC / "cli_strategy_wiring.py"

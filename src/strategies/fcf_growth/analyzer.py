@@ -7,6 +7,7 @@ from datetime import datetime
 from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
 from src.analysis.shared.financial_resolution import is_known_etf, validate_profile_ticker
 from src.core.analysis_status import CalculationStatus
+from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.financial.provenance import ResolvedInput
 from src.data.instrument_profile import InstrumentProfile
 from src.strategies.fcf_growth.calculators import classify_fcf_earnings_growth
@@ -16,9 +17,6 @@ from src.strategies.fcf_growth.models import (
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
-    MetricResult,
-    MetricStatus,
-    ReasonCode,
 )
 from src.strategies.fcf_growth.vocabulary import Classification, ForwardEvidenceStatus, TrendClassification
 

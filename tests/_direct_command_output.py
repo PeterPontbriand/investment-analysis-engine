@@ -25,9 +25,9 @@ from src.core.clock import utc_now
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.market_data import HistoricalMarketData
-from src.data.sec_edgar import SEC_PROVIDER_ID
-from src.data.yfinance import YFinanceFinancialFactsAdapter
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.data.yfinance.client import YFinanceClient
+from src.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import SECURITY_ID
 from src.evaluation.fixtures.market_data import FixtureMarketDataProvider, momentum_success_frame

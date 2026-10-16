@@ -15,6 +15,7 @@ from sqlalchemy import update
 from alembic import command
 from src.config import ProjectSettings
 from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 from src.data.financial.provenance import ResolvedInput, SourceKind
@@ -234,7 +235,7 @@ def test_a_defect_in_the_security_unit_completion_propagates() -> None:
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'profile_kinds.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))

@@ -20,6 +20,7 @@ from alembic import command
 from src.analysis.run_models import RunOutcome
 from src.config import ProjectSettings
 from src.core.analysis_status import CalculationStatus
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.instrument_profile import (
     InstrumentKind,
@@ -114,7 +115,7 @@ def _graham_number_analysis(ticker: str, price: float) -> GrahamNumberAnalysis:
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'analysis_run_profile_snapshot.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))

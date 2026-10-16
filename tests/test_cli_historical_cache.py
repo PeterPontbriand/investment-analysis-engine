@@ -17,11 +17,13 @@ from src.analysis.base_analyzer import AnalysisContext
 from src.cli import app
 from src.cli_support import _production_historical_client
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.base_client import DataFetchError
 from src.data.instrument_profile import InstrumentProfile
 from src.data.market_data import HistoricalMarketData, MarketDataContext
-from src.data.repositories import SQLiteDatabase, SQLiteMarketDataRepository
-from src.data.yfinance import YFinanceClient
+from src.data.repositories.market_data import SQLiteMarketDataRepository
+from src.data.repositories.sqlite import SQLiteDatabase
+from src.data.yfinance.client import YFinanceClient
 from src.evaluation.fixtures.market_data import FixtureDataClient, momentum_success_frame
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
 
@@ -31,7 +33,7 @@ NOW = datetime(2026, 9, 6, tzinfo=UTC)
 @pytest.fixture(params=["ready", "missing"])
 def configured_settings(tmp_path: Path, request: pytest.FixtureRequest) -> Iterator[ProjectSettings]:
     settings = ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'history.sqlite3').as_posix()}")
-    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
     if request.param == "ready":
         command.upgrade(config, "head")

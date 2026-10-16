@@ -6,9 +6,10 @@ reads the syntax tree, not the text, so a comment or a string that names the cla
 """
 
 import ast
-from pathlib import Path
 
-_SRC = Path(__file__).resolve().parent.parent / "src"
+from src.core.repository_root import REPOSITORY_ROOT
+
+_SRC = REPOSITORY_ROOT / "src"
 _FORBIDDEN = frozenset({"BadParameter"})
 
 

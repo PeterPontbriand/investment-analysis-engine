@@ -591,7 +591,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   the strategy guides; `docs/user/strategies/FCF_EARNINGS_GROWTH.md` renamed `FCF_GROWTH.md` with its links;
   tests T25 and T26.
 - **Branch:** `feat/swc-5-site-data-and-status`, from `main` after SWC.4c has merged.
-- **Order:** starts after LAY.8, as recorded in [B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12).
+- **Order:** starts after PKG.2, so that the import paths SWC.6 and SWC.7 write are written once, under the final package name. [B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12) recorded the earlier order.
 - **Detail:** [SWC.1 design §19.1, §19.2 and §10](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#19-contributor-tooling).
 
 ### SWC.6 — Specimen strategy and generator

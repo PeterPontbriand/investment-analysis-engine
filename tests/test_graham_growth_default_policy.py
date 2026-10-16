@@ -5,7 +5,8 @@ from unittest.mock import ANY, MagicMock, patch
 from typer.testing import CliRunner
 
 from src.cli import app
-from src.data.financial.providers import SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from src.data.yfinance.client import YFINANCE_PROVIDER_ID
 from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 

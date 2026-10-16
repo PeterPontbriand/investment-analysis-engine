@@ -5,11 +5,10 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+from src.core.repository_root import REPOSITORY_ROOT
 
 
 def _run_ian(variables: dict[str, str], *arguments: str) -> subprocess.CompletedProcess[str]:

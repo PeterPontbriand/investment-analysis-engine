@@ -8,7 +8,7 @@ import pytest
 
 from src.core.analysis_status import CalculationStatus
 from src.data.quality import HistoricalDataQualityError
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixture_context import (
     FixtureCompositionError,
     FixtureContext,

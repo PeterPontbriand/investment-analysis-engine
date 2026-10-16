@@ -7,11 +7,12 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 from src.core.analysis_status import CalculationStatus
+from src.core.metric_result import ReasonCode
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy, ReasonCode
+from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 
 NOW = datetime(2026, 8, 29, 16, 0, tzinfo=UTC)
 CIK = 789019

@@ -16,16 +16,16 @@ from sqlalchemy.engine import Connection
 
 from alembic import command
 from src.config import ProjectSettings
-from src.data.repositories import (
+from src.core.repository_root import REPOSITORY_ROOT
+from src.data.repositories import migrations, readiness
+from src.data.repositories.readiness import (
     DatabaseReadinessError,
     ReadinessOutcome,
     ReadinessReason,
-    SQLiteDatabase,
-    migrations,
-    readiness,
+    ensure_database_ready,
 )
-from src.data.repositories.readiness import ensure_database_ready
 from src.data.repositories.readiness_lock import readiness_lock
+from src.data.repositories.sqlite import SQLiteDatabase
 
 
 def _owner(path: str, channel: _ConnectionBase[object, object], crash: bool, mode: str = "automatic") -> None:
@@ -43,7 +43,7 @@ def _owner(path: str, channel: _ConnectionBase[object, object], crash: bool, mod
 
     try:
         if mode == "manual":
-            config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+            config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
             config.set_main_option("sqlalchemy.url", f"sqlite:///{Path(path).as_posix()}".replace("%", "%%"))
             with patch.object(migrations, "_run_on_connection", paused_upgrade):
                 command.upgrade(config, "head")
@@ -75,7 +75,7 @@ def _waiter(path: str, channel: _ConnectionBase[object, object], mode: str) -> N
 
     try:
         if mode == "manual":
-            config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+            config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
             config.set_main_option("sqlalchemy.url", f"sqlite:///{Path(path).as_posix()}".replace("%", "%%"))
             with patch.object(migrations, "readiness_lock", signaled_lock):
                 command.upgrade(config, "head")

@@ -6,13 +6,13 @@ import math
 
 import pytest
 
+from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.strategies.fcf_growth.calculators import (
     compute_cagr,
     compute_fcf_per_diluted_share,
     compute_fcf_yield,
     compute_free_cash_flow,
 )
-from src.strategies.fcf_growth.models import MetricResult, MetricStatus, ReasonCode
 
 
 def _assert_ok(result: MetricResult, expected: float, *, abs_tol: float | None = None) -> None:

@@ -32,12 +32,12 @@ from typer.testing import CliRunner
 from alembic import command
 from src.cli import app
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.market_data import HistoricalMarketData
 from tests._cli_helpers import normalize_cli_output
 from tests._direct_command_output import _FixtureYahoo
 
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "workspace_commands"
-_REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 
 _UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 _DATABASE_SUFFIX = re.compile(r"<database>(?:[\\/]+[\w.\-]+)+")
@@ -171,7 +171,7 @@ def _mask(text: str, paths: list[Path], *, keep_offset: bool = False) -> str:
 
 def _migrated_settings(path: Path) -> ProjectSettings:
     url = f"sqlite:///{path.as_posix()}"
-    config = Config(str(_REPOSITORY_ROOT / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     return ProjectSettings(database_url=url)

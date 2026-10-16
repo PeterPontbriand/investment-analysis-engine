@@ -34,6 +34,7 @@ from src.core.failure_classification import classify_failure
 from src.core.failure_codes import FailureReasonCode
 from src.core.operator_errors import AnalysisConfigurationError
 from src.core.provider_failure_kind import ProviderFailureKind
+from src.core.repository_root import REPOSITORY_ROOT
 from src.core.strategy_errors import undeclared
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
@@ -205,10 +206,10 @@ def _logged(caplog: pytest.LogCaptureFixture, exception: BaseException) -> bool:
     )
 
 
-def _refresh(row: Row, flags: list[str]) -> tuple[BaseException, dict[str, str | None], int]:
+def _refresh(settings: ProjectSettings, row: Row, flags: list[str]) -> tuple[BaseException, dict[str, str | None], int]:
     """Run ``refresh`` once with the row's exception raised at its step; return the exception and the one job."""
     exception = row.build()
-    _create_momentum_only("W", ["AAPL"])
+    _create_momentum_only(settings, "W", ["AAPL"])
     with ExitStack() as stack:
         if row.step == "executor" and row.number == "13":
             stack.enter_context(patch("src.cli_workspace.refresh_executor_for", side_effect=exception))
@@ -239,10 +240,14 @@ def _paths(row: Row) -> list[str]:
 
 
 @pytest.mark.parametrize("row", ROWS, ids=[row.number for row in ROWS])
-def test_refresh_gives_every_row_its_code_and_message(row: Row, caplog: pytest.LogCaptureFixture) -> None:
+def test_refresh_gives_every_row_its_code_and_message(
+    row: Row,
+    caplog: pytest.LogCaptureFixture,
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     for path in _paths(row):
         caplog.clear()
-        exception, job, exit_code = _refresh(row, _PATHS[path])
+        exception, job, exit_code = _refresh(isolated_cli_settings, row, _PATHS[path])
         message = row.expected(exception, "AAPL")
         assert (job["reason_code"], job["error"]) == (row.code, message), path
         assert exit_code == 1
@@ -264,7 +269,7 @@ _ANALYSIS_PATCHES: dict[str, Callable[[BaseException], AbstractContextManager[Ma
 
 def _migrated(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     url = f"sqlite:///{(directory / 'direct.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
@@ -340,9 +345,12 @@ def test_the_graham_resolver_build_gives_the_same_code_and_message(
 
 @pytest.mark.parametrize("row", [row for row in DIRECT_ROWS if row.step != "save"], ids=lambda row: row.number)
 def test_the_same_exception_gives_the_same_code_and_message_from_a_direct_command_and_a_refresh_job(
-    row: Row, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    row: Row,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
-    exception, job, _ = _refresh(row, _PATHS["saved"])
+    exception, job, _ = _refresh(isolated_cli_settings, row, _PATHS["saved"])
     direct_exception, result = _direct(row, "momentum", ["--json"], tmp_path, monkeypatch)
     document = json.loads(result.stdout)
     assert (document["reason_code"], document["reason"].replace("AAPL", "BTC-USD")) == (
@@ -381,9 +389,7 @@ def test_a_code_without_a_message_is_reported_as_an_unexpected_failure() -> None
 def test_the_defects_declare_their_code_and_the_classifier_names_no_exception_type() -> None:
     assert classify_failure(InternalDefectError("x")).reason_code is FailureReasonCode.EXECUTION_ERROR
     assert classify_failure(AnalysisRunConflictError("x")).reason_code is FailureReasonCode.EXECUTION_ERROR
-    source = (Path(__file__).resolve().parent.parent / "src" / "core" / "failure_classification.py").read_text(
-        encoding="utf-8"
-    )
+    source = (REPOSITORY_ROOT / "src" / "core" / "failure_classification.py").read_text(encoding="utf-8")
     for name in ("InternalDefectError", "AnalysisRunConflictError", "ValidationError"):
         assert name not in source
 

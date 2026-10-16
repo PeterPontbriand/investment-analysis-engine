@@ -11,6 +11,7 @@ from scripts.check_sequence_tables import (
     find_sequence_table_violations,
     list_markdown_files,
 )
+from src.core.repository_root import REPOSITORY_ROOT
 
 
 def table(*rows: str) -> list[str]:
@@ -135,5 +136,5 @@ def test_a_git_repository_still_limits_the_listing_to_root_and_docs(tmp_path: Pa
 
 
 def test_repository_sequence_tables_pass() -> None:
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = REPOSITORY_ROOT
     assert check_repository(repo_root) == []

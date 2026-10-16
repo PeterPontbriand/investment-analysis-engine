@@ -40,6 +40,7 @@ from src.cli_strategy_wiring import (
     refreshers_by_key,
 )
 from src.cli_watchlist_flags import WatchlistFlags
+from src.core.repository_root import REPOSITORY_ROOT
 from src.core.strategy_errors import UndeclaredStrategyError, require
 from src.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate
 from src.evaluation.catalog import DETERMINISTIC_CASES, build_deterministic_requests
@@ -75,8 +76,7 @@ from src.workspace.strategy_types import NativeEvidence, SelectionMember
 from src.workspace_documents.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
 from src.workspace_documents.run_replay import project_run
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-_SRC_ROOT = _REPO_ROOT / "src"
+_SRC_ROOT = REPOSITORY_ROOT / "src"
 _FIXTURE_CLOCK = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 
 DESCRIPTOR_FIELDS: dict[str, object] = {
@@ -1323,7 +1323,7 @@ def _command_adder_lines(path: Path, tree: ast.Module) -> range:
     return range(0)
 
 
-def discovery_gaps(files: Iterable[Path], root: Path = _REPO_ROOT) -> list[str]:
+def discovery_gaps(files: Iterable[Path], root: Path = REPOSITORY_ROOT) -> list[str]:
     """T14: no discovery, registration side effect, self-registration or registry-like name in ``files``.
 
     The one permitted ``app.command`` call is the one in ``add_strategy_commands`` in the CLI tier, which adds
@@ -1520,4 +1520,4 @@ def unused_field_gaps(files: Iterable[Path], defining_module: Path) -> list[str]
 
 def source_files() -> list[Path]:
     """Return every source and script file that may read a descriptor."""
-    return [*sorted(_SRC_ROOT.rglob("*.py")), *sorted((_REPO_ROOT / "scripts").glob("*.py"))]
+    return [*sorted(_SRC_ROOT.rglob("*.py")), *sorted((REPOSITORY_ROOT / "scripts").glob("*.py"))]

@@ -10,6 +10,7 @@ from alembic.config import Config
 
 from alembic import command
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.repositories.instrument_profiles import (
     InstrumentProfileRecord,
     SQLiteInstrumentProfileRepository,
@@ -26,7 +27,7 @@ THIRD_ID = UUID("33333333-3333-4333-8333-333333333333")
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'instrument_profiles.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))
@@ -132,7 +133,7 @@ def test_put_rejects_a_naive_clock(database: SQLiteDatabase) -> None:
 
 def test_reopen_preserves_current_and_superseded_profiles(tmp_path: Path) -> None:
     url = f"sqlite:///{(tmp_path / 'reopen.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
 

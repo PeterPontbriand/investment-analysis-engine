@@ -1,6 +1,8 @@
 from pathlib import Path
 
-DEFAULT_RULES_PATH = Path(__file__).resolve().parents[2] / "RUNTIME_AGENTS.md"
+from src.core.repository_root import REPOSITORY_ROOT
+
+DEFAULT_RULES_PATH = REPOSITORY_ROOT / "RUNTIME_AGENTS.md"
 
 
 def load_runtime_rules(path: Path | str | None = None) -> str:

@@ -18,8 +18,9 @@ from typing import Any, get_args, get_origin
 import pytest
 
 from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
 from src.evaluation.fixtures.market_data import FixtureDataClient
@@ -35,8 +36,7 @@ from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
 from tests._strategy_roles import ANALYZER_ROLES
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_SRC_ROOT = _REPO_ROOT / "src"
+_SRC_ROOT = REPOSITORY_ROOT / "src"
 _STRATEGY_PACKAGE = _SRC_ROOT / "strategies"
 
 _GROWTH_POLICY = GrahamGrowthCalculationPolicy(base_pe=8.5, growth_multiplier=2.0, baseline_aaa_yield=4.4)
@@ -191,7 +191,7 @@ def _strategy_boundary_function_imports() -> list[str]:
             for alias in node.names:
                 imported = getattr(module, alias.name, None)
                 if inspect.isfunction(imported):
-                    relative_path = path.relative_to(_REPO_ROOT)
+                    relative_path = path.relative_to(REPOSITORY_ROOT)
                     violations.append(f"{relative_path}: from {node.module} import {alias.name}")
     return violations
 
@@ -326,7 +326,7 @@ def _clock_read_violations_in_src() -> list[str]:
         if path.relative_to(_SRC_ROOT) in _ALLOWED_CLOCK_READ_PATHS:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        relative_path = path.relative_to(_REPO_ROOT)
+        relative_path = path.relative_to(REPOSITORY_ROOT)
         violations.extend(f"{relative_path}: {violation}" for violation in _clock_read_violations_in_module(tree))
     return violations
 

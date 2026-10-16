@@ -8,6 +8,7 @@ from uuid import UUID
 import pytest
 
 from src.core.analysis_status import CalculationStatus
+from src.core.metric_result import MetricStatus, ReasonCode
 from src.core.trajectory_events import TrajectoryEvent
 from src.evaluation.cases.fcf_growth import (
     FCF_01,
@@ -32,7 +33,7 @@ from src.evaluation.models import (
 from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
 from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
 from src.orchestrator.tool_names import ToolName
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, MetricStatus, ReasonCode
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from src.strategies.fcf_growth.vocabulary import Classification, TrendClassification
 from src.telemetry.recorder import TrajectoryRecorder
 from src.telemetry.run_context import RunContext

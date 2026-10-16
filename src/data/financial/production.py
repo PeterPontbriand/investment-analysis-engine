@@ -21,7 +21,8 @@ from src.data.security_unit import (
     SecurityUnitResolution,
     SecurityUnitResolutionReason,
 )
-from src.data.yfinance import YFINANCE_PROVIDER_ID, YFinanceFinancialFactsAdapter
+from src.data.yfinance.client import YFINANCE_PROVIDER_ID
+from src.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
 
 
 class ProductionFinancialFactsProvider:

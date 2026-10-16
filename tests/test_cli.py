@@ -18,9 +18,9 @@ from src.core.constants import TrendStatus
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
-from src.data.financial.providers import SEC_PROVIDER_ID
 from src.data.instrument_profile import InstrumentKind
 from src.data.market_data import MarketDataContext
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixtures.graham import (
     NOW,
     PROVIDER_ID,

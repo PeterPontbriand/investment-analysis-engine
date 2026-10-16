@@ -21,6 +21,7 @@ from pydantic import ValidationError
 
 from src.cli import app
 from src.cli_provider_check import ProviderCheckChoice, ProviderCheckFindings, provider_check_findings
+from src.config import ProjectSettings
 from src.core.failure_codes import FailureReasonCode
 from src.core.provider_check_element import (
     ProviderCheckItem,
@@ -29,6 +30,7 @@ from src.core.provider_check_element import (
     require_unique_providers,
 )
 from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.base_client import DataFetchError
 from src.data.provider_checks import CheckVerdict
 from src.data.provider_probe import ProbeFinding, ProbeVerdict
@@ -48,7 +50,6 @@ from tests.test_cli_provider_check import (
     runner,
 )
 
-_REPOSITORY = Path(__file__).resolve().parent.parent
 _CASE_OF_ALIAS = {
     "momentum": "momentum-success",
     "graham-number": "graham-number-provider-error",
@@ -321,9 +322,9 @@ def _attribute_calls(path: Path, name: str) -> list[int]:
 
 def test_only_the_shared_function_calls_the_probe() -> None:
     """Neither the text path nor the document path may call the probe on its own."""
-    source = _REPOSITORY / "src"
+    source = REPOSITORY_ROOT / "src"
     callers = {
-        path.relative_to(_REPOSITORY).as_posix()
+        path.relative_to(REPOSITORY_ROOT).as_posix()
         for path in source.rglob("*.py")
         if _attribute_calls(path, "check") and path.name != "provider_probe.py"
     }
@@ -342,9 +343,9 @@ def test_a_presenter_does_not_call_the_probe() -> None:
     """A presenter receives the finding as data; it imports neither the probe nor the module that runs it."""
     forbidden = ("src.data.provider_probe", "src.cli_provider_check")
     paths = [
-        *(_REPOSITORY / "src" / "strategies").glob("*/presenter.py"),
-        *(_REPOSITORY / "src" / "strategies").glob("*/replay.py"),
-        *(_REPOSITORY / "src" / "reporting").rglob("*.py"),
+        *(REPOSITORY_ROOT / "src" / "strategies").glob("*/presenter.py"),
+        *(REPOSITORY_ROOT / "src" / "strategies").glob("*/replay.py"),
+        *(REPOSITORY_ROOT / "src" / "reporting").rglob("*.py"),
     ]
     assert paths
     for path in paths:
@@ -464,9 +465,11 @@ def test_a_failure_in_json_mode_still_exits_one_and_writes_one_document() -> Non
 # ---------------------------------------------------------------------------
 
 
-def test_the_refresh_summary_carries_one_entry_per_implicated_provider_in_the_kind_order() -> None:
+def test_the_refresh_summary_carries_one_entry_per_implicated_provider_in_the_kind_order(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     fake = _probe({"sec_edgar": CheckVerdict.UNREACHABLE, "yfinance": CheckVerdict.RATE_LIMITED})
-    _seed_momentum("Two Providers", ["AAPL", "MSFT", "KO"])
+    _seed_momentum(isolated_cli_settings, "Two Providers", ["AAPL", "MSFT", "KO"])
 
     calls: list[int] = []
 
@@ -490,32 +493,34 @@ def test_the_refresh_summary_carries_one_entry_per_implicated_provider_in_the_ki
     assert sorted(fake.calls) == ["sec_edgar", "yfinance"]
 
 
-def test_the_refresh_summary_is_null_when_no_job_failed_on_a_provider() -> None:
+def test_the_refresh_summary_is_null_when_no_job_failed_on_a_provider(isolated_cli_settings: ProjectSettings) -> None:
     fake = _probe()
 
-    result = _refresh_failing(fake.probe, "--json", kind=None)
+    result = _refresh_failing(isolated_cli_settings, fake.probe, "--json", kind=None)
 
     assert result.exit_code == 1
     assert json.loads(result.stdout)["provider_check"] is None
     assert fake.calls == []
 
 
-def test_the_refresh_summary_with_the_check_switched_off_has_the_entry_with_not_checked() -> None:
+def test_the_refresh_summary_with_the_check_switched_off_has_the_entry_with_not_checked(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     fake = _probe()
 
-    result = _refresh_failing(fake.probe, "--json", "--no-provider-check")
+    result = _refresh_failing(isolated_cli_settings, fake.probe, "--json", "--no-provider-check")
 
     assert json.loads(result.stdout)["provider_check"] == [{"provider_id": "yfinance", "verdict": "not_checked"}]
     assert result.stderr == ""
     assert fake.calls == []
 
 
-def test_the_refresh_text_and_the_summary_come_from_the_same_findings() -> None:
+def test_the_refresh_text_and_the_summary_come_from_the_same_findings(isolated_cli_settings: ProjectSettings) -> None:
     text_probe = _probe({"yfinance": CheckVerdict.NO_DATA})
     json_probe = _probe({"yfinance": CheckVerdict.NO_DATA})
 
-    text = _refresh_failing(text_probe.probe)
-    document = _refresh_failing(json_probe.probe, "--json")
+    text = _refresh_failing(isolated_cli_settings, text_probe.probe)
+    document = _refresh_failing(isolated_cli_settings, json_probe.probe, "--json")
 
     assert text.stdout.splitlines()[0].startswith("Yahoo Finance returned no data")
     assert json.loads(document.stdout)["provider_check"] == [{"provider_id": "yfinance", "verdict": "no_data"}]

@@ -23,6 +23,7 @@ from alembic.config import Config
 from alembic import command
 from src.config import ProjectSettings
 from src.core.analysis_status import CalculationStatus
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.financial.cache import (
     InMemoryResolvedInputCache,
     ResolvedInputCacheEntry,
@@ -31,7 +32,8 @@ from src.data.financial.cache import (
 )
 from src.data.financial.facts import FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput
-from src.data.repositories import SQLiteDatabase, SQLiteResolvedInputCache
+from src.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
+from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.fcf_earnings_growth import (
     PROVIDER_ID,
     FixtureAnnualFinancialFactsProvider,
@@ -67,7 +69,7 @@ class _SeriesCache(Protocol):
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'resolved.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))

@@ -20,6 +20,7 @@ from typer.testing import CliRunner, Result
 
 from src.cli import app
 from src.cli_provider_check import ProviderCheckChoice, provider_check_findings
+from src.config import ProjectSettings
 from src.core.failure_classification import provider_failure_of
 from src.core.provider_failure_element import ProviderFailure
 from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
@@ -472,20 +473,21 @@ def test_the_option_help_names_no_planning_label_and_not_the_word_canary() -> No
 _WATCHLIST_NUMBER = itertools.count(1)
 
 
-def _seed_momentum(name: str, tickers: list[str]) -> None:
+def _seed_momentum(settings: ProjectSettings, name: str, tickers: list[str]) -> None:
     from tests.test_cli_refresh import _create_momentum_only  # noqa: PLC0415 - shares that module's seeding
 
-    _create_momentum_only(name, tickers)
+    _create_momentum_only(settings, name, tickers)
 
 
 def _refresh_failing(
+    settings: ProjectSettings,
     probe: object | None,
     *extra: str,
     tickers: tuple[str, ...] = ("AAPL", "MSFT", "KO"),
     kind: ProviderFailureKind | None = ProviderFailureKind.UNREACHABLE,
 ) -> Result:
     name = f"Watch {next(_WATCHLIST_NUMBER)}"
-    _seed_momentum(name, list(tickers))
+    _seed_momentum(settings, name, list(tickers))
     with patch(
         "src.strategies.momentum.execution.MomentumAnalyzer.run_analysis",
         side_effect=DataFetchError("library detail", kind=kind, provider_id="yfinance" if kind else None),
@@ -493,10 +495,12 @@ def _refresh_failing(
         return runner.invoke(app, ["refresh", name, "--workers", "1", *extra], obj=probe)
 
 
-def test_refresh_prints_the_line_before_the_summary_on_the_summary_stream_and_probes_once() -> None:
+def test_refresh_prints_the_line_before_the_summary_on_the_summary_stream_and_probes_once(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     fake = _probe({"yfinance": CheckVerdict.UNREACHABLE})
 
-    result = _refresh_failing(fake.probe)
+    result = _refresh_failing(isolated_cli_settings, fake.probe)
 
     assert result.exit_code == 1
     lines = result.stdout.splitlines()
@@ -506,7 +510,9 @@ def test_refresh_prints_the_line_before_the_summary_on_the_summary_stream_and_pr
     assert fake.calls == ["yfinance"]  # three failed tickers, one test request
 
 
-def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop() -> None:
+def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     events: list[str] = []
     probe = MagicMock()
 
@@ -516,7 +522,7 @@ def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop() -> N
         return ProbeFinding(provider_id, ProbeVerdict.HEALTHY)
 
     probe.check = check
-    _seed_momentum("My Watch", ["AAPL", "MSFT"])
+    _seed_momentum(isolated_cli_settings, "My Watch", ["AAPL", "MSFT"])
 
     def failing(**_kwargs: object) -> None:
         events.append("job")
@@ -529,10 +535,12 @@ def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop() -> N
     assert events == ["job", "job", "probe"]
 
 
-def test_refresh_json_prints_nothing_extra_and_carries_one_finding_in_the_summary() -> None:
+def test_refresh_json_prints_nothing_extra_and_carries_one_finding_in_the_summary(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     fake = _probe({"yfinance": CheckVerdict.RATE_LIMITED})
 
-    result = _refresh_failing(fake.probe, "--json")
+    result = _refresh_failing(isolated_cli_settings, fake.probe, "--json")
 
     assert result.exit_code == 1
     document = json.loads(result.stdout)
@@ -542,11 +550,13 @@ def test_refresh_json_prints_nothing_extra_and_carries_one_finding_in_the_summar
     assert fake.calls == ["yfinance"]  # three failed tickers, one test request
 
 
-def test_refresh_option_turns_the_check_off_without_changing_the_summary() -> None:
+def test_refresh_option_turns_the_check_off_without_changing_the_summary(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     fake = _probe()
-    checked = _refresh_failing(_probe().probe)
+    checked = _refresh_failing(isolated_cli_settings, _probe().probe)
 
-    result = _refresh_failing(fake.probe, "--no-provider-check")
+    result = _refresh_failing(isolated_cli_settings, fake.probe, "--no-provider-check")
 
     assert result.exit_code == checked.exit_code == 1
     assert result.stdout.splitlines()[0] == _SWITCHED_OFF
@@ -556,18 +566,20 @@ def test_refresh_option_turns_the_check_off_without_changing_the_summary() -> No
     assert fake.calls == []
 
 
-def test_refresh_without_a_provider_failure_prints_no_line_and_runs_no_probe() -> None:
+def test_refresh_without_a_provider_failure_prints_no_line_and_runs_no_probe(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     fake = _probe()
 
-    result = _refresh_failing(fake.probe, kind=None)
+    result = _refresh_failing(isolated_cli_settings, fake.probe, kind=None)
 
     assert result.exit_code == 1
     assert result.stdout.startswith("Refresh ")
     assert fake.calls == []
 
 
-def test_refresh_fails_open_when_the_probe_raises() -> None:
-    result = _refresh_failing(_RaisingProbe())
+def test_refresh_fails_open_when_the_probe_raises(isolated_cli_settings: ProjectSettings) -> None:
+    result = _refresh_failing(isolated_cli_settings, _RaisingProbe())
 
     assert result.exit_code == 1
     assert result.stdout.splitlines()[0] == _COULD_NOT_CHECK
@@ -575,6 +587,13 @@ def test_refresh_fails_open_when_the_probe_raises() -> None:
 
 
 @pytest.mark.parametrize("flag", [None, "--no-provider-check"], ids=["checked", "declined"])
-def test_refresh_exit_code_is_the_same_with_and_without_the_check(flag: str | None) -> None:
+def test_refresh_exit_code_is_the_same_with_and_without_the_check(
+    flag: str | None,
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     extra = (flag,) if flag else ()
-    assert _refresh_failing(_probe().probe, *extra).exit_code == _refresh_failing(None).exit_code == 1
+    assert (
+        _refresh_failing(isolated_cli_settings, _probe().probe, *extra).exit_code
+        == _refresh_failing(isolated_cli_settings, None).exit_code
+        == 1
+    )

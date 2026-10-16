@@ -19,6 +19,7 @@ from alembic import command
 from src.analysis.run_models import RunOutcome
 from src.cli import app
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.repositories.schema import analysis_runs
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.market_data import FixtureDataClient
@@ -512,6 +513,7 @@ _DEFAULT_RUN_ID = UUID("33333333-3333-4333-8333-333333333333")
 
 
 def _insert_momentum_run(
+    settings: ProjectSettings,
     ticker: str = "AAPL",
     *,
     run_id: UUID | None = None,
@@ -519,7 +521,7 @@ def _insert_momentum_run(
 ) -> AnalysisRun:
     """Insert one real, genuinely-executed Momentum run through the isolated database."""
     resolved_run_id = run_id if run_id is not None else _DEFAULT_RUN_ID
-    database = SQLiteDatabase(src.cli_workspace.settings)
+    database = SQLiteDatabase(settings)
     try:
         repository = SQLiteAnalysisRunRepository(database)
         selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
@@ -553,14 +555,16 @@ def _insert_momentum_run(
         database.close()
 
 
-def test_runs_show_replays_a_real_persisted_run_and_exits_0_even_when_failed() -> None:
+def test_runs_show_replays_a_real_persisted_run_and_exits_0_even_when_failed(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     """A pure successful read exits 0 even when it shows a failed historical run.
 
     A genuine execution failure is simulated here purely to exercise the "pure read
     exits 0 even for a failed historical run" contract rule; Momentum itself has no
     native failure status (see D1).
     """
-    run = _insert_momentum_run(outcome=RunOutcome.FAILED)
+    run = _insert_momentum_run(isolated_cli_settings, outcome=RunOutcome.FAILED)
     result = runner.invoke(app, ["runs", "show", str(run.analysis_run_id)])
     assert result.exit_code == 0
     assert "AAPL" in normalize_cli_output(result.output)
@@ -575,10 +579,11 @@ _LIBRARY_TEXT = ("input_value", "validation error for", "errors.pydantic.dev", "
 
 def test_runs_show_reports_an_envelope_that_fails_validation_in_one_sentence(
     caplog: pytest.LogCaptureFixture,
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
     """Issue 113: the validation library's text goes to the log, never to the user."""
-    run = _insert_momentum_run()
-    database = SQLiteDatabase(src.cli_workspace.settings)
+    run = _insert_momentum_run(isolated_cli_settings)
+    database = SQLiteDatabase(isolated_cli_settings)
     try:
         with database.transaction() as connection:
             connection.execute(
@@ -604,7 +609,9 @@ def test_runs_show_reports_an_envelope_that_fails_validation_in_one_sentence(
     assert any(record.exc_info and "validation error" in str(record.exc_info[1]) for record in caplog.records)
 
 
-def test_runs_show_rejects_a_corrupted_stored_envelope_without_a_raw_traceback() -> None:
+def test_runs_show_rejects_a_corrupted_stored_envelope_without_a_raw_traceback(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     """A row whose relational columns disagree with its own envelope is a sanitized exit 1.
 
     ``SQLiteAnalysisRunRepository.get`` raises a plain ``ValueError`` for this case
@@ -613,8 +620,8 @@ def test_runs_show_rejects_a_corrupted_stored_envelope_without_a_raw_traceback()
     both classes, or a corrupted row would print a raw Python traceback instead of
     the sanitized message the contract requires.
     """
-    run = _insert_momentum_run()
-    database = SQLiteDatabase(src.cli_workspace.settings)
+    run = _insert_momentum_run(isolated_cli_settings)
+    database = SQLiteDatabase(isolated_cli_settings)
     try:
         with database.transaction() as connection:
             connection.execute(
@@ -639,7 +646,7 @@ def test_runs_show_rejects_a_corrupted_stored_envelope_without_a_raw_traceback()
     assert not any(token in as_json.stdout + result.output for token in _LIBRARY_TEXT)
 
 
-def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
+def test_runs_show_rejects_an_unsupported_stored_method_version(isolated_cli_settings: ProjectSettings) -> None:
     """A self-consistent but unsupported stored method_version raises from the evidence codec.
 
     Unlike `projection_version` (a pydantic `Literal[1]`, so an unsupported value can
@@ -671,7 +678,7 @@ def test_runs_show_rejects_an_unsupported_stored_method_version() -> None:
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(native),
     )
-    database = SQLiteDatabase(src.cli_workspace.settings)
+    database = SQLiteDatabase(isolated_cli_settings)
     try:
         SQLiteAnalysisRunRepository(database).insert(run)
     finally:
@@ -693,8 +700,8 @@ def test_runs_list_rejects_an_invalid_ticker_or_refresh_id_as_a_usage_error() ->
     assert "--refresh-id" in output
 
 
-def test_runs_list_json_and_text_render_real_persisted_summaries() -> None:
-    run = _insert_momentum_run()
+def test_runs_list_json_and_text_render_real_persisted_summaries(isolated_cli_settings: ProjectSettings) -> None:
+    run = _insert_momentum_run(isolated_cli_settings)
 
     result = runner.invoke(app, ["runs", "list"])
     assert result.exit_code == 0
@@ -712,7 +719,7 @@ def test_runs_list_json_and_text_render_real_persisted_summaries() -> None:
 def test_workspace_commands_report_a_sanitized_readiness_error(tmp_path: Path) -> None:
     """An un-migrated database is a sanitized exit 1, not a raw traceback."""
     url = f"sqlite:///{(tmp_path / 'stale.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "0001_persistence")  # older head: newer workspace tables never created
 
@@ -759,8 +766,8 @@ def test_runs_list_method_option_is_rejected() -> None:
     assert "No such option" in normalize_cli_output(result.output)
 
 
-def test_runs_list_filters_by_analysis_alias() -> None:
-    run = _insert_momentum_run()
+def test_runs_list_filters_by_analysis_alias(isolated_cli_settings: ProjectSettings) -> None:
+    run = _insert_momentum_run(isolated_cli_settings)
 
     for flag in ("--analysis", "-a"):
         result = runner.invoke(app, ["runs", "list", flag, "momentum"])
@@ -821,8 +828,10 @@ def test_every_analysis_option_rejects_an_unknown_alias_with_the_same_usage_erro
     )
 
 
-def test_runs_list_text_shows_the_alias_and_json_keeps_the_canonical_method_id() -> None:
-    _insert_momentum_run()
+def test_runs_list_text_shows_the_alias_and_json_keeps_the_canonical_method_id(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    _insert_momentum_run(isolated_cli_settings)
 
     text = runner.invoke(app, ["runs", "list"])
     assert text.exit_code == 0, text.output
@@ -872,8 +881,8 @@ def test_removal_confirmation_lines_name_the_alias_never_the_canonical_id() -> N
     assert "graham_growth_value" not in removed.output
 
 
-def _database_path() -> Path:
-    return Path(src.cli_workspace.settings.database_url.removeprefix("sqlite:///"))
+def _database_path(settings: ProjectSettings) -> Path:
+    return Path(settings.database_url.removeprefix("sqlite:///"))
 
 
 def _seed_for_delete(name: str = "Scratch") -> None:
@@ -908,16 +917,18 @@ def test_watchlist_delete_json_carries_the_watchlist_show_document() -> None:
     assert json.loads(result.stdout) == {"requested_name": "Scratch", "deleted": True, "watchlist": shown}
 
 
-def test_watchlist_delete_non_interactive_without_yes_is_a_usage_error_and_changes_nothing() -> None:
+def test_watchlist_delete_non_interactive_without_yes_is_a_usage_error_and_changes_nothing(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     _seed_for_delete()
-    before = _database_path().read_bytes()
+    before = _database_path(isolated_cli_settings).read_bytes()
 
     with patch("src.cli_workspace._stdin_is_interactive", return_value=False):
         result = runner.invoke(app, ["watchlist", "delete", "Scratch"])
 
     assert result.exit_code == 1
     assert "--yes" in normalize_cli_output(result.output)
-    assert _database_path().read_bytes() == before
+    assert _database_path(isolated_cli_settings).read_bytes() == before
 
 
 def test_watchlist_delete_non_interactive_check_happens_before_the_database_is_opened() -> None:

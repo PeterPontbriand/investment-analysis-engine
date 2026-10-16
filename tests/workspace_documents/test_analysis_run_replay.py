@@ -11,13 +11,14 @@ import pytest
 
 from src.analysis.run_models import RunOutcome
 from src.core.analysis_status import CalculationStatus
+from src.core.metric_result import MetricResult
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile, fixture_known_etf_profile
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.reporting.presentation import PresentationMode
 from src.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, MetricResult
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from src.strategies.fcf_growth.selection import FCFGrowthSelection
 from src.strategies.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,

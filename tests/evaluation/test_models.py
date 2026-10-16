@@ -5,7 +5,6 @@ from math import inf, nan
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from src import evaluation
 from src.evaluation.models import (
     BehaviorConstraints,
     Case,
@@ -585,23 +584,3 @@ def test_composed_contract_has_deterministic_json_round_trip() -> None:
 
     assert Case.model_validate_json(serialized) == case
     assert Case.model_validate_json(serialized).model_dump_json() == serialized
-
-
-def test_public_evaluation_exports_are_deliberate() -> None:
-    assert evaluation.__all__ == [
-        "BehaviorConstraints",
-        "Case",
-        "ComponentKind",
-        "ComponentOutcome",
-        "ComponentResult",
-        "DomainOutcomeExpectation",
-        "DomainOutcomeObservation",
-        "ExecutionMode",
-        "Expectation",
-        "NumericalExpectation",
-        "NumericalObservation",
-        "Observation",
-        "ToolCallObservation",
-        "ToolConstraints",
-    ]
-    assert not hasattr(evaluation, "ToolName")

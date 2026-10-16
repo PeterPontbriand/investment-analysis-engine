@@ -16,24 +16,23 @@ from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 from alembic.config import Config
 from typer.testing import CliRunner
 
-import src.cli_run_support
 from alembic import command
 from src.analysis.run_models import RunOutcome
 from src.cli import app
 from src.config import ProjectSettings
 from src.config import settings as real_settings
 from src.core.constants import TrendStatus
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.market_data import MarketDataContext
 from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
@@ -48,19 +47,20 @@ runner = CliRunner()
 
 
 @pytest.fixture(autouse=True)
-def isolated_save_run_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def isolated_save_run_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSettings:
     """Point the run helpers' and Momentum's `settings` run-storage database at a disposable, migrated file.
 
     Every other field (SEC identity, etc.) is preserved from the real settings,
     so this module's tests do not disturb unrelated already-accepted behavior.
     """
     url = f"sqlite:///{(tmp_path / 'save_run.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
     monkeypatch.setattr("src.cli_run_support.settings", isolated)
     monkeypatch.setattr("src.cli_support.settings", isolated)
+    return isolated
 
 
 @pytest.fixture(autouse=True)
@@ -73,19 +73,8 @@ def disable_live_yfinance_identity_resolution() -> Iterator[None]:
         yield
 
 
-def _cli_settings() -> ProjectSettings:
-    """Read `src.cli_run_support`'s current (possibly monkeypatched) settings binding.
-
-    `getattr` avoids requiring `cli.py` (a large, heavily-used entry-point
-    module with no existing `__all__`) to declare a broader public export
-    contract than it already has, purely for this test module's own need to
-    reach the live attribute after `isolated_save_run_database` patches it.
-    """
-    return cast(ProjectSettings, getattr(src.cli_run_support, "settings"))  # noqa: B009
-
-
-def _repository() -> SQLiteAnalysisRunRepository:
-    return SQLiteAnalysisRunRepository(SQLiteDatabase(_cli_settings()))
+def _repository(settings: ProjectSettings) -> SQLiteAnalysisRunRepository:
+    return SQLiteAnalysisRunRepository(SQLiteDatabase(settings))
 
 
 def _mock_momentum_run(ticker: str = "BTC-USD") -> MomentumRun:
@@ -123,7 +112,7 @@ def _fcf_provider() -> ProductionFinancialFactsProvider:
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_momentum_default_call_saves_nothing(mock_run: MagicMock) -> None:
+def test_momentum_default_call_saves_nothing(mock_run: MagicMock, isolated_save_run_database: ProjectSettings) -> None:
     mock_run.return_value = _mock_momentum_run()
     carry_profile(mock_run)
 
@@ -131,11 +120,13 @@ def test_momentum_default_call_saves_nothing(mock_run: MagicMock) -> None:
 
     assert result.exit_code == 0
     assert "Saved Analysis Run" not in result.output
-    assert _repository().list(RunQuery()) == ()
+    assert _repository(isolated_save_run_database).list(RunQuery()) == ()
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_momentum_save_run_persists_and_reports_id_on_stderr(mock_run: MagicMock) -> None:
+def test_momentum_save_run_persists_and_reports_id_on_stderr(
+    mock_run: MagicMock, isolated_save_run_database: ProjectSettings
+) -> None:
     mock_run.return_value = _mock_momentum_run()
     carry_profile(mock_run)
 
@@ -153,14 +144,16 @@ def test_momentum_save_run_persists_and_reports_id_on_stderr(mock_run: MagicMock
     assert "Saved Analysis Run:" in json_result.stderr
     assert "Saved Analysis Run:" not in json_result.stdout
 
-    saved = _repository().list(RunQuery())
+    saved = _repository(isolated_save_run_database).list(RunQuery())
     assert len(saved) == 2
     assert {item.ticker for item in saved} == {"BTC-USD"}
     assert all(item.method_id == "sma_crossover" for item in saved)
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_momentum_save_run_persists_as_of_and_no_cache_on_the_selection(mock_run: MagicMock) -> None:
+def test_momentum_save_run_persists_as_of_and_no_cache_on_the_selection(
+    mock_run: MagicMock, isolated_save_run_database: ProjectSettings
+) -> None:
     mock_run.return_value = _mock_momentum_run()
     carry_profile(mock_run)
 
@@ -170,8 +163,8 @@ def test_momentum_save_run_persists_as_of_and_no_cache_on_the_selection(mock_run
     context = mock_run.call_args.kwargs["context"]
     assert context.as_of == datetime(2026, 8, 1, 23, 59, 59, 999999, tzinfo=UTC)
     assert context.use_cache is False
-    (summary,) = _repository().list(RunQuery())
-    run = _repository().get(summary.analysis_run_id)
+    (summary,) = _repository(isolated_save_run_database).list(RunQuery())
+    run = _repository(isolated_save_run_database).get(summary.analysis_run_id)
     assert run is not None
     selection = run.requested_config
     assert isinstance(selection, MomentumSelection)
@@ -190,19 +183,21 @@ def test_momentum_save_run_without_explicit_ticker_is_an_invalid_parameter() -> 
 # ---------------------------------------------------------------------------
 
 
-def test_graham_number_save_run_persists_a_completed_run() -> None:
+def test_graham_number_save_run_persists_a_completed_run(isolated_save_run_database: ProjectSettings) -> None:
     with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()):
         result = runner.invoke(app, ["graham-number", "SYNTH", "--data-provider", "sec_edgar", "--save-run"])
 
     assert result.exit_code == 0
     assert "Saved Analysis Run:" in result.output
 
-    saved = _repository().list(RunQuery(ticker="SYNTH"))
+    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="SYNTH"))
     assert len(saved) == 1
     assert saved[0].method_id == "graham_number"
 
 
-def test_graham_number_save_run_persists_a_not_applicable_etf_outcome() -> None:
+def test_graham_number_save_run_persists_a_not_applicable_etf_outcome(
+    isolated_save_run_database: ProjectSettings,
+) -> None:
     """A typed not_applicable/unavailable outcome must still be persisted, not skipped."""
     profile = fixture_known_etf_profile()
     with (
@@ -217,12 +212,12 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome() -> None:
     assert result.exit_code == 0
     assert "Saved Analysis Run:" in result.output
 
-    saved = _repository().list(RunQuery(ticker="FLSW"))
+    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="FLSW"))
     assert len(saved) == 1
     assert saved[0].status is RunOutcome.NOT_APPLICABLE
 
 
-def test_graham_number_no_cache_plus_save_run_still_saves() -> None:
+def test_graham_number_no_cache_plus_save_run_still_saves(isolated_save_run_database: ProjectSettings) -> None:
     with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()):
         result = runner.invoke(
             app,
@@ -232,18 +227,18 @@ def test_graham_number_no_cache_plus_save_run_still_saves() -> None:
     assert result.exit_code == 0
     assert "Saved Analysis Run:" in result.output
 
-    saved = _repository().list(RunQuery(ticker="SYNTH"))
+    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="SYNTH"))
     assert len(saved) == 1
 
 
-def test_graham_number_default_call_saves_nothing() -> None:
+def test_graham_number_default_call_saves_nothing(isolated_save_run_database: ProjectSettings) -> None:
     with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()):
         result = runner.invoke(app, ["graham-number", "SYNTH", "--data-provider", "sec_edgar"])
 
     assert result.exit_code == 0
     assert "Saved Analysis Run" not in result.output
 
-    assert _repository().list(RunQuery(ticker="SYNTH")) == ()
+    assert _repository(isolated_save_run_database).list(RunQuery(ticker="SYNTH")) == ()
 
 
 def test_graham_number_save_run_storage_failure_is_visible_and_nonzero_exit() -> None:
@@ -263,7 +258,7 @@ def test_graham_number_save_run_storage_failure_is_visible_and_nonzero_exit() ->
 # ---------------------------------------------------------------------------
 
 
-def test_graham_growth_save_run_persists_with_stored_assumptions() -> None:
+def test_graham_growth_save_run_persists_with_stored_assumptions(isolated_save_run_database: ProjectSettings) -> None:
     with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=sec_labeled_growth_resolver()):
         result = runner.invoke(
             app,
@@ -283,9 +278,9 @@ def test_graham_growth_save_run_persists_with_stored_assumptions() -> None:
     assert result.exit_code == 0
     assert "Saved Analysis Run:" in result.output
 
-    saved = _repository().list(RunQuery(ticker="SYNTH"))
+    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="SYNTH"))
     assert len(saved) == 1
-    full = SQLiteAnalysisRunRepository(SQLiteDatabase(_cli_settings())).get(saved[0].analysis_run_id)
+    full = SQLiteAnalysisRunRepository(SQLiteDatabase(isolated_save_run_database)).get(saved[0].analysis_run_id)
     assert full is not None
     assert isinstance(full.requested_config, GrahamGrowthSelection)
     assert full.requested_config.expected_growth == 6.0
@@ -297,26 +292,26 @@ def test_graham_growth_save_run_persists_with_stored_assumptions() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_fcf_growth_save_run_persists() -> None:
+def test_fcf_growth_save_run_persists(isolated_save_run_database: ProjectSettings) -> None:
     with patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_fcf_provider()):
         result = runner.invoke(app, ["fcf-growth", "ACME", "--save-run"])
 
     assert result.exit_code == 0
     assert "Saved Analysis Run:" in result.output
 
-    saved = _repository().list(RunQuery(ticker="ACME"))
+    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="ACME"))
     assert len(saved) == 1
     assert saved[0].method_id == "reported_fcf_eps_cagr"
 
 
-def test_fcf_growth_default_call_saves_nothing() -> None:
+def test_fcf_growth_default_call_saves_nothing(isolated_save_run_database: ProjectSettings) -> None:
     with patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_fcf_provider()):
         result = runner.invoke(app, ["fcf-growth", "ACME"])
 
     assert result.exit_code == 0
     assert "Saved Analysis Run" not in result.output
 
-    assert _repository().list(RunQuery(ticker="ACME")) == ()
+    assert _repository(isolated_save_run_database).list(RunQuery(ticker="ACME")) == ()
 
 
 # ---------------------------------------------------------------------------
@@ -325,7 +320,9 @@ def test_fcf_growth_default_call_saves_nothing() -> None:
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_interrupt_during_analysis_stores_no_run(mock_run: MagicMock) -> None:
+def test_interrupt_during_analysis_stores_no_run(
+    mock_run: MagicMock, isolated_save_run_database: ProjectSettings
+) -> None:
     """Ctrl-C before the run is captured leaves nothing stored and reports no saved run.
 
     The exit status of an interrupt is Typer's (130), not the application's, so it is not asserted.
@@ -335,11 +332,13 @@ def test_interrupt_during_analysis_stores_no_run(mock_run: MagicMock) -> None:
     result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
 
     assert "Saved Analysis Run" not in result.output
-    assert _repository().list(RunQuery()) == ()
+    assert _repository(isolated_save_run_database).list(RunQuery()) == ()
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_interrupt_while_storing_leaves_no_partial_run(mock_run: MagicMock) -> None:
+def test_interrupt_while_storing_leaves_no_partial_run(
+    mock_run: MagicMock, isolated_save_run_database: ProjectSettings
+) -> None:
     """Ctrl-C inside the insert transaction rolls the transaction back; no row, no saved-run line."""
     mock_run.return_value = _mock_momentum_run()
     carry_profile(mock_run)
@@ -348,4 +347,4 @@ def test_interrupt_while_storing_leaves_no_partial_run(mock_run: MagicMock) -> N
         result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
 
     assert "Saved Analysis Run" not in result.output
-    assert _repository().list(RunQuery()) == ()
+    assert _repository(isolated_save_run_database).list(RunQuery()) == ()

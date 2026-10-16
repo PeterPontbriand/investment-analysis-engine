@@ -29,7 +29,7 @@ from src.core.operator_errors import InvalidParameterError
 from src.data.instrument_profile import profile_identity_resolution
 from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.data.repositories.readiness import ensure_database_ready
-from src.data.yfinance import YFinanceClient
+from src.data.yfinance.client import YFinanceClient
 from src.strategies.momentum.analyzer import MomentumConfig
 from src.strategies.momentum.execution import (
     capture_momentum,

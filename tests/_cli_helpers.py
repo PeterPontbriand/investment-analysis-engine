@@ -39,6 +39,7 @@ from alembic.config import Config
 
 from alembic import command
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 
 _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
 
@@ -58,19 +59,20 @@ def normalize_cli_output(output: str) -> str:
 
 
 @pytest.fixture(autouse=True)
-def isolated_cli_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Migrate a disposable database to head and point CLI storage at it.
+def isolated_cli_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSettings:
+    """Migrate a disposable database to head and point CLI storage at it, returning the isolated settings.
 
     Importing this fixture's name into a test module activates it for every
     test in that module, matching pytest's usual cross-module fixture sharing.
     """
     url = f"sqlite:///{(tmp_path / 'cli.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     isolated = ProjectSettings(database_url=url)
     monkeypatch.setattr("src.cli_support.settings", isolated)
     monkeypatch.setattr("src.cli_workspace.settings", isolated)
+    return isolated
 
 
 @pytest.fixture(autouse=True)

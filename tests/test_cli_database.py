@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 
 from src.cli import app
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.repositories import migrations, readiness, readiness_lock
 from tests._cli_helpers import normalize_cli_output
 
@@ -32,7 +33,7 @@ def _synthetic_head_graph(tmp_path: Path) -> migrations.MigrationResources:
     on-disk revision, so the base graph is copied and a single child revision is
     added on top of it.
     """
-    repository = Path(__file__).resolve().parent.parent
+    repository = REPOSITORY_ROOT
     source = repository / "alembic"
     directory = tmp_path / "cli-synthetic-alembic"
     shutil.copytree(source, directory, ignore=shutil.ignore_patterns("__pycache__"))

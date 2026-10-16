@@ -877,17 +877,19 @@ def test_a_blank_ticker_leaves_the_watchlist_unchanged() -> None:
     assert "Entries (1):" in runner.invoke(app, ["watchlist", "show", "Keep"]).stdout
 
 
-def _corrupt_the_stored_selection() -> None:
-    path = src.cli_workspace.settings.database_url.removeprefix("sqlite:///")
+def _corrupt_the_stored_selection(settings: ProjectSettings) -> None:
+    path = settings.database_url.removeprefix("sqlite:///")
     connection = sqlite3.connect(path)
     connection.execute("update watchlist_entries set selection_json = ?", ('{"x":1}',))
     connection.commit()
     connection.close()
 
 
-def test_add_selection_on_a_watchlist_with_an_unreadable_entry_reports_the_stored_selection() -> None:
+def test_add_selection_on_a_watchlist_with_an_unreadable_entry_reports_the_stored_selection(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
     assert runner.invoke(app, ["watchlist", "create", "Old", "-a", "momentum", "AAPL"]).exit_code == 0
-    _corrupt_the_stored_selection()
+    _corrupt_the_stored_selection(isolated_cli_settings)
     result = runner.invoke(app, ["watchlist", "add-selection", "Old", "-a", "momentum", "MSFT"])
     assert result.exit_code == 1
     assert "its stored selection is not in a shape this version can read" in result.stderr
