@@ -5,6 +5,7 @@ sentence to standard error and nothing to standard output. Exit codes are unchan
 window check, which now reports like every other failure.
 """
 
+# ruff: noqa: F811 - a test takes the imported autouse fixture by name to use its value.
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -14,6 +15,7 @@ from typer.testing import CliRunner
 
 import src.cli_workspace
 from src.cli import app
+from src.config import ProjectSettings
 from src.data.base_client import DataFetchError
 from src.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
 from src.data.repositories.sqlite import SQLiteDatabase
@@ -21,7 +23,6 @@ from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.capture import ExecutionCapture
 from src.workspace.strategy_types import AnalysisSelection
 from tests._cli_helpers import (  # noqa: F401
-    cli_settings,
     isolated_cli_database,
     normalize_cli_output,
     stub_yahoo_identity_metadata,
@@ -213,9 +214,11 @@ def test_a_readiness_error_without_json_stays_text_on_standard_error(tmp_path: P
     assert normalize_cli_output(result.stderr) == normalize_cli_output(str(error))
 
 
-def test_refresh_json_gives_each_failed_job_a_stable_code_and_one_message() -> None:
+def test_refresh_json_gives_each_failed_job_a_stable_code_and_one_message(
+    isolated_cli_database: ProjectSettings,
+) -> None:
     selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
-    database = SQLiteDatabase(cli_settings())
+    database = SQLiteDatabase(isolated_cli_database)
     try:
         _create("Core")
         src.cli_workspace._watchlist_repository(database).add_entries(

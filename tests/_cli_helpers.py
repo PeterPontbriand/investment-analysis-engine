@@ -37,7 +37,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from alembic.config import Config
 
-import src.cli_workspace
 from alembic import command
 from src.config import ProjectSettings
 from src.core.repository_root import REPOSITORY_ROOT
@@ -60,8 +59,8 @@ def normalize_cli_output(output: str) -> str:
 
 
 @pytest.fixture(autouse=True)
-def isolated_cli_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Migrate a disposable database to head and point CLI storage at it.
+def isolated_cli_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSettings:
+    """Migrate a disposable database to head and point CLI storage at it, returning the isolated settings.
 
     Importing this fixture's name into a test module activates it for every
     test in that module, matching pytest's usual cross-module fixture sharing.
@@ -73,13 +72,7 @@ def isolated_cli_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     isolated = ProjectSettings(database_url=url)
     monkeypatch.setattr("src.cli_support.settings", isolated)
     monkeypatch.setattr("src.cli_workspace.settings", isolated)
-
-
-def cli_settings() -> ProjectSettings:
-    """Return the settings the workspace commands use: the isolated ones while ``isolated_cli_database`` is active."""
-    settings = vars(src.cli_workspace)["settings"]
-    assert isinstance(settings, ProjectSettings)
-    return settings
+    return isolated
 
 
 @pytest.fixture(autouse=True)

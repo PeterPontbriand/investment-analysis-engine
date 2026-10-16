@@ -14,6 +14,7 @@ proving the CLI's own wiring (argument parsing, exit codes, output
 rendering, interruption).
 """
 
+# ruff: noqa: F811 - a test takes the imported autouse fixture by name to use its value.
 import json
 import re
 import signal
@@ -29,6 +30,7 @@ import pytest
 from typer.testing import CliRunner
 
 from src.cli import app
+from src.config import ProjectSettings
 from src.core.constants import TrendStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.market_data import MarketDataContext
@@ -46,7 +48,6 @@ from src.workspace.repositories.analysis_runs import AnalysisRunConflictError, S
 from src.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from src.workspace.strategy_types import AnalysisSelection
 from tests._cli_helpers import (  # noqa: F401
-    cli_settings,
     isolated_cli_database,
     normalize_cli_output,
     stub_yahoo_identity_metadata,
@@ -62,7 +63,7 @@ def _create(name: str) -> None:
     assert result.exit_code == 0, result.output
 
 
-def _seed(name: str, entries: list[tuple[str, AnalysisSelection]]) -> None:
+def _seed(settings: ProjectSettings, name: str, entries: list[tuple[str, AnalysisSelection]]) -> None:
     """Create a watchlist and add entries directly via the repository.
 
     Amendment A1's I1 checkpoint removed the CLI's add/configure/disable
@@ -73,17 +74,17 @@ def _seed(name: str, entries: list[tuple[str, AnalysisSelection]]) -> None:
     """
     _create(name)
     if entries:
-        database = SQLiteDatabase(cli_settings())
+        database = SQLiteDatabase(settings)
         try:
             SQLiteWatchlistRepository(database, alias_for=alias_for).add_entries(name, entries)
         finally:
             database.close()
 
 
-def _create_momentum_only(name: str, members: list[str]) -> None:
+def _create_momentum_only(settings: ProjectSettings, name: str, members: list[str]) -> None:
     """A watchlist with only a Momentum entry for each given ticker."""
     momentum = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
-    _seed(name, [(ticker, momentum) for ticker in members])
+    _seed(settings, name, [(ticker, momentum) for ticker in members])
 
 
 def _mock_momentum_run(ticker: str = "BTC-USD") -> MomentumRun:
@@ -130,17 +131,19 @@ def test_refresh_empty_target_is_a_failure_exiting_1() -> None:
     assert "nothing to refresh" in normalize_cli_output(result.stderr)
 
 
-def test_refresh_rejects_an_out_of_range_worker_count() -> None:
-    _create_momentum_only("My Watch", ["BTC-USD"])
+def test_refresh_rejects_an_out_of_range_worker_count(isolated_cli_database: ProjectSettings) -> None:
+    _create_momentum_only(isolated_cli_database, "My Watch", ["BTC-USD"])
     result = runner.invoke(app, ["refresh", "My Watch", "--workers", "5"])
     assert result.exit_code == 1
     assert result.stderr.strip() == "--workers must be between 1 and 4."
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_refresh_sequential_persists_every_member_and_exits_0(mock_run: MagicMock) -> None:
+def test_refresh_sequential_persists_every_member_and_exits_0(
+    mock_run: MagicMock, isolated_cli_database: ProjectSettings
+) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
-    _create_momentum_only("My Watch", ["AAPL", "MSFT"])
+    _create_momentum_only(isolated_cli_database, "My Watch", ["AAPL", "MSFT"])
 
     result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
@@ -152,9 +155,9 @@ def test_refresh_sequential_persists_every_member_and_exits_0(mock_run: MagicMoc
     assert mock_run.call_count == 2
 
 
-def _retire_momentum_entries(*retired: str) -> None:
+def _retire_momentum_entries(settings: ProjectSettings, *retired: str) -> None:
     """Rewrite the named tickers' Momentum entries into the retired version-1 stored shape."""
-    path = cli_settings().database_url.removeprefix("sqlite:///")
+    path = settings.database_url.removeprefix("sqlite:///")
     with closing(sqlite3.connect(path)) as connection:
         for ticker in retired:
             ((selection_json,),) = connection.execute(
@@ -173,23 +176,27 @@ def _retire_momentum_entries(*retired: str) -> None:
         connection.commit()
 
 
-def _stored_tickers() -> list[str]:
+def _stored_tickers(settings: ProjectSettings) -> list[str]:
     """Return the stored entries' tickers in position order, read without decoding any selection."""
-    path = cli_settings().database_url.removeprefix("sqlite:///")
+    path = settings.database_url.removeprefix("sqlite:///")
     with closing(sqlite3.connect(path)) as connection:
         rows = connection.execute("SELECT ticker FROM watchlist_entries ORDER BY position").fetchall()
     return [ticker for (ticker,) in rows]
 
 
-def _store_momentum_entry_as_retired_version_one(name: str, tickers: list[str], retired: str) -> None:
+def _store_momentum_entry_as_retired_version_one(
+    settings: ProjectSettings, name: str, tickers: list[str], retired: str
+) -> None:
     """Seed Momentum entries, then rewrite the ``retired`` ticker's into the retired version-1 stored shape."""
-    _create_momentum_only(name, tickers)
-    _retire_momentum_entries(retired)
+    _create_momentum_only(settings, name, tickers)
+    _retire_momentum_entries(settings, retired)
 
 
 @pytest.mark.parametrize("arguments", [["watchlist", "show", "Old Watch"], ["refresh", "Old Watch"]])
-def test_a_retired_version_one_momentum_entry_reports_a_readable_error(arguments: list[str]) -> None:
-    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+def test_a_retired_version_one_momentum_entry_reports_a_readable_error(
+    arguments: list[str], isolated_cli_database: ProjectSettings
+) -> None:
+    _store_momentum_entry_as_retired_version_one(isolated_cli_database, "Old Watch", ["AAPL", "MSFT"], retired="MSFT")
 
     result = runner.invoke(app, arguments)
 
@@ -201,8 +208,10 @@ def test_a_retired_version_one_momentum_entry_reports_a_readable_error(arguments
     )
 
 
-def test_the_removal_command_in_the_retired_entry_error_restores_the_watchlist() -> None:
-    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+def test_the_removal_command_in_the_retired_entry_error_restores_the_watchlist(
+    isolated_cli_database: ProjectSettings,
+) -> None:
+    _store_momentum_entry_as_retired_version_one(isolated_cli_database, "Old Watch", ["AAPL", "MSFT"], retired="MSFT")
 
     result = runner.invoke(app, ["watchlist", "remove-entry", "Old Watch", "2"])
     shown = runner.invoke(app, ["watchlist", "show", "Old Watch"])
@@ -216,10 +225,10 @@ def test_the_removal_command_in_the_retired_entry_error_restores_the_watchlist()
 _REMOVAL_COMMAND = re.compile(r'Remove it with: ian (watchlist remove-entry) "([^"]+)" (\d+)')
 
 
-def test_printed_removal_command_removes_one_unreadable_entry_at_a_time() -> None:
+def test_printed_removal_command_removes_one_unreadable_entry_at_a_time(isolated_cli_database: ProjectSettings) -> None:
     """Three retired entries and one valid: each run removes exactly one and names the next."""
-    _create_momentum_only("Old Watch", ["AAPL", "MSFT", "KO", "NVDA"])
-    _retire_momentum_entries("AAPL", "KO", "NVDA")
+    _create_momentum_only(isolated_cli_database, "Old Watch", ["AAPL", "MSFT", "KO", "NVDA"])
+    _retire_momentum_entries(isolated_cli_database, "AAPL", "KO", "NVDA")
 
     shown = runner.invoke(app, ["watchlist", "show", "Old Watch"])
     assert shown.exit_code == 1
@@ -233,7 +242,7 @@ def test_printed_removal_command_removes_one_unreadable_entry_at_a_time() -> Non
         assert match is not None, output
         command, name, index = match.groups()
         result = runner.invoke(app, [*command.split(), name, index])
-        assert _stored_tickers() == remaining
+        assert _stored_tickers(isolated_cli_database) == remaining
         output = normalize_cli_output(result.output)
         if step < len(expected_next):
             ticker, next_index = expected_next[step]
@@ -253,9 +262,9 @@ def test_printed_removal_command_removes_one_unreadable_entry_at_a_time() -> Non
     assert "NVDA" not in final.output
 
 
-def test_remove_by_ticker_commits_when_another_entry_is_unreadable() -> None:
-    _create_momentum_only("Old Watch", ["AAPL", "MSFT", "KO"])
-    _retire_momentum_entries("KO")
+def test_remove_by_ticker_commits_when_another_entry_is_unreadable(isolated_cli_database: ProjectSettings) -> None:
+    _create_momentum_only(isolated_cli_database, "Old Watch", ["AAPL", "MSFT", "KO"])
+    _retire_momentum_entries(isolated_cli_database, "KO")
 
     result = runner.invoke(app, ["watchlist", "remove-ticker", "Old Watch", "AAPL"])
 
@@ -264,27 +273,30 @@ def test_remove_by_ticker_commits_when_another_entry_is_unreadable() -> None:
     assert output.startswith("Removed 1 entry for AAPL from watchlist 'Old Watch'.")
     assert "entry 2 (KO, momentum)" in output
     assert 'remove-entry "Old Watch" 2' in output
-    assert _stored_tickers() == ["MSFT", "KO"]
+    assert _stored_tickers(isolated_cli_database) == ["MSFT", "KO"]
 
 
-def test_remove_by_ticker_counts_every_entry_it_removes_when_another_is_unreadable() -> None:
+def test_remove_by_ticker_counts_every_entry_it_removes_when_another_is_unreadable(
+    isolated_cli_database: ProjectSettings,
+) -> None:
     momentum = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
-    _seed("Old Watch", [("AAPL", momentum), ("KO", momentum), ("AAPL", GrahamNumberSelection())])
-    _retire_momentum_entries("KO")
+    _seed(isolated_cli_database, "Old Watch", [("AAPL", momentum), ("KO", momentum), ("AAPL", GrahamNumberSelection())])
+    _retire_momentum_entries(isolated_cli_database, "KO")
 
     result = runner.invoke(app, ["watchlist", "remove-ticker", "Old Watch", "AAPL"])
 
     assert result.exit_code == 1
     assert normalize_cli_output(result.output).startswith("Removed 2 entries for AAPL from watchlist 'Old Watch'.")
-    assert _stored_tickers() == ["KO"]
+    assert _stored_tickers(isolated_cli_database) == ["KO"]
 
 
-def test_remove_by_method_commits_when_another_entry_is_unreadable() -> None:
+def test_remove_by_method_commits_when_another_entry_is_unreadable(isolated_cli_database: ProjectSettings) -> None:
     _seed(
+        isolated_cli_database,
         "Old Watch",
         [("KO", GrahamNumberSelection()), ("AAPL", MomentumSelection(short_window=2, long_window=3, rsi_period=14))],
     )
-    _retire_momentum_entries("AAPL")
+    _retire_momentum_entries(isolated_cli_database, "AAPL")
 
     result = runner.invoke(app, ["watchlist", "remove-method", "Old Watch", "--analysis", "graham-number"])
 
@@ -292,15 +304,17 @@ def test_remove_by_method_commits_when_another_entry_is_unreadable() -> None:
     output = normalize_cli_output(result.output)
     assert output.startswith("Removed 1 entry for graham-number from watchlist 'Old Watch'.")
     assert "entry 1 (AAPL, momentum)" in output
-    assert _stored_tickers() == ["AAPL"]
+    assert _stored_tickers(isolated_cli_database) == ["AAPL"]
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_refresh_reuses_a_momentum_selections_as_of_and_no_cache(mock_run: MagicMock) -> None:
+def test_refresh_reuses_a_momentum_selections_as_of_and_no_cache(
+    mock_run: MagicMock, isolated_cli_database: ProjectSettings
+) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     boundary = datetime(2026, 8, 1, tzinfo=UTC)
     selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14, as_of=boundary, use_cache=False)
-    _seed("My Watch", [("AAPL", selection)])
+    _seed(isolated_cli_database, "My Watch", [("AAPL", selection)])
 
     result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
@@ -311,9 +325,11 @@ def test_refresh_reuses_a_momentum_selections_as_of_and_no_cache(mock_run: Magic
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_refresh_json_emits_one_stable_final_document(mock_run: MagicMock) -> None:
+def test_refresh_json_emits_one_stable_final_document(
+    mock_run: MagicMock, isolated_cli_database: ProjectSettings
+) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
-    _create_momentum_only("My Watch", ["AAPL"])
+    _create_momentum_only(isolated_cli_database, "My Watch", ["AAPL"])
 
     result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1", "--json"])
 
@@ -329,9 +345,11 @@ def test_refresh_json_emits_one_stable_final_document(mock_run: MagicMock) -> No
     assert payload["counts"] == {"completed": 1}
 
 
-def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0() -> None:
+def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0(
+    isolated_cli_database: ProjectSettings,
+) -> None:
     profile = fixture_known_etf_profile()
-    _seed("My Watch", [("FLSW", GrahamNumberSelection())])
+    _seed(isolated_cli_database, "My Watch", [("FLSW", GrahamNumberSelection())])
 
     with (
         patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()),
@@ -346,9 +364,11 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0() -> No
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_refresh_storage_failure_is_visible_and_nonzero_exit(mock_run: MagicMock) -> None:
+def test_refresh_storage_failure_is_visible_and_nonzero_exit(
+    mock_run: MagicMock, isolated_cli_database: ProjectSettings
+) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
-    _create_momentum_only("My Watch", ["AAPL"])
+    _create_momentum_only(isolated_cli_database, "My Watch", ["AAPL"])
 
     with patch.object(SQLiteAnalysisRunRepository, "insert", side_effect=AnalysisRunConflictError("duplicate")):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
@@ -360,9 +380,11 @@ def test_refresh_storage_failure_is_visible_and_nonzero_exit(mock_run: MagicMock
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_refresh_interrupted_stops_admission_persists_completed_and_exits_130(mock_run: MagicMock) -> None:
+def test_refresh_interrupted_stops_admission_persists_completed_and_exits_130(
+    mock_run: MagicMock, isolated_cli_database: ProjectSettings
+) -> None:
     """Simulates Ctrl+C by invoking the installed handler directly (portable, no OS signal)."""
-    _create_momentum_only("My Watch", ["AAPL", "MSFT"])
+    _create_momentum_only(isolated_cli_database, "My Watch", ["AAPL", "MSFT"])
     captured_handlers: list[Callable[[int, object], None]] = []
 
     def fake_signal(_sig: int, handler: Callable[[int, object], None]) -> None:
@@ -392,10 +414,12 @@ def test_refresh_interrupted_stops_admission_persists_completed_and_exits_130(mo
     assert mock_run.call_count == 1
 
 
-def test_refresh_graham_growth_selection_persists_with_configured_assumptions() -> None:
+def test_refresh_graham_growth_selection_persists_with_configured_assumptions(
+    isolated_cli_database: ProjectSettings,
+) -> None:
     """Exercises the Graham Growth dispatch branch, not just Momentum/Number."""
     growth = GrahamGrowthSelection(expected_growth=6.0, aaa_yield_override=4.4)
-    _seed("My Watch", [("SYNTH", growth)])
+    _seed(isolated_cli_database, "My Watch", [("SYNTH", growth)])
 
     with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=sec_labeled_growth_resolver()):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
@@ -407,9 +431,9 @@ def test_refresh_graham_growth_selection_persists_with_configured_assumptions() 
     assert payload[0]["status"] == "completed"
 
 
-def test_refresh_fcf_growth_selection_persists() -> None:
+def test_refresh_fcf_growth_selection_persists(isolated_cli_database: ProjectSettings) -> None:
     """Exercises the FCF/Earnings Growth dispatch branch."""
-    _seed("My Watch", [("ACME", FCFGrowthSelection())])
+    _seed(isolated_cli_database, "My Watch", [("ACME", FCFGrowthSelection())])
 
     with patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_fcf_provider()):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
@@ -421,9 +445,9 @@ def test_refresh_fcf_growth_selection_persists() -> None:
     assert payload[0]["status"] == "completed"
 
 
-def test_refresh_unavailable_outcome_still_persists_and_exits_1() -> None:
+def test_refresh_unavailable_outcome_still_persists_and_exits_1(isolated_cli_database: ProjectSettings) -> None:
     """An unavailable (not failed-to-execute) financial outcome still triggers exit 1."""
-    _seed("My Watch", [(SUBJECT_MISSING, GrahamNumberSelection())])
+    _seed(isolated_cli_database, "My Watch", [(SUBJECT_MISSING, GrahamNumberSelection())])
 
     with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
@@ -434,9 +458,11 @@ def test_refresh_unavailable_outcome_still_persists_and_exits_1() -> None:
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_refresh_no_save_executes_but_persists_nothing(mock_run: MagicMock) -> None:
+def test_refresh_no_save_executes_but_persists_nothing(
+    mock_run: MagicMock, isolated_cli_database: ProjectSettings
+) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
-    _create_momentum_only("My Watch", ["AAPL", "MSFT"])
+    _create_momentum_only(isolated_cli_database, "My Watch", ["AAPL", "MSFT"])
 
     result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1", "--no-save"])
 
@@ -453,9 +479,11 @@ def test_refresh_no_save_executes_but_persists_nothing(mock_run: MagicMock) -> N
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_refresh_no_save_json_reports_saved_false_and_a_null_run_id(mock_run: MagicMock) -> None:
+def test_refresh_no_save_json_reports_saved_false_and_a_null_run_id(
+    mock_run: MagicMock, isolated_cli_database: ProjectSettings
+) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
-    _create_momentum_only("My Watch", ["AAPL"])
+    _create_momentum_only(isolated_cli_database, "My Watch", ["AAPL"])
 
     result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1", "--no-save", "--json"])
 
@@ -468,9 +496,9 @@ def test_refresh_no_save_json_reports_saved_false_and_a_null_run_id(mock_run: Ma
     assert payload["counts"] == {"completed": 1}
 
 
-def test_refresh_no_save_unavailable_outcome_still_exits_1() -> None:
+def test_refresh_no_save_unavailable_outcome_still_exits_1(isolated_cli_database: ProjectSettings) -> None:
     """--no-save still reflects a real financial outcome in the exit code, not just storage failures."""
-    _seed("My Watch", [(SUBJECT_MISSING, GrahamNumberSelection())])
+    _seed(isolated_cli_database, "My Watch", [(SUBJECT_MISSING, GrahamNumberSelection())])
 
     with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1", "--no-save"])
@@ -485,9 +513,11 @@ def test_refresh_no_save_unavailable_outcome_still_exits_1() -> None:
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_refresh_text_shows_the_alias_and_json_keeps_the_canonical_method_id(mock_run: MagicMock) -> None:
+def test_refresh_text_shows_the_alias_and_json_keeps_the_canonical_method_id(
+    mock_run: MagicMock, isolated_cli_database: ProjectSettings
+) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
-    _create_momentum_only("My Watch", ["AAPL"])
+    _create_momentum_only(isolated_cli_database, "My Watch", ["AAPL"])
 
     text = runner.invoke(app, ["refresh", "My Watch", "--workers", "1", "--no-save"])
     as_json = runner.invoke(app, ["refresh", "My Watch", "--workers", "1", "--no-save", "--json"])
@@ -497,9 +527,11 @@ def test_refresh_text_shows_the_alias_and_json_keeps_the_canonical_method_id(moc
     assert json.loads(as_json.output)["results"][0]["method_id"] == "sma_crossover"
 
 
-def test_runs_list_by_alias_does_not_decode_a_watchlists_unreadable_entries() -> None:
+def test_runs_list_by_alias_does_not_decode_a_watchlists_unreadable_entries(
+    isolated_cli_database: ProjectSettings,
+) -> None:
     """D6: the alias vocabulary reads run rows only, so a retired stored entry cannot affect it."""
-    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+    _store_momentum_entry_as_retired_version_one(isolated_cli_database, "Old Watch", ["AAPL", "MSFT"], retired="MSFT")
 
     result = runner.invoke(app, ["runs", "list", "--analysis", "momentum"])
 
@@ -508,9 +540,11 @@ def test_runs_list_by_alias_does_not_decode_a_watchlists_unreadable_entries() ->
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_delete_keeps_saved_runs_browsable_and_replayable(mock_run: MagicMock) -> None:
+def test_delete_keeps_saved_runs_browsable_and_replayable(
+    mock_run: MagicMock, isolated_cli_database: ProjectSettings
+) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
-    _create_momentum_only("Scratch", ["AAPL"])
+    _create_momentum_only(isolated_cli_database, "Scratch", ["AAPL"])
     assert runner.invoke(app, ["refresh", "Scratch", "--workers", "1"]).exit_code == 0
     (saved,) = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)
 
@@ -523,9 +557,9 @@ def test_delete_keeps_saved_runs_browsable_and_replayable(mock_run: MagicMock) -
     assert shown.exit_code == 0, shown.output
 
 
-def test_delete_commits_when_an_entry_is_unreadable_in_text_mode() -> None:
+def test_delete_commits_when_an_entry_is_unreadable_in_text_mode(isolated_cli_database: ProjectSettings) -> None:
     """D6: delete needs no decoded entry, so a retired stored entry cannot prevent it."""
-    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+    _store_momentum_entry_as_retired_version_one(isolated_cli_database, "Old Watch", ["AAPL", "MSFT"], retired="MSFT")
 
     result = runner.invoke(app, ["watchlist", "delete", "Old Watch", "--yes"])
 
@@ -534,23 +568,27 @@ def test_delete_commits_when_an_entry_is_unreadable_in_text_mode() -> None:
     assert output.startswith("Deleted watchlist 'Old Watch' (ID ")
     assert "2 entries" in output
     assert "can no longer be read" not in output
-    assert _stored_tickers() == []
+    assert _stored_tickers(isolated_cli_database) == []
     assert "No watchlists exist yet." in runner.invoke(app, ["watchlist", "list"]).output
 
 
-def test_delete_prompt_shows_the_entry_count_without_decoding_unreadable_entries() -> None:
-    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+def test_delete_prompt_shows_the_entry_count_without_decoding_unreadable_entries(
+    isolated_cli_database: ProjectSettings,
+) -> None:
+    _store_momentum_entry_as_retired_version_one(isolated_cli_database, "Old Watch", ["AAPL", "MSFT"], retired="MSFT")
 
     with patch("src.cli_workspace._stdin_is_interactive", return_value=True):
         declined = runner.invoke(app, ["watchlist", "delete", "Old Watch"], input="n\n")
 
     assert declined.exit_code == 1
     assert "2 entries" in normalize_cli_output(declined.output)
-    assert _stored_tickers() == ["AAPL", "MSFT"]
+    assert _stored_tickers(isolated_cli_database) == ["AAPL", "MSFT"]
 
 
-def test_delete_json_with_an_unreadable_entry_deletes_reports_the_failure_envelope_and_exits_1() -> None:
-    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+def test_delete_json_with_an_unreadable_entry_deletes_reports_the_failure_envelope_and_exits_1(
+    isolated_cli_database: ProjectSettings,
+) -> None:
+    _store_momentum_entry_as_retired_version_one(isolated_cli_database, "Old Watch", ["AAPL", "MSFT"], retired="MSFT")
 
     result = runner.invoke(app, ["watchlist", "delete", "Old Watch", "--yes", "--json"])
 
@@ -562,13 +600,15 @@ def test_delete_json_with_an_unreadable_entry_deletes_reports_the_failure_envelo
     assert envelope["reason_code"] == "stored_selection_unreadable"
     assert envelope["status"] == "error"
     assert "entry 2 (MSFT, momentum): saved by an earlier version" in normalize_cli_output(envelope["reason"])
-    assert _stored_tickers() == []
+    assert _stored_tickers(isolated_cli_database) == []
 
 
 @patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_rename_leaves_a_saved_run_showing_the_name_the_watchlist_had_when_it_ran(mock_run: MagicMock) -> None:
+def test_rename_leaves_a_saved_run_showing_the_name_the_watchlist_had_when_it_ran(
+    mock_run: MagicMock, isolated_cli_database: ProjectSettings
+) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
-    _create_momentum_only("Before", ["AAPL"])
+    _create_momentum_only(isolated_cli_database, "Before", ["AAPL"])
     assert runner.invoke(app, ["refresh", "Before", "--workers", "1"]).exit_code == 0
     (saved,) = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)
 
@@ -576,7 +616,7 @@ def test_rename_leaves_a_saved_run_showing_the_name_the_watchlist_had_when_it_ra
     shown = runner.invoke(app, ["runs", "show", saved["analysis_run_id"]])
 
     assert shown.exit_code == 0, shown.output
-    database = SQLiteDatabase(cli_settings())
+    database = SQLiteDatabase(isolated_cli_database)
     try:
         stored = SQLiteAnalysisRunRepository(database).get(UUID(saved["analysis_run_id"]))
     finally:
@@ -585,9 +625,11 @@ def test_rename_leaves_a_saved_run_showing_the_name_the_watchlist_had_when_it_ra
     assert stored.watchlist_name == "Before"
 
 
-def test_rename_commits_when_an_entry_is_unreadable_and_remove_entry_then_restores_it() -> None:
+def test_rename_commits_when_an_entry_is_unreadable_and_remove_entry_then_restores_it(
+    isolated_cli_database: ProjectSettings,
+) -> None:
     """D6: rename needs no decoded entry; the display afterward reports the unreadable one."""
-    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+    _store_momentum_entry_as_retired_version_one(isolated_cli_database, "Old Watch", ["AAPL", "MSFT"], retired="MSFT")
 
     result = runner.invoke(app, ["watchlist", "rename", "Old Watch", "Renamed"])
 
@@ -606,8 +648,10 @@ def test_rename_commits_when_an_entry_is_unreadable_and_remove_entry_then_restor
     assert "MSFT" not in shown.output
 
 
-def test_rename_json_with_an_unreadable_entry_renames_reports_the_failure_envelope_and_exits_1() -> None:
-    _store_momentum_entry_as_retired_version_one("Old Watch", ["AAPL", "MSFT"], retired="MSFT")
+def test_rename_json_with_an_unreadable_entry_renames_reports_the_failure_envelope_and_exits_1(
+    isolated_cli_database: ProjectSettings,
+) -> None:
+    _store_momentum_entry_as_retired_version_one(isolated_cli_database, "Old Watch", ["AAPL", "MSFT"], retired="MSFT")
 
     result = runner.invoke(app, ["watchlist", "rename", "Old Watch", "Renamed", "--json"])
 

@@ -7,6 +7,7 @@ null. The text lines are tested in ``tests/test_cli_provider_check.py``. No test
 over fake check bodies and handed to the command through the Typer context.
 """
 
+# ruff: noqa: F811 - a test takes the imported autouse fixture by name to use its value.
 from __future__ import annotations
 
 import ast
@@ -21,6 +22,7 @@ from pydantic import ValidationError
 
 from src.cli import app
 from src.cli_provider_check import ProviderCheckChoice, ProviderCheckFindings, provider_check_findings
+from src.config import ProjectSettings
 from src.core.failure_codes import FailureReasonCode
 from src.core.provider_check_element import (
     ProviderCheckItem,
@@ -464,9 +466,11 @@ def test_a_failure_in_json_mode_still_exits_one_and_writes_one_document() -> Non
 # ---------------------------------------------------------------------------
 
 
-def test_the_refresh_summary_carries_one_entry_per_implicated_provider_in_the_kind_order() -> None:
+def test_the_refresh_summary_carries_one_entry_per_implicated_provider_in_the_kind_order(
+    isolated_cli_database: ProjectSettings,
+) -> None:
     fake = _probe({"sec_edgar": CheckVerdict.UNREACHABLE, "yfinance": CheckVerdict.RATE_LIMITED})
-    _seed_momentum("Two Providers", ["AAPL", "MSFT", "KO"])
+    _seed_momentum(isolated_cli_database, "Two Providers", ["AAPL", "MSFT", "KO"])
 
     calls: list[int] = []
 
@@ -490,32 +494,34 @@ def test_the_refresh_summary_carries_one_entry_per_implicated_provider_in_the_ki
     assert sorted(fake.calls) == ["sec_edgar", "yfinance"]
 
 
-def test_the_refresh_summary_is_null_when_no_job_failed_on_a_provider() -> None:
+def test_the_refresh_summary_is_null_when_no_job_failed_on_a_provider(isolated_cli_database: ProjectSettings) -> None:
     fake = _probe()
 
-    result = _refresh_failing(fake.probe, "--json", kind=None)
+    result = _refresh_failing(isolated_cli_database, fake.probe, "--json", kind=None)
 
     assert result.exit_code == 1
     assert json.loads(result.stdout)["provider_check"] is None
     assert fake.calls == []
 
 
-def test_the_refresh_summary_with_the_check_switched_off_has_the_entry_with_not_checked() -> None:
+def test_the_refresh_summary_with_the_check_switched_off_has_the_entry_with_not_checked(
+    isolated_cli_database: ProjectSettings,
+) -> None:
     fake = _probe()
 
-    result = _refresh_failing(fake.probe, "--json", "--no-provider-check")
+    result = _refresh_failing(isolated_cli_database, fake.probe, "--json", "--no-provider-check")
 
     assert json.loads(result.stdout)["provider_check"] == [{"provider_id": "yfinance", "verdict": "not_checked"}]
     assert result.stderr == ""
     assert fake.calls == []
 
 
-def test_the_refresh_text_and_the_summary_come_from_the_same_findings() -> None:
+def test_the_refresh_text_and_the_summary_come_from_the_same_findings(isolated_cli_database: ProjectSettings) -> None:
     text_probe = _probe({"yfinance": CheckVerdict.NO_DATA})
     json_probe = _probe({"yfinance": CheckVerdict.NO_DATA})
 
-    text = _refresh_failing(text_probe.probe)
-    document = _refresh_failing(json_probe.probe, "--json")
+    text = _refresh_failing(isolated_cli_database, text_probe.probe)
+    document = _refresh_failing(isolated_cli_database, json_probe.probe, "--json")
 
     assert text.stdout.splitlines()[0].startswith("Yahoo Finance returned no data")
     assert json.loads(document.stdout)["provider_check"] == [{"provider_id": "yfinance", "verdict": "no_data"}]

@@ -5,6 +5,7 @@ sentence to standard error and nothing to standard output; a ``--json`` run writ
 output and nothing to standard error. Exit 2 stays what the parser returns before any command code runs.
 """
 
+# ruff: noqa: F811 - a test takes the imported autouse fixture by name to use its value.
 import json
 import sqlite3
 from collections.abc import Iterator
@@ -24,7 +25,7 @@ from src.reporting.documents.failure import FailureEnvelope
 from src.strategies.graham_growth import cli as graham_growth_cli
 from src.strategies.graham_number import cli as graham_number_cli
 from src.workspace.runs import RunQuery
-from tests._cli_helpers import cli_settings, isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
+from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 
 runner = CliRunner()
 
@@ -877,17 +878,19 @@ def test_a_blank_ticker_leaves_the_watchlist_unchanged() -> None:
     assert "Entries (1):" in runner.invoke(app, ["watchlist", "show", "Keep"]).stdout
 
 
-def _corrupt_the_stored_selection() -> None:
-    path = cli_settings().database_url.removeprefix("sqlite:///")
+def _corrupt_the_stored_selection(settings: ProjectSettings) -> None:
+    path = settings.database_url.removeprefix("sqlite:///")
     connection = sqlite3.connect(path)
     connection.execute("update watchlist_entries set selection_json = ?", ('{"x":1}',))
     connection.commit()
     connection.close()
 
 
-def test_add_selection_on_a_watchlist_with_an_unreadable_entry_reports_the_stored_selection() -> None:
+def test_add_selection_on_a_watchlist_with_an_unreadable_entry_reports_the_stored_selection(
+    isolated_cli_database: ProjectSettings,
+) -> None:
     assert runner.invoke(app, ["watchlist", "create", "Old", "-a", "momentum", "AAPL"]).exit_code == 0
-    _corrupt_the_stored_selection()
+    _corrupt_the_stored_selection(isolated_cli_database)
     result = runner.invoke(app, ["watchlist", "add-selection", "Old", "-a", "momentum", "MSFT"])
     assert result.exit_code == 1
     assert "its stored selection is not in a shape this version can read" in result.stderr
