@@ -44,7 +44,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 if __package__ in (None, ""):
-    # Run as ``python scripts/check_package_dependencies.py``: the repository root is not on the path yet.
+    # Run as ``python scripts/check_package_dependencies.py``: the repository root is not on the path yet, so
+    # ``src.core.repository_root`` cannot be imported and the root is found by counting folders here, once.
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scripts.package_graph import layers, shortest_cycle, strongly_connected, unit_of_path  # noqa: E402

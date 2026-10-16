@@ -35,11 +35,11 @@ from src.cli_watchlist_flags import WatchlistFlags
 from src.core.analysis_status import CalculationStatus
 from src.core.clock import utc_now
 from src.core.provider_check_element import ProviderCheckItem
-from src.data.financial.providers import SEC_PROVIDER_ID
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from src.data.instrument_profile_cache import InstrumentProfileResolver
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.data.security_identity import SecurityIdentityResolution
-from src.data.yfinance import YFinanceClient
+from src.data.yfinance.client import YFinanceClient
 from src.reporting.evidence_presentation import friendly_valuation_failure
 from src.reporting.presentation import PresentationMode
 from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver

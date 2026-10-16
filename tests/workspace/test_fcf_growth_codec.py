@@ -8,6 +8,7 @@ import pytest
 
 from src.analysis.run_models import RunOutcome
 from src.core.analysis_status import CalculationStatus
+from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
 from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
@@ -25,9 +26,6 @@ from src.strategies.fcf_growth.models import (
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
-    MetricResult,
-    MetricStatus,
-    ReasonCode,
 )
 from src.strategies.fcf_growth.selection import FCFGrowthSelection
 from src.strategies.fcf_growth.vocabulary import (

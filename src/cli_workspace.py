@@ -1106,4 +1106,4 @@ def register(app: typer.Typer) -> None:
     app.command("refresh")(refresh)
 
 
-__all__ = ["register", "runs_app", "settings", "watchlist_app"]
+__all__ = ["register", "runs_app", "watchlist_app"]

@@ -11,6 +11,7 @@ from scripts.check_package_dependencies import (
     collect_imports,
     list_units,
 )
+from src.core.repository_root import REPOSITORY_ROOT
 
 HEADER = "| Package | Layer | Owns | Imports |\n| --- | --- | --- | --- |\n"
 
@@ -264,5 +265,5 @@ def test_rejects_the_old_four_column_header(tmp_path: Path) -> None:
 
 
 def test_the_repository_table_matches_the_code() -> None:
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = REPOSITORY_ROOT
     assert check_repository(repo_root) == []

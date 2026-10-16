@@ -24,15 +24,12 @@ from src.data.financial.cache import ResolvedInputSeriesCacheProtocol
 from src.data.financial.facts import FinancialProviderError
 from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
 from src.data.quality import HistoricalQualityPolicy
-from src.data.repositories import (
-    SQLiteDatabase,
-    SQLiteInstrumentProfileRepository,
-    SQLiteMarketDataRepository,
-    SQLiteResolvedInputCache,
-)
+from src.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
+from src.data.repositories.market_data import SQLiteMarketDataRepository
 from src.data.repositories.readiness import ensure_database_ready
-from src.data.yfinance import YFinanceClient
-from src.data.yfinance.client import YFINANCE_HISTORICAL_INTERVAL, YFINANCE_PRICE_ADJUSTMENT
+from src.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
+from src.data.repositories.sqlite import SQLiteDatabase
+from src.data.yfinance.client import YFINANCE_HISTORICAL_INTERVAL, YFINANCE_PRICE_ADJUSTMENT, YFinanceClient
 from src.reporting.documents.failure import FailureEnvelope
 from src.reporting.failure_envelope import failure_envelope
 from src.reporting.presentation import PresentationMode, failure_document

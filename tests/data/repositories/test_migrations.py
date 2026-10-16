@@ -14,10 +14,10 @@ from sqlalchemy.schema import SchemaItem, Table
 
 from alembic import command, context, op
 from src.config import ProjectSettings
-from src.data.repositories import SQLiteDatabase, migrations
+from src.core.repository_root import REPOSITORY_ROOT
+from src.data.repositories import migrations
 from src.data.repositories.readiness import ReadinessOutcome, ensure_database_ready
-
-REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+from src.data.repositories.sqlite import SQLiteDatabase
 
 
 def migration_config(path: Path) -> Config:

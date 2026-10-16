@@ -13,7 +13,7 @@ from src.core.constants import TrendStatus
 from src.data.base_client import DataFetchError
 from src.data.instrument_profile import InstrumentKind
 from src.data.market_data import HistoricalMarketData, MarketDataContext
-from src.data.yfinance import YFinanceClient
+from src.data.yfinance.client import YFinanceClient
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, compute_momentum_metrics
 

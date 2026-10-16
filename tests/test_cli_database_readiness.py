@@ -17,9 +17,11 @@ from src.cli import app
 from src.cli_support import _production_financial_cache
 from src.config import ProjectSettings
 from src.core.clock import utc_now
+from src.core.repository_root import REPOSITORY_ROOT
 from src.core.trajectory_events import TrajectoryEventType
-from src.data.repositories import SQLiteDatabase, migrations, readiness
+from src.data.repositories import migrations, readiness
 from src.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from src.data.repositories.sqlite import SQLiteDatabase
 from src.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
 from src.telemetry.run_context import RunContext
 from src.telemetry.sinks.sqlite import SQLiteTrajectorySink
@@ -188,7 +190,7 @@ def test_fresh_process_cli_import_does_not_connect_or_create_storage(tmp_path: P
     )
     result = subprocess.run(
         [sys.executable, "-c", script],
-        cwd=Path(__file__).resolve().parents[1],
+        cwd=REPOSITORY_ROOT,
         env=environment,
         capture_output=True,
         text=True,

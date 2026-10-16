@@ -28,30 +28,48 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| PKG.1 | [One home per name](#pkg1--one-home-per-name) | Planned | |
+| PKG.1 | [One import path per name and one repository root](#pkg1--one-import-path-per-name-and-one-repository-root) | Complete | 2026-10-16 |
 | PKG.2 | [Rename the src package](#pkg2--rename-the-src-package) | Planned | |
 
 ## 3. The slices
 
-### PKG.1 — One home per name
+### PKG.1 — One import path per name and one repository root
 
 - **Problem:** package initializers that re-export their children give each name two import paths, and they create
   the initializer loops that `tests/test_strategy_import_layering.py` must allow in `_BENIGN_CYCLE_PACKAGES`.
+  Tests and a few source files also find the repository root by counting folders up from `__file__`, and a moved
+  test broke on its count (LAY.3).
 - **Decision:** each initializer holds only a docstring, and every importer names the defining module, as LAY.2
-  and LAY.3 did. Nothing is re-exported from an old location. `_BENIGN_CYCLE_PACKAGES` ends empty, except for
+  and LAY.3 did. Nothing is re-exported from an old location. `_BENIGN_CYCLE_PACKAGES` ends holding only
   `src.config`: its initializer holds the settings code itself ([LAY decision A.7.3](../layering/LAY_CONTRACT_AND_SLICE_PLAN.md#a7-lay2-implementation-decisions-2026-10-12)),
-  not a re-export, so emptying it is not part of this slice and its entry stays with that explanation.
-- **Scope:** the initializers that still re-export their children after LAY.3: `src/data/repositories/`,
-  `src/schema/`, `src/evaluation/fixtures/`, `src/data/yfinance/`, `src/evaluation/` and `src/data/sec_edgar/`
-  (checked against the code at LAY.3; re-check when the slice starts, because LAY.4 moves two files,
-  `analysis_runs.py` and `watchlists.py`, out of `src/data/repositories/`); every importer of a name they
-  re-export, including test patch targets; `_BENIGN_CYCLE_PACKAGES`; and tests locate the repository root through
-  one shared constant instead of counting `Path(__file__).parents[N]`. Search used on 2026-10-13: a literal
-  search for `parents[` followed by a digit and `]` under `tests/` (`git grep -n "parents\[[0-9]\]" -- tests`) finds
-  50 lines in 40 files; another 15 lines under `tests/` spell the same count as `.parent.parent`. A test moved one
-  directory (LAY.3) broke on its count, which is why this slice replaces them.
-- **Branch:** `refactor/pkg-1-one-home-per-name`, from `main` after LAY.8 and SWC.7, before PKG.2.
-- **Detail:** ⚠ no slice plan yet
+  not a re-export, so its entry stays with that explanation. One module, `src/core/repository_root.py`, holds the
+  only folder count; every other file imports `REPOSITORY_ROOT`. The decisions are recorded in [A.6](#a6-pkg1-decisions-2026-10-16).
+- **Scope:**
+  - the six re-exporting initializers: `src/data/repositories/`, `src/data/sec_edgar/`, `src/data/yfinance/`,
+    `src/evaluation/` (its descriptive docstring stays), `src/evaluation/fixtures/` and `src/schema/`, and every
+    importer of a name they re-export in `src/`, `tests/` and `scripts/`, including string patch targets;
+  - the same defect outside initializers: `src/data/financial/providers.py` is deleted and its importers name
+    `src/data/financial/production.py`, `src/data/sec_edgar/financial_facts.py` or the yfinance module that defines
+    each name; `src/strategies/fcf_growth/models.py` stops exporting `MetricResult`, `MetricStatus` and `ReasonCode`
+    and its importers take them from `src/core/metric_result.py`; `"settings"` leaves `__all__` in
+    `src/cli_workspace.py`, whose module-level binding stays as the seam tests patch;
+  - `_BENIGN_CYCLE_PACKAGES`;
+  - `src/core/repository_root.py` with `REPOSITORY_ROOT`, and every folder count from `__file__` in `tests/`,
+    `src/` and `scripts/` replaced by it. The one other count stays: the `sys.path.insert` line in
+    `scripts/check_package_dependencies.py`, which runs before `src` is importable. Before the slice `tests/`
+    held 51 `parents[N]` lines in 41 files and 15 `.parent.parent` lines (one of them not a count from
+    `__file__`), `src/` held six and `scripts/` three;
+  - `tests/test_one_home_per_name.py`: every initializer under `src/` holds only a docstring, except
+    `src/config/__init__.py`; no module under `src/` lists in `__all__` a name it does not define; no file
+    counts folders up from `__file__` except in the two places above; `REPOSITORY_ROOT / "pyproject.toml"`
+    exists. An `AGENTS.md` §5 bullet states the rule;
+  - the `core` row of the [§13 package table](../../../ARCHITECTURE.md#13-module-boundaries) adds the repository root;
+  - a GitHub issue, "Tests repeat the Alembic migration setup", lists the tests that build an Alembic `Config` and
+    upgrade a test database and asks whether one shared helper should replace them. The tests change only by D4's
+    root replacement.
+- **Branch:** `refactor/pkg-1-one-home-per-name`, from `main` after 12B, before PKG.2.
+- **Detail:** this section's bullets and [A.6](#a6-pkg1-decisions-2026-10-16) are the slice plan; no further plan
+  document.
 
 ### PKG.2 — Rename the `src` package
 
@@ -78,10 +96,16 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
   - update `AGENTS.md`'s `uv run ...` examples and the layering test's package name;
   - run the SWC.2a patch-target resolution test unchanged against the new package name; PKG adds no check
     of its own.
-- **Branch:** `feat/pkg-rename`, from `main` after SWC.7, LAY and PKG.1 have merged. LAY moves files and rewrites imports under the
+- **Branch:** `feat/pkg-rename`, from `main` after PKG.1 has merged, before SWC.5. LAY moves files and rewrites imports under the
   old name, so the rename must follow it ([LAY decision L10](../layering/LAY_CONTRACT_AND_SLICE_PLAN.md#a1-decisions-l1-to-l10-2026-10-11)).
   LAY.8 removes `scripts/simulate_package_layers.py`; the graph engine that stays with the dependency check carries a
   root name that this rename updates, as it does in `check_package_dependencies.py`.
+- **Open question for the slice plan:** the application reads files outside the package: `alembic/`,
+  `RUNTIME_AGENTS.md`, `logs/` and `data/`, `config/` (`config/strategies/` and
+  `config/general_analysis_settings.toml`), and `tests/fixtures/` (through the Golden SEC EDGAR fixture in
+  `src/evaluation/fixtures/sec_edgar_fpi.py`), all located through `REPOSITORY_ROOT`. The acceptance criterion
+  "`ian` runs from the installed package" cannot hold for a wheel installed outside the repository until
+  PKG.2's plan decides how each is found or packaged.
 - **Detail:** ⚠ no slice plan yet
 
 ## 4. Scope limits and acceptance criteria
@@ -174,3 +198,16 @@ initializer, and each time the layering test's list of allowed initializer loops
 initializers that remain, so that no name has two import paths and the list ends empty, apart from `src.config`, which
 holds the settings code and is not a re-export. The rename follows as PKG.2 and rewrites each import line once, under
 its final path.
+
+### A.6 PKG.1 decisions (2026-10-16)
+
+The project owner decided:
+
+- **D0, order.** PKG.1 and PKG.2 run before SWC.5 to SWC.7. SWC.6 and SWC.7 write import paths (generator
+  templates, `src/core/strategy_stub.py`, the contributor guide), which should be written once, under the final
+  package name. Nothing in SWC.5 to SWC.7 is a prerequisite for PKG.
+- **D2, the same defect outside initializers.** `src/data/financial/providers.py` is deleted;
+  `src/strategies/fcf_growth/models.py` stops re-exporting the shared metric types; `"settings"` leaves `__all__`
+  in `src/cli_workspace.py`.
+- **D4, one repository root.** `src/core/repository_root.py` holds the only folder count, and every other root
+  lookup imports `REPOSITORY_ROOT`. The `core` row of the package table owns it.

@@ -13,6 +13,7 @@ from alembic.config import Config
 from alembic import command
 from src.analysis.run_models import RunOutcome
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.instrument_profile import InstrumentKind
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
@@ -313,7 +314,7 @@ def test_from_fcf_growth_capture_maps_fields() -> None:
 def test_execute_persists_through_a_real_repository_and_reopens(tmp_path: Path) -> None:
     """End-to-end: a real SQLiteAnalysisRunRepository, reopened, matches exactly."""
     url = f"sqlite:///{(tmp_path / 'reopen.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
 

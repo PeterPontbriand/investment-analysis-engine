@@ -19,15 +19,16 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 from alembic import command
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.market_data import HistoricalMarketData, MarketDataContext
-from src.data.repositories import (
+from src.data.repositories import market_data
+from src.data.repositories.market_data import (
     MarketDataCacheKey,
-    SQLiteDatabase,
     SQLiteMarketDataRepository,
     UnsupportedHistoricalDataError,
-    market_data,
 )
 from src.data.repositories.schema import market_data_cache_entries, market_price_observations, schema_metadata
+from src.data.repositories.sqlite import SQLiteDatabase
 
 NOW = datetime(2026, 9, 5, 12, 0, 0, 123456, tzinfo=UTC)
 
@@ -113,7 +114,7 @@ def test_list_keys_does_not_decode_or_modify_frame_payload(
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'market.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))

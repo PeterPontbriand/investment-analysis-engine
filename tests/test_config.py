@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from sqlalchemy.engine import make_url
 
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 
 
 @pytest.fixture(autouse=True)
@@ -104,7 +105,7 @@ def test_relative_base_is_anchored_to_application_root(tmp_path: Path, monkeypat
 
     configured = ProjectSettings(base_dir=Path(".tmp/config-base"))
 
-    assert configured.base_dir == Path(__file__).resolve().parents[1] / ".tmp/config-base"
+    assert configured.base_dir == REPOSITORY_ROOT / ".tmp/config-base"
 
 
 @pytest.mark.parametrize("database_url", ["sqlite://", "sqlite:///:memory:"])
@@ -160,7 +161,7 @@ def test_import_does_not_create_database(tmp_path: Path, monkeypatch: pytest.Mon
     monkeypatch.setenv("IAN_TELEMETRY_LOG_DIR", str(tmp_path / "telemetry"))
     result = subprocess.run(
         [sys.executable, "-c", "import src.config"],
-        cwd=Path(__file__).resolve().parents[1],
+        cwd=REPOSITORY_ROOT,
         capture_output=True,
         text=True,
         timeout=30,
@@ -287,7 +288,7 @@ def test_absolute_log_directories_are_preserved(field: str, tmp_path: Path) -> N
 
 
 def test_log_directory_defaults_are_unchanged(tmp_path: Path) -> None:
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = REPOSITORY_ROOT
 
     configured = ProjectSettings(base_dir=tmp_path)
 

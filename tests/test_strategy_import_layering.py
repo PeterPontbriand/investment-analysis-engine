@@ -18,9 +18,10 @@ from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
 
+from src.core.repository_root import REPOSITORY_ROOT
 from tests._strategy_roles import ANALYZER_ROLES, ROLE_RANK
 
-_SRC = Path(__file__).resolve().parents[1] / "src"
+_SRC = REPOSITORY_ROOT / "src"
 _GRAHAM_MEMBERS = frozenset({"graham_number", "graham_growth"})
 _ROOT = "src.strategy_wiring"
 # The composition root may import these strategy roles and no others: not execution, presenter, cli or
@@ -64,18 +65,9 @@ _RESTRICTED_MODULES = MappingProxyType(
 # Each tier's report name and the one strategy role it may import.
 _TIER_ROLES = MappingProxyType({_TIER: ("evaluation tier", "evaluation"), _CLI_TIER: ("CLI tier", "cli")})
 _TRANSITIONS: set[tuple[str, str, str]] = set()
-# Package initializers that sit in an import cycle. They belong to seven components, one each.
-_BENIGN_CYCLE_PACKAGES = frozenset(
-    {
-        "src.config",
-        "src.data.sec_edgar",
-        "src.data.yfinance",
-        "src.schema",
-        "src.data.repositories",
-        "src.evaluation",
-        "src.evaluation.fixtures",
-    }
-)
+# Package initializers that sit in an import cycle. Only ``src.config`` does: its initializer holds the settings
+# code itself, not a re-export of its children.
+_BENIGN_CYCLE_PACKAGES = frozenset({"src.config"})
 _SAMPLE_STRATEGIES = frozenset({"momentum", "graham_number", "graham_growth"})
 # The adapter roles: for the package map each belongs to the layer it adapts the strategy to (``cli``,
 # ``evaluation`` and ``workspace``), so no other file of a strategy package may import one.

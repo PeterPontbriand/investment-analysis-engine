@@ -18,11 +18,13 @@ from alembic.config import Config
 from alembic import command
 from src.analysis.base_analyzer import AnalysisContext
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.base_client import BaseDataClient
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
 from src.data.quality import HistoricalDataQualityError
-from src.data.repositories import MarketDataCacheKey, SQLiteDatabase, SQLiteMarketDataRepository
+from src.data.repositories.market_data import MarketDataCacheKey, SQLiteMarketDataRepository
+from src.data.repositories.sqlite import SQLiteDatabase
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
 
 START = "2026-01-01"
@@ -84,7 +86,7 @@ def _closes(*, bad_at: int | None = None) -> list[float]:
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'history.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))

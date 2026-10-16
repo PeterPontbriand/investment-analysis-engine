@@ -21,7 +21,7 @@ from src.data.instrument_profile import (
     instrument_kind_evidence_payload,
 )
 from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
-from src.data.yfinance import YFINANCE_PROVIDER_ID, YFinanceClient
+from src.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient
 
 NOW = datetime(2026, 8, 30, 18, 0, tzinfo=UTC)
 

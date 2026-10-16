@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 from src.cli import app
 from src.core.operator_errors import InvalidParameterError
-from src.data.financial.providers import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixtures.graham import SECURITY_ID
 from src.strategies.graham_growth import cli as graham_growth_cli
 from src.strategies.graham_growth.selection import GrahamGrowthSelection

@@ -24,8 +24,7 @@ from yfinance.exceptions import (
 
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
-from src.data.yfinance import YFinanceClient
-from src.data.yfinance.client import YFINANCE_HISTORY_COLUMNS
+from src.data.yfinance.client import YFINANCE_HISTORY_COLUMNS, YFinanceClient
 
 _COLUMNS = list(YFINANCE_HISTORY_COLUMNS)
 

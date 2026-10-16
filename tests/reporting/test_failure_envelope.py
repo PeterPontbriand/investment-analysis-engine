@@ -16,6 +16,7 @@ from src.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode, sta
 from src.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
 from src.core.provider_failure_element import ProviderFailure, ProviderFailureInput
 from src.core.provider_failure_kind import ProviderFailureKind
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
 from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
@@ -41,7 +42,7 @@ from tests._failure_code_table import PINNED_CLASSIFICATIONS, PinnedClassificati
 _COMMAND_CONTEXT_CODES = {FailureReasonCode.ANALYSIS_RUN_NOT_FOUND}
 
 
-_SOURCE_ROOT = Path(__file__).resolve().parents[2] / "src"
+_SOURCE_ROOT = REPOSITORY_ROOT / "src"
 
 
 def _declares_reason_code(node: ast.ClassDef) -> bool:

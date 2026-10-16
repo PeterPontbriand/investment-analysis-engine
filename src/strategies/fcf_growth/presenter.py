@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from src.core.failure_classification import provider_failure_of
+from src.core.metric_result import MetricResult, MetricStatus
 from src.core.provider_check_element import ProviderCheckItem
 from src.data.financial.provenance import ResolvedInput
 from src.data.instrument_profile import InstrumentProfile, profile_identity_resolution
@@ -32,7 +33,7 @@ from src.strategies.fcf_growth.envelope import (
     FCFPolicyPart,
     FCFResolvedInputPart,
 )
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, MetricResult, MetricStatus
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from src.strategies.fcf_growth.vocabulary import (
     ANALYSIS_ID,
     METHOD_ID,

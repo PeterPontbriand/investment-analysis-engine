@@ -21,10 +21,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from src.analysis.run_models import RunOutcome, StrictJsonMapping
-from src.data.financial.providers import YFINANCE_PROVIDER_ID
 from src.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate, compose_instrument_profile
 from src.data.instrument_profile_cache import InstrumentProfileResolver
 from src.data.market_data import MarketDataProvider
+from src.data.yfinance.client import YFINANCE_PROVIDER_ID
 from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumMetrics, MomentumRun
 from src.strategies.momentum.selection import MomentumSelection
 from src.workspace.capture import ExecutionCapture

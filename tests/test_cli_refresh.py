@@ -34,7 +34,7 @@ from src.core.constants import TrendStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.market_data import MarketDataContext
 from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import SUBJECT_MISSING
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile

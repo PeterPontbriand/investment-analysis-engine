@@ -19,6 +19,7 @@ from alembic import command
 from src.analysis.run_models import RunOutcome
 from src.cli import app
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.repositories.schema import analysis_runs
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.market_data import FixtureDataClient
@@ -712,7 +713,7 @@ def test_runs_list_json_and_text_render_real_persisted_summaries() -> None:
 def test_workspace_commands_report_a_sanitized_readiness_error(tmp_path: Path) -> None:
     """An un-migrated database is a sanitized exit 1, not a raw traceback."""
     url = f"sqlite:///{(tmp_path / 'stale.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "0001_persistence")  # older head: newer workspace tables never created
 

@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
+from src.core.repository_root import REPOSITORY_ROOT
 from src.utils.logger_util import handle_uncaught_exception
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 LOG_LINE = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \| ")
 DOWNLOAD_RECORD = "src.data.yfinance.client | INFO | Downloading market data for tool execution: OFFLINE"

@@ -30,12 +30,9 @@ from src.config.strategy_settings import load_strategy_settings
 from src.core.operator_errors import AnalysisConfigurationError
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheProtocol
 from src.data.financial.facts import FinancialFactsProvider
-from src.data.financial.providers import (
-    SEC_PROVIDER_ID,
-    ProductionFinancialFactsProvider,
-    SecEdgarFinancialFactsAdapter,
-)
+from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.financial.quote_freshness import QuoteFreshnessPolicy
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_growth.settings import GrahamGrowthSettings
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver

@@ -573,7 +573,7 @@ This table is the single declaration of the top-level units under `src/` and the
 
 | Package | Layer | Owns | Imports |
 | --- | --- | --- | --- |
-| `core` | 0 | The shared clock, core result and status types, strategy errors, constants, the stable failure codes and the classifier that maps an exception to one, and the trajectory event model. |  |
+| `core` | 0 | The repository root, the shared clock, core result and status types, strategy errors, constants, the stable failure codes and the classifier that maps an exception to one, and the trajectory event model. |  |
 | `tools` | 0 | The tool registry, tool-argument schema generation, and parsing of tool calls from model output. |  |
 | `config` | 1 | The application settings object and its environment and profile loading, the reliability-limits and schema-enforcement settings shapes it holds, path validation, and the strategy-settings loader. | `core` |
 | `data` | 2 | Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite database layer with the provider-data, cache and trajectory repositories. | `config`, `core` |

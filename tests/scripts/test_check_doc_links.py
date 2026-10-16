@@ -16,6 +16,7 @@ from scripts.check_doc_links import (
     list_tracked_markdown_files,
     slugify,
 )
+from src.core.repository_root import REPOSITORY_ROOT
 
 
 class TestSlugify:
@@ -177,7 +178,7 @@ class TestFindBrokenLinksInFile:
 
 class TestRepositoryIntegration:
     def test_check_repository_passes_for_repository_markdown(self) -> None:
-        repo_root = Path(__file__).resolve().parents[2]
+        repo_root = REPOSITORY_ROOT
         assert check_repository(repo_root) == []
 
     def test_check_repository_finds_and_lists_a_real_git_repos_markdown_files(self, tmp_path: Path) -> None:
@@ -235,4 +236,4 @@ class TestMermaidBlocks:
         assert [block.source_file.name for block in found] == ["bad.md"]
 
     def test_repository_markdown_has_no_mermaid_blocks(self) -> None:
-        assert check_repository_diagrams(Path(__file__).resolve().parents[2]) == []
+        assert check_repository_diagrams(REPOSITORY_ROOT) == []

@@ -39,6 +39,7 @@ from alembic.config import Config
 
 from alembic import command
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 
 _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
 
@@ -65,7 +66,7 @@ def isolated_cli_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     test in that module, matching pytest's usual cross-module fixture sharing.
     """
     url = f"sqlite:///{(tmp_path / 'cli.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     isolated = ProjectSettings(database_url=url)

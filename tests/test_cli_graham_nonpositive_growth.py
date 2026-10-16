@@ -5,7 +5,7 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from src.cli import app
-from src.data.financial.providers import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixtures.graham import (
     SECURITY_ID,
 )

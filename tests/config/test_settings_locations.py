@@ -5,8 +5,7 @@ from pathlib import Path
 import pytest
 
 from src.config import ProjectSettings
-
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+from src.core.repository_root import REPOSITORY_ROOT
 
 
 @pytest.fixture(autouse=True)

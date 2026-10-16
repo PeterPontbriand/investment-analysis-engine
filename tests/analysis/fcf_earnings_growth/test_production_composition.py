@@ -8,7 +8,7 @@ from src.core.analysis_status import CalculationStatus
 from src.data.financial.facts import FinancialField
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.financial.provenance import SourceKind
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,

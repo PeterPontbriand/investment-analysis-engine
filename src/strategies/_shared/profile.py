@@ -8,9 +8,9 @@ adapter module) so future adapters can share it without importing from
 import each method's adapter).
 """
 
-from src.data.financial.providers import YFINANCE_PROVIDER_ID
 from src.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate, compose_instrument_profile
 from src.data.instrument_profile_cache import InstrumentProfileResolver
+from src.data.yfinance.client import YFINANCE_PROVIDER_ID
 
 
 def compose_graham_profile(

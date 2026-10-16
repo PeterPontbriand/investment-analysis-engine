@@ -25,9 +25,9 @@ from src.cli_watchlist_flags import WatchlistFlags
 from src.core.analysis_status import CalculationStatus
 from src.core.clock import utc_now
 from src.core.operator_errors import InvalidParameterError
-from src.data.financial.providers import SEC_PROVIDER_ID
 from src.data.instrument_profile import profile_identity_resolution
 from src.data.instrument_profile_cache import InstrumentProfileResolver
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.reporting.presentation import PresentationMode
 from src.strategies.fcf_growth.execution import capture_provider_failure, execute_fcf_growth, from_fcf_growth_capture
 from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver

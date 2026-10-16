@@ -13,7 +13,7 @@ from src.config import ProjectSettings
 from src.core.trajectory_events import TrajectoryEvent
 from src.data.quality import QualityContext, QualityDecision, QualityOutcome
 from src.data.quality_reporting import publish_quality, quality_observer
-from src.data.repositories import SQLiteDatabase
+from src.data.repositories.sqlite import SQLiteDatabase
 from src.telemetry.quality import record_cli_quality, record_quality
 from src.telemetry.recorder import TrajectoryRecorder
 from src.telemetry.run_context import RunContext

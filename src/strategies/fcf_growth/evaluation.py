@@ -6,7 +6,7 @@ from dataclasses import replace
 from typing import Final
 
 from src.data.financial.facts import ProviderFact
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixture_context import FixtureContext, FixtureRequirement, selected_variant
 from src.evaluation.fixtures.fcf_earnings_growth import (
     FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,

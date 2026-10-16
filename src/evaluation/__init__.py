@@ -5,37 +5,3 @@ machine-readable evaluation reporting, and the optional local-model evaluation
 harness. Financial calculations remain owned by their strategy packages, and
 benchmark fixtures remain separate from production cache and persistence data.
 """
-
-from src.evaluation.models import (
-    BehaviorConstraints,
-    Case,
-    ComponentKind,
-    ComponentOutcome,
-    ComponentResult,
-    DomainOutcomeExpectation,
-    DomainOutcomeObservation,
-    ExecutionMode,
-    Expectation,
-    NumericalExpectation,
-    NumericalObservation,
-    Observation,
-    ToolCallObservation,
-    ToolConstraints,
-)
-
-__all__ = [
-    "BehaviorConstraints",
-    "Case",
-    "ComponentKind",
-    "ComponentOutcome",
-    "ComponentResult",
-    "DomainOutcomeExpectation",
-    "DomainOutcomeObservation",
-    "ExecutionMode",
-    "Expectation",
-    "NumericalExpectation",
-    "NumericalObservation",
-    "Observation",
-    "ToolCallObservation",
-    "ToolConstraints",
-]

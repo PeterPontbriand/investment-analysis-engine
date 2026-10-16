@@ -5,13 +5,13 @@ exactly as it does for the project's own suite, including under ``-o addopts=`` 
 The synthetic marked test makes no network call.
 """
 
-from pathlib import Path
-
 import pytest
+
+from src.core.repository_root import REPOSITORY_ROOT
 
 pytest_plugins = ["pytester"]
 
-_REPOSITORY_ROOT = Path(__file__).resolve().parent.parent.as_posix()
+_REPOSITORY_ROOT = REPOSITORY_ROOT.as_posix()
 _INNER_CONFTEST = """
 from tests._live_selection import pytest_addoption, pytest_collection_modifyitems, pytest_configure  # noqa: F401
 from tests._network_guard import block_external_sockets, block_live_yahoo  # noqa: F401

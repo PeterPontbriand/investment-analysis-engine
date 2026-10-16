@@ -14,13 +14,8 @@ from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialFactRequest, FinancialField, FinancialProviderError
 from src.data.financial.provenance import FinancialSubjectKind
-from src.data.yfinance import (
-    YFINANCE_CURRENT_PRICE_FIELD,
-    YFINANCE_PROVIDER_ID,
-    YFinanceClient,
-    YFinanceFinancialFactsAdapter,
-    YFinanceQuote,
-)
+from src.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient, YFinanceQuote
+from src.data.yfinance.financial_facts import YFINANCE_CURRENT_PRICE_FIELD, YFinanceFinancialFactsAdapter
 
 NOW = datetime(2026, 8, 23, 22, 30, tzinfo=UTC)
 

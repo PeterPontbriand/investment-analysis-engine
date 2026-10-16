@@ -29,6 +29,7 @@ from src.core.provider_check_element import (
     require_unique_providers,
 )
 from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.base_client import DataFetchError
 from src.data.provider_checks import CheckVerdict
 from src.data.provider_probe import ProbeFinding, ProbeVerdict
@@ -48,7 +49,6 @@ from tests.test_cli_provider_check import (
     runner,
 )
 
-_REPOSITORY = Path(__file__).resolve().parent.parent
 _CASE_OF_ALIAS = {
     "momentum": "momentum-success",
     "graham-number": "graham-number-provider-error",
@@ -321,9 +321,9 @@ def _attribute_calls(path: Path, name: str) -> list[int]:
 
 def test_only_the_shared_function_calls_the_probe() -> None:
     """Neither the text path nor the document path may call the probe on its own."""
-    source = _REPOSITORY / "src"
+    source = REPOSITORY_ROOT / "src"
     callers = {
-        path.relative_to(_REPOSITORY).as_posix()
+        path.relative_to(REPOSITORY_ROOT).as_posix()
         for path in source.rglob("*.py")
         if _attribute_calls(path, "check") and path.name != "provider_probe.py"
     }
@@ -342,9 +342,9 @@ def test_a_presenter_does_not_call_the_probe() -> None:
     """A presenter receives the finding as data; it imports neither the probe nor the module that runs it."""
     forbidden = ("src.data.provider_probe", "src.cli_provider_check")
     paths = [
-        *(_REPOSITORY / "src" / "strategies").glob("*/presenter.py"),
-        *(_REPOSITORY / "src" / "strategies").glob("*/replay.py"),
-        *(_REPOSITORY / "src" / "reporting").rglob("*.py"),
+        *(REPOSITORY_ROOT / "src" / "strategies").glob("*/presenter.py"),
+        *(REPOSITORY_ROOT / "src" / "strategies").glob("*/replay.py"),
+        *(REPOSITORY_ROOT / "src" / "reporting").rglob("*.py"),
     ]
     assert paths
     for path in paths:

@@ -7,12 +7,12 @@ from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 import pytest
 
 from src.core.provider_failure_kind import ProviderFailureKind
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
 from src.data.financial.provenance import FinancialSubjectKind
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
@@ -21,7 +21,7 @@ from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from src.strategies.graham_number.service import run_graham_number_analysis
 
 NOW = datetime(2026, 9, 1, 14, 0, tzinfo=UTC)
-FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "fixtures" / "sec_edgar" / "step_2_5a_d0"
+FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "sec_edgar" / "step_2_5a_d0"
 
 
 def _fixture(name: str) -> Any:

@@ -12,7 +12,7 @@ import yfinance
 
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.base_client import DataFetchError
-from src.data.yfinance import YFinanceClient
+from src.data.yfinance.client import YFinanceClient
 
 
 class _TooManyRequests:

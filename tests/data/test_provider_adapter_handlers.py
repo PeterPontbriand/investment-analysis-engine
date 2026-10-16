@@ -13,7 +13,9 @@ from pathlib import Path
 
 import pytest
 
-_SOURCE = Path(__file__).resolve().parents[2] / "src" / "data"
+from src.core.repository_root import REPOSITORY_ROOT
+
+_SOURCE = REPOSITORY_ROOT / "src" / "data"
 _ADAPTER_MODULES = sorted(
     [
         *(_SOURCE / "yfinance").glob("*.py"),

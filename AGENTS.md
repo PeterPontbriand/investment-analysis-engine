@@ -96,6 +96,9 @@ Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-r
 
 - Target Python 3.12+.
 - All supported source must pass `mypy --strict`.
+- A name is imported from the module that defines it. Package initializers hold only a docstring (the one
+  exception is `src/config/__init__.py`, which holds the settings code), and no module re-exports a name it
+  imports. tests/test_one_home_per_name.py enforces this.
 - Use explicit type annotations on public interfaces.
 - Use Google-style docstrings for modules, classes, and public functions, consistent with current project conventions.
 - Double quotes, 4-space indentation, imports at module scope.

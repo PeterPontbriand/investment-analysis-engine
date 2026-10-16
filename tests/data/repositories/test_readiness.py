@@ -11,15 +11,15 @@ import pytest
 from sqlalchemy.engine import Connection
 
 from src.config import ProjectSettings
-from src.data.repositories import (
+from src.core.repository_root import REPOSITORY_ROOT
+from src.data.repositories import migrations, readiness
+from src.data.repositories.readiness import (
     DatabaseReadinessError,
     ReadinessOutcome,
     ReadinessReason,
-    SQLiteDatabase,
-    migrations,
-    readiness,
+    ensure_database_ready,
 )
-from src.data.repositories.readiness import ensure_database_ready
+from src.data.repositories.sqlite import SQLiteDatabase
 
 
 def database_for(path: Path) -> SQLiteDatabase:
@@ -41,7 +41,7 @@ def _synthetic_migration_resources(tmp_path: Path, *, failing: bool) -> migratio
     revision is added. When ``failing`` is set that child applies a partial table and
     then raises, exercising the rollback path.
     """
-    repository = Path(__file__).resolve().parents[3]
+    repository = REPOSITORY_ROOT
     source = repository / "alembic"
     directory = tmp_path / "synthetic-alembic"
     shutil.copytree(source, directory, ignore=shutil.ignore_patterns("__pycache__"))

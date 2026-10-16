@@ -6,18 +6,18 @@ import json
 from collections.abc import Mapping
 from copy import deepcopy
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 import pytest
 
 from src.core.provider_failure_kind import ProviderFailureKind
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 
 NOW = datetime(2026, 9, 1, 14, 0, tzinfo=UTC)
-FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "fixtures" / "sec_edgar" / "step_2_5a_d0"
+FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "sec_edgar" / "step_2_5a_d0"
 ANNUAL_DURATION_FIELDS = (
     FinancialField.EPS,
     FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,

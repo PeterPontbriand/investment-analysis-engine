@@ -12,12 +12,14 @@ from pandas.testing import assert_frame_equal
 
 from alembic import command
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.cached_client import CachedHistoricalDataClient
 from src.data.market_data import HistoricalMarketData, MarketDataContext, historical_index_kind
 from src.data.quality import HistoricalDataQualityError, HistoricalQualityPolicy, QualityDecision
 from src.data.quality_reporting import quality_observer
-from src.data.repositories import MarketDataCacheKey, SQLiteDatabase, SQLiteMarketDataRepository
+from src.data.repositories.market_data import MarketDataCacheKey, SQLiteMarketDataRepository
+from src.data.repositories.sqlite import SQLiteDatabase
 
 NOW = datetime(2026, 9, 5, tzinfo=UTC)
 START = "2025-01-01"
@@ -153,7 +155,7 @@ class FakeProvider(BaseDataClient):
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'history.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))

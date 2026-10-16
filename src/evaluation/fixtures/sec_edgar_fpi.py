@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Final
 
 from src.core.provider_failure_kind import ProviderFailureKind
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
 from src.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
 from src.data.security_identity import SecurityIdentity
@@ -28,7 +28,7 @@ _ISSUER_BY_FIXTURE_ID = {
     SEC_FPI_SAP_FIXTURE_ID: "sap",
     SEC_FPI_NVO_FIXTURE_ID: "nvo",
 }
-_FIXTURE_ROOT = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "sec_edgar" / "step_2_5a_d0"
+_FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "sec_edgar" / "step_2_5a_d0"
 _USER_AGENT = "Step 2.5A Golden fixture tests@example.invalid"
 
 

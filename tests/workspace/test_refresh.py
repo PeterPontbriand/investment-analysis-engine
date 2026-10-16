@@ -13,6 +13,7 @@ from alembic import command
 from src.analysis.run_models import RunOutcome
 from src.config import ProjectSettings
 from src.core.analysis_status import CalculationStatus
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.evaluation.fixtures.market_data import FixtureDataClient
@@ -811,7 +812,7 @@ def test_g2_concurrent_refresh_saves_are_visible_to_another_connection_before_th
     finished when a brand-new connection looks the run up.
     """
     url = f"sqlite:///{(tmp_path / 'refresh.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
 

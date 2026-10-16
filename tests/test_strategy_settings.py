@@ -12,13 +12,14 @@ import pytest
 from pydantic import BaseModel, ConfigDict
 
 from src.config.strategy_settings import clear_strategy_settings_cache, load_strategy_settings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.core.settings_error import StrategySettingsError
 from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy
 from src.strategies.graham_growth.settings import GrahamGrowthSettings
 from src.strategies.momentum.settings import MomentumSettings
 from src.strategy_wiring import GRAHAM_GROWTH, MOMENTUM, STRATEGIES, StrategyDescriptor
 
-SHIPPED = Path(__file__).resolve().parents[1] / "config" / "strategies"
+SHIPPED = REPOSITORY_ROOT / "config" / "strategies"
 
 
 @pytest.fixture(autouse=True)

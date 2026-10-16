@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 from alembic import command
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.financial.cache import (
     InMemoryResolvedInputCache,
     ResolvedInputCacheEntry,
@@ -30,8 +31,9 @@ from src.data.financial.provenance import (
     ResolvedInput,
     SourceKind,
 )
-from src.data.repositories import SQLiteDatabase, SQLiteResolvedInputCache
+from src.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
 from src.data.repositories.schema import resolved_input_cache, schema_metadata
+from src.data.repositories.sqlite import SQLiteDatabase
 
 NOW = datetime(2026, 9, 5, 12, 0, 0, 123456, tzinfo=UTC)
 START = datetime(2025, 1, 1, tzinfo=UTC)
@@ -178,7 +180,7 @@ def test_inspect_revalidates_key_before_io(tmp_path: Path, key: ResolvedInputCac
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'cache.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))

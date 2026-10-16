@@ -20,13 +20,12 @@ from scripts import strategy_conformance as conformance
 from src.cli import app
 from src.config import ProjectSettings
 from src.config import settings as real_settings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.strategy_wiring import STRATEGIES
 from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from src.workspace.runs import AnalysisRun, RunQuery
 from tests._direct_command_output import _COMMANDS, enter_fixture_providers
-
-_REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _stored_runs(directory: Path, monkeypatch: pytest.MonkeyPatch, alias: str) -> Callable[[], Sequence[AnalysisRun]]:
@@ -35,7 +34,7 @@ def _stored_runs(directory: Path, monkeypatch: pytest.MonkeyPatch, alias: str) -
     def run() -> Sequence[AnalysisRun]:
         directory.mkdir()
         url = f"sqlite:///{(directory / 'save_run.sqlite3').as_posix()}"
-        config = Config(str(_REPOSITORY_ROOT / "alembic.ini"))
+        config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
         config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
         command.upgrade(config, "head")
         isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))

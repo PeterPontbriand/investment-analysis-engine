@@ -6,16 +6,10 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.strategies.fcf_growth.calculators import classify_fcf_earnings_growth
-from src.strategies.fcf_growth.models import (
-    ClassificationDecision,
-    FCFEarningsGrowthPolicy,
-    ForwardEvidence,
-    MetricResult,
-    MetricStatus,
-    ReasonCode,
-)
+from src.strategies.fcf_growth.models import ClassificationDecision, FCFEarningsGrowthPolicy, ForwardEvidence
 from src.strategies.fcf_growth.vocabulary import (
     Classification,
     FCFClassificationBasis,

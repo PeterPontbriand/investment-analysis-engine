@@ -23,8 +23,10 @@ from src.data.financial.facts import (
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from src.data.financial.quote_freshness import QuoteFreshnessPolicy, evaluate_quote_freshness
 from src.data.financial.resolver import InputResolver
-from src.data.repositories import SQLiteDatabase, SQLiteResolvedInputCache
-from src.data.yfinance import YFinanceClient, YFinanceFinancialFactsAdapter, YFinanceQuote
+from src.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
+from src.data.repositories.sqlite import SQLiteDatabase
+from src.data.yfinance.client import YFinanceClient, YFinanceQuote
+from src.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
 
 NOW = datetime(2026, 9, 11, tzinfo=UTC)
 

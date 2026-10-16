@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from src.config import ProjectSettings
-from src.data.repositories import SQLiteDatabase
+from src.data.repositories.sqlite import SQLiteDatabase
 
 
 @pytest.fixture

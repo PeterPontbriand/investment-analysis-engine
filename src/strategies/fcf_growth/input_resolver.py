@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from src.core.analysis_status import CalculationStatus
+from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.core.provider_failure_kind import ProviderFailureRecord
 from src.data.financial.cache import (
     ResolvedInputCacheKey,
@@ -47,13 +48,7 @@ from src.strategies.fcf_growth.calculators import (
     compute_fcf_per_diluted_share,
     compute_free_cash_flow,
 )
-from src.strategies.fcf_growth.models import (
-    AnnualGrowthObservation,
-    FCFEarningsGrowthPolicy,
-    MetricResult,
-    MetricStatus,
-    ReasonCode,
-)
+from src.strategies.fcf_growth.models import AnnualGrowthObservation, FCFEarningsGrowthPolicy
 from src.strategies.fcf_growth.vocabulary import FCFClassificationBasis, HistoricalHorizon
 
 CACHE_SCHEMA_VERSION = 2

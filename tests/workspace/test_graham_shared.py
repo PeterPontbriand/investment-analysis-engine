@@ -2,8 +2,9 @@
 
 from unittest.mock import patch
 
-from src.data.financial.providers import SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
 from src.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from src.data.yfinance.client import YFINANCE_PROVIDER_ID
 from src.strategies._shared.profile import compose_graham_profile
 
 

@@ -11,6 +11,7 @@ from datetime import datetime
 import pytest
 
 from src.core.analysis_status import CalculationStatus
+from src.core.metric_result import ReasonCode
 from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from src.data.financial.facts import FinancialFactRequest, FinancialField, FinancialProviderError, ProviderFact
 from src.data.financial.resolution_trace import ResolutionOutcome
@@ -24,7 +25,7 @@ from src.strategies.fcf_growth.input_resolver import (
     FinancialFieldProvider,
     resolve_annual_growth_series,
 )
-from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy, ReasonCode
+from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from src.strategies.fcf_growth.vocabulary import FCFClassificationBasis
 from tests.analysis.fcf_earnings_growth.test_fcf_earnings_growth_input_resolver import NOW
 

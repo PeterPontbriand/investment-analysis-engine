@@ -9,7 +9,6 @@ import textwrap
 from collections.abc import Mapping
 from dataclasses import replace
 from importlib.metadata import PackageNotFoundError
-from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
@@ -20,6 +19,7 @@ from src import cli_health
 from src.cli import app
 from src.config import settings
 from src.core.provider_failure_kind import ProviderFailureKind
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.base_client import DataFetchError
 from src.data.provider_checks import (
     CheckVerdict,
@@ -34,7 +34,6 @@ from src.reporting.documents.health import ProviderHealthDocument, ProviderLibra
 from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()
-_REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 _SEC_AGENT = "Test Agent test@example.com"
 _TIMED_OUT_PROCESS_LIMIT_SECONDS = 60
 
@@ -321,7 +320,7 @@ def test_the_document_is_a_report_and_not_the_failure_envelope() -> None:
 
 
 def test_the_checked_in_schema_lists_the_seven_verdicts_in_order() -> None:
-    schema = json.loads((_REPOSITORY_ROOT / "schemas" / "provider-health.schema.json").read_text(encoding="utf-8"))
+    schema = json.loads((REPOSITORY_ROOT / "schemas" / "provider-health.schema.json").read_text(encoding="utf-8"))
 
     verdicts = schema["$defs"]["ProviderHealthEntry"]["properties"]["verdict"]["enum"]
     assert verdicts == [verdict.value for verdict in CheckVerdict]
@@ -378,7 +377,7 @@ def test_the_library_is_in_json_only_and_text_output_is_unchanged() -> None:
 
 
 def test_the_checked_in_schema_requires_a_nullable_library_and_is_version_three() -> None:
-    schema = json.loads((_REPOSITORY_ROOT / "schemas" / "provider-health.schema.json").read_text(encoding="utf-8"))
+    schema = json.loads((REPOSITORY_ROOT / "schemas" / "provider-health.schema.json").read_text(encoding="utf-8"))
 
     entry = schema["$defs"]["ProviderHealthEntry"]
     assert "library" in entry["required"]
@@ -427,7 +426,7 @@ _HUNG_ADAPTER_SCRIPT = textwrap.dedent(
 def test_process_exits_with_status_one_after_a_check_whose_adapter_never_returns() -> None:
     completed = subprocess.run(  # noqa: S603
         [sys.executable, "-c", _HUNG_ADAPTER_SCRIPT],
-        cwd=_REPOSITORY_ROOT,
+        cwd=REPOSITORY_ROOT,
         capture_output=True,
         text=True,
         timeout=_TIMED_OUT_PROCESS_LIMIT_SECONDS,

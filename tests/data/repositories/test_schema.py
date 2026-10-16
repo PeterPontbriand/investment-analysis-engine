@@ -11,10 +11,10 @@ from sqlalchemy.exc import IntegrityError
 
 from alembic import command, op
 from src.config import ProjectSettings
-from src.data.repositories import SQLiteDatabase
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.repositories.schema import metadata
+from src.data.repositories.sqlite import SQLiteDatabase
 
-ROOT = Path(__file__).resolve().parents[3]
 STAMP = "2026-09-05T12:00:00.000000Z"
 EXPECTED_COLUMNS = {
     "schema_metadata": "metadata_key metadata_value",
@@ -50,7 +50,7 @@ EXPECTED_COLUMNS = {
 
 
 def config_for(path: Path) -> Config:
-    config = Config(str(ROOT / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", f"sqlite:///{path.as_posix()}".replace("%", "%%"))
     return config
 

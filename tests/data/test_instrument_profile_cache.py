@@ -12,6 +12,7 @@ from alembic.config import Config
 
 from alembic import command
 from src.config import ProjectSettings
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.instrument_profile import (
     InstrumentKind,
     InstrumentKindEvidence,
@@ -77,7 +78,7 @@ def _kind_evidence(*, resolved_at: datetime = NOW) -> InstrumentKindEvidence:
 @pytest.fixture
 def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
     url = f"sqlite:///{(tmp_path / 'instrument_profile_cache.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     database = SQLiteDatabase(ProjectSettings(database_url=url))

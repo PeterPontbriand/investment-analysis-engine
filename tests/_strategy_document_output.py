@@ -39,7 +39,9 @@ from src.cli import app
 from src.config import ProjectSettings
 from src.config import settings as real_settings
 from src.core.analysis_status import CalculationStatus
+from src.core.metric_result import ReasonCode
 from src.core.provider_failure_kind import ProviderFailureKind
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.financial.facts import (
     FinancialFactRequest,
     FinancialFactsProvider,
@@ -55,16 +57,16 @@ from src.data.instrument_profile import (
     InstrumentKindRequest,
 )
 from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
-from src.data.yfinance import YFinanceFinancialFactsAdapter
 from src.data.yfinance.client import YFinanceClient
+from src.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.graham import NOW, SECURITY_ID
 from src.evaluation.fixtures.instrument_profiles import FIXTURE_PROFILE_RESOLVED_AT, fixture_known_etf_profile
 from src.evaluation.fixtures.market_data import FixtureMarketDataProvider, momentum_boundary_frame
 from src.strategies.fcf_growth.input_resolver import _failure_metric
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult, ReasonCode
+from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from src.strategies.fcf_growth.vocabulary import Classification, TrendClassification
 from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from src.strategies.graham_growth.service import GrahamGrowthAnalysis
@@ -89,7 +91,6 @@ provider writes what the check found. Every other key must agree.
 """
 
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "strategy_documents"
-_REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 
 _FCF_YEARS = range(2020, 2026)
 
@@ -338,7 +339,7 @@ def _enter_providers(stack: ExitStack, case: Case) -> None:
 def _migrated(directory: Path) -> ProjectSettings:
     """Create a migrated database in ``directory`` and return settings that point at it."""
     url = f"sqlite:///{(directory / 'documents.sqlite3').as_posix()}"
-    config = Config(str(_REPOSITORY_ROOT / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     return ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))

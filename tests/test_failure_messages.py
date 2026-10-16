@@ -34,6 +34,7 @@ from src.core.failure_classification import classify_failure
 from src.core.failure_codes import FailureReasonCode
 from src.core.operator_errors import AnalysisConfigurationError
 from src.core.provider_failure_kind import ProviderFailureKind
+from src.core.repository_root import REPOSITORY_ROOT
 from src.core.strategy_errors import undeclared
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialProviderError
@@ -264,7 +265,7 @@ _ANALYSIS_PATCHES: dict[str, Callable[[BaseException], AbstractContextManager[Ma
 
 def _migrated(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     url = f"sqlite:///{(directory / 'direct.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
@@ -381,9 +382,7 @@ def test_a_code_without_a_message_is_reported_as_an_unexpected_failure() -> None
 def test_the_defects_declare_their_code_and_the_classifier_names_no_exception_type() -> None:
     assert classify_failure(InternalDefectError("x")).reason_code is FailureReasonCode.EXECUTION_ERROR
     assert classify_failure(AnalysisRunConflictError("x")).reason_code is FailureReasonCode.EXECUTION_ERROR
-    source = (Path(__file__).resolve().parent.parent / "src" / "core" / "failure_classification.py").read_text(
-        encoding="utf-8"
-    )
+    source = (REPOSITORY_ROOT / "src" / "core" / "failure_classification.py").read_text(encoding="utf-8")
     for name in ("InternalDefectError", "AnalysisRunConflictError", "ValidationError"):
         assert name not in source
 

@@ -30,10 +30,11 @@ from src.cli import app
 from src.config import ProjectSettings
 from src.config import settings as real_settings
 from src.core.constants import TrendStatus
+from src.core.repository_root import REPOSITORY_ROOT
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.market_data import MarketDataContext
 from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
 from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
 from src.strategies.graham_growth.selection import GrahamGrowthSelection
@@ -55,7 +56,7 @@ def isolated_save_run_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     so this module's tests do not disturb unrelated already-accepted behavior.
     """
     url = f"sqlite:///{(tmp_path / 'save_run.sqlite3').as_posix()}"
-    config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))

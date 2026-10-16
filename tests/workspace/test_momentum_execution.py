@@ -9,9 +9,9 @@ import pytest
 
 from src.analysis.base_analyzer import AnalysisContext
 from src.core.constants import TrendStatus
-from src.data.financial.providers import YFINANCE_PROVIDER_ID
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile, InstrumentProfileCandidate
 from src.data.market_data import MarketDataContext
+from src.data.yfinance.client import YFINANCE_PROVIDER_ID
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.strategies.momentum.analyzer import (

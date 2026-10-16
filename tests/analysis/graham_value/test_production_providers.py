@@ -23,7 +23,7 @@ from src.data.sec_edgar.financial_facts import (
     SEC_STOCKHOLDERS_EQUITY_FIELD,
     SecEdgarFinancialFactsAdapter,
 )
-from src.data.yfinance import YFINANCE_PROVIDER_ID
+from src.data.yfinance.client import YFINANCE_PROVIDER_ID
 from src.strategies.graham_number.calculation import GrahamNumberInputResolver
 from tests.analysis.graham_value.conftest import SEC_TEST_USER_AGENT
 

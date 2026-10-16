@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.financial.provenance import FinancialSubjectKind
-from src.data.yfinance import YFINANCE_PROVIDER_ID
+from src.data.yfinance.client import YFINANCE_PROVIDER_ID
 
 
 @dataclass

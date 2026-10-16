@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 import pytest
 
 from src.core.analysis_status import CalculationStatus
+from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.strategies.fcf_growth import models as models_module
 from src.strategies.fcf_growth.models import (
@@ -17,9 +18,6 @@ from src.strategies.fcf_growth.models import (
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
-    MetricResult,
-    MetricStatus,
-    ReasonCode,
 )
 from src.strategies.fcf_growth.vocabulary import (
     Classification,

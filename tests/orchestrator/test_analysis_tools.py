@@ -16,7 +16,7 @@ from src.core.strategy_errors import UndeclaredStrategyError
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 from src.data.market_data import HistoricalMarketData
-from src.data.sec_edgar import SEC_PROVIDER_ID
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,

@@ -9,9 +9,10 @@ from unittest.mock import patch
 from src.core.provider_failure_kind import ProviderFailureKind
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentKindRequest
-from src.data.sec_edgar import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 from src.data.security_identity import SecurityIdentityRequest
-from src.data.yfinance import YFINANCE_PROVIDER_ID, YFinanceClient, YFinanceFinancialFactsAdapter
+from src.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient
+from src.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
 from tests.analysis.graham_value.conftest import SEC_TEST_USER_AGENT
 
 NOW = datetime(2026, 8, 29, 20, 0, tzinfo=UTC)
