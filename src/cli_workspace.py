@@ -357,7 +357,7 @@ def watchlist_create(  # noqa: PLR0913
         float | None, typer.Option("--eps", "-e", help="Explicit EPS override (graham-number/graham-growth).")
     ] = None,
     eps_basis: Annotated[
-        str | None, typer.Option("--eps-basis", help="EPS basis override (graham-number/graham-growth).")
+        str | None, typer.Option("--eps-basis", help="EPS basis override (graham-growth only).")
     ] = None,
     bvps: Annotated[
         float | None,
@@ -499,7 +499,7 @@ def watchlist_add_selection(  # noqa: PLR0913
         float | None, typer.Option("--eps", "-e", help="Explicit EPS override (graham-number/graham-growth).")
     ] = None,
     eps_basis: Annotated[
-        str | None, typer.Option("--eps-basis", help="EPS basis override (graham-number/graham-growth).")
+        str | None, typer.Option("--eps-basis", help="EPS basis override (graham-growth only).")
     ] = None,
     bvps: Annotated[
         float | None,

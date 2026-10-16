@@ -13,9 +13,12 @@ from src.core.provider_failure_kind import ProviderFailureRecord
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from src.data.financial.quote_freshness import QuoteFreshnessEvidence
-from src.data.financial.resolution_trace import ResolutionOutcome, ResolutionStage, ResolutionTrace, single_event_trace
+from src.data.financial.resolution_trace import ResolutionTrace
 from src.data.financial.resolver import InputResolutionResult, InputResolver
 from src.strategies.graham_number.vocabulary import METHOD_ID, MethodId
+
+_EPS_BASIS: Final = "three_year_average"
+"""The one EPS basis Graham Number resolves: the average of the last three fiscal years."""
 
 
 @dataclass(frozen=True)
@@ -179,7 +182,6 @@ class GrahamNumberInputResolver(InputResolver):
         *,
         security_subject_id: str,
         security_provider_id: str,
-        eps_basis: str = "three_year_average",
         eps_override: float | None = None,
         bvps_override: float | None = None,
         quote_override: float | None = None,
@@ -188,24 +190,11 @@ class GrahamNumberInputResolver(InputResolver):
         use_cache: bool = True,
     ) -> GrahamNumberInputAssembly:
         """Assemble the inputs required by the Graham Number method."""
-        if eps_basis not in ("three_year_average", "ttm"):
-            reason = f"eps_basis must be 'three_year_average' or 'ttm' (received {eps_basis!r})."
-            return GrahamNumberInputAssembly(
-                status=CalculationStatus.INVALID_INPUT,
-                reason=reason,
-                resolution_trace=single_event_trace(
-                    "eps",
-                    ResolutionStage.VALIDATION,
-                    ResolutionOutcome.INVALID,
-                    reason,
-                ),
-            )
-
         eps_result = resolve_normalized_eps(
             self,
             security_subject_id=security_subject_id,
             security_provider_id=security_provider_id,
-            eps_basis=eps_basis,
+            eps_basis=_EPS_BASIS,
             eps_override=eps_override,
             as_of=as_of,
             use_cache=use_cache,

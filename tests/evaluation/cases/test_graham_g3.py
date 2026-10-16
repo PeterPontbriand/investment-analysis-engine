@@ -121,8 +121,8 @@ def test_reviewed_g3_catalog_constraints_and_expectations_are_explicit(
 
     if case.case_id == "GRG-01":
         values = {item.field_path: item.expected_value for item in case.expectation.numerical_expectations}
-        assert values["result.growth_value"] == 109.41686746987952
-        assert values["margin_of_safety_percent"] == 52.20115398167724
+        assert values["result.growth_value"] == 73.70441767068273
+        assert values["margin_of_safety_percent"] == 29.04088838517033
     elif case.case_id == "GRN-04":
         values = {item.field_path: item.expected_value for item in case.expectation.numerical_expectations}
         assert values["result.maximum_indicated_price"] == 47.43416490252569
@@ -156,15 +156,15 @@ async def test_growth_case_runner_keeps_strategy_selection_independent() -> None
 
 @pytest.mark.asyncio
 async def test_growth_case_native_outputs_match_reviewed_assumptions_and_method() -> None:
-    """GRG-01 retains exact TTM assumptions and growth-value output."""
+    """GRG-01 retains exact three-year-average assumptions and growth-value output."""
     dispatch_result = await dispatch_fixture_case(GRG_01, GRAHAM_GROWTH_ARGUMENTS["GRG-01"], clock_at=EXECUTED_AT)
     assert isinstance(dispatch_result.result, GrahamGrowthAnalysis)
     analysis = dispatch_result.result
     assert analysis.assembly.status is CalculationStatus.OK
     assert analysis.result.status is CalculationStatus.OK
     assert analysis.assembly.eps is not None
-    assert analysis.assembly.eps.value == 4.8
-    assert analysis.assembly.eps.basis == "ttm"
+    assert analysis.assembly.eps.value == pytest.approx(3.2333333333333333, abs=1e-15)
+    assert analysis.assembly.eps.basis == "three_year_average"
     assert analysis.assembly.expected_growth is not None
     assert analysis.assembly.expected_growth.value == 6.5
     assert analysis.assembly.current_aaa_yield is not None
@@ -172,8 +172,8 @@ async def test_growth_case_native_outputs_match_reviewed_assumptions_and_method(
     assert analysis.policy.base_pe == 8.5
     assert analysis.policy.growth_multiplier == 2.0
     assert analysis.policy.baseline_aaa_yield == 4.4
-    assert analysis.result.growth_value == pytest.approx(109.41686746987952, abs=1e-9)
-    assert analysis.margin_of_safety_percent == pytest.approx(52.20115398167724, abs=1e-9)
+    assert analysis.result.growth_value == pytest.approx(73.70441767068273, abs=1e-9)
+    assert analysis.margin_of_safety_percent == pytest.approx(29.04088838517033, abs=1e-9)
 
 
 def test_precedence_case_native_outputs_match_reviewed_cache_and_provider_sources() -> None:
@@ -182,7 +182,6 @@ def test_precedence_case_native_outputs_match_reviewed_cache_and_provider_source
         resolver=_seeded_precedence_resolver(),
         ticker=SECURITY_ID,
         security_provider_id=PROVIDER_ID,
-        eps_basis="three_year_average",
         eps_override=5.0,
         bvps_override=None,
         quote_override=None,

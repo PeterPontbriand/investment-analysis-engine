@@ -129,7 +129,7 @@ def test_a_fact_that_fails_the_coherence_checks_is_an_unexpected_response() -> N
 
 
 def test_a_candidate_that_fails_validation_is_an_unexpected_response() -> None:
-    candidates = tuple(replace(fact, basis="ttm") for fact in _three_fy_facts())
+    candidates = tuple(replace(fact, basis="mismatched_basis") for fact in _three_fy_facts())
 
     result = _resolver({FinancialField.EPS: candidates}).resolve_three_year_average_eps(_c2c_request(), use_cache=False)
 
@@ -239,7 +239,6 @@ def _number_assembly(answers: dict[FinancialField, Any]) -> Any:
     return resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
-        eps_basis="ttm",
         use_cache=False,
     )
 
@@ -249,7 +248,7 @@ def _growth_assembly(answers: dict[FinancialField, Any]) -> Any:
     return resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
-        eps_basis="ttm",
+        eps_basis="fiscal_year",
         expected_growth=5.0,
         aaa_subject_id="AAA",
         aaa_provider_id=PROVIDER_ID,
@@ -260,7 +259,7 @@ def _growth_assembly(answers: dict[FinancialField, Any]) -> Any:
 @pytest.mark.parametrize("kind", sorted(_FAILED))
 def test_graham_number_records_the_failed_input(kind: ProviderFailureKind) -> None:
     eps = _number_assembly({FinancialField.EPS: _error(kind)})
-    bvps = _number_assembly({FinancialField.EPS: (_make_fact(basis="ttm"),), FinancialField.BVPS: _error(kind)})
+    bvps = _number_assembly({FinancialField.EPS: _three_fy_facts(), FinancialField.BVPS: _error(kind)})
 
     assert eps.status is CalculationStatus.PROVIDER_ERROR
     assert eps.provider_failure == _record(kind).for_input("eps")
@@ -272,7 +271,7 @@ def test_graham_number_records_the_failed_input(kind: ProviderFailureKind) -> No
 def test_graham_growth_records_the_failed_input(kind: ProviderFailureKind) -> None:
     eps = _growth_assembly({FinancialField.EPS: _error(kind)})
     aaa = _growth_assembly(
-        {FinancialField.EPS: (_make_fact(basis="ttm"),), FinancialField.CURRENT_AAA_YIELD: _error(kind)}
+        {FinancialField.EPS: (_make_fact(basis="fiscal_year"),), FinancialField.CURRENT_AAA_YIELD: _error(kind)}
     )
 
     assert eps.provider_failure == _record(kind).for_input("eps")
@@ -281,7 +280,7 @@ def test_graham_growth_records_the_failed_input(kind: ProviderFailureKind) -> No
 
 
 def test_a_non_failing_assembly_stores_no_failure() -> None:
-    assembly = _number_assembly({FinancialField.EPS: (_make_fact(basis="ttm"),)})
+    assembly = _number_assembly({FinancialField.EPS: _three_fy_facts()})
 
     assert assembly.status is not CalculationStatus.PROVIDER_ERROR
     assert assembly.provider_failure is None

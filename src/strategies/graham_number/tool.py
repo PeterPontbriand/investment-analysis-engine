@@ -8,14 +8,13 @@ from src.analysis.base_analyzer import AnalysisContext
 from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments, FiniteFloat
 from src.orchestrator.tool_runtime import ToolRuntime
 from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
-from src.strategies.graham_number.config import GrahamNumberConfig, GrahamNumberEPSBasis
+from src.strategies.graham_number.config import GrahamNumberConfig
 from src.strategies.graham_number.service import GrahamNumberAnalysis
 
 
 class GrahamNumberToolArguments(AnalysisToolArguments):
     """Validated arguments for Graham Number analysis."""
 
-    eps_basis: GrahamNumberEPSBasis = "three_year_average"
     eps_override: FiniteFloat | None = None
     bvps_override: FiniteFloat | None = None
     current_price_override: FiniteFloat | None = None
@@ -51,7 +50,6 @@ class GrahamNumberToolHandler:
         config = GrahamNumberConfig(
             security_provider_id=self._dependencies.security_provider_id,
             quote_provider_id=self._dependencies.quote_provider_id,
-            eps_basis=arguments.eps_basis,
             eps_override=arguments.eps_override,
             bvps_override=arguments.bvps_override,
             quote_override=arguments.current_price_override,

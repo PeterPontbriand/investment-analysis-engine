@@ -35,7 +35,6 @@ from src.reporting.presentation import (
 
 BASIS_DISPLAY_NAMES: Final[dict[str, str]] = {
     "three_year_average": "3-year average",
-    "ttm": "TTM",
     "fiscal_year_end": "fiscal-year-end",
     "fiscal_year": "fiscal year",
 }

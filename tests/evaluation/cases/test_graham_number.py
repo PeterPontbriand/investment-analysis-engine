@@ -14,7 +14,6 @@ from src.evaluation.cases.graham_number import (
     GRAHAM_NUMBER_ARGUMENTS,
     GRAHAM_NUMBER_CASES,
     GRN_01,
-    GRN_02,
     GRN_03,
     GRN_04,
     GRN_05,
@@ -63,19 +62,17 @@ def _component(result: CaseEvaluationResult, kind: ComponentKind) -> ComponentRe
 
 
 @pytest.mark.parametrize(
-    ("case", "fixture_id", "ticker", "eps_basis"),
+    ("case", "fixture_id", "ticker"),
     [
-        (GRN_01, "graham_facts", "SYNTH", "three_year_average"),
-        (GRN_02, "graham_facts", "SYNTH", "ttm"),
-        (GRA_ETF_01, "known_etf_profile", "FLSW", "three_year_average"),
-        (GRN_03, "graham_facts", "MISSING_QUOTE", "three_year_average"),
+        (GRN_01, "graham_facts", "SYNTH"),
+        (GRA_ETF_01, "known_etf_profile", "FLSW"),
+        (GRN_03, "graham_facts", "MISSING_QUOTE"),
     ],
 )
 def test_reviewed_graham_number_catalog_is_explicit(
     case: Case,
     fixture_id: str,
     ticker: str,
-    eps_basis: str,
 ) -> None:
     """Catalog IDs, fixture/tool/method constraints, prompts, and arguments are stable."""
     assert case.fixture_ids == (fixture_id,)
@@ -83,30 +80,23 @@ def test_reviewed_graham_number_catalog_is_explicit(
     assert case.expectation.tool_constraints.required == (ToolName.ANALYZE_GRAHAM_NUMBER,)
     arguments = GRAHAM_NUMBER_ARGUMENTS[case.case_id]
     assert arguments.ticker == ticker
-    assert arguments.eps_basis == eps_basis
+    assert not hasattr(arguments, "eps_basis")
 
 
 def test_reviewed_graham_number_catalog_contains_every_graham_number_case() -> None:
     """The module lists the four G2 cases and the two resolution cases, in definition order."""
     assert tuple(case.case_id for case in GRAHAM_NUMBER_CASES) == (
         "GRN-01",
-        "GRN-02",
         "GRA-ETF-01",
         "GRN-03",
         "GRN-04",
         "GRN-05",
     )
-    assert GRAHAM_NUMBER_CASES[4:] == (GRN_04, GRN_05)
+    assert GRAHAM_NUMBER_CASES[3:] == (GRN_04, GRN_05)
     assert "three-completed-fiscal-year" in GRN_01.description
-    assert "TTM fact" in GRN_02.description
     assert "not applicable directly" in GRA_ETF_01.description
     assert "missing current quote" in GRN_03.description
     assert tuple(item.field_path for item in GRN_01.expectation.numerical_expectations) == (
-        "assembly.eps.value",
-        "margin_of_safety_percent",
-        "result.maximum_indicated_price",
-    )
-    assert tuple(item.field_path for item in GRN_02.expectation.numerical_expectations) == (
         "assembly.eps.value",
         "margin_of_safety_percent",
         "result.maximum_indicated_price",
@@ -129,8 +119,8 @@ async def test_reviewed_graham_number_cases_run_deterministically_and_pass() -> 
         recorder=_recorder(),
     )
 
-    assert report.total_cases == len(GRAHAM_NUMBER_CASES) == 6
-    assert report.passed_cases == 6
+    assert report.total_cases == len(GRAHAM_NUMBER_CASES) == 5
+    assert report.passed_cases == 5
     assert report.failed_cases == 0
     assert report.overall_pass_rate == 1.0
     assert all(result.outcome is CaseOutcome.PASS for result in report.case_results)
@@ -143,7 +133,7 @@ async def test_reviewed_graham_number_cases_run_deterministically_and_pass() -> 
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("case", [GRN_01, GRN_02, GRN_03, GRA_ETF_01])
+@pytest.mark.parametrize("case", [GRN_01, GRN_03, GRA_ETF_01])
 async def test_reviewed_graham_number_native_outcomes_are_exact(case: Case) -> None:
     """Native status, basis, price-comparison, and applicability outcomes match the dossier."""
     dispatch_result = await dispatch_fixture_case(case, GRAHAM_NUMBER_ARGUMENTS[case.case_id], clock_at=EXECUTED_AT)
@@ -164,11 +154,9 @@ async def test_reviewed_graham_number_native_outcomes_are_exact(case: Case) -> N
     assert analysis.assembly.status is CalculationStatus.OK
     assert analysis.result.status is CalculationStatus.OK
     assert analysis.result.maximum_indicated_price is not None
-    if case.case_id == "GRN-02":
-        assert analysis.assembly.eps is not None
-        assert analysis.assembly.eps.value == 4.8
-        assert analysis.assembly.eps.basis == "ttm"
-    elif case.case_id == "GRN-03":
+    assert analysis.assembly.eps is not None
+    assert analysis.assembly.eps.basis == "three_year_average"
+    if case.case_id == "GRN-03":
         assert analysis.assembly.current_price is None
         assert analysis.margin_of_safety_percent is None
         assert analysis.result.maximum_indicated_price == pytest.approx(36.68616905592624, abs=1e-9)

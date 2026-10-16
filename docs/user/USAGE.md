@@ -96,9 +96,10 @@ Use the method-specific command; removed invocations return a usage error.
 | `ian graham KO --method growth --expected-growth 5 --aaa-yield 4.5` | `ian graham-growth KO --expected-growth 5 --aaa-yield 4.5` |
 
 Both commands accept positional `TICKER` or `--ticker` / `-t`, `--as-of`,
-`--data-provider`, `--no-cache`, `--eps` / `-e`, `--eps-basis`,
+`--data-provider`, `--no-cache`, `--eps` / `-e`,
 `--current-price` / `-p`, and one of `--details`, `--diagnostics`, or `--json`.
-Only `graham-number` accepts `--bvps`. `graham-growth` requires both
+Only `graham-number` accepts `--bvps`. Only `graham-growth` accepts `--eps-basis`
+and requires both
 `--expected-growth` (aliases `--expected-growth-rate` / `-g`) and
 `--aaa-yield` (aliases `--current-aaa-yield` / `-y`). Other applicable flags
 and their financial meanings are unchanged.

@@ -2,30 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Final, Literal, Self
+from typing import Self
 
 from pydantic import BaseModel, ConfigDict, StrictFloat, field_validator, model_validator
 
-from src.data.financial.eps_basis import (
-    default_eps_basis_for_provider,
-    is_sec_edgar_provider,
-)
-
-# Graham Number's own accepted SEC EDGAR basis, per `docs/user/GRAHAM_NUMBER.md` §"EPS basis":
-# never an explicit single-fiscal-year or ttm basis with SEC EDGAR, unlike Graham Growth.
-GrahamNumberEPSBasis = Literal["three_year_average", "ttm"]
-
-_SEC_EDGAR_ACCEPTED_BASES: Final[frozenset[str]] = frozenset({"three_year_average"})
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 
 
 class GrahamNumberConfig(BaseModel):
-    """Graham Number request, defaulting to three-year-average fiscal EPS."""
+    """Graham Number request; its EPS is always the three-year average of fiscal EPS."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     security_provider_id: str = "sec_edgar"
     quote_provider_id: str | None = None
-    eps_basis: GrahamNumberEPSBasis | None = None
     eps_override: StrictFloat | None = None
     quote_override: StrictFloat | None = None
     bvps_override: StrictFloat | None = None
@@ -41,24 +31,11 @@ class GrahamNumberConfig(BaseModel):
             raise ValueError("Provider identifier must not be blank.")
         return normalized
 
-    @field_validator("eps_basis", mode="before")
-    @classmethod
-    def normalize_basis(cls, value: object) -> object:
-        """Normalize text before validating the supported EPS basis literals."""
-        return value.strip().lower() if isinstance(value, str) else value
-
     @model_validator(mode="after")
     def validate_method(self) -> Self:
-        """Resolve the provider-dependent EPS basis and quote provider."""
-        basis = self.eps_basis or default_eps_basis_for_provider(self.security_provider_id)
-        if is_sec_edgar_provider(self.security_provider_id) and basis not in _SEC_EDGAR_ACCEPTED_BASES:
-            allowed = ", ".join(sorted(_SEC_EDGAR_ACCEPTED_BASES))
-            raise ValueError(f"SEC EDGAR requires eps_basis to be one of ({allowed}) (received {basis!r}).")
+        """Resolve the quote provider."""
         quote_provider = self.quote_provider_id
         if quote_provider is None:
-            quote_provider = (
-                "yfinance" if is_sec_edgar_provider(self.security_provider_id) else self.security_provider_id
-            )
-        object.__setattr__(self, "eps_basis", basis)
+            quote_provider = "yfinance" if self.security_provider_id == SEC_PROVIDER_ID else self.security_provider_id
         object.__setattr__(self, "quote_provider_id", quote_provider)
         return self

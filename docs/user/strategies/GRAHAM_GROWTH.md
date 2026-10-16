@@ -149,18 +149,12 @@ Before treating a difference as a bug, compare the conventions.
 
 Ask:
 
-- three completed fiscal years averaged together, TTM, or a single completed fiscal year?
+- three completed fiscal years averaged together, a trailing twelve months, or a single completed fiscal year?
 - basic EPS or diluted EPS?
 - were stock-split adjustments handled consistently?
 - which exact fiscal periods were used?
 
-The accepted `--eps-basis` values, and the default when none is given, are provider-driven and method-specific — they are not interchangeable with the Graham Number strategy's:
-
-| Provider | Accepted `--eps-basis` | Default |
-| :--- | :--- | :--- |
-| SEC EDGAR | `three_year_average` (default), or an explicit `fiscal_year` for reviewed workflows | `three_year_average` |
-
-`fiscal_year` (a single completed fiscal year's diluted EPS) is a Graham Growth Value-only basis; the Graham Number never accepts it, with either provider. See [Financial Math](../FINANCE_MATH.md#eps-basis) for the authoritative formula-level statement. An unsupported provider/basis combination is rejected, never silently transformed into a different basis.
+`--eps-basis` accepts `three_year_average` (the default, for every provider) or `fiscal_year` for reviewed workflows. `fiscal_year` is a single completed fiscal year's diluted EPS and is a Graham Growth Value-only basis: the Graham Number has no `--eps-basis` option. See [Financial Math](../FINANCE_MATH.md#eps-basis) for the authoritative formula-level statement. An unsupported basis is rejected, never silently transformed into a different basis.
 
 ### Publication timing
 

@@ -44,7 +44,6 @@ CURRENCY: str = "USD"
 
 # Synthetic field identifiers
 FIELD_ANNUAL_EPS: str = "fx_annual_eps"
-FIELD_TTM_EPS: str = "fx_ttm_eps"
 FIELD_BVPS: str = "fx_bvps"
 FIELD_QUOTE: str = "fx_quote"
 FIELD_AAA_YIELD: str = "fx_aaa_yield"
@@ -69,10 +68,8 @@ FY2024_START = datetime(2023, 7, 1, tzinfo=UTC)
 FY2024_END = datetime(2024, 6, 30, tzinfo=UTC)
 FY2024_AVAIL = datetime(2024, 9, 13, tzinfo=UTC)
 
-# TTM EPS (genuine continuous twelve-month interval)
-TTM_PERIOD_START = datetime(2024, 7, 1, tzinfo=UTC)
-TTM_PERIOD_END = datetime(2025, 6, 30, tzinfo=UTC)
-TTM_AVAIL = datetime(2025, 6, 30, 12, 0, tzinfo=UTC)  # available_at > period_end, <= NOW
+FY2025_START = datetime(2024, 7, 1, tzinfo=UTC)
+FY2025_END = datetime(2025, 6, 30, tzinfo=UTC)
 
 # BVPS
 BVPS_PERIOD_END = datetime(2024, 12, 31, tzinfo=UTC)
@@ -101,7 +98,7 @@ FUTURE_RETRIEVED_AT = datetime(2025, 8, 1, 12, 0, tzinfo=UTC)
 EPS_FY2022: float = 2.10
 EPS_FY2023: float = 3.40
 EPS_FY2024: float = 4.20
-EPS_TTM: float = 4.80
+EPS_FY2025: float = 4.80
 BVPS_VALUE: float = 18.50
 QUOTE_VALUE: float = 52.30
 AAA_YIELD_VALUE: float = 4.15
@@ -241,9 +238,7 @@ class FixtureFinancialFactsProvider:
         if request.field_name is FinancialField.EPS:
             if request.observation_count == 3:
                 return self._annual_eps_facts()
-            if request.basis == "ttm":
-                return (self._ttm_eps_fact(),)
-            # Unsupported EPS basis: unavailable.
+            # Any single-observation EPS request: unavailable.
             return ()
 
         if request.field_name is FinancialField.BVPS:
@@ -316,25 +311,6 @@ class FixtureFinancialFactsProvider:
                 available_at=FY2024_AVAIL,
                 notes=("fixture: FY2024 annual EPS",),
             ),
-        )
-
-    def _ttm_eps_fact(self) -> ProviderFact:
-        """Explicit TTM EPS observation."""
-        return ProviderFact(
-            subject_kind=FinancialSubjectKind.SECURITY,
-            subject_id=SECURITY_ID,
-            field_name=FinancialField.EPS,
-            value=EPS_TTM,
-            units=FinancialUnit.CURRENCY_PER_SHARE,
-            provider_id=PROVIDER_ID,
-            provider_field=FIELD_TTM_EPS,
-            retrieved_at=RETRIEVED_AT,
-            basis="ttm",
-            currency=CURRENCY,
-            observation_period_start=TTM_PERIOD_START,
-            observation_period_end=TTM_PERIOD_END,
-            available_at=TTM_AVAIL,
-            notes=("fixture: TTM EPS",),
         )
 
     def _bvps_fact(self) -> ProviderFact:
@@ -420,15 +396,15 @@ class FixtureFinancialFactsProvider:
                     subject_kind=FinancialSubjectKind.SECURITY,
                     subject_id=SUBJECT_FUTURE,
                     field_name=FinancialField.EPS,
-                    value=EPS_TTM,
+                    value=EPS_FY2025,
                     units=FinancialUnit.CURRENCY_PER_SHARE,
                     provider_id=PROVIDER_ID,
-                    provider_field=FIELD_TTM_EPS,
+                    provider_field=FIELD_ANNUAL_EPS,
                     retrieved_at=FUTURE_RETRIEVED_AT,
-                    basis=request.basis if request.basis is not None else "ttm",
+                    basis="fiscal_year",
                     currency=CURRENCY,
-                    observation_period_start=TTM_PERIOD_START,
-                    observation_period_end=TTM_PERIOD_END,
+                    observation_period_start=FY2025_START,
+                    observation_period_end=FY2025_END,
                     available_at=FUTURE_AVAIL,
                     notes=("fixture: future-published adverse case",),
                 ),
@@ -485,16 +461,16 @@ class FixtureFinancialFactsProvider:
                 subject_kind=FinancialSubjectKind.SECURITY,
                 subject_id=SUBJECT_INCOMPATIBLE,
                 field_name=FinancialField.EPS,
-                value=EPS_TTM,
+                value=EPS_FY2024,
                 units=FinancialUnit.CURRENCY_PER_SHARE,
                 provider_id=PROVIDER_ID,
-                provider_field=FIELD_TTM_EPS,
+                provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
                 basis=mismatched,
                 currency=CURRENCY,
-                observation_period_start=TTM_PERIOD_START,
-                observation_period_end=TTM_PERIOD_END,
-                available_at=TTM_AVAIL,
+                observation_period_start=FY2024_START,
+                observation_period_end=FY2024_END,
+                available_at=FY2024_AVAIL,
                 notes=("fixture: semantically incompatible basis",),
             ),
         )

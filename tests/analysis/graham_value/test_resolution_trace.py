@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -127,7 +128,7 @@ def test_override_trace_short_circuits_cache_and_provider() -> None:
         provider=provider, cache=InMemoryResolvedInputCache(clock=lambda: NOW), clock=lambda: NOW
     )
 
-    result = resolver.resolve(_request(FinancialField.EPS, basis="ttm"), override=5.0, use_cache=True)
+    result = resolver.resolve(_request(FinancialField.EPS, basis="fiscal_year"), override=5.0, use_cache=True)
 
     assert result.status is CalculationStatus.OK
     assert _event_signature(result.resolution_trace) == [
@@ -142,7 +143,7 @@ def test_cache_miss_then_provider_success_is_recorded_in_order() -> None:
         FinancialField.EPS,
         5.0,
         units=FinancialUnit.CURRENCY_PER_SHARE,
-        basis="ttm",
+        basis="fiscal_year",
         currency="USD",
     )
     provider = RecordingProvider({FinancialField.EPS: (fact,)})
@@ -150,7 +151,7 @@ def test_cache_miss_then_provider_success_is_recorded_in_order() -> None:
         provider=provider, cache=InMemoryResolvedInputCache(clock=lambda: NOW), clock=lambda: NOW
     )
 
-    result = resolver.resolve(_request(FinancialField.EPS, basis="ttm"), use_cache=True)
+    result = resolver.resolve(_request(FinancialField.EPS, basis="fiscal_year"), use_cache=True)
 
     assert result.status is CalculationStatus.OK
     assert _event_signature(result.resolution_trace) == [
@@ -169,13 +170,13 @@ def test_cache_hit_records_hit_and_does_not_repeat_provider_attempt() -> None:
         FinancialField.EPS,
         5.0,
         units=FinancialUnit.CURRENCY_PER_SHARE,
-        basis="ttm",
+        basis="fiscal_year",
         currency="USD",
     )
     provider = RecordingProvider({FinancialField.EPS: (fact,)})
     cache = InMemoryResolvedInputCache(clock=lambda: NOW)
     resolver = GrahamNumberInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
-    request = _request(FinancialField.EPS, basis="ttm")
+    request = _request(FinancialField.EPS, basis="fiscal_year")
 
     first = resolver.resolve(request, use_cache=True)
     second = resolver.resolve(request, use_cache=True)
@@ -193,7 +194,7 @@ def test_provider_error_is_classified_without_losing_attempt_event() -> None:
     """Operational provider failures are distinct from ordinary unavailability."""
     resolver = GrahamNumberInputResolver(provider=ErrorProvider(), clock=lambda: NOW)
 
-    result = resolver.resolve(_request(FinancialField.EPS, basis="ttm"), use_cache=True)
+    result = resolver.resolve(_request(FinancialField.EPS, basis="fiscal_year"), use_cache=True)
 
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert _event_signature(result.resolution_trace)[-2:] == [
@@ -255,7 +256,6 @@ def test_graham_number_assembly_aggregates_field_traces_in_resolution_order() ->
     assembly = resolver.assemble_graham_number(
         security_subject_id="NDAQ",
         security_provider_id="fixture",
-        eps_basis="ttm",
         eps_override=5.0,
         bvps_override=10.0,
         quote_override=20.0,
@@ -272,12 +272,20 @@ def test_graham_number_assembly_aggregates_field_traces_in_resolution_order() ->
 
 def test_optional_quote_unavailability_is_retained_in_method_trace() -> None:
     """A valid valuation keeps its value while diagnostics retain quote degradation."""
-    eps = _fact(
-        FinancialField.EPS,
-        5.0,
-        units=FinancialUnit.CURRENCY_PER_SHARE,
-        basis="ttm",
-        currency="USD",
+    eps_facts = tuple(
+        replace(
+            _fact(
+                FinancialField.EPS,
+                5.0,
+                units=FinancialUnit.CURRENCY_PER_SHARE,
+                basis="fiscal_year",
+                currency="USD",
+            ),
+            observation_period_start=datetime(year, 1, 1, tzinfo=UTC),
+            observation_period_end=datetime(year, 12, 31, 23, 59, 59, tzinfo=UTC),
+            available_at=datetime(year + 1, 2, 15, tzinfo=UTC),
+        )
+        for year in (2023, 2024, 2025)
     )
     bvps = _fact(
         FinancialField.BVPS,
@@ -287,7 +295,7 @@ def test_optional_quote_unavailability_is_retained_in_method_trace() -> None:
     )
     provider = RecordingProvider(
         {
-            FinancialField.EPS: (eps,),
+            FinancialField.EPS: eps_facts,
             FinancialField.BVPS: (bvps,),
         }
     )
@@ -296,7 +304,6 @@ def test_optional_quote_unavailability_is_retained_in_method_trace() -> None:
     assembly = resolver.assemble_graham_number(
         security_subject_id="NDAQ",
         security_provider_id="fixture",
-        eps_basis="ttm",
     )
 
     assert assembly.status is CalculationStatus.OK

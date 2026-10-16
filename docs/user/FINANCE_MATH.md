@@ -137,7 +137,7 @@ The three observations must be compatible in financial meaning/share basis and m
 
 Compatibility requires the same provider concept, diluted/basic basis, currency, units, and fiscal basis across distinct fiscal years. Provider-exposed share-class and split-treatment evidence must agree. Ambiguous restatements or compatibility gaps make the series unavailable rather than triggering a guessed normalization.
 
-TTM EPS is a distinct modern variation where explicitly supported/selected; it never silently replaces the standard three-year average.
+The Graham Number has no other EPS basis: it always uses the three-year average, and a trailing-twelve-month EPS is not offered.
 
 ### Book value per common share
 
@@ -186,9 +186,10 @@ This is a forecast-dependent growth-stock estimate. It is not the Graham Number.
 
 ### EPS basis
 
-- Graham Growth using SEC EDGAR data uses three-year-average diluted EPS by default. The production tool boundary also supports an explicit single completed fiscal-year EPS basis for reviewed workflows.
+- Graham Number always uses three-year-average diluted EPS; it has no EPS-basis option.
+- Graham Growth uses three-year-average diluted EPS by default, for every provider. The production tool boundary also supports an explicit single completed fiscal-year EPS basis for reviewed workflows.
 
-Unsupported data-source/basis combinations are rejected rather than silently transformed into a different calculation.
+An unsupported basis is rejected rather than silently transformed into a different calculation.
 
 SEC IFRS support does not include BVPS or preferred-zero inference. Filing
 per-share values are compared with quotes only when ordinary-share 1:1 unit

@@ -231,7 +231,6 @@ def test_graham_analysis_enters_the_same_optional_snapshot_boundary() -> None:
         ticker="ASML",
         security_provider_id=SEC_PROVIDER_ID,
         quote_provider_id="yfinance",
-        eps_basis="invalid",
         eps_override=None,
         bvps_override=None,
         quote_override=None,
@@ -241,4 +240,4 @@ def test_graham_analysis_enters_the_same_optional_snapshot_boundary() -> None:
     )
 
     assert provider.scope_entries == 1
-    assert analysis.assembly.status.value == "invalid_input"
+    assert analysis.assembly.status.value == "input_unavailable"

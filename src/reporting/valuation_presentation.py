@@ -50,8 +50,6 @@ def eps_basis_label(value: ResolvedInput) -> str:
     if value.basis == "three_year_average":
         qualifier = " diluted" if uses_diluted_eps(value) else ""
         return f"3-year average{qualifier} EPS"
-    if value.basis == "ttm":
-        return "TTM EPS"
     if value.basis is not None:
         return f"{basis_display_name(value.basis)} EPS"
     return "EPS basis unspecified"

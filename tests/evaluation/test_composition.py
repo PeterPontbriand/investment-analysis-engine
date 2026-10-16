@@ -93,7 +93,7 @@ def _case(case_id: str, *fixture_ids: str) -> Case:
             _case("graham-growth", GRAHAM_FACTS_FIXTURE_ID),
             GrahamGrowthValueToolArguments(
                 ticker=GRAHAM_SECURITY_ID,
-                eps_basis="ttm",
+                eps_basis="three_year_average",
                 expected_growth=GOLDEN_EXPECTED_GROWTH,
                 current_aaa_yield=4.15,
             ),

@@ -364,12 +364,12 @@ def test_zero_negative_bvps_override_valid(val: float) -> None:
 
 def test_override_preserves_fields() -> None:
     resolver = _make_resolver()
-    req = _make_request(field=FinancialField.EPS, basis="ttm", as_of=AS_OF)
+    req = _make_request(field=FinancialField.EPS, basis="fiscal_year", as_of=AS_OF)
     result = resolver.resolve(req, override=7.5, use_cache=True)
     ri = result.resolved_input
     assert ri is not None
     assert ri.field_name == "eps"
-    assert ri.basis == "ttm"
+    assert ri.basis == "fiscal_year"
     assert ri.as_of == AS_OF
     assert ri.resolved_at == NOW
     assert ri.source_kind is SourceKind.OVERRIDE
@@ -475,7 +475,7 @@ def test_cache_hit_preserves_provenance() -> None:
     stored = _make_provider_input(
         field_name="eps",
         value=6.6,
-        basis="ttm",
+        basis="fiscal_year",
         provider_id=PROVIDER_ID,
         provider_field=PROVIDER_FIELD,
         currency="USD",
@@ -495,7 +495,7 @@ def test_cache_hit_preserves_provenance() -> None:
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
         field_name="eps",
-        basis="ttm",
+        basis="fiscal_year",
         provider_id=PROVIDER_ID,
         analysis_as_of=None,
         schema_version=1,
@@ -504,11 +504,11 @@ def test_cache_hit_preserves_provenance() -> None:
     cache = SpyCache(entry=entry)
     resolver = _make_resolver(cache=cache)
 
-    result = resolver.resolve(_make_request(basis="ttm"), use_cache=True)
+    result = resolver.resolve(_make_request(basis="fiscal_year"), use_cache=True)
     ri = result.resolved_input
     assert ri is not None
     assert ri.value == 6.6
-    assert ri.basis == "ttm"
+    assert ri.basis == "fiscal_year"
     assert ri.provider_id == PROVIDER_ID
     assert ri.provider_field == PROVIDER_FIELD
     assert ri.currency == "USD"
@@ -874,7 +874,7 @@ def test_mismatched_basis() -> None:
     cache = SpyCache()
     resolver = _make_resolver(provider=provider, cache=cache)
 
-    result = resolver.resolve(_make_request(basis="ttm"), use_cache=True)
+    result = resolver.resolve(_make_request(basis="fiscal_year"), use_cache=True)
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert cache.put_count == 0
 
@@ -985,7 +985,7 @@ def test_current_resolution_preserves_as_of_none() -> None:
 def test_provider_success_preserves_provenance() -> None:
     fact = _make_fact(
         value=8.8,
-        basis="ttm",
+        basis="fiscal_year",
         provider_field=PROVIDER_FIELD,
         currency="USD",
         available_at=AVAILABLE_AT,
@@ -998,12 +998,12 @@ def test_provider_success_preserves_provenance() -> None:
     provider = FakeProvider(facts=(fact,))
     resolver = _make_resolver(provider=provider)
 
-    result = resolver.resolve(_make_request(basis="ttm"), use_cache=True)
+    result = resolver.resolve(_make_request(basis="fiscal_year"), use_cache=True)
     ri = result.resolved_input
     assert ri is not None
     assert ri.value == 8.8
     assert ri.source_kind is SourceKind.PROVIDER
-    assert ri.basis == "ttm"
+    assert ri.basis == "fiscal_year"
     assert ri.units == "currency_per_share"
     assert ri.currency == "USD"
     assert ri.provider_id == PROVIDER_ID
@@ -1358,7 +1358,7 @@ def test_c2c_wrong_basis_rejected() -> None:
             subject_id=SUBJECT_ID,
             field_name=FinancialField.EPS,
             provider_id=PROVIDER_ID,
-            basis="ttm",
+            basis="three_year_average",
             observation_count=3,
         )
     assert provider.call_count == 0
@@ -1828,7 +1828,7 @@ def _aaa_fact(value: float = 5.0) -> ProviderFact:
     )
 
 
-def _ttm_eps_fact(value: float = 8.0) -> ProviderFact:
+def _single_eps_fact(value: float = 8.0) -> ProviderFact:
     return ProviderFact(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
@@ -1836,9 +1836,9 @@ def _ttm_eps_fact(value: float = 8.0) -> ProviderFact:
         value=value,
         units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=PROVIDER_ID,
-        provider_field="ttm_eps_synthetic",
+        provider_field="single_eps_synthetic",
         retrieved_at=RETRIEVED_AT,
-        basis="ttm",
+        basis="fiscal_year",
         currency="USD",
     )
 
@@ -1877,12 +1877,12 @@ def test_c2d_graham_number_three_year_avg_success() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 2: TTM EPS override bypasses EPS provider access
+# Test 2: EPS override bypasses EPS provider access
 # ---------------------------------------------------------------------------
 
 
-def test_c2d_graham_number_ttm_override_bypasses_eps_provider() -> None:
-    """TTM EPS override short-circuits provider; basis retained in provenance."""
+def test_c2d_graham_number_override_bypasses_eps_provider() -> None:
+    """EPS override short-circuits provider; basis retained in provenance."""
     # No EPS handler registered — provider would return empty if called.
     provider = MultiFieldProvider(
         handlers={
@@ -1894,14 +1894,13 @@ def test_c2d_graham_number_ttm_override_bypasses_eps_provider() -> None:
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
-        eps_basis="ttm",
         eps_override=10.0,
     )
     assert result.status is CalculationStatus.OK
     assert result.eps is not None
     assert result.eps.value == 10.0
     assert result.eps.source_kind is SourceKind.OVERRIDE
-    assert result.eps.basis == "ttm"
+    assert result.eps.basis == "three_year_average"
     # EPS field must never have reached the provider.
     assert FinancialField.EPS not in provider.requested_fields()
 
@@ -1939,10 +1938,10 @@ def test_c2d_graham_number_bvps_failure_prevents_quote() -> None:
 
 
 def test_c2d_growth_value_success() -> None:
-    """Growth Value: TTM EPS (provider) + growth 12 + AAA 5 + quote 100 → OK."""
+    """Growth Value: single-observation EPS (provider) + growth 12 + AAA 5 + quote 100 → OK."""
     provider = MultiFieldProvider(
         handlers={
-            FinancialField.EPS: (_ttm_eps_fact(),),
+            FinancialField.EPS: (_single_eps_fact(),),
             FinancialField.CURRENT_AAA_YIELD: (_aaa_fact(),),
             FinancialField.CURRENT_PRICE: (_price_fact(),),
         }
@@ -1951,7 +1950,7 @@ def test_c2d_growth_value_success() -> None:
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
-        eps_basis="ttm",
+        eps_basis="fiscal_year",
         expected_growth=12.0,
         aaa_subject_id="AAA",
         aaa_provider_id="provider-aaa",
@@ -1961,7 +1960,7 @@ def test_c2d_growth_value_success() -> None:
     # EPS
     assert result.eps is not None
     assert result.eps.value == 8.0
-    assert result.eps.basis == "ttm"
+    assert result.eps.basis == "fiscal_year"
     # Expected growth
     assert result.expected_growth is not None
     assert result.expected_growth.value == 12.0
@@ -1987,7 +1986,7 @@ def test_c2d_growth_value_missing_growth() -> None:
     """expected_growth not provided → INPUT_UNAVAILABLE; AAA and quote never reached."""
     provider = MultiFieldProvider(
         handlers={
-            FinancialField.EPS: (_ttm_eps_fact(),),
+            FinancialField.EPS: (_single_eps_fact(),),
             # No AAA or quote handlers
         }
     )
@@ -1995,7 +1994,7 @@ def test_c2d_growth_value_missing_growth() -> None:
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
-        eps_basis="ttm",
+        eps_basis="fiscal_year",
         # expected_growth intentionally omitted (defaults to None)
         aaa_subject_id="AAA",
         aaa_provider_id="provider-aaa",
@@ -2018,14 +2017,14 @@ def test_c2d_growth_value_non_finite_growth() -> None:
     """expected_growth=inf → INVALID_INPUT; AAA and quote never reached."""
     provider = MultiFieldProvider(
         handlers={
-            FinancialField.EPS: (_ttm_eps_fact(),),
+            FinancialField.EPS: (_single_eps_fact(),),
         }
     )
     resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
-        eps_basis="ttm",
+        eps_basis="fiscal_year",
         expected_growth=inf,
         aaa_subject_id="AAA",
         aaa_provider_id="provider-aaa",
@@ -2334,7 +2333,7 @@ def test_c2d_growth_value_aaa_yield_override() -> None:
     """Growth Value with explicit AAA-yield override: provider not called for AAA."""
     provider = MultiFieldProvider(
         handlers={
-            FinancialField.EPS: (_ttm_eps_fact(),),
+            FinancialField.EPS: (_single_eps_fact(),),
             FinancialField.CURRENT_PRICE: (_price_fact(),),
             # No AAA handler — would return empty if called.
         }
@@ -2343,7 +2342,7 @@ def test_c2d_growth_value_aaa_yield_override() -> None:
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
-        eps_basis="ttm",
+        eps_basis="fiscal_year",
         expected_growth=12.0,
         aaa_subject_id="AAA",
         aaa_provider_id="provider-aaa",
@@ -2382,9 +2381,9 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
         value=8.0,
         units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=PROVIDER_ID,
-        provider_field="ttm_eps_synthetic",
+        provider_field="single_eps_synthetic",
         retrieved_at=RETRIEVED_AT,
-        basis="ttm",
+        basis="fiscal_year",
         currency="USD",
         available_at=hist_available,
     )
@@ -2427,7 +2426,7 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
         security_provider_id=PROVIDER_ID,
-        eps_basis="ttm",
+        eps_basis="fiscal_year",
         expected_growth=12.0,
         aaa_subject_id="AAA",
         aaa_provider_id="provider-aaa",

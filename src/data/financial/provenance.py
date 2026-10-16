@@ -129,7 +129,7 @@ class ResolvedInput:
         source_kind: How this value was resolved.
         origin_source_kind: Required when ``source_kind`` is ``CACHE``; the
             original source kind of the cached fact.
-        basis: Measurement/variant label (e.g. ``"ttm"``, ``"three_year_average"``).
+        basis: Measurement/variant label (e.g. ``"fiscal_year"``, ``"three_year_average"``).
         units: Unit label (e.g. ``"USD per share"``).
         currency: ISO 4217 code when monetary.
         provider_id: Provider identifier (e.g. ``"yfinance"``, ``"fred"``).

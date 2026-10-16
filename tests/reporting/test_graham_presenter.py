@@ -441,7 +441,7 @@ def test_number_presentation_rejects_as_of_mismatch_with_resolved_input() -> Non
         value=2.0,
         source_kind=SourceKind.OVERRIDE,
         resolved_at=NOW,
-        basis="ttm",
+        basis="fiscal_year",
         units="currency_per_share",
         as_of=historical_as_of,
     )
@@ -472,7 +472,7 @@ def test_growth_presentation_accepts_matching_historical_as_of() -> None:
         value=2.0,
         source_kind=SourceKind.OVERRIDE,
         resolved_at=NOW,
-        basis="ttm",
+        basis="fiscal_year",
         units="currency_per_share",
         as_of=historical_as_of,
     )

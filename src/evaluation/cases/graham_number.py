@@ -55,38 +55,6 @@ GRN_01: Final = Case(
 )
 
 
-GRN_02: Final = Case(
-    case_id="GRN-02",
-    description=(
-        "Proves that the explicit TTM variation uses the retained TTM fact rather than silently averaging fiscal-"
-        "year observations."
-    ),
-    task="Analyze SYNTH with Graham Number using explicitly selected TTM EPS.",
-    fixture_ids=(GRAHAM_FACTS_FIXTURE_ID,),
-    expectation=Expectation(
-        tool_constraints=_GRAHAM_NUMBER_TOOL_CONSTRAINTS,
-        numerical_expectations=(
-            NumericalExpectation(
-                field_path="assembly.eps.value",
-                expected_value=4.80,
-                absolute_tolerance=0.0,
-            ),
-            NumericalExpectation(
-                field_path="result.maximum_indicated_price",
-                expected_value=44.69899327725402,
-                absolute_tolerance=1e-9,
-            ),
-            NumericalExpectation(
-                field_path="margin_of_safety_percent",
-                expected_value=-17.00487229231157,
-                absolute_tolerance=1e-9,
-            ),
-        ),
-    ),
-    tags=("graham_number", "success", "ttm"),
-)
-
-
 GRA_ETF_01: Final = Case(
     case_id="GRA-ETF-01",
     description=(
@@ -191,14 +159,13 @@ GRN_05: Final = Case(
 )
 
 
-GRAHAM_NUMBER_CASES: Final[tuple[Case, ...]] = (GRN_01, GRN_02, GRA_ETF_01, GRN_03, GRN_04, GRN_05)
+GRAHAM_NUMBER_CASES: Final[tuple[Case, ...]] = (GRN_01, GRA_ETF_01, GRN_03, GRN_04, GRN_05)
 
 GRAHAM_NUMBER_ARGUMENTS: Final[Mapping[str, GrahamNumberToolArguments]] = MappingProxyType(
     {
-        "GRN-01": GrahamNumberToolArguments(ticker=SECURITY_ID, eps_basis="three_year_average"),
-        "GRN-02": GrahamNumberToolArguments(ticker=SECURITY_ID, eps_basis="ttm"),
-        "GRA-ETF-01": GrahamNumberToolArguments(ticker="FLSW", eps_basis="three_year_average"),
-        "GRN-03": GrahamNumberToolArguments(ticker="MISSING_QUOTE", eps_basis="three_year_average"),
+        "GRN-01": GrahamNumberToolArguments(ticker=SECURITY_ID),
+        "GRA-ETF-01": GrahamNumberToolArguments(ticker="FLSW"),
+        "GRN-03": GrahamNumberToolArguments(ticker="MISSING_QUOTE"),
         "GRN-04": GrahamNumberToolArguments(
             ticker=SECURITY_ID,
             as_of=NOW,
@@ -214,7 +181,6 @@ __all__ = [
     "GRAHAM_NUMBER_CASES",
     "GRA_ETF_01",
     "GRN_01",
-    "GRN_02",
     "GRN_03",
     "GRN_04",
     "GRN_05",

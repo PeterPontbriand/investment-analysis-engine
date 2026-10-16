@@ -118,7 +118,7 @@ def test_full_construction() -> None:
         resolved_at=AW,
         provider_id="yfinance",
         provider_field="trailingEps",
-        basis="ttm",
+        basis="fiscal_year",
         units="USD per share",
         currency="USD",
         observation_period_start=datetime(2024, 7, 1, tzinfo=UTC),
@@ -133,7 +133,7 @@ def test_full_construction() -> None:
     assert ri.value == 4.2
     assert ri.source_kind is SourceKind.PROVIDER
     assert ri.provider_id == "yfinance"
-    assert ri.basis == "ttm"
+    assert ri.basis == "fiscal_year"
     assert ri.notes == ("from fixture",)
 
 

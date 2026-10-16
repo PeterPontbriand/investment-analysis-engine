@@ -74,7 +74,7 @@ def test_decode_selection_rejects_method_id_mismatch() -> None:
 def test_decode_selection_rejects_version_mismatch() -> None:
     encoded = encode_selection(GrahamNumberSelection())
     with pytest.raises(ValueError, match="does not match"):
-        decode_selection("graham_number", 2, encoded)
+        decode_selection("graham_number", 1, encoded)
 
 
 def test_decode_selection_rejects_a_stored_momentum_selection_from_before_as_of_and_no_cache() -> None:

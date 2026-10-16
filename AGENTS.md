@@ -141,6 +141,10 @@ Strategies differ in what they compute, not in how they are invoked.
 - Do not add per-strategy parameters for concerns `AnalysisContext` already carries, and do not bypass a strategy's analyzer by calling its service or calculation functions from composition, orchestration, CLI, or workspace code.
 - A strategy's user-tunable defaults live in its settings file (`config/strategies/<alias>.toml`, [ARCHITECTURE §6](docs/project/ARCHITECTURE.md#6-analysis-strategies-the-boundary)). Strategies never read settings; composition loads them and passes them in. A settings model has no defaults.
 - Every strategy follows the shared outcome conventions: `MetricResult` for metrics, explicit reason codes instead of silent defaults, and retained provenance.
+- An option, tool argument or stored field that can hold only one value is not added; a fixed choice is a
+  named constant in the strategy that owns it. Single-value type tags such as `AnalysisId` and `MethodId` are
+  discriminators, not options. Known exception, tracked in issue #143: `--data-provider`, which accepts only
+  `sec_edgar`.
 - Change the envelope or conventions only through an explicit plan change, never by working around them in one strategy. Do not build registries, plugin loaders, or factories on top of the envelope speculatively.
 
 ## 10. OS, shell & execution

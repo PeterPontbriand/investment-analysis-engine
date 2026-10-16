@@ -251,23 +251,10 @@
           "title": "Bvps Override"
         },
         "config_schema_version": {
-          "const": 1,
-          "default": 1,
+          "const": 2,
+          "default": 2,
           "title": "Config Schema Version",
           "type": "integer"
-        },
-        "eps_basis": {
-          "anyOf": [
-            {
-              "const": "three_year_average",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Eps Basis"
         },
         "eps_override": {
           "anyOf": [

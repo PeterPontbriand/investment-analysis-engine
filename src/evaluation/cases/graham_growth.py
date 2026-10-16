@@ -27,12 +27,19 @@ GRG_01: Final = Case(
         "Proves the forecast-dependent growth method, explicit assumptions, yield adjustment, and discrimination "
         "from the Graham Number."
     ),
-    task="Analyze SYNTH with Graham growth-value using TTM EPS, expected growth 6.5, and current AAA yield 4.15.",
+    task=(
+        "Analyze SYNTH with Graham growth-value using the three-year-average EPS basis, expected growth 6.5, "
+        "and current AAA yield 4.15."
+    ),
     fixture_ids=(GRAHAM_FACTS_FIXTURE_ID,),
     expectation=Expectation(
         tool_constraints=_GROWTH_TOOL_CONSTRAINTS,
         numerical_expectations=(
-            NumericalExpectation(field_path="assembly.eps.value", expected_value=4.80, absolute_tolerance=0.0),
+            NumericalExpectation(
+                field_path="assembly.eps.value",
+                expected_value=3.2333333333333333,
+                absolute_tolerance=1e-15,
+            ),
             NumericalExpectation(
                 field_path="assembly.expected_growth.value",
                 expected_value=6.5,
@@ -52,17 +59,17 @@ GRG_01: Final = Case(
             ),
             NumericalExpectation(
                 field_path="result.growth_value",
-                expected_value=109.41686746987952,
+                expected_value=73.70441767068273,
                 absolute_tolerance=1e-9,
             ),
             NumericalExpectation(
                 field_path="margin_of_safety_percent",
-                expected_value=52.20115398167724,
+                expected_value=29.04088838517033,
                 absolute_tolerance=1e-9,
             ),
         ),
     ),
-    tags=("graham_growth_value", "method_discrimination", "ttm"),
+    tags=("graham_growth_value", "method_discrimination"),
 )
 
 
@@ -142,13 +149,13 @@ GRAHAM_GROWTH_ARGUMENTS: Final[Mapping[str, GrahamGrowthValueToolArguments]] = M
     {
         "GRG-01": GrahamGrowthValueToolArguments(
             ticker=SECURITY_ID,
-            eps_basis="ttm",
+            eps_basis="three_year_average",
             expected_growth=6.5,
             current_aaa_yield=4.15,
         ),
         "GRG-ETF-01": GrahamGrowthValueToolArguments(
             ticker="FLSW",
-            eps_basis="ttm",
+            eps_basis="three_year_average",
             expected_growth=6.5,
             current_aaa_yield=4.15,
         ),

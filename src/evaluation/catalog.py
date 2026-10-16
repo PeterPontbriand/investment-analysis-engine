@@ -13,7 +13,6 @@ from src.evaluation.cases.graham_number import (
     GRA_ETF_01,
     GRAHAM_NUMBER_ARGUMENTS,
     GRN_01,
-    GRN_02,
     GRN_03,
     GRN_04,
     GRN_05,
@@ -31,15 +30,14 @@ from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from src.telemetry.recorder import TrajectoryRecorder
 
 DETERMINISTIC_SUITE_ID: Final = "step-2.5-golden-minimum"
-DETERMINISTIC_SUITE_VERSION: Final = "h1-v4"
-DETERMINISTIC_FIXTURE_SET_VERSION: Final = "step-2.5-h1-v3"
+DETERMINISTIC_SUITE_VERSION: Final = "h1-v5"
+DETERMINISTIC_FIXTURE_SET_VERSION: Final = "step-2.5-h1-v4"
 
 DETERMINISTIC_CASES: Final[tuple[Case, ...]] = (
     MOMENTUM_SUCCESS_CASE,
     MOMENTUM_BOUNDARY_CASE,
     MOMENTUM_ETF_CASE,
     GRN_01,
-    GRN_02,
     GRA_ETF_01,
     GRN_03,
     GRG_01,
@@ -85,7 +83,7 @@ def _reviewed_arguments(case: Case) -> AnalysisToolArguments:
 
 
 def build_deterministic_requests() -> tuple[DeterministicCaseRequest, ...]:
-    """Build the exact production arguments for all nineteen reviewed cases."""
+    """Build the exact production arguments for all eighteen reviewed cases."""
     return tuple(
         DeterministicCaseRequest(case=case, arguments=_reviewed_arguments(case)) for case in DETERMINISTIC_CASES
     )
@@ -96,7 +94,7 @@ async def run_minimum_deterministic_suite(
     executed_at: datetime,
     recorder: TrajectoryRecorder,
 ) -> EvaluationReport:
-    """Execute the canonical nineteen-case deterministic suite and return one report."""
+    """Execute the canonical eighteen-case deterministic suite and return one report."""
     return await run_deterministic_suite(
         build_deterministic_requests(),
         suite_id=DETERMINISTIC_SUITE_ID,

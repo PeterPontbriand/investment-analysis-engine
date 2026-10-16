@@ -74,7 +74,8 @@ duplicates. The sort option is tested in 3.5.6.
 - `src/data/financial/facts.py`: a new `FinancialField` falls through to the per-share unit by
   default. Each new monetary field needs explicit unit routing.
 - `src/data/financial/provenance.py`: `PeriodKind` has annual, quarterly and TTM members and no
-  instant. Balance-sheet series need an additive instant representation, not a relabeled duration.
+  instant. No provider produces `quarterly` or `ttm` facts today. Balance-sheet series need an additive instant
+  representation, not a relabeled duration.
 - `src/data/sec_edgar/financial_facts.py`: balance-sheet selection returns the single latest
   fact. Multi-year instants need a series request that leaves the latest-only behavior unchanged.
 - `src/data/sec_edgar/filing_document.py`: the bounded filing reader accepts primary `.htm`

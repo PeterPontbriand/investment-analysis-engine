@@ -199,25 +199,10 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
             )
         )
     # SUP-9: direct commands
-    number_basis = "Invalid --eps-basis: Input should be 'three_year_average'"
     growth_basis = "Invalid --eps-basis: Input should be 'three_year_average' or 'fiscal_year'"
     add(
         _check(
-            "SUP-9", _direct("graham-number", "--eps-basis", "bogus"), number_basis, ("--eps-basis",), json_flag=True
-        )
-    )
-    add(
-        _check(
             "SUP-9", _direct("graham-growth", "--eps-basis", "bogus"), growth_basis, ("--eps-basis",), json_flag=True
-        )
-    )
-    add(
-        _check(
-            "SUP-9",
-            _direct("graham-number", "--eps-basis", "ttm"),
-            number_basis,
-            ("--eps-basis",),
-            json_flag=True,
         )
     )
     add(
@@ -283,20 +268,17 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
             )
         )
     # SUP-9: builders
-    for method, basis in (
-        ("graham-number", "Invalid --eps-basis: Input should be 'three_year_average'"),
-        ("graham-growth", "Invalid --eps-basis: Input should be 'three_year_average' or 'fiscal_year'"),
-    ):
-        extra = _GROWTH if method == "graham-growth" else ()
-        add(
-            _check(
-                "SUP-9",
-                ("watchlist", "create", "W", "AAPL", "-a", method, *extra, "--eps-basis", "ttm"),
-                basis,
-                ("--eps-basis",),
-                json_flag=False,
-            )
+    add(
+        _check(
+            "SUP-9",
+            ("watchlist", "create", "W", "AAPL", "-a", "graham-growth", *_GROWTH, "--eps-basis", "ttm"),
+            "Invalid --eps-basis: Input should be 'three_year_average' or 'fiscal_year'",
+            ("--eps-basis",),
+            json_flag=False,
         )
+    )
+    for method in ("graham-number", "graham-growth"):
+        extra = _GROWTH if method == "graham-growth" else ()
         add(
             _check(
                 "SUP-9",
@@ -830,7 +812,7 @@ _ORDER = [
     (("momentum", "AAPL", "--short-window", "0", "--as-of", "bad"), ("--short-window",)),
     (("momentum", "--as-of", "bad", "--save-run"), ("--as-of",)),
     (("graham-number", "AAPL", "--as-of", "bad", "--data-provider", " "), ("--as-of",)),
-    (("graham-number", "AAPL", "--data-provider", " ", "--eps-basis", "bogus"), ("--data-provider",)),
+    (("graham-number", "AAPL", "--data-provider", " ", "--eps=nan"), ("--data-provider",)),
     (("graham-number", "AAPL", "--ticker", "MSFT"), ("TICKER", "--ticker")),
     (("fcf-growth", "AAPL", "--growth-years", "9", "--as-of", "bad"), ("--growth-years",)),
     (("fcf-growth", "AAPL", "--as-of", "bad", "--currency", "XX"), ("--as-of",)),
@@ -982,8 +964,6 @@ _PARITY_CASES = [
     ("graham-number", ("--eps=nan",)),
     ("graham-number", ("--bvps=inf",)),
     ("graham-number", ("--current-price=-inf",)),
-    ("graham-number", ("--eps-basis", "ttm")),
-    ("graham-number", ("--eps-basis", " Three_Year_Average ")),
     ("graham-number", ("--data-provider", "bogus")),
     ("graham-number", ("--data-provider", " SEC_EDGAR ")),
     ("graham-number", ("--as-of", "2025-01-31")),
@@ -1016,3 +996,12 @@ def test_the_direct_command_and_watchlist_create_accept_and_reject_the_same_valu
     if direct.exit_code:
         assert direct.stderr.strip() == watchlist.stderr.strip()
         assert direct.stderr.strip() != ""
+
+
+@pytest.mark.parametrize("basis", ["three_year_average", "ttm"])
+def test_watchlist_create_ignores_an_eps_basis_for_graham_number(basis: str) -> None:
+    """Graham Number has no EPS basis option; a watchlist entry ignores the flag, as it ignores --bvps for Growth."""
+    watchlist = runner.invoke(app, ["watchlist", "create", "W", "AAPL", "-a", "graham-number", "--eps-basis", basis])
+
+    assert watchlist.exit_code == 0, watchlist.output
+    assert "eps_basis" not in watchlist.output

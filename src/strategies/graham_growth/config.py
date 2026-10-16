@@ -6,18 +6,12 @@ from typing import Final, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, StrictFloat, field_validator, model_validator
 
-from src.data.financial.eps_basis import (
-    default_eps_basis_for_provider,
-    is_sec_edgar_provider,
-)
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 
-# Graham Growth's own accepted SEC EDGAR bases, per `docs/user/GRAHAM_GROWTH.md` §"EPS basis":
-# the shared three-year-average default, or an explicit single completed fiscal-year basis for
-# reviewed workflows — a deliberately narrower capability than SEC EDGAR itself, and different
-# from Graham Number's, not an oversight.
-GrahamGrowthEPSBasis = Literal["three_year_average", "ttm", "fiscal_year"]
+GrahamGrowthEPSBasis = Literal["three_year_average", "fiscal_year"]
+"""The EPS bases Graham Growth accepts: the three-year average, or one completed fiscal year."""
 
-_SEC_EDGAR_ACCEPTED_BASES: Final[frozenset[str]] = frozenset({"three_year_average", "fiscal_year"})
+_DEFAULT_EPS_BASIS: Final[GrahamGrowthEPSBasis] = "three_year_average"
 
 
 class GrahamGrowthConfig(BaseModel):
@@ -52,21 +46,10 @@ class GrahamGrowthConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_method(self) -> Self:
-        """Resolve the provider-dependent EPS basis and quote provider.
-
-        SEC EDGAR also accepts an explicit single completed fiscal-year basis alongside its
-        three-year-average default, per `docs/user/FINANCE_MATH.md` §"EPS basis" — a documented,
-        deliberately narrower capability than Graham Number's, not an oversight.
-        """
-        basis = self.eps_basis or default_eps_basis_for_provider(self.security_provider_id)
-        if is_sec_edgar_provider(self.security_provider_id) and basis not in _SEC_EDGAR_ACCEPTED_BASES:
-            allowed = ", ".join(sorted(_SEC_EDGAR_ACCEPTED_BASES))
-            raise ValueError(f"SEC EDGAR requires eps_basis to be one of ({allowed}) (received {basis!r}).")
+        """Resolve the EPS basis and the quote provider."""
         quote_provider = self.quote_provider_id
         if quote_provider is None:
-            quote_provider = (
-                "yfinance" if is_sec_edgar_provider(self.security_provider_id) else self.security_provider_id
-            )
-        object.__setattr__(self, "eps_basis", basis)
+            quote_provider = "yfinance" if self.security_provider_id == SEC_PROVIDER_ID else self.security_provider_id
+        object.__setattr__(self, "eps_basis", self.eps_basis or _DEFAULT_EPS_BASIS)
         object.__setattr__(self, "quote_provider_id", quote_provider)
         return self

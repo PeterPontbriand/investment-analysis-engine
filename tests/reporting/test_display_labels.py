@@ -60,10 +60,6 @@ def test_basis_display_name_three_year_average() -> None:
     assert basis_display_name("three_year_average") == "3-year average"
 
 
-def test_basis_display_name_ttm() -> None:
-    assert basis_display_name("ttm") == "TTM"
-
-
 def test_basis_display_name_fiscal_year_end() -> None:
     assert basis_display_name("fiscal_year_end") == "fiscal-year-end"
 
@@ -336,7 +332,6 @@ def test_provider_display_names_expected_mappings() -> None:
 def test_basis_display_names_expected_mappings() -> None:
     """Pin the explicit Graham basis display-label mappings."""
     assert BASIS_DISPLAY_NAMES["three_year_average"] == "3-year average"
-    assert BASIS_DISPLAY_NAMES["ttm"] == "TTM"
     assert BASIS_DISPLAY_NAMES["fiscal_year_end"] == "fiscal-year-end"
     assert BASIS_DISPLAY_NAMES["fiscal_year"] == "fiscal year"
 

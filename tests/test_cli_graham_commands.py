@@ -79,12 +79,14 @@ def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
                 "20",
                 "--data-provider",
                 " SEC_EDGAR ",
-                "--eps-basis",
-                " THREE_YEAR_AVERAGE ",
                 "--as-of",
                 "2025-12-31T12:00:00Z",
                 "--no-cache",
-                *(["-g", "5", "-y", "4.5"] if command == "graham-growth" else ["--bvps", "20"]),
+                *(
+                    ["-g", "5", "-y", "4.5", "--eps-basis", " THREE_YEAR_AVERAGE "]
+                    if command == "graham-growth"
+                    else ["--bvps", "20"]
+                ),
             ],
         )
     assert result.exit_code == 0, result.output
@@ -92,7 +94,8 @@ def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
     assert isinstance(selection, GrahamGrowthSelection if command == "graham-growth" else GrahamNumberSelection)
     assert selection.security_provider_id == "sec_edgar"
     assert selection.quote_provider_id == "yfinance"
-    assert selection.eps_basis == "three_year_average"
+    if isinstance(selection, GrahamGrowthSelection):
+        assert selection.eps_basis == "three_year_average"
     assert selection.eps_override == 3.0
     assert selection.quote_override == 20.0
     assert selection.as_of == datetime(2025, 12, 31, 12, tzinfo=UTC)
@@ -141,27 +144,43 @@ def test_command_exception_closes_cache_and_preserves_exit(command: str, error: 
 
 
 @pytest.mark.parametrize("command", ["graham-number", "graham-growth"])
-@pytest.mark.parametrize(
-    "options", [["--eps-basis", "unknown"], ["--eps-basis", "ttm"], ["--details", "--json"], ["--as-of", "bad"]]
-)
+@pytest.mark.parametrize("options", [["--details", "--json"], ["--as-of", "bad"]])
 def test_usage_validation_precedes_resources(command: str, options: list[str]) -> None:
     with (
         patch("src.cli_support.SQLiteDatabase") as database,
         patch(f"src.strategies.{command.replace('-', '_')}.cli.build_graham_resolver") as build,
     ):
         result = CliRunner().invoke(app, [*_arguments(command), *options])
-    assert result.exit_code == 1
-    assert "input_value" not in result.output
-    assert "validation error for" not in result.output
-    assert "errors.pydantic.dev" not in result.output
+    _assert_usage_error_without_resources(result.exit_code, result.output, database, build)
+
+
+@pytest.mark.parametrize("options", [["--eps-basis", "unknown"], ["--eps-basis", "ttm"]])
+def test_graham_growth_basis_validation_precedes_resources(options: list[str]) -> None:
+    with (
+        patch("src.cli_support.SQLiteDatabase") as database,
+        patch("src.strategies.graham_growth.cli.build_graham_resolver") as build,
+    ):
+        result = CliRunner().invoke(app, [*_arguments("graham-growth"), *options])
+    _assert_usage_error_without_resources(result.exit_code, result.output, database, build)
+
+
+def _assert_usage_error_without_resources(exit_code: int, output: str, database: MagicMock, build: MagicMock) -> None:
+    assert exit_code == 1
+    assert "input_value" not in output
+    assert "validation error for" not in output
+    assert "errors.pydantic.dev" not in output
     database.assert_not_called()
     build.assert_not_called()
 
 
-@pytest.mark.parametrize("command", ["graham-number", "graham-growth"])
-def test_missing_ticker_names_the_invoking_command(command: str) -> None:
-    arguments = _arguments(command)
-    arguments.remove(SECURITY_ID)
-    result = CliRunner().invoke(app, arguments)
-    assert result.exit_code == 1
-    assert f"ian {command} TICKER" in normalize_cli_output(result.output)
+@pytest.mark.parametrize("basis", ["three_year_average", "ttm"])
+def test_graham_number_has_no_eps_basis_option(basis: str) -> None:
+    with (
+        patch("src.cli_support.SQLiteDatabase") as database,
+        patch("src.strategies.graham_number.cli.build_graham_resolver") as build,
+    ):
+        result = CliRunner().invoke(app, [*_arguments("graham-number"), "--eps-basis", basis])
+    assert result.exit_code == 2
+    assert "No such option: --eps-basis" in normalize_cli_output(result.output)
+    database.assert_not_called()
+    build.assert_not_called()
