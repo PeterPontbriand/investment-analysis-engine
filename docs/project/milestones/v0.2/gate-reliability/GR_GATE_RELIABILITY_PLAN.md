@@ -92,7 +92,8 @@ position and work-package status.
 - **Scope:** `tests/live/conftest.py`, `tests/test_live_leak_attribution.py`, this plan,
   [`PROVIDER_DEBUGGING.md`](../../../PROVIDER_DEBUGGING.md), the long-verification paragraph in `AGENTS.md` §10, and the
   `LAY` bullet under the sequence table in [`IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md), which also records
-  PKG.1 to PKG.3 as complete. The default suite's strict leak gate is unchanged.
+  PKG.1 to PKG.3 as complete, and `tests/config/test_strategy_settings.py`, where one redundant assertion failed
+  whenever the temporary path contained `-7`. The default suite's strict leak gate is unchanged.
 - **Branch:** `fix/gr-2a-live-leak-attribution`, from `main`.
 - **Detail:** the issue and its decision comment, [#152](https://github.com/PeterPontbriand/investment-analysis-engine/issues/152);
   the headers and comments of the two files above.
