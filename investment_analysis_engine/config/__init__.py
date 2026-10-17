@@ -4,7 +4,6 @@
 import dataclasses
 import os
 import re
-import tomllib
 from collections import defaultdict
 from collections.abc import Mapping
 from pathlib import Path
@@ -65,17 +64,6 @@ def load_user_dotenv(environ: Mapping[str, str]) -> Path:
 
 # Populate the process environment from the user's .env file before any setting is read.
 load_user_dotenv(os.environ)
-
-
-def load_config_file(file_path: str) -> dict[str, Any]:
-    """Load configuration values from a specified TOML file profile."""
-    try:
-        with open(file_path, "rb") as f:
-            return tomllib.load(f)
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Configuration file not found at path: {file_path}") from None
-    except tomllib.TOMLDecodeError:
-        raise ValueError(f"Failed to decode configuration file at path: {file_path}") from None
 
 
 def _nested_field_names(annotation: object) -> frozenset[str] | None:
