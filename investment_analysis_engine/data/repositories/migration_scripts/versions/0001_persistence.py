@@ -7,7 +7,6 @@ This revision is a frozen schema snapshot; never import mutable application meta
 """
 
 import sqlalchemy as sa
-
 from alembic import op
 
 revision: str = "0001_persistence"

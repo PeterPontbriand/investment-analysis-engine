@@ -6,9 +6,9 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from alembic import command
 from alembic.config import Config
 
-from alembic import command
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
 from investment_analysis_engine.data.quality import QualityContext, QualityDecision, QualityOutcome

@@ -10,7 +10,9 @@ import pytest
 from investment_analysis_engine.core.settings_error import StrategySettingsError
 from investment_analysis_engine.main import main
 
-_MESSAGE = "Settings file config/strategies/momentum.toml is invalid: short_window: Input should be greater than 0."
+_MESSAGE = (
+    "Settings file C:/settings/strategies/momentum.toml is invalid: short_window: Input should be greater than 0."
+)
 
 
 @pytest.mark.parametrize("arguments", [["ian", "--help"], ["ian", "momentum", "KO"]])

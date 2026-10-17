@@ -17,13 +17,13 @@ from typing import Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import OperationalError
 from typer.testing import CliRunner, Result
 
 import investment_analysis_engine.cli_workspace
-from alembic import command
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_strategy_wiring import CLI_BUILDERS
 from investment_analysis_engine.cli_support import (

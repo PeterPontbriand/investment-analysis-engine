@@ -81,33 +81,33 @@ def build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInp
     )
 
 
-def _strategy_settings_directory() -> Path:
-    """Return the folder that holds the strategy settings files."""
-    return settings.base_dir / "config" / "strategies"
+def _settings_folder() -> Path:
+    """Return the user's settings folder, which may hold strategy settings files that override the shipped ones."""
+    return settings.base_dir
 
 
 def momentum_settings() -> MomentumSettings:
     """Return Momentum's validated settings, loaded once per process."""
-    return load_strategy_settings(MOMENTUM.alias, MomentumSettings, _strategy_settings_directory())
+    return load_strategy_settings(MOMENTUM.alias, MomentumSettings, _settings_folder())
 
 
 def graham_growth_settings() -> GrahamGrowthSettings:
     """Return Graham Growth's validated settings, loaded once per process."""
-    return load_strategy_settings(GRAHAM_GROWTH.alias, GrahamGrowthSettings, _strategy_settings_directory())
+    return load_strategy_settings(GRAHAM_GROWTH.alias, GrahamGrowthSettings, _settings_folder())
 
 
 def load_all_strategy_settings() -> None:
-    """Load and validate the settings file of every strategy that declares one.
+    """Load and validate the settings of every strategy that declares a settings model.
 
-    Called once at startup, so a missing or invalid file stops every command with one message.
+    Called once at startup, so an invalid file stops every command with one message.
 
     Raises:
-        StrategySettingsError: If a declared file is missing, is not valid TOML or does not satisfy its model.
+        StrategySettingsError: If a shipped file is missing, a file is not valid TOML or the values break a rule.
     """
-    directory = _strategy_settings_directory()
+    folder = _settings_folder()
     for descriptor in STRATEGIES:
         if descriptor.settings_type is not None:
-            load_strategy_settings(descriptor.alias, descriptor.settings_type, directory)
+            load_strategy_settings(descriptor.alias, descriptor.settings_type, folder)
 
 
 __all__ = [

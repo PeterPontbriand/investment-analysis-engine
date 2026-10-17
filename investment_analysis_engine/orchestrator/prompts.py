@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from pydantic import BaseModel
 
 from .rules import load_runtime_rules
@@ -16,21 +14,21 @@ DEFAULT_SYSTEM_PROMPT = (
 
 
 class SystemPromptBuilder(BaseModel):
-    """Build a system prompt with optional runtime rules and tool schemas."""
+    """Build a system prompt from the base instructions, the shipped runtime rules and optional tool schemas."""
 
-    base_instructions: str = DEFAULT_SYSTEM_PROMPT
     tool_schemas_json: str | None = None
-    rules_path: Path | str | None = None  # optional override
-    inject_runtime_rules: bool = True  # feature flag
 
     def build(self) -> str:
-        """Build the system prompt, optionally injecting runtime rules and tool schemas."""
-        prompt = self.base_instructions
+        """Build the system prompt: base instructions, the runtime rules and any tool schemas.
 
-        if self.inject_runtime_rules:
-            rules = load_runtime_rules(self.rules_path)
-            if rules:
-                prompt += "\n\n# RUNTIME AGENT RULES\n" + rules
+        Raises:
+            OSError: If the runtime rules file shipped with the package cannot be read.
+        """
+        prompt = DEFAULT_SYSTEM_PROMPT
+
+        rules = load_runtime_rules()
+        if rules:
+            prompt += "\n\n# RUNTIME AGENT RULES\n" + rules
 
         if self.tool_schemas_json:
             prompt += f"\n\nAVAILABLE TOOLS SCHEMA:\n{self.tool_schemas_json}\n"

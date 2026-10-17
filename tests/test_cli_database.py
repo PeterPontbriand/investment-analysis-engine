@@ -14,7 +14,6 @@ from typer.testing import CliRunner
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories import migrations, readiness, readiness_lock
-from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import normalize_cli_output
 
 
@@ -35,8 +34,7 @@ def _synthetic_head_graph(tmp_path: Path) -> migrations.MigrationResources:
     on-disk revision, so the base graph is copied and a single child revision is
     added on top of it.
     """
-    repository = REPOSITORY_ROOT
-    source = repository / "alembic"
+    source = migrations.migration_resources().directory
     directory = tmp_path / "cli-synthetic-alembic"
     shutil.copytree(source, directory, ignore=shutil.ignore_patterns("__pycache__"))
     head = "zz99_cli_synthetic"

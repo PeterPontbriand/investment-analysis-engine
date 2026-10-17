@@ -4,12 +4,12 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from alembic import command, op
 from alembic.config import Config
 from sqlalchemy import BigInteger, bindparam, inspect, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
 
-from alembic import command, op
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories.schema import metadata
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase

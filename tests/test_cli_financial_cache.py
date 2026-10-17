@@ -9,10 +9,10 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from typer.testing import CliRunner
 
-from alembic import command
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_composition import build_graham_resolver
 from investment_analysis_engine.cli_support import _production_financial_cache

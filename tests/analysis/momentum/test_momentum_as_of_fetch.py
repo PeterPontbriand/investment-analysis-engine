@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from alembic import command
 from alembic.config import Config
 
-from alembic import command
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.base_client import BaseDataClient

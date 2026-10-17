@@ -24,7 +24,6 @@ raises rather than silently dropping or corrupting that data.
 """
 
 import sqlalchemy as sa
-
 from alembic import op
 
 revision: str = "0003_watchlist_entries"
@@ -104,7 +103,7 @@ def downgrade() -> None:
             "WHERE watchlist_id = ? ORDER BY position",
             (watchlist_id,),
         ).fetchall()
-        per_watchlist_rows[watchlist_id] = [tuple(row) for row in rows]  # type: ignore[misc]
+        per_watchlist_rows[watchlist_id] = [tuple(row) for row in rows]
 
         tickers = sorted({row[0] for row in rows})
         selection_by_method: dict[str, tuple[int, str]] = {}
@@ -169,7 +168,7 @@ def downgrade() -> None:
         ),
     )
 
-    for watchlist_id, rows in per_watchlist_rows.items():
+    for watchlist_id, rows in per_watchlist_rows.items():  # type: ignore[assignment]
         seen_tickers: dict[str, int] = {}
         seen_methods: dict[str, int] = {}
         for ticker, method_id, config_schema_version, selection_json in rows:

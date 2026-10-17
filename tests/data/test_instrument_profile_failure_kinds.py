@@ -9,10 +9,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from sqlalchemy import update
 
-from alembic import command
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.base_client import DataFetchError

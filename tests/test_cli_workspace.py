@@ -9,13 +9,13 @@ from uuid import UUID
 
 import pytest
 import typer
+from alembic import command
 from alembic.config import Config
 from pydantic import ValidationError
 from sqlalchemy import update
 from typer.testing import CliRunner
 
 import investment_analysis_engine.cli_workspace
-from alembic import command
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings

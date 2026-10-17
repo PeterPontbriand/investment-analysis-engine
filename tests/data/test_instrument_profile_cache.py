@@ -8,9 +8,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from alembic import command
 from alembic.config import Config
 
-from alembic import command
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.instrument_profile import (
     InstrumentKind,

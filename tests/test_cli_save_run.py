@@ -16,10 +16,10 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from typer.testing import CliRunner
 
-from alembic import command
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings

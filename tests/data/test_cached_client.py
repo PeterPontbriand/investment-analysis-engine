@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from alembic import command
 from alembic.config import Config
 from pandas.testing import assert_frame_equal
 
-from alembic import command
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.base_client import BaseDataClient, DataFetchError
 from investment_analysis_engine.data.cached_client import CachedHistoricalDataClient

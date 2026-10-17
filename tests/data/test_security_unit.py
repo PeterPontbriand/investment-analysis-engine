@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -13,8 +12,9 @@ from investment_analysis_engine.data.security_unit import (
     SecurityUnitKind,
     evaluate_security_unit_compatibility,
 )
+from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_FIXTURE_ROOT
 
-_FIXTURE = Path("tests/fixtures/sec_edgar/step_2_5a_d0/nvo_security_unit_evidence.json")
+_FIXTURE = SEC_FPI_FIXTURE_ROOT / "nvo_security_unit_evidence.json"
 
 
 def _ordinary_evidence(**changes: object) -> SecurityUnitEvidence:

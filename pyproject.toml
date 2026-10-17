@@ -59,6 +59,15 @@ package = true
 where = ["."]
 include = ["investment_analysis_engine*"]
 
+[tool.setuptools.package-data]
+investment_analysis_engine = [
+    "orchestrator/RUNTIME_AGENTS.md",
+    "strategies/*/settings.toml",
+    "evaluation/fixtures/sec_edgar/step_2_5a_d0/*",
+    "data/repositories/migration_scripts/env.py",
+    "data/repositories/migration_scripts/versions/*.py",
+]
+
 [tool.ruff]
 line-length = 120
 target-version = "py312"

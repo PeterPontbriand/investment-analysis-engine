@@ -10,6 +10,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 import pytest
+from alembic import command
 from alembic.config import Config
 from pandas.testing import assert_frame_equal
 from pydantic import ValidationError
@@ -17,7 +18,6 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from alembic import command
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
 from investment_analysis_engine.data.repositories import market_data

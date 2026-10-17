@@ -19,7 +19,6 @@ from investment_analysis_engine.data.repositories.readiness import (
     ensure_database_ready,
 )
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
-from scripts.repository_root import REPOSITORY_ROOT
 
 
 def database_for(path: Path) -> SQLiteDatabase:
@@ -41,8 +40,7 @@ def _synthetic_migration_resources(tmp_path: Path, *, failing: bool) -> migratio
     revision is added. When ``failing`` is set that child applies a partial table and
     then raises, exercising the rollback path.
     """
-    repository = REPOSITORY_ROOT
-    source = repository / "alembic"
+    source = migrations.migration_resources().directory
     directory = tmp_path / "synthetic-alembic"
     shutil.copytree(source, directory, ignore=shutil.ignore_patterns("__pycache__"))
     base_head = migrations.migration_resources().head
@@ -258,7 +256,7 @@ def test_known_ancestor_requires_explicit_upgrade(tmp_path: Path, monkeypatch: p
             ensure_database_ready(database)
         assert caught.value.reason is ReadinessReason.UPGRADE_REQUIRED
         assert "synthetic_next" in str(caught.value)
-        assert "uv run ian db upgrade" in str(caught.value)
+        assert "\n\n    ian db upgrade\n\n" in str(caught.value)
         assert "--database-url" in str(caught.value)
         assert caught.value.database_path == path
         assert caught.value.expected_revision == "synthetic_next"

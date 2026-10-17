@@ -28,13 +28,13 @@ _ISSUER_BY_FIXTURE_ID = {
     SEC_FPI_SAP_FIXTURE_ID: "sap",
     SEC_FPI_NVO_FIXTURE_ID: "nvo",
 }
-_FIXTURE_ROOT = PACKAGE_ROOT.parent / "tests" / "fixtures" / "sec_edgar" / "step_2_5a_d0"
+SEC_FPI_FIXTURE_ROOT: Final = PACKAGE_ROOT / "evaluation" / "fixtures" / "sec_edgar" / "step_2_5a_d0"
 _USER_AGENT = "Step 2.5A Golden fixture tests@example.invalid"
 
 
 def _load(name: str) -> Any:
     """Load one checked-in D0 evidence fragment."""
-    return json.loads((_FIXTURE_ROOT / name).read_text(encoding="utf-8"))
+    return json.loads((SEC_FPI_FIXTURE_ROOT / name).read_text(encoding="utf-8"))
 
 
 class _FrozenSecFetcher:

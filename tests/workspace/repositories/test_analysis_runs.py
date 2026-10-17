@@ -7,10 +7,10 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from sqlalchemy import delete, select, update
 
-from alembic import command
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.instrument_profile import InstrumentKind

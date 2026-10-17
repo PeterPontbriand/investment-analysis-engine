@@ -6,10 +6,10 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from pandas.testing import assert_frame_equal
 
-from alembic import command
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
 from investment_analysis_engine.data.financial.cache import ResolvedInputCacheEntry, ResolvedInputCacheKey

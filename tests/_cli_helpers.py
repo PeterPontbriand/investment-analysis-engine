@@ -35,9 +35,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from alembic import command
 from alembic.config import Config
 
-from alembic import command
 from investment_analysis_engine.config import ProjectSettings
 from scripts.repository_root import REPOSITORY_ROOT
 

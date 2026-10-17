@@ -26,10 +26,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import patch
 
+from alembic import command
 from alembic.config import Config
 from typer.testing import CliRunner
 
-from alembic import command
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.market_data import HistoricalMarketData
