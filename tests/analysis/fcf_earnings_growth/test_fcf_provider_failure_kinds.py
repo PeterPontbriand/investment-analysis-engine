@@ -10,23 +10,28 @@ from datetime import datetime
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.core.metric_result import ReasonCode
-from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
-from src.data.financial.facts import FinancialFactRequest, FinancialField, FinancialProviderError, ProviderFact
-from src.data.financial.resolution_trace import ResolutionOutcome
-from src.evaluation.fixtures.fcf_earnings_growth import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from investment_analysis_engine.data.financial.facts import (
+    FinancialFactRequest,
+    FinancialField,
+    FinancialProviderError,
+    ProviderFact,
+)
+from investment_analysis_engine.data.financial.resolution_trace import ResolutionOutcome
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     PROVIDER_ID,
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
-from src.strategies.fcf_growth.input_resolver import (
+from investment_analysis_engine.strategies.fcf_growth.input_resolver import (
     AnnualGrowthSeriesAssembly,
     FinancialFieldProvider,
     resolve_annual_growth_series,
 )
-from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
-from src.strategies.fcf_growth.vocabulary import FCFClassificationBasis
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import FCFClassificationBasis
 from tests.analysis.fcf_earnings_growth.test_fcf_earnings_growth_input_resolver import NOW
 
 _KINDS = list(ProviderFailureKind)

@@ -4,10 +4,10 @@ from unittest.mock import ANY, MagicMock, patch
 
 from typer.testing import CliRunner
 
-from src.cli import app
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.data.yfinance.client import YFINANCE_PROVIDER_ID
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
+from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 
 runner = CliRunner()
@@ -27,8 +27,12 @@ def _growth_args(*extra: str) -> list[str]:
 
 def test_growth_default_routes_sec_three_year_average_and_yahoo_quote() -> None:
     with (
-        patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=MagicMock()) as mock_build,
-        patch("src.strategies.graham_growth.cli._run_graham_growth", return_value=("ok", 0)) as mock_run,
+        patch(
+            "investment_analysis_engine.strategies.graham_growth.cli.build_graham_resolver", return_value=MagicMock()
+        ) as mock_build,
+        patch(
+            "investment_analysis_engine.strategies.graham_growth.cli._run_graham_growth", return_value=("ok", 0)
+        ) as mock_run,
     ):
         result = runner.invoke(app, _growth_args())
 

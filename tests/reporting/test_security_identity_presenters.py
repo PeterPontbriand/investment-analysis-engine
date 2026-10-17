@@ -6,37 +6,47 @@ import json
 from dataclasses import replace
 from datetime import UTC, datetime
 
-from src.analysis.base_analyzer import AnalysisContext
-from src.core.analysis_status import CalculationStatus
-from src.core.constants import TrendStatus
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.base_client import DataFetchError
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.data.security_identity import (
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.constants import TrendStatus
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.security_identity import (
     SecurityIdentity,
     SecurityIdentityRequest,
     SecurityIdentityResolution,
     resolve_security_identity,
 )
-from src.evaluation.fixtures.fcf_earnings_growth import (
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
-from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
-from src.reporting.presentation import PresentationMode
-from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
-from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy, FCFEarningsGrowthResult
-from src.strategies.fcf_growth.presenter import render_fcf_earnings_growth
-from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
-from src.strategies.graham_growth.presenter import GrahamGrowthPresentation, render_graham_growth
-from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
-from src.strategies.graham_number.presenter import GrahamNumberPresentation, render_graham_number
-from src.strategies.momentum.analyzer import MomentumConfig, MomentumMetrics
-from src.strategies.momentum.presenter import MomentumPresentation, render_momentum
+from investment_analysis_engine.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
+from investment_analysis_engine.reporting.presentation import PresentationMode
+from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from investment_analysis_engine.strategies.fcf_growth.models import (
+    FCFEarningsGrowthConfig,
+    FCFEarningsGrowthPolicy,
+    FCFEarningsGrowthResult,
+)
+from investment_analysis_engine.strategies.fcf_growth.presenter import render_fcf_earnings_growth
+from investment_analysis_engine.strategies.graham_growth.calculation import (
+    GrahamGrowthValueResult,
+    GrowthValueInputAssembly,
+)
+from investment_analysis_engine.strategies.graham_growth.presenter import GrahamGrowthPresentation, render_graham_growth
+from investment_analysis_engine.strategies.graham_number.calculation import (
+    GrahamNumberInputAssembly,
+    GrahamNumberResult,
+)
+from investment_analysis_engine.strategies.graham_number.presenter import GrahamNumberPresentation, render_graham_number
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumConfig, MomentumMetrics
+from investment_analysis_engine.strategies.momentum.presenter import MomentumPresentation, render_momentum
 
 NOW = datetime(2026, 8, 29, 20, 0, tzinfo=UTC)
 

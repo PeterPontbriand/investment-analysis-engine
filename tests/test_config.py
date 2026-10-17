@@ -9,8 +9,8 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.engine import make_url
 
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 
 
 @pytest.fixture(autouse=True)
@@ -160,7 +160,7 @@ def test_import_does_not_create_database(tmp_path: Path, monkeypatch: pytest.Mon
     monkeypatch.setenv("IAN_LOG_DIR", str(tmp_path / "logs"))
     monkeypatch.setenv("IAN_TELEMETRY_LOG_DIR", str(tmp_path / "telemetry"))
     result = subprocess.run(
-        [sys.executable, "-c", "import src.config"],
+        [sys.executable, "-c", "import investment_analysis_engine.config"],
         cwd=REPOSITORY_ROOT,
         capture_output=True,
         text=True,
@@ -201,7 +201,7 @@ _PARTLY_ANCHORED = [
 @pytest.fixture
 def windows_rules(monkeypatch: pytest.MonkeyPatch) -> None:
     """Apply the Windows path rule on any operating system."""
-    monkeypatch.setattr("src.config.paths.is_windows", lambda: True)
+    monkeypatch.setattr("investment_analysis_engine.config.paths.is_windows", lambda: True)
     for name in ("IAN_LOG_DIR", "IAN_TELEMETRY_LOG_DIR"):
         monkeypatch.delenv(name, raising=False)
 
@@ -230,7 +230,7 @@ def test_partly_anchored_paths_are_not_checked_off_windows(
     field: str, value: object, message: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     del message
-    monkeypatch.setattr("src.config.paths.is_windows", lambda: False)
+    monkeypatch.setattr("investment_analysis_engine.config.paths.is_windows", lambda: False)
     ProjectSettings.model_validate({field: value})
 
 
@@ -336,6 +336,7 @@ def test_provider_check_timeout_rejects_a_value_that_is_not_a_positive_bounded_n
 
 def test_the_suite_turns_the_provider_check_off_in_one_place() -> None:
     """tests/conftest.py sets the variable before any import, so the settings every command reads have it off."""
-    from src.config import settings  # noqa: PLC0415 - the process-wide settings the commands read
+    # The process-wide settings the commands read.
+    from investment_analysis_engine.config import settings  # noqa: PLC0415
 
     assert settings.provider_check is False

@@ -4,16 +4,21 @@ from collections.abc import Callable
 
 import pytest
 
-from src.analysis.run_models import RunOutcome
-from src.core.failure_classification import provider_failure_of
-from src.core.provider_failure_element import ProviderFailure
-from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
-from src.data.base_client import DataFetchError
-from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import RUN_SPECS_BY_KEY
-from src.workspace.capture import ExecutionCapture
-from src.workspace.refresh import RefreshJobResult, RefreshPolicy, RefreshSummary, refresh_watchlist
-from src.workspace.strategy_types import AnalysisSelection
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.core.failure_classification import provider_failure_of
+from investment_analysis_engine.core.provider_failure_element import ProviderFailure
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategy_wiring import RUN_SPECS_BY_KEY
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.refresh import (
+    RefreshJobResult,
+    RefreshPolicy,
+    RefreshSummary,
+    refresh_watchlist,
+)
+from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 from tests._wiring import failure_text
 from tests.workspace.test_refresh import (
     NOW,

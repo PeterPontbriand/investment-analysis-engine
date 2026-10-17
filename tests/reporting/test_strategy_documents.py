@@ -9,17 +9,21 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.data.security_identity import IdentityResolutionStatus, SecurityIdentity, SecurityIdentityResolution
-from src.reporting.documents.shared_parts import (
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.data.security_identity import (
+    IdentityResolutionStatus,
+    SecurityIdentity,
+    SecurityIdentityResolution,
+)
+from investment_analysis_engine.reporting.documents.shared_parts import (
     DiagnosticPart,
     MetricResultPart,
     resolved_input_part,
     security_identity_part,
 )
-from src.strategies.fcf_growth import envelope as fcf_envelope
-from src.strategies.momentum import envelope as momentum_envelope
-from src.strategy_wiring import FCF_GROWTH, STRATEGIES
+from investment_analysis_engine.strategies.fcf_growth import envelope as fcf_envelope
+from investment_analysis_engine.strategies.momentum import envelope as momentum_envelope
+from investment_analysis_engine.strategy_wiring import FCF_GROWTH, STRATEGIES
 from tests._strategy_document_output import expected_path
 
 _STAMP = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)

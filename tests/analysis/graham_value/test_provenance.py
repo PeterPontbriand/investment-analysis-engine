@@ -1,4 +1,4 @@
-"""Tests for src.data.financial.provenance models."""
+"""Tests for investment_analysis_engine.data.financial.provenance models."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from math import inf, nan
 
 import pytest
 
-from src.data.financial.provenance import (
+from investment_analysis_engine.data.financial.provenance import (
     AccountingScope,
     CapitalExpenditureSign,
     ComponentLineage,

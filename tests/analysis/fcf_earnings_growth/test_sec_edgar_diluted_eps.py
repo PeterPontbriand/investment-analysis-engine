@@ -8,10 +8,14 @@ from typing import Any
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.financial.facts import FinancialFactRequest, FinancialField, FinancialUnit
-from src.data.financial.provenance import AccountingScope, FinancialSubjectKind, PeriodKind
-from src.data.sec_edgar.financial_facts import SEC_EPS_FIELD, SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, FinancialUnit
+from investment_analysis_engine.data.financial.provenance import AccountingScope, FinancialSubjectKind, PeriodKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
+    SEC_EPS_FIELD,
+    SEC_PROVIDER_ID,
+    SecEdgarFinancialFactsAdapter,
+)
 
 NOW = datetime(2026, 8, 29, 16, 0, tzinfo=UTC)
 CIK = 320193

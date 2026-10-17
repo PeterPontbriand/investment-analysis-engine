@@ -13,20 +13,31 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.cli_support import InternalDefectError
-from src.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.base_client import DataFetchError
-from src.data.financial.facts import FinancialProviderError
-from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
-from src.data.quality import HistoricalDataQualityError, QualityContext, evaluate_historical_quality
-from src.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
-from src.reporting.replay_inputs import UnsupportedProjectionError
-from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
-from src.workspace.refresh import EmptyRefreshTargetError
-from src.workspace.repositories.analysis_runs import AnalysisRunConflictError
-from src.workspace.repositories.watchlists import WatchlistConflictError, WatchlistEntryNotFoundError
-from src.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError
+from investment_analysis_engine.cli_support import InternalDefectError
+from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.financial.facts import FinancialProviderError
+from investment_analysis_engine.data.market_data import (
+    HistoricalMarketData,
+    MarketDataContext,
+    NoEligibleObservationsError,
+)
+from investment_analysis_engine.data.quality import (
+    HistoricalDataQualityError,
+    QualityContext,
+    evaluate_historical_quality,
+)
+from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.reporting.replay_inputs import UnsupportedProjectionError
+from investment_analysis_engine.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
+from investment_analysis_engine.workspace.refresh import EmptyRefreshTargetError
+from investment_analysis_engine.workspace.repositories.analysis_runs import AnalysisRunConflictError
+from investment_analysis_engine.workspace.repositories.watchlists import (
+    WatchlistConflictError,
+    WatchlistEntryNotFoundError,
+)
+from investment_analysis_engine.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError
 
 
 @dataclass(frozen=True)

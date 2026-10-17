@@ -16,16 +16,15 @@ from pathlib import Path
 import pytest
 import typer
 
-from scripts import strategy_conformance as conformance
-from src.cli import app
-from src.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy, add_strategy_commands
-from src.core.repository_root import REPOSITORY_ROOT
-from src.core.strategy_errors import UndeclaredStrategyError, require
-from src.evaluation.composition import FixtureDependencies, compose_fixture_dependencies
-from src.evaluation.models import Case
-from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy
-from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
-from src.strategy_wiring import (
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy, add_strategy_commands
+from investment_analysis_engine.core.repository_root import PACKAGE_ROOT
+from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, require
+from investment_analysis_engine.evaluation.composition import FixtureDependencies, compose_fixture_dependencies
+from investment_analysis_engine.evaluation.models import Case
+from investment_analysis_engine.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy
+from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
+from investment_analysis_engine.strategy_wiring import (
     BY_ALIAS,
     BY_ARGUMENTS,
     BY_METHOD_ID,
@@ -40,11 +39,11 @@ from src.strategy_wiring import (
     build_indexes,
     run_specs_by_key,
 )
+from scripts import strategy_conformance as conformance
 
-_SRC = REPOSITORY_ROOT / "src"
-_WIRING = _SRC / "strategy_wiring.py"
-_TIER = _SRC / "evaluation" / "strategy_fixtures.py"
-_CLI_TIER = _SRC / "cli_strategy_wiring.py"
+_WIRING = PACKAGE_ROOT / "strategy_wiring.py"
+_TIER = PACKAGE_ROOT / "evaluation" / "strategy_fixtures.py"
+_CLI_TIER = PACKAGE_ROOT / "cli_strategy_wiring.py"
 _ALL = build_indexes(STRATEGIES)
 _WITHOUT_FCF = tuple(item for item in STRATEGIES if item is not FCF_GROWTH)
 
@@ -85,7 +84,7 @@ def test_t3_result_types_match_the_analyzers_found_by_package_walk() -> None:
 
 
 def test_t4_tool_surfaces_agree() -> None:
-    """``ToolName``, the descriptors and the src-defined argument models name the same tools."""
+    """``ToolName``, the descriptors and the package-defined argument models name the same tools."""
     assert conformance.tool_surface_gaps(STRATEGIES) == []
     gaps = conformance.tool_surface_gaps(_WITHOUT_FCF)
     assert any("ANALYZE_FCF_EARNINGS_GROWTH is in ToolName but no descriptor binds it" in gap for gap in gaps)
@@ -283,10 +282,12 @@ def test_t14_wiring_files_declare_no_discovery_or_registration() -> None:
     assert _TIER in files
     assert _CLI_TIER in files
     cli_files = {path for path in files if path.name == "cli.py" and path.parent.parent.name == "strategies"}
-    assert cli_files == set((_SRC / "strategies").rglob("cli.py"))
+    assert cli_files == set((PACKAGE_ROOT / "strategies").rglob("cli.py"))
     evaluation_files = {path for path in files if path.name == "evaluation.py"}
-    assert evaluation_files == set((_SRC / "strategies").rglob("evaluation.py"))
-    strategy_packages = {path.name for path in (_SRC / "strategies").iterdir() if path.is_dir() and path.name[0] != "_"}
+    assert evaluation_files == set((PACKAGE_ROOT / "strategies").rglob("evaluation.py"))
+    strategy_packages = {
+        path.name for path in (PACKAGE_ROOT / "strategies").iterdir() if path.is_dir() and path.name[0] != "_"
+    }
     assert strategy_packages <= {path.parent.name for path in evaluation_files}
     assert len(files) > 30
     assert conformance.discovery_gaps(files) == []
@@ -314,7 +315,7 @@ def test_t14_reports_each_kind_of_drift(tmp_path: Path) -> None:
     source.write_text(
         "import importlib\n"
         "from pkgutil import walk_packages\n"
-        "from src.cli import app\n"
+        "from investment_analysis_engine.cli import app\n"
         "import typer\n"
         "\n"
         "\n"
@@ -445,7 +446,7 @@ def test_t16_every_field_and_view_accessor_is_read_outside_the_root() -> None:
 def test_t16_counts_only_reads_on_descriptor_typed_expressions() -> None:
     """``descriptor.tool`` counts; the same attribute on a selection or a plain variable does not."""
     snippet = (
-        "from src.strategy_wiring import STRATEGIES, BY_TOOL, StrategyDescriptor\n"
+        "from investment_analysis_engine.strategy_wiring import STRATEGIES, BY_TOOL, StrategyDescriptor\n"
         "def f(selection, one: StrategyDescriptor, many: tuple[StrategyDescriptor, ...]):\n"
         "    selection.analysis_id\n"
         "    one.tool\n"
@@ -472,7 +473,8 @@ def test_t16_reports_a_field_nothing_reads(tmp_path: Path) -> None:
     """A field or accessor with no read outside the defining module is reported by name."""
     reader = tmp_path / "reader.py"
     reader.write_text(
-        "from src.strategy_wiring import STRATEGIES\nfor d in STRATEGIES:\n    d.tool\n", encoding="utf-8"
+        "from investment_analysis_engine.strategy_wiring import STRATEGIES\nfor d in STRATEGIES:\n    d.tool\n",
+        encoding="utf-8",
     )
     gaps = conformance.unused_field_gaps([reader], _WIRING)
     assert "tool is never read outside strategy_wiring.py" not in gaps
@@ -656,7 +658,7 @@ def test_t8_reports_a_presenter_that_writes_an_identifier_its_document_model_rej
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The check can fail at the output boundary: a drifted identifier constant is rejected by the model."""
-    monkeypatch.setattr("src.strategies.momentum.presenter.ANALYSIS_ID", "drifted")
+    monkeypatch.setattr("investment_analysis_engine.strategies.momentum.presenter.ANALYSIS_ID", "drifted")
     gaps = conformance.replay_gaps(STRATEGIES)
     assert any(
         gap.startswith("strategy ('momentum', 'sma_crossover'): replay in json mode raised ValidationError")

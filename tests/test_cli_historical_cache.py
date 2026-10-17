@@ -13,19 +13,19 @@ from alembic.config import Config
 from typer.testing import CliRunner
 
 from alembic import command
-from src.analysis.base_analyzer import AnalysisContext
-from src.cli import app
-from src.cli_support import _production_historical_client
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.base_client import DataFetchError
-from src.data.instrument_profile import InstrumentProfile
-from src.data.market_data import HistoricalMarketData, MarketDataContext
-from src.data.repositories.market_data import SQLiteMarketDataRepository
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.yfinance.client import YFinanceClient
-from src.evaluation.fixtures.market_data import FixtureDataClient, momentum_success_frame
-from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.cli_support import _production_historical_client
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.instrument_profile import InstrumentProfile
+from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
+from investment_analysis_engine.data.repositories.market_data import SQLiteMarketDataRepository
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.yfinance.client import YFinanceClient
+from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient, momentum_success_frame
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
 
 NOW = datetime(2026, 9, 6, tzinfo=UTC)
 
@@ -37,7 +37,7 @@ def configured_settings(tmp_path: Path, request: pytest.FixtureRequest) -> Itera
     config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
     if request.param == "ready":
         command.upgrade(config, "head")
-    with patch("src.cli_support.settings", settings):
+    with patch("investment_analysis_engine.cli_support.settings", settings):
         yield settings
 
 
@@ -73,17 +73,20 @@ def test_momentum_cli_reuses_history_and_preserves_profile_provider(
     profile = InstrumentProfile(ticker="ACME", identity=None, kind_evidence=None, diagnostics=())
     args = ["momentum", "ACME", "--short-window", "2", "--long-window", "3", "--rsi-period", "3", "--json"]
     with (
-        patch("src.strategies.momentum.cli.YFinanceClient", return_value=provider),
+        patch("investment_analysis_engine.strategies.momentum.cli.YFinanceClient", return_value=provider),
         patch.object(
             provider, "fetch_historical_data", side_effect=[history, AssertionError("Unexpected refetch")]
         ) as fetch,
         patch.object(provider, "fetch_current_price", side_effect=AssertionError("Historical analysis needs no quote")),
-        patch("src.strategies.momentum.execution.compose_instrument_profile", return_value=profile) as compose,
-        patch("src.cli_support.SQLiteDatabase", side_effect=database),
+        patch(
+            "investment_analysis_engine.strategies.momentum.execution.compose_instrument_profile", return_value=profile
+        ) as compose,
+        patch("investment_analysis_engine.cli_support.SQLiteDatabase", side_effect=database),
     ):
         first = CliRunner().invoke(app, args)
         with patch(
-            "src.data.repositories.readiness.upgrade_fresh_database", side_effect=AssertionError("Unexpected migration")
+            "investment_analysis_engine.data.repositories.readiness.upgrade_fresh_database",
+            side_effect=AssertionError("Unexpected migration"),
         ):
             second = CliRunner().invoke(app, args)
     assert first.exit_code == 0, first.output
@@ -126,9 +129,9 @@ def test_settings_control_reuse_age(
     configured_settings.historical_cache_ttl_seconds = ttl
     provider = YFinanceClient()
     with (
-        patch("src.data.cached_client.datetime", wraps=datetime) as clock,
+        patch("investment_analysis_engine.data.cached_client.datetime", wraps=datetime) as clock,
         patch(
-            "src.cli_support.SQLiteMarketDataRepository",
+            "investment_analysis_engine.cli_support.SQLiteMarketDataRepository",
             side_effect=lambda db: SQLiteMarketDataRepository(db, clock=lambda: NOW),
         ),
         patch.object(provider, "fetch_historical_data", return_value=history) as fetch,
@@ -156,7 +159,7 @@ def test_storage_closes_after_provider_error(configured_settings: ProjectSetting
     database = SQLiteDatabase(configured_settings)
     provider = YFinanceClient()
     with (
-        patch("src.cli_support.SQLiteDatabase", return_value=database),
+        patch("investment_analysis_engine.cli_support.SQLiteDatabase", return_value=database),
         patch.object(provider, "fetch_historical_data", side_effect=DataFetchError("offline")),
         pytest.raises(DataFetchError, match="offline"),
         _production_historical_client(provider, use_cache=True, clock=lambda: NOW) as client,
@@ -171,8 +174,11 @@ def test_disabled_cache_never_checks_readiness(tmp_path: Path) -> None:
     settings = ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'absent.sqlite3').as_posix()}")
     provider = YFinanceClient()
     with (
-        patch("src.cli_support.settings", settings),
-        patch("src.cli_support.ensure_database_ready", side_effect=AssertionError("must not check readiness")),
+        patch("investment_analysis_engine.cli_support.settings", settings),
+        patch(
+            "investment_analysis_engine.cli_support.ensure_database_ready",
+            side_effect=AssertionError("must not check readiness"),
+        ),
         _production_historical_client(provider, use_cache=False, clock=lambda: NOW),
     ):
         pass
@@ -183,7 +189,8 @@ def test_custom_analyzer_client_remains_direct(history: HistoricalMarketData) ->
     custom = FixtureDataClient()
     with (
         patch(
-            "src.cli_support.SQLiteDatabase", side_effect=AssertionError("Custom clients do not use production storage")
+            "investment_analysis_engine.cli_support.SQLiteDatabase",
+            side_effect=AssertionError("Custom clients do not use production storage"),
         ),
         patch.object(custom, "fetch_data_with_context", return_value=history) as fetch,
     ):
@@ -203,15 +210,26 @@ def _momentum_options_run(
     profile = InstrumentProfile(ticker="ACME", identity=None, kind_evidence=None, diagnostics=())
     with ExitStack() as stack:
         stack.enter_context(
-            patch("src.cli_support.settings", ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+            patch(
+                "investment_analysis_engine.cli_support.settings",
+                ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"),
+            )
         )
-        stack.enter_context(patch("src.strategies.momentum.cli.YFinanceClient", return_value=provider))
+        stack.enter_context(
+            patch("investment_analysis_engine.strategies.momentum.cli.YFinanceClient", return_value=provider)
+        )
         fetch = stack.enter_context(patch.object(provider, "fetch_historical_data", return_value=history))
-        stack.enter_context(patch("src.strategies.momentum.execution.compose_instrument_profile", return_value=profile))
+        stack.enter_context(
+            patch(
+                "investment_analysis_engine.strategies.momentum.execution.compose_instrument_profile",
+                return_value=profile,
+            )
+        )
         if guard_readiness:
             stack.enter_context(
                 patch(
-                    "src.cli_support.ensure_database_ready", side_effect=AssertionError("Database must not be migrated")
+                    "investment_analysis_engine.cli_support.ensure_database_ready",
+                    side_effect=AssertionError("Database must not be migrated"),
                 )
             )
         result = CliRunner().invoke(

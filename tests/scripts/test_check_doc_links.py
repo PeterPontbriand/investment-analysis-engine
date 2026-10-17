@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from scripts.check_doc_links import (
     check_repository,
     check_repository_diagrams,
@@ -16,7 +17,6 @@ from scripts.check_doc_links import (
     list_tracked_markdown_files,
     slugify,
 )
-from src.core.repository_root import REPOSITORY_ROOT
 
 
 class TestSlugify:

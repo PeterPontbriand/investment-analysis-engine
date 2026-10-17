@@ -13,13 +13,13 @@ from alembic.config import Config
 from sqlalchemy import update
 
 from alembic import command
-from src.config import ProjectSettings
-from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.base_client import DataFetchError
-from src.data.financial.facts import FinancialProviderError
-from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.data.instrument_profile import (
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.financial.facts import FinancialProviderError
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.data.instrument_profile import (
     InstrumentKind,
     InstrumentKindEvidence,
     InstrumentKindRequest,
@@ -31,21 +31,21 @@ from src.data.instrument_profile import (
     compose_instrument_profile,
     profile_identity_resolution,
 )
-from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
-from src.data.repositories.instrument_profiles import (
+from investment_analysis_engine.data.instrument_profile_cache import CachedInstrumentProfileResolver
+from investment_analysis_engine.data.repositories.instrument_profiles import (
     INSTRUMENT_PROFILE_SCHEMA_VERSION,
     SQLiteInstrumentProfileRepository,
 )
-from src.data.repositories.schema import instrument_profiles
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.security_identity import (
+from investment_analysis_engine.data.repositories.schema import instrument_profiles
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.security_identity import (
     IdentityResolutionStatus,
     SecurityIdentity,
     SecurityIdentityRequest,
     SecurityIdentityResolution,
     resolve_security_identity,
 )
-from src.data.security_unit import (
+from investment_analysis_engine.data.security_unit import (
     SecurityUnitRequest,
     SecurityUnitResolution,
     SecurityUnitResolutionReason,

@@ -5,23 +5,23 @@ import sys
 
 import pytest
 
-from src.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 
 
 @pytest.mark.parametrize(
     "first_module",
     [
-        "src.data.repositories",
-        "src.data.repositories.trajectory",
-        "src.telemetry",
-        "src.telemetry.sinks.sqlite",
+        "investment_analysis_engine.data.repositories",
+        "investment_analysis_engine.data.repositories.trajectory",
+        "investment_analysis_engine.telemetry",
+        "investment_analysis_engine.telemetry.sinks.sqlite",
     ],
 )
 def test_repository_and_telemetry_import_order(first_module: str) -> None:
     script = (
         f"import {first_module}\n"
-        "from src.data.repositories.trajectory import SQLiteTrajectoryRepository\n"
-        "from src.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory\n"
+        "from investment_analysis_engine.data.repositories.trajectory import SQLiteTrajectoryRepository\n"
+        "from investment_analysis_engine.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory\n"
     )
     result = subprocess.run(
         [sys.executable, "-c", script],

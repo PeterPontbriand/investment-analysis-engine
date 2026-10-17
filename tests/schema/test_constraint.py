@@ -3,14 +3,14 @@
 import pytest
 from pydantic import BaseModel, Field
 
-from src.schema.constraint import (
+from investment_analysis_engine.schema.constraint import (
     SchemaConstraint,
     build_schema_constraint,
     detect_ollama_schema_support,
     format_schema_for_ollama,
 )
-from src.schema.exceptions import SchemaConstraintError
-from src.schema.models import ToolCallResponse
+from investment_analysis_engine.schema.exceptions import SchemaConstraintError
+from investment_analysis_engine.schema.models import ToolCallResponse
 
 
 class SimpleModel(BaseModel):

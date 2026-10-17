@@ -6,48 +6,58 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.data.quality import HistoricalDataQualityError
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.evaluation.fixture_context import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.data.quality import HistoricalDataQualityError
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.evaluation.fixture_context import (
     FixtureCompositionError,
     FixtureContext,
     build_fixture_context,
     require_fixture_evidence,
 )
-from src.evaluation.fixtures.fcf_earnings_growth import (
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FCF_GROWTH_HISTORICAL_AS_OF,
     FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
     FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
     FCF_GROWTH_SUCCESS_FIXTURE_ID,
 )
-from src.evaluation.fixtures.graham import (
+from investment_analysis_engine.evaluation.fixtures.graham import (
     GOLDEN_PRECEDENCE_EPS_OVERRIDE,
     GRAHAM_FACTS_FIXTURE_ID,
     GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
     NOW,
     SECURITY_ID,
 )
-from src.evaluation.fixtures.graham import PROVIDER_ID as GRAHAM_PROVIDER_ID
-from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER, KNOWN_ETF_PROFILE_FIXTURE_ID
-from src.evaluation.fixtures.market_data import MOMENTUM_BOUNDARY_FIXTURE_ID, MOMENTUM_SUCCESS_FIXTURE_ID
-from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_ASML_FIXTURE_ID, SEC_FPI_FIXTURE_IDS, SEC_FPI_SAP_FIXTURE_ID
-from src.evaluation.models import Case, Expectation
-from src.orchestrator.tool_runtime import ToolRuntime
-from src.strategies._graham.evaluation import graham_inputs
-from src.strategies.fcf_growth import evaluation as fcf_growth_evaluation
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
-from src.strategies.fcf_growth.vocabulary import HistoricalHorizon
-from src.strategies.graham_growth import evaluation as graham_growth_evaluation
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
-from src.strategies.graham_number import evaluation as graham_number_evaluation
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategies.graham_number.tool import GrahamNumberToolArguments
-from src.strategies.momentum import evaluation as momentum_evaluation
-from src.strategies.momentum.analyzer import MomentumRun
-from src.strategy_wiring import FCF_GROWTH, GRAHAM_GROWTH, GRAHAM_NUMBER, MOMENTUM
+from investment_analysis_engine.evaluation.fixtures.graham import PROVIDER_ID as GRAHAM_PROVIDER_ID
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
+    GOLDEN_ETF_TICKER,
+    KNOWN_ETF_PROFILE_FIXTURE_ID,
+)
+from investment_analysis_engine.evaluation.fixtures.market_data import (
+    MOMENTUM_BOUNDARY_FIXTURE_ID,
+    MOMENTUM_SUCCESS_FIXTURE_ID,
+)
+from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import (
+    SEC_FPI_ASML_FIXTURE_ID,
+    SEC_FPI_FIXTURE_IDS,
+    SEC_FPI_SAP_FIXTURE_ID,
+)
+from investment_analysis_engine.evaluation.models import Case, Expectation
+from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
+from investment_analysis_engine.strategies._graham.evaluation import graham_inputs
+from investment_analysis_engine.strategies.fcf_growth import evaluation as fcf_growth_evaluation
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from investment_analysis_engine.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import HistoricalHorizon
+from investment_analysis_engine.strategies.graham_growth import evaluation as graham_growth_evaluation
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
+from investment_analysis_engine.strategies.graham_number import evaluation as graham_number_evaluation
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategies.graham_number.tool import GrahamNumberToolArguments
+from investment_analysis_engine.strategies.momentum import evaluation as momentum_evaluation
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
+from investment_analysis_engine.strategy_wiring import FCF_GROWTH, GRAHAM_GROWTH, GRAHAM_NUMBER, MOMENTUM
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 

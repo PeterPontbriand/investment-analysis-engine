@@ -10,25 +10,25 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from src.config.schema_config import SchemaConfig
-from src.core.trajectory_events import TrajectoryEvent, TrajectoryEventType
-from src.evaluation import ollama_runner
-from src.evaluation.catalog import build_deterministic_requests
-from src.evaluation.models import ComponentKind, ComponentOutcome, ComponentResult
-from src.evaluation.ollama_runner import (
+from investment_analysis_engine.config.schema_config import SchemaConfig
+from investment_analysis_engine.core.trajectory_events import TrajectoryEvent, TrajectoryEventType
+from investment_analysis_engine.evaluation import ollama_runner
+from investment_analysis_engine.evaluation.catalog import build_deterministic_requests
+from investment_analysis_engine.evaluation.models import ComponentKind, ComponentOutcome, ComponentResult
+from investment_analysis_engine.evaluation.ollama_runner import (
     NondeterministicOutcomePolicy,
     OllamaEvaluationConfig,
     OllamaEvaluationResult,
     run_real_local_ollama_suite,
 )
-from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
-from src.evaluation.runner import DeterministicCaseRequest
-from src.llm.client import LLMClient, LLMGenerateResult
-from src.orchestrator.tool_names import ToolName
-from src.orchestrator.types import ToolCallRequest
-from src.telemetry.recorder import TrajectoryRecorder
-from src.telemetry.run_context import RunContext
-from src.tools.parser import ToolNotFoundError
+from investment_analysis_engine.evaluation.reporting import CaseEvaluationResult, CaseOutcome
+from investment_analysis_engine.evaluation.runner import DeterministicCaseRequest
+from investment_analysis_engine.llm.client import LLMClient, LLMGenerateResult
+from investment_analysis_engine.orchestrator.tool_names import ToolName
+from investment_analysis_engine.orchestrator.types import ToolCallRequest
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
+from investment_analysis_engine.telemetry.run_context import RunContext
+from investment_analysis_engine.tools.parser import ToolNotFoundError
 
 EXECUTED_AT = datetime(2026, 8, 31, 20, 0, tzinfo=UTC)
 

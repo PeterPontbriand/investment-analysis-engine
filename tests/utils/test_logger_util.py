@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.utils.logger_util import (
+from investment_analysis_engine.utils.logger_util import (
     ThreadSafeSizeAwareTimedRotatingFileHandler,
     wait_for_log_compression_shutdown,
 )

@@ -8,14 +8,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
-from src.data.base_client import DataFetchError
-from src.data.financial.facts import FinancialProviderError
-from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.data.sec_edgar.filing_document import FilingReaderPolicy, fetch_filing, filing_url
-from src.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
-from src.data.sec_edgar.security_unit import UnitMappingError, parse_unit_document
-from src.data.security_unit import SecurityUnitRequest, SecurityUnitResolutionReason
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.financial.facts import FinancialProviderError
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.data.sec_edgar.filing_document import FilingReaderPolicy, fetch_filing, filing_url
+from investment_analysis_engine.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
+from investment_analysis_engine.data.sec_edgar.security_unit import UnitMappingError, parse_unit_document
+from investment_analysis_engine.data.security_unit import SecurityUnitRequest, SecurityUnitResolutionReason
 
 NOW = datetime(2026, 9, 9, tzinfo=UTC)
 ACCESSION = "0001628280-26-010047"
@@ -287,7 +287,9 @@ def test_transport_enforces_size_timeout_user_agent_and_no_redirects() -> None:
     opener = MagicMock()
     response = opener.open.return_value.__enter__.return_value
     response.read.return_value = b"<html />"
-    with patch("src.data.sec_edgar.filing_document.build_opener", return_value=opener) as builder:
+    with patch(
+        "investment_analysis_engine.data.sec_edgar.filing_document.build_opener", return_value=opener
+    ) as builder:
         assert fetch_filing(url, headers={"User-Agent": "Synthetic"}, policy=policy, **_FILING_KEYWORDS) == "<html />"
         opener.open.assert_called_once()
         assert opener.open.call_args.kwargs["timeout"] == 3

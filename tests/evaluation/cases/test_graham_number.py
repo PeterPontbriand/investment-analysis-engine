@@ -7,9 +7,9 @@ from uuid import UUID
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.core.trajectory_events import TrajectoryEvent
-from src.evaluation.cases.graham_number import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
+from investment_analysis_engine.evaluation.cases.graham_number import (
     GRA_ETF_01,
     GRAHAM_NUMBER_ARGUMENTS,
     GRAHAM_NUMBER_CASES,
@@ -18,14 +18,14 @@ from src.evaluation.cases.graham_number import (
     GRN_04,
     GRN_05,
 )
-from src.evaluation.composition import dispatch_fixture_case
-from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
-from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
-from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
-from src.orchestrator.tool_names import ToolName
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.telemetry.recorder import TrajectoryRecorder
-from src.telemetry.run_context import RunContext
+from investment_analysis_engine.evaluation.composition import dispatch_fixture_case
+from investment_analysis_engine.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
+from investment_analysis_engine.evaluation.reporting import CaseEvaluationResult, CaseOutcome
+from investment_analysis_engine.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
+from investment_analysis_engine.orchestrator.tool_names import ToolName
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
+from investment_analysis_engine.telemetry.run_context import RunContext
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("70000000-0000-0000-0000-000000000007")

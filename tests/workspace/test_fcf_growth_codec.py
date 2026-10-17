@@ -6,14 +6,19 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.run_models import RunOutcome
-from src.core.analysis_status import CalculationStatus
-from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
-from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
-from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
-from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
-from src.data.security_identity import SecurityIdentity
-from src.data.security_unit import (
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
+from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
+from investment_analysis_engine.data.financial.resolution_trace import (
+    ResolutionEvent,
+    ResolutionOutcome,
+    ResolutionStage,
+    ResolutionTrace,
+)
+from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
+from investment_analysis_engine.data.security_identity import SecurityIdentity
+from investment_analysis_engine.data.security_unit import (
     SecurityUnitDocument,
     SecurityUnitEvidence,
     SecurityUnitKind,
@@ -21,23 +26,27 @@ from src.data.security_unit import (
     SecurityUnitResolution,
     SecurityUnitResolutionReason,
 )
-from src.strategies.fcf_growth.models import (
+from investment_analysis_engine.strategies.fcf_growth.models import (
     AnnualGrowthObservation,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
 )
-from src.strategies.fcf_growth.selection import FCFGrowthSelection
-from src.strategies.fcf_growth.vocabulary import (
+from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     Classification,
     FCFClassificationBasis,
     ForwardEvidenceStatus,
     ForwardPolicy,
     TrendClassification,
 )
-from src.strategy_wiring import EVIDENCE_BY_KEY
-from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence
-from src.workspace.runs import AnalysisRun
+from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY
+from investment_analysis_engine.workspace.codecs import (
+    InvalidStoredRunError,
+    UnsupportedRunVersionError,
+    decode_evidence,
+)
+from investment_analysis_engine.workspace.runs import AnalysisRun
 from tests._wiring import codecs_with_decode, encode_native
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
@@ -388,7 +397,9 @@ def test_decoding_is_pure_and_does_not_mutate_payload(monkeypatch: pytest.Monkey
     def unexpected(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("Replay must not execute analysis")
 
-    monkeypatch.setattr("src.strategies.fcf_growth.analyzer.FCFEarningsGrowthAnalyzer.run_analysis", unexpected)
+    monkeypatch.setattr(
+        "investment_analysis_engine.strategies.fcf_growth.analyzer.FCFEarningsGrowthAnalyzer.run_analysis", unexpected
+    )
     for name in (
         "compute_free_cash_flow",
         "compute_fcf_per_diluted_share",
@@ -396,7 +407,7 @@ def test_decoding_is_pure_and_does_not_mutate_payload(monkeypatch: pytest.Monkey
         "compute_fcf_yield",
         "classify_fcf_earnings_growth",
     ):
-        monkeypatch.setattr(f"src.strategies.fcf_growth.calculators.{name}", unexpected)
+        monkeypatch.setattr(f"investment_analysis_engine.strategies.fcf_growth.calculators.{name}", unexpected)
     restored = decode_evidence(run, EVIDENCE_BY_KEY)
     assert isinstance(restored, FCFEarningsGrowthResult)
     assert restored.fcf_cagr.value == 0.0

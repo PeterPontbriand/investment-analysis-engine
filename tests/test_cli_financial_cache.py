@@ -13,20 +13,23 @@ from alembic.config import Config
 from typer.testing import CliRunner
 
 from alembic import command
-from src.cli import app
-from src.cli_composition import build_graham_resolver
-from src.cli_support import _production_financial_cache
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.financial.cache import InMemoryResolvedInputCache
-from src.data.financial.facts import FinancialFactRequest, ProviderFact
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.instrument_profile import InstrumentProfile
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, FixtureFinancialFactsProvider
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.cli_composition import build_graham_resolver
+from investment_analysis_engine.cli_support import _production_financial_cache
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
+from investment_analysis_engine.data.financial.facts import FinancialFactRequest, ProviderFact
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.instrument_profile import InstrumentProfile
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
+    FixtureAnnualFinancialFactsProvider,
+    annual_series,
+)
+from investment_analysis_engine.evaluation.fixtures.graham import NOW, PROVIDER_ID, FixtureFinancialFactsProvider
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 
 class GrahamProvider:
@@ -56,7 +59,7 @@ def configured_database(tmp_path: Path, request: pytest.FixtureRequest) -> Itera
     config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
     if request.param == "ready":
         command.upgrade(config, "head")
-    with patch("src.cli_support.settings", settings):
+    with patch("investment_analysis_engine.cli_support.settings", settings):
         yield path
 
 
@@ -91,15 +94,23 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
         return instance
 
     with (
-        patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=provider),
-        patch("src.cli_composition.build_sec_production_provider", return_value=provider),
-        patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
-        patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=profile),
-        patch("src.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile),
-        patch("src.cli_support.SQLiteDatabase", side_effect=database),
-        patch("src.strategies.graham_number.cli.utc_now", return_value=NOW),
-        patch("src.strategies.graham_growth.cli.utc_now", return_value=NOW),
-        patch("src.strategies.fcf_growth.cli.utc_now", return_value=NOW),
+        patch(
+            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=provider
+        ),
+        patch("investment_analysis_engine.cli_composition.build_sec_production_provider", return_value=provider),
+        patch(
+            "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile", return_value=profile
+        ),
+        patch(
+            "investment_analysis_engine.strategies.graham_growth.execution.compose_graham_profile", return_value=profile
+        ),
+        patch(
+            "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile
+        ),
+        patch("investment_analysis_engine.cli_support.SQLiteDatabase", side_effect=database),
+        patch("investment_analysis_engine.strategies.graham_number.cli.utc_now", return_value=NOW),
+        patch("investment_analysis_engine.strategies.graham_growth.cli.utc_now", return_value=NOW),
+        patch("investment_analysis_engine.strategies.fcf_growth.cli.utc_now", return_value=NOW),
     ):
         first = CliRunner().invoke(app, arguments)
         assert first.exit_code == 0, first.output
@@ -110,7 +121,7 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
         with (
             patch.object(annual, "fetch_facts", side_effect=AssertionError("Unexpected provider access")),
             patch(
-                "src.data.repositories.readiness.upgrade_fresh_database",
+                "investment_analysis_engine.data.repositories.readiness.upgrade_fresh_database",
                 side_effect=AssertionError("Unexpected migration"),
             ),
         ):
@@ -167,13 +178,27 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
         arguments += ["--expected-growth", "5", "--aaa-yield", "4.5"]
     profile = InstrumentProfile(ticker=ticker, identity=None, kind_evidence=None, diagnostics=())
     with (
-        patch("src.cli_support.settings", ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")),
-        patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=provider),
-        patch("src.cli_composition.build_sec_production_provider", return_value=provider),
-        patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
-        patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=profile),
-        patch("src.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile),
-        patch("src.cli_support.ensure_database_ready", side_effect=AssertionError("Database must not be migrated")),
+        patch(
+            "investment_analysis_engine.cli_support.settings",
+            ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"),
+        ),
+        patch(
+            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=provider
+        ),
+        patch("investment_analysis_engine.cli_composition.build_sec_production_provider", return_value=provider),
+        patch(
+            "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile", return_value=profile
+        ),
+        patch(
+            "investment_analysis_engine.strategies.graham_growth.execution.compose_graham_profile", return_value=profile
+        ),
+        patch(
+            "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile
+        ),
+        patch(
+            "investment_analysis_engine.cli_support.ensure_database_ready",
+            side_effect=AssertionError("Database must not be migrated"),
+        ),
     ):
         result = CliRunner().invoke(app, arguments)
     assert result.exit_code == 0, result.output
@@ -187,7 +212,7 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
 def test_cache_scope_closes_on_error(configured_database: Path) -> None:
     database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{configured_database.as_posix()}"))
     with (
-        patch("src.cli_support.SQLiteDatabase", return_value=database),
+        patch("investment_analysis_engine.cli_support.SQLiteDatabase", return_value=database),
         pytest.raises(ValueError, match="analysis failed"),
         _production_financial_cache(use_cache=True, clock=lambda: NOW),
     ):
@@ -198,7 +223,9 @@ def test_cache_scope_closes_on_error(configured_database: Path) -> None:
 
 def test_explicit_memory_cache_is_retained() -> None:
     cache = InMemoryResolvedInputCache(clock=lambda: NOW)
-    with patch("src.cli_composition.build_sec_production_provider", return_value=GrahamProvider()):
+    with patch(
+        "investment_analysis_engine.cli_composition.build_sec_production_provider", return_value=GrahamProvider()
+    ):
         resolver = build_graham_resolver(
             resolver_type=GrahamNumberInputResolver, data_provider=None, cache=cache, clock=lambda: NOW
         )

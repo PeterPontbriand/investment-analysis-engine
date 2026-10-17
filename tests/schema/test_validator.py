@@ -5,9 +5,9 @@ import json
 import pytest
 from pydantic import BaseModel, ConfigDict
 
-from src.schema.exceptions import SchemaValidationError
-from src.schema.models import ToolCallResponse
-from src.schema.validator import (
+from investment_analysis_engine.schema.exceptions import SchemaValidationError
+from investment_analysis_engine.schema.models import ToolCallResponse
+from investment_analysis_engine.schema.validator import (
     ValidationErrorType,
     ValidationResult,
     build_retry_messages,

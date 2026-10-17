@@ -58,8 +58,8 @@ position and work-package status.
   filters (`error::ResourceWarning`, `error::pytest.PytestUnraisableExceptionWarning`). The guard closes the socket it
   blocks before it raises; the guard test closes its socket; `fetch_json` and `fetch_filing` close an `HTTPError`
   before it propagates, and classification still reads only its code. Nothing a caller sees changes.
-- **Scope:** `tests/_network_guard.py`, `tests/test_network_guard.py`, `src/data/http_json.py`,
-  `src/data/sec_edgar/filing_document.py`, `tests/data/test_transport_failure_kinds.py`, one line in
+- **Scope:** `tests/_network_guard.py`, `tests/test_network_guard.py`, `investment_analysis_engine/data/http_json.py`,
+  `investment_analysis_engine/data/sec_edgar/filing_document.py`, `tests/data/test_transport_failure_kinds.py`, one line in
   `pyproject.toml` (permitted by the project owner), this plan, `AGENTS.md` §7 and the quality-gate section of
   `docs/project/README.md`.
 - **Branch:** `fix/gr-2-resource-leaks`, from `main`.

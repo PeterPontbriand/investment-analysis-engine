@@ -9,7 +9,7 @@ Use project tooling through `uv run`.
 Typical full test/coverage command:
 
 ```bash
-uv run pytest --cov=src --cov-report=term-missing
+uv run pytest --cov=investment_analysis_engine --cov-report=term-missing
 ```
 
 Focused example:

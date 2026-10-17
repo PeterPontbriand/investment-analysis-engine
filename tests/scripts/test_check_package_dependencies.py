@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from scripts.check_package_dependencies import (
     ARCHITECTURE_DOC,
     SOURCE_ROOT_NAME,
@@ -11,7 +12,6 @@ from scripts.check_package_dependencies import (
     collect_imports,
     list_units,
 )
-from src.core.repository_root import REPOSITORY_ROOT
 
 HEADER = "| Package | Layer | Owns | Imports |\n| --- | --- | --- | --- |\n"
 
@@ -42,7 +42,7 @@ def build_repo(tmp_path: Path, files: dict[str, str], rows: list[str]) -> Path:
 
 FILES = {
     "alpha/__init__.py": "",
-    "alpha/mod.py": "from src.beta.thing import value\n",
+    "alpha/mod.py": "from investment_analysis_engine.beta.thing import value\n",
     "beta/__init__.py": "",
     "beta/thing.py": "value = 1\n",
 }
@@ -83,7 +83,7 @@ def test_reports_every_finding_in_one_run(tmp_path: Path) -> None:
 
 
 def test_counts_an_import_inside_a_function(tmp_path: Path) -> None:
-    files = {**FILES, "beta/lazy.py": "def load() -> None:\n    from src.alpha import mod\n"}
+    files = {**FILES, "beta/lazy.py": "def load() -> None:\n    from investment_analysis_engine.alpha import mod\n"}
     edges = collect_imports(build_repo(tmp_path, files, [row("alpha", 0), row("beta", 0)]) / SOURCE_ROOT_NAME)
     assert ("beta", "alpha") in edges
     assert edges[("beta", "alpha")][0][1] == 2
@@ -92,9 +92,9 @@ def test_counts_an_import_inside_a_function(tmp_path: Path) -> None:
 def test_groups_main_and_cli_modules_into_one_cli_unit(tmp_path: Path) -> None:
     files = {
         "__init__.py": "",
-        "main.py": "from src.alpha import mod\n",
-        "cli.py": "import src.beta.thing\n",
-        "cli_support.py": "from src import config\n",
+        "main.py": "from investment_analysis_engine.alpha import mod\n",
+        "cli.py": "import investment_analysis_engine.beta.thing\n",
+        "cli_support.py": "from investment_analysis_engine import config\n",
         "config.py": "settings = 1\n",
         "alpha/__init__.py": "",
         "alpha/mod.py": "",
@@ -108,7 +108,7 @@ def test_groups_main_and_cli_modules_into_one_cli_unit(tmp_path: Path) -> None:
 
 
 def test_ignores_imports_within_one_unit(tmp_path: Path) -> None:
-    files = {**FILES, "alpha/other.py": "from src.alpha.mod import x\n"}
+    files = {**FILES, "alpha/other.py": "from investment_analysis_engine.alpha.mod import x\n"}
     root = build_repo(tmp_path, files, [row("beta", 0), row("alpha", 1, ("beta",))])
     assert check_repository(root) == []
 
@@ -125,13 +125,13 @@ ROLE_FILES = {
     "strategies/__init__.py": "",
     "strategies/s/__init__.py": "",
     "strategies/s/analyzer.py": "VALUE = 1\n",
-    "strategies/s/other.py": "from src.strategies.s import analyzer\n",
-    "strategies/s/cli.py": "from src.strategies.s import analyzer\n",
-    "strategies/s/evaluation.py": "from src.strategies.s import analyzer\n",
-    "strategies/s/execution.py": "from src.strategies.s import analyzer\n",
+    "strategies/s/other.py": "from investment_analysis_engine.strategies.s import analyzer\n",
+    "strategies/s/cli.py": "from investment_analysis_engine.strategies.s import analyzer\n",
+    "strategies/s/evaluation.py": "from investment_analysis_engine.strategies.s import analyzer\n",
+    "strategies/s/execution.py": "from investment_analysis_engine.strategies.s import analyzer\n",
     "strategies/_graham/__init__.py": "",
     "strategies/_graham/helper.py": "VALUE = 1\n",
-    "strategies/_graham/cli.py": "from src.strategies._graham import helper\n",
+    "strategies/_graham/cli.py": "from investment_analysis_engine.strategies._graham import helper\n",
     "strategies/_graham/deeper/cli.py": "",
     "strategies/cli.py": "",
     "user/__init__.py": "",
@@ -152,9 +152,13 @@ def test_role_files_of_a_strategy_package_belong_to_cli_evaluation_and_workspace
 def test_an_import_of_a_role_file_is_attributed_to_the_file_in_both_import_forms(tmp_path: Path) -> None:
     files = {
         **ROLE_FILES,
-        "user/dotted.py": "import src.strategies.s.cli\nimport src.strategies.s.evaluation\n",
+        "user/dotted.py": (
+            "import investment_analysis_engine.strategies.s.cli\n"
+            "import investment_analysis_engine.strategies.s.evaluation\n"
+        ),
         "user/named.py": (
-            "from src.strategies.s import execution\nfrom src.strategies._graham import cli as graham_cli\n"
+            "from investment_analysis_engine.strategies.s import execution\n"
+            "from investment_analysis_engine.strategies._graham import cli as graham_cli\n"
         ),
         "user/relative.py": "from ..strategies.s import cli\n",
     }
@@ -174,11 +178,11 @@ def test_any_other_file_of_a_strategy_package_stays_in_strategies(tmp_path: Path
     files = {
         **ROLE_FILES,
         "user/named.py": (
-            "from src.strategies.s import analyzer, other\n"
-            "from src.strategies._graham import helper\n"
-            "import src.strategies.s.analyzer\n"
-            "import src.strategies._graham.deeper.cli\n"
-            "from src.strategies import cli\n"
+            "from investment_analysis_engine.strategies.s import analyzer, other\n"
+            "from investment_analysis_engine.strategies._graham import helper\n"
+            "import investment_analysis_engine.strategies.s.analyzer\n"
+            "import investment_analysis_engine.strategies._graham.deeper.cli\n"
+            "from investment_analysis_engine.strategies import cli\n"
         ),
     }
     source_root = build_repo(tmp_path, files, []) / SOURCE_ROOT_NAME
@@ -187,15 +191,15 @@ def test_any_other_file_of_a_strategy_package_stays_in_strategies(tmp_path: Path
     assert [line for _, line in edges[("user", "strategies")]] == [1, 1, 2, 3, 4, 5]
 
 
-LOOP_TWO_FILES = {**FILES, "beta/back.py": "import src.alpha.mod\n"}
+LOOP_TWO_FILES = {**FILES, "beta/back.py": "import investment_analysis_engine.alpha.mod\n"}
 
 LOOP_THREE_FILES = {
     "a/__init__.py": "",
-    "a/mod.py": "from src.b import x\n",
+    "a/mod.py": "from investment_analysis_engine.b import x\n",
     "b/__init__.py": "",
-    "b/mod.py": "from src.c import x\n",
+    "b/mod.py": "from investment_analysis_engine.c import x\n",
     "c/__init__.py": "",
-    "c/mod.py": "from src.a import x\n",
+    "c/mod.py": "from investment_analysis_engine.a import x\n",
 }
 
 
@@ -203,7 +207,8 @@ def test_reports_a_loop_of_two_units(tmp_path: Path) -> None:
     root = build_repo(tmp_path, LOOP_TWO_FILES, [row("alpha", 1, ("beta",)), row("beta", 1, ("alpha",))])
     assert check_repository(root) == [
         "'alpha' and 'beta' form an import loop: alpha -> beta -> alpha "
-        "(alpha -> beta at src/alpha/mod.py:1; beta -> alpha at src/beta/back.py:1). "
+        "(alpha -> beta at investment_analysis_engine/alpha/mod.py:1; "
+        "beta -> alpha at investment_analysis_engine/beta/back.py:1). "
         "Remove one of these imports, or move the code, so the loop breaks."
     ]
 
@@ -213,7 +218,8 @@ def test_reports_a_loop_of_three_units(tmp_path: Path) -> None:
     root = build_repo(tmp_path, LOOP_THREE_FILES, rows)
     assert check_repository(root) == [
         "'a', 'b' and 'c' form an import loop: a -> b -> c -> a "
-        "(a -> b at src/a/mod.py:1; b -> c at src/b/mod.py:1; c -> a at src/c/mod.py:1). "
+        "(a -> b at investment_analysis_engine/a/mod.py:1; b -> c at investment_analysis_engine/b/mod.py:1; "
+        "c -> a at investment_analysis_engine/c/mod.py:1). "
         "Remove one of these imports, or move the code, so the loop breaks."
     ]
 

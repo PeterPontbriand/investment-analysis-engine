@@ -18,17 +18,21 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from alembic import command
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.market_data import HistoricalMarketData, MarketDataContext
-from src.data.repositories import market_data
-from src.data.repositories.market_data import (
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
+from investment_analysis_engine.data.repositories import market_data
+from investment_analysis_engine.data.repositories.market_data import (
     MarketDataCacheKey,
     SQLiteMarketDataRepository,
     UnsupportedHistoricalDataError,
 )
-from src.data.repositories.schema import market_data_cache_entries, market_price_observations, schema_metadata
-from src.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.repositories.schema import (
+    market_data_cache_entries,
+    market_price_observations,
+    schema_metadata,
+)
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
 NOW = datetime(2026, 9, 5, 12, 0, 0, 123456, tzinfo=UTC)
 

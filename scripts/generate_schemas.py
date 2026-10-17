@@ -21,9 +21,9 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from src.core.repository_root import REPOSITORY_ROOT
-from src.strategy_wiring import STRATEGIES, StrategyDescriptor
-from src.workspace_documents.json_documents import DOCUMENTS as GENERIC_DOCUMENTS
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
+from investment_analysis_engine.workspace_documents.json_documents import DOCUMENTS as GENERIC_DOCUMENTS
 
 SCHEMA_DIRECTORY = REPOSITORY_ROOT / "schemas"
 
@@ -33,9 +33,9 @@ def strategy_schema_file(descriptor: StrategyDescriptor) -> str:
     return f"{descriptor.alias}.schema.json"
 
 
-# One entry per document: the file name and the typed model it describes. The failure, workspace and database
-# documents come from the table in ``src/workspace_documents/json_documents.py``; each strategy's model is its
-# descriptor's ``json_envelope``, added here because only the composition root may read the descriptors.
+# One entry per document: the file name and the typed model it describes. The failure, workspace and database documents
+# come from the table in ``investment_analysis_engine/workspace_documents/json_documents.py``; each strategy's model is
+# its descriptor's ``json_envelope``, added here because only the composition root may read the descriptors.
 DOCUMENTS: tuple[tuple[str, type[BaseModel]], ...] = (
     *((document.schema_file, document.model) for document in GENERIC_DOCUMENTS),
     *((strategy_schema_file(item), item.json_envelope) for item in STRATEGIES),

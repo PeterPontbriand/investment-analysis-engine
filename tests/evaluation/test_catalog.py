@@ -8,13 +8,13 @@ from uuid import UUID
 
 import pytest
 
-from src.core.trajectory_events import TrajectoryEvent
-from src.evaluation import catalog
-from src.evaluation.cases.fcf_growth import FCF_GROWTH_ARGUMENTS, FCF_GROWTH_CASES
-from src.evaluation.cases.graham_growth import GRAHAM_GROWTH_ARGUMENTS, GRAHAM_GROWTH_CASES
-from src.evaluation.cases.graham_number import GRAHAM_NUMBER_ARGUMENTS, GRAHAM_NUMBER_CASES
-from src.evaluation.cases.momentum import MOMENTUM_ARGUMENTS, MOMENTUM_CASES
-from src.evaluation.catalog import (
+from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
+from investment_analysis_engine.evaluation import catalog
+from investment_analysis_engine.evaluation.cases.fcf_growth import FCF_GROWTH_ARGUMENTS, FCF_GROWTH_CASES
+from investment_analysis_engine.evaluation.cases.graham_growth import GRAHAM_GROWTH_ARGUMENTS, GRAHAM_GROWTH_CASES
+from investment_analysis_engine.evaluation.cases.graham_number import GRAHAM_NUMBER_ARGUMENTS, GRAHAM_NUMBER_CASES
+from investment_analysis_engine.evaluation.cases.momentum import MOMENTUM_ARGUMENTS, MOMENTUM_CASES
+from investment_analysis_engine.evaluation.catalog import (
     DETERMINISTIC_CASES,
     DETERMINISTIC_FIXTURE_SET_VERSION,
     DETERMINISTIC_SUITE_ID,
@@ -22,16 +22,22 @@ from src.evaluation.catalog import (
     build_deterministic_requests,
     run_minimum_deterministic_suite,
 )
-from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult, DomainOutcomeExpectation
-from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
-from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
-from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
-from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
-from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
-from src.strategies.graham_number.tool import GrahamNumberToolArguments
-from src.strategies.momentum.tool import MomentumToolArguments
-from src.telemetry.recorder import TrajectoryRecorder
-from src.telemetry.run_context import RunContext
+from investment_analysis_engine.evaluation.models import (
+    Case,
+    ComponentKind,
+    ComponentOutcome,
+    ComponentResult,
+    DomainOutcomeExpectation,
+)
+from investment_analysis_engine.evaluation.reporting import CaseEvaluationResult, CaseOutcome
+from investment_analysis_engine.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
+from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
+from investment_analysis_engine.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
+from investment_analysis_engine.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
+from investment_analysis_engine.strategies.graham_number.tool import GrahamNumberToolArguments
+from investment_analysis_engine.strategies.momentum.tool import MomentumToolArguments
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
+from investment_analysis_engine.telemetry.run_context import RunContext
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("f0000000-0000-0000-0000-00000000000f")

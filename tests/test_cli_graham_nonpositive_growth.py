@@ -4,9 +4,9 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from src.cli import app
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.evaluation.fixtures.graham import (
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.evaluation.fixtures.graham import (
     SECURITY_ID,
 )
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
@@ -18,7 +18,7 @@ runner = CliRunner()
 def test_cli_growth_non_positive_value_explains_omitted_price_comparison() -> None:
     resolver = sec_labeled_growth_resolver()
 
-    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=resolver):
+    with patch("investment_analysis_engine.strategies.graham_growth.cli.build_graham_resolver", return_value=resolver):
         result = runner.invoke(
             app,
             [

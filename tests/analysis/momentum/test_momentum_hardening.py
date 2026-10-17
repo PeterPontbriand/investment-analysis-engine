@@ -5,11 +5,11 @@ from datetime import UTC, datetime
 import pandas as pd
 import pytest
 
-from src.analysis.base_analyzer import AnalysisContext
-from src.core.metric_result import MetricStatus, ReasonCode
-from src.data.quality import HistoricalDataQualityError
-from src.evaluation.fixtures.market_data import FixtureMarketDataProvider
-from src.strategies.momentum.analyzer import (
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
+from investment_analysis_engine.data.quality import HistoricalDataQualityError
+from investment_analysis_engine.evaluation.fixtures.market_data import FixtureMarketDataProvider
+from investment_analysis_engine.strategies.momentum.analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
     MomentumInputResolver,

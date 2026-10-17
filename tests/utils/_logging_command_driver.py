@@ -1,8 +1,8 @@
 """Run one real ``ian momentum`` command offline, for the operational-logging tests.
 
-The driver is executed in a subprocess so that ``src.main.main`` installs the real global logging, the real
-command runs against a migrated throwaway database named by the environment, and the process exits the way the
-installed command does. Only the network is replaced: ``yfinance.download`` returns a canned frame (or nothing),
+The driver is executed in a subprocess so that ``investment_analysis_engine.main.main`` installs the real global
+logging, the real command runs against a migrated throwaway database named by the environment, and the process exits the
+way the installed command does. Only the network is replaced: ``yfinance.download`` returns a canned frame (or nothing),
 the optional Yahoo metadata lookups return nothing, and any socket is refused.
 
 Usage: ``python -m tests.utils._logging_command_driver MODE [--json] [--no-logging]`` where MODE is
@@ -44,28 +44,39 @@ def main(argv: list[str]) -> None:
     patches: list[Any] = [
         patch("socket.socket", _refuse),
         patch.object(socket, "create_connection", _refuse),
-        patch("src.data.yfinance.client.yf.download", return_value=download),
-        patch("src.data.yfinance.client.YFinanceClient._fetch_currency", return_value="USD"),
-        patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None),
-        patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None),
+        patch("investment_analysis_engine.data.yfinance.client.yf.download", return_value=download),
+        patch("investment_analysis_engine.data.yfinance.client.YFinanceClient._fetch_currency", return_value="USD"),
+        patch(
+            "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_security_identity",
+            return_value=None,
+        ),
+        patch(
+            "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None
+        ),
     ]
     if mode == "unexpected":
         patches.append(
-            patch("src.data.yfinance.client.YFinanceClient.fetch_data", side_effect=RuntimeError("driver unexpected"))
+            patch(
+                "investment_analysis_engine.data.yfinance.client.YFinanceClient.fetch_data",
+                side_effect=RuntimeError("driver unexpected"),
+            )
         )
     if mode == "crash":
         patches.append(
-            patch("src.strategies.momentum.cli.provider_check_choice", side_effect=RuntimeError("driver crash"))
+            patch(
+                "investment_analysis_engine.strategies.momentum.cli.provider_check_choice",
+                side_effect=RuntimeError("driver crash"),
+            )
         )
     if no_logging:
-        patches.append(patch("src.main.setup_global_logging", lambda: None))
+        patches.append(patch("investment_analysis_engine.main.setup_global_logging", lambda: None))
     command = ["ian", "momentum", TICKER, "--short-window", SHORT_WINDOW, "--long-window", LONG_WINDOW]
     if json_output:
         command.append("--json")
     sys.argv = command
     for item in patches:
         item.start()
-    from src.main import main as ian_main  # noqa: PLC0415
+    from investment_analysis_engine.main import main as ian_main  # noqa: PLC0415
 
     ian_main()
 

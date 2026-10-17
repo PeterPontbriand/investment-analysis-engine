@@ -7,16 +7,16 @@ from unittest.mock import patch
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data import provider_probe
-from src.data.provider_checks import (
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data import provider_probe
+from investment_analysis_engine.data.provider_checks import (
     PROVIDER_CHECKS,
     CheckVerdict,
     ProviderCheckEntry,
     ProviderCheckResult,
     ProviderClients,
 )
-from src.data.provider_probe import ProbeVerdict, ProviderProbe
+from investment_analysis_engine.data.provider_probe import ProbeVerdict, ProviderProbe
 
 _YAHOO = "yfinance"
 
@@ -269,8 +269,8 @@ def test_an_explicit_time_limit_replaces_the_default_in_each_declared_spec() -> 
         yahoo = connection = sec = object()
 
     with (
-        patch("src.data.provider_checks.check_yfinance", fake_yahoo),
-        patch("src.data.provider_checks.check_sec_edgar", fake_sec),
+        patch("investment_analysis_engine.data.provider_checks.check_yfinance", fake_yahoo),
+        patch("investment_analysis_engine.data.provider_checks.check_sec_edgar", fake_sec),
     ):
         for entry in PROVIDER_CHECKS:
             entry.run(_Clients(), timeout_seconds=10.0)  # type: ignore[arg-type]

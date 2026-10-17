@@ -9,13 +9,13 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.repositories.instrument_profiles import (
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.repositories.instrument_profiles import (
     InstrumentProfileRecord,
     SQLiteInstrumentProfileRepository,
 )
-from src.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
 NOW = datetime(2026, 9, 21, 12, 0, 0, tzinfo=UTC)
 LATER = datetime(2026, 9, 21, 12, 5, 0, tzinfo=UTC)

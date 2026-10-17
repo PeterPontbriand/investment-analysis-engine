@@ -12,29 +12,29 @@ from alembic.config import Config
 from sqlalchemy import select, text
 
 from alembic import command
-from src.analysis.run_models import RunOutcome
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.repositories.schema import analysis_runs, watchlist_entries, watchlists
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.evaluation.fixtures.market_data import FixtureDataClient
-from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_number.selection import GrahamNumberSelection
-from src.strategies.momentum.execution import run_momentum
-from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import RUN_SPECS_BY_KEY
-from src.workspace.capture import ExecutionCapture
-from src.workspace.refresh import refresh_watchlist
-from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
-from src.workspace.repositories.watchlists import (
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.repositories.schema import analysis_runs, watchlist_entries, watchlists
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
+from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
+from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
+from investment_analysis_engine.strategies.momentum.execution import run_momentum
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategy_wiring import RUN_SPECS_BY_KEY
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.refresh import refresh_watchlist
+from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
+from investment_analysis_engine.workspace.repositories.watchlists import (
     DeletedWatchlist,
     SQLiteWatchlistRepository,
     WatchlistConflictError,
     WatchlistEntryNotFoundError,
 )
-from src.workspace.runs import Watchlist
-from src.workspace.strategy_types import AnalysisSelection
-from src.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError, WatchlistSpec
+from investment_analysis_engine.workspace.runs import Watchlist
+from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
+from investment_analysis_engine.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError, WatchlistSpec
 from tests._wiring import alias_for, failure_text
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)

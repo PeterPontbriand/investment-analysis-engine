@@ -18,15 +18,20 @@ import pytest
 from typer.main import get_command
 from typer.testing import CliRunner, Result
 
-from src.cli import app
-from src.cli_provider_check import ProviderCheckChoice, provider_check_findings
-from src.config import ProjectSettings
-from src.core.failure_classification import provider_failure_of
-from src.core.provider_failure_element import ProviderFailure
-from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
-from src.data.base_client import DataFetchError
-from src.data.provider_checks import CheckVerdict, ProviderCheckEntry, ProviderCheckResult, ProviderClients
-from src.data.provider_probe import ProbeFinding, ProbeVerdict, ProviderProbe
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.cli_provider_check import ProviderCheckChoice, provider_check_findings
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.failure_classification import provider_failure_of
+from investment_analysis_engine.core.provider_failure_element import ProviderFailure
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.provider_checks import (
+    CheckVerdict,
+    ProviderCheckEntry,
+    ProviderCheckResult,
+    ProviderClients,
+)
+from investment_analysis_engine.data.provider_probe import ProbeFinding, ProbeVerdict, ProviderProbe
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
 from tests._strategy_document_output import CASES, _enter_providers
 
@@ -128,7 +133,7 @@ def _failing(
         if command == "momentum":
             stack.enter_context(
                 patch(
-                    "src.strategies.momentum.execution.MomentumAnalyzer.run_analysis",
+                    "investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis",
                     side_effect=DataFetchError("library detail", kind=kind, provider_id="yfinance" if kind else None),
                 )
             )
@@ -283,7 +288,7 @@ def test_json_output_prints_nothing_extra_and_carries_the_finding_in_the_documen
 
 
 def test_the_command_is_given_the_probe_built_from_the_settings_when_none_is_injected() -> None:
-    with patch("src.cli.build_provider_probe") as build:
+    with patch("investment_analysis_engine.cli.build_provider_probe") as build:
         build.return_value = _probe({"yfinance": CheckVerdict.NO_DATA}).probe
         with _failing("momentum") as arguments:
             result = runner.invoke(app, arguments)
@@ -293,9 +298,9 @@ def test_the_command_is_given_the_probe_built_from_the_settings_when_none_is_inj
 
 
 def test_the_probe_is_built_from_the_two_settings() -> None:
-    from src.cli import build_provider_probe  # noqa: PLC0415 - the root's own builder
+    from investment_analysis_engine.cli import build_provider_probe  # noqa: PLC0415 - the root's own builder
 
-    with patch("src.cli.settings") as fake_settings:
+    with patch("investment_analysis_engine.cli.settings") as fake_settings:
         fake_settings.provider_check = False
         fake_settings.provider_check_timeout_seconds = 3.5
         probe = build_provider_probe()
@@ -309,7 +314,7 @@ def test_the_failed_call_is_never_retried() -> None:
 
     with (
         patch(
-            "src.strategies.momentum.execution.MomentumAnalyzer.run_analysis",
+            "investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis",
             side_effect=DataFetchError("detail", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance"),
         ) as analysis,
     ):
@@ -489,7 +494,7 @@ def _refresh_failing(
     name = f"Watch {next(_WATCHLIST_NUMBER)}"
     _seed_momentum(settings, name, list(tickers))
     with patch(
-        "src.strategies.momentum.execution.MomentumAnalyzer.run_analysis",
+        "investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis",
         side_effect=DataFetchError("library detail", kind=kind, provider_id="yfinance" if kind else None),
     ):
         return runner.invoke(app, ["refresh", name, "--workers", "1", *extra], obj=probe)
@@ -528,7 +533,9 @@ def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop(
         events.append("job")
         raise DataFetchError("detail", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance")
 
-    with patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis", side_effect=failing):
+    with patch(
+        "investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis", side_effect=failing
+    ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"], obj=probe)
 
     assert result.exit_code == 1

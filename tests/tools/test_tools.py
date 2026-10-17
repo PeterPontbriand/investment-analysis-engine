@@ -2,10 +2,10 @@
 
 import pytest
 
-from src.tools.parser import (
+from investment_analysis_engine.tools.parser import (
     ToolParser,
 )
-from src.tools.schema_generator import ToolRegistry
+from investment_analysis_engine.tools.schema_generator import ToolRegistry
 
 
 @pytest.fixture

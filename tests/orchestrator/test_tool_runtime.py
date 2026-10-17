@@ -6,9 +6,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.data.instrument_profile import InstrumentKind, InstrumentProfile
-from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from src.orchestrator.tool_runtime import ToolRuntime
+from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentProfile
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
 
 NOW = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 

@@ -3,8 +3,13 @@
 from dataclasses import replace
 from datetime import UTC, datetime
 
-from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
-from src.reporting.input_provenance import financial_basis, input_detail_lines, investor_input_lines, investor_value
+from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
+from investment_analysis_engine.reporting.input_provenance import (
+    financial_basis,
+    input_detail_lines,
+    investor_input_lines,
+    investor_value,
+)
 
 NOW = datetime(2026, 9, 11, tzinfo=UTC)
 

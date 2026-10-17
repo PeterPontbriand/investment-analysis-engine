@@ -18,7 +18,7 @@ current codes:
 - `R1` / `R2` — a refactor-work code: the Graham analyzer separation and the analysis-package
   split, both pure refactors with no new functionality.
 - `R3` — a repository-wide dead code audit ([plan](r3/R3_DEAD_CODE_AUDIT_PLAN.md)): locate and remove
-  code, branches, and files that can no longer be reached, across all of `src/`, not scoped to one
+  code, branches, and files that can no longer be reached, across all of `investment_analysis_engine/`, not scoped to one
   strategy or module. Scheduled deliberately before Step 3.5 (which adds seven new
   quantitative-screen analyzers) so the audit runs while the codebase is still a manageable size,
   rather than after another substantial expansion makes the same audit larger and more error-prone.
@@ -44,13 +44,13 @@ current codes:
   untested Massive provider until a requirement makes it worth bringing back. Its row is numbered `11A` so the
   rows after it keep their numbers and sits among the complete rows; it ran inside `PH`, after PH.2b and before PH.2c, and before `PKG`.
 - `PD` — short for "Package Dependencies" ([plan](package-dependencies/PD_PACKAGE_DEPENDENCIES_PLAN.md)): declares what
-  each top-level `src/` package owns and imports in one table, checks it against the code, removes Mermaid from the
+  each top-level `investment_analysis_engine/` package owns and imports in one table, checks it against the code, removes Mermaid from the
   documentation, and files the two-way package pairs ([issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)).
   Its row is numbered `11B` and sits among the complete rows; it ran after `MR` and PH.2c, before issue #40 and PH.3.
 - `LAY` — short for "Layering" ([plan](layering/LAY_CONTRACT_AND_SLICE_PLAN.md)): moves a fixed set of files and names so
-  the top-level `src/` packages form layers with no import loop of any length, and changes the dependency check to
+  the top-level `investment_analysis_engine/` packages form layers with no import loop of any length, and changes the dependency check to
   keep it so (the decision on [issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)).
-  Its row is numbered `12A` so the rows after it keep their numbers; it runs before `PKG`. LAY.4 to LAY.8, GR.2 and 12B are complete; then PKG.1 and PKG.2, then SWC.5 to SWC.7, then Step 3.5;
+  Its row is numbered `12A` so the rows after it keep their numbers; it runs before `PKG`. LAY.4 to LAY.8, GR.2 and 12B are complete; then PKG.1 and PKG.2, then PKG.3, then SWC.5 to SWC.7, then Step 3.5;
   GR.3 runs in any gap
   ([order](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).
 - `PKG` — the `src` → real top-level package rename ([plan](pkg/PKG_RENAME_PLAN.md)), split out of `IR`
@@ -383,7 +383,7 @@ The following quality checks must pass on every pull request within this milesto
 
 * `python scripts/check_doc_links.py`, `python scripts/check_sequence_tables.py`, and `python scripts/check_package_dependencies.py`
 * `ruff check . && ruff format --check .`
-* `mypy --strict src tests scripts`
+* `mypy --strict investment_analysis_engine tests scripts`
 * `pytest` (unit and integration) with monitored coverage trends
 * Zero untyped public interfaces
 * Zero secret or API key leaks in trajectory outputs

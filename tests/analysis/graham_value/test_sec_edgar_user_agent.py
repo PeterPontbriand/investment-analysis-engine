@@ -7,10 +7,10 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.financial.facts import FinancialFactRequest, FinancialField
-from src.data.financial.provenance import FinancialSubjectKind
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 
 
 class HeaderCaptureFetcher:

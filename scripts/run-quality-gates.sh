@@ -157,11 +157,11 @@ main() {
     run_step "check_package_dependencies" "${system_python[@]}" scripts/check_package_dependencies.py
     run_step "ruff check" uv run --no-sync ruff check --no-cache .
     run_step "ruff format" uv run --no-sync ruff format --check .
-    run_step "mypy" uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" src tests scripts
+    run_step "mypy" uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" investment_analysis_engine tests scripts
     run_step "pytest (Python $python_version)" uv run --no-sync pytest \
         -o addopts= \
         -p no:cacheprovider \
-        --cov=src \
+        --cov=investment_analysis_engine \
         --cov-report=term-missing \
         --cov-report="html:$windows_coverage_html" \
         --basetemp="$windows_pytest_root" \

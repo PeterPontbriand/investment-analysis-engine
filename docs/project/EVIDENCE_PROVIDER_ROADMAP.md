@@ -28,7 +28,7 @@ current revision, which the composable-screen ideas below would depend on.
 
 | Area | Delivered | Still open |
 | --- | --- | --- |
-| Security identity | [`SecurityIdentity`](../../src/data/security_identity.py) with issuer identifier (SEC CIK, resolved from SEC's `company_tickers.json`), listing venue, instrument identifier, and name, from SEC and yfinance providers | Identity is current only — the type's own docstring states that `resolved_at` does not establish that the same identity applied at a historical `as_of`. No ticker history, delisted companies, or FIGI/CUSIP mapping |
+| Security identity | [`SecurityIdentity`](../../investment_analysis_engine/data/security_identity.py) with issuer identifier (SEC CIK, resolved from SEC's `company_tickers.json`), listing venue, instrument identifier, and name, from SEC and yfinance providers | Identity is current only — the type's own docstring states that `resolved_at` does not establish that the same identity applied at a historical `as_of`. No ticker history, delisted companies, or FIGI/CUSIP mapping |
 | Instrument kind | Reviewed, fail-closed mapping of yfinance types to equity, ETF, or cryptocurrency; unreviewed providers and values deliberately stay unclassified | Mappings for other providers; finer kinds (REIT, bank, ADR, closed-end fund) that strategy applicability needs |
 | Security unit | Fail-closed check that the quoted security matches the filing's per-share unit; ADR recognized, no conversion performed | ADR ratio and currency conversion; per-share adjustment across splits (see corporate-actions ledger below) |
 | Profile cache | Durable instrument-profile cache with TTL-based freshness evaluation | Point-in-time profile history rather than latest snapshot |
@@ -57,7 +57,7 @@ differentiators.
 
 - **Three-valued composable screens.** Combine strategy outputs into rules ("Graham passes AND
   interest coverage > 5 AND liquidity OK") where an unavailable input stays unavailable instead of
-  becoming a false fail. `MetricResult` (`src/core/metric_result.py`) already distinguishes `ok`,
+  becoming a false fail. `MetricResult` (`investment_analysis_engine/core/metric_result.py`) already distinguishes `ok`,
   `unavailable`, and `not_applicable` outcomes rather than silently defaulting to zero or a false
   boolean — most screeners do not make this distinction, and it is the foundation this idea would
   build on, though a genuinely composable screen-combination layer does not exist yet. Step 4.3
@@ -131,7 +131,7 @@ inputs.
 | Accounting quality and distress | Sloan accruals ratio and cash conversion | Earnings quality relative to cash | Step 4.1 names cash-conversion quality as a candidate subject to separate approval; the Sloan accruals ratio specifically is not named there — New for that part | Yes |
 | Accounting quality and distress | Dilution and stock-comp-adjusted FCF | Share-count creep; FCF after stock-based compensation | New | Yes |
 | Accounting quality and distress | ROIC and gross profitability | Capital efficiency and quality | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#7-roic-and-incremental-roic) covers ROIC and incremental ROIC; gross profitability specifically is not named there — New for that part | Yes |
-| Accounting quality and distress | Kind-specific metrics | FFO/AFFO for REITs; efficiency ratio, capital ratios, NIM for banks | New — confirmed to require extending `InstrumentKind` (`src/data/instrument_profile.py`) beyond its current equity/ETF/cryptocurrency set; deliberately not planned further until after Step 3.5 | Partial |
+| Accounting quality and distress | Kind-specific metrics | FFO/AFFO for REITs; efficiency ratio, capital ratios, NIM for banks | New — confirmed to require extending `InstrumentKind` (`investment_analysis_engine/data/instrument_profile.py`) beyond its current equity/ETF/cryptocurrency set; deliberately not planned further until after Step 3.5 | Partial |
 | Market-implied and relative valuation | Reverse DCF | Growth rate the current price implies, by deterministic root-finding | New (Step 4.1 requires a separate DCF specification before any DCF-based method) | Yes |
 | Market-implied and relative valuation | Point-in-time EV multiples | EV/EBIT, EV/EBITDA, earnings yield with as-of share count and net debt | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#4-cash-flow-valuation-multiples) covers EV/EBITDA and FCF yield, and its [Magic Formula](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula) computes earnings yield (EBIT/EV); EV/EBIT as a standalone multiple is not named there | Yes |
 | Market-implied and relative valuation | Greenblatt Magic Formula | Earnings yield plus return on capital, combined rank | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula) | Yes |

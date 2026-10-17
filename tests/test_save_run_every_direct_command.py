@@ -16,15 +16,15 @@ from alembic.config import Config
 from typer.testing import CliRunner
 
 from alembic import command
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.config import settings as real_settings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.strategy_wiring import STRATEGIES
+from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
+from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
 from scripts import strategy_conformance as conformance
-from src.cli import app
-from src.config import ProjectSettings
-from src.config import settings as real_settings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.strategy_wiring import STRATEGIES
-from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
-from src.workspace.runs import AnalysisRun, RunQuery
 from tests._direct_command_output import _COMMANDS, enter_fixture_providers
 
 
@@ -38,8 +38,8 @@ def _stored_runs(directory: Path, monkeypatch: pytest.MonkeyPatch, alias: str) -
         config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
         command.upgrade(config, "head")
         isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
-        monkeypatch.setattr("src.cli_run_support.settings", isolated)
-        monkeypatch.setattr("src.cli_support.settings", isolated)
+        monkeypatch.setattr("investment_analysis_engine.cli_run_support.settings", isolated)
+        monkeypatch.setattr("investment_analysis_engine.cli_support.settings", isolated)
         with ExitStack() as stack:
             enter_fixture_providers(stack, alias)
             result = CliRunner().invoke(app, [*_COMMANDS[alias], "--save-run"])

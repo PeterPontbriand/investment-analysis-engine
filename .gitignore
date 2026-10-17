@@ -97,8 +97,6 @@ __pycache__/
 
 # --- Application Running State Log Volumes ---
 # Explicitly ignores local files but keeps the directory structure tracked in git
-src/logs/*.log
-src/logs/*.zip
 logs/*.log
 logs/*.zip
 *.jsonl

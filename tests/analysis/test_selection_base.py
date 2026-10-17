@@ -5,7 +5,7 @@ from typing import Literal
 import pytest
 from pydantic import ValidationError
 
-from src.analysis.selection_base import FrozenSelection
+from investment_analysis_engine.analysis.selection_base import FrozenSelection
 
 
 class _Selection(FrozenSelection):

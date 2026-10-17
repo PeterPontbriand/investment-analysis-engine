@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from src.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 
 
 def _run_ian(variables: dict[str, str], *arguments: str) -> subprocess.CompletedProcess[str]:
@@ -16,7 +16,7 @@ def _run_ian(variables: dict[str, str], *arguments: str) -> subprocess.Completed
     environment = {name: value for name, value in os.environ.items() if not name.lower().startswith("ian_")}
     environment.update(variables)
     return subprocess.run(  # noqa: S603
-        [sys.executable, "-m", "src.main", *arguments],
+        [sys.executable, "-m", "investment_analysis_engine.main", *arguments],
         cwd=REPOSITORY_ROOT,
         env=environment,
         capture_output=True,

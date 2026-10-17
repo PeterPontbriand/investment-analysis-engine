@@ -274,7 +274,7 @@ Planned for v0.3, a question passes through five fixed stages: understand, gathe
 ### Current package intent
 
 ```text
-src/
+investment_analysis_engine/
 ├── telemetry/
 ├── llm/
 ├── tools/
@@ -298,7 +298,7 @@ src/
 └── utils/
 ```
 
-Typed SQLite repositories live under `src/data/repositories/` for historical snapshots, resolved financial inputs, and trajectory events. Cache-key enumeration and stored-input inspection are administrative reads; normal resolution retains its eligibility policy. The telemetry sink delegates storage while retaining lifecycle handling. See [the repository contracts](ARCHITECTURE.md#typed-sqlite-repositories-and-administrative-inspection) for access, ownership, and error semantics.
+Typed SQLite repositories live under `investment_analysis_engine/data/repositories/` for historical snapshots, resolved financial inputs, and trajectory events. Cache-key enumeration and stored-input inspection are administrative reads; normal resolution retains its eligibility policy. The telemetry sink delegates storage while retaining lifecycle handling. See [the repository contracts](ARCHITECTURE.md#typed-sqlite-repositories-and-administrative-inspection) for access, ownership, and error semantics.
 
 ---
 
@@ -501,11 +501,11 @@ Single-node local usage is the primary target. Optimize deterministic local oper
 # 15. Extensibility Strategy
 
 Extension points include:
-- new analyzers under `src/analysis/`;
+- new analyzers under `investment_analysis_engine/analysis/`;
 - new historical-price adapters behind `BaseDataClient`;
 - new valuation quote/fundamentals/macro adapters behind the dedicated Step 2.3 financial-fact boundary;
 - new typed tools through existing registration/dispatch;
-- repository implementations under `src/data/repositories/`.
+- repository implementations under `investment_analysis_engine/data/repositories/`.
 
 **Do not build a strategy plugin/registry framework speculatively.** The system should generalize only when concrete strategies expose a repeated need.
 
@@ -757,7 +757,7 @@ complete. See the
 | Make hardware adoption constraints explicit | Prevent persona/hardware mismatch |
 | `fr-CA` timing stays an open question for v0.4 | Avoid premature localization investment |
 | Light Mode is default; dual-tier optional | Makes project accessible to intended users |
-| Rationalized module layout, including `src/data/repositories/` | Clear ownership for data and telemetry layers |
+| Rationalized module layout, including `investment_analysis_engine/data/repositories/` | Clear ownership for data and telemetry layers |
 | JSONL-first telemetry; deterministic fixture-backed market-data abstraction before production SQLite | Unblocks reliability/evaluation while preserving determinism |
 | Use Momentum + Graham as intentionally heterogeneous early strategies | Tests whether architecture generalizes beyond Momentum |
 | Current quote is a first-class market-data capability distinct from historical series | Avoids one-day-history workaround; supports valuation cleanly |

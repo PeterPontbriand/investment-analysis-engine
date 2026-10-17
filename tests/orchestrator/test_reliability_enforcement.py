@@ -11,19 +11,19 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-from src.config.reliability_limits import ReliabilityLimits
-from src.config.schema_config import SchemaConfig
-from src.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
-from src.llm.client import LLMClient, LLMGenerateResult
-from src.orchestrator.context import MessageContext
-from src.orchestrator.dispatcher import AsyncToolDispatcher
-from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
-from src.orchestrator.reliability import ReliabilityTripReason
-from src.orchestrator.types import AgentStepResult, ToolCallResult
-from src.telemetry.recorder import TrajectoryRecorder, TrajectoryRecorderConfig
-from src.telemetry.run_context import RunContext
-from src.telemetry.sinks.jsonl import JSONLTrajectorySink
-from src.tools.parser import ParsedToolCall, ToolParser, ToolParsingError
+from investment_analysis_engine.config.reliability_limits import ReliabilityLimits
+from investment_analysis_engine.config.schema_config import SchemaConfig
+from investment_analysis_engine.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
+from investment_analysis_engine.llm.client import LLMClient, LLMGenerateResult
+from investment_analysis_engine.orchestrator.context import MessageContext
+from investment_analysis_engine.orchestrator.dispatcher import AsyncToolDispatcher
+from investment_analysis_engine.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
+from investment_analysis_engine.orchestrator.reliability import ReliabilityTripReason
+from investment_analysis_engine.orchestrator.types import AgentStepResult, ToolCallResult
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder, TrajectoryRecorderConfig
+from investment_analysis_engine.telemetry.run_context import RunContext
+from investment_analysis_engine.telemetry.sinks.jsonl import JSONLTrajectorySink
+from investment_analysis_engine.tools.parser import ParsedToolCall, ToolParser, ToolParsingError
 
 
 class RecordingSink:

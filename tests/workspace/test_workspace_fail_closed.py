@@ -7,20 +7,24 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.run_models import RunOutcome
-from src.cli_workspace import _method_id_for_alias
-from src.core.strategy_errors import UndeclaredStrategyError
-from src.strategies.fcf_growth.selection import FCFGrowthSelection
-from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_number.selection import GrahamNumberSelection
-from src.strategies.momentum.analyzer import MomentumRun
-from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY, STRATEGIES, run_spec_for
-from src.workspace.capture import ExecutionCapture
-from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence
-from src.workspace.refresh import refresh_watchlist
-from src.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
-from src.workspace.strategy_types import NativeEvidence, SelectionMember
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.cli_workspace import _method_id_for_alias
+from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError
+from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
+from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
+from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY, STRATEGIES, run_spec_for
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.codecs import (
+    InvalidStoredRunError,
+    UnsupportedRunVersionError,
+    decode_evidence,
+)
+from investment_analysis_engine.workspace.refresh import refresh_watchlist
+from investment_analysis_engine.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
+from investment_analysis_engine.workspace.strategy_types import NativeEvidence, SelectionMember
 from tests._wiring import failure_text
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)

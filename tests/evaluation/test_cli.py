@@ -12,14 +12,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from src.cli import app
-from src.core.trajectory_events import TrajectoryEvent
-from src.evaluation.catalog import DETERMINISTIC_CASES
-from src.evaluation.models import ComponentKind, ComponentOutcome, ComponentResult, ExecutionMode
-from src.evaluation.reporting import EvaluationReport, build_case_result, build_evaluation_report
-from src.evaluation.runner import DETERMINISTIC_REQUIRED_COMPONENT_KINDS
-from src.telemetry.recorder import TrajectoryRecorder
-from src.telemetry.run_context import RunContext
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
+from investment_analysis_engine.evaluation.catalog import DETERMINISTIC_CASES
+from investment_analysis_engine.evaluation.models import ComponentKind, ComponentOutcome, ComponentResult, ExecutionMode
+from investment_analysis_engine.evaluation.reporting import EvaluationReport, build_case_result, build_evaluation_report
+from investment_analysis_engine.evaluation.runner import DETERMINISTIC_REQUIRED_COMPONENT_KINDS
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
+from investment_analysis_engine.telemetry.run_context import RunContext
 from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()
@@ -86,12 +86,17 @@ def test_evaluate_cli_runs_full_deterministic_suite_and_writes_report(tmp_path: 
     target = tmp_path / "reports" / "golden.json"
 
     with (
-        patch("src.cli.TrajectoryRecorder.from_settings", side_effect=lambda *_args, **_kwargs: _recorder()),
         patch(
-            "src.cli_support.ensure_database_ready", side_effect=AssertionError("Evaluation must not migrate")
+            "investment_analysis_engine.cli.TrajectoryRecorder.from_settings",
+            side_effect=lambda *_args, **_kwargs: _recorder(),
+        ),
+        patch(
+            "investment_analysis_engine.cli_support.ensure_database_ready",
+            side_effect=AssertionError("Evaluation must not migrate"),
         ) as ready,
         patch(
-            "src.cli_support.SQLiteDatabase", side_effect=AssertionError("Evaluation must not open storage")
+            "investment_analysis_engine.cli_support.SQLiteDatabase",
+            side_effect=AssertionError("Evaluation must not open storage"),
         ) as storage,
     ):
         result = runner.invoke(app, ["evaluate", "--report", str(target)])
@@ -111,7 +116,10 @@ def test_evaluate_cli_selects_one_named_case_case_insensitively(tmp_path: Path) 
     """A stable case ID narrows both execution and the serialized report."""
     target = tmp_path / "one-case.json"
 
-    with patch("src.cli.TrajectoryRecorder.from_settings", side_effect=lambda *_args, **_kwargs: _recorder()):
+    with patch(
+        "investment_analysis_engine.cli.TrajectoryRecorder.from_settings",
+        side_effect=lambda *_args, **_kwargs: _recorder(),
+    ):
         result = runner.invoke(app, ["evaluate", "--case", "grn-01", "--report", str(target)])
 
     assert result.exit_code == 0
@@ -136,7 +144,7 @@ def test_evaluate_cli_rejects_a_partly_anchored_windows_report_path(
     report: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A path Windows would anchor to the wrong place fails as a usage error before any work or file creation."""
-    monkeypatch.setattr("src.config.paths.is_windows", lambda: True)
+    monkeypatch.setattr("investment_analysis_engine.config.paths.is_windows", lambda: True)
     monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(app, ["evaluate", "--report", report])
@@ -165,7 +173,10 @@ def test_evaluate_cli_protects_existing_report_unless_overwrite_is_explicit(tmp_
     assert "Use --overwrite" in normalize_cli_output(blocked.output)
     assert target.read_text(encoding="utf-8") == "preserve me"
 
-    with patch("src.cli.TrajectoryRecorder.from_settings", side_effect=lambda *_args, **_kwargs: _recorder()):
+    with patch(
+        "investment_analysis_engine.cli.TrajectoryRecorder.from_settings",
+        side_effect=lambda *_args, **_kwargs: _recorder(),
+    ):
         replaced = runner.invoke(
             app,
             ["evaluate", "--case", "GRN-01", "--report", str(target), "--overwrite"],
@@ -184,8 +195,8 @@ def test_evaluate_cli_routes_explicit_ollama_mode_and_fails_on_required_case_fai
     run_empirical = AsyncMock(return_value=empirical)
 
     with (
-        patch("src.cli.LLMClient", return_value=client) as client_type,
-        patch("src.cli.run_real_local_ollama_suite", run_empirical),
+        patch("investment_analysis_engine.cli.LLMClient", return_value=client) as client_type,
+        patch("investment_analysis_engine.cli.run_real_local_ollama_suite", run_empirical),
     ):
         result = runner.invoke(
             app,
@@ -231,7 +242,7 @@ def test_evaluate_cli_writes_deterministic_failure_report_before_returning_statu
     target = tmp_path / "failed-deterministic.json"
     failed_report = _failed_deterministic_report()
 
-    with patch("src.cli._run_evaluation_command", AsyncMock(return_value=failed_report)):
+    with patch("investment_analysis_engine.cli._run_evaluation_command", AsyncMock(return_value=failed_report)):
         result = runner.invoke(app, ["evaluate", "--case", "GRN-01", "--report", str(target)])
 
     assert result.exit_code == 1

@@ -9,24 +9,24 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from src.config import ProjectSettings
-from src.core.analysis_status import CalculationStatus
-from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
-from src.data.financial.cache import InMemoryResolvedInputCache
-from src.data.financial.facts import (
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
+from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
+from investment_analysis_engine.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
     FinancialUnit,
     ProviderFact,
 )
-from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
-from src.data.financial.quote_freshness import QuoteFreshnessPolicy, evaluate_quote_freshness
-from src.data.financial.resolver import InputResolver
-from src.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.yfinance.client import YFinanceClient, YFinanceQuote
-from src.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from investment_analysis_engine.data.financial.quote_freshness import QuoteFreshnessPolicy, evaluate_quote_freshness
+from investment_analysis_engine.data.financial.resolver import InputResolver
+from investment_analysis_engine.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.yfinance.client import YFinanceClient, YFinanceQuote
+from investment_analysis_engine.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
 
 NOW = datetime(2026, 9, 11, tzinfo=UTC)
 

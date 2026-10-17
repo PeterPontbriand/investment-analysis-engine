@@ -11,14 +11,14 @@ from typing import Any
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
-from src.data.financial.provenance import FinancialSubjectKind
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
-from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
-from src.strategies.graham_number.service import run_graham_number_analysis
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from investment_analysis_engine.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.strategies.graham_number.service import run_graham_number_analysis
 
 NOW = datetime(2026, 9, 1, 14, 0, tzinfo=UTC)
 FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "sec_edgar" / "step_2_5a_d0"

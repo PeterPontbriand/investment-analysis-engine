@@ -3,20 +3,20 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.config.schema_config import SchemaConfig
-from src.llm.client import LLMClient, LLMGenerateResult
-from src.orchestrator.context import ContextConfig, MessageContext
-from src.orchestrator.dispatcher import AsyncToolDispatcher
-from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
-from src.orchestrator.prompts import SystemPromptBuilder
-from src.orchestrator.reliability import ReliabilityTripReason
-from src.orchestrator.types import (
+from investment_analysis_engine.config.schema_config import SchemaConfig
+from investment_analysis_engine.llm.client import LLMClient, LLMGenerateResult
+from investment_analysis_engine.orchestrator.context import ContextConfig, MessageContext
+from investment_analysis_engine.orchestrator.dispatcher import AsyncToolDispatcher
+from investment_analysis_engine.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
+from investment_analysis_engine.orchestrator.prompts import SystemPromptBuilder
+from investment_analysis_engine.orchestrator.reliability import ReliabilityTripReason
+from investment_analysis_engine.orchestrator.types import (
     ChatMessage,
     Role,
     ToolCallRequest,
     ToolCallResult,
 )
-from src.tools.parser import ParsedToolCall, ToolParser, ToolParsingError
+from investment_analysis_engine.tools.parser import ParsedToolCall, ToolParser, ToolParsingError
 
 # ---------------------------------------------------------------------------
 # Helper – canonical way to create a context with runtime rules injected

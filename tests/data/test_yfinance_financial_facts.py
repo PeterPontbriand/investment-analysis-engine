@@ -8,14 +8,17 @@ from unittest.mock import MagicMock, patch
 import pytest
 from yfinance.exceptions import YFDataException, YFTickerMissingError
 
-from src.core.failure_classification import classify_failure
-from src.core.failure_codes import FailureReasonCode
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.base_client import DataFetchError
-from src.data.financial.facts import FinancialFactRequest, FinancialField, FinancialProviderError
-from src.data.financial.provenance import FinancialSubjectKind
-from src.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient, YFinanceQuote
-from src.data.yfinance.financial_facts import YFINANCE_CURRENT_PRICE_FIELD, YFinanceFinancialFactsAdapter
+from investment_analysis_engine.core.failure_classification import classify_failure
+from investment_analysis_engine.core.failure_codes import FailureReasonCode
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, FinancialProviderError
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient, YFinanceQuote
+from investment_analysis_engine.data.yfinance.financial_facts import (
+    YFINANCE_CURRENT_PRICE_FIELD,
+    YFinanceFinancialFactsAdapter,
+)
 
 NOW = datetime(2026, 8, 23, 22, 30, tzinfo=UTC)
 
@@ -143,7 +146,7 @@ def test_each_kind_reaches_the_facts_adapter_from_the_library_call(fault: Except
     adapter = YFinanceFinancialFactsAdapter(client=YFinanceClient(), clock=lambda: NOW)
 
     with (
-        patch("src.data.yfinance.client.yf.Ticker", side_effect=fault),
+        patch("investment_analysis_engine.data.yfinance.client.yf.Ticker", side_effect=fault),
         pytest.raises(FinancialProviderError) as raised,
     ):
         adapter.fetch_facts(_quote_request(), effective_as_of=NOW)

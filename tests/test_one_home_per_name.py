@@ -10,14 +10,16 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from src.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 
-_SOURCE_FOLDERS = ("src", "tests", "scripts")
+_SOURCE_FOLDERS = ("investment_analysis_engine", "tests", "scripts")
 # The one initializer that holds code: the settings themselves, not a re-export of its children.
-_INITIALIZER_WITH_CODE = "src/config/__init__.py"
+_INITIALIZER_WITH_CODE = "investment_analysis_engine/config/__init__.py"
 # Files that may count folders up from ``__file__``, once each: the definition of the repository root, and the
-# script that runs before ``src`` is importable and so cannot import it.
-_FOLDER_COUNT_ALLOWED = frozenset({"src/core/repository_root.py", "scripts/check_package_dependencies.py"})
+# script that runs before ``investment_analysis_engine`` is importable and so cannot import it.
+_FOLDER_COUNT_ALLOWED = frozenset(
+    {"investment_analysis_engine/core/repository_root.py", "scripts/check_package_dependencies.py"}
+)
 
 
 def _python_files(root: Path, folder: str) -> list[Path]:
@@ -35,7 +37,7 @@ def _parse(path: Path) -> ast.Module:
 def initializer_violations(root: Path) -> list[str]:
     """Return one message per statement, in a package initializer, that is not its docstring."""
     violations: list[str] = []
-    for path in _python_files(root, "src"):
+    for path in _python_files(root, "investment_analysis_engine"):
         name = _relative(path, root)
         if path.name != "__init__.py" or name == _INITIALIZER_WITH_CODE:
             continue
@@ -87,7 +89,7 @@ def _all_declaration(statements: list[ast.stmt]) -> tuple[int, ast.expr | None] 
 def export_violations(root: Path) -> list[str]:
     """Return one message per name a module lists in ``__all__`` without defining it."""
     violations: list[str] = []
-    for path in _python_files(root, "src"):
+    for path in _python_files(root, "investment_analysis_engine"):
         module = _parse(path)
         declaration = _all_declaration(module.body)
         if declaration is None:
@@ -182,7 +184,7 @@ def folder_count_violations(root: Path) -> list[str]:
                 lines = lines[1:]
             violations.extend(
                 f"{name}:{line}: counts folders up from __file__; import REPOSITORY_ROOT from "
-                "src.core.repository_root instead"
+                "investment_analysis_engine.core.repository_root instead"
                 for line in lines
             )
     return violations

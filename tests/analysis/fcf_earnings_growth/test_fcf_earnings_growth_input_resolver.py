@@ -7,25 +7,29 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.core.metric_result import MetricStatus, ReasonCode
-from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputSeriesCacheQuery
-from src.data.financial.facts import FinancialField
-from src.data.financial.provenance import AccountingScope, CapitalExpenditureSign, FinancialSubjectKind
-from src.evaluation.fixtures.fcf_earnings_growth import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
+from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputSeriesCacheQuery
+from investment_analysis_engine.data.financial.facts import FinancialField
+from investment_analysis_engine.data.financial.provenance import (
+    AccountingScope,
+    CapitalExpenditureSign,
+    FinancialSubjectKind,
+)
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     PROVIDER_ID,
     FixtureAnnualFinancialFactsProvider,
     annual_fact,
     annual_series,
 )
-from src.strategies.fcf_growth.input_resolver import (
+from investment_analysis_engine.strategies.fcf_growth.input_resolver import (
     CACHE_SCHEMA_VERSION,
     AnnualGrowthSeriesAssembly,
     FinancialFieldProvider,
     resolve_annual_growth_series,
 )
-from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
-from src.strategies.fcf_growth.vocabulary import FCFClassificationBasis, HistoricalHorizon
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import FCFClassificationBasis, HistoricalHorizon
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
 

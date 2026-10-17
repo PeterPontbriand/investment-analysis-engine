@@ -9,12 +9,12 @@ Local sequence and status: [companion plan](STEP_3_1_SQLITE_SLICE_PLAN.md#sequen
 This mapping follows the current source contracts, rather than the older
 illustrative telemetry vocabulary in the milestone overview:
 
-- [`TrajectoryEvent`](../../../../../src/core/trajectory_events.py)
-- [`ResolvedInputCacheKey`, `ResolvedInputCacheEntry`, and in-memory behavior](../../../../../src/data/financial/cache.py)
-- [`ResolvedInput` and `ComponentLineage`](../../../../../src/data/financial/provenance.py)
-- [`HistoricalMarketData` and `MarketDataContext`](../../../../../src/data/market_data.py)
-- [`BaseDataClient`](../../../../../src/data/base_client.py) and
-  [production historical adapter](../../../../../src/data/yfinance/client.py)
+- [`TrajectoryEvent`](../../../../../investment_analysis_engine/core/trajectory_events.py)
+- [`ResolvedInputCacheKey`, `ResolvedInputCacheEntry`, and in-memory behavior](../../../../../investment_analysis_engine/data/financial/cache.py)
+- [`ResolvedInput` and `ComponentLineage`](../../../../../investment_analysis_engine/data/financial/provenance.py)
+- [`HistoricalMarketData` and `MarketDataContext`](../../../../../investment_analysis_engine/data/market_data.py)
+- [`BaseDataClient`](../../../../../investment_analysis_engine/data/base_client.py) and
+  [production historical adapter](../../../../../investment_analysis_engine/data/yfinance/client.py)
 
 The proposed first migration creates exactly these five application tables:
 

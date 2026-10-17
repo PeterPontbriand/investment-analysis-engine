@@ -3,13 +3,13 @@
 from collections.abc import Callable, Mapping
 from dataclasses import replace
 
-from src.analysis.run_models import StrictJsonMapping
-from src.core.failure_classification import classify_failure
-from src.core.strategy_errors import find
-from src.strategy_wiring import BY_METHOD_ID, BY_RESULT_TYPE, EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
-from src.workspace.codecs import EvidenceCodec
-from src.workspace.refresh import JobFailure
-from src.workspace.strategy_types import NativeEvidence
+from investment_analysis_engine.analysis.run_models import StrictJsonMapping
+from investment_analysis_engine.core.failure_classification import classify_failure
+from investment_analysis_engine.core.strategy_errors import find
+from investment_analysis_engine.strategy_wiring import BY_METHOD_ID, BY_RESULT_TYPE, EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
+from investment_analysis_engine.workspace.codecs import EvidenceCodec
+from investment_analysis_engine.workspace.refresh import JobFailure
+from investment_analysis_engine.workspace.strategy_types import NativeEvidence
 
 
 def encode_native(evidence: NativeEvidence) -> StrictJsonMapping:

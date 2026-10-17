@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from src.config import ProjectSettings, describe_validation_error
-from src.core.settings_error import SettingsEnvironmentError
+from investment_analysis_engine.config import ProjectSettings, describe_validation_error
+from investment_analysis_engine.core.settings_error import SettingsEnvironmentError
 
 _CASE_VARIANTS = ["IAN_DATA_DIR", "ian_data_dir", "Ian_Data_Dir"]
 

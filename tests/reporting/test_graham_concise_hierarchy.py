@@ -5,13 +5,19 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime
 
-from src.core.analysis_status import CalculationStatus
-from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
-from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
-from src.strategies.graham_growth.presenter import GrahamGrowthPresentation, render_graham_growth
-from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
-from src.strategies.graham_number.presenter import GrahamNumberPresentation, render_graham_number
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
+from investment_analysis_engine.strategies.graham_growth.calculation import (
+    GrahamGrowthValueResult,
+    GrowthValueInputAssembly,
+)
+from investment_analysis_engine.strategies.graham_growth.presenter import GrahamGrowthPresentation, render_graham_growth
+from investment_analysis_engine.strategies.graham_number.calculation import (
+    GrahamNumberInputAssembly,
+    GrahamNumberResult,
+)
+from investment_analysis_engine.strategies.graham_number.presenter import GrahamNumberPresentation, render_graham_number
 
 NOW = datetime(2026, 8, 24, 4, 30, tzinfo=UTC)
 HISTORICAL = datetime(2025, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)

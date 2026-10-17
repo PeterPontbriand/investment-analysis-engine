@@ -9,12 +9,12 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from src.config import ProjectSettings
-from src.config.reliability_limits import ReliabilityLimits
-from src.config.schema_config import SchemaConfig
-from src.core.trajectory_events import TrajectoryEventType
-from src.orchestrator.loop import OrchestratorConfig
-from src.orchestrator.reliability import (
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.config.reliability_limits import ReliabilityLimits
+from investment_analysis_engine.config.schema_config import SchemaConfig
+from investment_analysis_engine.core.trajectory_events import TrajectoryEventType
+from investment_analysis_engine.orchestrator.loop import OrchestratorConfig
+from investment_analysis_engine.orchestrator.reliability import (
     CircuitBreaker,
     CircuitSnapshot,
     CircuitState,
@@ -23,7 +23,7 @@ from src.orchestrator.reliability import (
     ReliabilityTripReason,
     SystemMonotonicClock,
 )
-from src.telemetry.recent_events import RecentEventSummary
+from investment_analysis_engine.telemetry.recent_events import RecentEventSummary
 
 
 @dataclass

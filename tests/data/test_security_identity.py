@@ -6,9 +6,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.base_client import DataFetchError
-from src.data.security_identity import (
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.security_identity import (
     IdentityResolutionStatus,
     SecurityIdentity,
     SecurityIdentityRequest,

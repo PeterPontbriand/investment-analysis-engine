@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from src.config.strategy_settings import clear_strategy_settings_cache, load_strategy_settings
-from src.core.settings_error import StrategySettingsError
-from src.strategies.momentum.settings import MomentumSettings
+from investment_analysis_engine.config.strategy_settings import clear_strategy_settings_cache, load_strategy_settings
+from investment_analysis_engine.core.settings_error import StrategySettingsError
+from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
 
 _VALID = """\
 short_window = 50

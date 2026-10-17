@@ -6,26 +6,26 @@ from unittest.mock import patch
 
 import pytest
 
-from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.run_models import RunOutcome
-from src.core.analysis_status import CalculationStatus
-from src.data.instrument_profile import InstrumentKind, InstrumentProfile
-from src.evaluation.fixtures.graham import NOW, SECURITY_ID, FixtureFinancialFactsProvider
-from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
-from src.strategies.graham_growth.calculation import (
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentProfile
+from investment_analysis_engine.evaluation.fixtures.graham import NOW, SECURITY_ID, FixtureFinancialFactsProvider
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from investment_analysis_engine.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
+from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
     GrahamGrowthInputResolver,
     GrahamGrowthValueResult,
     GrowthValueInputAssembly,
 )
-from src.strategies.graham_growth.config import GrahamGrowthConfig
-from src.strategies.graham_growth.execution import (
+from investment_analysis_engine.strategies.graham_growth.config import GrahamGrowthConfig
+from investment_analysis_engine.strategies.graham_growth.execution import (
     GrahamGrowthCapture,
     classify_graham_growth_outcome,
     execute_graham_growth,
 )
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
 
 _POLICY = GrahamGrowthCalculationPolicy(base_pe=8.5, growth_multiplier=2.0, baseline_aaa_yield=4.4)
 
@@ -108,7 +108,10 @@ def test_execute_graham_growth_delegates_and_falls_back_to_the_composed_profile(
         return canned
 
     with (
-        patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=composed),
+        patch(
+            "investment_analysis_engine.strategies.graham_growth.execution.compose_graham_profile",
+            return_value=composed,
+        ),
         patch.object(GrahamGrowthAnalyzer, "run_analysis", fake_run_analysis),
     ):
         capture = execute_graham_growth(
@@ -134,7 +137,10 @@ def test_execute_graham_growth_prefers_the_analysis_own_profile() -> None:
     canned = _analysis(CalculationStatus.OK, profile=refined)
 
     with (
-        patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=composed),
+        patch(
+            "investment_analysis_engine.strategies.graham_growth.execution.compose_graham_profile",
+            return_value=composed,
+        ),
         patch.object(GrahamGrowthAnalyzer, "run_analysis", return_value=canned),
     ):
         capture = execute_graham_growth(
@@ -149,7 +155,9 @@ def test_captured_analysis_retains_the_effective_policy() -> None:
     resolver = _resolver()
     config = GrahamGrowthConfig(expected_growth=5.0, aaa_yield_override=4.4)
 
-    with patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=_profile()):
+    with patch(
+        "investment_analysis_engine.strategies.graham_growth.execution.compose_graham_profile", return_value=_profile()
+    ):
         capture = execute_graham_growth(
             resolver, SECURITY_ID, config, _POLICY, object(), as_of=None, executed_at=NOW, use_cache=True
         )
@@ -165,7 +173,9 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(socket.socket, "connect", reject_network)
 
     config = GrahamGrowthConfig(expected_growth=5.0, aaa_yield_override=4.4)
-    with patch("src.strategies.graham_growth.execution.compose_graham_profile", return_value=_profile()):
+    with patch(
+        "investment_analysis_engine.strategies.graham_growth.execution.compose_graham_profile", return_value=_profile()
+    ):
         capture = execute_graham_growth(
             _resolver(),
             SECURITY_ID,

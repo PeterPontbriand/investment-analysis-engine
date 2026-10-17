@@ -16,7 +16,7 @@ from unittest.mock import patch
 import typer.rich_utils
 from typer.testing import CliRunner
 
-from src.cli import app
+from investment_analysis_engine.cli import app
 from tests._cli_helpers import normalize_cli_output
 
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "cli_help"

@@ -97,7 +97,7 @@ Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-r
 - Target Python 3.12+.
 - All supported source must pass `mypy --strict`.
 - A name is imported from the module that defines it. Package initializers hold only a docstring (the one
-  exception is `src/config/__init__.py`, which holds the settings code), and no module re-exports a name it
+  exception is `investment_analysis_engine/config/__init__.py`, which holds the settings code), and no module re-exports a name it
   imports. tests/test_one_home_per_name.py enforces this.
 - Use explicit type annotations on public interfaces.
 - Use Google-style docstrings for modules, classes, and public functions, consistent with current project conventions.
@@ -109,7 +109,7 @@ Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-r
 
 - Use the project's operational logging conventions for human-readable diagnostics.
 - Do not introduce a second logging framework as part of unrelated work.
-- Structured trajectory telemetry under `src/telemetry/` is a separate machine-readable concern.
+- Structured trajectory telemetry under `investment_analysis_engine/telemetry/` is a separate machine-readable concern.
 - Telemetry must fail open and must not alter business execution semantics.
 - Never persist secrets in telemetry payloads.
 

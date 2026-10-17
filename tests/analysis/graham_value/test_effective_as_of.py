@@ -8,21 +8,29 @@ from typing import Any
 
 import pytest
 
-from src.analysis.base_analyzer import AnalysisContext
-from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
-from src.reporting.presentation import PresentationMode
-from src.reporting.replay_inputs import ReplayOptions
-from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
-from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
-from src.strategies.graham_growth.config import GrahamGrowthConfig
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
-from src.strategies.graham_number.config import GrahamNumberConfig
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY
-from src.workspace.codecs import decode_evidence
-from src.workspace_documents.run_replay import project_run
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.evaluation.fixtures.graham import (
+    NOW,
+    PROVIDER_ID,
+    SECURITY_ID,
+    FixtureFinancialFactsProvider,
+)
+from investment_analysis_engine.reporting.presentation import PresentationMode
+from investment_analysis_engine.reporting.replay_inputs import ReplayOptions
+from investment_analysis_engine.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
+from investment_analysis_engine.strategies.graham_growth.calculation import (
+    GrahamGrowthCalculationPolicy,
+    GrahamGrowthInputResolver,
+)
+from investment_analysis_engine.strategies.graham_growth.config import GrahamGrowthConfig
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_number.analyzer import GrahamNumberAnalyzer
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY
+from investment_analysis_engine.workspace.codecs import decode_evidence
+from investment_analysis_engine.workspace_documents.run_replay import project_run
 from tests._wiring import encode_native
 from tests.workspace_documents.test_analysis_run_replay import _graham_run, _growth_run
 

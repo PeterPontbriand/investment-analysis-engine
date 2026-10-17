@@ -4,14 +4,14 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.evaluation.evaluator import (
+from investment_analysis_engine.evaluation.evaluator import (
     evaluate_domain_outcomes,
     evaluate_execution_status,
     evaluate_fixture_status,
     evaluate_numerical_correctness,
     evaluate_tool_selection,
 )
-from src.evaluation.models import (
+from investment_analysis_engine.evaluation.models import (
     ComponentKind,
     ComponentOutcome,
     ComponentResult,
@@ -24,7 +24,7 @@ from src.evaluation.models import (
     ToolCallObservation,
     ToolConstraints,
 )
-from src.orchestrator.tool_names import ToolName
+from investment_analysis_engine.orchestrator.tool_names import ToolName
 
 OBSERVED_AT = datetime(2026, 8, 31, 15, 0, tzinfo=UTC)
 

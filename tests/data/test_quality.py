@@ -8,10 +8,10 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
-from src.data.base_client import DataFetchError
-from src.data.market_data import HistoricalMarketData, MarketDataContext, historical_index_kind
-from src.data.quality import (
+from investment_analysis_engine.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext, historical_index_kind
+from investment_analysis_engine.data.quality import (
     DataQualityError,
     FreshnessPolicy,
     HistoricalDataQualityError,

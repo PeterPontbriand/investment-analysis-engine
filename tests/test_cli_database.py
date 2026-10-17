@@ -11,10 +11,10 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from src.cli import app
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.repositories import migrations, readiness, readiness_lock
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.repositories import migrations, readiness, readiness_lock
 from tests._cli_helpers import normalize_cli_output
 
 
@@ -22,7 +22,9 @@ from tests._cli_helpers import normalize_cli_output
 def target(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Select disposable storage without touching operational settings."""
     path = tmp_path / "nested" / "selected.sqlite3"
-    monkeypatch.setattr("src.cli_database.settings", ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+    monkeypatch.setattr(
+        "investment_analysis_engine.cli_database.settings", ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")
+    )
     return path
 
 
@@ -259,7 +261,7 @@ def test_relative_override_keeps_base_directory_after_chdir(tmp_path: Path, monk
     base = tmp_path / "base"
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
-    monkeypatch.setattr("src.cli_database.settings", ProjectSettings(base_dir=base))
+    monkeypatch.setattr("investment_analysis_engine.cli_database.settings", ProjectSettings(base_dir=base))
     monkeypatch.chdir(elsewhere)
     target = base / "nested" / "selected % café.sqlite3"
     result = CliRunner().invoke(

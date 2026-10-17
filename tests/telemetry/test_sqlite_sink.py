@@ -14,18 +14,18 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from alembic import command
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
-from src.data.repositories.schema import schema_metadata, trajectory_events
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.repositories.trajectory import SQLiteTrajectoryRepository
-from src.telemetry import recorder as recorder_module
-from src.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
-from src.telemetry.run_context import RunContext
-from src.telemetry.sinks.base import TrajectorySink
-from src.telemetry.sinks.jsonl import JSONLTrajectorySink
-from src.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
+from investment_analysis_engine.data.repositories.schema import schema_metadata, trajectory_events
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.repositories.trajectory import SQLiteTrajectoryRepository
+from investment_analysis_engine.telemetry import recorder as recorder_module
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
+from investment_analysis_engine.telemetry.run_context import RunContext
+from investment_analysis_engine.telemetry.sinks.base import TrajectorySink
+from investment_analysis_engine.telemetry.sinks.jsonl import JSONLTrajectorySink
+from investment_analysis_engine.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory
 
 
 def test_repository_and_sink_share_immutable_storage(

@@ -2,11 +2,14 @@
 
 from datetime import UTC, datetime
 
-from src.core.analysis_status import CalculationStatus
-from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
-from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
-from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
-from src.strategies.graham_number.presenter import GrahamNumberPresentation, render_graham_number
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
+from investment_analysis_engine.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
+from investment_analysis_engine.strategies.graham_number.calculation import (
+    GrahamNumberInputAssembly,
+    GrahamNumberResult,
+)
+from investment_analysis_engine.strategies.graham_number.presenter import GrahamNumberPresentation, render_graham_number
 
 NOW = datetime(2026, 8, 24, 4, 0, tzinfo=UTC)
 

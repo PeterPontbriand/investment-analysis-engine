@@ -20,17 +20,20 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from src.cli import app
-from src.core.clock import utc_now
-from src.data.financial.cache import InMemoryResolvedInputCache
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.market_data import HistoricalMarketData
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.data.yfinance.client import YFinanceClient
-from src.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
-from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.evaluation.fixtures.graham import SECURITY_ID
-from src.evaluation.fixtures.market_data import FixtureMarketDataProvider, momentum_success_frame
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.core.clock import utc_now
+from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.market_data import HistoricalMarketData
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.yfinance.client import YFinanceClient
+from investment_analysis_engine.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
+    FixtureAnnualFinancialFactsProvider,
+    annual_series,
+)
+from investment_analysis_engine.evaluation.fixtures.graham import SECURITY_ID
+from investment_analysis_engine.evaluation.fixtures.market_data import FixtureMarketDataProvider, momentum_success_frame
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "direct_commands"
@@ -101,22 +104,24 @@ def enter_fixture_providers(stack: ExitStack, command: str) -> None:
     """
     resolver = sec_labeled_growth_resolver() if command == "graham-growth" else sec_labeled_number_resolver()
     for graham in ("graham_number", "graham_growth"):
-        stack.enter_context(patch(f"src.strategies.{graham}.cli.build_graham_resolver", return_value=resolver))
+        stack.enter_context(
+            patch(f"investment_analysis_engine.strategies.{graham}.cli.build_graham_resolver", return_value=resolver)
+        )
     stack.enter_context(
         patch(
-            "src.strategies.fcf_growth.cli.build_sec_production_provider",
+            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
             side_effect=lambda *_a, **_k: _fcf_provider(),
         )
     )
     for cached in ("graham_number", "graham_growth", "fcf_growth"):
         stack.enter_context(
             patch(
-                f"src.strategies.{cached}.cli._production_financial_cache",
+                f"investment_analysis_engine.strategies.{cached}.cli._production_financial_cache",
                 side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache(clock=utc_now)),
             )
         )
     for yahoo in ("momentum", "graham_number", "graham_growth"):
-        stack.enter_context(patch(f"src.strategies.{yahoo}.cli.YFinanceClient", _FixtureYahoo))
+        stack.enter_context(patch(f"investment_analysis_engine.strategies.{yahoo}.cli.YFinanceClient", _FixtureYahoo))
 
 
 def run_command(command: str, mode: str) -> CommandOutput:

@@ -18,9 +18,9 @@ from typing import Any
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.data.financial.cache import InMemoryResolvedInputCache
-from src.data.financial.facts import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
+from investment_analysis_engine.data.financial.facts import (
     FinancialFactRequest,
     FinancialFactsProvider,
     FinancialField,
@@ -28,12 +28,12 @@ from src.data.financial.facts import (
     FinancialUnit,
     ProviderFact,
 )
-from src.data.financial.provenance import (
+from investment_analysis_engine.data.financial.provenance import (
     FinancialSubjectKind,
     ResolvedInput,
     SourceKind,
 )
-from src.evaluation.fixtures.graham import (
+from investment_analysis_engine.evaluation.fixtures.graham import (
     AAA_YIELD_VALUE,
     BVPS_VALUE,
     EPS_FY2022,
@@ -50,8 +50,8 @@ from src.evaluation.fixtures.graham import (
     SUBJECT_MISSING,
     FixtureFinancialFactsProvider,
 )
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 # ---------------------------------------------------------------------------
 # Mutable clock for cache staleness tests

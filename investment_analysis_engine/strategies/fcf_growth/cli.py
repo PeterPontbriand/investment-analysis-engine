@@ -1,0 +1,250 @@
+"""FCF Growth's CLI-layer functions: the direct command, the watchlist selection builder and the refresh executor.
+
+The CLI tier pairs these with the FCF Growth core bundle and adds the command to the application; nothing here
+registers itself.
+"""
+
+import typer
+
+from investment_analysis_engine.cli_composition import build_sec_production_provider
+from investment_analysis_engine.cli_provider_check import (
+    provider_check_choice,
+    provider_check_findings,
+    with_provider_check,
+)
+from investment_analysis_engine.cli_run_support import maybe_save_run
+from investment_analysis_engine.cli_support import (
+    SaveStage,
+    _canonical_provider_id,
+    _parse_as_of,
+    _presentation_mode,
+    _production_financial_cache,
+    _resolve_ticker,
+    execution_errors,
+    require_job_ticker,
+    saving_failures,
+    stored_configuration,
+)
+from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.clock import utc_now
+from investment_analysis_engine.core.operator_errors import InvalidParameterError
+from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
+from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.reporting.presentation import PresentationMode
+from investment_analysis_engine.strategies.fcf_growth.execution import (
+    capture_provider_failure,
+    execute_fcf_growth,
+    from_fcf_growth_capture,
+)
+from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
+from investment_analysis_engine.strategies.fcf_growth.presenter import render_fcf_earnings_growth
+from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection, FCFPolicySnapshot
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
+    FCFClassificationBasis,
+    ForwardPolicy,
+    HistoricalHorizon,
+)
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.requests import AnalysisRequest
+
+
+def _fcf_historical_horizon(growth_years: int | None) -> HistoricalHorizon:
+    """Convert the optional CLI horizon to the typed strict/automatic policy."""
+    if growth_years is None:
+        return HistoricalHorizon.LONGEST_AVAILABLE
+    mapping = {3: HistoricalHorizon.THREE_YEARS, 4: HistoricalHorizon.FOUR_YEARS, 5: HistoricalHorizon.FIVE_YEARS}
+    try:
+        return mapping[growth_years]
+    except KeyError as exc:
+        raise InvalidParameterError("--growth-years must be 3, 4, or 5.", parameters=("--growth-years",)) from exc
+
+
+def _fcf_forward_policy(value: str) -> ForwardPolicy:
+    """Map the hyphenated investor-facing CLI value to the normative enum."""
+    normalized = value.strip().lower().replace("-", "_")
+    try:
+        return ForwardPolicy(normalized)
+    except ValueError as exc:
+        raise InvalidParameterError(
+            "--forward-policy must be display-only, confirmation, or hard-gate.", parameters=("--forward-policy",)
+        ) from exc
+
+
+def _fcf_classification_basis(value: str) -> FCFClassificationBasis:
+    """Map the investor-facing CLI value to the typed FCF basis policy."""
+    normalized = value.strip().lower().replace("-", "_")
+    try:
+        return FCFClassificationBasis(normalized)
+    except ValueError as exc:
+        raise InvalidParameterError(
+            "--classification-basis must be total-fcf or fcf-per-share.", parameters=("--classification-basis",)
+        ) from exc
+
+
+def _fcf_currency(value: str) -> str:
+    """Normalize the reporting currency, which must be a three-letter ISO 4217 code."""
+    normalized = value.strip().upper()
+    if len(normalized) != 3 or not normalized.isalpha():
+        raise InvalidParameterError("--currency must be a three-letter ISO 4217 code.", parameters=("--currency",))
+    return normalized
+
+
+def build_selection(flags: WatchlistFlags) -> FCFGrowthSelection:
+    """Build one validated FCF Growth selection from watchlist CLI flags.
+
+    Mirrors the direct ``fcf-growth`` command's own flags and validation exactly. The method always executes
+    against SEC EDGAR regardless of ``--data-provider``, as the direct command's own persisted selection does;
+    the flag is still validated for a consistent error experience.
+    """
+    boundary = _parse_as_of(flags.as_of)
+    _canonical_provider_id(flags.data_provider)
+    normalized_currency = _fcf_currency(flags.currency)
+    policy = FCFEarningsGrowthPolicy(
+        historical_horizon=_fcf_historical_horizon(flags.growth_years),
+        classification_basis=_fcf_classification_basis(flags.classification_basis),
+        forward_policy=_fcf_forward_policy(flags.forward_policy),
+    )
+    return FCFGrowthSelection(
+        policy=FCFPolicySnapshot.model_validate(policy),
+        currency=normalized_currency,
+        provider_id="sec_edgar",
+        as_of=boundary,
+        use_cache=not flags.no_cache,
+    )
+
+
+def refresh(
+    ticker: str, selection: FCFGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
+) -> ExecutionCapture:
+    """Execute one FCF Growth refresh job with freshly composed, job-scoped dependencies."""
+    require_job_ticker(ticker)
+    config = stored_configuration(selection.to_fcf_config)
+    executed_at = utc_now()
+    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
+        provider = build_sec_production_provider()
+        resolver = ProductionAnnualGrowthSeriesResolver(provider, cache=cache, clock=lambda: executed_at)
+        capture = execute_fcf_growth(
+            resolver,
+            ticker,
+            config=config,
+            as_of=selection.as_of,
+            executed_at=executed_at,
+            use_cache=selection.use_cache,
+            provider=provider,
+            profile_cache=profile_cache,
+        )
+    return from_fcf_growth_capture(capture)
+
+
+def command(  # noqa: PLR0913
+    context: typer.Context,
+    ticker: str = typer.Argument(..., help="Target stock ticker symbol (e.g., AAPL, KO)"),
+    *,
+    growth_years: int | None = typer.Option(
+        None,
+        "--growth-years",
+        help="Strict elapsed-year horizon (3, 4, or 5); omit for automatic 5 → 4 → 3 selection",
+    ),
+    forward_policy: str = typer.Option(
+        "display-only",
+        "--forward-policy",
+        help="Forward evidence policy: display-only, confirmation, or hard-gate",
+    ),
+    classification_basis: str = typer.Option(
+        "total-fcf",
+        "--classification-basis",
+        help="Classification basis: total-fcf or fcf-per-share",
+    ),
+    as_of: str | None = typer.Option(
+        None, "--as-of", help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp"
+    ),
+    data_provider: str | None = typer.Option(None, "--data-provider", help="Defaults to SEC EDGAR"),
+    currency: str = typer.Option("USD", "--currency", help="ISO 4217 reporting currency for compatible annual facts"),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass resolved-input cache reads and writes"),
+    details: bool = typer.Option(False, "--details", help="Show annual facts, provenance, and derivation lineage"),
+    diagnostics: bool = typer.Option(False, "--diagnostics", help="Show resolver execution trace"),
+    json_output: bool = typer.Option(False, "--json", help="Emit the complete versioned typed result"),
+    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
+    no_provider_check: bool = typer.Option(
+        False, "--no-provider-check", help="Do not send a test request to a provider after it fails"
+    ),
+) -> None:
+    """Execute the historical free-cash-flow and diluted-EPS growth screen."""
+    executed_at = utc_now()
+    provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
+
+    with execution_errors(
+        json_output=json_output,
+        selection_type=FCFGrowthSelection,
+        provider_check=provider_check,
+    ) as scope:
+        target_ticker = _resolve_ticker(ticker, None, required=True, command="fcf-growth")
+        assert target_ticker is not None
+        scope.ticker = target_ticker
+        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+        scope.mode = mode
+        horizon = _fcf_historical_horizon(growth_years)
+        analysis_as_of = _parse_as_of(as_of)
+        provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
+        normalized_currency = _fcf_currency(currency)
+        policy = FCFEarningsGrowthPolicy(
+            historical_horizon=horizon,
+            classification_basis=_fcf_classification_basis(classification_basis),
+            forward_policy=_fcf_forward_policy(forward_policy),
+        )
+        # The command always uses the SEC production provider regardless of --data-provider
+        # (see the adapter's own docstring); provider_id here only labels the requested
+        # config/result, exactly as before this refactor — not the resolver actually used.
+        config = FCFEarningsGrowthConfig(policy=policy, currency=normalized_currency, provider_id=provider_id)
+        with _production_financial_cache(use_cache=not no_cache, clock=lambda: executed_at) as cache:
+            provider = build_sec_production_provider()
+            resolver = ProductionAnnualGrowthSeriesResolver(
+                provider,
+                cache=cache,
+                clock=lambda: executed_at,
+            )
+            stage = SaveStage()
+            with saving_failures(stage):
+                capture = maybe_save_run(
+                    save_run=save_run,
+                    executed_at=executed_at,
+                    request_factory=lambda: AnalysisRequest(
+                        ticker=target_ticker,
+                        # The command always uses the SEC production provider regardless of
+                        # --data-provider (see the adapter's own docstring); the selection
+                        # reflects the provider actually used, not a possibly-mislabeled flag.
+                        selection=FCFGrowthSelection(
+                            policy=FCFPolicySnapshot.model_validate(policy),
+                            currency=normalized_currency,
+                            provider_id="sec_edgar",
+                            as_of=analysis_as_of,
+                            use_cache=not no_cache,
+                        ),
+                    ),
+                    run_adapter=lambda profile_cache: execute_fcf_growth(
+                        resolver,
+                        target_ticker,
+                        config=config,
+                        as_of=analysis_as_of,
+                        executed_at=executed_at,
+                        use_cache=not no_cache,
+                        provider=provider,
+                        profile_cache=profile_cache,
+                    ),
+                    normalize=stage.after_analysis(from_fcf_growth_capture),
+                )
+            result = capture.result
+            profile = capture.profile
+            identity_resolution = profile_identity_resolution(profile)
+
+    exit_code = 0 if result.execution_status in (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE) else 1
+    findings = provider_check_findings((capture_provider_failure(capture),) if exit_code else (), provider_check)
+    output = render_fcf_earnings_growth(result, mode, identity_resolution, profile, findings.element())
+    if exit_code:
+        output = with_provider_check(output, findings, mode)
+    typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
+    if exit_code:
+        raise typer.Exit(code=exit_code)

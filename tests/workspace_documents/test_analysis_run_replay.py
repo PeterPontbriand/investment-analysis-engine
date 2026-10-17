@@ -9,37 +9,43 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.run_models import RunOutcome
-from src.core.analysis_status import CalculationStatus
-from src.core.metric_result import MetricResult
-from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.data.instrument_profile import InstrumentKind, InstrumentProfile
-from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile, fixture_known_etf_profile
-from src.evaluation.fixtures.market_data import FixtureDataClient
-from src.reporting.presentation import PresentationMode
-from src.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from src.strategies.fcf_growth.selection import FCFGrowthSelection
-from src.strategies.graham_growth.calculation import (
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import MetricResult
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentProfile
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
+    fixture_instrument_profile,
+    fixture_known_etf_profile,
+)
+from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
+from investment_analysis_engine.reporting.presentation import PresentationMode
+from investment_analysis_engine.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
+from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
     GrahamGrowthValueResult,
     GrowthValueInputAssembly,
 )
-from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
-from src.strategies.graham_number.selection import GrahamNumberSelection
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumRun
-from src.strategies.momentum.execution import run_momentum
-from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
-from src.workspace.capture import ExecutionCapture
-from src.workspace.codecs import decode_evidence
-from src.workspace.execution import execute
-from src.workspace.requests import AnalysisRequest
-from src.workspace.runs import AnalysisRun
-from src.workspace_documents.run_replay import project_run
+from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_number.calculation import (
+    GrahamNumberInputAssembly,
+    GrahamNumberResult,
+)
+from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumRun
+from investment_analysis_engine.strategies.momentum.execution import run_momentum
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.codecs import decode_evidence
+from investment_analysis_engine.workspace.execution import execute
+from investment_analysis_engine.workspace.requests import AnalysisRequest
+from investment_analysis_engine.workspace.runs import AnalysisRun
+from investment_analysis_engine.workspace_documents.run_replay import project_run
 from tests._wiring import encode_native
 from tests.workspace.test_fcf_growth_codec import _result as _fcf_codec_result
 
@@ -59,7 +65,7 @@ class _FixtureClient(FixtureDataClient):
 def mock_momentum_settings() -> Iterator[None]:
     """Materialize deterministic Momentum defaults for the analyzer's fallback ticker."""
     mock_analysis = {"default": {"default_ticker": "BTC-USD"}}
-    with patch("src.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
+    with patch("investment_analysis_engine.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
         yield
 
 
@@ -249,8 +255,8 @@ def test_project_run_never_calls_the_live_analyzer_or_settings() -> None:
     run = _build_run()
     with (
         patch.object(MomentumAnalyzer, "run_analysis", forbidden),
-        patch("src.config.strategy_settings.load_strategy_settings", forbidden),
-        patch("src.cli_composition.load_strategy_settings", forbidden),
+        patch("investment_analysis_engine.config.strategy_settings.load_strategy_settings", forbidden),
+        patch("investment_analysis_engine.cli_composition.load_strategy_settings", forbidden),
     ):
         assert project_run(
             run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
@@ -580,8 +586,8 @@ def test_growth_project_run_uses_the_stored_assumptions_not_current_settings() -
         raise AssertionError("Replay must not read current Graham Growth assumption settings.")
 
     with (
-        patch("src.config.strategy_settings.load_strategy_settings", forbidden),
-        patch("src.cli_composition.load_strategy_settings", forbidden),
+        patch("investment_analysis_engine.config.strategy_settings.load_strategy_settings", forbidden),
+        patch("investment_analysis_engine.cli_composition.load_strategy_settings", forbidden),
     ):
         rendered = project_run(
             run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
@@ -763,9 +769,11 @@ def test_growth_project_run_never_calls_the_live_analyzer_or_settings() -> None:
 
     run = _growth_run()
     with (
-        patch("src.strategies.graham_growth.analyzer.GrahamGrowthAnalyzer.run_analysis", forbidden),
-        patch("src.config.strategy_settings.load_strategy_settings", forbidden),
-        patch("src.cli_composition.load_strategy_settings", forbidden),
+        patch(
+            "investment_analysis_engine.strategies.graham_growth.analyzer.GrahamGrowthAnalyzer.run_analysis", forbidden
+        ),
+        patch("investment_analysis_engine.config.strategy_settings.load_strategy_settings", forbidden),
+        patch("investment_analysis_engine.cli_composition.load_strategy_settings", forbidden),
     ):
         assert project_run(
             run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
@@ -887,7 +895,9 @@ def test_fcf_project_run_never_calls_a_live_analyzer() -> None:
         raise AssertionError("Replay must not call a live FCF analyzer.")
 
     run = _fcf_run()
-    with patch("src.strategies.fcf_growth.analyzer.FCFEarningsGrowthAnalyzer.run_analysis", forbidden):
+    with patch(
+        "investment_analysis_engine.strategies.fcf_growth.analyzer.FCFEarningsGrowthAnalyzer.run_analysis", forbidden
+    ):
         assert project_run(
             run, ReplayOptions(mode=PresentationMode.DIAGNOSTICS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
         )

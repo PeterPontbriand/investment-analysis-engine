@@ -7,15 +7,15 @@ from uuid import UUID
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.core.trajectory_events import TrajectoryEvent
-from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheKey
-from src.data.financial.facts import FinancialField
-from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
-from src.evaluation.cases.graham_growth import GRAHAM_GROWTH_ARGUMENTS, GRG_01, GRG_ETF_01
-from src.evaluation.cases.graham_number import GRAHAM_NUMBER_ARGUMENTS, GRN_04, GRN_05
-from src.evaluation.composition import dispatch_fixture_case
-from src.evaluation.fixtures.graham import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
+from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheKey
+from investment_analysis_engine.data.financial.facts import FinancialField
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from investment_analysis_engine.evaluation.cases.graham_growth import GRAHAM_GROWTH_ARGUMENTS, GRG_01, GRG_ETF_01
+from investment_analysis_engine.evaluation.cases.graham_number import GRAHAM_NUMBER_ARGUMENTS, GRN_04, GRN_05
+from investment_analysis_engine.evaluation.composition import dispatch_fixture_case
+from investment_analysis_engine.evaluation.fixtures.graham import (
     BVPS_AVAIL,
     FIELD_BVPS,
     NOW,
@@ -24,16 +24,16 @@ from src.evaluation.fixtures.graham import (
     SECURITY_ID,
     FixtureFinancialFactsProvider,
 )
-from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
-from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
-from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
-from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
-from src.orchestrator.tool_names import ToolName
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
-from src.strategies.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
-from src.telemetry.recorder import TrajectoryRecorder
-from src.telemetry.run_context import RunContext
+from investment_analysis_engine.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
+from investment_analysis_engine.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
+from investment_analysis_engine.evaluation.reporting import CaseEvaluationResult, CaseOutcome
+from investment_analysis_engine.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
+from investment_analysis_engine.orchestrator.tool_names import ToolName
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
+from investment_analysis_engine.telemetry.run_context import RunContext
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("b0000000-0000-0000-0000-00000000000b")

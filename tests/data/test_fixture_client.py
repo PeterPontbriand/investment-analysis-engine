@@ -3,8 +3,8 @@
 import pandas as pd
 import pytest
 
-from src.data.base_client import BaseDataClient, DataFetchError
-from src.evaluation.fixtures.market_data import FixtureDataClient
+from investment_analysis_engine.data.base_client import BaseDataClient, DataFetchError
+from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
 
 
 class TestFixtureDataClientContract:

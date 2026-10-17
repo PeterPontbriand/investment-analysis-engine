@@ -11,51 +11,57 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.core.strategy_errors import UndeclaredStrategyError
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.instrument_profile import InstrumentKind, InstrumentProfile
-from src.data.market_data import HistoricalMarketData
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.evaluation.fixtures.fcf_earnings_growth import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentProfile
+from investment_analysis_engine.data.market_data import HistoricalMarketData
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
-from src.evaluation.fixtures.graham import (
+from investment_analysis_engine.evaluation.fixtures.graham import (
     NOW as GRAHAM_NOW,
 )
-from src.evaluation.fixtures.graham import (
+from investment_analysis_engine.evaluation.fixtures.graham import (
     PROVIDER_ID as GRAHAM_PROVIDER_ID,
 )
-from src.evaluation.fixtures.graham import (
+from investment_analysis_engine.evaluation.fixtures.graham import (
     SECURITY_ID as GRAHAM_SECURITY_ID,
 )
-from src.evaluation.fixtures.graham import (
+from investment_analysis_engine.evaluation.fixtures.graham import (
     FixtureFinancialFactsProvider,
 )
-from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from src.evaluation.fixtures.market_data import GOLDEN_MOMENTUM_SETTINGS, FixtureMarketDataProvider
-from src.orchestrator.analysis_tools import register_analysis_tools
-from src.orchestrator.dispatcher import AsyncToolDispatcher
-from src.orchestrator.tool_names import ToolName
-from src.orchestrator.tool_runtime import AnalysisToolHandler, ToolRuntime
-from src.orchestrator.types import ToolCallRequest
-from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
-from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolDependencies
-from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
-from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategies.graham_growth.tool import GrahamGrowthToolDependencies
-from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategies.graham_number.tool import GrahamNumberToolDependencies
-from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
-from src.strategies.momentum.settings import MomentumSettings
-from src.strategies.momentum.tool import MomentumToolDependencies, MomentumToolHandler
-from src.strategy_wiring import STRATEGIES, bind_handlers
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from investment_analysis_engine.evaluation.fixtures.market_data import (
+    GOLDEN_MOMENTUM_SETTINGS,
+    FixtureMarketDataProvider,
+)
+from investment_analysis_engine.orchestrator.analysis_tools import register_analysis_tools
+from investment_analysis_engine.orchestrator.dispatcher import AsyncToolDispatcher
+from investment_analysis_engine.orchestrator.tool_names import ToolName
+from investment_analysis_engine.orchestrator.tool_runtime import AnalysisToolHandler, ToolRuntime
+from investment_analysis_engine.orchestrator.types import ToolCallRequest
+from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from investment_analysis_engine.strategies.fcf_growth.tool import FCFEarningsGrowthToolDependencies
+from investment_analysis_engine.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
+from investment_analysis_engine.strategies.graham_growth.calculation import (
+    GrahamGrowthCalculationPolicy,
+    GrahamGrowthInputResolver,
+)
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_growth.tool import GrahamGrowthToolDependencies
+from investment_analysis_engine.strategies.graham_number.analyzer import GrahamNumberAnalyzer
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategies.graham_number.tool import GrahamNumberToolDependencies
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
+from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
+from investment_analysis_engine.strategies.momentum.tool import MomentumToolDependencies, MomentumToolHandler
+from investment_analysis_engine.strategy_wiring import STRATEGIES, bind_handlers
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 ANALYZE_MOMENTUM_TOOL = ToolName.ANALYZE_MOMENTUM.value

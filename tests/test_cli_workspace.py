@@ -14,25 +14,25 @@ from pydantic import ValidationError
 from sqlalchemy import update
 from typer.testing import CliRunner
 
-import src.cli_workspace
+import investment_analysis_engine.cli_workspace
 from alembic import command
-from src.analysis.run_models import RunOutcome
-from src.cli import app
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.repositories.schema import analysis_runs
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.evaluation.fixtures.market_data import FixtureDataClient
-from src.strategies.momentum.execution import run_momentum
-from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import run_spec_for
-from src.workspace.capture import ExecutionCapture
-from src.workspace.execution import execute
-from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
-from src.workspace.repositories.watchlists import SQLiteWatchlistRepository
-from src.workspace.requests import AnalysisRequest
-from src.workspace.runs import AnalysisRun, RunQuery
-from src.workspace.watchlists import WatchlistNotFoundError
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.repositories.schema import analysis_runs
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
+from investment_analysis_engine.strategies.momentum.execution import run_momentum
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategy_wiring import run_spec_for
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.execution import execute
+from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
+from investment_analysis_engine.workspace.repositories.watchlists import SQLiteWatchlistRepository
+from investment_analysis_engine.workspace.requests import AnalysisRequest
+from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
+from investment_analysis_engine.workspace.watchlists import WatchlistNotFoundError
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 from tests._wiring import encode_native
 
@@ -723,7 +723,7 @@ def test_workspace_commands_report_a_sanitized_readiness_error(tmp_path: Path) -
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "0001_persistence")  # older head: newer workspace tables never created
 
-    with patch("src.cli_workspace.settings", ProjectSettings(database_url=url)):
+    with patch("investment_analysis_engine.cli_workspace.settings", ProjectSettings(database_url=url)):
         result = runner.invoke(app, ["watchlist", "list"])
     assert result.exit_code == 1
     assert "Traceback" not in result.output
@@ -744,7 +744,7 @@ def test_watchlist_help_and_runs_help_have_no_storage_side_effects() -> None:
 
 def test_module_import_has_no_storage_side_effects() -> None:
     with patch.object(SQLiteDatabase, "__init__", side_effect=AssertionError("import must not open a database")):
-        importlib.reload(src.cli_workspace)
+        importlib.reload(investment_analysis_engine.cli_workspace)
 
 
 def test_the_retired_watchlist_command_names_are_rejected() -> None:
@@ -923,7 +923,7 @@ def test_watchlist_delete_non_interactive_without_yes_is_a_usage_error_and_chang
     _seed_for_delete()
     before = _database_path(isolated_cli_settings).read_bytes()
 
-    with patch("src.cli_workspace._stdin_is_interactive", return_value=False):
+    with patch("investment_analysis_engine.cli_workspace._stdin_is_interactive", return_value=False):
         result = runner.invoke(app, ["watchlist", "delete", "Scratch"])
 
     assert result.exit_code == 1
@@ -933,7 +933,7 @@ def test_watchlist_delete_non_interactive_without_yes_is_a_usage_error_and_chang
 
 def test_watchlist_delete_non_interactive_check_happens_before_the_database_is_opened() -> None:
     with (
-        patch("src.cli_workspace._stdin_is_interactive", return_value=False),
+        patch("investment_analysis_engine.cli_workspace._stdin_is_interactive", return_value=False),
         patch.object(SQLiteDatabase, "__init__", side_effect=AssertionError("must not open a database")),
     ):
         result = runner.invoke(app, ["watchlist", "delete", "Scratch"])
@@ -944,7 +944,7 @@ def test_watchlist_delete_non_interactive_check_happens_before_the_database_is_o
 def test_watchlist_delete_interactive_confirm_shows_name_id_and_count_then_deletes() -> None:
     _seed_for_delete()
 
-    with patch("src.cli_workspace._stdin_is_interactive", return_value=True):
+    with patch("investment_analysis_engine.cli_workspace._stdin_is_interactive", return_value=True):
         result = runner.invoke(app, ["watchlist", "delete", "Scratch"], input="y\n")
 
     assert result.exit_code == 0, result.output
@@ -958,7 +958,7 @@ def test_watchlist_delete_interactive_confirm_shows_name_id_and_count_then_delet
 def test_watchlist_delete_interactive_decline_exits_1_and_deletes_nothing() -> None:
     _seed_for_delete()
 
-    with patch("src.cli_workspace._stdin_is_interactive", return_value=True):
+    with patch("investment_analysis_engine.cli_workspace._stdin_is_interactive", return_value=True):
         result = runner.invoke(app, ["watchlist", "delete", "Scratch"], input="n\n")
 
     assert result.exit_code == 1
@@ -967,7 +967,7 @@ def test_watchlist_delete_interactive_decline_exits_1_and_deletes_nothing() -> N
 
 
 def test_watchlist_delete_interactive_unknown_name_exits_1_before_prompting() -> None:
-    with patch("src.cli_workspace._stdin_is_interactive", return_value=True):
+    with patch("investment_analysis_engine.cli_workspace._stdin_is_interactive", return_value=True):
         result = runner.invoke(app, ["watchlist", "delete", "Nonexistent"])
 
     assert result.exit_code == 1
@@ -1096,27 +1096,27 @@ class _FakeStdin:
 
 
 def test_stdin_is_not_interactive_when_it_is_not_a_terminal() -> None:
-    with patch("src.cli_workspace.sys.stdin", _FakeStdin(tty=False)):
-        assert src.cli_workspace._stdin_is_interactive() is False
+    with patch("investment_analysis_engine.cli_workspace.sys.stdin", _FakeStdin(tty=False)):
+        assert investment_analysis_engine.cli_workspace._stdin_is_interactive() is False
 
 
 def test_stdin_is_interactive_for_a_terminal_off_windows() -> None:
     with (
-        patch("src.cli_workspace.sys.stdin", _FakeStdin(tty=True)),
-        patch("src.cli_workspace.is_windows", return_value=False),
+        patch("investment_analysis_engine.cli_workspace.sys.stdin", _FakeStdin(tty=True)),
+        patch("investment_analysis_engine.cli_workspace.is_windows", return_value=False),
     ):
-        assert src.cli_workspace._stdin_is_interactive() is True
+        assert investment_analysis_engine.cli_workspace._stdin_is_interactive() is True
 
 
 @pytest.mark.parametrize("console_attached", [True, False])
 def test_on_windows_a_terminal_report_must_be_confirmed_as_a_real_console(console_attached: bool) -> None:
     """Windows reports the NUL device as a terminal, so isatty() alone would let a script reach the prompt."""
     with (
-        patch("src.cli_workspace.sys.stdin", _FakeStdin(tty=True)),
-        patch("src.cli_workspace.is_windows", return_value=True),
-        patch("src.cli_workspace._windows_console_attached", return_value=console_attached),
+        patch("investment_analysis_engine.cli_workspace.sys.stdin", _FakeStdin(tty=True)),
+        patch("investment_analysis_engine.cli_workspace.is_windows", return_value=True),
+        patch("investment_analysis_engine.cli_workspace._windows_console_attached", return_value=console_attached),
     ):
-        assert src.cli_workspace._stdin_is_interactive() is console_attached
+        assert investment_analysis_engine.cli_workspace._stdin_is_interactive() is console_attached
 
 
 # --- the catch-all in _workspace_database ---------------------------------------------------------------------
@@ -1175,7 +1175,10 @@ def test_an_exception_without_its_own_code_is_an_unexpected_failure_with_one_fix
 
 def test_an_exception_that_declares_its_own_code_keeps_its_own_sentence() -> None:
     _create("Core")
-    with patch("src.cli_workspace.SQLiteWatchlistRepository.get", side_effect=WatchlistNotFoundError("own sentence")):
+    with patch(
+        "investment_analysis_engine.cli_workspace.SQLiteWatchlistRepository.get",
+        side_effect=WatchlistNotFoundError("own sentence"),
+    ):
         result = runner.invoke(app, ["watchlist", "show", "Core", "--json"])
     document = json.loads(result.stdout)
     assert result.exit_code == 1
@@ -1184,6 +1187,6 @@ def test_an_exception_that_declares_its_own_code_keeps_its_own_sentence() -> Non
 
 def test_a_deliberate_exit_passes_through_the_catch_all() -> None:
     _create("Core")
-    with patch("src.cli_workspace.SQLiteWatchlistRepository.get", side_effect=typer.Exit(7)):
+    with patch("investment_analysis_engine.cli_workspace.SQLiteWatchlistRepository.get", side_effect=typer.Exit(7)):
         result = runner.invoke(app, ["watchlist", "show", "Core"])
     assert result.exit_code == 7

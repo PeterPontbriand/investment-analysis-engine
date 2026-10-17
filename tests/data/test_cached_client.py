@@ -11,15 +11,15 @@ from alembic.config import Config
 from pandas.testing import assert_frame_equal
 
 from alembic import command
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.base_client import BaseDataClient, DataFetchError
-from src.data.cached_client import CachedHistoricalDataClient
-from src.data.market_data import HistoricalMarketData, MarketDataContext, historical_index_kind
-from src.data.quality import HistoricalDataQualityError, HistoricalQualityPolicy, QualityDecision
-from src.data.quality_reporting import quality_observer
-from src.data.repositories.market_data import MarketDataCacheKey, SQLiteMarketDataRepository
-from src.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.base_client import BaseDataClient, DataFetchError
+from investment_analysis_engine.data.cached_client import CachedHistoricalDataClient
+from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext, historical_index_kind
+from investment_analysis_engine.data.quality import HistoricalDataQualityError, HistoricalQualityPolicy, QualityDecision
+from investment_analysis_engine.data.quality_reporting import quality_observer
+from investment_analysis_engine.data.repositories.market_data import MarketDataCacheKey, SQLiteMarketDataRepository
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
 NOW = datetime(2026, 9, 5, tzinfo=UTC)
 START = "2025-01-01"
@@ -381,7 +381,7 @@ def test_valid_bypass(database: SQLiteDatabase, reason: str, caplog: pytest.LogC
     client = CachedHistoricalDataClient(
         provider, SQLiteMarketDataRepository(database), request_variant=variant, ttl=None, clock=lambda: NOW
     )
-    with caplog.at_level("DEBUG", logger="src.data.cached_client"):
+    with caplog.at_level("DEBUG", logger="investment_analysis_engine.data.cached_client"):
         assert client.fetch_historical_data("ABC", START, use_cache=True).frame is provider.data.frame
         assert client.fetch_historical_data("ABC", START, use_cache=True).frame is provider.data.frame
     assert len(provider.calls) == 2

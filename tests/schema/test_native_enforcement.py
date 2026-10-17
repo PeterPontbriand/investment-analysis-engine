@@ -14,9 +14,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.schema.constraint import format_schema_for_ollama
-from src.schema.models import ToolCallResponse
-from src.schema.validator import build_retry_messages, validate_response
+from investment_analysis_engine.schema.constraint import format_schema_for_ollama
+from investment_analysis_engine.schema.models import ToolCallResponse
+from investment_analysis_engine.schema.validator import build_retry_messages, validate_response
 
 
 @pytest.fixture

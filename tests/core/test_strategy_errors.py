@@ -6,7 +6,7 @@ from types import MappingProxyType
 
 import pytest
 
-from src.core.strategy_errors import UndeclaredStrategyError, describe, find, require, undeclared
+from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, describe, find, require, undeclared
 
 
 class _Declared:

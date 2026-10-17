@@ -13,8 +13,8 @@ from unittest.mock import MagicMock
 import pytest
 import typer.main
 
-from src.cli_composition import momentum_settings
-from src.cli_strategy_wiring import (
+from investment_analysis_engine.cli_composition import momentum_settings
+from investment_analysis_engine.cli_strategy_wiring import (
     CLI_BUILDERS,
     CLI_REFRESHERS,
     CLI_STRATEGIES,
@@ -26,16 +26,23 @@ from src.cli_strategy_wiring import (
     refresh_executor_for,
     refreshers_by_key,
 )
-from src.cli_watchlist_flags import WatchlistFlags
-from src.cli_workspace import watchlist_app
-from src.core.strategy_errors import UndeclaredStrategyError
-from src.data.instrument_profile_cache import InstrumentProfileResolver
-from src.strategies.fcf_growth.selection import FCFGrowthSelection
-from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_number.selection import GrahamNumberSelection
-from src.strategies.momentum.cli import refresh as refresh_momentum
-from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import FCF_GROWTH, GRAHAM_GROWTH, GRAHAM_NUMBER, MOMENTUM, MOMENTUM_BEHAVIOR, STRATEGIES
+from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
+from investment_analysis_engine.cli_workspace import watchlist_app
+from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError
+from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
+from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
+from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
+from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
+from investment_analysis_engine.strategies.momentum.cli import refresh as refresh_momentum
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategy_wiring import (
+    FCF_GROWTH,
+    GRAHAM_GROWTH,
+    GRAHAM_NUMBER,
+    MOMENTUM,
+    MOMENTUM_BEHAVIOR,
+    STRATEGIES,
+)
 
 _FLAGS = WatchlistFlags(
     short_window=5,

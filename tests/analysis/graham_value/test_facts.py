@@ -1,4 +1,4 @@
-"""Tests for src.data.financial.facts provider-neutral contracts.
+"""Tests for investment_analysis_engine.data.financial.facts provider-neutral contracts.
 
 Uses tiny in-test fakes only; no reusable fixture datasets.  All datetimes are
 fixed timezone-aware values — no ``datetime.now()``.
@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from src.data.financial.facts import (
+from investment_analysis_engine.data.financial.facts import (
     FinancialFactRequest,
     FinancialFactsProvider,
     FinancialField,
@@ -20,7 +20,7 @@ from src.data.financial.facts import (
     FinancialUnit,
     ProviderFact,
 )
-from src.data.financial.provenance import (
+from investment_analysis_engine.data.financial.provenance import (
     AccountingScope,
     CapitalExpenditureSign,
     FinancialSubjectKind,

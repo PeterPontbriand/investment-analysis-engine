@@ -5,7 +5,7 @@ from math import inf, nan
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from src.evaluation.models import (
+from investment_analysis_engine.evaluation.models import (
     BehaviorConstraints,
     Case,
     ComponentKind,
@@ -21,7 +21,7 @@ from src.evaluation.models import (
     ToolCallObservation,
     ToolConstraints,
 )
-from src.orchestrator.tool_names import ToolName
+from investment_analysis_engine.orchestrator.tool_names import ToolName
 
 
 @pytest.mark.parametrize(

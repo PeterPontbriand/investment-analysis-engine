@@ -184,7 +184,7 @@ strategy-owned modules that the descriptor and tiers reference.
 | Persisted selection and workspace execution | The CLI alias vocabulary, selection building and decoding, and method/config/result-schema/codec version metadata where currently duplicated across execution and codec tables. The refresh executor and selection builder are CLI-tier members and fail closed. | Each persisted selection/config model and conversion, in its own `<strategy>_selection.py`; the `AnalysisSelection` and `NativeEvidence` unions (one file); analyzer invocation, capture shape, and outcome classification. Adapters remain strategy-owned. |
 | Evidence encoding and decoding | Result/capture type-to-codec dispatch and repeated expected version metadata derive from injected codecs and version fields. | Each strategy's encode/decode implementation, validation rules, evidence shape, ticker checks, and provenance semantics remain owned by its codec and result type. |
 | Reporting, replay, and JSON output | The `(analysis_id, method_id)` route and any genuinely duplicated dispatch key, including the identifier literals in the JSON builders and `execution_errors` calls, derive from the strategy's identity leaf and the descriptor. The injected projector mapping is keyed by that identity and fails closed. Schema generation enumerates the typed strategy envelope models and the failure envelope. | Versioned projection behavior (each projector in `<strategy>_replay.py`), presentation wording, rendering, typed envelope shape, strategy result unions, and historical replay semantics remain strategy-specific and explicit. The failure envelope is one shared shape, not a descriptor field. `projection_version` remains distinct from method and result-schema versions. |
-| Fixture-backed evaluation composition and direct CLI commands | Fixture composition and requirement are evaluation-tier members; each direct command is a CLI-tier member that `cli.py` adds by iterating the tier. The strategy lists in `USAGE.md` and `WORKSPACE.md` are generated from the descriptors. | Fixture values, expected outcomes, scoring, case truth, the catalog's case tuple and suite version, direct CLI command semantics, and any explicit user-facing boundary remain as they are. Momentum's profile composition in `src/cli.py` and `src/cli_workspace.py` is reduced to a single implementation by SWC.3a. |
+| Fixture-backed evaluation composition and direct CLI commands | Fixture composition and requirement are evaluation-tier members; each direct command is a CLI-tier member that `cli.py` adds by iterating the tier. The strategy lists in `USAGE.md` and `WORKSPACE.md` are generated from the descriptors. | Fixture values, expected outcomes, scoring, case truth, the catalog's case tuple and suite version, direct CLI command semantics, and any explicit user-facing boundary remain as they are. Momentum's profile composition in `investment_analysis_engine/cli.py` and `investment_analysis_engine/cli_workspace.py` is reduced to a single implementation by SWC.3a. |
 
 SWC.1 must confirm this mapping against the named symbols and update it if a surface is no longer
 present or if further duplication is found. It may narrow descriptor fields when a consumer does not
@@ -226,20 +226,20 @@ composition into the evaluation tier.
 - **Problem:** each strategy's files are spread across `analysis`, `workspace`, `reporting`,
   `orchestrator`, the CLI and `evaluation`, and the slices that follow create more of them. The layout has to
   be settled before they do, because SWC.5 and SWC.6 build tooling around file locations.
-  `src/workspace/__init__.py` re-exports names no module imports from the package and, once `requests.py`
+  `investment_analysis_engine/workspace/__init__.py` re-exports names no module imports from the package and, once `requests.py`
   imports descriptor machinery, creates an initialization cycle ([design §4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#4-static-declaration-model)); it is emptied here, with the layering test that counts parent packages.
-- **Decision:** one package per strategy, `src/strategies/<strategy>/`, with each file named for its role,
-  shared code in `src/strategies/_shared/` and the Graham family package `src/strategies/_graham/`, and every
-  `__init__.py` under `src/strategies/` empty. A role-based layering test (T13) replaces the folder rule.
+- **Decision:** one package per strategy, `investment_analysis_engine/strategies/<strategy>/`, with each file named for its role,
+  shared code in `investment_analysis_engine/strategies/_shared/` and the Graham family package `investment_analysis_engine/strategies/_graham/`, and every
+  `__init__.py` under `investment_analysis_engine/strategies/` empty. A role-based layering test (T13) replaces the folder rule.
   Every later slice creates its files in their final place. The layout and the rule are in the
   [SWC.1 design §4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#4-static-declaration-model); the evidence is in
   [Appendix C.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#c6-one-package-per-strategy).
-- **Scope:** `git mv` of the 13 analyzer files from `src/analysis/strategy/<package>/` (Momentum's
+- **Scope:** `git mv` of the 13 analyzer files from `investment_analysis_engine/analysis/strategy/<package>/` (Momentum's
   `momentum_analyzer.py` becomes `analyzer.py`; the `fcf_earnings_growth` package becomes `fcf_growth`), the
-  four codecs, four adapters and four presenters, and `src/workspace/graham_shared.py` to
-  `src/strategies/_shared/profile.py`; removal of `src/analysis/strategy/` and its five `__init__.py` files
-  (three of them re-exporting), replaced by empty ones under `src/strategies/`; emptying
-  `src/workspace/__init__.py`; the 101 importer files (33 in `src`, 68 in `tests`, among them 15 tests whose patch
+  four codecs, four adapters and four presenters, and `investment_analysis_engine/workspace/graham_shared.py` to
+  `investment_analysis_engine/strategies/_shared/profile.py`; removal of `investment_analysis_engine/analysis/strategy/` and its five `__init__.py` files
+  (three of them re-exporting), replaced by empty ones under `investment_analysis_engine/strategies/`; emptying
+  `investment_analysis_engine/workspace/__init__.py`; the 101 importer files (33 in `investment_analysis_engine`, 68 in `tests`, among them 15 tests whose patch
   strings name moved modules); `tests/analysis/test_base_analyzer_conformance.py`, whose boundary constants
   name the strategy package; the living guide `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`; the
   layering test with the role rule and parent-package initialization; and the patch-target resolution test,
@@ -258,25 +258,25 @@ composition into the evaluation tier.
 #### SWC.2b — Symbol moves
 
 - **Problem:** the symbols the descriptor and tiers will reference sit in modules that would put the
-  descriptor in a cycle: `ToolName` in `src/evaluation/models.py` (and exported from `src.evaluation`),
-  the argument models and their shared base in `src/orchestrator/analysis_tools.py`, the selection classes
-  and `AnalysisSelection` in `src/workspace/requests.py`, and `NativeEvidence` in
-  `src/workspace/execution.py`. `AnalysisType` in `src/core/constants.py` is a per-strategy name list with
+  descriptor in a cycle: `ToolName` in `investment_analysis_engine/evaluation/models.py` (and exported from `investment_analysis_engine.evaluation`),
+  the argument models and their shared base in `investment_analysis_engine/orchestrator/analysis_tools.py`, the selection classes
+  and `AnalysisSelection` in `investment_analysis_engine/workspace/requests.py`, and `NativeEvidence` in
+  `investment_analysis_engine/workspace/execution.py`. `AnalysisType` in `investment_analysis_engine/core/constants.py` is a per-strategy name list with
   no reader.
 - **Decision:** move each symbol to its final home with one import path and no compatibility re-export;
   delete `AnalysisType`. No behavior change, no descriptor.
-- **Scope:** new `src/orchestrator/tool_names.py`, `src/orchestrator/analysis_tool_arguments.py` (the shared
-  base renamed `AnalysisToolArguments`, `FiniteFloat`, `PositiveFiniteFloat`), `src/strategies/<strategy>/tool.py`
+- **Scope:** new `investment_analysis_engine/orchestrator/tool_names.py`, `investment_analysis_engine/orchestrator/analysis_tool_arguments.py` (the shared
+  base renamed `AnalysisToolArguments`, `FiniteFloat`, `PositiveFiniteFloat`), `investment_analysis_engine/strategies/<strategy>/tool.py`
   (arguments model only, four files; Momentum's `_MOMENTUM_DEFAULTS` goes with its model),
-  `src/workspace/selection_base.py` (the shared selection base, public as `FrozenSelection`, and the two
+  `investment_analysis_engine/workspace/selection_base.py` (the shared selection base, public as `FrozenSelection`, and the two
   CLI provider tuples both Graham selections read, public as `CLI_SECURITY_PROVIDERS` and `CLI_QUOTE_PROVIDERS`),
-  `src/strategies/<strategy>/selection.py` (four files; `FCFPolicySnapshot` goes with `FCFGrowthSelection`) and
-  `src/workspace/strategy_types.py` (`NativeEvidence`, `SelectionMember`, `AnalysisSelection`);
-  `src/orchestrator/analysis_tools.py`, `src/workspace/{requests,execution}.py` (`AnalysisRequest`,
+  `investment_analysis_engine/strategies/<strategy>/selection.py` (four files; `FCFPolicySnapshot` goes with `FCFGrowthSelection`) and
+  `investment_analysis_engine/workspace/strategy_types.py` (`NativeEvidence`, `SelectionMember`, `AnalysisSelection`);
+  `investment_analysis_engine/orchestrator/analysis_tools.py`, `investment_analysis_engine/workspace/{requests,execution}.py` (`AnalysisRequest`,
   `parse_selection` and its JSON helpers were deleted 2026-10-08, [B.13](#b13-one-dispatch-path-per-job-2026-10-08));
-  `src/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py` (the
-  `src.evaluation` export of `ToolName` is removed); the six `src/evaluation/cases/*.py` importers;
-  `src/core/constants.py`; every test that imports a moved symbol; and `docs/EVALUATIONS.md` and
+  `investment_analysis_engine/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py` (the
+  `investment_analysis_engine.evaluation` export of `ToolName` is removed); the six `investment_analysis_engine/evaluation/cases/*.py` importers;
+  `investment_analysis_engine/core/constants.py`; every test that imports a moved symbol; and `docs/EVALUATIONS.md` and
   `docs/project/ARCHITECTURE.md`. The four-model `AnalysisToolArguments` union in `composition.py` is
   replaced by the shared base here, so one name never denotes two things; every consumer reads only
   `ticker` and `model_dump` and dispatches by `isinstance`. The `ANALYZE_*_TOOL` constants and
@@ -296,12 +296,12 @@ composition into the evaluation tier.
   checks, then give the orchestration and evaluation routing consumers their slice by injection. Each
   strategy owns its dependency class and handler. Keep analyzer config creation and injected analyzers
   strategy-specific.
-- **Scope:** new `src/strategy_wiring.py`, `src/core/strategy_errors.py`, `src/orchestrator/tool_runtime.py`,
-  `scripts/strategy_conformance.py` and the conformance tests; `src/orchestrator/analysis_tools.py`
+- **Scope:** new `investment_analysis_engine/strategy_wiring.py`, `investment_analysis_engine/core/strategy_errors.py`, `investment_analysis_engine/orchestrator/tool_runtime.py`,
+  `scripts/strategy_conformance.py` and the conformance tests; `investment_analysis_engine/orchestrator/analysis_tools.py`
   (`AnalysisToolDependencies`, `AnalysisToolHandlers`, the `ANALYZE_*_TOOL` constants and
   `ANALYSIS_TOOL_ARGUMENT_MODELS` are deleted; registration receives the injected handler mapping);
-  `src/strategies/<strategy>/tool.py` (dependency class and handler);
-  `src/evaluation/{composition,runner,ollama_runner}.py`; removes its twelve T13 transition entries.
+  `investment_analysis_engine/strategies/<strategy>/tool.py` (dependency class and handler);
+  `investment_analysis_engine/evaluation/{composition,runner,ollama_runner}.py`; removes its twelve T13 transition entries.
   `NativeAnalysisResult` is replaced by
   `NativeEvidence`; `_native_status` becomes each behavior's `native_status` (Momentum's returns `None`) and
   stops defaulting to FCF. Fixture composition stays in `composition.py` as per-strategy functions until
@@ -315,18 +315,18 @@ composition into the evaluation tier.
 - **Problem:** fixture composition and the fixture-capability check are per-strategy code inside one
   generic module, and the golden suite's argument builder is one chain keyed by case id.
 - **Decision:** a strategy-owned `evaluation.py` per strategy holds its `compose` and `requirement`; a
-  closed tuple `EVALUATION_STRATEGIES` in `src/evaluation/strategy_fixtures.py` pairs each with its core
+  closed tuple `EVALUATION_STRATEGIES` in `investment_analysis_engine/evaluation/strategy_fixtures.py` pairs each with its core
   bundle by dependency type. Fixture truth stays hand-written and reviewed. The catalog's case tuple and
   suite version stay explicit.
-- **Scope:** new `src/evaluation/{strategy_fixtures,fixture_context}.py` (each fixture identifier is defined in
+- **Scope:** new `investment_analysis_engine/evaluation/{strategy_fixtures,fixture_context}.py` (each fixture identifier is defined in
   the fixture module of its evidence),
-  `src/strategies/<strategy>/evaluation.py` and `src/strategies/_graham/evaluation.py`;
-  `src/evaluation/{composition,catalog}.py`; the case modules (each case's reviewed arguments move beside
+  `investment_analysis_engine/strategies/<strategy>/evaluation.py` and `investment_analysis_engine/strategies/_graham/evaluation.py`;
+  `investment_analysis_engine/evaluation/{composition,catalog}.py`; the case modules (each case's reviewed arguments move beside
   it); tests and T10's evaluation-tier surface; removes its eight T13 transition entries. Every case module
   becomes single-strategy and is named for its strategy package: GRN-04 and GRN-05 move from
   `graham_resolution.py` into `graham_number.py`; FPI-01, FPI-02 and FPI-04 move from `sec_edgar_fpi.py`
   into `graham_growth.py` and FPI-03 into the FCF module, which is renamed `fcf_growth.py`. T13 gains the
-  clause that `src.evaluation.cases.<strategy>` may import the tool role of `src.strategies.<strategy>` and
+  clause that `investment_analysis_engine.evaluation.cases.<strategy>` may import the tool role of `investment_analysis_engine.strategies.<strategy>` and
   of no other strategy, because the moved arguments make that import permanent. Case ids, the order of
   `DETERMINISTIC_CASES`, the suite version and the fixture modules do not change. No fixture value,
   expected outcome or score changes. T13 also gains the rule that only generic evaluation modules import the
@@ -351,22 +351,22 @@ changes in thirteen test modules.
   strategy is rejected with an error naming it. No strategy is the default branch. Today only
   `encode_evidence` falls through to Momentum; `decode_evidence` already rejects an undeclared pair before
   its Momentum branch, and both become injected lookups.
-- **Scope:** `src/strategy_wiring.py` (the selection, codec and version members and fields),
-  `src/workspace/requests.py` (`parse_selection`, deleted 2026-10-08), `src/workspace/method_aliases.py`
-  (deleted; the descriptor owns the alias vocabulary), `src/workspace/execution.py`, `src/workspace/codecs.py`,
-  `src/workspace/refresh.py`, the strategy execution adapters (each gains its normalizer), `src/workspace/capture.py`
-  (`ExecutionCapture`), `src/workspace/selection_base.py` (the shared `config` body rules), per-strategy
+- **Scope:** `investment_analysis_engine/strategy_wiring.py` (the selection, codec and version members and fields),
+  `investment_analysis_engine/workspace/requests.py` (`parse_selection`, deleted 2026-10-08), `investment_analysis_engine/workspace/method_aliases.py`
+  (deleted; the descriptor owns the alias vocabulary), `investment_analysis_engine/workspace/execution.py`, `investment_analysis_engine/workspace/codecs.py`,
+  `investment_analysis_engine/workspace/refresh.py`, the strategy execution adapters (each gains its normalizer), `investment_analysis_engine/workspace/capture.py`
+  (`ExecutionCapture`), `investment_analysis_engine/workspace/selection_base.py` (the shared `config` body rules), per-strategy
   codec modules (each gains its `ticker_of` function) and selection modules,
-  `src/data/repositories/watchlists.py` (alias resolver at construction, through one helper in
-  `src/cli_workspace.py`), `src/cli.py` (Momentum profile composition, the `execute` calls and the normalizer
-  imports), `src/cli_workspace.py` (the repository helper, the Momentum composition copy, and the alias lookups
+  `investment_analysis_engine/data/repositories/watchlists.py` (alias resolver at construction, through one helper in
+  `investment_analysis_engine/cli_workspace.py`), `investment_analysis_engine/cli.py` (Momentum profile composition, the `execute` calls and the normalizer
+  imports), `investment_analysis_engine/cli_workspace.py` (the repository helper, the Momentum composition copy, and the alias lookups
   that read the root's `BY_ALIAS` and `BY_METHOD_ID` now that `method_aliases.py` is gone),
-  `src/reporting/analysis_runs.py` (`project_run` receives the injected codecs), the `getattr(selection, "as_of",
-  None)` probe in `execute`, the evaluation tier (`src/evaluation/strategy_fixtures.py` and the four strategy
+  `investment_analysis_engine/reporting/analysis_runs.py` (`project_run` receives the injected codecs), the `getattr(selection, "as_of",
+  None)` probe in `execute`, the evaluation tier (`investment_analysis_engine/evaluation/strategy_fixtures.py` and the four strategy
   `evaluation.py` files gain the required typed `sample_selection`, [design H.8](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h8-the-evaluation-tier-holds-a-sample-selection)),
   the root-importer list in T13, `scripts/strategy_conformance.py` (T1, T8, T11, T15 and T24), and focused tests. Replace Momentum's three
-  profile-composition copies (two in `src/cli.py`'s `momentum` command, one in `src/cli_workspace.py`'s
-  `_execute_momentum`) with one `compose_momentum_profile` in `src/strategies/momentum/execution.py`; detail in the
+  profile-composition copies (two in `investment_analysis_engine/cli.py`'s `momentum` command, one in `investment_analysis_engine/cli_workspace.py`'s
+  `_execute_momentum`) with one `compose_momentum_profile` in `investment_analysis_engine/strategies/momentum/execution.py`; detail in the
   [Momentum profile composition note](MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) and
   [SWC.1 design §14](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#14-momentum-profile-composition-helper). Preserve
   the `AnalysisSelection` union, conversion methods, adapter behavior, `NativeEvidence` union,
@@ -382,18 +382,18 @@ changes in thirteen test modules.
 #### SWC.3b — CLI tier
 
 - **Problem:** the watchlist selection builder is one chain ending in an unconditional FCF return, and the
-  refresh executor is an `isinstance` chain; both are per-strategy code in `src/cli_workspace.py`.
+  refresh executor is an `isinstance` chain; both are per-strategy code in `investment_analysis_engine/cli_workspace.py`.
 - **Decision:** each strategy's selection builder and refresh executor move unchanged into
-  `src/strategies/<strategy>/cli.py`; the closed tuple `CLI_STRATEGIES` in `src/cli_strategy_wiring.py`
+  `investment_analysis_engine/strategies/<strategy>/cli.py`; the closed tuple `CLI_STRATEGIES` in `investment_analysis_engine/cli_strategy_wiring.py`
   pairs them with the core bundle by selection type, and `cli_workspace.py` looks them up. A missing key
   raises `UndeclaredStrategyError`.
-- **Scope:** new `src/cli_strategy_wiring.py`, `src/cli_watchlist_flags.py` (the flag bundle every builder reads) and
-  four `src/strategies/<strategy>/cli.py`; `src/cli_workspace.py` (`_parse_analysis`, the `--analysis` help,
+- **Scope:** new `investment_analysis_engine/cli_strategy_wiring.py`, `investment_analysis_engine/cli_watchlist_flags.py` (the flag bundle every builder reads) and
+  four `investment_analysis_engine/strategies/<strategy>/cli.py`; `investment_analysis_engine/cli_workspace.py` (`_parse_analysis`, the `--analysis` help,
   `_build_selection`, `_refresh_executor`, the four `_execute_*` and their option converters);
   `scripts/strategy_conformance.py`; tests and T10's CLI-tier surface, including the patch strings in
   `tests/test_cli_refresh.py` and `tests/test_workspace_integration.py` that name the moved provider
   composition; removes its four T13 transition entries. T13 also gains the rule that only listed CLI modules
-  import the CLI tier (`src.cli_workspace` in SWC.3b and `src.cli` in SWC.3c), with the tier's entry in the root-importer
+  import the CLI tier (`investment_analysis_engine.cli_workspace` in SWC.3b and `investment_analysis_engine.cli` in SWC.3c), with the tier's entry in the root-importer
   list, a staleness check and a negative test.
 - **Branch:** `feat/swc-3b-cli-tier`, from `main` after SWC.3a has merged.
 - **Detail:** [SWC.1 design §3.3, §6 and §11](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers)
@@ -401,24 +401,24 @@ changes in thirteen test modules.
 
 #### SWC.3c — Direct commands
 
-- **Problem:** the four direct commands and their helpers are per-strategy code in `src/cli.py`, which
+- **Problem:** the four direct commands and their helpers are per-strategy code in `investment_analysis_engine/cli.py`, which
   registers each with `@app.command`.
 - **Decision:** each command moves into its strategy's CLI file as a plain function; `cli.py` adds the
   commands by iterating `CLI_STRATEGIES` through `add_strategy_commands`. A strategy file never registers
-  itself. `_maybe_save_run` and `get_cli_run_context` move to `src/cli_run_support.py`.
-- **Scope:** `src/cli.py`, new `src/cli_run_support.py`, the four `src/strategies/<strategy>/cli.py`, the
-  thirteen test modules that patch `src.cli.` names (76 patch strings, retargeted), T7 and T22; removes its eight T13 transition entries.
-  The new `command` member of the CLI tier and `add_strategy_commands` also change `src/cli_strategy_wiring.py`,
+  itself. `_maybe_save_run` and `get_cli_run_context` move to `investment_analysis_engine/cli_run_support.py`.
+- **Scope:** `investment_analysis_engine/cli.py`, new `investment_analysis_engine/cli_run_support.py`, the four `investment_analysis_engine/strategies/<strategy>/cli.py`, the
+  thirteen test modules that patch `investment_analysis_engine.cli.` names (76 patch strings, retargeted), T7 and T22; removes its eight T13 transition entries.
+  The new `command` member of the CLI tier and `add_strategy_commands` also change `investment_analysis_engine/cli_strategy_wiring.py`,
   `scripts/strategy_conformance.py` (T7, T14, T15, T22) and `tests/test_cli_strategy_wiring.py`; the
   help-output pin adds `tests/_cli_help_output.py`, `tests/test_cli_help_output.py` and
   `tests/expected_output/cli_help/`; T22 adds `tests/test_save_run_every_direct_command.py` and a provider
   helper in `tests/_direct_command_output.py`; the layering and conformance tests are updated; and the
-  docstrings and two guides that named `src/cli.py` for moved code are corrected
+  docstrings and two guides that named `investment_analysis_engine/cli.py` for moved code are corrected
   ([design H.15 to H.22](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h15-the-command-member-and-add_strategy_commands)).
-  Removes `src/cli.py`'s copies of the three FCF option converters (`_historical_horizon`, `_forward_policy`,
-  `_fcf_classification_basis`), which are the same code as the ones SWC.3b moved to `src/strategies/fcf_growth/cli.py`,
+  Removes `investment_analysis_engine/cli.py`'s copies of the three FCF option converters (`_historical_horizon`, `_forward_policy`,
+  `_fcf_classification_basis`), which are the same code as the ones SWC.3b moved to `investment_analysis_engine/strategies/fcf_growth/cli.py`,
   and moves its Momentum window check (`_validate_momentum_windows`, which exits with code 2 and so differs from the
-  builder's `BadParameter` check) into `src/strategies/momentum/cli.py`.
+  builder's `BadParameter` check) into `investment_analysis_engine/strategies/momentum/cli.py`.
 - **Branch:** `feat/swc-3c-direct-commands`, from `main` after SWC.3b has merged.
 - **Detail:** [SWC.1 design §6, §11 and §12](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#12-framework-drift-checks).
 
@@ -441,13 +441,13 @@ version and result-schema version distinct and do not silently reinterpret histo
   names. Failures are reported, never self-remediated. Momentum's window validation, which exited with code 2
   on the direct command and raised a parameter error on the watchlist commands, reports one
   `invalid_parameter` failure through the envelope on both ([B.10](#b10-swc4a-momentum-window-failure-2026-10-06)).
-- **Scope:** `src/reporting/documents/{__init__,failure,database}.py`, `src/reporting/failure_classification.py` (since moved to `src/core`, PH.2d),
-  `src/cli_support.py`, `src/reporting/presentation.py`, the `execution_errors` call sites in the strategy
-  command files (the Momentum file also holds the window check), `src/cli_workspace.py` (`--json`-aware failures),
-  `src/cli_database.py`, `src/workspace/refresh.py` (injected classifier and per-job code), one
-  `WatchlistNotFoundError` in `src/workspace/watchlists.py` and its two importers
-  (`src/data/repositories/watchlists.py`, `src/workspace/refresh.py`), `AnalysisConfigurationError` moved to the
-  classifier module (since moved to `src/core/operator_errors.py`, PH.2d) with its two importers (`src/cli_composition.py`, `src/cli_health.py`),
+- **Scope:** `investment_analysis_engine/reporting/documents/{__init__,failure,database}.py`, `investment_analysis_engine/reporting/failure_classification.py` (since moved to `investment_analysis_engine/core`, PH.2d),
+  `investment_analysis_engine/cli_support.py`, `investment_analysis_engine/reporting/presentation.py`, the `execution_errors` call sites in the strategy
+  command files (the Momentum file also holds the window check), `investment_analysis_engine/cli_workspace.py` (`--json`-aware failures),
+  `investment_analysis_engine/cli_database.py`, `investment_analysis_engine/workspace/refresh.py` (injected classifier and per-job code), one
+  `WatchlistNotFoundError` in `investment_analysis_engine/workspace/watchlists.py` and its two importers
+  (`investment_analysis_engine/data/repositories/watchlists.py`, `investment_analysis_engine/workspace/refresh.py`), `AnalysisConfigurationError` moved to the
+  classifier module (since moved to `investment_analysis_engine/core/operator_errors.py`, PH.2d) with its two importers (`investment_analysis_engine/cli_composition.py`, `investment_analysis_engine/cli_health.py`),
   `docs/user/DATABASE.md`, `docs/user/USAGE.md` and `docs/user/WORKSPACE.md` (prose that described the
   old failure output), `refresh` of an empty watchlist as a `watchlist_empty` failure
   ([B.11](#b11-swc4a-an-empty-watchlist-is-a-refresh-failure-2026-10-06)), a new `scripts/generate_schemas.py`, `schemas/` (failure, database report), tests T18 to
@@ -463,8 +463,8 @@ version and result-schema version distinct and do not silently reinterpret histo
   hand-written dictionaries with no typed model or schema.
 - **Decision:** one model per document, byte-identical to today's output apart from the changes listed in
   the design. Selections inside watchlist documents are typed by the `AnalysisSelection` union.
-- **Scope:** `src/reporting/documents/{timestamp,watchlist,runs,refresh}.py` (`timestamp.py` is the one instant type every
-  document model uses), the JSON builders in `src/cli_workspace.py`, four schemas and their entries in
+- **Scope:** `investment_analysis_engine/reporting/documents/{timestamp,watchlist,runs,refresh}.py` (`timestamp.py` is the one instant type every
+  document model uses), the JSON builders in `investment_analysis_engine/cli_workspace.py`, four schemas and their entries in
   `scripts/generate_schemas.py`, tests and the stored workspace scenario (`tests/_workspace_command_output.py` and
   `tests/expected_output/workspace_commands/`), and `docs/user/WORKSPACE.md`. Two output changes, listed in
   [design §13.4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#134-what-changes) rows 6 and 7: `runs list` `completed_at` and a watchlist
@@ -485,17 +485,17 @@ version and result-schema version distinct and do not silently reinterpret histo
   vocabulary files hold each strategy's identity constants, which presenters and the descriptor
   read ([design H.32](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h32-one-vocabulary-file-per-strategy-2026-10-07)); the descriptor gains `json_envelope` and the `project` member; `project_run` receives the
   injected projector mapping and fails closed; the command-coverage test lands last, with no exemption list.
-- **Scope:** `src/strategy_wiring.py`, `src/strategies/<strategy>/envelope.py`, `replay.py` and, by [design H.32](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h32-one-vocabulary-file-per-strategy-2026-10-07), `vocabulary.py` (identity, the stored-configuration version and shared enumerations; the four
+- **Scope:** `investment_analysis_engine/strategy_wiring.py`, `investment_analysis_engine/strategies/<strategy>/envelope.py`, `replay.py` and, by [design H.32](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h32-one-vocabulary-file-per-strategy-2026-10-07), `vocabulary.py` (identity, the stored-configuration version and shared enumerations; the four
   projectors leave `analysis_runs.py`; each `replay.py` also holds the strategy's `headline` function only
-  from Step 3.5 slice 3.5.0), `src/strategies/_graham/replay.py`, `src/reporting/replay_inputs.py`
-  (`ReplayOptions` and `UnsupportedProjectionError` move here), `src/reporting/json_documents.py` (the
+  from Step 3.5 slice 3.5.0), `investment_analysis_engine/strategies/_graham/replay.py`, `investment_analysis_engine/reporting/replay_inputs.py`
+  (`ReplayOptions` and `UnsupportedProjectionError` move here), `investment_analysis_engine/reporting/json_documents.py` (the
   failure, workspace and database documents; the generator and tests add each descriptor's `json_envelope`
-  from the root), `src/reporting/analysis_runs.py`, the four `presenter.py` files, four schemas, and tests
+  from the root), `investment_analysis_engine/reporting/analysis_runs.py`, the four `presenter.py` files, four schemas, and tests
   T8 (replay), T10, T20, T21 and T24 extended; removes its four T13 transition entries. Also in scope, as
   [design H.31](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h31-typed-strategy-documents-and-replay-dispatch-2026-10-07)
-  records: `src/reporting/documents/shared_parts.py` (the parts several strategy documents share),
+  records: `investment_analysis_engine/reporting/documents/shared_parts.py` (the parts several strategy documents share),
   `scripts/generate_schemas.py` and `scripts/strategy_conformance.py`, the one-line import retargets in
-  `src/cli_workspace.py` and `src/reporting/failure_classification.py` (since moved to `src/core`, PH.2d), the stored strategy-document output in
+  `investment_analysis_engine/cli_workspace.py` and `investment_analysis_engine/reporting/failure_classification.py` (since moved to `investment_analysis_engine/core`, PH.2d), the stored strategy-document output in
   `tests/expected_output/strategy_documents/` and its harness (captured from the hand-written builders before any
   builder changed), `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`, and one line in the Step 3.5 plan's
   repetition checkpoint.
@@ -510,15 +510,15 @@ version and result-schema version distinct and do not silently reinterpret histo
   request in one and a data date in another; `status` was a verdict in Momentum and a calculation status elsewhere;
   FCF Growth wrapped its diagnostics and had no `limitations`), so a key added to all four had to be added four times.
 - **Decision:** every strategy document begins with one header and ends with one tail, each declared once in
-  `src/reporting/documents/strategy_document.py` and composed into the strategy's body by inheritance
+  `investment_analysis_engine/reporting/documents/strategy_document.py` and composed into the strategy's body by inheritance
   ([design H.34](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h34-common-header-and-tail-for-strategy-documents-2026-10-09)).
   A conformance test iterates every descriptor's `json_envelope` and fails for a document that does not take them. The
   Graham evidence now carries the instant the analysis was evaluated at, so `effective_as_of` is a true value in all
   four. The failure envelope and the text output are unchanged. Landed before PH.2c, which adds `provider_failure` to
   the header, and before Step 3.5.
-- **Scope:** `src/reporting/documents/strategy_document.py`; the four `envelope.py` and `presenter.py` files; the
+- **Scope:** `investment_analysis_engine/reporting/documents/strategy_document.py`; the four `envelope.py` and `presenter.py` files; the
   Momentum and Graham `replay.py` and `cli.py` files; Graham's `service.py`, `analyzer.py` and `codec.py`;
-  `src/strategy_wiring.py` (the Graham `result_schema_version` and `evidence_codec_version`); four schemas; the stored
+  `investment_analysis_engine/strategy_wiring.py` (the Graham `result_schema_version` and `evidence_codec_version`); four schemas; the stored
   output under `tests/expected_output/`; the affected tests; `docs/user/USAGE.md`, `docs/user/SMOKE_TESTING.md` and the
   plans that name these keys.
 - **Branch:** `feat/strategy-document-common-header`, from `main` after SWC.4c.
@@ -542,7 +542,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   - a caught `ValueError` from the workspace layer is audited per site: a real check becomes an explicit check, and anything else that
     declares no code of its own reports as `execution_error` with `<command> failed unexpectedly.` ([B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12));
   - the failure envelope gains `parameters`, the offending option or argument names, and its `schema_version` is bumped;
-  - a test fails if any file under `src/` raises `typer.BadParameter`.
+  - a test fails if any file under `investment_analysis_engine/` raises `typer.BadParameter`.
 - **Scope:** set by the [SWC.4d plan](SWC_4D_COMMAND_VALIDATION_FAILURES_PLAN.md#e-file-scope-tests-and-documents-for-step-2).
 - **Branch:** `feat/swc-4d-command-validation-failures`, from `main` after SWC.4c has merged. Two steps on the branch: the plan, then
   the implementation.
@@ -567,10 +567,10 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Problem:** a failed refresh job reports the exception's own text (`RefreshJobResult.error`), while the same failure on a direct
   command reports a message written for it, and the direct commands' messages differ by strategy. Refresh can therefore show raw
   validation text or text from provider data.
-- **Decision:** the failure code chooses the message, in one function in `src/cli_support.py` that the direct commands and the refresh
+- **Decision:** the failure code chooses the message, in one function in `investment_analysis_engine/cli_support.py` that the direct commands and the refresh
   job both use; no strategy declares wording and no message names the strategy
   ([B.17](#b17-swc4f-one-failure-message-rule-for-the-direct-commands-and-refresh-2026-10-12)).
-- **Scope:** `src/cli_support.py`, the four strategy `cli.py` files, `src/cli_workspace.py`, `src/workspace/refresh.py`, the declaration
+- **Scope:** `investment_analysis_engine/cli_support.py`, the four strategy `cli.py` files, `investment_analysis_engine/cli_workspace.py`, `investment_analysis_engine/workspace/refresh.py`, the declaration
   of `AnalysisRunConflictError`, the `error` description of the `refresh --json` document and its schema, their tests, the stored
   output, and the user documents that show these messages; the exact list is in B.17 section D.
 - **Branch:** `feat/swc-4f-failure-sentences`, from `main` after SWC.4e has merged.
@@ -591,7 +591,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   the strategy guides; `docs/user/strategies/FCF_EARNINGS_GROWTH.md` renamed `FCF_GROWTH.md` with its links;
   tests T25 and T26.
 - **Branch:** `feat/swc-5-site-data-and-status`, from `main` after SWC.4c has merged.
-- **Order:** starts after PKG.2, so that the import paths SWC.6 and SWC.7 write are written once, under the final package name. [B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12) recorded the earlier order.
+- **Order:** starts after PKG.2 and PKG.3, so that the import paths SWC.6 and SWC.7 write are written once, under the final package name, and the files they create sit where the self-contained package reads them. [B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12) recorded the earlier order.
 - **Detail:** [SWC.1 design §19.1, §19.2 and §10](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#19-contributor-tooling).
 
 ### SWC.6 — Specimen strategy and generator
@@ -604,7 +604,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   check and the conformance suite to pass. `AGENTS.md` §3 gains one narrow exception for generator output
   that fails the gate by design.
 - **Scope:** new `tests/specimen/`, `scripts/new_strategy.py`, `scripts/strategy_templates/`,
-  `src/core/strategy_stub.py`, `tests/scripts/generator_fills/`, tests T27 to T29 and the negative control
+  `investment_analysis_engine/core/strategy_stub.py`, `tests/scripts/generator_fills/`, tests T27 to T29 and the negative control
   re-based on the specimen; `AGENTS.md` §3.
 - **Branch:** `feat/swc-6-specimen-and-generator`, from `main` after SWC.5 has merged.
 - **Detail:** [SWC.1 design §19.3 to §19.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#19-contributor-tooling).
@@ -678,12 +678,12 @@ version and result-schema version distinct and do not silently reinterpret histo
   members, its arguments model, handler, codec, adapter behavior, outcome classification, projector and
   presentation semantics, in strategy-owned modules. The descriptor only routes generic infrastructure to
   those contracts.
-- **Layering:** every file a strategy owns, except its fixtures and cases, is in `src/strategies/<strategy>/`,
-  named for its role, and every `__init__.py` under `src/strategies/` is empty. The role rule holds and T13
+- **Layering:** every file a strategy owns, except its fixtures and cases, is in `investment_analysis_engine/strategies/<strategy>/`,
+  named for its role, and every `__init__.py` under `investment_analysis_engine/strategies/` is empty. The role rule holds and T13
   enforces it: within a strategy only a higher-ranked role file imports a lower one; no strategy imports
   another; foundation, reporting and the other generic modules import only analyzer and selection roles and
-  never the composition root, a tier or a strategy's CLI or evaluation file; no module under `src` imports
-  `tests`. The layering test counts parent-package initialization, and `src/workspace/__init__.py` is empty.
+  never the composition root, a tier or a strategy's CLI or evaluation file; no module under `investment_analysis_engine` imports
+  `tests`. The layering test counts parent-package initialization, and `investment_analysis_engine/workspace/__init__.py` is empty.
 - **Transition closure:** the exact T13 transition allowlist in SWC.1 design §4 grew once, in SWC.2b, by the
   twenty edges to the new `tool` files; from then on it shrinks only when its owning slice removes the
   corresponding import edge, and it is empty when SWC.4c merges. SWC.7's final conformance verifies that it
@@ -723,7 +723,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   check bodies; the generator writes wiring only and refuses to overwrite; a test runs it in a temporary
   copy and requires the strict type check and the conformance suite to pass with trivially filled stubs;
   the specimen strategy runs through every layer and cannot reach production tuples, the user CLI or the
-  published schemas; the quality gate fails while any `unfilled_stub` call remains in `src/`.
+  published schemas; the quality gate fails while any `unfilled_stub` call remains in `investment_analysis_engine/`.
 - **Generated lists:** the strategy lists in `USAGE.md` and `WORKSPACE.md` are generated from the
   descriptors and a drift test fails when they are stale.
 - **Contributor guide:** `docs/TOOL_DEVELOPMENT.md` is the only contributor guide for adding a
@@ -774,39 +774,39 @@ row is in scope for removal; they identify what the implementation plan must acc
 
 | Original wiring point | Status | Current file and symbol(s) | Verification note |
 | :--- | :--- | :--- | :--- |
-| Per-strategy `*ToolArguments` Pydantic models | Still present | `src/orchestrator/analysis_tools.py`: `MomentumToolArguments`, `GrahamNumberToolArguments`, `GrahamGrowthValueToolArguments`, `FCFEarningsGrowthToolArguments` | One strict model per strategy; shared `_AnalysisToolArguments` base. |
-| Per-strategy `ANALYZE_*_TOOL` constants | Still present | `src/orchestrator/analysis_tools.py`: four `ANALYZE_*_TOOL` constants | Each method still has its own name constant. |
-| `ANALYSIS_TOOL_ARGUMENT_MODELS` entries | Still present | `src/orchestrator/analysis_tools.py`: `ANALYSIS_TOOL_ARGUMENT_MODELS` | Mapping remains consumed by the local Ollama runner. |
-| Flat strategy-specific dependency fields | Changed | `src/orchestrator/analysis_tools.py`: `AnalysisToolDependencies` | Still strategy-specific analyzer/provider fields, but IR.2 standardized invocation and injected context; `profile_resolver` is shared/optional. |
-| Per-strategy handler methods | Still present | `src/orchestrator/analysis_tools.py`: `AnalysisToolHandlers.analyze_momentum`, `.analyze_graham_number`, `.analyze_graham_growth_value`, `.analyze_fcf_earnings_growth` | All validate strategy arguments, build owned config and invoke the shared analyzer envelope. |
-| Per-strategy registration calls | Still present | `src/orchestrator/analysis_tools.py`: `register_analysis_tools` | Four explicit `register_tool` calls remain. |
-| Per-strategy persisted selection models | Still present | `src/workspace/requests.py`: `MomentumSelection`, `GrahamNumberSelection`, `GrahamGrowthSelection`, `FCFGrowthSelection` | Strategy-specific config persistence remains; shared base is `_FrozenSelection`. |
-| `AnalysisSelection` discriminated union | Still present | `src/workspace/requests.py`: `AnalysisSelection` | Union has four strategy members and remains the request/watchlist/run boundary. |
-| Per-selection `to_*_config()` methods | Still present | `src/workspace/requests.py`: `to_momentum_config`, `to_graham_number_config`, `to_graham_growth_config`, `to_fcf_config` | Each typed selection converts to its own analyzer config. |
-| One workspace execution adapter per strategy | Still present | `src/strategies/momentum/execution.py`: `MomentumCapture`, `run_momentum`; `graham_number_execution.py`: `GrahamNumberCapture`, `execute_graham_number`; `graham_growth_execution.py`: `GrahamGrowthCapture`, `execute_graham_growth`; `fcf_growth_execution.py`: `FCFGrowthCapture`, `execute_fcf_growth` | Files also retain strategy-specific outcome classification where applicable. Momentum has no native failure status classifier. |
-| `NativeEvidence` result union | Still present | `src/workspace/execution.py`: `NativeEvidence` | Four heterogeneous native results remain explicitly unioned. |
-| Per-strategy capture normalizers | Still present | `src/workspace/execution.py`: `from_momentum_capture`, `from_graham_number_capture`, `from_graham_growth_capture`, `from_fcf_growth_capture` | Still normalize strategy capture fields into `ExecutionCapture`. |
-| `_METHOD_VERSIONS` metadata | Still present | `src/workspace/execution.py`: `_METHOD_VERSIONS` | One pair per method; IR changed persisted envelope versions and added `config_schema_version` alignment. |
-| Refresh `isinstance` dispatch | Changed | `src/cli_workspace.py`: `_refresh_executor` | Still four explicit selection branches; current function is at a different location and composes per-method adapters. |
-| `encode_evidence` isinstance chain | Changed | `src/workspace/codecs.py`: `encode_evidence` | FCF/Graham branches remain; Momentum is now the unconditional fallback rather than an explicit final branch, so unknown evidence is routed as Momentum. This is the live fall-through. |
-| Decoder version membership and expected versions | Changed | `src/workspace/codecs.py`: `_EXPECTED_VERSIONS`, `decode_evidence` | Now one mapping entry stores `(config_schema_version, method_version, result_schema_version)`; `decode_evidence` validates run-schema, codec and projection versions too. |
-| Per-method `decode_evidence` dispatch | Changed | `src/workspace/codecs.py`: `decode_evidence` | Explicit branches remain for FCF, Graham Growth and Graham Number, with Momentum as the final branch; ticker identity is checked per result shape. An undeclared pair is already rejected earlier by the version-table lookup, so only the structure, not the behavior, is a default branch. |
-| Momentum instrument-profile composition | Still present | `src/cli.py`: `momentum` command (`--save-run` and default branches); `src/cli_workspace.py`: `_execute_momentum` | Three independent inline copies of one composition pattern; Graham and FCF Growth already share `compose_graham_profile`. Owned by SWC.3a ([Momentum profile composition note](MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md)). |
-| Per-strategy evidence codec modules | Still present | `src/workspace/momentum.py`, `graham_number.py`, `graham_growth.py`, `fcf_growth.py`: `encode_*`, `decode_*` | One pair remains per strategy. |
-| Per-strategy report construction functions | Changed | `src/reporting/analysis_runs.py`: `_project_momentum_v1`, `_project_graham_number_v1`, `_project_graham_growth_v1`, `_project_fcf_growth_v1` | Projection is now explicit versioned replay over persisted Analysis Runs, decodes stored evidence and retains type assertions; original line references no longer apply. |
-| Strategy presentation modules | Still present | `src/reporting/momentum.py`, `graham_number.py`, `graham_growth.py`, `fcf_earnings_growth.py` | Each retains method-specific presentation and rendering. |
-| `ToolName` enum | Still present | `src/evaluation/models.py`: `ToolName` | One enum member per tool remains. |
-| Evaluation `AnalysisToolArguments` union | Still present | `src/evaluation/composition.py`: `AnalysisToolArguments` | Four model union remains for typed fixture dispatch. |
-| Fixture dependency composition per strategy | Still present | `src/evaluation/composition.py`: `compose_fixture_dependencies` | Independently builds Momentum, Graham Number, Graham Growth and FCF analyzers/resolvers and assembles `AnalysisToolDependencies`. |
-| Evaluation `_tool_name` isinstance dispatch | Still present | `src/evaluation/composition.py`: `_tool_name`; also `src/evaluation/runner.py` and `src/evaluation/ollama_runner.py`: `_tool_name` | Current main repeats argument-type mapping in three modules, not only the single location listed in the proposal. |
+| Per-strategy `*ToolArguments` Pydantic models | Still present | `investment_analysis_engine/orchestrator/analysis_tools.py`: `MomentumToolArguments`, `GrahamNumberToolArguments`, `GrahamGrowthValueToolArguments`, `FCFEarningsGrowthToolArguments` | One strict model per strategy; shared `_AnalysisToolArguments` base. |
+| Per-strategy `ANALYZE_*_TOOL` constants | Still present | `investment_analysis_engine/orchestrator/analysis_tools.py`: four `ANALYZE_*_TOOL` constants | Each method still has its own name constant. |
+| `ANALYSIS_TOOL_ARGUMENT_MODELS` entries | Still present | `investment_analysis_engine/orchestrator/analysis_tools.py`: `ANALYSIS_TOOL_ARGUMENT_MODELS` | Mapping remains consumed by the local Ollama runner. |
+| Flat strategy-specific dependency fields | Changed | `investment_analysis_engine/orchestrator/analysis_tools.py`: `AnalysisToolDependencies` | Still strategy-specific analyzer/provider fields, but IR.2 standardized invocation and injected context; `profile_resolver` is shared/optional. |
+| Per-strategy handler methods | Still present | `investment_analysis_engine/orchestrator/analysis_tools.py`: `AnalysisToolHandlers.analyze_momentum`, `.analyze_graham_number`, `.analyze_graham_growth_value`, `.analyze_fcf_earnings_growth` | All validate strategy arguments, build owned config and invoke the shared analyzer envelope. |
+| Per-strategy registration calls | Still present | `investment_analysis_engine/orchestrator/analysis_tools.py`: `register_analysis_tools` | Four explicit `register_tool` calls remain. |
+| Per-strategy persisted selection models | Still present | `investment_analysis_engine/workspace/requests.py`: `MomentumSelection`, `GrahamNumberSelection`, `GrahamGrowthSelection`, `FCFGrowthSelection` | Strategy-specific config persistence remains; shared base is `_FrozenSelection`. |
+| `AnalysisSelection` discriminated union | Still present | `investment_analysis_engine/workspace/requests.py`: `AnalysisSelection` | Union has four strategy members and remains the request/watchlist/run boundary. |
+| Per-selection `to_*_config()` methods | Still present | `investment_analysis_engine/workspace/requests.py`: `to_momentum_config`, `to_graham_number_config`, `to_graham_growth_config`, `to_fcf_config` | Each typed selection converts to its own analyzer config. |
+| One workspace execution adapter per strategy | Still present | `investment_analysis_engine/strategies/momentum/execution.py`: `MomentumCapture`, `run_momentum`; `graham_number_execution.py`: `GrahamNumberCapture`, `execute_graham_number`; `graham_growth_execution.py`: `GrahamGrowthCapture`, `execute_graham_growth`; `fcf_growth_execution.py`: `FCFGrowthCapture`, `execute_fcf_growth` | Files also retain strategy-specific outcome classification where applicable. Momentum has no native failure status classifier. |
+| `NativeEvidence` result union | Still present | `investment_analysis_engine/workspace/execution.py`: `NativeEvidence` | Four heterogeneous native results remain explicitly unioned. |
+| Per-strategy capture normalizers | Still present | `investment_analysis_engine/workspace/execution.py`: `from_momentum_capture`, `from_graham_number_capture`, `from_graham_growth_capture`, `from_fcf_growth_capture` | Still normalize strategy capture fields into `ExecutionCapture`. |
+| `_METHOD_VERSIONS` metadata | Still present | `investment_analysis_engine/workspace/execution.py`: `_METHOD_VERSIONS` | One pair per method; IR changed persisted envelope versions and added `config_schema_version` alignment. |
+| Refresh `isinstance` dispatch | Changed | `investment_analysis_engine/cli_workspace.py`: `_refresh_executor` | Still four explicit selection branches; current function is at a different location and composes per-method adapters. |
+| `encode_evidence` isinstance chain | Changed | `investment_analysis_engine/workspace/codecs.py`: `encode_evidence` | FCF/Graham branches remain; Momentum is now the unconditional fallback rather than an explicit final branch, so unknown evidence is routed as Momentum. This is the live fall-through. |
+| Decoder version membership and expected versions | Changed | `investment_analysis_engine/workspace/codecs.py`: `_EXPECTED_VERSIONS`, `decode_evidence` | Now one mapping entry stores `(config_schema_version, method_version, result_schema_version)`; `decode_evidence` validates run-schema, codec and projection versions too. |
+| Per-method `decode_evidence` dispatch | Changed | `investment_analysis_engine/workspace/codecs.py`: `decode_evidence` | Explicit branches remain for FCF, Graham Growth and Graham Number, with Momentum as the final branch; ticker identity is checked per result shape. An undeclared pair is already rejected earlier by the version-table lookup, so only the structure, not the behavior, is a default branch. |
+| Momentum instrument-profile composition | Still present | `investment_analysis_engine/cli.py`: `momentum` command (`--save-run` and default branches); `investment_analysis_engine/cli_workspace.py`: `_execute_momentum` | Three independent inline copies of one composition pattern; Graham and FCF Growth already share `compose_graham_profile`. Owned by SWC.3a ([Momentum profile composition note](MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md)). |
+| Per-strategy evidence codec modules | Still present | `investment_analysis_engine/workspace/momentum.py`, `graham_number.py`, `graham_growth.py`, `fcf_growth.py`: `encode_*`, `decode_*` | One pair remains per strategy. |
+| Per-strategy report construction functions | Changed | `investment_analysis_engine/reporting/analysis_runs.py`: `_project_momentum_v1`, `_project_graham_number_v1`, `_project_graham_growth_v1`, `_project_fcf_growth_v1` | Projection is now explicit versioned replay over persisted Analysis Runs, decodes stored evidence and retains type assertions; original line references no longer apply. |
+| Strategy presentation modules | Still present | `investment_analysis_engine/reporting/momentum.py`, `graham_number.py`, `graham_growth.py`, `fcf_earnings_growth.py` | Each retains method-specific presentation and rendering. |
+| `ToolName` enum | Still present | `investment_analysis_engine/evaluation/models.py`: `ToolName` | One enum member per tool remains. |
+| Evaluation `AnalysisToolArguments` union | Still present | `investment_analysis_engine/evaluation/composition.py`: `AnalysisToolArguments` | Four model union remains for typed fixture dispatch. |
+| Fixture dependency composition per strategy | Still present | `investment_analysis_engine/evaluation/composition.py`: `compose_fixture_dependencies` | Independently builds Momentum, Graham Number, Graham Growth and FCF analyzers/resolvers and assembles `AnalysisToolDependencies`. |
+| Evaluation `_tool_name` isinstance dispatch | Still present | `investment_analysis_engine/evaluation/composition.py`: `_tool_name`; also `investment_analysis_engine/evaluation/runner.py` and `investment_analysis_engine/evaluation/ollama_runner.py`: `_tool_name` | Current main repeats argument-type mapping in three modules, not only the single location listed in the proposal. |
 
 The proposal's prose also mentions one CLI command per strategy but does not inventory it as a
-separate row. Direct command wiring remains in `src/cli.py`: `momentum`, `graham_number`,
-`graham_growth` and `fcf_growth`; workspace job composition remains in `src/cli_workspace.py`:
+separate row. Direct command wiring remains in `investment_analysis_engine/cli.py`: `momentum`, `graham_number`,
+`graham_growth` and `fcf_growth`; workspace job composition remains in `investment_analysis_engine/cli_workspace.py`:
 `_execute_momentum`, `_execute_graham_number`, `_execute_graham_growth`, `_execute_fcf_growth` and
 `_refresh_executor`. The proposal is therefore a useful starting inventory, not a complete list of
 all current consumer surfaces. Any consolidated dispatch must also account for
-`src/reporting/analysis_runs.py`'s `project_run` `(analysis_id, method_id)` replay selection and the
+`investment_analysis_engine/reporting/analysis_runs.py`'s `project_run` `(analysis_id, method_id)` replay selection and the
 repeated evaluation `_tool_name` mappings above.
 
 The `encode_evidence` and `parse_selection` rows describe the code as it stood before SWC.3a; neither function exists any
@@ -817,16 +817,16 @@ classified, with its owning slice, in the [SWC.1 design](SWC_1_DESCRIPTOR_CONTRA
 
 | Additional wiring point | Current file and symbol(s) | Owner |
 | :--- | :--- | :--- |
-| Alias vocabulary | `src/workspace/method_aliases.py`; `src/cli_workspace.py` alias uses; `src/data/repositories/watchlists.py` alias lookup | SWC.3a (`method_aliases.py`, the repository and the `cli_workspace.py` alias lookups, which now read the root's `BY_ALIAS` and `BY_METHOD_ID`); SWC.3b (the `--analysis` help text and the CLI tier's own use of the vocabulary) |
-| Alias membership and a final unconditional Momentum branch | `src/workspace/requests.py`: `parse_selection` | SWC.3a |
-| Identifier literals in failure calls and JSON builders | `src/cli.py`: six `execution_errors(analysis=, method=)` calls; `src/reporting/{momentum,graham_number,graham_growth}.py` | SWC.4a (`cli.py` calls), SWC.4c (builders) |
-| Strategy name tested inside generic failure handling | `src/cli_support.py`: `analysis == "momentum"` | SWC.4a |
-| A second `NativeEvidence`-shaped union, and an FCF default branch | `src/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | SWC.2c |
-| An FCF default branch in the fixture capability check | `src/evaluation/composition.py`: `_require_tool_evidence` | SWC.2d |
-| A one-member per-strategy name enum with no reader | `src/core/constants.py`: `AnalysisType` | SWC.2b (deleted) |
-| An unconditional FCF return after a chain of method tests | `src/cli_workspace.py`: `_build_selection` | SWC.3b |
-| A probe for a field every selection defines | `src/workspace/execution.py`: `getattr(selection, "as_of", None)` | SWC.3a |
-| Tool descriptions, schemas and parser registry keyed by tool name | `src/evaluation/ollama_runner.py`: `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser` | SWC.2c |
+| Alias vocabulary | `investment_analysis_engine/workspace/method_aliases.py`; `investment_analysis_engine/cli_workspace.py` alias uses; `investment_analysis_engine/data/repositories/watchlists.py` alias lookup | SWC.3a (`method_aliases.py`, the repository and the `cli_workspace.py` alias lookups, which now read the root's `BY_ALIAS` and `BY_METHOD_ID`); SWC.3b (the `--analysis` help text and the CLI tier's own use of the vocabulary) |
+| Alias membership and a final unconditional Momentum branch | `investment_analysis_engine/workspace/requests.py`: `parse_selection` | SWC.3a |
+| Identifier literals in failure calls and JSON builders | `investment_analysis_engine/cli.py`: six `execution_errors(analysis=, method=)` calls; `investment_analysis_engine/reporting/{momentum,graham_number,graham_growth}.py` | SWC.4a (`cli.py` calls), SWC.4c (builders) |
+| Strategy name tested inside generic failure handling | `investment_analysis_engine/cli_support.py`: `analysis == "momentum"` | SWC.4a |
+| A second `NativeEvidence`-shaped union, and an FCF default branch | `investment_analysis_engine/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | SWC.2c |
+| An FCF default branch in the fixture capability check | `investment_analysis_engine/evaluation/composition.py`: `_require_tool_evidence` | SWC.2d |
+| A one-member per-strategy name enum with no reader | `investment_analysis_engine/core/constants.py`: `AnalysisType` | SWC.2b (deleted) |
+| An unconditional FCF return after a chain of method tests | `investment_analysis_engine/cli_workspace.py`: `_build_selection` | SWC.3b |
+| A probe for a field every selection defines | `investment_analysis_engine/workspace/execution.py`: `getattr(selection, "as_of", None)` | SWC.3a |
+| Tool descriptions, schemas and parser registry keyed by tool name | `investment_analysis_engine/evaluation/ollama_runner.py`: `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser` | SWC.2c |
 
 ## Appendix B: Decision records and history
 
@@ -918,7 +918,7 @@ injected is acyclic and changes no layering rule. The project owner decided:
   executors and direct commands in a CLI tier; fixture composition and requirements in an evaluation tier.
   The design now describes it and does not depend on the study.
 - **Schedule the locality moves** in the slice that owns each; none is deferred.
-- **Fix the package-initialization cycle** in SWC.2a by emptying `src/workspace/__init__.py`, and make the
+- **Fix the package-initialization cycle** in SWC.2a by emptying `investment_analysis_engine/workspace/__init__.py`, and make the
   layering test count parent packages.
 - **Reduce the edit sites** to 18, in 22 files of which seven already exist: commands in strategy files, an
   evaluation tier, per-strategy dependency classes, one types file and the shared arguments base class in
@@ -948,7 +948,7 @@ Three decisions made while finalizing the design, recorded in the [design's Appe
 ### B.9 SWC.3b audit: the watchlist-option site (2026-10-06)
 
 - The SWC.3b audit found a per-strategy edit site the earlier audits missed: the watchlist options, declared per
-  strategy in `src/cli_workspace.py` and carried by the new `WatchlistFlags` bundle in `src/cli_watchlist_flags.py`.
+  strategy in `investment_analysis_engine/cli_workspace.py` and carried by the new `WatchlistFlags` bundle in `investment_analysis_engine/cli_watchlist_flags.py`.
   It is row 19 of the design's edit-site table.
 - Adding a strategy now takes 19 sites in 24 files, nine of them existing, across 9 directories; the figures in
   B.7 are the count at that date.
@@ -962,7 +962,7 @@ unrelated ways: the direct command echoed a message and exited with code 2 (and 
 and the watchlist builder raised a parameter error, a usage error rendered with a usage box. Both are now one
 failure:
 
-- **One check, one code.** A single function in `src/strategies/momentum/cli.py` raises `InvalidParameterError`,
+- **One check, one code.** A single function in `investment_analysis_engine/strategies/momentum/cli.py` raises `InvalidParameterError`,
   and the shared classifier maps it to the new stable `reason_code` `invalid_parameter` with status `error`. The
   code names a command option value rejected before any work, so it is not Momentum-specific and adds no
   per-strategy entry to generic tooling.
@@ -1035,7 +1035,7 @@ The project owner decided, for SWC.4d (the open question of [B.12](#b12-swc4a-pa
 
 1. **Every check a command raises itself moves into the failure envelope in this slice:** the strategy option checks, the shared ones
    (ticker, `--as-of`, `--data-provider`, the exclusive output flags), the workspace ones, and those on `health`, `database` and `evaluate`.
-2. **A test fails if any file under `src/` raises `typer.BadParameter`.**
+2. **A test fails if any file under `investment_analysis_engine/` raises `typer.BadParameter`.**
 3. **These failures exit 1 with `reason_code` `invalid_parameter`.** Exit 2 keeps one meaning: the parser rejected the command line and no
    command code ran ([B.12](#b12-swc4a-parser-rejected-failures-stay-usage-errors-2026-10-06), unchanged). No check becomes a
    parser-declared constraint, and no parser error is intercepted.
@@ -1103,7 +1103,7 @@ builders:
   position in the command's check order where the configuration is validated today. Tests pass `sec_edgar` with the resolver replaced.
   The stored direct-command output is re-captured; the only stored-output difference permitted is the provider id.
 - **Affected, found with** `grep -rn '"--data-provider"' tests --include=*.py` and a count of the occurrences followed by the
-  synthetic constant (`PROVIDER_ID`, `"fixture-synth"`, defined in `src/evaluation/fixtures/graham.py`): 19 invocation sites, all
+  synthetic constant (`PROVIDER_ID`, `"fixture-synth"`, defined in `investment_analysis_engine/evaluation/fixtures/graham.py`): 19 invocation sites, all
   through the direct `graham-number` and `graham-growth` commands.
 
   | File | Sites using `fixture-synth` |
@@ -1140,7 +1140,7 @@ rejected value, the provider is reported, because its field is validated first; 
 the provider failed later in the resolver builder. The order of the command's checks is otherwise unchanged: ticker, output flags,
 `--as-of`, blank provider, then the configuration (now selection) validation, then composition. Only `--save-run` read the selection
 late; the command now builds it once, and `--save-run` uses that object. The Golden suite does not go through these commands:
-`src/evaluation` imports no CLI module, and its Graham cases call the tool handlers, which still build the permissive configuration.
+`investment_analysis_engine/evaluation` imports no CLI module, and its Graham cases call the tool handlers, which still build the permissive configuration.
 `tool.py`, `execution.py` and the analyzers still use the configuration; nothing on those paths changed.
 
 **Output changes, by command** (the same for `graham-number` and `graham-growth` unless stated):
@@ -1202,12 +1202,12 @@ The project owner decided, on review of PR #125:
   `<command>` is the command as typed after `ian` (for example `watchlist show failed unexpectedly.`); the detail goes to the log with
   its traceback and `typer.Exit` passes through. `invalid_input` is not used there.
 - **`evaluate`** keeps its raw error text by decision: it is a developer command whose readers need the detail.
-- **Refresh job error text** (`src/workspace/refresh.py`, the `error` field) is not changed in SWC.4d; it becomes
+- **Refresh job error text** (`investment_analysis_engine/workspace/refresh.py`, the `error` field) is not changed in SWC.4d; it becomes
   [SWC.4f](#swc4f--one-failure-message-rule-for-the-direct-commands-and-refresh).
 - **Order of work.** SWC.4e, SWC.4f, then LAY.1 to LAY.8, then SWC.5 to SWC.7, then PKG.
 
 What can reach `_failed` (and so the `error` text, in the text summary and the `refresh --json` document) today, found by reading
-`src/workspace/refresh.py` and the refresh executors in each strategy's `cli.py`:
+`investment_analysis_engine/workspace/refresh.py` and the refresh executors in each strategy's `cli.py`:
 
 | Path | Exceptions that reach it |
 | :--- | :--- |
@@ -1226,8 +1226,8 @@ the failure table in A (the rulings, below).
 
 **Decisions that stand.**
 
-1. One function in `src/cli_support.py` produces a failure's code and message. The direct commands and refresh both use it. Refresh
-   receives it by injection from the `refresh` command, as it received `classify`; nothing under `src/workspace/` imports from the
+1. One function in `investment_analysis_engine/cli_support.py` produces a failure's code and message. The direct commands and refresh both use it. Refresh
+   receives it by injection from the `refresh` command, as it received `classify`; nothing under `investment_analysis_engine/workspace/` imports from the
    command layer.
 4. Wherever a fixed message replaces the exception's text, the detail goes to the log with its traceback. Direct provider failures
    therefore now log a traceback, and the function has no guard if it raises; a test runs every row of the table through it.
@@ -1259,7 +1259,7 @@ paths. Four code corrections, on both paths:
 
 #### A. The failure table
 
-Every kind of exception that can reach `_failed` in `src/workspace/refresh.py`, found by reading `refresh.py`, the four refresh
+Every kind of exception that can reach `_failed` in `investment_analysis_engine/workspace/refresh.py`, found by reading `refresh.py`, the four refresh
 executors, `execute` and the run repository. The paths are the three of [B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12):
 `--no-save`, saved and concurrent. An exception raised inside the executor reaches all three; an exception raised by `execute` after
 the executor returned (rows 15 to 17, and a run that fails validation in row 11) reaches only saved and concurrent, because `--no-save`
@@ -1306,7 +1306,7 @@ when decoding), and `typer.Exit` and `KeyboardInterrupt` (not caught).
 real database were touched. It built 16 exceptions that stand for the 17 rows (one `UndeclaredStrategyError` serves rows 13 and 14; row
 11 by a plain `ValueError`) and raised each at the executor boundary, patching `_refresh_executor`, through `refresh --workers 1
 --no-save`, `refresh --workers 1` and `refresh --workers 2`. It raised the exceptions of rows 8, 11 (a `ValidationError`), 14, 15, 16
-and 17 again at the persistence boundary, patching `src.workspace.refresh.execute`, through the saved and concurrent paths. Every
+and 17 again at the persistence boundary, patching `investment_analysis_engine.workspace.refresh.execute`, through the saved and concurrent paths. Every
 "Refresh today" cell was identical on the paths that reach it. The same exceptions were raised in each of the four direct commands at the
 point where the analysis runs, and the resolver-build block of both Graham commands was probed separately: 68 direct results, from
 which every "Direct command today" cell comes. The probe raises exceptions at the boundaries and does not reproduce their real origins,
@@ -1347,7 +1347,7 @@ not change on any command. Graham Number and Graham Growth change identically, s
 
 #### B. The design
 
-**The function.** `src/cli_support.py`, beside `provider_failure_sentence`:
+**The function.** `investment_analysis_engine/cli_support.py`, beside `provider_failure_sentence`:
 
 ```text
 describe_failure(exception: BaseException, ticker: str | None, *, saving: bool) -> FailureDescription
@@ -1364,25 +1364,25 @@ that shows a fixed message logs the exception with its traceback (`logger.error(
 concurrent path, where the function runs on the coordinator thread outside any `except` block). No strategy supplies wording; the
 `unexpected`, `invalid` and `invalid_detail` parameters of `execution_errors` are removed.
 
-**Marking the saving step.** `maybe_save_run` runs the analysis and the save in one call, and `src/cli_run_support.py` is outside this
-slice's file scope, so the strategy `cli.py` files mark the step. `src/cli_support.py` gains `SaveStage` (a flag that is set when the
+**Marking the saving step.** `maybe_save_run` runs the analysis and the save in one call, and `investment_analysis_engine/cli_run_support.py` is outside this
+slice's file scope, so the strategy `cli.py` files mark the step. `investment_analysis_engine/cli_support.py` gains `SaveStage` (a flag that is set when the
 wrapped `normalize` of `maybe_save_run` returns, that is, when the analysis has finished) and the context manager `saving_failures`,
 which re-raises an exception from its block as `SavingFailureError` when the flag is set. `execution_errors` unwraps `SavingFailureError` and
 passes `saving=True` and the original exception, which stays the `cause` of the envelope. Graham and FCF wrap only their call of
 `maybe_save_run`; Momentum has already analyzed when it calls `save_run_execution`, so it wraps that call with the flag already set.
 The readiness check that precedes the analysis is outside the marked step, so it keeps its own code and text.
 
-**Defects declare their code.** `src/cli_support.py` gains `InternalDefectError`, which declares `execution_error`, and two helpers the
+**Defects declare their code.** `investment_analysis_engine/cli_support.py` gains `InternalDefectError`, which declares `execution_error`, and two helpers the
 refresh executors call: one converts a stored selection to its configuration and turns a `ValidationError` into that error, and one
 rejects a blank ticker before the analysis starts. `AnalysisRunConflictError` declares `execution_error` where it is defined in
-`src/data/repositories/analysis_runs.py`. `classify_failure` is unchanged.
+`investment_analysis_engine/data/repositories/analysis_runs.py`. `classify_failure` is unchanged.
 
 **How `refresh_watchlist` receives it.** One keyword parameter replaces `classify`:
 `describe: Callable[[BaseException, str, bool], JobFailure]`, where `JobFailure(reason_code: str, error: str)` is defined in
-`src/workspace/refresh.py`. `_failed` stores both fields and takes the `saving` flag: the sequential path sets it when the executor has
+`investment_analysis_engine/workspace/refresh.py`. `_failed` stores both fields and takes the `saving` flag: the sequential path sets it when the executor has
 returned (`captured` is not empty), the concurrent path when the worker produced a capture and the run spec was found. `_settle` looks up
 the spec in its own step first, so a missing spec is not a saving failure on either path. The `refresh` command builds the callable
-from `describe_failure`; `src/workspace/` imports nothing from the command layer.
+from `describe_failure`; `investment_analysis_engine/workspace/` imports nothing from the command layer.
 
 **How the direct commands are fed.** `execution_errors` calls `describe_failure(exc, scope.ticker, saving=...)` and builds the
 envelope and output it builds now. The four commands drop their callbacks. The CLI tier is unchanged: no wording travels through it.
@@ -1407,15 +1407,15 @@ envelope and output it builds now. The four commands drop their callbacks. The C
 
 **Source.**
 
-- `src/cli_support.py`: `FailureDescription`, `describe_failure`, `SaveStage`, `SavingFailureError`, `saving_failures`, `InternalDefectError`
+- `investment_analysis_engine/cli_support.py`: `FailureDescription`, `describe_failure`, `SaveStage`, `SavingFailureError`, `saving_failures`, `InternalDefectError`
   and its two helpers; `execution_errors` loses its wording parameters.
-- `src/strategies/momentum/cli.py`, `fcf_growth/cli.py`, `graham_number/cli.py`, `graham_growth/cli.py`: drop the callbacks; mark the
+- `investment_analysis_engine/strategies/momentum/cli.py`, `fcf_growth/cli.py`, `graham_number/cli.py`, `graham_growth/cli.py`: drop the callbacks; mark the
   saving step; the refresh executors call the defect helpers.
-- `src/workspace/refresh.py`: `JobFailure`, the `describe` parameter in place of `classify`, the `saving` flag, the spec lookup as its
+- `investment_analysis_engine/workspace/refresh.py`: `JobFailure`, the `describe` parameter in place of `classify`, the `saving` flag, the spec lookup as its
   own step.
-- `src/cli_workspace.py`: build `describe` from `describe_failure` and pass it.
-- `src/data/repositories/analysis_runs.py`: `AnalysisRunConflictError` declares `execution_error`.
-- `src/reporting/documents/refresh.py` and `schemas/refresh-summary.schema.json`: the `error` description (a description only; no
+- `investment_analysis_engine/cli_workspace.py`: build `describe` from `describe_failure` and pass it.
+- `investment_analysis_engine/data/repositories/analysis_runs.py`: `AnalysisRunConflictError` declares `execution_error`.
+- `investment_analysis_engine/reporting/documents/refresh.py` and `schemas/refresh-summary.schema.json`: the `error` description (a description only; no
   version change). `docs/user/WORKSPACE.md`, `docs/user/USAGE.md` and this plan.
 
 **Tests added.** One table-driven test over every row of A (`tests/test_failure_messages.py`): for each refresh path that reaches the row and
@@ -1437,7 +1437,7 @@ direct command and from a refresh job. Tests of `describe_failure` over every ro
 #### E. Implemented as designed, with these differences (2026-10-12)
 
 - `SavingFailure` is named `SavingFailureError` (the project's lint rule requires the suffix).
-- `src/cli_support.py` attaches a `logging.NullHandler` to its logger. With `--no-logging` no handler is configured, and Python's
+- `investment_analysis_engine/cli_support.py` attaches a `logging.NullHandler` to its logger. With `--no-logging` no handler is configured, and Python's
   last-resort handler would write the logged traceback to standard error; the null handler keeps standard error to the message.
 - The direct commands' failure log line is `Failure reported to the user as: <message>` for every fixed message; the earlier
   `Unexpected failure reported to the user as:` line is gone.

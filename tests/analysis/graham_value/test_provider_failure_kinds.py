@@ -13,19 +13,19 @@ from typing import Any
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
-from src.data.financial.facts import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from investment_analysis_engine.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
     FinancialUnit,
     ProviderFact,
 )
-from src.data.financial.provenance import FinancialSubjectKind
-from src.data.financial.resolver import InputResolutionResult, InputResolver
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
+from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
+from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from tests.analysis.graham_value.test_resolver import (
     NOW,
     PERIOD_END,

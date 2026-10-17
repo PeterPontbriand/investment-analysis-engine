@@ -6,13 +6,13 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from unittest.mock import patch
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.instrument_profile import InstrumentKind, InstrumentKindRequest
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
-from src.data.security_identity import SecurityIdentityRequest
-from src.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient
-from src.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentKindRequest
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from investment_analysis_engine.data.security_identity import SecurityIdentityRequest
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient
+from investment_analysis_engine.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
 from tests.analysis.graham_value.conftest import SEC_TEST_USER_AGENT
 
 NOW = datetime(2026, 8, 29, 20, 0, tzinfo=UTC)
@@ -56,7 +56,7 @@ def test_sec_retains_ticker_title_and_cik_without_duplicate_mapping_fetch() -> N
 
 
 def test_yahoo_retains_non_company_name_venue_and_instrument_identifier() -> None:
-    with patch("src.data.yfinance.client.yf.Ticker") as mock_ticker:
+    with patch("investment_analysis_engine.data.yfinance.client.yf.Ticker") as mock_ticker:
         mock_ticker.return_value.info = {
             "longName": " Bitcoin   USD ",
             "fullExchangeName": "CCC",
@@ -76,7 +76,7 @@ def test_yahoo_retains_non_company_name_venue_and_instrument_identifier() -> Non
 
 
 def test_production_facade_routes_yahoo_identity_and_kind_through_one_client_snapshot() -> None:
-    with patch("src.data.yfinance.client.yf.Ticker") as mock_ticker:
+    with patch("investment_analysis_engine.data.yfinance.client.yf.Ticker") as mock_ticker:
         mock_ticker.return_value.info = {
             "longName": "Franklin FTSE Switzerland ETF",
             "quoteType": "ETF",

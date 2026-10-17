@@ -7,54 +7,61 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.core.strategy_errors import UndeclaredStrategyError
-from src.data.financial.provenance import SourceKind
-from src.evaluation.composition import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError
+from investment_analysis_engine.data.financial.provenance import SourceKind
+from investment_analysis_engine.evaluation.composition import (
     compose_fixture_dependencies,
     compose_fixture_dispatcher,
     dispatch_fixture_case,
 )
-from src.evaluation.fixture_context import CONTEXT_FIXTURE_IDS, FixtureCompositionError
-from src.evaluation.fixtures.fcf_earnings_growth import (
+from investment_analysis_engine.evaluation.fixture_context import CONTEXT_FIXTURE_IDS, FixtureCompositionError
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
     FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
     FCF_GROWTH_SUCCESS_FIXTURE_ID,
 )
-from src.evaluation.fixtures.graham import (
+from investment_analysis_engine.evaluation.fixtures.graham import (
     GOLDEN_EXPECTED_GROWTH,
     GRAHAM_FACTS_FIXTURE_ID,
     GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
 )
-from src.evaluation.fixtures.graham import (
+from investment_analysis_engine.evaluation.fixtures.graham import (
     NOW as GRAHAM_NOW,
 )
-from src.evaluation.fixtures.graham import (
+from investment_analysis_engine.evaluation.fixtures.graham import (
     SECURITY_ID as GRAHAM_SECURITY_ID,
 )
-from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER, KNOWN_ETF_PROFILE_FIXTURE_ID
-from src.evaluation.fixtures.market_data import (
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
+    GOLDEN_ETF_TICKER,
+    KNOWN_ETF_PROFILE_FIXTURE_ID,
+)
+from investment_analysis_engine.evaluation.fixtures.market_data import (
     MOMENTUM_BOUNDARY_FIXTURE_ID,
     MOMENTUM_LONG_WINDOW,
     MOMENTUM_RSI_PERIOD,
     MOMENTUM_SHORT_WINDOW,
     MOMENTUM_SUCCESS_FIXTURE_ID,
 )
-from src.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_ASML_FIXTURE_ID, SEC_FPI_NTR_FIXTURE_ID
-from src.evaluation.models import Case, Expectation
-from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy, supported_fixture_ids
-from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
-from src.orchestrator.tool_names import ToolName
-from src.orchestrator.types import ToolCallRequest
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategies.graham_number.tool import GrahamNumberToolArguments
-from src.strategies.momentum.analyzer import MomentumRun
-from src.strategies.momentum.tool import MomentumToolArguments
-from src.strategy_wiring import BY_TOOL, STRATEGIES
+from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_ASML_FIXTURE_ID, SEC_FPI_NTR_FIXTURE_ID
+from investment_analysis_engine.evaluation.models import Case, Expectation
+from investment_analysis_engine.evaluation.strategy_fixtures import (
+    EVALUATION_STRATEGIES,
+    EvaluationStrategy,
+    supported_fixture_ids,
+)
+from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
+from investment_analysis_engine.orchestrator.tool_names import ToolName
+from investment_analysis_engine.orchestrator.types import ToolCallRequest
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from investment_analysis_engine.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategies.graham_number.tool import GrahamNumberToolArguments
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
+from investment_analysis_engine.strategies.momentum.tool import MomentumToolArguments
+from investment_analysis_engine.strategy_wiring import BY_TOOL, STRATEGIES
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 

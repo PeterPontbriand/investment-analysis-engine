@@ -17,27 +17,37 @@ from typing import Any, get_args, get_origin
 
 import pytest
 
-from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
-from src.evaluation.fixtures.market_data import FixtureDataClient
-from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
-from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
-from src.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
-from src.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
-from src.strategies.graham_growth.config import GrahamGrowthConfig
-from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
-from src.strategies.graham_number.config import GrahamNumberConfig
-from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from investment_analysis_engine.core.repository_root import PACKAGE_ROOT, REPOSITORY_ROOT
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
+    FixtureAnnualFinancialFactsProvider,
+    annual_series,
+)
+from investment_analysis_engine.evaluation.fixtures.graham import (
+    NOW,
+    PROVIDER_ID,
+    SECURITY_ID,
+    FixtureFinancialFactsProvider,
+)
+from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
+from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
+from investment_analysis_engine.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
+from investment_analysis_engine.strategies.graham_growth.calculation import (
+    GrahamGrowthCalculationPolicy,
+    GrahamGrowthInputResolver,
+)
+from investment_analysis_engine.strategies.graham_growth.config import GrahamGrowthConfig
+from investment_analysis_engine.strategies.graham_number.analyzer import GrahamNumberAnalyzer
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
 from tests._strategy_roles import ANALYZER_ROLES
 
-_SRC_ROOT = REPOSITORY_ROOT / "src"
-_STRATEGY_PACKAGE = _SRC_ROOT / "strategies"
+_STRATEGY_PACKAGE = PACKAGE_ROOT / "strategies"
 
 _GROWTH_POLICY = GrahamGrowthCalculationPolicy(base_pe=8.5, growth_multiplier=2.0, baseline_aaa_yield=4.4)
 
@@ -165,7 +175,7 @@ def _python_files_outside_analyzer_modules() -> Iterator[Path]:
     Before the strategy packages existed the analyzer modules were the only files in the strategy package, so
     the codecs, adapters and presenters were "outside" it. They sit in the package now and stay checked.
     """
-    for path in sorted(_SRC_ROOT.rglob("*.py")):
+    for path in sorted(PACKAGE_ROOT.rglob("*.py")):
         in_package = _STRATEGY_PACKAGE in path.parents
         if not (in_package and (path.stem in ANALYZER_ROLES or path.stem == "__init__")):
             yield path
@@ -174,7 +184,9 @@ def _python_files_outside_analyzer_modules() -> Iterator[Path]:
 def _is_analyzer_boundary(module: str) -> bool:
     """Return whether a module is a strategy package or one of its analyzer-level files."""
     parts = module.split(".")
-    return parts[:2] == ["src", "strategies"] and (len(parts) <= 3 or (len(parts) == 4 and parts[3] in ANALYZER_ROLES))
+    return parts[:2] == ["investment_analysis_engine", "strategies"] and (
+        len(parts) <= 3 or (len(parts) == 4 and parts[3] in ANALYZER_ROLES)
+    )
 
 
 def _strategy_boundary_function_imports() -> list[str]:
@@ -205,7 +217,7 @@ def test_no_plain_function_imports_cross_the_strategy_boundary() -> None:
 # ---------------------------------------------------------------------------
 # Item 5: no bare wall-clock reads outside the composition roots (§6.11).
 #
-# `src.core.clock.utc_now()` is the one call site permitted to read the real
+# `investment_analysis_engine.core.clock.utc_now()` is the one call site permitted to read the real
 # clock; every other module must receive its clock through an injected
 # parameter. A plain textual grep for `datetime.now`/`datetime.utcnow`/
 # `time.time()` misses `datetime.today()`, `date.today()`, `time.time_ns()`,
@@ -218,7 +230,7 @@ def test_no_plain_function_imports_cross_the_strategy_boundary() -> None:
 #
 # Known gap, not covered here: a clock read hidden inside a string literal
 # passed to a constructor (`pd.Timestamp("now")`, `pd.to_datetime("today")`,
-# `np.datetime64("now")`). Grepped `src/` for these directly: none exist
+# `np.datetime64("now")`). Grepped `investment_analysis_engine/` for these directly: none exist
 # today. This scan cannot see that shape at all; it is not silently treated
 # as covered.
 # ---------------------------------------------------------------------------
@@ -319,11 +331,11 @@ def _clock_read_violations_in_module(tree: ast.Module) -> list[str]:
     return violations
 
 
-def _clock_read_violations_in_src() -> list[str]:
-    """Return one description per forbidden wall-clock read anywhere under ``src/``."""
+def _clock_read_violations_in_package() -> list[str]:
+    """Return one description per forbidden wall-clock read anywhere under ``investment_analysis_engine/``."""
     violations: list[str] = []
-    for path in sorted(_SRC_ROOT.rglob("*.py")):
-        if path.relative_to(_SRC_ROOT) in _ALLOWED_CLOCK_READ_PATHS:
+    for path in sorted(PACKAGE_ROOT.rglob("*.py")):
+        if path.relative_to(PACKAGE_ROOT) in _ALLOWED_CLOCK_READ_PATHS:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         relative_path = path.relative_to(REPOSITORY_ROOT)
@@ -334,11 +346,13 @@ def _clock_read_violations_in_src() -> list[str]:
 def test_no_bare_clock_reads_outside_the_shared_helper() -> None:
     """Item 5: only two modules read the real wall clock.
 
-    ``src/core/clock.py`` and the named ``logger_util.py`` exemption; every other module
+    ``investment_analysis_engine/core/clock.py`` and the named ``logger_util.py`` exemption; every other module
     receives its clock through an injected parameter.
     """
-    violations = _clock_read_violations_in_src()
-    assert not violations, "Bare wall-clock reads outside src/core/clock.py:\n" + "\n".join(violations)
+    violations = _clock_read_violations_in_package()
+    assert not violations, "Bare wall-clock reads outside investment_analysis_engine/core/clock.py:\n" + "\n".join(
+        violations
+    )
 
 
 @pytest.mark.parametrize(
@@ -368,4 +382,4 @@ def test_clock_scan_self_test(snippet: str, expect_violation: bool) -> None:
 
 def test_clock_scan_covers_more_than_zero_files() -> None:
     """An empty or broken file glob must not silently pass as "no violations"."""
-    assert sum(1 for _ in _SRC_ROOT.rglob("*.py")) > 0
+    assert sum(1 for _ in PACKAGE_ROOT.rglob("*.py")) > 0

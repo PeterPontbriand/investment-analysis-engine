@@ -1,8 +1,8 @@
 """Compare ``--help`` of the application and of each direct command, byte for byte, with stored output.
 
-The stored files under ``tests/expected_output/cli_help/`` were generated from the commands as they were declared
-in ``src/cli.py``, before the direct commands moved into their strategy files, and match that output exactly.
-The application's file also pins the order of the commands, which follows the order they are added in.
+The stored files under ``tests/expected_output/cli_help/`` were generated from the commands as they were declared in
+``investment_analysis_engine/cli.py``, before the direct commands moved into their strategy files, and match that output
+exactly. The application's file also pins the order of the commands, which follows the order they are added in.
 
 To change the expected output deliberately, regenerate the files and review the diff::
 

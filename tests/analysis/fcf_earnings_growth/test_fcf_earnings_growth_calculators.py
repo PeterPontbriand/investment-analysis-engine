@@ -6,8 +6,8 @@ import math
 
 import pytest
 
-from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
-from src.strategies.fcf_growth.calculators import (
+from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
+from investment_analysis_engine.strategies.fcf_growth.calculators import (
     compute_cagr,
     compute_fcf_per_diluted_share,
     compute_fcf_yield,

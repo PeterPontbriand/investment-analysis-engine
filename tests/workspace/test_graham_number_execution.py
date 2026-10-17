@@ -6,25 +6,25 @@ from unittest.mock import patch
 
 import pytest
 
-from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.run_models import RunOutcome
-from src.core.analysis_status import CalculationStatus
-from src.data.instrument_profile import InstrumentKind, InstrumentProfile
-from src.evaluation.fixtures.graham import NOW, SECURITY_ID, FixtureFinancialFactsProvider
-from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from src.strategies.graham_number.analyzer import GrahamNumberAnalyzer
-from src.strategies.graham_number.calculation import (
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentProfile
+from investment_analysis_engine.evaluation.fixtures.graham import NOW, SECURITY_ID, FixtureFinancialFactsProvider
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from investment_analysis_engine.strategies.graham_number.analyzer import GrahamNumberAnalyzer
+from investment_analysis_engine.strategies.graham_number.calculation import (
     GrahamNumberInputAssembly,
     GrahamNumberInputResolver,
     GrahamNumberResult,
 )
-from src.strategies.graham_number.config import GrahamNumberConfig
-from src.strategies.graham_number.execution import (
+from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
+from investment_analysis_engine.strategies.graham_number.execution import (
     GrahamNumberCapture,
     classify_graham_number_outcome,
     execute_graham_number,
 )
-from src.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 
 
 def _resolver() -> GrahamNumberInputResolver:
@@ -103,7 +103,10 @@ def test_execute_graham_number_delegates_and_falls_back_to_the_composed_profile(
         return canned
 
     with (
-        patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=composed),
+        patch(
+            "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile",
+            return_value=composed,
+        ),
         patch.object(GrahamNumberAnalyzer, "run_analysis", fake_run_analysis),
     ):
         capture = execute_graham_number(
@@ -124,7 +127,10 @@ def test_execute_graham_number_prefers_the_analysis_own_profile() -> None:
     canned = _analysis(CalculationStatus.OK, profile=refined)
 
     with (
-        patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=composed),
+        patch(
+            "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile",
+            return_value=composed,
+        ),
         patch.object(GrahamNumberAnalyzer, "run_analysis", return_value=canned),
     ):
         capture = execute_graham_number(
@@ -142,7 +148,9 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(socket, "create_connection", reject_network)
     monkeypatch.setattr(socket.socket, "connect", reject_network)
 
-    with patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=_profile()):
+    with patch(
+        "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile", return_value=_profile()
+    ):
         capture = execute_graham_number(
             _resolver(),
             SECURITY_ID,

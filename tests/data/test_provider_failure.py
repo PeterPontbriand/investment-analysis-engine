@@ -2,10 +2,15 @@
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind, require_provider_identity
-from src.data.base_client import DataFetchError
-from src.data.financial.facts import FinancialProviderError
-from src.data.provider_failure import DEFECT, FailureRule, call_library, classify_library_exception
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, require_provider_identity
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.financial.facts import FinancialProviderError
+from investment_analysis_engine.data.provider_failure import (
+    DEFECT,
+    FailureRule,
+    call_library,
+    classify_library_exception,
+)
 
 
 class _ThrottledError(Exception):

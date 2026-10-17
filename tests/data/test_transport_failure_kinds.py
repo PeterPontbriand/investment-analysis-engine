@@ -11,11 +11,11 @@ from urllib.error import HTTPError, URLError
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.financial.facts import FinancialProviderError
-from src.data.http_json import JsonFetcher, fetch_json
-from src.data.sec_edgar.filing_document import FilingFetcher, FilingReaderPolicy, fetch_filing
-from src.evaluation.fixtures.sec_edgar_fpi import _FrozenSecFetcher
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.financial.facts import FinancialProviderError
+from investment_analysis_engine.data.http_json import JsonFetcher, fetch_json
+from investment_analysis_engine.data.sec_edgar.filing_document import FilingFetcher, FilingReaderPolicy, fetch_filing
+from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import _FrozenSecFetcher
 
 _FILING_URL = "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm"
 _HEADERS = {"User-Agent": "Synthetic test"}
@@ -47,13 +47,13 @@ def _filing(**overrides: Any) -> str:
 
 
 def _patched_json(side_effect: object) -> Any:
-    return patch("src.data.http_json.urlopen", side_effect=side_effect)
+    return patch("investment_analysis_engine.data.http_json.urlopen", side_effect=side_effect)
 
 
 def _patched_filing(side_effect: object) -> Any:
     opener = MagicMock()
     opener.open.side_effect = side_effect
-    return patch("src.data.sec_edgar.filing_document.build_opener", return_value=opener)
+    return patch("investment_analysis_engine.data.sec_edgar.filing_document.build_opener", return_value=opener)
 
 
 def test_a_successful_json_fetch_decodes_the_document() -> None:

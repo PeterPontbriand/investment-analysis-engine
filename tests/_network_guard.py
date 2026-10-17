@@ -3,7 +3,8 @@
 Two layers are needed because the project reaches the network two ways:
 
 * yfinance performs its requests through ``curl_cffi``, which bypasses Python's ``socket`` module, so it is
-  guarded at the only module that imports it (``src/data/yfinance/client.py``) by replacing its ``yf`` name.
+  guarded at the only module that imports it (``investment_analysis_engine/data/yfinance/client.py``) by replacing its
+  ``yf`` name.
 * ``urllib`` and ``httpx`` go through Python sockets, so ``socket.socket.connect`` and ``connect_ex`` are guarded for
   every non-loopback address, and ``socket.getaddrinfo`` is guarded for every non-loopback host name so the call
   fails before a DNS lookup. Loopback (and ``AF_UNIX``) stays allowed: the Windows asyncio event loop connects a
@@ -25,7 +26,7 @@ from typing import Any, NoReturn
 
 import pytest
 
-from src.data.yfinance import client as yfinance_client_module
+from investment_analysis_engine.data.yfinance import client as yfinance_client_module
 
 LIVE_NETWORK_MARKER = "live_network"
 _LOOPBACK_NAMES = frozenset({"localhost", "localhost.localdomain"})
@@ -51,8 +52,9 @@ def _caller(depth: int) -> str:
 class BlockedYFinance:
     """Stand-in for the ``yfinance`` module whose network entry points fail loudly and are recorded.
 
-    ``src/data/yfinance/client.py`` reaches the network only through ``yf.download`` and ``yf.Ticker``
-    (``fast_info`` / ``info``), so guarding those two names covers every ``YFinanceClient`` network method.
+    ``investment_analysis_engine/data/yfinance/client.py`` reaches the network only through ``yf.download`` and
+    ``yf.Ticker`` (``fast_info`` / ``info``), so guarding those two names covers every ``YFinanceClient`` network
+    method.
     """
 
     def __init__(self) -> None:
@@ -62,7 +64,7 @@ class BlockedYFinance:
         self.blocked_calls.append(f"yfinance.{name} (from {_caller(4)})")
         msg = (
             f"yfinance.{name} was reached without a stub, which would make a live Yahoo call. "
-            "Inject a fake client or patch 'src.data.yfinance.client.yf' for this test."
+            "Inject a fake client or patch 'investment_analysis_engine.data.yfinance.client.yf' for this test."
         )
         raise YahooNetworkAccessError(msg)
 
@@ -155,7 +157,8 @@ def _exempt(request: pytest.FixtureRequest) -> bool:
 def block_live_yahoo(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
     """Fail any test that reaches YFinanceClient's network methods unless it stubs them explicitly.
 
-    A test that patches ``src.data.yfinance.client.yf`` or replaces the client's methods overrides this guard.
+    A test that patches ``investment_analysis_engine.data.yfinance.client.yf`` or replaces the client's methods
+    overrides this guard.
     """
     if _exempt(request):
         yield

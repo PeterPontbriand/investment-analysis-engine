@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from src.data.security_unit import (
+from investment_analysis_engine.data.security_unit import (
     SecurityUnitCompatibilityReason,
     SecurityUnitEvidence,
     SecurityUnitKind,

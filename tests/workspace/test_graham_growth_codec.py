@@ -6,15 +6,20 @@ from uuid import UUID
 
 import pytest
 
-from src.analysis.run_models import RunOutcome
-from src.analysis.shared.financial_resolution import PriceComparison
-from src.core.analysis_status import CalculationStatus
-from src.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
-from src.data.financial.quote_freshness import QuoteFreshnessEvidence
-from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
-from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
-from src.data.security_identity import SecurityIdentity
-from src.data.security_unit import (
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.analysis.shared.financial_resolution import PriceComparison
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
+from investment_analysis_engine.data.financial.quote_freshness import QuoteFreshnessEvidence
+from investment_analysis_engine.data.financial.resolution_trace import (
+    ResolutionEvent,
+    ResolutionOutcome,
+    ResolutionStage,
+    ResolutionTrace,
+)
+from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
+from investment_analysis_engine.data.security_identity import SecurityIdentity
+from investment_analysis_engine.data.security_unit import (
     SecurityUnitDocument,
     SecurityUnitEvidence,
     SecurityUnitKind,
@@ -22,16 +27,20 @@ from src.data.security_unit import (
     SecurityUnitResolution,
     SecurityUnitResolutionReason,
 )
-from src.strategies.graham_growth.calculation import (
+from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
     GrahamGrowthValueResult,
     GrowthValueInputAssembly,
 )
-from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategy_wiring import EVIDENCE_BY_KEY
-from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError, decode_evidence
-from src.workspace.runs import AnalysisRun
+from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY
+from investment_analysis_engine.workspace.codecs import (
+    InvalidStoredRunError,
+    UnsupportedRunVersionError,
+    decode_evidence,
+)
+from investment_analysis_engine.workspace.runs import AnalysisRun
 from tests._wiring import codecs_with_decode, encode_native
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
@@ -296,11 +305,11 @@ def test_decode_does_not_recalculate_and_preserves_payload(monkeypatch: pytest.M
         raise AssertionError("Stored evidence must not trigger execution or calculation.")
 
     for target in (
-        "src.strategies.graham_growth.calculation.compute_graham_growth_value",
-        "src.strategies.graham_growth.service.compute_graham_growth_value",
-        "src.strategies.graham_growth.service.run_graham_growth_analysis",
-        "src.strategies.graham_growth.service.evaluate_price_comparison",
-        "src.strategies.graham_growth.service.complete_security_unit_profile",
+        "investment_analysis_engine.strategies.graham_growth.calculation.compute_graham_growth_value",
+        "investment_analysis_engine.strategies.graham_growth.service.compute_graham_growth_value",
+        "investment_analysis_engine.strategies.graham_growth.service.run_graham_growth_analysis",
+        "investment_analysis_engine.strategies.graham_growth.service.evaluate_price_comparison",
+        "investment_analysis_engine.strategies.graham_growth.service.complete_security_unit_profile",
     ):
         monkeypatch.setattr(target, unexpected_call)
     restored = decode_evidence(run, EVIDENCE_BY_KEY)

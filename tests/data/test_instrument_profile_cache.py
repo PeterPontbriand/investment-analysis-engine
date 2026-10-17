@@ -11,9 +11,9 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.instrument_profile import (
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.instrument_profile import (
     InstrumentKind,
     InstrumentKindEvidence,
     InstrumentKindRequest,
@@ -21,10 +21,10 @@ from src.data.instrument_profile import (
     InstrumentProfileCapability,
     InstrumentProfileResolutionStatus,
 )
-from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
-from src.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
+from investment_analysis_engine.data.instrument_profile_cache import CachedInstrumentProfileResolver
+from investment_analysis_engine.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 
 NOW = datetime(2026, 9, 21, 12, 0, 0, tzinfo=UTC)
 STALE = NOW + timedelta(days=31)

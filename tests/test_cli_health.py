@@ -15,13 +15,13 @@ import pandas as pd
 import pytest
 from typer.testing import CliRunner
 
-from src import cli_health
-from src.cli import app
-from src.config import settings
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.base_client import DataFetchError
-from src.data.provider_checks import (
+from investment_analysis_engine import cli_health
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.config import settings
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.provider_checks import (
     CheckVerdict,
     ConnectionStep,
     ProviderCheckResult,
@@ -29,8 +29,8 @@ from src.data.provider_checks import (
     SecTransport,
     SecUnavailable,
 )
-from src.data.yfinance.client import YFinanceQuote
-from src.reporting.documents.health import ProviderHealthDocument, ProviderLibrary
+from investment_analysis_engine.data.yfinance.client import YFinanceQuote
+from investment_analysis_engine.reporting.documents.health import ProviderHealthDocument, ProviderLibrary
 from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()
@@ -393,9 +393,9 @@ _HUNG_ADAPTER_SCRIPT = textwrap.dedent(
     import dataclasses
     import threading
 
-    from src import cli_health
-    from src.cli import app
-    from src.data import provider_checks as checks
+    from investment_analysis_engine import cli_health
+    from investment_analysis_engine.cli import app
+    from investment_analysis_engine.data import provider_checks as checks
 
 
     class HungYahoo:

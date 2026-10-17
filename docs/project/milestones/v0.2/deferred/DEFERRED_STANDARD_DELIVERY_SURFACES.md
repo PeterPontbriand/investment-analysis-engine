@@ -33,7 +33,7 @@ shelling out to the CLI, has no supported way to do so yet.
 - Decide which of the three surfaces to build first, and whether all three are actually warranted
   or whether real consumer demand should narrow this before implementation — this project's own
   guardrails already caution against building speculative generality ahead of an actual need.
-- An MCP server would most naturally sit over the existing `src/orchestrator` dispatcher, since
+- An MCP server would most naturally sit over the existing `investment_analysis_engine/orchestrator` dispatcher, since
   that already exposes typed tool-call boundaries for the four analyses.
 - An HTTP API and its OpenAPI spec would need an explicit decision on hosting/process model,
   authentication (if any), and how it relates to the CLI's own error/exit-code conventions.

@@ -8,10 +8,10 @@ the check's own detail as the assertion message.
 
 import pytest
 
-from src.cli_health import build_provider_clients
-from src.data.provider_checks import PROVIDER_CHECKS, ProviderCheckEntry
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.data.yfinance.client import YFINANCE_PROVIDER_ID
+from investment_analysis_engine.cli_health import build_provider_clients
+from investment_analysis_engine.data.provider_checks import PROVIDER_CHECKS, ProviderCheckEntry
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 
 pytestmark = pytest.mark.live_network
 

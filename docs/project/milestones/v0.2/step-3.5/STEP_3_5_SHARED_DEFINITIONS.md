@@ -53,7 +53,7 @@ non-manufacturing issuer.
 
 ## 2. Outcomes and reason codes
 
-Every calculated numeric metric is a `MetricResult` (`src/core/metric_result.py`); no new status is
+Every calculated numeric metric is a `MetricResult` (`investment_analysis_engine/core/metric_result.py`); no new status is
 introduced.
 
 | Situation | `MetricStatus` |
@@ -267,7 +267,7 @@ Greenblatt's tangible capital employed:
 
 ## 9. Ranking helper
 
-A pure, analysis-agnostic function in `src/analysis/shared/ranking.py`. It knows nothing about
+A pure, analysis-agnostic function in `investment_analysis_engine/analysis/shared/ranking.py`. It knows nothing about
 strategies, runs or persistence.
 
 **Input**

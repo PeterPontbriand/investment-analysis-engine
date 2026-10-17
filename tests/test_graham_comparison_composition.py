@@ -9,15 +9,15 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from src.analysis.shared.financial_resolution import evaluate_price_comparison
-from src.cli import app
-from src.data.financial.cache import InMemoryResolvedInputCache
-from src.data.financial.facts import FinancialFactRequest, FinancialUnit, ProviderFact
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
-from src.data.security_unit import SecurityUnitEvidence, SecurityUnitKind
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.analysis.shared.financial_resolution import evaluate_price_comparison
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
+from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialUnit, ProviderFact
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
+from investment_analysis_engine.data.security_unit import SecurityUnitEvidence, SecurityUnitKind
+from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from tests.data.test_sec_security_unit import NOW, FilingFixture, eps_input
 
 
@@ -64,11 +64,20 @@ def test_verified_comparison_reaches_cli_and_cache(command: str, mode: str, bypa
     if command == "graham-growth":
         arguments.extend(["--expected-growth", "5", "--aaa-yield", "4.5"])
     with (
-        patch(f"src.strategies.{command.replace('-', '_')}.cli.build_graham_resolver", return_value=resolver),
-        patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None),
-        patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None),
         patch(
-            f"src.strategies.{command.replace('-', '_')}.cli._production_financial_cache", return_value=_cache_context()
+            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.cli.build_graham_resolver",
+            return_value=resolver,
+        ),
+        patch(
+            "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_security_identity",
+            return_value=None,
+        ),
+        patch(
+            "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None
+        ),
+        patch(
+            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.cli._production_financial_cache",
+            return_value=_cache_context(),
         ),
         patch("socket.socket.connect", side_effect=AssertionError("Network forbidden")),
     ):
@@ -114,9 +123,14 @@ def test_bad_filing_preserves_value_and_reports_reason() -> None:
     provider = ProductionFinancialFactsProvider(sec_edgar=sec, yfinance=QuoteProvider())
     resolver = GrahamNumberInputResolver(provider, clock=lambda: NOW)
     with (
-        patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=resolver),
-        patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None),
-        patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None),
+        patch("investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver", return_value=resolver),
+        patch(
+            "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_security_identity",
+            return_value=None,
+        ),
+        patch(
+            "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None
+        ),
         patch("socket.socket.connect", side_effect=AssertionError("Network forbidden")),
     ):
         result = CliRunner().invoke(app, ["graham-number", "KO", "--no-cache", "--json"])

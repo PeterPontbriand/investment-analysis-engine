@@ -18,7 +18,7 @@ its decision record is [B.14](SWC_CONTRACT_AND_SLICE_PLAN.md#b14-swc4d-command-v
 - **Rules it follows:** each existing sentence is kept except where decision 5 requires the option or argument name
   to appear; a sentence reports and does not instruct unless the existing one already does; no check moves relative
   to another check or to a resource it precedes today; no per-strategy entry in generic tooling; a test fails if
-  any file under `src/` raises `typer.BadParameter`; the complete managed gate ends step 2.
+  any file under `investment_analysis_engine/` raises `typer.BadParameter`; the complete managed gate ends step 2.
 - **Two steps on one branch:** step 1 (this document) writes the plan and stops; step 2 implements it after the
   project owner has read section F.
 - **Where detail lives:** the checks are in [section A](#a-the-check-table), the caught-`ValueError` audit in
@@ -43,7 +43,7 @@ its decision record is [B.14](SWC_CONTRACT_AND_SLICE_PLAN.md#b14-swc4d-command-v
 - **Decision:** the plan lists every check, audits every caught `ValueError` that turns into a usage error, defines
   one shared reporting path and one `parameters` field, and reports what does not fit the approved decisions.
 - **Scope:** this document, the SWC.4d section and a new appendix entry in `SWC_CONTRACT_AND_SLICE_PLAN.md`. No
-  change under `src/` or `tests/`.
+  change under `investment_analysis_engine/` or `tests/`.
 - **Branch:** `feat/swc-4d-command-validation-failures`, from `main`. No pull request in this step.
 - **Detail:** sections [A](#a-the-check-table) to [F](#f-findings-that-do-not-fit-the-decisions) below.
 
@@ -72,7 +72,7 @@ Scope limits:
 
 Acceptance criteria for step 2:
 
-- A test fails when any file under `src/` raises `typer.BadParameter`, and a negative control proves the test can fail.
+- A test fails when any file under `investment_analysis_engine/` raises `typer.BadParameter`, and a negative control proves the test can fail.
 - Every row of section A behaves as its columns say (`DB-3` reports `configuration_error`): exit 1, the sentence in the "after" column on standard error, and
   for a command with `--json` the envelope on standard output, `reason_code` `invalid_parameter` and the stated
   `parameters`, with nothing on standard error.
@@ -91,7 +91,7 @@ Acceptance criteria for step 2:
 
 ### 5.1 Count and location
 
-The code matches the inventory below. `grep` for `BadParameter`, `UsageError` and `Exit(2)` under `src/` finds no
+The code matches the inventory below. `grep` for `BadParameter`, `UsageError` and `Exit(2)` under `investment_analysis_engine/` finds no
 other way a command ends with exit 2. Reading the code found three further ways a check reaches the caller as a
 usage error without a `raise typer.BadParameter` line of its own, and those are rows of section A: a
 `ValueError` caught from the workspace layer, a `ValidationError` caught by `config_usage_errors`, and the
@@ -99,15 +99,15 @@ usage error without a `raise typer.BadParameter` line of its own, and those are 
 
 | File | `raise typer.BadParameter` sites | Distinct checks (rows of section A) |
 | :--- | ---: | ---: |
-| `src/cli_support.py` | 9 | 9 (`SUP-1` to `SUP-9`) |
-| `src/cli_workspace.py` | 16 | 17 (`WRK-1` to `WRK-17`) |
-| `src/cli.py` (`evaluate`) | 4 | 4 (`EVL-1` to `EVL-4`) |
-| `src/cli_database.py` | 3 | 3 (`DB-1` to `DB-3`); the in-memory site is two rows by origin (F6), and the second `ValueError` handler is unreachable ([B](#b-the-valueerror-audit)) |
-| `src/cli_health.py` | 1 | 1 (`HLT-1`) |
-| `src/strategies/fcf_growth/cli.py` | 5 | 4 (`FCF-1` to `FCF-4`); the currency check is raised at two sites |
-| `src/strategies/graham_growth/cli.py` | 2 | 2 (`GGR-1`, `GGR-2`) |
-| `src/strategies/momentum/cli.py` | 1 | 1 (`MOM-5`) |
-| `src/strategies/graham_number/cli.py` | 0 | 0 (uses the shared helpers) |
+| `investment_analysis_engine/cli_support.py` | 9 | 9 (`SUP-1` to `SUP-9`) |
+| `investment_analysis_engine/cli_workspace.py` | 16 | 17 (`WRK-1` to `WRK-17`) |
+| `investment_analysis_engine/cli.py` (`evaluate`) | 4 | 4 (`EVL-1` to `EVL-4`) |
+| `investment_analysis_engine/cli_database.py` | 3 | 3 (`DB-1` to `DB-3`); the in-memory site is two rows by origin (F6), and the second `ValueError` handler is unreachable ([B](#b-the-valueerror-audit)) |
+| `investment_analysis_engine/cli_health.py` | 1 | 1 (`HLT-1`) |
+| `investment_analysis_engine/strategies/fcf_growth/cli.py` | 5 | 4 (`FCF-1` to `FCF-4`); the currency check is raised at two sites |
+| `investment_analysis_engine/strategies/graham_growth/cli.py` | 2 | 2 (`GGR-1`, `GGR-2`) |
+| `investment_analysis_engine/strategies/momentum/cli.py` | 1 | 1 (`MOM-5`) |
+| `investment_analysis_engine/strategies/graham_number/cli.py` | 0 | 0 (uses the shared helpers) |
 | **Total** | **41** | **41** |
 
 The 41 checks exit 2 today. Momentum's four window and period checks (`MOM-1` to `MOM-4`) are
@@ -169,7 +169,7 @@ Reading the table:
   sentence to standard error.
 - Rows run in the order each check fires; the per-command order is in [section C](#c-the-mechanism).
 
-#### `src/cli_support.py`: shared helpers
+#### `investment_analysis_engine/cli_support.py`: shared helpers
 
 | Row | Command(s) | Option or argument | What is rejected | Sentence today | Sentence after | `parameters` | Exit today | Exit after | `--json` |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | ---: | ---: | :--- |
@@ -183,7 +183,7 @@ Reading the table:
 | SUP-8 | same as SUP-6 | `--as-of` | A timestamp with no UTC offset | `Timestamp --as-of values must include an explicit timezone offset.` | unchanged | `["--as-of"]` | 2 | 1 | direct yes; watchlist no |
 | SUP-9 | `graham-number`, `graham-growth`; `watchlist create`, `watchlist add-selection` for those methods | `--data-provider`, `--eps-basis`, `--eps`, `--bvps`, `--current-price`, `--expected-growth`, `--aaa-yield` | A value the Graham configuration or selection model rejects (through `config_usage_errors`; [section D](#d-the-pydantic-derived-graham-messages)) | `Invalid <option>: <pydantic message>`, or the model-level message with field names replaced by options | unchanged | the one option, or the options named in the message | 2 | 1 | direct yes; watchlist no |
 
-#### `src/strategies/momentum/cli.py`
+#### `investment_analysis_engine/strategies/momentum/cli.py`
 
 | Row | Command(s) | Option or argument | What is rejected | Sentence today | Sentence after | `parameters` | Exit today | Exit after | `--json` |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | ---: | ---: | :--- |
@@ -195,7 +195,7 @@ Reading the table:
 
 MOM-1 to MOM-4 exit 1 today ([B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-momentum-window-failure-2026-10-06)); only `parameters` is new.
 
-#### `src/strategies/fcf_growth/cli.py`
+#### `investment_analysis_engine/strategies/fcf_growth/cli.py`
 
 | Row | Command(s) | Option or argument | What is rejected | Sentence today | Sentence after | `parameters` | Exit today | Exit after | `--json` |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | ---: | ---: | :--- |
@@ -204,7 +204,7 @@ MOM-1 to MOM-4 exit 1 today ([B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-mom
 | FCF-3 | same | `--classification-basis` | Not `total-fcf` or `fcf-per-share` | `--classification-basis must be total-fcf or fcf-per-share.` | unchanged | `["--classification-basis"]` | 2 | 1 | same |
 | FCF-4 | same | `--currency` | Not three letters (raised at two sites with one sentence) | `--currency must be a three-letter ISO 4217 code.` | unchanged | `["--currency"]` | 2 | 1 | same |
 
-#### `src/strategies/graham_growth/cli.py`
+#### `investment_analysis_engine/strategies/graham_growth/cli.py`
 
 | Row | Command(s) | Option or argument | What is rejected | Sentence today | Sentence after | `parameters` | Exit today | Exit after | `--json` |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | ---: | ---: | :--- |
@@ -213,7 +213,7 @@ MOM-1 to MOM-4 exit 1 today ([B.10](SWC_CONTRACT_AND_SLICE_PLAN.md#b10-swc4a-mom
 
 The direct `graham-growth` command declares both options required to the parser, so omitting one there is a parser rejection and exits 2 (F9).
 
-#### `src/cli_workspace.py`
+#### `investment_analysis_engine/cli_workspace.py`
 
 | Row | Command(s) | Option or argument | What is rejected | Sentence today | Sentence after | `parameters` | Exit today | Exit after | `--json` |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | ---: | ---: | :--- |
@@ -238,7 +238,7 @@ The direct `graham-growth` command declares both options required to the parser,
 `WRK-14` and `WRK-15` today produce one block listing every failed field when both are wrong; after step 2 the checks run in
 order and the first failing one is reported, like Momentum's windows.
 
-#### `src/cli_health.py`, `src/cli_database.py`, `src/cli.py`
+#### `investment_analysis_engine/cli_health.py`, `investment_analysis_engine/cli_database.py`, `investment_analysis_engine/cli.py`
 
 | Row | Command(s) | Option or argument | What is rejected | Sentence today | Sentence after | `parameters` | Exit today | Exit after | `--json` |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | ---: | ---: | :--- |
@@ -272,12 +272,12 @@ database arranged as `tests/_cli_helpers.py` does, and read the exit code and bo
 ### B. The `ValueError` audit
 
 Decision 6 covers the places that catch a `ValueError` from the workspace layer and re-raise it as a usage error. There are seven
-(`src/cli_workspace.py`). For each, the exceptions the guarded call can raise were read from the repository and model code, and
+(`investment_analysis_engine/cli_workspace.py`). For each, the exceptions the guarded call can raise were read from the repository and model code, and
 the two surprises were reproduced by running.
 
 | Site | Guarded call | Exceptions it can catch and where raised | Disposition |
 | :--- | :--- | :--- | :--- |
-| `watchlist create`, around `repository.create` | `SQLiteWatchlistRepository.create` | Blank name: `pydantic.ValidationError` (a `ValueError`) from `Watchlist._validate_watchlist` in `src/workspace/runs.py`, whose text is the pydantic block of `WRK-4`. `WatchlistConflictError` is caught first and already reported as `watchlist_name_conflict`. `_utc` raises `ValueError` only for a naive clock; the clock is `utc_now`. | The blank name is an explicit `NAME` check, `WRK-4`, immediately before the call. The rest cannot occur. |
+| `watchlist create`, around `repository.create` | `SQLiteWatchlistRepository.create` | Blank name: `pydantic.ValidationError` (a `ValueError`) from `Watchlist._validate_watchlist` in `investment_analysis_engine/workspace/runs.py`, whose text is the pydantic block of `WRK-4`. `WatchlistConflictError` is caught first and already reported as `watchlist_name_conflict`. `_utc` raises `ValueError` only for a naive clock; the clock is `utc_now`. | The blank name is an explicit `NAME` check, `WRK-4`, immediately before the call. The rest cannot occur. |
 | `watchlist create`, around `repository.add_entries` | `add_entries` on the watchlist just created | `normalize_ticker`: blank ticker. `WatchlistNotFoundError` and `StoredSelectionError` (from `_load`) cannot occur on rows written a moment earlier. `ValueError` from a corrupt stored row (`UUID`, `fromisoformat`, a `Watchlist` validation) cannot occur on a fresh row. | The blank ticker is an explicit `TICKER` check, `WRK-5`, made for every seed ticker before the watchlist is created (F3, ruled), so a blank ticker leaves nothing behind. Anything else is reported by the generic path below. |
 | `watchlist add-selection` | `add_entries` on an existing watchlist | Blank ticker (`normalize_ticker`). `WatchlistNotFoundError`, caught first, `watchlist_not_found`. **`StoredSelectionError` from `_load` when any existing entry is unreadable: reproduced, it exits 2 today as a usage error whose text ends "Remove it with: ian watchlist remove-entry ...".** The insert rolls back with it. | The blank ticker is an explicit `WRK-5` check before the call. `StoredSelectionError` is reported under `stored_selection_unreadable`, exit 1, with its own sentence unchanged, the way every other command that reads the watchlist already reports it. |
 | `watchlist remove-ticker` | `remove_entries_for_ticker` | Blank ticker only; the method decodes no entry. `WatchlistNotFoundError` is caught first. | Explicit `WRK-5` check before the call. |
@@ -314,14 +314,14 @@ The other catch-and-re-raise sites are not workspace-layer sites. Each guards on
 
 ### C. The mechanism
 
-One path, in `src/cli_support.py`, reports a check raised before or inside a command's failure handling. A check raises
+One path, in `investment_analysis_engine/cli_support.py`, reports a check raised before or inside a command's failure handling. A check raises
 `InvalidParameterError`; it never writes output.
 
 1. **Raise.** `InvalidParameterError(message, *, parameters)` takes the names as a required keyword argument and keeps them
    as a tuple attribute. It stays a `ValueError` subtype, and the classifier already maps it to `invalid_parameter`.
 2. **Carry.** `parameters` travels as an attribute of the exception, read the way `provider_failure_of_exception` reads `kind`: a
-   function in `src/core/failure_classification.py` returns `getattr(exception, "parameters", None)` when it is a tuple of strings
-   and names no exception type. `failure_envelope` (in `src/reporting/failure_envelope.py`) passes it to the model when the code is
+   function in `investment_analysis_engine/core/failure_classification.py` returns `getattr(exception, "parameters", None)` when it is a tuple of strings
+   and names no exception type. `failure_envelope` (in `investment_analysis_engine/reporting/failure_envelope.py`) passes it to the model when the code is
    `invalid_parameter`. The model field is `parameters: tuple[str, ...] | None`; a validator requires a non-empty tuple exactly
    when `reason_code` is `invalid_parameter` and refuses it otherwise. The raising code, which already owns the sentence,
    owns the names, so generic code holds no per-strategy entry.
@@ -394,25 +394,25 @@ Can a message expose an input value it should not? No message does.
 
 Source files:
 
-- `src/core/operator_errors.py`: `InvalidParameterError` takes `parameters`.
-- `src/core/failure_classification.py`: the function that reads `parameters` from an exception.
-- `src/reporting/documents/failure.py`: the `parameters` field and its rule; `schema_version` 10.
-- `src/reporting/failure_envelope.py`: pass `parameters` to the model.
-- `src/cli_support.py`: `execution_errors` (`json_output`, `FailureScope`), `parameter_failures`, `report_failure`, every `raise` in the
+- `investment_analysis_engine/core/operator_errors.py`: `InvalidParameterError` takes `parameters`.
+- `investment_analysis_engine/core/failure_classification.py`: the function that reads `parameters` from an exception.
+- `investment_analysis_engine/reporting/documents/failure.py`: the `parameters` field and its rule; `schema_version` 10.
+- `investment_analysis_engine/reporting/failure_envelope.py`: pass `parameters` to the model.
+- `investment_analysis_engine/cli_support.py`: `execution_errors` (`json_output`, `FailureScope`), `parameter_failures`, `report_failure`, every `raise` in the
   helpers, `config_usage_errors`, removal of the `UsageError` arm and import.
-- `src/cli_workspace.py`: all 16 raise sites, the explicit checks of section B, `_report` replaced by `report_failure`, the
+- `investment_analysis_engine/cli_workspace.py`: all 16 raise sites, the explicit checks of section B, `_report` replaced by `report_failure`, the
   `except InvalidParameterError` in `_build_selection` removed, `runs show` using the shared mode helper, the catch-all
   in `_workspace_database`, the `runs show` read-failure sentence, docstrings that say "usage error".
-- `src/cli.py` (`evaluate`), `src/cli_health.py`, `src/cli_database.py`.
-- `src/strategies/momentum/cli.py`, `fcf_growth/cli.py`, `graham_growth/cli.py`, `graham_number/cli.py`.
-- `src/workspace/refresh.py` and `src/workspace/runs.py`: the worker range and the `limit` bounds become named constants that the
+- `investment_analysis_engine/cli.py` (`evaluate`), `investment_analysis_engine/cli_health.py`, `investment_analysis_engine/cli_database.py`.
+- `investment_analysis_engine/strategies/momentum/cli.py`, `fcf_growth/cli.py`, `graham_growth/cli.py`, `graham_number/cli.py`.
+- `investment_analysis_engine/workspace/refresh.py` and `investment_analysis_engine/workspace/runs.py`: the worker range and the `limit` bounds become named constants that the
   model and the CLI check share. These two files are outside the CLI modules and the change is a constant extraction with no behavior
   change; if the project owner prefers, the constants live in the CLI and are duplicated.
 - `schemas/failure.schema.json`, regenerated by `scripts/generate_schemas.py`.
 
 Tests to add:
 
-- A source scan that fails when any file under `src/` raises `typer.BadParameter` (an AST scan, with a negative control on a temporary file).
+- A source scan that fails when any file under `investment_analysis_engine/` raises `typer.BadParameter` (an AST scan, with a negative control on a temporary file).
 - A table-driven test over section A: each row through the CLI runner in text mode and, where the command has `--json`, in `--json` mode.
 - Parser controls: an unknown option, a missing argument, a wrong type and an out-of-choice value still exit 2 with text for every family.
 - Order tests: one command line violating two checks per command of the order table in section C.
@@ -480,7 +480,7 @@ Each is for the project owner. I resolved none.
 | F8, F9 | Accepted; the documents say exit 2 means the parser rejected the command line. |
 | F10a, F10b | Approved: a strict lookup in `config_usage_errors`; the `Value error, ` prefix is stripped. |
 | F10c | Not fixed here. Reproduced through the CLI test runner with no network in step 2; if a non-finite override is accepted a GitHub issue is opened and referenced from the existing-strategy correctness plan. |
-| Scope | Editing `src/workspace/refresh.py` and `src/workspace/runs.py` is approved, only to define the worker and limit bounds once. |
+| Scope | Editing `investment_analysis_engine/workspace/refresh.py` and `investment_analysis_engine/workspace/runs.py` is approved, only to define the worker and limit bounds once. |
 
 ### G. Differences between this plan and the implementation
 
@@ -489,10 +489,10 @@ Found while implementing step 2; each is small and none changes a row of section
 - **Create order.** The plan's order table put `WRK-5` before `WRK-4`; the implementation checks the name first, then every seed ticker, then creates, so only the accepted change (a taken name with a blank ticker reports the blank ticker) differs from today.
 - **`execution_errors` signature.** It gains `json_output` and yields the `FailureScope`, and keeps its `mode` parameter as the scope's initial mode instead of replacing it.
 - **Moved into the handler.** The FCF command's policy and configuration are now built inside its handler, so a `ValueError` from them is reported as a failure; before it would have escaped as a traceback.
-- **Workspace catch-all.** `_workspace_database` reports an exception that declares its own code (an `InvalidParameterError` raised inside the block included) under that code and sentence, and any other exception as an `execution_error` (see the next bullets), and the pre-check regions of the commands use `parameter_failures`. `_report` is replaced by `report_failure` in `src/cli_support.py`.
+- **Workspace catch-all.** `_workspace_database` reports an exception that declares its own code (an `InvalidParameterError` raised inside the block included) under that code and sentence, and any other exception as an `execution_error` (see the next bullets), and the pre-check regions of the commands use `parameter_failures`. `_report` is replaced by `report_failure` in `investment_analysis_engine/cli_support.py`.
 - **Database commands.** The target is opened by a new `_open_database` helper that holds `DB-1` to `DB-3`; the unreachable second `ValueError` handler is removed.
 - **Strict lookup.** `config_usage_errors` re-raises the original `ValidationError` when a model-level message names no mapped field, so nothing is reported under an invented option.
-- **Constants.** `MIN_WORKERS` and `MAX_WORKERS` in `src/workspace/refresh.py` and `RUN_QUERY_MIN_LIMIT` and `RUN_QUERY_MAX_LIMIT` in `src/workspace/runs.py`, as approved.
+- **Constants.** `MIN_WORKERS` and `MAX_WORKERS` in `investment_analysis_engine/workspace/refresh.py` and `RUN_QUERY_MIN_LIMIT` and `RUN_QUERY_MAX_LIMIT` in `investment_analysis_engine/workspace/runs.py`, as approved.
 - **A test seam.** The logging driver's "crash" scenario patched `_presentation_mode`, which now runs inside the handler; it patches `provider_check_choice`, which still runs before it.
 - **`runs show`.** A stored run that cannot be read reports one sentence, `Analysis Run <full run ID> could not be read: its stored record is malformed or does not match its summary.`, under `invalid_stored_run`; the validation text goes to the log. This resolves issue 113 ([B.16](SWC_CONTRACT_AND_SLICE_PLAN.md#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12)).
 - **The workspace catch-all.** `_workspace_database` takes the command as typed after `ian` and catches every exception, not only `ValueError`. One that declares its own `reason_code` keeps its sentence; any other is an `execution_error` with `<command> failed unexpectedly.` and its detail in the log; `typer.Exit` and `typer.Abort` pass through. This replaced the `invalid_input` the plan first named for a residual `ValueError`; section B now states the catch-all. No sentence of section A changes.
@@ -509,7 +509,7 @@ plan applies each:
 | Decision | Subject | Applied in |
 | :--- | :--- | :--- |
 | 1 | Every check a command raises itself moves into the envelope | [Section A](#a-the-check-table), 45 rows |
-| 2 | A test fails if any file under `src/` raises `typer.BadParameter` | [Section E](#e-file-scope-tests-and-documents-for-step-2), first new test |
+| 2 | A test fails if any file under `investment_analysis_engine/` raises `typer.BadParameter` | [Section E](#e-file-scope-tests-and-documents-for-step-2), first new test |
 | 3 | Exit 1 with `invalid_parameter`; exit 2 means the parser rejected the command line | [Section C](#c-the-mechanism) item 5; [5.3](#53-invalid_parameter-under-the-stability-rule) |
 | 4 | A command with no `--json` writes the sentence to standard error and exits 1 | [Section C](#c-the-mechanism) item 4 |
 | 5 | Keep each sentence; reword only to keep an option name; name the option; report, do not instruct | [Section A](#a-the-check-table), rule R; F1 |

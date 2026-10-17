@@ -12,35 +12,41 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.analysis.run_models import RunOutcome
-from src.core.analysis_status import CalculationStatus
-from src.core.failure_classification import failure_reason_code, provider_failure_of
-from src.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode
-from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
-from src.data.instrument_profile import InstrumentKind
-from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from src.strategies.fcf_growth.execution import FCFGrowthCapture, from_fcf_growth_capture
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
-from src.strategies.graham_growth.execution import (
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.failure_classification import failure_reason_code, provider_failure_of
+from investment_analysis_engine.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from investment_analysis_engine.data.instrument_profile import InstrumentKind
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from investment_analysis_engine.strategies.fcf_growth.execution import FCFGrowthCapture, from_fcf_growth_capture
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from investment_analysis_engine.strategies.graham_growth.calculation import (
+    GrahamGrowthValueResult,
+    GrowthValueInputAssembly,
+)
+from investment_analysis_engine.strategies.graham_growth.execution import (
     GrahamGrowthCapture,
     classify_graham_growth_outcome,
     from_graham_growth_capture,
 )
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
-from src.strategies.graham_number.execution import (
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_number.calculation import (
+    GrahamNumberInputAssembly,
+    GrahamNumberResult,
+)
+from investment_analysis_engine.strategies.graham_number.execution import (
     GrahamNumberCapture,
     classify_graham_number_outcome,
     from_graham_number_capture,
 )
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import RUN_SPECS_BY_KEY, run_spec_for
-from src.workspace.capture import ExecutionCapture
-from src.workspace.execution import execute
-from src.workspace.refresh import RefreshJobResult, refresh_watchlist
-from src.workspace.repositories.analysis_runs import (
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategy_wiring import RUN_SPECS_BY_KEY, run_spec_for
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.execution import execute
+from investment_analysis_engine.workspace.refresh import RefreshJobResult, refresh_watchlist
+from investment_analysis_engine.workspace.repositories.analysis_runs import (
     AnalysisRunConflictError,  # noqa: F401 - keeps the import graph warm
 )
 from tests._wiring import failure_text
@@ -111,7 +117,7 @@ def _growth_capture(analysis: GrahamGrowthAnalysis) -> ExecutionCapture:
 
 
 def _fcf_capture(result: FCFEarningsGrowthResult) -> ExecutionCapture:
-    from src.strategies.fcf_growth.execution import classify_fcf_growth_outcome  # noqa: PLC0415
+    from investment_analysis_engine.strategies.fcf_growth.execution import classify_fcf_growth_outcome  # noqa: PLC0415
 
     return from_fcf_growth_capture(FCFGrowthCapture(result, _PROFILE, classify_fcf_growth_outcome(result)))
 

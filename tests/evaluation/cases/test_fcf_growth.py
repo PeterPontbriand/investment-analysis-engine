@@ -7,10 +7,10 @@ from uuid import UUID
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.core.metric_result import MetricStatus, ReasonCode
-from src.core.trajectory_events import TrajectoryEvent
-from src.evaluation.cases.fcf_growth import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
+from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
+from investment_analysis_engine.evaluation.cases.fcf_growth import (
     FCF_01,
     FCF_02,
     FCF_03,
@@ -19,9 +19,9 @@ from src.evaluation.cases.fcf_growth import (
     FCF_GROWTH_CASES,
     FPI_03,
 )
-from src.evaluation.composition import dispatch_fixture_case
-from src.evaluation.evaluator import evaluate_tool_selection
-from src.evaluation.models import (
+from investment_analysis_engine.evaluation.composition import dispatch_fixture_case
+from investment_analysis_engine.evaluation.evaluator import evaluate_tool_selection
+from investment_analysis_engine.evaluation.models import (
     Case,
     ComponentKind,
     ComponentOutcome,
@@ -30,13 +30,13 @@ from src.evaluation.models import (
     Observation,
     ToolCallObservation,
 )
-from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
-from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
-from src.orchestrator.tool_names import ToolName
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from src.strategies.fcf_growth.vocabulary import Classification, TrendClassification
-from src.telemetry.recorder import TrajectoryRecorder
-from src.telemetry.run_context import RunContext
+from investment_analysis_engine.evaluation.reporting import CaseEvaluationResult, CaseOutcome
+from investment_analysis_engine.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
+from investment_analysis_engine.orchestrator.tool_names import ToolName
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import Classification, TrendClassification
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
+from investment_analysis_engine.telemetry.run_context import RunContext
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("d0000000-0000-0000-0000-00000000000d")

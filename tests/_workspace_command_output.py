@@ -30,10 +30,10 @@ from alembic.config import Config
 from typer.testing import CliRunner
 
 from alembic import command
-from src.cli import app
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.market_data import HistoricalMarketData
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.market_data import HistoricalMarketData
 from tests._cli_helpers import normalize_cli_output
 from tests._direct_command_output import _FixtureYahoo
 
@@ -183,13 +183,27 @@ def run_scenario() -> list[Step]:
     with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
         root = scenario_root(Path(directory))
         settings = _migrated_settings(root / "workspace.sqlite3")
-        for module in ("src.cli_support", "src.cli_workspace", "src.cli_database"):
+        for module in (
+            "investment_analysis_engine.cli_support",
+            "investment_analysis_engine.cli_workspace",
+            "investment_analysis_engine.cli_database",
+        ):
             stack.enter_context(patch(f"{module}.settings", settings))
-        stack.enter_context(patch("src.strategies.momentum.cli.YFinanceClient", _FixtureYahooFailingFor))
         stack.enter_context(
-            patch("src.data.yfinance.client.YFinanceClient.resolve_security_identity", return_value=None)
+            patch("investment_analysis_engine.strategies.momentum.cli.YFinanceClient", _FixtureYahooFailingFor)
         )
-        stack.enter_context(patch("src.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None))
+        stack.enter_context(
+            patch(
+                "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_security_identity",
+                return_value=None,
+            )
+        )
+        stack.enter_context(
+            patch(
+                "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_instrument_kind",
+                return_value=None,
+            )
+        )
         runner = CliRunner()
         substitutions = {
             "<new>": f"sqlite:///{(root / 'new' / 'one.sqlite3').as_posix()}",

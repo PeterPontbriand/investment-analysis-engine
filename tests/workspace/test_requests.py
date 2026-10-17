@@ -7,19 +7,23 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
-from src.strategies.fcf_growth.selection import FCFGrowthSelection, FCFPolicySnapshot
-from src.strategies.fcf_growth.vocabulary import FCFClassificationBasis, ForwardPolicy, HistoricalHorizon
-from src.strategies.graham_growth.config import GrahamGrowthConfig
-from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_number.config import GrahamNumberConfig
-from src.strategies.graham_number.selection import GrahamNumberSelection
-from src.strategies.momentum.analyzer import MomentumConfig
-from src.strategies.momentum.selection import MomentumSelection
-from src.strategies.momentum.settings import MomentumSettings
-from src.workspace.requests import AnalysisRequest
-from src.workspace.strategy_types import AnalysisSelection
-from src.workspace.watchlists import StoredSelectionError, decode_selection, encode_selection
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
+from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection, FCFPolicySnapshot
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
+    FCFClassificationBasis,
+    ForwardPolicy,
+    HistoricalHorizon,
+)
+from investment_analysis_engine.strategies.graham_growth.config import GrahamGrowthConfig
+from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
+from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
+from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumConfig
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
+from investment_analysis_engine.workspace.requests import AnalysisRequest
+from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
+from investment_analysis_engine.workspace.watchlists import StoredSelectionError, decode_selection, encode_selection
 
 _SETTINGS = MomentumSettings(short_window=2, long_window=5, rsi_period=14, history_start_date=date(2026, 1, 1))
 
@@ -256,7 +260,9 @@ def test_round_trip_and_conversion_do_not_read_settings(monkeypatch: pytest.Monk
     def forbidden_settings(*_args: object, **_kwargs: object) -> None:
         pytest.fail("Snapshot reconstruction must not read settings")
 
-    monkeypatch.setattr("src.config.strategy_settings.load_strategy_settings", forbidden_settings)
+    monkeypatch.setattr(
+        "investment_analysis_engine.config.strategy_settings.load_strategy_settings", forbidden_settings
+    )
     assert MomentumSelection.model_validate_json(momentum.model_dump_json()) == momentum
     assert GrahamNumberSelection.model_validate_json(graham.model_dump_json()) == graham
     assert momentum.to_momentum_config().short_window == 2
@@ -428,7 +434,9 @@ def test_all_request_variants_round_trip_without_settings(
     def forbidden_settings(*_args: object, **_kwargs: object) -> None:
         pytest.fail("Request replay must not read settings")
 
-    monkeypatch.setattr("src.config.strategy_settings.load_strategy_settings", forbidden_settings)
+    monkeypatch.setattr(
+        "investment_analysis_engine.config.strategy_settings.load_strategy_settings", forbidden_settings
+    )
     for selection in all_selections:
         request = AnalysisRequest(ticker=" cnr.to ", selection=selection)
         assert request.ticker == "CNR.TO"
@@ -479,7 +487,7 @@ def test_stored_selection_round_trips_without_settings_or_external_activity(
         pytest.fail("Decoding a stored selection must not read mutable/external state")
 
     # Imports have already completed; these guards cover the encode and decode operations.
-    monkeypatch.setattr("src.config.strategy_settings.load_strategy_settings", forbidden)
+    monkeypatch.setattr("investment_analysis_engine.config.strategy_settings.load_strategy_settings", forbidden)
     monkeypatch.setattr("builtins.open", forbidden)
     monkeypatch.setattr("pathlib.Path.open", forbidden)
     monkeypatch.setattr("socket.socket", forbidden)

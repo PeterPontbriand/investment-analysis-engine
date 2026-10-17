@@ -7,22 +7,30 @@ from unittest.mock import patch
 
 import pytest
 
-from src.analysis.base_analyzer import AnalysisContext
-from src.core.constants import TrendStatus
-from src.data.instrument_profile import InstrumentKind, InstrumentProfile, InstrumentProfileCandidate
-from src.data.market_data import MarketDataContext
-from src.data.yfinance.client import YFINANCE_PROVIDER_ID
-from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from src.evaluation.fixtures.market_data import FixtureDataClient
-from src.strategies.momentum.analyzer import (
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.core.constants import TrendStatus
+from investment_analysis_engine.data.instrument_profile import (
+    InstrumentKind,
+    InstrumentProfile,
+    InstrumentProfileCandidate,
+)
+from investment_analysis_engine.data.market_data import MarketDataContext
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
+from investment_analysis_engine.strategies.momentum.analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
     MomentumMetrics,
     MomentumRun,
 )
-from src.strategies.momentum.execution import capture_momentum, compose_momentum_profile, run_momentum
-from src.strategies.momentum.presenter import _sma_spread, _sma_spread_percent
-from src.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategies.momentum.execution import (
+    capture_momentum,
+    compose_momentum_profile,
+    run_momentum,
+)
+from investment_analysis_engine.strategies.momentum.presenter import _sma_spread, _sma_spread_percent
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 
 STAMP = datetime(2026, 9, 18, 12, tzinfo=UTC)
 
@@ -39,7 +47,7 @@ class _FixtureClient(FixtureDataClient):
 def mock_settings_config() -> Generator[None, None, None]:
     """Stub out configured analysis defaults; the adapter's tests supply their own."""
     mock_analysis = {"default": {"default_ticker": "BTC-USD"}}
-    with patch("src.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
+    with patch("investment_analysis_engine.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
         yield
 
 
@@ -187,7 +195,9 @@ class _RecordingCache:
 def test_compose_momentum_profile_uses_one_client_as_both_identity_and_kind_candidate_live() -> None:
     client = object()
     profile = _profile("AAPL")
-    with patch("src.strategies.momentum.execution.compose_instrument_profile", return_value=profile) as compose:
+    with patch(
+        "investment_analysis_engine.strategies.momentum.execution.compose_instrument_profile", return_value=profile
+    ) as compose:
         assert compose_momentum_profile("AAPL", data_client=client) is profile
     candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, client)
     compose.assert_called_once_with("AAPL", identity_candidates=(candidate,), kind_candidate=candidate)
@@ -196,7 +206,7 @@ def test_compose_momentum_profile_uses_one_client_as_both_identity_and_kind_cand
 def test_compose_momentum_profile_resolves_through_the_cache_with_identical_candidates() -> None:
     client = object()
     cache = _RecordingCache(_profile("AAPL"))
-    with patch("src.strategies.momentum.execution.compose_instrument_profile") as compose:
+    with patch("investment_analysis_engine.strategies.momentum.execution.compose_instrument_profile") as compose:
         assert compose_momentum_profile("AAPL", data_client=client, profile_cache=cache) is cache.profile
     compose.assert_not_called()
     candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, client)

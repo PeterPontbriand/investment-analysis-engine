@@ -7,12 +7,15 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
-from src.reporting.presentation import PresentationMode
-from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
-from src.strategies.graham_growth.presenter import GrahamGrowthPresentation, render_graham_growth
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
+from investment_analysis_engine.reporting.presentation import PresentationMode
+from investment_analysis_engine.strategies.graham_growth.calculation import (
+    GrahamGrowthValueResult,
+    GrowthValueInputAssembly,
+)
+from investment_analysis_engine.strategies.graham_growth.presenter import GrahamGrowthPresentation, render_graham_growth
 
 NOW = datetime(2026, 8, 25, 3, 0, tzinfo=UTC)
 WARNING = "The Graham growth value is non-positive; percentage price comparison is omitted."

@@ -22,26 +22,34 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import OperationalError
 from typer.testing import CliRunner, Result
 
-import src.cli_workspace
+import investment_analysis_engine.cli_workspace
 from alembic import command
-from src.cli import app
-from src.cli_strategy_wiring import CLI_BUILDERS
-from src.cli_support import InternalDefectError, describe_failure, require_job_ticker, stored_configuration
-from src.cli_watchlist_flags import WatchlistFlags
-from src.config import ProjectSettings
-from src.config import settings as real_settings
-from src.core.failure_classification import classify_failure
-from src.core.failure_codes import FailureReasonCode
-from src.core.operator_errors import AnalysisConfigurationError
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.core.repository_root import REPOSITORY_ROOT
-from src.core.strategy_errors import undeclared
-from src.data.base_client import DataFetchError
-from src.data.financial.facts import FinancialProviderError
-from src.data.market_data import NoEligibleObservationsError
-from src.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
-from src.workspace.codecs import InvalidStoredRunError
-from src.workspace.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.cli_strategy_wiring import CLI_BUILDERS
+from investment_analysis_engine.cli_support import (
+    InternalDefectError,
+    describe_failure,
+    require_job_ticker,
+    stored_configuration,
+)
+from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.config import settings as real_settings
+from investment_analysis_engine.core.failure_classification import classify_failure
+from investment_analysis_engine.core.failure_codes import FailureReasonCode
+from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.core.repository_root import PACKAGE_ROOT, REPOSITORY_ROOT
+from investment_analysis_engine.core.strategy_errors import undeclared
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.financial.facts import FinancialProviderError
+from investment_analysis_engine.data.market_data import NoEligibleObservationsError
+from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.workspace.codecs import InvalidStoredRunError
+from investment_analysis_engine.workspace.repositories.analysis_runs import (
+    AnalysisRunConflictError,
+    SQLiteAnalysisRunRepository,
+)
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
 from tests._direct_command_output import _COMMANDS, enter_fixture_providers
 from tests._failure_code_table import _historical_quality_error
@@ -212,14 +220,20 @@ def _refresh(settings: ProjectSettings, row: Row, flags: list[str]) -> tuple[Bas
     _create_momentum_only(settings, "W", ["AAPL"])
     with ExitStack() as stack:
         if row.step == "executor" and row.number == "13":
-            stack.enter_context(patch("src.cli_workspace.refresh_executor_for", side_effect=exception))
+            stack.enter_context(
+                patch("investment_analysis_engine.cli_workspace.refresh_executor_for", side_effect=exception)
+            )
         elif row.step == "executor":
-            stack.enter_context(patch("src.cli_workspace._refresh_executor", side_effect=exception))
+            stack.enter_context(
+                patch("investment_analysis_engine.cli_workspace._refresh_executor", side_effect=exception)
+            )
         else:
-            run = stack.enter_context(patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis"))
+            run = stack.enter_context(
+                patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+            )
             run.side_effect = lambda **kw: _mock_momentum_run(kw["ticker"])
             if row.step == "spec":
-                stack.enter_context(patch.object(src.cli_workspace, "RUN_SPECS_BY_KEY", {}))
+                stack.enter_context(patch.object(investment_analysis_engine.cli_workspace, "RUN_SPECS_BY_KEY", {}))
             else:
                 stack.enter_context(patch.object(SQLiteAnalysisRunRepository, "insert", side_effect=exception))
         result = runner.invoke(app, ["refresh", "W", *flags, "--json", "--no-provider-check"])
@@ -260,10 +274,16 @@ def test_refresh_gives_every_row_its_code_and_message(
 
 
 _ANALYSIS_PATCHES: dict[str, Callable[[BaseException], AbstractContextManager[MagicMock]]] = {
-    "momentum": lambda exc: patch("src.strategies.momentum.cli.run_momentum", side_effect=exc),
-    "graham-number": lambda exc: patch("src.strategies.graham_number.cli.execute_graham_number", side_effect=exc),
-    "graham-growth": lambda exc: patch("src.strategies.graham_growth.cli.execute_graham_growth", side_effect=exc),
-    "fcf-growth": lambda exc: patch("src.strategies.fcf_growth.cli.execute_fcf_growth", side_effect=exc),
+    "momentum": lambda exc: patch("investment_analysis_engine.strategies.momentum.cli.run_momentum", side_effect=exc),
+    "graham-number": lambda exc: patch(
+        "investment_analysis_engine.strategies.graham_number.cli.execute_graham_number", side_effect=exc
+    ),
+    "graham-growth": lambda exc: patch(
+        "investment_analysis_engine.strategies.graham_growth.cli.execute_graham_growth", side_effect=exc
+    ),
+    "fcf-growth": lambda exc: patch(
+        "investment_analysis_engine.strategies.fcf_growth.cli.execute_fcf_growth", side_effect=exc
+    ),
 }
 
 
@@ -273,8 +293,8 @@ def _migrated(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
-    monkeypatch.setattr("src.cli_run_support.settings", isolated)
-    monkeypatch.setattr("src.cli_support.settings", isolated)
+    monkeypatch.setattr("investment_analysis_engine.cli_run_support.settings", isolated)
+    monkeypatch.setattr("investment_analysis_engine.cli_support.settings", isolated)
 
 
 def _direct(
@@ -336,7 +356,9 @@ def test_the_graham_resolver_build_gives_the_same_code_and_message(
     exception = build()
     with ExitStack() as stack:
         enter_fixture_providers(stack, alias)
-        stack.enter_context(patch(f"src.strategies.{module}.cli.build_graham_resolver", side_effect=exception))
+        stack.enter_context(
+            patch(f"investment_analysis_engine.strategies.{module}.cli.build_graham_resolver", side_effect=exception)
+        )
         result = runner.invoke(app, [*_COMMANDS[alias], "--json", "--no-provider-check"])
     document = json.loads(result.stdout)
     expected = str(exception) if message == RAISED else message.format(t=_COMMANDS[alias][1])
@@ -389,7 +411,7 @@ def test_a_code_without_a_message_is_reported_as_an_unexpected_failure() -> None
 def test_the_defects_declare_their_code_and_the_classifier_names_no_exception_type() -> None:
     assert classify_failure(InternalDefectError("x")).reason_code is FailureReasonCode.EXECUTION_ERROR
     assert classify_failure(AnalysisRunConflictError("x")).reason_code is FailureReasonCode.EXECUTION_ERROR
-    source = (REPOSITORY_ROOT / "src" / "core" / "failure_classification.py").read_text(encoding="utf-8")
+    source = (PACKAGE_ROOT / "core" / "failure_classification.py").read_text(encoding="utf-8")
     for name in ("InternalDefectError", "AnalysisRunConflictError", "ValidationError"):
         assert name not in source
 
@@ -414,18 +436,23 @@ def _raise_validation_error() -> int:
         (
             "graham-number",
             lambda exc: patch(
-                "src.strategies.graham_number.selection.GrahamNumberSelection.to_graham_number_config", side_effect=exc
+                "investment_analysis_engine.strategies.graham_number.selection.GrahamNumberSelection.to_graham_number_config",
+                side_effect=exc,
             ),
         ),
         (
             "graham-growth",
             lambda exc: patch(
-                "src.strategies.graham_growth.selection.GrahamGrowthSelection.to_graham_growth_config", side_effect=exc
+                "investment_analysis_engine.strategies.graham_growth.selection.GrahamGrowthSelection.to_graham_growth_config",
+                side_effect=exc,
             ),
         ),
         (
             "fcf-growth",
-            lambda exc: patch("src.strategies.fcf_growth.selection.FCFGrowthSelection.to_fcf_config", side_effect=exc),
+            lambda exc: patch(
+                "investment_analysis_engine.strategies.fcf_growth.selection.FCFGrowthSelection.to_fcf_config",
+                side_effect=exc,
+            ),
         ),
     ],
 )
@@ -452,5 +479,5 @@ def test_a_stored_selection_that_does_not_convert_is_an_execution_error_from_the
     )
     selection = CLI_BUILDERS[alias](flags)
     with patch_conversion(_validation_error()), pytest.raises(InternalDefectError) as caught:
-        src.cli_workspace._refresh_executor("KO", selection, profile_cache=MagicMock())
+        investment_analysis_engine.cli_workspace._refresh_executor("KO", selection, profile_cache=MagicMock())
     assert classify_failure(caught.value).reason_code is FailureReasonCode.EXECUTION_ERROR
