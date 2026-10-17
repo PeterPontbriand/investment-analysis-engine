@@ -50,7 +50,7 @@ current codes:
 - `LAY` — short for "Layering" ([plan](layering/LAY_CONTRACT_AND_SLICE_PLAN.md)): moves a fixed set of files and names so
   the top-level `investment_analysis_engine/` packages form layers with no import loop of any length, and changes the dependency check to
   keep it so (the decision on [issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)).
-  Its row is numbered `12A` so the rows after it keep their numbers; it runs before `PKG`. LAY.4 to LAY.8, GR.2 and 12B are complete; then PKG.1 and PKG.2, then PKG.3, then SWC.5 to SWC.7, then Step 3.5;
+  Its row is numbered `12A` so the rows after it keep their numbers; it runs before `PKG`. LAY.4 to LAY.8, GR.2, GR.2a, 12B and PKG.1 to PKG.3 are complete; then SWC.5 to SWC.7, then Step 3.5;
   GR.3 runs in any gap
   ([order](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).
 - `PKG` — the `src` → real top-level package rename ([plan](pkg/PKG_RENAME_PLAN.md)), split out of `IR`

@@ -166,6 +166,15 @@ gh run list --workflow provider-health.yaml --limit 5
 its message is the check's own detail, for example `history is missing columns: Volume`. The job log shows the same
 text under the failing test.
 
+**Leaked SQLite connections.** yfinance's caches leave a SQLite connection open in the Yahoo check's worker thread.
+The live tests excuse that leak and no other. Each excused leak adds a line to the run output, under the heading
+`live leaks excused (SQLite connections left open by third-party caches, issue #152)`, for example
+`excused a leaked sqlite3.Connection allocated by peewee for yfinance`; it is a notice, not a failure. A leak the live
+tests do not excuse (a connection allocated by this project's code, by peewee without a yfinance frame above it, or by
+another package; a connection with no recorded allocation; or another kind of object) fails whichever test is running when it is freed, as a
+`PytestUnraisableExceptionWarning` naming the object and showing where it was allocated. Read that allocation trace
+to find the source, and do not widen the rule in `tests/live/conftest.py` unless the leak is one this project cannot close.
+
 ### Scheduled workflows stop after inactivity
 
 GitHub disables scheduled workflows in a public repository after 60 days without repository activity. A disabled

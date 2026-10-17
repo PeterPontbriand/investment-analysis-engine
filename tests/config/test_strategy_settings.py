@@ -133,7 +133,6 @@ def test_an_invalid_user_value_names_the_file_and_key_and_never_repeats_the_valu
     message = _message(tmp_path)
 
     assert message == f"Settings file {user} is invalid: short_window: Input should be greater than 0."
-    assert "-7" not in message
 
 
 def test_a_rule_that_spans_keys_names_the_user_file_and_no_key(tmp_path: Path) -> None:

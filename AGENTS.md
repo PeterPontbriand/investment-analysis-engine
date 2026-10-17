@@ -192,6 +192,17 @@ not filter or retype the output. Each step prints its elapsed time when it
 ends, each pytest pass lists its failing and erroring tests by full name, and a
 closing summary shows every step with its time and result and the total time.
 
+Run the complete gate, and any other long verification such as the live
+provider checks, to completion within the same turn: start it, wait for it to
+finish, and read its result before going on. When the tool that runs it cannot
+wait that long, start it in the background and keep checking it in the same
+turn until it finishes. Never end a turn while a command you started is still
+running, or with a slice's remaining steps undone: a turn that ends mid-run
+leaves no visible sign that work is still in progress, and the remaining steps
+(reading the result, committing, reporting) happen only if the agent is
+prompted again. Stop only when the work is complete or you are blocked on a
+decision that needs the project owner; then say which.
+
 Interactive developers and CI environments with normal user-directory access
 may continue to run the underlying `uv run ...` commands directly. Focused
 agent checks may also use direct commands when they do not require writable
