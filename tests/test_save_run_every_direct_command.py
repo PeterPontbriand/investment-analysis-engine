@@ -19,12 +19,12 @@ from alembic import command
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.config import settings as real_settings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
 from scripts import strategy_conformance as conformance
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._direct_command_output import _COMMANDS, enter_fixture_providers
 
 

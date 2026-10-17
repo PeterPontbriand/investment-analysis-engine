@@ -17,7 +17,6 @@ from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_support import _production_financial_cache
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.clock import utc_now
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.core.trajectory_events import TrajectoryEventType
 from investment_analysis_engine.data.repositories import migrations, readiness
 from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
@@ -25,6 +24,7 @@ from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
 from investment_analysis_engine.telemetry.run_context import RunContext
 from investment_analysis_engine.telemetry.sinks.sqlite import SQLiteTrajectorySink
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import stub_yahoo_identity_metadata  # noqa: F401
 
 COMMANDS = ["momentum", "graham-number", "graham-growth", "fcf-growth"]

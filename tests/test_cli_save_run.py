@@ -25,7 +25,6 @@ from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.config import settings as real_settings
 from investment_analysis_engine.core.constants import TrendStatus
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.market_data import MarketDataContext
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
@@ -43,6 +42,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
     SQLiteAnalysisRunRepository,
 )
 from investment_analysis_engine.workspace.runs import RunQuery
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_cli_output  # noqa: F401
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 

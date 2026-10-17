@@ -17,7 +17,6 @@ from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_support import _production_historical_client
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
@@ -26,6 +25,7 @@ from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.data.yfinance.client import YFinanceClient
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient, momentum_success_frame
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
+from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 9, 6, tzinfo=UTC)
 

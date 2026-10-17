@@ -7,8 +7,8 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any, Final
 
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
 from investment_analysis_engine.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
 from investment_analysis_engine.data.security_identity import SecurityIdentity
@@ -28,7 +28,7 @@ _ISSUER_BY_FIXTURE_ID = {
     SEC_FPI_SAP_FIXTURE_ID: "sap",
     SEC_FPI_NVO_FIXTURE_ID: "nvo",
 }
-_FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "sec_edgar" / "step_2_5a_d0"
+_FIXTURE_ROOT = PACKAGE_ROOT.parent / "tests" / "fixtures" / "sec_edgar" / "step_2_5a_d0"
 _USER_AGENT = "Step 2.5A Golden fixture tests@example.invalid"
 
 

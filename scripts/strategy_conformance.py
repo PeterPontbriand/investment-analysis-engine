@@ -39,7 +39,7 @@ from investment_analysis_engine.cli_strategy_wiring import (
     refreshers_by_key,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
-from investment_analysis_engine.core.repository_root import PACKAGE_ROOT, REPOSITORY_ROOT
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, require
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate
 from investment_analysis_engine.evaluation.catalog import DETERMINISTIC_CASES, build_deterministic_requests
@@ -83,6 +83,7 @@ from investment_analysis_engine.workspace.strategy_types import NativeEvidence, 
 from investment_analysis_engine.workspace_documents.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
 from investment_analysis_engine.workspace_documents.run_replay import project_run
 from scripts.generate_schemas import SCHEMA_DIRECTORY, schema_text, strategy_schema_file
+from scripts.repository_root import REPOSITORY_ROOT
 
 _FIXTURE_CLOCK = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 

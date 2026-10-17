@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.utils.logger_util import handle_uncaught_exception
+from scripts.repository_root import REPOSITORY_ROOT
 
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 LOG_LINE = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \| ")

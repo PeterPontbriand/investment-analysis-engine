@@ -7,7 +7,7 @@ reads the syntax tree, not the text, so a comment or a string that names the cla
 
 import ast
 
-from investment_analysis_engine.core.repository_root import PACKAGE_ROOT
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 
 _FORBIDDEN = frozenset({"BadParameter"})
 

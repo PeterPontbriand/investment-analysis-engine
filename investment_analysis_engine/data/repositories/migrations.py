@@ -10,7 +10,7 @@ from sqlalchemy.engine import Connection
 
 from alembic import command, context
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.data.repositories.readiness_lock import readiness_lock
 from investment_analysis_engine.data.repositories.schema import metadata
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
@@ -27,7 +27,7 @@ class MigrationResources:
 
 def migration_resources() -> MigrationResources:
     """Find the unique bundled head independently of cwd and database settings."""
-    directory = REPOSITORY_ROOT / "alembic"
+    directory = PACKAGE_ROOT.parent / "alembic"
     if not (directory / "env.py").is_file() or not (directory / "versions").is_dir():
         raise ValueError("Bundled migration resources are missing.")
     script = ScriptDirectory(str(directory))

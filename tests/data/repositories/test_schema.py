@@ -11,9 +11,9 @@ from sqlalchemy.exc import IntegrityError
 
 from alembic import command, op
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.repositories.schema import metadata
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from scripts.repository_root import REPOSITORY_ROOT
 
 STAMP = "2026-09-05T12:00:00.000000Z"
 EXPECTED_COLUMNS = {

@@ -18,7 +18,6 @@ from alembic.config import Config
 from alembic import command
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.base_client import BaseDataClient
 from investment_analysis_engine.data.cached_client import CachedHistoricalDataClient
 from investment_analysis_engine.data.market_data import (
@@ -30,6 +29,7 @@ from investment_analysis_engine.data.quality import HistoricalDataQualityError
 from investment_analysis_engine.data.repositories.market_data import MarketDataCacheKey, SQLiteMarketDataRepository
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
+from scripts.repository_root import REPOSITORY_ROOT
 
 START = "2026-01-01"
 VARIANT = "1d:adjusted"

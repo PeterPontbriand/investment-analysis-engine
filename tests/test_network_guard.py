@@ -6,7 +6,7 @@ as every other test sees them. No live call is made: the guards reject it before
 
 import pytest
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._network_guard import is_loopback_address
 
 pytest_plugins = ["pytester"]

@@ -12,7 +12,6 @@ from pandas.testing import assert_frame_equal
 
 from alembic import command
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.base_client import BaseDataClient, DataFetchError
 from investment_analysis_engine.data.cached_client import CachedHistoricalDataClient
 from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext, historical_index_kind
@@ -20,6 +19,7 @@ from investment_analysis_engine.data.quality import HistoricalDataQualityError, 
 from investment_analysis_engine.data.quality_reporting import quality_observer
 from investment_analysis_engine.data.repositories.market_data import MarketDataCacheKey, SQLiteMarketDataRepository
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 9, 5, tzinfo=UTC)
 START = "2025-01-01"

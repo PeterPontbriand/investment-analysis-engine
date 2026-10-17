@@ -1,8 +1,8 @@
-"""A name has one import path, and the repository root has one definition.
+"""A name has one import path, and the package root has one definition.
 
 Three checks over the source tree: package initializers hold only a docstring, no module lists in ``__all__`` a
-name it does not define, and no file counts folders up from ``__file__`` except where the repository root is
-defined. The repository-root constant itself is checked last.
+name it does not define, and no file counts folders up from ``__file__`` except where the package root is
+defined. The repository-root constant for tests and scripts is checked last.
 """
 
 from __future__ import annotations
@@ -10,15 +10,15 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from scripts.repository_root import REPOSITORY_ROOT
 
 _SOURCE_FOLDERS = ("investment_analysis_engine", "tests", "scripts")
 # The one initializer that holds code: the settings themselves, not a re-export of its children.
 _INITIALIZER_WITH_CODE = "investment_analysis_engine/config/__init__.py"
-# Files that may count folders up from ``__file__``, once each: the definition of the repository root, and the
+# Files that may count folders up from ``__file__``, once each: the definition of the package root, and the
 # script that runs before ``investment_analysis_engine`` is importable and so cannot import it.
 _FOLDER_COUNT_ALLOWED = frozenset(
-    {"investment_analysis_engine/core/repository_root.py", "scripts/check_package_dependencies.py"}
+    {"investment_analysis_engine/core/package_root.py", "scripts/check_package_dependencies.py"}
 )
 
 
@@ -183,8 +183,8 @@ def folder_count_violations(root: Path) -> list[str]:
             if name in _FOLDER_COUNT_ALLOWED:
                 lines = lines[1:]
             violations.extend(
-                f"{name}:{line}: counts folders up from __file__; import REPOSITORY_ROOT from "
-                "investment_analysis_engine.core.repository_root instead"
+                f"{name}:{line}: counts folders up from __file__; import PACKAGE_ROOT from "
+                "investment_analysis_engine.core.package_root instead"
                 for line in lines
             )
     return violations

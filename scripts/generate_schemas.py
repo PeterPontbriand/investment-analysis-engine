@@ -21,9 +21,9 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
 from investment_analysis_engine.workspace_documents.json_documents import DOCUMENTS as GENERIC_DOCUMENTS
+from scripts.repository_root import REPOSITORY_ROOT
 
 SCHEMA_DIRECTORY = REPOSITORY_ROOT / "schemas"
 

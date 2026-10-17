@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from scripts.repository_root import REPOSITORY_ROOT
 
 
 @pytest.mark.parametrize(

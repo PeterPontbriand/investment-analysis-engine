@@ -18,7 +18,7 @@ from typing import Any, get_args, get_origin
 import pytest
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
-from investment_analysis_engine.core.repository_root import PACKAGE_ROOT, REPOSITORY_ROOT
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
@@ -45,6 +45,7 @@ from investment_analysis_engine.strategies.graham_number.analyzer import GrahamN
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._strategy_roles import ANALYZER_ROLES
 
 _STRATEGY_PACKAGE = PACKAGE_ROOT / "strategies"

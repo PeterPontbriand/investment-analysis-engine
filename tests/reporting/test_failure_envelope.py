@@ -14,9 +14,9 @@ import investment_analysis_engine.cli  # noqa: F401 - loads every module that de
 from investment_analysis_engine.core.failure_classification import classify_failure
 from investment_analysis_engine.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode, status_for
 from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure, ProviderFailureInput
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
-from investment_analysis_engine.core.repository_root import PACKAGE_ROOT
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.market_data import (

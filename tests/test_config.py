@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from sqlalchemy.engine import make_url
 
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from scripts.repository_root import REPOSITORY_ROOT
 
 
 @pytest.fixture(autouse=True)

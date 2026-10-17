@@ -20,7 +20,6 @@ from alembic import command
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
 from investment_analysis_engine.data.instrument_profile import (
     InstrumentKind,
@@ -46,6 +45,7 @@ from investment_analysis_engine.workspace.execution import execute
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 from investment_analysis_engine.workspace_documents.run_replay import project_run
+from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 9, 22, 12, 0, 0, tzinfo=UTC)
 LATER = NOW + timedelta(days=31)

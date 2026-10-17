@@ -20,7 +20,7 @@ from sqlalchemy.exc import ArgumentError
 import investment_analysis_engine.config.paths as anchored_paths  # noqa: PLR0402 - the initializer cannot name its own package in a from-import
 from investment_analysis_engine.config.reliability_limits import ReliabilityLimits
 from investment_analysis_engine.config.schema_config import SchemaConfig
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.settings_error import SettingsEnvironmentError
 
 # Ensure core environment variables are populated
@@ -170,7 +170,7 @@ class ProjectSettings(BaseSettings):
 
     # Structured trajectory telemetry
     telemetry_sink: Literal["jsonl", "sqlite"] = "jsonl"
-    telemetry_log_dir: Path = REPOSITORY_ROOT / "logs"
+    telemetry_log_dir: Path = PACKAGE_ROOT.parent / "logs"
     telemetry_level: Literal["INFO", "DEBUG", "OFF"] = "INFO"
     telemetry_max_log_files: int = 100
     telemetry_max_total_size: int = 100 * 1024 * 1024
@@ -212,7 +212,7 @@ class ProjectSettings(BaseSettings):
     )
 
     # Project Root Directory
-    base_dir: Path = REPOSITORY_ROOT
+    base_dir: Path = PACKAGE_ROOT.parent
 
     # Core Paths
     data_dir: Path = base_dir / "data"
@@ -256,7 +256,7 @@ class ProjectSettings(BaseSettings):
                 anchored_paths.require_anchored_path(
                     getattr(self, name).as_posix(), name=name, windows=anchored_paths.is_windows()
                 )
-        application_root = REPOSITORY_ROOT
+        application_root = PACKAGE_ROOT.parent
         self.base_dir = (application_root / self.base_dir).resolve()
         data_path = self.data_dir if "data_dir" in user_set else Path("data")
         self.data_dir = (self.base_dir / data_path).resolve()

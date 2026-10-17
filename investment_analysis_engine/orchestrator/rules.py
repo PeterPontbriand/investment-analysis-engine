@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 
-DEFAULT_RULES_PATH = REPOSITORY_ROOT / "RUNTIME_AGENTS.md"
+DEFAULT_RULES_PATH = PACKAGE_ROOT.parent / "RUNTIME_AGENTS.md"
 
 
 def load_runtime_rules(path: Path | str | None = None) -> str:

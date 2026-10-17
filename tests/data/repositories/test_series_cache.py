@@ -12,7 +12,6 @@ from alembic.config import Config
 from alembic import command
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.financial.cache import (
     InMemoryResolvedInputCache,
     ResolvedInputCacheEntry,
@@ -36,6 +35,7 @@ from investment_analysis_engine.strategies.fcf_growth.input_resolver import (
 )
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import HistoricalHorizon
+from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
 CacheFactory = Callable[[timedelta | None], ResolvedInputSeriesCacheProtocol]

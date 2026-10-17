@@ -13,7 +13,6 @@ from alembic.config import Config
 from alembic import command
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
@@ -47,6 +46,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
 )
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 from investment_analysis_engine.workspace.runs import AnalysisRun
+from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)
 LATER = datetime(2026, 9, 18, 12, 0, 1, tzinfo=UTC)

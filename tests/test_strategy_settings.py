@@ -12,12 +12,12 @@ import pytest
 from pydantic import BaseModel, ConfigDict
 
 from investment_analysis_engine.config.strategy_settings import clear_strategy_settings_cache, load_strategy_settings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.core.settings_error import StrategySettingsError
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy
 from investment_analysis_engine.strategies.graham_growth.settings import GrahamGrowthSettings
 from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
 from investment_analysis_engine.strategy_wiring import GRAHAM_GROWTH, MOMENTUM, STRATEGIES, StrategyDescriptor
+from scripts.repository_root import REPOSITORY_ROOT
 
 SHIPPED = REPOSITORY_ROOT / "config" / "strategies"
 

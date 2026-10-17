@@ -13,8 +13,8 @@ from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.repositories import migrations, readiness, readiness_lock
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import normalize_cli_output
 
 

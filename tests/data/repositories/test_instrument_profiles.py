@@ -10,12 +10,12 @@ from alembic.config import Config
 
 from alembic import command
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.repositories.instrument_profiles import (
     InstrumentProfileRecord,
     SQLiteInstrumentProfileRepository,
 )
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 9, 21, 12, 0, 0, tzinfo=UTC)
 LATER = datetime(2026, 9, 21, 12, 5, 0, tzinfo=UTC)
