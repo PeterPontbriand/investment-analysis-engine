@@ -236,6 +236,7 @@ def test_a_yfinance_connection_named_only_by_its_address_is_excused(pytester: py
         def test_event() -> None:
             leaked = yfinance_through_peewee()()
             deliver(leaked, by_address=True)
+            leaked.close()  # only the delivered event is under test; the real object must not report one too
         """,
     )
     result.assert_outcomes(passed=1)
@@ -252,6 +253,7 @@ def test_a_message_that_does_not_match_the_report_is_not_excused(pytester: pytes
         def test_event() -> None:
             leaked = yfinance_through_peewee()()
             deliver(leaked, by_address=True, err_msg=finalizing_message(leaked).replace("finalizing", "closing"))
+            leaked.close()  # only the delivered event is under test; the real object must not report one too
         """,
     )
     _assert_run_fails_unexcused(result)
@@ -267,6 +269,7 @@ def test_a_matching_message_for_a_project_connection_is_not_excused(pytester: py
         def test_event() -> None:
             leaked = allocator(__file__)()
             deliver(leaked, by_address=True)
+            leaked.close()  # only the delivered event is under test; the real object must not report one too
         """,
     )
     _assert_run_fails_unexcused(result)
