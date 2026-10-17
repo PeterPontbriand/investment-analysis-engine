@@ -89,8 +89,8 @@ position and work-package status.
   running when the object is freed, not the code that allocated it. On Python 3.14 the event carries no object, only
   the connection's address in a fixed message, so the object is recovered from that address and only from that
   complete message; a message that does not match is not excused.
-- **Scope:** `tests/live/conftest.py`, `tests/test_live_leak_attribution.py`, this plan and
-  [`PROVIDER_DEBUGGING.md`](../../../PROVIDER_DEBUGGING.md). The default suite's strict leak gate is unchanged.
+- **Scope:** `tests/live/conftest.py`, `tests/test_live_leak_attribution.py`, this plan,
+  [`PROVIDER_DEBUGGING.md`](../../../PROVIDER_DEBUGGING.md) and the foreground-verification paragraph in `AGENTS.md` §10. The default suite's strict leak gate is unchanged.
 - **Branch:** `fix/gr-2a-live-leak-attribution`, from `main`.
 - **Detail:** the issue and its decision comment, [#152](https://github.com/PeterPontbriand/investment-analysis-engine/issues/152);
   the headers and comments of the two files above.
