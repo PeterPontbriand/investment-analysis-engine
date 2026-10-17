@@ -38,10 +38,9 @@ else
 fi
 
 # The test session ignores the per-user settings folder, so the one key the live checks need is read from its .env file
-# here, located by the package's own resolver (which honours IAN_CONFIG_DIR). The value is never printed or logged.
+# here by scripts.user_sec_identity, which uses the package's own resolver (and so honours IAN_CONFIG_DIR). The value is never printed or logged.
 if [ -z "${SEC_USER_AGENT:-}" ]; then
-    read_user_agent="import os; from dotenv import dotenv_values; from investment_analysis_engine.config.user_folders import resolve_settings_folder; print(dotenv_values(resolve_settings_folder(os.environ) / '.env').get('SEC_USER_AGENT') or '')"
-    user_agent="$(uv run --no-sync python -c "$read_user_agent" | tr -d '\r')" || {
+    user_agent="$(uv run --no-sync python -m scripts.user_sec_identity | tr -d '\r')" || {
         printf 'run-live-checks.sh: could not read the settings folder to look for SEC_USER_AGENT\n' >&2
         exit 2
     }

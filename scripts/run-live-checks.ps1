@@ -25,8 +25,7 @@ $originalUvCache = $env:UV_CACHE_DIR
 $originalUserAgent = $env:SEC_USER_AGENT
 
 # The test session ignores the per-user settings folder, so the one key the live checks need is read from its .env file
-# here, located by the package's own resolver (which honours IAN_CONFIG_DIR). The value is never printed or logged.
-$readUserAgent = "import os; from dotenv import dotenv_values; from investment_analysis_engine.config.user_folders import resolve_settings_folder; print(dotenv_values(resolve_settings_folder(os.environ) / '.env').get('SEC_USER_AGENT') or '')"
+# here by scripts.user_sec_identity, which uses the package's own resolver (and so honours IAN_CONFIG_DIR). The value is never printed or logged.
 
 $exitCode = 1
 try {
@@ -34,7 +33,7 @@ try {
     Set-Location $repositoryRoot
 
     if (-not $env:SEC_USER_AGENT) {
-        $userAgent = (& uv run --no-sync python -c $readUserAgent) -join ""
+        $userAgent = (& uv run --no-sync python -m scripts.user_sec_identity) -join ""
         if ($LASTEXITCODE -ne 0) { throw "Could not read the settings folder to look for SEC_USER_AGENT." }
         if ($userAgent.Trim() -ne "") { $env:SEC_USER_AGENT = $userAgent.Trim() }
     }
