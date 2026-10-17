@@ -8,7 +8,9 @@ position and work-package status.
 
 - **What this work does:** GR.1 makes the gate wrappers keep their complete output, time each step and name each
   failing test. GR.2 followed a lead on the intermittent `WinError 10055` failures, refuted it (no event loop is
-  left open), fixed the three leaks it found, and makes a leaked socket, file or event loop fail the suite. GR.3 will
+  left open), fixed the three leaks it found, and makes a leaked socket, file or event loop fail the suite. GR.2a
+  excuses, in the live provider checks only, the SQLite connections yfinance's caches leave open in the check's
+  worker thread, which that strict leak gate made fail the scheduled Provider Health run. GR.3 will
   record the machine's socket state when a test pass fails.
 - **What it is not:** a change to what the gate checks, to its order, to its arguments, to its isolation directories
   or to its exit codes, and not a change to any strategy, formula or output.
@@ -24,6 +26,7 @@ position and work-package status.
 | :--- | :--- | :--- | :--- |
 | GR.1 | [The gate wrappers keep their evidence](#gr1--the-gate-wrappers-keep-their-evidence) | Complete | 2026-10-13 |
 | GR.2 | [Resource leaks fail the suite](#gr2--resource-leaks-fail-the-suite) | Complete | 2026-10-15 |
+| GR.2a | [Excuse yfinance's SQLite leak in the live checks, and only that](#gr2a--excuse-yfinances-sqlite-leak-in-the-live-checks-and-only-that) | Next | |
 | GR.3 | [Record the machine's socket state when a test pass fails](#gr3--record-the-machines-socket-state-when-a-test-pass-fails) | Planned | |
 
 ## 3. The slices
@@ -68,6 +71,29 @@ position and work-package status.
   named. `PYTHONTRACEMALLOC=25` on a rerun locates the source in both cases. Regression tests: a blocked socket's `fileno()` is
   `-1` after the blocked `connect` and `connect_ex`; an `HTTPError`'s stream is closed after `fetch_json` and
   `fetch_filing` raise. #116 stays open until a captured occurrence explains the failure.
+
+### GR.2a — Excuse yfinance's SQLite leak in the live checks, and only that
+
+- **Problem:** since GR.2 the nightly Provider Health workflow fails
+  ([#152](https://github.com/PeterPontbriand/investment-analysis-engine/issues/152)). yfinance keeps its caches in
+  peewee SQLite databases, which hold one connection per thread and close only from an `atexit` hook on the main
+  thread. The Yahoo check runs each request in a daemon worker thread, so it leaves a `sqlite3.Connection` unclosed;
+  on Python 3.13 and later its release raises a `ResourceWarning`, which GR.2 made an error, and the leak fails
+  whichever live test is running when a garbage collection frees the connection.
+- **Decision:** `tests/live/conftest.py` starts `tracemalloc` with 25 frames and wraps `sys.unraisablehook` for the
+  live tests only. It excuses an event only for a `sqlite3.Connection` that yfinance allocated through its peewee
+  cache: the nearest non-standard-library frame of the allocation is in the installed `peewee` package and a frame
+  from the installed `yfinance` package lies further up the same stack. peewee alone is not enough, because it is a
+  general ORM and a connection this project opens through it is a leak to fix. It prints a notice for each excused
+  leak and passes everything else unchanged to the wrapped hook. A warning filter cannot do this: the warning names the code
+  running when the object is freed, not the code that allocated it. On Python 3.14 the event carries no object, only
+  the connection's address in a fixed message, so the object is recovered from that address and only from that
+  complete message; a message that does not match is not excused.
+- **Scope:** `tests/live/conftest.py`, `tests/test_live_leak_attribution.py`, this plan and
+  [`PROVIDER_DEBUGGING.md`](../../../PROVIDER_DEBUGGING.md). The default suite's strict leak gate is unchanged.
+- **Branch:** `fix/gr-2a-live-leak-attribution`, from `main`.
+- **Detail:** the issue and its decision comment, [#152](https://github.com/PeterPontbriand/investment-analysis-engine/issues/152);
+  the headers and comments of the two files above.
 
 ### GR.3 — Record the machine's socket state when a test pass fails
 
