@@ -7,6 +7,7 @@ the session, so that no test can reach the user's real settings, database or log
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -30,9 +31,13 @@ def locations_outside(session_folder: Path, configured: ProjectSettings) -> list
 
 
 def stop_session_if_outside(session_folder: Path, configured: ProjectSettings) -> None:
-    """Stop the whole pytest session, before any test runs, when a location lies outside ``session_folder``."""
+    """Stop the whole pytest session, before any test runs, when a location lies outside ``session_folder``.
+
+    Stopping at session start skips the hook that removes the session folder, so the folder is removed here.
+    """
     outside = locations_outside(session_folder, configured)
     if outside:
+        shutil.rmtree(session_folder, ignore_errors=True)
         pytest.exit(
             f"Test isolation failed: the {', '.join(outside)} lie outside the session folder {session_folder}.",
             returncode=2,

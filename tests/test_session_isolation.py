@@ -31,15 +31,29 @@ def test_a_location_outside_the_session_folder_is_named(tmp_path: Path) -> None:
 
 
 def test_the_session_stops_before_any_test_when_a_location_lies_outside(tmp_path: Path) -> None:
+    session = tmp_path / "ian-tests-stopped"
+    session.mkdir()
+    (session / "left-behind.txt").write_text("x", encoding="utf-8")
     elsewhere = ProjectSettings(config_dir=tmp_path / "c", data_dir=tmp_path / "d", log_dir=tmp_path / "l")
 
     with pytest.raises(pytest.exit.Exception) as stopped:
-        stop_session_if_outside(SESSION_FOLDER, elsewhere)
+        stop_session_if_outside(session, elsewhere)
 
     assert stopped.value.returncode == 2
     assert "Test isolation failed: the settings folder, data folder, log folder, telemetry folder, database lie" in str(
         stopped.value
     )
+    assert not session.exists()
+
+
+def test_a_session_with_every_location_inside_keeps_its_folder(tmp_path: Path) -> None:
+    session = tmp_path / "ian-tests-kept"
+    session.mkdir()
+    inside = ProjectSettings(config_dir=session / "c", data_dir=session / "d", log_dir=session / "l")
+
+    stop_session_if_outside(session, inside)
+
+    assert session.is_dir()
 
 
 def test_a_session_with_every_location_inside_is_not_stopped() -> None:
