@@ -18,7 +18,7 @@ from typing import Any, get_args, get_origin
 import pytest
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import PACKAGE_ROOT, REPOSITORY_ROOT
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
@@ -47,8 +47,7 @@ from investment_analysis_engine.strategies.graham_number.config import GrahamNum
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
 from tests._strategy_roles import ANALYZER_ROLES
 
-_SRC_ROOT = REPOSITORY_ROOT / "investment_analysis_engine"
-_STRATEGY_PACKAGE = _SRC_ROOT / "strategies"
+_STRATEGY_PACKAGE = PACKAGE_ROOT / "strategies"
 
 _GROWTH_POLICY = GrahamGrowthCalculationPolicy(base_pe=8.5, growth_multiplier=2.0, baseline_aaa_yield=4.4)
 
@@ -176,7 +175,7 @@ def _python_files_outside_analyzer_modules() -> Iterator[Path]:
     Before the strategy packages existed the analyzer modules were the only files in the strategy package, so
     the codecs, adapters and presenters were "outside" it. They sit in the package now and stay checked.
     """
-    for path in sorted(_SRC_ROOT.rglob("*.py")):
+    for path in sorted(PACKAGE_ROOT.rglob("*.py")):
         in_package = _STRATEGY_PACKAGE in path.parents
         if not (in_package and (path.stem in ANALYZER_ROLES or path.stem == "__init__")):
             yield path
@@ -332,11 +331,11 @@ def _clock_read_violations_in_module(tree: ast.Module) -> list[str]:
     return violations
 
 
-def _clock_read_violations_in_src() -> list[str]:
+def _clock_read_violations_in_package() -> list[str]:
     """Return one description per forbidden wall-clock read anywhere under ``investment_analysis_engine/``."""
     violations: list[str] = []
-    for path in sorted(_SRC_ROOT.rglob("*.py")):
-        if path.relative_to(_SRC_ROOT) in _ALLOWED_CLOCK_READ_PATHS:
+    for path in sorted(PACKAGE_ROOT.rglob("*.py")):
+        if path.relative_to(PACKAGE_ROOT) in _ALLOWED_CLOCK_READ_PATHS:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         relative_path = path.relative_to(REPOSITORY_ROOT)
@@ -350,7 +349,7 @@ def test_no_bare_clock_reads_outside_the_shared_helper() -> None:
     ``investment_analysis_engine/core/clock.py`` and the named ``logger_util.py`` exemption; every other module
     receives its clock through an injected parameter.
     """
-    violations = _clock_read_violations_in_src()
+    violations = _clock_read_violations_in_package()
     assert not violations, "Bare wall-clock reads outside investment_analysis_engine/core/clock.py:\n" + "\n".join(
         violations
     )
@@ -383,4 +382,4 @@ def test_clock_scan_self_test(snippet: str, expect_violation: bool) -> None:
 
 def test_clock_scan_covers_more_than_zero_files() -> None:
     """An empty or broken file glob must not silently pass as "no violations"."""
-    assert sum(1 for _ in _SRC_ROOT.rglob("*.py")) > 0
+    assert sum(1 for _ in PACKAGE_ROOT.rglob("*.py")) > 0

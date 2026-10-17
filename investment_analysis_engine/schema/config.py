@@ -1,4 +1,7 @@
-"""Process-wide access to the schema-enforcement configuration (the shape is ``config.schema_config``)."""
+"""Process-wide access to the schema-enforcement configuration.
+
+The shape of the configuration is ``investment_analysis_engine.config.schema_config``.
+"""
 
 from __future__ import annotations
 

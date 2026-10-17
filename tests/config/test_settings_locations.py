@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import PACKAGE_ROOT, REPOSITORY_ROOT
 
 
 @pytest.fixture(autouse=True)
@@ -22,7 +22,7 @@ def isolate_location_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_the_test_anchor_is_the_repository_root() -> None:
     assert (REPOSITORY_ROOT / "pyproject.toml").is_file()
-    assert (REPOSITORY_ROOT / "investment_analysis_engine" / "config" / "__init__.py").is_file()
+    assert (PACKAGE_ROOT / "config" / "__init__.py").is_file()
 
 
 def test_class_level_defaults_derive_from_the_repository_root() -> None:

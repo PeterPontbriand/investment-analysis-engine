@@ -18,7 +18,7 @@ import typer
 
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy, add_strategy_commands
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import PACKAGE_ROOT
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, require
 from investment_analysis_engine.evaluation.composition import FixtureDependencies, compose_fixture_dependencies
 from investment_analysis_engine.evaluation.models import Case
@@ -41,10 +41,9 @@ from investment_analysis_engine.strategy_wiring import (
 )
 from scripts import strategy_conformance as conformance
 
-_SRC = REPOSITORY_ROOT / "investment_analysis_engine"
-_WIRING = _SRC / "strategy_wiring.py"
-_TIER = _SRC / "evaluation" / "strategy_fixtures.py"
-_CLI_TIER = _SRC / "cli_strategy_wiring.py"
+_WIRING = PACKAGE_ROOT / "strategy_wiring.py"
+_TIER = PACKAGE_ROOT / "evaluation" / "strategy_fixtures.py"
+_CLI_TIER = PACKAGE_ROOT / "cli_strategy_wiring.py"
 _ALL = build_indexes(STRATEGIES)
 _WITHOUT_FCF = tuple(item for item in STRATEGIES if item is not FCF_GROWTH)
 
@@ -283,10 +282,12 @@ def test_t14_wiring_files_declare_no_discovery_or_registration() -> None:
     assert _TIER in files
     assert _CLI_TIER in files
     cli_files = {path for path in files if path.name == "cli.py" and path.parent.parent.name == "strategies"}
-    assert cli_files == set((_SRC / "strategies").rglob("cli.py"))
+    assert cli_files == set((PACKAGE_ROOT / "strategies").rglob("cli.py"))
     evaluation_files = {path for path in files if path.name == "evaluation.py"}
-    assert evaluation_files == set((_SRC / "strategies").rglob("evaluation.py"))
-    strategy_packages = {path.name for path in (_SRC / "strategies").iterdir() if path.is_dir() and path.name[0] != "_"}
+    assert evaluation_files == set((PACKAGE_ROOT / "strategies").rglob("evaluation.py"))
+    strategy_packages = {
+        path.name for path in (PACKAGE_ROOT / "strategies").iterdir() if path.is_dir() and path.name[0] != "_"
+    }
     assert strategy_packages <= {path.parent.name for path in evaluation_files}
     assert len(files) > 30
     assert conformance.discovery_gaps(files) == []

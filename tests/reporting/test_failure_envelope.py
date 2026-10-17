@@ -16,7 +16,7 @@ from investment_analysis_engine.core.failure_codes import PROVIDER_CODE_BY_KIND,
 from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure, ProviderFailureInput
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import PACKAGE_ROOT
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.market_data import (
@@ -49,7 +49,7 @@ from tests._failure_code_table import PINNED_CLASSIFICATIONS, PinnedClassificati
 _COMMAND_CONTEXT_CODES = {FailureReasonCode.ANALYSIS_RUN_NOT_FOUND}
 
 
-_SOURCE_ROOT = REPOSITORY_ROOT / "investment_analysis_engine"
+_SOURCE_ROOT = PACKAGE_ROOT
 
 
 def _declares_reason_code(node: ast.ClassDef) -> bool:

@@ -39,7 +39,7 @@ from investment_analysis_engine.cli_strategy_wiring import (
     refreshers_by_key,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import PACKAGE_ROOT, REPOSITORY_ROOT
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, require
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate
 from investment_analysis_engine.evaluation.catalog import DETERMINISTIC_CASES, build_deterministic_requests
@@ -84,7 +84,6 @@ from investment_analysis_engine.workspace_documents.json_documents import JSON_D
 from investment_analysis_engine.workspace_documents.run_replay import project_run
 from scripts.generate_schemas import SCHEMA_DIRECTORY, schema_text, strategy_schema_file
 
-_SRC_ROOT = REPOSITORY_ROOT / "investment_analysis_engine"
 _FIXTURE_CLOCK = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 
 DESCRIPTOR_FIELDS: dict[str, object] = {
@@ -1250,7 +1249,7 @@ def analyzer_envelope_gaps() -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def wiring_files(root: Path = _SRC_ROOT) -> list[Path]:
+def wiring_files(root: Path = PACKAGE_ROOT) -> list[Path]:
     """Return the root module, the tier modules that exist and every strategy-owned file."""
     candidates = [
         root / "strategy_wiring.py",
@@ -1533,4 +1532,4 @@ def unused_field_gaps(files: Iterable[Path], defining_module: Path) -> list[str]
 
 def source_files() -> list[Path]:
     """Return every source and script file that may read a descriptor."""
-    return [*sorted(_SRC_ROOT.rglob("*.py")), *sorted((REPOSITORY_ROOT / "scripts").glob("*.py"))]
+    return [*sorted(PACKAGE_ROOT.rglob("*.py")), *sorted((REPOSITORY_ROOT / "scripts").glob("*.py"))]

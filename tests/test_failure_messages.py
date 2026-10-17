@@ -39,7 +39,7 @@ from investment_analysis_engine.core.failure_classification import classify_fail
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import PACKAGE_ROOT, REPOSITORY_ROOT
 from investment_analysis_engine.core.strategy_errors import undeclared
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
@@ -411,9 +411,7 @@ def test_a_code_without_a_message_is_reported_as_an_unexpected_failure() -> None
 def test_the_defects_declare_their_code_and_the_classifier_names_no_exception_type() -> None:
     assert classify_failure(InternalDefectError("x")).reason_code is FailureReasonCode.EXECUTION_ERROR
     assert classify_failure(AnalysisRunConflictError("x")).reason_code is FailureReasonCode.EXECUTION_ERROR
-    source = (REPOSITORY_ROOT / "investment_analysis_engine" / "core" / "failure_classification.py").read_text(
-        encoding="utf-8"
-    )
+    source = (PACKAGE_ROOT / "core" / "failure_classification.py").read_text(encoding="utf-8")
     for name in ("InternalDefectError", "AnalysisRunConflictError", "ValidationError"):
         assert name not in source
 

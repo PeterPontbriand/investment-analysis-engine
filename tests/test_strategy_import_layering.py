@@ -18,10 +18,9 @@ from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import PACKAGE_ROOT
 from tests._strategy_roles import ANALYZER_ROLES, ROLE_RANK
 
-_SRC = REPOSITORY_ROOT / "investment_analysis_engine"
 _GRAHAM_MEMBERS = frozenset({"graham_number", "graham_growth"})
 _ROOT = "investment_analysis_engine.strategy_wiring"
 # The composition root may import these strategy roles and no others: not execution, presenter, cli or
@@ -76,7 +75,7 @@ _ADAPTER_ROLES = frozenset({"cli", "evaluation", "execution"})
 
 def _module_name(path: Path) -> str:
     """Return a source module's dotted import name."""
-    parts = path.relative_to(_SRC).with_suffix("").parts
+    parts = path.relative_to(PACKAGE_ROOT).with_suffix("").parts
     if parts[-1] == "__init__":
         parts = parts[:-1]
     return ".".join(("investment_analysis_engine", *parts))
@@ -103,7 +102,7 @@ def _resolve_imports(module: str, node: ast.Import | ast.ImportFrom) -> set[str]
 
 def _source_graph() -> tuple[dict[str, set[str]], set[tuple[str, str]], set[str]]:
     """Build the source import graph and retain only edges to real modules."""
-    paths = sorted(_SRC.rglob("*.py"))
+    paths = sorted(PACKAGE_ROOT.rglob("*.py"))
     files = {_module_name(path): path for path in paths}
     init_modules = {_module_name(path) for path in paths if path.name == "__init__.py"}
     graph: dict[str, set[str]] = {name: set() for name in files}
@@ -394,8 +393,8 @@ def test_strategy_import_layering_and_parent_package_cycles() -> None:
     """Enforce the role graph, exact temporary transitions, file roles and the parent-aware cycle allowlist."""
     graph, edges, init_modules = _source_graph()
     errors = [
-        *_edge_violations(edges, _strategy_packages(_SRC)),
-        *_file_violations(_SRC),
+        *_edge_violations(edges, _strategy_packages(PACKAGE_ROOT)),
+        *_file_violations(PACKAGE_ROOT),
         *_cycle_violations(graph, init_modules),
         *_root_cycle_violations(graph),
         *_root_importer_violations(edges, set(graph)),

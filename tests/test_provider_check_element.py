@@ -34,7 +34,7 @@ from investment_analysis_engine.core.provider_check_element import (
     require_unique_providers,
 )
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import PACKAGE_ROOT, REPOSITORY_ROOT
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.provider_checks import CheckVerdict
 from investment_analysis_engine.data.provider_probe import ProbeFinding, ProbeVerdict
@@ -326,7 +326,7 @@ def _attribute_calls(path: Path, name: str) -> list[int]:
 
 def test_only_the_shared_function_calls_the_probe() -> None:
     """Neither the text path nor the document path may call the probe on its own."""
-    source = REPOSITORY_ROOT / "investment_analysis_engine"
+    source = PACKAGE_ROOT
     callers = {
         path.relative_to(REPOSITORY_ROOT).as_posix()
         for path in source.rglob("*.py")
@@ -347,9 +347,9 @@ def test_a_presenter_does_not_call_the_probe() -> None:
     """A presenter receives the finding as data; it imports neither the probe nor the module that runs it."""
     forbidden = ("investment_analysis_engine.data.provider_probe", "investment_analysis_engine.cli_provider_check")
     paths = [
-        *(REPOSITORY_ROOT / "investment_analysis_engine" / "strategies").glob("*/presenter.py"),
-        *(REPOSITORY_ROOT / "investment_analysis_engine" / "strategies").glob("*/replay.py"),
-        *(REPOSITORY_ROOT / "investment_analysis_engine" / "reporting").rglob("*.py"),
+        *(PACKAGE_ROOT / "strategies").glob("*/presenter.py"),
+        *(PACKAGE_ROOT / "strategies").glob("*/replay.py"),
+        *(PACKAGE_ROOT / "reporting").rglob("*.py"),
     ]
     assert paths
     for path in paths:

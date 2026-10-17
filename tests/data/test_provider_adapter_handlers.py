@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import PACKAGE_ROOT
 
-_SOURCE = REPOSITORY_ROOT / "investment_analysis_engine" / "data"
+_SOURCE = PACKAGE_ROOT / "data"
 _ADAPTER_MODULES = sorted(
     [
         *(_SOURCE / "yfinance").glob("*.py"),
