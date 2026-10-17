@@ -77,4 +77,4 @@ jobs:
         run: uv run pytest
 
       - name: Prove the installed package runs outside the repository
-        run: uv run python scripts/check_installed_package.py --real-user-folders
+        run: uv run python -m scripts.check_installed_package --real-user-folders

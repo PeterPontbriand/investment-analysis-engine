@@ -38,7 +38,7 @@ def test_failure_schema_lists_the_whole_code_enumeration() -> None:
 def test_a_missing_schema_fails_naming_the_file(tmp_path: Path) -> None:
     gaps = schema_gaps(tmp_path)
     assert gaps == [
-        f"schema schemas/{name} is missing or out of date; run scripts/generate_schemas.py"
+        f"schema schemas/{name} is missing or out of date; run python -m scripts.generate_schemas"
         for name, _model in DOCUMENTS
     ]
 
@@ -49,7 +49,7 @@ def test_a_drifted_schema_fails_and_regeneration_repairs_it(tmp_path: Path) -> N
     drifted = tmp_path / "failure.schema.json"
     drifted.write_bytes(drifted.read_bytes().replace(b"execution_error", b"execution_failure"))
     assert schema_gaps(tmp_path) == [
-        "schema schemas/failure.schema.json is missing or out of date; run scripts/generate_schemas.py"
+        "schema schemas/failure.schema.json is missing or out of date; run python -m scripts.generate_schemas"
     ]
     assert write_schemas(tmp_path) == [drifted]
     assert schema_gaps(tmp_path) == []

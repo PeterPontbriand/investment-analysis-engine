@@ -39,12 +39,12 @@
 | D9 | Migrations live in `investment_analysis_engine/data/repositories/migration_scripts/`; `alembic.ini` stays at the root for developers. |
 | D10 | `RUNTIME_AGENTS.md` moves into `orchestrator/`; a missing file raises. |
 | D11 | Golden fixtures move to `evaluation/fixtures/sec_edgar/step_2_5a_d0/`, named by one constant. |
-| D12 | `core/package_root.py` holds `PACKAGE_ROOT`; `scripts/repository_root.py` holds `REPOSITORY_ROOT` for tests and scripts. |
+| D12 | `core/package_root.py` holds `PACKAGE_ROOT`; `scripts/repository_root.py` holds `REPOSITORY_ROOT` for tests and scripts, and no other file derives it. |
 | D13 | No folder is created when the settings module loads; logging creates the log folder. |
 | D14 | `ollama_base_url` defaults to `http://localhost:11434`. |
 | D17 | Tests run against a session temporary folder set before any import; the session stops if a resolved folder lies outside it. |
 | D19 | The live-check scripts read `SEC_USER_AGENT` from the per-user `.env` when it is not set. |
-| D20 | `scripts/check_installed_package.py` proves the wheel works outside the repository. |
+| D20 | `scripts/check_installed_package.py`, run as a module, proves the wheel works outside the repository. |
 
 ## Folders (D2)
 
@@ -75,7 +75,7 @@ Highest first.
 
 ## Proof (D20)
 
-`scripts/check_installed_package.py` builds the wheel into a temporary folder outside the repository, checks its contents,
+`uv run python -m scripts.check_installed_package` builds the wheel into a temporary folder outside the repository, checks its contents,
 installs it into a new environment and runs the installed `ian` with every `IAN_*` variable removed and the three folder
 variables pointing into the temporary folder. It checks the import location, `--help`, `ian db upgrade` and `ian db status`,
 a deterministic evaluation report equal to the checkout's, the runtime rules in the system prompt, the missing-ticker
@@ -94,6 +94,6 @@ the session. The folder is removed at session end. Issue #148 stays open for the
 
 - `ian` runs from an installed wheel outside the repository (D20 passes).
 - Nothing in `investment_analysis_engine/` names the repository.
-- The Golden report and `scripts/generate_schemas.py --check` are unchanged; `--help` differs only where it described the
+- The Golden report and `uv run python -m scripts.generate_schemas --check` are unchanged; `--help` differs only where it described the
   default ticker or the settings location.
 - The complete managed quality gate passes, including the 3.14 pass.

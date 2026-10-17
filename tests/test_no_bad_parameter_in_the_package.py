@@ -8,6 +8,7 @@ reads the syntax tree, not the text, so a comment or a string that names the cla
 import ast
 
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
+from scripts.repository_root import REPOSITORY_ROOT
 
 _FORBIDDEN = frozenset({"BadParameter"})
 
@@ -38,7 +39,7 @@ def test_no_file_in_the_package_raises_bad_parameter() -> None:
     sites: list[str] = []
     for path in sorted(PACKAGE_ROOT.rglob("*.py")):
         sites.extend(
-            bad_parameter_sites(path.read_text(encoding="utf-8"), path.relative_to(PACKAGE_ROOT.parent).as_posix())
+            bad_parameter_sites(path.read_text(encoding="utf-8"), path.relative_to(REPOSITORY_ROOT).as_posix())
         )
     assert not sites, "typer.BadParameter is raised at: " + ", ".join(sites)
 

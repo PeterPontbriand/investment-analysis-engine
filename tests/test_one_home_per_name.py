@@ -21,6 +21,11 @@ _FOLDER_COUNT_ALLOWED = frozenset(
     {"investment_analysis_engine/core/package_root.py", "scripts/check_package_dependencies.py"}
 )
 
+# The repository root is defined once, for tests and scripts, in this file; nothing else derives it.
+_REPOSITORY_ROOT_DEFINITION = "scripts/repository_root.py"
+_DERIVATION = "PACKAGE_ROOT" + ".parent"
+_DERIVATION_MESSAGE = "derives the repository root; import REPOSITORY_ROOT from scripts.repository_root instead"
+
 
 def _python_files(root: Path, folder: str) -> list[Path]:
     return sorted(path for path in (root / folder).rglob("*.py") if "__pycache__" not in path.parts)
@@ -190,6 +195,16 @@ def folder_count_violations(root: Path) -> list[str]:
     return violations
 
 
+def repository_root_derivation_violations(root: Path) -> list[str]:
+    """Return one message per file, other than the definition, that derives the repository root."""
+    return [
+        f"{_relative(path, root)}: {_DERIVATION_MESSAGE}"
+        for folder in _SOURCE_FOLDERS
+        for path in _python_files(root, folder)
+        if _relative(path, root) != _REPOSITORY_ROOT_DEFINITION and _DERIVATION in path.read_text(encoding="utf-8")
+    ]
+
+
 def test_package_initializers_hold_only_a_docstring() -> None:
     assert initializer_violations(REPOSITORY_ROOT) == []
 
@@ -200,6 +215,16 @@ def test_no_module_exports_a_name_it_does_not_define() -> None:
 
 def test_no_file_counts_folders_up_from_itself() -> None:
     assert folder_count_violations(REPOSITORY_ROOT) == []
+
+
+def test_the_repository_root_is_derived_in_one_file(tmp_path: Path) -> None:
+    assert repository_root_derivation_violations(REPOSITORY_ROOT) == []
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "repository_root.py").write_text(f"ROOT = {_DERIVATION}\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_offender.py").write_text(f"ROOT = {_DERIVATION} / 'x'\n", encoding="utf-8")
+
+    assert repository_root_derivation_violations(tmp_path) == [f"tests/test_offender.py: {_DERIVATION_MESSAGE}"]
 
 
 def test_repository_root_holds_the_project_file() -> None:

@@ -15,8 +15,9 @@ environment there and runs the installed ``ian`` with the temporary folder as th
 
 Every ``PYTHONPATH`` and ``IAN_*`` variable is removed first. By default ``IAN_CONFIG_DIR``, ``IAN_DATA_DIR`` and
 ``IAN_LOG_DIR`` point into the temporary folder. With ``--real-user-folders`` no folder variable is set for the runs and
-the script checks that the database lands in the platform's per-user data folder; only CI passes it. Standard library
-only; it changes nothing in the repository.
+the script checks that the database lands in the platform's per-user data folder; only CI passes it. Run it as a module
+from the repository root: ``uv run python -m scripts.check_installed_package [--real-user-folders]``. It changes
+nothing in the repository.
 """
 
 from __future__ import annotations
@@ -34,6 +35,8 @@ import zipfile
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from scripts.repository_root import REPOSITORY_ROOT
 
 PACKAGE_NAME = "investment_analysis_engine"
 RUN_IDENTITY_KEYS = frozenset({"executed_at", "run_id", "trajectory_id"})
@@ -91,19 +94,6 @@ def tail(completed: subprocess.CompletedProcess[str]) -> str:
     """Return the last lines of a command's output, for a failure detail."""
     text = (completed.stderr or completed.stdout).strip()
     return " | ".join(text.splitlines()[-4:]) or f"exit code {completed.returncode}"
-
-
-def repository_root() -> Path:
-    """Return the top folder of the repository this script is run from."""
-    git = shutil.which("git")
-    if git is None:
-        raise SystemExit("git is required to find the repository.")
-    completed = subprocess.run(  # noqa: S603
-        [git, "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=False, timeout=60
-    )
-    if completed.returncode != 0:
-        raise SystemExit("Run this script inside the repository.")
-    return Path(completed.stdout.strip()).resolve()
 
 
 def git_status(repository: Path) -> str:
@@ -343,7 +333,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     arguments = parser.parse_args(argv)
 
-    repository = repository_root()
+    repository = REPOSITORY_ROOT
     status_before = git_status(repository)
     results = Results()
     work = Path(tempfile.mkdtemp(prefix="ian-installed-")).resolve()
