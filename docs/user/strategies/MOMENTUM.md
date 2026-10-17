@@ -21,7 +21,7 @@ short window = 50
 long window = 200
 ```
 
-They come from the file `config/strategies/momentum.toml`, whose keys are `short_window`, `long_window`, `rsi_period` (14) and `history_start_date` (the first day of the price history, 2021-01-01). See [Strategy settings files](../INSTALLATION.md#strategy-settings-files).
+They ship with the application and may be overridden key by key in `strategies/momentum.toml` in your settings folder; the keys are `short_window`, `long_window`, `rsi_period` (14) and `history_start_date` (the first day of the price history, 2021-01-01). See [Strategy settings files](../INSTALLATION.md#strategy-settings-files).
 
 Choose different valid windows when useful:
 

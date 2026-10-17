@@ -17,12 +17,12 @@
 | Commit | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | 1 | This plan | Complete | 2026-10-16 |
-| 2 | Package root and repository root (D12) | Planned | |
-| 3 | Files move into the package (D7, D9, D10, D11) | Planned | |
-| 4 | Per-user folders, platformdirs, isolation, no default ticker (D1 to D6, D8, D13, D14, D17) | Planned | |
-| 5 | Live checks read the per-user `.env` (D19) | Planned | |
-| 6 | Installed-package proof and CI step (D20) | Planned | |
-| 7 | Documents | Planned | |
+| 2 | Package root and repository root (D12) | Complete | 2026-10-17 |
+| 3 | Files move into the package (D7, D9, D10, D11) | Complete | 2026-10-17 |
+| 4 | Per-user folders, platformdirs, isolation, no default ticker (D1 to D6, D8, D13, D14, D17) | Complete | 2026-10-17 |
+| 5 | Live checks read the per-user `.env` (D19) | Complete | 2026-10-17 |
+| 6 | Installed-package proof and CI step (D20) | Complete | 2026-10-17 |
+| 7 | Documents | Complete | 2026-10-17 |
 
 ## Decisions
 

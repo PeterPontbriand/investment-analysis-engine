@@ -31,7 +31,7 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
 | :--- | :--- | :--- | :--- |
 | PKG.1 | [One import path per name and one repository root](#pkg1--one-import-path-per-name-and-one-repository-root) | Complete | 2026-10-16 |
 | PKG.2 | [Rename the src package](#pkg2--rename-the-src-package) | Complete | 2026-10-16 |
-| PKG.3 | [Self-contained package](#pkg3--self-contained-package) | Planned | |
+| PKG.3 | [Self-contained package](#pkg3--self-contained-package) | Complete | 2026-10-17 |
 
 ## 3. The slices
 
@@ -121,16 +121,14 @@ before Step 3.5 adds seven analyzers that would otherwise be written under the o
   - settings, data and logs use each platform's conventional per-user locations: settings in the user
     configuration folder, the database in the user data folder, logs in the user log folder. A settings file there
     overrides the default shipped in the package. `IAN_DATA_DIR` and `IAN_LOG_DIR` still override the folders;
-  - the default ticker becomes an optional setting, empty by default; no personal ticker ships in the package;
+  - the default ticker is removed, not made optional: `ian momentum` requires a ticker like the other direct
+    commands, and no personal ticker ships in the package ([A.8](#a8-pkg3-decisions-2026-10-16));
   - nothing stored is migrated.
-- **Open for the slice plan:**
-  - whether to use the `platformdirs` library (a new dependency that needs the project owner's permission) or own
-    code;
-  - the exact override order;
-  - how issue #148's isolation applies to the per-user database.
+- **Settled by the slice plan:** `platformdirs` is used; the override order and the isolation of the per-user database
+  are in the slice plan and [A.8](#a8-pkg3-decisions-2026-10-16).
 - **Scope:** the files and locations above; the slice plan sets the rest.
-- **Branch:** to be named by the slice plan, from `main` after PKG.2 has merged, before SWC.5.
-- **Detail:** ⚠ no slice plan yet
+- **Branch:** `refactor/pkg-3-self-contained-package`, from `main` after PKG.2 has merged, before SWC.5.
+- **Detail:** [PKG_3_SELF_CONTAINED_PACKAGE_PLAN.md](PKG_3_SELF_CONTAINED_PACKAGE_PLAN.md)
 
 ## 4. Scope limits and acceptance criteria
 
@@ -258,3 +256,51 @@ The project owner decided:
 - **PKG.3, stored data.** Nothing stored is migrated.
 - **PKG.3, left to the slice plan.** Whether to use `platformdirs` or own code (a new dependency needs the project
   owner's permission), the exact override order, and how issue #148's isolation applies to the per-user database.
+
+### A.8 PKG.3 decisions (2026-10-16)
+
+The project owner decided, and the [slice plan](PKG_3_SELF_CONTAINED_PACKAGE_PLAN.md) carries out:
+
+- **D1, dependency.** `platformdirs>=4.11` is added; `package-data` lists the non-Python files that ship in the wheel.
+  `uv.lock` gains only the `platformdirs` entry of the project's own dependency list. Building the wheel also needed the
+  `license` field written as an SPDX string (`license = "Apache-2.0"`) and `setuptools>=77`, so that `uv build` prints no
+  warning of the project's own.
+- **D2, per-user folders.** Application folder `investment-analysis-engine`, no author folder: settings in the roaming
+  user configuration folder, the database in the user data folder, logs in the user log folder (the slice plan's table).
+  Resolving a folder never creates it.
+- **D3, override order.** The settings folder, data folder and log folder each have one `IAN_*_DIR` variable; the telemetry
+  folder follows the log folder in use; the database is `--database-url`, then `IAN_DATABASE_URL`, then the default file;
+  every setting is the process environment, then `<settings>/.env`, then the code default; a strategy setting is the user
+  file, then the shipped default, per key.
+- **D4.** `IAN_CONFIG_DIR` is read from the process environment only, before `.env` is loaded; the file cannot set it.
+  `IAN_BASE_DIR` and `base_dir` are removed.
+- **D5.** The folder variables and a file path in `IAN_DATABASE_URL` must be absolute. `--database-url` resolves a relative
+  path against the current folder and rejects a partly anchored Windows path. No message mentions a project folder.
+- **D6.** `.env` is read only from the settings folder, by explicit path; the repository `.env` is no longer read.
+- **D7.** The shipped strategy defaults are `settings.toml` beside the module that defines the settings model, merged per
+  key with the user's file; an error names, as a full path, the file the key came from.
+- **D8, default ticker.** The default ticker is removed, not made optional: `ian momentum` requires a ticker like the other
+  direct commands. This replaces the decision in [A.7](#a7-pkg2-and-pkg3-decisions-2026-10-16) that made it an optional
+  setting, empty by default. `general_analysis_settings.toml`, `ProjectSettings.get_analysis_settings()`, `ConfigKeys`,
+  `_default_ticker()`, Momentum's `--save-run` check and the `required` argument of `_resolve_ticker` go.
+- **D9.** The migrations move to `investment_analysis_engine/data/repositories/migration_scripts/`; `alembic.ini` stays at
+  the repository root as a developer tool. The readiness message says `ian db upgrade`. The revision files come under
+  `mypy --strict`; the two typing fixes in `0003_watchlist_entries.py` are comments only.
+- **D10.** `RUNTIME_AGENTS.md` moves into `orchestrator/`; a missing file raises. `load_runtime_rules` loses its `path`
+  argument and `SystemPromptBuilder` loses `rules_path`, `inject_runtime_rules` and `base_instructions`.
+- **D11.** The Golden fixtures move to `investment_analysis_engine/evaluation/fixtures/sec_edgar/step_2_5a_d0/`, named by
+  one constant in `sec_edgar_fpi.py`.
+- **D12.** `core/package_root.py` holds `PACKAGE_ROOT`; `scripts/repository_root.py` holds `REPOSITORY_ROOT` for tests and
+  scripts. The package never names the repository.
+- **D13.** No folder is created when the settings load; logging creates the log folder.
+- **D14.** `ollama_base_url` defaults to `http://localhost:11434`.
+- **D15.** The deterministic Golden report and `generate_schemas.py --check` do not change; `--help` is unchanged.
+- **D17, test isolation.** Every test session runs against a temporary folder set before the package is imported and stops
+  if a resolved folder or the database lies outside it.
+- **D18.** Issue #148 stays open for the invisible opt-in and the state a module that loses it would share through the
+  session database.
+- **D19.** The live-check scripts read `SEC_USER_AGENT` from the per-user `.env` when it is not set.
+- **D20.** `scripts/check_installed_package.py` proves the wheel runs outside the repository; CI runs it with
+  `--real-user-folders` on every leg of the matrix.
+- **D21.** Nothing stored is migrated; `.gitignore` is unchanged.
+- **D22.** Branch `refactor/pkg-3-self-contained-package`.

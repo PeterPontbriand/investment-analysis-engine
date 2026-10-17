@@ -22,8 +22,8 @@ Fresh storage initializes automatically on first persistence use. Set
 schemas require explicit upgrades after stopping processes and backing up data:
 
 ```bash
-uv run --no-sync ian db status
-uv run --no-sync ian db upgrade
+ian db status
+ian db upgrade
 ```
 
 The maintenance group is hidden from top-level help; use `db --help`. See
@@ -31,13 +31,13 @@ The maintenance group is hidden from top-level help; use `db --help`. See
 
 ## Configure SEC EDGAR
 
-Create `.env` in the project root:
+Create `.env` in your settings folder (on Windows `%APPDATA%\investment-analysis-engine`; see [Where the application keeps its files](INSTALLATION.md#where-the-application-keeps-its-files) for other systems):
 
 ```dotenv
 SEC_USER_AGENT="Your Name your-email@example.com"
 ```
 
-`.env` / `.env*` are excluded by the repository's Git ignore rules.
+The settings folder is outside the repository, so the file cannot be committed. Create the folder first if it does not exist.
 
 ## Smoke test
 
