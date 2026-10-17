@@ -17,7 +17,6 @@ from investment_analysis_engine.cli_provider_check import (
     provider_check_findings,
 )
 from investment_analysis_engine.config import settings
-from investment_analysis_engine.core.constants import ConfigKeys
 from investment_analysis_engine.core.failure_classification import classify_failure
 from investment_analysis_engine.core.failure_codes import PROVIDER_FAILURE_CODES, FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
@@ -283,7 +282,7 @@ def _presentation_mode(*, details: bool, diagnostics: bool, json_output: bool) -
     return PresentationMode.CONCISE
 
 
-def _resolve_ticker(positional: str | None, option: str | None, *, required: bool, command: str) -> str | None:
+def _resolve_ticker(positional: str | None, option: str | None, *, command: str) -> str:
     """Resolve positional ticker with a transitional --ticker compatibility alias."""
     if positional is not None and option is not None and positional.strip().upper() != option.strip().upper():
         raise InvalidParameterError(
@@ -291,19 +290,12 @@ def _resolve_ticker(positional: str | None, option: str | None, *, required: boo
         )
     selected = positional if positional is not None else option
     if selected is None:
-        if required:
-            raise InvalidParameterError(f"TICKER is required. Use 'ian {command} TICKER'.", parameters=("TICKER",))
-        return None
+        raise InvalidParameterError(f"TICKER is required. Use 'ian {command} TICKER'.", parameters=("TICKER",))
     normalized = selected.strip().upper()
     if not normalized:
         name = "TICKER" if positional is not None else "--ticker"
         raise InvalidParameterError(f"{name} must be a non-empty symbol.", parameters=(name,))
     return normalized
-
-
-def _default_ticker() -> str:
-    """Return the configured default ticker used when a command is given none."""
-    return str(settings.get_analysis_settings()[ConfigKeys.DEFAULT_SECTION][ConfigKeys.TICKER])
 
 
 def _production_database() -> SQLiteDatabase:

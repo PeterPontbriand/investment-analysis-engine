@@ -8,9 +8,10 @@ from investment_analysis_engine.strategies.graham_growth.calculation import Grah
 
 
 class GrahamGrowthSettings(BaseModel):
-    """The validated content of ``config/strategies/graham-growth.toml``.
+    """The validated settings of the strategy.
 
-    The model has no defaults: the shipped file is the single source of every value.
+    The model has no defaults: the ``settings.toml`` beside this module gives every key its shipped value, and the
+    user's settings file may override any of them.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)

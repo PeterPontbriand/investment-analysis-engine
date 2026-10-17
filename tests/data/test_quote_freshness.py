@@ -6,9 +6,9 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from alembic import command
 from alembic.config import Config
 
-from alembic import command
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE

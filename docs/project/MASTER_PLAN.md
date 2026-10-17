@@ -179,7 +179,7 @@ System settings are managed through the project's centralized `ProjectSettings` 
 - **Execution Limits:** Max planning steps (default: 10), Max transient retries (default: 3); subsequent reliability work may add more explicit timeout/error limits.
 - **Cache & Database:** SQLite connection path and later persistence/cache settings.
 - **Localization:** System default locale (`en-CA` / `fr-CA`), Currency defaults (`CAD`).
-- **Operational Logging:** `investment_analysis_engine/utils/logger_util.py` routes every logger's records at the configured level and above to one rotating log file (`logs/app.log` by default) and writes nothing to the terminal. It uses configurable log level, file name, maximum file size, backup count, encoding, and time-based rotation settings. Structured trajectory telemetry should reuse the existing configuration conventions rather than inventing a separate logging configuration mechanism.
+- **Operational Logging:** `investment_analysis_engine/utils/logger_util.py` routes every logger's records at the configured level and above to one rotating log file (`app.log` in the per-user log folder by default) and writes nothing to the terminal. It uses configurable log level, file name, maximum file size, backup count, encoding, and time-based rotation settings. Structured trajectory telemetry should reuse the existing configuration conventions rather than inventing a separate logging configuration mechanism.
 - **Trajectory Telemetry:** Structured telemetry has its own configuration namespace within the same settings system where its storage/retention controls differ materially from human-readable operational logs. Retention and storage limits are configurable, not architectural constants.
 
 ---

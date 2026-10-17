@@ -27,6 +27,7 @@ from investment_analysis_engine.cli_provider_check import (
 )
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.provider_check_element import (
     ProviderCheckItem,
     ProviderCheckVerdict,
@@ -34,7 +35,6 @@ from investment_analysis_engine.core.provider_check_element import (
     require_unique_providers,
 )
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
-from investment_analysis_engine.core.repository_root import PACKAGE_ROOT, REPOSITORY_ROOT
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.provider_checks import CheckVerdict
 from investment_analysis_engine.data.provider_probe import ProbeFinding, ProbeVerdict
@@ -42,6 +42,7 @@ from investment_analysis_engine.reporting.documents.failure import FailureEnvelo
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace_documents.refresh import RefreshSummaryDocument
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 from tests._strategy_document_output import CASES, _enter_providers
 from tests.test_cli_provider_check import (

@@ -605,7 +605,8 @@ version and result-schema version distinct and do not silently reinterpret histo
   that fails the gate by design.
 - **Scope:** new `tests/specimen/`, `scripts/new_strategy.py`, `scripts/strategy_templates/`,
   `investment_analysis_engine/core/strategy_stub.py`, `tests/scripts/generator_fills/`, tests T27 to T29 and the negative control
-  re-based on the specimen; `AGENTS.md` §3.
+  re-based on the specimen; `AGENTS.md` §3. A strategy that declares settings gets a `settings.toml` beside its
+  `settings.py`, and the generator writes it.
 - **Branch:** `feat/swc-6-specimen-and-generator`, from `main` after SWC.5 has merged.
 - **Detail:** [SWC.1 design §19.3 to §19.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#19-contributor-tooling).
 

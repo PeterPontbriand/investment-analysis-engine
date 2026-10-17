@@ -9,13 +9,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from sqlalchemy import update
 
-from alembic import command
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
@@ -50,6 +49,7 @@ from investment_analysis_engine.data.security_unit import (
     SecurityUnitResolution,
     SecurityUnitResolutionReason,
 )
+from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 9, 21, 12, 0, 0, tzinfo=UTC)
 TTL = timedelta(days=30)

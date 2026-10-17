@@ -89,7 +89,7 @@ See the SEC's [Accessing EDGAR Data](https://www.sec.gov/search-filings/edgar-se
 
 #### Recommended: create a `.env` configuration file
 
-In the Investment Analysis Engine installation folder, create a plain-text file named `.env` containing:
+In the settings folder (see [Where the application keeps its files](#where-the-application-keeps-its-files)), create a plain-text file named `.env` containing:
 
 ```dotenv
 SEC_USER_AGENT="Your Name your-email@example.com"
@@ -97,7 +97,7 @@ SEC_USER_AGENT="Your Name your-email@example.com"
 
 Replace `Your Name` and `your-email@example.com` with your actual name and a real email address that you can receive mail at. Do **not** leave the example identity unchanged.
 
-Investment Analysis Engine loads this file automatically. The project's Git configuration excludes `.env` and `.env*` so that local credentials are not accidentally committed.
+Investment Analysis Engine loads this file automatically, and only from the settings folder: a `.env` file in the folder you run it from, or in the folder you cloned, is not read. A value set in the terminal wins over the same value in the file. The file lives outside any project folder, so it cannot be committed by accident.
 
 #### Temporary alternative: set it only for the current terminal
 
@@ -117,6 +117,31 @@ The temporary form disappears when that terminal session ends.
 
 The [Analysis Strategy Guides](strategies/README.md) describe supported data sources and any provider-specific limits for each strategy.
 
+### Where the application keeps its files
+
+The application keeps your settings, database and logs in folders of your own user account, not in the folder you installed it from:
+
+| | Settings folder | Data folder (the database) | Log folder |
+| :--- | :--- | :--- | :--- |
+| Windows | `%APPDATA%\investment-analysis-engine` | `%LOCALAPPDATA%\investment-analysis-engine` | `%LOCALAPPDATA%\investment-analysis-engine\Logs` |
+| macOS | `~/Library/Application Support/investment-analysis-engine` | the same folder | `~/Library/Logs/investment-analysis-engine` |
+| Linux | `$XDG_CONFIG_HOME/investment-analysis-engine` | `$XDG_DATA_HOME/investment-analysis-engine` | `$XDG_STATE_HOME/investment-analysis-engine/log` |
+
+On Linux the `XDG_*` variables usually are not set, and the folders are then `~/.config`, `~/.local/share` and `~/.local/state` below your home folder. The application never creates a folder just by looking for it: the database folder appears when the database is first needed, and the log folder when a command starts.
+
+Inside them:
+
+- `.env` in the settings folder holds your settings and the SEC identity (see below);
+- `strategies/<name>.toml` in the settings folder holds your own values for an analysis method (see [Strategy settings files](#strategy-settings-files));
+- `investment-analysis-engine.sqlite3` in the data folder is the database (see [Local Database Operations](DATABASE.md));
+- `app.log` and a `trajectories` folder in the log folder are the application log and the run telemetry.
+
+Three variables move a folder, and each must be a full (absolute) path: `IAN_CONFIG_DIR` for the settings folder, `IAN_DATA_DIR` for the data folder and `IAN_LOG_DIR` for the log folder. `IAN_TELEMETRY_LOG_DIR` moves the telemetry alone and otherwise follows the log folder. `IAN_DATABASE_URL` names the database file directly and wins over `IAN_DATA_DIR`. `IAN_CONFIG_DIR` has to be set in the terminal's own environment, because it says where `.env` is; it cannot be set inside `.env`, and the application stops with a message if it is.
+
+A relative path in any of these is refused, with a message that names the variable. On Windows, a path Git Bash writes as `/e/Data` is refused too, because Windows would place it under the root of the current drive; write `E:/Data`.
+
+The application only reads the settings folder and never writes to it.
+
 ### Engine settings
 
 Every engine setting is read from an environment variable named `IAN_<NAME>`, in any letter case. The documented spelling is upper case, for example `IAN_DATA_DIR`, `IAN_DATABASE_URL`, `IAN_LOG_DIR` or `IAN_RELIABILITY_LIMITS__OVERALL_TIMEOUT_SECONDS` (two underscores separate a group from the field inside it). Names without the `IAN_` prefix are not read.
@@ -130,15 +155,17 @@ SEC_USER_AGENT="Your Name your-email@example.com"
 IAN_DATA_DIR="E:/FinancialData"
 ```
 
+The values `IAN_DATA_DIR`, `IAN_LOG_DIR`, `IAN_TELEMETRY_LOG_DIR` and the file path in `IAN_DATABASE_URL` must be absolute paths.
+
 At startup (including `ian --help`) the application prints one sentence naming the variable to the error stream and exits with code 2 when an `IAN_` variable matches no setting (usually a typo), when two variables that differ only by letter case are both set for the same setting, or when a variable's value is not valid for its setting (the sentence says what was wrong and never repeats the value). The application name, version and text encoding are fixed and cannot be overridden.
 
 ### Strategy settings files
 
-Some analysis methods keep their tunable values in a file of their own in the `config/strategies/` folder of the installation: `momentum.toml` (the two moving-average windows, the RSI period and the first day of the price history) and `graham-growth.toml` (the Graham Growth constants). Each key in a file has a comment saying what it is.
+Some analysis methods have tunable values: Momentum (the two moving-average windows, the RSI period and the first day of the price history) and Graham Growth (its constants). Their defaults ship inside the application and are not edited. To use other values, create a file named after the method in the `strategies` folder of your settings folder: `strategies/momentum.toml` or `strategies/graham-growth.toml`. The file may hold only the keys you want to change; every other key keeps its shipped default. For example, a `strategies/momentum.toml` holding only `rsi_period = 21` changes the RSI period and nothing else. The keys are listed in each method's guide ([Momentum](strategies/MOMENTUM.md), [Graham Growth](strategies/GRAHAM_GROWTH.md)).
 
 Changes take effect at the next command you run. A watchlist selection keeps the windows and RSI period it was created with, so editing those values changes only selections created afterwards; the first day of the price history applies whenever an analysis or refresh runs. Graham Growth's constants apply when an analysis runs, and each saved run records the constants it used.
 
-Every file is checked at startup, including by `ian --help`. If one is missing, is not valid TOML or holds an unknown key, a missing key or an invalid value, every command stops with exit code 2 and prints one message that names the file and the key and says what is wrong. The message never repeats the value. Restore the file from the project or correct the key it names.
+Every file is checked at startup, including by `ian --help`. A missing file of your own is normal. If a file is not valid TOML or holds an unknown key or an invalid value, every command stops with exit code 2 and prints one message that gives the full path of the file the key came from, names the key and says what is wrong. The message never repeats the value. Correct the key it names, or delete your file to return to the shipped defaults.
 
 ### Optional: local AI
 
@@ -186,7 +213,7 @@ target overrides, locking and recovery.
 
 ### "SEC EDGAR access is not configured"
 
-Check that `SEC_USER_AGENT` is present in the `.env` file in the Investment Analysis Engine installation folder, or set it in the current terminal as shown above.
+Check that `SEC_USER_AGENT` is present in the `.env` file in your settings folder, or set it in the current terminal as shown above.
 
 ### `git`, `python`, or `uv` is "not recognized" / "command not found"
 
@@ -237,7 +264,7 @@ That is possible by design. Deterministic analysis and optional local-AI feature
 
 ## Security and privacy reminders
 
-- Do not put real API keys, email addresses, or any other secrets anywhere in the installation folder except in the `.env` file.
+- Do not put real API keys, email addresses, or any other secrets anywhere except in the `.env` file in your settings folder.
 - Treat `.env` as private local configuration.
 - Use a genuine SEC User-Agent identity suitable for automated access.
 - Review the terms, permissions, and licensing of any data service you use.

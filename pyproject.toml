@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Deterministic, provenance-aware investment analysis engine, usable from a CLI and designed for consumption by AI agents"
 readme = "README.md"
 requires-python = ">=3.12"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 authors = [
     {name = "Peter", email = "peter.pontbriand@gmail.com"}
 ]
@@ -36,6 +36,7 @@ dependencies = [
     "typer>=0.26.8",
     "sqlalchemy>=2.0,<3",
     "alembic>=1.13,<2",
+    "platformdirs>=4.11",
 ]
 
 [project.scripts]
@@ -58,6 +59,15 @@ package = true
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["investment_analysis_engine*"]
+
+[tool.setuptools.package-data]
+investment_analysis_engine = [
+    "orchestrator/RUNTIME_AGENTS.md",
+    "strategies/*/settings.toml",
+    "evaluation/fixtures/sec_edgar/step_2_5a_d0/*",
+    "data/repositories/migration_scripts/env.py",
+    "data/repositories/migration_scripts/versions/*.py",
+]
 
 [tool.ruff]
 line-length = 120

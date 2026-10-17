@@ -17,7 +17,6 @@ This revision is a frozen schema snapshot; never import mutable application meta
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-
 from alembic import op
 
 revision: str = "0005_remove_cancelled_outcome"

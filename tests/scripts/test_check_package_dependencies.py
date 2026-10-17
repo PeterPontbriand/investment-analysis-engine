@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from scripts.check_package_dependencies import (
     ARCHITECTURE_DOC,
     SOURCE_ROOT_NAME,
@@ -12,6 +11,7 @@ from scripts.check_package_dependencies import (
     collect_imports,
     list_units,
 )
+from scripts.repository_root import REPOSITORY_ROOT
 
 HEADER = "| Package | Layer | Owns | Imports |\n| --- | --- | --- | --- |\n"
 

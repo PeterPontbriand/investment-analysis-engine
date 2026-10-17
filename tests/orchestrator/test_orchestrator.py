@@ -5,6 +5,7 @@ import pytest
 
 from investment_analysis_engine.config.schema_config import SchemaConfig
 from investment_analysis_engine.llm.client import LLMClient, LLMGenerateResult
+from investment_analysis_engine.orchestrator import rules
 from investment_analysis_engine.orchestrator.context import ContextConfig, MessageContext
 from investment_analysis_engine.orchestrator.dispatcher import AsyncToolDispatcher
 from investment_analysis_engine.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
@@ -28,7 +29,6 @@ def make_context_with_runtime_rules(
     max_history_messages: int = 30,
     preserve_system_prompt: bool = True,
     tool_schemas_json: str | None = None,
-    rules_path: Path | str | None = None,
 ) -> MessageContext:
     """
     Example factory that future application code should mirror.
@@ -38,8 +38,6 @@ def make_context_with_runtime_rules(
     """
     builder = SystemPromptBuilder(
         tool_schemas_json=tool_schemas_json,
-        rules_path=rules_path,
-        inject_runtime_rules=True,
     )
     system_prompt = builder.build()
 
@@ -72,36 +70,23 @@ def test_system_prompt_builder_with_schema() -> None:
     assert "Respond with JSON tool invocations" in prompt
 
 
-def test_system_prompt_builder_injects_runtime_rules(tmp_path: Path) -> None:
-    """RUNTIME_AGENTS.md content is appended under a clear heading when present."""
-    rules_file = tmp_path / "RUNTIME_AGENTS.md"
-    rules_file.write_text("# Agent Rules\n- Always be precise\n- Prefer tool results", encoding="utf-8")
-
-    builder = SystemPromptBuilder(
-        inject_runtime_rules=True,
-        rules_path=rules_file,
-    )
-    prompt = builder.build()
+def test_system_prompt_builder_injects_the_shipped_runtime_rules() -> None:
+    """The RUNTIME_AGENTS.md shipped with the package is appended under a clear heading."""
+    prompt = SystemPromptBuilder().build()
 
     assert "# RUNTIME AGENT RULES" in prompt
-    assert "Always be precise" in prompt
-    assert "Prefer tool results" in prompt
+    assert "# Investment Analysis Engine – Runtime Guardrails" in prompt
     assert "You are a financial analysis assistant." in prompt
 
 
-def test_system_prompt_builder_missing_rules_file_is_silent(tmp_path: Path) -> None:
-    """Missing rules file must not raise; prompt remains valid."""
-    missing = tmp_path / "does_not_exist.md"
-    builder = SystemPromptBuilder(inject_runtime_rules=True, rules_path=missing)
-    prompt = builder.build()
-    assert "You are a financial analysis assistant." in prompt
-    assert "# RUNTIME AGENT RULES" not in prompt
+def test_system_prompt_builder_raises_when_the_rules_file_is_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A rules file that cannot be read stops the build; the prompt is never built without the rules."""
+    monkeypatch.setattr(rules, "RUNTIME_RULES_PATH", tmp_path / "does_not_exist.md")
 
-
-def test_system_prompt_builder_can_disable_injection() -> None:
-    builder = SystemPromptBuilder(inject_runtime_rules=False)
-    prompt = builder.build()
-    assert "# RUNTIME AGENT RULES" not in prompt
+    with pytest.raises(FileNotFoundError):
+        SystemPromptBuilder().build()
 
 
 # ---------------------------------------------------------------------------

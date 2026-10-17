@@ -26,14 +26,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import patch
 
+from alembic import command
 from alembic.config import Config
 from typer.testing import CliRunner
 
-from alembic import command
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.market_data import HistoricalMarketData
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import normalize_cli_output
 from tests._direct_command_output import _FixtureYahoo
 

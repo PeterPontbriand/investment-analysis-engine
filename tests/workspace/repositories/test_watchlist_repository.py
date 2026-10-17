@@ -8,13 +8,12 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from sqlalchemy import select, text
 
-from alembic import command
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.repositories.schema import analysis_runs, watchlist_entries, watchlists
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
@@ -35,6 +34,7 @@ from investment_analysis_engine.workspace.repositories.watchlists import (
 from investment_analysis_engine.workspace.runs import Watchlist
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 from investment_analysis_engine.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError, WatchlistSpec
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._wiring import alias_for, failure_text
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)

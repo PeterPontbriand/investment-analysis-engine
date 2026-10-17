@@ -189,7 +189,7 @@ def command(  # noqa: PLR0913
         selection_type=GrahamGrowthSelection,
         provider_check=provider_check,
     ) as scope:
-        target_ticker = _resolve_ticker(ticker, ticker_option, required=True, command="graham-growth")
+        target_ticker = _resolve_ticker(ticker, ticker_option, command="graham-growth")
         assert target_ticker is not None
         scope.ticker = target_ticker
         mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)

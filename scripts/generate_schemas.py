@@ -5,10 +5,10 @@ with ``model_json_schema(mode="serialization")``, serialized with sorted keys, t
 trailing line feed. The drift test compares these exact bytes with the files, so a model change that is
 not followed by a regeneration fails the standard test run.
 
-Usage, from the repository root::
+Usage, as a module from the repository root::
 
-    uv run python scripts/generate_schemas.py          # write every schema
-    uv run python scripts/generate_schemas.py --check  # report schemas that are missing or out of date
+    uv run python -m scripts.generate_schemas          # write every schema
+    uv run python -m scripts.generate_schemas --check  # report schemas that are missing or out of date
 
 This is a developer script, not an ``ian`` command.
 """
@@ -21,9 +21,9 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
 from investment_analysis_engine.workspace_documents.json_documents import DOCUMENTS as GENERIC_DOCUMENTS
+from scripts.repository_root import REPOSITORY_ROOT
 
 SCHEMA_DIRECTORY = REPOSITORY_ROOT / "schemas"
 
@@ -62,7 +62,7 @@ def schema_gaps(directory: Path = SCHEMA_DIRECTORY) -> list[str]:
     for name, text in expected_schemas().items():
         path = directory / name
         if not path.is_file() or path.read_bytes() != text.encode("utf-8"):
-            gaps.append(f"schema schemas/{name} is missing or out of date; run scripts/generate_schemas.py")
+            gaps.append(f"schema schemas/{name} is missing or out of date; run python -m scripts.generate_schemas")
     return gaps
 
 

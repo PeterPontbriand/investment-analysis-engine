@@ -18,7 +18,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
 
-from investment_analysis_engine.core.repository_root import PACKAGE_ROOT
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from tests._strategy_roles import ANALYZER_ROLES, ROLE_RANK
 
 _GRAHAM_MEMBERS = frozenset({"graham_number", "graham_growth"})

@@ -8,11 +8,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from alembic import command
 from alembic.config import Config
 
-from alembic import command
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.instrument_profile import (
     InstrumentKind,
     InstrumentKindEvidence,
@@ -25,6 +24,7 @@ from investment_analysis_engine.data.instrument_profile_cache import CachedInstr
 from investment_analysis_engine.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.data.security_identity import SecurityIdentity, SecurityIdentityRequest
+from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 9, 21, 12, 0, 0, tzinfo=UTC)
 STALE = NOW + timedelta(days=31)

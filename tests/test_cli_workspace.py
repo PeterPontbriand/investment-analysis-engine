@@ -9,17 +9,16 @@ from uuid import UUID
 
 import pytest
 import typer
+from alembic import command
 from alembic.config import Config
 from pydantic import ValidationError
 from sqlalchemy import update
 from typer.testing import CliRunner
 
 import investment_analysis_engine.cli_workspace
-from alembic import command
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.repositories.schema import analysis_runs
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
@@ -33,6 +32,7 @@ from investment_analysis_engine.workspace.repositories.watchlists import SQLiteW
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
 from investment_analysis_engine.workspace.watchlists import WatchlistNotFoundError
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 from tests._wiring import encode_native
 

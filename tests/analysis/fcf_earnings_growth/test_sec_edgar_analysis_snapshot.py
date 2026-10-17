@@ -12,21 +12,20 @@ from typing import Any
 import pytest
 
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 from investment_analysis_engine.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
+from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_FIXTURE_ROOT
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from investment_analysis_engine.strategies.graham_number.service import run_graham_number_analysis
 
 NOW = datetime(2026, 9, 1, 14, 0, tzinfo=UTC)
-FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "sec_edgar" / "step_2_5a_d0"
 
 
 def _fixture(name: str) -> Any:
     """Load one approved D0 evidence fragment."""
-    return json.loads((FIXTURE_ROOT / name).read_text(encoding="utf-8"))
+    return json.loads((SEC_FPI_FIXTURE_ROOT / name).read_text(encoding="utf-8"))
 
 
 class _SnapshotFetcher:

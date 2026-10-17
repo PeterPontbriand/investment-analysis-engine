@@ -1,7 +1,7 @@
 """Path validation shared by settings and command-line path options."""
 
 import sys
-from pathlib import PureWindowsPath
+from pathlib import PurePosixPath, PureWindowsPath
 
 _HOW_TO_CONVERT = "in Git Bash, 'cygpath -m <path>' prints the Windows form."
 
@@ -43,14 +43,30 @@ def require_anchored_path(value: str, *, name: str, windows: bool) -> None:
         )
         raise ValueError(
             f"{name} path '{value}' has a root but no drive letter, so Windows would place it under "
-            f"the current drive's root. {advice} or a path relative to the project folder; {_HOW_TO_CONVERT}"
+            f"the current drive's root. {advice}; {_HOW_TO_CONVERT}"
         )
     rest = "/".join(path.parts[1:])
     raise ValueError(
         f"{name} path '{value}' has a drive letter but no root, so Windows would resolve it against "
-        f"that drive's current folder. Use a full path such as '{path.drive.upper()}/{rest}' or a path relative "
-        f"to the project folder; {_HOW_TO_CONVERT}"
+        f"that drive's current folder. Use a full path such as '{path.drive.upper()}/{rest}'; {_HOW_TO_CONVERT}"
     )
+
+
+def require_absolute_path(value: str, *, name: str, windows: bool) -> None:
+    """Reject a path that is not fully absolute: a relative path, or on Windows a partly anchored one.
+
+    Args:
+        value: The raw path as configured, before any resolution.
+        name: The setting the path came from, used in the message.
+        windows: Whether to apply the Windows rule, as for :func:`require_anchored_path`.
+
+    Raises:
+        ValueError: With a one-line explanation naming ``name``.
+    """
+    require_anchored_path(value, name=name, windows=windows)
+    absolute = PureWindowsPath(value).is_absolute() if windows else PurePosixPath(value).is_absolute()
+    if not absolute:
+        raise ValueError(f"{name} path '{value}' must be an absolute path.")
 
 
 def _drive_suggestion(path: PureWindowsPath) -> str | None:

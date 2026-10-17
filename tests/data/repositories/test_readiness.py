@@ -11,7 +11,6 @@ import pytest
 from sqlalchemy.engine import Connection
 
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.repositories import migrations, readiness
 from investment_analysis_engine.data.repositories.readiness import (
     DatabaseReadinessError,
@@ -41,8 +40,7 @@ def _synthetic_migration_resources(tmp_path: Path, *, failing: bool) -> migratio
     revision is added. When ``failing`` is set that child applies a partial table and
     then raises, exercising the rollback path.
     """
-    repository = REPOSITORY_ROOT
-    source = repository / "alembic"
+    source = migrations.migration_resources().directory
     directory = tmp_path / "synthetic-alembic"
     shutil.copytree(source, directory, ignore=shutil.ignore_patterns("__pycache__"))
     base_head = migrations.migration_resources().head
@@ -258,7 +256,7 @@ def test_known_ancestor_requires_explicit_upgrade(tmp_path: Path, monkeypatch: p
             ensure_database_ready(database)
         assert caught.value.reason is ReadinessReason.UPGRADE_REQUIRED
         assert "synthetic_next" in str(caught.value)
-        assert "uv run ian db upgrade" in str(caught.value)
+        assert "\n\n    ian db upgrade\n\n" in str(caught.value)
         assert "--database-url" in str(caught.value)
         assert caught.value.database_path == path
         assert caught.value.expected_revision == "synthetic_next"
@@ -458,14 +456,15 @@ def test_constraints_and_column_shapes_are_verified(tmp_path: Path, old: str, ne
 
 
 def test_resources_and_target_ignore_working_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    settings = ProjectSettings(base_dir=tmp_path, database_url="sqlite:///nested/100% café.sqlite3")
+    target = tmp_path / "nested" / "100% café.sqlite3"
+    settings = ProjectSettings(database_url=f"sqlite:///{target.as_posix()}")
     database = SQLiteDatabase(settings)
     other = tmp_path / "other"
     other.mkdir()
     monkeypatch.chdir(other)
     try:
         assert ensure_database_ready(database) is ReadinessOutcome.INITIALIZED
-        assert database.database_path == tmp_path / "nested" / "100% café.sqlite3"
+        assert database.database_path == target
         assert not (other / "nested").exists()
     finally:
         database.close()

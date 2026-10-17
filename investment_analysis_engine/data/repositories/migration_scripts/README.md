@@ -1,16 +1,20 @@
 # SQLite migrations
 
-Run commands from the repository root in the synchronized project environment:
+This folder holds the application's Alembic migration scripts: `env.py`, the revision template `script.py.mako` and
+the revisions in `versions/`. They ship inside the package, and `ian db upgrade` applies them to the application
+database. Users never run Alembic directly.
+
+Developers can run Alembic from a repository checkout, in the synchronized project environment. The `alembic.ini`
+at the repository root points at this folder:
 
 ```powershell
 uv run --no-sync alembic upgrade head
 uv run --no-sync alembic current
 ```
 
-These commands use `ProjectSettings.database_url`, including the
-`IAN_DATABASE_URL` environment override (letter case is ignored). Relative SQLite paths resolve
-against `base_dir`. `alembic.ini` resolves script/import paths from its own location.
-No logging configuration is installed or replaced by the migration environment.
+These commands use `ProjectSettings.database_url`, including the `IAN_DATABASE_URL` environment override (letter
+case is ignored). A file path in the URL must be absolute. No logging configuration is installed or replaced by the
+migration environment.
 
 For an isolated bootstrap check, use a new ignored temporary directory:
 

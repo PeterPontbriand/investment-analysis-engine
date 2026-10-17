@@ -2,7 +2,7 @@
 
 import pytest
 
-from investment_analysis_engine.config.paths import require_anchored_path
+from investment_analysis_engine.config.paths import require_absolute_path, require_anchored_path
 
 _ACCEPTED = [
     "data/x.sqlite3",
@@ -38,7 +38,7 @@ def test_a_root_without_a_drive_is_rejected_on_windows(value: str) -> None:
     message = str(error.value)
     assert message.startswith(f"log_dir path '{value}'")
     assert "current drive's root" in message
-    assert "path relative to the project folder" in message
+    assert "project folder" not in message
     assert "cygpath -m" in message
     assert "\n" not in message
 
@@ -75,3 +75,33 @@ def test_no_drive_suggestion_is_made_when_the_first_segment_is_not_a_single_lett
         require_anchored_path(value, name="database_url", windows=True)
     assert "such as" not in str(error.value)
     assert "Use a full path that starts with a drive letter" in str(error.value)
+
+
+_ABSOLUTE_WINDOWS = ["E:/Source/x", "E:\\Source\\x", "\\\\server\\share\\x"]
+_RELATIVE = ["data/x.sqlite3", "x", ".tmp/x", "..\\x"]
+
+
+@pytest.mark.parametrize("value", _ABSOLUTE_WINDOWS)
+def test_a_fully_qualified_windows_path_is_absolute(value: str) -> None:
+    require_absolute_path(value, name="IAN_DATA_DIR", windows=True)
+
+
+@pytest.mark.parametrize("value", ["/home/me/x", "/tmp/x", "/"])
+def test_a_rooted_path_is_absolute_off_windows(value: str) -> None:
+    require_absolute_path(value, name="IAN_DATA_DIR", windows=False)
+
+
+@pytest.mark.parametrize("windows", [True, False])
+@pytest.mark.parametrize("value", _RELATIVE)
+def test_a_relative_path_is_rejected_with_a_message_that_names_the_variable(value: str, windows: bool) -> None:
+    with pytest.raises(ValueError, match="must be an absolute path") as error:
+        require_absolute_path(value, name="IAN_DATA_DIR", windows=windows)
+    assert str(error.value) == f"IAN_DATA_DIR path '{value}' must be an absolute path."
+
+
+@pytest.mark.parametrize("value", [*_ROOT_WITHOUT_DRIVE, *_DRIVE_WITHOUT_ROOT])
+def test_a_partly_anchored_windows_path_keeps_the_git_bash_advice_when_absolute_is_required(value: str) -> None:
+    with pytest.raises(ValueError, match="drive") as error:
+        require_absolute_path(value, name="IAN_LOG_DIR", windows=True)
+    assert "cygpath -m" in str(error.value)
+    assert "project folder" not in str(error.value)

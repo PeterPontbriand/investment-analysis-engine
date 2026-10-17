@@ -7,13 +7,12 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from sqlalchemy import delete, select, update
 
-from alembic import command
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.data.repositories.schema import (
     analysis_runs,
@@ -30,6 +29,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
 from investment_analysis_engine.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
 from investment_analysis_engine.workspace.watchlists import WatchlistSpec
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._wiring import alias_for
 from tests.workspace.test_fcf_growth_codec import _run as _fcf_run
 from tests.workspace.test_graham_growth_codec import _run as _graham_growth_run

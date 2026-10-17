@@ -14,8 +14,10 @@ from pathlib import Path
 
 import pytest
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.config import settings
 from investment_analysis_engine.utils.logger_util import handle_uncaught_exception
+from scripts.repository_root import REPOSITORY_ROOT
+from tests.conftest import SESSION_FOLDER
 
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 LOG_LINE = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \| ")
@@ -34,14 +36,14 @@ class CommandRun:
     log: str
 
 
-def _default_locations() -> dict[str, tuple[int, int]]:
-    """Return the size and modification time of every file under the project's default data and log folders."""
+def _session_locations() -> dict[str, tuple[int, int]]:
+    """Return the size and modification time of every file under the folders this test session was given."""
     state: dict[str, tuple[int, int]] = {}
-    for folder in (REPOSITORY_ROOT / "data", REPOSITORY_ROOT / "logs"):
+    for folder in (settings.config_dir, settings.data_dir, settings.log_dir):
         for path in sorted(folder.rglob("*")) if folder.exists() else []:
             if path.is_file():
                 status = path.stat()
-                state[path.relative_to(REPOSITORY_ROOT).as_posix()] = (status.st_size, status.st_mtime_ns)
+                state[path.relative_to(SESSION_FOLDER).as_posix()] = (status.st_size, status.st_mtime_ns)
     return state
 
 
@@ -50,6 +52,7 @@ def _run(tmp_path: Path, name: str, *arguments: str) -> CommandRun:
     # Engine settings are read as IAN_<NAME> on every platform.
     environment = {
         **os.environ,
+        "IAN_CONFIG_DIR": str(root / "config"),
         "IAN_DATA_DIR": str(root / "data"),
         "IAN_LOG_DIR": str(root / "logs"),
         "IAN_TELEMETRY_LOG_DIR": str(root / "telemetry"),
@@ -60,7 +63,7 @@ def _run(tmp_path: Path, name: str, *arguments: str) -> CommandRun:
         "NO_COLOR": "1",
     }
     environment.pop("FORCE_COLOR", None)
-    before = _default_locations()
+    before = _session_locations()
     completed = subprocess.run(  # noqa: S603
         [sys.executable, "-m", "tests.utils._logging_command_driver", *arguments],
         cwd=REPOSITORY_ROOT,
@@ -72,7 +75,7 @@ def _run(tmp_path: Path, name: str, *arguments: str) -> CommandRun:
         check=False,
     )
     log_file = root / "logs" / "app.log"
-    assert _default_locations() == before, "the command wrote under the project's default data or log folders"
+    assert _session_locations() == before, "the command wrote under the session's own data or log folders"
     if arguments[0] != "crash":  # the crash scenario fails before the command opens its database
         assert list((root / "data").glob("*.sqlite3")), "the command did not create its database under its own folder"
     if "--no-logging" not in arguments:  # that run installs no logging, so it has no log file

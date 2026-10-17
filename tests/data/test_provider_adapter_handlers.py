@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from investment_analysis_engine.core.repository_root import PACKAGE_ROOT
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 
 _SOURCE = PACKAGE_ROOT / "data"
 _ADAPTER_MODULES = sorted(

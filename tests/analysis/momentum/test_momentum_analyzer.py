@@ -1,6 +1,5 @@
 """Unit tests for validating the stateless MomentumAnalyzer indicator logic."""
 
-from collections.abc import Generator
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
@@ -22,18 +21,6 @@ from investment_analysis_engine.strategies.momentum.analyzer import (
 )
 
 _CONTEXT = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 20, tzinfo=UTC), use_cache=True)
-
-
-@pytest.fixture(autouse=True)
-def mock_settings_config() -> Generator[None, None, None]:
-    """Stub out external TOML file reads by patching the ProjectSettings class methods."""
-    mock_analysis = {
-        "default": {
-            "default_ticker": "BTC-USD",
-        }
-    }
-    with patch("investment_analysis_engine.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
-        yield
 
 
 @pytest.fixture

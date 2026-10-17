@@ -3,7 +3,7 @@
 The CLI stores historical market-data snapshots and resolved financial inputs
 in SQLite through shared persistence interfaces. Trajectory telemetry defaults to JSONL; SQLite telemetry is
 optional. When required persistence is first used, the application initializes
-a missing or verified empty database through bundled Alembic migrations. Ready
+a missing or verified empty database through the Alembic migrations that ship inside the package. Ready
 storage is reused without migration. Existing schemas are never upgraded
 automatically; incompatible or incomplete storage is preserved and rejected.
 
@@ -17,9 +17,9 @@ are not fresh. A revision stamp alone does not prove readiness.
 Maintenance commands are hidden from top-level help but available explicitly:
 
 ```powershell
-uv run --no-sync ian db --help
-uv run --no-sync ian db status
-uv run --no-sync ian db status --json
+ian db --help
+ian db status
+ian db status --json
 ```
 
 `db status` inspects without initializing, upgrading, enabling WAL or creating
@@ -31,7 +31,7 @@ To initialize in advance or explicitly upgrade supported existing storage, stop
 application processes and back up existing data, then run:
 
 ```powershell
-uv run --no-sync ian db upgrade
+ian db upgrade
 ```
 
 The command initializes fresh storage, upgrades a structurally valid recognized
@@ -48,9 +48,12 @@ Both maintenance commands accept `--database-url` and `--json`. An override is
 for that invocation only; it does not redirect later analyses:
 
 ```powershell
-uv run --no-sync ian db status --database-url "sqlite:///E:/FinancialData/trial.sqlite3" --json
-uv run --no-sync ian db upgrade --database-url "sqlite:///E:/FinancialData/trial.sqlite3"
+ian db status --database-url "sqlite:///E:/FinancialData/trial.sqlite3" --json
+ian db upgrade --database-url "sqlite:///E:/FinancialData/trial.sqlite3"
 ```
+
+A relative path in `--database-url` is resolved against the folder the command runs in. A Windows path that is only
+partly anchored is rejected, as described under [Choose the database location](#choose-the-database-location).
 
 Exit 0 means ready or successfully initialized/upgraded; exit 1 means not ready
 or an operational failure, including a rejected `--database-url`; exit 2 means the parser rejected the command line. A completed
@@ -66,79 +69,59 @@ Untrusted revision strings are not exposed. JSON operational reports use stdout
 only, without migration chatter. Text reports use stdout, operational failures
 stderr; parser-level usage errors retain normal CLI behavior (exit 2). A `--database-url` the command rejects, or a private-memory target, is not a maintenance report: it is the failure document (`reason_code` `invalid_parameter` with `parameters` `["--database-url"]`; a private-memory target that came from the settings is `configuration_error`), so `--json` can write a maintenance report or a failure document, told apart by the `command` key, which only the report has.
 
-Direct Alembic commands remain available for explicit operator maintenance.
-
 Current financial quotes use `IAN_QUOTE_CACHE_TTL_SECONDS` (default 300 seconds), measured from the original provider response retrieval. Zero disables quote reuse. Unknown, future or expired response timing triggers refresh without stale fallback. This policy is separate from annual financial-input and historical-snapshot cache settings. Legacy quote keys refresh automatically without a schema migration; retrieval time does not establish an exchange trade timestamp.
-
-Run these commands from the installation folder, after stopping application
-processes. Back up an existing database before upgrading it.
-
-```powershell
-uv sync --locked
-uv run --no-sync alembic upgrade head
-uv run --no-sync alembic current
-```
-
-Dependency synchronization installs the versions in the existing lockfile.
-`upgrade head` creates a fresh schema or applies pending migrations; repeating
-it on an up-to-date database is safe. The initial revision is
-`0001_persistence`. `current` reports the installed revision. Help commands alone
-do not verify that the database is prepared.
-
-Managed verification uses the already synchronized environment and does not
-install dependencies. Dependency installation and migrations against a user's
-existing data are separate operator actions.
 
 ## Choose the database location
 
-The default file is `data/investment-analysis-engine.sqlite3` under the installation
-folder (or the configured `IAN_DATA_DIR`). A relative `IAN_DATABASE_URL` resolves against
-the configured application base directory, not the terminal's current folder.
-Set the same URL for migrations and subsequent analysis commands.
+The default file is `investment-analysis-engine.sqlite3` in your per-user data folder:
+
+| System | Data folder |
+| :--- | :--- |
+| Windows | `%LOCALAPPDATA%\investment-analysis-engine` |
+| macOS | `~/Library/Application Support/investment-analysis-engine` |
+| Linux | `$XDG_DATA_HOME/investment-analysis-engine` (usually `~/.local/share/investment-analysis-engine`) |
+
+The folder is created when the database is first needed. Three settings change the location, highest first:
+
+1. `--database-url` on an `ian db` command, for that command only;
+2. `IAN_DATABASE_URL`, the full SQLite URL;
+3. `IAN_DATA_DIR`, a folder that holds the default file name.
+
+`IAN_DATA_DIR` and the file path in `IAN_DATABASE_URL` must be absolute paths; a relative path stops the application at
+startup with a message that names the variable. Set the same URL for `ian db upgrade` and for every analysis command.
 
 PowerShell example:
 
 ```powershell
 $env:IAN_DATABASE_URL = "sqlite:///E:/FinancialData/investment-analysis-engine.sqlite3"
-uv run --no-sync alembic upgrade head
-uv run --no-sync alembic current
+ian db upgrade
+ian db status
 ```
 
 Linux or macOS example:
 
 ```bash
 export IAN_DATABASE_URL="sqlite:////srv/financial-data/investment-analysis-engine.sqlite3"
-uv run --no-sync alembic upgrade head
+ian db upgrade
 ```
 
 Git Bash on Windows example:
 
 ```bash
 export IAN_DATABASE_URL="sqlite:///E:/FinancialData/investment-analysis-engine.sqlite3"
-uv run --no-sync alembic upgrade head
+ian db upgrade
 ```
 
 On Windows, a path that has a root but no drive letter (such as `/e/FinancialData/...`,
 which is how Git Bash writes paths) is rejected, because Windows would place it under
 the root of the current drive. The message suggests the full path; `cygpath -m <path>`
 converts a Git Bash path to the form to use. A path with a drive letter but no root
-(`E:data`) is rejected for the same reason. Relative paths and full paths that start
-with a drive letter or a network share are accepted.
+(`E:data`) is rejected for the same reason.
 
-The environment setting lasts for the terminal session. Add `IAN_DATABASE_URL` to
-local `.env` configuration to retain it. The directory must be writable.
-Synchronous local SQLite URLs are supported; remote database URLs and SQLite
+The environment setting lasts for the terminal session. Add `IAN_DATABASE_URL` to the
+`.env` file in your settings folder to retain it (see [Installation](INSTALLATION.md#where-the-application-keeps-its-files)).
+The folder must be writable. Synchronous local SQLite URLs are supported; remote database URLs and SQLite
 URI query parameters are not.
-
-A one-command migration override is also available:
-
-```powershell
-uv run --no-sync alembic -x "database_url=sqlite:///E:/FinancialData/trial.sqlite3" upgrade head
-```
-
-That override affects only Alembic. It does not redirect later analysis commands.
-Migration URL precedence is `-x database_url`, an explicit Alembic
-`sqlalchemy.url`, then application settings.
 
 ## Cache and telemetry behavior
 
@@ -192,7 +175,7 @@ published schema is `schemas/failure.schema.json`.
 | `database_permission_denied` | Check file and parent-directory permissions. |
 | `database_invalid_file` | Preserve the unreadable/corrupt file; inspect or restore a consistent backup. |
 | `database_io_error` | Check the path, free space and filesystem health. |
-| `database_resources_unavailable` | Use a complete matching source installation with bundled migrations. |
+| `database_resources_unavailable` | Reinstall the application; the migrations ship inside the package. |
 | `database_initialization_failed` | Preserve the file and inspect diagnostics; no partial schema was accepted. |
 | `database_migration_failed` | Preserve the database and inspect diagnostics; the migration transaction was rolled back. |
 
@@ -202,9 +185,8 @@ inspection must prove fresh or ready storage before analysis can proceed.
 
 Maintenance requires file-backed storage and rejects private in-memory URLs.
 Programmatic readiness supports memory only on the same `SQLiteDatabase` instance.
-Source-checkout/editable installations with bundled migration resources are the
-verified installation boundary; standalone wheel migration packaging is not
-provided. Local verification covers Windows locking, not POSIX execution,
+The migrations ship inside the installed package, so an installed wheel and a source checkout
+both migrate. Local verification covers Windows locking, not POSIX execution,
 network filesystems, hard-link aliases or external file replacement.
 
 ## Back up and restore
@@ -224,35 +206,51 @@ requires a SQLite-aware consistent backup mechanism, not sequential file copies.
 Restore only with all application processes stopped. Preserve the current file
 set first, then restore the matching backup set into a clean destination and
 point `IAN_DATABASE_URL` there. Do not mix sidecars from different backups. Check
-`alembic current`, review the needed migrations, and upgrade with compatible
+`ian db status`, review the needed migrations, and upgrade with compatible
 application code before resuming analysis. Database files and operational logs
 are local artifacts and must not be committed to Git.
 
-## Downgrade and failed migrations
-
-Inspect history before changing revisions:
-
-```powershell
-uv run --no-sync alembic history
-uv run --no-sync alembic current
-```
-
-Downgrading to `base` removes the persistence tables and their data. Use the
-following only for an explicitly disposable database or after approving data
-loss and retaining a verified backup:
-
-```powershell
-uv run --no-sync alembic -x "database_url=sqlite:///data/disposable.sqlite3" downgrade base
-uv run --no-sync alembic -x "database_url=sqlite:///data/disposable.sqlite3" upgrade head
-```
+## Failed migrations
 
 A failed migration is rolled back through the shared SQLite transaction scope.
 Stop competing processes, preserve the error and database file set, and check
-permissions, free space, the selected URL, and `alembic current`. Correct the
-cause and rerun the same upgrade. Do not use `alembic stamp head` to conceal a
-failure or manually edit the revision table. If the database's integrity is in
+permissions, free space, the selected URL, and `ian db status`. Correct the
+cause and rerun `ian db upgrade`. Never edit the revision table by hand or mark a
+failed database as current. If the database's integrity is in
 doubt, retain it for diagnosis and restore a consistent backup into a separate
-location before retrying. Use `db status` to inspect readiness after an update.
+location before retrying. Use `ian db status` to inspect readiness after an update.
+
+## For developers: Alembic from a checkout
+
+The migration scripts are in `investment_analysis_engine/data/repositories/migration_scripts/`, and the `alembic.ini` at the
+repository root points at them. Run these commands from a repository checkout, in the synchronized project
+environment, after stopping application processes and backing up an existing database:
+
+```powershell
+uv sync --locked
+uv run --no-sync alembic upgrade head
+uv run --no-sync alembic current
+uv run --no-sync alembic history
+```
+
+They use the same database as the application: `IAN_DATABASE_URL`, else the default file in `IAN_DATA_DIR`. A one-command
+override affects only Alembic and does not redirect later analysis commands. The path in it must be absolute:
+
+```powershell
+uv run --no-sync alembic -x "database_url=sqlite:///E:/FinancialData/trial.sqlite3" upgrade head
+```
+
+Migration URL precedence is `-x database_url`, an explicit Alembic `sqlalchemy.url`, then application settings.
+
+Downgrading to `base` removes the persistence tables and their data. Use the following only for an explicitly
+disposable database or after approving data loss and retaining a verified backup:
+
+```powershell
+uv run --no-sync alembic -x "database_url=sqlite:///E:/FinancialData/disposable.sqlite3" downgrade base
+uv run --no-sync alembic -x "database_url=sqlite:///E:/FinancialData/disposable.sqlite3" upgrade head
+```
+
+Do not use `alembic stamp head` to conceal a failure.
 
 ## Offline persistence verification
 

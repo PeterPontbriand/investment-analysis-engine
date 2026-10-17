@@ -10,6 +10,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 import pytest
+from alembic import command
 from alembic.config import Config
 from pandas.testing import assert_frame_equal
 from pydantic import ValidationError
@@ -17,9 +18,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from alembic import command
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
 from investment_analysis_engine.data.repositories import market_data
 from investment_analysis_engine.data.repositories.market_data import (
@@ -33,6 +32,7 @@ from investment_analysis_engine.data.repositories.schema import (
     schema_metadata,
 )
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 9, 5, 12, 0, 0, 123456, tzinfo=UTC)
 

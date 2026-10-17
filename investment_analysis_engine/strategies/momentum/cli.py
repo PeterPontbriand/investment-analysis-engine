@@ -12,7 +12,6 @@ from investment_analysis_engine.cli_provider_check import provider_check_choice
 from investment_analysis_engine.cli_run_support import save_run_execution
 from investment_analysis_engine.cli_support import (
     SaveStage,
-    _default_ticker,
     _parse_as_of,
     _presentation_mode,
     _production_database,
@@ -162,18 +161,13 @@ def command(  # noqa: PLR0913
         selection_type=MomentumSelection,
         provider_check=provider_check_choice(context, no_provider_check=no_provider_check),
     ) as scope:
-        requested_ticker = _resolve_ticker(ticker, ticker_option, required=False, command="momentum")
+        requested_ticker = _resolve_ticker(ticker, ticker_option, command="momentum")
         scope.ticker = requested_ticker
         mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
         scope.mode = mode
         _validate_momentum_windows(short_window, long_window, rsi_period)
         boundary = _parse_as_of(as_of)
-        if save_run and requested_ticker is None:
-            raise InvalidParameterError(
-                "--save-run requires an explicit ticker; the configured default ticker is not saved.",
-                parameters=("--save-run",),
-            )
-        target_ticker = require_ticker(requested_ticker if requested_ticker is not None else _default_ticker())
+        target_ticker = require_ticker(requested_ticker)
         start_date = momentum_settings().history_start_date.isoformat()
         data_client = YFinanceClient()
         config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)

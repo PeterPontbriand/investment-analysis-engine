@@ -198,7 +198,7 @@ Modeled directly on the accepted `market_data_cache_entries` /
 Implemented in Slice B:
 [`src/data/repositories/schema.py`](../../../../../investment_analysis_engine/data/repositories/schema.py)
 (`instrument_profiles` table),
-[`alembic/versions/0004_instrument_profiles.py`](../../../../../alembic/versions/0004_instrument_profiles.py),
+[`alembic/versions/0004_instrument_profiles.py`](../../../../../investment_analysis_engine/data/repositories/migration_scripts/versions/0004_instrument_profiles.py),
 and
 [`src/data/repositories/instrument_profiles.py`](../../../../../investment_analysis_engine/data/repositories/instrument_profiles.py)
 (`SQLiteInstrumentProfileRepository`, `InstrumentProfileRecord`).

@@ -9,15 +9,14 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from typer.testing import CliRunner
 
-from alembic import command
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_composition import build_graham_resolver
 from investment_analysis_engine.cli_support import _production_financial_cache
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, ProviderFact
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
@@ -30,6 +29,7 @@ from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
 )
 from investment_analysis_engine.evaluation.fixtures.graham import NOW, PROVIDER_ID, FixtureFinancialFactsProvider
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from scripts.repository_root import REPOSITORY_ROOT
 
 
 class GrahamProvider:

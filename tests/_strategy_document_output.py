@@ -31,17 +31,16 @@ from types import ModuleType
 from typing import cast
 from unittest.mock import patch
 
+from alembic import command
 from alembic.config import Config
 from typer.testing import CliRunner
 
-from alembic import command
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.config import settings as real_settings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.financial.facts import (
     FinancialFactRequest,
     FinancialFactsProvider,
@@ -83,6 +82,7 @@ from investment_analysis_engine.strategies.graham_number.calculation import Grah
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._direct_command_output import (
     _COMMANDS,
     CommandOutput,

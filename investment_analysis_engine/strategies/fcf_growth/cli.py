@@ -181,7 +181,7 @@ def command(  # noqa: PLR0913
         selection_type=FCFGrowthSelection,
         provider_check=provider_check,
     ) as scope:
-        target_ticker = _resolve_ticker(ticker, None, required=True, command="fcf-growth")
+        target_ticker = _resolve_ticker(ticker, None, command="fcf-growth")
         assert target_ticker is not None
         scope.ticker = target_ticker
         mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)

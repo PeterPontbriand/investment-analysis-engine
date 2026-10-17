@@ -18,7 +18,6 @@ metadata.
 """
 
 import sqlalchemy as sa
-
 from alembic import op
 
 revision: str = "0004_instrument_profiles"

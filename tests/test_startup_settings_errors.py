@@ -5,15 +5,23 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from scripts.repository_root import REPOSITORY_ROOT
+from tests.conftest import SESSION_FOLDER
 
 
 def _run_ian(variables: dict[str, str], *arguments: str) -> subprocess.CompletedProcess[str]:
     """Run the real entry point in a subprocess whose engine variables are exactly ``variables``."""
     environment = {name: value for name, value in os.environ.items() if not name.lower().startswith("ian_")}
+    # The three folders stay inside the test session, so that no run can reach the user's real folders.
+    environment.update(
+        IAN_CONFIG_DIR=str(SESSION_FOLDER / "config"),
+        IAN_DATA_DIR=str(SESSION_FOLDER / "data"),
+        IAN_LOG_DIR=str(SESSION_FOLDER / "logs"),
+    )
     environment.update(variables)
     return subprocess.run(  # noqa: S603
         [sys.executable, "-m", "investment_analysis_engine.main", *arguments],
@@ -72,3 +80,26 @@ def test_bad_nested_value_is_reported_at_startup(arguments: tuple[str, ...]) -> 
 
     _assert_one_sentence_failure(run, "valid integer")
     assert "ian_schema_config__max_validation_retries".upper() in run.stderr.upper()
+
+
+@pytest.mark.parametrize("name", ["IAN_CONFIG_DIR", "IAN_DATA_DIR", "IAN_LOG_DIR", "IAN_TELEMETRY_LOG_DIR"])
+def test_a_relative_folder_is_reported_at_startup_naming_the_variable(name: str) -> None:
+    run = _run_ian({name: "relative/folder"}, "--help")
+
+    _assert_one_sentence_failure(run, name, "must be an absolute path")
+    assert "project folder" not in run.stderr
+
+
+def test_a_relative_database_file_path_is_reported_at_startup_naming_the_variable() -> None:
+    run = _run_ian({"IAN_DATABASE_URL": "sqlite:///data/x.sqlite3"}, "--help")
+
+    _assert_one_sentence_failure(run, "IAN_DATABASE_URL", "must be an absolute path")
+
+
+def test_the_env_file_cannot_set_the_variable_that_locates_it(tmp_path: Path) -> None:
+    (tmp_path / ".env").write_text(f"IAN_CONFIG_DIR={tmp_path}\n", encoding="utf-8")
+
+    run = _run_ian({"IAN_CONFIG_DIR": str(tmp_path)}, "--help")
+
+    _assert_one_sentence_failure(run, "IAN_CONFIG_DIR", "cannot be set there")
+    assert str(tmp_path) in run.stderr

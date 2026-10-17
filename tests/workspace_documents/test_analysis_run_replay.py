@@ -1,7 +1,6 @@
 """Deterministic replay tests for projection v1 (Momentum): no recalculation, no live calls."""
 
 import json
-from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, datetime
 from unittest.mock import patch
@@ -59,14 +58,6 @@ class _FixtureClient(FixtureDataClient):
     @property
     def provider_id(self) -> str:
         return "fixture"
-
-
-@pytest.fixture(autouse=True)
-def mock_momentum_settings() -> Iterator[None]:
-    """Materialize deterministic Momentum defaults for the analyzer's fallback ticker."""
-    mock_analysis = {"default": {"default_ticker": "BTC-USD"}}
-    with patch("investment_analysis_engine.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
-        yield
 
 
 class _FakeSink:

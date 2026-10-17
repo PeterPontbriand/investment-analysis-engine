@@ -19,7 +19,6 @@ from investment_analysis_engine import cli_health
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.provider_checks import (
     CheckVerdict,
@@ -31,6 +30,7 @@ from investment_analysis_engine.data.provider_checks import (
 )
 from investment_analysis_engine.data.yfinance.client import YFinanceQuote
 from investment_analysis_engine.reporting.documents.health import ProviderHealthDocument, ProviderLibrary
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()

@@ -211,19 +211,13 @@ def test_cli_momentum_known_etf_remains_applicable_and_retains_kind(
     assert payload["instrument_kind"]["kind"] == "etf"
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
-def test_cli_momentum_without_ticker_uses_the_normalized_configured_default(
-    mock_run: MagicMock, mock_momentum_run: MomentumRun
-) -> None:
-    mock_run.return_value = mock_momentum_run
-    carry_profile(mock_run)
-    configured = {"default": {"default_ticker": " btc-usd "}}
+def test_cli_momentum_without_ticker_gives_the_message_the_other_commands_give() -> None:
+    momentum = runner.invoke(app, ["momentum"])
+    graham = runner.invoke(app, ["graham-number"])
 
-    with patch("investment_analysis_engine.config.ProjectSettings.get_analysis_settings", return_value=configured):
-        result = runner.invoke(app, ["momentum"])
-
-    assert result.exit_code == 0
-    assert mock_run.call_args.kwargs["ticker"] == "BTC-USD"
+    assert momentum.exit_code == graham.exit_code == 1
+    assert momentum.stderr.strip() == "TICKER is required. Use 'ian momentum TICKER'."
+    assert momentum.stderr.strip().replace("momentum", "graham-number") == graham.stderr.strip()
 
 
 @patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
@@ -487,7 +481,7 @@ def test_graham_growth_default_uses_configured_sec_identity(mock_sec_adapter: Ma
     mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
 
 
-def test_cli_graham_number_is_default_ticker_analysis(fixture_resolver: GrahamNumberInputResolver) -> None:
+def test_cli_graham_number_concise_analysis(fixture_resolver: GrahamNumberInputResolver) -> None:
     with patch(
         "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver
     ):

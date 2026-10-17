@@ -37,6 +37,18 @@ else
     windows_run_root="$run_root"
 fi
 
+# The test session ignores the per-user settings folder, so the one key the live checks need is read from its .env file
+# here by scripts.user_sec_identity, which uses the package's own resolver (and so honours IAN_CONFIG_DIR). The value is never printed or logged.
+if [ -z "${SEC_USER_AGENT:-}" ]; then
+    user_agent="$(uv run --no-sync python -m scripts.user_sec_identity | tr -d '\r')" || {
+        printf 'run-live-checks.sh: could not read the settings folder to look for SEC_USER_AGENT\n' >&2
+        exit 2
+    }
+    if [ -n "$user_agent" ]; then
+        export SEC_USER_AGENT="$user_agent"
+    fi
+fi
+
 export TEMP="$windows_run_root"
 export TMP="$windows_run_root"
 export UV_CACHE_DIR="$windows_run_root/uv-cache"

@@ -16,16 +16,15 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from typer.testing import CliRunner
 
-from alembic import command
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.config import settings as real_settings
 from investment_analysis_engine.core.constants import TrendStatus
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.market_data import MarketDataContext
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
@@ -43,6 +42,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
     SQLiteAnalysisRunRepository,
 )
 from investment_analysis_engine.workspace.runs import RunQuery
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_cli_output  # noqa: F401
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 
@@ -178,12 +178,6 @@ def test_momentum_save_run_persists_as_of_and_no_cache_on_the_selection(
     assert isinstance(selection, MomentumSelection)
     assert selection.as_of == context.as_of
     assert selection.use_cache is False
-
-
-def test_momentum_save_run_without_explicit_ticker_is_an_invalid_parameter() -> None:
-    result = runner.invoke(app, ["momentum", "--save-run"])
-    assert result.exit_code == 1
-    assert "requires an explicit ticker" in normalize_cli_output(result.output)
 
 
 # ---------------------------------------------------------------------------

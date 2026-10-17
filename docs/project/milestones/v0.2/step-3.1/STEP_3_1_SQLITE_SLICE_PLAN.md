@@ -295,7 +295,7 @@ environment/programmatic/CLI URL selection, percent-bearing paths and independen
 cwd, preserved logging, effective migration pragmas, rollback on failure, resource
 release, and offline-mode rejection. All databases are disposable test files.
 
-Operator commands and restrictions are in the [migration README](../../../../../alembic/README.md).
+Operator commands and restrictions are in the [migration README](../../../../../investment_analysis_engine/data/repositories/migration_scripts/README.md).
 The environment follows Alembic's [tutorial](https://alembic.sqlalchemy.org/en/latest/tutorial.html)
 and [connection-sharing guidance](https://alembic.sqlalchemy.org/en/latest/cookbook.html#sharing-a-connection-with-a-series-of-migration-commands-and-environments).
 

@@ -7,17 +7,17 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from alembic import command, context, op
 from alembic.config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.schema import SchemaItem, Table
 
-from alembic import command, context, op
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.repositories import migrations
 from investment_analysis_engine.data.repositories.readiness import ReadinessOutcome, ensure_database_ready
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from scripts.repository_root import REPOSITORY_ROOT
 
 
 def migration_config(path: Path) -> Config:
@@ -270,8 +270,8 @@ def test_fresh_upgrade_requires_active_transaction() -> None:
 def test_resource_discovery_checks_actual_synthetic_graph(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shape: str
 ) -> None:
-    monkeypatch.setattr(migrations, "REPOSITORY_ROOT", tmp_path)
-    scripts = tmp_path / "alembic"
+    monkeypatch.setattr(migrations, "PACKAGE_ROOT", tmp_path)
+    scripts = tmp_path / "data" / "repositories" / "migration_scripts"
     if shape != "missing":
         (scripts / "versions").mkdir(parents=True)
         (scripts / "env.py").write_text('"""Synthetic migration environment."""\n', encoding="utf-8")

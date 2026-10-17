@@ -6,12 +6,11 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from pandas.testing import assert_frame_equal
 
-from alembic import command
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
 from investment_analysis_engine.data.financial.cache import ResolvedInputCacheEntry, ResolvedInputCacheKey
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
@@ -26,6 +25,7 @@ from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.data.repositories.trajectory import SQLiteTrajectoryRepository
 from investment_analysis_engine.evaluation.fixtures.market_data import momentum_success_frame
 from investment_analysis_engine.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory
+from scripts.repository_root import REPOSITORY_ROOT
 
 
 def test_fresh_database_persistence_lifecycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

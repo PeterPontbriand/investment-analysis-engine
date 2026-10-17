@@ -18,7 +18,7 @@ import typer
 
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy, add_strategy_commands
-from investment_analysis_engine.core.repository_root import PACKAGE_ROOT
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, require
 from investment_analysis_engine.evaluation.composition import FixtureDependencies, compose_fixture_dependencies
 from investment_analysis_engine.evaluation.models import Case

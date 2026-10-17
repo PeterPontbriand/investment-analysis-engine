@@ -1,19 +1,17 @@
 """Focused tests for the terminal execution/save service, using fake dependencies only."""
 
 import socket
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from uuid import UUID
 
 import pytest
+from alembic import command
 from alembic.config import Config
 
-from alembic import command
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
@@ -47,6 +45,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
 )
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 from investment_analysis_engine.workspace.runs import AnalysisRun
+from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)
 LATER = datetime(2026, 9, 18, 12, 0, 1, tzinfo=UTC)
@@ -59,14 +58,6 @@ class _FixtureClient(FixtureDataClient):
     @property
     def provider_id(self) -> str:
         return "fixture"
-
-
-@pytest.fixture(autouse=True)
-def mock_momentum_settings() -> Iterator[None]:
-    """Materialize deterministic Momentum defaults for the analyzer's fallback ticker."""
-    mock_analysis = {"default": {"default_ticker": "BTC-USD"}}
-    with patch("investment_analysis_engine.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
-        yield
 
 
 class _FakeSink:

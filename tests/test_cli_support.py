@@ -84,16 +84,18 @@ def test_invalid_boundaries_are_invalid_parameters(value: str) -> None:
 
 
 def test_ticker_provider_and_presentation_normalization() -> None:
-    assert _resolve_ticker(" ko ", "KO", required=True, command="graham-number") == "KO"
-    assert _resolve_ticker(None, None, required=False, command="momentum") is None
+    assert _resolve_ticker(" ko ", "KO", command="graham-number") == "KO"
     with pytest.raises(InvalidParameterError, match="graham-growth TICKER") as missing:
-        _resolve_ticker(None, None, required=True, command="graham-growth")
+        _resolve_ticker(None, None, command="graham-growth")
     assert missing.value.parameters == ("TICKER",)
+    with pytest.raises(InvalidParameterError, match="momentum TICKER") as missing_momentum:
+        _resolve_ticker(None, None, command="momentum")
+    assert missing_momentum.value.parameters == ("TICKER",)
     with pytest.raises(InvalidParameterError) as blank:
-        _resolve_ticker(" ", None, required=False, command="momentum")
+        _resolve_ticker(" ", None, command="momentum")
     assert (str(blank.value), blank.value.parameters) == ("TICKER must be a non-empty symbol.", ("TICKER",))
     with pytest.raises(InvalidParameterError) as blank_option:
-        _resolve_ticker(None, " ", required=False, command="momentum")
+        _resolve_ticker(None, " ", command="momentum")
     assert blank_option.value.parameters == ("--ticker",)
     assert _canonical_provider_id(" SEC_EDGAR ") == "sec_edgar"
     assert _canonical_provider_id(None) is None

@@ -181,16 +181,16 @@ For which strategies exist today and what each one computes, see the [user strat
 
 ### Strategy settings
 
-A strategy's editable defaults, such as window lengths or configured constants, live in one TOML file per strategy, `config/strategies/<alias>.toml`, where `<alias>` is the strategy's descriptor alias. Values that define the method itself stay in code. A strategy with nothing to configure has no file.
+A strategy's editable defaults, such as window lengths or configured constants, ship in one TOML file per strategy, `settings.toml`, in the same folder as the module that defines the strategy's settings model (`strategies/momentum/settings.toml`). A user may override any subset of the keys in `strategies/<alias>.toml` in the per-user settings folder, where `<alias>` is the strategy's descriptor alias; the loader merges the two per key and finds the shipped file from the model's module, never from a fixed folder name. The application never writes to the settings folder. Values that define the method itself stay in code. A strategy with nothing to configure has neither file.
 
-- **Typed model.** The strategy declares a settings model in its own package: a frozen model that forbids unknown keys, with strict types and no defaults, so the file is the single source of every value. Validators enforce the invariants, and each field's docstring documents its key.
+- **Typed model.** The strategy declares a settings model in its own package: a frozen model that forbids unknown keys, with strict types and no defaults, so the shipped file is the single source of every default value. Validators enforce the invariants, and each field's docstring documents its key.
 - **Descriptor.** `StrategyDescriptor.settings_type` names the model, or is `None` for a strategy with no file.
-- **Loader.** One generic loader in `config` reads a file and validates it into the model it is given. It knows no strategy and caches each file for the life of the process.
+- **Loader.** One generic loader in `config` reads the shipped file and the user's file and validates the merged keys into the model it is given. It knows no strategy and caches the result per settings folder for the life of the process.
 - **Entry points.** Strategies never read settings. The composition roots load them and pass them in: the direct commands take their option defaults from them, the watchlist commands copy the values into the selection they create (so a later edit never changes a saved entry and replay never reads settings), calculation constants are given to the analyzer when it is built, and the local-model tool handler receives the settings with its dependencies and uses them for any argument the model omits.
 - **Evaluation.** Golden composition passes fixed settings of its own and never reads a settings file, so editing a file cannot change Golden results or the model prompt.
-- **Startup validation.** Every declared file is loaded when the commands are defined, so a missing or invalid file stops every command, including `--help`, with exit code 2 and one message that names the file and the key and never repeats the value.
+- **Startup validation.** Every declared file is loaded when the commands are defined, so a missing shipped file or an invalid file stops every command, including `--help`, with exit code 2 and one message that gives the full path of the file the key came from, names the key and never repeats the value. A missing user file is normal.
 
-A test checks that every declared model has a file that validates, that every file belongs to a descriptor with a model, and that every model is frozen, forbids unknown keys and has no defaults.
+A test checks that every declared model has a shipped file that validates, that every shipped file belongs to a descriptor with a model, and that every model is frozen, forbids unknown keys and has no defaults.
 
 ---
 
@@ -426,7 +426,7 @@ Named watchlists hold tickers and supported requested analyses. A user-initiated
 The [fresh database readiness contract](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
 is implemented by `investment_analysis_engine/data/repositories/readiness.py`. CLI cache composition
 checks required persistence before use and initializes only missing or verified
-empty storage through bundled Alembic migrations. Existing schemas require
+empty storage through the Alembic migrations in `investment_analysis_engine/data/repositories/migration_scripts/`, which ship inside the package. Existing schemas require
 explicit operator upgrades. Repositories remain lazy borrowers; analyzers own no
 schema management. `readiness_lock.py` coordinates automatic, explicit and manual
 migration owners through a persistent OS-locked sidecar, followed by an authoritative
@@ -573,7 +573,7 @@ This table is the single declaration of the top-level units under `investment_an
 
 | Package | Layer | Owns | Imports |
 | --- | --- | --- | --- |
-| `core` | 0 | The repository root, the shared clock, core result and status types, strategy errors, constants, the stable failure codes and the classifier that maps an exception to one, and the trajectory event model. |  |
+| `core` | 0 | The package root, the shared clock, core result and status types, strategy errors, constants, the stable failure codes and the classifier that maps an exception to one, and the trajectory event model. |  |
 | `tools` | 0 | The tool registry, tool-argument schema generation, and parsing of tool calls from model output. |  |
 | `config` | 1 | The application settings object and its environment and profile loading, the reliability-limits and schema-enforcement settings shapes it holds, path validation, and the strategy-settings loader. | `core` |
 | `data` | 2 | Provider contracts and adapters, financial-fact provenance and resolution, instrument identity and profiles, and the SQLite database layer with the provider-data, cache and trajectory repositories. | `config`, `core` |

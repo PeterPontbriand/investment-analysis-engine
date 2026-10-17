@@ -17,13 +17,13 @@ from typing import Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import OperationalError
 from typer.testing import CliRunner, Result
 
 import investment_analysis_engine.cli_workspace
-from alembic import command
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_strategy_wiring import CLI_BUILDERS
 from investment_analysis_engine.cli_support import (
@@ -38,8 +38,8 @@ from investment_analysis_engine.config import settings as real_settings
 from investment_analysis_engine.core.failure_classification import classify_failure
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError
+from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
-from investment_analysis_engine.core.repository_root import PACKAGE_ROOT, REPOSITORY_ROOT
 from investment_analysis_engine.core.strategy_errors import undeclared
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
@@ -50,6 +50,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
     AnalysisRunConflictError,
     SQLiteAnalysisRunRepository,
 )
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
 from tests._direct_command_output import _COMMANDS, enter_fixture_providers
 from tests._failure_code_table import _historical_quality_error

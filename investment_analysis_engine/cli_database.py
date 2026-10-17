@@ -1,13 +1,17 @@
 """Hidden technical commands for inspecting and migrating configured storage."""
 
 import json
+from pathlib import Path
 from typing import Literal
 
 import typer
 from pydantic import ValidationError
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 from investment_analysis_engine.cli_support import parameter_failures, report_failure
 from investment_analysis_engine.config import ProjectSettings, settings
+from investment_analysis_engine.config.paths import is_windows, require_anchored_path
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.data.repositories.readiness import (
@@ -33,6 +37,27 @@ def _first_reason(error: ValidationError) -> str:
 _MEMORY_TARGET_SENTENCE = "Database maintenance requires a file-backed target; private memory is not supported."
 
 
+def _anchor_database_url(database_url: str) -> str:
+    """Resolve a relative SQLite file path in ``--database-url`` against the current folder.
+
+    A URL the settings will reject anyway, memory and URI targets, and a path that is not a file path are returned
+    unchanged, so the settings give their usual message. A Windows path that is only partly anchored is rejected.
+    """
+    try:
+        url = make_url(database_url)
+    except ArgumentError:
+        return database_url
+    if url.database in (None, "", ":memory:") or url.database.startswith("file:"):
+        return database_url
+    try:
+        require_anchored_path(url.database, name="--database-url", windows=is_windows())
+    except ValueError as exc:
+        raise InvalidParameterError(
+            f"Select a valid local SQLite database URL for --database-url: {exc}", parameters=("--database-url",)
+        ) from exc
+    return url.set(database=(Path.cwd() / url.database).resolve().as_posix()).render_as_string(hide_password=False)
+
+
 def _open_database(database_url: str | None, *, json_output: bool) -> SQLiteDatabase:
     """Open the selected target, which must be a validated file-backed SQLite database.
 
@@ -45,7 +70,7 @@ def _open_database(database_url: str | None, *, json_output: bool) -> SQLiteData
             selected = (
                 settings
                 if database_url is None
-                else ProjectSettings(**(settings.model_dump() | {"database_url": database_url}))
+                else ProjectSettings(**(settings.model_dump() | {"database_url": _anchor_database_url(database_url)}))
             )
         except ValidationError as exc:
             raise InvalidParameterError(

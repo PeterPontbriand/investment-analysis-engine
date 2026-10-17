@@ -7,7 +7,7 @@ The synthetic marked test makes no network call.
 
 import pytest
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from scripts.repository_root import REPOSITORY_ROOT
 
 pytest_plugins = ["pytester"]
 

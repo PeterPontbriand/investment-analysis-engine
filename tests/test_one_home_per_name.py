@@ -1,8 +1,8 @@
-"""A name has one import path, and the repository root has one definition.
+"""A name has one import path, and the package root has one definition.
 
 Three checks over the source tree: package initializers hold only a docstring, no module lists in ``__all__`` a
-name it does not define, and no file counts folders up from ``__file__`` except where the repository root is
-defined. The repository-root constant itself is checked last.
+name it does not define, and no file counts folders up from ``__file__`` except where the package root is
+defined. The repository-root constant for tests and scripts is checked last.
 """
 
 from __future__ import annotations
@@ -10,16 +10,21 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from scripts.repository_root import REPOSITORY_ROOT
 
 _SOURCE_FOLDERS = ("investment_analysis_engine", "tests", "scripts")
 # The one initializer that holds code: the settings themselves, not a re-export of its children.
 _INITIALIZER_WITH_CODE = "investment_analysis_engine/config/__init__.py"
-# Files that may count folders up from ``__file__``, once each: the definition of the repository root, and the
+# Files that may count folders up from ``__file__``, once each: the definition of the package root, and the
 # script that runs before ``investment_analysis_engine`` is importable and so cannot import it.
 _FOLDER_COUNT_ALLOWED = frozenset(
-    {"investment_analysis_engine/core/repository_root.py", "scripts/check_package_dependencies.py"}
+    {"investment_analysis_engine/core/package_root.py", "scripts/check_package_dependencies.py"}
 )
+
+# The repository root is defined once, for tests and scripts, in this file; nothing else derives it.
+_REPOSITORY_ROOT_DEFINITION = "scripts/repository_root.py"
+_DERIVATION = "PACKAGE_ROOT" + ".parent"
+_DERIVATION_MESSAGE = "derives the repository root; import REPOSITORY_ROOT from scripts.repository_root instead"
 
 
 def _python_files(root: Path, folder: str) -> list[Path]:
@@ -183,11 +188,21 @@ def folder_count_violations(root: Path) -> list[str]:
             if name in _FOLDER_COUNT_ALLOWED:
                 lines = lines[1:]
             violations.extend(
-                f"{name}:{line}: counts folders up from __file__; import REPOSITORY_ROOT from "
-                "investment_analysis_engine.core.repository_root instead"
+                f"{name}:{line}: counts folders up from __file__; import PACKAGE_ROOT from "
+                "investment_analysis_engine.core.package_root instead"
                 for line in lines
             )
     return violations
+
+
+def repository_root_derivation_violations(root: Path) -> list[str]:
+    """Return one message per file, other than the definition, that derives the repository root."""
+    return [
+        f"{_relative(path, root)}: {_DERIVATION_MESSAGE}"
+        for folder in _SOURCE_FOLDERS
+        for path in _python_files(root, folder)
+        if _relative(path, root) != _REPOSITORY_ROOT_DEFINITION and _DERIVATION in path.read_text(encoding="utf-8")
+    ]
 
 
 def test_package_initializers_hold_only_a_docstring() -> None:
@@ -200,6 +215,16 @@ def test_no_module_exports_a_name_it_does_not_define() -> None:
 
 def test_no_file_counts_folders_up_from_itself() -> None:
     assert folder_count_violations(REPOSITORY_ROOT) == []
+
+
+def test_the_repository_root_is_derived_in_one_file(tmp_path: Path) -> None:
+    assert repository_root_derivation_violations(REPOSITORY_ROOT) == []
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "repository_root.py").write_text(f"ROOT = {_DERIVATION}\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_offender.py").write_text(f"ROOT = {_DERIVATION} / 'x'\n", encoding="utf-8")
+
+    assert repository_root_derivation_violations(tmp_path) == [f"tests/test_offender.py: {_DERIVATION_MESSAGE}"]
 
 
 def test_repository_root_holds_the_project_file() -> None:

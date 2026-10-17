@@ -289,7 +289,7 @@ async def test_integration_format_reaches_wire_when_capability_supported() -> No
         options=OrchestratorOptions(config=config),
     )
 
-    builder = SystemPromptBuilder(inject_runtime_rules=False)
+    builder = SystemPromptBuilder()
     system_prompt = builder.build()
     ctx_config = ContextConfig(max_history_messages=30, preserve_system_prompt=True)
     context = MessageContext(config=ctx_config)
@@ -360,7 +360,7 @@ async def test_integration_format_absent_from_wire_when_capability_unsupported()
         options=OrchestratorOptions(config=config),
     )
 
-    builder = SystemPromptBuilder(inject_runtime_rules=False)
+    builder = SystemPromptBuilder()
     system_prompt = builder.build()
     ctx_config = ContextConfig(max_history_messages=30, preserve_system_prompt=True)
     context = MessageContext(config=ctx_config)
