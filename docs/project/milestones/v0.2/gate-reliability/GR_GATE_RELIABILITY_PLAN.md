@@ -26,8 +26,8 @@ position and work-package status.
 | :--- | :--- | :--- | :--- |
 | GR.1 | [The gate wrappers keep their evidence](#gr1--the-gate-wrappers-keep-their-evidence) | Complete | 2026-10-13 |
 | GR.2 | [Resource leaks fail the suite](#gr2--resource-leaks-fail-the-suite) | Complete | 2026-10-15 |
-| GR.2a | [Excuse yfinance's SQLite leak in the live checks, and only that](#gr2a--excuse-yfinances-sqlite-leak-in-the-live-checks-and-only-that) | Next | |
-| GR.3 | [Record the machine's socket state when a test pass fails](#gr3--record-the-machines-socket-state-when-a-test-pass-fails) | Planned | |
+| GR.2a | [Excuse yfinance's SQLite leak in the live checks, and only that](#gr2a--excuse-yfinances-sqlite-leak-in-the-live-checks-and-only-that) | Complete | 2026-10-17 |
+| GR.3 | [Record the machine's socket state when a test pass fails](#gr3--record-the-machines-socket-state-when-a-test-pass-fails) | Next | |
 
 ## 3. The slices
 
