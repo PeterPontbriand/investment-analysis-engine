@@ -7,11 +7,13 @@ from unittest.mock import patch
 
 import pytest
 
+from investment_analysis_engine.config.strategy_settings import shipped_settings_path
 from investment_analysis_engine.core.settings_error import StrategySettingsError
 from investment_analysis_engine.main import main
+from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
 
 _MESSAGE = (
-    "Settings file C:/settings/strategies/momentum.toml is invalid: short_window: Input should be greater than 0."
+    f"Settings file {shipped_settings_path(MomentumSettings)} is invalid: short_window: Input should be greater than 0."
 )
 
 
@@ -20,7 +22,7 @@ def test_a_loader_error_prints_the_message_and_exits_with_code_2(
     arguments: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     # Importing the commands defines them, and defining them loads every declared file, so a fresh import is needed.
-    monkeypatch.delitem(sys.modules, "investment_analysis_engine.cli")
+    monkeypatch.delitem(sys.modules, "investment_analysis_engine.cli", raising=False)
     monkeypatch.setattr(sys, "argv", arguments)
     with (
         patch("investment_analysis_engine.main.setup_global_logging"),
