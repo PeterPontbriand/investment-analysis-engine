@@ -1,10 +1,9 @@
 """Focused tests for the terminal execution/save service, using fake dependencies only."""
 
 import socket
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from uuid import UUID
 
 import pytest
@@ -59,14 +58,6 @@ class _FixtureClient(FixtureDataClient):
     @property
     def provider_id(self) -> str:
         return "fixture"
-
-
-@pytest.fixture(autouse=True)
-def mock_momentum_settings() -> Iterator[None]:
-    """Materialize deterministic Momentum defaults for the analyzer's fallback ticker."""
-    mock_analysis = {"default": {"default_ticker": "BTC-USD"}}
-    with patch("investment_analysis_engine.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
-        yield
 
 
 class _FakeSink:

@@ -207,6 +207,7 @@ def setup_global_logging() -> None:
     file_formatter = logging.Formatter(fmt=_fmt_str, datefmt=_datefmt, style="%")
 
     # 2. Instantiate File Handler
+    settings.log_dir.mkdir(parents=True, exist_ok=True)
     file_path = settings.log_dir / settings.log_file_name
     file_handler = ThreadSafeSizeAwareTimedRotatingFileHandler(
         filename=str(file_path),

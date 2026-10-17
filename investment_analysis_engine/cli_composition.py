@@ -83,7 +83,7 @@ def build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInp
 
 def _settings_folder() -> Path:
     """Return the user's settings folder, which may hold strategy settings files that override the shipped ones."""
-    return settings.base_dir
+    return settings.config_dir
 
 
 def momentum_settings() -> MomentumSettings:

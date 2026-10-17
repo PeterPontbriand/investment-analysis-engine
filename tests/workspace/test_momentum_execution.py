@@ -1,7 +1,6 @@
 """Focused tests for the Momentum execution adapter, using fake dependencies only."""
 
 import socket
-from collections.abc import Generator
 from datetime import UTC, datetime
 from unittest.mock import patch
 
@@ -41,14 +40,6 @@ class _FixtureClient(FixtureDataClient):
     @property
     def provider_id(self) -> str:
         return "fixture"
-
-
-@pytest.fixture(autouse=True)
-def mock_settings_config() -> Generator[None, None, None]:
-    """Stub out configured analysis defaults; the adapter's tests supply their own."""
-    mock_analysis = {"default": {"default_ticker": "BTC-USD"}}
-    with patch("investment_analysis_engine.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
-        yield
 
 
 def _selection() -> MomentumSelection:

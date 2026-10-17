@@ -57,12 +57,13 @@ def test_nested_settings_are_prefixed_and_case_insensitive(monkeypatch: pytest.M
 
 @pytest.mark.parametrize("unprefixed", ["DATA_DIR", "data_dir", "SCHEMA_MAX_RETRIES", "OLLAMA_VERSION", "VERSION"])
 def test_unprefixed_names_are_not_read(unprefixed: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    defaults = ProjectSettings()
     monkeypatch.setenv(unprefixed, str(tmp_path / "ignored"))
-    defaults = ProjectSettings(base_dir=tmp_path)
 
-    configured = ProjectSettings(base_dir=tmp_path)
+    configured = ProjectSettings()
 
-    assert configured.data_dir == defaults.data_dir == (tmp_path / "data").resolve()
+    assert configured.data_dir == defaults.data_dir
+    assert configured.data_dir != (tmp_path / "ignored").resolve()
     assert configured.schema_config.max_validation_retries == 3
     assert configured.schema_config.ollama_version is None
     assert configured.version == "0.1.0"

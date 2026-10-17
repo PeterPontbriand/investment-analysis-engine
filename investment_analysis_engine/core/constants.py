@@ -4,13 +4,11 @@ Centralized domain constants and localization registry.
 This module provides strongly-typed constants for financial data agents, including:
 - Locale-specific translations (en/fr)
 - Market trend status vectors
-- Configuration key namespaces
 - Standardized DataFrame column definitions
 
 Classes:
     LocaleDictionary(TypedDict): Dictionary structure for locale-based translations.
     TrendStatus(str, Enum): Strongly-typed market trend indicators.
-    ConfigKeys: Namespace for configuration key lookups.
     DataColumns: Standardized pandas DataFrame column definitions.
 """
 
@@ -80,20 +78,6 @@ class TrendStatus(StrEnum):
         target_locale: Literal["en", "fr"] = "fr" if locale == "fr" else "en"
         locale_set = translations[target_locale]
         return locale_set.get(self.value, self.value)
-
-
-class ConfigKeys:
-    """
-    Namespace for configuration key lookups in pyproject.toml.
-
-    Attributes:
-        DEFAULT_SECTION: Section name for default settings.
-        TICKER: Default ticker lookup key.
-
-    """
-
-    DEFAULT_SECTION: Final[str] = "default"
-    TICKER: Final[str] = "default_ticker"
 
 
 class DataColumns:

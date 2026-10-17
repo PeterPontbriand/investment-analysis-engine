@@ -456,14 +456,15 @@ def test_constraints_and_column_shapes_are_verified(tmp_path: Path, old: str, ne
 
 
 def test_resources_and_target_ignore_working_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    settings = ProjectSettings(base_dir=tmp_path, database_url="sqlite:///nested/100% café.sqlite3")
+    target = tmp_path / "nested" / "100% café.sqlite3"
+    settings = ProjectSettings(database_url=f"sqlite:///{target.as_posix()}")
     database = SQLiteDatabase(settings)
     other = tmp_path / "other"
     other.mkdir()
     monkeypatch.chdir(other)
     try:
         assert ensure_database_ready(database) is ReadinessOutcome.INITIALIZED
-        assert database.database_path == tmp_path / "nested" / "100% café.sqlite3"
+        assert database.database_path == target
         assert not (other / "nested").exists()
     finally:
         database.close()

@@ -16,8 +16,10 @@ from scripts.repository_root import REPOSITORY_ROOT
 @pytest.fixture(autouse=True)
 def isolate_persistence_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in (
-        "IAN_BASE_DIR",
+        "IAN_CONFIG_DIR",
         "IAN_DATA_DIR",
+        "IAN_LOG_DIR",
+        "IAN_TELEMETRY_LOG_DIR",
         "IAN_DATABASE_URL",
         "IAN_DATABASE_BUSY_TIMEOUT_MS",
         "IAN_HISTORICAL_CACHE_TTL_SECONDS",
@@ -46,12 +48,13 @@ def test_project_settings_reads_nested_reliability_limit_from_environment(
     assert configured.reliability_limits.overall_timeout_seconds == 240
 
 
-def test_database_defaults_follow_configured_base(tmp_path: Path) -> None:
-    configured = ProjectSettings(base_dir=tmp_path)
+def test_database_defaults_follow_the_data_directory(tmp_path: Path) -> None:
+    configured = ProjectSettings(data_dir=tmp_path / "data")
 
-    assert configured.data_dir == tmp_path / "data"
+    assert configured.data_dir == (tmp_path / "data").resolve()
     assert (
-        make_url(configured.database_url).database == (tmp_path / "data/investment-analysis-engine.sqlite3").as_posix()
+        make_url(configured.database_url).database
+        == ((tmp_path / "data").resolve() / "investment-analysis-engine.sqlite3").as_posix()
     )
     assert configured.database_busy_timeout_ms == 5_000
     assert configured.historical_cache_ttl_seconds == 3_600
@@ -59,25 +62,10 @@ def test_database_defaults_follow_configured_base(tmp_path: Path) -> None:
     assert not (tmp_path / "data").exists()
 
 
-@pytest.mark.parametrize("relative", [True, False])
-def test_database_default_follows_data_directory(tmp_path: Path, relative: bool) -> None:
-    data_path = Path("custom data") if relative else tmp_path / "external data"
-    configured = ProjectSettings(base_dir=tmp_path, data_dir=data_path)
-
-    assert (
-        make_url(configured.database_url).database
-        == (tmp_path / data_path / "investment-analysis-engine.sqlite3").as_posix()
-    )
-
-
-def test_relative_database_environment_override_ignores_cwd(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    application_base = tmp_path / "application"
+def test_database_environment_override_ignores_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    database = tmp_path / "database files" / "custom.sqlite3"
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("IAN_BASE_DIR", str(application_base))
-    monkeypatch.setenv("IAN_DATABASE_URL", "sqlite+pysqlite:///database files/custom.sqlite3")
+    monkeypatch.setenv("IAN_DATABASE_URL", f"sqlite+pysqlite:///{database.as_posix()}")
     monkeypatch.setenv("IAN_DATABASE_BUSY_TIMEOUT_MS", "1200")
     monkeypatch.setenv("IAN_HISTORICAL_CACHE_TTL_SECONDS", "90.5")
     monkeypatch.setenv("IAN_TELEMETRY_SINK", "sqlite")
@@ -86,7 +74,7 @@ def test_relative_database_environment_override_ignores_cwd(
 
     url = make_url(configured.database_url)
     assert url.drivername == "sqlite+pysqlite"
-    assert url.database == (application_base / "database files/custom.sqlite3").as_posix()
+    assert url.database == database.resolve().as_posix()
     assert configured.database_busy_timeout_ms == 1_200
     assert configured.historical_cache_ttl_seconds == 90.5
     assert configured.telemetry_sink == "sqlite"
@@ -98,14 +86,6 @@ def test_absolute_database_override_is_preserved(tmp_path: Path) -> None:
 
     assert make_url(configured.database_url).database == database_path.as_posix()
     assert not database_path.exists()
-
-
-def test_relative_base_is_anchored_to_application_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
-
-    configured = ProjectSettings(base_dir=Path(".tmp/config-base"))
-
-    assert configured.base_dir == REPOSITORY_ROOT / ".tmp/config-base"
 
 
 @pytest.mark.parametrize("database_url", ["sqlite://", "sqlite:///:memory:"])
@@ -170,12 +150,13 @@ def test_import_does_not_create_database(tmp_path: Path, monkeypatch: pytest.Mon
 
     assert result.returncode == 0, result.stderr
     assert not database_path.parent.exists()
+    assert not any((tmp_path / name).exists() for name in ("data", "logs", "telemetry"))
 
 
 # --- Windows path anchoring guard -------------------------------------------------------------
 
 _PARTLY_ANCHORED = [
-    ("base_dir", Path("/e/Source/x"), "base_dir path '/e/Source/x' has a root but no drive letter"),
+    ("config_dir", Path("/e/Source/x"), "config_dir path '/e/Source/x' has a root but no drive letter"),
     ("data_dir", Path("/e/Source/x"), "data_dir path '/e/Source/x' has a root but no drive letter"),
     ("log_dir", Path("/e/Source/x"), "log_dir path '/e/Source/x' has a root but no drive letter"),
     (
@@ -202,7 +183,7 @@ _PARTLY_ANCHORED = [
 def windows_rules(monkeypatch: pytest.MonkeyPatch) -> None:
     """Apply the Windows path rule on any operating system."""
     monkeypatch.setattr("investment_analysis_engine.config.paths.is_windows", lambda: True)
-    for name in ("IAN_LOG_DIR", "IAN_TELEMETRY_LOG_DIR"):
+    for name in ("IAN_CONFIG_DIR", "IAN_DATA_DIR", "IAN_LOG_DIR", "IAN_TELEMETRY_LOG_DIR", "IAN_DATABASE_URL"):
         monkeypatch.delenv(name, raising=False)
 
 
@@ -226,12 +207,17 @@ def test_partly_anchored_paths_are_rejected_from_the_environment(
 
 
 @pytest.mark.parametrize(("field", "value", "message"), _PARTLY_ANCHORED)
-def test_partly_anchored_paths_are_not_checked_off_windows(
+def test_partly_anchored_paths_are_not_reported_as_partly_anchored_off_windows(
     field: str, value: object, message: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Off Windows a rooted path is absolute; a drive-letter path with no root is a relative path and is rejected."""
     del message
     monkeypatch.setattr("investment_analysis_engine.config.paths.is_windows", lambda: False)
-    ProjectSettings.model_validate({field: value})
+    if "E:data" in str(value):
+        with pytest.raises(ValidationError, match="must be an absolute path"):
+            ProjectSettings.model_validate({field: value})
+    else:
+        ProjectSettings.model_validate({field: value})
 
 
 @pytest.mark.usefixtures("windows_rules")
@@ -246,15 +232,13 @@ def test_a_rejected_path_creates_nothing(tmp_path: Path, monkeypatch: pytest.Mon
 @pytest.mark.parametrize(
     "database_url",
     [
-        "sqlite:///data/x.sqlite3",
-        "sqlite:///.tmp/probe/x.sqlite3",
         "sqlite:///E:/Source/x.sqlite3",
         "sqlite:///E:\\Source\\x.sqlite3",
         "sqlite://",
         "sqlite:///:memory:",
     ],
 )
-def test_relative_qualified_and_memory_database_urls_are_accepted_on_windows(database_url: str) -> None:
+def test_qualified_and_memory_database_urls_are_accepted_on_windows(database_url: str) -> None:
     assert ProjectSettings(database_url=database_url).database_url
 
 
@@ -264,43 +248,29 @@ def test_defaults_are_accepted_on_windows() -> None:
     assert ProjectSettings().database_url
 
 
-@pytest.mark.parametrize("field", ["log_dir", "telemetry_log_dir"])
-def test_relative_log_directories_resolve_under_base_dir(
-    field: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    other = tmp_path / "elsewhere"
-    other.mkdir()
-    monkeypatch.chdir(other)
-    base = tmp_path / "application"
-
-    configured = ProjectSettings.model_validate({"base_dir": base, field: Path("my logs")})
-
-    assert getattr(configured, field) == (base / "my logs").resolve()
+@pytest.mark.parametrize("field", ["config_dir", "data_dir", "log_dir", "telemetry_log_dir"])
+def test_relative_directories_are_rejected(field: str) -> None:
+    with pytest.raises(ValidationError, match=f"{field} path 'my logs' must be an absolute path"):
+        ProjectSettings.model_validate({field: Path("my logs")})
 
 
-@pytest.mark.parametrize("field", ["log_dir", "telemetry_log_dir"])
-def test_absolute_log_directories_are_preserved(field: str, tmp_path: Path) -> None:
-    target = tmp_path / "abs logs"
+@pytest.mark.parametrize("field", ["config_dir", "data_dir", "log_dir", "telemetry_log_dir"])
+def test_absolute_directories_are_preserved(field: str, tmp_path: Path) -> None:
+    target = tmp_path / "abs folder"
 
-    configured = ProjectSettings.model_validate({"base_dir": tmp_path / "application", field: target})
+    configured = ProjectSettings.model_validate({field: target})
 
     assert getattr(configured, field) == target.resolve()
 
 
-def test_log_directory_defaults_are_unchanged(tmp_path: Path) -> None:
-    project_root = REPOSITORY_ROOT
-
-    configured = ProjectSettings(base_dir=tmp_path)
-
-    assert configured.log_dir == project_root / "logs"
-    assert configured.telemetry_log_dir == project_root / "logs"
-
-
 @pytest.mark.skipif(sys.platform != "win32", reason="exercises the real Windows path rules")
 @pytest.mark.parametrize("database_url", ["sqlite:////e/Source/x.sqlite3", "sqlite:///E:data/x.sqlite3"])
-def test_partly_anchored_database_url_is_rejected_by_real_windows_rules(database_url: str, tmp_path: Path) -> None:
+def test_partly_anchored_database_url_is_rejected_by_real_windows_rules(
+    database_url: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
     with pytest.raises(ValidationError, match="Windows would"):
-        ProjectSettings(base_dir=tmp_path, database_url=database_url)
+        ProjectSettings(database_url=database_url)
     assert list(tmp_path.iterdir()) == []
 
 

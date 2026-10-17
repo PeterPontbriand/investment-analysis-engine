@@ -180,12 +180,6 @@ def test_momentum_save_run_persists_as_of_and_no_cache_on_the_selection(
     assert selection.use_cache is False
 
 
-def test_momentum_save_run_without_explicit_ticker_is_an_invalid_parameter() -> None:
-    result = runner.invoke(app, ["momentum", "--save-run"])
-    assert result.exit_code == 1
-    assert "requires an explicit ticker" in normalize_cli_output(result.output)
-
-
 # ---------------------------------------------------------------------------
 # Graham Number
 # ---------------------------------------------------------------------------

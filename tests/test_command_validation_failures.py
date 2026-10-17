@@ -100,7 +100,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
                 json_flag=True,
             )
         )
-    for command in _GRAHAM:
+    for command in ("momentum", *_GRAHAM):
         add(
             _check(
                 "SUP-3",
@@ -380,15 +380,6 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
                 json_flag=False,
             )
         )
-    add(
-        _check(
-            "MOM-5",
-            ("momentum", "--save-run"),
-            "--save-run requires an explicit ticker; the configured default ticker is not saved.",
-            ("--save-run",),
-            json_flag=True,
-        )
-    )
     # FCF
     fcf = (
         ("FCF-1", ("--growth-years", "7"), "--growth-years must be 3, 4, or 5."),
@@ -810,7 +801,7 @@ _ORDER = [
     (("momentum", " ", "--short-window", "0"), ("TICKER",)),
     (("momentum", "AAPL", "--details", "--json", "--short-window", "0"), ("--details", "--json")),
     (("momentum", "AAPL", "--short-window", "0", "--as-of", "bad"), ("--short-window",)),
-    (("momentum", "--as-of", "bad", "--save-run"), ("--as-of",)),
+    (("momentum", "AAPL", "--as-of", "bad", "--save-run"), ("--as-of",)),
     (("graham-number", "AAPL", "--as-of", "bad", "--data-provider", " "), ("--as-of",)),
     (("graham-number", "AAPL", "--data-provider", " ", "--eps=nan"), ("--data-provider",)),
     (("graham-number", "AAPL", "--ticker", "MSFT"), ("TICKER", "--ticker")),
@@ -925,7 +916,6 @@ def test_exit_code_1_is_not_the_parser_for_any_command_check() -> None:
         "MOM-2",
         "MOM-3",
         "MOM-4",
-        "MOM-5",
         "FCF-1",
         "FCF-2",
         "FCF-3",

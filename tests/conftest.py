@@ -3,6 +3,20 @@
 from __future__ import annotations
 
 import os
+import shutil
+import tempfile
+from pathlib import Path
+
+# Every engine variable is removed and the three folders are pointed into one temporary session folder, before any
+# import that can load the package: the settings are built when the package is first imported. A test therefore
+# cannot reach the user's real settings, database or logs, whatever it forgets to override. The case-insensitive
+# match mirrors how the engine reads its variables.
+for _name in [name for name in os.environ if name.upper().startswith("IAN_")]:
+    del os.environ[_name]
+SESSION_FOLDER = Path(tempfile.mkdtemp(prefix="ian-tests-")).resolve()
+os.environ["IAN_CONFIG_DIR"] = str(SESSION_FOLDER / "config")
+os.environ["IAN_DATA_DIR"] = str(SESSION_FOLDER / "data")
+os.environ["IAN_LOG_DIR"] = str(SESSION_FOLDER / "logs")
 
 # Typer and Rich read FORCE_COLOR when they are imported or first render, so it must be set before
 # any import that can load them. Forcing styled CLI output for every pytest run makes a raw
@@ -18,10 +32,11 @@ import logging  # noqa: E402
 from collections.abc import Generator  # noqa: E402
 from typing import TYPE_CHECKING  # noqa: E402
 
-import pytest
+import pytest  # noqa: E402
 
-from tests._live_selection import pytest_addoption, pytest_collection_modifyitems, pytest_configure
-from tests._network_guard import block_external_sockets, block_live_yahoo
+from tests._live_selection import pytest_addoption, pytest_collection_modifyitems, pytest_configure  # noqa: E402
+from tests._network_guard import block_external_sockets, block_live_yahoo  # noqa: E402
+from tests._session_isolation import stop_session_if_outside  # noqa: E402
 
 if TYPE_CHECKING:
     from investment_analysis_engine.config import ProjectSettings
@@ -34,6 +49,18 @@ __all__ = [
     "pytest_collection_modifyitems",
     "pytest_configure",
 ]
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:  # noqa: ARG001 - fixed hook signature
+    """Stop the session before any test runs if a resolved folder or the database lies outside the session folder."""
+    from investment_analysis_engine.config import settings  # noqa: PLC0415
+
+    stop_session_if_outside(SESSION_FOLDER, settings)
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:  # noqa: ARG001 - fixed hook signature
+    """Remove the session folder."""
+    shutil.rmtree(SESSION_FOLDER, ignore_errors=True)
 
 
 @pytest.fixture(autouse=True)

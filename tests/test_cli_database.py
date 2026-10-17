@@ -213,7 +213,7 @@ def test_a_partly_anchored_windows_path_is_rejected_with_the_reason(target: Path
     assert result.exit_code == 1
     output = normalize_cli_output(result.output)
     assert "Select a valid local SQLite database URL for --database-url: " in output
-    assert "database_url path '/e/ir8-probe/x.sqlite3' has a root but no drive letter" in output
+    assert "--database-url path '/e/ir8-probe/x.sqlite3' has a root but no drive letter" in output
     assert "Use a full path such as 'E:/ir8-probe/x.sqlite3'" in output
     assert "Value error" not in output
     assert not target.parent.exists()
@@ -255,17 +255,34 @@ def test_missing_resources_emit_one_safe_report(target: Path, command: str) -> N
     assert not target.parent.exists()
 
 
-def test_relative_override_keeps_base_directory_after_chdir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    base = tmp_path / "base"
+def test_relative_override_resolves_against_the_current_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    data = tmp_path / "data"
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
-    monkeypatch.setattr("investment_analysis_engine.cli_database.settings", ProjectSettings(base_dir=base))
+    monkeypatch.setattr("investment_analysis_engine.cli_database.settings", ProjectSettings(data_dir=data))
     monkeypatch.chdir(elsewhere)
-    target = base / "nested" / "selected % café.sqlite3"
+    target = elsewhere / "nested" / "selected % café.sqlite3"
     result = CliRunner().invoke(
         app, ["db", "status", "--database-url", "sqlite:///nested/selected % café.sqlite3", "--json"]
     )
     assert result.exit_code == 1
-    assert json.loads(result.stdout)["database_path"] == str(target)
-    assert not base.exists()
+    assert json.loads(result.stdout)["database_path"] == str(target.resolve())
+    assert not data.exists()
     assert not list(elsewhere.iterdir())
+
+
+@pytest.mark.parametrize("command", ["status", "upgrade"])
+def test_a_partly_anchored_windows_path_is_rejected_before_any_settings_are_built(
+    target: Path, command: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Runs on every operating system: the Windows rule is switched on for the ``--database-url`` value only."""
+    monkeypatch.setattr("investment_analysis_engine.cli_database.is_windows", lambda: True)
+
+    result = CliRunner().invoke(app, ["db", command, "--database-url", "sqlite:////e/ir8-probe/x.sqlite3"])
+
+    assert result.exit_code == 1
+    output = normalize_cli_output(result.output)
+    assert "Select a valid local SQLite database URL for --database-url: " in output
+    assert "--database-url path '/e/ir8-probe/x.sqlite3' has a root but no drive letter" in output
+    assert "Use a full path such as 'E:/ir8-probe/x.sqlite3'" in output
+    assert not target.parent.exists()
