@@ -10,11 +10,11 @@ from typing import Any
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.financial.facts import FinancialFactRequest, FinancialField
-from src.data.financial.provenance import CapitalExpenditureSign, FinancialSubjectKind
-from src.data.sec_edgar.financial_facts import (
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField
+from investment_analysis_engine.data.financial.provenance import CapitalExpenditureSign, FinancialSubjectKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SEC_IFRS_CAPITAL_EXPENDITURES_FIELD,
     SEC_IFRS_EPS_FIELD,
     SEC_IFRS_OPERATING_CASH_FLOW_FIELD,

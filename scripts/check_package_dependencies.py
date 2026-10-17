@@ -1,22 +1,21 @@
-"""Package dependency checker for the top-level units under ``src/``.
+"""Package dependency checker for the top-level units under ``investment_analysis_engine/``.
 
 Reads the package table in ``docs/project/ARCHITECTURE.md`` (the section titled
 "Module boundaries"), computes the real import graph from the code, and reports
 every disagreement between the two in one run. Standard library only; it never
 modifies a file.
 
-A *unit* is each directory directly under ``src/``, plus each top-level module
-under ``src/`` by its file name (``config``, ``strategy_wiring``). The exceptions
-are ``cli``, which groups ``src/main.py`` and every ``src/cli*.py``, and the role
-files: a file named ``cli.py``, ``evaluation.py`` or ``execution.py`` directly
-inside a package under ``src/strategies/`` belongs to ``cli``, ``evaluation`` or
-``workspace`` respectively (the rule is data in ``scripts/package_graph.py``).
-``src/__init__.py`` is ignored.
+A *unit* is each directory directly under ``investment_analysis_engine/``, plus each top-level module under
+``investment_analysis_engine/`` by its file name (``config``, ``strategy_wiring``). The exceptions are ``cli``, which
+groups ``investment_analysis_engine/main.py`` and every ``investment_analysis_engine/cli*.py``, and the role files: a
+file named ``cli.py``, ``evaluation.py`` or ``execution.py`` directly inside a package under
+``investment_analysis_engine/strategies/`` belongs to ``cli``, ``evaluation`` or ``workspace`` respectively (the rule is
+data in ``scripts/package_graph.py``). ``investment_analysis_engine/__init__.py`` is ignored.
 
-A *dependency* is any ``import src.X...`` or ``from src.X... import ...``
-anywhere in a file under ``src/``, including imports inside functions, attributed
-to the file the import names: ``import src.strategies.x.cli`` and
-``from src.strategies.x import cli`` both depend on the unit of ``cli.py``.
+A *dependency* is any ``import investment_analysis_engine.X...`` or ``from investment_analysis_engine.X... import ...``
+anywhere in a file under ``investment_analysis_engine/``, including imports inside functions, attributed
+to the file the import names: ``import investment_analysis_engine.strategies.x.cli`` and
+``from investment_analysis_engine.strategies.x import cli`` both depend on the unit of ``cli.py``.
 Imports within one unit are ignored.
 
 The table has the columns ``Package | Layer | Owns | Imports``. Package names are
@@ -45,12 +44,13 @@ from pathlib import Path
 
 if __package__ in (None, ""):
     # Run as ``python scripts/check_package_dependencies.py``: the repository root is not on the path yet, so
-    # ``src.core.repository_root`` cannot be imported and the root is found by counting folders here, once.
+    # ``investment_analysis_engine.core.repository_root`` cannot be imported and the root is found by counting folders
+    # here, once.
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scripts.package_graph import layers, shortest_cycle, strongly_connected, unit_of_path  # noqa: E402
 
-SOURCE_ROOT_NAME = "src"
+SOURCE_ROOT_NAME = "investment_analysis_engine"
 ARCHITECTURE_DOC = Path("docs/project/ARCHITECTURE.md")
 TABLE_SECTION_TITLE = "Module boundaries"
 TABLE_HEADER = ("Package", "Layer", "Owns", "Imports")

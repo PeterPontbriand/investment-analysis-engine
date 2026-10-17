@@ -8,13 +8,13 @@ from typing import Any, cast
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.financial.facts import FinancialFactRequest, FinancialField
-from src.data.financial.provenance import FinancialSubjectKind
-from src.data.financial.resolver import InputResolutionResult
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
+from investment_analysis_engine.data.financial.resolver import InputResolutionResult
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 NOW = datetime(2026, 8, 23, 16, 0, tzinfo=UTC)
 PERIOD_END = "2025-12-31"

@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from src.analysis.run_models import EffectiveBoundary, JsonValue, RunOutcome, StrictJsonMapping
+from investment_analysis_engine.analysis.run_models import EffectiveBoundary, JsonValue, RunOutcome, StrictJsonMapping
 
 _NON_PRIMITIVE_VALUES: list[object] = [datetime.now(UTC), b"bytes", {1, 2}, object()]
 

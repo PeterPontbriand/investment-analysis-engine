@@ -13,18 +13,18 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from src.cli import app
-from src.cli_support import _production_financial_cache
-from src.config import ProjectSettings
-from src.core.clock import utc_now
-from src.core.repository_root import REPOSITORY_ROOT
-from src.core.trajectory_events import TrajectoryEventType
-from src.data.repositories import migrations, readiness
-from src.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
-from src.telemetry.run_context import RunContext
-from src.telemetry.sinks.sqlite import SQLiteTrajectorySink
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.cli_support import _production_financial_cache
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.clock import utc_now
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.trajectory_events import TrajectoryEventType
+from investment_analysis_engine.data.repositories import migrations, readiness
+from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
+from investment_analysis_engine.telemetry.run_context import RunContext
+from investment_analysis_engine.telemetry.sinks.sqlite import SQLiteTrajectorySink
 from tests._cli_helpers import stub_yahoo_identity_metadata  # noqa: F401
 
 COMMANDS = ["momentum", "graham-number", "graham-growth", "fcf-growth"]
@@ -46,14 +46,14 @@ def test_typed_readiness_failure_preserves_envelope_and_closes_storage(
     error = DatabaseReadinessError(reason, path, "0001_persistence")
     error.__cause__ = RuntimeError("private SQL parameters and credentials")
     with (
-        patch("src.cli_support.SQLiteDatabase", return_value=database),
-        patch("src.cli_support.ensure_database_ready", side_effect=error),
+        patch("investment_analysis_engine.cli_support.SQLiteDatabase", return_value=database),
+        patch("investment_analysis_engine.cli_support.ensure_database_ready", side_effect=error),
         patch(
-            "src.strategies.fcf_growth.cli.build_sec_production_provider",
+            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
             side_effect=AssertionError("Provider must not run"),
         ) as facts,
         patch(
-            "src.data.yfinance.client.YFinanceClient.fetch_historical_data",
+            "investment_analysis_engine.data.yfinance.client.YFinanceClient.fetch_historical_data",
             side_effect=AssertionError("Provider must not run"),
         ) as history,
     ):
@@ -109,13 +109,13 @@ def test_real_rejected_storage_precedes_provider_calls(
         reason = ReadinessReason.UPGRADE_REQUIRED
     before = path.read_bytes()
     with (
-        patch("src.cli_support.settings", selected),
+        patch("investment_analysis_engine.cli_support.settings", selected),
         patch(
-            "src.strategies.fcf_growth.cli.build_sec_production_provider",
+            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
             side_effect=AssertionError("Provider must not run"),
         ) as facts,
         patch(
-            "src.data.yfinance.client.YFinanceClient.fetch_historical_data",
+            "investment_analysis_engine.data.yfinance.client.YFinanceClient.fetch_historical_data",
             side_effect=AssertionError("Provider must not run"),
         ) as history,
     ):
@@ -136,10 +136,15 @@ def test_help_never_opens_storage(tmp_path: Path, command: list[str]) -> None:
     path = tmp_path / "absent" / "help.sqlite3"
     selected = ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")
     with (
-        patch("src.cli_support.settings", selected),
-        patch("src.cli_database.settings", selected),
-        patch("src.cli_support.SQLiteDatabase", side_effect=AssertionError("Storage must not open")) as analysis_db,
-        patch("src.cli_database.SQLiteDatabase", side_effect=AssertionError("Storage must not open")) as maintenance_db,
+        patch("investment_analysis_engine.cli_support.settings", selected),
+        patch("investment_analysis_engine.cli_database.settings", selected),
+        patch(
+            "investment_analysis_engine.cli_support.SQLiteDatabase", side_effect=AssertionError("Storage must not open")
+        ) as analysis_db,
+        patch(
+            "investment_analysis_engine.cli_database.SQLiteDatabase",
+            side_effect=AssertionError("Storage must not open"),
+        ) as maintenance_db,
     ):
         result = CliRunner().invoke(app, [*command, "--help"])
     assert result.exit_code == 0, result.output
@@ -161,7 +166,7 @@ def test_optional_telemetry_failure_does_not_control_cache_readiness(tmp_path: P
         with patch.object(readiness, "ensure_database_ready", side_effect=AssertionError("Telemetry must not migrate")):
             assert recorder.record(TrajectoryRecord(TrajectoryEventType.RUN_START, "test")) is not None
         assert not Path(str(telemetry_path) + ".readiness.lock").exists()
-        with patch("src.cli_support.settings", selected):
+        with patch("investment_analysis_engine.cli_support.settings", selected):
             if incompatible:
                 with (
                     pytest.raises(DatabaseReadinessError) as caught,
@@ -185,7 +190,7 @@ def test_fresh_process_cli_import_does_not_connect_or_create_storage(tmp_path: P
     script = (
         "from unittest.mock import patch\n"
         "with patch('sqlite3.connect', side_effect=AssertionError('Import must not connect')) as connect:\n"
-        "    import src.cli\n"
+        "    import investment_analysis_engine.cli\n"
         "    connect.assert_not_called()\n"
     )
     result = subprocess.run(

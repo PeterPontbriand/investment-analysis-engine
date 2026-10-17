@@ -10,9 +10,9 @@ from unittest.mock import patch
 import pytest
 import yfinance
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.base_client import DataFetchError
-from src.data.yfinance.client import YFinanceClient
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.yfinance.client import YFinanceClient
 
 
 class _TooManyRequests:
@@ -37,7 +37,7 @@ def throttled_yahoo() -> Iterator[None]:
         return _TooManyRequests()
 
     with (
-        patch("src.data.yfinance.client.yf", yfinance),
+        patch("investment_analysis_engine.data.yfinance.client.yf", yfinance),
         patch("yfinance.data.YfData._get_cookie_and_crumb", lambda *_args, **_kwargs: (None, "basic")),
         patch("curl_cffi.requests.Session.request", answer),
         patch("curl_cffi.requests.Session.get", answer),

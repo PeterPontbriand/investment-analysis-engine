@@ -7,10 +7,14 @@ from unittest.mock import patch
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.financial.facts import FinancialFactRequest, FinancialField, FinancialProviderError
-from src.data.financial.provenance import FinancialSubjectKind
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter, _MissingCikError
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, FinancialProviderError
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
+    SEC_PROVIDER_ID,
+    SecEdgarFinancialFactsAdapter,
+    _MissingCikError,
+)
 
 NOW = datetime(2026, 8, 29, 16, 0, tzinfo=UTC)
 _TICKER_ROWS = {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple"}}
@@ -145,7 +149,7 @@ def test_a_document_that_is_not_an_object_is_an_unexpected_response(name: str, d
 def test_a_malformed_document_read_is_an_unexpected_response(fault: Exception) -> None:
     adapter = _adapter(_Fetcher())
     with (
-        patch("src.data.sec_edgar.financial_facts._annual_eps_candidates", side_effect=fault),
+        patch("investment_analysis_engine.data.sec_edgar.financial_facts._annual_eps_candidates", side_effect=fault),
         pytest.raises(FinancialProviderError) as caught,
     ):
         adapter.fetch_facts(_request(), effective_as_of=NOW)
@@ -157,7 +161,7 @@ def test_a_malformed_document_read_is_an_unexpected_response(fault: Exception) -
 def test_a_non_provider_exception_inside_fetch_facts_propagates(defect: Exception) -> None:
     adapter = _adapter(_Fetcher())
     with (
-        patch("src.data.sec_edgar.financial_facts._annual_eps_candidates", side_effect=defect),
+        patch("investment_analysis_engine.data.sec_edgar.financial_facts._annual_eps_candidates", side_effect=defect),
         pytest.raises(type(defect)) as caught,
     ):
         adapter.fetch_facts(_request(), effective_as_of=NOW)

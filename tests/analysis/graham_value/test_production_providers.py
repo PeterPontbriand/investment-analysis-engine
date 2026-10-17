@@ -8,23 +8,23 @@ from typing import Any
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.financial.facts import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
     FinancialUnit,
     ProviderFact,
 )
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.financial.provenance import FinancialSubjectKind, SourceKind
-from src.data.sec_edgar.financial_facts import (
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, SourceKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SEC_PROVIDER_ID,
     SEC_STOCKHOLDERS_EQUITY_FIELD,
     SecEdgarFinancialFactsAdapter,
 )
-from src.data.yfinance.client import YFINANCE_PROVIDER_ID
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from tests.analysis.graham_value.conftest import SEC_TEST_USER_AGENT
 
 NOW = datetime(2026, 8, 21, 18, 0, tzinfo=UTC)

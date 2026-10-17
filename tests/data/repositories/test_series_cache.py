@@ -10,32 +10,32 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from src.config import ProjectSettings
-from src.core.analysis_status import CalculationStatus
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.financial.cache import (
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.financial.cache import (
     InMemoryResolvedInputCache,
     ResolvedInputCacheEntry,
     ResolvedInputCacheKey,
     ResolvedInputSeriesCacheProtocol,
     ResolvedInputSeriesCacheQuery,
 )
-from src.data.financial.facts import FinancialField
-from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
-from src.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.evaluation.fixtures.fcf_earnings_growth import (
+from investment_analysis_engine.data.financial.facts import FinancialField
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from investment_analysis_engine.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     PROVIDER_ID,
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
-from src.strategies.fcf_growth.input_resolver import (
+from investment_analysis_engine.strategies.fcf_growth.input_resolver import (
     AnnualGrowthSeriesAssembly,
     FinancialFieldProvider,
     resolve_annual_growth_series,
 )
-from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
-from src.strategies.fcf_growth.vocabulary import HistoricalHorizon
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import HistoricalHorizon
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
 CacheFactory = Callable[[timedelta | None], ResolvedInputSeriesCacheProtocol]

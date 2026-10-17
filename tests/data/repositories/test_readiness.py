@@ -10,16 +10,16 @@ from pathlib import Path
 import pytest
 from sqlalchemy.engine import Connection
 
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.repositories import migrations, readiness
-from src.data.repositories.readiness import (
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.repositories import migrations, readiness
+from investment_analysis_engine.data.repositories.readiness import (
     DatabaseReadinessError,
     ReadinessOutcome,
     ReadinessReason,
     ensure_database_ready,
 )
-from src.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
 
 def database_for(path: Path) -> SQLiteDatabase:
@@ -416,7 +416,7 @@ def test_sidecar_open_permission_failure_is_not_lock_contention(
         del args, kwargs
         raise PermissionError(code, "private path")
 
-    monkeypatch.setattr("src.data.repositories.readiness_lock.os.open", denied)
+    monkeypatch.setattr("investment_analysis_engine.data.repositories.readiness_lock.os.open", denied)
     try:
         with pytest.raises(DatabaseReadinessError) as caught:
             ensure_database_ready(database)

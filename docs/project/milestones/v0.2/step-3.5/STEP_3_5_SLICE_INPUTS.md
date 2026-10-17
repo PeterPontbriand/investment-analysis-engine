@@ -71,19 +71,19 @@ duplicates. The sort option is tested in 3.5.6.
 
 **Starting points in the code (verified on `main`, 2026-10-02)**
 
-- `src/data/financial/facts.py`: a new `FinancialField` falls through to the per-share unit by
+- `investment_analysis_engine/data/financial/facts.py`: a new `FinancialField` falls through to the per-share unit by
   default. Each new monetary field needs explicit unit routing.
-- `src/data/financial/provenance.py`: `PeriodKind` has annual, quarterly and TTM members and no
+- `investment_analysis_engine/data/financial/provenance.py`: `PeriodKind` has annual, quarterly and TTM members and no
   instant. No provider produces `quarterly` or `ttm` facts today. Balance-sheet series need an additive instant
   representation, not a relabeled duration.
-- `src/data/sec_edgar/financial_facts.py`: balance-sheet selection returns the single latest
+- `investment_analysis_engine/data/sec_edgar/financial_facts.py`: balance-sheet selection returns the single latest
   fact. Multi-year instants need a series request that leaves the latest-only behavior unchanged.
-- `src/data/sec_edgar/filing_document.py`: the bounded filing reader accepts primary `.htm`
+- `investment_analysis_engine/data/sec_edgar/filing_document.py`: the bounded filing reader accepts primary `.htm`
   documents only, four per run. Reading a filing's SEC header is a new, equally bounded request
   shape.
 - No SIC code is read or stored anywhere. The submissions payload is already fetched for
   acceptance times; its `sic` field is the current value and must not be used.
-- `src/data/yfinance/` supplies quotes and price history only, with no annual fundamentals.
+- `investment_analysis_engine/data/yfinance/` supplies quotes and price history only, with no annual fundamentals.
 
 **New fields**
 

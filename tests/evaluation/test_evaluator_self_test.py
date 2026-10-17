@@ -2,12 +2,12 @@
 
 from datetime import UTC, datetime
 
-from src.evaluation.evaluator import (
+from investment_analysis_engine.evaluation.evaluator import (
     evaluate_execution_status,
     evaluate_fixture_status,
     evaluate_numerical_correctness,
 )
-from src.evaluation.models import (
+from investment_analysis_engine.evaluation.models import (
     ComponentKind,
     ComponentOutcome,
     ExecutionMode,

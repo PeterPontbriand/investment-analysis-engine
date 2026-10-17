@@ -27,8 +27,8 @@ already has typed access to internally:
 
 - **Direct commands** (`graham-number`, `graham-growth`, `fcf-growth`,
   `momentum`) with `--json`: `execution_errors()`
-  (`src/cli_support.py`) catches `DatabaseReadinessError` and emits
-  `analysis_failure_document()` (`src/reporting/presentation.py`), which
+  (`investment_analysis_engine/cli_support.py`) catches `DatabaseReadinessError` and emits
+  `analysis_failure_document()` (`investment_analysis_engine/reporting/presentation.py`), which
   carries a stable `reason_code` (e.g. `"database_upgrade_required"`, from
   `ReadinessReason`) and a free-text `reason` string. That `reason_code` is
   already safe for a caller to branch on. But `DatabaseReadinessError` also
@@ -40,12 +40,12 @@ already has typed access to internally:
   the kind of brittle coupling this project avoids everywhere else with
   typed evidence and discriminated unions.
 - **Workspace commands** (`watchlist`, `refresh`, `runs`, all in
-  `src/cli_workspace.py`): `_fail()` always writes a plain-text line to
+  `investment_analysis_engine/cli_workspace.py`): `_fail()` always writes a plain-text line to
   stderr and exits 1, regardless of whether `--json` was requested. There is
   no structured error envelope here at all — strictly less than the direct
   commands provide.
 - **The existing good precedent**: `ian db status --json`
-  (`src/cli_database.py`, `DatabaseMaintenanceReport`) already does this
+  (`investment_analysis_engine/cli_database.py`, `DatabaseMaintenanceReport`) already does this
   correctly — `state`, `current_revision`, `expected_revision`, and `reason`
   (a stable code) are separate typed fields from `message` (the free-text
   sentence). That shape is what the other two paths should grow toward, not
@@ -68,17 +68,17 @@ tell the user" easy, not make "upgrade and continue" easy.
 
 ## Likely scope, once picked up
 
-- `src/reporting/presentation.py`: extend `analysis_failure_document()` (or
+- `investment_analysis_engine/reporting/presentation.py`: extend `analysis_failure_document()` (or
   add a sibling) to carry typed fields for a `DatabaseReadinessError`
   specifically — at minimum `expected_revision`/`database_path` — rather
   than only `reason_code`/`reason`/`diagnostics`.
-- `src/cli_support.py`: `execution_errors()`'s `DatabaseReadinessError`
+- `investment_analysis_engine/cli_support.py`: `execution_errors()`'s `DatabaseReadinessError`
   branch would need to pass those fields through.
-- `src/cli_workspace.py`: `_fail()` (and its callers) would need a `--json`-
+- `investment_analysis_engine/cli_workspace.py`: `_fail()` (and its callers) would need a `--json`-
   aware structured error path for `watchlist`/`refresh`/`runs`, mirroring
   whatever shape is settled on for the direct commands rather than
   inventing a second one.
-- Decide whether `DatabaseMaintenanceReport` (`src/cli_database.py`)
+- Decide whether `DatabaseMaintenanceReport` (`investment_analysis_engine/cli_database.py`)
   should become the one shared error-envelope shape across all three
   command families, or whether direct/workspace commands need their own
   shape for other reasons already present in `analysis_failure_document`
@@ -92,8 +92,8 @@ tell the user" easy, not make "upgrade and continue" easy.
 ## Out of scope for this note
 
 Adding an MCP server, exposing `watchlist`/`refresh`/persistence as an
-orchestrator tool, or any change to `src/orchestrator/`. Today, the
-in-process orchestrator (`src/orchestrator/analysis_tools.py`) never calls
+orchestrator tool, or any change to `investment_analysis_engine/orchestrator/`. Today, the
+in-process orchestrator (`investment_analysis_engine/orchestrator/analysis_tools.py`) never calls
 `ensure_database_ready` or anything `--save-run`-shaped — it only runs pure,
 non-persisting analysis — so this gap cannot occur there yet. It becomes
 directly relevant the moment persistence is exposed as an orchestrator-

@@ -39,7 +39,7 @@ dependencies = [
 ]
 
 [project.scripts]
-ian = "src.main:main"
+ian = "investment_analysis_engine.main:main"
 
 [dependency-groups]
 dev = [
@@ -57,7 +57,7 @@ package = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src*"]
+include = ["investment_analysis_engine*"]
 
 [tool.ruff]
 line-length = 120
@@ -96,21 +96,21 @@ convention = "google"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-pythonpath = ["."]  # Ensures your tests runner accurately finds src.* from the repository root
+pythonpath = ["."]  # Ensures your tests runner accurately finds investment_analysis_engine.* from the repository root
 python_files = ["test_*.py"]
-addopts = "--cov=src --cov-report=term-missing --cov-report=html"
+addopts = "--cov=investment_analysis_engine --cov-report=term-missing --cov-report=html"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 filterwarnings = ["error::ResourceWarning", "error::pytest.PytestUnraisableExceptionWarning"]
 
 [tool.coverage.run]
 branch = true # Tracks both True and False outcomes of 'if' statements
-source = ["src"]
+source = ["investment_analysis_engine"]
 
 [tool.coverage.report]
 # Do not count configuration files or tests against code coverage percentages
 omit = [
-    "src/config/__init__.py",
+    "investment_analysis_engine/config/__init__.py",
     "tests/*",
 ]
 # Highlight missing statements clearly in the terminal output

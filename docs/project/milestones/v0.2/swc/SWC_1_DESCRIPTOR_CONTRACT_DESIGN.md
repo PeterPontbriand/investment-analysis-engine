@@ -2,7 +2,7 @@
 
 Settles the descriptor, failure-envelope and conformance contracts that SWC.2a onward implement. The
 [SWC plan](SWC_CONTRACT_AND_SLICE_PLAN.md) owns scope, sequence and status; this document owns the
-design detail. Nothing under `src/`, `tests/`, `scripts/`, `config/`, `alembic/`, `pyproject.toml` or
+design detail. Nothing under `investment_analysis_engine/`, `tests/`, `scripts/`, `config/`, `alembic/`, `pyproject.toml` or
 `uv.lock` changes in SWC.1. The design was revised once after merge, when the project owner adopted the
 co-location result recorded in [Appendix E](#appendix-e-adoption-of-the-co-location-result); this document
 owns that result and is complete without the study.
@@ -15,7 +15,7 @@ owns that result and is complete without the study.
   migration, the framework-drift checks, the contributor tooling, the typed failure envelope and the
   typed model and schema for every `--json` document.
 - **The shape in one sentence:** one frozen, non-generic `StrategyDescriptor` per strategy, declared in a
-  closed tuple in `src/strategy_wiring.py` at the composition root, holding identity, vocabulary, versions
+  closed tuple in `investment_analysis_engine/strategy_wiring.py` at the composition root, holding identity, vocabulary, versions
   and one typed `StrategyBehavior[SelT, ResultT, DepsT]` bundle that pairs every strategy-owned function
   mentioning the selection or result type; two further closed tuples, one in the CLI layer and one in the
   evaluation layer, pair the functions only those layers can import with the same bundle's types; generic
@@ -46,27 +46,27 @@ owns that result and is complete without the study.
 
 | # | Decision | Detail |
 | :--- | :--- | :--- |
-| D1 | One non-generic frozen `StrategyDescriptor` per strategy, in a closed tuple `STRATEGIES` in `src/strategy_wiring.py`, the composition root. No module under `src/data`, `src/workspace`, `src/orchestrator`, `src/reporting`, `src/analysis`, `src/core` or `src/config` imports it. | [§3](#3-descriptor-fields-and-exclusions), [§4](#4-static-declaration-model) |
+| D1 | One non-generic frozen `StrategyDescriptor` per strategy, in a closed tuple `STRATEGIES` in `investment_analysis_engine/strategy_wiring.py`, the composition root. No module under `investment_analysis_engine/data`, `investment_analysis_engine/workspace`, `investment_analysis_engine/orchestrator`, `investment_analysis_engine/reporting`, `investment_analysis_engine/analysis`, `investment_analysis_engine/core` or `investment_analysis_engine/config` imports it. | [§3](#3-descriptor-fields-and-exclusions), [§4](#4-static-declaration-model) |
 | D2 | Thirteen fields, each with an audited consumer, introduced by the slice whose consumer needs it. The `behavior` field replaces the earlier `evidence` field. | [§3.1](#31-fields) |
 | D3 | `StrategyBehavior[SelT, ResultT, DepsT]` is one generic frozen dataclass, erased behind a `Protocol` view; it replaces `EvidenceCodec`. | [§8](#8-typing-form) |
 | D4 | `ToolName` stays a hand-written `StrEnum`. `AnalysisToolArguments` becomes the existing shared arguments base class and the four-model union is deleted. Moved symbols keep no compatibility re-export. | [§9.1](#91-toolname) |
 | D5 | Handlers, native-status functions and replay projectors are `behavior` members. Selection builders, refresh executors and direct commands are members of a CLI-tier tuple; fixture composition and fixture requirements are members of an evaluation-tier tuple. Generic consumers receive injected mappings. | [§6](#6-generic-consumers), [§4](#4-static-declaration-model) |
-| D6 | Dispatch fails closed through one `UndeclaredStrategyError`, defined in `src/core/strategy_errors.py` so every layer can raise it; no strategy is a default branch anywhere. | [§9.2](#92-fail-closed-dispatch) |
+| D6 | Dispatch fails closed through one `UndeclaredStrategyError`, defined in `investment_analysis_engine/core/strategy_errors.py` so every layer can raise it; no strategy is a default branch anywhere. | [§9.2](#92-fail-closed-dispatch) |
 | D7 | One shared `FailureEnvelope` for direct and workspace `--json` failures. `DatabaseMaintenanceReport` is a sibling that adopts the envelope's field names. | [§13](#13-failure-envelope-contract) |
-| D8 | Momentum profile composition becomes `compose_momentum_profile` in `src/strategies/momentum/execution.py`. | [§14](#14-momentum-profile-composition-helper) |
+| D8 | Momentum profile composition becomes `compose_momentum_profile` in `investment_analysis_engine/strategies/momentum/execution.py`. | [§14](#14-momentum-profile-composition-helper) |
 | D9 | No IR.2 contract change is required. | [§15](#15-ir2-and-corrections-to-the-plan) |
 | D10 | Conformance compares the descriptors and both tiers to independent surfaces, and its negative control runs on a checked-in specimen strategy. | [§10](#10-conformance-tests-and-negative-control) |
 | D11 | Every `--json` document gets a typed model and a checked-in generated schema. SWC.4 is split into SWC.4a, SWC.4b and SWC.4c. | [§11](#11-migration-from-current-declarations), [§13.6](#136-every-json-document-is-typed) |
 | D12 | Per-job failures in `refresh --json` carry a `reason_code` from the same vocabulary, alongside their existing text. | [§13.4](#134-what-changes) |
 | D13 | The design fits all seven Step 3.5 strategies. The side-by-side table's per-strategy headline content is one new behavior member, `headline`, added by Step 3.5 slice 3.5.0, which builds the table first over the four existing strategies. | [§16](#16-step-35-fit-check), [§3.3](#33-behavior-members-and-the-two-tiers) |
 | D14 | Every finding the audit left unowned is assigned to a slice. | [§18](#18-findings-assigned-to-a-slice) |
-| D15 | `src/workspace/__init__.py` is emptied, and the layering test counts parent-package initialization. | [§4](#4-static-declaration-model), [Appendix C](#appendix-c-import-cycle-evidence) |
+| D15 | `investment_analysis_engine/workspace/__init__.py` is emptied, and the layering test counts parent-package initialization. | [§4](#4-static-declaration-model), [Appendix C](#appendix-c-import-cycle-evidence) |
 | D16 | Each strategy's direct command lives in its own CLI file. `cli.py` adds the commands by iterating the closed CLI-tier tuple; a strategy file never registers itself. | [§6](#6-generic-consumers), [§12](#12-framework-drift-checks) |
 | D17 | The strategy lists in `USAGE.md` and `WORKSPACE.md` are generated from the descriptors, with a drift test. | [§19](#19-contributor-tooling) |
 | D18 | Contributor tooling: one site-data file, a status command, a generator and a specimen strategy. | [§19](#19-contributor-tooling) |
 | D19 | The moves that put each strategy's code in strategy-owned modules, including the relocation of the existing analyzers, codecs, adapters and presenters, are required scope in the slice that owns them. | [§11](#11-migration-from-current-declarations) |
 | D20 | Strategy identity constants live in a dependency-free leaf: the strategy's envelope module from SWC.4c. Presenters and failure handling read them there, never from the descriptor. | [§4](#4-static-declaration-model) |
-| D21 | Every file a strategy owns, except its fixtures and cases, lives in one package, `src/strategies/<strategy>/`, named by role. A role-based layering rule (T13) replaces the folder rule, and every `__init__.py` under `src/strategies/` is empty. | [§4](#4-static-declaration-model), [Appendix C.6](#c6-one-package-per-strategy) |
+| D21 | Every file a strategy owns, except its fixtures and cases, lives in one package, `investment_analysis_engine/strategies/<strategy>/`, named by role. A role-based layering rule (T13) replaces the folder rule, and every `__init__.py` under `investment_analysis_engine/strategies/` is empty. | [§4](#4-static-declaration-model), [Appendix C.6](#c6-one-package-per-strategy) |
 
 ## 3. Descriptor fields and exclusions
 
@@ -94,7 +94,7 @@ is the slice whose consumer first reads it; a later slice adds the field, not SW
 Notes:
 
 - **Single source for FCF.** `STRATEGY_ID`, `METHOD_ID`, `METHOD_VERSION` and `SCHEMA_VERSION` already
-  exist in the FCF analyzer's models module (`src/strategies/fcf_growth/models.py` after SWC.2a). The FCF descriptor references them
+  exist in the FCF analyzer's models module (`investment_analysis_engine/strategies/fcf_growth/models.py` after SWC.2a). The FCF descriptor references them
   instead of re-declaring them. Momentum and Graham have no such constants, so their descriptors are the
   declaration (and, from SWC.4c, their envelope leaves hold the identity constants).
 - **`config_schema_version` is declared once.** Each selection class keeps its own `Literal[...]` identifiers and
@@ -184,13 +184,13 @@ has a consumer before any new analyzer is written and every new strategy supplie
 one slice updates, together, the four existing declarations, the generator's `replay.py` template, the
 site data file's row for the replay file, the specimen's replay file and the member set that T15 checks.
 
-The CLI tier (`src/cli_strategy_wiring.py`) holds, per strategy, a `CliComposition[SelT]` with the
+The CLI tier (`investment_analysis_engine/cli_strategy_wiring.py`) holds, per strategy, a `CliComposition[SelT]` with the
 selection builder `build`, the refresh executor `refresh` and the direct `command`, paired with the core
 bundle by selection type. It exists because those functions import `cli_support`, `typer` and the
 production provider composition, which neither the descriptor module nor `evaluation` may import. Members
 are introduced by SWC.3b (`build`, `refresh`) and SWC.3c (`command`).
 
-The evaluation tier (`src/evaluation/strategy_fixtures.py`) holds, per strategy, an `EvalComposition[SelT, DepsT]`
+The evaluation tier (`investment_analysis_engine/evaluation/strategy_fixtures.py`) holds, per strategy, an `EvalComposition[SelT, DepsT]`
 with the fixture `requirement`, the `compose` function that builds that strategy's dependency bundle
 from the case's fixtures and a `sample_selection`, paired with the core bundle by selection and dependency
 type. It was introduced by SWC.2d; SWC.3a added the sample selection. Fixture values, expected outcomes and
@@ -203,14 +203,14 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
 
 ## 4. Static declaration model
 
-- **Location:** `src/strategy_wiring.py`, one module at the composition root. Module-level constants (one
+- **Location:** `investment_analysis_engine/strategy_wiring.py`, one module at the composition root. Module-level constants (one
   per strategy) and the closed tuple `STRATEGIES`. Adding a strategy is a source edit to this tuple. The
-  CLI tier is the closed tuple `CLI_STRATEGIES` in `src/cli_strategy_wiring.py`; the evaluation tier is the
-  closed tuple `EVALUATION_STRATEGIES` in `src/evaluation/strategy_fixtures.py`. Each entry is built by a
+  CLI tier is the closed tuple `CLI_STRATEGIES` in `investment_analysis_engine/cli_strategy_wiring.py`; the evaluation tier is the
+  closed tuple `EVALUATION_STRATEGIES` in `investment_analysis_engine/evaluation/strategy_fixtures.py`. Each entry is built by a
   `pair_*` function that takes the strategy's typed core bundle and the layer's composition, so a
   mismatched pairing fails `mypy --strict`.
 - **Layout:** every file a strategy owns, except its fixtures and cases, is in one package,
-  `src/strategies/<strategy>/`, named for its role. Fixtures and cases stay under `src/evaluation/`.
+  `investment_analysis_engine/strategies/<strategy>/`, named for its role. Fixtures and cases stay under `investment_analysis_engine/evaluation/`.
 
   | File | Holds | Serves |
   | :--- | :--- | :--- |
@@ -226,11 +226,11 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
   | `cli.py` | Direct command, selection builder, refresh executor | CLI |
   | `evaluation.py` | Fixture composition and requirement | `evaluation` |
 
-  Code several strategies share has two homes, neither a strategy: `src/strategies/_shared/profile.py`
+  Code several strategies share has two homes, neither a strategy: `investment_analysis_engine/strategies/_shared/profile.py`
   (instrument-profile composition used by Graham Number, Graham Growth and FCF-Growth, which imports no
-  strategy) and the Graham family package `src/strategies/_graham/` (`replay.py`, `evaluation.py`, used by
+  strategy) and the Graham family package `investment_analysis_engine/strategies/_graham/` (`replay.py`, `evaluation.py`, used by
   the two Graham strategies, which may import only the analyzer modules of those two). Every
-  `__init__.py` under `src/strategies/` is empty.
+  `__init__.py` under `investment_analysis_engine/strategies/` is empty.
 - **Role rule (test T13):** a file's role is its file name inside the package, so the rule needs no list of
   paths.
   1. *Within a strategy*, a role file may import another file of the same package only if the imported
@@ -240,18 +240,18 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
      and execution, cli and evaluation, and the envelope leaf and an analyzer module) never import each other.
   2. *Between strategies*, no package imports another. `_shared` imports no strategy or family module.
      `_graham` imports only the analyzer modules of its two members, and only they import it.
-  3. *From outside `src/strategies`*, foundation modules (`data`, `workspace`, `orchestrator`, `reporting`,
+  3. *From outside `investment_analysis_engine/strategies`*, foundation modules (`data`, `workspace`, `orchestrator`, `reporting`,
      `analysis`, `core`, `config`), `cli_support`, `cli_composition`, the other CLI helpers and the generic
      evaluation modules may import only analyzer and selection roles, and none of them imports the root or a
-     tier. The root `src/strategy_wiring.py` may import analyzer, codec, envelope, replay, selection and tool
+     tier. The root `investment_analysis_engine/strategy_wiring.py` may import analyzer, codec, envelope, replay, selection and tool
      roles; the CLI tier only `cli`; the evaluation tier only `evaluation`. Two further clauses, implemented in T13 by
-     SWC.2d: `src.evaluation.cases.<strategy>` may import the tool role of `src.strategies.<strategy>` and
+     SWC.2d: `investment_analysis_engine.evaluation.cases.<strategy>` may import the tool role of `investment_analysis_engine.strategies.<strategy>` and
      of no other strategy (a case module is single-strategy and named for its strategy package, and its
      reviewed arguments are built with that strategy's arguments model, so the import is permanent); and a
-     strategy's `evaluation` file, including `_graham/evaluation.py`, may import from `src.evaluation` only
+     strategy's `evaluation` file, including `_graham/evaluation.py`, may import from `investment_analysis_engine.evaluation` only
      `fixture_context` and the modules under `fixtures`, which hold the fixture identifiers, while no other
-     strategy file imports `src.evaluation` at all.
-  4. No module under `src` imports `tests`.
+     strategy file imports `investment_analysis_engine.evaluation` at all.
+  4. No module under `investment_analysis_engine` imports `tests`.
 
   **Transition allowlist:** SWC.2a recorded 24 edges and SWC.2b added 20 edges to the `tool` files; SWC.2c removed the 12 it owned, SWC.2d the 8 it owned, SWC.3a the 8 it owned, SWC.3b the 4 it owned and SWC.3c the 8 it owned, leaving the 4 edges below. Until
   its owning slice removes it, T13 permits only the exact importer-to-module edges below. Each row is one edge; no wildcard, strategy-wide or role-wide exception is permitted. T13 fails if
@@ -261,10 +261,10 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
 
   | Importer module | Imported module | Removes entry |
   | :--- | :--- | :--- |
-  | `src.reporting.analysis_runs` | `src.strategies.fcf_growth.presenter` | SWC.4c |
-  | `src.reporting.analysis_runs` | `src.strategies.graham_growth.presenter` | SWC.4c |
-  | `src.reporting.analysis_runs` | `src.strategies.graham_number.presenter` | SWC.4c |
-  | `src.reporting.analysis_runs` | `src.strategies.momentum.presenter` | SWC.4c |
+  | `investment_analysis_engine.reporting.analysis_runs` | `investment_analysis_engine.strategies.fcf_growth.presenter` | SWC.4c |
+  | `investment_analysis_engine.reporting.analysis_runs` | `investment_analysis_engine.strategies.graham_growth.presenter` | SWC.4c |
+  | `investment_analysis_engine.reporting.analysis_runs` | `investment_analysis_engine.strategies.graham_number.presenter` | SWC.4c |
+  | `investment_analysis_engine.reporting.analysis_runs` | `investment_analysis_engine.strategies.momentum.presenter` | SWC.4c |
 
   Counts by owner: SWC.4c, 4 (4 in all; 12 before SWC.3c, 16 before SWC.3b, 24 before SWC.3a, 32 before SWC.2d and 44
   before SWC.2c). The list must
@@ -288,16 +288,16 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
   The rule was prototyped in the import-graph model: the real graph has no violation and thirteen
   deliberate violations are each rejected ([Appendix C](#appendix-c-import-cycle-evidence)). The existing
   boundary test (only classes may be imported from the analyzer modules by code outside the strategy
-  packages) is retargeted to `src/strategies` and stays beside T13.
+  packages) is retargeted to `investment_analysis_engine/strategies` and stays beside T13.
 - **Who imports what:** the root imports the tool, selection, codec, replay, envelope and analyzer roles.
   The CLI tier imports the root and the `cli` files. The evaluation tier imports the root and the
   `evaluation` files. The only importers of the root and the tiers are `cli`, `cli_workspace`,
   the generic `evaluation` modules and the tiers themselves. T13 holds the importers of the root as an exact
   list of modules, each of which must exist and import the root; a slice adds an entry in the change that
-  first makes its module import the root. Today the list is `src.evaluation.composition`,
-  `src.evaluation.runner`, `src.evaluation.ollama_runner`, the evaluation tier
-  `src.evaluation.strategy_fixtures`, `src.cli` and `src.cli_workspace`. The importers of the evaluation tier are a second exact list held the same
-  way, today `src.evaluation.composition` alone.
+  first makes its module import the root. Today the list is `investment_analysis_engine.evaluation.composition`,
+  `investment_analysis_engine.evaluation.runner`, `investment_analysis_engine.evaluation.ollama_runner`, the evaluation tier
+  `investment_analysis_engine.evaluation.strategy_fixtures`, `investment_analysis_engine.cli` and `investment_analysis_engine.cli_workspace`. The importers of the evaluation tier are a second exact list held the same
+  way, today `investment_analysis_engine.evaluation.composition` alone.
 - **Injection:** the root builds read-only `Mapping`s from the tuple (`BY_METHOD_ID`, `BY_ALIAS`, `BY_TOOL`,
   `BY_ARGUMENTS`, `BY_RESULT_TYPE`; `build_indexes` also builds the `analysis_id`+`method_id` and, from SWC.4c,
   the JSON-envelope uniqueness indexes, which only the conformance checks read) and one narrow view per layer,
@@ -306,7 +306,7 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
   parameter. The builder is a pure function of the tuple, so tests call it on a modified copy, and it
   raises at import if a key repeats. Iteration order is declaration order.
 - **Lookup:** each consumer looks up in its injected mapping through one helper in
-  `src/core/strategy_errors.py`, which raises `UndeclaredStrategyError`
+  `investment_analysis_engine/core/strategy_errors.py`, which raises `UndeclaredStrategyError`
   ([§9.2](#92-fail-closed-dispatch)). Variants that return `None` serve the two consumers that must keep
   their existing exception types.
 - **Identity leaf:** presenters and the strategy CLI files read `analysis` and `method` strings from the
@@ -314,8 +314,8 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
   presenters through the replay projectors. `cli_support` is generic: the strategy command files pass it
   the identity as arguments.
 - **Parent-package initialization:** Python runs a package's `__init__.py` before any module in it, so an
-  import graph that ignores parent packages misses cycles. `src/workspace/__init__.py` re-exports names
-  from `requests`; no module in `src/` or `tests/` imports those names from the package. SWC.2a empties it
+  import graph that ignores parent packages misses cycles. `investment_analysis_engine/workspace/__init__.py` re-exports names
+  from `requests`; no module in `investment_analysis_engine/` or `tests/` imports those names from the package. SWC.2a empties it
   and the three re-exporting analyzer-package `__init__.py` files as it moves the analyzers.
   Test T13 builds its graph with an edge from each module to every parent `__init__.py` that exists. Nine
   re-exporting package `__init__.py` files take part in benign cycles once those are gone, in seven cycle
@@ -326,15 +326,15 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
   `__init__.py` imports a module and sits in a cycle, and fails for a recorded name that no longer does.
   Earlier drafts named one initializer per component and so listed eight; the telemetry component holds three.
 - **Prerequisite moves, with no compatibility re-exports.** SWC.2a relocates the existing strategy modules
-  into `src/strategies/` (analyzers, codecs, adapters, presenters, shared profile composition) and
+  into `investment_analysis_engine/strategies/` (analyzers, codecs, adapters, presenters, shared profile composition) and
   retargets 101 importer files. SWC.2b then moves the symbols: `ToolName` to
-  `src/orchestrator/tool_names.py`; the shared arguments base (renamed `AnalysisToolArguments`),
-  `FiniteFloat` and `PositiveFiniteFloat` to `src/orchestrator/analysis_tool_arguments.py`; each strategy's
+  `investment_analysis_engine/orchestrator/tool_names.py`; the shared arguments base (renamed `AnalysisToolArguments`),
+  `FiniteFloat` and `PositiveFiniteFloat` to `investment_analysis_engine/orchestrator/analysis_tool_arguments.py`; each strategy's
   arguments model to its `tool.py`; the five selection classes to each strategy's `selection.py` and their
-  shared base to `src/workspace/selection_base.py`; the `NativeEvidence` union, the new `SelectionMember`
-  union and the `AnalysisSelection` union to `src/workspace/strategy_types.py`. The importers are updated in
-  the same slice. Importer modules, counted on `main` after SWC.2a: 18 import `ToolName` (11 in `src`, one of
-  them the `src.evaluation` package re-export, and 7 in `tests`); 10 the argument models (4, 6); 20 the
+  shared base to `investment_analysis_engine/workspace/selection_base.py`; the `NativeEvidence` union, the new `SelectionMember`
+  union and the `AnalysisSelection` union to `investment_analysis_engine/workspace/strategy_types.py`. The importers are updated in
+  the same slice. Importer modules, counted on `main` after SWC.2a: 18 import `ToolName` (11 in `investment_analysis_engine`, one of
+  them the `investment_analysis_engine.evaluation` package re-export, and 7 in `tests`); 10 the argument models (4, 6); 20 the
   selection classes (4, 16); 10 `AnalysisSelection` (5, 5); none `NativeEvidence`, whose one user is
   `execution.py`, which defined it; 3 the evaluation `AnalysisToolArguments` union (2, 1). The shared
   selection base is public as `FrozenSelection` because four strategy packages and `requests.py` import it,
@@ -343,7 +343,7 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
   providers, not Graham logic, and a shared home keeps one copy without one strategy importing another. The
   same slice replaces the four-model `AnalysisToolArguments` union in `composition.py` with the shared base
   class, so one name never denotes two things. No public package export has to stay:
-  `src/evaluation/__init__.py` exports `ToolName`, but nothing imports it from the package, so that export
+  `investment_analysis_engine/evaluation/__init__.py` exports `ToolName`, but nothing imports it from the package, so that export
   is removed. `docs/EVALUATIONS.md` and `docs/project/ARCHITECTURE.md` name the moved symbols and are
   updated in SWC.2b.
 
@@ -351,7 +351,7 @@ the strategy's `evaluation.py` declares: the conformance round trip (T8) stores 
 
 The invocation envelope is unchanged and the descriptor does not enter it.
 
-- `src/analysis/base_analyzer.py` is not edited by any SWC slice. `BaseAnalyzer.run_analysis(self,
+- `investment_analysis_engine/analysis/base_analyzer.py` is not edited by any SWC slice. `BaseAnalyzer.run_analysis(self,
   ticker, config, context)` and the four `AnalysisContext` fields (`as_of`, `executed_at`,
   `use_cache`, `instrument_profile`) keep their signatures.
 - No descriptor field is typed `ConfigT`, names an analyzer class, or constructs one. A handler is built
@@ -371,24 +371,24 @@ T10 or T11.
 
 | Slice | File and symbol | Receives by injection | Stays strategy-owned |
 | :--- | :--- | :--- | :--- |
-| SWC.2c | `src/orchestrator/analysis_tools.py`: `register_analysis_tools(dispatcher, handlers)` | A mapping from tool name to bound handler, checked against `ToolName`; `AnalysisToolDependencies`, `AnalysisToolHandlers` and the four `ANALYZE_*_TOOL` constants are deleted. | Each handler and its dependency bundle, in `src/strategies/<strategy>/tool.py`; `ToolRuntime` (clock and profile resolver) is shared. |
-| SWC.2c | `src/evaluation/{composition,runner,ollama_runner}.py` (three `_tool_name`, `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser`, `_selection_observation`) | Imports the root: `BY_ARGUMENTS` through one `tool_for_arguments`; `tool_description` and `tool_arguments` per tool; ordinary enum lookup replaces the private `_value2member_map_`. | Prompt construction, observation evidence, fixture composition and requirement (moved by SWC.2d). |
-| SWC.2c | `src/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | `BY_RESULT_TYPE` membership; each behavior's `native_status` (Momentum's returns `None`, [§7](#7-strategy-specific-escape-hatches)); the duplicate union becomes `NativeEvidence`; the FCF default is gone. | The status function of each strategy. |
-| SWC.2d | `src/evaluation/composition.py`: `compose_fixture_dependencies`, `_require_tool_evidence` | Evaluation tier: per-strategy `compose` and `requirement`, with the tier a defaulted `tier` parameter of `compose_fixture_dependencies`, `compose_fixture_dispatcher` and `dispatch_fixture_case`. The `AnalysisToolArguments` union was replaced by the shared base in SWC.2b. | Fixture values, expected outcomes and case truth, in `src/strategies/<strategy>/evaluation.py`, `fixtures/` and `cases/`. |
-| SWC.2b, SWC.3a | `src/workspace/execution.py`: `NativeEvidence` move; `_METHOD_VERSIONS`, `execute`; `ExecutionCapture` and the four `from_*_capture` | `execute(request, ..., spec)` receives the strategy's versions and `encode_object`; `getattr(selection, "as_of", None)` becomes `selection.as_of`. | `ExecutionCapture` (moved to `src/workspace/capture.py`), each normalizer in its adapter, `NativeEvidence`. |
-| SWC.3a | `src/workspace/codecs.py`: `decode_evidence`, `encode_with`, `_EXPECTED_VERSIONS` | `decode_evidence(run, codecs)` looks up the injected codec by key, and `RunSpec.encode` is bound to the codec of the run's own `(analysis_id, method_id)` (corrected 2026-10-08: the by-type `encode_evidence` lookup was never called by production and was deleted); expected versions, label, ticker identity. | Each strategy's `encode_*`/`decode_*`, validation and provenance rules. |
-| SWC.3a | `src/workspace/method_aliases.py` | The alias vocabulary is the descriptors' `alias`, and `method_aliases.py` is deleted. (`parse_selection` was also rewritten here, but production never called it; it was deleted 2026-10-08, [H.33](#h33-one-dispatch-path-per-job-2026-10-08).) | Each selection class, in `src/strategies/<strategy>/selection.py`. |
-| SWC.3a | `src/data/repositories/watchlists.py`: alias lookup in the unreadable-entry message | The repository receives an alias resolver at construction (ten constructions in `src`, through one helper in `cli_workspace.py`); an unknown stored method falls back to its method id. | The message wording. |
-| SWC.3a | `src/workspace/refresh.py` | `refresh_watchlist` receives the run-spec lookup for `execute`, beside the executor it already receives. | Job scheduling and isolation. |
-| SWC.3a | `src/cli.py`, `src/cli_workspace.py`: three Momentum composition copies | None. | One `compose_momentum_profile` ([§14](#14-momentum-profile-composition-helper)). |
-| SWC.3b | `src/cli_workspace.py`: `_parse_analysis`, the alias lookups SWC.3a rewired to the root, `--analysis` help, `_build_selection`, `_refresh_executor`, the four `_execute_*` | The CLI tier supplies the alias vocabulary, `build` and `refresh`; a missing key raises `UndeclaredStrategyError`, replacing the `AssertionError` fallthrough. | The selection builder and refresh executor of each strategy, in `src/strategies/<strategy>/cli.py`. |
-| SWC.3c | `src/cli.py`: the four direct commands and their helpers | `cli.py` adds the commands by iterating `CLI_STRATEGIES`. `_maybe_save_run` and `get_cli_run_context` move to `src/cli_run_support.py`. | Each command, in `src/strategies/<strategy>/cli.py`; it uses no decorator and does not import the Typer app. |
-| SWC.4a | `src/cli_support.py`: `execution_errors`; `src/reporting/presentation.py`: `analysis_failure_document`; the `execution_errors(analysis=, method=)` calls in the strategy command files | Identity for the envelope (`analysis`, `method`), read from the strategy's identity leaf. | Failure classification. The `analysis == "momentum"` string test becomes an explicit parameter passed by the Momentum command. |
-| SWC.4a | `src/cli_workspace.py`: `_fail` and its `--json` call sites; `src/workspace/refresh.py` | None. | One exception-to-code classifier in `src/reporting/failure_classification.py` (now `src/core/failure_classification.py`, PH.2d) ([§13](#13-failure-envelope-contract)); `refresh_watchlist` receives it as a parameter. |
-| SWC.4b | `src/cli_workspace.py` JSON builders for watchlist, delete outcome, runs list and refresh summary | Nothing per strategy; `method_id` strings stay `str`. | The documents, now typed. `entries[].selection` is typed by the `AnalysisSelection` union ([§13.6](#136-every-json-document-is-typed)). |
-| SWC.4c | `src/reporting/analysis_runs.py`: `project_run` | `project_run(run, options, codecs, replays)`; a missing key raises `UnsupportedProjectionError`. | Each projector, in `src/strategies/<strategy>/replay.py`, over decoded evidence and selection. |
-| SWC.4c | `src/reporting/{momentum,graham_number,graham_growth}.py` builders | `analysis` and `method` strings from the identity leaf. | Builders and presenters. FCF reads its native ids. |
-| SWC.4c | Schema generator and `src/reporting/json_documents.py` | `json_envelope` per strategy. | The failure, workspace and database documents are listed once, outside the descriptor. |
+| SWC.2c | `investment_analysis_engine/orchestrator/analysis_tools.py`: `register_analysis_tools(dispatcher, handlers)` | A mapping from tool name to bound handler, checked against `ToolName`; `AnalysisToolDependencies`, `AnalysisToolHandlers` and the four `ANALYZE_*_TOOL` constants are deleted. | Each handler and its dependency bundle, in `investment_analysis_engine/strategies/<strategy>/tool.py`; `ToolRuntime` (clock and profile resolver) is shared. |
+| SWC.2c | `investment_analysis_engine/evaluation/{composition,runner,ollama_runner}.py` (three `_tool_name`, `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser`, `_selection_observation`) | Imports the root: `BY_ARGUMENTS` through one `tool_for_arguments`; `tool_description` and `tool_arguments` per tool; ordinary enum lookup replaces the private `_value2member_map_`. | Prompt construction, observation evidence, fixture composition and requirement (moved by SWC.2d). |
+| SWC.2c | `investment_analysis_engine/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | `BY_RESULT_TYPE` membership; each behavior's `native_status` (Momentum's returns `None`, [§7](#7-strategy-specific-escape-hatches)); the duplicate union becomes `NativeEvidence`; the FCF default is gone. | The status function of each strategy. |
+| SWC.2d | `investment_analysis_engine/evaluation/composition.py`: `compose_fixture_dependencies`, `_require_tool_evidence` | Evaluation tier: per-strategy `compose` and `requirement`, with the tier a defaulted `tier` parameter of `compose_fixture_dependencies`, `compose_fixture_dispatcher` and `dispatch_fixture_case`. The `AnalysisToolArguments` union was replaced by the shared base in SWC.2b. | Fixture values, expected outcomes and case truth, in `investment_analysis_engine/strategies/<strategy>/evaluation.py`, `fixtures/` and `cases/`. |
+| SWC.2b, SWC.3a | `investment_analysis_engine/workspace/execution.py`: `NativeEvidence` move; `_METHOD_VERSIONS`, `execute`; `ExecutionCapture` and the four `from_*_capture` | `execute(request, ..., spec)` receives the strategy's versions and `encode_object`; `getattr(selection, "as_of", None)` becomes `selection.as_of`. | `ExecutionCapture` (moved to `investment_analysis_engine/workspace/capture.py`), each normalizer in its adapter, `NativeEvidence`. |
+| SWC.3a | `investment_analysis_engine/workspace/codecs.py`: `decode_evidence`, `encode_with`, `_EXPECTED_VERSIONS` | `decode_evidence(run, codecs)` looks up the injected codec by key, and `RunSpec.encode` is bound to the codec of the run's own `(analysis_id, method_id)` (corrected 2026-10-08: the by-type `encode_evidence` lookup was never called by production and was deleted); expected versions, label, ticker identity. | Each strategy's `encode_*`/`decode_*`, validation and provenance rules. |
+| SWC.3a | `investment_analysis_engine/workspace/method_aliases.py` | The alias vocabulary is the descriptors' `alias`, and `method_aliases.py` is deleted. (`parse_selection` was also rewritten here, but production never called it; it was deleted 2026-10-08, [H.33](#h33-one-dispatch-path-per-job-2026-10-08).) | Each selection class, in `investment_analysis_engine/strategies/<strategy>/selection.py`. |
+| SWC.3a | `investment_analysis_engine/data/repositories/watchlists.py`: alias lookup in the unreadable-entry message | The repository receives an alias resolver at construction (ten constructions in `investment_analysis_engine`, through one helper in `cli_workspace.py`); an unknown stored method falls back to its method id. | The message wording. |
+| SWC.3a | `investment_analysis_engine/workspace/refresh.py` | `refresh_watchlist` receives the run-spec lookup for `execute`, beside the executor it already receives. | Job scheduling and isolation. |
+| SWC.3a | `investment_analysis_engine/cli.py`, `investment_analysis_engine/cli_workspace.py`: three Momentum composition copies | None. | One `compose_momentum_profile` ([§14](#14-momentum-profile-composition-helper)). |
+| SWC.3b | `investment_analysis_engine/cli_workspace.py`: `_parse_analysis`, the alias lookups SWC.3a rewired to the root, `--analysis` help, `_build_selection`, `_refresh_executor`, the four `_execute_*` | The CLI tier supplies the alias vocabulary, `build` and `refresh`; a missing key raises `UndeclaredStrategyError`, replacing the `AssertionError` fallthrough. | The selection builder and refresh executor of each strategy, in `investment_analysis_engine/strategies/<strategy>/cli.py`. |
+| SWC.3c | `investment_analysis_engine/cli.py`: the four direct commands and their helpers | `cli.py` adds the commands by iterating `CLI_STRATEGIES`. `_maybe_save_run` and `get_cli_run_context` move to `investment_analysis_engine/cli_run_support.py`. | Each command, in `investment_analysis_engine/strategies/<strategy>/cli.py`; it uses no decorator and does not import the Typer app. |
+| SWC.4a | `investment_analysis_engine/cli_support.py`: `execution_errors`; `investment_analysis_engine/reporting/presentation.py`: `analysis_failure_document`; the `execution_errors(analysis=, method=)` calls in the strategy command files | Identity for the envelope (`analysis`, `method`), read from the strategy's identity leaf. | Failure classification. The `analysis == "momentum"` string test becomes an explicit parameter passed by the Momentum command. |
+| SWC.4a | `investment_analysis_engine/cli_workspace.py`: `_fail` and its `--json` call sites; `investment_analysis_engine/workspace/refresh.py` | None. | One exception-to-code classifier in `investment_analysis_engine/reporting/failure_classification.py` (now `investment_analysis_engine/core/failure_classification.py`, PH.2d) ([§13](#13-failure-envelope-contract)); `refresh_watchlist` receives it as a parameter. |
+| SWC.4b | `investment_analysis_engine/cli_workspace.py` JSON builders for watchlist, delete outcome, runs list and refresh summary | Nothing per strategy; `method_id` strings stay `str`. | The documents, now typed. `entries[].selection` is typed by the `AnalysisSelection` union ([§13.6](#136-every-json-document-is-typed)). |
+| SWC.4c | `investment_analysis_engine/reporting/analysis_runs.py`: `project_run` | `project_run(run, options, codecs, replays)`; a missing key raises `UnsupportedProjectionError`. | Each projector, in `investment_analysis_engine/strategies/<strategy>/replay.py`, over decoded evidence and selection. |
+| SWC.4c | `investment_analysis_engine/reporting/{momentum,graham_number,graham_growth}.py` builders | `analysis` and `method` strings from the identity leaf. | Builders and presenters. FCF reads its native ids. |
+| SWC.4c | Schema generator and `investment_analysis_engine/reporting/json_documents.py` | `json_envelope` per strategy. | The failure, workspace and database documents are listed once, outside the descriptor. |
 
 ## 7. Strategy-specific escape hatches
 
@@ -490,10 +490,10 @@ Points learned from the prototypes that the slices must follow:
 ### 9.1 `ToolName`
 
 **Decision:** `ToolName` stays a hand-written `StrEnum`, the single declaration of the tool-name strings.
-It lives in `src/orchestrator/tool_names.py`, a leaf with no project imports, because the orchestrator,
+It lives in `investment_analysis_engine/orchestrator/tool_names.py`, a leaf with no project imports, because the orchestrator,
 the descriptor and `evaluation.models` all need it and it must not pull a strategy into any of them. There
 is no re-export: `evaluation/models.py` imports it from its new home like every other importer, and the
-`src.evaluation` package export is removed. Each descriptor binds one member in `tool`.
+`investment_analysis_engine.evaluation` package export is removed. Each descriptor binds one member in `tool`.
 
 **Why not source the enum from descriptor strings:** a functional `StrEnum(...)` built from descriptor
 strings is rejected by `mypy --strict` (`StrEnum() must be ... literal ... to determine Enum members`), and
@@ -514,7 +514,7 @@ argument-model subclasses and the registered tools against each other in both di
 
 ### 9.2 Fail-closed dispatch
 
-One exception, `UndeclaredStrategyError(LookupError)`, defined in `src/core/strategy_errors.py` with a
+One exception, `UndeclaredStrategyError(LookupError)`, defined in `investment_analysis_engine/core/strategy_errors.py` with a
 message that names the key or type that matched nothing and the declared alternatives. No generic consumer
 has a fall-through branch.
 
@@ -548,9 +548,9 @@ parameterized over the production tuples and over the specimen tuples ([§19.5](
 | :--- | :--- | :--- | :--- |
 | T1 `selection_union` | `(analysis_id, method_id)` of each `get_args(SelectionMember)` member | `Literal` field defaults on the hand-written selection classes | Selections and descriptors are separate declarations. A strategy added to one only fails. |
 | T2 `native_evidence_union` | `get_args(NativeEvidence)` against the set of `behavior.result_type` | The hand-written evidence union | Same reasoning; the bundle's bound also fails type-checking on mismatch. |
-| T3 `analyzer_generics` | `behavior.result_type` against `ResultT` of every non-abstract `BaseAnalyzer` subclass found by walking `src.strategies` with `pkgutil` (skipping packages whose name starts with an underscore) | The analyzers' own `BaseAnalyzer[ConfigT, ResultT]` specialization | The analyzer defines its result; the descriptor must agree. Enumeration is by package walk, so a new analyzer needs no edit to the test. It also fails for an analyzer found outside `src/strategies`. It also requires exactly one descriptor per analyzer and one analyzer per descriptor. |
+| T3 `analyzer_generics` | `behavior.result_type` against `ResultT` of every non-abstract `BaseAnalyzer` subclass found by walking `investment_analysis_engine.strategies` with `pkgutil` (skipping packages whose name starts with an underscore) | The analyzers' own `BaseAnalyzer[ConfigT, ResultT]` specialization | The analyzer defines its result; the descriptor must agree. Enumeration is by package walk, so a new analyzer needs no edit to the test. It also fails for an analyzer found outside `investment_analysis_engine/strategies`. It also requires exactly one descriptor per analyzer and one analyzer per descriptor. |
 | T4 `tool_surfaces` | `tool` and `tool_arguments` against `set(ToolName)`, `AnalysisToolArguments.__subclasses__()` and the names bound for a real dispatcher | Two hand-written surfaces and the dispatcher | A tool in the enum or the subclass set and not in the descriptors fails and names it. Registration itself is derived, so it is no longer a compared surface. |
-| T5 `cases_route_to_their_tool` | `tool_for_arguments(request.arguments)` for each catalog request, against the tools its case's expectation requires | Reviewed case expectations in `src/evaluation/cases` | Case truth is written by hand against tool names, not derived from the descriptor. |
+| T5 `cases_route_to_their_tool` | `tool_for_arguments(request.arguments)` for each catalog request, against the tools its case's expectation requires | Reviewed case expectations in `investment_analysis_engine/evaluation/cases` | Case truth is written by hand against tool names, not derived from the descriptor. |
 | T6 `evaluation_coverage` | Every descriptor tool against the union of tools the golden cases require; the deterministic suite runs every case | The case catalog and the suite's own dispatch | A strategy with no deterministic case, or one the fixture composition cannot serve, fails. |
 | T7 `command_table` | Descriptor aliases against the top-level command names of the real Typer app | The CLI's own command table, read from `typer.main.get_command(app)` with hidden groups included | (a) Every top-level command is a descriptor alias, a command group, or listed in the hand-written `NON_STRATEGY_COMMANDS`. (b) An alias never equals a group or non-strategy name. (c) Each strategy command offers `--save-run` and `--json`. Strategy commands are added from the CLI tier, so "every alias is a command" is now derived and is checked through T10's CLI-tier surface instead. |
 | T8 `versions_and_round_trip` (SWC.3a; replay added by SWC.4c) | Run envelope versions, decoded evidence and, from SWC.4c, the replayed text for a real result per strategy | Real analyzer output via the golden fixtures, real `AnalysisRun` validation, the live presenter | Behavior, not metadata: `execute` writes, `decode_evidence` reads, and `decoded == original` must hold; the replay of a stored run equals the live presenter's output. |
@@ -558,10 +558,10 @@ parameterized over the production tuples and over the specimen tuples ([§19.5](
 | T10 `consumers_cover_every_descriptor` | The key set of each remaining consumer surface: CLI tier, evaluation tier, JSON ids, published schemas, generated strategy lists | The tiers' own tuples and the files on disk | Fails when a descriptor has no entry in a tier, naming the surface and the strategy. The surfaces that became derived (tool registration, evaluation routing, native status, codecs, aliases, selection parsing, builders, refresh executors, projectors) are no longer tables, so they are no longer compared. |
 | T11 `undeclared_inputs_fail_closed` | Every dispatcher in [§9.2](#92-fail-closed-dispatch) with an undeclared type, key, alias or arguments, and a bundle given another strategy's object | The behavior of the dispatchers over injected mappings, including the specimen | Proves no consumer routes an unknown input to Momentum or FCF. |
 | T12 `incomplete_strategy_negative_control` | A deliberately incomplete specimen ([§10.2](#102-negative-control)) | See below | Proves T10 and T11 can fail. |
-| T13 `import_layering` (parent-aware graph and role rule from SWC.2a; root rule from SWC.2c) | The import graph of `src`, with an edge from every module to each parent `__init__.py` | The source files | Enforces the full role and parent-package rules in [§4](#4-static-declaration-model). During migration it permits only the exact transition edges listed there, checks each entry still exists, and rejects every unlisted forbidden edge. The transition list shrinks with its owning consumer move and is empty at SWC.4c; SWC.7 verifies final conformance. The importers of the root are an exact list, and each entry must exist and import the root; a slice adds an entry in the change that first makes its module import the root. SWC.2d added the rule that only generic evaluation modules import the evaluation tier (an exact list with a staleness check), the clause for the case modules, and the rule on what a strategy's `evaluation` file may import, each with a negative test; SWC.3b adds the rule that only listed CLI modules import the CLI tier (an exact list with a staleness check; `src.cli_workspace` in SWC.3b, and `src.cli` in SWC.3c), the rule that the tier imports only the root and the `cli` role of a strategy package, and the tier module's entry in the root-importer list, each with a negative test ([H.11](#h11-the-cli-tier-importer-lists)). |
-| T14 `no_discovery_or_registration` | The AST of `src/strategy_wiring.py`, both tier modules and every strategy-owned file | The source files | See [§12](#12-framework-drift-checks). |
+| T13 `import_layering` (parent-aware graph and role rule from SWC.2a; root rule from SWC.2c) | The import graph of `investment_analysis_engine`, with an edge from every module to each parent `__init__.py` | The source files | Enforces the full role and parent-package rules in [§4](#4-static-declaration-model). During migration it permits only the exact transition edges listed there, checks each entry still exists, and rejects every unlisted forbidden edge. The transition list shrinks with its owning consumer move and is empty at SWC.4c; SWC.7 verifies final conformance. The importers of the root are an exact list, and each entry must exist and import the root; a slice adds an entry in the change that first makes its module import the root. SWC.2d added the rule that only generic evaluation modules import the evaluation tier (an exact list with a staleness check), the clause for the case modules, and the rule on what a strategy's `evaluation` file may import, each with a negative test; SWC.3b adds the rule that only listed CLI modules import the CLI tier (an exact list with a staleness check; `investment_analysis_engine.cli_workspace` in SWC.3b, and `investment_analysis_engine.cli` in SWC.3c), the rule that the tier imports only the root and the `cli` role of a strategy package, and the tier module's entry in the root-importer list, each with a negative test ([H.11](#h11-the-cli-tier-importer-lists)). |
+| T14 `no_discovery_or_registration` | The AST of `investment_analysis_engine/strategy_wiring.py`, both tier modules and every strategy-owned file | The source files | See [§12](#12-framework-drift-checks). |
 | T15 `descriptor_is_closed` | Field names, types, frozen-ness, non-generic-ness and tuple-ness of the descriptor; member names of the behavior bundle and both tier compositions | `dataclasses.fields` | Adding a field or member forces a reviewed edit to the documented set. |
-| T16 `no_unused_field` | Each descriptor field and each `BehaviorView` accessor (`result_type`, `native_status_of`, `bind_handler`) against attribute reads on descriptor-typed expressions in `src/` and `scripts/` outside the defining module | The source files, read with a conservative type resolver | A bare name match would be satisfied by an unrelated attribute. The resolver counts `X.field` only when `X` is a loop variable over `STRATEGIES` or `BY_*.values()`, the result of `require(...)`, `find(...)` or `BY_*[...]`, a parameter annotated `StrategyDescriptor`, or one of the module's descriptor constants. A self-test with snippets proves that `descriptor.alias` counts and `selection.alias` does not. The behavior members `deps_type`, `handler` and `native_status` are reached only through the accessors, so they have no read of their own; T15 pins the member set, so a member cannot be added or left unreachable without a reviewed edit. |
+| T16 `no_unused_field` | Each descriptor field and each `BehaviorView` accessor (`result_type`, `native_status_of`, `bind_handler`) against attribute reads on descriptor-typed expressions in `investment_analysis_engine/` and `scripts/` outside the defining module | The source files, read with a conservative type resolver | A bare name match would be satisfied by an unrelated attribute. The resolver counts `X.field` only when `X` is a loop variable over `STRATEGIES` or `BY_*.values()`, the result of `require(...)`, `find(...)` or `BY_*[...]`, a parameter annotated `StrategyDescriptor`, or one of the module's descriptor constants. A self-test with snippets proves that `descriptor.alias` counts and `selection.alias` does not. The behavior members `deps_type`, `handler` and `native_status` are reached only through the accessors, so they have no read of their own; T15 pins the member set, so a member cannot be added or left unreachable without a reviewed edit. |
 | T17 `analyzer_envelope_unchanged` | `inspect.signature(BaseAnalyzer.run_analysis)` and `AnalysisContext` fields | The base module | The descriptor work cannot alter the envelope unnoticed. |
 | T18 `failure_codes` (SWC.4a) | `FailureReasonCode` against every `ReadinessReason`, every exception `reason_code` attribute, and every code the classifier can return | The source exceptions and enums | A new source code with no envelope code fails. |
 | T19 `failure_envelope_closed` (SWC.4a) | Envelope fields against the documented set; no remediation-shaped field | The model | Enforces the report-never-remediate rule. |
@@ -574,7 +574,7 @@ parameterized over the production tuples and over the specimen tuples ([§19.5](
 | T26 `generated_lists_current` (SWC.5) | The marked blocks in `USAGE.md` and `WORKSPACE.md` against the blocks regenerated from `STRATEGIES` | Checked-in files | Byte comparison, as T20; a strategy missing from a block fails naming the file. |
 | T27 `specimen_complete` (SWC.6) | The status command run on the specimen against the site data file | The specimen's files | The specimen has an artifact for every site, so the tests that run on it exercise every layer. |
 | T28 `generator_end_to_end` (SWC.6) | The generator's output in a temporary copy of the repository, filled with trivial bodies | The strict type check and the conformance suite, run as subprocesses in the copy | Proves a new strategy added only through the generator and trivial fills passes both. |
-| T29 `no_unfilled_stubs` (SWC.6) | Every call to `unfilled_stub` in `src/` | The source files | Fails naming each file and line, so generator output cannot merge until each stub is replaced. |
+| T29 `no_unfilled_stubs` (SWC.6) | Every call to `unfilled_stub` in `investment_analysis_engine/` | The source files | Fails naming each file and line, so generator output cannot merge until each stub is replaced. |
 
 The existing `tests/workspace/test_method_aliases.py` is the model for T1. SWC.3a folds it into T1 and T10
 when `method_aliases.py` is deleted.
@@ -609,18 +609,18 @@ approval. Each slice makes its moves in the same change as the consumer it serve
 
 | Slice | Branch | Files touched | Declarations removed | Order of work |
 | :--- | :--- | :--- | :--- | :--- |
-| SWC.2a | `feat/swc-2a-strategy-packages` | New: `src/strategies/` with an empty `__init__.py` in it and in each strategy package, the layering test (T13: role rule and parent-package initialization), `src/strategies/_shared/profile.py`. Moved with `git mv` and no content change beyond imports: the 17 analyzer files from `src/analysis/strategy/<package>/` (Momentum's `momentum_analyzer.py` becomes `analyzer.py`), the four codecs (`src/workspace/<strategy>.py` to `codec.py`), the four adapters (`<strategy>_execution.py` to `execution.py`), the four presenters (`src/reporting/<strategy>.py` to `presenter.py`) and `src/workspace/graham_shared.py`. Edited: the 101 importer files (33 in `src`, 68 in `tests`; 15 tests name moved modules in patch strings), `tests/analysis/test_base_analyzer_conformance.py` (the strategy-boundary constants now name `src/strategies`), `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` (paths). Also new: the patch-target resolution test, a test that every string patch target in `tests/` (the dotted target of `patch(...)`, `patch.object` by name and `monkeypatch.setattr(...)`) resolves to an existing attribute; it runs before the importer rewrite is accepted and the package-rename plan reuses it. | `src/analysis/strategy/` and its three re-exporting `__init__.py` files; the old module paths. | Package skeleton and T13 first, then one strategy at a time (analyzer files, then codec, adapter and presenter), then `_shared/profile.py`, then the importers and the boundary test, then the patch-target resolution test, which must pass over every `tests/` string target. No behavior change and no new symbol. |
-| SWC.2b | `feat/swc-2b-symbol-moves` | New: `src/orchestrator/tool_names.py`, `src/orchestrator/analysis_tool_arguments.py`, `src/strategies/<strategy>/tool.py` (arguments only), `src/workspace/selection_base.py`, `src/strategies/<strategy>/selection.py`, `src/workspace/strategy_types.py`. Edited: `src/orchestrator/analysis_tools.py`, `src/workspace/{requests,execution}.py`, `src/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py`, the six `src/evaluation/cases/*.py` importers, `src/core/constants.py`, the importers of every moved symbol (tests included), `tests/test_strategy_import_layering.py` (twenty transition entries), `docs/EVALUATIONS.md`, `docs/project/ARCHITECTURE.md`. | The old definitions of every moved symbol; the `ToolName` export from `src.evaluation`; the four-model `AnalysisToolArguments` union in `composition.py`; `AnalysisType`. | One symbol group at a time (`ToolName`, arguments, selection classes, unions), updating importers and running the gate after each; then `AnalysisType`. No behavior change and no descriptor. |
-| SWC.2c | `feat/swc-2c-descriptor-orchestration-wiring` | New: `src/strategy_wiring.py`, `src/core/strategy_errors.py`, `src/orchestrator/tool_runtime.py`, conformance tests and `scripts/strategy_conformance.py`. Edited: `src/orchestrator/analysis_tools.py`, `src/strategies/<strategy>/tool.py` (dependency classes and handlers), `src/evaluation/{composition,runner,ollama_runner}.py`, affected tests; removes its twelve T13 transition entries. | `AnalysisToolDependencies`, `AnalysisToolHandlers`; the four `ANALYZE_*_TOOL` constants; `ANALYSIS_TOOL_ARGUMENT_MODELS`; three `_tool_name`; `_TOOL_DESCRIPTIONS`; the duplicate `NativeAnalysisResult`; the FCF default in `_native_status`; the private `_value2member_map_` use. | Add the descriptor with T1 (ids), T2 to T6, T11, T13 (root rule), T14 to T17, T24, then move each handler and switch each consumer. Fixture composition stays in `composition.py` as per-strategy functions until SWC.2d. |
-| SWC.2d | `feat/swc-2d-evaluation-tier` | New: `src/evaluation/strategy_fixtures.py`, `src/evaluation/fixture_context.py`, `src/strategies/<strategy>/evaluation.py` and `src/strategies/_graham/evaluation.py`. Edited: `src/evaluation/{composition,catalog}.py`, the fixture modules (each gains the fixture ids of its evidence), `src/evaluation/cases/__init__.py` (emptied), the case modules (reviewed arguments move beside their cases; each case module becomes single-strategy and named for its strategy package, [§4](#4-static-declaration-model)), T13's rule 3 clause for `src.evaluation.cases.<strategy>`, affected tests; removes its eight T13 transition entries. | The per-strategy composition functions and `_require_tool_evidence` in `composition.py`; the `_arguments` chain in `catalog.py`. | Fixture identifiers into their fixture modules and the shared context first, then one strategy at a time into its evaluation file, then the tier tuple and T10's evaluation-tier surface. No fixture value, expected outcome or score changes. |
-| SWC.3a | `feat/swc-3a-workspace-consumers` | `src/strategy_wiring.py`, `src/workspace/{codecs,execution,requests,refresh,capture}.py` (`capture.py` new), the four `src/strategies/<strategy>/execution.py` adapters (each gains its normalizer; Momentum's gains `compose_momentum_profile`), delete `src/workspace/method_aliases.py`, `src/data/repositories/watchlists.py`, `src/cli_workspace.py` (the repository helper), `src/cli.py` (Momentum composition only), tests (T1, T8, T10, T11 extended; `test_method_aliases.py` folded in). | `_METHOD_VERSIONS`; `_EXPECTED_VERSIONS`; both label chains; both codec isinstance chains; `method_aliases.py`; the `parse_selection` alias tuple and Momentum fall-through; the `getattr(selection, "as_of", None)` probe; the Momentum composition copies. | Momentum helper first (independent), then descriptor fields and the `selection_type`, `parse`, `encode`, `decode`, `ticker_of` members, then codecs and execution, then aliases and `parse_selection`, then the repository alias resolver and `refresh_watchlist`. `ExecutionCapture` and the normalizers move here. |
-| SWC.3b | `feat/swc-3b-cli-tier` | New: `src/cli_strategy_wiring.py`, `src/cli_watchlist_flags.py`, `src/strategies/<strategy>/cli.py`. Edited: `src/cli_workspace.py`, `scripts/strategy_conformance.py`, tests (T10 CLI-tier surface; two patch-target retargets). | `_build_selection` and its helpers; `_refresh_executor`; the four `_execute_*`; the `--analysis` help literals. | One strategy at a time: selection builder and refresh executor into its `cli.py`, then the tier tuple, then the lookups in `cli_workspace.py`. |
-| SWC.3c | `feat/swc-3c-direct-commands` | `src/cli.py`, `src/cli_run_support.py` (new), the four `src/strategies/<strategy>/cli.py`, tests (T7, T22; retargeted patch strings in 13 test modules). | The four `@app.command` functions and their helpers in `cli.py`; `_maybe_save_run` and `get_cli_run_context` leave it. | Shared run helpers first, then one command at a time, then `cli.py` iterating `CLI_STRATEGIES`, then T7 and T22. |
-| SWC.4a | `feat/swc-4a-failure-envelope` | New `src/reporting/documents/{__init__,failure,database}.py`, `src/reporting/failure_classification.py` (since moved to `src/core`, PH.2d), `scripts/generate_schemas.py`, `schemas/` (failure, database report). Edited: `src/cli_support.py`, `src/reporting/presentation.py`, the `execution_errors` call sites in the strategy `cli.py` files, `src/cli_workspace.py`, `src/cli_database.py`, `src/workspace/refresh.py`, `src/workspace/watchlists.py`, `src/data/repositories/watchlists.py`, `docs/user/DATABASE.md`, tests (T18 to T20). | `analysis_failure_document`'s hand-built dict and its wrong docstring; the `analysis == "momentum"` test; the six literal id pairs in `execution_errors` calls; the duplicate `WatchlistNotFoundError` in `refresh.py`. | Failure model and classifier, then direct commands, then workspace `--json` paths, then `refresh_watchlist`'s injected classifier and per-job codes, then the database report rename, then the generator and T20. |
-| SWC.4b | `feat/swc-4b-workspace-documents` | New `src/reporting/documents/{watchlist,runs,refresh}.py`; `src/cli_workspace.py` JSON builders; `schemas/` (watchlist, watchlist delete, runs list, refresh summary); tests (T20 extended). | The hand-built dicts in `_watchlist_payload`, the delete outcome and `_refresh_json`; the `model_dump` list in `runs list`. | One model per document, each proved byte-identical to the current output except the listed changes, then the schemas. |
-| SWC.4c | `feat/swc-4c-strategy-json-envelopes` | `src/strategy_wiring.py`; new `src/strategies/<strategy>/envelope.py`, `replay.py` and `vocabulary.py` (four each), `src/strategies/_graham/replay.py`, `src/reporting/{json_documents,replay_inputs}.py`; `src/reporting/analysis_runs.py`; `schemas/` (four strategy documents); tests (T8, T10, T20, T21, T24 extended). | Literal ids in three builders; the `project_run` pair chain; the four `_project_*_v1` functions leave `analysis_runs.py`; `ReplayOptions` and `UnsupportedProjectionError` move to `replay_inputs.py`. | Envelope models and `json_envelope`, then the builders' boundary validation, then the projectors and the injected `project_run`, then `JSON_DOCUMENTS` and T21 last, when every command is covered. `json_documents.py` lists the failure, workspace and database documents only; the generator and T20, T21 add each descriptor's `json_envelope` from the root. |
+| SWC.2a | `feat/swc-2a-strategy-packages` | New: `investment_analysis_engine/strategies/` with an empty `__init__.py` in it and in each strategy package, the layering test (T13: role rule and parent-package initialization), `investment_analysis_engine/strategies/_shared/profile.py`. Moved with `git mv` and no content change beyond imports: the 17 analyzer files from `investment_analysis_engine/analysis/strategy/<package>/` (Momentum's `momentum_analyzer.py` becomes `analyzer.py`), the four codecs (`investment_analysis_engine/workspace/<strategy>.py` to `codec.py`), the four adapters (`<strategy>_execution.py` to `execution.py`), the four presenters (`investment_analysis_engine/reporting/<strategy>.py` to `presenter.py`) and `investment_analysis_engine/workspace/graham_shared.py`. Edited: the 101 importer files (33 in `investment_analysis_engine`, 68 in `tests`; 15 tests name moved modules in patch strings), `tests/analysis/test_base_analyzer_conformance.py` (the strategy-boundary constants now name `investment_analysis_engine/strategies`), `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` (paths). Also new: the patch-target resolution test, a test that every string patch target in `tests/` (the dotted target of `patch(...)`, `patch.object` by name and `monkeypatch.setattr(...)`) resolves to an existing attribute; it runs before the importer rewrite is accepted and the package-rename plan reuses it. | `investment_analysis_engine/analysis/strategy/` and its three re-exporting `__init__.py` files; the old module paths. | Package skeleton and T13 first, then one strategy at a time (analyzer files, then codec, adapter and presenter), then `_shared/profile.py`, then the importers and the boundary test, then the patch-target resolution test, which must pass over every `tests/` string target. No behavior change and no new symbol. |
+| SWC.2b | `feat/swc-2b-symbol-moves` | New: `investment_analysis_engine/orchestrator/tool_names.py`, `investment_analysis_engine/orchestrator/analysis_tool_arguments.py`, `investment_analysis_engine/strategies/<strategy>/tool.py` (arguments only), `investment_analysis_engine/workspace/selection_base.py`, `investment_analysis_engine/strategies/<strategy>/selection.py`, `investment_analysis_engine/workspace/strategy_types.py`. Edited: `investment_analysis_engine/orchestrator/analysis_tools.py`, `investment_analysis_engine/workspace/{requests,execution}.py`, `investment_analysis_engine/evaluation/{__init__,models,composition,runner,ollama_runner,evaluator,catalog}.py`, the six `investment_analysis_engine/evaluation/cases/*.py` importers, `investment_analysis_engine/core/constants.py`, the importers of every moved symbol (tests included), `tests/test_strategy_import_layering.py` (twenty transition entries), `docs/EVALUATIONS.md`, `docs/project/ARCHITECTURE.md`. | The old definitions of every moved symbol; the `ToolName` export from `investment_analysis_engine.evaluation`; the four-model `AnalysisToolArguments` union in `composition.py`; `AnalysisType`. | One symbol group at a time (`ToolName`, arguments, selection classes, unions), updating importers and running the gate after each; then `AnalysisType`. No behavior change and no descriptor. |
+| SWC.2c | `feat/swc-2c-descriptor-orchestration-wiring` | New: `investment_analysis_engine/strategy_wiring.py`, `investment_analysis_engine/core/strategy_errors.py`, `investment_analysis_engine/orchestrator/tool_runtime.py`, conformance tests and `scripts/strategy_conformance.py`. Edited: `investment_analysis_engine/orchestrator/analysis_tools.py`, `investment_analysis_engine/strategies/<strategy>/tool.py` (dependency classes and handlers), `investment_analysis_engine/evaluation/{composition,runner,ollama_runner}.py`, affected tests; removes its twelve T13 transition entries. | `AnalysisToolDependencies`, `AnalysisToolHandlers`; the four `ANALYZE_*_TOOL` constants; `ANALYSIS_TOOL_ARGUMENT_MODELS`; three `_tool_name`; `_TOOL_DESCRIPTIONS`; the duplicate `NativeAnalysisResult`; the FCF default in `_native_status`; the private `_value2member_map_` use. | Add the descriptor with T1 (ids), T2 to T6, T11, T13 (root rule), T14 to T17, T24, then move each handler and switch each consumer. Fixture composition stays in `composition.py` as per-strategy functions until SWC.2d. |
+| SWC.2d | `feat/swc-2d-evaluation-tier` | New: `investment_analysis_engine/evaluation/strategy_fixtures.py`, `investment_analysis_engine/evaluation/fixture_context.py`, `investment_analysis_engine/strategies/<strategy>/evaluation.py` and `investment_analysis_engine/strategies/_graham/evaluation.py`. Edited: `investment_analysis_engine/evaluation/{composition,catalog}.py`, the fixture modules (each gains the fixture ids of its evidence), `investment_analysis_engine/evaluation/cases/__init__.py` (emptied), the case modules (reviewed arguments move beside their cases; each case module becomes single-strategy and named for its strategy package, [§4](#4-static-declaration-model)), T13's rule 3 clause for `investment_analysis_engine.evaluation.cases.<strategy>`, affected tests; removes its eight T13 transition entries. | The per-strategy composition functions and `_require_tool_evidence` in `composition.py`; the `_arguments` chain in `catalog.py`. | Fixture identifiers into their fixture modules and the shared context first, then one strategy at a time into its evaluation file, then the tier tuple and T10's evaluation-tier surface. No fixture value, expected outcome or score changes. |
+| SWC.3a | `feat/swc-3a-workspace-consumers` | `investment_analysis_engine/strategy_wiring.py`, `investment_analysis_engine/workspace/{codecs,execution,requests,refresh,capture}.py` (`capture.py` new), the four `investment_analysis_engine/strategies/<strategy>/execution.py` adapters (each gains its normalizer; Momentum's gains `compose_momentum_profile`), delete `investment_analysis_engine/workspace/method_aliases.py`, `investment_analysis_engine/data/repositories/watchlists.py`, `investment_analysis_engine/cli_workspace.py` (the repository helper), `investment_analysis_engine/cli.py` (Momentum composition only), tests (T1, T8, T10, T11 extended; `test_method_aliases.py` folded in). | `_METHOD_VERSIONS`; `_EXPECTED_VERSIONS`; both label chains; both codec isinstance chains; `method_aliases.py`; the `parse_selection` alias tuple and Momentum fall-through; the `getattr(selection, "as_of", None)` probe; the Momentum composition copies. | Momentum helper first (independent), then descriptor fields and the `selection_type`, `parse`, `encode`, `decode`, `ticker_of` members, then codecs and execution, then aliases and `parse_selection`, then the repository alias resolver and `refresh_watchlist`. `ExecutionCapture` and the normalizers move here. |
+| SWC.3b | `feat/swc-3b-cli-tier` | New: `investment_analysis_engine/cli_strategy_wiring.py`, `investment_analysis_engine/cli_watchlist_flags.py`, `investment_analysis_engine/strategies/<strategy>/cli.py`. Edited: `investment_analysis_engine/cli_workspace.py`, `scripts/strategy_conformance.py`, tests (T10 CLI-tier surface; two patch-target retargets). | `_build_selection` and its helpers; `_refresh_executor`; the four `_execute_*`; the `--analysis` help literals. | One strategy at a time: selection builder and refresh executor into its `cli.py`, then the tier tuple, then the lookups in `cli_workspace.py`. |
+| SWC.3c | `feat/swc-3c-direct-commands` | `investment_analysis_engine/cli.py`, `investment_analysis_engine/cli_run_support.py` (new), the four `investment_analysis_engine/strategies/<strategy>/cli.py`, tests (T7, T22; retargeted patch strings in 13 test modules). | The four `@app.command` functions and their helpers in `cli.py`; `_maybe_save_run` and `get_cli_run_context` leave it. | Shared run helpers first, then one command at a time, then `cli.py` iterating `CLI_STRATEGIES`, then T7 and T22. |
+| SWC.4a | `feat/swc-4a-failure-envelope` | New `investment_analysis_engine/reporting/documents/{__init__,failure,database}.py`, `investment_analysis_engine/reporting/failure_classification.py` (since moved to `investment_analysis_engine/core`, PH.2d), `scripts/generate_schemas.py`, `schemas/` (failure, database report). Edited: `investment_analysis_engine/cli_support.py`, `investment_analysis_engine/reporting/presentation.py`, the `execution_errors` call sites in the strategy `cli.py` files, `investment_analysis_engine/cli_workspace.py`, `investment_analysis_engine/cli_database.py`, `investment_analysis_engine/workspace/refresh.py`, `investment_analysis_engine/workspace/watchlists.py`, `investment_analysis_engine/data/repositories/watchlists.py`, `docs/user/DATABASE.md`, tests (T18 to T20). | `analysis_failure_document`'s hand-built dict and its wrong docstring; the `analysis == "momentum"` test; the six literal id pairs in `execution_errors` calls; the duplicate `WatchlistNotFoundError` in `refresh.py`. | Failure model and classifier, then direct commands, then workspace `--json` paths, then `refresh_watchlist`'s injected classifier and per-job codes, then the database report rename, then the generator and T20. |
+| SWC.4b | `feat/swc-4b-workspace-documents` | New `investment_analysis_engine/reporting/documents/{watchlist,runs,refresh}.py`; `investment_analysis_engine/cli_workspace.py` JSON builders; `schemas/` (watchlist, watchlist delete, runs list, refresh summary); tests (T20 extended). | The hand-built dicts in `_watchlist_payload`, the delete outcome and `_refresh_json`; the `model_dump` list in `runs list`. | One model per document, each proved byte-identical to the current output except the listed changes, then the schemas. |
+| SWC.4c | `feat/swc-4c-strategy-json-envelopes` | `investment_analysis_engine/strategy_wiring.py`; new `investment_analysis_engine/strategies/<strategy>/envelope.py`, `replay.py` and `vocabulary.py` (four each), `investment_analysis_engine/strategies/_graham/replay.py`, `investment_analysis_engine/reporting/{json_documents,replay_inputs}.py`; `investment_analysis_engine/reporting/analysis_runs.py`; `schemas/` (four strategy documents); tests (T8, T10, T20, T21, T24 extended). | Literal ids in three builders; the `project_run` pair chain; the four `_project_*_v1` functions leave `analysis_runs.py`; `ReplayOptions` and `UnsupportedProjectionError` move to `replay_inputs.py`. | Envelope models and `json_envelope`, then the builders' boundary validation, then the projectors and the injected `project_run`, then `JSON_DOCUMENTS` and T21 last, when every command is covered. `json_documents.py` lists the failure, workspace and database documents only; the generator and T20, T21 add each descriptor's `json_envelope` from the root. |
 | SWC.5 | `feat/swc-5-site-data-and-status` | New: `scripts/strategy_sites.toml`, `scripts/strategy_sites.py`, `scripts/strategy_status.py`, `scripts/generate_strategy_docs.py`; `scripts/strategy_conformance.py` (extended); marked blocks in `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`; the watchlist option rows move into the strategy guides; `FCF_EARNINGS_GROWTH.md` renamed; tests T25, T26. | The hand-written strategy lists and the watchlist option table in the two pages. | Site data and loader, then conformance functions in report mode, then the status command, then the generated lists and their drift test. |
-| SWC.6 | `feat/swc-6-specimen-and-generator` | New: `tests/specimen/` (the specimen strategy and its two tier tuples), `scripts/new_strategy.py`, `scripts/strategy_templates/` (one template per role file), `src/core/strategy_stub.py`, tests T27 to T29 and the generator test fills; `AGENTS.md` §3 (stub exception). | None. | Specimen first, then the generator, then its end-to-end test, then the stub rule. |
+| SWC.6 | `feat/swc-6-specimen-and-generator` | New: `tests/specimen/` (the specimen strategy and its two tier tuples), `scripts/new_strategy.py`, `scripts/strategy_templates/` (one template per role file), `investment_analysis_engine/core/strategy_stub.py`, tests T27 to T29 and the generator test fills; `AGENTS.md` §3 (stub exception). | None. | Specimen first, then the generator, then its end-to-end test, then the stub rule. |
 | SWC.7 | `feat/swc-7-contributor-guide` | `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` moved to `docs/TOOL_DEVELOPMENT.md` and extended (including the identifier rules in [§16](#16-step-35-fit-check) and the edit-site table, generated from the site data file); every link to it; the Step 3.5 contract plan's link to the edit-site table; `AGENTS.md` §3; `docs/project/DISCOVERY_WORKBOOK.md` open question 3; final conformance coverage; independent review. | None in code. | Guide, then authorization, then workbook, then final conformance. |
 
 Why the earlier slices are split. SWC.2a relocates every existing strategy module once, as pure moves, so
@@ -668,7 +668,7 @@ T24 and the review checklist check them; each is concrete.
 
 | # | Check | Drift if |
 | :--- | :--- | :--- |
-| A1 | `src/strategy_wiring.py`, either tier module or a strategy-owned file imports `importlib`, `pkgutil`, `inspect`, `entry_points`, or uses `__subclasses__`, `__init_subclass__`, `globals()`, `locals()`, `getattr` with a computed name, or `typing.get_type_hints` | Any occurrence (T14). |
+| A1 | `investment_analysis_engine/strategy_wiring.py`, either tier module or a strategy-owned file imports `importlib`, `pkgutil`, `inspect`, `entry_points`, or uses `__subclasses__`, `__init_subclass__`, `globals()`, `locals()`, `getattr` with a computed name, or `typing.get_type_hints` | Any occurrence (T14). |
 | A2 | Any of those files defines or exports a name matching `register*`, `unregister*`, `*Registry`, `*Factory`, `*Plugin`, `load_*`, `discover*`, or any function that mutates a closed tuple or an index | Any occurrence (T14). The one permitted caller of `app.command` is `add_strategy_commands` in the CLI tier, which iterates the closed tuple. |
 | A3 | `STRATEGIES`, `CLI_STRATEGIES` or `EVALUATION_STRATEGIES` is not a module-level `tuple` of module-level constants or direct `pair_*` calls, or an index is not a read-only `Mapping` | Either (T14, T15). |
 | A4 | `StrategyDescriptor` is generic (`__parameters__` is not empty), is not a frozen dataclass, or is subclassed | Any (T15). |
@@ -676,7 +676,7 @@ T24 and the review checklist check them; each is concrete.
 | A6 | The field set differs from [§3.1](#31-fields), or a behavior or tier member differs from [§3.3](#33-behavior-members-and-the-two-tiers) | Always requires a reviewed test edit (T15). |
 | A7 | A field or member is read nowhere outside its defining module | Dead field (T16). |
 | A8 | A module below the composition root imports the root, a tier or a strategy CLI or evaluation file, directly or through a parent package; a strategy-owned file breaks the role rule in [§4](#4-static-declaration-model); or the root is in an import cycle | Either (T13). |
-| A9 | `src/analysis/base_analyzer.py` differs from `main`, or `run_analysis`'s signature or `AnalysisContext` fields change | Any (T17; also a diff check in each slice review). |
+| A9 | `investment_analysis_engine/analysis/base_analyzer.py` differs from `main`, or `run_analysis`'s signature or `AnalysisContext` fields change | Any (T17; also a diff check in each slice review). |
 | A10 | A consumer keeps an `isinstance`/`==` chain over strategies whose last branch does not raise | Reviewed per slice; T11 proves behavior for the dispatchers it lists. |
 | A11 | A capture type, an outcome classifier, an analyzer or config instance appears as a descriptor field or behavior member | Always escalates to the project owner as a plan change. |
 | A12 | A strategy-owned file registers itself: it imports the Typer app, uses `app.command` or `typer.Typer(`, calls a dispatcher's `register_tool`, or mutates a tuple | Any occurrence (T14, over every strategy-owned file). A command function is plain; the CLI tier supplies its name. |
@@ -686,13 +686,13 @@ T24 and the review checklist check them; each is concrete.
 
 ### 13.1 Decision
 
-- **One new shared `FailureEnvelope`** (a frozen pydantic model in `src/reporting/documents/failure.py`)
+- **One new shared `FailureEnvelope`** (a frozen pydantic model in `investment_analysis_engine/reporting/documents/failure.py`)
   for every `--json` failure from the direct commands and the workspace commands, and the vocabulary
   for per-job failures in `refresh --json`.
 - **`DatabaseMaintenanceReport` stays a sibling shape and adopts the envelope's field names.** Its
   stable code field is renamed `reason` to `reason_code` and its prose field `message` to `reason`, so
   a caller reads the code and the prose under the same names in both shapes. It is still a report of an
-  inspection, not a failure document, for three differences verified in `src/cli_database.py`:
+  inspection, not a failure document, for three differences verified in `investment_analysis_engine/cli_database.py`:
   1. `status` means the operation ran, not that it succeeded: `db status` on a database that needs
      upgrading reports `"success"` and exits 1.
   2. It carries `command`, `state` and `current_revision`, which have no meaning for an analysis or a
@@ -748,11 +748,11 @@ value means, requires a `schema_version` bump and explicit project-owner approva
 `diagnostics[].reason` are prose and carry no guarantee. The generated schema lists the enumeration,
 so the drift check (T20) shows any change, and T18 requires every source code to be a member.
 
-One classifier, `classify_failure(exception)` in `src/reporting/failure_classification.py` (now `src/core/failure_classification.py`, declared by each exception, PH.2d), maps an
+One classifier, `classify_failure(exception)` in `investment_analysis_engine/reporting/failure_classification.py` (now `investment_analysis_engine/core/failure_classification.py`, declared by each exception, PH.2d), maps an
 exception to a code and a status. `execution_errors`, the workspace commands and `refresh_watchlist`
 (which receives it as a required parameter, so the workspace layer imports nothing from `reporting`)
 all use it, so the families cannot diverge. The model lives in the separate leaf module
-`src/reporting/documents/failure.py`; the enumeration is now `src/core/failure_codes.py` (PH.2d). There is one `WatchlistNotFoundError` ([§18](#18-findings-assigned-to-a-slice)).
+`investment_analysis_engine/reporting/documents/failure.py`; the enumeration is now `investment_analysis_engine/core/failure_codes.py` (PH.2d). There is one `WatchlistNotFoundError` ([§18](#18-findings-assigned-to-a-slice)).
 
 **`invalid_input` versus `invalid_parameter`.** Both mean the request cannot proceed, but they tell a caller
 different things to do, so they stay separate codes.
@@ -835,7 +835,7 @@ commands offer `--json` today (`momentum`, `graham-number`, `graham-growth`, `fc
 
 **Versioning and timestamps.** The four workspace documents (watchlist, delete outcome, `runs list`, refresh summary)
 are unversioned: none carries a `schema_version`, each schema's description says so, and a test checks that. A
-document model declares every instant as `DocumentTimestamp` (`src/reporting/documents/timestamp.py`), which writes
+document model declares every instant as `DocumentTimestamp` (`investment_analysis_engine/reporting/documents/timestamp.py`), which writes
 `datetime.isoformat()` spelling, so a UTC instant is `+00:00` and any other offset is written as the value carries
 it; a test fails, naming the model and field, when a document model declares a datetime without it, and the watchlist document spells a selection's `as_of` the same way
 without changing the selection model ([H.30](#h30-typed-workspace-documents-2026-10-07)). SWC.4c's
@@ -849,7 +849,7 @@ it needs is not checked in.
 
 ## 14. Momentum profile composition helper
 
-**Decision:** add `compose_momentum_profile` to `src/strategies/momentum/execution.py` with a
+**Decision:** add `compose_momentum_profile` to `investment_analysis_engine/strategies/momentum/execution.py` with a
 standalone signature:
 
 ```python
@@ -861,19 +861,19 @@ def compose_momentum_profile(
 ) -> InstrumentProfile: ...
 ```
 
-- **Where:** `src/strategies/momentum/execution.py` (the Momentum adapter), not a shared module.
-  `src/strategies/_shared/profile.py` holds the Graham helper because three strategies share it; this helper
+- **Where:** `investment_analysis_engine/strategies/momentum/execution.py` (the Momentum adapter), not a shared module.
+  `investment_analysis_engine/strategies/_shared/profile.py` holds the Graham helper because three strategies share it; this helper
   has three call sites of one strategy, all of which already import the adapter. There is no cycle.
 - **Why not `compose_graham_profile`'s signature:** that helper takes a primary security-fact provider
   and a separate Yahoo provider, with a precedence rule that adds Yahoo only when the primary is
   another provider. Momentum has one client that is both identity and kind candidate. Calling the
   Graham helper would need the same client passed twice and a Graham-named import in Momentum code,
-  which treats Graham as the template (`AGENTS.md` §9). `src/strategies/_shared/profile.py` is not edited.
+  which treats Graham as the template (`AGENTS.md` §9). `investment_analysis_engine/strategies/_shared/profile.py` is not edited.
 - **Behavior preserved exactly:** one identity candidate and one kind candidate, both
   `InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)`; `profile_cache.resolve(...)` when a
-  cache is given, otherwise `compose_instrument_profile(...)`. The two `src/cli.py` sites and
-  `src/cli_workspace.py::_execute_momentum` call it. Tests that patch
-  `src.cli.compose_instrument_profile` retarget to the helper's module in SWC.3a.
+  cache is given, otherwise `compose_instrument_profile(...)`. The two `investment_analysis_engine/cli.py` sites and
+  `investment_analysis_engine/cli_workspace.py::_execute_momentum` call it. Tests that patch
+  `investment_analysis_engine.cli.compose_instrument_profile` retarget to the helper's module in SWC.3a.
 
 ## 15. IR.2 and corrections to the plan
 
@@ -896,12 +896,12 @@ Where the audit disagreed with the plan, and what changed:
 | 3 | §3.2 permits descriptor references to execution adapters and presentation functions. | Executors, handlers and projectors need production dependencies or sit above the codecs; referenced from a descriptor that the foundation layers import, they create import cycles of 2, 4 and 8 modules ([Appendix C](#appendix-c-import-cycle-evidence)). | Resolved by D1: the descriptor sits at the composition root and each layer receives its slice by injection, so the references are used. |
 | 4 | SWC.4 and SWC.5 both own schema generation and the drift check. | The plan states it twice. | SWC.4a owns the generator, `schemas/` and the drift check; SWC.4b and SWC.4c add schemas to it; SWC.7 verifies per-descriptor coverage and documents. |
 | 5 | Appendix A inventory. | Sites it misses ([Appendix A](#appendix-a-inventory-re-verified-at-247ecdf)), including four more default-branch patterns: `parse_selection`'s final Momentum branch, `_build_selection`'s final FCF branch, `_require_tool_evidence`'s final FCF branch and `_native_status`'s final FCF branch. | Plan Appendix A and §4 updated; SWC.2 and SWC.3 scope lines extended. |
-| 6 | SWC scope lines. | SWC.2 omits `analysis_tool_arguments.py`, `tool_names.py`, `native_evidence.py` and `evaluation/models.py`; SWC.3 omits `data/repositories/watchlists.py` and the deletion of `method_aliases.py`; SWC.4 omits the `src/cli.py` call sites. | Scope lines corrected in the plan. |
+| 6 | SWC scope lines. | SWC.2 omits `analysis_tool_arguments.py`, `tool_names.py`, `native_evidence.py` and `evaluation/models.py`; SWC.3 omits `data/repositories/watchlists.py` and the deletion of `method_aliases.py`; SWC.4 omits the `investment_analysis_engine/cli.py` call sites. | Scope lines corrected in the plan. |
 | 7 | SWC.4 branch is "based on the approved SWC.1 design". | SWC.4 reads declarations SWC.2c and SWC.3 create. | Every slice branches from `main` after its predecessor merges ([§11](#11-migration-from-current-declarations)). |
 | 8 | The plan makes SWC.4 one slice covering strategy envelopes and the failure envelope. | With every `--json` document typed, the refresh and database output changes and a schema generator, it is three reviewable concerns. | SWC.4 is split into SWC.4a, SWC.4b and SWC.4c ([§11](#11-migration-from-current-declarations)). |
 | 9 | The plan's JSON scope is the strategies' output and the failure envelope. | The project owner's review decided that every `--json` document is typed. | The plan's At a glance, SWC.4 scope and acceptance criteria are widened ([§13.6](#136-every-json-document-is-typed)). |
 | 10 | SWC.3's Decision says today `encode_evidence` and `decode_evidence` both fall through to Momentum. | Item 1 above. | The sentence is corrected in the plan. |
-| 11 | The design (as merged) and test T13 treated each import statement as an edge to the named module only. | Python runs a package's `__init__.py` first. `src/workspace/__init__.py` imports `requests`, which imports the descriptor, which imports `src.workspace.*`: an initialization cycle of nine modules that makes importing the descriptor first fail with `ImportError`. | `src/workspace/__init__.py` is emptied in SWC.2a and T13 counts parent packages ([§4](#4-static-declaration-model), [Appendix C](#appendix-c-import-cycle-evidence)). |
+| 11 | The design (as merged) and test T13 treated each import statement as an edge to the named module only. | Python runs a package's `__init__.py` first. `investment_analysis_engine/workspace/__init__.py` imports `requests`, which imports the descriptor, which imports `investment_analysis_engine.workspace.*`: an initialization cycle of nine modules that makes importing the descriptor first fail with `ImportError`. | `investment_analysis_engine/workspace/__init__.py` is emptied in SWC.2a and T13 counts parent packages ([§4](#4-static-declaration-model), [Appendix C](#appendix-c-import-cycle-evidence)). |
 | 12 | The design (as merged) kept handlers, executors and projectors in consumer-owned tables because a descriptor they reference creates import cycles. | The cycles come from the direction (consumers import the descriptor), not from where the functions live. With the descriptor at the composition root and each layer's slice injected, the references are acyclic and no foundation layer imports upward. | D5 is reversed: the references are used ([Appendix E](#appendix-e-adoption-of-the-co-location-result)). |
 | 13 | Plan §3.2 permits references to strategy-owned encoding, decoding, presentation, selection-conversion and execution functions. | The design used fewer than §3.2 allows. | The design now uses handlers, selection parsers, replay projectors and native-status functions in the core bundle, and selection builders, refresh executors and commands in the CLI tier. |
 | 14 | The plan has one SWC.2, one SWC.3 and a final SWC.5 that holds the guide. | The adopted shape makes SWC.2 and SWC.3 too large to review, relocates the existing strategy modules, and adds contributor tooling that the guide's table is generated from. | SWC.2 is four slices, SWC.3 is three, tooling is SWC.5 and SWC.6, and the guide is SWC.7 ([§11](#11-migration-from-current-declarations)). |
@@ -958,7 +958,7 @@ strategy then supplies it from the start.
 | One descriptor has exactly one tool, arguments model, evidence type, alias and JSON envelope, each unique across strategies. | T24, through `BY_TOOL`, `BY_ARGUMENTS`, `BY_RESULT_TYPE`, `BY_ALIAS` and (SWC.4c) the envelope index from `build_indexes`. | Holds for all seven. **Misfit:** the Step 3.5 slice scopes name "direct command, watchlist selection, refresh, `--json`" and do not name the orchestrator tool, arguments model, `ToolName` member, handler or dependency class. SWC requires them for every strategy, and the golden suite (3.5.7) cannot select a strategy without them. *Design unchanged*: the rule stays; the edit-site table is the handoff, and the Step 3.5 contract plan states that every strategy slice covers it. |
 | `method_id` is unique across all analyses. | T24, through `BY_METHOD_ID`. | Holds. It is a rule, not an accident, because runs, watchlist removal and CLI filters select by `method_id` alone (`RunQuery`, `remove_entries_for_method`, `--analysis`). It is stated in three places: the import-time error names both descriptors and the rule; the `strategy_wiring` module docstring; and the SWC.7 contributor guide's identifier section. A strategy with several methods needs distinct method ids, one descriptor per method, and so one tool, evidence type and alias per method. |
 | One result concerns one ticker. | `ticker_of`, `decode_for(payload, ticker)`, and the failure envelope's `ticker`. | Holds for all seven analyzers. The ranked view and the side-by-side table concern many tickers but are views over persisted runs, store no evidence and fail with `ticker: null`. |
-| One analyzer class maps to one descriptor. | T3, enumerating analyzers by package walk over `src/strategies`. | Holds; Altman's two models are one analyzer. An enumeration by hand-written list would need an edit for each of seven analyzers; the package walk needs none. |
+| One analyzer class maps to one descriptor. | T3, enumerating analyzers by package walk over `investment_analysis_engine/strategies`. | Holds; Altman's two models are one analyzer. An enumeration by hand-written list would need an edit for each of seven analyzers; the package walk needs none. |
 | Every strategy command declares `--save-run`. | T7 (c). | Holds for strategy commands. **Misfit:** the ranked view and the side-by-side table are commands without `--save-run`. *Design changed*: T7 enumerates the whole command table, requires every top-level command to be an alias, a group or a listed non-strategy command, and checks `--save-run` as a property. |
 | A strategy's chains and tables are keyed, not defaulted. | T10, T11. | **Misfit:** four `if` chains would have routed an eighth strategy to FCF or Momentum (`_require_tool_evidence`, `_native_status`, `parse_selection`, `_build_selection`). *Design changed*: each is now an injected mapping or a tier lookup that fails closed. |
 | A cross-strategy view needs per-strategy content. | T15 and the member's type. | The `headline` member, added once by 3.5.0. |
@@ -977,35 +977,35 @@ dataclass is built at run time.
 
 | # | Site | File | Kind | Generated | Check |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| 1a | Vocabulary: the strategy's identity constants and the enumerations several of its files use | `src/strategies/<s>/vocabulary.py` (new) | G | stub | T13: the file imports nothing from its package; the files that read it fail to import without it. |
-| 1 | Analyzer modules: config, result, analyzer | `src/strategies/<s>/` (new; analyzer-role files such as `analyzer.py`, `models.py`) | G | stub | T3: `analyzer X (result Y) has no descriptor`. |
-| 2 | Descriptor constant, `StrategyBehavior` declaration and `STRATEGIES` entry | `src/strategy_wiring.py` | G+R | edit | T1, T2, T3; **type**. |
-| 3 | `ToolName` member | `src/orchestrator/tool_names.py` | R | edit | T4: `ToolName member X has no descriptor`. |
-| 4 | Arguments model, dependency class, handler | `src/strategies/<s>/tool.py` (new) | G | stub | **type** (`tool_arguments`, `deps_type`, `handler`); T4: `tool-argument model X has no descriptor`. |
-| 5 | `NativeEvidence` and `SelectionMember` entries | `src/workspace/strategy_types.py` | R | edit | **type** (both bounds); T1, T2. |
-| 6 | Selection class | `src/strategies/<s>/selection.py` (new) | G | stub | **type** (`selection_type`); T1: `descriptor X has no selection member`. |
-| 7 | Codec and native-status function | `src/strategies/<s>/codec.py` (new) | G | stub | **type** (`encode`, `decode`, `ticker_of`, `native_status`); T8 round trip. |
-| 8 | Execution adapter, capture type, normalizer | `src/strategies/<s>/execution.py` (new) | G | stub | T22: `alias X stored no run`. |
-| 9 | CLI file: direct command, selection builder, refresh executor | `src/strategies/<s>/cli.py` (new) | G | stub | **type** (the CLI-tier pairing); T22. |
-| 10 | CLI-tier entry | `src/cli_strategy_wiring.py` | G+R | edit | **type**; T10 `CLI tier`: `strategy X is not wired in: CLI tier`; T7. |
-| 11 | Presenter and JSON builder | `src/strategies/<s>/presenter.py` (new) | G | stub | T8 replay: `the replayed JSON does not validate as X`. |
-| 12 | Envelope model and document version | `src/strategies/<s>/envelope.py` (new) | G | stub | T21: `command X offers --json but has no typed document model`. |
-| 13 | Replay projector and `headline` function | `src/strategies/<s>/replay.py` (new) | G | stub | **type** (`project`; `headline` from Step 3.5 slice 3.5.0); T8 replay. |
-| 14 | Evaluation file: fixture composition, requirement, the fixture ids it understands and a sample selection | `src/strategies/<s>/evaluation.py` (new) | G | stub | **type** (the evaluation-tier pairing); T6; T10 `evaluation tier ids`. |
-| 15 | Evaluation-tier entry: the bundle paired with the requirement, the ids, the sample selection and the composition | `src/evaluation/strategy_fixtures.py` | G+R | edit | T10 `evaluation tier`: `strategy X is not wired in: evaluation tier`; an id no entry declares is rejected as unsupported; T6. |
-| 16 | Fixtures with their fixture ids, and cases with their reviewed arguments table | `src/evaluation/fixtures/<s>.py`, `src/evaluation/cases/<s>.py` (new) | G | reviewed | T5, T6. |
-| 17 | Catalog: the case-module imports, the arguments-table merge, the case tuple entries and the suite version bump; the pinned id list and count in the catalog test | `src/evaluation/catalog.py`, `tests/evaluation/test_catalog.py` | G | reviewed | T6: `tool X is required by no golden case`; the catalog test. |
+| 1a | Vocabulary: the strategy's identity constants and the enumerations several of its files use | `investment_analysis_engine/strategies/<s>/vocabulary.py` (new) | G | stub | T13: the file imports nothing from its package; the files that read it fail to import without it. |
+| 1 | Analyzer modules: config, result, analyzer | `investment_analysis_engine/strategies/<s>/` (new; analyzer-role files such as `analyzer.py`, `models.py`) | G | stub | T3: `analyzer X (result Y) has no descriptor`. |
+| 2 | Descriptor constant, `StrategyBehavior` declaration and `STRATEGIES` entry | `investment_analysis_engine/strategy_wiring.py` | G+R | edit | T1, T2, T3; **type**. |
+| 3 | `ToolName` member | `investment_analysis_engine/orchestrator/tool_names.py` | R | edit | T4: `ToolName member X has no descriptor`. |
+| 4 | Arguments model, dependency class, handler | `investment_analysis_engine/strategies/<s>/tool.py` (new) | G | stub | **type** (`tool_arguments`, `deps_type`, `handler`); T4: `tool-argument model X has no descriptor`. |
+| 5 | `NativeEvidence` and `SelectionMember` entries | `investment_analysis_engine/workspace/strategy_types.py` | R | edit | **type** (both bounds); T1, T2. |
+| 6 | Selection class | `investment_analysis_engine/strategies/<s>/selection.py` (new) | G | stub | **type** (`selection_type`); T1: `descriptor X has no selection member`. |
+| 7 | Codec and native-status function | `investment_analysis_engine/strategies/<s>/codec.py` (new) | G | stub | **type** (`encode`, `decode`, `ticker_of`, `native_status`); T8 round trip. |
+| 8 | Execution adapter, capture type, normalizer | `investment_analysis_engine/strategies/<s>/execution.py` (new) | G | stub | T22: `alias X stored no run`. |
+| 9 | CLI file: direct command, selection builder, refresh executor | `investment_analysis_engine/strategies/<s>/cli.py` (new) | G | stub | **type** (the CLI-tier pairing); T22. |
+| 10 | CLI-tier entry | `investment_analysis_engine/cli_strategy_wiring.py` | G+R | edit | **type**; T10 `CLI tier`: `strategy X is not wired in: CLI tier`; T7. |
+| 11 | Presenter and JSON builder | `investment_analysis_engine/strategies/<s>/presenter.py` (new) | G | stub | T8 replay: `the replayed JSON does not validate as X`. |
+| 12 | Envelope model and document version | `investment_analysis_engine/strategies/<s>/envelope.py` (new) | G | stub | T21: `command X offers --json but has no typed document model`. |
+| 13 | Replay projector and `headline` function | `investment_analysis_engine/strategies/<s>/replay.py` (new) | G | stub | **type** (`project`; `headline` from Step 3.5 slice 3.5.0); T8 replay. |
+| 14 | Evaluation file: fixture composition, requirement, the fixture ids it understands and a sample selection | `investment_analysis_engine/strategies/<s>/evaluation.py` (new) | G | stub | **type** (the evaluation-tier pairing); T6; T10 `evaluation tier ids`. |
+| 15 | Evaluation-tier entry: the bundle paired with the requirement, the ids, the sample selection and the composition | `investment_analysis_engine/evaluation/strategy_fixtures.py` | G+R | edit | T10 `evaluation tier`: `strategy X is not wired in: evaluation tier`; an id no entry declares is rejected as unsupported; T6. |
+| 16 | Fixtures with their fixture ids, and cases with their reviewed arguments table | `investment_analysis_engine/evaluation/fixtures/<s>.py`, `investment_analysis_engine/evaluation/cases/<s>.py` (new) | G | reviewed | T5, T6. |
+| 17 | Catalog: the case-module imports, the arguments-table merge, the case tuple entries and the suite version bump; the pinned id list and count in the catalog test | `investment_analysis_engine/evaluation/catalog.py`, `tests/evaluation/test_catalog.py` | G | reviewed | T6: `tool X is required by no golden case`; the catalog test. |
 | 18 | User guide with `FINANCE_MATH.md` and `GLOSSARY.md` links | `docs/user/strategies/<ALIAS>.md` (new) | G | reviewed | T23: `no guide for alias X`; the doc link check for a missing anchor. |
-| 19 | Watchlist options of the strategy, only when it has any beyond the shared ones: the typed field in `WatchlistFlags`, the option in the `watchlist create` and `watchlist add-selection` commands, and the `_build_selection` parameter ([H.10](#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)) | `src/cli_watchlist_flags.py`, `src/cli_workspace.py` | G | reviewed | **type** (the builder reads the field; the command constructs the bundle); the watchlist command tests. |
+| 19 | Watchlist options of the strategy, only when it has any beyond the shared ones: the typed field in `WatchlistFlags`, the option in the `watchlist create` and `watchlist add-selection` commands, and the `_build_selection` parameter ([H.10](#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)) | `investment_analysis_engine/cli_watchlist_flags.py`, `investment_analysis_engine/cli_workspace.py` | G | reviewed | **type** (the builder reads the field; the command constructs the bundle); the watchlist command tests. |
 
 Two commands, not edits: `scripts/generate_schemas.py` (a stale schema fails T20 with `schema
 schemas/<alias>.schema.json is missing or out of date; run scripts/generate_schemas.py`) and
 `scripts/generate_strategy_docs.py` (a stale strategy list fails T26 the same way). The generator also
-writes the empty `src/strategies/<s>/__init__.py`, which has no content to review.
+writes the empty `investment_analysis_engine/strategies/<s>/__init__.py`, which has no content to review.
 
-**Total: 20 hand-edit sites (rows 1 to 19 and 1a), in 25 files (16 new, 9 existing) across 9 directories** (`src`,
-`src/strategies/<s>`, `src/orchestrator`, `src/workspace`, `src/evaluation`, `src/evaluation/fixtures`,
-`src/evaluation/cases`, `tests/evaluation`, `docs/user/strategies`). Against the earlier design's 23 sites, 25 files (10 new, 15
+**Total: 20 hand-edit sites (rows 1 to 19 and 1a), in 25 files (16 new, 9 existing) across 9 directories** (`investment_analysis_engine`,
+`investment_analysis_engine/strategies/<s>`, `investment_analysis_engine/orchestrator`, `investment_analysis_engine/workspace`, `investment_analysis_engine/evaluation`, `investment_analysis_engine/evaluation/fixtures`,
+`investment_analysis_engine/evaluation/cases`, `tests/evaluation`, `docs/user/strategies`). Against the earlier design's 23 sites, 25 files (10 new, 15
 existing) across 11 directories. Five of the nine existing files are edited by the generator (rows 2, 3, 5,
 10, 15); the other four stay by hand: `catalog.py` and the catalog test that pins the case ids and count, because
 the case tuple, the suite version and the pinned ids are reviewed truth, and the two row 19 files, which only a strategy with watchlist options of its own edits. A strategy's fixture identifiers are
@@ -1030,9 +1030,9 @@ reason:
 
 | Finding | Decision | Slice |
 | :--- | :--- | :--- |
-| `AnalysisType` in `src/core/constants.py` has one member (`MOMENTUM`) and no reader in `src/` or `tests/` (a repository search for the name finds only its definition). | Delete it. It is a dead per-strategy name list, and SWC.2b is where per-strategy name declarations are removed. | SWC.2b |
-| `src/workspace/__init__.py` re-exports names that no module in `src/` or `tests/` imports from the package, and takes part in an initialization cycle once `requests.py` imports the descriptor machinery. | Empty it. | SWC.2a |
-| Two classes named `WatchlistNotFoundError`, in `src/data/repositories/watchlists.py` and `src/workspace/refresh.py`. | One class, defined in `src/workspace/watchlists.py` next to `StoredSelectionError`; the repository and `refresh.py` import it; the duplicate and the aliased import in `cli_workspace.py` go. The classifier maps one class to `watchlist_not_found`, and no handler can miss the other. Tests in `tests/data` and `tests/workspace` import the single class. | SWC.4a |
+| `AnalysisType` in `investment_analysis_engine/core/constants.py` has one member (`MOMENTUM`) and no reader in `investment_analysis_engine/` or `tests/` (a repository search for the name finds only its definition). | Delete it. It is a dead per-strategy name list, and SWC.2b is where per-strategy name declarations are removed. | SWC.2b |
+| `investment_analysis_engine/workspace/__init__.py` re-exports names that no module in `investment_analysis_engine/` or `tests/` imports from the package, and takes part in an initialization cycle once `requests.py` imports the descriptor machinery. | Empty it. | SWC.2a |
+| Two classes named `WatchlistNotFoundError`, in `investment_analysis_engine/data/repositories/watchlists.py` and `investment_analysis_engine/workspace/refresh.py`. | One class, defined in `investment_analysis_engine/workspace/watchlists.py` next to `StoredSelectionError`; the repository and `refresh.py` import it; the duplicate and the aliased import in `cli_workspace.py` go. The classifier maps one class to `watchlist_not_found`, and no handler can miss the other. Tests in `tests/data` and `tests/workspace` import the single class. | SWC.4a |
 | `analysis_failure_document`'s docstring says the failure document uses "the analysis presentation version", but its `schema_version` is 5 for every strategy while the Graham success documents carry 6. | The docstring is removed with the hand-built dict. `FailureEnvelope` documents that its `schema_version` is its own lineage, independent of every success document's. | SWC.4a |
 | The failure envelope and the Graham success documents would share `schema_version` 6. | Acceptable. A `schema_version` identifies a shape only within its own schema file; consumers dispatch on `status` and `result` first, then on `analysis`. The generated schema's description says so, the contributor guide states it, and renumbering the failure lineage to avoid a coincidence would be a second, arbitrary output change. | SWC.4a, SWC.7 |
 | `execute()` reads `getattr(selection, "as_of", None)`, although every `AnalysisSelection` member defines `as_of`. | Read `selection.as_of`; the probe adds no safety and hides a missing field. | SWC.3a |
@@ -1040,7 +1040,7 @@ reason:
 | `evaluation.runner.NativeAnalysisResult` duplicates `NativeEvidence`. | Remove it and use `NativeEvidence`. | SWC.2c |
 | Each strategy's codec checks its own `method` string inside `workspace/{graham_number,graham_growth}.py`. | Kept: wire-integrity checks that stay with the codec. | none |
 | `refresh --json` per-job `error` text is `str(exception)`. | Unchanged. The new `reason_code` is classified from the same exception. | SWC.4a |
-| `cli.py` and `cli_workspace.py` each hold a Momentum window check and three FCF option converters that look duplicated. | The two Momentum window checks differ in behavior: the direct command echoes a message and exits with code 2, the workspace builder raises `typer.BadParameter`. They stay two functions, and both end in `src/strategies/momentum/cli.py`. The three FCF converters are the same code with the same messages, so there is one set: SWC.3b moved the workspace copies to `src/strategies/fcf_growth/cli.py`, and SWC.3c deleted `cli.py`'s copies and calls those. | SWC.3b, SWC.3c |
+| `cli.py` and `cli_workspace.py` each hold a Momentum window check and three FCF option converters that look duplicated. | The two Momentum window checks differ in behavior: the direct command echoes a message and exits with code 2, the workspace builder raises `typer.BadParameter`. They stay two functions, and both end in `investment_analysis_engine/strategies/momentum/cli.py`. The three FCF converters are the same code with the same messages, so there is one set: SWC.3b moved the workspace copies to `investment_analysis_engine/strategies/fcf_growth/cli.py`, and SWC.3c deleted `cli.py`'s copies and calls those. | SWC.3b, SWC.3c |
 
 ## 19. Contributor tooling
 
@@ -1082,7 +1082,7 @@ disagree. For a strategy not yet declared, the declaration checks return gaps th
 defaults to the module name with hyphens). It writes wiring only:
 
 - **New files:** the twelve stubs in [§17](#17-edit-sites-for-a-new-strategy) from
-  `scripts/strategy_templates/<role>.py.tmpl` into `src/strategies/<module_name>/`. They carry real signatures and types: a frozen config and result
+  `scripts/strategy_templates/<role>.py.tmpl` into `investment_analysis_engine/strategies/<module_name>/`. They carry real signatures and types: a frozen config and result
   dataclass (the result holds `ticker` and nothing else), the analyzer subclassing
   `BaseAnalyzer[ConfigT, ResultT]`, the arguments model with the shared fields, the dependency class, the
   selection class with its identity `Literal`s, and the bundle's functions. Bodies call
@@ -1107,12 +1107,12 @@ after the stubs were edited would either overwrite work or silently differ.
 
 **Stub rule.** `AGENTS.md` §3 forbids partial files and placeholder comments. SWC.6 adds one exception: a
 file written by `scripts/new_strategy.py` whose unfilled bodies call `unfilled_stub(...)`. Test T29 fails
-the quality gate while any such call remains in `src/`, so none can merge. `unfilled_stub` lives in
-`src/core/strategy_stub.py`.
+the quality gate while any such call remains in `investment_analysis_engine/`, so none can merge. `unfilled_stub` lives in
+`investment_analysis_engine/core/strategy_stub.py`.
 
 ### 19.4 Generator test
 
-Test T28 runs in the default suite. It copies `src/`, `scripts/`, `tests/`, `schemas/`, `config/`,
+Test T28 runs in the default suite. It copies `investment_analysis_engine/`, `scripts/`, `tests/`, `schemas/`, `config/`,
 `docs/user/strategies/` and `pyproject.toml` into a temporary directory (excluding caches), runs the
 generator there for a fixed throwaway strategy (`ci_probe`, label `CI Probe`), and checks:
 
@@ -1144,7 +1144,7 @@ reasons:
   every site done, so the specimen cannot lag the site list, and the generator test proves the generator
   produces every site the file lists.
 
-How it stays out of production: it lives under `tests/`, and T13 forbids any module under `src` importing
+How it stays out of production: it lives under `tests/`, and T13 forbids any module under `investment_analysis_engine` importing
 `tests`; the production tuples are literal and closed and never name it; tests build
 `SPECIMEN_STRATEGIES = (*STRATEGIES, SPECIMEN)` and equivalent tier tuples themselves; the user CLI is
 built from the production CLI tier, and a test builds a separate Typer app with
@@ -1156,20 +1156,20 @@ generated from the production `JSON_DOCUMENTS` only, and a test builds its own l
 | Effect | Tests |
 | :--- | :--- |
 | **Replaces** | The hand-maintained edit-site table in the guide (generated from the site file). The USAGE and WORKSPACE alias half of T23 (T26). The `monkeypatch` of production tables in T12 part 3 (specimen variants instead). |
-| **Strengthens** | T11 and T12: the specimen runs through every dispatcher, both tiers, replay and the real Typer app, so a derived table that silently dropped a strategy would be caught end to end. T7 and T22: a fifth strategy through the real command and `--save-run`. T13: the specimen cannot leak into `src`. |
+| **Strengthens** | T11 and T12: the specimen runs through every dispatcher, both tiers, replay and the real Typer app, so a derived table that silently dropped a strategy would be caught end to end. T7 and T22: a fifth strategy through the real command and `--save-run`. T13: the specimen cannot leak into `investment_analysis_engine`. |
 | **Makes redundant** | The manual contributor-path rehearsal in the independent review of SWC.7: T28 performs it on every run. No test in T1 to T8 becomes redundant. |
 | **Adds** | T25 `site_data_complete`, T26 `generated_lists_current`, T27 `specimen_complete`, T28 `generator_end_to_end`, T29 `no_unfilled_stubs`. |
 
 ## Appendix A: Inventory re-verified at 247ecdf
 
 **Verified against:** `main` at `247ecdf858756c776294f9154ce612f2915afb17` (2026-10-02). Every Appendix A
-row of the plan was re-read at the named symbol. No file under `src/`, `tests/`, `scripts/`, `config/`,
+row of the plan was re-read at the named symbol. No file under `investment_analysis_engine/`, `tests/`, `scripts/`, `config/`,
 `alembic/`, `pyproject.toml` or `uv.lock` changed between the plan's baseline `8edbff4` and this
 commit (`git diff --stat 8edbff4..HEAD` is empty for those paths), so all 25 original rows are
 confirmed as written, with one wording correction (row `decode_evidence`, [§15](#15-ir2-and-corrections-to-the-plan)
 item 1). The three Momentum composition sites and every `--json` failure path in the two notes match
-the code: `src/cli.py` `momentum` (`--save-run` and default branches), `src/cli_workspace.py::_execute_momentum`,
-`execution_errors` in `src/cli_support.py`, and `_fail` in `src/cli_workspace.py`.
+the code: `investment_analysis_engine/cli.py` `momentum` (`--save-run` and default branches), `investment_analysis_engine/cli_workspace.py::_execute_momentum`,
+`execution_errors` in `investment_analysis_engine/cli_support.py`, and `_fail` in `investment_analysis_engine/cli_workspace.py`.
 
 Classification: **D** is duplicated wiring (descriptor-authoritative or consumer table keyed by it);
 **S** is a legitimate strategy-owned contract.
@@ -1203,23 +1203,23 @@ Classification: **D** is duplicated wiring (descriptor-authoritative or consumer
 
 | Site | Class | Reason | Owner |
 | :--- | :--- | :--- | :--- |
-| `src/workspace/method_aliases.py`: `ANALYSIS_ALIASES`, `ALIAS_METHOD_IDS`, `METHOD_ID_ALIASES`, `alias_for_method_id` | D | Alias and method-id vocabulary; replaced by `alias` and `method_id`. | SWC.3a |
-| `src/workspace/requests.py::parse_selection`: alias tuple; final unconditional Momentum branch | D (tuple, chain); S (per-alias parsing) | Membership is repeated vocabulary; parsing differs by strategy; the fall-through is a default branch. Becomes a lookup in an injected alias-keyed mapping of strategy-owned parsers ([§6](#6-generic-consumers)). | SWC.3a |
-| `src/workspace/requests.py`: `Literal` ids and version on each selection | S | Types the discriminated union; compared by T1. | none (kept) |
-| `src/data/repositories/watchlists.py`: `METHOD_ID_ALIASES.get(...)` | D | Alias lookup tolerant of an unknown stored method. | SWC.3a |
-| `src/cli_workspace.py`: `_parse_analysis`, `ALIAS_METHOD_IDS[...]` (2), `alias_for_method_id(...)` (4), `--analysis` help (3) | D | Alias vocabulary. | SWC.3b |
-| `src/cli_workspace.py::_build_selection` | D (chain); S (flag mapping) | The `if method == ...` chain ends in an unconditional FCF return. Becomes a lookup in the CLI tier, each builder in its strategy's CLI file over one frozen flag bundle ([§6](#6-generic-consumers)). | SWC.3b |
-| `src/cli_workspace.py::_execute_*` | S | Production composition; moves unchanged into each strategy's CLI file and is referenced by the CLI tier. | SWC.3b |
-| `src/cli.py`: `execution_errors(analysis=, method=)` ×6 | D | Literal id pairs. | SWC.4a |
-| `src/reporting/{momentum,graham_number,graham_growth}.py`: `"analysis"`, `"method"` literals | D | Literal ids. FCF reads native `strategy_id`, `method_id`. | SWC.4c |
-| `src/cli_support.py:226`: `analysis == "momentum"` | S | Strategy-specific behavior inside generic code; becomes a call-site parameter. | SWC.4a |
-| `src/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | D (union, membership); S (status accessor) | Duplicate of `NativeEvidence`; FCF is the default branch; Momentum has no native status. | SWC.2c |
-| `src/evaluation/composition.py::_require_tool_evidence` | S (requirements); D (chain) | Per-tool fixture requirement; the final `else` makes FCF the default. Becomes a requirement in the evaluation tier ([§6](#6-generic-consumers)). | SWC.2d |
-| `src/evaluation/ollama_runner.py`: `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser`, `_selection_observation` | D | Per-tool description and model; private `_value2member_map_` use. | SWC.2c |
-| `src/evaluation/catalog.py`, `src/evaluation/cases/*.py` | S | Reviewed case arguments and `ToolConstraints`; the independent truth for T5 and T6. | none (kept) |
-| `src/workspace/{graham_number,graham_growth}.py`: string checks of `method` inside the codecs | S | Each codec's own wire integrity check; the descriptor cannot be imported there without a cycle. | none (kept) |
-| `src/workspace/__init__.py` re-exports | D (cycle) | No module imports them from the package, and they make an initialization cycle once `requests.py` imports descriptor machinery. | SWC.2a (emptied) |
-| `src/core/constants.py::AnalysisType` | D (dead) | A one-member per-strategy name enum with no reader in `src/` or `tests/`. | SWC.2b (deleted) |
+| `investment_analysis_engine/workspace/method_aliases.py`: `ANALYSIS_ALIASES`, `ALIAS_METHOD_IDS`, `METHOD_ID_ALIASES`, `alias_for_method_id` | D | Alias and method-id vocabulary; replaced by `alias` and `method_id`. | SWC.3a |
+| `investment_analysis_engine/workspace/requests.py::parse_selection`: alias tuple; final unconditional Momentum branch | D (tuple, chain); S (per-alias parsing) | Membership is repeated vocabulary; parsing differs by strategy; the fall-through is a default branch. Becomes a lookup in an injected alias-keyed mapping of strategy-owned parsers ([§6](#6-generic-consumers)). | SWC.3a |
+| `investment_analysis_engine/workspace/requests.py`: `Literal` ids and version on each selection | S | Types the discriminated union; compared by T1. | none (kept) |
+| `investment_analysis_engine/data/repositories/watchlists.py`: `METHOD_ID_ALIASES.get(...)` | D | Alias lookup tolerant of an unknown stored method. | SWC.3a |
+| `investment_analysis_engine/cli_workspace.py`: `_parse_analysis`, `ALIAS_METHOD_IDS[...]` (2), `alias_for_method_id(...)` (4), `--analysis` help (3) | D | Alias vocabulary. | SWC.3b |
+| `investment_analysis_engine/cli_workspace.py::_build_selection` | D (chain); S (flag mapping) | The `if method == ...` chain ends in an unconditional FCF return. Becomes a lookup in the CLI tier, each builder in its strategy's CLI file over one frozen flag bundle ([§6](#6-generic-consumers)). | SWC.3b |
+| `investment_analysis_engine/cli_workspace.py::_execute_*` | S | Production composition; moves unchanged into each strategy's CLI file and is referenced by the CLI tier. | SWC.3b |
+| `investment_analysis_engine/cli.py`: `execution_errors(analysis=, method=)` ×6 | D | Literal id pairs. | SWC.4a |
+| `investment_analysis_engine/reporting/{momentum,graham_number,graham_growth}.py`: `"analysis"`, `"method"` literals | D | Literal ids. FCF reads native `strategy_id`, `method_id`. | SWC.4c |
+| `investment_analysis_engine/cli_support.py:226`: `analysis == "momentum"` | S | Strategy-specific behavior inside generic code; becomes a call-site parameter. | SWC.4a |
+| `investment_analysis_engine/evaluation/runner.py`: `NativeAnalysisResult`, `_native_result`, `_native_status` | D (union, membership); S (status accessor) | Duplicate of `NativeEvidence`; FCF is the default branch; Momentum has no native status. | SWC.2c |
+| `investment_analysis_engine/evaluation/composition.py::_require_tool_evidence` | S (requirements); D (chain) | Per-tool fixture requirement; the final `else` makes FCF the default. Becomes a requirement in the evaluation tier ([§6](#6-generic-consumers)). | SWC.2d |
+| `investment_analysis_engine/evaluation/ollama_runner.py`: `_TOOL_DESCRIPTIONS`, `_tool_schemas_json`, `_tool_parser`, `_selection_observation` | D | Per-tool description and model; private `_value2member_map_` use. | SWC.2c |
+| `investment_analysis_engine/evaluation/catalog.py`, `investment_analysis_engine/evaluation/cases/*.py` | S | Reviewed case arguments and `ToolConstraints`; the independent truth for T5 and T6. | none (kept) |
+| `investment_analysis_engine/workspace/{graham_number,graham_growth}.py`: string checks of `method` inside the codecs | S | Each codec's own wire integrity check; the descriptor cannot be imported there without a cycle. | none (kept) |
+| `investment_analysis_engine/workspace/__init__.py` re-exports | D (cycle) | No module imports them from the package, and they make an initialization cycle once `requests.py` imports descriptor machinery. | SWC.2a (emptied) |
+| `investment_analysis_engine/core/constants.py::AnalysisType` | D (dead) | A one-member per-strategy name enum with no reader in `investment_analysis_engine/` or `tests/`. | SWC.2b (deleted) |
 
 ## Appendix B: Typing form comparison and prototype evidence
 
@@ -1257,7 +1257,7 @@ message belongs to the repository's existing `StrictJsonMapping` alias.
 
 ### C.1 Method
 
-A scratch script parsed every module under `src` with `ast` (module-scope and nested imports), built the
+A scratch script parsed every module under `investment_analysis_engine` with `ast` (module-scope and nested imports), built the
 module graph, added the edges each design variant implies, and searched for strongly connected components.
 The baseline graph (163 modules at `247ecdf`) has no cycle. The co-location study extended the script to
 function level: each top-level definition, and each member of the one class that is split, has its own set
@@ -1324,13 +1324,13 @@ and `reporting`, exactly as in the merged design.
 
 ### C.4 Initialization cycle
 
-`src/workspace/__init__.py` imports `src.workspace.requests`. In the merged design `requests.py` imports
-the descriptor and the descriptor imports `src.workspace.momentum` and the other codec modules, so the
-descriptor, `src.workspace` and seven of its modules form an initialization cycle. A reproduction with the
+`investment_analysis_engine/workspace/__init__.py` imports `investment_analysis_engine.workspace.requests`. In the merged design `requests.py` imports
+the descriptor and the descriptor imports `investment_analysis_engine.workspace.momentum` and the other codec modules, so the
+descriptor, `investment_analysis_engine.workspace` and seven of its modules form an initialization cycle. A reproduction with the
 same shape (`pkg/__init__.py` imports `pkg.req`, which imports `wiring`, which imports `pkg.codec`):
 importing `wiring` first raises `ImportError: cannot import name 'BY_ALIAS' from 'wiring'`; importing
 `pkg.req` or `pkg.codec` first succeeds. The failure is order-dependent. Emptying
-`src/workspace/__init__.py` removes the cycle in every consumers-import variant, and the adopted shape is
+`investment_analysis_engine/workspace/__init__.py` removes the cycle in every consumers-import variant, and the adopted shape is
 immune because nothing under `workspace` imports the descriptor. D15 does both.
 
 ### C.5 Layering with the types in one file
@@ -1341,19 +1341,19 @@ and `AnalysisSelection` share one workspace-layer file with no new reach and no 
 
 ### C.6 One package per strategy
 
-The adopted shape was re-modelled with every strategy-owned file at `src/strategies/<strategy>/<role>.py`
+The adopted shape was re-modelled with every strategy-owned file at `investment_analysis_engine/strategies/<strategy>/<role>.py`
 (analyzer modules, `selection`, `codec`, `execution`, `tool`, `presenter`, `envelope`, `replay`, `cli`,
 `evaluation`), shared code in `_shared` and `_graham`, the three re-exporting analyzer-package
 `__init__.py` files emptied (their importers resolve to the submodule that defines each name), every
-`__init__.py` under `src/strategies/` empty, and `src/workspace/__init__.py` empty.
+`__init__.py` under `investment_analysis_engine/strategies/` empty, and `investment_analysis_engine/workspace/__init__.py` empty.
 
 | Check | Result |
 | :--- | :--- |
 | Modules | 208, no module-level cycle. The graph is the layer-folder graph with new paths. |
-| Initialization-aware components | Eight components, through ten re-exporting `__init__.py` files: `data.sec_edgar`, `data.massive`, `data.yfinance`, `schema`, `evaluation`, `evaluation.fixtures`, `evaluation.cases`, and the one component that holds `core.telemetry`, `core.telemetry.sinks` and `data.repositories`; none contains the root, a tier or any `src/strategies` module. On `main` there are twelve components; emptying `workspace` and the three analyzer packages removes four. The first count of eight initializers named one per component. |
+| Initialization-aware components | Eight components, through ten re-exporting `__init__.py` files: `data.sec_edgar`, `data.massive`, `data.yfinance`, `schema`, `evaluation`, `evaluation.fixtures`, `evaluation.cases`, and the one component that holds `core.telemetry`, `core.telemetry.sinks` and `data.repositories`; none contains the root, a tier or any `investment_analysis_engine/strategies` module. On `main` there are twelve components; emptying `workspace` and the three analyzer packages removes four. The first count of eight initializers named one per component. |
 | Edges between strategy packages | None. |
 | Role-to-role edges observed inside packages | `cli` to execution, presenter, selection and analyzer; `execution` to selection and analyzer; `replay` to presenter, selection and analyzer; `presenter` to envelope and analyzer; `tool`, `codec` and `selection` to analyzer; `evaluation` to tool and analyzer. All go from a higher rank to a lower one, so the ranks in [§4](#4-static-declaration-model) are a total order the real graph already obeys. |
-| Edges from outside into `src/strategies` | Foundation, `cli_composition` and generic evaluation import analyzer and selection roles only; `cli_workspace` imports analyzer and selection; the root imports analyzer, codec, envelope, replay, selection and tool; the CLI tier imports `cli`; the evaluation tier imports `evaluation`. |
+| Edges from outside into `investment_analysis_engine/strategies` | Foundation, `cli_composition` and generic evaluation import analyzer and selection roles only; `cli_workspace` imports analyzer and selection; the root imports analyzer, codec, envelope, replay, selection and tool; the CLI tier imports `cli`; the evaluation tier imports `evaluation`. |
 | Violations of the role rule in the real graph | None, after the Graham family package below. |
 
 One finding changed the layout. The shared Graham replay helper imports the `calculation` modules of both
@@ -1383,13 +1383,13 @@ they may import.
 Three edges the rule must still allow were accepted: Momentum `cli` to `execution`, `workspace.strategy_types`
 to FCF's `selection`, and the root to Momentum's `replay`.
 
-**Relocation cost.** Importers of the relocated modules: 101 files (33 in `src`, 68 in `tests`), of which
-97 import `src.analysis.strategy.*`, 18 the adapters, 12 the presenters, 4 `graham_shared`, one the codecs
+**Relocation cost.** Importers of the relocated modules: 101 files (33 in `investment_analysis_engine`, 68 in `tests`), of which
+97 import `investment_analysis_engine.analysis.strategy.*`, 18 the adapters, 12 the presenters, 4 `graham_shared`, one the codecs
 (counts overlap), and 15 tests name moved modules in patch strings. Thirteen of the 101 import names the
 analyzer packages re-export, which now resolve to the defining submodule. Living documents that name the old
 paths: `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` and the Step 3.5 strategy specifications; the
 other 37 documents that name them are historical records. Path-based tests change: the BaseAnalyzer
-conformance test's boundary constants, T3's package walk (now over `src/strategies`, skipping packages
+conformance test's boundary constants, T3's package walk (now over `investment_analysis_engine/strategies`, skipping packages
 whose name starts with an underscore), and the retargeted patch strings, which the new resolution test verifies (`mypy --strict` cannot see a string
 target, so a patch of a moved name would otherwise pass silently); every other path-based check reads a path
 from the site data file.
@@ -1428,7 +1428,7 @@ descriptor at the composition root with each layer's slice injected. The project
 
 | Edit today | Result | Evidence |
 | :--- | :--- | :--- |
-| The strategy's command in `src/cli.py` | **Adopted.** The command lives in the strategy's CLI file; `cli.py` iterates the closed CLI tier. A strategy file never registers itself (A12). | The model with the four commands and their helpers moved, and `_maybe_save_run` and `get_cli_run_context` in a new `cli_run_support.py`, has no cycle and no new layer reach. The prototype's command member is `Callable[..., None]`; iterating a closed tuple into a Typer app registered the real `momentum` and `fcf-growth` functions. Cost: thirteen test modules patch `src.cli.` names (76 patch strings) and are retargeted in SWC.3c. |
+| The strategy's command in `investment_analysis_engine/cli.py` | **Adopted.** The command lives in the strategy's CLI file; `cli.py` iterates the closed CLI tier. A strategy file never registers itself (A12). | The model with the four commands and their helpers moved, and `_maybe_save_run` and `get_cli_run_context` in a new `cli_run_support.py`, has no cycle and no new layer reach. The prototype's command member is `Callable[..., None]`; iterating a closed tuple into a Typer app registered the real `momentum` and `fcf-growth` functions. Cost: thirteen test modules patch `investment_analysis_engine.cli.` names (76 patch strings) and are retargeted in SWC.3c. |
 | Alias mentions in `USAGE.md` and `WORKSPACE.md` | **Adopted.** Marked blocks are generated from the descriptors and drift-tested (T26). The watchlist option table's per-strategy prose moves into the strategy guides; the guide filename follows a rule, and `FCF_EARNINGS_GROWTH.md` is renamed `FCF_GROWTH.md`. | The pages hold the `ian <alias> --help` lines in `USAGE.md` and the `--analysis` sentence and option table in `WORKSPACE.md`; the lists derive from `alias` and `label`, the prose does not. |
 | Fixture requirement and fixture composition in `evaluation/composition.py` | **Adopted** as the evaluation tier. Fixture values, expected outcomes and case truth stay hand-written. | The model with per-strategy evaluation files, a fixture context, a fixture-identifier leaf and a tier tuple has no cycle; `evaluation` reaches only what it reached under the merged design. The prototype pairs each composition with its bundle by dependency type and rejects two mispairings. |
 | Dependency-bundle fields (`AnalysisToolDependencies`) | **Adopted.** Each strategy owns a dependency class in its `<strategy>_tool.py`; a shared `ToolRuntime` carries the clock and profile resolver. | The final-form prototype builds real Momentum and FCF handlers from per-strategy bundles and rejects an FCF handler in a Momentum bundle. |
@@ -1453,7 +1453,7 @@ descriptor at the composition root with each layer's slice injected. The project
 | Existing-file edits made by a generator | 0 | 0 | 5 |
 
 SWC.3b found one site the audit missed: the watchlist options, which have always been declared per strategy in
-`src/cli_workspace.py`. They are row 19 of [§17](#17-edit-sites-for-a-new-strategy), so the adopted column reads
+`investment_analysis_engine/cli_workspace.py`. They are row 19 of [§17](#17-edit-sites-for-a-new-strategy), so the adopted column reads
 19 sites, 9 existing files edited and 24 distinct files; the other rows are unchanged.
 
 ### E.3 Renumbering
@@ -1486,7 +1486,7 @@ Three further decisions, made while finalizing the design:
    settled here because SWC.2a onward create the strategy-owned files and SWC.5 and SWC.6 build tooling
    around their locations. The adoption condition was that a role-based layering rule is enforceable and
    rejects a deliberate violation, and that the module graph shows no new cycle with every
-   `__init__.py` under `src/strategies/` empty. Both held ([Appendix C.6](#c6-one-package-per-strategy)), so
+   `__init__.py` under `investment_analysis_engine/strategies/` empty. Both held ([Appendix C.6](#c6-one-package-per-strategy)), so
    the layout is adopted. The package-rename plan records the outcome.
 
 Slice renumbering: the existing strategy modules are relocated by a new first slice, so SWC.2a (symbol
@@ -1516,7 +1516,7 @@ The root exposes the pure function `bind_handlers(descriptors, dependencies, run
 descriptor's tool to `behavior.bind_handler(dependencies[tool], runtime)` and raises
 `UndeclaredStrategyError` for a descriptor tool with no dependencies entry, for an entry that belongs to no
 descriptor, and (through the exact-type guard) for a dependency instance of another strategy's class.
-Until SWC.2d, `src/evaluation/composition.py` pairs each per-strategy composition function with its tool in
+Until SWC.2d, `investment_analysis_engine/evaluation/composition.py` pairs each per-strategy composition function with its tool in
 `_COMPOSERS_BY_TOOL` and looks each descriptor's tool up through `require`, so a declared tool with no pair
 fails closed. SWC.2d replaces that pairing with the evaluation tier.
 
@@ -1546,7 +1546,7 @@ arguments explicitly, [§8](#8-typing-form)).
 
 `AnalysisToolArguments.__subclasses__()` returns every subclass that exists in the process, including one
 defined by a test, so comparing it with the descriptors would depend on which tests ran first. T4 counts only
-classes whose module starts with `src.`; a class defined by a test or a script can neither satisfy nor
+classes whose module starts with `investment_analysis_engine.`; a class defined by a test or a script can neither satisfy nor
 break the comparison.
 
 ### F.6 Other differences from the text above
@@ -1582,7 +1582,7 @@ with the decision and its reason.
 
 ### G.1 What the shared context holds
 
-`FixtureContext` (`src/evaluation/fixture_context.py`) holds the selected fixture identifiers, the clock and
+`FixtureContext` (`investment_analysis_engine/evaluation/fixture_context.py`) holds the selected fixture identifiers, the clock and
 the frozen SEC foreign-private-issuer provider, and no strategy-specific field. Momentum and FCF-Growth select
 their own variant from the identifiers in their `evaluation.py`; the Graham strategies read their provider,
 cache and provider identity from `_graham/evaluation.py`. Which inputs raise and every message are unchanged.
@@ -1652,7 +1652,7 @@ became `_GRAHAM_NUMBER_TOOL_CONSTRAINTS`, `_GROWTH` became `_GROWTH_TOOL_CONSTRA
 `_FCF_TOOL_CONSTRAINTS`). `FCF_EARNINGS_GROWTH_CASES` is now `FCF_GROWTH_CASES` and holds FPI-03; the
 module-level `GRAHAM_RESOLUTION_CASES` and `SEC_EDGAR_FPI_CASES` are deleted. The FCF case test is renamed
 `test_fcf_growth.py`. Each case test runs its module's full case tuple with arguments taken from the module's
-`*_ARGUMENTS` table. The `src.evaluation.cases` initializer is empty, and `catalog.py` and the tests import each
+`*_ARGUMENTS` table. The `investment_analysis_engine.evaluation.cases` initializer is empty, and `catalog.py` and the tests import each
 case and table from its module.
 
 ### G.7 Conformance and layering
@@ -1668,14 +1668,14 @@ there is no specimen yet ([F.1](#f1-no-specimen-yet)).
 T10 also gains `evaluation_fixture_id_gaps`: each requirement's identifiers must be declared by its own entry
 or by the context, and an entry may not redeclare an identifier the context consumes itself. T15 pins the three
 members of `EvalComposition` and the four fields of the tier entry. What T13 allows an `evaluation` file to import
-from `src.evaluation` is `src.evaluation.fixture_context` and the modules `src.evaluation.fixtures.<name>`, and
+from `investment_analysis_engine.evaluation` is `investment_analysis_engine.evaluation.fixture_context` and the modules `investment_analysis_engine.evaluation.fixtures.<name>`, and
 the negative tests are `test_t13_limits_what_a_strategy_evaluation_file_imports_from_the_evaluation_package`
 and `test_t13_keeps_every_other_strategy_file_out_of_the_evaluation_package`.
 
 T13 gains one rule beyond the design text: no strategy file other than an `evaluation` file imports
-`src.evaluation`. Without it the rule on what an `evaluation` file may import would leave every other role
-unchecked. No file violates it. `src.evaluation.strategy_fixtures` joins the root's importer list, and the tier's
-own importer list holds `src.evaluation.composition`.
+`investment_analysis_engine.evaluation`. Without it the rule on what an `evaluation` file may import would leave every other role
+unchecked. No file violates it. `investment_analysis_engine.evaluation.strategy_fixtures` joins the root's importer list, and the tier's
+own importer list holds `investment_analysis_engine.evaluation.composition`.
 
 ### G.8 Descriptors and tier are both parameters
 
@@ -1726,13 +1726,13 @@ with the decision and its reason.
 
 ### H.1 The injected views are consumer-owned dataclasses
 
-`EvidenceCodec` (label, the four versions, `encode`, `decode`) is defined in `src/workspace/codecs.py` and
-`RunSpec` (the three versions `execute` writes and its `encode`) in `src/workspace/execution.py`, so each
+`EvidenceCodec` (label, the four versions, `encode`, `decode`) is defined in `investment_analysis_engine/workspace/codecs.py` and
+`RunSpec` (the three versions `execute` writes and its `encode`) in `investment_analysis_engine/workspace/execution.py`, so each
 generic consumer owns the shape it receives and names no strategy. The root builds them with pure functions
 (`evidence_by_key`, `run_specs_by_key`, `replays_by_key`) and publishes
 `EVIDENCE_BY_KEY`, `RUN_SPECS_BY_KEY` and `REPLAYS_BY_KEY`; no by-type or by-alias view is built, because no production layer reads one. `RunSpec.encode` is bound to the
 same codec, so a schema failure is still reported as `InvalidStoredRunError` with the strategy's label.
-`run_spec_for(selection, run_specs=RUN_SPECS_BY_KEY)` is the one lookup `src.cli` and `src.cli_workspace` use.
+`run_spec_for(selection, run_specs=RUN_SPECS_BY_KEY)` is the one lookup `investment_analysis_engine.cli` and `investment_analysis_engine.cli_workspace` use.
 
 ### H.2 Behavior members and accessors
 
@@ -1741,7 +1741,7 @@ type parameter ([F.4](#f4-selection-type-parameter)). `BehaviorView` gains `enco
 `decode_for`. `decode_for(payload, ticker)` decodes and then compares `ticker_of(result)` with the run
 envelope's ticker, so `ticker_of` is reached only through that accessor, as `deps_type`, `handler` and
 `native_status` are ([F.3](#f3-reads-of-members-inside-the-root-t16)). Each accessor guards with an exact type
-check and raises `UndeclaredStrategyError` otherwise. `pair_evaluation` in `src/evaluation/strategy_fixtures.py`
+check and raises `UndeclaredStrategyError` otherwise. `pair_evaluation` in `investment_analysis_engine/evaluation/strategy_fixtures.py`
 takes the new first type parameter; this is the only edit that file needed.
 
 ### H.3 Selection parsing (removed 2026-10-08)
@@ -1755,20 +1755,20 @@ parse functions and `config_object`. See [H.33](#h33-one-dispatch-path-per-job-2
 
 ### H.4 Files outside the plan's list, and why
 
-- `src/reporting/analysis_runs.py`: `decode_evidence` takes the injected codecs, so `project_run` takes them as
+- `investment_analysis_engine/reporting/analysis_runs.py`: `decode_evidence` takes the injected codecs, so `project_run` takes them as
   the keyword-only `codecs`. SWC.4c adds `replays` beside it.
-- `src/cli.py`: `execute` takes `spec`, and the normalizers moved to the adapters, so the two `execute` calls and
+- `investment_analysis_engine/cli.py`: `execute` takes `spec`, and the normalizers moved to the adapters, so the two `execute` calls and
   the imports changed beside the Momentum composition.
-- `src/cli_workspace.py`: besides the repository helper, the alias vocabulary is read from the root now that
+- `investment_analysis_engine/cli_workspace.py`: besides the repository helper, the alias vocabulary is read from the root now that
   `method_aliases.py` is deleted (`BY_ALIAS`, `BY_METHOD_ID`). SWC.3b still owns the selection builder, the
   refresh executor and the `--analysis` help text.
-- `src/evaluation/strategy_fixtures.py`: the type parameter above.
+- `investment_analysis_engine/evaluation/strategy_fixtures.py`: the type parameter above.
 
 ### H.5 Watchlist repository alias resolver
 
 `SQLiteWatchlistRepository(database, *, alias_for, ...)` requires the resolver; `alias_for` returns `None` for a
 method this version does not declare, and the unreadable-entry message then shows the stored method
-identifier as written. `src/cli_workspace.py` composes the repository in one helper over `BY_METHOD_ID`.
+identifier as written. `investment_analysis_engine/cli_workspace.py` composes the repository in one helper over `BY_METHOD_ID`.
 
 ### H.6 Refresh and fail-closed lookups
 
@@ -1814,7 +1814,7 @@ differ from the selection's fields (Graham Growth's `current_aaa_yield` is the s
   passing another strategy's selection, fails `mypy --strict` (`Missing positional argument "sample_selection"`
   and `Value of type variable "SelT" of "pair_evaluation" cannot be ...`); both were tried.
 - **Where:** each strategy's `evaluation.py` declares `SAMPLE_SELECTION`, built from values its fixtures or its
-  reviewed cases already use (Momentum's windows from `src.evaluation.fixtures.market_data`; Graham Growth's
+  reviewed cases already use (Momentum's windows from `investment_analysis_engine.evaluation.fixtures.market_data`; Graham Growth's
   `6.5` and `4.15` from case GRG-01).
 - **T8 and T15:** T8 stores the real result under the entry's instance; `execute` serializes it, so T8 needs no
   body. A descriptor with no tier entry is reported by T8 as having no sample selection to store. T15 pins four
@@ -1824,7 +1824,7 @@ differ from the selection's fields (Graham Growth's `current_aaa_yield` is the s
 
 ### H.9 The CLI tier's shape and lookups
 
-`src/cli_strategy_wiring.py` follows the evaluation tier's pattern. `CliComposition[SelT]` has exactly `build` and
+`investment_analysis_engine/cli_strategy_wiring.py` follows the evaluation tier's pattern. `CliComposition[SelT]` has exactly `build` and
 `refresh`; `pair_cli(behavior, composition)` ties them to the core bundle by selection type and returns the erased
 `CliStrategy` (`behavior`, `build`, `refresh`). The erased entry's two functions each check that the selection
 they return or receive is exactly the paired bundle's selection class, so a mispairing that survives the type
@@ -1837,13 +1837,13 @@ and `refreshers_by_key` are pure functions over it, published as `CLI_BUILDERS` 
 `build_selection_for(alias, flags, builders)` and `refresh_executor_for(selection, refreshers)` use `require`, so a
 missing key raises `UndeclaredStrategyError` and no strategy is a default. The `--analysis` vocabulary and its help
 text are the keys of `CLI_BUILDERS`, in declaration order; the help text is generated, so the three literals are gone.
-`_build_selection` stays in `src/cli_workspace.py` as the one place that turns the command's options into the flag
+`_build_selection` stays in `investment_analysis_engine/cli_workspace.py` as the one place that turns the command's options into the flag
 bundle and calls the lookup.
 
 ### H.10 The watchlist flag bundle: an approved exception to the no-growing-shared-class rule
 
 [Plan §3.2](SWC_CONTRACT_AND_SLICE_PLAN.md#32-descriptor-responsibilities-and-exclusions) says no shared dataclass
-grows with the strategy count. `WatchlistFlags` in the new `src/cli_watchlist_flags.py` does: it is the one
+grows with the strategy count. `WatchlistFlags` in the new `investment_analysis_engine/cli_watchlist_flags.py` does: it is the one
 bundle every builder reads, and it holds the sixteen flags `_build_selection` already took.
 
 | Fields | Shared or strategy-owned |
@@ -1857,7 +1857,7 @@ bundle every builder reads, and it holds the sixteen flags `_build_selection` al
 
 When a new strategy adds a watchlist option, three places change, all in existing files: a field in
 `WatchlistFlags`, the option in both `watchlist create` and `watchlist add-selection`, and the matching parameter of
-`_build_selection` in `src/cli_workspace.py`. A strategy with only shared options changes none of them. This
+`_build_selection` in `investment_analysis_engine/cli_workspace.py`. A strategy with only shared options changes none of them. This
 was already so before SWC.3b, when the same sixteen options were `_build_selection`'s keyword parameters; the
 audit never listed it, so it is row 19 of the [edit-site table](#17-edit-sites-for-a-new-strategy).
 
@@ -1877,21 +1877,21 @@ Confirmed by the project owner at the SWC.3b review as an exception to the plan'
 
 ### H.11 The CLI-tier importer lists
 
-T13's root-importer list gains `src.cli_strategy_wiring`, which imports the root to pair its entries. The new
-CLI-tier importer list holds `src.cli_workspace` only: the staleness rule requires each entry to import the tier,
-and `src.cli` does not until SWC.3c iterates `CLI_STRATEGIES`, which adds the entry in that change. The tier may
+T13's root-importer list gains `investment_analysis_engine.cli_strategy_wiring`, which imports the root to pair its entries. The new
+CLI-tier importer list holds `investment_analysis_engine.cli_workspace` only: the staleness rule requires each entry to import the tier,
+and `investment_analysis_engine.cli` does not until SWC.3c iterates `CLI_STRATEGIES`, which adds the entry in that change. The tier may
 import the root and the `cli` role of a declared strategy package and nothing else, and a strategy's own `cli.py`
 imports neither the root nor the tier. The four SWC.3b transition entries are removed.
 
 ### H.12 Files outside the plan's scope list, and why
 
-- `src/cli_watchlist_flags.py` (new): [H.10](#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule).
+- `investment_analysis_engine/cli_watchlist_flags.py` (new): [H.10](#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule).
 - `scripts/strategy_conformance.py`: the T10 check body for the CLI tier lives here, with the T11 probes and the T15
-  closure check for the tier's members; the T14 check already walks `src/cli_strategy_wiring.py` and every strategy
+  closure check for the tier's members; the T14 check already walks `investment_analysis_engine/cli_strategy_wiring.py` and every strategy
   file.
 - `tests/test_cli_refresh.py` and `tests/test_workspace_integration.py`: five and one patch strings named
-  `src.cli_workspace.build_graham_resolver` and `src.cli_workspace.build_sec_production_provider`. Those names are
-  now used in the strategy `cli.py` files, so the strings name `src.strategies.<strategy>.cli.<name>`; the Graham
+  `investment_analysis_engine.cli_workspace.build_graham_resolver` and `investment_analysis_engine.cli_workspace.build_sec_production_provider`. Those names are
+  now used in the strategy `cli.py` files, so the strings name `investment_analysis_engine.strategies.<strategy>.cli.<name>`; the Graham
   Number and Graham Growth modules each import `build_graham_resolver`, so the integration test, which refreshes both,
   patches both. The patch-target resolution test and the direct-command output test are unchanged and pass.
 - `tests/test_cli_strategy_wiring.py` (new): the fail-closed lookups for the builder and the refresh executor.
@@ -1901,7 +1901,7 @@ imports neither the root nor the tier. The four SWC.3b transition entries are re
 The four selection builders and refresh executors keep their bodies, error order and messages. The only edits are
 mechanical: a builder reads its options from `WatchlistFlags` instead of keyword arguments, and Graham Number and
 Graham Growth no longer share one local `base` mapping, so each builds its own. `_check_momentum_windows` and the three
-FCF option converters moved with their strategy. `src/cli.py`'s copies stay until SWC.3c; see the converters row in
+FCF option converters moved with their strategy. `investment_analysis_engine/cli.py`'s copies stay until SWC.3c; see the converters row in
 the [duplicated-code table](#18-findings-assigned-to-a-slice) for what SWC.3c removes.
 
 ### H.14 The `--analysis` text is unchanged
@@ -1919,10 +1919,10 @@ the erased `CliStrategy` the field `command`, as [§3.3](#33-behavior-members-an
 passes it through, because a Typer command's signature is its options and no shared type can state it. T15 pins the
 member set `build`, `refresh`, `command` and the entry fields `behavior`, `build`, `refresh`, `command`.
 
-`add_strategy_commands(app, descriptors=STRATEGIES, tier=CLI_STRATEGIES)` is in `src/cli_strategy_wiring.py`. It
+`add_strategy_commands(app, descriptors=STRATEGIES, tier=CLI_STRATEGIES)` is in `investment_analysis_engine/cli_strategy_wiring.py`. It
 iterates `cli_entries(descriptors, tier)` and calls `app.command(name=descriptor.alias)(entry.command)`, so the command
 name is the descriptor's alias, the order is declaration order, and a descriptor with no entry raises
-`UndeclaredStrategyError` before any command is added. `src/cli.py` calls it once, after `register_health_command` and
+`UndeclaredStrategyError` before any command is added. `investment_analysis_engine/cli.py` calls it once, after `register_health_command` and
 before `evaluate` is declared, which keeps the order of `ian --help` as it was.
 
 T14 permits the one `app.command` call [A2](#12-framework-drift-checks) names: `discovery_gaps` skips the "registers a
@@ -1934,25 +1934,25 @@ is not a construction.
 
 ### H.16 The run helpers
 
-`src/cli_run_support.py` holds `get_cli_run_context`, `maybe_save_run` (the former `_maybe_save_run`, public now that
+`investment_analysis_engine/cli_run_support.py` holds `get_cli_run_context`, `maybe_save_run` (the former `_maybe_save_run`, public now that
 the four strategy files import it, body unchanged) and `save_run_execution`. The last is one line: it runs `execute`
 under the run spec the request's selection declares. Momentum's command saves a run through a different sequence
 (it composes its profile before the provider call), so it cannot use `maybe_save_run`, and a strategy's `cli.py`
 imports neither the root nor the tier ([H.11](#h11-the-cli-tier-importer-lists)); the helper keeps `run_spec_for` in
-one module that is a listed root importer. `src.cli` keeps `main_entry_point` and `evaluate`.
+one module that is a listed root importer. `investment_analysis_engine.cli` keeps `main_entry_point` and `evaluate`.
 
-The `settings` name is now read in two modules, `src.cli_run_support` (`maybe_save_run`) and
-`src/strategies/momentum/cli.py` (its save path). `tests/test_cli_save_run.py` isolates both, as it isolated
-`src.cli.settings` before, and no test rebinds a third.
+The `settings` name is now read in two modules, `investment_analysis_engine.cli_run_support` (`maybe_save_run`) and
+`investment_analysis_engine/strategies/momentum/cli.py` (its save path). `tests/test_cli_save_run.py` isolates both, as it isolated
+`investment_analysis_engine.cli.settings` before, and no test rebinds a third.
 
 ### H.17 T13 changes
 
 The eight transition entries owned by this slice are removed, and no others; four remain, all owned by SWC.4c. The
-CLI-tier importer list gains `src.cli`, which now imports the tier. The root-importer list replaces `src.cli` with
-`src.cli_run_support`: `src.cli` no longer imports the root (its only use of it was `run_spec_for`, which moved with
-`maybe_save_run`), and the staleness rule requires every entry to import the root. `src.cli_run_support` is the new
-module that does. Three layering tests used `src.cli` entries as sample transition edges; they use the remaining
-`src.reporting.analysis_runs` entries, and a new test asserts that no transition entry names `src.cli` or SWC.3c.
+CLI-tier importer list gains `investment_analysis_engine.cli`, which now imports the tier. The root-importer list replaces `investment_analysis_engine.cli` with
+`investment_analysis_engine.cli_run_support`: `investment_analysis_engine.cli` no longer imports the root (its only use of it was `run_spec_for`, which moved with
+`maybe_save_run`), and the staleness rule requires every entry to import the root. `investment_analysis_engine.cli_run_support` is the new
+module that does. Three layering tests used `investment_analysis_engine.cli` entries as sample transition edges; they use the remaining
+`investment_analysis_engine.reporting.analysis_runs` entries, and a new test asserts that no transition entry names `investment_analysis_engine.cli` or SWC.3c.
 
 ### H.18 T7 and T22
 
@@ -1988,10 +1988,10 @@ help text, each fail the comparison.
 
 ### H.20 Retargeted patch strings
 
-All 76 patch strings that named `src.cli.` names, in 13 test modules, are retargeted; the six in
-`tests/evaluation/test_cli.py` name `evaluate`'s names, which stay in `src.cli`, and are unchanged. Where a name moved to
+All 76 patch strings that named `investment_analysis_engine.cli.` names, in 13 test modules, are retargeted; the six in
+`tests/evaluation/test_cli.py` name `evaluate`'s names, which stay in `investment_analysis_engine.cli`, and are unchanged. Where a name moved to
 one strategy file the string names it; where a test exercises more than one command it patches each module. Several
-tests parametrize over commands and build the target from the command (`f"src.strategies.{command...}.cli..."`). The
+tests parametrize over commands and build the target from the command (`f"investment_analysis_engine.strategies.{command...}.cli..."`). The
 patch-target resolution test expands each placeholder independently, so a target that combines two placeholders, or
 names a module and a function that exist in only some of the commands, cannot be written that way, and `PT006` forbids
 the comma-separated parameter names it could read. Two tests (`test_cli_graham_commands.py`,
@@ -2001,21 +2001,21 @@ and the extraction in [H.18](#h18-t7-and-t22), and no stored output was regenera
 
 ### H.21 Files outside the plan's scope list, and why
 
-- `src/cli_strategy_wiring.py`, `scripts/strategy_conformance.py` and `tests/test_cli_strategy_wiring.py`:
+- `investment_analysis_engine/cli_strategy_wiring.py`, `scripts/strategy_conformance.py` and `tests/test_cli_strategy_wiring.py`:
   [H.15](#h15-the-command-member-and-add_strategy_commands) and [H.18](#h18-t7-and-t22).
 - `tests/_cli_help_output.py`, `tests/test_cli_help_output.py`, `tests/expected_output/cli_help/`: [H.19](#h19-the-help-output-is-pinned).
 - `tests/test_save_run_every_direct_command.py`, `tests/test_strategy_wiring_conformance.py`,
   `tests/test_strategy_import_layering.py`: [H.17](#h17-t13-changes) and [H.18](#h18-t7-and-t22).
-- The docstrings of the four strategy `execution.py` files, `src/cli_composition.py`, `src/cli_workspace.py` and
-  `src/workspace/requests.py`, and the two guides (`ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`, `ARCHITECTURE.md`):
-  each said that moved code lives in `src/cli.py`; prose only.
+- The docstrings of the four strategy `execution.py` files, `investment_analysis_engine/cli_composition.py`, `investment_analysis_engine/cli_workspace.py` and
+  `investment_analysis_engine/workspace/requests.py`, and the two guides (`ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`, `ARCHITECTURE.md`):
+  each said that moved code lives in `investment_analysis_engine/cli.py`; prose only.
 
 ### H.22 Moved code is unchanged
 
 The four commands and the Graham helpers keep their bodies, error order, messages and exit codes; the edits are the
-imports, the removed decorator, the name `command`, and `maybe_save_run` for `_maybe_save_run`. `src/cli.py`'s three FCF
+imports, the removed decorator, the name `command`, and `maybe_save_run` for `_maybe_save_run`. `investment_analysis_engine/cli.py`'s three FCF
 converters are deleted and the FCF command calls the ones SWC.3b moved. `_validate_momentum_windows` moved to
-`src/strategies/momentum/cli.py` beside the builder's `_check_momentum_windows`, which it keeps apart (it echoes and
+`investment_analysis_engine/strategies/momentum/cli.py` beside the builder's `_check_momentum_windows`, which it keeps apart (it echoes and
 exits with code 2). The edit-site count is unchanged at 19: the `command` member and its tier entry are inside rows 9 and 10.
 
 ### H.23 Failure model, classifier and module homes (2026-10-06)
@@ -2023,20 +2023,20 @@ exits with code 2). The edit-site count is unchanged at 19: the `command` member
 Decided while implementing SWC.4a.
 
 - **Homes.** `FailureReasonCode`, `FailureEnvelope` and its two nested models are in the leaf module
-  `src/reporting/documents/failure.py` (PH.2d moved `FailureReasonCode` and `status_for` to `src/core/failure_codes.py`), with `status_for`, the one function that derives a status from a code. The
+  `investment_analysis_engine/reporting/documents/failure.py` (PH.2d moved `FailureReasonCode` and `status_for` to `investment_analysis_engine/core/failure_codes.py`), with `status_for`, the one function that derives a status from a code. The
   envelope's validator rejects a status that does not follow from its code and `database` on a code that is not a
-  `database_*` code. `DatabaseMaintenanceReport` is a frozen pydantic model in `src/reporting/documents/database.py`,
+  `database_*` code. `DatabaseMaintenanceReport` is a frozen pydantic model in `investment_analysis_engine/reporting/documents/database.py`,
   with the field order of the dataclass it replaces, so `db status --json` keeps its key order.
-- **The classifier** was `classify_failure` in `src/reporting/failure_classification.py` (PH.2d moved it to `src/core/failure_classification.py` and removed the table: each exception states its own code): a closed, ordered tuple of
+- **The classifier** was `classify_failure` in `investment_analysis_engine/reporting/failure_classification.py` (PH.2d moved it to `investment_analysis_engine/core/failure_classification.py` and removed the table: each exception states its own code): a closed, ordered tuple of
   `(exception type, code)` rules (most specific first, `ValueError` last) plus the readiness branch, which maps
   `ReadinessReason` by value. `failure_envelope` builds the envelope from a code, a sentence and the exception that
   caused it, which is where the diagnostics and the `database` facts come from.
-- **Two exceptions live beside the table.** `AnalysisConfigurationError` moved from `src/cli_support.py` to the classifier
-  module, because a classifier under `src/reporting` cannot import the CLI layer without a cycle, and
-  `InvalidParameterError` is new there. `src/cli_composition.py` and `src/cli_health.py` import the first from its new
-  home; no re-export is left behind. PH.2d later moved both exceptions to `src/core/operator_errors.py`.
+- **Two exceptions live beside the table.** `AnalysisConfigurationError` moved from `investment_analysis_engine/cli_support.py` to the classifier
+  module, because a classifier under `investment_analysis_engine/reporting` cannot import the CLI layer without a cycle, and
+  `InvalidParameterError` is new there. `investment_analysis_engine/cli_composition.py` and `investment_analysis_engine/cli_health.py` import the first from its new
+  home; no re-export is left behind. PH.2d later moved both exceptions to `investment_analysis_engine/core/operator_errors.py`.
 - **`refresh_watchlist` takes the classifier as the required keyword `classify`,** a `Callable[[BaseException], str]`,
-  so `src/workspace` imports nothing from `src/reporting`. `RefreshJobResult.reason_code` is a string, set if and only if
+  so `investment_analysis_engine/workspace` imports nothing from `investment_analysis_engine/reporting`. `RefreshJobResult.reason_code` is a string, set if and only if
   `error` is; `error` keeps `str(exception)`, and the code is classified from the same object.
 - **`execution_errors` takes the command's selection class** (`selection_type`) in place of the `analysis` and `method` strings, and
   reads the two fixed identifiers the class already declares. The six literal id pairs are gone; no edit site is added, because a
@@ -2065,7 +2065,7 @@ exception type of their own to classify, so `runs show` states the code at the f
 ### H.25 The schema generator (2026-10-06)
 
 `scripts/generate_schemas.py` holds a two-entry table of file name and model, because the shared table `JSON_DOCUMENTS`
-in `src/reporting/json_documents.py` is SWC.4c's; SWC.4b and SWC.4c extend this table and SWC.4c may move it. `--check`
+in `investment_analysis_engine/reporting/json_documents.py` is SWC.4c's; SWC.4b and SWC.4c extend this table and SWC.4c may move it. `--check`
 reports each missing or stale file with the T20 sentence and writes nothing. The comparison is by bytes; `.gitattributes`
 stores the files with line feeds on every platform.
 
@@ -2073,10 +2073,10 @@ stores the files with line feeds on every platform.
 
 The plan's SWC.4a scope now lists each of these.
 
-- `src/data/repositories/watchlists.py` and `src/workspace/refresh.py`: import the one `WatchlistNotFoundError` and drop their
-  own, and `src/workspace/refresh.py` stops exporting it.
-- `src/cli_composition.py`, `src/cli_health.py`: [H.23](#h23-failure-model-classifier-and-module-homes-2026-10-06).
-- `src/strategies/momentum/cli.py`: holds the one window check.
+- `investment_analysis_engine/data/repositories/watchlists.py` and `investment_analysis_engine/workspace/refresh.py`: import the one `WatchlistNotFoundError` and drop their
+  own, and `investment_analysis_engine/workspace/refresh.py` stops exporting it.
+- `investment_analysis_engine/cli_composition.py`, `investment_analysis_engine/cli_health.py`: [H.23](#h23-failure-model-classifier-and-module-homes-2026-10-06).
+- `investment_analysis_engine/strategies/momentum/cli.py`: holds the one window check.
 - `docs/user/USAGE.md`, `docs/user/WORKSPACE.md`: stated the old failure output (stdout empty on a `--json` failure of
   `watchlist rename` and `watchlist delete`; one failure document for the direct commands only).
 - Tests that asserted the old output: `tests/test_cli.py`, `tests/test_cli_workspace.py`, `tests/test_cli_database.py`,
@@ -2165,7 +2165,7 @@ Decided while implementing SWC.4b.
 
 - **Models.** `WatchlistDocument`, `WatchlistDeleteDocument` (embedding the watchlist document), `RunsListDocument` (a
   root model over `RunSummaryDocument`, so the generator's signature is unchanged) and `RefreshSummaryDocument` are frozen
-  pydantic models with the key order of the dictionaries they replace. The builders in `src/cli_workspace.py` construct
+  pydantic models with the key order of the dictionaries they replace. The builders in `investment_analysis_engine/cli_workspace.py` construct
   them and serialize with one helper (`json.dumps` of `model_dump(mode="json")`, `ensure_ascii=False`, `allow_nan=False`),
   so the `--missing-ok` delete outcome, which was dumped without `allow_nan=False`, now follows the same rule; it has no
   floats, so its text is unchanged. Selections inside a watchlist are typed by the `AnalysisSelection` union; no second
@@ -2193,13 +2193,13 @@ Decided while implementing SWC.4b.
   clock). The stored files that changed are `runs-list-json-timestamps.txt` and
   `watchlist-show-json-as-of-timestamps.txt`, each `Z` to `+00:00`. The generator's table gained four entries, and the drift check covers
   the four new schemas.
-- **Files outside the plan's scope list.** `src/reporting/documents/timestamp.py` (the shared type), `scripts/generate_schemas.py`
+- **Files outside the plan's scope list.** `investment_analysis_engine/reporting/documents/timestamp.py` (the shared type), `scripts/generate_schemas.py`
   (four table entries), `tests/_workspace_command_output.py` and its stored files, and `docs/user/WORKSPACE.md` (the schema
   files, the unversioned statement and the `+00:00` spelling; the project owner pre-approved this file).
 
 ### H.31 Typed strategy documents and replay dispatch (2026-10-07)
 
-Decided while implementing SWC.4c. The project owner approved the shared-parts file, `ReplayInputs`, the `cli_workspace.py` import retarget and the documentation edits; the `failure_classification.py` import retarget (then in `src/reporting`, since moved to `src/core`) is reported for review.
+Decided while implementing SWC.4c. The project owner approved the shared-parts file, `ReplayInputs`, the `cli_workspace.py` import retarget and the documentation edits; the `failure_classification.py` import retarget (then in `investment_analysis_engine/reporting`, since moved to `investment_analysis_engine/core`) is reported for review.
 
 - **Models.** Each strategy's `envelope.py` holds its document `schema_version` (`DOCUMENT_SCHEMA_VERSION`) and its
   frozen document model (its identity constants moved to `vocabulary.py`, [H.32](#h32-one-vocabulary-file-per-strategy-2026-10-07)), and imports only the vocabulary of its
@@ -2207,7 +2207,7 @@ Decided while implementing SWC.4c. The project owner approved the shared-parts f
   output boundary and `json_document`'s sorted keys, indent and `allow_nan=False` are unchanged. Every field is required:
   an absent value is an explicit `null`, never an omitted key. A test checks that no field has a default.
 - **Shared parts.** The sections more than one strategy writes the same way live in
-  `src/reporting/documents/shared_parts.py` (security identity, instrument kind, the two diagnostics-entry shapes, a metric
+  `investment_analysis_engine/reporting/documents/shared_parts.py` (security identity, instrument kind, the two diagnostics-entry shapes, a metric
   result, and the Graham family's resolved input, quote and price comparison), with the functions that build them from
   the source objects. FCF Growth's resolved input is wider (fiscal year, period kind, accounting scope, capital-expenditure
   sign, provider fact id), so its model is in `fcf_growth/envelope.py`. The name says the parts are shared by strategy
@@ -2219,7 +2219,7 @@ Decided while implementing SWC.4c. The project owner approved the shared-parts f
   integer and a float as a float; every other numeric field is `float`.
 - **Enumerations the envelope cannot import.** An envelope may not import an analyzer module, so FCF Growth's document
   declares the values of its six enumerations as literals; a test compares each set with its enumeration. Momentum and the
-  Graham documents use enumerations from `src/core`.
+  Graham documents use enumerations from `investment_analysis_engine/core`.
 - **Identity has three declarations.** (Superseded by [H.32](#h32-one-vocabulary-file-per-strategy-2026-10-07), which declares it once.) An envelope's identifiers, the selection class's `Literal` identifiers and, for
   FCF Growth, the result's own constants in its models module are separate declarations. a test (T9, since removed) compared them, statically and
   through the replayed document, and a mismatch names the strategy and the site that disagrees. The descriptor reads FCF
@@ -2230,11 +2230,11 @@ Decided while implementing SWC.4c. The project owner approved the shared-parts f
   inputs), the decoded evidence, the stored selection and the options. An undeclared pair raises
   `UnsupportedProjectionError` with the unchanged message that names it, so `runs show` still reports
   `unsupported_projection`; the failure behavior does not change. `ReplayOptions`, `ReplayInputs` and
-  `UnsupportedProjectionError` are in the leaf module `src/reporting/replay_inputs.py`, and `analysis_runs.py` imports no
+  `UnsupportedProjectionError` are in the leaf module `investment_analysis_engine/reporting/replay_inputs.py`, and `analysis_runs.py` imports no
   strategy module, which empties the T13 transition list. The projector is the descriptor's `project` member; the view's
   `project_for` guards that the evidence and selection are exactly the strategy's types. The two Graham projectors share
   `friendly_graham_assembly` in `_graham/replay.py`.
-- **The table.** `src/reporting/json_documents.py` lists the failure, workspace and database documents with their schema
+- **The table.** `investment_analysis_engine/reporting/json_documents.py` lists the failure, workspace and database documents with their schema
   file and commands; a generic module cannot read the descriptors, so the strategy documents are added from the root by
   `scripts/generate_schemas.py` (file `<alias>.schema.json`) and by the conformance checks. This differs from §13.6's
   earlier wording, which had the table list the strategy schemas.
@@ -2244,9 +2244,9 @@ Decided while implementing SWC.4c. The project owner approved the shared-parts f
   T24 gains the `json_envelope` rule. The stored output in `tests/expected_output/strategy_documents/` was captured
   from the hand-written builders before any builder changed and is unchanged by this slice.
 - **Output changes.** None.
-- **Files outside the plan's original scope list.** `src/reporting/documents/shared_parts.py`;
+- **Files outside the plan's original scope list.** `investment_analysis_engine/reporting/documents/shared_parts.py`;
   `scripts/generate_schemas.py` and `scripts/strategy_conformance.py`; the one-line import retargets in
-  `src/cli_workspace.py` and `src/reporting/failure_classification.py` (since moved to `src/core`, PH.2d); `docs/user/USAGE.md`, `docs/user/WORKSPACE.md` and
+  `investment_analysis_engine/cli_workspace.py` and `investment_analysis_engine/reporting/failure_classification.py` (since moved to `investment_analysis_engine/core`, PH.2d); `docs/user/USAGE.md`, `docs/user/WORKSPACE.md` and
   the Step 3.5 plan's repetition checkpoint (the project owner pre-approved the last three).
 
 ### H.32 One vocabulary file per strategy (2026-10-07)
@@ -2270,7 +2270,7 @@ Decided by the project owner during the SWC.4c review, as a change of its own.
   There are no compatibility re-exports; every importer was updated.
 - **Roles.** T13 ranks `vocabulary` at -1. Another role file importing a vocabulary is permitted (it ranks lower), the
   vocabulary file importing any other role fails (negative test), and the composition root and the case module named for
-  the strategy (`src/evaluation/cases/fcf_growth.py` reads `HistoricalHorizon`) may import it. No generic module may. The
+  the strategy (`investment_analysis_engine/evaluation/cases/fcf_growth.py` reads `HistoricalHorizon`) may import it. No generic module may. The
   transition allowlist stays empty.
 - **Tests.** The tests that existed only to compare the duplicated declarations are gone: T9 (both parts), the
   FCF literal-against-enum comparison, the check that the FCF descriptor references the models constants, and the two
@@ -2307,8 +2307,8 @@ Decided by the project owner after H.32, in the same slice.
   one value), and the test that existed to show that comparison failing is gone. T8 still compares the versions a stored
   run records with the descriptor's, which are separate declarations.
 - **Status types.** `shared_parts.py` mirrored two inline literals of the data layer. Each is now a named type declared
-  once where it is used: `QuoteFreshnessStatus` in `src/data/financial/quote_freshness.py` and `PriceComparisonStatus` in
-  `src/analysis/shared/financial_resolution.py`, which the dataclass fields, `PriceComparison`'s validation and the
+  once where it is used: `QuoteFreshnessStatus` in `investment_analysis_engine/data/financial/quote_freshness.py` and `PriceComparisonStatus` in
+  `investment_analysis_engine/analysis/shared/financial_resolution.py`, which the dataclass fields, `PriceComparison`'s validation and the
   document parts all use. Layering permits the import: reporting already imports both modules.
 - **Output.** None. The generated schemas are unchanged.
 

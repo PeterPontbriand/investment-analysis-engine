@@ -8,9 +8,9 @@ from unittest.mock import patch
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.base_client import DataFetchError
-from src.data.instrument_profile import (
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.instrument_profile import (
     InstrumentKind,
     InstrumentKindEvidence,
     InstrumentKindRequest,
@@ -20,8 +20,8 @@ from src.data.instrument_profile import (
     compose_instrument_profile,
     instrument_kind_evidence_payload,
 )
-from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
-from src.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient
+from investment_analysis_engine.data.security_identity import SecurityIdentity, SecurityIdentityRequest
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient
 
 NOW = datetime(2026, 8, 30, 18, 0, tzinfo=UTC)
 
@@ -231,7 +231,7 @@ def test_duplicate_identity_provider_is_rejected_before_any_call() -> None:
 
 
 def test_yahoo_identity_and_kind_share_one_metadata_retrieval() -> None:
-    with patch("src.data.yfinance.client.yf.Ticker") as mock_ticker:
+    with patch("investment_analysis_engine.data.yfinance.client.yf.Ticker") as mock_ticker:
         mock_ticker.return_value.info = {
             "longName": "Franklin FTSE Switzerland ETF",
             "fullExchangeName": "NYSEArca",
@@ -267,7 +267,7 @@ def test_yahoo_retains_raw_kind_and_applies_only_reviewed_mappings(
     raw_value: str,
     expected_kind: InstrumentKind | None,
 ) -> None:
-    with patch("src.data.yfinance.client.yf.Ticker") as mock_ticker:
+    with patch("investment_analysis_engine.data.yfinance.client.yf.Ticker") as mock_ticker:
         mock_ticker.return_value.info = {"quoteType": raw_value}
         evidence = YFinanceClient(clock=lambda: NOW).resolve_instrument_kind(
             InstrumentKindRequest("FLSW", YFINANCE_PROVIDER_ID)
@@ -280,7 +280,7 @@ def test_yahoo_retains_raw_kind_and_applies_only_reviewed_mappings(
 
 @pytest.mark.parametrize("raw_value", [None, "", "   ", 3])
 def test_yahoo_missing_blank_or_malformed_kind_is_absent(raw_value: object) -> None:
-    with patch("src.data.yfinance.client.yf.Ticker") as mock_ticker:
+    with patch("investment_analysis_engine.data.yfinance.client.yf.Ticker") as mock_ticker:
         mock_ticker.return_value.info = {"quoteType": raw_value}
         evidence = YFinanceClient(clock=lambda: NOW).resolve_instrument_kind(
             InstrumentKindRequest("FLSW", YFINANCE_PROVIDER_ID)
@@ -291,7 +291,9 @@ def test_yahoo_missing_blank_or_malformed_kind_is_absent(raw_value: object) -> N
 
 
 def test_yahoo_metadata_failure_is_cached_across_both_capabilities() -> None:
-    with patch("src.data.yfinance.client.yf.Ticker", side_effect=RuntimeError("offline")) as mock_ticker:
+    with patch(
+        "investment_analysis_engine.data.yfinance.client.yf.Ticker", side_effect=RuntimeError("offline")
+    ) as mock_ticker:
         client = YFinanceClient(clock=lambda: NOW)
         candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, client)
 

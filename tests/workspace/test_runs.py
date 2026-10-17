@@ -6,12 +6,12 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from src.analysis.run_models import RunOutcome
-from src.data.instrument_profile import InstrumentKind
-from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_number.selection import GrahamNumberSelection
-from src.workspace.runs import (
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.data.instrument_profile import InstrumentKind
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
+from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
+from investment_analysis_engine.workspace.runs import (
     AnalysisRun,
     AnalysisRunSummary,
     RunQuery,

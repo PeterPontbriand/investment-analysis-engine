@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.evaluation.fixture_context import (
+from investment_analysis_engine.evaluation.fixture_context import (
     CONTEXT_FIXTURE_IDS,
     FixtureCompositionError,
     FixtureContext,
@@ -18,16 +18,22 @@ from src.evaluation.fixture_context import (
     selected_variant,
     validate_clock,
 )
-from src.evaluation.fixtures.graham import GRAHAM_FACTS_FIXTURE_ID
-from src.evaluation.fixtures.instrument_profiles import GOLDEN_ETF_TICKER, KNOWN_ETF_PROFILE_FIXTURE_ID
-from src.evaluation.fixtures.market_data import MOMENTUM_BOUNDARY_FIXTURE_ID, MOMENTUM_SUCCESS_FIXTURE_ID
-from src.evaluation.fixtures.sec_edgar_fpi import (
+from investment_analysis_engine.evaluation.fixtures.graham import GRAHAM_FACTS_FIXTURE_ID
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
+    GOLDEN_ETF_TICKER,
+    KNOWN_ETF_PROFILE_FIXTURE_ID,
+)
+from investment_analysis_engine.evaluation.fixtures.market_data import (
+    MOMENTUM_BOUNDARY_FIXTURE_ID,
+    MOMENTUM_SUCCESS_FIXTURE_ID,
+)
+from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import (
     SEC_FPI_ASML_FIXTURE_ID,
     SEC_FPI_FIXTURE_IDS,
     SEC_FPI_NTR_FIXTURE_ID,
     SEC_FPI_NVO_FIXTURE_ID,
 )
-from src.evaluation.models import Case, Expectation
+from investment_analysis_engine.evaluation.models import Case, Expectation
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 _REQUIREMENT = FixtureRequirement(frozenset({GRAHAM_FACTS_FIXTURE_ID}), "Sample", etf_profile_exempt=True)

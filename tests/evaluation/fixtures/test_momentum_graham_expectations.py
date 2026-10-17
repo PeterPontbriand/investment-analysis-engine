@@ -5,10 +5,10 @@ import math
 import pandas as pd
 import pytest
 
-from src.data.financial.facts import FinancialFactRequest, FinancialField
-from src.data.financial.provenance import FinancialSubjectKind
-from src.data.instrument_profile import InstrumentKind
-from src.evaluation.fixtures.graham import (
+from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
+from investment_analysis_engine.data.instrument_profile import InstrumentKind
+from investment_analysis_engine.evaluation.fixtures.graham import (
     AAA_YIELD_VALUE,
     BVPS_VALUE,
     EPS_FY2022,
@@ -27,12 +27,12 @@ from src.evaluation.fixtures.graham import (
     SUBJECT_MISSING_QUOTE,
     FixtureFinancialFactsProvider,
 )
-from src.evaluation.fixtures.instrument_profiles import (
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
     GOLDEN_ETF_NAME,
     GOLDEN_ETF_TICKER,
     fixture_known_etf_profile,
 )
-from src.evaluation.fixtures.market_data import (
+from investment_analysis_engine.evaluation.fixtures.market_data import (
     MOMENTUM_BOUNDARY_CLOSES,
     MOMENTUM_LONG_WINDOW,
     MOMENTUM_RSI_PERIOD,

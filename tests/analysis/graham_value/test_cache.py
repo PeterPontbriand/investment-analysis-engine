@@ -1,4 +1,4 @@
-"""Tests for src.data.financial.cache models and InMemoryResolvedInputCache."""
+"""Tests for investment_analysis_engine.data.financial.cache models and InMemoryResolvedInputCache."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.data.financial.cache import (
+from investment_analysis_engine.data.financial.cache import (
     InMemoryResolvedInputCache,
     ResolvedInputCacheEntry,
     ResolvedInputCacheKey,
@@ -15,7 +15,7 @@ from src.data.financial.cache import (
     ResolvedInputSeriesCacheProtocol,
     ResolvedInputSeriesCacheQuery,
 )
-from src.data.financial.provenance import (
+from investment_analysis_engine.data.financial.provenance import (
     ComponentLineage,
     FinancialSubjectKind,
     ResolvedInput,

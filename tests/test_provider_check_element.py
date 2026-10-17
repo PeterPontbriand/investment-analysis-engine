@@ -19,25 +19,29 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from src.cli import app
-from src.cli_provider_check import ProviderCheckChoice, ProviderCheckFindings, provider_check_findings
-from src.config import ProjectSettings
-from src.core.failure_codes import FailureReasonCode
-from src.core.provider_check_element import (
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.cli_provider_check import (
+    ProviderCheckChoice,
+    ProviderCheckFindings,
+    provider_check_findings,
+)
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.failure_codes import FailureReasonCode
+from investment_analysis_engine.core.provider_check_element import (
     ProviderCheckItem,
     ProviderCheckVerdict,
     require_check_matches_failure,
     require_unique_providers,
 )
-from src.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.base_client import DataFetchError
-from src.data.provider_checks import CheckVerdict
-from src.data.provider_probe import ProbeFinding, ProbeVerdict
-from src.reporting.documents.failure import FailureEnvelope
-from src.reporting.failure_envelope import failure_envelope
-from src.strategy_wiring import STRATEGIES
-from src.workspace_documents.refresh import RefreshSummaryDocument
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.provider_checks import CheckVerdict
+from investment_analysis_engine.data.provider_probe import ProbeFinding, ProbeVerdict
+from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
+from investment_analysis_engine.reporting.failure_envelope import failure_envelope
+from investment_analysis_engine.strategy_wiring import STRATEGIES
+from investment_analysis_engine.workspace_documents.refresh import RefreshSummaryDocument
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 from tests._strategy_document_output import CASES, _enter_providers
 from tests.test_cli_provider_check import (
@@ -59,7 +63,7 @@ _CASE_OF_ALIAS = {
 
 
 def _element(*records: tuple[ProviderFailureKind, str]) -> Any:
-    from src.core.failure_classification import provider_failure_of  # noqa: PLC0415 - one use
+    from investment_analysis_engine.core.failure_classification import provider_failure_of  # noqa: PLC0415 - one use
 
     element = provider_failure_of(tuple(ProviderFailureRecord(kind, provider) for kind, provider in records))
     assert element is not None
@@ -322,13 +326,13 @@ def _attribute_calls(path: Path, name: str) -> list[int]:
 
 def test_only_the_shared_function_calls_the_probe() -> None:
     """Neither the text path nor the document path may call the probe on its own."""
-    source = REPOSITORY_ROOT / "src"
+    source = REPOSITORY_ROOT / "investment_analysis_engine"
     callers = {
         path.relative_to(REPOSITORY_ROOT).as_posix()
         for path in source.rglob("*.py")
         if _attribute_calls(path, "check") and path.name != "provider_probe.py"
     }
-    assert callers == {"src/cli_provider_check.py"}
+    assert callers == {"investment_analysis_engine/cli_provider_check.py"}
 
     module = ast.parse((source / "cli_provider_check.py").read_text(encoding="utf-8"))
     function_of_call: dict[str, set[str]] = {}
@@ -341,11 +345,11 @@ def test_only_the_shared_function_calls_the_probe() -> None:
 
 def test_a_presenter_does_not_call_the_probe() -> None:
     """A presenter receives the finding as data; it imports neither the probe nor the module that runs it."""
-    forbidden = ("src.data.provider_probe", "src.cli_provider_check")
+    forbidden = ("investment_analysis_engine.data.provider_probe", "investment_analysis_engine.cli_provider_check")
     paths = [
-        *(REPOSITORY_ROOT / "src" / "strategies").glob("*/presenter.py"),
-        *(REPOSITORY_ROOT / "src" / "strategies").glob("*/replay.py"),
-        *(REPOSITORY_ROOT / "src" / "reporting").rglob("*.py"),
+        *(REPOSITORY_ROOT / "investment_analysis_engine" / "strategies").glob("*/presenter.py"),
+        *(REPOSITORY_ROOT / "investment_analysis_engine" / "strategies").glob("*/replay.py"),
+        *(REPOSITORY_ROOT / "investment_analysis_engine" / "reporting").rglob("*.py"),
     ]
     assert paths
     for path in paths:
@@ -480,7 +484,9 @@ def test_the_refresh_summary_carries_one_entry_per_implicated_provider_in_the_ki
             raise DataFetchError("detail", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar")
         raise DataFetchError("detail", kind=ProviderFailureKind.NO_DATA, provider_id="yfinance")
 
-    with patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis", side_effect=failing):
+    with patch(
+        "investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis", side_effect=failing
+    ):
         result = runner.invoke(app, ["refresh", "Two Providers", "--workers", "1", "--json"], obj=fake.probe)
 
     assert result.exit_code == 1

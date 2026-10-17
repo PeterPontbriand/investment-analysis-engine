@@ -15,15 +15,15 @@ P2-Profiles Slice D needed a complete inventory of every production
 instrument-profile composition call site before it could wire the durable
 cache into any of them. That inventory found Graham Number/Growth and FCF
 Growth already share exactly one composition helper
-(`src.strategies._shared.profile.compose_graham_profile`), reached from both
+(`investment_analysis_engine.strategies._shared.profile.compose_graham_profile`), reached from both
 their direct CLI commands and watchlist refresh — but Momentum has never had
 an equivalent shared helper, and now has three independently duplicated
 inline copies of the same `_identity_candidate()`-closure-over-a-fresh-
 `YFinanceClient()` pattern:
 
-- `src/cli.py`'s `momentum` command, `--save-run` branch
-- `src/cli.py`'s `momentum` command, default branch
-- `src/cli_workspace.py`'s `_execute_momentum` (watchlist refresh)
+- `investment_analysis_engine/cli.py`'s `momentum` command, `--save-run` branch
+- `investment_analysis_engine/cli.py`'s `momentum` command, default branch
+- `investment_analysis_engine/cli_workspace.py`'s `_execute_momentum` (watchlist refresh)
 
 ## Problem
 
@@ -42,7 +42,7 @@ wiring is complete and correct with the duplication left in place.
 ## Likely scope, once picked up
 
 - Extract a `compose_momentum_profile`-style helper (naming TBD) into a
-  shared module — most naturally alongside `src/strategies/_shared/profile.py`,
+  shared module — most naturally alongside `investment_analysis_engine/strategies/_shared/profile.py`,
   or in Momentum's own package if Momentum's identity/kind
   candidate construction doesn't fit Graham's helper signature cleanly
   (Momentum uses one `YFinanceClient` as both the identity and kind
@@ -53,7 +53,7 @@ wiring is complete and correct with the duplication left in place.
   `profile_cache` threading, and CLI/refresh behavior established by
   P2-Profiles Slice D.
 - Update the affected tests' patch targets
-  (`src.cli.compose_instrument_profile`, and any new equivalent for
+  (`investment_analysis_engine.cli.compose_instrument_profile`, and any new equivalent for
   `cli_workspace.py`) to the new shared helper's location.
 
 ## Out of scope for this note

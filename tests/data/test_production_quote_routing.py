@@ -5,10 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.financial.provenance import FinancialSubjectKind
-from src.data.yfinance.client import YFINANCE_PROVIDER_ID
+from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 
 
 @dataclass

@@ -7,23 +7,23 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.data.financial.cache import InMemoryResolvedInputCache
-from src.data.financial.facts import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
+from investment_analysis_engine.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
     FinancialUnit,
     ProviderFact,
 )
-from src.data.financial.provenance import FinancialSubjectKind
-from src.data.financial.resolution_trace import (
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
+from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionEvent,
     ResolutionOutcome,
     ResolutionStage,
     ResolutionTrace,
 )
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 NOW = datetime(2026, 8, 22, 16, 0, tzinfo=UTC)
 PERIOD_END = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)

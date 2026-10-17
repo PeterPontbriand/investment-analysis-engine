@@ -1,16 +1,18 @@
 """The package map and graph analysis used by the dependency check.
 
-Standard library only. This module defines which unit a file under ``src/`` belongs to and analyzes a graph of
-units; it reads no file and modifies none.
+Standard library only. This module defines which unit a file under ``investment_analysis_engine/`` belongs to and
+analyzes a graph of units; it reads no file and modifies none.
 
-A *unit* is each directory directly under ``src/``, plus each top-level module under ``src/`` by its file name
-(``config``, ``strategy_wiring``). The exceptions are ``cli``, which groups ``src/main.py`` and every
-``src/cli*.py``, and the role files below. ``src/__init__.py`` is ignored.
+A *unit* is each directory directly under ``investment_analysis_engine/``, plus each top-level module under
+``investment_analysis_engine/`` by its file name (``config``, ``strategy_wiring``). The exceptions are ``cli``, which
+groups ``investment_analysis_engine/main.py`` and every ``investment_analysis_engine/cli*.py``, and the role files
+below. ``investment_analysis_engine/__init__.py`` is ignored.
 
 The *role rule* assigns three files of each strategy package to the layer they adapt the strategy to: a file named
-``cli.py``, ``evaluation.py`` or ``execution.py`` directly inside a package under ``src/strategies/`` (including
-``_graham``) belongs to the unit ``cli``, ``evaluation`` or ``workspace`` respectively. Every other file under
-``src/strategies/`` belongs to ``strategies``. The rule is the data in ``ROLE_RULES``.
+``cli.py``, ``evaluation.py`` or ``execution.py`` directly inside a package under
+``investment_analysis_engine/strategies/`` (including ``_graham``) belongs to the unit ``cli``, ``evaluation`` or
+``workspace`` respectively. Every other file under ``investment_analysis_engine/strategies/`` belongs to ``strategies``.
+The rule is the data in ``ROLE_RULES``.
 """
 
 from __future__ import annotations

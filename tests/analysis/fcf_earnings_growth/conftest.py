@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
 
 RESOLVED_AT = datetime(2025, 12, 31, tzinfo=UTC)
 

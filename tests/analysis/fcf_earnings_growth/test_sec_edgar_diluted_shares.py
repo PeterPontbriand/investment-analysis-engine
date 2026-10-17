@@ -8,10 +8,15 @@ from typing import Any
 
 import pytest
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.financial.facts import FinancialFactRequest, FinancialField, FinancialUnit, ProviderFact
-from src.data.financial.provenance import FinancialSubjectKind
-from src.data.sec_edgar.financial_facts import (
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.financial.facts import (
+    FinancialFactRequest,
+    FinancialField,
+    FinancialUnit,
+    ProviderFact,
+)
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SEC_PROVIDER_ID,
     SEC_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD,
     SecEdgarFinancialFactsAdapter,

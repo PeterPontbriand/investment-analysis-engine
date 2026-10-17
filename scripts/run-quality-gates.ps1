@@ -201,7 +201,7 @@ try {
         "--strict",
         "--cache-dir",
         $mypyCache,
-        "src",
+        "investment_analysis_engine",
         "tests",
         "scripts"
     )
@@ -213,7 +213,7 @@ try {
         "addopts=",
         "-p",
         "no:cacheprovider",
-        "--cov=src",
+        "--cov=investment_analysis_engine",
         "--cov-report=term-missing",
         "--cov-report=html:$coverageHtml",
         "--basetemp=$pytestRoot",

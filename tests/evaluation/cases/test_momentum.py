@@ -7,32 +7,32 @@ from uuid import UUID
 
 import pytest
 
-from src.core.constants import TrendStatus
-from src.core.metric_result import MetricStatus, ReasonCode
-from src.core.trajectory_events import TrajectoryEvent
-from src.evaluation.cases.momentum import (
+from investment_analysis_engine.core.constants import TrendStatus
+from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
+from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
+from investment_analysis_engine.evaluation.cases.momentum import (
     MOMENTUM_ARGUMENTS,
     MOMENTUM_BOUNDARY_CASE,
     MOMENTUM_CASES,
     MOMENTUM_ETF_CASE,
     MOMENTUM_SUCCESS_CASE,
 )
-from src.evaluation.composition import dispatch_fixture_case
-from src.evaluation.fixtures.market_data import (
+from investment_analysis_engine.evaluation.composition import dispatch_fixture_case
+from investment_analysis_engine.evaluation.fixtures.market_data import (
     MOMENTUM_LONG_WINDOW,
     MOMENTUM_RSI_PERIOD,
     MOMENTUM_SHORT_WINDOW,
     FixtureMarketDataProvider,
     momentum_boundary_frame,
 )
-from src.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
-from src.evaluation.reporting import CaseEvaluationResult, CaseOutcome
-from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
-from src.orchestrator.tool_names import ToolName
-from src.strategies.momentum.analyzer import MomentumRun
-from src.strategies.momentum.tool import MomentumToolArguments
-from src.telemetry.recorder import TrajectoryRecorder
-from src.telemetry.run_context import RunContext
+from investment_analysis_engine.evaluation.models import Case, ComponentKind, ComponentOutcome, ComponentResult
+from investment_analysis_engine.evaluation.reporting import CaseEvaluationResult, CaseOutcome
+from investment_analysis_engine.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
+from investment_analysis_engine.orchestrator.tool_names import ToolName
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
+from investment_analysis_engine.strategies.momentum.tool import MomentumToolArguments
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
+from investment_analysis_engine.telemetry.run_context import RunContext
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("30000000-0000-0000-0000-000000000003")

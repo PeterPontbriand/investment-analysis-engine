@@ -10,7 +10,7 @@ The checks assert response *shape* (the fields and columns an adapter reads), ne
 requests, at most three per check, and never run in the default test run, the managed quality gate or the normal
 continuous-integration workflow. The local Ollama service is not an online dependency and is not checked.
 
-The check bodies live in one module, [`src/data/provider_checks.py`](../../src/data/provider_checks.py). The live
+The check bodies live in one module, [`investment_analysis_engine/data/provider_checks.py`](../../investment_analysis_engine/data/provider_checks.py). The live
 tests and the `health` command call the same functions, so a probe is written once.
 
 ## 1. Running the checks
@@ -90,9 +90,9 @@ After `momentum`, `graham-number`, `graham-growth` or `fcf-growth` fails on a pr
 did, the application runs the same check body for the provider the failure names (read from the failure's typed
 `provider_failure` element, never from message text) and reports what it found: a line before the failure text in the
 text modes, and the `provider_check` element in `--json`. The probe is
-[`src/data/provider_probe.py`](../../src/data/provider_probe.py); the wording and the rules are in
-[`src/cli_provider_check.py`](../../src/cli_provider_check.py). It is built once, at the composition root in
-`src/cli.py`, and reaches the commands through the Typer context.
+[`investment_analysis_engine/data/provider_probe.py`](../../investment_analysis_engine/data/provider_probe.py); the wording and the rules are in
+[`investment_analysis_engine/cli_provider_check.py`](../../investment_analysis_engine/cli_provider_check.py). It is built once, at the composition root in
+`investment_analysis_engine/cli.py`, and reaches the commands through the Typer context.
 
 - It runs one check under a 10-second limit (`IAN_PROVIDER_CHECK_TIMEOUT_SECONDS`), passed to the check body through
   its spec, at most once per provider per process; a refresh over many tickers probes once, after the batch.
@@ -105,7 +105,7 @@ text modes, and the `provider_check` element in `--json`. The probe is
 - `--no-provider-check` and `IAN_PROVIDER_CHECK=false` switch it off. The switched-off verdict is still reported:
   in `--json` the entries are present with `not_checked`.
 - A command runs it once and builds the text lines and the JSON element from the same findings (`provider_check_findings`
-  in `src/cli_provider_check.py`); no presenter calls the probe.
+  in `investment_analysis_engine/cli_provider_check.py`); no presenter calls the probe.
 - The wait is bounded: the limit plus a 2-second grace period, so up to 12 seconds per implicated provider at the
   default, and up to 24 seconds when a `refresh` implicates both. In `--json` mode this wait now comes before the
   document is written; `--no-provider-check` or `IAN_PROVIDER_CHECK=false` avoids it.
@@ -214,7 +214,7 @@ whether Yahoo was reachable. The check therefore first opens a direct TCP and TL
 | `unreachable`: `Cannot open a TLS connection to query2.finance.yahoo.com:443: ...` | The machine cannot reach Yahoo directly: the network, DNS or a firewall. |
 | `unreachable`: `timed out after 20 s` | The connection, the quote or the history did not finish within the whole-check deadline. The network or a proxy. A timeout is always `unreachable`. |
 | `rate limited`: `DataFetchError: ... Too Many Requests` | Yahoo answered HTTP 429 to the quote read and yfinance raised its rate-limit error. Wait, then run the check again. |
-| `unexpected response`: `history is missing columns: ...`, `history index is not a monotonic date index`, `history is not a data frame` | The yfinance library changed the shape it returns. Compare the installed version with the one the lock file pins, read its release notes, and read `fetch_data` in [`src/data/yfinance/client.py`](../../src/data/yfinance/client.py). |
+| `unexpected response`: `history is missing columns: ...`, `history index is not a monotonic date index`, `history is not a data frame` | The yfinance library changed the shape it returns. Compare the installed version with the one the lock file pins, read its release notes, and read `fetch_data` in [`investment_analysis_engine/data/yfinance/client.py`](../../investment_analysis_engine/data/yfinance/client.py). |
 | `unexpected response`: `quote last price is not a positive finite number`, or a quote error | The connection opened, so the machine reaches Yahoo, but the quote read (`fast_info`) failed in a way yfinance reports as a shape error. Yahoo changed what it returns, or throttled or refused the request and yfinance hid that. Read `fetch_current_quote` in the same module. |
 | `no data`: `history is empty` | See the next section. |
 | `failed`: `<ExceptionName>: ...` | An exception the adapter does not classify was raised inside the check. It is a defect, not a provider condition; reproduce it with the same adapter call and read the code. |
@@ -249,7 +249,7 @@ The check reads the ticker map and one company-facts document for the probe tick
 | `not configured`: `SEC EDGAR access is not configured` | `SEC_USER_AGENT` is not set (locally, or the repository secret for the cloud run). |
 | `unreachable`: `FinancialProviderError: HTTP request failed ... 403` | SEC refused the request. A blocked client and a rejected identity both get HTTP 403, so it cannot be told apart from a rejected identity and stays `unreachable`. SEC requires a declared identity; check the value of `SEC_USER_AGENT`. |
 | `rate limited`: `FinancialProviderError: HTTP request failed ... 429` | SEC is limiting the request rate. Wait, and check that nothing else was calling at the same time. |
-| `unexpected response`: `ticker map entries are missing fields: ...`, `ticker map entry for AAPL is missing fields: ...`, `ticker map has no entry for AAPL` | The ticker map document changed. Read `_ticker_cik_map` in [`src/data/sec_edgar/financial_facts.py`](../../src/data/sec_edgar/financial_facts.py). |
+| `unexpected response`: `ticker map entries are missing fields: ...`, `ticker map entry for AAPL is missing fields: ...`, `ticker map has no entry for AAPL` | The ticker map document changed. Read `_ticker_cik_map` in [`investment_analysis_engine/data/sec_edgar/financial_facts.py`](../../investment_analysis_engine/data/sec_edgar/financial_facts.py). |
 | `unexpected response`: `company facts document has no 'facts' mapping` or no `'us-gaap'` mapping | The company-facts document changed. Read how the same module parses `facts`. |
 | `unreachable`: `timed out after 20 s` | The network, or SEC is slow; retry once. |
 
@@ -292,12 +292,12 @@ To move back, disable the scheduled task and restore the original `SELECTOR` lin
 
 ## 6. Adding a check for a new provider
 
-1. In `src/data/provider_checks.py`, add a typed, frozen spec (probe ticker or request, the fields the adapter
+1. In `investment_analysis_engine/data/provider_checks.py`, add a typed, frozen spec (probe ticker or request, the fields the adapter
    reads, the timeout), one check function that takes its adapter or transport and a monotonic clock by injection,
    and one entry in the `PROVIDER_CHECKS` tuple. It is a plain tuple: no registration, base class or discovery.
 2. Keep to at most three requests per check, assert shape and never a value, and run each provider call through the
    existing timeout helper so a hung call cannot keep the process alive.
-3. Add the new client to the injected clients and to `build_provider_clients` in `src/cli_health.py`. Give the
+3. Add the new client to the injected clients and to `build_provider_clients` in `investment_analysis_engine/cli_health.py`. Give the
    entry the `library` name when the provider is reached through an installed library, so `ian health --json`
    reports its version.
 4. Add offline tests of the check body against fakes (a passing response, each missing field, an exception, a

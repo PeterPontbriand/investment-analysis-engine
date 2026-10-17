@@ -11,29 +11,42 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from src.analysis.run_models import RunOutcome
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.instrument_profile import InstrumentKind
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from src.evaluation.fixtures.market_data import FixtureDataClient
-from src.strategies.fcf_growth.execution import FCFGrowthCapture, from_fcf_growth_capture
-from src.strategies.graham_growth.execution import GrahamGrowthCapture, from_graham_growth_capture
-from src.strategies.graham_number.execution import GrahamNumberCapture, from_graham_number_capture
-from src.strategies.momentum.analyzer import MomentumRun
-from src.strategies.momentum.execution import capture_momentum, from_momentum_capture, run_momentum
-from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import EVIDENCE_BY_KEY, run_spec_for
-from src.workspace.capture import ExecutionCapture
-from src.workspace.codecs import decode_evidence
-from src.workspace.execution import (
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.instrument_profile import InstrumentKind
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
+from investment_analysis_engine.strategies.fcf_growth.execution import FCFGrowthCapture, from_fcf_growth_capture
+from investment_analysis_engine.strategies.graham_growth.execution import (
+    GrahamGrowthCapture,
+    from_graham_growth_capture,
+)
+from investment_analysis_engine.strategies.graham_number.execution import (
+    GrahamNumberCapture,
+    from_graham_number_capture,
+)
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
+from investment_analysis_engine.strategies.momentum.execution import (
+    capture_momentum,
+    from_momentum_capture,
+    run_momentum,
+)
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY, run_spec_for
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.codecs import decode_evidence
+from investment_analysis_engine.workspace.execution import (
     BatchContext,
     execute,
 )
-from src.workspace.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
-from src.workspace.requests import AnalysisRequest
-from src.workspace.runs import AnalysisRun
+from investment_analysis_engine.workspace.repositories.analysis_runs import (
+    AnalysisRunConflictError,
+    SQLiteAnalysisRunRepository,
+)
+from investment_analysis_engine.workspace.requests import AnalysisRequest
+from investment_analysis_engine.workspace.runs import AnalysisRun
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)
 LATER = datetime(2026, 9, 18, 12, 0, 1, tzinfo=UTC)
@@ -52,7 +65,7 @@ class _FixtureClient(FixtureDataClient):
 def mock_momentum_settings() -> Iterator[None]:
     """Materialize deterministic Momentum defaults for the analyzer's fallback ticker."""
     mock_analysis = {"default": {"default_ticker": "BTC-USD"}}
-    with patch("src.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
+    with patch("investment_analysis_engine.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
         yield
 
 

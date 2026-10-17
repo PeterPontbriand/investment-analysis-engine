@@ -16,14 +16,14 @@ import pytest
 from pydantic import ValidationError
 from typer.testing import CliRunner
 
-import src.cli_database
-import src.cli_workspace
-from src.cli import app
-from src.config import ProjectSettings
-from src.reporting.documents.failure import FailureEnvelope
-from src.strategies.graham_growth import cli as graham_growth_cli
-from src.strategies.graham_number import cli as graham_number_cli
-from src.workspace.runs import RunQuery
+import investment_analysis_engine.cli_database
+import investment_analysis_engine.cli_workspace
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
+from investment_analysis_engine.strategies.graham_growth import cli as graham_growth_cli
+from investment_analysis_engine.strategies.graham_number import cli as graham_number_cli
+from investment_analysis_engine.workspace.runs import RunQuery
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 
 runner = CliRunner()
@@ -666,7 +666,7 @@ def _ids(rows: list[Check]) -> list[str]:
 
 @pytest.fixture(autouse=True)
 def _non_interactive_input() -> Iterator[None]:
-    with patch("src.cli_workspace._stdin_is_interactive", return_value=False):
+    with patch("investment_analysis_engine.cli_workspace._stdin_is_interactive", return_value=False):
         yield
 
 
@@ -748,7 +748,7 @@ def test_a_report_that_already_exists_is_an_invalid_parameter(tmp_path: Path) ->
 
 
 def test_a_report_path_windows_would_only_partly_anchor_is_an_invalid_parameter() -> None:
-    with patch("src.cli.paths.is_windows", return_value=True):
+    with patch("investment_analysis_engine.cli.paths.is_windows", return_value=True):
         result = runner.invoke(app, ["evaluate", "--report", "/e/x/y.json"])
     assert result.exit_code == 1
     assert result.stderr.startswith("--report path '/e/x/y.json' has a root but no drive letter")
@@ -756,7 +756,7 @@ def test_a_report_path_windows_would_only_partly_anchor_is_an_invalid_parameter(
 
 def test_a_private_memory_target_from_the_settings_is_a_configuration_error() -> None:
     memory = ProjectSettings(database_url="sqlite:///:memory:")
-    with patch.object(src.cli_database, "settings", memory):
+    with patch.object(investment_analysis_engine.cli_database, "settings", memory):
         result = runner.invoke(app, ["db", "status", "--json"])
         text = runner.invoke(app, ["db", "upgrade"])
     document = json.loads(result.stdout)
@@ -838,7 +838,7 @@ _ORDER = [
 def test_the_check_that_fires_first_today_still_fires_first(
     arguments: tuple[str, ...], expected: tuple[str, ...]
 ) -> None:
-    with patch("src.cli.paths.is_windows", return_value=True):
+    with patch("investment_analysis_engine.cli.paths.is_windows", return_value=True):
         result = runner.invoke(
             app, [*arguments, "--json"] if arguments[0] in {"momentum", "fcf-growth"} else list(arguments)
         )
@@ -902,7 +902,7 @@ def test_a_corrupt_stored_row_is_an_unexpected_failure_that_shows_none_of_the_li
         RunQuery(limit=0)
     except ValidationError as error:
         corrupt = error
-    with patch("src.cli_workspace.SQLiteWatchlistRepository.add_entries", side_effect=corrupt):
+    with patch("investment_analysis_engine.cli_workspace.SQLiteWatchlistRepository.add_entries", side_effect=corrupt):
         result = runner.invoke(app, ["watchlist", "add-selection", "Odd", "-a", "momentum", "AAPL"])
     assert result.exit_code == 1
     assert result.stderr.strip() == "watchlist add-selection failed unexpectedly."

@@ -1,4 +1,4 @@
-"""No file under ``src/`` raises ``typer.BadParameter``.
+"""No file under ``investment_analysis_engine/`` raises ``typer.BadParameter``.
 
 A check a command makes in its own code raises ``InvalidParameterError`` and is reported as an ``invalid_parameter``
 failure with exit 1. Exit 2 means the parser rejected the command line, so no command code may produce it. The scan
@@ -7,9 +7,9 @@ reads the syntax tree, not the text, so a comment or a string that names the cla
 
 import ast
 
-from src.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 
-_SRC = REPOSITORY_ROOT / "src"
+_SRC = REPOSITORY_ROOT / "investment_analysis_engine"
 _FORBIDDEN = frozenset({"BadParameter"})
 
 
@@ -44,12 +44,14 @@ def test_no_file_under_src_raises_bad_parameter() -> None:
 
 def test_the_scan_finds_a_raise_and_names_the_file_and_line() -> None:
     source = "import typer\n\n\ndef check() -> None:\n    raise typer.BadParameter('x')\n"
-    assert bad_parameter_sites(source, "src/example.py") == ["src/example.py:5"]
-    assert bad_parameter_sites("from typer import BadParameter\n\nraise BadParameter\n", "src/other.py") == [
-        "src/other.py:3"
+    assert bad_parameter_sites(source, "investment_analysis_engine/example.py") == [
+        "investment_analysis_engine/example.py:5"
     ]
+    assert bad_parameter_sites(
+        "from typer import BadParameter\n\nraise BadParameter\n", "investment_analysis_engine/other.py"
+    ) == ["investment_analysis_engine/other.py:3"]
 
 
 def test_the_scan_ignores_text_that_only_names_the_class() -> None:
     source = '"""Mentions typer.BadParameter."""\n# raise typer.BadParameter\nNAME = "BadParameter"\n'
-    assert bad_parameter_sites(source, "src/example.py") == []
+    assert bad_parameter_sites(source, "investment_analysis_engine/example.py") == []

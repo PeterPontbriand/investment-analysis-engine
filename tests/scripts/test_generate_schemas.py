@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from scripts import generate_schemas
 from scripts.generate_schemas import DOCUMENTS, SCHEMA_DIRECTORY, expected_schemas, schema_gaps, write_schemas
-from src.core.failure_codes import FailureReasonCode
 
 
 def test_published_schemas_are_current() -> None:

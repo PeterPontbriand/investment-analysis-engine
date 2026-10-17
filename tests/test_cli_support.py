@@ -8,7 +8,7 @@ import pytest
 import typer
 from pydantic import BaseModel, field_validator
 
-from src.cli_support import (
+from investment_analysis_engine.cli_support import (
     _canonical_provider_id,
     _parse_as_of,
     _presentation_mode,
@@ -18,17 +18,17 @@ from src.cli_support import (
     parameter_failures,
     provider_failure_sentence,
 )
-from src.core.operator_errors import InvalidParameterError
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.base_client import DataFetchError
-from src.data.financial.facts import FinancialProviderError
-from src.reporting.presentation import PresentationMode
+from investment_analysis_engine.core.operator_errors import InvalidParameterError
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.financial.facts import FinancialProviderError
+from investment_analysis_engine.reporting.presentation import PresentationMode
 
 
 @pytest.mark.parametrize("error", [typer.Exit(2), typer.Exit(0)])
 def test_intentional_cli_exits_propagate_without_output(error: Exception) -> None:
     with (
-        patch("src.cli_support.typer.echo") as echo,
+        patch("investment_analysis_engine.cli_support.typer.echo") as echo,
         pytest.raises(type(error)) as caught,
         execution_errors(),
     ):
@@ -57,7 +57,7 @@ def test_intentional_cli_exits_propagate_without_output(error: Exception) -> Non
 )
 def test_execution_errors_classify_without_exposing_exception(error: Exception, message: str) -> None:
     with (
-        patch("src.cli_support.typer.echo") as echo,
+        patch("investment_analysis_engine.cli_support.typer.echo") as echo,
         pytest.raises(typer.Exit) as caught,
         execution_errors(),
     ):
@@ -141,7 +141,7 @@ def test_a_raised_provider_failure_is_reported_under_its_code_with_its_element(
 ) -> None:
     error = exception_type("private detail", kind=kind, provider_id="sec_edgar")
     with (
-        patch("src.cli_support.typer.echo") as echo,
+        patch("investment_analysis_engine.cli_support.typer.echo") as echo,
         pytest.raises(typer.Exit) as caught,
         execution_errors(mode=PresentationMode.JSON, ticker="AAPL"),
     ):
@@ -162,7 +162,7 @@ def test_a_raised_provider_failure_is_reported_as_one_without_a_ticker() -> None
     """Before, a command that passed no ``data_error`` reported a provider failure as invalid input."""
     error = FinancialProviderError("private", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar")
     with (
-        patch("src.cli_support.typer.echo") as echo,
+        patch("investment_analysis_engine.cli_support.typer.echo") as echo,
         pytest.raises(typer.Exit),
         execution_errors(mode=PresentationMode.JSON),
     ):
@@ -172,7 +172,7 @@ def test_a_raised_provider_failure_is_reported_as_one_without_a_ticker() -> None
 
 def test_a_parameter_failure_before_the_mode_is_known_writes_the_envelope_when_json_was_given() -> None:
     with (
-        patch("src.cli_support.typer.echo") as echo,
+        patch("investment_analysis_engine.cli_support.typer.echo") as echo,
         pytest.raises(typer.Exit) as caught,
         execution_errors(json_output=True),
     ):
@@ -189,14 +189,14 @@ def test_the_scope_carries_what_the_command_resolved_before_the_failure() -> Non
             scope.mode = PresentationMode.JSON
             raise InvalidParameterError("--a is wrong.", parameters=("--a",))
 
-    with patch("src.cli_support.typer.echo") as echo, pytest.raises(typer.Exit):
+    with patch("investment_analysis_engine.cli_support.typer.echo") as echo, pytest.raises(typer.Exit):
         run()
     assert json.loads(echo.call_args.args[0])["ticker"] == "KO"
 
 
 def test_a_parameter_failure_in_text_goes_to_standard_error() -> None:
     with (
-        patch("src.cli_support.typer.echo") as echo,
+        patch("investment_analysis_engine.cli_support.typer.echo") as echo,
         pytest.raises(typer.Exit) as caught,
         execution_errors(),
     ):
@@ -208,7 +208,7 @@ def test_a_parameter_failure_in_text_goes_to_standard_error() -> None:
 @pytest.mark.parametrize("json_output", [False, True])
 def test_parameter_failures_reports_only_an_invalid_parameter(json_output: bool) -> None:
     with (
-        patch("src.cli_support.typer.echo") as echo,
+        patch("investment_analysis_engine.cli_support.typer.echo") as echo,
         pytest.raises(typer.Exit) as caught,
         parameter_failures(json_output=json_output),
     ):

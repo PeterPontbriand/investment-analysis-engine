@@ -47,7 +47,8 @@ def test_the_scenario_covers_every_workspace_and_database_command(steps: dict[st
     """Every command word appears in a step, so a new command without a step is noticed."""
     import typer.main  # noqa: PLC0415
 
-    from src.cli import app  # noqa: PLC0415 - imported late to keep module import free of the application
+    # Imported late to keep module import free of the application.
+    from investment_analysis_engine.cli import app  # noqa: PLC0415
 
     tree = typer.main.get_command(app)
     covered = {name.split("-")[0] for name in steps}

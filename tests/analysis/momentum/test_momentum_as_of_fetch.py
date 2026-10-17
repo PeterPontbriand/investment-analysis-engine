@@ -16,16 +16,20 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from src.analysis.base_analyzer import AnalysisContext
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.base_client import BaseDataClient
-from src.data.cached_client import CachedHistoricalDataClient
-from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
-from src.data.quality import HistoricalDataQualityError
-from src.data.repositories.market_data import MarketDataCacheKey, SQLiteMarketDataRepository
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.base_client import BaseDataClient
+from investment_analysis_engine.data.cached_client import CachedHistoricalDataClient
+from investment_analysis_engine.data.market_data import (
+    HistoricalMarketData,
+    MarketDataContext,
+    NoEligibleObservationsError,
+)
+from investment_analysis_engine.data.quality import HistoricalDataQualityError
+from investment_analysis_engine.data.repositories.market_data import MarketDataCacheKey, SQLiteMarketDataRepository
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
 
 START = "2026-01-01"
 VARIANT = "1d:adjusted"

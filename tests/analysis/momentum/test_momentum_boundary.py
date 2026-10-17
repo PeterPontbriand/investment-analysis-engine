@@ -12,11 +12,15 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
-from src.analysis.base_analyzer import AnalysisContext
-from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
-from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
-from src.data.quality import HistoricalDataQualityError, QualityOutcome
-from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
+from investment_analysis_engine.data.market_data import (
+    HistoricalMarketData,
+    MarketDataContext,
+    NoEligibleObservationsError,
+)
+from investment_analysis_engine.data.quality import HistoricalDataQualityError, QualityOutcome
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
 
 FIRST_BAR = datetime(2026, 1, 1, 12, tzinfo=UTC)
 EXECUTED_AT = datetime(2026, 2, 1, tzinfo=UTC)

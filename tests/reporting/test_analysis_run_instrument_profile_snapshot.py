@@ -17,32 +17,35 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from src.analysis.run_models import RunOutcome
-from src.config import ProjectSettings
-from src.core.analysis_status import CalculationStatus
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.data.instrument_profile import (
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.data.instrument_profile import (
     InstrumentKind,
     InstrumentKindEvidence,
     InstrumentKindRequest,
     InstrumentProfileCandidate,
 )
-from src.data.instrument_profile_cache import CachedInstrumentProfileResolver
-from src.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
-from src.reporting.presentation import PresentationMode
-from src.reporting.replay_inputs import ReplayOptions
-from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
-from src.strategies.graham_number.selection import GrahamNumberSelection
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
-from src.workspace.capture import ExecutionCapture
-from src.workspace.execution import execute
-from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
-from src.workspace.requests import AnalysisRequest
-from src.workspace_documents.run_replay import project_run
+from investment_analysis_engine.data.instrument_profile_cache import CachedInstrumentProfileResolver
+from investment_analysis_engine.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.security_identity import SecurityIdentity, SecurityIdentityRequest
+from investment_analysis_engine.reporting.presentation import PresentationMode
+from investment_analysis_engine.reporting.replay_inputs import ReplayOptions
+from investment_analysis_engine.strategies.graham_number.calculation import (
+    GrahamNumberInputAssembly,
+    GrahamNumberResult,
+)
+from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.execution import execute
+from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
+from investment_analysis_engine.workspace.requests import AnalysisRequest
+from investment_analysis_engine.workspace_documents.run_replay import project_run
 
 NOW = datetime(2026, 9, 22, 12, 0, 0, tzinfo=UTC)
 LATER = NOW + timedelta(days=31)

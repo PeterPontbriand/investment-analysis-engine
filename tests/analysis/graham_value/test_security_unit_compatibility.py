@@ -6,9 +6,9 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
-from src.analysis.shared.financial_resolution import evaluate_price_comparison
-from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.data.security_unit import SecurityUnitEvidence, SecurityUnitKind
+from investment_analysis_engine.analysis.shared.financial_resolution import evaluate_price_comparison
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.data.security_unit import SecurityUnitEvidence, SecurityUnitKind
 
 
 def _margin(*args: Any, **kwargs: Any) -> float | None:

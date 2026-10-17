@@ -7,13 +7,13 @@ from math import inf, nan
 import pytest
 from pydantic import ValidationError
 
-from src.evaluation.models import (
+from investment_analysis_engine.evaluation.models import (
     ComponentKind,
     ComponentOutcome,
     ComponentResult,
     ExecutionMode,
 )
-from src.evaluation.reporting import (
+from investment_analysis_engine.evaluation.reporting import (
     CaseEvaluationResult,
     CaseOutcome,
     ComponentMetric,

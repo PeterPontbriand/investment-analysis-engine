@@ -11,18 +11,18 @@ import json
 
 import pytest
 
-from src.analysis.run_models import RunOutcome
-from src.core.analysis_status import CalculationStatus
-from src.strategies.graham_number.execution import (
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.strategies.graham_number.execution import (
     GrahamNumberCapture,
     classify_graham_number_outcome,
     from_graham_number_capture,
 )
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategy_wiring import EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
-from src.workspace.capture import ExecutionCapture
-from src.workspace.codecs import decode_evidence
-from src.workspace.refresh import refresh_watchlist
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.codecs import decode_evidence
+from investment_analysis_engine.workspace.refresh import refresh_watchlist
 from tests._strategy_document_output import CASES, run_saved
 from tests._wiring import failure_text
 from tests.workspace.test_refresh import _FakeSink, _FakeWatchlists, _watchlist

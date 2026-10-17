@@ -38,7 +38,7 @@ frameworks remain prohibited.").
 Surveyed across the five layers named in the project owner's request. Each row names the file, what
 is duplicated per strategy today, and how many times (four, soon eleven).
 
-### Orchestrator (`src/orchestrator/analysis_tools.py`)
+### Orchestrator (`investment_analysis_engine/orchestrator/analysis_tools.py`)
 
 | Wiring point | Shape |
 | :--- | :--- |
@@ -49,7 +49,7 @@ is duplicated per strategy today, and how many times (four, soon eleven).
 | `AnalysisToolHandlers.analyze_*` method | One handler method per strategy, each independently validating arguments, resolving profile, and invoking its analyzer. |
 | `register_analysis_tools`'s registration calls | One `dispatcher.register_tool(...)` line per strategy. |
 
-### Workspace (`src/workspace/requests.py`, `src/workspace/*_execution.py`, `src/workspace/execution.py`)
+### Workspace (`investment_analysis_engine/workspace/requests.py`, `investment_analysis_engine/workspace/*_execution.py`, `investment_analysis_engine/workspace/execution.py`)
 
 | Wiring point | Shape |
 | :--- | :--- |
@@ -62,23 +62,23 @@ is duplicated per strategy today, and how many times (four, soon eleven).
 | `_METHOD_VERSIONS` dict (`execution.py:62-67`) | One `(analysis_id, method_id) → (method_version, result_schema_version)` entry per strategy. |
 | `_refresh_executor`'s dispatch (`cli_workspace.py:854-862`) | One `isinstance(selection, *Selection)` branch per strategy. |
 
-### Codec (`src/workspace/codecs.py`, `src/workspace/{strategy}.py`)
+### Codec (`investment_analysis_engine/workspace/codecs.py`, `investment_analysis_engine/workspace/{strategy}.py`)
 
 | Wiring point | Shape |
 | :--- | :--- |
 | `encode_evidence`'s isinstance chain | One `isinstance(evidence, *)` branch per strategy, order-sensitive (subclass-before-superclass concerns don't currently apply, but the chain is manually ordered). |
 | `decode_evidence`'s version-check tuple | One `(analysis_id, method_id)` tuple per strategy in a manually-maintained membership check, plus one more manually-maintained literal per strategy for the expected `method_version`/`result_schema_version` (already awkward today — see the [IR.2 plan](../integration-readiness/IR2_ANALYZER_ENVELOPE_PLAN.md#610-persisted-shape-version-bumps-and-alembic-per-the-project-owners-direction-item-7) §6.10 on the `3 if fcf_pair else 1` pattern this document's own IR.2 work is about to make one branch more awkward). |
 | `decode_evidence`'s dispatch chain | One `if` branch per strategy, each calling that strategy's own `decode_*` function and checking ticker identity by strategy-specific field access. |
-| `src/workspace/{strategy}.py` (`graham_number.py`, `graham_growth.py`, `fcf_growth.py`, `momentum.py`) | One file per strategy, each with its own `encode_*`/`decode_*` pair. |
+| `investment_analysis_engine/workspace/{strategy}.py` (`graham_number.py`, `graham_growth.py`, `fcf_growth.py`, `momentum.py`) | One file per strategy, each with its own `encode_*`/`decode_*` pair. |
 
-### Reporting (`src/reporting/analysis_runs.py`, `src/reporting/{strategy}.py`)
+### Reporting (`investment_analysis_engine/reporting/analysis_runs.py`, `investment_analysis_engine/reporting/{strategy}.py`)
 
 | Wiring point | Shape |
 | :--- | :--- |
 | Per-strategy render function in `analysis_runs.py` | One function per strategy, each `assert isinstance(evidence, *)`-guarded before rendering (lines 120, 122, 161, 185, 213 and their surrounding functions). |
-| `src/reporting/{strategy}.py` module | One presentation module per strategy family (`graham.py` covers both Graham methods, `momentum.py`, `fcf_earnings_growth.py`), each with its own concise/details/diagnostics/JSON rendering functions — none shared beneath a common presentation contract. |
+| `investment_analysis_engine/reporting/{strategy}.py` module | One presentation module per strategy family (`graham.py` covers both Graham methods, `momentum.py`, `fcf_earnings_growth.py`), each with its own concise/details/diagnostics/JSON rendering functions — none shared beneath a common presentation contract. |
 
-### Evaluation (`src/evaluation/models.py`, `src/evaluation/composition.py`) — surfaced in passing, not one of the five named layers, but wired the same way
+### Evaluation (`investment_analysis_engine/evaluation/models.py`, `investment_analysis_engine/evaluation/composition.py`) — surfaced in passing, not one of the five named layers, but wired the same way
 
 | Wiring point | Shape |
 | :--- | :--- |
@@ -107,7 +107,7 @@ remain prohibited." Concretely, that means:
   decode, render, classify outcome) — that the orchestrator/workspace/codec/reporting layers iterate
   or index into, replacing the isinstance chains and per-strategy dict literals above with one loop
   or lookup each.
-- **Not permitted:** import-time strategy discovery (scanning `src/analysis/strategy/` for anything
+- **Not permitted:** import-time strategy discovery (scanning `investment_analysis_engine/analysis/strategy/` for anything
   that looks like an analyzer and auto-registering it), a generic `BaseAnalyzer` subclass registry
   with `__init_subclass__` auto-registration, or a plugin-loader abstraction. Every strategy still
   gets added to the explicit list by a person, in one PR, reviewed like any other change — this
@@ -122,7 +122,7 @@ framework.
 ## 4. Proposed shape (illustrative, not final — for review)
 
 ```python
-# src/analysis/strategy_registry.py  (illustrative only)
+# investment_analysis_engine/analysis/strategy_registry.py  (illustrative only)
 
 
 @dataclass(frozen=True)

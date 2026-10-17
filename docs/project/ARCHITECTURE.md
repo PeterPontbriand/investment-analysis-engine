@@ -85,9 +85,9 @@ The presentation boundary is intentionally downstream of deterministic calculati
 
 ## 4. Composition roots and dependency wiring
 
-A composition root is where a run's concrete dependencies — provider, cache, resolver, clock, and (when persisting) the durable instrument-profile cache and Analysis Run repository — are constructed and wired together before an analyzer ever runs. The current composition roots are each strategy's `src/strategies/<strategy>/cli.py` (its direct command, added to the application by `src/cli.py` through the CLI tier) and `src/cli_workspace.py` (workspace/watchlist commands); the latter's `_execute_*` functions perform per-job composition and read `executed_at`, including for each job a concurrent watchlist refresh runs. `src/workspace/refresh.py` supplies its own clock only to timestamp each job's persisted `AnalysisRun` capture — it never composes a job's dependencies and never supplies the `executed_at` an analysis runs against. `src/cli_composition.py` and `src/cli_support.py` hold the factory helpers both composition roots draw on (provider/resolver builders, production client/cache construction) rather than acting as composition roots themselves. Composition is not a strategy's own concern: an analyzer and its resolver receive already-composed dependencies through their constructors and never construct or close them.
+A composition root is where a run's concrete dependencies — provider, cache, resolver, clock, and (when persisting) the durable instrument-profile cache and Analysis Run repository — are constructed and wired together before an analyzer ever runs. The current composition roots are each strategy's `investment_analysis_engine/strategies/<strategy>/cli.py` (its direct command, added to the application by `investment_analysis_engine/cli.py` through the CLI tier) and `investment_analysis_engine/cli_workspace.py` (workspace/watchlist commands); the latter's `_execute_*` functions perform per-job composition and read `executed_at`, including for each job a concurrent watchlist refresh runs. `investment_analysis_engine/workspace/refresh.py` supplies its own clock only to timestamp each job's persisted `AnalysisRun` capture — it never composes a job's dependencies and never supplies the `executed_at` an analysis runs against. `investment_analysis_engine/cli_composition.py` and `investment_analysis_engine/cli_support.py` hold the factory helpers both composition roots draw on (provider/resolver builders, production client/cache construction) rather than acting as composition roots themselves. Composition is not a strategy's own concern: an analyzer and its resolver receive already-composed dependencies through their constructors and never construct or close them.
 
-Every composition root reads `executed_at` exactly once per analysis it runs, via `utc_now()` — a watchlist refresh takes a separate reading for each job. That single reading threads through everything the analysis touches; see [*Time and the analysis boundary*](#5-time-and-the-analysis-boundary) for the resulting clock model. `maybe_save_run` (`src/cli_run_support.py`) is the one place shared by all four direct commands that decides, from `--save-run`, whether a run's capture ever reaches persistence.
+Every composition root reads `executed_at` exactly once per analysis it runs, via `utc_now()` — a watchlist refresh takes a separate reading for each job. That single reading threads through everything the analysis touches; see [*Time and the analysis boundary*](#5-time-and-the-analysis-boundary) for the resulting clock model. `maybe_save_run` (`investment_analysis_engine/cli_run_support.py`) is the one place shared by all four direct commands that decides, from `--save-run`, whether a run's capture ever reaches persistence.
 
 For the concrete sequence a request follows from composition through to a rendered or saved result, see the [Analysis Strategy Contributor Guide](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md)'s execution trace rather than a second copy of it here.
 
@@ -98,7 +98,7 @@ For the concrete sequence a request follows from composition through to a render
 Every time-dependent decision in the data layer ("is this cached value still fresh?", "had this
 filing been published yet?") is made against one of three well-defined instants, never against
 an ad-hoc read of the wall clock. The helpers and the tolerance constant live in
-`src/core/clock.py`.
+`investment_analysis_engine/core/clock.py`.
 
 ### The three instants
 
@@ -123,15 +123,15 @@ an ad-hoc read of the wall clock. The helpers and the tolerance constant live in
 - **The analysis boundary: the instant eligibility is judged against.** It answers "was this
   information knowable by then?" For a historical run it is `as_of`. A live run has no requested
   date, so its boundary is `executed_at`, the latest instant the run can know anything about.
-  Compute it with `effective_as_of(as_of, executed_at)` from `src/core/clock.py`, which
+  Compute it with `effective_as_of(as_of, executed_at)` from `investment_analysis_engine/core/clock.py`, which
   `AnalysisContext.effective_as_of` also uses. Don't re-derive it inline, so there is exactly one
   definition. Because the boundary is always a concrete instant, it cannot tell you whether a run
   is live; check `as_of is None` for that.
 
 ### Reading the wall clock
 
-`utc_now()` is the only permitted read of the real wall clock in `src/`. The single exception is
-log-rotation timing in `src/utils/logger_util.py`. A structural conformance test in
+`utc_now()` is the only permitted read of the real wall clock in `investment_analysis_engine/`. The single exception is
+log-rotation timing in `investment_analysis_engine/utils/logger_util.py`. A structural conformance test in
 `tests/analysis/test_base_analyzer_conformance.py` enforces this. Everything else receives its
 clock by injection, and which clock depends on what it is used for:
 
@@ -153,9 +153,9 @@ clock by injection, and which clock depends on what it is used for:
 In a live run, `executed_at` is fixed at the start, but provider timestamps (a quote's retrieval
 time, a market observation, a fact's availability time) are stamped later, when each fetch
 completes. A timestamp slightly after `executed_at` is therefore normal in a live run, not a data
-problem. The timestamp-versus-boundary checks in `src/data/quality.py` (`evaluate_freshness`,
+problem. The timestamp-versus-boundary checks in `investment_analysis_engine/data/quality.py` (`evaluate_freshness`,
 the single owner of these comparisons in the resolver) and the retrieval-age check in
-`src/data/financial/quote_freshness.py` accept up to `FROZEN_CLOCK_SKEW_TOLERANCE` of it.
+`investment_analysis_engine/data/financial/quote_freshness.py` accept up to `FROZEN_CLOCK_SKEW_TOLERANCE` of it.
 
 A historical run accepts none: a timestamp after an explicitly requested `as_of` is look-ahead,
 and must fail. The tolerance is ten minutes. A timezone misconfiguration, such as local time
@@ -235,7 +235,7 @@ deterministic Graham method   deterministic FCF method                    │
 ```
 
 ### `BaseDataClient` and `MarketDataProvider`
-`BaseDataClient` is the original concrete provider boundary for historical market prices; it remains price-history focused rather than becoming the owner of fundamentals, valuation quotes, macro series, and cache policy. `MarketDataProvider` (`src/data/market_data.py`) is a narrower structural protocol — `provider_id` plus `fetch_historical_data` — and is the boundary Momentum's resolver actually consumes. `MomentumAnalyzer` takes one required `MarketDataProvider` and the series start date at construction. `BaseDataClient` satisfies the protocol structurally through its `fetch_historical_data` method, so a data client, the cached historical client, or a fixture provider is passed directly with no adapter.
+`BaseDataClient` is the original concrete provider boundary for historical market prices; it remains price-history focused rather than becoming the owner of fundamentals, valuation quotes, macro series, and cache policy. `MarketDataProvider` (`investment_analysis_engine/data/market_data.py`) is a narrower structural protocol — `provider_id` plus `fetch_historical_data` — and is the boundary Momentum's resolver actually consumes. `MomentumAnalyzer` takes one required `MarketDataProvider` and the series start date at construction. `BaseDataClient` satisfies the protocol structurally through its `fetch_historical_data` method, so a data client, the cached historical client, or a fixture provider is passed directly with no adapter.
 
 Current quote retrieval is a separate valuation capability; it is not implemented as a one-day historical request.
 
@@ -424,7 +424,7 @@ Named watchlists hold tickers and supported requested analyses. A user-initiated
 ### Database readiness and explicit maintenance
 
 The [fresh database readiness contract](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
-is implemented by `src/data/repositories/readiness.py`. CLI cache composition
+is implemented by `investment_analysis_engine/data/repositories/readiness.py`. CLI cache composition
 checks required persistence before use and initializes only missing or verified
 empty storage through bundled Alembic migrations. Existing schemas require
 explicit operator upgrades. Repositories remain lazy borrowers; analyzers own no
@@ -434,7 +434,7 @@ recheck, transactional DDL and revision/structure verification before commit.
 
 `inspect_database()` uses a read-only consistent snapshot without initialization;
 `upgrade_database()` explicitly migrates only fresh or supported compatible
-storage. The hidden `src/cli_database.py` maintenance group exposes these through
+storage. The hidden `investment_analysis_engine/cli_database.py` maintenance group exposes these through
 `db status` and `db upgrade`, with target overrides and versioned JSON reports.
 Typed sanitized errors preserve stable reason categories and analysis envelopes.
 Optional telemetry neither initializes storage nor controls business execution;
@@ -472,9 +472,9 @@ Do not rewrite the runtime around a model-specific assumption merely to make one
 
 ### Golden-Suite architecture
 
-The production orchestration seam gives each strategy its own dependency class and handler in its `tool.py` under `src/strategies/` (see [*Analysis strategies: the boundary*](#6-analysis-strategies-the-boundary)); the handler is built from that dependency class and a shared `ToolRuntime` (`src/orchestrator/tool_runtime.py`) that carries only the injected clock and optional profile resolver. The composition root, `src/strategy_wiring.py`, declares one frozen descriptor per strategy (identity, tool, arguments model, description and a typed behavior bundle) and builds read-only indexes from that closed tuple. `register_analysis_tools(dispatcher, handlers)` in `src/orchestrator/analysis_tools.py` registers an injected mapping from tool to bound handler on the existing `AsyncToolDispatcher`, and rejects the mapping unless it matches `ToolName` in both directions. The caller builds the mapping with `bind_handlers(...)` from each strategy's injected analyzers, provider selections, calculation policy and the runtime. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. The tool names are the `ToolName` enum in `src/orchestrator/tool_names.py`. Each strategy's strict Pydantic arguments model lives in its `tool.py` and subclasses `AnalysisToolArguments` (`src/orchestrator/analysis_tool_arguments.py`). Tool argument schemas are read from each descriptor's `tool_arguments`; an input that matches no declared strategy raises `UndeclaredStrategyError` (`src/core/strategy_errors.py`) rather than falling to a default. Successful calls retain each strategy's native typed execution result. A failed call is classified where the dispatcher catches the exception: `ToolCallResult` carries a `reason_code` (the stable `FailureReasonCode` that `classify_failure` in `src/core` gives the exception) and, for a provider failure that carries a kind and a provider, the shared `provider_failure` element built by `provider_failure_of_exception` in `src/core`, which the failure envelope also calls. A call to an unregistered tool is `invalid_input`. A successful call carries neither field. The text sent back to the model is unchanged.
+The production orchestration seam gives each strategy its own dependency class and handler in its `tool.py` under `investment_analysis_engine/strategies/` (see [*Analysis strategies: the boundary*](#6-analysis-strategies-the-boundary)); the handler is built from that dependency class and a shared `ToolRuntime` (`investment_analysis_engine/orchestrator/tool_runtime.py`) that carries only the injected clock and optional profile resolver. The composition root, `investment_analysis_engine/strategy_wiring.py`, declares one frozen descriptor per strategy (identity, tool, arguments model, description and a typed behavior bundle) and builds read-only indexes from that closed tuple. `register_analysis_tools(dispatcher, handlers)` in `investment_analysis_engine/orchestrator/analysis_tools.py` registers an injected mapping from tool to bound handler on the existing `AsyncToolDispatcher`, and rejects the mapping unless it matches `ToolName` in both directions. The caller builds the mapping with `bind_handlers(...)` from each strategy's injected analyzers, provider selections, calculation policy and the runtime. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. The tool names are the `ToolName` enum in `investment_analysis_engine/orchestrator/tool_names.py`. Each strategy's strict Pydantic arguments model lives in its `tool.py` and subclasses `AnalysisToolArguments` (`investment_analysis_engine/orchestrator/analysis_tool_arguments.py`). Tool argument schemas are read from each descriptor's `tool_arguments`; an input that matches no declared strategy raises `UndeclaredStrategyError` (`investment_analysis_engine/core/strategy_errors.py`) rather than falling to a default. Successful calls retain each strategy's native typed execution result. A failed call is classified where the dispatcher catches the exception: `ToolCallResult` carries a `reason_code` (the stable `FailureReasonCode` that `classify_failure` in `investment_analysis_engine/core` gives the exception) and, for a provider failure that carries a kind and a provider, the shared `provider_failure` element built by `provider_failure_of_exception` in `investment_analysis_engine/core`, which the failure envelope also calls. A call to an unregistered tool is `invalid_input`. A successful call carries neither field. The text sent back to the model is unchanged.
 
-Deterministic fixture composition follows the same shape. A Golden case selects fixtures by identifier only, each identifier defined in the fixture module of its evidence. The generic `src/evaluation/composition.py` builds one cross-strategy context (`src/evaluation/fixture_context.py`) and asks the evaluation tier, the closed tuple `EVALUATION_STRATEGIES` in `src/evaluation/strategy_fixtures.py`, for each declared strategy's dependency class, fixture requirement and declared fixture identifiers (the supported identifier set is derived from the entries). Each strategy states both in its package's `evaluation.py` (the two Graham strategies share `src/strategies/_graham/evaluation.py`), and the tier pairs them with the strategy's core bundle by dependency type; a declared tool with no entry raises `UndeclaredStrategyError`. Each case module under `src/evaluation/cases/` is single-strategy, named for its strategy package, and holds the reviewed production arguments beside its cases; `src/evaluation/catalog.py` fixes the case order and suite versions and reads the arguments from those modules.
+Deterministic fixture composition follows the same shape. A Golden case selects fixtures by identifier only, each identifier defined in the fixture module of its evidence. The generic `investment_analysis_engine/evaluation/composition.py` builds one cross-strategy context (`investment_analysis_engine/evaluation/fixture_context.py`) and asks the evaluation tier, the closed tuple `EVALUATION_STRATEGIES` in `investment_analysis_engine/evaluation/strategy_fixtures.py`, for each declared strategy's dependency class, fixture requirement and declared fixture identifiers (the supported identifier set is derived from the entries). Each strategy states both in its package's `evaluation.py` (the two Graham strategies share `investment_analysis_engine/strategies/_graham/evaluation.py`), and the tier pairs them with the strategy's core bundle by dependency type; a declared tool with no entry raises `UndeclaredStrategyError`. Each case module under `investment_analysis_engine/evaluation/cases/` is single-strategy, named for its strategy package, and holds the reviewed production arguments beside its cases; `investment_analysis_engine/evaluation/catalog.py` fixes the case order and suite versions and reads the arguments from those modules.
 
 ```text
 Golden Case
@@ -569,7 +569,7 @@ Private model reasoning is never reconstructed.
 
 ## 13. Module boundaries
 
-This table is the single declaration of the top-level units under `src/` and the imports between them. A unit is each directory directly under `src/`, plus `strategy_wiring` (`src/strategy_wiring.py`), and `cli` (`src/main.py` and every `src/cli*.py`), except that a file named `cli.py`, `evaluation.py` or `execution.py` directly inside a package under `src/strategies/` belongs to the unit `cli`, `evaluation` or `workspace` respectively. An import is any `import src.X` or `from src.X import ...` in a file under `src/`, including one inside a function, attributed to the file it names; imports within one unit are not listed. The table lists each unit in its layer. A unit that imports no other unit is in layer 0, and any other unit is one more than the highest layer it imports, so each layer imports only from the layers before it. `scripts/check_package_dependencies.py` fails on any import loop between units and on any difference between the table and the code, including a wrong layer or row order, so change the table in the same change that adds or removes an import between units.
+This table is the single declaration of the top-level units under `investment_analysis_engine/` and the imports between them. A unit is each directory directly under `investment_analysis_engine/`, plus `strategy_wiring` (`investment_analysis_engine/strategy_wiring.py`), and `cli` (`investment_analysis_engine/main.py` and every `investment_analysis_engine/cli*.py`), except that a file named `cli.py`, `evaluation.py` or `execution.py` directly inside a package under `investment_analysis_engine/strategies/` belongs to the unit `cli`, `evaluation` or `workspace` respectively. An import is any `import investment_analysis_engine.X` or `from investment_analysis_engine.X import ...` in a file under `investment_analysis_engine/`, including one inside a function, attributed to the file it names; imports within one unit are not listed. The table lists each unit in its layer. A unit that imports no other unit is in layer 0, and any other unit is one more than the highest layer it imports, so each layer imports only from the layers before it. `scripts/check_package_dependencies.py` fails on any import loop between units and on any difference between the table and the code, including a wrong layer or row order, so change the table in the same change that adds or removes an import between units.
 
 | Package | Layer | Owns | Imports |
 | --- | --- | --- | --- |
@@ -591,7 +591,7 @@ This table is the single declaration of the top-level units under `src/` and the
 | `evaluation` | 8 | The Golden case catalog, deterministic evaluator, fixtures, and evaluation reporting. | `config`, `core`, `data`, `llm`, `orchestrator`, `strategies`, `strategy_wiring`, `telemetry`, `tools`, `workspace` |
 | `cli` | 9 | The Typer commands, their production wiring, and the process entry point. | `analysis`, `config`, `core`, `data`, `evaluation`, `llm`, `reporting`, `strategies`, `strategy_wiring`, `telemetry`, `utils`, `workspace`, `workspace_documents` |
 
-The provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. `data` owns the SQLite database layer (connection, schema, migrations and readiness) and the provider-data, cache and trajectory repositories, under `src/data/repositories/`; `workspace` owns the repositories of its own records, analysis runs and watchlists, under `src/workspace/repositories/`; callers consume typed domain objects rather than SQL rows.
+The provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. `data` owns the SQLite database layer (connection, schema, migrations and readiness) and the provider-data, cache and trajectory repositories, under `investment_analysis_engine/data/repositories/`; `workspace` owns the repositories of its own records, analysis runs and watchlists, under `investment_analysis_engine/workspace/repositories/`; callers consume typed domain objects rather than SQL rows.
 
 ---
 
@@ -607,6 +607,6 @@ The provider/resolver/cache seams live with the narrowest responsible package ra
 - Do not use operational logger lines as the primary investor-facing result renderer.
 - Do not force heterogeneous strategies into one generic result object merely for presentation.
 - Do not build a daemon, scheduler, proactive-monitoring service, notification system, full-screen TUI, or executive-report generator before the roadmap step that owns it.
-- Keep application persistence SQL in the repositories of `data` (`src/data/repositories/`) and `workspace` (`src/workspace/repositories/`); migration DDL and test setup/assertion SQL retain their established owners.
+- Keep application persistence SQL in the repositories of `data` (`investment_analysis_engine/data/repositories/`) and `workspace` (`investment_analysis_engine/workspace/repositories/`); migration DDL and test setup/assertion SQL retain their established owners.
 - Run Ruff, `mypy --strict`, and pytest according to the active milestone plan.
 - Never read the wall clock directly; use an injected clock (see [*Time and the analysis boundary*](#5-time-and-the-analysis-boundary)).

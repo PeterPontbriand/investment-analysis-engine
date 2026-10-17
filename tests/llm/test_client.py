@@ -4,12 +4,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from src.config.schema_config import SchemaConfig
-from src.llm.client import LLMClient, LLMGenerateResult
-from src.orchestrator.context import ContextConfig, MessageContext
-from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
-from src.orchestrator.prompts import SystemPromptBuilder
-from src.tools.parser import ToolParsingError
+from investment_analysis_engine.config.schema_config import SchemaConfig
+from investment_analysis_engine.llm.client import LLMClient, LLMGenerateResult
+from investment_analysis_engine.orchestrator.context import ContextConfig, MessageContext
+from investment_analysis_engine.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
+from investment_analysis_engine.orchestrator.prompts import SystemPromptBuilder
+from investment_analysis_engine.tools.parser import ToolParsingError
 
 
 def test_llm_client_init() -> None:

@@ -11,10 +11,15 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from src.analysis.base_analyzer import AnalysisContext
-from src.data.market_data import HistoricalMarketData, MarketDataContext
-from src.data.quality import HistoricalDataQualityError, QualityContext, QualityOutcome, evaluate_historical_quality
-from src.strategies.momentum.analyzer import (
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
+from investment_analysis_engine.data.quality import (
+    HistoricalDataQualityError,
+    QualityContext,
+    QualityOutcome,
+    evaluate_historical_quality,
+)
+from investment_analysis_engine.strategies.momentum.analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
     MomentumInputResolver,
@@ -113,7 +118,7 @@ def test_the_index_rule_runs_before_any_index_is_converted_to_dates(index: pd.In
     guard = AssertionError("index converted before the quality rule")
 
     with (
-        patch("src.strategies.momentum.analyzer.pd.to_datetime", side_effect=guard),
+        patch("investment_analysis_engine.strategies.momentum.analyzer.pd.to_datetime", side_effect=guard),
         pytest.raises(HistoricalDataQualityError),
     ):
         resolver.resolve(

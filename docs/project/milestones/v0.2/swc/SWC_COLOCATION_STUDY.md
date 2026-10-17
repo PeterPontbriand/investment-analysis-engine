@@ -12,7 +12,7 @@ document is kept as the evidence record.
 A design study, written after the [SWC.1 design](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md) merged. It asks how
 close the SWC design can get to "write one package and one descriptor" when per-strategy behavior moves
 out of generic modules, and what that costs. When written it changed no design, plan or status; the project
-owner then decided (see the status line above). Nothing under `src/`, `tests/` or `scripts/` was touched; the prototypes are scratch files
+owner then decided (see the status line above). Nothing under `investment_analysis_engine/`, `tests/` or `scripts/` was touched; the prototypes are scratch files
 under `.tmp/colocation/` and are not committed.
 
 ## 1. At a glance
@@ -43,7 +43,7 @@ under `.tmp/colocation/` and are not committed.
   `type: ignore`, and rejects nine deliberate mispairings ([Appendix C](#appendix-c-typing-prototype)).
 - **Recommendation:** adopt D, in its two-tier form ([§3](#3-recommendation)). Staying with A is
   acceptable, but A needs one correction either way: a package-initialization cycle through
-  `src/workspace/__init__.py` ([Appendix J](#appendix-j-findings-in-the-swc1-design)).
+  `investment_analysis_engine/workspace/__init__.py` ([Appendix J](#appendix-j-findings-in-the-swc1-design)).
 - **Constraints:** none of the constraints that do not move is broken by any option
   ([§6](#6-scope-limits-and-constraint-check)).
 
@@ -79,13 +79,13 @@ where the one-line entry for it lives and what fails if it is forgotten.
 
 ## 3. Recommendation
 
-**Adopt D, in its two-tier form.** One closed tuple of descriptors in `src/strategy_wiring.py`, at the
+**Adopt D, in its two-tier form.** One closed tuple of descriptors in `investment_analysis_engine/strategy_wiring.py`, at the
 composition root. Each descriptor holds identity, versions, tool binding and one typed behavior bundle,
 `StrategyBehavior[SelT, ResultT]`, that pairs every strategy-owned function mentioning the selection or
 result type ([Appendix C](#appendix-c-typing-prototype)). The generic consumers below the root never import
 the descriptor module. The composition root builds one `Mapping` per layer from the tuple and passes it in,
 typed by a narrow `Protocol` that the consuming layer declares. The CLI-layer functions (selection builder
-and refresh executor) sit in a second closed tuple in `src/cli_strategy_wiring.py`, typed against the same
+and refresh executor) sit in a second closed tuple in `investment_analysis_engine/cli_strategy_wiring.py`, typed against the same
 selection type.
 
 Reasoning, in order of weight:
@@ -115,7 +115,7 @@ holding the CLI functions as well, is measured in Appendix A (table A.1). It nee
 may import modules that import `typer`, `yfinance` clients and `cli_support`", and is not recommended.
 
 Staying with A remains valid if the owner prefers to keep the merged design. In that case the
-`src/workspace/__init__.py` correction in Appendix J is required, and the six table lines stay.
+`investment_analysis_engine/workspace/__init__.py` correction in Appendix J is required, and the six table lines stay.
 
 ## 4. Shape of the recommendation
 
@@ -130,9 +130,9 @@ Import direction, observed on `main` and under D (arrows read "imports"):
 | `cli_workspace_<s>` leaves, `cli_strategy_wiring` | foundation, `reporting`, `cli_support`, `cli_composition` | `cli`, `cli_workspace` | New, CLI layer. |
 | `strategy_wiring` (composition root) | foundation, `reporting` | `cli`, `cli_strategy_wiring`, `evaluation` | New. No foundation or reporting module imports it. |
 
-The rule that replaces design test T13 is one line: no module under `src/data`, `src/workspace`,
-`src/orchestrator`, `src/reporting`, `src/analysis`, `src/core` or `src/config` imports
-`src.strategy_wiring`, including through a parent package.
+The rule that replaces design test T13 is one line: no module under `investment_analysis_engine/data`, `investment_analysis_engine/workspace`,
+`investment_analysis_engine/orchestrator`, `investment_analysis_engine/reporting`, `investment_analysis_engine/analysis`, `investment_analysis_engine/core` or `investment_analysis_engine/config` imports
+`investment_analysis_engine.strategy_wiring`, including through a parent package.
 
 ## 5. Amendments if D is adopted
 
@@ -148,7 +148,7 @@ changes the SWC sequence table or any status.
 | §2 Decisions | D1: location is the composition root. D2: `evidence` field becomes `behavior`; field count stays 13. D3: `StrategyBehavior[SelT, ResultT]` replaces `EvidenceCodec`. D5 reversed: handlers, executors, projectors, parsers, builders and native-status functions are behavior members; the generic dispatchers receive injected mappings. Add two decisions: two-tier CLI bundle; identity constants live in the envelope leaf (SWC.4c). D10: T10 reduced to the surfaces in Appendix E. D13: re-run the Step 3.5 fit check against the new field. |
 | §3.1 Fields | Replace `evidence` with `behavior`; list which slice adds each `StrategyBehavior` member (SWC.2b: `result_type`, `native_status`, `handler`; SWC.3: `selection_type`, `parse`, `encode`, `decode`, `ticker_of`; SWC.4c: `project`). `build` and `refresh` belong to the CLI tier. |
 | §3.2 Exclusions | Remove handlers, executors, replay projectors, selection parsers and builders from the excluded list. Still excluded: capture types, outcome classifiers, presenters, analyzers, config types, dependencies, clocks. |
-| §4 Static declaration | Location and import direction rewritten per §4 of this study. New prerequisite: `src/workspace/__init__.py` emptied (zero importers of its names today). The allow-list in the T13 description becomes the one-line rule above. |
+| §4 Static declaration | Location and import direction rewritten per §4 of this study. New prerequisite: `investment_analysis_engine/workspace/__init__.py` emptied (zero importers of its names today). The allow-list in the T13 description becomes the one-line rule above. |
 | §5 BaseAnalyzer | Add: a handler binder constructs the handler from injected dependencies; `BaseAnalyzer` and `AnalysisContext` are untouched (T17 unchanged). |
 | §6 Generic consumers | Replace "Stays explicit" with "Receives by injection" for each row (Appendix B). |
 | §7 Escape hatches | Native-status row: absence is an explicit function returning `None`, not an optional field. Add the Step 3.5 views row: no descriptor. |
@@ -160,28 +160,28 @@ changes the SWC sequence table or any status.
 | §15 Corrections | Add row 11: SWC.1 Appendix C and T13 ignore parent-package initialization (Appendix J). Add row 12: plan §3.2 references are now used for handlers, executors and projectors. |
 | §16 Fit check | Add: every strategy slice supplies the `behavior` members; the Magic Formula ranked view and the side-by-side table have no descriptor. |
 | §17 Edit sites | Replace with Appendix D, table D.4. |
-| §18 Findings | Add: `src/workspace/__init__.py` re-exports are removed, owner SWC.2a. |
-| Appendix A.2 | The `src/workspace/__init__.py` row changes from "kept" to "deleted". |
+| §18 Findings | Add: `investment_analysis_engine/workspace/__init__.py` re-exports are removed, owner SWC.2a. |
+| Appendix A.2 | The `investment_analysis_engine/workspace/__init__.py` row changes from "kept" to "deleted". |
 | Appendix C | Add the parent-package method and the variants of Appendix A. |
 
 ### 5.2 Plan and slices
 
 | Slice | Required | Locality |
 | :--- | :--- | :--- |
-| SWC.2a | Empty `src/workspace/__init__.py`. Move `AnalysisToolDependencies` and its two helper methods to `src/orchestrator/tool_runtime.py`. | Place each arguments model in `src/orchestrator/<s>_tool.py` instead of one `analysis_tool_arguments.py`; the shared base and the two float aliases go to `analysis_tool_arguments.py`. |
-| SWC.2b | Create `src/strategy_wiring.py` at the root with `behavior` carrying `result_type`, `native_status` and `handler`. `register_analysis_tools` takes the injected mapping. Delete `_native_status` and its FCF default; each strategy supplies a native-status function (Momentum's returns `None`). Evaluation modules import the descriptor. | Move the four handler methods to `src/orchestrator/<s>_tool.py`. |
-| SWC.3 | `encode_evidence`, `decode_evidence`, `execute` and `parse_selection` receive injected mappings. `SQLiteWatchlistRepository` receives the alias resolver at construction (ten constructions in `src`, through one helper in `cli_workspace.py`). `refresh_watchlist` receives the executor lookup. Selection builder and refresh executor move to `src/cli_workspace_<s>.py`; create `src/cli_strategy_wiring.py`. `method_aliases.py` deleted as designed. | Selection classes and parsers move to `src/workspace/<s>_selection.py` plus a shared `selection_base.py`; `ExecutionCapture` moves to `src/workspace/capture.py` and each `from_*_capture` moves into its adapter. |
+| SWC.2a | Empty `investment_analysis_engine/workspace/__init__.py`. Move `AnalysisToolDependencies` and its two helper methods to `investment_analysis_engine/orchestrator/tool_runtime.py`. | Place each arguments model in `investment_analysis_engine/orchestrator/<s>_tool.py` instead of one `analysis_tool_arguments.py`; the shared base and the two float aliases go to `analysis_tool_arguments.py`. |
+| SWC.2b | Create `investment_analysis_engine/strategy_wiring.py` at the root with `behavior` carrying `result_type`, `native_status` and `handler`. `register_analysis_tools` takes the injected mapping. Delete `_native_status` and its FCF default; each strategy supplies a native-status function (Momentum's returns `None`). Evaluation modules import the descriptor. | Move the four handler methods to `investment_analysis_engine/orchestrator/<s>_tool.py`. |
+| SWC.3 | `encode_evidence`, `decode_evidence`, `execute` and `parse_selection` receive injected mappings. `SQLiteWatchlistRepository` receives the alias resolver at construction (ten constructions in `investment_analysis_engine`, through one helper in `cli_workspace.py`). `refresh_watchlist` receives the executor lookup. Selection builder and refresh executor move to `investment_analysis_engine/cli_workspace_<s>.py`; create `investment_analysis_engine/cli_strategy_wiring.py`. `method_aliases.py` deleted as designed. | Selection classes and parsers move to `investment_analysis_engine/workspace/<s>_selection.py` plus a shared `selection_base.py`; `ExecutionCapture` moves to `investment_analysis_engine/workspace/capture.py` and each `from_*_capture` moves into its adapter. |
 | SWC.4a | None. | None. |
 | SWC.4b | None. | None. |
-| SWC.4c | Envelope leaves hold the identity constants; the four presenters and `cli_support` do not import the descriptor. `project_run` receives the injected replay and codec mappings. | Projectors move to `src/reporting/<s>_replay.py`; `ReplayOptions` and `UnsupportedProjectionError` move to `src/reporting/replay_inputs.py`; the two Graham projectors share `graham_replay_shared.py`. |
+| SWC.4c | Envelope leaves hold the identity constants; the four presenters and `cli_support` do not import the descriptor. `project_run` receives the injected replay and codec mappings. | Projectors move to `investment_analysis_engine/reporting/<s>_replay.py`; `ReplayOptions` and `UnsupportedProjectionError` move to `investment_analysis_engine/reporting/replay_inputs.py`; the two Graham projectors share `graham_replay_shared.py`. |
 | SWC.5 | Contributor guide carries table D.4. T13 rule. `AGENTS.md` §3 line unchanged. | None. |
 
 Test files touched: 14 modules call the changed signatures, and with the locality moves 16 import selection
-classes from their new homes; 18 distinct test modules in total (and 11 modules in `src`).
+classes from their new homes; 18 distinct test modules in total (and 11 modules in `investment_analysis_engine`).
 
 ## 6. Scope limits and constraint check
 
-- This study made no change under `src/`, `tests/`, `scripts/`, `config/`, `alembic/`, `pyproject.toml` or
+- This study made no change under `investment_analysis_engine/`, `tests/`, `scripts/`, `config/`, `alembic/`, `pyproject.toml` or
   `uv.lock`, and applied none of its amendments. It changed no sequence table or status.
 - No option uses discovery, self-registration, a registering decorator, plugin loading, a descriptor
   subclass hierarchy or a common result type. The tuple stays closed and source-declared; the generic
@@ -198,7 +198,7 @@ classes from their new homes; 18 distinct test modules in total (and 11 modules 
 
 ## Appendix A: Import-graph evidence
 
-**Method.** The Appendix C script of the SWC.1 design parses every module under `src` and finds strongly
+**Method.** The Appendix C script of the SWC.1 design parses every module under `investment_analysis_engine` and finds strongly
 connected components. This study extends it to function level: each top-level definition, and each member
 of the one class that is split, has its own set of referenced names, resolved through the original file's
 import table. A move relocates a definition to a named module; its outgoing edges follow it, and edges the
@@ -267,7 +267,7 @@ Under SWC.4c the envelope leaf, which already imports only `pydantic` and `core`
 
 ### A.4 Initialization-aware hazard
 
-Emptying `src/workspace/__init__.py` removes the initialization-aware cycle in A, B and B'. D is immune
+Emptying `investment_analysis_engine/workspace/__init__.py` removes the initialization-aware cycle in A, B and B'. D is immune
 without it, because nothing under `workspace` imports the descriptor. Appendix J records the runtime
 reproduction.
 
@@ -409,12 +409,12 @@ dataclass is built at run time); the rest are tests.
 
 Existing files edited: 15. New files: 10 (the analyzer package counted as three). Directories: 11.
 
-The rows are exactly SWC.1 design §17 rows 1 to 23. The existing files edited are: `src/strategy_wiring.py`,
-`src/orchestrator/tool_names.py`, `src/orchestrator/analysis_tool_arguments.py`,
-`src/orchestrator/analysis_tools.py` (rows 6 and 7), `src/evaluation/composition.py` (rows 5, 20 and 21),
-`src/workspace/native_evidence.py`, `src/workspace/requests.py` (rows 9 and 10), `src/cli_workspace.py` (rows
-11 and 14), `src/workspace/execution.py` (the normalizer in row 13), `src/cli.py`, `src/reporting/analysis_runs.py`,
-`src/evaluation/runner.py`, `src/evaluation/catalog.py`, `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`.
+The rows are exactly SWC.1 design §17 rows 1 to 23. The existing files edited are: `investment_analysis_engine/strategy_wiring.py`,
+`investment_analysis_engine/orchestrator/tool_names.py`, `investment_analysis_engine/orchestrator/analysis_tool_arguments.py`,
+`investment_analysis_engine/orchestrator/analysis_tools.py` (rows 6 and 7), `investment_analysis_engine/evaluation/composition.py` (rows 5, 20 and 21),
+`investment_analysis_engine/workspace/native_evidence.py`, `investment_analysis_engine/workspace/requests.py` (rows 9 and 10), `investment_analysis_engine/cli_workspace.py` (rows
+11 and 14), `investment_analysis_engine/workspace/execution.py` (the normalizer in row 13), `investment_analysis_engine/cli.py`, `investment_analysis_engine/reporting/analysis_runs.py`,
+`investment_analysis_engine/evaluation/runner.py`, `investment_analysis_engine/evaluation/catalog.py`, `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`.
 
 ### D.2 Option B (strategy-owned modules, consumers import the descriptor)
 
@@ -422,28 +422,28 @@ Existing files edited: 10. New files: 14. Directories: 11. Restatements: 5 (rows
 
 | # | Site | File | Check |
 | :--- | :--- | :--- | :--- |
-| 1 | Analyzer package | `src/analysis/strategy/x/` | T3 |
-| 2 | Descriptor and `STRATEGIES` entry, naming every behavior function | `src/strategy_wiring.py` | T1, T2, T3 |
-| 3 | `ToolName` member | `src/orchestrator/tool_names.py` | T4 |
-| 4 | Arguments model | `src/orchestrator/x_tool.py` | **type** (`tool_arguments`), T4 |
-| 5 | `AnalysisToolArguments` union | `src/evaluation/composition.py` | T4 |
-| 6 | Handler and binder | `src/orchestrator/x_tool.py` | **type** (`handler`) |
-| 7 | Dependency bundle fields | `src/orchestrator/tool_runtime.py` | mypy in the handler; T6 |
-| 8 | `NativeEvidence` union | `src/workspace/native_evidence.py` | **type** (`result_type`), T2 |
-| 9 | Selection class (parser inside); union member | `src/workspace/x_selection.py`; `src/workspace/requests.py` | **type** (`selection_type`), T1 |
-| 10 | Parser | `src/workspace/x_selection.py` | **type** (`parse`) |
-| 11 | Builder | `src/cli_workspace_x.py` | **type** (`build`) |
-| 12 | Codec and native-status function | `src/workspace/x.py` | **type** (`encode`, `decode`, `native_status`), T8 |
-| 13 | Adapter, capture, normalizer | `src/workspace/x_execution.py` | T22 |
-| 14 | Refresh executor | `src/cli_workspace_x.py` | **type** (`refresh`) |
-| 15 | Direct command | `src/cli.py` | T7, T22 |
-| 16 | Presenter and JSON builder | `src/reporting/x.py` | T9 |
-| 17 | Envelope model and identity constants | `src/reporting/envelopes/x.py` | T21 |
-| 18 | Replay projector | `src/reporting/x_replay.py` | **type** (`project`), replay test |
-| 19 | Native-status function (same file as row 12) | `src/workspace/x.py` | **type** (`native_status`) |
-| 20 | Fixture requirement | `src/evaluation/composition.py` | T10 `fixture requirements` |
-| 21 | Fixture composition | `src/evaluation/composition.py` | T6 |
-| 22 | Fixtures, cases, catalog | `src/evaluation/fixtures/x.py`, `src/evaluation/cases/x.py`, `src/evaluation/catalog.py` | T5, T6 |
+| 1 | Analyzer package | `investment_analysis_engine/analysis/strategy/x/` | T3 |
+| 2 | Descriptor and `STRATEGIES` entry, naming every behavior function | `investment_analysis_engine/strategy_wiring.py` | T1, T2, T3 |
+| 3 | `ToolName` member | `investment_analysis_engine/orchestrator/tool_names.py` | T4 |
+| 4 | Arguments model | `investment_analysis_engine/orchestrator/x_tool.py` | **type** (`tool_arguments`), T4 |
+| 5 | `AnalysisToolArguments` union | `investment_analysis_engine/evaluation/composition.py` | T4 |
+| 6 | Handler and binder | `investment_analysis_engine/orchestrator/x_tool.py` | **type** (`handler`) |
+| 7 | Dependency bundle fields | `investment_analysis_engine/orchestrator/tool_runtime.py` | mypy in the handler; T6 |
+| 8 | `NativeEvidence` union | `investment_analysis_engine/workspace/native_evidence.py` | **type** (`result_type`), T2 |
+| 9 | Selection class (parser inside); union member | `investment_analysis_engine/workspace/x_selection.py`; `investment_analysis_engine/workspace/requests.py` | **type** (`selection_type`), T1 |
+| 10 | Parser | `investment_analysis_engine/workspace/x_selection.py` | **type** (`parse`) |
+| 11 | Builder | `investment_analysis_engine/cli_workspace_x.py` | **type** (`build`) |
+| 12 | Codec and native-status function | `investment_analysis_engine/workspace/x.py` | **type** (`encode`, `decode`, `native_status`), T8 |
+| 13 | Adapter, capture, normalizer | `investment_analysis_engine/workspace/x_execution.py` | T22 |
+| 14 | Refresh executor | `investment_analysis_engine/cli_workspace_x.py` | **type** (`refresh`) |
+| 15 | Direct command | `investment_analysis_engine/cli.py` | T7, T22 |
+| 16 | Presenter and JSON builder | `investment_analysis_engine/reporting/x.py` | T9 |
+| 17 | Envelope model and identity constants | `investment_analysis_engine/reporting/envelopes/x.py` | T21 |
+| 18 | Replay projector | `investment_analysis_engine/reporting/x_replay.py` | **type** (`project`), replay test |
+| 19 | Native-status function (same file as row 12) | `investment_analysis_engine/workspace/x.py` | **type** (`native_status`) |
+| 20 | Fixture requirement | `investment_analysis_engine/evaluation/composition.py` | T10 `fixture requirements` |
+| 21 | Fixture composition | `investment_analysis_engine/evaluation/composition.py` | T6 |
+| 22 | Fixtures, cases, catalog | `investment_analysis_engine/evaluation/fixtures/x.py`, `investment_analysis_engine/evaluation/cases/x.py`, `investment_analysis_engine/evaluation/catalog.py` | T5, T6 |
 | 23 | Documentation | `docs/user/strategies/x.md`, `USAGE.md`, `WORKSPACE.md` | T23, doc link check |
 
 Existing files edited: `strategy_wiring.py`, `tool_names.py`, `composition.py`, `tool_runtime.py`,
@@ -451,14 +451,14 @@ Existing files edited: `strategy_wiring.py`, `tool_names.py`, `composition.py`, 
 
 ### D.3 Option C (one package per strategy)
 
-Existing files edited: 10, the same set as B. New files: 15 (twelve in `src/strategies/x/`, plus fixtures,
+Existing files edited: 10, the same set as B. New files: 15 (twelve in `investment_analysis_engine/strategies/x/`, plus fixtures,
 the case module and the guide). Directories: 9. Restatements: 5.
 
-The rows are B's, with every strategy-owned file under `src/strategies/x/` (`config.py`, `analyzer.py`,
+The rows are B's, with every strategy-owned file under `investment_analysis_engine/strategies/x/` (`config.py`, `analyzer.py`,
 `models.py`, `tool.py`, `selection.py`, `codec.py`, `adapter.py`, `replay.py`, `presenter.py`,
-`envelope.py`, `cli_wiring.py`, `descriptor.py`). `src/strategy_wiring.py` gains one import and one tuple
-entry; the descriptor itself lives in the package. The directories left are `src`, `src/strategies/x`,
-`src/orchestrator`, `src/workspace`, `src/evaluation` (and its `fixtures` and `cases`), `docs/user` and
+`envelope.py`, `cli_wiring.py`, `descriptor.py`). `investment_analysis_engine/strategy_wiring.py` gains one import and one tuple
+entry; the descriptor itself lives in the package. The directories left are `investment_analysis_engine`, `investment_analysis_engine/strategies/x`,
+`investment_analysis_engine/orchestrator`, `investment_analysis_engine/workspace`, `investment_analysis_engine/evaluation` (and its `fixtures` and `cases`), `docs/user` and
 `docs/user/strategies`.
 
 ### D.4 Option D (root descriptor, injected, two tier; recommended)
@@ -472,13 +472,13 @@ them. One row is added.
 
 | # | Site | File | Check |
 | :--- | :--- | :--- | :--- |
-| 24 | CLI-tier entry pairing the builder and executor with the core bundle | `src/cli_strategy_wiring.py` | **type** (pairing), T10 `cli bundle` |
+| 24 | CLI-tier entry pairing the builder and executor with the core bundle | `investment_analysis_engine/cli_strategy_wiring.py` | **type** (pairing), T10 `cli bundle` |
 
 Rows 11 and 14 fail **type** at row 24 when the function has the wrong selection type, and fail T10
 `cli bundle` when row 24 is omitted. The omissions that become type errors in B, C and D are the same seven:
 handler, parser, builder, executor, projector, native status, and membership in the selection union.
 
-Existing files edited: the ten above plus `src/cli_strategy_wiring.py`.
+Existing files edited: the ten above plus `investment_analysis_engine/cli_strategy_wiring.py`.
 
 ## Appendix E: Conformance
 
@@ -530,7 +530,7 @@ them.
 
 | | A | B | C | D |
 | :--- | :--- | :--- | :--- | :--- |
-| Piotroski F-Score (one analyzer, nine tests, one result) | Rows 1 to 23; 8 table lines edited in 7 generic files | Rows 1 to 23; 5 restatements; handler, selection, builder, executor and replay each in a new leaf | Same rows, all strategy files in `src/strategies/piotroski/` | As B, plus one CLI-tier entry |
+| Piotroski F-Score (one analyzer, nine tests, one result) | Rows 1 to 23; 8 table lines edited in 7 generic files | Rows 1 to 23; 5 restatements; handler, selection, builder, executor and replay each in a new leaf | Same rows, all strategy files in `investment_analysis_engine/strategies/piotroski/` | As B, plus one CLI-tier entry |
 | Piotroski native status | Table entry | Function returning its completeness or execution status string, or `None` if it has none | As B | As B |
 | Magic Formula per-ticker analyzer | As Piotroski | As Piotroski | As Piotroski | As Piotroski |
 | Magic Formula ranked view | View module in `reporting`, command in `cli.py`, typed document, schema, guide | Same | View module may live in the Magic Formula package; the command stays in `cli.py`; still no descriptor | Same as A |
@@ -554,10 +554,10 @@ typed by `AnalysisSelection`, so a module that names the four selection classes 
 
 | File | Total lines | Strategy-specific lines |
 | :--- | :--- | :--- |
-| `src/workspace/requests.py` | 514 | 395 (five selection classes, `parse_selection`) |
-| `src/orchestrator/analysis_tools.py` | 288 | 136 (four argument models, four handlers) |
-| `src/cli_workspace.py` | 1,184 | 211 (builder, helpers, four executors) |
-| `src/reporting/analysis_runs.py` | 231 | 118 (four projectors, one helper) |
+| `investment_analysis_engine/workspace/requests.py` | 514 | 395 (five selection classes, `parse_selection`) |
+| `investment_analysis_engine/orchestrator/analysis_tools.py` | 288 | 136 (four argument models, four handlers) |
+| `investment_analysis_engine/cli_workspace.py` | 1,184 | 211 (builder, helpers, four executors) |
+| `investment_analysis_engine/reporting/analysis_runs.py` | 231 | 118 (four projectors, one helper) |
 
 That is 860 lines, about 215 per strategy. In A, seven more strategies add about 1,500 lines to these files.
 
@@ -571,19 +571,19 @@ needs the three analyzer-package `__init__.py` files emptied.
 
 **Importers rewritten beyond SWC.2a.**
 
-| Move | `src` files | Test files |
+| Move | `investment_analysis_engine` files | Test files |
 | :--- | :--- | :--- |
 | Selection classes leave `requests.py` | 6 | 16 |
 | `ExecutionCapture` and normalizers move | 4 | 6 |
 | Dependency bundle moves | 2 | 1 |
 | `ReplayOptions` and the error type move | 2 | 2 |
 | Changed dispatch signatures | 9 | 13 |
-| C only: `src.analysis.strategy.*` paths | 33 | 64 |
+| C only: `investment_analysis_engine.analysis.strategy.*` paths | 33 | 64 |
 | C only: codec, adapter and presenter paths | 5 | 24 |
 | C only: package-level re-export users | 6 | 7 |
 
-Counts overlap between rows. The distinct importer files (`src` and `tests` together) are 29 for B and D
-(11 in `src`, 18 in `tests`) and 105 for C (35 and 70).
+Counts overlap between rows. The distinct importer files (`investment_analysis_engine` and `tests` together) are 29 for B and D
+(11 in `investment_analysis_engine`, 18 in `tests`) and 105 for C (35 and 70).
 
 **Signatures that change in D (8):** `encode_evidence`, `decode_evidence`, `execute`, `project_run`,
 `register_analysis_tools`, `parse_selection`, `refresh_watchlist`, and the `SQLiteWatchlistRepository`
@@ -595,7 +595,7 @@ a `--json` document beyond the changes SWC.1 already lists. The unreadable-entry
 text in D because the repository receives the alias resolver at construction.
 
 **Interaction with the `src` package rename (PKG).** The PKG plan orders PKG after SWC and before Step 3.5.
-PKG is a textual rename of every `src.` import and patch string; it does not depend on where code lives.
+PKG is a textual rename of every import and patch string that named the old package; it does not depend on where code lives.
 
 | | Together with SWC | After SWC |
 | :--- | :--- | :--- |
@@ -625,18 +625,18 @@ work, and it is the one that adds the most review risk; D does not need it.
 
 **J1. A package-initialization cycle in the merged design (defect).** Appendix C and test T13 model each
 import statement as an edge to the named module only. Python also runs each parent package's
-`__init__.py` first. `src/workspace/__init__.py` imports `src.workspace.requests`; under the design,
+`__init__.py` first. `investment_analysis_engine/workspace/__init__.py` imports `investment_analysis_engine.workspace.requests`; under the design,
 `requests.py` imports the descriptor module (SWC.3: `parse_selection` alias membership); and the descriptor
-imports `src.workspace.momentum` and the other codec modules. Counting parent packages, the descriptor is in
-a cycle with `src.workspace` and seven of its modules (Appendix A.1: 9 modules in all).
+imports `investment_analysis_engine.workspace.momentum` and the other codec modules. Counting parent packages, the descriptor is in
+a cycle with `investment_analysis_engine.workspace` and seven of its modules (Appendix A.1: 9 modules in all).
 
 A reproduction with the same shape (`pkg/__init__.py` imports `pkg.req`, which imports `wiring`, which
 imports `pkg.codec`): importing `wiring` first raises `ImportError: cannot import name 'BY_ALIAS' from 'wiring'`;
 importing `pkg.req` or `pkg.codec` first succeeds. The failure is therefore
 order-dependent, and a test module whose first project import is the descriptor module triggers it.
 
-Fix, under A or any option except D: empty `src/workspace/__init__.py`. A search of `src/` and `tests/` for
-`from src.workspace import` finds no importer of its names, and design Appendix A.2 currently lists those
+Fix, under A or any option except D: empty `investment_analysis_engine/workspace/__init__.py`. A search of `investment_analysis_engine/` and `tests/` for
+`from investment_analysis_engine.workspace import` finds no importer of its names, and design Appendix A.2 currently lists those
 re-exports as "kept". Extend T13 to add parent-package edges. D is immune because nothing under `workspace`
 imports the descriptor.
 

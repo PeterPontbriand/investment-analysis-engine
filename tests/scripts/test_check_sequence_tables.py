@@ -5,13 +5,13 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from scripts.check_sequence_tables import (
     Violation,
     check_repository,
     find_sequence_table_violations,
     list_markdown_files,
 )
-from src.core.repository_root import REPOSITORY_ROOT
 
 
 def table(*rows: str) -> list[str]:

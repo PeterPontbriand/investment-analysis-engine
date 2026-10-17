@@ -11,10 +11,10 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
-from src.analysis.base_analyzer import AnalysisContext
-from src.data.market_data import HistoricalMarketData, MarketDataContext, latest_observation_date
-from src.data.quality import QualityContext, QualityOutcome, evaluate_historical_quality
-from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext, latest_observation_date
+from investment_analysis_engine.data.quality import QualityContext, QualityOutcome, evaluate_historical_quality
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
 
 EXECUTED_AT = datetime(2026, 9, 1, tzinfo=UTC)
 DAYS = [date(2026, 8, day) for day in range(10, 15)]

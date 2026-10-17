@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.config import ProjectSettings
-from src.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
 
 @pytest.fixture

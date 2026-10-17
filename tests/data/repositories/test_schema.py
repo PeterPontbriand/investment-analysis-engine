@@ -10,10 +10,10 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
 
 from alembic import command, op
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.repositories.schema import metadata
-from src.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.repositories.schema import metadata
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
 STAMP = "2026-09-05T12:00:00.000000Z"
 EXPECTED_COLUMNS = {

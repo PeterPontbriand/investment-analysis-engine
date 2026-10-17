@@ -1,9 +1,9 @@
 """Completion test: no provider adapter module may catch every exception.
 
 A provider failure is classified at the adapter boundary by the library-call helper in
-``src/data/provider_failure.py``, which holds the one broad catch around a third-party call. An adapter that catches
-``Exception``, ``BaseException`` or everything (a bare ``except``) would report a defect as a provider outage, so the
-scan fails on any such handler.
+``investment_analysis_engine/data/provider_failure.py``, which holds the one broad catch around a third-party call. An
+adapter that catches ``Exception``, ``BaseException`` or everything (a bare ``except``) would report a defect as a
+provider outage, so the scan fails on any such handler.
 """
 
 from __future__ import annotations
@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from src.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 
-_SOURCE = REPOSITORY_ROOT / "src" / "data"
+_SOURCE = REPOSITORY_ROOT / "investment_analysis_engine" / "data"
 _ADAPTER_MODULES = sorted(
     [
         *(_SOURCE / "yfinance").glob("*.py"),

@@ -170,10 +170,10 @@ its own quality gate and authorization.
 - **Decision:** define market cap, EBIT, D&A, EBITDA, EV and invested capital once, as pure
   functions over resolved facts, and reuse the existing FCF and FCF-yield definitions. FCF-Growth's
   FCF yield adopts the shared market cap, with no formula change: this slice either wires it through
-  `compute_fcf_yield` in `src/strategies/fcf_growth/calculators.py`, which no production code calls today, or
+  `compute_fcf_yield` in `investment_analysis_engine/strategies/fcf_growth/calculators.py`, which no production code calls today, or
   deletes that function. The ranking helper is a pure,
   analysis-agnostic function, tested here on synthetic inputs before Magic Formula consumes it.
-- **Scope:** shared metric functions and their tests; `src/analysis/shared/ranking.py`;
+- **Scope:** shared metric functions and their tests; `investment_analysis_engine/analysis/shared/ranking.py`;
   FCF-Growth's market-cap wiring; `FINANCE_MATH.md` entries for every shared metric.
 - **Detail:** [Shared definitions §4–§9](STEP_3_5_SHARED_DEFINITIONS.md#4-market-capitalization)
   and [Slice inputs §4](STEP_3_5_SLICE_INPUTS.md#4-352--shared-metrics-and-ranking-helper).
@@ -310,7 +310,7 @@ Moved here from `IMPLEMENTATION_PLAN.md` row 15, which carries only status and d
 accepted, but implementation waits for integration readiness (IR), strategy wiring consolidation
 (SWC), the dead code audit (R3), provider health (PH) and the package rename (PKG). See the
 [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status) for why those five run first.
-Module paths in this plan's detail documents use the current `src` layout; they follow PKG's rename.
+Module paths in this plan's detail documents name the `investment_analysis_engine` package, as renamed by PKG.2.
 
 ### A.2 Strategy set expanded from five to seven (2026-09-30)
 

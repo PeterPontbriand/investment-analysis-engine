@@ -6,9 +6,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.data.financial.facts import FinancialField, ProviderFact
-from src.data.financial.provenance import AccountingScope, CapitalExpenditureSign, PeriodKind
-from src.evaluation.fixtures.fcf_earnings_growth import (
+from investment_analysis_engine.data.financial.facts import FinancialField, ProviderFact
+from investment_analysis_engine.data.financial.provenance import AccountingScope, CapitalExpenditureSign, PeriodKind
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FCF_GROWTH_CAPEX,
     FCF_GROWTH_DILUTED_SHARES,
     FCF_GROWTH_EPS_VALUES,

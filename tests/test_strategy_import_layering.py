@@ -1,14 +1,14 @@
 """Keep strategy imports within their declared role layers.
 
-The role rule is design §4: a file's role is its file name inside its strategy package; within a
-package a file may import only a lower-ranked role, except that analyzer-level files may import each
-other; no strategy imports another; code outside ``src/strategies`` may import only analyzer, settings and
-selection roles, except that a case module under ``src/evaluation/cases`` may also import the tool and vocabulary
-roles of the strategy package it is named for. The vocabulary role ranks below every other and imports nothing
-from its package. Only a strategy's ``evaluation`` file imports from
-``src/evaluation``, and only the fixture-id, fixture-context and fixture modules. The CLI tier imports only the
-``cli`` role of a strategy package, and only the listed CLI modules import the tier. Imports of ``__init__.py``
-files count, and every ``__init__.py`` under ``src/strategies`` must be empty.
+The role rule is design §4: a file's role is its file name inside its strategy package; within a package a file may
+import only a lower-ranked role, except that analyzer-level files may import each other; no strategy imports another;
+code outside ``investment_analysis_engine/strategies`` may import only analyzer, settings and selection roles, except
+that a case module under ``investment_analysis_engine/evaluation/cases`` may also import the tool and vocabulary roles
+of the strategy package it is named for. The vocabulary role ranks below every other and imports nothing from its
+package. Only a strategy's ``evaluation`` file imports from ``investment_analysis_engine/evaluation``, and only the
+fixture-id, fixture-context and fixture modules. The CLI tier imports only the ``cli`` role of a strategy package, and
+only the listed CLI modules import the tier. Imports of ``__init__.py`` files count, and every ``__init__.py`` under
+``investment_analysis_engine/strategies`` must be empty.
 """
 
 from __future__ import annotations
@@ -18,12 +18,12 @@ from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
 
-from src.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from tests._strategy_roles import ANALYZER_ROLES, ROLE_RANK
 
-_SRC = REPOSITORY_ROOT / "src"
+_SRC = REPOSITORY_ROOT / "investment_analysis_engine"
 _GRAHAM_MEMBERS = frozenset({"graham_number", "graham_growth"})
-_ROOT = "src.strategy_wiring"
+_ROOT = "investment_analysis_engine.strategy_wiring"
 # The composition root may import these strategy roles and no others: not execution, presenter, cli or
 # evaluation files, which belong to the layers below it and to the tiers.
 _ROOT_ROLES = ANALYZER_ROLES | {"codec", "envelope", "replay", "selection", "settings", "tool", "vocabulary"}
@@ -32,31 +32,31 @@ _ROOT_ROLES = ANALYZER_ROLES | {"codec", "envelope", "replay", "selection", "set
 # are added by the slices that create or rewire them).
 _ROOT_IMPORTERS = frozenset(
     {
-        "src.evaluation.composition",
-        "src.evaluation.runner",
-        "src.evaluation.ollama_runner",
-        "src.evaluation.strategy_fixtures",
-        "src.cli_strategy_wiring",
-        "src.cli_composition",
-        "src.cli_run_support",
-        "src.cli_workspace",
+        "investment_analysis_engine.evaluation.composition",
+        "investment_analysis_engine.evaluation.runner",
+        "investment_analysis_engine.evaluation.ollama_runner",
+        "investment_analysis_engine.evaluation.strategy_fixtures",
+        "investment_analysis_engine.cli_strategy_wiring",
+        "investment_analysis_engine.cli_composition",
+        "investment_analysis_engine.cli_run_support",
+        "investment_analysis_engine.cli_workspace",
     }
 )
 # The evaluation tier pairs each strategy's fixture composition with its core bundle. It may import the root
 # and the ``evaluation`` file of each strategy package, and only the generic evaluation modules listed here
 # import it. As for the root, an entry must exist and import the tier.
-_TIER = "src.evaluation.strategy_fixtures"
-_TIER_IMPORTERS = frozenset({"src.evaluation.composition"})
+_TIER = "investment_analysis_engine.evaluation.strategy_fixtures"
+_TIER_IMPORTERS = frozenset({"investment_analysis_engine.evaluation.composition"})
 # A strategy's ``evaluation`` file (and ``_graham/evaluation.py``) may import exactly these modules from
-# ``src.evaluation``: the case-level context and its checks, and the fixture modules, which also hold the
-# fixture identifiers. It never imports the composition, the tier, the catalog, the cases or the runners.
-_STRATEGY_EVALUATION_IMPORTS = frozenset({"src.evaluation.fixture_context"})
-_FIXTURE_MODULE_PREFIX = "src.evaluation.fixtures."
+# ``investment_analysis_engine.evaluation``: the case-level context and its checks, and the fixture modules, which also
+# hold the fixture identifiers. It never imports the composition, the tier, the catalog, the cases or the runners.
+_STRATEGY_EVALUATION_IMPORTS = frozenset({"investment_analysis_engine.evaluation.fixture_context"})
+_FIXTURE_MODULE_PREFIX = "investment_analysis_engine.evaluation.fixtures."
 # The CLI tier pairs each strategy's watchlist selection builder and refresh executor with its core bundle. It
 # may import the root and the ``cli`` file of each strategy package, and only the CLI modules listed here import
 # it. As for the root, an entry must exist and import the tier.
-_CLI_TIER = "src.cli_strategy_wiring"
-_CLI_TIER_IMPORTERS = frozenset({"src.cli", "src.cli_workspace"})
+_CLI_TIER = "investment_analysis_engine.cli_strategy_wiring"
+_CLI_TIER_IMPORTERS = frozenset({"investment_analysis_engine.cli", "investment_analysis_engine.cli_workspace"})
 # The modules only listed importers may import: the root and the two tiers, with the name each is reported by.
 _IMPORTERS = MappingProxyType({_ROOT: _ROOT_IMPORTERS, _TIER: _TIER_IMPORTERS, _CLI_TIER: _CLI_TIER_IMPORTERS})
 _RESTRICTED_MODULES = MappingProxyType(
@@ -65,9 +65,9 @@ _RESTRICTED_MODULES = MappingProxyType(
 # Each tier's report name and the one strategy role it may import.
 _TIER_ROLES = MappingProxyType({_TIER: ("evaluation tier", "evaluation"), _CLI_TIER: ("CLI tier", "cli")})
 _TRANSITIONS: set[tuple[str, str, str]] = set()
-# Package initializers that sit in an import cycle. Only ``src.config`` does: its initializer holds the settings
-# code itself, not a re-export of its children.
-_BENIGN_CYCLE_PACKAGES = frozenset({"src.config"})
+# Package initializers that sit in an import cycle. Only ``investment_analysis_engine.config`` does: its initializer
+# holds the settings code itself, not a re-export of its children.
+_BENIGN_CYCLE_PACKAGES = frozenset({"investment_analysis_engine.config"})
 _SAMPLE_STRATEGIES = frozenset({"momentum", "graham_number", "graham_growth"})
 # The adapter roles: for the package map each belongs to the layer it adapts the strategy to (``cli``,
 # ``evaluation`` and ``workspace``), so no other file of a strategy package may import one.
@@ -79,7 +79,7 @@ def _module_name(path: Path) -> str:
     parts = path.relative_to(_SRC).with_suffix("").parts
     if parts[-1] == "__init__":
         parts = parts[:-1]
-    return ".".join(("src", *parts))
+    return ".".join(("investment_analysis_engine", *parts))
 
 
 def _resolve_imports(module: str, node: ast.Import | ast.ImportFrom) -> set[str]:
@@ -168,14 +168,14 @@ def _cycles(graph: dict[str, set[str]]) -> list[set[str]]:
     return result
 
 
-def _strategy_packages(src: Path) -> frozenset[str]:
-    """Return the strategy package names: every non-underscore directory under ``src/strategies``."""
-    root = src / "strategies"
+def _strategy_packages(source_root: Path) -> frozenset[str]:
+    """Return the strategy package names: every non-underscore directory under ``strategies``."""
+    root = source_root / "strategies"
     return frozenset(path.name for path in root.iterdir() if path.is_dir() and not path.name.startswith(("_", ".")))
 
 
 def _role(parts: list[str]) -> str:
-    """Return the role of a ``src.strategies.<package>[.<file>]`` module name."""
+    """Return the role of a ``investment_analysis_engine.strategies.<package>[.<file>]`` module name."""
     return parts[3] if len(parts) > 3 else "__init__"
 
 
@@ -194,7 +194,7 @@ def _role_order_error(source: str, target: str) -> str | None:
 
 
 def _strategy_edge_error(source: str, target: str, strategies: frozenset[str]) -> str | None:
-    """Report a forbidden import whose importer is in ``src/strategies``."""
+    """Report a forbidden import whose importer is in ``investment_analysis_engine/strategies``."""
     source_package, target_package = source.split(".")[2], target.split(".")[2]
     if source_package == "_shared":
         if target_package != "_shared":
@@ -218,7 +218,7 @@ def _is_own_case_tool(source_parts: list[str], target_parts: list[str]) -> bool:
     """Return whether a case module imports the tool or vocabulary role of the strategy package it is named for."""
     return (
         len(source_parts) == 4
-        and source_parts[:3] == ["src", "evaluation", "cases"]
+        and source_parts[:3] == ["investment_analysis_engine", "evaluation", "cases"]
         and target_parts[2] == source_parts[3]
         and _role(target_parts) in {"tool", "vocabulary"}
     )
@@ -226,11 +226,15 @@ def _is_own_case_tool(source_parts: list[str], target_parts: list[str]) -> bool:
 
 def _is_strategy_evaluation(source_parts: list[str]) -> bool:
     """Return whether a module is the ``evaluation`` file of a strategy or family package."""
-    return len(source_parts) == 4 and source_parts[:2] == ["src", "strategies"] and source_parts[3] == "evaluation"
+    return (
+        len(source_parts) == 4
+        and source_parts[:2] == ["investment_analysis_engine", "strategies"]
+        and source_parts[3] == "evaluation"
+    )
 
 
 def _strategy_evaluation_may_import(target: str) -> bool:
-    """Return whether a strategy's ``evaluation`` file may import ``target`` from ``src.evaluation``."""
+    """Return whether a strategy's ``evaluation`` file may import ``target`` from the evaluation package."""
     return target in _STRATEGY_EVALUATION_IMPORTS or target.startswith(_FIXTURE_MODULE_PREFIX)
 
 
@@ -243,16 +247,16 @@ def _boundary_error(source: str, target: str, importers: Mapping[str, frozenset[
         return f"module imports {_RESTRICTED_MODULES[target]}: {source} -> {target}"
     if (
         _is_strategy_evaluation(source_parts)
-        and target_parts[:2] == ["src", "evaluation"]
+        and target_parts[:2] == ["investment_analysis_engine", "evaluation"]
         and target != _TIER
         and not _strategy_evaluation_may_import(target)
     ):
         return f"strategy evaluation file imports beyond the fixture modules: {source} -> {target}"
     if (
         len(source_parts) >= 4
-        and source_parts[:2] == ["src", "strategies"]
+        and source_parts[:2] == ["investment_analysis_engine", "strategies"]
         and source_parts[3] != "evaluation"
-        and target_parts[:2] == ["src", "evaluation"]
+        and target_parts[:2] == ["investment_analysis_engine", "evaluation"]
     ):
         return f"strategy file other than evaluation imports the evaluation package: {source} -> {target}"
     return None
@@ -271,7 +275,7 @@ def _edge_violations(
         source_parts, target_parts = source.split("."), target.split(".")
         if error := _boundary_error(source, target, importers):
             errors.append(error)
-        elif len(target_parts) < 3 or target_parts[:2] != ["src", "strategies"]:
+        elif len(target_parts) < 3 or target_parts[:2] != ["investment_analysis_engine", "strategies"]:
             continue
         elif source == _ROOT:
             if target_parts[2] in strategies and _role(target_parts) not in _ROOT_ROLES:
@@ -280,7 +284,7 @@ def _edge_violations(
             name, role = _TIER_ROLES[source]
             if target_parts[2] not in strategies or _role(target_parts) != role:
                 errors.append(f"{name} imports a role it may not: {source} -> {target}")
-        elif len(source_parts) >= 3 and source_parts[:2] == ["src", "strategies"]:
+        elif len(source_parts) >= 3 and source_parts[:2] == ["investment_analysis_engine", "strategies"]:
             if error := _strategy_edge_error(source, target, strategies):
                 errors.append(error)
         elif target_parts[2] == "_graham":
@@ -304,7 +308,7 @@ def _adapter_role_violations(edges: set[tuple[str, str]]) -> list[str]:
         if (
             len(source_parts) == 4
             and len(target_parts) == 4
-            and source_parts[:2] == target_parts[:2] == ["src", "strategies"]
+            and source_parts[:2] == target_parts[:2] == ["investment_analysis_engine", "strategies"]
             and source_parts[3] not in _ADAPTER_ROLES
             and target_parts[3] in _ADAPTER_ROLES
         ):
@@ -312,17 +316,19 @@ def _adapter_role_violations(edges: set[tuple[str, str]]) -> list[str]:
     return errors
 
 
-def _file_violations(src: Path) -> list[str]:
+def _file_violations(source_root: Path) -> list[str]:
     """Name each file in a strategy package whose role is unknown, and each non-empty initializer."""
     errors: list[str] = []
-    for package in sorted(_strategy_packages(src)):
-        for path in sorted((src / "strategies" / package).rglob("*.py")):
-            relative = path.relative_to(src / "strategies" / package)
+    for package in sorted(_strategy_packages(source_root)):
+        for path in sorted((source_root / "strategies" / package).rglob("*.py")):
+            relative = path.relative_to(source_root / "strategies" / package)
             if len(relative.parts) > 1 or (path.stem not in ROLE_RANK and path.stem != "__init__"):
-                errors.append(f"unknown role in strategy package: {path.relative_to(src.parent).as_posix()}")
-    for path in sorted((src / "strategies").rglob("__init__.py")):
+                errors.append(f"unknown role in strategy package: {path.relative_to(source_root.parent).as_posix()}")
+    for path in sorted((source_root / "strategies").rglob("__init__.py")):
         if path.stat().st_size:
-            errors.append(f"strategy package initializer is not empty: {path.relative_to(src.parent).as_posix()}")
+            errors.append(
+                f"strategy package initializer is not empty: {path.relative_to(source_root.parent).as_posix()}"
+            )
     return errors
 
 
@@ -407,55 +413,92 @@ def test_strategy_set_is_derived_from_the_package_directories(tmp_path: Path) ->
     strategies = _strategy_packages(tmp_path)
     assert strategies == {"momentum", "newcomer"}
     errors = _edge_violations(
-        {("src.strategies.newcomer.analyzer", "src.strategies.momentum.analyzer")}, strategies, set()
+        {
+            (
+                "investment_analysis_engine.strategies.newcomer.analyzer",
+                "investment_analysis_engine.strategies.momentum.analyzer",
+            )
+        },
+        strategies,
+        set(),
     )
     assert errors == [
-        "strategy import crosses packages: src.strategies.newcomer.analyzer -> src.strategies.momentum.analyzer"
+        "strategy import crosses packages: investment_analysis_engine.strategies.newcomer.analyzer -> "
+        "investment_analysis_engine.strategies.momentum.analyzer"
     ]
 
 
 def test_t13_fails_when_a_transition_entry_is_stale() -> None:
     """The transition list must shrink in the same change that removes an edge."""
-    listed = {("src.reporting.analysis_runs", "src.strategies.momentum.presenter", "X")}
+    listed = {
+        (
+            "investment_analysis_engine.reporting.analysis_runs",
+            "investment_analysis_engine.strategies.momentum.presenter",
+            "X",
+        )
+    }
     errors = _edge_violations(set(), _SAMPLE_STRATEGIES, listed)
-    assert errors == ["stale T13 transition entry: src.reporting.analysis_runs -> src.strategies.momentum.presenter"]
+    assert errors == [
+        "stale T13 transition entry: investment_analysis_engine.reporting.analysis_runs -> "
+        "investment_analysis_engine.strategies.momentum.presenter"
+    ]
 
 
 def test_t13_permits_only_the_listed_transition_edges() -> None:
     """A listed edge passes; the same importer reaching an unlisted role of that strategy fails."""
-    listed = {("src.reporting.analysis_runs", "src.strategies.momentum.presenter")}
+    listed = {
+        (
+            "investment_analysis_engine.reporting.analysis_runs",
+            "investment_analysis_engine.strategies.momentum.presenter",
+        )
+    }
     assert (
         _edge_violations(
-            listed, _SAMPLE_STRATEGIES, {("src.reporting.analysis_runs", "src.strategies.momentum.presenter", "X")}
+            listed,
+            _SAMPLE_STRATEGIES,
+            {
+                (
+                    "investment_analysis_engine.reporting.analysis_runs",
+                    "investment_analysis_engine.strategies.momentum.presenter",
+                    "X",
+                )
+            },
         )
         == []
     )
-    unlisted = {("src.reporting.analysis_runs", "src.strategies.momentum.cli")}
+    unlisted = {
+        ("investment_analysis_engine.reporting.analysis_runs", "investment_analysis_engine.strategies.momentum.cli")
+    }
     assert _edge_violations(unlisted, _SAMPLE_STRATEGIES, set()) == [
-        "external import exceeds analyzer/selection roles: src.reporting.analysis_runs -> src.strategies.momentum.cli"
+        "external import exceeds analyzer/selection roles: investment_analysis_engine.reporting.analysis_runs -> "
+        "investment_analysis_engine.strategies.momentum.cli"
     ]
 
 
 def test_t13_fails_for_forbidden_role_and_cross_strategy_edges() -> None:
     """An unlisted external role edge and a cross-strategy edge fail immediately."""
     edges = {
-        ("src.generic", "src.strategies.momentum.presenter"),
-        ("src.strategies.momentum.analyzer", "src.strategies.graham_number.analyzer"),
+        ("investment_analysis_engine.generic", "investment_analysis_engine.strategies.momentum.presenter"),
+        (
+            "investment_analysis_engine.strategies.momentum.analyzer",
+            "investment_analysis_engine.strategies.graham_number.analyzer",
+        ),
     }
     errors = _edge_violations(edges, _SAMPLE_STRATEGIES, set())
     assert (
-        "external import exceeds analyzer/selection roles: src.generic -> src.strategies.momentum.presenter" in errors
+        "external import exceeds analyzer/selection roles: investment_analysis_engine.generic -> "
+        "investment_analysis_engine.strategies.momentum.presenter" in errors
     )
     assert (
-        "strategy import crosses packages: src.strategies.momentum.analyzer -> src.strategies.graham_number.analyzer"
-        in errors
+        "strategy import crosses packages: investment_analysis_engine.strategies.momentum.analyzer -> "
+        "investment_analysis_engine.strategies.graham_number.analyzer" in errors
     )
     assert len(errors) == 2
 
 
 def test_t13_fails_when_an_analyzer_level_file_imports_a_higher_role() -> None:
     """Analyzer-level files may import each other, and nothing above them."""
-    package = "src.strategies.momentum"
+    package = "investment_analysis_engine.strategies.momentum"
     assert _edge_violations({(f"{package}.analyzer", f"{package}.calculators")}, _SAMPLE_STRATEGIES, set()) == []
     errors = _edge_violations({(f"{package}.analyzer", f"{package}.cli")}, _SAMPLE_STRATEGIES, set())
     assert errors == [f"role order is not downward: {package}.analyzer -> {package}.cli"]
@@ -465,7 +508,7 @@ def test_t13_fails_when_an_analyzer_level_file_imports_a_higher_role() -> None:
 
 def test_t13_allows_only_downward_imports_between_higher_roles() -> None:
     """A higher role may import any lower role, and an upward import fails."""
-    package = "src.strategies.momentum"
+    package = "investment_analysis_engine.strategies.momentum"
     assert _edge_violations({(f"{package}.cli", f"{package}.presenter")}, _SAMPLE_STRATEGIES, set()) == []
     assert _edge_violations({(f"{package}.replay", f"{package}.codec")}, _SAMPLE_STRATEGIES, set()) == []
     errors = _edge_violations({(f"{package}.codec", f"{package}.presenter")}, _SAMPLE_STRATEGIES, set())
@@ -474,7 +517,7 @@ def test_t13_allows_only_downward_imports_between_higher_roles() -> None:
 
 def test_t13_fails_when_two_different_roles_of_equal_rank_import_each_other() -> None:
     """Design §4: a file never imports a role of equal rank, except analyzer-level files among themselves."""
-    package = "src.strategies.momentum"
+    package = "investment_analysis_engine.strategies.momentum"
     for first, second in (
         ("selection", "codec"),
         ("tool", "execution"),
@@ -488,7 +531,7 @@ def test_t13_fails_when_two_different_roles_of_equal_rank_import_each_other() ->
 
 def test_t13_fails_when_the_vocabulary_file_imports_another_role_of_its_strategy() -> None:
     """The vocabulary role ranks below every other and imports nothing from its package."""
-    package = "src.strategies.momentum"
+    package = "investment_analysis_engine.strategies.momentum"
     for target in ("analyzer", "envelope", "selection", "codec", "tool", "presenter", "replay", "cli"):
         errors = _edge_violations({(f"{package}.vocabulary", f"{package}.{target}")}, _SAMPLE_STRATEGIES, set())
         assert errors == [f"role order is not downward: {package}.vocabulary -> {package}.{target}"]
@@ -498,15 +541,17 @@ def test_t13_fails_when_the_vocabulary_file_imports_another_role_of_its_strategy
 
 def test_t13_lets_the_root_but_no_generic_module_import_a_vocabulary() -> None:
     """Generic modules may import only analyzer and selection roles, which excludes the vocabulary role."""
-    target = "src.strategies.momentum.vocabulary"
-    errors = _edge_violations({("src.reporting.generic", target)}, _SAMPLE_STRATEGIES, set())
-    assert errors == [f"external import exceeds analyzer/selection roles: src.reporting.generic -> {target}"]
-    assert _edge_violations({("src.strategy_wiring", target)}, _SAMPLE_STRATEGIES, set()) == []
+    target = "investment_analysis_engine.strategies.momentum.vocabulary"
+    errors = _edge_violations({("investment_analysis_engine.reporting.generic", target)}, _SAMPLE_STRATEGIES, set())
+    assert errors == [
+        f"external import exceeds analyzer/selection roles: investment_analysis_engine.reporting.generic -> {target}"
+    ]
+    assert _edge_violations({("investment_analysis_engine.strategy_wiring", target)}, _SAMPLE_STRATEGIES, set()) == []
 
 
 def test_t13_fails_for_a_file_with_an_unrecognized_role(tmp_path: Path) -> None:
     """A file whose name is not a recognized role fails and is named, wherever it sits in the package."""
-    package = tmp_path / "src" / "strategies" / "momentum"
+    package = tmp_path / "investment_analysis_engine" / "strategies" / "momentum"
     (package / "helpers").mkdir(parents=True)
     for path in (
         package / "__init__.py",
@@ -515,75 +560,104 @@ def test_t13_fails_for_a_file_with_an_unrecognized_role(tmp_path: Path) -> None:
         package / "helpers" / "x.py",
     ):
         path.write_text("", encoding="utf-8")
-    assert _file_violations(tmp_path / "src") == [
-        "unknown role in strategy package: src/strategies/momentum/helpers/x.py",
-        "unknown role in strategy package: src/strategies/momentum/helpers.py",
+    assert _file_violations(tmp_path / "investment_analysis_engine") == [
+        "unknown role in strategy package: investment_analysis_engine/strategies/momentum/helpers/x.py",
+        "unknown role in strategy package: investment_analysis_engine/strategies/momentum/helpers.py",
     ]
 
 
 def test_t13_fails_for_a_non_empty_strategy_initializer(tmp_path: Path) -> None:
-    """Every ``__init__.py`` under ``src/strategies`` must be empty."""
-    package = tmp_path / "src" / "strategies" / "momentum"
+    """Every ``__init__.py`` under ``investment_analysis_engine/strategies`` must be empty."""
+    package = tmp_path / "investment_analysis_engine" / "strategies" / "momentum"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text('"""Docstring."""\n', encoding="utf-8")
-    assert _file_violations(tmp_path / "src") == [
-        "strategy package initializer is not empty: src/strategies/momentum/__init__.py"
+    assert _file_violations(tmp_path / "investment_analysis_engine") == [
+        "strategy package initializer is not empty: investment_analysis_engine/strategies/momentum/__init__.py"
     ]
 
 
 def test_t13_applies_the_shared_and_family_package_rules() -> None:
     """``_shared`` imports no strategy; ``_graham`` imports only member analyzers and is imported only by members."""
-    shared = {("src.strategies._shared.profile", "src.strategies.momentum.analyzer")}
+    shared = {
+        (
+            "investment_analysis_engine.strategies._shared.profile",
+            "investment_analysis_engine.strategies.momentum.analyzer",
+        )
+    }
     assert _edge_violations(shared, _SAMPLE_STRATEGIES, set()) == [
         "_shared imports a strategy or family module: "
-        "src.strategies._shared.profile -> src.strategies.momentum.analyzer"
+        "investment_analysis_engine.strategies._shared.profile -> "
+        "investment_analysis_engine.strategies.momentum.analyzer"
     ]
     family = {
-        ("src.strategies._graham.replay", "src.strategies.graham_number.analyzer"),
-        ("src.strategies.graham_number.replay", "src.strategies._graham.replay"),
+        (
+            "investment_analysis_engine.strategies._graham.replay",
+            "investment_analysis_engine.strategies.graham_number.analyzer",
+        ),
+        (
+            "investment_analysis_engine.strategies.graham_number.replay",
+            "investment_analysis_engine.strategies._graham.replay",
+        ),
     }
     assert _edge_violations(family, _SAMPLE_STRATEGIES, set()) == []
     errors = _edge_violations(
         {
-            ("src.strategies._graham.replay", "src.strategies.graham_number.codec"),
-            ("src.strategies.momentum.replay", "src.strategies._graham.replay"),
-            ("src.reporting.analysis_runs", "src.strategies._graham.replay"),
+            (
+                "investment_analysis_engine.strategies._graham.replay",
+                "investment_analysis_engine.strategies.graham_number.codec",
+            ),
+            (
+                "investment_analysis_engine.strategies.momentum.replay",
+                "investment_analysis_engine.strategies._graham.replay",
+            ),
+            (
+                "investment_analysis_engine.reporting.analysis_runs",
+                "investment_analysis_engine.strategies._graham.replay",
+            ),
         },
         _SAMPLE_STRATEGIES,
         set(),
     )
     assert errors == [
         "_graham is imported outside its member strategies: "
-        "src.reporting.analysis_runs -> src.strategies._graham.replay",
+        "investment_analysis_engine.reporting.analysis_runs -> investment_analysis_engine.strategies._graham.replay",
         "_graham imports beyond the analyzer modules of its members: "
-        "src.strategies._graham.replay -> src.strategies.graham_number.codec",
+        "investment_analysis_engine.strategies._graham.replay -> "
+        "investment_analysis_engine.strategies.graham_number.codec",
         "_graham is imported outside its member strategies: "
-        "src.strategies.momentum.replay -> src.strategies._graham.replay",
+        "investment_analysis_engine.strategies.momentum.replay -> investment_analysis_engine.strategies._graham.replay",
     ]
 
 
 def test_t13_fails_for_a_source_module_that_imports_tests() -> None:
-    """No module under ``src`` imports ``tests``."""
-    errors = _edge_violations({("src.generic", "tests.helpers")}, _SAMPLE_STRATEGIES, set())
-    assert errors == ["src.generic imports tests module tests.helpers"]
+    """No module under ``investment_analysis_engine`` imports ``tests``."""
+    errors = _edge_violations({("investment_analysis_engine.generic", "tests.helpers")}, _SAMPLE_STRATEGIES, set())
+    assert errors == ["investment_analysis_engine.generic imports tests module tests.helpers"]
 
 
 def test_t13_fails_for_a_new_package_cycle_outside_the_allowlist() -> None:
     """A parent initializer participating in a new cycle is not silently accepted."""
-    graph = {"src.example": {"src.example.child"}, "src.example.child": {"src.example"}}
-    errors = _cycle_violations(graph, {"src.example"}, frozenset())
-    assert errors == ["unapproved package cycle through src.example"]
+    graph = {
+        "investment_analysis_engine.example": {"investment_analysis_engine.example.child"},
+        "investment_analysis_engine.example.child": {"investment_analysis_engine.example"},
+    }
+    errors = _cycle_violations(graph, {"investment_analysis_engine.example"}, frozenset())
+    assert errors == ["unapproved package cycle through investment_analysis_engine.example"]
 
 
 def test_t13_fails_for_a_stale_benign_cycle_entry() -> None:
     """An allowlisted package that no longer sits in a cycle must leave the list."""
-    errors = _cycle_violations({"src.gone": set()}, {"src.gone"}, frozenset({"src.gone"}))
-    assert errors == ["stale benign-cycle entry: src.gone"]
+    errors = _cycle_violations(
+        {"investment_analysis_engine.gone": set()},
+        {"investment_analysis_engine.gone"},
+        frozenset({"investment_analysis_engine.gone"}),
+    )
+    assert errors == ["stale benign-cycle entry: investment_analysis_engine.gone"]
 
 
 def test_t13_permits_the_root_to_import_only_its_strategy_roles() -> None:
     """The composition root imports analyzer, codec, envelope, replay, selection and tool files and nothing above."""
-    package = "src.strategies.momentum"
+    package = "investment_analysis_engine.strategies.momentum"
     for role in sorted(_ROOT_ROLES):
         assert _edge_violations({(_ROOT, f"{package}.{role}")}, _SAMPLE_STRATEGIES, set()) == []
     for role in ("execution", "presenter", "cli", "evaluation"):
@@ -594,25 +668,43 @@ def test_t13_permits_the_root_to_import_only_its_strategy_roles() -> None:
 
 def test_t13_restricts_the_importers_of_the_root() -> None:
     """Only the listed modules import the root; foundation modules never do."""
-    listed = frozenset({"src.evaluation.runner", "src.cli"})
+    listed = frozenset({"investment_analysis_engine.evaluation.runner", "investment_analysis_engine.cli"})
     allowed = {(importer, _ROOT) for importer in listed}
     assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set(), {_ROOT: listed}) == []
     forbidden = {
-        (importer, _ROOT) for importer in ("src.workspace.codecs", "src.reporting.analysis_runs", "src.data.x")
+        (importer, _ROOT)
+        for importer in (
+            "investment_analysis_engine.workspace.codecs",
+            "investment_analysis_engine.reporting.analysis_runs",
+            "investment_analysis_engine.data.x",
+        )
     }
     assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set(), {_ROOT: listed}) == [
         f"module imports the composition root: {importer} -> {_ROOT}"
-        for importer in ("src.data.x", "src.reporting.analysis_runs", "src.workspace.codecs")
+        for importer in (
+            "investment_analysis_engine.data.x",
+            "investment_analysis_engine.reporting.analysis_runs",
+            "investment_analysis_engine.workspace.codecs",
+        )
     ]
 
 
 def test_t13_fails_when_the_root_is_in_an_import_cycle() -> None:
     """A module the root imports must never import the root back, directly or through others."""
-    graph = {_ROOT: {"src.a"}, "src.a": {"src.b"}, "src.b": {_ROOT}, "src.c": set()}
+    graph = {
+        _ROOT: {"investment_analysis_engine.a"},
+        "investment_analysis_engine.a": {"investment_analysis_engine.b"},
+        "investment_analysis_engine.b": {_ROOT},
+        "investment_analysis_engine.c": set(),
+    }
     assert _root_cycle_violations(graph) == [
-        f"composition root is in an import cycle: {sorted({_ROOT, 'src.a', 'src.b'})}"
+        f"composition root is in an import cycle: {
+            sorted({_ROOT, 'investment_analysis_engine.a', 'investment_analysis_engine.b'})
+        }"
     ]
-    assert _root_cycle_violations({_ROOT: {"src.a"}, "src.a": set()}) == []
+    assert (
+        _root_cycle_violations({_ROOT: {"investment_analysis_engine.a"}, "investment_analysis_engine.a": set()}) == []
+    )
 
 
 def test_the_transition_list_is_empty() -> None:
@@ -621,47 +713,73 @@ def test_the_transition_list_is_empty() -> None:
 
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_direct_commands_slice() -> None:
-    """The eight direct-command entries are gone: ``src.cli`` imports no strategy execution adapter or presenter."""
+    """The eight direct-command entries are gone: the CLI imports no strategy execution adapter or presenter."""
     assert not [entry for entry in _TRANSITIONS if entry[2] == "SWC.3c"]
-    assert not [entry for entry in _TRANSITIONS if entry[0] == "src.cli"]
+    assert not [entry for entry in _TRANSITIONS if entry[0] == "investment_analysis_engine.cli"]
 
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_cli_tier_slice() -> None:
     """The four CLI-tier entries are gone: the workspace CLI module imports no strategy execution adapter."""
     assert not [entry for entry in _TRANSITIONS if entry[2] == "SWC.3b"]
-    assert not [entry for entry in _TRANSITIONS if entry[0] == "src.cli_workspace"]
+    assert not [entry for entry in _TRANSITIONS if entry[0] == "investment_analysis_engine.cli_workspace"]
 
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_workspace_consumers_slice() -> None:
     """The eight workspace-consumer entries are gone: neither workspace module imports a strategy codec or adapter."""
     assert not [entry for entry in _TRANSITIONS if entry[2] == "SWC.3a"]
-    assert not [entry for entry in _TRANSITIONS if entry[0] in {"src.workspace.codecs", "src.workspace.execution"}]
+    assert not [
+        entry
+        for entry in _TRANSITIONS
+        if entry[0] in {"investment_analysis_engine.workspace.codecs", "investment_analysis_engine.workspace.execution"}
+    ]
 
 
 def test_the_transition_list_no_longer_holds_the_entries_removed_by_the_evaluation_slice() -> None:
     """The eight evaluation-slice entries are gone: no transition names an evaluation module or SWC.2d."""
-    assert not [entry for entry in _TRANSITIONS if entry[2] == "SWC.2d" or entry[0].startswith("src.evaluation")]
-    assert not {entry for entry in _TRANSITIONS if entry[0] in {"src.evaluation.composition", "src.evaluation.catalog"}}
+    assert not [
+        entry
+        for entry in _TRANSITIONS
+        if entry[2] == "SWC.2d" or entry[0].startswith("investment_analysis_engine.evaluation")
+    ]
+    assert not {
+        entry
+        for entry in _TRANSITIONS
+        if entry[0]
+        in {"investment_analysis_engine.evaluation.composition", "investment_analysis_engine.evaluation.catalog"}
+    }
 
 
 def test_t13_fails_for_a_root_importer_entry_that_is_missing_or_does_not_import_the_root() -> None:
     """Every listed importer must exist and import the root, so an entry cannot be added ahead of its module."""
-    entries = frozenset({"src.evaluation.runner", "src.cli_strategy_wiring", "src.cli"})
-    edges = {("src.evaluation.runner", _ROOT), ("src.cli", "src.core.strategy_errors")}
-    files = {"src.evaluation.runner", "src.cli"}
+    entries = frozenset(
+        {
+            "investment_analysis_engine.evaluation.runner",
+            "investment_analysis_engine.cli_strategy_wiring",
+            "investment_analysis_engine.cli",
+        }
+    )
+    edges = {
+        ("investment_analysis_engine.evaluation.runner", _ROOT),
+        ("investment_analysis_engine.cli", "investment_analysis_engine.core.strategy_errors"),
+    }
+    files = {"investment_analysis_engine.evaluation.runner", "investment_analysis_engine.cli"}
     assert _root_importer_violations(edges, files, entries) == [
-        "stale composition-root importer entry: src.cli does not import the root",
-        "stale composition-root importer entry: src.cli_strategy_wiring does not exist",
+        "stale composition-root importer entry: investment_analysis_engine.cli does not import the root",
+        "stale composition-root importer entry: investment_analysis_engine.cli_strategy_wiring does not exist",
     ]
-    assert _root_importer_violations(edges, files, frozenset({"src.evaluation.runner"})) == []
+    assert _root_importer_violations(edges, files, frozenset({"investment_analysis_engine.evaluation.runner"})) == []
 
 
 def test_t13_restricts_the_importers_of_the_evaluation_tier() -> None:
     """Only the listed generic evaluation modules import the tier; nothing else does."""
-    listed = frozenset({"src.evaluation.composition"})
-    allowed = {("src.evaluation.composition", _TIER)}
+    listed = frozenset({"investment_analysis_engine.evaluation.composition"})
+    allowed = {("investment_analysis_engine.evaluation.composition", _TIER)}
     assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set(), {_TIER: listed}) == []
-    importers = ("src.cli", "src.evaluation.catalog", "src.strategies.momentum.cli")
+    importers = (
+        "investment_analysis_engine.cli",
+        "investment_analysis_engine.evaluation.catalog",
+        "investment_analysis_engine.strategies.momentum.cli",
+    )
     forbidden = {(importer, _TIER) for importer in importers}
     assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set(), {_TIER: listed}) == [
         f"module imports the evaluation tier: {importer} -> {_TIER}" for importer in importers
@@ -670,71 +788,93 @@ def test_t13_restricts_the_importers_of_the_evaluation_tier() -> None:
 
 def test_t13_fails_for_a_tier_importer_entry_that_is_missing_or_does_not_import_the_tier() -> None:
     """Every listed tier importer must exist and import the tier, so an entry cannot outlive its import."""
-    entries = frozenset({"src.evaluation.composition", "src.evaluation.gone", "src.evaluation.catalog"})
-    edges = {("src.evaluation.composition", _TIER), ("src.evaluation.catalog", "src.core.strategy_errors")}
-    files = {"src.evaluation.composition", "src.evaluation.catalog"}
+    entries = frozenset(
+        {
+            "investment_analysis_engine.evaluation.composition",
+            "investment_analysis_engine.evaluation.gone",
+            "investment_analysis_engine.evaluation.catalog",
+        }
+    )
+    edges = {
+        ("investment_analysis_engine.evaluation.composition", _TIER),
+        ("investment_analysis_engine.evaluation.catalog", "investment_analysis_engine.core.strategy_errors"),
+    }
+    files = {"investment_analysis_engine.evaluation.composition", "investment_analysis_engine.evaluation.catalog"}
     assert _tier_importer_violations(edges, files, entries) == [
-        "stale evaluation-tier importer entry: src.evaluation.catalog does not import the tier",
-        "stale evaluation-tier importer entry: src.evaluation.gone does not exist",
+        "stale evaluation-tier importer entry: investment_analysis_engine.evaluation.catalog does not import the tier",
+        "stale evaluation-tier importer entry: investment_analysis_engine.evaluation.gone does not exist",
     ]
-    assert _tier_importer_violations(edges, files, frozenset({"src.evaluation.composition"})) == []
+    assert (
+        _tier_importer_violations(edges, files, frozenset({"investment_analysis_engine.evaluation.composition"})) == []
+    )
 
 
 def test_t13_permits_the_tier_to_import_only_the_root_and_strategy_evaluation_files() -> None:
     """The tier imports the root and a strategy's evaluation file; no other role and not the family package."""
-    package = "src.strategies.momentum"
+    package = "investment_analysis_engine.strategies.momentum"
     ok = {(_TIER, _ROOT), (_TIER, f"{package}.evaluation")}
     assert _edge_violations(ok, _SAMPLE_STRATEGIES, set()) == []
-    bad = {(_TIER, f"{package}.tool"), (_TIER, f"{package}.analyzer"), (_TIER, "src.strategies._graham.evaluation")}
+    bad = {
+        (_TIER, f"{package}.tool"),
+        (_TIER, f"{package}.analyzer"),
+        (_TIER, "investment_analysis_engine.strategies._graham.evaluation"),
+    }
     assert _edge_violations(bad, _SAMPLE_STRATEGIES, set()) == [
         f"evaluation tier imports a role it may not: {_TIER} -> {target}"
-        for target in ("src.strategies._graham.evaluation", f"{package}.analyzer", f"{package}.tool")
+        for target in (
+            "investment_analysis_engine.strategies._graham.evaluation",
+            f"{package}.analyzer",
+            f"{package}.tool",
+        )
     ]
 
 
 def test_t13_limits_what_a_strategy_evaluation_file_imports_from_the_evaluation_package() -> None:
     """A strategy's evaluation file (and the family's) imports the fixture modules and context, nothing else."""
-    for source in ("src.strategies.momentum.evaluation", "src.strategies._graham.evaluation"):
+    for source in (
+        "investment_analysis_engine.strategies.momentum.evaluation",
+        "investment_analysis_engine.strategies._graham.evaluation",
+    ):
         allowed = {
-            (source, "src.evaluation.fixture_context"),
-            (source, "src.evaluation.fixtures.graham"),
-            (source, "src.evaluation.fixtures.market_data"),
+            (source, "investment_analysis_engine.evaluation.fixture_context"),
+            (source, "investment_analysis_engine.evaluation.fixtures.graham"),
+            (source, "investment_analysis_engine.evaluation.fixtures.market_data"),
         }
         assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set()) == []
         forbidden = [
-            "src.evaluation",
-            "src.evaluation.cases.momentum",
-            "src.evaluation.catalog",
-            "src.evaluation.composition",
-            "src.evaluation.fixtures",
-            "src.evaluation.models",
-            "src.evaluation.runner",
+            "investment_analysis_engine.evaluation",
+            "investment_analysis_engine.evaluation.cases.momentum",
+            "investment_analysis_engine.evaluation.catalog",
+            "investment_analysis_engine.evaluation.composition",
+            "investment_analysis_engine.evaluation.fixtures",
+            "investment_analysis_engine.evaluation.models",
+            "investment_analysis_engine.evaluation.runner",
         ]
         assert _edge_violations({(source, target) for target in forbidden}, _SAMPLE_STRATEGIES, set()) == [
             f"strategy evaluation file imports beyond the fixture modules: {source} -> {target}" for target in forbidden
         ]
-    assert _edge_violations({("src.strategies.momentum.evaluation", _TIER)}, _SAMPLE_STRATEGIES, set()) == [
-        f"module imports the evaluation tier: src.strategies.momentum.evaluation -> {_TIER}"
-    ]
+    assert _edge_violations(
+        {("investment_analysis_engine.strategies.momentum.evaluation", _TIER)}, _SAMPLE_STRATEGIES, set()
+    ) == [f"module imports the evaluation tier: investment_analysis_engine.strategies.momentum.evaluation -> {_TIER}"]
 
 
 def test_t13_permits_a_case_module_to_import_only_its_own_strategys_tool_role() -> None:
     """A case module is single-strategy: it may import the tool role of the package it is named for, and no more."""
-    cases = "src.evaluation.cases"
+    cases = "investment_analysis_engine.evaluation.cases"
     allowed = {
-        (f"{cases}.momentum", "src.strategies.momentum.tool"),
-        (f"{cases}.graham_number", "src.strategies.graham_number.tool"),
-        (f"{cases}.momentum", "src.strategies.momentum.analyzer"),
+        (f"{cases}.momentum", "investment_analysis_engine.strategies.momentum.tool"),
+        (f"{cases}.graham_number", "investment_analysis_engine.strategies.graham_number.tool"),
+        (f"{cases}.momentum", "investment_analysis_engine.strategies.momentum.analyzer"),
     }
     assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set()) == []
     forbidden = {
-        (f"{cases}.momentum", "src.strategies.graham_number.tool"),
-        (f"{cases}.momentum", "src.strategies.momentum.codec"),
-        (f"{cases}.momentum", "src.strategies.momentum.evaluation"),
-        (f"{cases}.graham_number", "src.strategies.graham_growth.tool"),
-        (f"{cases}.helpers", "src.strategies.momentum.tool"),
-        ("src.evaluation.catalog", "src.strategies.momentum.tool"),
-        ("src.evaluation.composition", "src.strategies.momentum.tool"),
+        (f"{cases}.momentum", "investment_analysis_engine.strategies.graham_number.tool"),
+        (f"{cases}.momentum", "investment_analysis_engine.strategies.momentum.codec"),
+        (f"{cases}.momentum", "investment_analysis_engine.strategies.momentum.evaluation"),
+        (f"{cases}.graham_number", "investment_analysis_engine.strategies.graham_growth.tool"),
+        (f"{cases}.helpers", "investment_analysis_engine.strategies.momentum.tool"),
+        ("investment_analysis_engine.evaluation.catalog", "investment_analysis_engine.strategies.momentum.tool"),
+        ("investment_analysis_engine.evaluation.composition", "investment_analysis_engine.strategies.momentum.tool"),
     }
     assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set()) == [
         f"external import exceeds analyzer/selection roles: {source} -> {target}"
@@ -743,11 +883,14 @@ def test_t13_permits_a_case_module_to_import_only_its_own_strategys_tool_role() 
 
 
 def test_t13_keeps_every_other_strategy_file_out_of_the_evaluation_package() -> None:
-    """Only a strategy's evaluation file may import from ``src.evaluation``; no other role may."""
+    """Only a strategy's evaluation file may import from the evaluation package; no other role may."""
     edges = {
-        ("src.strategies.momentum.analyzer", "src.evaluation.fixture_context"),
-        ("src.strategies.momentum.tool", "src.evaluation.composition"),
-        ("src.strategies._shared.profile", "src.evaluation.models"),
+        (
+            "investment_analysis_engine.strategies.momentum.analyzer",
+            "investment_analysis_engine.evaluation.fixture_context",
+        ),
+        ("investment_analysis_engine.strategies.momentum.tool", "investment_analysis_engine.evaluation.composition"),
+        ("investment_analysis_engine.strategies._shared.profile", "investment_analysis_engine.evaluation.models"),
     }
     assert _edge_violations(edges, _SAMPLE_STRATEGIES, set()) == [
         f"strategy file other than evaluation imports the evaluation package: {source} -> {target}"
@@ -757,10 +900,14 @@ def test_t13_keeps_every_other_strategy_file_out_of_the_evaluation_package() -> 
 
 def test_t13_restricts_the_importers_of_the_cli_tier() -> None:
     """Only the listed CLI modules import the CLI tier; nothing else does, not even a strategy's own cli file."""
-    listed = frozenset({"src.cli_workspace"})
-    allowed = {("src.cli_workspace", _CLI_TIER)}
+    listed = frozenset({"investment_analysis_engine.cli_workspace"})
+    allowed = {("investment_analysis_engine.cli_workspace", _CLI_TIER)}
     assert _edge_violations(allowed, _SAMPLE_STRATEGIES, set(), {_CLI_TIER: listed}) == []
-    importers = ("src.evaluation.composition", "src.reporting.analysis_runs", "src.strategies.momentum.cli")
+    importers = (
+        "investment_analysis_engine.evaluation.composition",
+        "investment_analysis_engine.reporting.analysis_runs",
+        "investment_analysis_engine.strategies.momentum.cli",
+    )
     forbidden = {(importer, _CLI_TIER) for importer in importers}
     assert _edge_violations(forbidden, _SAMPLE_STRATEGIES, set(), {_CLI_TIER: listed}) == [
         f"module imports the CLI tier: {importer} -> {_CLI_TIER}" for importer in importers
@@ -769,31 +916,40 @@ def test_t13_restricts_the_importers_of_the_cli_tier() -> None:
 
 def test_t13_fails_for_a_cli_tier_importer_entry_that_is_missing_or_does_not_import_the_tier() -> None:
     """Every listed CLI-tier importer must exist and import the tier, so an entry cannot outlive its import."""
-    entries = frozenset({"src.cli", "src.cli_gone", "src.cli_workspace"})
-    edges = {("src.cli_workspace", _CLI_TIER), ("src.cli", "src.cli_support")}
-    files = {"src.cli", "src.cli_workspace"}
+    entries = frozenset(
+        {
+            "investment_analysis_engine.cli",
+            "investment_analysis_engine.cli_gone",
+            "investment_analysis_engine.cli_workspace",
+        }
+    )
+    edges = {
+        ("investment_analysis_engine.cli_workspace", _CLI_TIER),
+        ("investment_analysis_engine.cli", "investment_analysis_engine.cli_support"),
+    }
+    files = {"investment_analysis_engine.cli", "investment_analysis_engine.cli_workspace"}
     assert _cli_tier_importer_violations(edges, files, entries) == [
-        "stale CLI-tier importer entry: src.cli does not import the tier",
-        "stale CLI-tier importer entry: src.cli_gone does not exist",
+        "stale CLI-tier importer entry: investment_analysis_engine.cli does not import the tier",
+        "stale CLI-tier importer entry: investment_analysis_engine.cli_gone does not exist",
     ]
-    assert _cli_tier_importer_violations(edges, files, frozenset({"src.cli_workspace"})) == []
+    assert _cli_tier_importer_violations(edges, files, frozenset({"investment_analysis_engine.cli_workspace"})) == []
 
 
 def test_t13_permits_the_cli_tier_to_import_only_the_root_and_strategy_cli_files() -> None:
     """The CLI tier imports the root and a strategy's cli file; no other role and not the family package."""
-    package = "src.strategies.momentum"
+    package = "investment_analysis_engine.strategies.momentum"
     ok = {(_CLI_TIER, _ROOT), (_CLI_TIER, f"{package}.cli")}
     assert _edge_violations(ok, _SAMPLE_STRATEGIES, set()) == []
     bad = {
         (_CLI_TIER, f"{package}.execution"),
         (_CLI_TIER, f"{package}.analyzer"),
         (_CLI_TIER, f"{package}.evaluation"),
-        (_CLI_TIER, "src.strategies._graham.replay"),
+        (_CLI_TIER, "investment_analysis_engine.strategies._graham.replay"),
     }
     assert _edge_violations(bad, _SAMPLE_STRATEGIES, set()) == [
         f"CLI tier imports a role it may not: {_CLI_TIER} -> {target}"
         for target in (
-            "src.strategies._graham.replay",
+            "investment_analysis_engine.strategies._graham.replay",
             f"{package}.analyzer",
             f"{package}.evaluation",
             f"{package}.execution",
@@ -805,9 +961,9 @@ def test_t13_lists_the_cli_tier_as_an_importer_of_the_root() -> None:
     """The CLI tier pairs its entries with the core bundles, so it is a listed root importer; a stray module is not."""
     assert _CLI_TIER in _ROOT_IMPORTERS
     assert _edge_violations({(_CLI_TIER, _ROOT)}, _SAMPLE_STRATEGIES, set()) == []
-    assert _edge_violations({("src.strategies.momentum.cli", _ROOT)}, _SAMPLE_STRATEGIES, set()) == [
-        f"module imports the composition root: src.strategies.momentum.cli -> {_ROOT}"
-    ]
+    assert _edge_violations(
+        {("investment_analysis_engine.strategies.momentum.cli", _ROOT)}, _SAMPLE_STRATEGIES, set()
+    ) == [f"module imports the composition root: investment_analysis_engine.strategies.momentum.cli -> {_ROOT}"]
 
 
 def test_no_core_file_of_a_strategy_imports_its_cli_evaluation_or_execution_file() -> None:
@@ -818,13 +974,13 @@ def test_no_core_file_of_a_strategy_imports_its_cli_evaluation_or_execution_file
 
 def test_the_adapter_role_rule_names_each_offending_import() -> None:
     """A presenter or replay file importing an execution file fails, as does a vocabulary file importing a cli file."""
-    package = "src.strategies.momentum"
+    package = "investment_analysis_engine.strategies.momentum"
     edges = {
         (f"{package}.presenter", f"{package}.execution"),
         (f"{package}.replay", f"{package}.execution"),
         (f"{package}.vocabulary", f"{package}.cli"),
         (f"{package}.cli", f"{package}.execution"),
-        (f"{package}.evaluation", "src.strategies._graham.evaluation"),
+        (f"{package}.evaluation", "investment_analysis_engine.strategies._graham.evaluation"),
         (f"{package}.analyzer", f"{package}.calculators"),
     }
     assert _adapter_role_violations(edges) == [

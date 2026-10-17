@@ -14,18 +14,18 @@ from typing import Any
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
-from src.data.financial.cache import ResolvedInputCacheEntry, ResolvedInputCacheKey
-from src.data.financial.facts import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
+from investment_analysis_engine.data.financial.cache import ResolvedInputCacheEntry, ResolvedInputCacheKey
+from investment_analysis_engine.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
     FinancialUnit,
     ProviderFact,
 )
-from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=UTC)
 AS_OF = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)

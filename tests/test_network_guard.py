@@ -6,7 +6,7 @@ as every other test sees them. No live call is made: the guards reject it before
 
 import pytest
 
-from src.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
 from tests._network_guard import is_loopback_address
 
 pytest_plugins = ["pytester"]
@@ -30,7 +30,7 @@ def test_yahoo_entry_point_fails_the_test_even_when_the_caller_swallows_the_erro
     result = _run(
         pytester,
         f"""
-        from src.data.yfinance import client
+        from investment_analysis_engine.data.yfinance import client
 
         def test_swallows() -> None:
             try:
@@ -49,7 +49,7 @@ def test_explicit_yahoo_stub_overrides_the_guard(pytester: pytest.Pytester) -> N
         """
         from unittest.mock import MagicMock, patch
 
-        from src.data.yfinance import client
+        from investment_analysis_engine.data.yfinance import client
 
         def test_stubbed() -> None:
             stub = MagicMock()
@@ -233,7 +233,7 @@ def test_live_network_marker_exempts_both_guards(pytester: pytest.Pytester) -> N
 
         import pytest
 
-        from src.data.yfinance import client
+        from investment_analysis_engine.data.yfinance import client
 
         @pytest.mark.live_network
         def test_marked() -> None:

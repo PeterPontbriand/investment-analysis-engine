@@ -13,16 +13,16 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from alembic import command
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.financial.cache import (
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.financial.cache import (
     InMemoryResolvedInputCache,
     ResolvedInputCacheEntry,
     ResolvedInputCacheKey,
     ResolvedInputCacheProtocol,
     ResolvedInputSeriesCacheQuery,
 )
-from src.data.financial.provenance import (
+from investment_analysis_engine.data.financial.provenance import (
     AccountingScope,
     CapitalExpenditureSign,
     ComponentLineage,
@@ -31,9 +31,9 @@ from src.data.financial.provenance import (
     ResolvedInput,
     SourceKind,
 )
-from src.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
-from src.data.repositories.schema import resolved_input_cache, schema_metadata
-from src.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
+from investment_analysis_engine.data.repositories.schema import resolved_input_cache, schema_metadata
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
 NOW = datetime(2026, 9, 5, 12, 0, 0, 123456, tzinfo=UTC)
 START = datetime(2025, 1, 1, tzinfo=UTC)

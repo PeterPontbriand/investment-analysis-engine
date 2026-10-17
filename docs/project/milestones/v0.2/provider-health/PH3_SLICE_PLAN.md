@@ -110,7 +110,7 @@ The troubleshooting entry in `docs/user/INSTALLATION.md` §4 that explains the v
 
 ### What was built
 
-- The probe, `ProviderProbe` in [`src/data/provider_probe.py`](../../../../../src/data/provider_probe.py), runs the shared
+- The probe, `ProviderProbe` in [`src/data/provider_probe.py`](../../../../../investment_analysis_engine/data/provider_probe.py), runs the shared
   check body of one provider in a daemon thread under the time limit (passed through the body's spec, not by changing
   the body), waits at most the limit plus a short documented grace period, and maps the health outcome to a verdict
   (P6). A raised exception, a hang or a value that is not a check result gives `not_checked`; the probe never raises.

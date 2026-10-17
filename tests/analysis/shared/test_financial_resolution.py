@@ -6,7 +6,7 @@ from re import escape
 
 import pytest
 
-from src.analysis.shared.financial_resolution import (
+from investment_analysis_engine.analysis.shared.financial_resolution import (
     common_currency,
     evaluate_price_comparison,
     has_provider_backed_evidence,
@@ -15,13 +15,13 @@ from src.analysis.shared.financial_resolution import (
     resolve_optional_quote,
     validate_profile_ticker,
 )
-from src.core.analysis_status import CalculationStatus
-from src.data.financial.cache import InMemoryResolvedInputCache
-from src.data.financial.facts import FinancialField, FinancialProviderError
-from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.data.financial.resolution_trace import ResolutionOutcome, ResolutionStage
-from src.data.financial.resolver import InputResolver
-from src.data.instrument_profile import InstrumentKind, InstrumentProfile
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
+from investment_analysis_engine.data.financial.facts import FinancialField, FinancialProviderError
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.data.financial.resolution_trace import ResolutionOutcome, ResolutionStage
+from investment_analysis_engine.data.financial.resolver import InputResolver
+from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentProfile
 from tests.analysis.graham_value.test_resolver import (
     NOW,
     PROVIDER_ID,

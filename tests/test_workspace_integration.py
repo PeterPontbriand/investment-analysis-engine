@@ -23,11 +23,11 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
-from src.cli import app
-from src.core.constants import TrendStatus
-from src.data.market_data import MarketDataContext
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
-from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.core.constants import TrendStatus
+from investment_analysis_engine.data.market_data import MarketDataContext
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 
@@ -64,7 +64,7 @@ def _mock_momentum_run(ticker: str) -> MomentumRun:
     )
 
 
-@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(str(kwargs["ticker"]))
 
@@ -119,8 +119,14 @@ def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMoc
 
     # 4. Refresh the whole watchlist in one command.
     with (
-        patch("src.strategies.graham_number.cli.build_graham_resolver", side_effect=_resolver_side_effect),
-        patch("src.strategies.graham_growth.cli.build_graham_resolver", side_effect=_resolver_side_effect),
+        patch(
+            "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+            side_effect=_resolver_side_effect,
+        ),
+        patch(
+            "investment_analysis_engine.strategies.graham_growth.cli.build_graham_resolver",
+            side_effect=_resolver_side_effect,
+        ),
     ):
         result = runner.invoke(app, ["refresh", "Core Holdings", "--workers", "1"])
     assert result.exit_code == 0, result.output

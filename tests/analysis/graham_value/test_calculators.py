@@ -23,9 +23,12 @@ import sys
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.strategies.graham_growth.calculation import GrahamGrowthValueResult, compute_graham_growth_value
-from src.strategies.graham_number.calculation import GrahamNumberResult, compute_graham_number
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.strategies.graham_growth.calculation import (
+    GrahamGrowthValueResult,
+    compute_graham_growth_value,
+)
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberResult, compute_graham_number
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Independently hand-calculated expected values

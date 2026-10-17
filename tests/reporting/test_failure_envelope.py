@@ -10,31 +10,38 @@ import pandas as pd
 import pytest
 from pydantic import BaseModel, ValidationError
 
-import src.cli  # noqa: F401 - loads every module that defines an exception with a reason_code
-from src.core.failure_classification import classify_failure
-from src.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode, status_for
-from src.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
-from src.core.provider_failure_element import ProviderFailure, ProviderFailureInput
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.base_client import DataFetchError
-from src.data.financial.facts import FinancialProviderError
-from src.data.market_data import HistoricalMarketData, MarketDataContext, NoEligibleObservationsError
-from src.data.quality import (
+import investment_analysis_engine.cli  # noqa: F401 - loads every module that defines an exception with a reason_code
+from investment_analysis_engine.core.failure_classification import classify_failure
+from investment_analysis_engine.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode, status_for
+from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
+from investment_analysis_engine.core.provider_failure_element import ProviderFailure, ProviderFailureInput
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.financial.facts import FinancialProviderError
+from investment_analysis_engine.data.market_data import (
+    HistoricalMarketData,
+    MarketDataContext,
+    NoEligibleObservationsError,
+)
+from investment_analysis_engine.data.quality import (
     HistoricalDataQualityError,
     QualityContext,
     evaluate_historical_quality,
 )
-from src.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
-from src.reporting.documents.database import DatabaseMaintenanceReport
-from src.reporting.documents.failure import FailureDatabase, FailureDiagnostic, FailureEnvelope
-from src.reporting.failure_envelope import failure_envelope
-from src.reporting.presentation import failure_document
-from src.reporting.replay_inputs import UnsupportedProjectionError
-from src.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
-from src.workspace.refresh import EmptyRefreshTargetError
-from src.workspace.repositories.watchlists import WatchlistConflictError, WatchlistEntryNotFoundError
-from src.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError
+from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.reporting.documents.database import DatabaseMaintenanceReport
+from investment_analysis_engine.reporting.documents.failure import FailureDatabase, FailureDiagnostic, FailureEnvelope
+from investment_analysis_engine.reporting.failure_envelope import failure_envelope
+from investment_analysis_engine.reporting.presentation import failure_document
+from investment_analysis_engine.reporting.replay_inputs import UnsupportedProjectionError
+from investment_analysis_engine.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
+from investment_analysis_engine.workspace.refresh import EmptyRefreshTargetError
+from investment_analysis_engine.workspace.repositories.watchlists import (
+    WatchlistConflictError,
+    WatchlistEntryNotFoundError,
+)
+from investment_analysis_engine.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 from tests._failure_code_table import PINNED_CLASSIFICATIONS, PinnedClassification
 
@@ -42,7 +49,7 @@ from tests._failure_code_table import PINNED_CLASSIFICATIONS, PinnedClassificati
 _COMMAND_CONTEXT_CODES = {FailureReasonCode.ANALYSIS_RUN_NOT_FOUND}
 
 
-_SOURCE_ROOT = REPOSITORY_ROOT / "src"
+_SOURCE_ROOT = REPOSITORY_ROOT / "investment_analysis_engine"
 
 
 def _declares_reason_code(node: ast.ClassDef) -> bool:
@@ -60,7 +67,7 @@ def _declares_reason_code(node: ast.ClassDef) -> bool:
 
 
 def _declaring_exception_types() -> set[type[BaseException]]:
-    """Every exception class under ``src/`` that declares ``reason_code``, found by reading the source.
+    """Every exception class in the package that declares ``reason_code``, found by reading the source.
 
     The search parses each file and imports only a module that defines a declaring class, so the result does not
     depend on which modules other tests loaded and no command-line entry point runs.
@@ -288,11 +295,13 @@ def test_no_command_remediates_for_the_caller(monkeypatch: pytest.MonkeyPatch) -
     def refuse(*_args: object, **_kwargs: object) -> None:
         pytest.fail("db upgrade must never run for a caller")
 
-    monkeypatch.setattr("src.data.repositories.readiness.upgrade_database", refuse)
-    monkeypatch.setattr("src.cli_database.upgrade_database", refuse)
+    monkeypatch.setattr("investment_analysis_engine.data.repositories.readiness.upgrade_database", refuse)
+    monkeypatch.setattr("investment_analysis_engine.cli_database.upgrade_database", refuse)
     error = DatabaseReadinessError(ReadinessReason.UPGRADE_REQUIRED, Path("x.sqlite3"), "0001_head")
-    monkeypatch.setattr("src.cli_support.ensure_database_ready", lambda _database: (_ for _ in ()).throw(error))
-    result = CliRunner().invoke(src.cli.app, ["graham-number", "ACME", "--json"])
+    monkeypatch.setattr(
+        "investment_analysis_engine.cli_support.ensure_database_ready", lambda _database: (_ for _ in ()).throw(error)
+    )
+    result = CliRunner().invoke(investment_analysis_engine.cli.app, ["graham-number", "ACME", "--json"])
     assert result.exit_code == 1
     assert json.loads(result.stdout)["reason_code"] == "database_upgrade_required"
 

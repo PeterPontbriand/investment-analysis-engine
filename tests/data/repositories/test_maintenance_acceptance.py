@@ -9,10 +9,15 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy.engine import Connection
 
-from src.config import ProjectSettings
-from src.data.repositories import migrations, readiness
-from src.data.repositories.readiness import DatabaseReadinessError, DatabaseState, ReadinessOutcome, ReadinessReason
-from src.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.data.repositories import migrations, readiness
+from investment_analysis_engine.data.repositories.readiness import (
+    DatabaseReadinessError,
+    DatabaseState,
+    ReadinessOutcome,
+    ReadinessReason,
+)
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
 
 def database_for(path: Path) -> SQLiteDatabase:

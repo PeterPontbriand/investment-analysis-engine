@@ -5,8 +5,8 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from src.strategies.graham_growth.config import GrahamGrowthConfig
-from src.strategies.graham_number.config import GrahamNumberConfig
+from investment_analysis_engine.strategies.graham_growth.config import GrahamGrowthConfig
+from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
 
 
 @pytest.mark.parametrize("provider", ["sec_edgar", "injected"])

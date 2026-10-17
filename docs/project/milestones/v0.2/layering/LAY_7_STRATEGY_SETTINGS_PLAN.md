@@ -28,7 +28,7 @@
 - **Problem:** no convention says where a strategy's editable defaults live or how they reach it.
 - **Decision:** the convention in §3, applied as in §4.
 - **Scope:** this plan; the LAY.7 row, section and A.12 in the parent plan; one SWC.7 scope bullet. No file under
-  `src/`, `config/` or `tests/`.
+  `investment_analysis_engine/`, `config/` or `tests/`.
 - **Branch:** `docs/lay-7a-strategy-settings-plan`.
 - **Detail:** this document.
 
@@ -38,8 +38,8 @@
   Graham Growth's file is read by the command line on every call; neither is typed or validated.
 - **Decision:** apply §3 to both strategies, as listed in §4.
 - **Scope:** the `config` package (loader), `StrategyDescriptor` (`settings_type`), both strategies' packages
-  (`settings.py`, config, selection, tool, CLI), `src/cli_composition.py`, `src/cli_support.py`,
-  `src/cli_workspace.py`, Momentum and Graham Growth evaluation composition, the four settings files, their tests,
+  (`settings.py`, config, selection, tool, CLI), `investment_analysis_engine/cli_composition.py`, `investment_analysis_engine/cli_support.py`,
+  `investment_analysis_engine/cli_workspace.py`, Momentum and Graham Growth evaluation composition, the four settings files, their tests,
   the pinned prompt hash, ARCHITECTURE, AGENTS.md §9, `docs/user/INSTALLATION.md` and both strategy guides.
 - **Branch:** `refactor/lay-7b-strategy-settings`, from `main` after LAY.7a.
 - **Detail:** §3 and §4 of this document.
@@ -62,7 +62,7 @@
 
 ### 3.3 A typed settings model
 
-- Each strategy with a file declares `<Strategy>Settings` in `src/strategies/<package>/settings.py`.
+- Each strategy with a file declares `<Strategy>Settings` in `investment_analysis_engine/strategies/<package>/settings.py`.
 - A frozen pydantic model that forbids extra keys, with strict types.
 - **No defaults:** the shipped file is the single source of every value.
 - Each field's docstring documents its key; validators enforce the invariants (for example short window < long
@@ -136,7 +136,7 @@ Flow & Earnings Growth have nothing to configure today and get no file.
 
 ## 6. Acceptance criteria
 
-- No file under `src/strategies/` imports `src.config`; the `strategies` row of ARCHITECTURE §13 drops `config`.
+- No file under `investment_analysis_engine/strategies/` imports `investment_analysis_engine.config`; the `strategies` row of ARCHITECTURE §13 drops `config`.
 - Command output, `--help` text, published schemas (`scripts/generate_schemas.py --check`), golden results and
   stored values are unchanged.
 - The pinned prompt hash changes only through the Momentum tool schema, and the test's comment records why.
@@ -184,20 +184,20 @@ Approved by the project owner.
 
 Approved by the project owner.
 
-1. Loader: `load_strategy_settings(alias, model, directory)` in `src/config/strategy_settings.py`, cached per process on `(alias, model, directory)`, clearable for tests, raising `StrategySettingsError` (a `ValueError` in `src/core/settings_error.py`); production passes `config/strategies`.
+1. Loader: `load_strategy_settings(alias, model, directory)` in `investment_analysis_engine/config/strategy_settings.py`, cached per process on `(alias, model, directory)`, clearable for tests, raising `StrategySettingsError` (a `ValueError` in `investment_analysis_engine/core/settings_error.py`); production passes `config/strategies`.
 2. Messages: missing file, unreadable TOML and validation failure each give one message naming `config/strategies/<alias>.toml`; a validation message names the key and the rule, never the value, and a whole-model rule names no key.
-3. Startup: `load_all_strategy_settings()` in `src/cli_composition.py` loads every declared file once, before any command is defined; `src/main.py` prints the message to stderr and exits with code 2, with no traceback and no log entry.
-4. Accessors: `momentum_settings()` and `graham_growth_settings()` in `src/cli_composition.py`; the Momentum option defaults come from `momentum_settings()`, and `--help` is unchanged.
+3. Startup: `load_all_strategy_settings()` in `investment_analysis_engine/cli_composition.py` loads every declared file once, before any command is defined; `investment_analysis_engine/main.py` prints the message to stderr and exits with code 2, with no traceback and no log entry.
+4. Accessors: `momentum_settings()` and `graham_growth_settings()` in `investment_analysis_engine/cli_composition.py`; the Momentum option defaults come from `momentum_settings()`, and `--help` is unchanged.
 5. Descriptor: `StrategyDescriptor.settings_type` (`MomentumSettings`, `GrahamGrowthSettings`, `None` for the other two), added to the conformance script's field table.
 6. `MomentumSettings`: frozen, no extra keys, no defaults, window order checked; `MomentumConfig` and `MomentumSelection.rsi_period` lose their defaults; `MomentumSelection.from_settings` and `cli_support._default_history_start_date` are deleted, and composition passes `history_start_date` as the analyzer's start date.
 7. Momentum tool: `short_window`, `long_window` and `rsi_period` become optional ("Omit to use the configured value."), the handler fills them from `MomentumToolDependencies.settings`, and the pinned prompt hash is updated.
 8. `GrahamGrowthSettings`: frozen, no extra keys, no defaults, one validator per constant, `to_policy()` returns the existing policy; `growth_assumptions()` is deleted and its three callers use `graham_growth_settings().to_policy()`.
-9. Golden: `GOLDEN_MOMENTUM_SETTINGS` in `src/evaluation/fixtures/market_data.py` is passed by Momentum's evaluation composition; nothing under evaluation calls the loader.
+9. Golden: `GOLDEN_MOMENTUM_SETTINGS` in `investment_analysis_engine/evaluation/fixtures/market_data.py` is passed by Momentum's evaluation composition; nothing under evaluation calls the loader.
 10. Files: `config/strategies/momentum.toml` and `graham-growth.toml` are added; the two old strategy files and folders, `data_start_date`, `ProjectSettings.get_momentum_analysis` and `get_graham_value_analysis`, and the unused `ConfigKeys` entries are deleted.
 11. Tests: the settings patches become explicit settings objects; new tests cover the loader, the cache, the startup exit, the §3.8 conformance check, the tool handler and `to_policy()`.
 12. Documentation: ARCHITECTURE §6 and §13, AGENTS.md §9, INSTALLATION §2 and the two strategy guides.
 13. `schemas/watchlist-delete.schema.json` changes exactly as `schemas/watchlist.schema.json` does, because it embeds the same `MomentumSelection`.
-14. `_production_database()` in `src/cli_support.py` gives Momentum's command its database, as the other strategies' commands get theirs, so no file under `src/strategies/` imports `src.config`; `tests/test_cli_save_run.py`, `tests/test_failure_messages.py` and `tests/test_save_run_every_direct_command.py` now patch `src.cli_support.settings`.
-15. The layering test gains the `settings` file role at rank 1, importable from outside the strategy package and by the composition root, and `src.cli_composition` joins the composition-root importers.
+14. `_production_database()` in `investment_analysis_engine/cli_support.py` gives Momentum's command its database, as the other strategies' commands get theirs, so no file under `investment_analysis_engine/strategies/` imports `investment_analysis_engine.config`; `tests/test_cli_save_run.py`, `tests/test_failure_messages.py` and `tests/test_save_run_every_direct_command.py` now patch `investment_analysis_engine.cli_support.settings`.
+15. The layering test gains the `settings` file role at rank 1, importable from outside the strategy package and by the composition root, and `investment_analysis_engine.cli_composition` joins the composition-root importers.
 
 Second exception to "no published schema changes": the published watchlist schemas (`schemas/watchlist.schema.json`, and `schemas/watchlist-delete.schema.json`, which embeds the same Momentum selection) make `rsi_period` required and drop its default of 14, a consequence of decision 6. The first exception is the Momentum tool schema (decision 7).

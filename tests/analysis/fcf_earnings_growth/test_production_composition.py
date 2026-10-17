@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from src.core.analysis_status import CalculationStatus
-from src.data.financial.facts import FinancialField
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.financial.provenance import SourceKind
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.evaluation.fixtures.fcf_earnings_growth import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.data.financial.facts import FinancialField
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.financial.provenance import SourceKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
-from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
+from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from tests.analysis.fcf_earnings_growth.test_fcf_earnings_growth_input_resolver import NOW
 
 

@@ -10,10 +10,10 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime
 
-from src.data.financial.facts import FinancialFactRequest, ProviderFact
-from src.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.data.financial.facts import FinancialFactRequest, ProviderFact
+from investment_analysis_engine.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
+from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 
 class SecLabeledGrahamProvider:

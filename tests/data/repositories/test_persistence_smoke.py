@@ -10,18 +10,22 @@ from alembic.config import Config
 from pandas.testing import assert_frame_equal
 
 from alembic import command
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
-from src.data.financial.cache import ResolvedInputCacheEntry, ResolvedInputCacheKey
-from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
-from src.data.market_data import HistoricalMarketData, MarketDataContext
-from src.data.repositories.market_data import MarketDataCacheEntry, MarketDataCacheKey, SQLiteMarketDataRepository
-from src.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.repositories.trajectory import SQLiteTrajectoryRepository
-from src.evaluation.fixtures.market_data import momentum_success_frame
-from src.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
+from investment_analysis_engine.data.financial.cache import ResolvedInputCacheEntry, ResolvedInputCacheKey
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
+from investment_analysis_engine.data.repositories.market_data import (
+    MarketDataCacheEntry,
+    MarketDataCacheKey,
+    SQLiteMarketDataRepository,
+)
+from investment_analysis_engine.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.repositories.trajectory import SQLiteTrajectoryRepository
+from investment_analysis_engine.evaluation.fixtures.market_data import momentum_success_frame
+from investment_analysis_engine.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory
 
 
 def test_fresh_database_persistence_lifecycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

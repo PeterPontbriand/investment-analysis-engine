@@ -8,14 +8,18 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.analysis.base_analyzer import AnalysisContext
-from src.core.constants import TrendStatus
-from src.data.base_client import DataFetchError
-from src.data.instrument_profile import InstrumentKind
-from src.data.market_data import HistoricalMarketData, MarketDataContext
-from src.data.yfinance.client import YFinanceClient
-from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from src.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, compute_momentum_metrics
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.core.constants import TrendStatus
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.instrument_profile import InstrumentKind
+from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
+from investment_analysis_engine.data.yfinance.client import YFinanceClient
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from investment_analysis_engine.strategies.momentum.analyzer import (
+    MomentumAnalyzer,
+    MomentumConfig,
+    compute_momentum_metrics,
+)
 
 _CONTEXT = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 20, tzinfo=UTC), use_cache=True)
 
@@ -28,7 +32,7 @@ def mock_settings_config() -> Generator[None, None, None]:
             "default_ticker": "BTC-USD",
         }
     }
-    with patch("src.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
+    with patch("investment_analysis_engine.config.ProjectSettings.get_analysis_settings", return_value=mock_analysis):
         yield
 
 
@@ -73,7 +77,7 @@ def test_momentum_config_rejects_non_positive_windows() -> None:
         MomentumConfig(short_window=0, long_window=5, rsi_period=14)
 
 
-@patch("src.data.yfinance.client.yf.download")
+@patch("investment_analysis_engine.data.yfinance.client.yf.download")
 def test_fetch_market_data_handles_multiindex_flattening(mock_download: MagicMock) -> None:
     multi_cols = pd.MultiIndex.from_product([["Open", "High", "Low", "Close", "Volume"], ["BTC-USD"]])
     multi_df = pd.DataFrame(np.random.randn(5, 5), columns=multi_cols)
@@ -239,7 +243,7 @@ def test_analyze_momentum_window_validation() -> None:
         MomentumConfig(short_window=20, long_window=10, rsi_period=14)
 
 
-@patch("src.data.yfinance.client.YFinanceClient.fetch_data_with_context")
+@patch("investment_analysis_engine.data.yfinance.client.YFinanceClient.fetch_data_with_context")
 def test_analyze_momentum_empty_dataset_fault(mock_fetch: MagicMock) -> None:
     mock_fetch.side_effect = DataFetchError("No market data was returned for ticker 'XYZ'.")
 

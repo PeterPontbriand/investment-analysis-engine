@@ -9,20 +9,23 @@ from types import MappingProxyType
 
 import pytest
 
-from src.core.strategy_errors import UndeclaredStrategyError
-from src.evaluation.catalog import build_deterministic_requests
-from src.evaluation.composition import compose_fixture_dependencies, dispatch_fixture_case
-from src.evaluation.fixtures.market_data import GOLDEN_MOMENTUM_SETTINGS
-from src.evaluation.runner import DeterministicCaseRequest
-from src.orchestrator.tool_names import ToolName
-from src.orchestrator.tool_runtime import ToolRuntime
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from src.strategies.fcf_growth.tool import FCFEarningsGrowthToolDependencies, FCFEarningsGrowthToolHandler
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategies.momentum.analyzer import MomentumRun
-from src.strategies.momentum.tool import MomentumToolArguments, MomentumToolDependencies
-from src.strategy_wiring import (
+from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError
+from investment_analysis_engine.evaluation.catalog import build_deterministic_requests
+from investment_analysis_engine.evaluation.composition import compose_fixture_dependencies, dispatch_fixture_case
+from investment_analysis_engine.evaluation.fixtures.market_data import GOLDEN_MOMENTUM_SETTINGS
+from investment_analysis_engine.evaluation.runner import DeterministicCaseRequest
+from investment_analysis_engine.orchestrator.tool_names import ToolName
+from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from investment_analysis_engine.strategies.fcf_growth.tool import (
+    FCFEarningsGrowthToolDependencies,
+    FCFEarningsGrowthToolHandler,
+)
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
+from investment_analysis_engine.strategies.momentum.tool import MomentumToolArguments, MomentumToolDependencies
+from investment_analysis_engine.strategy_wiring import (
     BY_ARGUMENTS,
     BY_METHOD_ID,
     BY_RESULT_TYPE,

@@ -26,10 +26,9 @@ import typer
 from pydantic import BaseModel, ValidationError
 from typer.core import TyperGroup
 
-from scripts.generate_schemas import SCHEMA_DIRECTORY, schema_text, strategy_schema_file
-from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
-from src.analysis.run_models import RunOutcome
-from src.cli_strategy_wiring import (
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.cli_strategy_wiring import (
     CLI_STRATEGIES,
     CliComposition,
     CliStrategy,
@@ -39,22 +38,30 @@ from src.cli_strategy_wiring import (
     refresh_executor_for,
     refreshers_by_key,
 )
-from src.cli_watchlist_flags import WatchlistFlags
-from src.core.repository_root import REPOSITORY_ROOT
-from src.core.strategy_errors import UndeclaredStrategyError, require
-from src.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate
-from src.evaluation.catalog import DETERMINISTIC_CASES, build_deterministic_requests
-from src.evaluation.composition import compose_fixture_dependencies, compose_fixture_dispatcher, dispatch_fixture_case
-from src.evaluation.fixture_context import CONTEXT_FIXTURE_IDS
-from src.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvalComposition, EvaluationStrategy
-from src.orchestrator.analysis_tool_arguments import AnalysisToolArguments
-from src.orchestrator.analysis_tools import register_analysis_tools
-from src.orchestrator.dispatcher import AsyncToolDispatcher
-from src.orchestrator.tool_names import ToolName
-from src.orchestrator.tool_runtime import AnalysisToolHandler
-from src.reporting.presentation import PresentationMode
-from src.reporting.replay_inputs import ReplayInputs, ReplayOptions, UnsupportedProjectionError
-from src.strategy_wiring import (
+from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, require
+from investment_analysis_engine.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate
+from investment_analysis_engine.evaluation.catalog import DETERMINISTIC_CASES, build_deterministic_requests
+from investment_analysis_engine.evaluation.composition import (
+    compose_fixture_dependencies,
+    compose_fixture_dispatcher,
+    dispatch_fixture_case,
+)
+from investment_analysis_engine.evaluation.fixture_context import CONTEXT_FIXTURE_IDS
+from investment_analysis_engine.evaluation.strategy_fixtures import (
+    EVALUATION_STRATEGIES,
+    EvalComposition,
+    EvaluationStrategy,
+)
+from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
+from investment_analysis_engine.orchestrator.analysis_tools import register_analysis_tools
+from investment_analysis_engine.orchestrator.dispatcher import AsyncToolDispatcher
+from investment_analysis_engine.orchestrator.tool_names import ToolName
+from investment_analysis_engine.orchestrator.tool_runtime import AnalysisToolHandler
+from investment_analysis_engine.reporting.presentation import PresentationMode
+from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions, UnsupportedProjectionError
+from investment_analysis_engine.strategy_wiring import (
     STRATEGIES,
     BehaviorView,
     StrategyBehavior,
@@ -67,16 +74,17 @@ from src.strategy_wiring import (
     run_specs_by_key,
     tool_for_arguments,
 )
-from src.workspace.capture import ExecutionCapture
-from src.workspace.codecs import UnsupportedRunVersionError, decode_evidence
-from src.workspace.execution import execute
-from src.workspace.requests import AnalysisRequest
-from src.workspace.runs import AnalysisRun
-from src.workspace.strategy_types import NativeEvidence, SelectionMember
-from src.workspace_documents.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
-from src.workspace_documents.run_replay import project_run
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.codecs import UnsupportedRunVersionError, decode_evidence
+from investment_analysis_engine.workspace.execution import execute
+from investment_analysis_engine.workspace.requests import AnalysisRequest
+from investment_analysis_engine.workspace.runs import AnalysisRun
+from investment_analysis_engine.workspace.strategy_types import NativeEvidence, SelectionMember
+from investment_analysis_engine.workspace_documents.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
+from investment_analysis_engine.workspace_documents.run_replay import project_run
+from scripts.generate_schemas import SCHEMA_DIRECTORY, schema_text, strategy_schema_file
 
-_SRC_ROOT = REPOSITORY_ROOT / "src"
+_SRC_ROOT = REPOSITORY_ROOT / "investment_analysis_engine"
 _FIXTURE_CLOCK = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 
 DESCRIPTOR_FIELDS: dict[str, object] = {
@@ -208,20 +216,20 @@ def native_evidence_union_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> l
 
 def _import_strategy_modules() -> None:
     """Import every module of every strategy package so each analyzer class is defined."""
-    package = importlib.import_module("src.strategies")
-    for module in pkgutil.walk_packages(package.__path__, prefix="src.strategies."):
+    package = importlib.import_module("investment_analysis_engine.strategies")
+    for module in pkgutil.walk_packages(package.__path__, prefix="investment_analysis_engine.strategies."):
         if not any(part.startswith("_") for part in module.name.split(".")[2:]):
             importlib.import_module(module.name)
 
 
 def _concrete_analyzers() -> list[type]:
-    """Return every non-abstract analyzer class defined under ``src``, found through ``BaseAnalyzer``."""
+    """Return every non-abstract analyzer class defined in the package, found through ``BaseAnalyzer``."""
     found: list[type] = []
     pending: list[type] = list(BaseAnalyzer.__subclasses__())
     while pending:
         analyzer = pending.pop()
         pending.extend(analyzer.__subclasses__())
-        if analyzer.__module__.startswith("src.") and not inspect.isabstract(analyzer):
+        if analyzer.__module__.startswith("investment_analysis_engine.") and not inspect.isabstract(analyzer):
             found.append(analyzer)
     return sorted(found, key=lambda item: f"{item.__module__}.{item.__qualname__}")
 
@@ -242,8 +250,8 @@ def analyzer_generics_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[
     claimed: dict[type, list[str]] = {}
     for analyzer in _concrete_analyzers():
         name = f"{analyzer.__module__}.{analyzer.__qualname__}"
-        if not analyzer.__module__.startswith("src.strategies."):
-            gaps.append(f"analyzer {name} is defined outside src/strategies")
+        if not analyzer.__module__.startswith("investment_analysis_engine.strategies."):
+            gaps.append(f"analyzer {name} is defined outside investment_analysis_engine/strategies")
             continue
         result_type = _analyzer_result_type(analyzer)
         if result_type is None:
@@ -272,19 +280,24 @@ def analyzer_generics_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[
 def tool_surface_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
     """T4: compare the tools and argument models with the ``ToolName`` enum and the argument subclasses.
 
-    Only classes defined under ``src`` count as argument models, so a subclass defined by a test or a
-    script cannot make this check depend on what else has been imported.
+    Only classes defined under ``investment_analysis_engine`` count as argument models, so a subclass defined by a test
+    or a script cannot make this check depend on what else has been imported.
     """
     tools = {item.tool for item in descriptors}
     gaps = [f"tool {tool.name} is in ToolName but no descriptor binds it" for tool in ToolName if tool not in tools]
     models = {item.tool_arguments for item in descriptors}
-    defined = {model for model in AnalysisToolArguments.__subclasses__() if model.__module__.startswith("src.")}
+    defined = {
+        model
+        for model in AnalysisToolArguments.__subclasses__()
+        if model.__module__.startswith("investment_analysis_engine.")
+    }
     gaps.extend(
         f"arguments model {model.__qualname__} subclasses AnalysisToolArguments but no descriptor declares it"
         for model in sorted(defined - models, key=lambda item: item.__qualname__)
     )
     gaps.extend(
-        f"descriptor {label(item)} arguments model {item.tool_arguments.__qualname__} is not defined under src"
+        f"descriptor {label(item)} arguments model {item.tool_arguments.__qualname__} is not defined under "
+        "investment_analysis_engine"
         for item in descriptors
         if item.tool_arguments not in defined
     )
@@ -1272,7 +1285,7 @@ def _import_problems(node: ast.Import | ast.ImportFrom) -> Iterator[str]:
     module = node.module or ""
     if module.split(".")[0] in _FORBIDDEN_IMPORTS or any(alias.name in _FORBIDDEN_IMPORTS for alias in node.names):
         yield f"imports from {module}"
-    if module == "src.cli" and any(alias.name == "app" for alias in node.names):
+    if module == "investment_analysis_engine.cli" and any(alias.name == "app" for alias in node.names):
         yield "imports the Typer app"
 
 

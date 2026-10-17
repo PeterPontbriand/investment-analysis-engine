@@ -1,7 +1,7 @@
 """Regression tests for exhaustive investor-facing calculation statuses."""
 
-from src.core.analysis_status import CalculationStatus
-from src.reporting.presentation import STATUS_LABELS, humanized_status
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.reporting.presentation import STATUS_LABELS, humanized_status
 
 
 def test_every_calculation_status_has_plain_english_label() -> None:

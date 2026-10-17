@@ -10,22 +10,25 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from src.analysis.run_models import RunOutcome
-from src.config import ProjectSettings
-from src.core.analysis_status import CalculationStatus
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.evaluation.fixtures.market_data import FixtureDataClient
-from src.strategies.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
-from src.strategies.graham_number.selection import GrahamNumberSelection
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.strategies.momentum.analyzer import MomentumRun
-from src.strategies.momentum.execution import run_momentum
-from src.strategies.momentum.selection import MomentumSelection
-from src.strategy_wiring import RUN_SPECS_BY_KEY
-from src.workspace.capture import ExecutionCapture
-from src.workspace.refresh import (
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
+from investment_analysis_engine.strategies.graham_number.calculation import (
+    GrahamNumberInputAssembly,
+    GrahamNumberResult,
+)
+from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
+from investment_analysis_engine.strategies.momentum.execution import run_momentum
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategy_wiring import RUN_SPECS_BY_KEY
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.refresh import (
     EmptyRefreshTargetError,
     JobFailure,
     RefreshJobResult,
@@ -33,10 +36,10 @@ from src.workspace.refresh import (
     RefreshSummary,
     refresh_watchlist,
 )
-from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
-from src.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
-from src.workspace.strategy_types import AnalysisSelection
-from src.workspace.watchlists import WatchlistNotFoundError
+from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
+from investment_analysis_engine.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
+from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
+from investment_analysis_engine.workspace.watchlists import WatchlistNotFoundError
 from tests._wiring import encode_native, failure_text
 
 WATCHLIST_ID = UUID("11111111-1111-4111-8111-111111111111")
@@ -463,7 +466,7 @@ def test_refresh_job_result_requires_exactly_one_of_run_outcome_or_error() -> No
 
 
 def test_job_outcome_requires_exactly_one_of_capture_or_error() -> None:
-    from src.workspace.refresh import _JobOutcome  # noqa: PLC0415 - private, test-only import
+    from investment_analysis_engine.workspace.refresh import _JobOutcome  # noqa: PLC0415 - private, test-only import
 
     capture = _momentum_capture("AAPL")
     with pytest.raises(ValueError, match="Exactly one"):

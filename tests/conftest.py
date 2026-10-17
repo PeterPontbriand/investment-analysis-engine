@@ -24,7 +24,7 @@ from tests._live_selection import pytest_addoption, pytest_collection_modifyitem
 from tests._network_guard import block_external_sockets, block_live_yahoo
 
 if TYPE_CHECKING:
-    from src.config import ProjectSettings
+    from investment_analysis_engine.config import ProjectSettings
 
 __all__ = [
     "block_external_sockets",

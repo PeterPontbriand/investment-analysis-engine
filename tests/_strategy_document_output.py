@@ -35,45 +35,54 @@ from alembic.config import Config
 from typer.testing import CliRunner
 
 from alembic import command
-from src.cli import app
-from src.config import ProjectSettings
-from src.config import settings as real_settings
-from src.core.analysis_status import CalculationStatus
-from src.core.metric_result import ReasonCode
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.financial.facts import (
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.config import settings as real_settings
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.financial.facts import (
     FinancialFactRequest,
     FinancialFactsProvider,
     FinancialField,
     FinancialProviderError,
     ProviderFact,
 )
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.financial.provenance import ResolvedInput
-from src.data.instrument_profile import (
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.financial.provenance import ResolvedInput
+from investment_analysis_engine.data.instrument_profile import (
     InstrumentKind,
     InstrumentKindEvidence,
     InstrumentKindRequest,
 )
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
-from src.data.yfinance.client import YFinanceClient
-from src.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
-from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.evaluation.fixtures.graham import NOW, SECURITY_ID
-from src.evaluation.fixtures.instrument_profiles import FIXTURE_PROFILE_RESOLVED_AT, fixture_known_etf_profile
-from src.evaluation.fixtures.market_data import FixtureMarketDataProvider, momentum_boundary_frame
-from src.strategies.fcf_growth.input_resolver import _failure_metric
-from src.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from src.strategies.fcf_growth.vocabulary import Classification, TrendClassification
-from src.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from src.strategies.graham_growth.service import GrahamGrowthAnalysis
-from src.strategies.graham_number.calculation import GrahamNumberInputResolver
-from src.strategies.graham_number.service import GrahamNumberAnalysis
-from src.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
-from src.workspace.runs import AnalysisRun, RunQuery
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.security_identity import SecurityIdentity, SecurityIdentityRequest
+from investment_analysis_engine.data.yfinance.client import YFinanceClient
+from investment_analysis_engine.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
+    FixtureAnnualFinancialFactsProvider,
+    annual_series,
+)
+from investment_analysis_engine.evaluation.fixtures.graham import NOW, SECURITY_ID
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
+    FIXTURE_PROFILE_RESOLVED_AT,
+    fixture_known_etf_profile,
+)
+from investment_analysis_engine.evaluation.fixtures.market_data import (
+    FixtureMarketDataProvider,
+    momentum_boundary_frame,
+)
+from investment_analysis_engine.strategies.fcf_growth.input_resolver import _failure_metric
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import Classification, TrendClassification
+from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
+from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
 from tests._direct_command_output import (
     _COMMANDS,
     CommandOutput,
@@ -325,12 +334,16 @@ def _enter_providers(stack: ExitStack, case: Case) -> None:
         resolver_type = GrahamGrowthInputResolver if case.command == "graham-growth" else GrahamNumberInputResolver
         resolver = resolver_type(wrapper, clock=lambda: NOW)
         for graham in ("graham_number", "graham_growth"):
-            stack.enter_context(patch(f"src.strategies.{graham}.cli.build_graham_resolver", return_value=resolver))
+            stack.enter_context(
+                patch(
+                    f"investment_analysis_engine.strategies.{graham}.cli.build_graham_resolver", return_value=resolver
+                )
+            )
     for strategy in ("momentum", "graham_number", "graham_growth"):
-        stack.enter_context(patch(f"src.strategies.{strategy}.cli.YFinanceClient", case.yahoo))
+        stack.enter_context(patch(f"investment_analysis_engine.strategies.{strategy}.cli.YFinanceClient", case.yahoo))
     stack.enter_context(
         patch(
-            "src.strategies.fcf_growth.cli.build_sec_production_provider",
+            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
             side_effect=lambda *_a, **_k: _fcf_provider(case, case.yahoo),
         )
     )
@@ -348,8 +361,8 @@ def _migrated(directory: Path) -> ProjectSettings:
 def _replay(settings: ProjectSettings, run_id: str) -> CommandOutput:
     """Replay one stored run as JSON."""
     with ExitStack() as stack:
-        stack.enter_context(patch("src.cli_workspace.settings", settings))
-        stack.enter_context(patch("src.cli_support.settings", settings))
+        stack.enter_context(patch("investment_analysis_engine.cli_workspace.settings", settings))
+        stack.enter_context(patch("investment_analysis_engine.cli_support.settings", settings))
         result = CliRunner().invoke(app, ["runs", "show", run_id, "--json"])
     return CommandOutput(result.exit_code, normalize(result.stdout_bytes), result.stderr_bytes)
 
@@ -374,7 +387,7 @@ def run_saved(case: Case) -> tuple[CommandOutput, CommandOutput, AnalysisRun]:
     """
     with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
         settings = _migrated(Path(directory))
-        for module in ("src.cli_run_support", "src.cli_support"):
+        for module in ("investment_analysis_engine.cli_run_support", "investment_analysis_engine.cli_support"):
             stack.enter_context(patch(f"{module}.settings", settings))
         _enter_providers(stack, case)
         result = CliRunner().invoke(app, [*case.arguments, "--json", "--save-run"])

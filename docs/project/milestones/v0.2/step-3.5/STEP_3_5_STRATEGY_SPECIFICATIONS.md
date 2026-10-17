@@ -16,7 +16,7 @@ which then becomes their authority.
 - **Gross profit** is the reported gross profit. When the filer reports none, it is sales − cost of
   revenue, if both are reported, and the result keeps both inputs' provenance. It is never taken
   from operating income. Gross margin is gross profit ÷ sales.
-- Each strategy is a package under `src/strategies/` (for example, `src/strategies/piotroski/`), whose
+- Each strategy is a package under `investment_analysis_engine/strategies/` (for example, `investment_analysis_engine/strategies/piotroski/`), whose
   analyzer is a `BaseAnalyzer` subclass beside its wiring files, declared through SWC's strategy descriptor.
 - Every metric follows SD §2's outcome rules, and every result carries the result-level status SD §2
   defines.

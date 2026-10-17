@@ -1033,7 +1033,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "The Graham Growth document, version 9, as ``graham-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`src.reporting.documents.strategy_document`.",
+  "description": "The Graham Growth document, version 9, as ``graham-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
   "properties": {
     "analysis": {
       "const": "graham_growth_value",

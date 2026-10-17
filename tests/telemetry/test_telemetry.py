@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from src.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
-from src.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder, TrajectoryRecorderConfig
-from src.telemetry.redaction import redact_value, sanitize_exception_message
-from src.telemetry.run_context import RunContext
-from src.telemetry.sinks.base import TrajectorySink
-from src.telemetry.sinks.jsonl import JSONLTrajectorySink
+from investment_analysis_engine.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder, TrajectoryRecorderConfig
+from investment_analysis_engine.telemetry.redaction import redact_value, sanitize_exception_message
+from investment_analysis_engine.telemetry.run_context import RunContext
+from investment_analysis_engine.telemetry.sinks.base import TrajectorySink
+from investment_analysis_engine.telemetry.sinks.jsonl import JSONLTrajectorySink
 
 
 class RecordingSink:

@@ -13,11 +13,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.schema import SchemaItem, Table
 
 from alembic import command, context, op
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.repositories import migrations
-from src.data.repositories.readiness import ReadinessOutcome, ensure_database_ready
-from src.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.repositories import migrations
+from investment_analysis_engine.data.repositories.readiness import ReadinessOutcome, ensure_database_ready
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
 
 def migration_config(path: Path) -> Config:

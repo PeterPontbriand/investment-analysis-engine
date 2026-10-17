@@ -11,17 +11,17 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from src.cli import app
-from src.core.clock import utc_now
-from src.data.financial.cache import InMemoryResolvedInputCache
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.instrument_profile import InstrumentKind, InstrumentProfile
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.evaluation.fixtures.fcf_earnings_growth import (
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.core.clock import utc_now
+from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentProfile
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
-from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()
@@ -35,9 +35,12 @@ def disable_live_instrument_profile_resolution() -> Iterator[None]:
         return InstrumentProfile(ticker=ticker, identity=None, kind_evidence=None, diagnostics=())
 
     with (
-        patch("src.strategies.fcf_growth.execution.compose_graham_profile", side_effect=unknown_profile),
         patch(
-            "src.strategies.fcf_growth.cli._production_financial_cache",
+            "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile",
+            side_effect=unknown_profile,
+        ),
+        patch(
+            "investment_analysis_engine.strategies.fcf_growth.cli._production_financial_cache",
             side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache(clock=utc_now)),
         ),
     ):
@@ -57,7 +60,10 @@ def _provider() -> ProductionFinancialFactsProvider:
 
 
 def test_cli_fcf_growth_runs_concise_and_json_from_same_typed_path() -> None:
-    with patch("src.strategies.fcf_growth.cli.build_sec_production_provider", side_effect=[_provider(), _provider()]):
+    with patch(
+        "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
+        side_effect=[_provider(), _provider()],
+    ):
         concise = runner.invoke(app, ["fcf-growth", "acme"])
         json_result = runner.invoke(app, ["fcf-growth", "ACME", "--json"])
 
@@ -78,8 +84,12 @@ def test_cli_fcf_growth_known_etf_is_successful_not_applicable_without_fact_reso
         instrument_name="Franklin FTSE Switzerland ETF",
     )
     with (
-        patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=provider),
-        patch("src.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile),
+        patch(
+            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=provider
+        ),
+        patch(
+            "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile
+        ),
         patch.object(provider, "fetch_facts", wraps=provider.fetch_facts) as fetch_facts,
     ):
         result = runner.invoke(app, ["fcf-growth", "FLSW", "--json"])
@@ -96,7 +106,9 @@ def test_cli_fcf_growth_known_etf_is_successful_not_applicable_without_fact_reso
 
 
 def test_cli_fcf_growth_selects_per_share_classification_basis() -> None:
-    with patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_provider()):
+    with patch(
+        "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_provider()
+    ):
         result = runner.invoke(
             app,
             ["fcf-growth", "ACME", "--classification-basis", "fcf-per-share", "--json"],
@@ -130,7 +142,9 @@ def test_cli_fcf_growth_modes_are_mutually_exclusive() -> None:
 
 
 def test_cli_fcf_growth_accepts_hyphenated_forward_policy() -> None:
-    with patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_provider()):
+    with patch(
+        "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_provider()
+    ):
         result = runner.invoke(app, ["fcf-growth", "ACME", "--forward-policy", "hard-gate", "--json"])
 
     assert result.exit_code == 0
@@ -140,7 +154,9 @@ def test_cli_fcf_growth_accepts_hyphenated_forward_policy() -> None:
 
 
 def test_cli_fcf_growth_rejects_unapproved_provider_without_network_work() -> None:
-    with patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_provider()):
+    with patch(
+        "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_provider()
+    ):
         result = runner.invoke(app, ["fcf-growth", "ACME", "--data-provider", "unapproved"])
 
     assert result.exit_code == 1

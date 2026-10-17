@@ -15,17 +15,17 @@ from alembic.config import Config
 from sqlalchemy.engine import Connection
 
 from alembic import command
-from src.config import ProjectSettings
-from src.core.repository_root import REPOSITORY_ROOT
-from src.data.repositories import migrations, readiness
-from src.data.repositories.readiness import (
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.repository_root import REPOSITORY_ROOT
+from investment_analysis_engine.data.repositories import migrations, readiness
+from investment_analysis_engine.data.repositories.readiness import (
     DatabaseReadinessError,
     ReadinessOutcome,
     ReadinessReason,
     ensure_database_ready,
 )
-from src.data.repositories.readiness_lock import readiness_lock
-from src.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.repositories.readiness_lock import readiness_lock
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
 
 def _owner(path: str, channel: _ConnectionBase[object, object], crash: bool, mode: str = "automatic") -> None:

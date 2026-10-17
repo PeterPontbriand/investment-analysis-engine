@@ -28,24 +28,30 @@ from uuid import UUID
 import pytest
 from typer.testing import CliRunner
 
-from src.cli import app
-from src.config import ProjectSettings
-from src.core.constants import TrendStatus
-from src.data.financial.production import ProductionFinancialFactsProvider
-from src.data.market_data import MarketDataContext
-from src.data.repositories.sqlite import SQLiteDatabase
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.evaluation.fixtures.graham import SUBJECT_MISSING
-from src.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
-from src.strategies.fcf_growth.selection import FCFGrowthSelection
-from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_number.selection import GrahamNumberSelection
-from src.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
-from src.strategies.momentum.selection import MomentumSelection
-from src.workspace.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
-from src.workspace.repositories.watchlists import SQLiteWatchlistRepository
-from src.workspace.strategy_types import AnalysisSelection
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.constants import TrendStatus
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.market_data import MarketDataContext
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
+    FixtureAnnualFinancialFactsProvider,
+    annual_series,
+)
+from investment_analysis_engine.evaluation.fixtures.graham import SUBJECT_MISSING
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_known_etf_profile
+from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
+from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
+from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.workspace.repositories.analysis_runs import (
+    AnalysisRunConflictError,
+    SQLiteAnalysisRunRepository,
+)
+from investment_analysis_engine.workspace.repositories.watchlists import SQLiteWatchlistRepository
+from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 from tests._cli_helpers import (  # noqa: F401
     isolated_cli_database,
     normalize_cli_output,
@@ -137,7 +143,7 @@ def test_refresh_rejects_an_out_of_range_worker_count(isolated_cli_settings: Pro
     assert result.stderr.strip() == "--workers must be between 1 and 4."
 
 
-@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_sequential_persists_every_member_and_exits_0(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -308,7 +314,7 @@ def test_remove_by_method_commits_when_another_entry_is_unreadable(isolated_cli_
     assert _stored_tickers(isolated_cli_settings) == ["AAPL"]
 
 
-@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_reuses_a_momentum_selections_as_of_and_no_cache(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -326,7 +332,7 @@ def test_refresh_reuses_a_momentum_selections_as_of_and_no_cache(
     assert context.use_cache is False
 
 
-@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_json_emits_one_stable_final_document(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -355,8 +361,13 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0(
     _seed(isolated_cli_settings, "My Watch", [("FLSW", GrahamNumberSelection())])
 
     with (
-        patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()),
-        patch("src.strategies.graham_number.execution.compose_graham_profile", return_value=profile),
+        patch(
+            "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+            return_value=sec_labeled_number_resolver(),
+        ),
+        patch(
+            "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile", return_value=profile
+        ),
     ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
@@ -366,7 +377,7 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0(
     assert payload[0]["status"] == "not_applicable"
 
 
-@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_storage_failure_is_visible_and_nonzero_exit(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -383,7 +394,7 @@ def test_refresh_storage_failure_is_visible_and_nonzero_exit(
     assert "error=1" in output or "error" in output
 
 
-@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_interrupted_stops_admission_persists_completed_and_exits_130(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -407,7 +418,7 @@ def test_refresh_interrupted_stops_admission_persists_completed_and_exits_130(
 
     mock_run.side_effect = fake_run_analysis
 
-    with patch("src.cli_workspace.signal.signal", side_effect=fake_signal):
+    with patch("investment_analysis_engine.cli_workspace.signal.signal", side_effect=fake_signal):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 130
@@ -426,7 +437,10 @@ def test_refresh_graham_growth_selection_persists_with_configured_assumptions(
     growth = GrahamGrowthSelection(expected_growth=6.0, aaa_yield_override=4.4)
     _seed(isolated_cli_settings, "My Watch", [("SYNTH", growth)])
 
-    with patch("src.strategies.graham_growth.cli.build_graham_resolver", return_value=sec_labeled_growth_resolver()):
+    with patch(
+        "investment_analysis_engine.strategies.graham_growth.cli.build_graham_resolver",
+        return_value=sec_labeled_growth_resolver(),
+    ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 0, result.output
@@ -440,7 +454,10 @@ def test_refresh_fcf_growth_selection_persists(isolated_cli_settings: ProjectSet
     """Exercises the FCF/Earnings Growth dispatch branch."""
     _seed(isolated_cli_settings, "My Watch", [("ACME", FCFGrowthSelection())])
 
-    with patch("src.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_fcf_provider()):
+    with patch(
+        "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
+        return_value=_fcf_provider(),
+    ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 0, result.output
@@ -454,7 +471,10 @@ def test_refresh_unavailable_outcome_still_persists_and_exits_1(isolated_cli_set
     """An unavailable (not failed-to-execute) financial outcome still triggers exit 1."""
     _seed(isolated_cli_settings, "My Watch", [(SUBJECT_MISSING, GrahamNumberSelection())])
 
-    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()):
+    with patch(
+        "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+        return_value=sec_labeled_number_resolver(),
+    ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 1
@@ -462,7 +482,7 @@ def test_refresh_unavailable_outcome_still_persists_and_exits_1(isolated_cli_set
     assert "unavailable" in output
 
 
-@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_no_save_executes_but_persists_nothing(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -484,7 +504,7 @@ def test_refresh_no_save_executes_but_persists_nothing(
     assert payload == []
 
 
-@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_no_save_json_reports_saved_false_and_a_null_run_id(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -507,7 +527,10 @@ def test_refresh_no_save_unavailable_outcome_still_exits_1(isolated_cli_settings
     """--no-save still reflects a real financial outcome in the exit code, not just storage failures."""
     _seed(isolated_cli_settings, "My Watch", [(SUBJECT_MISSING, GrahamNumberSelection())])
 
-    with patch("src.strategies.graham_number.cli.build_graham_resolver", return_value=sec_labeled_number_resolver()):
+    with patch(
+        "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+        return_value=sec_labeled_number_resolver(),
+    ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1", "--no-save"])
 
     assert result.exit_code == 1
@@ -519,7 +542,7 @@ def test_refresh_no_save_unavailable_outcome_still_exits_1(isolated_cli_settings
     assert payload == []
 
 
-@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_refresh_text_shows_the_alias_and_json_keeps_the_canonical_method_id(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -547,7 +570,7 @@ def test_runs_list_by_alias_does_not_decode_a_watchlists_unreadable_entries(
     assert "No matching runs." in result.output
 
 
-@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_delete_keeps_saved_runs_browsable_and_replayable(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -586,7 +609,7 @@ def test_delete_prompt_shows_the_entry_count_without_decoding_unreadable_entries
 ) -> None:
     _store_momentum_entry_as_retired_version_one(isolated_cli_settings, "Old Watch", ["AAPL", "MSFT"], retired="MSFT")
 
-    with patch("src.cli_workspace._stdin_is_interactive", return_value=True):
+    with patch("investment_analysis_engine.cli_workspace._stdin_is_interactive", return_value=True):
         declined = runner.invoke(app, ["watchlist", "delete", "Old Watch"], input="n\n")
 
     assert declined.exit_code == 1
@@ -612,7 +635,7 @@ def test_delete_json_with_an_unreadable_entry_deletes_reports_the_failure_envelo
     assert _stored_tickers(isolated_cli_settings) == []
 
 
-@patch("src.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_rename_leaves_a_saved_run_showing_the_name_the_watchlist_had_when_it_ran(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,

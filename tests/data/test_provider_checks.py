@@ -21,10 +21,10 @@ import yfinance.const as yfinance_const
 import yfinance.scrapers.history as yfinance_history
 import yfinance.scrapers.quote as yfinance_quote
 
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.data.base_client import DataFetchError
-from src.data.financial.facts import FinancialProviderError
-from src.data.provider_checks import (
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.financial.facts import FinancialProviderError
+from investment_analysis_engine.data.provider_checks import (
     MAX_REQUESTS_PER_CHECK,
     PROVIDER_CHECKS,
     SEC_EDGAR_SPEC,
@@ -46,9 +46,9 @@ from src.data.provider_checks import (
     open_tls_connection,
     yahoo_probe_description,
 )
-from src.data.sec_edgar import financial_facts
-from src.data.yfinance.client import YFINANCE_DATA_HOST, YFinanceQuote
-from src.reporting.documents.health import HealthVerdict
+from investment_analysis_engine.data.sec_edgar import financial_facts
+from investment_analysis_engine.data.yfinance.client import YFINANCE_DATA_HOST, YFinanceQuote
+from investment_analysis_engine.reporting.documents.health import HealthVerdict
 
 _NOW = datetime(2026, 10, 5, tzinfo=UTC)
 _COLUMNS = ("Open", "High", "Low", "Close", "Volume")
@@ -739,8 +739,8 @@ def test_opening_a_tls_connection_handshakes_with_the_host_name_and_sends_nothin
     context = MagicMock()
     context.wrap_socket.return_value = wrapped
     with (
-        patch("src.data.provider_checks.socket.create_connection", return_value=raw) as connect,
-        patch("src.data.provider_checks.ssl.create_default_context", return_value=context),
+        patch("investment_analysis_engine.data.provider_checks.socket.create_connection", return_value=raw) as connect,
+        patch("investment_analysis_engine.data.provider_checks.ssl.create_default_context", return_value=context),
     ):
         open_tls_connection("example.test", 443, 1.5)
 

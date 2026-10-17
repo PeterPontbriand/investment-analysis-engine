@@ -12,26 +12,30 @@ import pandas as pd
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from src.config.reliability_limits import ReliabilityLimits
-from src.config.schema_config import SchemaConfig
-from src.core.failure_codes import FailureReasonCode
-from src.core.provider_failure_element import ProviderFailure, ProviderFailureInput
-from src.core.provider_failure_kind import ProviderFailureKind
-from src.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
-from src.data.base_client import DataFetchError
-from src.data.financial.facts import FinancialProviderError
-from src.data.market_data import HistoricalMarketData, MarketDataContext
-from src.data.quality import HistoricalDataQualityError, QualityContext, evaluate_historical_quality
-from src.llm.client import LLMClient
-from src.orchestrator.context import MessageContext
-from src.orchestrator.dispatcher import AsyncToolDispatcher
-from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
-from src.orchestrator.reliability import CircuitBreaker
-from src.orchestrator.types import ToolCallRequest, ToolCallResult
-from src.reporting.failure_envelope import failure_envelope
-from src.telemetry.recorder import TrajectoryRecorder, TrajectoryRecorderConfig
-from src.telemetry.run_context import RunContext
-from src.tools.parser import ToolParser
+from investment_analysis_engine.config.reliability_limits import ReliabilityLimits
+from investment_analysis_engine.config.schema_config import SchemaConfig
+from investment_analysis_engine.core.failure_codes import FailureReasonCode
+from investment_analysis_engine.core.provider_failure_element import ProviderFailure, ProviderFailureInput
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.core.trajectory_events import TelemetryMode, TrajectoryEvent, TrajectoryEventType
+from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.financial.facts import FinancialProviderError
+from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
+from investment_analysis_engine.data.quality import (
+    HistoricalDataQualityError,
+    QualityContext,
+    evaluate_historical_quality,
+)
+from investment_analysis_engine.llm.client import LLMClient
+from investment_analysis_engine.orchestrator.context import MessageContext
+from investment_analysis_engine.orchestrator.dispatcher import AsyncToolDispatcher
+from investment_analysis_engine.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
+from investment_analysis_engine.orchestrator.reliability import CircuitBreaker
+from investment_analysis_engine.orchestrator.types import ToolCallRequest, ToolCallResult
+from investment_analysis_engine.reporting.failure_envelope import failure_envelope
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder, TrajectoryRecorderConfig
+from investment_analysis_engine.telemetry.run_context import RunContext
+from investment_analysis_engine.tools.parser import ToolParser
 
 
 class _Sink:

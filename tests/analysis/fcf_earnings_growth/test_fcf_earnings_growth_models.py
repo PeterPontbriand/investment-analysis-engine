@@ -8,18 +8,18 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.core.analysis_status import CalculationStatus
-from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
-from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.strategies.fcf_growth import models as models_module
-from src.strategies.fcf_growth.models import (
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
+from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
+from investment_analysis_engine.strategies.fcf_growth import models as models_module
+from investment_analysis_engine.strategies.fcf_growth.models import (
     AnnualGrowthObservation,
     ClassificationDecision,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
 )
-from src.strategies.fcf_growth.vocabulary import (
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     Classification,
     ForwardEvidenceStatus,
     HistoricalHorizon,

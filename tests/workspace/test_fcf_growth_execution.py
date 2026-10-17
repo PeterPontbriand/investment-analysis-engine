@@ -7,28 +7,39 @@ from unittest.mock import patch
 
 import pytest
 
-from src.analysis.base_analyzer import AnalysisContext
-from src.analysis.run_models import RunOutcome
-from src.core.analysis_status import CalculationStatus
-from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
-from src.data.instrument_profile import InstrumentKind
-from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from src.evaluation.fixtures.fcf_earnings_growth import FixtureAnnualFinancialFactsProvider, annual_series
-from src.evaluation.fixtures.instrument_profiles import (
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
+from investment_analysis_engine.data.instrument_profile import InstrumentKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
+    FixtureAnnualFinancialFactsProvider,
+    annual_series,
+)
+from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
     GOLDEN_ETF_TICKER,
     fixture_instrument_profile,
     fixture_known_etf_profile,
 )
-from src.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
-from src.strategies.fcf_growth.execution import FCFGrowthCapture, classify_fcf_growth_outcome, execute_fcf_growth
-from src.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.strategies.fcf_growth.models import (
+from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from investment_analysis_engine.strategies.fcf_growth.execution import (
+    FCFGrowthCapture,
+    classify_fcf_growth_outcome,
+    execute_fcf_growth,
+)
+from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from investment_analysis_engine.strategies.fcf_growth.models import (
     FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
 )
-from src.strategies.fcf_growth.vocabulary import Classification, ForwardEvidenceStatus, TrendClassification
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
+    Classification,
+    ForwardEvidenceStatus,
+    TrendClassification,
+)
 
 NOW = datetime(2026, 9, 18, 12, tzinfo=UTC)
 
@@ -140,7 +151,9 @@ def test_execute_fcf_growth_delegates_with_the_composed_profile() -> None:
         return canned
 
     with (
-        patch("src.strategies.fcf_growth.execution.compose_graham_profile", return_value=composed),
+        patch(
+            "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile", return_value=composed
+        ),
         patch.object(FCFEarningsGrowthAnalyzer, "run_analysis", fake_run_analysis),
     ):
         capture = execute_fcf_growth(
@@ -168,7 +181,9 @@ def test_known_etf_profile_is_not_applicable_through_the_real_analyzer() -> None
     resolver = _resolver()
     etf_profile = fixture_known_etf_profile()
 
-    with patch("src.strategies.fcf_growth.execution.compose_graham_profile", return_value=etf_profile):
+    with patch(
+        "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile", return_value=etf_profile
+    ):
         capture = execute_fcf_growth(
             resolver,
             GOLDEN_ETF_TICKER,
@@ -190,7 +205,7 @@ def test_partial_forward_evidence_is_preserved_unmodified() -> None:
     resolver = _resolver()
 
     with patch(
-        "src.strategies.fcf_growth.execution.compose_graham_profile",
+        "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile",
         return_value=fixture_instrument_profile("ACME", kind=InstrumentKind.EQUITY, provider_value="EQUITY"),
     ):
         capture = execute_fcf_growth(
@@ -217,7 +232,7 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(socket.socket, "connect", reject_network)
 
     with patch(
-        "src.strategies.fcf_growth.execution.compose_graham_profile",
+        "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile",
         return_value=fixture_instrument_profile("ACME", kind=InstrumentKind.EQUITY, provider_value="EQUITY"),
     ):
         capture = execute_fcf_growth(

@@ -26,7 +26,7 @@ work package as a whole was granted 2026-09-22** — see §15.4.
 
 ## 1. Problem and decision
 
-[`src/data/instrument_profile.py`](../../../../../src/data/instrument_profile.py)
+[`src/data/instrument_profile.py`](../../../../../investment_analysis_engine/data/instrument_profile.py)
 today only composes **request-scoped, live** identity and instrument-kind
 evidence (`compose_instrument_profile`): every analysis re-resolves the same
 descriptive/classification lookups from providers, with no persisted identity,
@@ -40,14 +40,14 @@ freshness and ticker-reuse rules — is decided.
 Separately, quality-decision failures are inconsistently typed across the
 repository/data-quality boundary:
 
-- [`src/data/quality.py:66`](../../../../../src/data/quality.py) defines
+- [`src/data/quality.py:66`](../../../../../investment_analysis_engine/data/quality.py) defines
   `HistoricalDataQualityError(DataFetchError)` — a genuine quality-rule
   rejection is raised as a *fetch* error.
-- [`src/data/cached_client.py:103,124`](../../../../../src/data/cached_client.py)
+- [`src/data/cached_client.py:103,124`](../../../../../investment_analysis_engine/data/cached_client.py)
   raises bare `DataFetchError(error)` where `error` is itself a quality-decision
   reason string produced by `evaluate_historical_quality`/`evaluate_freshness`,
   not a provider/network failure.
-- [`src/strategies/momentum/analyzer.py:153,342,353`](../../../../../src/strategies/momentum/analyzer.py)
+- [`src/strategies/momentum/analyzer.py:153,342,353`](../../../../../investment_analysis_engine/strategies/momentum/analyzer.py)
   raises `HistoricalDataQualityError` for the same reason, inheriting the same
   mis-based hierarchy.
 - `src/data/financial/quality.py`'s `financial_quality_error` already returns a
@@ -164,7 +164,7 @@ single rendered view.
 
 Modeled directly on the accepted `market_data_cache_entries` /
 `market_price_observations` pattern in
-[`src/data/repositories/schema.py`](../../../../../src/data/repositories/schema.py):
+[`src/data/repositories/schema.py`](../../../../../investment_analysis_engine/data/repositories/schema.py):
 
 - `instrument_profiles` — one row per `profile_id`: `ticker`, `identity_anchor`
   (required, non-null — §2's decision means every row is anchored), `cached_at`,
@@ -196,11 +196,11 @@ Modeled directly on the accepted `market_data_cache_entries` /
   `envelope_json` column.
 
 Implemented in Slice B:
-[`src/data/repositories/schema.py`](../../../../../src/data/repositories/schema.py)
+[`src/data/repositories/schema.py`](../../../../../investment_analysis_engine/data/repositories/schema.py)
 (`instrument_profiles` table),
 [`alembic/versions/0004_instrument_profiles.py`](../../../../../alembic/versions/0004_instrument_profiles.py),
 and
-[`src/data/repositories/instrument_profiles.py`](../../../../../src/data/repositories/instrument_profiles.py)
+[`src/data/repositories/instrument_profiles.py`](../../../../../investment_analysis_engine/data/repositories/instrument_profiles.py)
 (`SQLiteInstrumentProfileRepository`, `InstrumentProfileRecord`).
 
 ## 7. `DataQualityError` hierarchy (Issue #33 / item 8)
@@ -634,20 +634,20 @@ satisfies §5's historical-snapshot contract by construction, with no
 production code change required. Verified by reading the actual chain rather
 than trusting the plan:
 
-- [`src/workspace/execution.py`](../../../../../src/workspace/execution.py)'s
+- [`src/workspace/execution.py`](../../../../../investment_analysis_engine/workspace/execution.py)'s
   `execute()` builds `AnalysisRun(..., instrument_profile=result.profile, ...)`
   from the `InstrumentProfile` *value* the capture callable already produced
   — whether that value came from a live `compose_instrument_profile()` call
   or (after Slice D) `CachedInstrumentProfileResolver.resolve()` makes no
   difference, since either way it is a plain immutable dataclass value by the
   time `execute()` sees it.
-- [`src/workspace/repositories/analysis_runs.py`](../../../../../src/workspace/repositories/analysis_runs.py)
+- [`src/workspace/repositories/analysis_runs.py`](../../../../../investment_analysis_engine/workspace/repositories/analysis_runs.py)
   persists the *entire* `AnalysisRun` — including `instrument_profile`, with
   its identity/kind evidence and diagnostics — verbatim as `envelope_json` via
   `model_dump(mode="json")`, and `get()` only ever re-validates and returns
   that same stored value. Nothing about a later durable-cache supersession
   can reach an already-inserted row.
-- [`src/workspace_documents/run_replay.py`](../../../../../src/workspace_documents/run_replay.py)'s
+- [`src/workspace_documents/run_replay.py`](../../../../../investment_analysis_engine/workspace_documents/run_replay.py)'s
   `project_run()` reads `run.instrument_profile` exclusively — its own module
   docstring already states it "must never call ... profile resolvers ...
   mutable caches" — so replay was already immune to Slice D's wiring before

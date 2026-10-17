@@ -11,22 +11,22 @@ import pytest
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.types import AwareDatetime, FutureDatetime, NaiveDatetime, PastDatetime
 
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.cli_provider_check import ProviderCheckFindings
+from investment_analysis_engine.cli_workspace import _refresh_json, _watchlist_json
+from investment_analysis_engine.core.failure_codes import FailureReasonCode
+from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
+from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
+from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
+from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.workspace.refresh import RefreshJobResult, RefreshSummary
+from investment_analysis_engine.workspace.runs import Watchlist, WatchlistEntry
+from investment_analysis_engine.workspace.strategy_types import AnalysisSelection, SelectionMember
+from investment_analysis_engine.workspace_documents.refresh import RefreshResultDocument, RefreshSummaryDocument
+from investment_analysis_engine.workspace_documents.runs import RunsListDocument, RunSummaryDocument
+from investment_analysis_engine.workspace_documents.watchlist import WatchlistDeleteDocument, WatchlistDocument
 from scripts.generate_schemas import DOCUMENTS, expected_schemas
-from src.analysis.run_models import RunOutcome
-from src.cli_provider_check import ProviderCheckFindings
-from src.cli_workspace import _refresh_json, _watchlist_json
-from src.core.failure_codes import FailureReasonCode
-from src.reporting.documents.timestamp import DocumentTimestamp
-from src.strategies.fcf_growth.selection import FCFGrowthSelection
-from src.strategies.graham_growth.selection import GrahamGrowthSelection
-from src.strategies.graham_number.selection import GrahamNumberSelection
-from src.strategies.momentum.selection import MomentumSelection
-from src.workspace.refresh import RefreshJobResult, RefreshSummary
-from src.workspace.runs import Watchlist, WatchlistEntry
-from src.workspace.strategy_types import AnalysisSelection, SelectionMember
-from src.workspace_documents.refresh import RefreshResultDocument, RefreshSummaryDocument
-from src.workspace_documents.runs import RunsListDocument, RunSummaryDocument
-from src.workspace_documents.watchlist import WatchlistDeleteDocument, WatchlistDocument
 
 _DATETIME_LEAVES: tuple[Any, ...] = (datetime, AwareDatetime, NaiveDatetime, PastDatetime, FutureDatetime)
 _TIMESTAMP_METADATA: tuple[Any, ...] = get_args(DocumentTimestamp)[1:]
@@ -122,7 +122,8 @@ def test_the_watchlist_selection_is_the_analysis_selection_union() -> None:
     selection = schema["$defs"]["WatchlistEntryDocument"]["properties"]["selection"]
     assert "oneOf" in selection, (
         "the entry selection lost its oneOf over the selection models: the selection serializer in "
-        "src/workspace_documents/watchlist.py must stay unannotated, because any return annotation "
+        "investment_analysis_engine/workspace_documents/watchlist.py must stay unannotated, "
+        "because any return annotation "
         "makes pydantic drop the union from the generated schema"
     )
     members = {reference["$ref"].rsplit("/", 1)[1] for reference in selection["oneOf"]}
