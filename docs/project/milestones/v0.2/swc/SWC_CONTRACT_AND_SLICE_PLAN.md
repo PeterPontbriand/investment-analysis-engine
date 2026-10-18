@@ -1497,8 +1497,12 @@ Approved by the project owner on 2026-10-17.
   and T21 compare a surface with the whole closed tuple in both directions; making them per-strategy would
   lose the orphan direction (a selection class, tool, argument model or tier entry with no descriptor). They
   are classed as suite-wide and keep their signatures and messages. Each site check is a new function of the
-  strategy's names. Where a suite-wide check had a per-strategy part (the stored-run round trip, the replay,
-  the fixture-id rule), that part became a helper that both forms call.
+  strategy's names. Where a suite-wide check had a per-strategy part, that part is one helper that both forms
+  call, and the orphan direction stays suite-wide only: `_selection_gaps_for` (T1), `_evidence_gaps_for` (T2),
+  `_analyzer_gaps_for` (T3), `_argument_gaps_for` (T4), `_tool_required_gaps_for` and `_dispatch_gaps_for` (T6),
+  `_tier_gaps_for` (T10 for both tiers), `_strategy_flag_gaps_for` (T7), `_round_trip_entry_gaps` and
+  `_replay_entry_gaps` (T8), and `evaluation_fixture_id_gaps` and `published_schema_gaps`, which already took a
+  single descriptor.
 - **Site coverage by row.** The site data file has one site per row of the design's §17 (1a and 1 to 19) and
   one for the schema-generation command. Rows 2 to 5, 10 and 15 work from the declared descriptor and the
   type-level lists; an undeclared strategy is reported at each of them, naming the file to edit.

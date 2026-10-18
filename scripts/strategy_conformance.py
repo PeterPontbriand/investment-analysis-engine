@@ -192,23 +192,41 @@ def _is_frozen(instance: object, attribute: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def selection_union_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
-    """T1: compare the descriptors' identifiers with the selection classes' ``Literal`` identifiers."""
-    declared = {(item.analysis_id, item.method_id): item for item in descriptors}
-    selections = {
+def _selections_by_ids() -> dict[tuple[str, str], type[BaseModel]]:
+    """Return the ``SelectionMember`` classes keyed by the identifiers their ``Literal`` fields default to."""
+    return {
         (_literal_default(member, "analysis_id"), _literal_default(member, "method_id")): member
         for member in get_args(SelectionMember)
     }
+
+
+def _selection_gaps_for(item: StrategyDescriptor, selections: Mapping[tuple[str, str], type[BaseModel]]) -> list[str]:
+    """T1 for one descriptor: a selection class in ``SelectionMember`` carries its identifiers."""
+    if (item.analysis_id, item.method_id) in selections:
+        return []
+    return [f"descriptor {label(item)} has no selection class in SelectionMember"]
+
+
+def selection_union_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
+    """T1: compare the descriptors' identifiers with the selection classes' ``Literal`` identifiers."""
+    declared = {(item.analysis_id, item.method_id): item for item in descriptors}
+    selections = _selections_by_ids()
     gaps: list[str] = []
     gaps.extend(
         f"selection class {selections[key].__name__} with ids {key} has no descriptor"
         for key in sorted(selections.keys() - declared.keys())
     )
-    gaps.extend(
-        f"descriptor {label(declared[key])} has no selection class in SelectionMember"
-        for key in sorted(declared.keys() - selections.keys())
-    )
+    for key in sorted(declared.keys() - selections.keys()):
+        gaps.extend(_selection_gaps_for(declared[key], selections))
     return gaps
+
+
+def _evidence_gaps_for(item: StrategyDescriptor, union: set[type]) -> list[str]:
+    """T2 for one descriptor: its result type is in the ``NativeEvidence`` union."""
+    result_type = item.behavior.result_type
+    if result_type in union:
+        return []
+    return [f"descriptor {label(item)} result type {result_type.__name__} is not in NativeEvidence"]
 
 
 def native_evidence_union_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
@@ -218,10 +236,8 @@ def native_evidence_union_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> l
     gaps = [
         f"{member.__name__} is in NativeEvidence but no descriptor declares it" for member in union - declared.keys()
     ]
-    gaps.extend(
-        f"descriptor {label(declared[result_type])} result type {result_type.__name__} is not in NativeEvidence"
-        for result_type in declared.keys() - union
-    )
+    for result_type in declared.keys() - union:
+        gaps.extend(_evidence_gaps_for(declared[result_type], union))
     return sorted(gaps)
 
 
@@ -254,6 +270,14 @@ def _analyzer_result_type(analyzer: type) -> type | None:
     return None
 
 
+def _analyzer_gaps_for(item: StrategyDescriptor, claimed: Mapping[type, list[str]]) -> list[str]:
+    """T3 for one descriptor: an analyzer returns its result type."""
+    result_type = item.behavior.result_type
+    if result_type in claimed:
+        return []
+    return [f"descriptor {label(item)} result type {result_type.__name__} has no analyzer"]
+
+
 def analyzer_generics_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
     """T3: compare each descriptor's result type with the ``ResultT`` of the analyzers found by package walk."""
     _import_strategy_modules()
@@ -275,17 +299,33 @@ def analyzer_generics_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[
             gaps.append(f"analyzer {', '.join(names)} returns {result_type.__name__}, which no descriptor declares")
         elif len(names) > 1:
             gaps.append(f"analyzers {', '.join(names)} share the result type {result_type.__name__}")
-    gaps.extend(
-        f"descriptor {label(item)} result type {result_type.__name__} has no analyzer"
-        for result_type, item in declared.items()
-        if result_type not in claimed
-    )
+    for item in declared.values():
+        gaps.extend(_analyzer_gaps_for(item, claimed))
     return gaps
 
 
 # ---------------------------------------------------------------------------
 # T4, T5, T6: tool surfaces, case routing and evaluation coverage
 # ---------------------------------------------------------------------------
+
+
+def _defined_argument_models() -> set[type[AnalysisToolArguments]]:
+    """Return the argument models defined under ``investment_analysis_engine``."""
+    return {
+        model
+        for model in AnalysisToolArguments.__subclasses__()
+        if model.__module__.startswith("investment_analysis_engine.")
+    }
+
+
+def _argument_gaps_for(item: StrategyDescriptor, defined: set[type[AnalysisToolArguments]]) -> list[str]:
+    """T4 for one descriptor: its arguments model is defined under ``investment_analysis_engine``."""
+    if item.tool_arguments in defined:
+        return []
+    return [
+        f"descriptor {label(item)} arguments model {item.tool_arguments.__qualname__} is not defined under "
+        "investment_analysis_engine"
+    ]
 
 
 def tool_surface_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
@@ -297,21 +337,13 @@ def tool_surface_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
     tools = {item.tool for item in descriptors}
     gaps = [f"tool {tool.name} is in ToolName but no descriptor binds it" for tool in ToolName if tool not in tools]
     models = {item.tool_arguments for item in descriptors}
-    defined = {
-        model
-        for model in AnalysisToolArguments.__subclasses__()
-        if model.__module__.startswith("investment_analysis_engine.")
-    }
+    defined = _defined_argument_models()
     gaps.extend(
         f"arguments model {model.__qualname__} subclasses AnalysisToolArguments but no descriptor declares it"
         for model in sorted(defined - models, key=lambda item: item.__qualname__)
     )
-    gaps.extend(
-        f"descriptor {label(item)} arguments model {item.tool_arguments.__qualname__} is not defined under "
-        "investment_analysis_engine"
-        for item in descriptors
-        if item.tool_arguments not in defined
-    )
+    for item in descriptors:
+        gaps.extend(_argument_gaps_for(item, defined))
     return gaps
 
 
@@ -331,14 +363,35 @@ def case_routing_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
     return gaps
 
 
+def _required_tools() -> set[ToolName]:
+    """Return the tools that some golden case requires."""
+    return {tool for case in DETERMINISTIC_CASES for tool in case.expectation.tool_constraints.required}
+
+
+def _tool_required_gaps_for(item: StrategyDescriptor, required: set[ToolName]) -> list[str]:
+    """T6 for one descriptor: a golden case requires its tool."""
+    if item.tool in required:
+        return []
+    return [f"descriptor {label(item)} tool {item.tool.value} is required by no golden case"]
+
+
+def _dispatch_gaps_for(request: DeterministicCaseRequest, expected: type) -> list[str]:
+    """T6 for one case: the fixture composition serves it with the result type its descriptor declares."""
+    case_id = request.case.case_id
+    result = asyncio.run(dispatch_fixture_case(request.case, request.arguments, clock_at=_FIXTURE_CLOCK))
+    if not result.success:
+        return [f"case {case_id}: fixture dispatch failed: {result.error_message}"]
+    if type(result.result) is not expected:
+        return [f"case {case_id}: dispatch returned {type(result.result).__name__}, expected {expected.__name__}"]
+    return []
+
+
 def evaluation_coverage_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[str]:
     """T6: every descriptor tool is required by a golden case, and the fixture composition serves every case."""
-    required = {tool for case in DETERMINISTIC_CASES for tool in case.expectation.tool_constraints.required}
-    gaps = [
-        f"descriptor {label(item)} tool {item.tool.value} is required by no golden case"
-        for item in descriptors
-        if item.tool not in required
-    ]
+    required = _required_tools()
+    gaps: list[str] = []
+    for item in descriptors:
+        gaps.extend(_tool_required_gaps_for(item, required))
     indexes = build_indexes(descriptors)
     for request in build_deterministic_requests():
         case_id = request.case.case_id
@@ -347,20 +400,25 @@ def evaluation_coverage_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> lis
         except UndeclaredStrategyError as error:
             gaps.append(f"case {case_id}: {error}")
             continue
-        result = asyncio.run(dispatch_fixture_case(request.case, request.arguments, clock_at=_FIXTURE_CLOCK))
-        expected = indexes.by_tool[tool].behavior.result_type
-        if not result.success:
-            gaps.append(f"case {case_id}: fixture dispatch failed: {result.error_message}")
-        elif type(result.result) is not expected:
-            gaps.append(
-                f"case {case_id}: dispatch returned {type(result.result).__name__}, expected {expected.__name__}"
-            )
+        gaps.extend(_dispatch_gaps_for(request, indexes.by_tool[tool].behavior.result_type))
     return gaps
 
 
 # ---------------------------------------------------------------------------
 # T10: the evaluation tier covers every descriptor
 # ---------------------------------------------------------------------------
+
+
+def _tier_gaps_for(
+    item: StrategyDescriptor, tier: Sequence[CliStrategy] | Sequence[EvaluationStrategy], tier_name: str
+) -> list[str]:
+    """T10 for one descriptor: exactly one entry of the named tier is paired with its core bundle."""
+    entries = sum(1 for entry in tier if entry.behavior is item.behavior)
+    if entries == 1:
+        return []
+    if entries == 0:
+        return [f"strategy {label(item)} is not wired in: {tier_name}"]
+    return [f"strategy {label(item)} has {entries} entries in the {tier_name}"]
 
 
 def evaluation_tier_gaps(
@@ -374,11 +432,7 @@ def evaluation_tier_gaps(
     """
     gaps: list[str] = []
     for item in descriptors:
-        entries = [entry for entry in tier if entry.behavior is item.behavior]
-        if not entries:
-            gaps.append(f"strategy {label(item)} is not wired in: evaluation tier")
-        elif len(entries) > 1:
-            gaps.append(f"strategy {label(item)} has {len(entries)} entries in the evaluation tier")
+        gaps.extend(_tier_gaps_for(item, tier, "evaluation tier"))
     declared = {id(item.behavior) for item in descriptors}
     gaps.extend(
         "an evaluation tier entry is paired with a bundle that no descriptor holds"
@@ -399,11 +453,7 @@ def cli_tier_gaps(
     """
     gaps: list[str] = []
     for item in descriptors:
-        entries = [entry for entry in tier if entry.behavior is item.behavior]
-        if not entries:
-            gaps.append(f"strategy {label(item)} is not wired in: CLI tier")
-        elif len(entries) > 1:
-            gaps.append(f"strategy {label(item)} has {len(entries)} entries in the CLI tier")
+        gaps.extend(_tier_gaps_for(item, tier, "CLI tier"))
     declared = {id(item.behavior) for item in descriptors}
     gaps.extend(
         "a CLI tier entry is paired with a bundle that no descriptor holds"
@@ -1157,6 +1207,14 @@ def evaluation_tier_is_closed_gaps(tier: Sequence[EvaluationStrategy] = EVALUATI
     return gaps
 
 
+def _strategy_flag_gaps_for(alias: str, parameters: Iterable[object]) -> list[str]:
+    """T7 for one strategy command: it offers ``--save-run`` and ``--json``."""
+    offered = {option for parameter in parameters for option in getattr(parameter, "opts", ())}
+    return [
+        f"strategy command {alias!r} does not offer {flag}" for flag in ("--save-run", "--json") if flag not in offered
+    ]
+
+
 def command_table_gaps(descriptors: tuple[StrategyDescriptor, ...], app: typer.Typer) -> list[str]:
     """T7: the real Typer app's top-level commands against the descriptors' aliases.
 
@@ -1179,12 +1237,7 @@ def command_table_gaps(descriptors: tuple[StrategyDescriptor, ...], app: typer.T
             f"top-level command {name!r} is neither a strategy alias, a command group nor a listed non-strategy command"
         )
     for alias in sorted((aliases & set(commands)) - groups):
-        offered = {option for parameter in commands[alias].params for option in getattr(parameter, "opts", ())}
-        gaps.extend(
-            f"strategy command {alias!r} does not offer {flag}"
-            for flag in ("--save-run", "--json")
-            if flag not in offered
-        )
+        gaps.extend(_strategy_flag_gaps_for(alias, commands[alias].params))
     return gaps
 
 
@@ -1732,13 +1785,12 @@ def site_analyzer(names: StrategyNames) -> list[Gap]:
     def returns_the_result(item: StrategyDescriptor) -> list[str]:
         _import_strategy_modules()
         prefix = f"{_STRATEGIES_PACKAGE}.{names.module}."
-        owned = [analyzer for analyzer in _concrete_analyzers() if analyzer.__module__.startswith(prefix)]
-        if any(_analyzer_result_type(analyzer) is item.behavior.result_type for analyzer in owned):
-            return []
-        return [
-            f"descriptor {label(item)} result type {item.behavior.result_type.__name__} has no analyzer in "
-            f"{prefix[:-1]}"
-        ]
+        claimed: dict[type, list[str]] = {}
+        for analyzer in _concrete_analyzers():
+            result_type = _analyzer_result_type(analyzer)
+            if analyzer.__module__.startswith(prefix) and result_type is not None:
+                claimed.setdefault(result_type, []).append(f"{analyzer.__module__}.{analyzer.__qualname__}")
+        return _analyzer_gaps_for(item, claimed)
 
     return _file_site("analyzer", names, (r".+Analyzer",), inspect_descriptor=returns_the_result)
 
@@ -1761,11 +1813,10 @@ def site_tool(names: StrategyNames) -> list[Gap]:
     """Row 4: the tool file defines the arguments model, dependencies and handler the descriptor binds."""
 
     def binds_the_arguments(item: StrategyDescriptor) -> list[str]:
-        if item.tool_arguments not in AnalysisToolArguments.__subclasses__():
-            return [f"{item.tool_arguments.__qualname__} does not subclass AnalysisToolArguments"]
+        found = _argument_gaps_for(item, _defined_argument_models())
         if not item.tool_arguments.__module__.startswith(f"{_STRATEGIES_PACKAGE}.{names.module}."):
-            return [f"{item.tool_arguments.__qualname__} is not defined in the strategy's package"]
-        return []
+            found.append(f"{item.tool_arguments.__qualname__} is not defined in the strategy's package")
+        return found
 
     return _file_site(
         "tool",
@@ -1779,12 +1830,10 @@ def site_unions(names: StrategyNames) -> list[Gap]:
     """Row 5: the descriptor's selection class and result type are in the two type-level unions."""
 
     def in_the_unions(item: StrategyDescriptor) -> list[str]:
-        found = []
+        found = _evidence_gaps_for(item, set(get_args(NativeEvidence)))
         behavior = item.behavior
         if isinstance(behavior, StrategyBehavior) and behavior.selection_type not in get_args(SelectionMember):
             found.append(f"selection class {behavior.selection_type.__name__} is not in SelectionMember")
-        if behavior.result_type not in get_args(NativeEvidence):
-            found.append(f"result type {behavior.result_type.__name__} is not in NativeEvidence")
         return found
 
     return _descriptor_site("unions", names, in_the_unions)
@@ -1794,14 +1843,7 @@ def site_selection(names: StrategyNames) -> list[Gap]:
     """Row 6: the selection file defines a selection class whose identifiers are the descriptor's."""
 
     def carries_the_ids(item: StrategyDescriptor) -> list[str]:
-        behavior = item.behavior
-        if not isinstance(behavior, StrategyBehavior):
-            return []
-        selection = behavior.selection_type
-        ids = (_literal_default(selection, "analysis_id"), _literal_default(selection, "method_id"))
-        if ids != (item.analysis_id, item.method_id):
-            return [f"descriptor {label(item)} has no selection member: {selection.__name__} carries {ids}"]
-        return []
+        return _selection_gaps_for(item, _selections_by_ids())
 
     return _file_site("selection", names, (r".+Selection",), inspect_descriptor=carries_the_ids)
 
@@ -1833,34 +1875,17 @@ def site_cli(names: StrategyNames) -> list[Gap]:
     return _file_site("cli", names, ("build_selection", "refresh", "command"))
 
 
-def _tier_entries(item: StrategyDescriptor, tier: Sequence[CliStrategy] | Sequence[EvaluationStrategy]) -> int:
-    return sum(1 for entry in tier if entry.behavior is item.behavior)
-
-
 def site_cli_tier(names: StrategyNames) -> list[Gap]:
     """Row 10: one CLI-tier entry serves the descriptor, and its alias is a command offering both strategy flags."""
 
     def wired(item: StrategyDescriptor) -> list[str]:
-        found = []
-        entries = _tier_entries(item, CLI_STRATEGIES)
-        if entries != 1:
-            found.append(
-                f"strategy {label(item)} is not wired in: CLI tier"
-                if entries == 0
-                else f"strategy {label(item)} has {entries} entries in the CLI tier"
-            )
+        found = _tier_gaps_for(item, CLI_STRATEGIES, "CLI tier")
         root = typer.main.get_command(app)
         commands = root.commands if isinstance(root, TyperGroup) else {}
         command = commands.get(item.alias)
         if command is None:
             return [*found, f"alias {item.alias!r} is not a top-level command"]
-        offered = {option for parameter in command.params for option in getattr(parameter, "opts", ())}
-        found.extend(
-            f"strategy command {item.alias!r} does not offer {flag}"
-            for flag in ("--save-run", "--json")
-            if flag not in offered
-        )
-        return found
+        return [*found, *_strategy_flag_gaps_for(item.alias, command.params)]
 
     return _descriptor_site("cli-tier", names, wired)
 
@@ -1910,14 +1935,7 @@ def site_evaluation_tier(names: StrategyNames) -> list[Gap]:
     """Row 15: one evaluation-tier entry serves the descriptor."""
 
     def wired(item: StrategyDescriptor) -> list[str]:
-        entries = _tier_entries(item, EVALUATION_STRATEGIES)
-        if entries == 1:
-            return []
-        return [
-            f"strategy {label(item)} is not wired in: evaluation tier"
-            if entries == 0
-            else f"strategy {label(item)} has {entries} entries in the evaluation tier"
-        ]
+        return _tier_gaps_for(item, EVALUATION_STRATEGIES, "evaluation tier")
 
     return _descriptor_site("evaluation-tier", names, wired)
 
@@ -1939,19 +1957,9 @@ def site_cases(names: StrategyNames) -> list[Gap]:
     """Row 16: the cases file defines the arguments table and cases, and the fixtures serve each of the tool's cases."""
 
     def served(item: StrategyDescriptor) -> list[str]:
-        requests = _requests_of(item)
-        if not requests:
-            return [f"descriptor {label(item)} tool {item.tool.value} is required by no golden case"]
-        found = []
-        for request in requests:
-            result = asyncio.run(dispatch_fixture_case(request.case, request.arguments, clock_at=_FIXTURE_CLOCK))
-            if not result.success:
-                found.append(f"case {request.case.case_id}: fixture dispatch failed: {result.error_message}")
-            elif type(result.result) is not item.behavior.result_type:
-                found.append(
-                    f"case {request.case.case_id}: dispatch returned {type(result.result).__name__}, "
-                    f"expected {item.behavior.result_type.__name__}"
-                )
+        found = _tool_required_gaps_for(item, _required_tools())
+        for request in _requests_of(item):
+            found.extend(_dispatch_gaps_for(request, item.behavior.result_type))
         return found
 
     upper = names.module.upper()
