@@ -8,11 +8,10 @@ the schema and the strategy lists, and requires every site done, the strict type
 pass. Every subprocess has a fixed ``PYTHONHASHSEED``, no proxy variables, bytecode writing off and a timeout, and none
 makes a network call.
 
-The conformance tests run the files below. A few tests pin the four production strategies; those are deselected by node
-id and listed, with what each pins, in ``generator_fills/deselected.toml`` and in the pins plan. Three files that carry
-only pins and take a minute to run are not run as a whole: their pinned nodes are run alone, and must fail. The list is
-stale-checked in both directions: every node id must exist, and every one must fail in the copy, so a test that is
-fixed or removed has to leave the list.
+The conformance tests run the files below, with no test deselected: a test that names the four production strategies
+reads the descriptors instead, and the expected-output files and tables a new strategy writes by hand are sites that
+the fills write. Three more files hold tests that a strategy does not change; the main gate runs them whole, and here
+only the tests whose node id names the strategy's alias or module run.
 """
 
 import os
@@ -21,7 +20,7 @@ import shutil
 import subprocess
 import sys
 import tomllib
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Final
 
@@ -34,7 +33,6 @@ ALIAS: Final = "ci-probe"
 LABEL: Final = "CI Probe"
 TIMEOUT_SECONDS: Final = 300
 FILLS: Final = Path(__file__).resolve().parent / "generator_fills"
-PLAN: Final = REPOSITORY_ROOT / "docs/project/milestones/v0.2/swc/SWC_6C_STRATEGY_PINS_PLAN.md"
 
 COPIED_FOLDERS: Final = ("investment_analysis_engine", "scripts", "tests", "schemas", "docs")
 COPIED_FILES: Final = ("pyproject.toml", "alembic.ini")
@@ -60,6 +58,7 @@ CONFORMANCE_TESTS: Final = (
     "tests/test_strategy_settings.py",
     "tests/test_provider_check_element.py",
     "tests/test_direct_command_output.py",
+    "tests/test_strategy_document_output.py",
     "tests/test_cli_help_output.py",
     "tests/test_one_home_per_name.py",
     "tests/test_specimen_strategy.py",
@@ -77,11 +76,20 @@ CONFORMANCE_TESTS: Final = (
     "tests/workspace/test_workspace_fail_closed.py",
 )
 
-DESELECTED: Final[Mapping[str, tuple[str, str]]] = {
-    entry["node"]: (entry["kind"], entry["pins"])
-    for entry in tomllib.loads((FILLS / "deselected.toml").read_text(encoding="utf-8"))["test"]
+PER_STRATEGY_TESTS: Final = (
+    "tests/test_failure_messages.py",
+    "tests/test_cli_workspace.py",
+    "tests/test_command_validation_failures.py",
+)
+"""Files whose tests are parametrized over the strategies; only the nodes naming the strategy run in the copy."""
+
+EXPECTED_FILLS: Final = {
+    "direct.txt": "tests/expected_output/direct_commands/ci-probe.txt",
+    "direct.json": "tests/expected_output/direct_commands/ci-probe.json",
+    "document.direct.json": "tests/expected_output/strategy_documents/ci-probe-success.direct.json",
+    "document.replay.json": "tests/expected_output/strategy_documents/ci-probe-success.replay.json",
 }
-"""Node id to (kind, what it pins), read from ``generator_fills/deselected.toml``."""
+"""The reviewed expected-output files of the strategy, by fill name in ``generator_fills/expected/``."""
 
 
 def _environment() -> dict[str, str]:
@@ -163,6 +171,8 @@ def _apply_fills(copy: Path) -> None:
         shutil.copyfile(FILLS / f"{role}.py.fill", package / "strategies" / MODULE / f"{role}.py")
     shutil.copyfile(FILLS / "cases.py.fill", package / "evaluation" / "cases" / f"{MODULE}.py")
     shutil.copyfile(FILLS / "guide.md.fill", copy / "docs" / "user" / "strategies" / "CI_PROBE.md")
+    for name, destination in EXPECTED_FILLS.items():
+        shutil.copyfile(FILLS / "expected" / name, copy / destination)
     patches = tomllib.loads((FILLS / "patches.toml").read_text(encoding="utf-8"))["patch"]
     for patch in patches:
         target = copy / patch["path"]
@@ -171,36 +181,13 @@ def _apply_fills(copy: Path) -> None:
         target.write_text(text.replace(patch["old"], patch["new"]), encoding="utf-8", newline="\n")
 
 
-def _node_ids(output: str) -> list[str]:
-    return [line.strip() for line in output.splitlines() if "::" in line and not line.startswith(" ")]
-
-
 def _conformance_arguments(*extra: str) -> list[str]:
     return ["-m", "pytest", "--no-cov", "-p", "no:cacheprovider", "-q", "--color=no", *extra]
 
 
-def _assert_deselected_list_is_current(copy: Path) -> None:
-    """Every listed node id exists in the copy, and fails there, so a fixed or removed test leaves the list."""
-    if not DESELECTED:
-        return
-    files = sorted({node.split("::")[0] for node in DESELECTED})
-    collected = _run(copy, *_conformance_arguments("--collect-only", *files))
-    missing = sorted(set(DESELECTED) - set(_node_ids(collected.stdout)))
-    assert not missing, f"deselected node ids that no longer exist: {missing}"
-    ran = _run(copy, *_conformance_arguments("--tb=no", "-rfEp", *DESELECTED))
-    reported = [line for line in ran.stdout.splitlines() if line.startswith(("FAILED ", "ERROR "))]
-    passed = sorted(
-        node
-        for node in DESELECTED
-        if not any(line.startswith((f"FAILED {node}", f"ERROR {node}")) for line in reported)
-    )
-    assert not passed, f"deselected tests that pass in the copy and should be run: {passed}"
-
-
-def _assert_every_deselected_test_is_in_the_plan() -> None:
-    plan = PLAN.read_text(encoding="utf-8")
-    unlisted = sorted(node for node in DESELECTED if node not in plan)
-    assert not unlisted, f"deselected node ids missing from {PLAN.name}: {unlisted}"
+def _selected_nodes_run_and_pass(copy: Path) -> subprocess.CompletedProcess[str]:
+    """Run the nodes of the per-strategy files that name the strategy; at least one must be found."""
+    return _run(copy, *_conformance_arguments("-k", f"{ALIAS} or {MODULE}", *PER_STRATEGY_TESTS))
 
 
 def test_t28_the_generator_takes_a_strategy_through_the_whole_contributor_path(tmp_path: Path) -> None:
@@ -248,18 +235,16 @@ def test_t28_the_generator_takes_a_strategy_through_the_whole_contributor_path(t
     assert {found for found, _ in state.values()} == {"done"}, state
     assert not any("T28" in message for _, messages in state.values() for message in messages)
     _assert_strict_types(copy, filled=True)
-    _assert_deselected_list_is_current(copy)
-    deselects = [argument for node in DESELECTED for argument in ("--deselect", node)]
-    conformance = _run(copy, *_conformance_arguments(*deselects, *CONFORMANCE_TESTS))
+    conformance = _run(copy, *_conformance_arguments(*CONFORMANCE_TESTS))
     assert conformance.returncode == 0, _output(conformance)
+    selected = _selected_nodes_run_and_pass(copy)
+    assert selected.returncode == 0, _output(selected)
 
 
-def test_every_deselected_test_is_recorded_in_the_pins_plan() -> None:
-    """The plan that owns the deselected tests lists each by node id, with the kind it was given here."""
-    _assert_every_deselected_test_is_in_the_plan()
-    plan = PLAN.read_text(encoding="utf-8")
-    for node, (kind, _) in DESELECTED.items():
-        assert any(node in line and kind in line for line in plan.splitlines()), node
+def test_no_conformance_test_is_deselected() -> None:
+    """Every conformance test runs in the copy: the list of deselected tests stays empty."""
+    listed = tomllib.loads((FILLS / "deselected.toml").read_text(encoding="utf-8")).get("test", [])
+    assert listed == [], "a test that fails in the copy is made derived or a site, not deselected"
 
 
 def test_the_conformance_test_files_exist() -> None:
@@ -269,3 +254,7 @@ def test_the_conformance_test_files_exist() -> None:
     assert set(STUB_FILL_ROLES) <= set(STUB_ROLES)
     for role in STUB_FILL_ROLES:
         assert (FILLS / f"{role}.py.fill").is_file()
+    for name in EXPECTED_FILLS:
+        assert (FILLS / "expected" / name).is_file()
+    for name in PER_STRATEGY_TESTS:
+        assert (REPOSITORY_ROOT / name).is_file()

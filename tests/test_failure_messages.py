@@ -45,14 +45,16 @@ from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.market_data import NoEligibleObservationsError
 from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.strategy_wiring import BY_ALIAS
 from investment_analysis_engine.workspace.codecs import InvalidStoredRunError
 from investment_analysis_engine.workspace.repositories.analysis_runs import (
     AnalysisRunConflictError,
     SQLiteAnalysisRunRepository,
 )
 from scripts.repository_root import REPOSITORY_ROOT
+from scripts.strategy_conformance import _analyzer_result_type, _concrete_analyzers, _import_strategy_modules
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
-from tests._direct_command_output import _COMMANDS, enter_fixture_providers
+from tests._direct_command_output import _COMMANDS, enter_fixture_providers, no_provider_check_flag
 from tests._failure_code_table import _historical_quality_error
 from tests.test_cli_refresh import _create_momentum_only, _mock_momentum_run
 
@@ -274,18 +276,23 @@ def test_refresh_gives_every_row_its_code_and_message(
         runner.invoke(app, ["watchlist", "delete", "W", "--yes"])
 
 
-_ANALYSIS_PATCHES: dict[str, Callable[[BaseException], AbstractContextManager[MagicMock]]] = {
-    "momentum": lambda exc: patch("investment_analysis_engine.strategies.momentum.cli.run_momentum", side_effect=exc),
-    "graham-number": lambda exc: patch(
-        "investment_analysis_engine.strategies.graham_number.cli.execute_graham_number", side_effect=exc
-    ),
-    "graham-growth": lambda exc: patch(
-        "investment_analysis_engine.strategies.graham_growth.cli.execute_graham_growth", side_effect=exc
-    ),
-    "fcf-growth": lambda exc: patch(
-        "investment_analysis_engine.strategies.fcf_growth.cli.execute_fcf_growth", side_effect=exc
-    ),
-}
+def _analyzer_of(alias: str) -> type:
+    """Return the analyzer class whose ``ResultT`` is the result type of the strategy with ``alias``."""
+    _import_strategy_modules()
+    result_type = BY_ALIAS[alias].behavior.result_type
+    matches = [
+        analyzer
+        for analyzer in _concrete_analyzers()
+        if analyzer.__module__.startswith("investment_analysis_engine.strategies.")
+        and _analyzer_result_type(analyzer) is result_type
+    ]
+    assert len(matches) == 1, f"{alias}: {matches}"
+    return matches[0]
+
+
+def _analysis_raises(alias: str, exception: BaseException) -> AbstractContextManager[MagicMock]:
+    """Make the strategy's analyzer raise ``exception`` from ``run_analysis``, the call every direct command reaches."""
+    return patch.object(_analyzer_of(alias), "run_analysis", side_effect=exception)
 
 
 def _migrated(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -310,9 +317,9 @@ def _direct(
             stack.enter_context(patch.object(SQLiteAnalysisRunRepository, "insert", side_effect=exception))
             arguments = [*_COMMANDS[alias], "--save-run"]
         else:
-            stack.enter_context(_ANALYSIS_PATCHES[alias](exception))
+            stack.enter_context(_analysis_raises(alias, exception))
             arguments = list(_COMMANDS[alias])
-        result = runner.invoke(app, [*arguments, *mode, "--no-provider-check"])
+        result = runner.invoke(app, [*arguments, *mode, *no_provider_check_flag(alias)])
     return exception, result
 
 
@@ -360,7 +367,7 @@ def test_the_graham_resolver_build_gives_the_same_code_and_message(
         stack.enter_context(
             patch(f"investment_analysis_engine.strategies.{module}.cli.build_graham_resolver", side_effect=exception)
         )
-        result = runner.invoke(app, [*_COMMANDS[alias], "--json", "--no-provider-check"])
+        result = runner.invoke(app, [*_COMMANDS[alias], "--json", *no_provider_check_flag(alias)])
     document = json.loads(result.stdout)
     expected = str(exception) if message == RAISED else message.format(t=_COMMANDS[alias][1])
     assert (document["reason_code"], document["reason"]) == (code, expected)

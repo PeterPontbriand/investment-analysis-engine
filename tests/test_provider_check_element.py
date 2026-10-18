@@ -44,7 +44,8 @@ from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace_documents.refresh import RefreshSummaryDocument
 from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
-from tests._strategy_document_output import CASES, _enter_providers
+from tests._direct_command_output import no_provider_check_flag
+from tests._strategy_document_output import CASES, Case, _enter_providers
 from tests.test_cli_provider_check import (
     _SCENARIOS,
     _failing,
@@ -54,13 +55,6 @@ from tests.test_cli_provider_check import (
     _seed_momentum,
     runner,
 )
-
-_CASE_OF_ALIAS = {
-    "momentum": "momentum-success",
-    "graham-number": "graham-number-provider-error",
-    "graham-growth": "graham-growth-provider-error",
-    "fcf-growth": "fcf-growth-provider-error",
-}
 
 
 def _element(*records: tuple[ProviderFailureKind, str]) -> Any:
@@ -151,14 +145,28 @@ def test_uniqueness_is_by_provider() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _written_document(alias: str) -> dict[str, Any]:
-    """Run the strategy's command against its fixtures with ``--json`` and return the document it writes."""
-    case = next(item for item in CASES if item.name == _CASE_OF_ALIAS[alias])
+def _written_document(case: Case) -> dict[str, Any]:
+    """Run the case's command against its fixtures with ``--json`` and return the document it writes."""
     with ExitStack() as stack:
         _enter_providers(stack, case)
-        result = _invoke(list(case.arguments), _probe().probe, "--json", "--no-provider-check")
+        result = _invoke(list(case.arguments), _probe().probe, "--json", *no_provider_check_flag(case.command))
     document: dict[str, Any] = json.loads(result.stdout)
     return document
+
+
+def _document_of(alias: str) -> dict[str, Any]:
+    """Return a document of the strategy that records a provider failure, else the one its first case writes.
+
+    The cases are the strategy's own, in the stored-document table. Only a case whose command fails can record a
+    provider failure, so only those are run in search of one.
+    """
+    cases = [case for case in CASES if case.command == alias]
+    assert cases, f"{alias} has no case in tests/_strategy_document_output.py"
+    for case in (case for case in cases if case.exit_code != 0):
+        document = _written_document(case)
+        if document["provider_failure"] is not None:
+            return document
+    return _written_document(cases[0])
 
 
 @pytest.mark.parametrize("descriptor", STRATEGIES, ids=lambda item: item.alias)
@@ -166,7 +174,7 @@ def test_each_strategy_document_accepts_a_check_that_names_its_providers_and_rej
     descriptor: Any,
 ) -> None:
     model = descriptor.json_envelope
-    document = _written_document(descriptor.alias)
+    document = _document_of(descriptor.alias)
     assert model.model_validate(document)  # the written document validates as written
 
     if document["provider_failure"] is None:

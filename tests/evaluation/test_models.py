@@ -29,15 +29,6 @@ from investment_analysis_engine.orchestrator.tool_names import ToolName
     [
         (ExecutionMode, ["deterministic_no_llm", "real_local_ollama"]),
         (
-            ToolName,
-            [
-                "analyze_momentum",
-                "analyze_graham_number",
-                "analyze_graham_growth_value",
-                "analyze_fcf_earnings_growth",
-            ],
-        ),
-        (
             ComponentKind,
             [
                 "strategy_selection",
@@ -51,6 +42,17 @@ from investment_analysis_engine.orchestrator.tool_names import ToolName
 )
 def test_string_enum_values(enum_type: type[object], expected_values: list[str]) -> None:
     assert [str(member) for member in enum_type] == expected_values  # type: ignore[attr-defined]
+
+
+def test_the_existing_tool_names_are_present_and_unchanged() -> None:
+    """The tool names are stored and user-facing identifiers; a later strategy may add one but not alter these."""
+    existing = [
+        "analyze_momentum",
+        "analyze_graham_number",
+        "analyze_graham_growth_value",
+        "analyze_fcf_earnings_growth",
+    ]
+    assert [str(member) for member in ToolName][:4] == existing
 
 
 def test_tool_constraints_are_canonical_and_accept_required_permitted_values() -> None:

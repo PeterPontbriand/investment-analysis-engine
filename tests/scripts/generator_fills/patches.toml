@@ -99,3 +99,29 @@ new = '''    "fcf-growth": ["fcf-growth", "ACME", "--no-cache"],
     "ci-probe": ["ci-probe", "CIPR"],
 '''
 count = 1
+
+[[patch]]
+path = "tests/_strategy_document_output.py"
+old = '''
+)
+
+
+class _ClassifyingProvider:'''
+new = '''
+    Case("ci-probe-success", "ci-probe", _arguments("ci-probe"), 0),
+)
+
+
+class _ClassifyingProvider:'''
+count = 1
+
+[[patch]]
+path = "tests/expected_output/cli_help/application.txt"
+old = '''fcf-growth Execute the historical free-cash-flow and diluted-EPS growth
+screen.
+'''
+new = '''fcf-growth Execute the historical free-cash-flow and diluted-EPS growth
+screen.
+ci-probe Run the CI Probe analysis.
+'''
+count = 1

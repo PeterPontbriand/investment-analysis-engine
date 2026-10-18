@@ -63,8 +63,8 @@ document-link check and applicable documentation checks.
 | SWC.5b | [Generated strategy lists and the user-guide moves](#swc5b--generated-strategy-lists-and-the-user-guide-moves) | Complete | 2026-10-18 |
 | SWC.6a | [Specimen strategy](#swc6a--specimen-strategy) | Complete | 2026-10-18 |
 | SWC.6b | [Strategy generator](#swc6b--strategy-generator) | Complete | 2026-10-18 |
-| SWC.6c | [Make the pinned tests derived, and the reviewed ones sites](#swc6c--strategy-pins) | Next | |
-| SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
+| SWC.6c | [Make the pinned tests derived, and the reviewed ones sites](#swc6c--strategy-pins) | Complete | 2026-10-18 |
+| SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Next | |
 
 ## 3. Architectural contract
 
@@ -655,11 +655,13 @@ version and result-schema version distinct and do not silently reinterpret histo
 ### SWC.6c — Strategy pins
 
 - **Problem:** the generator's end-to-end test found 44 tests in 11 files that fail once a fifth strategy exists,
-  for reasons no site covers: 17 pin the four strategies where they could read the descriptors, and 27 are
-  content a new strategy writes by hand that the site data file does not list.
-- **Decision:** make the accidental pins derived, add the reviewed ones to `scripts/strategy_sites.toml` as
-  `reviewed` sites with fills in the end-to-end test, and require the test's deselect list to be empty. SWC.7
-  and Step 3.5 wait for this slice.
+  for reasons no site covers: 17 pinned the four strategies where they could read the descriptors, and 27 looked
+  like content a new strategy writes by hand that the site data file does not list.
+- **Decision:** derive what can be derived, keep the stable identifiers as subset checks, add the artifacts that hold
+  per-strategy truth to `scripts/strategy_sites.toml` as `reviewed` sites with fills in the end-to-end test, and
+  require the test's deselect list to be empty. 37 pins became derived tests, 3 subset checks and 4 three sites
+  ([B.21](#b21-swc6c-the-strategy-pins-are-derived-and-the-reviewed-ones-are-sites-2026-10-18)). SWC.7 and Step 3.5
+  wait for this slice.
 - **Scope:** the test files, the site data file and its checks, the fills and the end-to-end test, as listed in
   the slice plan.
 - **Branch:** `feat/swc-6c-strategy-pins`, from `main` after SWC.6b has merged.
@@ -774,8 +776,8 @@ version and result-schema version distinct and do not silently reinterpret histo
   directories, nine of them existing files; five of those are edited by the generator (imports, two constants and
   one entry in each closed list, [B.20](#b20-swc6b-the-pinned-tests-and-the-new-slice-swc6c-2026-10-18)), and the
   other four (the catalog, its test, and the two watchlist-option files of site 19, edited only by a strategy with
-  options of its own) are reviewed. [SWC.6c](#swc6c--strategy-pins) adds the sites for the 27 reviewed pins that the
-  end-to-end test found.
+  options of its own) are reviewed. [SWC.6c](#swc6c--strategy-pins) adds three sites for the pins that the end-to-end test
+  found and that cannot be derived.
 - **Contributor tooling:** one site data file is the source of the guide's table, the status command, the
   generator and the specimen's completeness test; the status command and the conformance tests share their
   check bodies; the generator writes wiring only and refuses to overwrite; a test runs it in a temporary
@@ -1673,3 +1675,37 @@ definition of the conformance tests.
 - **`AGENTS.md`.** Two additions, drafted in durable terms with no slice labels or test numbers and quoted in the
   pull request for the project owner's approval: the scoped stub exception under §3, and the rule that a substitute
   for a named workaround needs approval first, under §4's implementation preservation.
+
+### B.21 SWC.6c: the strategy pins are derived and the reviewed ones are sites (2026-10-18)
+
+Approved by the project owner on 2026-10-18. The inventory and the outcome of each pin are in the
+[SWC.6c plan](SWC_6C_STRATEGY_PINS_PLAN.md#appendix-a-the-pinned-tests).
+
+- **Derive first.** A pin becomes a `reviewed` site only if it holds per-strategy truth that cannot be derived from
+  `STRATEGIES`, `ToolName`, the tiers or the evaluation tier's fixture composition. The two groups the inventory
+  called reviewed that were re-examined turned out derivable: the registration tests build every strategy's
+  dependencies from the evaluation tier and the first golden case of the tool; the failure-message tests inject the
+  failure through the strategy's analyzer `run_analysis`, found from the descriptor's result type, instead of a
+  per-alias patch target. The provider-check table is derived from the strategy's cases in the stored-document table.
+- **One site per artifact, not per test.** Three artifacts hold truth that cannot be derived, each a site with a check,
+  a `fails` text and a fill in the end-to-end test: `direct-output` (the command's fixed arguments and its stored text
+  and JSON output), `strategy-documents` (the success case and its stored direct and replayed documents) and
+  `help-snapshot` (the strategy's command row in the stored application help). The generated edit-site table lists
+  them.
+- **Derived tests are not tautologies.** The `--analysis` help text and the unknown-alias message are compared with
+  the alias list read from `STRATEGIES`, and one test checks the formatting (a comma list with a final `or`, and the
+  error without it) on a fixed, hand-written vocabulary. The per-alias tests are parametrized over the strategies.
+- **Stable identifiers are subset checks.** The `ToolName` values, the alias list and the settings model of the four
+  existing strategies must be present and unchanged; further ones are allowed.
+- **T28 selection.** From `tests/test_failure_messages.py`, `tests/test_cli_workspace.py` and
+  `tests/test_command_validation_failures.py` T28 runs only the nodes whose ids include the alias or the module name.
+  `tests/test_strategy_document_output.py` joins the named list, so the stored documents are compared in the copy.
+- **The specimen.** The three new sites are reported by name as covered by T28, with `tool-name` and `unions`, because
+  they hold expected output of the production command application and of the production test tables, which the
+  specimen's own application does not reach. T27 now reports five covered sites.
+- **Findings fixed in this slice.** The throwaway strategy's command fill now follows the shared failure rule
+  (`execution_errors` and `saving_failures`), as every direct command must. The failure-message and provider-check
+  tests pass `--no-provider-check` only to a command that offers it, because a strategy with no provider has no check
+  and `tests/test_cli_provider_check.py` pins the set of commands that offer it.
+- **Counts.** The 17 accidental and 27 reviewed pins ended as 37 derived, 3 subset checks and 4 pins that are three
+  sites.

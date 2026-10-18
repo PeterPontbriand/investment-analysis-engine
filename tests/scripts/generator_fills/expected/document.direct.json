@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "analysis": "ci_probe",
+  "method": "ci_probe",
+  "ticker": "CIPR",
+  "status": "ok",
+  "provider_failure": null,
+  "provider_check": null,
+  "requested_as_of": null,
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "CIPR",
+    "instrument_name": null,
+    "listing_venue": null,
+    "issuer_identifier": null,
+    "instrument_identifier": null,
+    "provider_id": null,
+    "resolved_at": null
+  },
+  "instrument_kind": null,
+  "warnings": [],
+  "limitations": [],
+  "diagnostics": []
+}
