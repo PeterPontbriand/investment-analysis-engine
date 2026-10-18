@@ -1,0 +1,15 @@
+"""The $label strategy's vocabulary: its identifiers and its stored-configuration version.
+
+Like every strategy's vocabulary, this is a leaf: it imports nothing from its package.
+"""
+
+from typing import Final, Literal
+
+AnalysisId = Literal["$module"]
+MethodId = Literal["$module"]
+
+ANALYSIS_ID: Final[AnalysisId] = "$module"
+METHOD_ID: Final[MethodId] = "$module"
+
+ConfigSchemaVersion = Literal[1]
+CONFIG_SCHEMA_VERSION: Final[ConfigSchemaVersion] = 1

@@ -1,0 +1,28 @@
+"""The $label strategy's strict codec for its evidence."""
+
+from investment_analysis_engine.analysis.run_models import StrictJsonMapping
+from investment_analysis_engine.core.strategy_stub import unfilled_stub
+from investment_analysis_engine.strategies.$module.analyzer import ${Class}Result
+
+
+def encode_$module(evidence: ${Class}Result) -> StrictJsonMapping:
+    """Capture a detached finite JSON snapshot of ``evidence``."""
+    del evidence
+    unfilled_stub("codec")
+
+
+def decode_$module(payload: StrictJsonMapping) -> ${Class}Result:
+    """Reconstruct the evidence without any calculation, rejecting an unknown, missing or ill-typed key."""
+    del payload
+    unfilled_stub("codec")
+
+
+def ${module}_native_status(result: ${Class}Result, /) -> str | None:
+    """Return the status recorded as telemetry evidence, or ``None`` when the strategy has none."""
+    del result
+    unfilled_stub("codec")
+
+
+def ${module}_ticker(result: ${Class}Result, /) -> str:
+    """Return the ticker the evidence is about, which must equal its run envelope's ticker."""
+    return result.ticker

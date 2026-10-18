@@ -1,0 +1,17 @@
+# CI Probe Strategy Guide
+
+A throwaway strategy that the generator's end-to-end test adds to a temporary copy of the repository. It returns
+the ticker it was asked about and nothing else.
+
+Its conventions are described in [Financial Math & Data Conventions](../FINANCE_MATH.md#shared-data-conventions) and
+its terms in the [glossary](../GLOSSARY.md).
+
+```bash
+uv run ian ci-probe AAPL
+```
+
+## Watchlist options
+
+`watchlist create --analysis ci-probe` and `watchlist add-selection --analysis ci-probe` accept `--as-of` and
+`--no-cache`. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the
+watchlist commands that take them.

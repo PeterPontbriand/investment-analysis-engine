@@ -1,0 +1,40 @@
+"""The CI Probe strategy's analysis-tool arguments, dependencies and handler."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
+from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
+from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeAnalyzer, CiProbeConfig, CiProbeResult
+
+
+class CiProbeToolArguments(AnalysisToolArguments):
+    """Validated arguments for the CI Probe analysis."""
+
+    use_cache: bool = True
+
+
+@dataclass(frozen=True)
+class CiProbeToolDependencies:
+    """The injected CI Probe analyzer."""
+
+    analyzer: CiProbeAnalyzer
+
+
+class CiProbeToolHandler:
+    """Bind the CI Probe analyzer and the shared runtime to the analysis tool."""
+
+    def __init__(self, dependencies: CiProbeToolDependencies, runtime: ToolRuntime) -> None:
+        """Retain the injected analyzer and shared runtime."""
+        self._dependencies = dependencies
+        self._runtime = runtime
+
+    def __call__(self, **raw_arguments: object) -> CiProbeResult:
+        """Validate the arguments and run one CI Probe analysis."""
+        arguments = CiProbeToolArguments.model_validate(raw_arguments)
+        context = AnalysisContext(
+            as_of=arguments.as_of, executed_at=self._runtime.validated_clock_value(), use_cache=arguments.use_cache
+        )
+        return self._dependencies.analyzer.run_analysis(arguments.ticker, CiProbeConfig(), context)

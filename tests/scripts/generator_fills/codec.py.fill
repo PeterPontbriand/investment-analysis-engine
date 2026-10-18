@@ -1,0 +1,39 @@
+"""The CI Probe strategy's strict codec for its evidence."""
+
+from datetime import datetime
+
+from investment_analysis_engine.analysis.run_models import StrictJsonMapping
+from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeResult
+
+_FIELDS = frozenset({"ticker", "effective_as_of"})
+
+
+def encode_ci_probe(evidence: CiProbeResult) -> StrictJsonMapping:
+    """Capture a detached finite JSON snapshot of ``evidence``."""
+    return {"ticker": evidence.ticker, "effective_as_of": evidence.effective_as_of.isoformat()}
+
+
+def decode_ci_probe(payload: StrictJsonMapping) -> CiProbeResult:
+    """Reconstruct the evidence without any calculation, rejecting an unknown, missing or ill-typed key."""
+    if set(payload) != _FIELDS:
+        raise ValueError("CI Probe evidence has unexpected keys.")
+    ticker, stamp = payload["ticker"], payload["effective_as_of"]
+    if not isinstance(ticker, str) or not ticker or ticker != ticker.strip().upper():
+        raise ValueError("CI Probe requires a normalized ticker.")
+    if not isinstance(stamp, str):
+        raise ValueError("CI Probe effective_as_of must be text.")
+    effective_as_of = datetime.fromisoformat(stamp)
+    if effective_as_of.utcoffset() is None:
+        raise ValueError("CI Probe effective_as_of must be timezone-aware.")
+    return CiProbeResult(ticker=ticker, effective_as_of=effective_as_of)
+
+
+def ci_probe_native_status(result: CiProbeResult, /) -> str | None:
+    """Return the status recorded as telemetry evidence: the calculation always succeeds."""
+    del result
+    return "ok"
+
+
+def ci_probe_ticker(result: CiProbeResult, /) -> str:
+    """Return the ticker the evidence is about, which must equal its run envelope's ticker."""
+    return result.ticker

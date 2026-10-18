@@ -1,0 +1,37 @@
+"""The $label strategy's analysis-tool arguments, dependencies and handler."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from investment_analysis_engine.core.strategy_stub import unfilled_stub
+from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
+from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
+from investment_analysis_engine.strategies.$module.analyzer import ${Class}Analyzer, ${Class}Result
+
+
+class ${Class}ToolArguments(AnalysisToolArguments):
+    """Validated arguments for the $label analysis."""
+
+    use_cache: bool = True
+
+
+@dataclass(frozen=True)
+class ${Class}ToolDependencies:
+    """The injected $label analyzer."""
+
+    analyzer: ${Class}Analyzer
+
+
+class ${Class}ToolHandler:
+    """Bind the $label analyzer and the shared runtime to the analysis tool."""
+
+    def __init__(self, dependencies: ${Class}ToolDependencies, runtime: ToolRuntime) -> None:
+        """Retain the injected analyzer and shared runtime."""
+        self._dependencies = dependencies
+        self._runtime = runtime
+
+    def __call__(self, **raw_arguments: object) -> ${Class}Result:
+        """Validate the arguments and run one $label analysis."""
+        del raw_arguments
+        unfilled_stub("tool")

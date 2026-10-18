@@ -1,0 +1,36 @@
+"""The $label strategy's CLI functions: direct command, selection builder and refresh executor."""
+
+import typer
+
+from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
+from investment_analysis_engine.core.strategy_stub import unfilled_stub
+from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
+from investment_analysis_engine.strategies.$module.selection import ${Class}Selection
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+
+
+def build_selection(flags: WatchlistFlags) -> ${Class}Selection:
+    """Build one validated $label selection from the watchlist flags it concerns."""
+    del flags
+    unfilled_stub("cli")
+
+
+def refresh(
+    ticker: str, selection: ${Class}Selection, *, profile_cache: InstrumentProfileResolver | None
+) -> ExecutionCapture:
+    """Execute one $label refresh job."""
+    del ticker, selection, profile_cache
+    unfilled_stub("cli")
+
+
+def command(
+    ticker: str = typer.Argument(..., help="Target ticker symbol"),
+    *,
+    as_of: str | None = typer.Option(None, "--as-of", help="Point-in-time boundary"),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the cache"),
+    json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
+    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
+) -> None:
+    """Run the $label analysis."""
+    del ticker, as_of, no_cache, json_output, save_run
+    unfilled_stub("cli")

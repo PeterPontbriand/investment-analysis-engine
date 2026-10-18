@@ -1,0 +1,21 @@
+"""The $label strategy's fixture composition for the evaluation tier."""
+
+from typing import Final
+
+from investment_analysis_engine.core.strategy_stub import unfilled_stub
+from investment_analysis_engine.evaluation.fixture_context import FixtureContext, FixtureRequirement
+from investment_analysis_engine.strategies.$module.selection import ${Class}Selection
+from investment_analysis_engine.strategies.$module.tool import ${Class}ToolDependencies
+
+FIXTURE_IDS: Final = frozenset({"$alias-fixture"})
+REQUIREMENT: Final = FixtureRequirement(FIXTURE_IDS, "$label fixture", etf_profile_exempt=False)
+"""The strategy needs its own fixture; an ETF profile does not stand in for it."""
+
+SAMPLE_SELECTION: Final = ${Class}Selection()
+"""A valid persisted selection of the strategy's reviewed case."""
+
+
+def compose(context: FixtureContext) -> ${Class}ToolDependencies:
+    """Build the strategy's dependencies from the case-level fixture context."""
+    del context
+    unfilled_stub("evaluation")
