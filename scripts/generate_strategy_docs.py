@@ -63,7 +63,7 @@ def render_edit_sites(sites: Sequence[Site] | None = None) -> str:
     for site in load_sites() if sites is None else sites:
         what = f"{site.title}. {site.why}"
         generated = "yes" if site.generated else "no"
-        check = f"`{site.check}`: {site.fails}"
+        check = f"`{site.check}`: {site.describe()}"
         rows.append(
             f"| `{site.id}` | {_cell(what)} | `{_cell(site.path)}` | {site.kind} | {generated} | {_cell(check)} |"
         )

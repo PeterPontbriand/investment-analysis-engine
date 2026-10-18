@@ -1695,12 +1695,11 @@ def _descriptor_site(
 def _file_site(
     site_id: str,
     names: StrategyNames,
-    patterns: Sequence[str],
     *,
     inspect_tree: Callable[[ast.Module], list[str]] | None = None,
     inspect_descriptor: Callable[[StrategyDescriptor], list[str]] | None = None,
 ) -> list[Gap]:
-    """A new-file site is done when the file exists and defines a name matching each pattern.
+    """A new-file site is done when the file exists and defines a name matching each of the site's ``defines``.
 
     ``inspect_tree`` adds source-level findings, and ``inspect_descriptor`` adds findings about the declared
     descriptor; the latter runs only when the strategy has one.
@@ -1713,7 +1712,7 @@ def _file_site(
     defined = {name for name, _ in _defined_names(tree)}
     messages = [
         f"{where} defines no name matching {pattern}"
-        for pattern in patterns
+        for pattern in _sites_by_id()[site_id].required_patterns(names)
         if not any(re.fullmatch(pattern, name) for name in defined)
     ]
     if inspect_tree is not None:
@@ -1773,7 +1772,6 @@ def site_vocabulary(names: StrategyNames) -> list[Gap]:
     return _file_site(
         "vocabulary",
         names,
-        ("ANALYSIS_ID", "METHOD_ID", "CONFIG_SCHEMA_VERSION"),
         inspect_tree=_own_package_imports(names),
         inspect_descriptor=agrees,
     )
@@ -1792,7 +1790,7 @@ def site_analyzer(names: StrategyNames) -> list[Gap]:
                 claimed.setdefault(result_type, []).append(f"{analyzer.__module__}.{analyzer.__qualname__}")
         return _analyzer_gaps_for(item, claimed)
 
-    return _file_site("analyzer", names, (r".+Analyzer",), inspect_descriptor=returns_the_result)
+    return _file_site("analyzer", names, inspect_descriptor=returns_the_result)
 
 
 def site_descriptor(names: StrategyNames) -> list[Gap]:
@@ -1821,7 +1819,6 @@ def site_tool(names: StrategyNames) -> list[Gap]:
     return _file_site(
         "tool",
         names,
-        (r".+ToolArguments", r".+ToolDependencies", r".+ToolHandler"),
         inspect_descriptor=binds_the_arguments,
     )
 
@@ -1845,7 +1842,7 @@ def site_selection(names: StrategyNames) -> list[Gap]:
     def carries_the_ids(item: StrategyDescriptor) -> list[str]:
         return _selection_gaps_for(item, _selections_by_ids())
 
-    return _file_site("selection", names, (r".+Selection",), inspect_descriptor=carries_the_ids)
+    return _file_site("selection", names, inspect_descriptor=carries_the_ids)
 
 
 def site_codec(names: StrategyNames) -> list[Gap]:
@@ -1860,19 +1857,24 @@ def site_codec(names: StrategyNames) -> list[Gap]:
     return _file_site(
         "codec",
         names,
-        (r"encode_.+", r"decode_.+", r".+_native_status", r".+_ticker"),
         inspect_descriptor=round_trips,
     )
 
 
 def site_execution(names: StrategyNames) -> list[Gap]:
     """Row 8: the execution file defines the capture type and the function that turns a capture into a run."""
-    return _file_site("execution", names, (r".+Capture", r"from_.+_capture"))
+    return _file_site(
+        "execution",
+        names,
+    )
 
 
 def site_cli(names: StrategyNames) -> list[Gap]:
     """Row 9: the CLI file defines the selection builder, the refresh executor and the direct command."""
-    return _file_site("cli", names, ("build_selection", "refresh", "command"))
+    return _file_site(
+        "cli",
+        names,
+    )
 
 
 def site_cli_tier(names: StrategyNames) -> list[Gap]:
@@ -1899,7 +1901,7 @@ def _replays(item: StrategyDescriptor) -> list[str]:
 
 def site_presenter(names: StrategyNames) -> list[Gap]:
     """Row 11: the presenter file defines a renderer, and the stored run replays in every mode."""
-    return _file_site("presenter", names, (r"render_.+",), inspect_descriptor=_replays)
+    return _file_site("presenter", names, inspect_descriptor=_replays)
 
 
 def site_envelope(names: StrategyNames) -> list[Gap]:
@@ -1913,12 +1915,12 @@ def site_envelope(names: StrategyNames) -> list[Gap]:
             found.append(f"command '{item.alias}' offers no --json document")
         return found
 
-    return _file_site("envelope", names, ("DOCUMENT_SCHEMA_VERSION",), inspect_descriptor=documents)
+    return _file_site("envelope", names, inspect_descriptor=documents)
 
 
 def site_replay(names: StrategyNames) -> list[Gap]:
     """Row 13: the replay file defines a projector, and the stored run replays in every mode."""
-    return _file_site("replay", names, (r"project_.+",), inspect_descriptor=_replays)
+    return _file_site("replay", names, inspect_descriptor=_replays)
 
 
 def site_evaluation(names: StrategyNames) -> list[Gap]:
@@ -1926,7 +1928,6 @@ def site_evaluation(names: StrategyNames) -> list[Gap]:
     return _file_site(
         "evaluation",
         names,
-        ("FIXTURE_IDS", "REQUIREMENT", "SAMPLE_SELECTION", "compose"),
         inspect_descriptor=lambda item: evaluation_fixture_id_gaps((item,)),
     )
 
@@ -1962,8 +1963,7 @@ def site_cases(names: StrategyNames) -> list[Gap]:
             found.extend(_dispatch_gaps_for(request, item.behavior.result_type))
         return found
 
-    upper = names.module.upper()
-    return _file_site("cases", names, (f"{upper}_ARGUMENTS", f"{upper}_CASES"), inspect_descriptor=served)
+    return _file_site("cases", names, inspect_descriptor=served)
 
 
 def site_catalog(names: StrategyNames) -> list[Gap]:

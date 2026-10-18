@@ -1064,7 +1064,8 @@ command, the generator and the specimen's completeness test. It is read with `to
 | `path` | The file, with placeholders `{module}` (snake_case name), `{alias}` (hyphenated) and `{guide}` (upper-case alias). |
 | `generated` | Whether the generator makes this change. |
 | `check` | The name of a function in `scripts/strategy_conformance.py`. |
-| `fails` | The diagnostic the check produces when the site is missing. |
+| `defines` | `new_file` sites only: the patterns, as regular expressions, that the file must each match a module-level name with. The check reads them from here and the generated table shows them. |
+| `fails` | What else the check reports when the site is missing, beyond a missing file and the names in `defines`; may be empty. |
 
 The current list of edit sites is generated from this file into a marked block in the contributor guide
 (`docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` until SWC.7 moves the guide to `docs/TOOL_DEVELOPMENT.md`,

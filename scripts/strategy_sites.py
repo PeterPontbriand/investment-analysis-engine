@@ -16,7 +16,8 @@ SITES_FILE: Final[Path] = Path(__file__).resolve().parent / "strategy_sites.toml
 
 SiteKind = Literal["new_file", "edit", "command", "reviewed"]
 
-_KEYS: Final[frozenset[str]] = frozenset({"id", "title", "why", "kind", "path", "generated", "check", "fails"})
+_REQUIRED_KEYS: Final[frozenset[str]] = frozenset({"id", "title", "why", "kind", "path", "generated", "check", "fails"})
+_KEYS: Final[frozenset[str]] = _REQUIRED_KEYS | {"defines"}
 _MODULE_NAME: Final[re.Pattern[str]] = re.compile(r"[a-z][a-z0-9_]*")
 _ALIAS_NAME: Final[re.Pattern[str]] = re.compile(r"[a-z][a-z0-9-]*")
 
@@ -58,10 +59,27 @@ class Site:
     generated: bool
     check: str
     fails: str
+    defines: tuple[str, ...]
 
     def resolved_path(self, names: StrategyNames) -> str:
         """Return the site's file for ``names``, with the placeholders replaced."""
         return self.path.format(module=names.module, alias=names.alias, guide=names.guide)
+
+    def required_patterns(self, names: StrategyNames) -> tuple[str, ...]:
+        """Return the regular expressions the site's file must each match a defined name with, for ``names``."""
+        return tuple(
+            pattern.format(module=names.module, alias=names.alias, guide=names.guide, module_upper=names.module.upper())
+            for pattern in self.defines
+        )
+
+    def describe(self) -> str:
+        """Return what fails when the site is missing: the file, the patterns from ``defines``, then ``fails``."""
+        parts = []
+        if self.kind == "new_file":
+            parts.append("the file is missing, or defines no " + ", ".join(f"`{pattern}`" for pattern in self.defines))
+        if self.fails:
+            parts.append(self.fails)
+        return "; ".join(parts)
 
 
 def strategy_names(module: str, alias: str | None = None) -> StrategyNames:
@@ -75,17 +93,30 @@ def strategy_names(module: str, alias: str | None = None) -> StrategyNames:
     return StrategyNames(module=module, alias=resolved, guide=guide)
 
 
-def _text(table: dict[str, object], key: str, where: str) -> str:
+def _text(table: dict[str, object], key: str, where: str, *, allow_empty: bool = False) -> str:
     value = table[key]
-    if not isinstance(value, str) or not value:
+    if not isinstance(value, str) or not (value or allow_empty):
         raise SiteDataError(f"{where}: {key} must be a non-empty string.")
     return value
 
 
+def _defines(table: dict[str, object], kind: str, where: str) -> tuple[str, ...]:
+    value = table.get("defines")
+    if kind != "new_file":
+        if value is not None:
+            raise SiteDataError(f"{where}: defines is only for new_file sites, not {kind!r}.")
+        return ()
+    if not isinstance(value, list) or not value or not all(isinstance(item, str) and item for item in value):
+        raise SiteDataError(f"{where}: a new_file site needs defines, a non-empty list of name patterns.")
+    return tuple(value)
+
+
 def _site(table: dict[str, object], index: int) -> Site:
     where = f"site {index + 1}"
-    if set(table) != _KEYS:
-        raise SiteDataError(f"{where}: keys {sorted(table)} differ from {sorted(_KEYS)}.")
+    if not _REQUIRED_KEYS <= set(table) <= _KEYS:
+        raise SiteDataError(
+            f"{where}: keys {sorted(table)} differ from {sorted(_REQUIRED_KEYS)} plus optional defines."
+        )
     kind = _text(table, "kind", where)
     if kind not in get_args(SiteKind):
         raise SiteDataError(f"{where}: kind {kind!r} is not one of {get_args(SiteKind)}.")
@@ -100,7 +131,8 @@ def _site(table: dict[str, object], index: int) -> Site:
         path=_text(table, "path", where),
         generated=generated,
         check=_text(table, "check", where),
-        fails=_text(table, "fails", where),
+        fails=_text(table, "fails", where, allow_empty=True),
+        defines=_defines(table, kind, where),
     )
 
 

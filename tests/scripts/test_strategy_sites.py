@@ -16,7 +16,7 @@ path = "pkg/{{module}}/{{alias}}/{{guide}}.py"
 generated = {generated}
 check = "{check}"
 fails = "it fails"
-"""
+{extra}"""
 
 
 def _write(tmp_path: Path, *sites: str) -> Path:
@@ -25,8 +25,15 @@ def _write(tmp_path: Path, *sites: str) -> Path:
     return path
 
 
-def _site(*, id: str = "one", kind: str = "edit", generated: str = "true", check: str = "site_one") -> str:  # noqa: A002
-    return _SITE.format(id=id, kind=kind, generated=generated, check=check)
+def _site(
+    *,
+    id: str = "one",  # noqa: A002
+    kind: str = "edit",
+    generated: str = "true",
+    check: str = "site_one",
+    extra: str = "",
+) -> str:
+    return _SITE.format(id=id, kind=kind, generated=generated, check=check, extra=extra)
 
 
 def test_the_shipped_file_lists_every_section_17_row_in_order() -> None:
@@ -88,3 +95,22 @@ def test_a_duplicated_id_or_check_and_an_empty_file_are_rejected(tmp_path: Path)
         load_sites(_write(tmp_path, _site(), _site(id="two")))
     with pytest.raises(SiteDataError, match="no .*site"):
         load_sites(_write(tmp_path, "title = 1\n"))
+
+
+def test_a_new_file_site_needs_defines_and_no_other_site_may_have_it(tmp_path: Path) -> None:
+    with pytest.raises(SiteDataError, match="needs defines"):
+        load_sites(_write(tmp_path, _site(kind="new_file")))
+    with pytest.raises(SiteDataError, match="needs defines"):
+        load_sites(_write(tmp_path, _site(kind="new_file", extra="defines = []\n")))
+    for kind in ("edit", "command", "reviewed"):
+        with pytest.raises(SiteDataError, match="only for new_file"):
+            load_sites(_write(tmp_path, _site(kind=kind, extra='defines = ["X"]\n')))
+    (site,) = load_sites(_write(tmp_path, _site(kind="new_file", extra='defines = ["{module_upper}_X", "y"]\n')))
+    assert site.required_patterns(strategy_names("graham_number")) == ("GRAHAM_NUMBER_X", "y")
+
+
+def test_every_shipped_new_file_site_declares_what_it_defines_and_the_table_shows_it() -> None:
+    for site in load_sites():
+        assert bool(site.defines) == (site.kind == "new_file")
+        for pattern in site.defines:
+            assert f"`{pattern}`" in site.describe()
