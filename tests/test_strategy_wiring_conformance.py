@@ -39,7 +39,9 @@ from investment_analysis_engine.strategy_wiring import (
     build_indexes,
     run_specs_by_key,
 )
+from scripts import generate_strategy_docs
 from scripts import strategy_conformance as conformance
+from scripts.strategy_sites import Site, StrategyNames, load_sites, strategy_names
 
 _WIRING = PACKAGE_ROOT / "strategy_wiring.py"
 _TIER = PACKAGE_ROOT / "evaluation" / "strategy_fixtures.py"
@@ -722,3 +724,114 @@ def test_t24_a_duplicate_json_envelope_is_rejected_naming_the_rule_and_both_desc
     assert "('momentum', 'sma_crossover')" in str(raised.value)
     assert "('graham_number', 'graham_number')" in str(raised.value)
     assert _ALL.by_envelope[MOMENTUM.json_envelope] is MOMENTUM
+
+
+# ---------------------------------------------------------------------------
+# SWC.5a: T25, the edit sites against the site checks and the generated guide table
+# ---------------------------------------------------------------------------
+
+_SITES = load_sites()
+_UNDECLARED = strategy_names("piotroski")
+
+
+def _names_of(descriptor: StrategyDescriptor) -> StrategyNames:
+    """Return the names of a declared strategy: its package, read from its result type, and its alias."""
+    return strategy_names(descriptor.behavior.result_type.__module__.split(".")[2], descriptor.alias)
+
+
+def test_t25_every_site_names_an_existing_site_check_and_every_site_check_is_named_by_one_site() -> None:
+    """The site data file and the check functions are compared in both directions; no list of names is kept."""
+    checks = conformance.site_checks()
+    named = [site.check for site in _SITES]
+    assert [name for name in named if name not in checks] == []
+    assert sorted(set(checks) - set(named)) == []
+    assert len(named) == len(set(named))
+
+
+def test_t25_site_checks_are_told_apart_from_suite_wide_rules_by_signature() -> None:
+    """A suite-wide rule takes the closed tuple or nothing; only a function of one ``StrategyNames`` is a site check."""
+    checks = conformance.site_checks()
+    for suite_wide in (
+        "selection_union_gaps",
+        "tool_surface_gaps",
+        "cli_tier_gaps",
+        "descriptor_is_closed_gaps",
+        "uniqueness_gaps",
+        "analyzer_envelope_gaps",
+        "save_run_gaps",
+        "discovery_gaps",
+    ):
+        assert suite_wide not in checks
+    assert all(name.startswith("site_") for name in checks)
+
+
+@pytest.mark.parametrize("site", _SITES, ids=lambda site: site.id)
+@pytest.mark.parametrize("descriptor", STRATEGIES, ids=lambda item: item.method_id)
+def test_t25_every_site_is_done_for_every_declared_strategy(descriptor: StrategyDescriptor, site: Site) -> None:
+    """A declared strategy has no gap at any site; the status command prints the same records."""
+    assert getattr(conformance, site.check)(_names_of(descriptor)) == []
+
+
+@pytest.mark.parametrize("site", _SITES, ids=lambda site: site.id)
+def test_t25_an_undeclared_strategy_is_missing_at_every_site_and_each_check_reports_its_own_site(site: Site) -> None:
+    """Challenged with a name nothing declares, a check reports a gap that carries its own site id and path."""
+    gaps = getattr(conformance, site.check)(_UNDECLARED)
+    assert gaps
+    assert {gap.site_id for gap in gaps} == {site.id}
+    assert {gap.path for gap in gaps} <= {site.resolved_path(_UNDECLARED), "tests/evaluation/test_catalog.py"}
+
+
+def test_t25_a_declared_strategy_is_found_by_alias_or_by_package() -> None:
+    """The descriptor is looked up by alias or by the package of its result, never by a list of strategies."""
+    for item in STRATEGIES:
+        names = _names_of(item)
+        assert conformance.find_descriptor(names) is item
+        assert conformance.find_descriptor(strategy_names(names.module, "another-alias")) is item
+        assert conformance.find_descriptor(strategy_names("another_package", item.alias)) is item
+    assert conformance.find_descriptor(_UNDECLARED) is None
+
+
+def test_t25_the_generated_guide_table_equals_the_one_regenerated_from_the_site_file() -> None:
+    """A stale block fails, naming the file and the script that regenerates it."""
+    assert generate_strategy_docs.stale_blocks() == []
+    stale = generate_strategy_docs.replace_block(
+        generate_strategy_docs.GUIDE_FILE.read_text(encoding="utf-8"), "edit-sites", "| stale |"
+    )
+    assert stale != generate_strategy_docs.expected_text(generate_strategy_docs.blocks()[0])
+
+
+def test_t25_a_vocabulary_that_imports_its_package_or_lacks_a_constant_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The new-file check reads the file: missing names and an import from the strategy's own package are named."""
+    vocabulary = tmp_path / "investment_analysis_engine" / "strategies" / "zed" / "vocabulary.py"
+    vocabulary.parent.mkdir(parents=True)
+    vocabulary.write_text(
+        "from investment_analysis_engine.strategies.zed.models import Thing\n"
+        "from . import sibling\n"
+        "ANALYSIS_ID = 'zed'\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(conformance, "REPOSITORY_ROOT", tmp_path)
+    messages = [gap.message for gap in conformance.site_vocabulary(strategy_names("zed"))]
+    assert any("defines no name matching METHOD_ID" in message for message in messages)
+    assert any("defines no name matching CONFIG_SCHEMA_VERSION" in message for message in messages)
+    assert sum("imports from its own package" in message for message in messages) == 2
+
+
+def test_t25_a_builder_that_reads_a_flag_no_watchlist_command_has_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A flag the selection builder reads needs a ``WatchlistFlags`` field and an option on both commands."""
+    cli = tmp_path / "investment_analysis_engine" / "strategies" / "zed" / "cli.py"
+    cli.parent.mkdir(parents=True)
+    cli.write_text(
+        "def build_selection(flags):\n    return flags.short_window, flags.zed_flag, flags.as_of\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(conformance, "REPOSITORY_ROOT", tmp_path)
+    messages = [gap.message for gap in conformance.site_watchlist_options(strategy_names("zed"))]
+    assert messages == ["the selection builder reads zed_flag, which WatchlistFlags does not define"]
+    cli.write_text("def other(flags):\n    return flags\n", encoding="utf-8")
+    (message,) = [gap.message for gap in conformance.site_watchlist_options(strategy_names("zed"))]
+    assert "defines no build_selection(flags) function" in message

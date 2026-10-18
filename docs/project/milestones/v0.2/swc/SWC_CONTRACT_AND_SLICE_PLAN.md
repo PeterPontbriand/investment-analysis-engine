@@ -59,7 +59,8 @@ document-link check and applicable documentation checks.
 | SWC.4d | [Command validation failures and the failure envelope](#swc4d--command-validation-failures-and-the-failure-envelope) | Complete | 2026-10-11 |
 | SWC.4e | [The direct Graham commands reject an unsupported provider](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) | Complete | 2026-10-12 |
 | SWC.4f | [One failure message rule for the direct commands and refresh](#swc4f--one-failure-message-rule-for-the-direct-commands-and-refresh) | Complete | 2026-10-12 |
-| SWC.5 | [Site data, status command and generated lists](#swc5--site-data-status-command-and-generated-lists) | Planned | |
+| SWC.5a | [Site data, report-mode checks and the status command](#swc5a--site-data-report-mode-checks-and-the-status-command) | Complete | 2026-10-17 |
+| SWC.5b | [Generated strategy lists and the user-guide moves](#swc5b--generated-strategy-lists-and-the-user-guide-moves) | Next | |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
 
@@ -577,22 +578,39 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Detail:** no separate slice plan; the failure table, the design and the file list are in
   [B.17](#b17-swc4f-one-failure-message-rule-for-the-direct-commands-and-refresh-2026-10-12).
 
-### SWC.5 — Site data, status command and generated lists
+### SWC.5a — Site data, report-mode checks and the status command
 
-- **Problem:** a contributor learns what is missing from a strategy only by running tests, the edit-site
-  list is maintained by hand in two places, and the strategy lists in `USAGE.md` and `WORKSPACE.md` are
-  hand-written.
+- **Problem:** a contributor learns what is missing from a strategy only by running tests, and the edit-site
+  list is maintained by hand in two places.
 - **Decision:** one data file lists the edit sites and feeds the guide's table; a developer script reports
-  each site done or missing by running the conformance checks in report mode, so it cannot disagree with
-  them; the two pages' strategy lists are generated from the descriptors and drift-tested.
-- **Scope:** new `scripts/strategy_sites.toml`, `scripts/strategy_sites.py`, `scripts/strategy_status.py`,
-  `scripts/generate_strategy_docs.py`; `scripts/strategy_conformance.py` (every check returns gaps);
-  marked blocks in `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`; the watchlist option prose moves into
-  the strategy guides; `docs/user/strategies/FCF_EARNINGS_GROWTH.md` renamed `FCF_GROWTH.md` with its links;
-  tests T25 and T26.
-- **Branch:** `feat/swc-5-site-data-and-status`, from `main` after SWC.4c has merged.
-- **Order:** starts after PKG.2 and PKG.3, so that the import paths SWC.6 and SWC.7 write are written once, under the final package name, and the files they create sit where the self-contained package reads them. [B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12) recorded the earlier order.
-- **Detail:** [SWC.1 design §19.1, §19.2 and §10](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#19-contributor-tooling).
+  each site done or missing by running the conformance suite's site checks, so it cannot disagree with them.
+  Only per-strategy site checks need a site; the suite-wide rules keep their form
+  ([B.18](#b18-swc5-split-and-the-site-check-decisions-2026-10-17)).
+- **Scope:**
+  - New `scripts/strategy_sites.toml`, `scripts/strategy_sites.py`, `scripts/strategy_status.py` and
+    `scripts/generate_strategy_docs.py`, with tests under `tests/scripts/` and T25.
+  - `scripts/strategy_conformance.py` gains the site checks, each taking a strategy's names and returning
+    `Gap` records.
+  - `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` gains the generated edit-site table and one sentence
+    on the status command.
+- **Branch:** `feat/swc-5a-site-data-and-status`, from `main`.
+- **Order:** started after PKG.2 and PKG.3 had merged, so the import paths it writes are the final ones.
+  [B.16](#b16-swc4d-follow-up-the-workspace-catch-all-runs-show-and-refresh-2026-10-12) recorded the earlier order.
+- **Detail:** [SWC.1 design §19.1, §19.2 and §10](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#19-contributor-tooling);
+  decisions and implementation record in [B.18](#b18-swc5-split-and-the-site-check-decisions-2026-10-17).
+
+### SWC.5b — Generated strategy lists and the user-guide moves
+
+- **Problem:** the strategy lists in `USAGE.md` and `WORKSPACE.md` are hand-written, the watchlist option
+  prose lives outside the strategy guides, and the FCF Growth guide's file name does not follow the alias.
+- **Decision:** the two pages' strategy lists are generated from the descriptors by the generator that SWC.5a
+  created, and drift-tested.
+- **Scope:** marked blocks in `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`, added to
+  `scripts/generate_strategy_docs.py`; the strategy-docs command site and its check; the watchlist option
+  table moved into the strategy guides; `docs/user/strategies/FCF_EARNINGS_GROWTH.md` renamed `FCF_GROWTH.md`
+  with its links, and the temporary guide-name exception in `scripts/strategy_sites.py` removed; test T26.
+- **Branch:** `feat/swc-5b-generated-strategy-lists`, from `main` after SWC.5a has merged.
+- **Detail:** [SWC.1 design §10 and §19.1](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#19-contributor-tooling).
 
 ### SWC.6 — Specimen strategy and generator
 
@@ -607,7 +625,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   `investment_analysis_engine/core/strategy_stub.py`, `tests/scripts/generator_fills/`, tests T27 to T29 and the negative control
   re-based on the specimen; `AGENTS.md` §3. A strategy that declares settings gets a `settings.toml` beside its
   `settings.py`, and the generator writes it.
-- **Branch:** `feat/swc-6-specimen-and-generator`, from `main` after SWC.5 has merged.
+- **Branch:** `feat/swc-6-specimen-and-generator`, from `main` after SWC.5b has merged.
 - **Detail:** [SWC.1 design §19.3 to §19.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#19-contributor-tooling).
 
 ### SWC.7 — Contributor guide and final conformance
@@ -1445,3 +1463,60 @@ direct command and from a refresh job. Tests of `describe_failure` over every ro
 - The sequential refresh path needed no restructuring for row 14 (its lookup already runs before the executor); only `_settle` gained a
   separate lookup step.
 
+### B.18 SWC.5 split and the site-check decisions (2026-10-17)
+
+Approved by the project owner on 2026-10-17.
+
+- **Split.** SWC.5 became SWC.5a (site data, report-mode checks, the status command and the generator) and
+  SWC.5b (generated strategy lists in `docs/user/USAGE.md` and `docs/user/WORKSPACE.md` with T26, the
+  watchlist option table moved into the strategy guides, and the `FCF_EARNINGS_GROWTH.md` to
+  `FCF_GROWTH.md` rename).
+- **Where the generated edit-site table lives until SWC.7 moves the guide.** In a marked block in
+  `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`; SWC.7's move carries it. The design's verbatim copy
+  of the table is dropped. The design's §17 table stays as design history, with a one-line pointer to the
+  generated table as the current list, and the design's §19.1 is corrected to match.
+- **Which checks need a site.** Only per-strategy site checks. A site check takes a strategy's names and
+  returns `Gap(site_id, path, message)` records. Suite-wide rules (closedness, uniqueness, import layering,
+  the analyzer envelope, failure codes and the like) keep their current form and need no site. The two kinds
+  are told apart by signature, never by a list of names: a site check is a function of one `StrategyNames`
+  parameter that returns `list[Gap]`. T25's "every check is named by a site" applies to site checks only.
+- **Undeclared strategies.** Site checks work from the module name and alias, and use the descriptor only
+  when one is declared. If the package cannot be imported, the status command reports the import error as
+  its first gap and exits 1.
+- **New-file sites.** Done means the file exists and defines the names that site requires. The status command
+  does not run mypy; the managed gate does.
+- **Markers.** A generated block sits between an HTML-comment begin and end pair. The begin comment names
+  `scripts/generate_strategy_docs.py` and says the block is generated and must not be edited by hand.
+- **One generator** for generated documentation blocks, `scripts/generate_strategy_docs.py`. SWC.5a creates it
+  with the guide table as its only block; SWC.5b adds the user-doc lists. A stale block fails T25 with a
+  message naming the file and telling the reader to run the script.
+
+#### Implementation record (2026-10-17)
+
+- **The existing bidirectional checks stay as they were.** Checks such as T1 to T6, the tier checks, T8, T10
+  and T21 compare a surface with the whole closed tuple in both directions; making them per-strategy would
+  lose the orphan direction (a selection class, tool, argument model or tier entry with no descriptor). They
+  are classed as suite-wide and keep their signatures and messages. Each site check is a new function of the
+  strategy's names. Where a suite-wide check had a per-strategy part, that part is one helper that both forms
+  call, and the orphan direction stays suite-wide only: `_selection_gaps_for` (T1), `_evidence_gaps_for` (T2),
+  `_analyzer_gaps_for` (T3), `_argument_gaps_for` (T4), `_tool_required_gaps_for` and `_dispatch_gaps_for` (T6),
+  `_tier_gaps_for` (T10 for both tiers), `_strategy_flag_gaps_for` (T7), `_round_trip_entry_gaps` and
+  `_replay_entry_gaps` (T8), and `evaluation_fixture_id_gaps` and `published_schema_gaps`, which already took a
+  single descriptor.
+- **Site coverage by row.** The site data file has one site per row of the design's §17 (1a and 1 to 19) and
+  one for the schema-generation command. Rows 2 to 5, 10 and 15 work from the declared descriptor and the
+  type-level lists; an undeclared strategy is reported at each of them, naming the file to edit.
+- **Row 16 and row 17.** Row 16's path is the cases file (`evaluation/cases/{module}.py`) because the
+  fixtures are shared files whose names do not follow the strategy (`graham.py`, `market_data.py`); its check
+  also requires a golden case for the tool and that the fixtures serve it. Row 17 requires the catalog to
+  import the case module and the catalog test to pin each case id. Whether the suite version was bumped is
+  reviewed truth that no check can establish for one strategy.
+- **Row 19.** A strategy has watchlist options of its own exactly when its selection builder reads a
+  `WatchlistFlags` field. The check reads the builder's source, and requires each flag it reads to be a
+  `WatchlistFlags` field and a parameter of both `watchlist create` and `watchlist add-selection`. A strategy
+  that reads only shared flags has nothing to add.
+- **Row 8.** The execution site is done when the file defines the capture type and the `from_*_capture`
+  function; the save-run test (T22) remains the check that a run is stored, because it needs a database.
+- **Temporary guide-name exception.** The FCF Growth guide is still `FCF_EARNINGS_GROWTH.md`, so
+  `scripts/strategy_sites.py` maps the alias `fcf-growth` to that name until SWC.5b renames the file and
+  removes the entry.

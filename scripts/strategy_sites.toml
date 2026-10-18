@@ -1,0 +1,243 @@
+# The edit sites of a strategy, in the order a contributor meets them.
+#
+# This file is the single source for the contributor guide's edit-site table, the status command
+# (scripts/strategy_status.py) and the completeness test of the conformance suite. It is read through
+# scripts/strategy_sites.py. A site is done for one strategy exactly when its `check` function in
+# scripts/strategy_conformance.py returns no gaps for that strategy's names.
+#
+# Keys:
+#   id         stable slug
+#   title      one line: what the site is
+#   why        one line: why a strategy needs it
+#   kind       new_file (a file the strategy owns), edit (a line in a shared file), command (a generated
+#              artifact) or reviewed (truth or prose the generator never writes)
+#   path       the file, with the placeholders {module} (snake_case name), {alias} (hyphenated command
+#              alias) and {guide} (upper-case guide name)
+#   generated  whether the strategy generator makes this change
+#   check      the site check function in scripts/strategy_conformance.py
+#   defines    new_file sites only: the patterns (regular expressions, with the path placeholders and
+#              {module_upper}) that the file must each match a module-level name with
+#   fails      what else the check reports when the site is missing, beyond a missing file and the
+#              names in `defines`; empty when there is nothing else
+
+[[site]]
+id = "vocabulary"
+title = "Vocabulary: the strategy's identity constants and the enumerations several of its files use"
+why = "Every other file of the strategy reads its identifiers from this leaf, so it imports nothing from its package."
+kind = "new_file"
+path = "investment_analysis_engine/strategies/{module}/vocabulary.py"
+generated = true
+check = "site_vocabulary"
+defines = ["ANALYSIS_ID", "METHOD_ID", "CONFIG_SCHEMA_VERSION"]
+fails = "the file imports from its own package"
+
+[[site]]
+id = "analyzer"
+title = "Analyzer modules: config, result, analyzer"
+why = "The analyzer defines the strategy's result type, which the descriptor must agree with."
+kind = "new_file"
+path = "investment_analysis_engine/strategies/{module}/analyzer.py"
+generated = true
+check = "site_analyzer"
+defines = [".+Analyzer"]
+fails = "analyzer X (result Y) has no descriptor"
+
+[[site]]
+id = "descriptor"
+title = "Descriptor constant, StrategyBehavior declaration and STRATEGIES entry"
+why = "The closed tuple of descriptors is what every generic consumer iterates."
+kind = "edit"
+path = "investment_analysis_engine/strategy_wiring.py"
+generated = true
+check = "site_descriptor"
+fails = "no descriptor in STRATEGIES carries the strategy's alias or package"
+
+[[site]]
+id = "tool-name"
+title = "ToolName member"
+why = "The tool enumeration is a type-level list that mypy needs and no descriptor can generate."
+kind = "edit"
+path = "investment_analysis_engine/orchestrator/tool_names.py"
+generated = true
+check = "site_tool_name"
+fails = "ToolName member X has no descriptor"
+
+[[site]]
+id = "tool"
+title = "Arguments model, dependency class, handler"
+why = "The model-facing tool surface of the strategy."
+kind = "new_file"
+path = "investment_analysis_engine/strategies/{module}/tool.py"
+generated = true
+check = "site_tool"
+defines = [".+ToolArguments", ".+ToolDependencies", ".+ToolHandler"]
+fails = "tool-argument model X has no descriptor"
+
+[[site]]
+id = "unions"
+title = "NativeEvidence and SelectionMember entries"
+why = "Both unions are type-level lists that the descriptor's bounds are checked against."
+kind = "edit"
+path = "investment_analysis_engine/workspace/strategy_types.py"
+generated = true
+check = "site_unions"
+fails = "the descriptor's selection class or result type is not in the union"
+
+[[site]]
+id = "selection"
+title = "Selection class"
+why = "The stored, typed choice of this strategy's parameters."
+kind = "new_file"
+path = "investment_analysis_engine/strategies/{module}/selection.py"
+generated = true
+check = "site_selection"
+defines = [".+Selection"]
+fails = "descriptor X has no selection member"
+
+[[site]]
+id = "codec"
+title = "Codec and native-status function"
+why = "A stored run is encoded and decoded by the strategy's own functions."
+kind = "new_file"
+path = "investment_analysis_engine/strategies/{module}/codec.py"
+generated = true
+check = "site_codec"
+defines = ["encode_.+", "decode_.+", ".+_native_status", ".+_ticker"]
+fails = "the stored run does not decode to the result execute stored"
+
+[[site]]
+id = "execution"
+title = "Execution adapter, capture type, normalizer"
+why = "The adapter turns an analyzer outcome into a stored run."
+kind = "new_file"
+path = "investment_analysis_engine/strategies/{module}/execution.py"
+generated = true
+check = "site_execution"
+defines = [".+Capture", "from_.+_capture"]
+fails = ""
+
+[[site]]
+id = "cli"
+title = "CLI file: direct command, selection builder, refresh executor"
+why = "The strategy's command-line behavior lives in its own package."
+kind = "new_file"
+path = "investment_analysis_engine/strategies/{module}/cli.py"
+generated = true
+check = "site_cli"
+defines = ["build_selection", "refresh", "command"]
+fails = ""
+
+[[site]]
+id = "cli-tier"
+title = "CLI-tier entry"
+why = "A lower layer cannot import the command file, so the tier pairs it with the descriptor's behavior."
+kind = "edit"
+path = "investment_analysis_engine/cli_strategy_wiring.py"
+generated = true
+check = "site_cli_tier"
+fails = "strategy X is not wired in: CLI tier"
+
+[[site]]
+id = "presenter"
+title = "Presenter and JSON builder"
+why = "The strategy renders its own result in every presentation mode."
+kind = "new_file"
+path = "investment_analysis_engine/strategies/{module}/presenter.py"
+generated = true
+check = "site_presenter"
+defines = ["render_.+"]
+fails = "the replayed JSON does not validate as X"
+
+[[site]]
+id = "envelope"
+title = "Envelope model and document version"
+why = "Every --json document is a typed model with a published schema."
+kind = "new_file"
+path = "investment_analysis_engine/strategies/{module}/envelope.py"
+generated = true
+check = "site_envelope"
+defines = ["DOCUMENT_SCHEMA_VERSION"]
+fails = "command X offers --json but has no typed document model"
+
+[[site]]
+id = "replay"
+title = "Replay projector and headline function"
+why = "A stored run is replayed through the strategy's own projector."
+kind = "new_file"
+path = "investment_analysis_engine/strategies/{module}/replay.py"
+generated = true
+check = "site_replay"
+defines = ["project_.+"]
+fails = "replay in X mode raised or is empty"
+
+[[site]]
+id = "evaluation"
+title = "Evaluation file: fixture composition, requirement, the fixture ids it understands and a sample selection"
+why = "The evaluation tier composes the strategy's fixtures from this file."
+kind = "new_file"
+path = "investment_analysis_engine/strategies/{module}/evaluation.py"
+generated = true
+check = "site_evaluation"
+defines = ["FIXTURE_IDS", "REQUIREMENT", "SAMPLE_SELECTION", "compose"]
+fails = "strategy X requires fixture ids that its evaluation tier entry and the context do not declare"
+
+[[site]]
+id = "evaluation-tier"
+title = "Evaluation-tier entry"
+why = "The tier pairs the strategy's bundle with its requirement, ids, sample selection and composition."
+kind = "edit"
+path = "investment_analysis_engine/evaluation/strategy_fixtures.py"
+generated = true
+check = "site_evaluation_tier"
+fails = "strategy X is not wired in: evaluation tier"
+
+[[site]]
+id = "cases"
+title = "Fixtures with their fixture ids, and cases with their reviewed arguments table"
+why = "Reviewed case truth is written by hand against tool names; the fixtures live in the evaluation fixtures package."
+kind = "new_file"
+path = "investment_analysis_engine/evaluation/cases/{module}.py"
+generated = false
+check = "site_cases"
+defines = ["{module_upper}_ARGUMENTS", "{module_upper}_CASES"]
+fails = "tool X is required by no golden case"
+
+[[site]]
+id = "catalog"
+title = "Catalog: the case-module import, the case tuple entries and the suite version bump; the pinned id list in the catalog test"
+why = "The case tuple, the suite version and the pinned ids are reviewed evaluation truth; the check cannot tell whether the suite version was bumped."
+kind = "reviewed"
+path = "investment_analysis_engine/evaluation/catalog.py"
+generated = false
+check = "site_catalog"
+fails = "the catalog does not import the case module, or a case id is not pinned in the catalog test"
+
+[[site]]
+id = "guide"
+title = "User guide with FINANCE_MATH.md and GLOSSARY.md links"
+why = "Each strategy has an investor-facing guide."
+kind = "reviewed"
+path = "docs/user/strategies/{guide}.md"
+generated = false
+check = "site_guide"
+fails = "no guide for alias X"
+
+[[site]]
+id = "watchlist-options"
+title = "Watchlist options of the strategy, only when it has any beyond the shared ones"
+why = "A flag the selection builder reads needs a typed field in WatchlistFlags and an option on both watchlist commands."
+kind = "reviewed"
+path = "investment_analysis_engine/cli_watchlist_flags.py"
+generated = false
+check = "site_watchlist_options"
+fails = "the selection builder reads a flag that WatchlistFlags or a watchlist command lacks"
+
+[[site]]
+id = "schema"
+title = "Published schema (run scripts/generate_schemas.py)"
+why = "Every strategy document has a checked-in schema."
+kind = "command"
+path = "schemas/{alias}.schema.json"
+generated = false
+check = "site_schema"
+fails = "schema schemas/<alias>.schema.json is missing or out of date; run scripts/generate_schemas.py"

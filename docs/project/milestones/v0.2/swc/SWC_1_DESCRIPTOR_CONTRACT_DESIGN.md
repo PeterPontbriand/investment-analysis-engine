@@ -967,6 +967,9 @@ strategy then supplies it from the start.
 
 ## 17. Edit sites for a new strategy
 
+The current list is the generated table in the contributor guide ([§19.1](#191-one-list-of-edit-sites)); this
+table is the design's record of the sites as settled in SWC.1.
+
 Every hand-edited place, in the order a contributor meets them. "Kind": **G** is genuine heterogeneity
 (per-strategy content), **R** is residual repetition (a line restating identity or a type list), **G+R**
 is a strategy-owned function or class plus one entry. "Generated" means `scripts/new_strategy.py`
@@ -1061,10 +1064,15 @@ command, the generator and the specimen's completeness test. It is read with `to
 | `path` | The file, with placeholders `{module}` (snake_case name), `{alias}` (hyphenated) and `{guide}` (upper-case alias). |
 | `generated` | Whether the generator makes this change. |
 | `check` | The name of a function in `scripts/strategy_conformance.py`. |
-| `fails` | The diagnostic the check produces when the site is missing. |
+| `defines` | `new_file` sites only: the patterns, as regular expressions, that the file must each match a module-level name with. The check reads them from here and the generated table shows them. |
+| `fails` | What else the check reports when the site is missing, beyond a missing file and the names in `defines`; may be empty. |
 
-The table in [§17](#17-edit-sites-for-a-new-strategy) is generated from this file into marked lines in
-`docs/TOOL_DEVELOPMENT.md` and in this design (the design keeps a verbatim copy; T25 compares it).
+The current list of edit sites is generated from this file into a marked block in the contributor guide
+(`docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` until SWC.7 moves the guide to `docs/TOOL_DEVELOPMENT.md`,
+which carries the block), by `scripts/generate_strategy_docs.py`; T25 compares the block with the table
+regenerated from this file. The design keeps no copy of the generated table: the table in
+[§17](#17-edit-sites-for-a-new-strategy) is design history. Only per-strategy site checks have a site; the
+suite-wide rules keep their form and need no site (plan Appendix B, B.18).
 
 ### 19.2 Status command
 
