@@ -572,9 +572,9 @@ parameterized over the production tuples and over the specimen tuples ([§19.5](
 | T24 `uniqueness_rules` | A copy of the tuple with one duplicated value, for each of `analysis_id`+`method_id`, `method_id`, `alias`, `tool`, `tool_arguments`, `behavior.result_type` and (SWC.4c) `json_envelope` | The index builder | Each duplicate must raise naming the rule and both descriptors. Import-time failure is the same code path. |
 | T25 `site_data_complete` (SWC.5) | The site data file against `scripts/strategy_conformance.py` and the generated guide table | The data file | Every site names a check that exists, every check is named by a site, and the guide's table equals the table regenerated from the file. |
 | T26 `generated_lists_current` (SWC.5) | The marked blocks in `USAGE.md` and `WORKSPACE.md` against the blocks regenerated from `STRATEGIES` | Checked-in files | Byte comparison, as T20; a strategy missing from a block fails naming the file. |
-| T27 `specimen_complete` (SWC.6) | The status command run on the specimen against the site data file | The specimen's files | The specimen has an artifact for every site, so the tests that run on it exercise every layer. |
-| T28 `generator_end_to_end` (SWC.6) | The generator's output in a temporary copy of the repository, filled with trivial bodies | The strict type check and the conformance suite, run as subprocesses in the copy | Proves a new strategy added only through the generator and trivial fills passes both. |
-| T29 `no_unfilled_stubs` (SWC.6) | Every call to `unfilled_stub` in `investment_analysis_engine/` | The source files | Fails naming each file and line, so generator output cannot merge until each stub is replaced. |
+| T27 `specimen_complete` (SWC.6a) | The status command run on the specimen, in the specimen's site context, against the site data file | The specimen's files | The specimen has an artifact for every site except the two that are closed to it (`tool-name` and `unions`), which the report names as covered by T28. The tests that run on it exercise every layer that is open to injection ([§19.5](#195-specimen-strategy)). |
+| T28 `generator_end_to_end` (SWC.6b) | The generator's output in a temporary copy of the repository, filled with trivial bodies | The strict type check and the conformance suite, run as subprocesses in the copy | Proves a new strategy added only through the generator and trivial fills passes both. It is also the only end-to-end proof of the layers closed to the specimen: `ToolName` registration, the `AnalysisSelection` union and the `StrategyBehavior` bounds ([§19.5](#195-specimen-strategy)). |
+| T29 `no_unfilled_stubs` (SWC.6b) | Every call to `unfilled_stub` in `investment_analysis_engine/` | The source files | Fails naming each file and line, so generator output cannot merge until each stub is replaced. |
 
 The existing `tests/workspace/test_method_aliases.py` is the model for T1. SWC.3a folds it into T1 and T10
 when `method_aliases.py` is deleted.
@@ -620,7 +620,8 @@ approval. Each slice makes its moves in the same change as the consumer it serve
 | SWC.4b | `feat/swc-4b-workspace-documents` | New `investment_analysis_engine/reporting/documents/{watchlist,runs,refresh}.py`; `investment_analysis_engine/cli_workspace.py` JSON builders; `schemas/` (watchlist, watchlist delete, runs list, refresh summary); tests (T20 extended). | The hand-built dicts in `_watchlist_payload`, the delete outcome and `_refresh_json`; the `model_dump` list in `runs list`. | One model per document, each proved byte-identical to the current output except the listed changes, then the schemas. |
 | SWC.4c | `feat/swc-4c-strategy-json-envelopes` | `investment_analysis_engine/strategy_wiring.py`; new `investment_analysis_engine/strategies/<strategy>/envelope.py`, `replay.py` and `vocabulary.py` (four each), `investment_analysis_engine/strategies/_graham/replay.py`, `investment_analysis_engine/reporting/{json_documents,replay_inputs}.py`; `investment_analysis_engine/reporting/analysis_runs.py`; `schemas/` (four strategy documents); tests (T8, T10, T20, T21, T24 extended). | Literal ids in three builders; the `project_run` pair chain; the four `_project_*_v1` functions leave `analysis_runs.py`; `ReplayOptions` and `UnsupportedProjectionError` move to `replay_inputs.py`. | Envelope models and `json_envelope`, then the builders' boundary validation, then the projectors and the injected `project_run`, then `JSON_DOCUMENTS` and T21 last, when every command is covered. `json_documents.py` lists the failure, workspace and database documents only; the generator and T20, T21 add each descriptor's `json_envelope` from the root. |
 | SWC.5 | `feat/swc-5-site-data-and-status` | New: `scripts/strategy_sites.toml`, `scripts/strategy_sites.py`, `scripts/strategy_status.py`, `scripts/generate_strategy_docs.py`; `scripts/strategy_conformance.py` (extended); marked blocks in `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`; the watchlist option rows move into the strategy guides; `FCF_EARNINGS_GROWTH.md` renamed; tests T25, T26. | The hand-written strategy lists and the watchlist option table in the two pages. | Site data and loader, then conformance functions in report mode, then the status command, then the generated lists and their drift test. |
-| SWC.6 | `feat/swc-6-specimen-and-generator` | New: `tests/specimen/` (the specimen strategy and its two tier tuples), `scripts/new_strategy.py`, `scripts/strategy_templates/` (one template per role file), `investment_analysis_engine/core/strategy_stub.py`, tests T27 to T29 and the generator test fills; `AGENTS.md` §3 (stub exception). | None. | Specimen first, then the generator, then its end-to-end test, then the stub rule. |
+| SWC.6a | `feat/swc-6a-specimen` | New: `tests/specimen/` (the specimen strategy, its settings files, its two tier tuples and its site context). Edited: `scripts/strategy_sites.toml` (the `settings` site), `scripts/strategy_conformance.py` (the site context), `scripts/strategy_status.py`, tests (T7, T8, T11, T12 and T22 over the specimen; T27). | None. | Site context, then the specimen file by file, then the tests that run on it. |
+| SWC.6b | `feat/swc-6b-generator` | New: `scripts/new_strategy.py`, `scripts/strategy_templates/` (one template per role file), `investment_analysis_engine/core/strategy_stub.py`, tests T28 and T29 and the generator test fills (`tests/scripts/generator_fills/`); `AGENTS.md` §3 (stub exception). | None. | The generator, then its end-to-end test, then the stub rule. |
 | SWC.7 | `feat/swc-7-contributor-guide` | `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` moved to `docs/TOOL_DEVELOPMENT.md` and extended (including the identifier rules in [§16](#16-step-35-fit-check) and the edit-site table, generated from the site data file); every link to it; the Step 3.5 contract plan's link to the edit-site table; `AGENTS.md` §3; `docs/project/DISCOVERY_WORKBOOK.md` open question 3; final conformance coverage; independent review. | None in code. | Guide, then authorization, then workbook, then final conformance. |
 
 Why the earlier slices are split. SWC.2a relocates every existing strategy module once, as pure moves, so
@@ -1106,6 +1107,12 @@ defaults to the module name with hyphens). It writes wiring only:
   missing until they are written.
 - **Identity:** the module name gives `analysis_id`, `method_id` and the tool name (`analyze_<module>`);
   all version fields are 1.
+- **No settings files:** the generator writes no `settings.py` and no `settings.toml`, and a generated
+  descriptor has `settings_type=None`. It cannot know a strategy's settings, and an empty settings model would
+  hold only one value, the defect [`AGENTS.md` §9](../../../../../AGENTS.md) forbids. A strategy that
+  has tunable defaults gets its settings model and its shipped file from its author; the `settings` site
+  ([§19.1](#191-one-list-of-edit-sites)) is done when the package has no `settings.py`, or when a
+  `settings.toml` sits beside it and the descriptor's `settings_type` is the model that file defines.
 
 **Overwrite rule, decided: refuse.** The generator builds every change in memory first. If any target file
 exists, or the name, alias, tool or method id already appears in any tuple, enum or union, it exits with
@@ -1113,7 +1120,7 @@ code 2, lists the conflicts and writes nothing. Otherwise it writes through temp
 `os.replace`, and restores the originals if any step fails. It is not idempotent on purpose: a second run
 after the stubs were edited would either overwrite work or silently differ.
 
-**Stub rule.** `AGENTS.md` §3 forbids partial files and placeholder comments. SWC.6 adds one exception: a
+**Stub rule.** `AGENTS.md` §3 forbids partial files and placeholder comments. SWC.6b adds one exception: a
 file written by `scripts/new_strategy.py` whose unfilled bodies call `unfilled_stub(...)`. Test T29 fails
 the quality gate while any such call remains in `investment_analysis_engine/`, so none can merge. `unfilled_stub` lives in
 `investment_analysis_engine/core/strategy_stub.py`.
@@ -1134,37 +1141,69 @@ generator there for a fixed throwaway strategy (`ci_probe`, label `CI Probe`), a
 It is deterministic and makes no network call: the generator, `mypy` and the conformance suite run as
 subprocesses in the copy with a fixed `PYTHONHASHSEED`, no proxy variables and bytecode writing off; the
 conformance suite already forbids network access; the fills contain no provider, so the throwaway
-strategy's adapter and executor return fixed values. Each subprocess has a timeout of 300 seconds; SWC.6
-records the measured time.
+strategy's adapter and executor return fixed values. Each subprocess has a timeout of 300 seconds; SWC.6b
+records the measured time. T28 stays in the default suite; if it adds more than 2 minutes to either pytest pass,
+SWC.6b stops and asks the project owner.
 
 ### 19.5 Specimen strategy
 
 A checked-in specimen, not the generator's output. `tests/specimen/` holds a complete trivial strategy
-(identity `specimen`, `specimen_method`, alias `specimen-test`) wired through every layer with
-deterministic bodies and no providers, plus its own CLI-tier and evaluation-tier entries (its evaluation file
-declares a sample selection like every strategy's, and T8 stores the specimen's result under it). Decision and
-reasons:
+(identity `specimen`, `specimen_method`, alias `specimen-test`) wired through every layer that is open to
+injection, with deterministic bodies and no providers, plus its own CLI-tier and evaluation-tier entries (its
+evaluation file declares a sample selection like every strategy's, and T8 stores the specimen's result under it).
+It declares one real setting, `multiplier`, which its calculation scales the input value by, so the settings path
+of the composition root is exercised and the setting is not a one-value option. Decision and reasons:
 
 - The generator's output exists only inside a temporary copy and takes tens of seconds, so it cannot back
   per-dispatcher unit tests, the negative control or a command run through the real Typer app. The
   specimen can, in milliseconds.
 - Both are kept and share the site data file: T27 runs the status command on the specimen and requires
-  every site done, so the specimen cannot lag the site list, and the generator test proves the generator
-  produces every site the file lists.
+  every site done except the two that are closed to it, so the specimen cannot lag the site list, and the
+  generator test proves the generator produces every site the file lists.
 
 How it stays out of production: it lives under `tests/`, and T13 forbids any module under `investment_analysis_engine` importing
 `tests`; the production tuples are literal and closed and never name it; tests build
 `SPECIMEN_STRATEGIES = (*STRATEGIES, SPECIMEN)` and equivalent tier tuples themselves; the user CLI is
 built from the production CLI tier, and a test builds a separate Typer app with
-`add_strategy_commands(typer.Typer(), (*CLI_STRATEGIES, SPECIMEN_CLI))`; the published schemas are
-generated from the production `JSON_DOCUMENTS` only, and a test builds its own list for the specimen.
+`add_strategy_commands(typer.Typer(), SPECIMEN_STRATEGIES, SPECIMEN_CLI_STRATEGIES)`; the published schemas are
+generated from the production `JSON_DOCUMENTS` only, and the specimen's schema is a checked-in file beside it.
+
+**How the checks reach it (SWC.6a).** A site check takes the strategy's names and a `SiteContext`, which
+defaults to the production wiring. The context holds the descriptors, both tiers, the command application, the
+paths of the strategy's files, the stored-run, case and strategy-list lookups, and the sites the checks cannot
+establish. `tests/specimen/site_context.py` defines the specimen's, and `uv run python scripts/strategy_status.py
+--specimen` runs the status command in it. The checks are the production ones; only what they look at differs.
+
+**What the specimen does not cover.** Three layers are closed to anything outside the production declarations,
+and the specimen must not be added to them:
+
+- `ToolName` is a closed enumeration, and `register_analysis_tools` requires a handler for each member and
+  rejects any other key. The specimen names its tool with an enumeration of its own, so the two registration
+  probes of T11 run over the production tools only.
+- `AnalysisSelection`, the discriminated union that an `AnalysisRun` and an `AnalysisRequest` validate their
+  selection against, is built from the production `SelectionMember`. The specimen therefore stores a run of its
+  own (`tests/specimen/runs.py`), with the same version tuple, the same errors for an unsupported version and the
+  same replay path through its codec and projector. The stored-run checks of T8, T11 and T22 take that run
+  through the functions its kind of run is decoded and replayed with.
+- The `StrategyBehavior`, `pair_cli` and `pair_evaluation` bounds name the production unions. The specimen
+  implements the erased `BehaviorView` directly, with the exact-type guards `StrategyBehavior` has, and crosses
+  the bounds with `cast`, only in `tests/specimen/closed_types.py`, which has one function per crossing (the
+  descriptor's tool, a selection member, a native-evidence instance, the native-evidence type and a bound
+  handler; eight call sites). A test enforces that no other specimen file calls `cast`. The specimen is a test
+  fixture and not a model for strategy code, which never uses `cast` to cross the closed types. It uses no
+  `type: ignore`.
+
+The `tool-name` and `unions` sites are the two sites that name those closed declarations. The status command
+reports them as `covered by T28 (generator end-to-end)`, by name, and does not run their checks. T28 adds a
+strategy to a temporary copy of the repository through the real declarations, so it is the only end-to-end proof
+of these layers, and this narrows the claim that the specimen is wired through every layer.
 
 ### 19.6 Effect on the conformance design
 
 | Effect | Tests |
 | :--- | :--- |
-| **Replaces** | The hand-maintained edit-site table in the guide (generated from the site file). The USAGE and WORKSPACE alias half of T23 (T26). The `monkeypatch` of production tables in T12 part 3 (specimen variants instead). |
-| **Strengthens** | T11 and T12: the specimen runs through every dispatcher, both tiers, replay and the real Typer app, so a derived table that silently dropped a strategy would be caught end to end. T7 and T22: a fifth strategy through the real command and `--save-run`. T13: the specimen cannot leak into `investment_analysis_engine`. |
+| **Replaces** | The hand-maintained edit-site table in the guide (generated from the site file). The USAGE and WORKSPACE alias half of T23 (T26). |
+| **Strengthens** | T11 and T12: the specimen runs through every dispatcher that is open to injection, both tiers, replay and the real Typer app, so a derived table that silently dropped a strategy would be caught end to end. The T12 negative control is built on the specimen and patches no production table. T7 and T22: a fifth strategy through its own Typer app and `--save-run`, with a run of its own. T13: the specimen cannot leak into `investment_analysis_engine`. |
 | **Makes redundant** | The manual contributor-path rehearsal in the independent review of SWC.7: T28 performs it on every run. No test in T1 to T8 becomes redundant. |
 | **Adds** | T25 `site_data_complete`, T26 `generated_lists_current`, T27 `specimen_complete`, T28 `generator_end_to_end`, T29 `no_unfilled_stubs`. |
 

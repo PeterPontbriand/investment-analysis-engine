@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
 from types import MappingProxyType
-from typing import cast, get_args, get_origin
+from typing import Protocol, cast, get_args, get_origin
 
 import typer
 from pydantic import BaseModel, ValidationError
@@ -193,11 +193,14 @@ def _is_frozen(instance: object, attribute: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _selections_by_ids() -> dict[tuple[str, str], type[BaseModel]]:
-    """Return the ``SelectionMember`` classes keyed by the identifiers their ``Literal`` fields default to."""
+def _selections_by_ids(members: Iterable[type[BaseModel]] | None = None) -> dict[tuple[str, str], type[BaseModel]]:
+    """Return the selection classes keyed by the identifiers their ``Literal`` fields default to.
+
+    The classes are the ``SelectionMember`` union unless a caller supplies others.
+    """
     return {
         (_literal_default(member, "analysis_id"), _literal_default(member, "method_id")): member
-        for member in get_args(SelectionMember)
+        for member in (get_args(SelectionMember) if members is None else members)
     }
 
 
@@ -250,14 +253,14 @@ def _import_strategy_modules() -> None:
             importlib.import_module(module.name)
 
 
-def _concrete_analyzers() -> list[type]:
-    """Return every non-abstract analyzer class defined in the package, found through ``BaseAnalyzer``."""
+def _concrete_analyzers(scope: str = "investment_analysis_engine.") -> list[type]:
+    """Return every non-abstract analyzer class defined under ``scope``, found through ``BaseAnalyzer``."""
     found: list[type] = []
     pending: list[type] = list(BaseAnalyzer.__subclasses__())
     while pending:
         analyzer = pending.pop()
         pending.extend(analyzer.__subclasses__())
-        if analyzer.__module__.startswith("investment_analysis_engine.") and not inspect.isabstract(analyzer):
+        if analyzer.__module__.startswith(scope) and not inspect.isabstract(analyzer):
             found.append(analyzer)
     return sorted(found, key=lambda item: f"{item.__module__}.{item.__qualname__}")
 
@@ -310,13 +313,9 @@ def analyzer_generics_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[
 # ---------------------------------------------------------------------------
 
 
-def _defined_argument_models() -> set[type[AnalysisToolArguments]]:
-    """Return the argument models defined under ``investment_analysis_engine``."""
-    return {
-        model
-        for model in AnalysisToolArguments.__subclasses__()
-        if model.__module__.startswith("investment_analysis_engine.")
-    }
+def _defined_argument_models(scope: str = "investment_analysis_engine.") -> set[type[AnalysisToolArguments]]:
+    """Return the argument models defined under ``scope``, the package by default."""
+    return {model for model in AnalysisToolArguments.__subclasses__() if model.__module__.startswith(scope)}
 
 
 def _argument_gaps_for(item: StrategyDescriptor, defined: set[type[AnalysisToolArguments]]) -> list[str]:
@@ -512,26 +511,105 @@ def _capture_of(result: NativeEvidence) -> Callable[[], ExecutionCapture]:
     return lambda: ExecutionCapture(native_evidence=result, profile=None, outcome=RunOutcome.COMPLETED)
 
 
+class RunRecord(Protocol):
+    """What the stored-run checks read of a run: its ticker, identifiers and version tuple."""
+
+    @property
+    def ticker(self) -> str:
+        """Return the run's ticker."""
+        ...
+
+    @property
+    def analysis_id(self) -> str:
+        """Return the run's analysis identifier."""
+        ...
+
+    @property
+    def method_id(self) -> str:
+        """Return the run's method identifier."""
+        ...
+
+    @property
+    def config_schema_version(self) -> int:
+        """Return the stored configuration version."""
+        ...
+
+    @property
+    def method_version(self) -> int:
+        """Return the stored method version."""
+        ...
+
+    @property
+    def result_schema_version(self) -> int:
+        """Return the stored result version."""
+        ...
+
+    @property
+    def evidence_codec_version(self) -> int:
+        """Return the stored codec version."""
+        ...
+
+    @property
+    def requested_config(self) -> object:
+        """Return the selection the run was requested with."""
+        ...
+
+
+type RunDecoder = Callable[[Mapping[tuple[str, str], EvidenceCodec]], NativeEvidence | None]
+"""Decode one stored run with the supplied codecs, as its kind of run does."""
+
+type RunProjector = Callable[
+    [ReplayOptions, Mapping[tuple[str, str], EvidenceCodec], Mapping[tuple[str, str], ReplayProjector]], str
+]
+"""Replay one stored run with the supplied codecs and projectors, as its kind of run does."""
+
+
 @dataclasses.dataclass(frozen=True)
 class StoredRun:
-    """One descriptor's real golden-fixture result and the run ``execute`` stored for it."""
+    """One descriptor's result and the run stored for it, with how that kind of run is decoded and replayed.
+
+    A production run is an ``AnalysisRun``, whose selection the closed production union validates; the specimen
+    stores a run of its own, so each entry carries the two functions that decode and replay its run.
+    """
 
     descriptor: StrategyDescriptor
     selection: SelectionMember
     result: NativeEvidence
     ticker: str
-    run: AnalysisRun
+    run: RunRecord
+    decode: RunDecoder
+    project: RunProjector
+
+
+def _production_stored(
+    item: StrategyDescriptor, selection: SelectionMember, result: NativeEvidence, run: AnalysisRun
+) -> StoredRun:
+    """Return the entry of a production run, decoded and replayed by the workspace functions."""
+
+    def decode(codecs: Mapping[tuple[str, str], EvidenceCodec]) -> NativeEvidence | None:
+        return decode_evidence(run, codecs)
+
+    def project(
+        options: ReplayOptions,
+        codecs: Mapping[tuple[str, str], EvidenceCodec],
+        replays: Mapping[tuple[str, str], ReplayProjector],
+    ) -> str:
+        return project_run(run, options, codecs=codecs, replays=replays)
+
+    return StoredRun(item, selection, result, run.ticker, run, decode, project)
 
 
 def stored_runs(
     descriptors: tuple[StrategyDescriptor, ...],
     tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
+    local_runs: Sequence[StoredRun] = (),
 ) -> list[StoredRun]:
     """Execute and store one real fixture result per descriptor, as the terminal service would.
 
     The result is the first golden case routed to the descriptor's tool; the selection is the sample its
     evaluation-tier entry declares; the run goes through the real ``execute`` and ``AnalysisRun`` validation.
-    A descriptor with no tier entry has no stored run, and the checks report it.
+    A descriptor with no tier entry has no stored run, and the checks report it. ``local_runs`` are the entries of
+    strategies that have no golden case or production run, which the caller built; they join those descriptors.
     """
     indexes = build_indexes(descriptors)
     specs = run_specs_by_key(descriptors)
@@ -545,25 +623,29 @@ def stored_runs(
         result = cast("NativeEvidence", dispatched.result)
         selection = entry.sample_selection
         sink = _MemorySink()
-        run = execute(
+        execute(
             AnalysisRequest(ticker=request.arguments.ticker, selection=selection),
             spec=run_spec_for(selection, specs),
             capture=_capture_of(result),
             repository=sink,
             clock=lambda: _FIXTURE_CLOCK,
         )
-        stored[item.alias] = StoredRun(item, selection, result, run.ticker, sink.inserted[0])
+        stored[item.alias] = _production_stored(item, selection, result, sink.inserted[0])
+    for local in local_runs:
+        if any(local.descriptor is item for item in descriptors):
+            stored.setdefault(local.descriptor.alias, local)
     return [stored[item.alias] for item in descriptors if item.alias in stored]
 
 
 def versions_and_round_trip_gaps(
     descriptors: tuple[StrategyDescriptor, ...],
     tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
+    local_runs: Sequence[StoredRun] = (),
 ) -> list[str]:
     """T8: a stored run carries the descriptor's versions and decodes back to exactly the result stored."""
     codecs = evidence_by_key(descriptors)
     gaps: list[str] = []
-    stored = stored_runs(descriptors, tier)
+    stored = stored_runs(descriptors, tier, local_runs)
     gaps.extend(
         f"strategy {label(item)} has no golden fixture result or evaluation-tier sample selection to store"
         for item in descriptors
@@ -595,7 +677,7 @@ def _round_trip_entry_gaps(entry: StoredRun, codecs: Mapping[tuple[str, str], Ev
     payload = item.behavior.encode_object(entry.result)
     if item.behavior.decode_for(payload, entry.ticker) != entry.result:
         gaps.append(f"{item.label}: the behavior's decode does not return the result its encode stored")
-    if decode_evidence(run, codecs) != entry.result:
+    if entry.decode(codecs) != entry.result:
         gaps.append(f"{item.label}: decode_evidence does not return the result execute stored")
     return gaps
 
@@ -608,6 +690,7 @@ def _round_trip_entry_gaps(entry: StoredRun, codecs: Mapping[tuple[str, str], Ev
 def replay_gaps(
     descriptors: tuple[StrategyDescriptor, ...],
     tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
+    local_runs: Sequence[StoredRun] = (),
 ) -> list[str]:
     """T8 (replay): each stored run replays in every mode and writes the document its descriptor declares.
 
@@ -617,7 +700,7 @@ def replay_gaps(
     gaps: list[str] = []
     codecs = evidence_by_key(descriptors)
     replays = replays_by_key(descriptors)
-    for entry in stored_runs(descriptors, tier):
+    for entry in stored_runs(descriptors, tier, local_runs):
         gaps.extend(_replay_entry_gaps(entry, codecs, replays))
     return gaps
 
@@ -632,7 +715,7 @@ def _replay_entry_gaps(
     gaps: list[str] = []
     for mode in PresentationMode:
         try:
-            text = project_run(entry.run, ReplayOptions(mode=mode), codecs=codecs, replays=replays)
+            text = entry.project(ReplayOptions(mode=mode), codecs, replays)
         except Exception as error:
             gaps.append(f"strategy {label(item)}: replay in {mode.value} mode raised {type(error).__name__}: {error}")
             continue
@@ -756,7 +839,10 @@ def _expect_error(
 
 
 def _workspace_probes(
-    gaps: list[str], descriptors: tuple[StrategyDescriptor, ...], tier: tuple[EvaluationStrategy, ...]
+    gaps: list[str],
+    descriptors: tuple[StrategyDescriptor, ...],
+    tier: tuple[EvaluationStrategy, ...],
+    local_runs: Sequence[StoredRun],
 ) -> None:
     """Record a gap for each workspace dispatcher that accepts an undeclared input or another strategy's object."""
     by_key = evidence_by_key(descriptors)
@@ -767,9 +853,9 @@ def _workspace_probes(
         partial(require, build_indexes(descriptors).by_alias, "undeclared-alias", what="alias"),
         names="undeclared-alias",
     )
-    stored = stored_runs(descriptors, tier)
+    stored = stored_runs(descriptors, tier, local_runs)
     for entry in stored:
-        item, run = entry.descriptor, entry.run
+        item = entry.descriptor
         spec = specs[(item.analysis_id, item.method_id)]
         subclass_instance = cast(
             "NativeEvidence", object.__new__(type("_Subclassed", (item.behavior.result_type,), {}))
@@ -795,13 +881,12 @@ def _workspace_probes(
             gaps,
             f"{label(item)} decode_evidence without its codec",
             partial(
-                decode_evidence,
-                run,
+                entry.decode,
                 {key: value for key, value in by_key.items() if key != (item.analysis_id, item.method_id)},
             ),
             UnsupportedRunVersionError,
         )
-        inputs = ReplayInputs(ticker=run.ticker, instrument_profile=None, presentation_inputs=None)
+        inputs = ReplayInputs(ticker=entry.ticker, instrument_profile=None, presentation_inputs=None)
         replay_options = ReplayOptions()
         _expect_undeclared(
             gaps,
@@ -821,7 +906,7 @@ def _workspace_probes(
         _expect_error(
             gaps,
             f"{label(item)} project_run without its replay projector",
-            partial(project_run, run, codecs=by_key, replays=replays_without_own),
+            partial(entry.project, replay_options, by_key, replays_without_own),
             UnsupportedProjectionError,
             names=item.method_id,
         )
@@ -925,6 +1010,7 @@ def _cli_tier_probes(
     descriptors: tuple[StrategyDescriptor, ...],
     tier: tuple[EvaluationStrategy, ...],
     cli_tier: tuple[CliStrategy, ...],
+    local_runs: Sequence[StoredRun],
 ) -> None:
     """Record a gap unless a missing CLI-tier entry, key or another strategy's selection fails closed."""
     flags = WatchlistFlags(
@@ -951,7 +1037,7 @@ def _cli_tier_probes(
         partial(build_selection_for, "undeclared-alias", flags, builders_by_alias(descriptors, cli_tier)),
         names="undeclared-alias",
     )
-    stored = stored_runs(descriptors, tier)
+    stored = stored_runs(descriptors, tier, local_runs)
     for item in descriptors:
         without = tuple(entry for entry in cli_tier if entry.behavior is not item.behavior)
         for probe, action in (
@@ -1018,13 +1104,21 @@ def undeclared_input_gaps(
     descriptors: tuple[StrategyDescriptor, ...],
     tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
     cli_tier: tuple[CliStrategy, ...] = CLI_STRATEGIES,
+    local_runs: Sequence[StoredRun] = (),
+    outside_tool_names: Sequence[StrategyDescriptor] = (),
 ) -> list[str]:
-    """T11: every dispatcher rejects an input that matches no declared strategy, naming it."""
+    """T11: every dispatcher rejects an input that matches no declared strategy, naming it.
+
+    ``local_runs`` are the stored runs of descriptors that have no golden case, so their run-level probes run too.
+    ``outside_tool_names`` are the descriptors, matched by identity, whose tool is deliberately not a ``ToolName``
+    member (the specimen's). They take part in every probe except the two that register handlers against the closed
+    enumeration, which the generator's end-to-end test covers.
+    """
     gaps: list[str] = []
     indexes = build_indexes(descriptors)
     _evaluation_tier_probes(gaps, descriptors, tier)
-    _cli_tier_probes(gaps, descriptors, tier, cli_tier)
-    _workspace_probes(gaps, descriptors, tier)
+    _cli_tier_probes(gaps, descriptors, tier, cli_tier, local_runs)
+    _workspace_probes(gaps, descriptors, tier, local_runs)
     fixtures = compose_fixture_dependencies(
         DETERMINISTIC_CASES[0], clock_at=_FIXTURE_CLOCK, descriptors=descriptors, tier=tier
     )
@@ -1072,7 +1166,12 @@ def undeclared_input_gaps(
             "bind_handlers with another strategy's dependencies",
             partial(bind_handlers, descriptors, {**dependencies, first.tool: dependencies[second.tool]}, runtime),
         )
-    handlers = dict(bind_handlers(descriptors, dependencies, runtime))
+    skipped = {id(item.tool) for item in outside_tool_names if any(item is declared for declared in descriptors)}
+    handlers = {
+        tool: handler
+        for tool, handler in bind_handlers(descriptors, dependencies, runtime).items()
+        if id(tool) not in skipped
+    }
     for tool in ToolName:
         _expect_undeclared(
             gaps,
@@ -1252,6 +1351,15 @@ def save_run_gaps(
     fixture providers, then returns the runs the database holds. The per-alias fixture setup is hand-written
     test data; a missing entry is a gap.
     """
+    return run_record_gaps(descriptors, stored, decode_evidence)
+
+
+def run_record_gaps[RunT: RunRecord](
+    descriptors: tuple[StrategyDescriptor, ...],
+    stored: Mapping[str, Callable[[], Sequence[RunT]]],
+    decode: Callable[[RunT, Mapping[tuple[str, str], EvidenceCodec]], object],
+) -> list[str]:
+    """T22 for any kind of run: ``decode`` is the function that kind of run is decoded with."""
     gaps: list[str] = []
     codecs = evidence_by_key(descriptors)
     for item in descriptors:
@@ -1274,7 +1382,7 @@ def save_run_gaps(
             )
             continue
         try:
-            decode_evidence(run, codecs)
+            decode(run, codecs)
         except Exception as error:  # noqa: BLE001 - any rejection is the gap being reported
             gaps.append(f"alias {item.alias!r} stored a run its codec rejects: {error}")
     return gaps
@@ -1619,31 +1727,147 @@ def source_files() -> list[Path]:
 # T25: site checks
 # ---------------------------------------------------------------------------
 #
-# A site check takes the names of one strategy and returns ``Gap`` records; the site data file names it, and
-# the status command prints what it returns. It works from the package name and the alias, and consults the
-# descriptor only when the strategy has one. A check is a site check exactly when it returns ``list[Gap]``;
-# every other check in this module is a suite-wide rule over the whole closed tuple and needs no site.
+# A site check takes the names of one strategy and a ``SiteContext`` and returns ``Gap`` records; the site data
+# file names it, and the status command prints what it returns. It works from the package name and the alias,
+# and consults the descriptor only when the strategy has one. A check is a site check exactly when it returns
+# ``list[Gap]``; every other check in this module is a suite-wide rule over the whole closed tuple and needs no
+# site.
+#
+# The context says what the check looks at: the descriptors, both tiers, the command application, the stored
+# runs, the cases and the paths of the strategy's files. The default is the production wiring. The specimen
+# strategy of the conformance tests passes a context of its own, so the same checks run over a strategy that the
+# production tuples, tiers and unions never name.
 
 _STRATEGIES_PACKAGE = "investment_analysis_engine.strategies"
-_CASES_PACKAGE = "investment_analysis_engine.evaluation.cases"
 _CATALOG_TEST = REPOSITORY_ROOT / "tests" / "evaluation" / "test_catalog.py"
 _WATCHLIST_COMMANDS = ("create", "add-selection")
 _GUIDE_LINKS = ("FINANCE_MATH.md#", "GLOSSARY.md")
+SETTINGS_FILE_NAME = "settings.toml"
+SETTINGS_MODEL_FILE_NAME = "settings.py"
 
 
-def site_checks() -> dict[str, Callable[[StrategyNames], list[Gap]]]:
+@functools.cache
+def _production_stored_runs() -> tuple[StoredRun, ...]:
+    """Return the stored run of every production descriptor, built once."""
+    return tuple(stored_runs(STRATEGIES))
+
+
+def _production_stored_run(item: StrategyDescriptor) -> StoredRun | None:
+    return next((entry for entry in _production_stored_runs() if entry.descriptor is item), None)
+
+
+def _production_case_ids(item: StrategyDescriptor) -> list[str]:
+    """Return the ids of the golden cases whose arguments route to the descriptor's tool."""
+    return [request.case.case_id for request in _requests_of(item)]
+
+
+def _production_served(item: StrategyDescriptor) -> list[str]:
+    """Return the gaps in how the golden cases cover and the fixtures serve the descriptor's tool."""
+    found = _tool_required_gaps_for(item, _required_tools())
+    for request in _requests_of(item):
+        found.extend(_dispatch_gaps_for(request, item.behavior.result_type))
+    return found
+
+
+def _production_strategy_docs(
+    names: StrategyNames, where: str, descriptors: tuple[StrategyDescriptor, ...]
+) -> list[Gap]:
+    """Return the gaps in the generated strategy lists of the production user documents for ``names``."""
+    del descriptors
+    site_id = "strategy-docs"
+    gaps: list[Gap] = []
+    for block in strategy_list_blocks():
+        document = block.file.relative_to(REPOSITORY_ROOT).as_posix()
+        problem = block_problem(block)
+        if problem is not None:
+            gaps.append(Gap(site_id, where, problem))
+        try:
+            listed = block.lists is not None and block.lists(current_body(block), names.alias)
+        except BlockError:
+            continue
+        if not listed:
+            gaps.append(
+                Gap(
+                    site_id,
+                    where,
+                    f"{document}: the generated block {block.block_id!r} has no entry for {names.alias!r}; "
+                    "run scripts/generate_strategy_docs.py",
+                )
+            )
+    return gaps
+
+
+@dataclasses.dataclass(frozen=True)
+class SiteContext:
+    """What the site checks look at, so one set of checks serves the production wiring and the specimen.
+
+    Attributes:
+        name: Names the context in diagnostics.
+        descriptors: The closed tuple of descriptors the strategy is declared in.
+        cli_tier: The CLI tier its entry is in.
+        evaluation_tier: The evaluation tier its entry is in.
+        app: The command application its direct command is added to.
+        stored_run: The result and run stored for a descriptor, or ``None`` when it has none.
+        case_ids: The ids of the golden cases that exercise a descriptor's tool.
+        served: The gaps in how the cases cover and the fixtures serve a descriptor's tool.
+        strategy_docs: The gaps in the generated strategy lists, given the strategy's names, its site path and
+            the descriptors the lists are generated from.
+        paths: The path of a site's file by site id, with the path placeholders, where it differs from the site
+            data file's.
+        selections: The selection classes the strategy's selection is one of; the ``SelectionMember`` union when
+            ``None``.
+        schema_directory: The folder of the published schemas; the repository's when ``None``.
+        catalog_test: The test that pins the case ids; the catalog test when ``None``.
+        root: The folder the paths are relative to; the repository root when ``None``.
+        covered: The sites a check here cannot establish, by site id, with where they are covered instead. The
+            status command reports them by name and does not run their checks.
+    """
+
+    name: str
+    descriptors: tuple[StrategyDescriptor, ...]
+    cli_tier: tuple[CliStrategy, ...]
+    evaluation_tier: tuple[EvaluationStrategy, ...]
+    app: typer.Typer
+    stored_run: Callable[[StrategyDescriptor], StoredRun | None]
+    case_ids: Callable[[StrategyDescriptor], list[str]]
+    served: Callable[[StrategyDescriptor], list[str]]
+    strategy_docs: Callable[[StrategyNames, str, tuple[StrategyDescriptor, ...]], list[Gap]]
+    paths: Mapping[str, str] = dataclasses.field(default_factory=dict)
+    selections: tuple[type[BaseModel], ...] | None = None
+    schema_directory: Path | None = None
+    catalog_test: Path | None = None
+    root: Path | None = None
+    covered: Mapping[str, str] = dataclasses.field(default_factory=dict)
+
+
+PRODUCTION = SiteContext(
+    name="production",
+    descriptors=STRATEGIES,
+    cli_tier=CLI_STRATEGIES,
+    evaluation_tier=EVALUATION_STRATEGIES,
+    app=app,
+    stored_run=_production_stored_run,
+    case_ids=_production_case_ids,
+    served=_production_served,
+    strategy_docs=_production_strategy_docs,
+)
+"""The context of the four production strategies."""
+
+
+def site_checks() -> dict[str, Callable[..., list[Gap]]]:
     """Return the site checks of this module by name, told apart by signature.
 
-    A site check is a function of one ``StrategyNames`` parameter that returns ``list[Gap]``; no list of names is kept.
+    A site check is a function of a ``StrategyNames`` and a ``SiteContext`` that returns ``list[Gap]``; no list of
+    names is kept.
     """
-    checks: dict[str, Callable[[StrategyNames], list[Gap]]] = {}
+    checks: dict[str, Callable[..., list[Gap]]] = {}
     for name, function in inspect.getmembers(sys.modules[__name__], inspect.isfunction):
         if function.__module__ != __name__:
             continue
         signature = inspect.signature(function)
         parameters = [parameter.annotation for parameter in signature.parameters.values()]
-        if signature.return_annotation == "list[Gap]" and parameters == ["StrategyNames"]:
-            checks[name] = cast("Callable[[StrategyNames], list[Gap]]", function)
+        if signature.return_annotation == "list[Gap]" and parameters == ["StrategyNames", "SiteContext"]:
+            checks[name] = function
     return checks
 
 
@@ -1652,50 +1876,75 @@ def _sites_by_id() -> dict[str, Site]:
     return {site.id: site for site in load_sites()}
 
 
-def _where(site_id: str, names: StrategyNames) -> str:
-    """Return the site's file for ``names``, as the site data file declares it."""
-    return _sites_by_id()[site_id].resolved_path(names)
+def site_path(site_id: str, names: StrategyNames, context: SiteContext = PRODUCTION) -> str:
+    """Return the site's file for ``names``: the context's path when it has one, else the site data file's."""
+    template = context.paths.get(site_id)
+    if template is None:
+        return _sites_by_id()[site_id].resolved_path(names)
+    return template.format(module=names.module, alias=names.alias, guide=names.guide)
 
 
-def _owns(names: StrategyNames, descriptor: StrategyDescriptor) -> bool:
+def _root(context: SiteContext) -> Path:
+    """Return the folder the context's paths are relative to; the repository root is read when it is used."""
+    return REPOSITORY_ROOT if context.root is None else context.root
+
+
+def _module_of(path: str) -> str:
+    """Return the dotted module name of a Python file's repository-relative path."""
+    return path.removesuffix(".py").replace("/", ".")
+
+
+def _package_of(names: StrategyNames, context: SiteContext) -> str:
+    """Return the dotted name of the package that holds the strategy's files, read from its vocabulary path."""
+    return _module_of(site_path("vocabulary", names, context)).rpartition(".")[0]
+
+
+def _owns(names: StrategyNames, descriptor: StrategyDescriptor, package: str | None = None) -> bool:
     """Return whether ``descriptor`` is the one declared for ``names``: by alias, or by the package of its result."""
-    return descriptor.alias == names.alias or descriptor.behavior.result_type.__module__.startswith(
-        f"{_STRATEGIES_PACKAGE}.{names.module}."
-    )
+    owned = f"{_STRATEGIES_PACKAGE}.{names.module}" if package is None else package
+    return descriptor.alias == names.alias or descriptor.behavior.result_type.__module__.startswith(f"{owned}.")
 
 
 def find_descriptor(
-    names: StrategyNames, descriptors: tuple[StrategyDescriptor, ...] = STRATEGIES
+    names: StrategyNames, descriptors: tuple[StrategyDescriptor, ...] = STRATEGIES, package: str | None = None
 ) -> StrategyDescriptor | None:
     """Return the descriptor declared for ``names``, or ``None`` when the strategy is not declared yet."""
-    return next((item for item in descriptors if _owns(names, item)), None)
+    return next((item for item in descriptors if _owns(names, item, package)), None)
 
 
-def _undeclared(site_id: str, names: StrategyNames) -> list[Gap]:
-    declared_in = _where("descriptor", names)
+def _declared(names: StrategyNames, context: SiteContext) -> StrategyDescriptor | None:
+    return find_descriptor(names, context.descriptors, _package_of(names, context))
+
+
+def _undeclared(site_id: str, names: StrategyNames, context: SiteContext) -> list[Gap]:
+    declared_in = site_path("descriptor", names, context)
     return [
         Gap(
             site_id,
-            _where(site_id, names),
+            site_path(site_id, names, context),
             f"strategy {names.alias!r} (package {names.module!r}) has no descriptor; declare it in {declared_in}",
         )
     ]
 
 
 def _descriptor_site(
-    site_id: str, names: StrategyNames, inspect_descriptor: Callable[[StrategyDescriptor], list[str]]
+    site_id: str,
+    names: StrategyNames,
+    context: SiteContext,
+    inspect_descriptor: Callable[[StrategyDescriptor], list[str]],
 ) -> list[Gap]:
     """Report an undeclared strategy, or what ``inspect_descriptor`` finds wrong with the declared one."""
-    item = find_descriptor(names)
+    item = _declared(names, context)
     if item is None:
-        return _undeclared(site_id, names)
-    where = _where(site_id, names)
+        return _undeclared(site_id, names, context)
+    where = site_path(site_id, names, context)
     return [Gap(site_id, where, message) for message in inspect_descriptor(item)]
 
 
 def _file_site(
     site_id: str,
     names: StrategyNames,
+    context: SiteContext,
     *,
     inspect_tree: Callable[[ast.Module], list[str]] | None = None,
     inspect_descriptor: Callable[[StrategyDescriptor], list[str]] | None = None,
@@ -1705,8 +1954,8 @@ def _file_site(
     ``inspect_tree`` adds source-level findings, and ``inspect_descriptor`` adds findings about the declared
     descriptor; the latter runs only when the strategy has one.
     """
-    where = _where(site_id, names)
-    path = REPOSITORY_ROOT / where
+    where = site_path(site_id, names, context)
+    path = _root(context) / where
     if not path.is_file():
         return [Gap(site_id, where, f"{where} does not exist")]
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=where)
@@ -1718,51 +1967,40 @@ def _file_site(
     ]
     if inspect_tree is not None:
         messages.extend(inspect_tree(tree))
-    item = find_descriptor(names)
+    item = _declared(names, context)
     if inspect_descriptor is not None and item is not None:
         messages.extend(inspect_descriptor(item))
     return [Gap(site_id, where, message) for message in messages]
-
-
-@functools.cache
-def _production_stored_runs() -> tuple[StoredRun, ...]:
-    """Return the stored run of every production descriptor, built once."""
-    return tuple(stored_runs(STRATEGIES))
-
-
-def _stored_run_of(item: StrategyDescriptor) -> StoredRun | None:
-    return next((entry for entry in _production_stored_runs() if entry.descriptor is item), None)
 
 
 def _no_stored_run(item: StrategyDescriptor) -> str:
     return f"strategy {label(item)} has no golden fixture result or evaluation-tier sample selection to store"
 
 
-def _own_package_imports(names: StrategyNames) -> Callable[[ast.Module], list[str]]:
+def _own_package_imports(package: str) -> Callable[[ast.Module], list[str]]:
     """Return a tree check that reports each import from the strategy's own package."""
-    own = f"{_STRATEGIES_PACKAGE}.{names.module}"
 
     def check(tree: ast.Module) -> list[str]:
         found: list[str] = []
         for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and (node.level > 0 or (node.module or "").startswith(own)):
+            if isinstance(node, ast.ImportFrom) and (node.level > 0 or (node.module or "").startswith(package)):
                 found.append(f"line {node.lineno} imports from its own package, but the vocabulary is a leaf")
             elif isinstance(node, ast.Import):
                 found.extend(
                     f"line {node.lineno} imports {alias.name}, from its own package, but the vocabulary is a leaf"
                     for alias in node.names
-                    if alias.name.startswith(own)
+                    if alias.name.startswith(package)
                 )
         return found
 
     return check
 
 
-def site_vocabulary(names: StrategyNames) -> list[Gap]:
+def site_vocabulary(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 1a: the vocabulary leaf defines the identity constants, imports nothing from its package, and agrees."""
 
     def agrees(item: StrategyDescriptor) -> list[str]:
-        module = importlib.import_module(f"{_STRATEGIES_PACKAGE}.{names.module}.vocabulary")
+        module = importlib.import_module(_module_of(site_path("vocabulary", names, context)))
         found = []
         if getattr(module, "ANALYSIS_ID", None) != item.analysis_id:
             found.append(f"ANALYSIS_ID is not the descriptor's {item.analysis_id!r}")
@@ -1773,58 +2011,94 @@ def site_vocabulary(names: StrategyNames) -> list[Gap]:
     return _file_site(
         "vocabulary",
         names,
-        inspect_tree=_own_package_imports(names),
+        context,
+        inspect_tree=_own_package_imports(_package_of(names, context)),
         inspect_descriptor=agrees,
     )
 
 
-def site_analyzer(names: StrategyNames) -> list[Gap]:
+def site_analyzer(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 1: the analyzer file defines an analyzer, and one analyzer of the package returns the descriptor's result."""
 
     def returns_the_result(item: StrategyDescriptor) -> list[str]:
         _import_strategy_modules()
-        prefix = f"{_STRATEGIES_PACKAGE}.{names.module}."
+        importlib.import_module(_module_of(site_path("analyzer", names, context)))
+        package = _package_of(names, context)
         claimed: dict[type, list[str]] = {}
-        for analyzer in _concrete_analyzers():
+        for analyzer in _concrete_analyzers(f"{package.partition('.')[0]}."):
             result_type = _analyzer_result_type(analyzer)
-            if analyzer.__module__.startswith(prefix) and result_type is not None:
+            if analyzer.__module__.startswith(f"{package}.") and result_type is not None:
                 claimed.setdefault(result_type, []).append(f"{analyzer.__module__}.{analyzer.__qualname__}")
         return _analyzer_gaps_for(item, claimed)
 
-    return _file_site("analyzer", names, inspect_descriptor=returns_the_result)
+    return _file_site("analyzer", names, context, inspect_descriptor=returns_the_result)
 
 
-def site_descriptor(names: StrategyNames) -> list[Gap]:
+def site_settings(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
+    """The strategy's settings, only when its package has a ``settings.py``: the shipped file and the descriptor.
+
+    A package with no ``settings.py`` has no settings and is done. A package with one is done when a
+    ``settings.toml`` sits beside it and the descriptor's ``settings_type`` is the model that file defines; each
+    missing part is reported.
+    """
+    site_id = "settings"
+    where = site_path(site_id, names, context)
+    model_where = where.removesuffix(SETTINGS_FILE_NAME) + SETTINGS_MODEL_FILE_NAME
+    root = _root(context)
+    if not (root / model_where).is_file():
+        return []
+    gaps = []
+    if not (root / where).is_file():
+        gaps.append(Gap(site_id, where, f"{model_where} defines a settings model but {where} does not exist"))
+    item = _declared(names, context)
+    if item is None:
+        return [*gaps, *_undeclared(site_id, names, context)]
+    model = item.settings_type
+    if model is None:
+        gaps.append(Gap(site_id, model_where, f"{model_where} exists but the descriptor's settings_type is None"))
+    elif (
+        model.__module__ != _module_of(model_where)
+        or getattr(importlib.import_module(model.__module__), model.__name__, None) is not model
+    ):
+        gaps.append(
+            Gap(
+                site_id,
+                model_where,
+                f"the descriptor's settings_type {model.__qualname__} is not defined in {model_where}",
+            )
+        )
+    return gaps
+
+
+def site_descriptor(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 2: the closed tuple of descriptors declares the strategy."""
-    return _descriptor_site("descriptor", names, lambda _item: [])
+    return _descriptor_site("descriptor", names, context, lambda _item: [])
 
 
-def site_tool_name(names: StrategyNames) -> list[Gap]:
+def site_tool_name(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 3: the descriptor's tool is a ``ToolName`` member."""
     return _descriptor_site(
         "tool-name",
         names,
+        context,
         lambda item: [] if item.tool in tuple(ToolName) else [f"tool {item.tool!r} is not a ToolName member"],
     )
 
 
-def site_tool(names: StrategyNames) -> list[Gap]:
+def site_tool(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 4: the tool file defines the arguments model, dependencies and handler the descriptor binds."""
+    package = _package_of(names, context)
 
     def binds_the_arguments(item: StrategyDescriptor) -> list[str]:
-        found = _argument_gaps_for(item, _defined_argument_models())
-        if not item.tool_arguments.__module__.startswith(f"{_STRATEGIES_PACKAGE}.{names.module}."):
+        found = _argument_gaps_for(item, _defined_argument_models(f"{package.partition('.')[0]}."))
+        if not item.tool_arguments.__module__.startswith(f"{package}."):
             found.append(f"{item.tool_arguments.__qualname__} is not defined in the strategy's package")
         return found
 
-    return _file_site(
-        "tool",
-        names,
-        inspect_descriptor=binds_the_arguments,
-    )
+    return _file_site("tool", names, context, inspect_descriptor=binds_the_arguments)
 
 
-def site_unions(names: StrategyNames) -> list[Gap]:
+def site_unions(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 5: the descriptor's selection class and result type are in the two type-level unions."""
 
     def in_the_unions(item: StrategyDescriptor) -> list[str]:
@@ -1834,112 +2108,104 @@ def site_unions(names: StrategyNames) -> list[Gap]:
             found.append(f"selection class {behavior.selection_type.__name__} is not in SelectionMember")
         return found
 
-    return _descriptor_site("unions", names, in_the_unions)
+    return _descriptor_site("unions", names, context, in_the_unions)
 
 
-def site_selection(names: StrategyNames) -> list[Gap]:
+def site_selection(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 6: the selection file defines a selection class whose identifiers are the descriptor's."""
 
     def carries_the_ids(item: StrategyDescriptor) -> list[str]:
-        return _selection_gaps_for(item, _selections_by_ids())
+        return _selection_gaps_for(item, _selections_by_ids(context.selections))
 
-    return _file_site("selection", names, inspect_descriptor=carries_the_ids)
+    return _file_site("selection", names, context, inspect_descriptor=carries_the_ids)
 
 
-def site_codec(names: StrategyNames) -> list[Gap]:
+def site_codec(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 7: the codec file defines the codec functions, and the strategy's stored run decodes to its result."""
 
     def round_trips(item: StrategyDescriptor) -> list[str]:
-        entry = _stored_run_of(item)
+        entry = context.stored_run(item)
         if entry is None:
             return [_no_stored_run(item)]
-        return _round_trip_entry_gaps(entry, evidence_by_key(STRATEGIES))
+        return _round_trip_entry_gaps(entry, evidence_by_key(context.descriptors))
 
-    return _file_site(
-        "codec",
-        names,
-        inspect_descriptor=round_trips,
-    )
+    return _file_site("codec", names, context, inspect_descriptor=round_trips)
 
 
-def site_execution(names: StrategyNames) -> list[Gap]:
+def site_execution(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 8: the execution file defines the capture type and the function that turns a capture into a run."""
-    return _file_site(
-        "execution",
-        names,
-    )
+    return _file_site("execution", names, context)
 
 
-def site_cli(names: StrategyNames) -> list[Gap]:
+def site_cli(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 9: the CLI file defines the selection builder, the refresh executor and the direct command."""
-    return _file_site(
-        "cli",
-        names,
-    )
+    return _file_site("cli", names, context)
 
 
-def site_cli_tier(names: StrategyNames) -> list[Gap]:
+def site_cli_tier(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 10: one CLI-tier entry serves the descriptor, and its alias is a command offering both strategy flags."""
 
     def wired(item: StrategyDescriptor) -> list[str]:
-        found = _tier_gaps_for(item, CLI_STRATEGIES, "CLI tier")
-        root = typer.main.get_command(app)
+        found = _tier_gaps_for(item, context.cli_tier, "CLI tier")
+        root = typer.main.get_command(context.app)
         commands = root.commands if isinstance(root, TyperGroup) else {}
         command = commands.get(item.alias)
         if command is None:
             return [*found, f"alias {item.alias!r} is not a top-level command"]
         return [*found, *_strategy_flag_gaps_for(item.alias, command.params)]
 
-    return _descriptor_site("cli-tier", names, wired)
+    return _descriptor_site("cli-tier", names, context, wired)
 
 
-def _replays(item: StrategyDescriptor) -> list[str]:
-    entry = _stored_run_of(item)
+def _replays(item: StrategyDescriptor, context: SiteContext) -> list[str]:
+    entry = context.stored_run(item)
     if entry is None:
         return [_no_stored_run(item)]
-    return _replay_entry_gaps(entry, evidence_by_key(STRATEGIES), replays_by_key(STRATEGIES))
+    return _replay_entry_gaps(entry, evidence_by_key(context.descriptors), replays_by_key(context.descriptors))
 
 
-def site_presenter(names: StrategyNames) -> list[Gap]:
+def site_presenter(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 11: the presenter file defines a renderer, and the stored run replays in every mode."""
-    return _file_site("presenter", names, inspect_descriptor=_replays)
+    return _file_site("presenter", names, context, inspect_descriptor=lambda item: _replays(item, context))
 
 
-def site_envelope(names: StrategyNames) -> list[Gap]:
+def site_envelope(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 12: the envelope file defines the document version, and the direct command's ``--json`` has this model."""
+    package = _package_of(names, context)
 
     def documents(item: StrategyDescriptor) -> list[str]:
         found = []
-        if not item.json_envelope.__module__.startswith(f"{_STRATEGIES_PACKAGE}.{names.module}."):
+        if not item.json_envelope.__module__.startswith(f"{package}."):
             found.append(f"{item.json_envelope.__qualname__} is not defined in the strategy's package")
-        if item.alias not in json_command_paths(app):
+        if item.alias not in json_command_paths(context.app):
             found.append(f"command '{item.alias}' offers no --json document")
         return found
 
-    return _file_site("envelope", names, inspect_descriptor=documents)
+    return _file_site("envelope", names, context, inspect_descriptor=documents)
 
 
-def site_replay(names: StrategyNames) -> list[Gap]:
+def site_replay(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 13: the replay file defines a projector, and the stored run replays in every mode."""
-    return _file_site("replay", names, inspect_descriptor=_replays)
+    return _file_site("replay", names, context, inspect_descriptor=lambda item: _replays(item, context))
 
 
-def site_evaluation(names: StrategyNames) -> list[Gap]:
+def site_evaluation(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 14: the evaluation file defines its fixture ids, requirement, sample selection and composition."""
     return _file_site(
         "evaluation",
         names,
-        inspect_descriptor=lambda item: evaluation_fixture_id_gaps((item,)),
+        context,
+        inspect_descriptor=lambda item: evaluation_fixture_id_gaps((item,), context.evaluation_tier),
     )
 
 
-def site_evaluation_tier(names: StrategyNames) -> list[Gap]:
+def site_evaluation_tier(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 15: one evaluation-tier entry serves the descriptor."""
 
     def wired(item: StrategyDescriptor) -> list[str]:
-        return _tier_gaps_for(item, EVALUATION_STRATEGIES, "evaluation tier")
+        return _tier_gaps_for(item, context.evaluation_tier, "evaluation tier")
 
-    return _descriptor_site("evaluation-tier", names, wired)
+    return _descriptor_site("evaluation-tier", names, context, wired)
 
 
 def _requests_of(item: StrategyDescriptor) -> list[DeterministicCaseRequest]:
@@ -1955,66 +2221,60 @@ def _requests_of(item: StrategyDescriptor) -> list[DeterministicCaseRequest]:
     return requests
 
 
-def site_cases(names: StrategyNames) -> list[Gap]:
+def site_cases(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 16: the cases file defines the arguments table and cases, and the fixtures serve each of the tool's cases."""
-
-    def served(item: StrategyDescriptor) -> list[str]:
-        found = _tool_required_gaps_for(item, _required_tools())
-        for request in _requests_of(item):
-            found.extend(_dispatch_gaps_for(request, item.behavior.result_type))
-        return found
-
-    return _file_site("cases", names, inspect_descriptor=served)
+    return _file_site("cases", names, context, inspect_descriptor=context.served)
 
 
-def site_catalog(names: StrategyNames) -> list[Gap]:
+def site_catalog(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 17: the catalog imports the case module, and the catalog test pins the id of each of the tool's cases.
 
     Whether the suite version was bumped is reviewed truth that no check can establish for one strategy.
     """
     site_id = "catalog"
-    where = _where(site_id, names)
-    path = REPOSITORY_ROOT / where
+    where = site_path(site_id, names, context)
+    path = _root(context) / where
     if not path.is_file():
         return [Gap(site_id, where, f"{where} does not exist")]
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=where)
-    module = f"{_CASES_PACKAGE}.{names.module}"
+    module = _module_of(site_path("cases", names, context))
     gaps = []
     if not any(isinstance(node, ast.ImportFrom) and node.module == module for node in ast.walk(tree)):
         gaps.append(Gap(site_id, where, f"{where} does not import {module}"))
-    item = find_descriptor(names)
+    item = _declared(names, context)
     if item is not None:
-        pinned = _CATALOG_TEST.read_text(encoding="utf-8")
-        test_where = _CATALOG_TEST.relative_to(REPOSITORY_ROOT).as_posix()
+        catalog_test = _CATALOG_TEST if context.catalog_test is None else context.catalog_test
+        pinned = catalog_test.read_text(encoding="utf-8")
+        test_where = catalog_test.relative_to(REPOSITORY_ROOT).as_posix()
         gaps.extend(
-            Gap(site_id, test_where, f"case {request.case.case_id} is not in the catalog test's pinned ids")
-            for request in _requests_of(item)
-            if f'"{request.case.case_id}"' not in pinned
+            Gap(site_id, test_where, f"case {case_id} is not in the catalog test's pinned ids")
+            for case_id in context.case_ids(item)
+            if f'"{case_id}"' not in pinned
         )
     return gaps
 
 
-def site_guide(names: StrategyNames) -> list[Gap]:
+def site_guide(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 18: the user guide exists and links to the finance mathematics and the glossary."""
     site_id = "guide"
-    where = _where(site_id, names)
-    path = REPOSITORY_ROOT / where
+    where = site_path(site_id, names, context)
+    path = _root(context) / where
     if not path.is_file():
         return [Gap(site_id, where, f"no guide for alias {names.alias!r}: {where} does not exist")]
     text = path.read_text(encoding="utf-8")
     return [Gap(site_id, where, f"{where} has no link to {link}") for link in _GUIDE_LINKS if link not in text]
 
 
-def site_watchlist_options(names: StrategyNames) -> list[Gap]:
+def site_watchlist_options(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 19: every flag the strategy's selection builder reads is a ``WatchlistFlags`` field and a watchlist option.
 
     A strategy that reads only the shared flags is done by having nothing to add; one that reads a flag of its own
     needs the typed field and the option on both watchlist commands.
     """
     site_id = "watchlist-options"
-    where = _where(site_id, names)
-    cli_where = _where("cli", names)
-    cli_path = REPOSITORY_ROOT / cli_where
+    where = site_path(site_id, names, context)
+    cli_where = site_path("cli", names, context)
+    cli_path = _root(context) / cli_where
     if not cli_path.is_file():
         return [
             Gap(site_id, where, f"{cli_where} does not exist, so the flags its selection builder reads are unknown")
@@ -2050,43 +2310,23 @@ def site_watchlist_options(names: StrategyNames) -> list[Gap]:
     return gaps
 
 
-def site_schema(names: StrategyNames) -> list[Gap]:
+def site_schema(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """The published schema of the strategy's document exists and is current (``scripts/generate_schemas.py``)."""
     site_id = "schema"
-    where = _where(site_id, names)
-    item = find_descriptor(names)
+    where = site_path(site_id, names, context)
+    item = _declared(names, context)
     if item is None:
-        if (REPOSITORY_ROOT / where).is_file():
+        if (_root(context) / where).is_file():
             return []
         return [Gap(site_id, where, f"{where} does not exist; run scripts/generate_schemas.py")]
-    return [Gap(site_id, where, message) for message in published_schema_gaps((item,))]
+    directory = SCHEMA_DIRECTORY if context.schema_directory is None else context.schema_directory
+    return [Gap(site_id, where, message) for message in published_schema_gaps((item,), directory)]
 
 
-def site_strategy_docs(names: StrategyNames) -> list[Gap]:
+def site_strategy_docs(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """The generated strategy lists of the user documents hold the strategy and are current.
 
     Each gap carries the site's path and names the document in its message; the remedy is always
     ``scripts/generate_strategy_docs.py``.
     """
-    site_id = "strategy-docs"
-    where = _where(site_id, names)
-    gaps: list[Gap] = []
-    for block in strategy_list_blocks():
-        document = block.file.relative_to(REPOSITORY_ROOT).as_posix()
-        problem = block_problem(block)
-        if problem is not None:
-            gaps.append(Gap(site_id, where, problem))
-        try:
-            listed = block.lists is not None and block.lists(current_body(block), names.alias)
-        except BlockError:
-            continue
-        if not listed:
-            gaps.append(
-                Gap(
-                    site_id,
-                    where,
-                    f"{document}: the generated block {block.block_id!r} has no entry for {names.alias!r}; "
-                    "run scripts/generate_strategy_docs.py",
-                )
-            )
-    return gaps
+    return context.strategy_docs(names, site_path("strategy-docs", names, context), context.descriptors)
