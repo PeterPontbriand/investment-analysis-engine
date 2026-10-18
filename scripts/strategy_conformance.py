@@ -93,6 +93,7 @@ from investment_analysis_engine.workspace.strategy_types import NativeEvidence, 
 from investment_analysis_engine.workspace_documents.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
 from investment_analysis_engine.workspace_documents.run_replay import project_run
 from scripts.generate_schemas import SCHEMA_DIRECTORY, schema_text, strategy_schema_file
+from scripts.generate_strategy_docs import BlockError, block_problem, current_body, strategy_list_blocks
 from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_sites import Gap, Site, StrategyNames, load_sites
 
@@ -2059,3 +2060,33 @@ def site_schema(names: StrategyNames) -> list[Gap]:
             return []
         return [Gap(site_id, where, f"{where} does not exist; run scripts/generate_schemas.py")]
     return [Gap(site_id, where, message) for message in published_schema_gaps((item,))]
+
+
+def site_strategy_docs(names: StrategyNames) -> list[Gap]:
+    """The generated strategy lists of the user documents hold the strategy and are current.
+
+    Each gap carries the site's path and names the document in its message; the remedy is always
+    ``scripts/generate_strategy_docs.py``.
+    """
+    site_id = "strategy-docs"
+    where = _where(site_id, names)
+    gaps: list[Gap] = []
+    for block in strategy_list_blocks():
+        document = block.file.relative_to(REPOSITORY_ROOT).as_posix()
+        problem = block_problem(block)
+        if problem is not None:
+            gaps.append(Gap(site_id, where, problem))
+        try:
+            listed = block.lists is not None and block.lists(current_body(block), names.alias)
+        except BlockError:
+            continue
+        if not listed:
+            gaps.append(
+                Gap(
+                    site_id,
+                    where,
+                    f"{document}: the generated block {block.block_id!r} has no entry for {names.alias!r}; "
+                    "run scripts/generate_strategy_docs.py",
+                )
+            )
+    return gaps

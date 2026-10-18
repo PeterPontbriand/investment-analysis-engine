@@ -89,7 +89,7 @@ The direct command and watchlist-refresh paths reuse the same method adapter, bu
 
 The strategy determines which financial capability its semantics require. FCF growth uses a `FinancialFactsProvider` through its production annual-series resolver, currently backed by SEC EDGAR for the required completed annual cash-flow and EPS facts. The resolution layer can use an optional cache and returns typed inputs with source, period, availability, retrieval, and transformation lineage. Historical prices, company financial facts, quotes, and macro observations are distinct capabilities; do not treat one as a substitute for another.
 
-`use_cache` controls whether the resolver can use its configured resolved-input cache. Provider and cache composition belongs at the application boundary. Detailed financial definitions, conventions, and data limitations belong in [Financial Math & Data Conventions](../user/FINANCE_MATH.md) and the relevant [strategy guide](../user/strategies/FCF_EARNINGS_GROWTH.md).
+`use_cache` controls whether the resolver can use its configured resolved-input cache. Provider and cache composition belongs at the application boundary. Detailed financial definitions, conventions, and data limitations belong in [Financial Math & Data Conventions](../user/FINANCE_MATH.md) and the relevant [strategy guide](../user/strategies/FCF_GROWTH.md).
 
 ## How inputs and provenance are handled
 
@@ -145,7 +145,7 @@ FCF growth is a useful end-to-end example because its resolver, calculation, pre
 | Common execution and persistence | [`workspace.execute()`](../../investment_analysis_engine/workspace/execution.py), [`AnalysisRun`](../../investment_analysis_engine/workspace/runs.py), and the Analysis Run repository |
 | Strategy presentation | `render_fcf_earnings_growth` in [`presenter.py`](../../investment_analysis_engine/strategies/fcf_growth/presenter.py) |
 
-The policy remains strategy-owned. `FCFGrowthSelection` is the validated, persisted/request-facing snapshot and converts to the analyzer's `FCFEarningsGrowthConfig`; the adapter supplies the separate common `AnalysisContext`. See the [FCF & Earnings Growth user guide](../user/strategies/FCF_EARNINGS_GROWTH.md) for method semantics and limitations.
+The policy remains strategy-owned. `FCFGrowthSelection` is the validated, persisted/request-facing snapshot and converts to the analyzer's `FCFEarningsGrowthConfig`; the adapter supplies the separate common `AnalysisContext`. See the [FCF & Earnings Growth user guide](../user/strategies/FCF_GROWTH.md) for method semantics and limitations.
 
 ## Edit sites of a strategy
 
@@ -175,6 +175,7 @@ A strategy touches the places below. Run `uv run python scripts/strategy_status.
 | `guide` | User guide with FINANCE_MATH.md and GLOSSARY.md links. Each strategy has an investor-facing guide. | `docs/user/strategies/{guide}.md` | reviewed | no | `site_guide`: no guide for alias X |
 | `watchlist-options` | Watchlist options of the strategy, only when it has any beyond the shared ones. A flag the selection builder reads needs a typed field in WatchlistFlags and an option on both watchlist commands. | `investment_analysis_engine/cli_watchlist_flags.py` | reviewed | no | `site_watchlist_options`: the selection builder reads a flag that WatchlistFlags or a watchlist command lacks |
 | `schema` | Published schema (run scripts/generate_schemas.py). Every strategy document has a checked-in schema. | `schemas/{alias}.schema.json` | command | no | `site_schema`: schema schemas/<alias>.schema.json is missing or out of date; run scripts/generate_schemas.py |
+| `strategy-docs` | Generated strategy lists (run scripts/generate_strategy_docs.py). The strategy lists in USAGE.md and WORKSPACE.md are generated from the descriptors, one entry per strategy. | `docs/user/USAGE.md` | command | no | `site_strategy_docs`: the strategy is missing from the generated block of USAGE.md or WORKSPACE.md, or a block is out of date; run scripts/generate_strategy_docs.py |
 <!-- END GENERATED edit-sites -->
 
 ## Testing and quality expectations

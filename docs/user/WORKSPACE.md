@@ -36,7 +36,7 @@ An empty watchlist like this one has nothing to refresh yet. The common case —
 uv run ian watchlist create "Core Holdings" --analysis momentum AAPL MSFT KO
 ```
 
-`--analysis` accepts `momentum`, `graham-number`, `graham-growth`, or `fcf-growth` — the same names used everywhere else in this guide — and each one's flags are exactly its direct command's own flags (see the table below). A method that needs your own assumptions still needs them here: Graham Growth Value requires `--expected-growth`/`--aaa-yield` whether you run it directly or seed it into a watchlist, and omitting either is an `invalid_parameter` failure (exit `1`), not a silently-unselected method:
+`--analysis` accepts any strategy alias in the [strategy table](#method-specific-flags) — the same names used everywhere else in this guide — and each one's flags are exactly its direct command's own flags (see the table below). A method that needs your own assumptions still needs them here: Graham Growth Value requires `--expected-growth`/`--aaa-yield` whether you run it directly or seed it into a watchlist, and omitting either is an `invalid_parameter` failure (exit `1`), not a silently-unselected method:
 
 ```bash
 uv run ian watchlist create "Value Watch" --analysis graham-growth --expected-growth 6.0 --aaa-yield 4.4 AAPL
@@ -103,7 +103,7 @@ uv run ian watchlist remove-ticker "Core Holdings" KO
 uv run ian watchlist remove-method "Core Holdings" --analysis graham-number
 ```
 
-Every command that removes entries starts with `remove-`, and text output names methods by the same hyphenated names you type (`momentum`, `graham-number`, `graham-growth`, `fcf-growth`). `--json` output keeps the stored method identifiers (`sma_crossover`, `graham_number`, `graham_growth_value`, `reported_fcf_eps_cagr`), which never change.
+Every command that removes entries starts with `remove-`, and text output names methods by the same hyphenated names you type (the `--analysis` values in the [strategy table](#method-specific-flags)). `--json` output keeps the stored method identifiers, listed in the same table, which never change.
 
 ### Renaming a watchlist
 
@@ -152,12 +152,16 @@ A watchlist holding an entry saved by an earlier version, which this version can
 
 These are the flags `watchlist create --analysis METHOD` and `watchlist add-selection --analysis METHOD` accept, one method at a time. They mirror that method's direct command exactly — same names, same defaults, same required fields.
 
-| `--analysis` value | Flags | Notes |
-|---|---|---|
-| `momentum` | `--short-window`, `--long-window`, `--rsi-period`, `--as-of`, `--no-cache` | Window defaults match the configured Momentum policy. `--no-cache` bypasses the historical price cache. |
-| `graham-number` | `--as-of`, `--data-provider`, `--no-cache`, `--eps`, `--bvps`, `--current-price` | |
-| `graham-growth` | Same as `graham-number` without `--bvps`, plus `--eps-basis`, `--expected-growth`/`--aaa-yield` | The growth/yield assumptions are required; there is no default. |
-| `fcf-growth` | `--growth-years`, `--forward-policy`, `--classification-basis`, `--currency` | Always uses SEC EDGAR data, matching the direct `fcf-growth` command. |
+Each strategy's flags and notes are in the Watchlist options section of its guide, linked from this table:
+
+<!-- BEGIN GENERATED strategy-table: written by scripts/generate_strategy_docs.py; generated, do not edit by hand. -->
+| `--analysis` value | Strategy | Stored method id | Method-specific flags |
+| :--- | :--- | :--- | :--- |
+| `momentum` | Momentum | `sma_crossover` | [Watchlist options](strategies/MOMENTUM.md#watchlist-options) |
+| `graham-number` | Graham Number | `graham_number` | [Watchlist options](strategies/GRAHAM_NUMBER.md#watchlist-options) |
+| `graham-growth` | Graham Growth | `graham_growth_value` | [Watchlist options](strategies/GRAHAM_GROWTH.md#watchlist-options) |
+| `fcf-growth` | FCF Growth | `reported_fcf_eps_cagr` | [Watchlist options](strategies/FCF_GROWTH.md#watchlist-options) |
+<!-- END GENERATED strategy-table -->
 
 ## Refreshing a watchlist
 

@@ -9,8 +9,10 @@
 #   id         stable slug
 #   title      one line: what the site is
 #   why        one line: why a strategy needs it
-#   kind       new_file (a file the strategy owns), edit (a line in a shared file), command (a generated
-#              artifact) or reviewed (truth or prose the generator never writes)
+#   kind       new_file (a new Python file the strategy owns, whose required module-level names are listed
+#              in `defines`), edit (an entry added to an existing file), command (a script whose output must
+#              be regenerated) or reviewed (hand-written content, not a new Python file, whose correctness
+#              is reviewed)
 #   path       the file, with the placeholders {module} (snake_case name), {alias} (hyphenated command
 #              alias) and {guide} (upper-case guide name)
 #   generated  whether the strategy generator makes this change
@@ -241,3 +243,13 @@ path = "schemas/{alias}.schema.json"
 generated = false
 check = "site_schema"
 fails = "schema schemas/<alias>.schema.json is missing or out of date; run scripts/generate_schemas.py"
+
+[[site]]
+id = "strategy-docs"
+title = "Generated strategy lists (run scripts/generate_strategy_docs.py)"
+why = "The strategy lists in USAGE.md and WORKSPACE.md are generated from the descriptors, one entry per strategy."
+kind = "command"
+path = "docs/user/USAGE.md"
+generated = false
+check = "site_strategy_docs"
+fails = "the strategy is missing from the generated block of USAGE.md or WORKSPACE.md, or a block is out of date; run scripts/generate_strategy_docs.py"

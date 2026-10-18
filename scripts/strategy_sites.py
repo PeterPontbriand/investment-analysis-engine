@@ -4,6 +4,13 @@
 with ``tomllib`` into immutable records and defines the two small types a site check works with: the names of
 the strategy under test and the ``Gap`` a check returns. It imports nothing from the package under test, so
 the status command can still report when that package cannot be imported.
+
+A site's ``kind`` says what the contributor does there:
+
+- ``new_file``: a new Python file the strategy owns, whose required module-level names are listed in ``defines``;
+- ``edit``: an entry added to an existing file;
+- ``command``: a script whose output must be regenerated;
+- ``reviewed``: hand-written content, not a new Python file, whose correctness is reviewed.
 """
 
 import re
@@ -20,9 +27,6 @@ _REQUIRED_KEYS: Final[frozenset[str]] = frozenset({"id", "title", "why", "kind",
 _KEYS: Final[frozenset[str]] = _REQUIRED_KEYS | {"defines"}
 _MODULE_NAME: Final[re.Pattern[str]] = re.compile(r"[a-z][a-z0-9_]*")
 _ALIAS_NAME: Final[re.Pattern[str]] = re.compile(r"[a-z][a-z0-9-]*")
-
-# The user guide of FCF Growth predates the rule that a guide is named for the alias; the rename removes this entry.
-_LEGACY_GUIDE_NAMES: Final[dict[str, str]] = {"fcf-growth": "FCF_EARNINGS_GROWTH"}
 
 
 class SiteDataError(ValueError):
@@ -89,7 +93,7 @@ def strategy_names(module: str, alias: str | None = None) -> StrategyNames:
     resolved = alias if alias is not None else module.replace("_", "-")
     if not _ALIAS_NAME.fullmatch(resolved):
         raise SiteDataError(f"{resolved!r} is not a hyphenated command alias.")
-    guide = _LEGACY_GUIDE_NAMES.get(resolved, resolved.upper().replace("-", "_"))
+    guide = resolved.upper().replace("-", "_")
     return StrategyNames(module=module, alias=resolved, guide=guide)
 
 

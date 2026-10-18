@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from investment_analysis_engine.strategy_wiring import STRATEGIES
 from scripts import generate_strategy_docs as generator
 from scripts.generate_strategy_docs import (
     BlockError,
@@ -14,6 +15,7 @@ from scripts.generate_strategy_docs import (
     replace_block,
     stale_blocks,
 )
+from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_sites import load_sites
 
 
@@ -96,3 +98,31 @@ def test_main_check_reports_and_main_writes(
     assert generator.main(["--check"]) == 0
     assert generator.main([]) == 0
     assert capsys.readouterr().out == "generated blocks are current\n"
+
+
+def test_the_help_commands_list_one_line_per_strategy_in_tuple_order() -> None:
+    lines = generator.render_help_commands().splitlines()
+    assert lines[0] == "```bash"
+    assert lines[-1] == "```"
+    assert lines[1:-1] == [f"uv run ian {item.alias} --help" for item in STRATEGIES]
+
+
+def test_the_strategy_table_has_a_row_per_strategy_linking_its_watchlist_options() -> None:
+    rows = generator.render_strategy_table().splitlines()[2:]
+    assert len(rows) == len(STRATEGIES)
+    for row, item in zip(rows, STRATEGIES, strict=True):
+        assert row.startswith(f"| `{item.alias}` | {item.label} | `{item.method_id}` | ")
+        assert row.endswith(f"(strategies/{item.alias.upper().replace('-', '_')}.md#watchlist-options) |")
+
+
+def test_every_linked_watchlist_options_section_exists() -> None:
+    for item in STRATEGIES:
+        guide = REPOSITORY_ROOT / "docs" / "user" / "strategies" / f"{generator.guide_name(item)}.md"
+        assert "\n## Watchlist options\n" in guide.read_text(encoding="utf-8")
+
+
+def test_the_entry_detectors_match_whole_lines_only() -> None:
+    assert generator._lists_help_command("uv run ian momentum --help\n", "momentum")
+    assert not generator._lists_help_command("uv run ian momentum --help\n", "mom")
+    assert generator._lists_table_row("| `momentum` | x |\n", "momentum")
+    assert not generator._lists_table_row("| `momentum-x` | x |\n", "momentum")

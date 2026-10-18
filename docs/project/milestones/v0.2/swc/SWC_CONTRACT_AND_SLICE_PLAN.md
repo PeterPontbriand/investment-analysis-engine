@@ -60,8 +60,8 @@ document-link check and applicable documentation checks.
 | SWC.4e | [The direct Graham commands reject an unsupported provider](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) | Complete | 2026-10-12 |
 | SWC.4f | [One failure message rule for the direct commands and refresh](#swc4f--one-failure-message-rule-for-the-direct-commands-and-refresh) | Complete | 2026-10-12 |
 | SWC.5a | [Site data, report-mode checks and the status command](#swc5a--site-data-report-mode-checks-and-the-status-command) | Complete | 2026-10-17 |
-| SWC.5b | [Generated strategy lists and the user-guide moves](#swc5b--generated-strategy-lists-and-the-user-guide-moves) | Next | |
-| SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Planned | |
+| SWC.5b | [Generated strategy lists and the user-guide moves](#swc5b--generated-strategy-lists-and-the-user-guide-moves) | Complete | 2026-10-17 |
+| SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Next | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
 
 ## 3. Architectural contract
@@ -1520,3 +1520,17 @@ Approved by the project owner on 2026-10-17.
 - **Temporary guide-name exception.** The FCF Growth guide is still `FCF_EARNINGS_GROWTH.md`, so
   `scripts/strategy_sites.py` maps the alias `fcf-growth` to that name until SWC.5b renames the file and
   removes the entry.
+
+#### SWC.5b implementation record (2026-10-17)
+
+- **Blocks.** `USAGE.md` holds the `strategy-help-commands` block (one `uv run ian <alias> --help` line per
+  strategy, in the order of the closed tuple) and `WORKSPACE.md` the `strategy-table` block (alias, strategy
+  name, stored method id, link to the guide's "Watchlist options" section). Both are written by
+  `scripts/generate_strategy_docs.py`; a stale or missing block fails T26 naming the file and the script.
+- **Rename.** `FCF_EARNINGS_GROWTH.md` is `FCF_GROWTH.md`; the temporary guide-name exception is removed. Mentions
+  of the old file name that are not links stay as written.
+- **Command site.** `strategy-docs` (`site_strategy_docs`). A site names one path, so every gap carries the
+  site's path (`USAGE.md`) and the message names the document the gap is in.
+- **Moved facts.** The `fcf-growth` row of the former flags table listed only the four FCF flags, although its
+  selection builder also reads `--as-of`, `--data-provider` and `--no-cache`. The row moved unchanged and is
+  reported to the project owner.

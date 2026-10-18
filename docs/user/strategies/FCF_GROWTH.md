@@ -196,6 +196,10 @@ Positive FCF and diluted-EPS growth can be evidence of strengthening cash-genera
 
 FCF yield may appear as optional context when compatible market-capitalization evidence is available, but it never changes classification in the current method version.
 
+## Watchlist options
+
+`watchlist create --analysis fcf-growth` and `watchlist add-selection --analysis fcf-growth` accept `--growth-years`, `--forward-policy`, `--classification-basis` and `--currency`. Always uses SEC EDGAR data, matching the direct `fcf-growth` command. See [Local Research Workspace](../WORKSPACE.md#method-specific-flags) for the watchlist commands that take them.
+
 ## Related documentation
 
 - [Usage Guide](../USAGE.md)
