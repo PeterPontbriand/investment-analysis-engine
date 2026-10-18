@@ -4,7 +4,7 @@ The settings path of the composition root is exercised here: the multiplier come
 ``settings.toml``, overridden per key by the user's ``strategies/specimen-test.toml``.
 """
 
-from typing import Final, cast
+from typing import Final
 
 import typer
 
@@ -15,8 +15,8 @@ from investment_analysis_engine.config.strategy_settings import load_strategy_se
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.workspace.capture import ExecutionCapture
-from investment_analysis_engine.workspace.strategy_types import NativeEvidence
 from tests.specimen.analyzer import SpecimenAnalyzer
+from tests.specimen.closed_types import as_native_evidence
 from tests.specimen.execution import execute_specimen, from_specimen_capture
 from tests.specimen.presenter import render_specimen
 from tests.specimen.runs import SPECIMEN_RUN_STORE, build_specimen_run
@@ -50,7 +50,7 @@ def refresh(
     del profile_cache
     execution = from_specimen_capture(execute_specimen(_analyzer(), ticker, selection, executed_at=utc_now()))
     return ExecutionCapture(
-        native_evidence=cast("NativeEvidence", execution.native_evidence), profile=None, outcome=execution.outcome
+        native_evidence=as_native_evidence(execution.native_evidence), profile=None, outcome=execution.outcome
     )
 
 

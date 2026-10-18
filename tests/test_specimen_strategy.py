@@ -110,6 +110,18 @@ def test_the_production_declarations_never_name_the_specimen() -> None:
         assert SpecimenTool.ANALYZE_SPECIMEN.value not in text, path
 
 
+def test_only_the_closed_types_module_of_the_specimen_calls_cast() -> None:
+    """The specimen crosses the closed production types in one module, so a crossing cannot appear unnoticed."""
+    for path in sorted(SPECIMEN_FOLDER.glob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        if path.name == "closed_types.py":
+            assert text.count("cast(") == 5
+        else:
+            assert "cast(" not in text, path.name
+            assert "import cast" not in text, path.name
+            assert "type: ignore" not in text, path.name
+
+
 def test_the_specimen_tuples_append_the_specimen_after_the_production_entries() -> None:
     """The tests build the closed tuples themselves: production first, the specimen last."""
     assert (*STRATEGIES, SPECIMEN) == SPECIMEN_STRATEGIES
@@ -384,6 +396,7 @@ def test_t11_every_dispatcher_over_the_specimen_tuples_rejects_an_undeclared_inp
         SPECIMEN_EVALUATION_STRATEGIES,
         SPECIMEN_CLI_STRATEGIES,
         local_runs=(specimen_stored_run(),),
+        outside_tool_names=(SPECIMEN,),
     )
     assert gaps == []
 

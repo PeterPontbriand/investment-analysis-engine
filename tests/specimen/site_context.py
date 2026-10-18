@@ -10,7 +10,7 @@ import asyncio
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Final, cast
+from typing import Final
 
 import typer
 
@@ -31,6 +31,7 @@ from scripts.strategy_sites import Gap, StrategyNames, strategy_names
 from tests.specimen.analyzer import SpecimenAnalyzer
 from tests.specimen.cases import SPECIMEN_CASES
 from tests.specimen.cli_tier import SPECIMEN_CLI_STRATEGIES
+from tests.specimen.closed_types import as_native_evidence
 from tests.specimen.evaluation import GOLDEN_MULTIPLIER, SAMPLE_SELECTION
 from tests.specimen.evaluation_tier import SPECIMEN_EVALUATION, SPECIMEN_EVALUATION_STRATEGIES
 from tests.specimen.execution import SpecimenExecution
@@ -106,7 +107,7 @@ def specimen_stored_run() -> StoredRun:
     return StoredRun(
         SPECIMEN,
         SPECIMEN_EVALUATION.sample_selection,
-        cast("NativeEvidence", result),
+        as_native_evidence(result),
         run.ticker,
         run,
         decode,

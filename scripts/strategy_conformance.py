@@ -1105,12 +1105,14 @@ def undeclared_input_gaps(
     tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
     cli_tier: tuple[CliStrategy, ...] = CLI_STRATEGIES,
     local_runs: Sequence[StoredRun] = (),
+    outside_tool_names: Sequence[StrategyDescriptor] = (),
 ) -> list[str]:
     """T11: every dispatcher rejects an input that matches no declared strategy, naming it.
 
     ``local_runs`` are the stored runs of descriptors that have no golden case, so their run-level probes run too.
-    A descriptor whose tool is not a ``ToolName`` member (the specimen's) takes part in every probe except the two
-    that register handlers against the closed enumeration, which the generator's end-to-end test covers.
+    ``outside_tool_names`` are the descriptors, matched by identity, whose tool is deliberately not a ``ToolName``
+    member (the specimen's). They take part in every probe except the two that register handlers against the closed
+    enumeration, which the generator's end-to-end test covers.
     """
     gaps: list[str] = []
     indexes = build_indexes(descriptors)
@@ -1164,9 +1166,11 @@ def undeclared_input_gaps(
             "bind_handlers with another strategy's dependencies",
             partial(bind_handlers, descriptors, {**dependencies, first.tool: dependencies[second.tool]}, runtime),
         )
-    members = tuple(ToolName)
+    skipped = {id(item.tool) for item in outside_tool_names if any(item is declared for declared in descriptors)}
     handlers = {
-        tool: handler for tool, handler in bind_handlers(descriptors, dependencies, runtime).items() if tool in members
+        tool: handler
+        for tool, handler in bind_handlers(descriptors, dependencies, runtime).items()
+        if id(tool) not in skipped
     }
     for tool in ToolName:
         _expect_undeclared(

@@ -1187,8 +1187,11 @@ and the specimen must not be added to them:
   through the functions its kind of run is decoded and replayed with.
 - The `StrategyBehavior`, `pair_cli` and `pair_evaluation` bounds name the production unions. The specimen
   implements the erased `BehaviorView` directly, with the exact-type guards `StrategyBehavior` has, and crosses
-  the bounds with `cast` at six places (the behavior's result type, decoded evidence, handler, the descriptor's
-  tool, the CLI-tier selection builder and the tier's sample selection). It uses no `type: ignore`.
+  the bounds with `cast`, only in `tests/specimen/closed_types.py`, which has one function per crossing (the
+  descriptor's tool, a selection member, a native-evidence instance, the native-evidence type and a bound
+  handler; eight call sites). A test enforces that no other specimen file calls `cast`. The specimen is a test
+  fixture and not a model for strategy code, which never uses `cast` to cross the closed types. It uses no
+  `type: ignore`.
 
 The `tool-name` and `unions` sites are the two sites that name those closed declarations. The status command
 reports them as `covered by T28 (generator end-to-end)`, by name, and does not run their checks. T28 adds a

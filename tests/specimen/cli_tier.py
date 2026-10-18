@@ -1,11 +1,11 @@
 """The specimen's CLI-tier entry and the closed CLI tier the conformance tests build with it.
 
 ``CliStrategy`` types its selection builder with the closed production selection union; the specimen's selection is
-not in it, so the one cast below is the specimen's departure from that field's type. The refresh executor takes any
+not in it, so the builder crosses it through :mod:`tests.specimen.closed_types`. The refresh executor takes any
 object and keeps the exact-type guard that ``pair_cli`` gives a production entry.
 """
 
-from typing import Final, cast
+from typing import Final
 
 from investment_analysis_engine.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
@@ -14,13 +14,14 @@ from investment_analysis_engine.data.instrument_profile_cache import InstrumentP
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.strategy_types import SelectionMember
 from tests.specimen.cli import build_selection, command, refresh
+from tests.specimen.closed_types import as_selection_member
 from tests.specimen.selection import SpecimenSelection
 from tests.specimen.wiring import SPECIMEN_BEHAVIOR
 
 
 def _build(flags: WatchlistFlags, /) -> SelectionMember:
     """Build the specimen's selection from the watchlist flags."""
-    return cast("SelectionMember", build_selection(flags))
+    return as_selection_member(build_selection(flags))
 
 
 def _refresh(ticker: str, selection: object, /, *, profile_cache: InstrumentProfileResolver) -> ExecutionCapture:

@@ -2,14 +2,14 @@
 
 The production ``STRATEGIES`` never names the specimen; ``SPECIMEN_STRATEGIES`` is built here, in test code. The
 descriptor's ``tool`` field is typed with the closed production ``ToolName``, which the specimen's own tool
-enumeration is not a member of, so the one cast below is the specimen's single departure from that field's type.
+enumeration is not a member of, so the descriptor crosses it through :mod:`tests.specimen.closed_types`.
 """
 
-from typing import Final, cast
+from typing import Final
 
-from investment_analysis_engine.orchestrator.tool_names import ToolName
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
 from tests.specimen.behavior import SpecimenBehavior
+from tests.specimen.closed_types import as_tool_name
 from tests.specimen.envelope import SpecimenDocument
 from tests.specimen.settings import SpecimenSettings
 from tests.specimen.tool import SpecimenTool, SpecimenToolArguments
@@ -30,7 +30,7 @@ SPECIMEN: Final = StrategyDescriptor(
     method_id=METHOD_ID,
     alias=ALIAS,
     label="Specimen",
-    tool=cast("ToolName", SpecimenTool.ANALYZE_SPECIMEN),
+    tool=as_tool_name(SpecimenTool.ANALYZE_SPECIMEN),
     tool_arguments=SpecimenToolArguments,
     tool_description="Scale a value by the specimen's configured multiplier.",
     behavior=SPECIMEN_BEHAVIOR,

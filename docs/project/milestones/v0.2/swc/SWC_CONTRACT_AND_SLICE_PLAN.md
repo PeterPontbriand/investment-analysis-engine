@@ -649,6 +649,7 @@ version and result-schema version distinct and do not silently reinterpret histo
     owner's approval.
   - The generated descriptor has `settings_type=None` and the generator writes no `settings.py` or
     `settings.toml` ([B.19](#b19-swc6-split-and-the-specimen-decisions-2026-10-18)).
+  - The templates contain no `cast`, and T28 proves the generated strategy type-checks without one.
 - **Branch:** `feat/swc-6b-generator`, from `main` after SWC.6a merges.
 - **Detail:** [SWC.1 design §19.3 and §19.4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#193-generator).
 
@@ -1592,9 +1593,15 @@ Approved by the project owner on 2026-10-18.
     runs.
   - The type-closed layers are covered by T28 in SWC.6b. T27 requires every site done for the specimen except
     `tool-name` and `unions`, which the status command reports as `covered by T28 (generator end-to-end)`.
-  - The specimen uses no `type: ignore`. It crosses the production bounds with `cast` at six places, each
-    documented where it is: the behavior's result type, decoded evidence and handler, the descriptor's tool, the
-    CLI-tier selection builder and the tier's sample selection.
+  - The specimen uses no `type: ignore`. The project owner accepted `cast` as the unavoidable cost of this
+    option, confined to one module, `tests/specimen/closed_types.py`, with one function per crossing (the
+    descriptor's tool, a selection member, a native-evidence instance and type, and a bound handler; eight call
+    sites). Each function's docstring names the closed type it crosses; a test fails if any other specimen file
+    calls `cast`; and the specimen's package docstring says it is a fixture, not a model for strategy code.
+  - T11's two registration probes skip the specimen by identity (the `outside_tool_names` argument), not any
+    tool that is not a `ToolName` member.
+  - **Standing rule for later instructions.** When an instruction says to stop and report if something cannot be
+    done without a stated workaround, a substitute workaround also needs approval first.
 - **This narrows the design's §19.5 and §19.6 claims.** The design said the specimen is wired through every
   layer and that T11, T12, T7 and T22 run a fifth strategy through the real dispatchers and the real stored-run
   path. Three layers are closed to it, so those claims hold for the layers open to injection only, and T28 is
