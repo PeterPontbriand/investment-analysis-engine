@@ -194,6 +194,10 @@ Accurate arithmetic does not guarantee that this strategy is appropriate for a p
 
 Nothing produced by this strategy is investment advice.
 
+## Watchlist options
+
+`watchlist create --analysis graham-number` and `watchlist add-selection --analysis graham-number` accept `--as-of`, `--data-provider`, `--no-cache`, `--eps`, `--bvps` and `--current-price`. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the watchlist commands that take them.
+
 ## Related user documentation
 
 - [Graham Growth Value Strategy Guide](GRAHAM_GROWTH.md)

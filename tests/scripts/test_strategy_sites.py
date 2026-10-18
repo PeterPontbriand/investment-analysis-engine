@@ -36,7 +36,7 @@ def _site(
     return _SITE.format(id=id, kind=kind, generated=generated, check=check, extra=extra)
 
 
-def test_the_shipped_file_lists_every_section_17_row_in_order() -> None:
+def test_the_shipped_file_lists_every_section_17_row_and_the_two_commands_in_order() -> None:
     sites = load_sites()
     assert [site.id for site in sites] == [
         "vocabulary",
@@ -60,6 +60,7 @@ def test_the_shipped_file_lists_every_section_17_row_in_order() -> None:
         "guide",
         "watchlist-options",
         "schema",
+        "strategy-docs",
     ]
     assert SITES_FILE.name == "strategy_sites.toml"
 

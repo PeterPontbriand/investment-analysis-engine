@@ -1060,7 +1060,7 @@ command, the generator and the specimen's completeness test. It is read with `to
 | :--- | :--- |
 | `id` | Stable slug, for example `tool-name`. |
 | `title`, `why` | One line each, for the guide. |
-| `kind` | `new_file`, `edit`, `command` or `reviewed`. |
+| `kind` | `new_file`: a new Python file the strategy owns, whose required module-level names are listed in `defines`. `edit`: an entry added to an existing file. `command`: a script whose output must be regenerated. `reviewed`: hand-written content, not a new Python file, whose correctness is reviewed. |
 | `path` | The file, with placeholders `{module}` (snake_case name), `{alias}` (hyphenated) and `{guide}` (upper-case alias). |
 | `generated` | Whether the generator makes this change. |
 | `check` | The name of a function in `scripts/strategy_conformance.py`. |

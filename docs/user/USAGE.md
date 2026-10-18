@@ -20,12 +20,14 @@ uv run ian --help
 
 See help for a strategy:
 
+<!-- BEGIN GENERATED strategy-help-commands: written by scripts/generate_strategy_docs.py; generated, do not edit by hand. -->
 ```bash
+uv run ian momentum --help
 uv run ian graham-number --help
 uv run ian graham-growth --help
-uv run ian momentum --help
 uv run ian fcf-growth --help
 ```
+<!-- END GENERATED strategy-help-commands -->
 
 Technical operators can also run the versioned Golden Suite with `uv run ian evaluate --help`. See [Golden Suite evaluation](#golden-suite-evaluation).
 
@@ -149,7 +151,7 @@ uv run ian fcf-growth MSFT --forward-policy confirmation
 uv run ian fcf-growth MSFT --forward-policy hard-gate
 ```
 
-The current production SEC provider may not supply forward analyst-consensus evidence. A hard gate therefore returns `INDETERMINATE` when that required evidence is unavailable. See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_EARNINGS_GROWTH.md).
+The current production SEC provider may not supply forward analyst-consensus evidence. A hard gate therefore returns `INDETERMINATE` when that required evidence is unavailable. See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_GROWTH.md).
 
 ## Presentation modes
 

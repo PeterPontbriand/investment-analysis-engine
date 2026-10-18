@@ -835,3 +835,66 @@ def test_t25_a_builder_that_reads_a_flag_no_watchlist_command_has_is_reported(
     cli.write_text("def other(flags):\n    return flags\n", encoding="utf-8")
     (message,) = [gap.message for gap in conformance.site_watchlist_options(strategy_names("zed"))]
     assert "defines no build_selection(flags) function" in message
+
+
+# ---------------------------------------------------------------------------
+# SWC.5b: T26, the generated strategy lists of the user documents
+# ---------------------------------------------------------------------------
+
+
+def test_t26_the_generated_lists_are_current_and_hold_every_declared_strategy() -> None:
+    """Each list block equals its regeneration and has an entry for every descriptor, in the order of the tuple."""
+    assert generate_strategy_docs.stale_blocks() == []
+    blocks = generate_strategy_docs.strategy_list_blocks()
+    assert [block.file.name for block in blocks] == ["USAGE.md", "WORKSPACE.md"]
+    for block in blocks:
+        body = generate_strategy_docs.current_body(block)
+        assert block.lists is not None
+        assert all(block.lists(body, item.alias) for item in STRATEGIES)
+        positions = [body.index(item.alias) for item in STRATEGIES]
+        assert positions == sorted(positions)
+
+
+def test_t26_a_strategy_missing_from_a_block_is_reported_with_the_file_and_the_script(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Blocks written without one strategy fail its site check, naming each document and the generator."""
+    usage, workspace = tmp_path / "USAGE.md", tmp_path / "WORKSPACE.md"
+    for document, block_id, text in (
+        (usage, generate_strategy_docs.USAGE_BLOCK_ID, generate_strategy_docs.render_help_commands(_WITHOUT_FCF)),
+        (
+            workspace,
+            generate_strategy_docs.WORKSPACE_BLOCK_ID,
+            generate_strategy_docs.render_strategy_table(_WITHOUT_FCF),
+        ),
+    ):
+        document.write_text(
+            f"{generate_strategy_docs.begin_marker(block_id)}\n{text}\n{generate_strategy_docs.end_marker(block_id)}\n",
+            encoding="utf-8",
+        )
+    monkeypatch.setattr(generate_strategy_docs, "USAGE_FILE", usage)
+    monkeypatch.setattr(generate_strategy_docs, "WORKSPACE_FILE", workspace)
+    monkeypatch.setattr(generate_strategy_docs, "REPOSITORY_ROOT", tmp_path)
+    monkeypatch.setattr(conformance, "REPOSITORY_ROOT", tmp_path)
+    messages = [gap.message for gap in conformance.site_strategy_docs(_names_of(FCF_GROWTH))]
+    assert any(message.startswith("USAGE.md: the generated block") and "out of date" in message for message in messages)
+    assert any(message.startswith("WORKSPACE.md: the generated block") for message in messages)
+    assert sum("has no entry for 'fcf-growth'" in message for message in messages) == 2
+    assert all("scripts/generate_strategy_docs.py" in message for message in messages)
+    assert conformance.site_strategy_docs(_names_of(MOMENTUM)) != []
+    assert all("has no entry" not in gap.message for gap in conformance.site_strategy_docs(_names_of(MOMENTUM)))
+
+
+def test_t26_a_document_without_its_markers_is_reported_with_the_file_and_the_script(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A missing marker pair fails naming the document and telling the reader to run the generator."""
+    usage = tmp_path / "USAGE.md"
+    usage.write_text("no block here\n", encoding="utf-8")
+    monkeypatch.setattr(generate_strategy_docs, "USAGE_FILE", usage)
+    monkeypatch.setattr(generate_strategy_docs, "REPOSITORY_ROOT", tmp_path)
+    (block,) = (item for item in generate_strategy_docs.blocks() if item.file == usage)
+    message = generate_strategy_docs.block_problem(block)
+    assert message is not None
+    assert message.startswith("USAGE.md: ")
+    assert "scripts/generate_strategy_docs.py" in message

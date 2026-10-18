@@ -332,7 +332,7 @@ Compatible analyst-consensus diluted EPS for FY1 and FY2 may provide two implied
 
 The `display_only` and `confirmation` policies do not change the historical classification. Under `hard_gate`, both intervals must be available and positive for `PASS`; missing required forward evidence produces `INDETERMINATE`. The current production SEC mapping may not supply analyst consensus, and the software does not generate estimates to fill that gap.
 
-See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_EARNINGS_GROWTH.md).
+See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_GROWTH.md).
 
 ## Source notes
 
