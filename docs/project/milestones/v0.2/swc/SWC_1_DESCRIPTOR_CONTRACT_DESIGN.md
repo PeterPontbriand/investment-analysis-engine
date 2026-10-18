@@ -1015,10 +1015,23 @@ existing) across 11 directories. Five of the nine existing files are edited by t
 the case tuple, the suite version and the pinned ids are reviewed truth, and the two row 19 files, which only a strategy with watchlist options of its own edits. A strategy's fixture identifiers are
 declared in its own fixtures file and on its own tier entry, and the supported set is derived from the tier, so
 no shared identifier list, supported-id set or case-package export needs an edit. Thirteen of the 16 new files are generated as typed stubs (rows 1, 1a, 4, 6 to 9 and 11 to 14); fixtures,
-cases and the guide are hand-written. One-line restatements in files owned by generic code fall from 11 to
-5 (rows 3, 5 twice, 10, 15). Eight omissions are type errors rather than test failures (rows 4 to 7, 9, 10,
+cases and the guide are hand-written. Restatements in files owned by generic code fall from 11 to
+5 entries (rows 3, 5 twice, 10, 15); the generator writes each, with the imports and the two constants in row 2 that
+the entries need (see the table below). Eight omissions are type errors rather than test failures (rows 4 to 7, 9, 10,
 13, 14). Every file a strategy owns except its fixtures and cases is in its own package, so a contributor
-works in one strategy directory plus five one-line edits, and the two row 19 files when the strategy has watchlist options of its own.
+works in one strategy directory plus five generated edits, and the two row 19 files when the strategy has watchlist options of its own.
+
+What the generator inserts in the five existing files. Each insertion is located by the file's syntax tree; none
+is a single line, because an entry in a closed list needs the names it refers to (corrected in SWC.6b, plan
+Appendix B, B.20, which found that "five one-line insertions" described the entries and not the edits):
+
+| Row | File | Imports | Constants before the tuple | Entries added (each grows by exactly one) |
+| :--- | :--- | :--- | :--- | :--- |
+| 2 | `investment_analysis_engine/strategy_wiring.py` | Nine statements: the result type, the codec functions, the document model, the projector, the selection class, the three tool names and the three vocabulary constants (aliased with the strategy's prefix). | The strategy's behavior bundle and its descriptor. | One element of `STRATEGIES`. |
+| 3 | `investment_analysis_engine/orchestrator/tool_names.py` | None. | None. | One `ToolName` member. |
+| 5 | `investment_analysis_engine/workspace/strategy_types.py` | Two statements: the result type and the selection class. | None. | One member of `NativeEvidence` and one of `SelectionMember`. |
+| 10 | `investment_analysis_engine/cli_strategy_wiring.py` | Three statements (the builder, the command and the refresh executor, aliased) and the behavior bundle's name added to the existing `strategy_wiring` import. | None. | One element of `CLI_STRATEGIES`. |
+| 15 | `investment_analysis_engine/evaluation/strategy_fixtures.py` | Four statements (the fixture ids, the requirement, the sample selection and the composition, aliased) and the behavior bundle's name added to the existing `strategy_wiring` import. | None. | One element of `EVALUATION_STRATEGIES`. |
 
 **What could still be removed.** Nothing within the contract. Each remaining existing-file edit has a
 reason:
@@ -1098,13 +1111,21 @@ defaults to the module name with hyphens). It writes wiring only:
   `unfilled_stub("<site id>")`, which returns `NoReturn` and raises `UnfilledStubError`.
 - **Evaluation file:** its template declares `SAMPLE_SELECTION`, an instance of the generated selection class
   built with trivial values, and the row 15 insertion passes it as `sample_selection`.
-- **Edits to existing files:** five one-line insertions (rows 2, 3, 5, 10 and 15 of §17), each located by
-  the AST of the target file, asserting that the file parses before and after and that the entry count
-  rose by one.
+- **Edits to existing files:** the insertions of rows 2, 3, 5, 10 and 15 of §17 (the table there lists them),
+  each located by the AST of the target file: new imports after the last import, a name added to an existing
+  `from ... import (...)` statement, constants immediately before their tuple, and one element appended to each
+  tuple, union and enumeration. The generator asserts that each file parses before and after and that every
+  tuple, union and enumeration grew by exactly one entry.
+- **Ruff:** the output passes `ruff check` and `ruff format --check` with no manual fixing. The generator runs
+  `ruff check --fix` and `ruff format` on exactly the sources it writes or edits, never wider, by passing each
+  source through standard input in memory, so the refusal rule below still holds. Ruff takes its settings from the
+  repository root and is told the package is first-party, which it cannot see for a folder that does not exist yet.
 - **Nothing else:** no formula, classification or presentation text, and nothing copied from an existing
   strategy's analysis modules (T28 checks that a generated file imports no other strategy's modules).
   Fixtures, cases, the catalog and the guide are not generated, and the status command reports them
-  missing until they are written.
+  missing until they are written. The codec, presenter and replay sites are also reported missing until the
+  evaluation file's composition and a golden case exist, because their checks replay a stored run, which needs
+  both; the report names the unfilled stub that stopped the check.
 - **Identity:** the module name gives `analysis_id`, `method_id` and the tool name (`analyze_<module>`);
   all version fields are 1.
 - **No settings files:** the generator writes no `settings.py` and no `settings.toml`, and a generated
@@ -1127,23 +1148,41 @@ the quality gate while any such call remains in `investment_analysis_engine/`, s
 
 ### 19.4 Generator test
 
-Test T28 runs in the default suite. It copies `investment_analysis_engine/`, `scripts/`, `tests/`, `schemas/`, `config/`,
-`docs/user/strategies/` and `pyproject.toml` into a temporary directory (excluding caches), runs the
-generator there for a fixed throwaway strategy (`ci_probe`, label `CI Probe`), and checks:
+Test T28 runs in the default suite. It copies `investment_analysis_engine/`, `scripts/`, `tests/`, `schemas/`,
+`docs/`, `pyproject.toml` and `alembic.ini` into a temporary directory (excluding caches), and for the throwaway
+strategy `ci_probe` (label `CI Probe`) walks the whole contributor path:
 
-1. the generator exits 0, the status command reports the generated sites present, and T29 reports the
-   stubs;
-2. after the test overwrites the twelve stub files with hand-written trivial bodies kept as test data
-   (`tests/scripts/generator_fills/`), `python -m mypy --strict` over the generated files and the five
-   edited files passes (with `--follow-imports=silent`, so only those files are strictly checked, and a
-   cache directory inside the copy), and the conformance suite passes in the copy.
+1. The generator exits 0. The status command reports every site the generator writes done, except the codec,
+   presenter and replay sites, which it reports missing with the unfilled stub named (§19.3); T29 reports each
+   stub by file and line.
+2. `mypy --strict` over the generated and edited files passes before any fill, so the typed stubs type-check as
+   written. `ruff check` and `ruff format --check` over the copy pass.
+3. Every site the generator does not write is filled from hand-written trivial test data in
+   `tests/scripts/generator_fills/`: the bodies of eight stub files (thirteen stub bodies), a golden case, the
+   catalog entries and the catalog test's pinned id and counts, a guide that links to `FINANCE_MATH.md` and
+   `GLOSSARY.md` and has a watchlist options section, and the save-run fixture entry T22 needs.
+   `scripts/generate_schemas.py` and `scripts/generate_strategy_docs.py` then run in the copy, and both Ruff
+   checks pass again.
+4. The status command reports every site done for `ci_probe`, none reported as covered by this test. `mypy --strict`
+   over the generated and edited files passes again, and the conformance tests pass in the copy. That includes the
+   tests that store, decode and replay a real run (T8 and T22), so `ci_probe` goes through the real `execute` and
+   `AnalysisRun` validation, the real `ToolName` registration, the `AnalysisSelection` union and the
+   `StrategyBehavior` bounds.
 
-It is deterministic and makes no network call: the generator, `mypy` and the conformance suite run as
-subprocesses in the copy with a fixed `PYTHONHASHSEED`, no proxy variables and bytecode writing off; the
-conformance suite already forbids network access; the fills contain no provider, so the throwaway
-strategy's adapter and executor return fixed values. Each subprocess has a timeout of 300 seconds; SWC.6b
-records the measured time. T28 stays in the default suite; if it adds more than 2 minutes to either pytest pass,
-SWC.6b stops and asks the project owner.
+"The conformance tests" are the named files in the test, which iterate the descriptors and the golden cases. A few
+tests pin the four production strategies; they are deselected by node id, classified as `accidental` (a pin the
+test could have read from `STRATEGIES`, `ToolName` or the tiers) or `reviewed` (content a new strategy writes by
+hand), and recorded in the [pins plan](SWC_6C_STRATEGY_PINS_PLAN.md#appendix-a-the-pinned-tests). The list is
+stale-checked both ways: the test fails if a node id no longer exists or if a deselected test passes in the copy.
+SWC.6c removes the pins and requires the list to be empty.
+
+It is deterministic and makes no network call: every subprocess runs with a fixed `PYTHONHASHSEED`, no proxy
+variables, bytecode writing off and a 300-second timeout; the generator, `mypy`, `ruff`, the status command and the
+conformance tests run in the copy; the conformance suite already forbids network access; the fills contain no
+provider, so the throwaway strategy's adapter and executor return fixed values. The test stays in the default
+suite; if it adds more than 2 minutes to either pytest pass, SWC.6b stops and asks the project owner (B.20 records
+the measured time). Running the whole suite in the copy takes about five minutes, so the named files, not the
+whole suite, are the conformance tests.
 
 ### 19.5 Specimen strategy
 

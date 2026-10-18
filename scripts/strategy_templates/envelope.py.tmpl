@@ -1,0 +1,20 @@
+"""The $label strategy's ``--json`` document: its version and typed model."""
+
+from typing import Final
+
+from investment_analysis_engine.reporting.documents.shared_parts import DocumentPart
+from investment_analysis_engine.reporting.documents.strategy_document import (
+    StrategyDocumentHeader,
+    StrategyDocumentTail,
+)
+from investment_analysis_engine.strategies.$module.vocabulary import AnalysisId, MethodId
+
+DOCUMENT_SCHEMA_VERSION: Final = 1
+
+
+class ${Class}Body(DocumentPart):
+    """The keys only the $label document writes."""
+
+
+class ${Class}Document(StrategyDocumentTail, ${Class}Body, StrategyDocumentHeader[AnalysisId, MethodId]):
+    """The $label document, as ``$alias --json`` and a replay write it."""

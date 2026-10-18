@@ -1,0 +1,11 @@
+"""The $label strategy's presenter: every presentation mode, from the evidence alone."""
+
+from investment_analysis_engine.core.strategy_stub import unfilled_stub
+from investment_analysis_engine.reporting.presentation import PresentationMode
+from investment_analysis_engine.strategies.$module.analyzer import ${Class}Result
+
+
+def render_$module(result: ${Class}Result, mode: PresentationMode = PresentationMode.CONCISE) -> str:
+    """Render one $label result in ``mode``."""
+    del result, mode
+    unfilled_stub("presenter")

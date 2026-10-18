@@ -1,0 +1,28 @@
+"""The $label strategy's immutable workspace selection snapshot."""
+
+from pydantic import AwareDatetime, Field
+
+from investment_analysis_engine.analysis.selection_base import FrozenSelection
+from investment_analysis_engine.strategies.$module.analyzer import ${Class}Config
+from investment_analysis_engine.strategies.$module.vocabulary import (
+    ANALYSIS_ID,
+    CONFIG_SCHEMA_VERSION,
+    METHOD_ID,
+    AnalysisId,
+    ConfigSchemaVersion,
+    MethodId,
+)
+
+
+class ${Class}Selection(FrozenSelection):
+    """The $label selection: the shared point-in-time and cache fields."""
+
+    analysis_id: AnalysisId = ANALYSIS_ID
+    method_id: MethodId = METHOD_ID
+    config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
+    as_of: AwareDatetime | None = None
+    use_cache: bool = Field(default=True, strict=True)
+
+    def to_${module}_config(self) -> ${Class}Config:
+        """Return the calculation's configuration."""
+        return ${Class}Config()

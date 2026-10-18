@@ -1,0 +1,27 @@
+"""The $label strategy's configuration, result and analyzer."""
+
+from dataclasses import dataclass
+
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from investment_analysis_engine.core.strategy_stub import unfilled_stub
+
+
+@dataclass(frozen=True)
+class ${Class}Config:
+    """The configuration of one $label calculation."""
+
+
+@dataclass(frozen=True)
+class ${Class}Result:
+    """The complete evidence of one $label run."""
+
+    ticker: str
+
+
+class ${Class}Analyzer(BaseAnalyzer[${Class}Config, ${Class}Result]):
+    """Run the $label calculation."""
+
+    def run_analysis(self, ticker: str, config: ${Class}Config, context: AnalysisContext) -> ${Class}Result:
+        """Return the evidence of one $label run for ``ticker``."""
+        del ticker, config, context
+        unfilled_stub("analyzer")

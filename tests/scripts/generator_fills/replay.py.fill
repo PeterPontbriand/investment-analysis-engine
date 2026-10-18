@@ -1,0 +1,14 @@
+"""The CI Probe strategy's replay projector: render a stored run using only the evidence it captured."""
+
+from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
+from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeResult
+from investment_analysis_engine.strategies.ci_probe.presenter import render_ci_probe
+from investment_analysis_engine.strategies.ci_probe.selection import CiProbeSelection
+
+
+def project_ci_probe(
+    inputs: ReplayInputs, evidence: CiProbeResult, selection: CiProbeSelection, options: ReplayOptions
+) -> str:
+    """Reconstruct the CI Probe presentation from stored evidence only."""
+    del inputs, selection
+    return render_ci_probe(evidence, options.mode)

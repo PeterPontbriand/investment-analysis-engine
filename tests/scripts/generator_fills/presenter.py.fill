@@ -1,0 +1,44 @@
+"""The CI Probe strategy's presenter: every presentation mode, from the evidence alone."""
+
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.reporting.documents.shared_parts import SecurityIdentityPart
+from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
+from investment_analysis_engine.reporting.presentation import PresentationMode
+from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeResult
+from investment_analysis_engine.strategies.ci_probe.envelope import DOCUMENT_SCHEMA_VERSION, CiProbeDocument
+from investment_analysis_engine.strategies.ci_probe.vocabulary import ANALYSIS_ID, METHOD_ID
+
+
+def render_ci_probe(result: CiProbeResult, mode: PresentationMode = PresentationMode.CONCISE) -> str:
+    """Render one CI Probe result in ``mode``."""
+    if mode is PresentationMode.JSON:
+        return strategy_document_json(
+            CiProbeDocument(
+                schema_version=DOCUMENT_SCHEMA_VERSION,
+                analysis=ANALYSIS_ID,
+                method=METHOD_ID,
+                ticker=result.ticker,
+                status=CalculationStatus.OK,
+                provider_failure=None,
+                provider_check=None,
+                requested_as_of=None,
+                effective_as_of=result.effective_as_of,
+                security_identity=SecurityIdentityPart(
+                    ticker=result.ticker,
+                    instrument_name=None,
+                    listing_venue=None,
+                    issuer_identifier=None,
+                    instrument_identifier=None,
+                    provider_id=None,
+                    resolved_at=None,
+                ),
+                instrument_kind=None,
+                warnings=(),
+                limitations=(),
+                diagnostics=(),
+            )
+        )
+    lines = [f"{result.ticker} CI Probe ran."]
+    if mode is PresentationMode.DIAGNOSTICS:
+        lines.append(f"Effective as of: {result.effective_as_of.isoformat()}")
+    return "\n".join(lines)

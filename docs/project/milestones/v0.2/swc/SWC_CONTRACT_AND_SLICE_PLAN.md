@@ -62,7 +62,8 @@ document-link check and applicable documentation checks.
 | SWC.5a | [Site data, report-mode checks and the status command](#swc5a--site-data-report-mode-checks-and-the-status-command) | Complete | 2026-10-17 |
 | SWC.5b | [Generated strategy lists and the user-guide moves](#swc5b--generated-strategy-lists-and-the-user-guide-moves) | Complete | 2026-10-18 |
 | SWC.6a | [Specimen strategy](#swc6a--specimen-strategy) | Complete | 2026-10-18 |
-| SWC.6b | [Strategy generator](#swc6b--strategy-generator) | Next | |
+| SWC.6b | [Strategy generator](#swc6b--strategy-generator) | Complete | 2026-10-18 |
+| SWC.6c | [Make the pinned tests derived, and the reviewed ones sites](#swc6c--strategy-pins) | Planned | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
 
 ## 3. Architectural contract
@@ -634,24 +635,35 @@ version and result-schema version distinct and do not silently reinterpret histo
 
 - **Problem:** adding a strategy is a long manual sequence, and the closed type-level layers are exercised by
   no test.
-- **Decision:** a generator writes the typed stubs and the five mechanical one-line edits, refusing to
-  overwrite and writing no settings files. A test runs it in a temporary copy, fills the stubs with trivial
-  bodies, and requires the strict type check and the conformance suite to pass; that test is now the only
-  end-to-end proof of `ToolName` registration, the `AnalysisSelection` union and the `StrategyBehavior`
-  bounds. `AGENTS.md` §3 gains one narrow exception for generator output that fails the gate by design.
-- **Scope:** new `scripts/new_strategy.py`, `scripts/strategy_templates/`,
-  `investment_analysis_engine/core/strategy_stub.py`, `tests/scripts/generator_fills/`, tests T28 and T29;
-  `AGENTS.md` §3. Recorded now and built here:
-  - T28 stays in the default suite; if it adds more than 2 minutes to either pytest pass, the slice stops and
-    asks the project owner.
-  - The templates use `string.Template` placeholders.
-  - The agent drafts the `AGENTS.md` §3 exception wording and quotes it in the pull request for the project
-    owner's approval.
-  - The generated descriptor has `settings_type=None` and the generator writes no `settings.py` or
-    `settings.toml` ([B.19](#b19-swc6-split-and-the-specimen-decisions-2026-10-18)).
-  - The templates contain no `cast`, and T28 proves the generated strategy type-checks without one.
-- **Branch:** `feat/swc-6b-generator`, from `main` after SWC.6a merges.
-- **Detail:** [SWC.1 design §19.3 and §19.4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#193-generator).
+- **Decision:** a generator writes the typed stubs and the insertions in the five existing files, each located
+  by the file's syntax tree, refusing to overwrite and writing no settings files. A test runs it in a temporary
+  copy, fills the stubs with trivial bodies, and requires the strict type check, both Ruff checks and the
+  conformance tests to pass; that test is the only end-to-end proof of `ToolName` registration, the
+  `AnalysisSelection` union, the `StrategyBehavior` bounds and the real `execute` with `AnalysisRun` validation.
+  `AGENTS.md` §3 gains one narrow exception for generator output that fails the suite by design, and §4 gains
+  the rule for a substitute workaround.
+- **Scope:** `scripts/new_strategy.py` and `scripts/strategy_templates/` (eleven `string.Template` files that
+  contain no `cast` and no `type: ignore`); `investment_analysis_engine/core/strategy_stub.py`;
+  `tests/scripts/generator_fills/` (the fills, the reviewed edits and the deselected tests as data); T28, the
+  generator's unit tests (refusal writes nothing, a failed write restores the originals), T29 and the stub
+  module's test; the pins plan [SWC.6c](#swc6c--strategy-pins); the `AGENTS.md` additions, which the project owner
+  approves in the pull request; the corrected design §17 and §19.3 to §19.4.
+- **Branch:** `feat/swc-6b-generator`, from `main` after SWC.6a merged.
+- **Detail:** [SWC.1 design §19.3 and §19.4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#193-generator);
+  decisions and findings in [B.20](#b20-swc6b-the-pinned-tests-and-the-new-slice-swc6c-2026-10-18).
+
+### SWC.6c — Strategy pins
+
+- **Problem:** the generator's end-to-end test found 44 tests in 11 files that fail once a fifth strategy exists,
+  for reasons no site covers: 17 pin the four strategies where they could read the descriptors, and 27 are
+  content a new strategy writes by hand that the site data file does not list.
+- **Decision:** make the accidental pins derived, add the reviewed ones to `scripts/strategy_sites.toml` as
+  `reviewed` sites with fills in the end-to-end test, and require the test's deselect list to be empty. SWC.7
+  and Step 3.5 wait for this slice.
+- **Scope:** the test files, the site data file and its checks, the fills and the end-to-end test, as listed in
+  the slice plan.
+- **Branch:** `feat/swc-6c-strategy-pins`, from `main` after SWC.6b has merged.
+- **Detail:** [SWC.6c slice plan](SWC_6C_STRATEGY_PINS_PLAN.md).
 
 ### SWC.7 — Contributor guide and final conformance
 
@@ -682,7 +694,7 @@ version and result-schema version distinct and do not silently reinterpret histo
     `docs/TOOL_DEVELOPMENT.md`.
   - Do not pull Step 3.5 strategy implementation into SWC; Piotroski exercises the documented path when
     that strategy is implemented.
-- **Branch:** `feat/swc-7-contributor-guide`, from `main` after SWC.6b has merged.
+- **Branch:** `feat/swc-7-contributor-guide`, from `main` after SWC.6c has merged.
 - **Detail:** [acceptance criteria](#7-acceptance-criteria) and [conformance design](#33-static-declaration-typing-and-conformance).
 
 ## 6. Scope limits
@@ -759,13 +771,16 @@ version and result-schema version distinct and do not silently reinterpret histo
   output change. A slice that changes output regenerates the stored files in the same change, and the diff to
   them is what the review approves.
 - **Edit sites:** adding a strategy takes the 20 sites in the design's edit-site table, in 25 files across 9
-  directories, nine of them existing files; five of those are edited by the generator, and the other four (the catalog,
-  its test, and the two watchlist-option files of site 19, edited only by a strategy with options of its own) are
-  reviewed.
+  directories, nine of them existing files; five of those are edited by the generator (imports, two constants and
+  one entry in each closed list, [B.20](#b20-swc6b-the-pinned-tests-and-the-new-slice-swc6c-2026-10-18)), and the
+  other four (the catalog, its test, and the two watchlist-option files of site 19, edited only by a strategy with
+  options of its own) are reviewed. [SWC.6c](#swc6c--strategy-pins) adds the sites for the 27 reviewed pins that the
+  end-to-end test found.
 - **Contributor tooling:** one site data file is the source of the guide's table, the status command, the
   generator and the specimen's completeness test; the status command and the conformance tests share their
   check bodies; the generator writes wiring only and refuses to overwrite; a test runs it in a temporary
-  copy and requires the strict type check and the conformance suite to pass with trivially filled stubs;
+  copy and requires the strict type check, both Ruff checks and the named conformance tests to pass with trivially
+  filled stubs (the tests that pin the four production strategies are deselected and listed until SWC.6c);
   the specimen strategy runs through every layer that is open to injection and cannot reach production tuples,
   the user CLI or the published schemas, and the generator test is the end-to-end proof of the layers closed to it; the quality gate fails while any `unfilled_stub` call remains in `investment_analysis_engine/`.
 - **Generated lists:** the strategy lists in `USAGE.md` and `WORKSPACE.md` are generated from the
@@ -1610,3 +1625,51 @@ Approved by the project owner on 2026-10-18.
   now a function of `StrategyNames` and a `SiteContext` with the production wiring as the default, and
   `site_checks()` tells it apart by that signature. A stored-run entry carries the two functions that decode and
   replay its run, so a production `AnalysisRun` and the specimen's run share the checks.
+
+### B.20 SWC.6b: the pinned tests and the new slice SWC.6c (2026-10-18)
+
+Approved by the project owner on 2026-10-18, in two answers: the shape of the existing-file edits, and the
+definition of the conformance tests.
+
+- **The existing-file edits are not one-line insertions.** Each of the five files needs imports as well as its
+  entry, and row 2 also needs a behavior constant and a descriptor constant before `STRATEGIES`. Approved: each
+  edit is a set of AST-located insertions (imports after the last import, a name added to an existing `from`
+  import, constants before their tuple, one appended element per tuple, union and enumeration), built in memory,
+  with each file parsing before and after and each tuple, union and enumeration growing by exactly one entry.
+  The design's §19.3 "five one-line insertions" is corrected, and §17 gains a table of what each file receives.
+- **Ruff.** The generator's output passes both Ruff checks with no manual fixing. The generator passes each source it
+  writes or edits through `ruff check --fix` and `ruff format` on standard input, in memory and nowhere wider. Ruff
+  reads its settings from the working directory, and treats the package as third-party for a file in a folder that
+  does not exist yet, so the generator runs it in the repository root and passes the package as first-party. T28 runs
+  both checks over the copy after generation and after the fills.
+- **What is generated.** The empty `__init__.py` and eleven files from `string.Template` files; the identifiers
+  are the module name, every version field is 1, `settings_type` is `None`. The one sentence of prose the descriptor
+  requires, its `tool_description`, is "Run the <Label> analysis." and is the author's to replace. Thirteen bodies in
+  eight files call `unfilled_stub`; the vocabulary, selection and envelope files are complete as generated, so
+  T29 does not flag the envelope's empty body model.
+- **The status command cannot report every generated site done straight after generation.** The codec, presenter
+  and replay checks replay a stored run, which needs the evaluation file's composition (a stub) and a golden case
+  (a reviewed site). The command reports them missing and names the unfilled stub; T28 asserts exactly that, and
+  that every other generated site is done. The command's wording needed no change.
+- **T28's subprocesses** run with `PYTHONHASHSEED=0`, no proxy variables, no engine settings, bytecode writing off
+  and a 300-second timeout, and make no network call. Design §19.4 is corrected to say so.
+- **The conformance tests are a named list, not the whole suite.** Running the whole suite in the copy takes about
+  five minutes and gave 48 failures that no fill covered. T28 runs the files that iterate the descriptors and the
+  golden cases. The tests in them that pin the four production strategies are deselected by node id, classified as
+  `accidental` or `reviewed`, and recorded in [the SWC.6c plan](SWC_6C_STRATEGY_PINS_PLAN.md#appendix-a-the-pinned-tests)
+  and in `tests/scripts/generator_fills/deselected.toml`. T28 fails if a listed node id no longer exists or if a
+  listed test passes in the copy. Three files that carry only pins and take about a minute (`test_failure_messages`,
+  `test_cli_workspace`, `test_command_validation_failures`) are not run whole: their pinned nodes are run alone and
+  must fail.
+- **Findings fixed in this slice.** The generator's first version derived the repository root by counting folders
+  up from `__file__`, which the suite forbids; it reads `REPOSITORY_ROOT`. The throwaway guide needed a "Watchlist
+  options" section for the generated workspace table's link. The two repository link-check tests need a git
+  checkout, which the copy is not, so they are not in the named list.
+- **SWC.6c is new, between SWC.6b and SWC.7, status Planned.** Scope: make the accidental pins derived, add the
+  reviewed ones to `scripts/strategy_sites.toml` as `reviewed` sites with T28 fills, and require T28's deselect list
+  to be empty. SWC.7 and Step 3.5 wait for it. The sequence table shows SWC.6c and SWC.7 both as Planned and has no
+  row marked Next, as the project owner instructed; `AGENTS.md` §12 would otherwise mark the row after SWC.6b Next.
+- **Measured time of T28.** T28 took 82.5 s on its own (pytest `--durations`, 2026-10-18), under the 2-minute threshold. The managed gate has one pytest pass, 640.8 s in total with the new tests. SWC.6c re-measures it when the three pin-only files are run whole.
+- **`AGENTS.md`.** Two additions, drafted in durable terms with no slice labels or test numbers and quoted in the
+  pull request for the project owner's approval: the scoped stub exception under §3, and the rule that a substitute
+  for a named workaround needs approval first, under §4's implementation preservation.

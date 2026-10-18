@@ -1,0 +1,32 @@
+"""The CI Probe strategy's execution adapter: call the analyzer and capture the evidence."""
+
+from dataclasses import dataclass
+from datetime import datetime
+
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeAnalyzer, CiProbeResult
+from investment_analysis_engine.strategies.ci_probe.selection import CiProbeSelection
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+
+
+@dataclass(frozen=True)
+class CiProbeCapture:
+    """The captured evidence of one CI Probe execution."""
+
+    result: CiProbeResult
+    outcome: RunOutcome
+
+
+def execute_ci_probe(
+    analyzer: CiProbeAnalyzer, ticker: str, selection: CiProbeSelection, *, executed_at: datetime
+) -> CiProbeCapture:
+    """Run the analyzer for ``selection``; the calculation has no failure outcome."""
+    context = AnalysisContext(as_of=selection.as_of, executed_at=executed_at, use_cache=selection.use_cache)
+    result = analyzer.run_analysis(ticker, selection.to_ci_probe_config(), context)
+    return CiProbeCapture(result=result, outcome=RunOutcome.COMPLETED)
+
+
+def from_ci_probe_capture(capture: CiProbeCapture) -> ExecutionCapture:
+    """Normalize a CI Probe capture."""
+    return ExecutionCapture(native_evidence=capture.result, profile=None, outcome=capture.outcome)

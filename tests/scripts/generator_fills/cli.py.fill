@@ -1,0 +1,52 @@
+"""The CI Probe strategy's CLI functions: direct command, selection builder and refresh executor."""
+
+import typer
+
+from investment_analysis_engine.cli_run_support import maybe_save_run
+from investment_analysis_engine.cli_support import _parse_as_of, _presentation_mode
+from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
+from investment_analysis_engine.core.clock import utc_now
+from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
+from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeAnalyzer
+from investment_analysis_engine.strategies.ci_probe.execution import execute_ci_probe, from_ci_probe_capture
+from investment_analysis_engine.strategies.ci_probe.presenter import render_ci_probe
+from investment_analysis_engine.strategies.ci_probe.selection import CiProbeSelection
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.requests import AnalysisRequest
+
+
+def build_selection(flags: WatchlistFlags) -> CiProbeSelection:
+    """Build one validated CI Probe selection from the watchlist flags it concerns: the boundary and the cache."""
+    return CiProbeSelection(as_of=_parse_as_of(flags.as_of), use_cache=not flags.no_cache)
+
+
+def refresh(
+    ticker: str, selection: CiProbeSelection, *, profile_cache: InstrumentProfileResolver | None
+) -> ExecutionCapture:
+    """Execute one CI Probe refresh job; the calculation reads no profile, so the cache is unused."""
+    del profile_cache
+    return from_ci_probe_capture(execute_ci_probe(CiProbeAnalyzer(), ticker, selection, executed_at=utc_now()))
+
+
+def command(
+    ticker: str = typer.Argument(..., help="Target ticker symbol"),
+    *,
+    as_of: str | None = typer.Option(None, "--as-of", help="Point-in-time boundary"),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the cache"),
+    json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
+    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
+) -> None:
+    """Run the CI Probe analysis."""
+    mode = _presentation_mode(details=False, diagnostics=False, json_output=json_output)
+    selection = CiProbeSelection(as_of=_parse_as_of(as_of), use_cache=not no_cache)
+    executed_at = utc_now()
+    capture = maybe_save_run(
+        save_run=save_run,
+        executed_at=executed_at,
+        request_factory=lambda: AnalysisRequest(ticker=ticker, selection=selection),
+        run_adapter=lambda _profile_cache: execute_ci_probe(
+            CiProbeAnalyzer(), ticker, selection, executed_at=executed_at
+        ),
+        normalize=from_ci_probe_capture,
+    )
+    typer.echo(render_ci_probe(capture.result, mode))

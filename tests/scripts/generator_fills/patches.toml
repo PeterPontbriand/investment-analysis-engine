@@ -1,0 +1,101 @@
+# The reviewed edits a contributor makes by hand to existing files after the generator has run, for the throwaway
+# strategy `ci_probe` (label "CI Probe"). Each patch replaces `old` with `new` in `path`, which is relative to the
+# copy of the repository, and `old` must occur exactly `count` times: an anchor that moved fails the end-to-end test
+# instead of silently skipping the edit.
+
+[[patch]]
+path = "investment_analysis_engine/evaluation/catalog.py"
+old = "from investment_analysis_engine.evaluation.cases.fcf_growth import ("
+new = '''from investment_analysis_engine.evaluation.cases.ci_probe import CI_PROBE_ARGUMENTS, CIP_01
+from investment_analysis_engine.evaluation.cases.fcf_growth import ('''
+count = 1
+
+[[patch]]
+path = "investment_analysis_engine/evaluation/catalog.py"
+old = '''    FPI_04,
+)
+
+
+def _merge'''
+new = '''    FPI_04,
+    CIP_01,
+)
+
+
+def _merge'''
+count = 1
+
+[[patch]]
+path = "investment_analysis_engine/evaluation/catalog.py"
+old = '''    FCF_GROWTH_ARGUMENTS,
+)
+
+
+def _reviewed'''
+new = '''    FCF_GROWTH_ARGUMENTS,
+    CI_PROBE_ARGUMENTS,
+)
+
+
+def _reviewed'''
+count = 1
+
+[[patch]]
+path = "investment_analysis_engine/evaluation/catalog.py"
+old = '"h1-v5"'
+new = '"h1-v6"'
+count = 1
+
+[[patch]]
+path = "tests/evaluation/test_catalog.py"
+old = "from investment_analysis_engine.evaluation.cases.fcf_growth import FCF_GROWTH_ARGUMENTS, FCF_GROWTH_CASES\n"
+new = '''from investment_analysis_engine.evaluation.cases.ci_probe import CI_PROBE_ARGUMENTS, CI_PROBE_CASES
+from investment_analysis_engine.evaluation.cases.fcf_growth import FCF_GROWTH_ARGUMENTS, FCF_GROWTH_CASES
+'''
+count = 1
+
+[[patch]]
+path = "tests/evaluation/test_catalog.py"
+old = "from investment_analysis_engine.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments\n"
+new = '''from investment_analysis_engine.strategies.ci_probe.tool import CiProbeToolArguments
+from investment_analysis_engine.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
+'''
+count = 1
+
+[[patch]]
+path = "tests/evaluation/test_catalog.py"
+old = '''        "FPI-04",
+    )'''
+new = '''        "FPI-04",
+        "CIP-01",
+    )'''
+count = 1
+
+[[patch]]
+path = "tests/evaluation/test_catalog.py"
+old = "== 18"
+new = "== 19"
+count = 5
+
+[[patch]]
+path = "tests/evaluation/test_catalog.py"
+old = "        (FCF_GROWTH_CASES, FCF_GROWTH_ARGUMENTS, FCFEarningsGrowthToolArguments),\n"
+new = '''        (FCF_GROWTH_CASES, FCF_GROWTH_ARGUMENTS, FCFEarningsGrowthToolArguments),
+        (CI_PROBE_CASES, CI_PROBE_ARGUMENTS, CiProbeToolArguments),
+'''
+count = 1
+
+[[patch]]
+path = "tests/evaluation/test_catalog.py"
+old = "for cases in (MOMENTUM_CASES, GRAHAM_NUMBER_CASES, GRAHAM_GROWTH_CASES, FCF_GROWTH_CASES)"
+new = "for cases in (MOMENTUM_CASES, GRAHAM_NUMBER_CASES, GRAHAM_GROWTH_CASES, FCF_GROWTH_CASES, CI_PROBE_CASES)"
+count = 1
+
+[[patch]]
+path = "tests/_direct_command_output.py"
+old = '''    "fcf-growth": ["fcf-growth", "ACME", "--no-cache"],
+'''
+new = '''    "fcf-growth": ["fcf-growth", "ACME", "--no-cache"],
+    "ci-probe": ["ci-probe", "CIPR"],
+'''
+count = 1

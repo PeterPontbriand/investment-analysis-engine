@@ -1,0 +1,31 @@
+"""The reviewed CI Probe Golden-Suite case and its production arguments."""
+
+from collections.abc import Mapping
+from types import MappingProxyType
+from typing import Final
+
+from investment_analysis_engine.evaluation.models import Case, DomainOutcomeExpectation, Expectation, ToolConstraints
+from investment_analysis_engine.orchestrator.tool_names import ToolName
+from investment_analysis_engine.strategies.ci_probe.tool import CiProbeToolArguments
+
+CIP_01: Final = Case(
+    case_id="CIP-01",
+    description="Freezes that the CI Probe returns the normalized ticker it was asked about.",
+    task="Analyze CIPR with CI Probe.",
+    fixture_ids=("ci-probe-fixture",),
+    expectation=Expectation(
+        tool_constraints=ToolConstraints(
+            permitted=(ToolName.ANALYZE_CI_PROBE,),
+            required=(ToolName.ANALYZE_CI_PROBE,),
+        ),
+        domain_outcome_expectations=(DomainOutcomeExpectation(field_path="ticker", expected_value="CIPR"),),
+    ),
+    tags=("ci_probe", "success"),
+)
+
+CI_PROBE_CASES: Final[tuple[Case, ...]] = (CIP_01,)
+
+CI_PROBE_ARGUMENTS: Final[Mapping[str, CiProbeToolArguments]] = MappingProxyType(
+    {"CIP-01": CiProbeToolArguments(ticker="CIPR")}
+)
+"""The reviewed production arguments of each CI Probe case, keyed by case id."""
