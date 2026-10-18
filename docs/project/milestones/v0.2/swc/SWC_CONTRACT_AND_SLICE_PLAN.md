@@ -63,7 +63,7 @@ document-link check and applicable documentation checks.
 | SWC.5b | [Generated strategy lists and the user-guide moves](#swc5b--generated-strategy-lists-and-the-user-guide-moves) | Complete | 2026-10-18 |
 | SWC.6a | [Specimen strategy](#swc6a--specimen-strategy) | Complete | 2026-10-18 |
 | SWC.6b | [Strategy generator](#swc6b--strategy-generator) | Complete | 2026-10-18 |
-| SWC.6c | [Make the pinned tests derived, and the reviewed ones sites](#swc6c--strategy-pins) | Planned | |
+| SWC.6c | [Make the pinned tests derived, and the reviewed ones sites](#swc6c--strategy-pins) | Next | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
 
 ## 3. Architectural contract
@@ -1665,11 +1665,11 @@ definition of the conformance tests.
   up from `__file__`, which the suite forbids; it reads `REPOSITORY_ROOT`. The throwaway guide needed a "Watchlist
   options" section for the generated workspace table's link. The two repository link-check tests need a git
   checkout, which the copy is not, so they are not in the named list.
-- **SWC.6c is new, between SWC.6b and SWC.7, status Planned.** Scope: make the accidental pins derived, add the
+- **SWC.6c is new, between SWC.6b and SWC.7, status Next.** Scope: make the accidental pins derived, add the
   reviewed ones to `scripts/strategy_sites.toml` as `reviewed` sites with T28 fills, and require T28's deselect list
-  to be empty. SWC.7 and Step 3.5 wait for it. The sequence table shows SWC.6c and SWC.7 both as Planned and has no
-  row marked Next, as the project owner instructed; `AGENTS.md` §12 would otherwise mark the row after SWC.6b Next.
-- **Measured time of T28.** T28 took 82.5 s on its own (pytest `--durations`, 2026-10-18), under the 2-minute threshold. The managed gate has one pytest pass, 640.8 s in total with the new tests. SWC.6c re-measures it when the three pin-only files are run whole.
+  to be empty. SWC.7 and Step 3.5 wait for it. The project owner first asked for Planned, then corrected that to Next, as
+  `AGENTS.md` §12 requires.
+- **Measured time of T28.** T28 took 70.3 s on Python 3.12 and 97.7 s on Python 3.14 when run on its own (pytest `--durations`, 2026-10-18), both under the 2-minute threshold. The two gate passes took 626.6 s and 525.3 s in total. SWC.6c re-measures it when the three pin-only files are run whole.
 - **`AGENTS.md`.** Two additions, drafted in durable terms with no slice labels or test numbers and quoted in the
   pull request for the project owner's approval: the scoped stub exception under §3, and the rule that a substitute
   for a named workaround needs approval first, under §4's implementation preservation.

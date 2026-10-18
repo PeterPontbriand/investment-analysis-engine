@@ -26,7 +26,7 @@ end-to-end test can run the conformance tests with nothing deselected. The slice
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| SWC.6c | [Make the pins derived, and the reviewed ones sites](#swc6c--strategy-pins) | Planned | |
+| SWC.6c | [Make the pins derived, and the reviewed ones sites](#swc6c--strategy-pins) | Next | |
 
 ## 3. The slice
 

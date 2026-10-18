@@ -53,8 +53,9 @@ that must be preserved.
 - NEVER make real external API or LLM calls during deterministic unit tests. Real provider calls are permitted only in tests marked `live_network`, which are excluded from the default run and the managed gate, make at most three requests per check, assert response shape and never values, and never log or persist secrets.
 - NEVER leave partial files, placeholder comments, or truncated snippets.
   - Exception, scoped exactly: a file written by `scripts/new_strategy.py` may call `unfilled_stub(...)` in its
-    unfilled bodies. The test suite fails while any such call remains under `investment_analysis_engine/`, so such
-    a file cannot merge unfilled.
+    unfilled bodies, because the generator's output is a typed starting point whose remaining work those calls
+    mark. The exception is safe because the test suite fails while any such call remains under
+    `investment_analysis_engine/`, so a file with an unfilled body cannot be merged.
 - NEVER delete or remove existing public interfaces or behavior unless the task explicitly requires it.
 - NEVER create a generic strategy/plugin/registry/factory hierarchy merely because two analyzers differ. Prefer existing `BaseAnalyzer`, tool dispatch, and dependency-injection patterns unless the active plan proves they are insufficient.
 - NEVER turn telemetry into control flow or benchmark fixtures into production cache data.
