@@ -36,7 +36,7 @@ An empty watchlist like this one has nothing to refresh yet. The common case —
 uv run ian watchlist create "Core Holdings" --analysis momentum AAPL MSFT KO
 ```
 
-`--analysis` accepts any strategy alias in the [strategy table](#method-specific-flags) — the same names used everywhere else in this guide — and each one's flags are exactly its direct command's own flags (see the table below). A method that needs your own assumptions still needs them here: Graham Growth Value requires `--expected-growth`/`--aaa-yield` whether you run it directly or seed it into a watchlist, and omitting either is an `invalid_parameter` failure (exit `1`), not a silently-unselected method:
+`--analysis` accepts any strategy alias in the [strategy table](#strategies-and-their-watchlist-options) — the same names used everywhere else in this guide — and each one's flags are exactly its direct command's own flags. Each strategy's flags are in the Watchlist options section of its guide, linked from the table below. A method that needs your own assumptions still needs them here: Graham Growth Value requires `--expected-growth`/`--aaa-yield` whether you run it directly or seed it into a watchlist, and omitting either is an `invalid_parameter` failure (exit `1`), not a silently-unselected method:
 
 ```bash
 uv run ian watchlist create "Value Watch" --analysis graham-growth --expected-growth 6.0 --aaa-yield 4.4 AAPL
@@ -103,7 +103,7 @@ uv run ian watchlist remove-ticker "Core Holdings" KO
 uv run ian watchlist remove-method "Core Holdings" --analysis graham-number
 ```
 
-Every command that removes entries starts with `remove-`, and text output names methods by the same hyphenated names you type (the `--analysis` values in the [strategy table](#method-specific-flags)). `--json` output keeps the stored method identifiers, listed in the same table, which never change.
+Every command that removes entries starts with `remove-`, and text output names methods by the same hyphenated names you type (the `--analysis` values in the [strategy table](#strategies-and-their-watchlist-options)). `--json` output keeps the stored method identifiers, listed in the same table, which never change.
 
 ### Renaming a watchlist
 
@@ -148,7 +148,7 @@ The document is described by `schemas/watchlist-delete.schema.json` and has no `
 
 A watchlist holding an entry saved by an earlier version, which this version can no longer read, is still deleted. In text mode that succeeds quietly. With `--json` there is no entry document to print, so the confirmation goes to stderr, stdout holds the failure document (`reason_code` `stored_selection_unreadable`, its `reason` naming the unreadable entry) and the exit code is `1`.
 
-### Method-specific flags
+### Strategies and their watchlist options
 
 These are the flags `watchlist create --analysis METHOD` and `watchlist add-selection --analysis METHOD` accept, one method at a time. They mirror that method's direct command exactly — same names, same defaults, same required fields.
 

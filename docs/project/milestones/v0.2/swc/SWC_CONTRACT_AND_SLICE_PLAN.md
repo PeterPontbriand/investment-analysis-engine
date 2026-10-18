@@ -60,7 +60,7 @@ document-link check and applicable documentation checks.
 | SWC.4e | [The direct Graham commands reject an unsupported provider](#swc4e--the-direct-graham-commands-reject-an-unsupported-provider) | Complete | 2026-10-12 |
 | SWC.4f | [One failure message rule for the direct commands and refresh](#swc4f--one-failure-message-rule-for-the-direct-commands-and-refresh) | Complete | 2026-10-12 |
 | SWC.5a | [Site data, report-mode checks and the status command](#swc5a--site-data-report-mode-checks-and-the-status-command) | Complete | 2026-10-17 |
-| SWC.5b | [Generated strategy lists and the user-guide moves](#swc5b--generated-strategy-lists-and-the-user-guide-moves) | Complete | 2026-10-17 |
+| SWC.5b | [Generated strategy lists and the user-guide moves](#swc5b--generated-strategy-lists-and-the-user-guide-moves) | Complete | 2026-10-18 |
 | SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Next | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
 

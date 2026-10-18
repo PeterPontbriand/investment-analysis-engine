@@ -184,7 +184,7 @@ Nothing produced by this strategy is investment advice.
 
 ## Watchlist options
 
-`watchlist create --analysis graham-growth` and `watchlist add-selection --analysis graham-growth` accept the same flags as `graham-number` without `--bvps` (see [Graham Number watchlist options](GRAHAM_NUMBER.md#watchlist-options)), plus `--eps-basis` and `--expected-growth`/`--aaa-yield`. The growth/yield assumptions are required; there is no default. See [Local Research Workspace](../WORKSPACE.md#method-specific-flags) for the watchlist commands that take them.
+`watchlist create --analysis graham-growth` and `watchlist add-selection --analysis graham-growth` accept the same flags as `graham-number` without `--bvps` (see [Graham Number watchlist options](GRAHAM_NUMBER.md#watchlist-options)), plus `--eps-basis` and `--expected-growth`/`--aaa-yield`. The growth/yield assumptions are required; there is no default. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the watchlist commands that take them.
 
 ## Related user documentation
 

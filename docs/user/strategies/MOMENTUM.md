@@ -151,7 +151,7 @@ Nothing produced by this strategy is investment advice.
 
 ## Watchlist options
 
-`watchlist create --analysis momentum` and `watchlist add-selection --analysis momentum` accept `--short-window`, `--long-window`, `--rsi-period`, `--as-of` and `--no-cache`. Window defaults match the configured Momentum policy. `--no-cache` bypasses the historical price cache. See [Local Research Workspace](../WORKSPACE.md#method-specific-flags) for the watchlist commands that take them.
+`watchlist create --analysis momentum` and `watchlist add-selection --analysis momentum` accept `--short-window`, `--long-window`, `--rsi-period`, `--as-of` and `--no-cache`. Window defaults match the configured Momentum policy. `--no-cache` bypasses the historical price cache. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the watchlist commands that take them.
 
 ## Related user documentation
 
