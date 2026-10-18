@@ -42,6 +42,7 @@ from investment_analysis_engine.strategy_wiring import (
 from scripts import generate_strategy_docs
 from scripts import strategy_conformance as conformance
 from scripts.strategy_sites import Site, StrategyNames, load_sites, strategy_names
+from tests._wiring_gaps import assert_wired, wiring_surfaces
 
 _WIRING = PACKAGE_ROOT / "strategy_wiring.py"
 _TIER = PACKAGE_ROOT / "evaluation" / "strategy_fixtures.py"
@@ -153,6 +154,7 @@ def test_t8_stores_each_run_under_the_sample_selection_its_tier_entry_declares()
 def test_t10_the_evaluation_tier_covers_every_descriptor() -> None:
     """Every descriptor has exactly one evaluation-tier entry and every entry serves a descriptor."""
     assert conformance.evaluation_tier_gaps(STRATEGIES) == []
+    assert_wired(STRATEGIES, wiring_surfaces())
     assert len(EVALUATION_STRATEGIES) == len(STRATEGIES)
 
 
@@ -182,6 +184,7 @@ def test_t10_reports_a_duplicate_entry_and_an_entry_serving_no_descriptor() -> N
 def test_t10_the_cli_tier_covers_every_descriptor() -> None:
     """Every descriptor has exactly one CLI-tier entry and every entry serves a descriptor."""
     assert conformance.cli_tier_gaps(STRATEGIES) == []
+    assert_wired(STRATEGIES, wiring_surfaces())
     assert len(CLI_STRATEGIES) == len(STRATEGIES)
 
 
@@ -772,9 +775,12 @@ def test_t25_every_site_is_done_for_every_declared_strategy(descriptor: Strategy
     assert getattr(conformance, site.check)(_names_of(descriptor)) == []
 
 
-@pytest.mark.parametrize("site", _SITES, ids=lambda site: site.id)
+@pytest.mark.parametrize("site", [site for site in _SITES if site.id != "settings"], ids=lambda site: site.id)
 def test_t25_an_undeclared_strategy_is_missing_at_every_site_and_each_check_reports_its_own_site(site: Site) -> None:
-    """Challenged with a name nothing declares, a check reports a gap that carries its own site id and path."""
+    """Challenged with a name nothing declares, a check reports a gap that carries its own site id and path.
+
+    The settings site is conditional: a package with no ``settings.py`` has no settings, so it is done.
+    """
     gaps = getattr(conformance, site.check)(_UNDECLARED)
     assert gaps
     assert {gap.site_id for gap in gaps} == {site.id}

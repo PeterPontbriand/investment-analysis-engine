@@ -45,6 +45,16 @@ defines = [".+Analyzer"]
 fails = "analyzer X (result Y) has no descriptor"
 
 [[site]]
+id = "settings"
+title = "Settings: the shipped settings file beside the model, only when the strategy has user-tunable defaults"
+why = "A strategy's tunable defaults live in a settings.toml beside the model that validates them, and the descriptor names the model; a strategy with none has no settings.py and nothing to add."
+kind = "reviewed"
+path = "investment_analysis_engine/strategies/{module}/settings.toml"
+generated = false
+check = "site_settings"
+fails = "the package has a settings.py but no settings.toml beside it, or the descriptor's settings_type is not the model that file defines"
+
+[[site]]
 id = "descriptor"
 title = "Descriptor constant, StrategyBehavior declaration and STRATEGIES entry"
 why = "The closed tuple of descriptors is what every generic consumer iterates."

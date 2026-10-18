@@ -61,7 +61,8 @@ document-link check and applicable documentation checks.
 | SWC.4f | [One failure message rule for the direct commands and refresh](#swc4f--one-failure-message-rule-for-the-direct-commands-and-refresh) | Complete | 2026-10-12 |
 | SWC.5a | [Site data, report-mode checks and the status command](#swc5a--site-data-report-mode-checks-and-the-status-command) | Complete | 2026-10-17 |
 | SWC.5b | [Generated strategy lists and the user-guide moves](#swc5b--generated-strategy-lists-and-the-user-guide-moves) | Complete | 2026-10-18 |
-| SWC.6 | [Specimen strategy and generator](#swc6--specimen-strategy-and-generator) | Next | |
+| SWC.6a | [Specimen strategy](#swc6a--specimen-strategy) | Complete | 2026-10-18 |
+| SWC.6b | [Strategy generator](#swc6b--strategy-generator) | Next | |
 | SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Planned | |
 
 ## 3. Architectural contract
@@ -612,21 +613,44 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Branch:** `feat/swc-5b-generated-strategy-lists`, from `main` after SWC.5a has merged.
 - **Detail:** [SWC.1 design §10 and §19.1](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#19-contributor-tooling).
 
-### SWC.6 — Specimen strategy and generator
+### SWC.6a — Specimen strategy
 
 - **Problem:** the dispatchers and both tiers can only be exercised through the four production
-  strategies, and adding a strategy is a long manual sequence.
-- **Decision:** a checked-in specimen strategy, used only by tests, is wired through every layer; a
-  generator writes the typed stubs and the five mechanical one-line edits, refusing to overwrite; a test
-  runs the generator in a temporary copy, fills the stubs with trivial bodies, and requires the strict type
-  check and the conformance suite to pass. `AGENTS.md` §3 gains one narrow exception for generator output
-  that fails the gate by design.
-- **Scope:** new `tests/specimen/`, `scripts/new_strategy.py`, `scripts/strategy_templates/`,
-  `investment_analysis_engine/core/strategy_stub.py`, `tests/scripts/generator_fills/`, tests T27 to T29 and the negative control
-  re-based on the specimen; `AGENTS.md` §3. A strategy that declares settings gets a `settings.toml` beside its
-  `settings.py`, and the generator writes it.
-- **Branch:** `feat/swc-6-specimen-and-generator`, from `main` after SWC.5b has merged.
-- **Detail:** [SWC.1 design §19.3 to §19.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#19-contributor-tooling).
+  strategies, and no test shows a fifth strategy complete.
+- **Decision:** a checked-in specimen strategy, used only by tests, is wired through every layer that is open
+  to injection. The site checks take a `SiteContext` that defaults to the production wiring, and the specimen
+  passes its own, so the same checks find it done. The layers closed to it (`ToolName` registration, the
+  `AnalysisSelection` union and the `StrategyBehavior` bounds) are covered by the generator's end-to-end test
+  in SWC.6b; the `tool-name` and `unions` sites are reported as covered by it. The specimen declares one real
+  setting, which its calculation uses. A conditional `settings` site is added.
+- **Scope:** new `tests/specimen/`; the `settings` site and its check; `SiteContext` and the status command's
+  `--specimen` option; the specimen tests (T7, T8, T11, T12 and T22 over it, and T27); the regenerated guide
+  table.
+- **Branch:** `feat/swc-6a-specimen`, from `main` after SWC.5b has merged.
+- **Detail:** [SWC.1 design §19.5 and §19.6](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#195-specimen-strategy) and
+  [B.19](#b19-swc6-split-and-the-specimen-decisions-2026-10-18).
+
+### SWC.6b — Strategy generator
+
+- **Problem:** adding a strategy is a long manual sequence, and the closed type-level layers are exercised by
+  no test.
+- **Decision:** a generator writes the typed stubs and the five mechanical one-line edits, refusing to
+  overwrite and writing no settings files. A test runs it in a temporary copy, fills the stubs with trivial
+  bodies, and requires the strict type check and the conformance suite to pass; that test is now the only
+  end-to-end proof of `ToolName` registration, the `AnalysisSelection` union and the `StrategyBehavior`
+  bounds. `AGENTS.md` §3 gains one narrow exception for generator output that fails the gate by design.
+- **Scope:** new `scripts/new_strategy.py`, `scripts/strategy_templates/`,
+  `investment_analysis_engine/core/strategy_stub.py`, `tests/scripts/generator_fills/`, tests T28 and T29;
+  `AGENTS.md` §3. Recorded now and built here:
+  - T28 stays in the default suite; if it adds more than 2 minutes to either pytest pass, the slice stops and
+    asks the project owner.
+  - The templates use `string.Template` placeholders.
+  - The agent drafts the `AGENTS.md` §3 exception wording and quotes it in the pull request for the project
+    owner's approval.
+  - The generated descriptor has `settings_type=None` and the generator writes no `settings.py` or
+    `settings.toml` ([B.19](#b19-swc6-split-and-the-specimen-decisions-2026-10-18)).
+- **Branch:** `feat/swc-6b-generator`, from `main` after SWC.6a merges.
+- **Detail:** [SWC.1 design §19.3 and §19.4](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#193-generator).
 
 ### SWC.7 — Contributor guide and final conformance
 
@@ -657,7 +681,7 @@ version and result-schema version distinct and do not silently reinterpret histo
     `docs/TOOL_DEVELOPMENT.md`.
   - Do not pull Step 3.5 strategy implementation into SWC; Piotroski exercises the documented path when
     that strategy is implemented.
-- **Branch:** `feat/swc-7-contributor-guide`, from `main` after SWC.6 has merged.
+- **Branch:** `feat/swc-7-contributor-guide`, from `main` after SWC.6b has merged.
 - **Detail:** [acceptance criteria](#7-acceptance-criteria) and [conformance design](#33-static-declaration-typing-and-conformance).
 
 ## 6. Scope limits
@@ -741,8 +765,8 @@ version and result-schema version distinct and do not silently reinterpret histo
   generator and the specimen's completeness test; the status command and the conformance tests share their
   check bodies; the generator writes wiring only and refuses to overwrite; a test runs it in a temporary
   copy and requires the strict type check and the conformance suite to pass with trivially filled stubs;
-  the specimen strategy runs through every layer and cannot reach production tuples, the user CLI or the
-  published schemas; the quality gate fails while any `unfilled_stub` call remains in `investment_analysis_engine/`.
+  the specimen strategy runs through every layer that is open to injection and cannot reach production tuples,
+  the user CLI or the published schemas, and the generator test is the end-to-end proof of the layers closed to it; the quality gate fails while any `unfilled_stub` call remains in `investment_analysis_engine/`.
 - **Generated lists:** the strategy lists in `USAGE.md` and `WORKSPACE.md` are generated from the
   descriptors and a drift test fails when they are stale.
 - **Contributor guide:** `docs/TOOL_DEVELOPMENT.md` is the only contributor guide for adding a
@@ -1534,3 +1558,48 @@ Approved by the project owner on 2026-10-17.
 - **Moved facts.** The `fcf-growth` row of the former flags table listed only the four FCF flags, although its
   selection builder also reads `--as-of`, `--data-provider` and `--no-cache`. The row moved unchanged and is
   reported to the project owner.
+
+### B.19 SWC.6 split and the specimen decisions (2026-10-18)
+
+Approved by the project owner on 2026-10-18.
+
+- **Split.** SWC.6 became SWC.6a (the specimen) and SWC.6b (the generator: `scripts/new_strategy.py`,
+  `scripts/strategy_templates/`, `investment_analysis_engine/core/strategy_stub.py`, T28, T29,
+  `tests/scripts/generator_fills/` and the `AGENTS.md` §3 stub exception).
+- **The generator writes no settings files.** This amends the SWC.6 scope, which said a strategy that declares
+  settings gets a `settings.toml` beside its `settings.py` and the generator writes it. The generator cannot
+  know a strategy's settings; an empty settings model can hold only one value, the defect `AGENTS.md` §9
+  forbids; so generated descriptors get `settings_type=None`. SWC.6a adds a conditional site check, `settings`,
+  of kind `reviewed`: it is done when the package has no `settings.py`, and when it has one only if a
+  `settings.toml` sits beside it and the descriptor's `settings_type` is the model that file defines, each
+  missing part reported. The design's §19.3 is corrected to match.
+- **The specimen declares settings.** One key, `multiplier`, which its calculation scales the input value by,
+  so the settings path at the composition root is exercised and the key is not a one-value setting.
+- **Recorded for SWC.6b.** T28 stays in the default suite (SWC.6b stops and asks if it adds more than 2 minutes
+  to either pytest pass); the templates use `string.Template` placeholders; the `AGENTS.md` §3 exception
+  wording is drafted by the agent and quoted in the pull request for approval.
+- **How T27 can hold (Option B, amended).** Stopping before the build found that the specimen cannot be named
+  in three closed production declarations: `ToolName` (`register_analysis_tools` requires a handler for every
+  member and rejects any other key), `AnalysisSelection` (the union an `AnalysisRun` and an `AnalysisRequest`
+  validate their selection against) and the `StrategyBehavior`, `pair_cli` and `pair_evaluation` type bounds.
+  The project owner declined production seams that only tests would use, a widened run model standing in for
+  the real `AnalysisRun` validation, and `type: ignore` in the specimen. Decision:
+  - `SiteContext` lives in `scripts/` only and defaults to the production wiring; `strategy_status.py
+    --specimen` selects the specimen's. No production code changes.
+  - The specimen exercises every layer open to injection: T7 on its own Typer app, T11, the new four-part T12
+    negative control (none existed before, so the production-table `monkeypatch` the design placed in T12 part 3
+    never existed to remove), both tiers, the `settings` site and T27. Its stored-run checks use specimen-local
+    runs.
+  - The type-closed layers are covered by T28 in SWC.6b. T27 requires every site done for the specimen except
+    `tool-name` and `unions`, which the status command reports as `covered by T28 (generator end-to-end)`.
+  - The specimen uses no `type: ignore`. It crosses the production bounds with `cast` at six places, each
+    documented where it is: the behavior's result type, decoded evidence and handler, the descriptor's tool, the
+    CLI-tier selection builder and the tier's sample selection.
+- **This narrows the design's §19.5 and §19.6 claims.** The design said the specimen is wired through every
+  layer and that T11, T12, T7 and T22 run a fifth strategy through the real dispatchers and the real stored-run
+  path. Three layers are closed to it, so those claims hold for the layers open to injection only, and T28 is
+  the only end-to-end proof of the closed ones. §19.5 and §19.6 are corrected.
+- **A site check takes two parameters.** B.18 described a site check as a function of one `StrategyNames`. It is
+  now a function of `StrategyNames` and a `SiteContext` with the production wiring as the default, and
+  `site_checks()` tells it apart by that signature. A stored-run entry carries the two functions that decode and
+  replay its run, so a production `AnalysisRun` and the specimen's run share the checks.

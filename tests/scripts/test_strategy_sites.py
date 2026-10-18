@@ -41,6 +41,7 @@ def test_the_shipped_file_lists_every_section_17_row_and_the_two_commands_in_ord
     assert [site.id for site in sites] == [
         "vocabulary",
         "analyzer",
+        "settings",
         "descriptor",
         "tool-name",
         "tool",
