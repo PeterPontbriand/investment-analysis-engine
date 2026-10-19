@@ -63,7 +63,12 @@ def _expected_folders(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[
 
 
 def _same(left: Path, right: Path) -> bool:
-    return os.path.normcase(str(left)) == os.path.normcase(str(right))
+    """Compare two folders by where they really are.
+
+    The settings resolve their paths, and a folder that exists in the real profile may be a link or a redirected
+    location (a packaged application's local cache), which a string comparison of the unresolved path calls different.
+    """
+    return os.path.normcase(str(left.resolve())) == os.path.normcase(str(right.resolve()))
 
 
 def test_the_test_anchors_are_the_repository_and_package_roots() -> None:
