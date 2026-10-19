@@ -13,55 +13,34 @@ import pytest
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError
-from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentProfile
 from investment_analysis_engine.data.market_data import HistoricalMarketData
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
-    FixtureAnnualFinancialFactsProvider,
-    annual_series,
-)
-from investment_analysis_engine.evaluation.fixtures.graham import (
-    NOW as GRAHAM_NOW,
-)
-from investment_analysis_engine.evaluation.fixtures.graham import (
-    PROVIDER_ID as GRAHAM_PROVIDER_ID,
-)
+from investment_analysis_engine.evaluation.catalog import build_deterministic_requests
+from investment_analysis_engine.evaluation.composition import compose_fixture_dependencies
 from investment_analysis_engine.evaluation.fixtures.graham import (
     SECURITY_ID as GRAHAM_SECURITY_ID,
-)
-from investment_analysis_engine.evaluation.fixtures.graham import (
-    FixtureFinancialFactsProvider,
 )
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from investment_analysis_engine.evaluation.fixtures.market_data import (
     GOLDEN_MOMENTUM_SETTINGS,
     FixtureMarketDataProvider,
 )
+from investment_analysis_engine.evaluation.models import Case
 from investment_analysis_engine.orchestrator.analysis_tools import register_analysis_tools
 from investment_analysis_engine.orchestrator.dispatcher import AsyncToolDispatcher
 from investment_analysis_engine.orchestrator.tool_names import ToolName
 from investment_analysis_engine.orchestrator.tool_runtime import AnalysisToolHandler, ToolRuntime
 from investment_analysis_engine.orchestrator.types import ToolCallRequest
-from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
-from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from investment_analysis_engine.strategies.fcf_growth.tool import FCFEarningsGrowthToolDependencies
-from investment_analysis_engine.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
-from investment_analysis_engine.strategies.graham_growth.calculation import (
-    GrahamGrowthCalculationPolicy,
-    GrahamGrowthInputResolver,
-)
 from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
 from investment_analysis_engine.strategies.graham_growth.tool import GrahamGrowthToolDependencies
-from investment_analysis_engine.strategies.graham_number.analyzer import GrahamNumberAnalyzer
-from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategies.graham_number.tool import GrahamNumberToolDependencies
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
 from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
 from investment_analysis_engine.strategies.momentum.tool import MomentumToolDependencies, MomentumToolHandler
-from investment_analysis_engine.strategy_wiring import STRATEGIES, bind_handlers
+from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor, bind_handlers
 
 EXECUTION_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 ANALYZE_MOMENTUM_TOOL = ToolName.ANALYZE_MOMENTUM.value
@@ -72,74 +51,39 @@ ANALYZE_FCF_EARNINGS_GROWTH_TOOL = ToolName.ANALYZE_FCF_EARNINGS_GROWTH.value
 
 @dataclass(frozen=True)
 class _Composition:
-    """Each strategy's own dependency class plus the shared runtime."""
+    """Each declared tool's dependency instance, composed by the evaluation tier, plus the shared runtime."""
 
-    momentum: MomentumToolDependencies
-    graham_number: GrahamNumberToolDependencies
-    graham_growth: GrahamGrowthToolDependencies
-    fcf: FCFEarningsGrowthToolDependencies
+    dependencies: Mapping[ToolName, object]
     runtime: ToolRuntime
-
-    def dependencies(self) -> dict[ToolName, object]:
-        """Return the dependency instances keyed by the tool each belongs to."""
-        return {
-            ToolName.ANALYZE_MOMENTUM: self.momentum,
-            ToolName.ANALYZE_GRAHAM_NUMBER: self.graham_number,
-            ToolName.ANALYZE_GRAHAM_GROWTH_VALUE: self.graham_growth,
-            ToolName.ANALYZE_FCF_EARNINGS_GROWTH: self.fcf,
-        }
 
 
 def _register(dispatcher: AsyncToolDispatcher, composition: _Composition) -> None:
     """Bind every declared handler to the composition and register it on the dispatcher."""
-    register_analysis_tools(dispatcher, bind_handlers(STRATEGIES, composition.dependencies(), composition.runtime))
+    register_analysis_tools(dispatcher, bind_handlers(STRATEGIES, composition.dependencies, composition.runtime))
+
+
+def _golden_case(descriptor: StrategyDescriptor) -> Case:
+    """Return the first reviewed golden case whose arguments are the descriptor's own."""
+    return next(
+        request.case
+        for request in build_deterministic_requests()
+        if type(request.arguments) is descriptor.tool_arguments
+    )
 
 
 def _dependencies(*, clock: datetime = EXECUTION_TIME) -> _Composition:
-    """Compose production handlers around deterministic fixture providers."""
-    momentum_frame = pd.DataFrame(
-        {"Close": [10.0, 10.5, 11.0, 11.8, 12.4, 13.0]},
-        index=pd.date_range("2026-01-01", periods=6, tz=UTC),
-    )
-    momentum = MomentumAnalyzer(
-        market_data_provider=FixtureMarketDataProvider(momentum_frame),
-        start_date="2026-01-01",
-    )
-    graham_provider = FixtureFinancialFactsProvider()
+    """Compose every declared strategy's dependencies from its evaluation-tier entry and its golden case.
 
-    def graham_clock() -> datetime:
-        return GRAHAM_NOW
-
-    graham_number_analyzer = GrahamNumberAnalyzer(
-        GrahamNumberInputResolver(provider=graham_provider, clock=graham_clock)
-    )
-    graham_growth_analyzer = GrahamGrowthAnalyzer(
-        GrahamGrowthInputResolver(provider=graham_provider, clock=graham_clock),
-        policy=GrahamGrowthCalculationPolicy(
-            base_pe=8.5,
-            growth_multiplier=2.0,
-            baseline_aaa_yield=4.4,
-        ),
-    )
-
-    annual_facts = tuple(replace(fact, provider_id=SEC_PROVIDER_ID) for fact in annual_series(range(2020, 2026)))
-    annual_provider = ProductionFinancialFactsProvider(sec_edgar=FixtureAnnualFinancialFactsProvider(annual_facts))
-    fcf = FCFEarningsGrowthAnalyzer(ProductionAnnualGrowthSeriesResolver(annual_provider, clock=lambda: clock))
-    return _Composition(
-        momentum=MomentumToolDependencies(analyzer=momentum, settings=GOLDEN_MOMENTUM_SETTINGS),
-        graham_number=GrahamNumberToolDependencies(
-            analyzer=graham_number_analyzer,
-            security_provider_id=GRAHAM_PROVIDER_ID,
-            quote_provider_id=GRAHAM_PROVIDER_ID,
-        ),
-        graham_growth=GrahamGrowthToolDependencies(
-            analyzer=graham_growth_analyzer,
-            security_provider_id=GRAHAM_PROVIDER_ID,
-            quote_provider_id=GRAHAM_PROVIDER_ID,
-        ),
-        fcf=FCFEarningsGrowthToolDependencies(analyzer=fcf, provider_id=SEC_PROVIDER_ID),
-        runtime=ToolRuntime(clock=lambda: clock),
-    )
+    The fixtures are composed at ``EXECUTION_TIME``; ``clock`` is only the shared runtime's clock, so a test can give
+    a handler an ambiguous one.
+    """
+    dependencies = {
+        descriptor.tool: compose_fixture_dependencies(_golden_case(descriptor), clock_at=EXECUTION_TIME).dependencies[
+            descriptor.tool
+        ]
+        for descriptor in STRATEGIES
+    }
+    return _Composition(dependencies=dependencies, runtime=ToolRuntime(clock=lambda: clock))
 
 
 def _call(tool_name: str, arguments: dict[str, object]) -> ToolCallRequest:
@@ -219,12 +163,16 @@ async def test_momentum_tool_use_cache_argument_reaches_the_provider(
         index=pd.date_range("2026-01-01", periods=6, tz=UTC),
     )
     provider = _RecordingMarketDataProvider(frame)
+    composition = _dependencies()
     dependencies = replace(
-        _dependencies(),
-        momentum=MomentumToolDependencies(
-            analyzer=MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01"),
-            settings=GOLDEN_MOMENTUM_SETTINGS,
-        ),
+        composition,
+        dependencies={
+            **composition.dependencies,
+            ToolName.ANALYZE_MOMENTUM: MomentumToolDependencies(
+                analyzer=MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01"),
+                settings=GOLDEN_MOMENTUM_SETTINGS,
+            ),
+        },
     )
     dispatcher = AsyncToolDispatcher()
     _register(dispatcher, dependencies)
@@ -352,7 +300,7 @@ def test_registration_requires_a_handler_for_every_tool_and_no_other() -> None:
     """Registration checks the injected mapping against ``ToolName`` in both directions."""
     composition = _dependencies()
     handlers: dict[ToolName, AnalysisToolHandler[object]] = dict(
-        bind_handlers(STRATEGIES, composition.dependencies(), composition.runtime)
+        bind_handlers(STRATEGIES, composition.dependencies, composition.runtime)
     )
     dispatcher = AsyncToolDispatcher()
 
@@ -375,16 +323,22 @@ def test_registration_requires_a_handler_for_every_tool_and_no_other() -> None:
 def test_dependency_classes_reject_blank_provider_ids() -> None:
     """Provider selections are required before any tool is registered."""
     composition = _dependencies()
+    number = composition.dependencies[ToolName.ANALYZE_GRAHAM_NUMBER]
+    growth = composition.dependencies[ToolName.ANALYZE_GRAHAM_GROWTH_VALUE]
+    fcf = composition.dependencies[ToolName.ANALYZE_FCF_EARNINGS_GROWTH]
+    assert isinstance(number, GrahamNumberToolDependencies)
+    assert isinstance(growth, GrahamGrowthToolDependencies)
+    assert isinstance(fcf, FCFEarningsGrowthToolDependencies)
     with pytest.raises(ValueError, match="provider IDs must be non-empty"):
-        replace(composition.graham_number, security_provider_id=" ")
+        replace(number, security_provider_id=" ")
     with pytest.raises(ValueError, match="provider IDs must be non-empty"):
-        replace(composition.graham_number, quote_provider_id="")
+        replace(number, quote_provider_id="")
     with pytest.raises(ValueError, match="provider IDs must be non-empty"):
-        replace(composition.graham_growth, security_provider_id="")
+        replace(growth, security_provider_id="")
     with pytest.raises(ValueError, match="provider IDs must be non-empty"):
-        replace(composition.graham_growth, quote_provider_id=" ")
+        replace(growth, quote_provider_id=" ")
     with pytest.raises(ValueError, match="provider IDs must be non-empty"):
-        replace(composition.fcf, provider_id="  ")
+        replace(fcf, provider_id="  ")
 
 
 _CONFIGURED = MomentumSettings(short_window=4, long_window=9, rsi_period=6, history_start_date=date(2026, 1, 1))

@@ -23,6 +23,7 @@ from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.strategies.graham_growth import cli as graham_growth_cli
 from investment_analysis_engine.strategies.graham_number import cli as graham_number_cli
+from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace.runs import RunQuery
 from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 
@@ -418,7 +419,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         )
     )
     # WRK
-    analysis = "--analysis must be one of: momentum, graham-number, graham-growth, fcf-growth."
+    analysis = f"--analysis must be one of: {', '.join(item.alias for item in STRATEGIES)}."
     add(
         _check("WRK-1", ("watchlist", "create", "W", "AAPL", "-a", "bogus"), analysis, ("--analysis",), json_flag=False)
     )
@@ -683,6 +684,14 @@ def test_the_sentence_goes_to_standard_error_and_the_command_exits_1(check: Chec
         return
     assert result.stdout == ""
     _assert_sentence(check, result.stderr.strip())
+
+
+@pytest.mark.parametrize("alias", [item.alias for item in STRATEGIES])
+def test_the_unknown_alias_sentence_names_every_declared_alias(alias: str) -> None:
+    """Each strategy's alias is among the choices the unknown-alias sentence offers."""
+    result = runner.invoke(app, ["runs", "list", "--analysis", "bogus"])
+    assert result.exit_code == 1, result.output
+    assert alias in result.stderr.split("must be one of:")[1].replace(".", "").replace(",", " ").split()
 
 
 _JSON_ROWS = [check for check in _ROWS if check.json_flag and "--json" not in check.arguments]

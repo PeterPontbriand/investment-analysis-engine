@@ -2,8 +2,8 @@
 
 The checks that run for a production strategy run here unchanged, over the specimen's descriptor, tiers, command
 application, files and stored run. Two sites are type-level and closed to the specimen: the ``ToolName`` member
-and the two production unions. The context lists them as covered by the generator's end-to-end test, which adds a
-strategy to a temporary copy of the repository through the real declarations.
+and the two production unions. The context lists them, and three sites of reviewed expected output, as covered by the
+generator's end-to-end test, which adds a strategy to a temporary copy of the repository through the real declarations.
 """
 
 import asyncio
@@ -43,7 +43,15 @@ SPECIMEN_NAMES: Final[StrategyNames] = strategy_names("specimen", ALIAS)
 """The package name and command alias of the specimen."""
 
 COVERED_BY_GENERATOR: Final = "covered by T28 (generator end-to-end)"
-"""Where the two type-level sites are checked, since the specimen cannot be named in the closed declarations."""
+"""Where the covered sites are checked, since the specimen cannot be named in the closed declarations."""
+
+COVERED_SITES: Final = ("tool-name", "unions", "direct-output", "strategy-documents", "help-snapshot")
+"""The sites the specimen's context lists as covered by the generator's end-to-end test.
+
+``tool-name`` and ``unions`` are closed to the specimen. The other three hold reviewed expected output of the production
+command application and of the production test tables, which enumerate the four production commands and not the
+specimen's own application; the end-to-end test adds a strategy to those files in a copy and requires them done.
+"""
 
 SPECIMEN_FOLDER: Final = Path(__file__).resolve().parent
 CATALOG_TEST: Final = REPOSITORY_ROOT / "tests" / "test_specimen_strategy.py"
@@ -184,6 +192,6 @@ SPECIMEN_CONTEXT: Final = SiteContext(
     selections=(type(SAMPLE_SELECTION),),
     schema_directory=SPECIMEN_FOLDER,
     catalog_test=CATALOG_TEST,
-    covered={"tool-name": COVERED_BY_GENERATOR, "unions": COVERED_BY_GENERATOR},
+    covered=dict.fromkeys(COVERED_SITES, COVERED_BY_GENERATOR),
 )
-"""The context in which the site checks find the specimen done, except the two covered sites."""
+"""The context in which the site checks find the specimen done, except the covered sites."""

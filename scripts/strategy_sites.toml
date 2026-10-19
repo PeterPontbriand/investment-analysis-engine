@@ -225,6 +225,36 @@ check = "site_catalog"
 fails = "the catalog does not import the case module, or a case id is not pinned in the catalog test"
 
 [[site]]
+id = "direct-output"
+title = "Direct command expected output: the command's fixed arguments and its stored text and JSON output"
+why = "The direct command's text and JSON output are compared byte for byte with reviewed files, and the failure-message and save-run tests run the command from its fixed arguments."
+kind = "reviewed"
+path = "tests/expected_output/direct_commands/{alias}.txt"
+generated = false
+check = "site_direct_output"
+fails = "tests/_direct_command_output.py has no entry for the alias in _COMMANDS, or the stored .txt or .json output does not exist"
+
+[[site]]
+id = "strategy-documents"
+title = "Stored strategy document: the success case and its stored direct and replayed documents"
+why = "The typed document is compared byte for byte with a reviewed file, direct and replayed, and the provider-check and envelope-version tests start from the strategy's cases."
+kind = "reviewed"
+path = "tests/expected_output/strategy_documents/{alias}-success.direct.json"
+generated = false
+check = "site_strategy_documents"
+fails = "tests/_strategy_document_output.py has no case named <alias>-success, or the stored .direct.json or .replay.json document does not exist"
+
+[[site]]
+id = "help-snapshot"
+title = "Application help snapshot: the strategy's command row"
+why = "The application's help is compared byte for byte with a reviewed snapshot that lists every command in the order it is added."
+kind = "reviewed"
+path = "tests/expected_output/cli_help/application.txt"
+generated = false
+check = "site_help_snapshot"
+fails = "the snapshot has no command row for the alias"
+
+[[site]]
 id = "guide"
 title = "User guide with FINANCE_MATH.md and GLOSSARY.md links"
 why = "Each strategy has an investor-facing guide."

@@ -61,6 +61,7 @@ from tests.specimen.selection import SpecimenSelection
 from tests.specimen.settings import SpecimenSettings
 from tests.specimen.site_context import (
     COVERED_BY_GENERATOR,
+    COVERED_SITES,
     SPECIMEN_CONTEXT,
     SPECIMEN_FOLDER,
     SPECIMEN_NAMES,
@@ -71,7 +72,7 @@ from tests.specimen.tool import SpecimenTool
 from tests.specimen.wiring import SPECIMEN, SPECIMEN_STRATEGIES
 
 _KEY = "('specimen', 'specimen_method')"
-_COVERED_SITES = {"tool-name", "unions"}
+_COVERED_SITES = set(COVERED_SITES)
 _PINNED_CASE_IDS = ("SPC-01",)
 _CLOCK = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 _SITES = load_sites()
@@ -134,8 +135,8 @@ def test_the_specimen_tuples_append_the_specimen_after_the_production_entries() 
 # ---------------------------------------------------------------------------
 
 
-def test_t27_every_site_is_done_for_the_specimen_except_the_two_covered_by_the_generator_test() -> None:
-    """The status report has a line for each site in the site data file, and only two are not run."""
+def test_t27_every_site_is_done_for_the_specimen_except_those_covered_by_the_generator_test() -> None:
+    """The status report has a line for each site in the site data file, and only the covered ones are not run."""
     lines, complete = strategy_status.report(SPECIMEN_NAMES, SPECIMEN_CONTEXT)
     assert complete
     headlines = [line for line in lines if not line.startswith(" ")]
@@ -148,12 +149,15 @@ def test_t27_every_site_is_done_for_the_specimen_except_the_two_covered_by_the_g
 def test_t27_the_covered_sites_are_reported_by_name_with_where_they_are_checked(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """The status command prints the two covered sites and does not skip them silently."""
+    """The status command prints each covered site and does not skip any silently."""
     assert strategy_status.main(["--specimen"]) == 0
     lines = capsys.readouterr().out.splitlines()
     assert "covered  tool-name  investment_analysis_engine/orchestrator/tool_names.py" in lines
     assert "covered  unions  investment_analysis_engine/workspace/strategy_types.py" in lines
-    assert lines.count(f"    {COVERED_BY_GENERATOR}") == 2
+    for site in _SITES:
+        if site.id in _COVERED_SITES:
+            assert f"covered  {site.id}  {site.resolved_path(SPECIMEN_NAMES)}" in lines
+    assert lines.count(f"    {COVERED_BY_GENERATOR}") == len(_COVERED_SITES)
     assert "done     settings  tests/specimen/settings.toml" in lines
 
 
@@ -170,10 +174,10 @@ def test_t27_each_check_run_on_the_specimen_returns_no_gap(site: Any) -> None:
     assert getattr(conformance, site.check)(SPECIMEN_NAMES, SPECIMEN_CONTEXT) == []
 
 
-def test_t27_the_two_covered_sites_really_are_closed_to_the_specimen() -> None:
+@pytest.mark.parametrize("site", [site for site in _SITES if site.id in _COVERED_SITES], ids=lambda site: site.id)
+def test_t27_the_covered_sites_really_are_not_done_for_the_specimen(site: Any) -> None:
     """Their checks, run on the specimen, do report it: the covered note is not hiding a passing check."""
-    assert conformance.site_tool_name(SPECIMEN_NAMES, SPECIMEN_CONTEXT) != []
-    assert conformance.site_unions(SPECIMEN_NAMES, SPECIMEN_CONTEXT) != []
+    assert getattr(conformance, site.check)(SPECIMEN_NAMES, SPECIMEN_CONTEXT) != []
 
 
 @pytest.mark.parametrize("site", [site for site in _SITES if site.id not in _COVERED_SITES], ids=lambda site: site.id)

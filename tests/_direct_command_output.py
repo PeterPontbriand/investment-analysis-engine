@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import cast
 from unittest.mock import patch
 
+import typer.main
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
@@ -49,6 +50,14 @@ _COMMANDS = {
     "fcf-growth": ["fcf-growth", "ACME", "--no-cache"],
 }
 _MODES = {"text": [], "json": ["--json"]}
+
+
+def no_provider_check_flag(command: str) -> list[str]:
+    """Return ``--no-provider-check`` if the direct command offers it; a command with no provider has no check."""
+    group = typer.main.get_command(app)
+    offered = getattr(getattr(group, "commands", {}).get(command), "params", ())
+    has_flag = any("--no-provider-check" in getattr(item, "opts", ()) for item in offered)
+    return ["--no-provider-check"] if has_flag else []
 
 
 @dataclass(frozen=True)

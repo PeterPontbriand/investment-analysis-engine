@@ -3,7 +3,13 @@
 import typer
 
 from investment_analysis_engine.cli_run_support import maybe_save_run
-from investment_analysis_engine.cli_support import _parse_as_of, _presentation_mode
+from investment_analysis_engine.cli_support import (
+    SaveStage,
+    _parse_as_of,
+    _presentation_mode,
+    execution_errors,
+    saving_failures,
+)
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
@@ -37,16 +43,21 @@ def command(
     save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
 ) -> None:
     """Run the CI Probe analysis."""
-    mode = _presentation_mode(details=False, diagnostics=False, json_output=json_output)
-    selection = CiProbeSelection(as_of=_parse_as_of(as_of), use_cache=not no_cache)
     executed_at = utc_now()
-    capture = maybe_save_run(
-        save_run=save_run,
-        executed_at=executed_at,
-        request_factory=lambda: AnalysisRequest(ticker=ticker, selection=selection),
-        run_adapter=lambda _profile_cache: execute_ci_probe(
-            CiProbeAnalyzer(), ticker, selection, executed_at=executed_at
-        ),
-        normalize=from_ci_probe_capture,
-    )
+    with execution_errors(json_output=json_output, selection_type=CiProbeSelection) as scope:
+        scope.ticker = ticker
+        mode = _presentation_mode(details=False, diagnostics=False, json_output=json_output)
+        scope.mode = mode
+        selection = CiProbeSelection(as_of=_parse_as_of(as_of), use_cache=not no_cache)
+        stage = SaveStage()
+        with saving_failures(stage):
+            capture = maybe_save_run(
+                save_run=save_run,
+                executed_at=executed_at,
+                request_factory=lambda: AnalysisRequest(ticker=ticker, selection=selection),
+                run_adapter=lambda _profile_cache: execute_ci_probe(
+                    CiProbeAnalyzer(), ticker, selection, executed_at=executed_at
+                ),
+                normalize=stage.after_analysis(from_ci_probe_capture),
+            )
     typer.echo(render_ci_probe(capture.result, mode))

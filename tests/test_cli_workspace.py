@@ -24,7 +24,7 @@ from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
 from investment_analysis_engine.strategies.momentum.execution import run_momentum
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
-from investment_analysis_engine.strategy_wiring import run_spec_for
+from investment_analysis_engine.strategy_wiring import STRATEGIES, run_spec_for
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.execution import execute
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
@@ -783,31 +783,31 @@ def test_runs_list_filters_by_analysis_alias(isolated_cli_settings: ProjectSetti
     assert "No matching runs." in result.output
 
 
+_ALIASES = [item.alias for item in STRATEGIES]
+_ALIAS_VOCABULARY = ", ".join(_ALIASES[:-1]) + ", or " + _ALIASES[-1]
+_ALIAS_ERROR = f"--analysis must be one of: {', '.join(_ALIASES)}."
+
+
 def test_runs_list_rejects_a_canonical_method_id_or_unknown_alias_as_a_usage_error() -> None:
     for value in ("sma_crossover", "bogus"):
         result = runner.invoke(app, ["runs", "list", "--analysis", value])
         assert result.exit_code == 1, value
-        assert "--analysis must be one of: momentum, graham-number, graham-growth, fcf-growth." in (
-            normalize_cli_output(result.output)
-        )
+        assert _ALIAS_ERROR in normalize_cli_output(result.output)
 
 
-_ALIAS_VOCABULARY = "momentum, graham-number, graham-growth, or fcf-growth"
+_ANALYSIS_HELP = [
+    (["watchlist", "create", "--help"], "Method to seed: {}."),
+    (["watchlist", "add-selection", "--help"], "Method: {}."),
+    (["runs", "list", "--help"], "Filter by method: {}."),
+]
 
 
-@pytest.mark.parametrize(
-    ("args", "help_text"),
-    [
-        (["watchlist", "create", "--help"], f"Method to seed: {_ALIAS_VOCABULARY}."),
-        (["watchlist", "add-selection", "--help"], f"Method: {_ALIAS_VOCABULARY}."),
-        (["runs", "list", "--help"], f"Filter by method: {_ALIAS_VOCABULARY}."),
-    ],
-)
-def test_the_analysis_help_text_names_every_declared_alias_as_before(args: list[str], help_text: str) -> None:
-    """The ``--analysis`` help is generated from the CLI tier but reads exactly as the hand-written literal did."""
+@pytest.mark.parametrize(("args", "help_template"), _ANALYSIS_HELP)
+def test_the_analysis_help_text_names_every_declared_alias_as_before(args: list[str], help_template: str) -> None:
+    """The ``--analysis`` help is generated from the CLI tier and lists the declared aliases in declaration order."""
     result = runner.invoke(app, args, env={"COLUMNS": "200"})
     assert result.exit_code == 0, result.output
-    assert help_text in normalize_cli_output(result.output)
+    assert help_template.format(_ALIAS_VOCABULARY) in normalize_cli_output(result.output)
 
 
 @pytest.mark.parametrize(
@@ -823,9 +823,31 @@ def test_every_analysis_option_rejects_an_unknown_alias_with_the_same_usage_erro
     """The validation error lists the declared aliases, in declaration order, with no ``or``."""
     result = runner.invoke(app, args, env={"COLUMNS": "200"})
     assert result.exit_code == 1, result.output
-    assert "--analysis must be one of: momentum, graham-number, graham-growth, fcf-growth." in (
-        normalize_cli_output(result.output)
-    )
+    assert _ALIAS_ERROR in normalize_cli_output(result.output)
+
+
+@pytest.mark.parametrize("alias", _ALIASES)
+def test_every_declared_alias_is_a_choice_of_the_analysis_option(alias: str) -> None:
+    """Each strategy's alias is in the help of every ``--analysis`` option and in the unknown-alias error."""
+    for args, help_template in _ANALYSIS_HELP:
+        result = runner.invoke(app, args, env={"COLUMNS": "200"})
+        assert result.exit_code == 0, result.output
+        text = normalize_cli_output(result.output)
+        prefix = help_template.split("{}")[0]
+        assert alias in text.split(prefix)[1].split(".")[0]
+    rejected = runner.invoke(app, ["runs", "list", "--analysis", "bogus"], env={"COLUMNS": "200"})
+    assert alias in normalize_cli_output(rejected.output).split("must be one of:")[1]
+
+
+def test_the_alias_choices_are_formatted_as_a_comma_list_with_a_final_or(monkeypatch: pytest.MonkeyPatch) -> None:
+    """On a fixed, hand-written vocabulary the help text and the error read as the sentence documents."""
+    cli_workspace = importlib.import_module("investment_analysis_engine.cli_workspace")
+    monkeypatch.setattr(cli_workspace, "CLI_BUILDERS", {"alpha": None, "beta-two": None, "gamma": None})
+
+    assert cli_workspace._alias_choices() == "alpha, beta-two, or gamma"  # noqa: SLF001 - the formatter under test
+    with pytest.raises(cli_workspace.InvalidParameterError) as raised:
+        cli_workspace._parse_analysis("bogus")  # noqa: SLF001 - the validator under test
+    assert str(raised.value) == "--analysis must be one of: alpha, beta-two, gamma."
 
 
 def test_runs_list_text_shows_the_alias_and_json_keeps_the_canonical_method_id(

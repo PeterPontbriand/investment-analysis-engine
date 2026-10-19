@@ -2254,6 +2254,76 @@ def site_catalog(names: StrategyNames, context: SiteContext = PRODUCTION) -> lis
     return gaps
 
 
+def _module_level_names(path: Path, name: str) -> list[ast.expr] | None:
+    """Return the elements of the dict (its keys) or tuple the module assigns to ``name``; ``None`` when it has none."""
+    for node in ast.parse(path.read_text(encoding="utf-8"), filename=str(path)).body:
+        value = node.value if isinstance(node, ast.Assign | ast.AnnAssign) else None
+        targets = (
+            node.targets if isinstance(node, ast.Assign) else [node.target] if isinstance(node, ast.AnnAssign) else []
+        )
+        if value is not None and any(isinstance(target, ast.Name) and target.id == name for target in targets):
+            if isinstance(value, ast.Dict):
+                return [key for key in value.keys if key is not None]
+            if isinstance(value, ast.Tuple | ast.List):
+                return list(value.elts)
+    return None
+
+
+def _missing_files(site_id: str, where: str, context: SiteContext, suffixes: tuple[str, ...], stem: str) -> list[Gap]:
+    """Report each stored file beside ``where`` that does not exist; the gap carries the site's own path."""
+    root = _root(context)
+    names = [f"{stem}{suffix}" for suffix in suffixes]
+    folder = Path(where).parent
+    return [
+        Gap(site_id, where, f"{(folder / name).as_posix()} does not exist")
+        for name in names
+        if not (root / folder / name).is_file()
+    ]
+
+
+def site_direct_output(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
+    """The direct command has fixed arguments in the output tests and stored text and JSON output."""
+    site_id = "direct-output"
+    where = site_path(site_id, names, context)
+    gaps = _missing_files(site_id, where, context, (".txt", ".json"), names.alias)
+    registry = "tests/_direct_command_output.py"
+    path = _root(context) / registry
+    keys = _module_level_names(path, "_COMMANDS") if path.is_file() else None
+    if keys is None or not any(isinstance(key, ast.Constant) and key.value == names.alias for key in keys):
+        gaps.append(Gap(site_id, where, f"{registry} has no entry for {names.alias!r} in _COMMANDS"))
+    return gaps
+
+
+def site_strategy_documents(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
+    """The strategy has a success case in the document tests and its stored direct and replayed documents."""
+    site_id = "strategy-documents"
+    where = site_path(site_id, names, context)
+    gaps = _missing_files(site_id, where, context, (".direct.json", ".replay.json"), f"{names.alias}-success")
+    registry = "tests/_strategy_document_output.py"
+    path = _root(context) / registry
+    cases = _module_level_names(path, "CASES") if path.is_file() else None
+    case_names = {
+        case.args[0].value
+        for case in cases or []
+        if isinstance(case, ast.Call) and case.args and isinstance(case.args[0], ast.Constant)
+    }
+    if f"{names.alias}-success" not in case_names:
+        gaps.append(Gap(site_id, where, f"{registry} has no case named {names.alias}-success in CASES"))
+    return gaps
+
+
+def site_help_snapshot(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
+    """The stored application help has a command row that starts with the strategy's alias."""
+    site_id = "help-snapshot"
+    where = site_path(site_id, names, context)
+    path = _root(context) / where
+    if not path.is_file():
+        return [Gap(site_id, where, f"{where} does not exist")]
+    if not any(line.split(maxsplit=1)[:1] == [names.alias] for line in path.read_text(encoding="utf-8").splitlines()):
+        return [Gap(site_id, where, f"{where} has no command row for {names.alias!r}")]
+    return []
+
+
 def site_guide(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """Row 18: the user guide exists and links to the finance mathematics and the glossary."""
     site_id = "guide"

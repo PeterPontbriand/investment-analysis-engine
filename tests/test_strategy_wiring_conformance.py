@@ -39,6 +39,7 @@ from investment_analysis_engine.strategy_wiring import (
     build_indexes,
     run_specs_by_key,
 )
+from investment_analysis_engine.workspace_documents.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
 from scripts import generate_strategy_docs
 from scripts import strategy_conformance as conformance
 from scripts.strategy_sites import Site, StrategyNames, load_sites, strategy_names
@@ -509,7 +510,9 @@ def test_t24_each_uniqueness_rule_rejects_a_duplicate_and_names_both_descriptors
 
 def test_aliases_and_method_ids_round_trip_and_an_unknown_one_is_not_a_fallback() -> None:
     """Each descriptor is reachable by its alias and by its method id; an undeclared key raises, naming it."""
-    assert [item.alias for item in STRATEGIES] == ["momentum", "graham-number", "graham-growth", "fcf-growth"]
+    aliases = [item.alias for item in STRATEGIES]
+    assert aliases[:4] == ["momentum", "graham-number", "graham-growth", "fcf-growth"]
+    assert len(set(aliases)) == len(aliases)
     for item in STRATEGIES:
         assert BY_ALIAS[item.alias] is item
         assert BY_METHOD_ID[item.method_id] is item
@@ -694,7 +697,8 @@ def test_t10_names_a_strategy_whose_schema_is_missing_or_out_of_date(tmp_path: P
 
 def test_t21_every_json_command_has_a_typed_document_and_a_current_schema() -> None:
     """The commands come from the real command tree; none is exempt."""
-    assert len(conformance.json_command_paths(app)) == 13
+    paths = conformance.json_command_paths(app)
+    assert sorted(paths) == sorted([*JSON_DOCUMENTS, *STRATEGY_REPLAY_COMMANDS, *(item.alias for item in STRATEGIES)])
     assert conformance.json_command_gaps(STRATEGIES, app) == []
 
 
