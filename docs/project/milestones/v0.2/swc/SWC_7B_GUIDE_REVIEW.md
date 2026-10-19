@@ -14,8 +14,8 @@ and when breaking one edit site at a time.
   planning history leaking into the guide.
 - **Where it ran:** two scratch git worktrees of `main` at `0e0c161` under `.tmp/`: one for the generator walk-through
   (throwaway strategy `dividend_yield`), one for the omission trials on `fcf_growth`.
-- **Result:** 14 findings. Eleven are fixed in this slice (guide wording, one `fails` text, diagnostic text; one of them
-  in part). Three more are fixed in part here and the rest is filed as issues. Nothing in the guide was impossible to follow; the stub-filling and reviewed-site steps could be judged
+- **Result:** 14 findings. Ten are fixed here (guide wording, one `fails` text, diagnostic text). Four (F1, F4, F7, F11)
+  are fixed in the guide or in part, and their tool behaviour is filed as issues #161 to #164. Nothing in the guide was impossible to follow; the stub-filling and reviewed-site steps could be judged
   only for what they say (see [What could not be followed](#what-could-not-be-followed)).
 
 ## Findings
@@ -25,7 +25,7 @@ something false or points the wrong way; **minor** = wording or completeness.
 
 | Id | Where | What happened | Severity | Outcome |
 | :--- | :--- | :--- | :--- | :--- |
-| F1 | Guide step 2 | The guide said that after the generator the reviewed sites and the sites with unfilled stubs would be missing. The status command showed `done` for `analyzer`, `tool`, `execution`, `cli`, `evaluation` and `selection` while they still called `unfilled_stub`; only `codec`, `presenter` and `replay` were `missing`, with `UnfilledStubError` naming the `evaluation` site. `done` does not mean filled. | misleads | Fixed here: step 2 says what `done` means and lists the sites that really show `missing`. |
+| F1 | Guide step 2 | The guide said that after the generator the reviewed sites and the sites with unfilled stubs would be missing. The status command showed `done` for `analyzer`, `tool`, `execution`, `cli`, `evaluation` and `selection` while they still called `unfilled_stub`; only `codec`, `presenter` and `replay` were `missing`, with `UnfilledStubError` naming the `evaluation` site. `done` does not mean filled. | misleads | Guide fixed here: step 2 says what `done` means and lists the sites that really show `missing`. Tool behaviour: issue [#164](https://github.com/PeterPontbriand/investment-analysis-engine/issues/164). |
 | F2 | Guide step 3 | "No `unfilled_stub` call is left and the type check passes" named no command for either. The test is `tests/test_no_unfilled_stubs.py`; the type check is `mypy --strict` over three folders. | misleads | Fixed here: both commands are in step 3 and in the workflow table. |
 | F3 | Guide step 4 | The reviewed-sites table said what to write but not how. Three sites have stored outputs written by a command (`python -m tests._direct_command_output`, `_strategy_document_output`, `_cli_help_output`), and two need an entry in a registry (`_COMMANDS`, `CASES`) first. None of this was in the guide, and the status messages said only "does not exist". | blocks | Fixed here: the table has a "Command that writes it" column and names the registries; the status messages for the three sites end with the command. |
 | F4 | Guide step 5; status messages | Status messages said `run scripts/generate_strategy_docs.py`. Running the file by its path fails with `ModuleNotFoundError: No module named 'scripts'`; only `python -m scripts.generate_strategy_docs` works, as the guide says. | misleads | Guide fixed here (it explains the two spellings). The message is built in `scripts/generate_strategy_docs.py`, outside this slice: issue [#162](https://github.com/PeterPontbriand/investment-analysis-engine/issues/162). |
@@ -38,7 +38,7 @@ something false or points the wrong way; **minor** = wording or completeness.
 | F11 | `tests/_wiring_gaps.py`; conformance test | A stale schema fails `test_t10_the_evaluation_tier_covers_every_descriptor`, and its first assertion line has no command. The `schema` site check had no command either. | misleads | Site check fixed here (the status message and pytest's `test_t25` failure now end with `run uv run python -m scripts.generate_schemas`). The t10 test name and message: issue [#163](https://github.com/PeterPontbriand/investment-analysis-engine/issues/163). |
 | F12 | Status messages for `direct-output`, `strategy-documents`, `help-snapshot` | Messages said only `... does not exist` or `has no command row`, with no command. | misleads | Fixed here: each ends with `write it with <command>`. |
 | F13 | `scripts/strategy_sites.toml`, `schema` row | The `fails` text said `run scripts/generate_schemas.py`; the file fails when run by path (same cause as F4). | misleads | Fixed here (`fails` text only; the row's title is unchanged). |
-| F14 | Guide step 4 | For `cases`, `catalog`, `guide` and `settings` the guide gives no example of the shape of the file. A reviewer cannot tell from the guide alone what a Golden case or a catalog entry contains. | minor | Partly fixed here: a sentence points to the existing strategy's file named in the edit-site table, for structure and not for rules. What a case must contain is still not in the guide. |
+| F14 | Guide step 4 | For `cases`, `catalog`, `guide` and `settings` the guide gives no example of the shape of the file. A reviewer cannot tell from the guide alone what a Golden case or a catalog entry contains. | minor | Fixed here: step 4 links [`EVALUATIONS.md` §5](../../../../EVALUATIONS.md#5-golden-cases-and-fixtures) and §10, which state what a case, a fixture and a catalog entry must contain, and points to an existing strategy's file for structure. |
 
 Messages changed by the fixes are listed in [Appendix A](#appendix-a-messages-before-and-after-the-fixes).
 
@@ -152,8 +152,8 @@ all 26 sites. Each trial broke one site, ran the status command and the named te
 - **Step 3 (fill the stubs):** the reviewer did not write a strategy. The guide says where to start and which files
   to fill, in order, and F2 shows the proof was missing; whether the instructions are enough for the financial work
   cannot be judged from the guide, which correctly leaves that to the contributor.
-- **Step 4 (reviewed sites):** after the fixes the guide says what each site needs and which command writes the stored
-  output. It still does not say what a Golden case or a catalog entry must contain (F14).
+- **Step 4 (reviewed sites):** after the fixes the guide says what each site needs, which command writes the stored
+  output and where a Golden case and a catalog entry are specified (F14).
 
 ## Background
 

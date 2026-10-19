@@ -72,7 +72,7 @@ The generator cannot write these. Each holds content a reviewer must judge, and 
 | `guide` | The investor-facing guide under `docs/user/strategies/`, with Finance Math and Glossary links | none; written by hand |
 | `watchlist-options` | Options of its own on the watchlist commands, only if it has any beyond the shared ones | none; written by hand |
 
-For the shape of a `cases` module, a catalog entry, a guide or a settings file, open the file named in the edit-site table for an existing strategy (replace `{module}` with its package name); take the structure, not its rules.
+What a Golden case, a fixture and a catalog entry must contain, and how their expected values are established, is in [Evaluations & Golden Suite](EVALUATIONS.md#5-golden-cases-and-fixtures) and its [maintenance rules](EVALUATIONS.md#10-maintenance-rules). For the shape of a `cases` module, a catalog entry, a guide or a settings file, open the file named in the edit-site table for an existing strategy (replace `{module}` with its package name); take the structure, not its rules.
 
 Each command rewrites every stored file of its kind, not only the new strategy's. Run `git diff --stat` afterwards and confirm that no existing strategy's file changed. The status command shows when a site is `done`.
 

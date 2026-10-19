@@ -712,7 +712,8 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Detail:** [`SWC_7B_GUIDE_REVIEW.md`](SWC_7B_GUIDE_REVIEW.md) holds the 14 findings, the four omission trials and the
   issues filed ([#161](https://github.com/PeterPontbriand/investment-analysis-engine/issues/161),
   [#162](https://github.com/PeterPontbriand/investment-analysis-engine/issues/162),
-  [#163](https://github.com/PeterPontbriand/investment-analysis-engine/issues/163)).
+  [#163](https://github.com/PeterPontbriand/investment-analysis-engine/issues/163),
+  [#164](https://github.com/PeterPontbriand/investment-analysis-engine/issues/164)).
 
 ## 6. Scope limits
 
