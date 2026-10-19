@@ -16,6 +16,8 @@ Architecture, design rationale, roadmap, milestone plans, active step/slice stat
 
 **→ [Project & Technical Documentation](project/README.md)**
 
+**→ [Adding an analysis strategy](TOOL_DEVELOPMENT.md)**
+
 An investor who is curious about the project's architecture is welcome there too, but ordinary use of Investment Analysis Engine should not require reading project-planning material.
 
 ## Maintaining shared guidance

@@ -86,15 +86,15 @@ specification is complete now; only the handoff is deferred, on purpose. Each sl
 the standard `⚠ no slice plan yet` marker until its handoff is accepted. Here the marker means
 "written immediately before the slice begins", not an omission.
 
-**Every strategy is added the same way.** Each strategy slice adds its strategy through the edit-site table in
-[SWC.1 design §17](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#17-edit-sites-for-a-new-strategy) (the table lists every site and file; it moves
-into `docs/TOOL_DEVELOPMENT.md`, generated from one site data file, when SWC.7 lands): the analyzer package, the
+**Every strategy is added the same way.** Each strategy slice adds its strategy through the
+[edit-site table in `docs/TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md#edit-sites-of-a-strategy) (the table lists every site and file and is
+generated from one site data file; the original design is in [SWC.1 design §17](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#17-edit-sites-for-a-new-strategy)): the analyzer package, the
 descriptor and its behavior bundle, the CLI-tier and evaluation-tier entries, and the strategy-owned files
 each of them references. That includes the orchestrator tool (a `ToolName` member, an arguments model, a
 dependency class and a handler), which the golden suite needs to select the strategy. Once SWC.5 and SWC.6
 land, a slice starts from `scripts/new_strategy.py`, which writes the typed stubs and the five mechanical
 one-line edits, and tracks progress with `scripts/strategy_status.py`. Each slice plan names the table's
-sites it touches. Until SWC.7, the design is the reference.
+sites it touches. The guide's workflow is the reference.
 
 **Repetition checkpoint.** All seven strategies read SEC annual filings only and share the same selection
 fields, so their wiring is expected to be near-identical. The first strategy slice (3.5.3) owns a review

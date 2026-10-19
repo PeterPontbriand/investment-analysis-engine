@@ -64,7 +64,8 @@ document-link check and applicable documentation checks.
 | SWC.6a | [Specimen strategy](#swc6a--specimen-strategy) | Complete | 2026-10-18 |
 | SWC.6b | [Strategy generator](#swc6b--strategy-generator) | Complete | 2026-10-18 |
 | SWC.6c | [Make the pinned tests derived, and the reviewed ones sites](#swc6c--strategy-pins) | Complete | 2026-10-18 |
-| SWC.7 | [Document contribution and complete conformance](#swc7--contributor-guide-and-final-conformance) | Next | |
+| SWC.7a | [Contributor guide and permanent rules](#swc7a--contributor-guide-and-permanent-rules) | Complete | 2026-10-18 |
+| SWC.7b | [Independent review of the guide](#swc7b--independent-review-of-the-guide) | Next | |
 
 ## 3. Architectural contract
 
@@ -667,41 +668,48 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Branch:** `feat/swc-6c-strategy-pins`, from `main` after SWC.6b has merged.
 - **Detail:** [SWC.6c slice plan](SWC_6C_STRATEGY_PINS_PLAN.md).
 
-### SWC.7 — Contributor guide and final conformance
+### SWC.7a — Contributor guide and permanent rules
 
-- **Problem:** contributors need one guide for adding a strategy and a complete, tested account of which
-  wiring is automatic and which work remains strategy-specific. Schemas ship in SWC.4.
-- **Decision:** verify the published schemas that SWC.4a to SWC.4c generate from typed models and document
-  the approved strategy-addition workflow in one guide, whose edit-site table is generated from the site
-  data file. Make the descriptor's authorization permanent before the temporary rule that permits it is
-  removed. Challenge the structural checks with independent end-to-end review.
+- **Problem:** contributors need one guide for adding a strategy, the descriptor's authorization must outlive the
+  temporary rule that grants it today, and an agent that runs `ian` by hand must not write to the real profile.
+- **Decision:** move the guide to `docs/TOOL_DEVELOPMENT.md`, restructure it around the workflow, and make the
+  descriptor's authorization permanent in `AGENTS.md` §3, with the manual-run rule in §10. Close Discovery Workbook
+  question 3. Map each acceptance criterion to the check that enforces it instead of writing a second set
+  ([B.23](#b23-swc7-split-and-the-guide-decisions-2026-10-18)).
 - **Scope:**
-  - **One contributor guide.** Move `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` to
-    `docs/TOOL_DEVELOPMENT.md` and extend it with the strategy-addition workflow, the status command and
-    the generator. Keep its existing content, update every link to it, and leave no second guide behind.
-  - **Strategy settings.** The guide's strategy-addition workflow includes the strategy settings convention
-    ([LAY_7_STRATEGY_SETTINGS_PLAN.md §3](../layering/LAY_7_STRATEGY_SETTINGS_PLAN.md#3-the-convention)): when a
-    strategy gets a settings file, its typed model, its descriptor field and the four entry points.
-  - **Permanent authorization.** Amend `AGENTS.md` §3 so that the closed, statically declared
-    strategy descriptor is permitted in its own right, with dynamic discovery, plugins,
-    self-registration and factory hierarchies still prohibited. Step 3.5.0 removes `AGENTS.md` §0,
-    which is the descriptor's only authorization today.
-  - **Discovery Workbook.** Close open question 3 in `docs/project/DISCOVERY_WORKBOOK.md` (whether more
-    strategies justify a registry mechanism), recording that the closed static descriptor is the answer and
-    why discovery, plugins and self-registration remain excluded.
-  - Verify that every descriptor has a current published schema (SWC.4a owns generation and the drift
-    check), and verify conformance across all current strategies and generic consumers. Use an independent
-    implementation review to prove that omission fails with a useful diagnostic.
-  - Point the Step 3.5 contract plan's link to the edit-site table at the table's new home in
-    `docs/TOOL_DEVELOPMENT.md`.
-  - **Manual runs.** `AGENTS.md` §10 gains a rule for agents that run `ian` by hand: such a run sets
-    `IAN_CONFIG_DIR`, `IAN_DATA_DIR` and `IAN_LOG_DIR` to folders under `.tmp/`, so a manual run never writes to the
-    real profile or to a packaged application's redirected copy of it
-    ([B.22](#b22-swc7-manual-runs-use-folders-under-tmp-2026-10-18)).
-  - Do not pull Step 3.5 strategy implementation into SWC; Piotroski exercises the documented path when
-    that strategy is implemented.
-- **Branch:** `feat/swc-7-contributor-guide`, from `main` after SWC.6c has merged.
-- **Detail:** [acceptance criteria](#7-acceptance-criteria) and [conformance design](#33-static-declaration-typing-and-conformance).
+  - **One contributor guide.** `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` moved to
+    `docs/TOOL_DEVELOPMENT.md`: "At a glance", the six-step workflow (generator, status command, stubs, reviewed
+    sites, `scripts/generate_schemas.py` and `scripts/generate_strategy_docs.py`, the complete gate), the generated
+    edit-site table, the strategy settings convention, and the existing explanatory content as background. Every
+    link to the old path updated, no second guide left, and one line in `docs/README.md`.
+  - **Permanent authorization.** `AGENTS.md` §3 permits the closed tuple of descriptors and its two tier tuples in
+    its own right; discovery, plugins, self-registration and factory hierarchies stay prohibited. §0 is not touched;
+    Step 3.5.0 removes it.
+  - **Manual runs.** `AGENTS.md` §10 gains the rule of
+    [B.22](#b22-swc7-manual-runs-use-folders-under-tmp-2026-10-18).
+  - **Discovery Workbook.** Question 3 marked resolved in place.
+  - **Links.** The Step 3.5 contract plan's link to the edit-site table points at the table's new home.
+  - **Criteria table.** [Where each criterion is enforced](#where-each-criterion-is-enforced), and three new tests
+    for the criteria that had none (the guide, the lasting authorization and Momentum's one profile composition).
+  - Do not pull Step 3.5 strategy implementation into SWC; Piotroski exercises the documented path when that
+    strategy is implemented.
+- **Branch:** `feat/swc-7a-contributor-guide`, from `main` after SWC.6c has merged.
+- **Detail:** [acceptance criteria](#7-acceptance-criteria), [B.23](#b23-swc7-split-and-the-guide-decisions-2026-10-18)
+  and [B.22](#b22-swc7-manual-runs-use-folders-under-tmp-2026-10-18).
+
+### SWC.7b — Independent review of the guide
+
+- **Problem:** the guide was written by the agent that built the tooling, so it cannot show that a contributor who
+  knows only the guide can add a strategy, or that omitting a site produces a useful diagnostic.
+- **Decision:** a fresh agent session that wrote none of the guide reviews it against the merged repository.
+- **Scope:**
+  - The reviewer gets only `docs/TOOL_DEVELOPMENT.md` and the repository.
+  - In a scratch copy it omits one site of each kind (`new_file`, `edit`, `reviewed`, `command`) and records, for
+    each, whether the status command and the gate name the problem and the fix.
+  - Small findings are fixed in this slice; the others are filed as issues.
+  - No other SWC.7a work is repeated here.
+- **Branch:** `feat/swc-7b-guide-review`, from `main` after SWC.7a has merged.
+- **Detail:** ⚠ no slice plan yet
 
 ## 6. Scope limits
 
@@ -748,8 +756,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   `tests`. The layering test counts parent-package initialization, and `investment_analysis_engine/workspace/__init__.py` is empty.
 - **Transition closure:** the exact T13 transition allowlist in SWC.1 design §4 grew once, in SWC.2b, by the
   twenty edges to the new `tool` files; from then on it shrinks only when its owning slice removes the
-  corresponding import edge, and it is empty when SWC.4c merges. SWC.7's final conformance verifies that it
-  remains empty.
+  corresponding import edge, and it is empty when SWC.4c merges. A test fails if it is not empty.
 - **Invocation contract:** production callers continue to invoke analyzers only through
   `BaseAnalyzer[ConfigT, ResultT].run_analysis(ticker, config, context)` with dependencies injected
   at construction and cross-cutting concerns carried in `AnalysisContext`.
@@ -795,7 +802,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   strategy. It replaces `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`, keeps that guide's
   content, and identifies what the shared wiring owns and what remains strategy-specific, including
   calculator, source fixtures, presentation semantics and Golden cases. No link to the old path
-  remains.
+  remains. Its independent review is SWC.7b.
 - **Fail-closed dispatch:** no generic consumer treats one strategy as the default. Undeclared
   evidence and undeclared stored runs are rejected, and tests prove it.
 - **Lasting authorization:** `AGENTS.md` §3 permits the closed static descriptor without relying
@@ -806,6 +813,36 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Step 3.5 readiness:** Piotroski can be added using the documented contract, the status command and
   the generator without an unplanned per-consumer dispatch edit, or the relevant conformance test fails
   clearly and points to the omitted wiring contract.
+
+### Where each criterion is enforced
+
+Each criterion above maps to a test or check that already enforces it; the table adds no second set. Test numbers are
+the design's labels ([SWC.1 design §10](SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md)). Files are under `tests/`; those written `scripts/...` are under `tests/scripts/`, and `test_strategy_wiring_conformance.py` is the file of every T-numbered test not given a file.
+
+| Criterion | Enforced by |
+| :--- | :--- |
+| Wiring completeness | `mypy --strict` for the typed members; `test_strategy_wiring_conformance.py` T1, T2, T4, T5, T6, T8 and T10 (unions, tools, catalog, versions and both tiers cover every descriptor); T25 (every site done for every declared strategy, and an undeclared strategy missing at every site with each check naming its own site); `scripts/test_new_strategy_end_to_end.py` T28 adds a strategy and runs the named conformance tests |
+| Static strategy set | T14 `test_t14_wiring_files_declare_no_discovery_or_registration` (and its drift cases) |
+| Strategy ownership | T1 and T2 (each strategy's own selection and evidence members), T15 (the descriptor and its behavior are closed), T3 (result types found by package walk) |
+| Layering | `test_strategy_import_layering.py` T13 (role rule, parent-package initialization, empty initializers, tests not imported) |
+| Transition closure | `test_the_transition_list_is_empty` in the same file |
+| Invocation contract | T17 `test_t17_the_analyzer_invocation_envelope_is_unchanged`; `analysis/test_base_analyzer_conformance.py` (subclass, signature, declared result type, no cross-boundary plain imports) |
+| Outcome and provenance | `test_existing_strategy_output_contracts.py`; the codec tests under `workspace/`; the stored-document comparison in `test_strategy_document_output.py` (explicit unavailable and inapplicable states) |
+| JSON contract | T21 `test_t21_every_json_command_has_a_typed_document_and_a_current_schema`; `scripts/test_generate_schemas.py` (`test_published_schemas_are_current`); T10 `test_t10_every_descriptor_has_a_current_published_schema` |
+| Failure envelopes | `test_cli_failure_envelope.py`, `test_command_validation_failures.py` and `test_failure_messages.py` (stable codes, standard output for `--json`, per-job refresh codes); the failure schema in `scripts/test_generate_schemas.py` |
+| Momentum profile composition | `test_momentum_composes_its_instrument_profile_in_one_function` in `test_documented_conventions.py` (new); the helper's behavior in `workspace/test_momentum_execution.py` |
+| Persistence | T8 (each strategy stores its declared versions and decodes what it stored); the version-rejection tests in the four `workspace/test_*_codec.py` files |
+| No semantic change | the Golden suite under `evaluation/`; `test_direct_command_output.py` and `test_strategy_document_output.py` (stored outputs compared byte for byte) |
+| Patch targets resolve | `test_patch_target_resolution.py` (`test_all_string_patch_targets_resolve`) |
+| No output change | `test_direct_command_output.py`, `test_cli_help_output.py` and `test_workspace_command_output.py` |
+| Edit sites | T25 and `scripts/test_strategy_sites.py`; the generated table equals the one regenerated from the site file (`test_t25_the_generated_guide_table_equals_the_one_regenerated_from_the_site_file`) |
+| Contributor tooling | `scripts/test_new_strategy.py`, `scripts/test_new_strategy_end_to_end.py` (T28), `scripts/test_strategy_status.py`, `test_specimen_strategy.py` (T27) and `test_no_unfilled_stubs.py` (T29) |
+| Generated lists | T26 `test_t26_the_generated_lists_are_current_and_hold_every_declared_strategy` |
+| Contributor guide | `test_the_contributor_guide_is_the_only_one_and_has_its_sections_in_order` in `test_documented_conventions.py` (new); `scripts/check_doc_links.py` fails on any link to the old path |
+| Fail-closed dispatch | T11 (undeclared inputs, evidence and stored runs are rejected) and `test_aliases_and_method_ids_round_trip_and_an_unknown_one_is_not_a_fallback` |
+| Lasting authorization | `test_agents_permits_the_closed_descriptor_tuples_in_section_3_without_section_0` in `test_documented_conventions.py` (new) |
+| Quality gate | `scripts/run-quality-gates.ps1` and `.sh` (coverage floor, both Ruff checks, `mypy --strict`, both pytest passes) |
+| Step 3.5 readiness | T28 (a generated strategy passes the named conformance tests) and T27 (the specimen); each conformance test names the missing wiring point |
 
 ## 8. Background and origin
 
@@ -1729,3 +1766,36 @@ Decided by the project owner on 2026-10-18.
 - **Test fix in SWC.6c.** The default-folder tests of `tests/config/test_settings_locations.py` replace the three
   `platformdirs` functions with stand-ins that return folders under the test folder and record their arguments, so
   no result depends on the machine's profile on any platform. The test files only; no production change.
+
+### B.23 SWC.7 split and the guide decisions (2026-10-18)
+
+Approved by the project owner on 2026-10-18.
+
+- **Split.** SWC.7 became SWC.7a (the guide and the permanent rules) and SWC.7b (the independent review). The review
+  is run against the merged guide by a fresh agent session that wrote none of it. The reviewer gets only
+  `docs/TOOL_DEVELOPMENT.md` and the repository; in a scratch copy it omits one site of each kind (`new_file`,
+  `edit`, `reviewed`, `command`) and records whether the status command and the gate name the problem and the fix.
+  Small findings are fixed in SWC.7b and the others filed as issues.
+- **The guide moves to `docs/TOOL_DEVELOPMENT.md`** ([B.4](#b4-pre-implementation-review-2026-10-02)), with every
+  link updated and no second guide left behind. Historical mentions of the old path in code spans (the B.4 and
+  B.18 records, the SWC.1 design's slice table) are history and keep it.
+- **Structure.** "At a glance"; the workflow in order; the generated edit-site table; the strategy settings
+  convention; the existing explanatory content last, as background, with nothing deleted. The guide uses no slice
+  labels or test numbers and names tests by what they check.
+- **Permanent authorization.** `AGENTS.md` §3 permits the closed tuple of descriptors and its two tier tuples in its
+  own right. §9's line against building registries, plugin loaders or factories "on top of the envelope speculatively"
+  still agrees, because the descriptor is neither speculative nor built on the envelope, and was not changed. §0 is
+  untouched; removing it belongs to Step 3.5. The wording is quoted in the pull request for approval.
+- **Manual runs** ([B.22](#b22-swc7-manual-runs-use-folders-under-tmp-2026-10-18)): the rule is in `AGENTS.md` §10
+  with a PowerShell and a Git Bash example, and says the folders are absolute because the settings loader rejects
+  relative ones.
+- **Discovery Workbook question 3** is marked resolved in place, not deleted.
+- **Map, don't duplicate.** The criteria table maps each criterion to its existing enforcing test. Three criteria had
+  none and got one test each, in `tests/test_documented_conventions.py`: the guide is the only one and keeps its
+  sections in order; `AGENTS.md` §3 names the three closed tuples (which must exist) and keeps the prohibitions,
+  outside §0; Momentum builds its instrument profile only in `compose_momentum_profile`, which the direct,
+  `--save-run` and refresh paths each call.
+- **Settings convention follows the current code.** The LAY.7 plan §3 described `config/strategies/<alias>.toml` and
+  "four entry points"; the implemented convention (ARCHITECTURE §6, `AGENTS.md` §9) ships `settings.toml` beside the
+  model and takes the user's override from `strategies/<alias>.toml` in the settings folder. The guide follows the
+  implemented convention and records the loader function a settings strategy adds to `cli_composition.py`.
