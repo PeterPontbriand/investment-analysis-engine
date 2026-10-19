@@ -282,7 +282,7 @@ kind = "command"
 path = "schemas/{alias}.schema.json"
 generated = false
 check = "site_schema"
-fails = "schema schemas/<alias>.schema.json is missing or out of date; run scripts/generate_schemas.py"
+fails = "schema schemas/<alias>.schema.json is missing or out of date; run uv run python -m scripts.generate_schemas"
 
 [[site]]
 id = "strategy-docs"

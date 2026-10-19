@@ -65,7 +65,7 @@ document-link check and applicable documentation checks.
 | SWC.6b | [Strategy generator](#swc6b--strategy-generator) | Complete | 2026-10-18 |
 | SWC.6c | [Make the pinned tests derived, and the reviewed ones sites](#swc6c--strategy-pins) | Complete | 2026-10-18 |
 | SWC.7a | [Contributor guide and permanent rules](#swc7a--contributor-guide-and-permanent-rules) | Complete | 2026-10-18 |
-| SWC.7b | [Independent review of the guide](#swc7b--independent-review-of-the-guide) | Next | |
+| SWC.7b | [Independent review of the guide](#swc7b--independent-review-of-the-guide) | Complete | 2026-10-19 |
 
 ## 3. Architectural contract
 
@@ -709,7 +709,10 @@ version and result-schema version distinct and do not silently reinterpret histo
   - Small findings are fixed in this slice; the others are filed as issues.
   - No other SWC.7a work is repeated here.
 - **Branch:** `feat/swc-7b-guide-review`, from `main` after SWC.7a has merged.
-- **Detail:** ⚠ no slice plan yet
+- **Detail:** [`SWC_7B_GUIDE_REVIEW.md`](SWC_7B_GUIDE_REVIEW.md) holds the 14 findings, the four omission trials and the
+  issues filed ([#161](https://github.com/PeterPontbriand/investment-analysis-engine/issues/161),
+  [#162](https://github.com/PeterPontbriand/investment-analysis-engine/issues/162),
+  [#163](https://github.com/PeterPontbriand/investment-analysis-engine/issues/163)).
 
 ## 6. Scope limits
 
