@@ -175,6 +175,7 @@ Strategies differ in what they compute, not in how they are invoked.
   the repository's `.tmp/`, derived from the repository root, so a manual run never writes to the real profile or to a
   packaged application's redirected copy of it. The settings loader rejects relative folders, and under Git Bash the
   paths are in Windows form, as above (`git rev-parse --show-toplevel` prints that form).
+  Set the variables in the same command invocation that runs `ian`; a later invocation does not inherit them.
 
   PowerShell:
 
