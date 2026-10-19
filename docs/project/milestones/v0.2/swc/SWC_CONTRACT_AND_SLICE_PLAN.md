@@ -730,9 +730,10 @@ version and result-schema version distinct and do not silently reinterpret histo
   - **#161.** When the status command cannot import the package, it matches the failing module or file, from the
     exception and its traceback, against the strategy's site files and prints `missing <site-id>` with the file to
     change and the original error; an unmatched error keeps the `import` line. A collection hook adds one line to a
-    collection error in the conformance test modules: run the status command to see which site. The
-    `UndeclaredStrategyError` message for a missing CLI-tier entry says which tier lacks which strategy (message text
-    only).
+    collection error in the conformance test modules: run the status command to see which site. A
+    check that fails in another site's wiring (a removed evaluation-tier entry) is reported under that site. The
+    `UndeclaredStrategyError` messages for a missing CLI-tier or evaluation-tier entry say which tier lacks which
+    strategy (message text only).
   - **#162.** One way to run the scripts in every diagnostic, `fails` text, generated-block marker comment and the
     guide: `uv run python -m scripts.<name>`. Running a script by its path still works.
   - **#163.** The coverage test checks only that each strategy has a published schema file. Staleness is reported by

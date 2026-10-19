@@ -152,6 +152,30 @@ def test_the_evaluation_tier_is_attributed_by_its_file(
     assert lines[0] == "missing  evaluation-tier  investment_analysis_engine/evaluation/strategy_fixtures.py"
 
 
+def test_a_removed_evaluation_tier_entry_is_attributed_to_the_tier_site(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A check that fails in the evaluation tier's file reports that site first, not the check that needed it."""
+    from scripts import strategy_conformance  # noqa: PLC0415 - patched only here
+
+    error = _raised_in(
+        "investment_analysis_engine/evaluation/strategy_fixtures.py",
+        "from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError\n"
+        "raise UndeclaredStrategyError('The evaluation tier has no entry for tool x; it has entries for: y.')",
+    )
+
+    def explode(_names: object) -> list[object]:
+        raise error
+
+    monkeypatch.setattr(strategy_conformance, "site_codec", explode)
+    assert strategy_status.main(["fcf_growth", "--alias", "fcf-growth"]) == 1
+    lines = capsys.readouterr().out.splitlines()
+    first = next(index for index, line in enumerate(lines) if line.startswith("missing"))
+    assert lines[first] == "missing  evaluation-tier  investment_analysis_engine/evaluation/strategy_fixtures.py"
+    assert "the check of codec could not run" in lines[first + 1]
+    assert "Original error: UndeclaredStrategyError: The evaluation tier has no entry for tool x" in lines[first + 1]
+
+
 def test_an_error_that_matches_no_site_keeps_the_import_line(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

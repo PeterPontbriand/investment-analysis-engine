@@ -15,7 +15,7 @@ from datetime import datetime
 from types import MappingProxyType
 from typing import Final
 
-from investment_analysis_engine.core.strategy_errors import undeclared
+from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, describe, undeclared
 from investment_analysis_engine.evaluation.fixture_context import (
     CONTEXT_FIXTURE_IDS,
     FixtureCompositionError,
@@ -175,7 +175,10 @@ def evaluation_by_tool(
         entries[tool] = entry
     for descriptor in descriptors:
         if descriptor.tool not in entries:
-            raise undeclared("evaluation tier entry for tool", descriptor.tool, entries)
+            listed = ", ".join(sorted(describe(entry_tool) for entry_tool in entries))
+            raise UndeclaredStrategyError(
+                f"The evaluation tier has no entry for tool {describe(descriptor.tool)}; it has entries for: {listed}."
+            )
     return MappingProxyType({descriptor.tool: entries[descriptor.tool] for descriptor in descriptors})
 
 

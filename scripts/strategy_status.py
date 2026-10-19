@@ -37,6 +37,7 @@ if __package__ in {None, ""}:
     # Run as a file, only this folder is on the import path; the documented working directory is the repository root.
     sys.path.insert(0, str(Path.cwd()))
 
+from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError  # noqa: E402
 from scripts.repository_root import REPOSITORY_ROOT  # noqa: E402 - after the path adjustment above
 from scripts.strategy_sites import (  # noqa: E402 - after the path adjustment above
     Gap,
@@ -106,6 +107,15 @@ def attributed_site(error: BaseException, names: StrategyNames, sites: Sequence[
     return next((by_path[path] for path in _failing_files(error) if path in by_path), None)
 
 
+def wiring_failure_lines(error: BaseException, names: StrategyNames, culprit: Site, checked: Site) -> list[str]:
+    """Return the report for a check that failed in the wiring of another site: that site and the file to change."""
+    return [
+        f"missing  {culprit.id}  {culprit.resolved_path(names)}",
+        f"    the check of {checked.id} could not run; restore or write this site ({culprit.title}), "
+        f"then run the command again. Original error: {type(error).__name__}: {error}",
+    ]
+
+
 def import_failure_lines(error: BaseException, names: StrategyNames) -> list[str]:
     """Return the report for a package that cannot be imported: the site it is attributed to, else ``import``."""
     site = attributed_site(error, names, load_sites())
@@ -140,7 +150,8 @@ def report(names: StrategyNames, context: object | None = None) -> tuple[list[st
     lines: list[str] = []
     complete = True
     covered: dict[str, str] = getattr(context, "covered", {})
-    for site in load_sites():
+    sites = load_sites()
+    for site in sites:
         where = site.resolved_path(names) if context is None else conformance.site_path(site.id, names, context)
         if site.id in covered:
             lines.extend([f"covered  {site.id}  {where}", f"    {covered[site.id]}"])
@@ -149,6 +160,12 @@ def report(names: StrategyNames, context: object | None = None) -> tuple[list[st
             check = lookup(site.check)
             gaps = check(names) if context is None else check(names, context)
         except Exception as error:  # noqa: BLE001 - a check that raises is a site that cannot be shown done
+            culprit = attributed_site(error, names, sites) if isinstance(error, UndeclaredStrategyError) else None
+            if culprit is not None and culprit.id != site.id:
+                # The wiring of another site is what this check needed: report that site, with the file to change.
+                complete = False
+                lines.extend(wiring_failure_lines(error, names, culprit, site))
+                continue
             gaps = [Gap(site.id, where, f"the check {site.check} raised {type(error).__name__}: {error}")]
         if gaps:
             complete = False

@@ -288,9 +288,13 @@ def test_a_declared_tool_without_a_tier_entry_fails_closed() -> None:
     """Every declared tool must have an evaluation-tier entry; the error names the tool."""
     tier = _tier_without(ToolName.ANALYZE_FCF_EARNINGS_GROWTH)
     assert len(tier) == len(EVALUATION_STRATEGIES) - 1
-    with pytest.raises(UndeclaredStrategyError, match="evaluation tier entry for tool .*ANALYZE_FCF_EARNINGS_GROWTH"):
+    with pytest.raises(
+        UndeclaredStrategyError, match="evaluation tier has no entry for tool .*ANALYZE_FCF_EARNINGS_GROWTH"
+    ):
         compose_fixture_dependencies(_case("unpaired", MOMENTUM_SUCCESS_FIXTURE_ID), clock_at=EXECUTION_TIME, tier=tier)
-    with pytest.raises(UndeclaredStrategyError, match="evaluation tier entry for tool .*ANALYZE_FCF_EARNINGS_GROWTH"):
+    with pytest.raises(
+        UndeclaredStrategyError, match="evaluation tier has no entry for tool .*ANALYZE_FCF_EARNINGS_GROWTH"
+    ):
         compose_fixture_dispatcher(_case("unpaired", MOMENTUM_SUCCESS_FIXTURE_ID), clock_at=EXECUTION_TIME, tier=tier)
 
 
