@@ -2269,13 +2269,16 @@ def _module_level_names(path: Path, name: str) -> list[ast.expr] | None:
     return None
 
 
-def _missing_files(site_id: str, where: str, context: SiteContext, suffixes: tuple[str, ...], stem: str) -> list[Gap]:
-    """Report each stored file beside ``where`` that does not exist; the gap carries the site's own path."""
+def _missing_files(site_id: str, where: str, context: SiteContext, names: list[str], regenerate: str) -> list[Gap]:
+    """Report each stored file beside ``where`` that does not exist, with the command that writes it."""
     root = _root(context)
-    names = [f"{stem}{suffix}" for suffix in suffixes]
     folder = Path(where).parent
     return [
-        Gap(site_id, where, f"{(folder / name).as_posix()} does not exist")
+        Gap(
+            site_id,
+            where,
+            f"{(folder / name).as_posix()} does not exist; write it with {regenerate}",
+        )
         for name in names
         if not (root / folder / name).is_file()
     ]
@@ -2285,7 +2288,13 @@ def site_direct_output(names: StrategyNames, context: SiteContext = PRODUCTION) 
     """The direct command has fixed arguments in the output tests and stored text and JSON output."""
     site_id = "direct-output"
     where = site_path(site_id, names, context)
-    gaps = _missing_files(site_id, where, context, (".txt", ".json"), names.alias)
+    gaps = _missing_files(
+        site_id,
+        where,
+        context,
+        [f"{names.alias}.txt", f"{names.alias}.json"],
+        "uv run python -m tests._direct_command_output",
+    )
     registry = "tests/_direct_command_output.py"
     path = _root(context) / registry
     keys = _module_level_names(path, "_COMMANDS") if path.is_file() else None
@@ -2298,7 +2307,13 @@ def site_strategy_documents(names: StrategyNames, context: SiteContext = PRODUCT
     """The strategy has a success case in the document tests and its stored direct and replayed documents."""
     site_id = "strategy-documents"
     where = site_path(site_id, names, context)
-    gaps = _missing_files(site_id, where, context, (".direct.json", ".replay.json"), f"{names.alias}-success")
+    gaps = _missing_files(
+        site_id,
+        where,
+        context,
+        [f"{names.alias}-success.direct.json", f"{names.alias}-success.replay.json"],
+        "uv run python -m tests._strategy_document_output",
+    )
     registry = "tests/_strategy_document_output.py"
     path = _root(context) / registry
     cases = _module_level_names(path, "CASES") if path.is_file() else None
@@ -2312,6 +2327,9 @@ def site_strategy_documents(names: StrategyNames, context: SiteContext = PRODUCT
     return gaps
 
 
+_HELP_COMMAND = "uv run python -m tests._cli_help_output"
+
+
 def site_help_snapshot(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """The stored application help has a command row that starts with the strategy's alias."""
     site_id = "help-snapshot"
@@ -2320,7 +2338,13 @@ def site_help_snapshot(names: StrategyNames, context: SiteContext = PRODUCTION) 
     if not path.is_file():
         return [Gap(site_id, where, f"{where} does not exist")]
     if not any(line.split(maxsplit=1)[:1] == [names.alias] for line in path.read_text(encoding="utf-8").splitlines()):
-        return [Gap(site_id, where, f"{where} has no command row for {names.alias!r}")]
+        return [
+            Gap(
+                site_id,
+                where,
+                f"{where} has no command row for {names.alias!r}; write it with {_HELP_COMMAND}",
+            )
+        ]
     return []
 
 
@@ -2380,17 +2404,22 @@ def site_watchlist_options(names: StrategyNames, context: SiteContext = PRODUCTI
     return gaps
 
 
+_SCHEMA_COMMAND = "run uv run python -m scripts.generate_schemas"
+
+
 def site_schema(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
-    """The published schema of the strategy's document exists and is current (``scripts/generate_schemas.py``)."""
+    """The published schema of the strategy's document exists and is current."""
     site_id = "schema"
     where = site_path(site_id, names, context)
     item = _declared(names, context)
     if item is None:
         if (_root(context) / where).is_file():
             return []
-        return [Gap(site_id, where, f"{where} does not exist; run scripts/generate_schemas.py")]
+        return [Gap(site_id, where, f"{where} does not exist; {_SCHEMA_COMMAND}")]
     directory = SCHEMA_DIRECTORY if context.schema_directory is None else context.schema_directory
-    return [Gap(site_id, where, message) for message in published_schema_gaps((item,), directory)]
+    return [
+        Gap(site_id, where, f"{message}; {_SCHEMA_COMMAND}") for message in published_schema_gaps((item,), directory)
+    ]
 
 
 def site_strategy_docs(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:

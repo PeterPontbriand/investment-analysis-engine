@@ -48,7 +48,8 @@ def import_gap(error: BaseException) -> Gap:
     return Gap(
         IMPORT_SITE_ID,
         CONFORMANCE_MODULE.replace(".", "/") + ".py",
-        f"the package could not be imported, so no site was checked: {type(error).__name__}: {error}",
+        f"the package could not be imported, so no site was checked: {type(error).__name__}: {error}; "
+        "a strategy file or a wiring entry that the descriptor needs was probably removed or renamed",
     )
 
 

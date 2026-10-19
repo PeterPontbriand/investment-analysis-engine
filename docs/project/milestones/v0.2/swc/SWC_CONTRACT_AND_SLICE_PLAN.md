@@ -65,7 +65,8 @@ document-link check and applicable documentation checks.
 | SWC.6b | [Strategy generator](#swc6b--strategy-generator) | Complete | 2026-10-18 |
 | SWC.6c | [Make the pinned tests derived, and the reviewed ones sites](#swc6c--strategy-pins) | Complete | 2026-10-18 |
 | SWC.7a | [Contributor guide and permanent rules](#swc7a--contributor-guide-and-permanent-rules) | Complete | 2026-10-18 |
-| SWC.7b | [Independent review of the guide](#swc7b--independent-review-of-the-guide) | Next | |
+| SWC.7b | [Independent review of the guide](#swc7b--independent-review-of-the-guide) | Complete | 2026-10-19 |
+| SWC.8 | [Contributor diagnostics](#swc8--contributor-diagnostics) | Next | |
 
 ## 3. Architectural contract
 
@@ -709,6 +710,24 @@ version and result-schema version distinct and do not silently reinterpret histo
   - Small findings are fixed in this slice; the others are filed as issues.
   - No other SWC.7a work is repeated here.
 - **Branch:** `feat/swc-7b-guide-review`, from `main` after SWC.7a has merged.
+- **Detail:** [`SWC_7B_GUIDE_REVIEW.md`](SWC_7B_GUIDE_REVIEW.md) holds the 14 findings, the four omission trials and the
+  issues filed ([#161](https://github.com/PeterPontbriand/investment-analysis-engine/issues/161),
+  [#162](https://github.com/PeterPontbriand/investment-analysis-engine/issues/162),
+  [#163](https://github.com/PeterPontbriand/investment-analysis-engine/issues/163),
+  [#164](https://github.com/PeterPontbriand/investment-analysis-engine/issues/164)).
+
+### SWC.8 — Contributor diagnostics
+
+- **Problem:** the SWC.7b review found that a contributor who omits or half-fills a site gets a diagnostic that does
+  not name the site or the fix. The cases are issue [#161](https://github.com/PeterPontbriand/investment-analysis-engine/issues/161) (a removed file or wiring entry surfaces as a bare import
+  error), [#162](https://github.com/PeterPontbriand/investment-analysis-engine/issues/162) (generated-list messages name a script path that fails), [#163](https://github.com/PeterPontbriand/investment-analysis-engine/issues/163) (a stale published schema fails
+  under an evaluation-tier test name, without the fix command) and [#164](https://github.com/PeterPontbriand/investment-analysis-engine/issues/164) (the status command reports a site `done`
+  while its file still calls `unfilled_stub`). The review also gave F14 (what a Golden case must contain); it was
+  fixed in the guide and needed no issue.
+- **Decision:** fix these before the first Step 3.5 strategy, so its author does not work around them. The slice's
+  open decisions go to the project owner before implementation.
+- **Scope:** the scripts and tests those issues name. No production behaviour changes.
+- **Branch:** to be named when the slice starts.
 - **Detail:** ⚠ no slice plan yet
 
 ## 6. Scope limits
@@ -1799,3 +1818,14 @@ Approved by the project owner on 2026-10-18.
   "four entry points"; the implemented convention (ARCHITECTURE §6, `AGENTS.md` §9) ships `settings.toml` beside the
   model and takes the user's override from `strategies/<alias>.toml` in the settings folder. The guide follows the
   implemented convention and records the loader function a settings strategy adds to `cli_composition.py`.
+
+### B.24 SWC.8: contributor diagnostics before Step 3.5 (2026-10-19)
+
+- **Decision (project owner, 2026-10-19).** The SWC.7b review's tool-behaviour findings ([#161](https://github.com/PeterPontbriand/investment-analysis-engine/issues/161), [#162](https://github.com/PeterPontbriand/investment-analysis-engine/issues/162), [#163](https://github.com/PeterPontbriand/investment-analysis-engine/issues/163),
+  [#164](https://github.com/PeterPontbriand/investment-analysis-engine/issues/164)) are fixed in a new slice, SWC.8, which runs after SWC.7b and before Step 3.5. The SWC work package stays
+  In progress until it completes.
+- **Reason.** Step 3.5 adds seven strategies through the generator and the status command. Leaving diagnostics that
+  name neither the site nor the fix would make each author work around them, and the workarounds would become the
+  patterns the next strategy copies.
+- **Boundary.** SWC.7b changed only text. SWC.8 may change what a check or test does, in the scripts and tests the
+  issues name; it changes no production behaviour. Its open decisions go to the project owner before implementation.
