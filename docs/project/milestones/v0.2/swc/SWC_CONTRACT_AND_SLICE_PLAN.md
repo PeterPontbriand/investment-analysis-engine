@@ -694,6 +694,10 @@ version and result-schema version distinct and do not silently reinterpret histo
     implementation review to prove that omission fails with a useful diagnostic.
   - Point the Step 3.5 contract plan's link to the edit-site table at the table's new home in
     `docs/TOOL_DEVELOPMENT.md`.
+  - **Manual runs.** `AGENTS.md` §10 gains a rule for agents that run `ian` by hand: such a run sets
+    `IAN_CONFIG_DIR`, `IAN_DATA_DIR` and `IAN_LOG_DIR` to folders under `.tmp/`, so a manual run never writes to the
+    real profile or to a packaged application's redirected copy of it
+    ([B.22](#b22-swc7-manual-runs-use-folders-under-tmp-2026-10-18)).
   - Do not pull Step 3.5 strategy implementation into SWC; Piotroski exercises the documented path when
     that strategy is implemented.
 - **Branch:** `feat/swc-7-contributor-guide`, from `main` after SWC.6c has merged.
@@ -1709,3 +1713,19 @@ Approved by the project owner on 2026-10-18. The inventory and the outcome of ea
   and `tests/test_cli_provider_check.py` pins the set of commands that offer it.
 - **Counts.** The 17 accidental and 27 reviewed pins ended as 37 derived, 3 subset checks and 4 pins that are three
   sites.
+
+### B.22 SWC.7: manual runs use folders under `.tmp/` (2026-10-18)
+
+Decided by the project owner on 2026-10-18.
+
+- **Finding.** `test_default_settings_use_the_user_folders_and_create_nothing` failed inside an agent session in the
+  Claude desktop app. Windows' file virtualization for packaged apps redirects writes to `%LOCALAPPDATA%` into the
+  app's package folder (`...\Packages\Claude_<id>\LocalCache\Local`), and the app's own view merges that folder back
+  in. Manual `ian` runs from an agent session created `investment-analysis-engine\Logs` there. `platformdirs` returned
+  the normal `%LOCALAPPDATA%` path, but resolving it led to the redirected one. The folder never existed in the real
+  profile, so the test failed only inside such a session.
+- **Decision.** SWC.7 adds a rule to `AGENTS.md` §10: an agent that runs `ian` by hand sets `IAN_CONFIG_DIR`,
+  `IAN_DATA_DIR` and `IAN_LOG_DIR` to folders under `.tmp/`.
+- **Test fix in SWC.6c.** The default-folder tests of `tests/config/test_settings_locations.py` replace the three
+  `platformdirs` functions with stand-ins that return folders under the test folder and record their arguments, so
+  no result depends on the machine's profile on any platform. The test files only; no production change.

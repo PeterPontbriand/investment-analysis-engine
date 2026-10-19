@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import os
-import sys
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 
+import platformdirs
 import pytest
 from pydantic import ValidationError
 
@@ -42,24 +44,40 @@ def no_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(name, raising=False)
 
 
-def _expected_folders(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, Path, Path]:
-    """Return the settings, data and log folders the platform's convention gives, for this test's environment."""
-    name = APPLICATION_FOLDER_NAME
-    if sys.platform == "win32":
-        roaming = Path(os.environ["APPDATA"])
-        local = Path(os.environ["LOCALAPPDATA"])
-        return roaming / name, local / name, local / name / "Logs"
-    if sys.platform == "darwin":
-        home = Path.home()
-        return (
-            home / "Library" / "Application Support" / name,
-            home / "Library" / "Application Support" / name,
-            home / "Library" / "Logs" / name,
-        )
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
-    return tmp_path / "config" / name, tmp_path / "data" / name, tmp_path / "state" / name / "log"
+@dataclass
+class PlatformFolders:
+    """Stand-ins for the three ``platformdirs`` functions: folders under a test folder, and the calls received.
+
+    Which folder each platform's convention gives is ``platformdirs``' own responsibility, so no test here reads the
+    real environment or profile (``APPDATA``, ``LOCALAPPDATA``, ``~/Library``): that would make a result depend on the
+    machine's state, such as a packaged application's redirected copy of the profile.
+    """
+
+    root: Path
+    calls: dict[str, tuple[tuple[object, ...], dict[str, object]]] = field(default_factory=dict)
+
+    def folder(self, kind: str) -> Path:
+        """Return the folder the stand-in answers for ``kind``."""
+        return self.root / kind
+
+    def stand_in(self, kind: str) -> Callable[..., str]:
+        """Return a function that records its arguments and answers the folder of ``kind``."""
+
+        def answer(*args: object, **kwargs: object) -> str:
+            self.calls[kind] = (args, kwargs)
+            return str(self.folder(kind))
+
+        return answer
+
+
+@pytest.fixture
+def platform_folders(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> PlatformFolders:
+    """Replace the three ``platformdirs`` functions that ``user_folders`` calls with folders under ``tmp_path``."""
+    folders = PlatformFolders(tmp_path / "platform")
+    monkeypatch.setattr(platformdirs, "user_config_dir", folders.stand_in("config"))
+    monkeypatch.setattr(platformdirs, "user_data_dir", folders.stand_in("data"))
+    monkeypatch.setattr(platformdirs, "user_log_dir", folders.stand_in("log"))
+    return folders
 
 
 def _same(left: Path, right: Path) -> bool:
@@ -76,35 +94,35 @@ def test_the_test_anchors_are_the_repository_and_package_roots() -> None:
     assert (PACKAGE_ROOT / "config" / "__init__.py").is_file()
 
 
-def test_the_user_folders_are_the_platforms_conventional_ones(
-    no_overrides: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+def test_the_user_folders_are_the_ones_platformdirs_gives_for_the_application(
+    no_overrides: None, platform_folders: PlatformFolders
 ) -> None:
     del no_overrides
-    settings_folder, data_folder, log_folder = _expected_folders(monkeypatch, tmp_path)
-    before = [path.exists() for path in (settings_folder, data_folder, log_folder)]
 
-    assert _same(user_settings_folder(), settings_folder)
-    assert _same(user_data_folder(), data_folder)
-    assert _same(user_log_folder(), log_folder)
-    assert [path.exists() for path in (settings_folder, data_folder, log_folder)] == before
+    assert _same(user_settings_folder(), platform_folders.folder("config"))
+    assert _same(user_data_folder(), platform_folders.folder("data"))
+    assert _same(user_log_folder(), platform_folders.folder("log"))
+    name = APPLICATION_FOLDER_NAME
+    assert platform_folders.calls["config"] == ((name,), {"appauthor": False, "roaming": True})
+    assert platform_folders.calls["data"] == ((name,), {"appauthor": False})
+    assert platform_folders.calls["log"] == ((name,), {"appauthor": False})
 
 
 def test_default_settings_use_the_user_folders_and_create_nothing(
-    no_overrides: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    no_overrides: None, platform_folders: PlatformFolders
 ) -> None:
     del no_overrides
-    _expected_folders(monkeypatch, tmp_path)
-    folders = (user_settings_folder(), user_data_folder(), user_log_folder())
-    before = [path.exists() for path in folders]
+    folders = (platform_folders.folder("config"), platform_folders.folder("data"), platform_folders.folder("log"))
 
     configured = ProjectSettings()
 
-    assert _same(configured.config_dir, user_settings_folder())
-    assert _same(configured.data_dir, user_data_folder())
-    assert _same(configured.log_dir, user_log_folder())
+    assert _same(configured.config_dir, platform_folders.folder("config"))
+    assert _same(configured.data_dir, platform_folders.folder("data"))
+    assert _same(configured.log_dir, platform_folders.folder("log"))
     assert configured.telemetry_log_dir == configured.log_dir
     assert configured.database_url == f"sqlite:///{(configured.data_dir / DATABASE_FILE_NAME).as_posix()}"
-    assert [path.exists() for path in folders] == before
+    assert not any(path.exists() for path in folders)
+    assert not platform_folders.root.exists()
 
 
 def test_each_folder_variable_overrides_its_default(
@@ -192,15 +210,14 @@ def test_the_removed_base_directory_setting_is_not_accepted(
 
 
 def test_the_settings_folder_comes_from_the_process_environment_then_the_user_folder(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, platform_folders: PlatformFolders
 ) -> None:
     assert resolve_settings_folder({"IAN_CONFIG_DIR": str(tmp_path)}) == tmp_path.resolve()
     assert resolve_settings_folder({"ian_config_dir": str(tmp_path)}) == tmp_path.resolve()
-    assert resolve_settings_folder({"IAN_CONFIG_DIR": ""}) == user_settings_folder()
-    assert resolve_settings_folder({}) == user_settings_folder()
+    assert _same(resolve_settings_folder({"IAN_CONFIG_DIR": ""}), platform_folders.folder("config"))
+    assert _same(resolve_settings_folder({}), platform_folders.folder("config"))
     with pytest.raises(SettingsEnvironmentError, match="IAN_CONFIG_DIR path 'rel' must be an absolute path"):
         resolve_settings_folder({"IAN_CONFIG_DIR": "rel"})
-    del monkeypatch
 
 
 def _probe_variable(monkeypatch: pytest.MonkeyPatch) -> str:
