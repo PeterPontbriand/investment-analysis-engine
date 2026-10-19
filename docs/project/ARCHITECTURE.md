@@ -7,7 +7,7 @@ This document explains system boundaries, data ownership, and execution flow. Co
 **Related roadmap:** [MASTER_PLAN.md](MASTER_PLAN.md)<br/>
 **Active implementation detail:** [milestones/v0.2/IMPLEMENTATION_PLAN.md](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>
 **Rationale:** [DISCOVERY_WORKBOOK.md](DISCOVERY_WORKBOOK.md)<br/>
-**Adding a strategy:** [ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md)<br/>
+**Adding a strategy:** [TOOL_DEVELOPMENT.md](../TOOL_DEVELOPMENT.md)<br/>
 
 For work-package sequencing and status, see the [milestone table](milestones/v0.2/IMPLEMENTATION_PLAN.md#sequence-and-status).
 
@@ -89,7 +89,7 @@ A composition root is where a run's concrete dependencies — provider, cache, r
 
 Every composition root reads `executed_at` exactly once per analysis it runs, via `utc_now()` — a watchlist refresh takes a separate reading for each job. That single reading threads through everything the analysis touches; see [*Time and the analysis boundary*](#5-time-and-the-analysis-boundary) for the resulting clock model. `maybe_save_run` (`investment_analysis_engine/cli_run_support.py`) is the one place shared by all four direct commands that decides, from `--save-run`, whether a run's capture ever reaches persistence.
 
-For the concrete sequence a request follows from composition through to a rendered or saved result, see the [Analysis Strategy Contributor Guide](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md)'s execution trace rather than a second copy of it here.
+For the concrete sequence a request follows from composition through to a rendered or saved result, see the [Analysis Strategy Development Guide](../TOOL_DEVELOPMENT.md)'s execution trace rather than a second copy of it here.
 
 ---
 
@@ -166,7 +166,7 @@ tolerance cannot hide that kind of defect.
 
 ## 6. Analysis strategies: the boundary
 
-Every current analyzer implements `BaseAnalyzer[ConfigT, ResultT]` and shares the same `run_analysis(ticker, config, context)` signature — that shared signature is the full extent of what strategies share by contract. Each strategy's own execution adapter composes and invokes it differently, as the [Analysis Strategy Contributor Guide](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md) documents. What a strategy owns:
+Every current analyzer implements `BaseAnalyzer[ConfigT, ResultT]` and shares the same `run_analysis(ticker, config, context)` signature — that shared signature is the full extent of what strategies share by contract. Each strategy's own execution adapter composes and invokes it differently, as the [Analysis Strategy Development Guide](../TOOL_DEVELOPMENT.md) documents. What a strategy owns:
 
 - its own configuration/policy model;
 - its own input resolution (which provider capabilities it needs, and how it resolves them);
@@ -177,7 +177,7 @@ What every strategy shares instead of rebuilding: `BaseAnalyzer` and `AnalysisCo
 
 No two strategies share a strategy-specific base beyond `BaseAnalyzer` itself: each owns its config, resolver, calculation, and result type independently, and a resolver pattern used by one strategy — such as evidence truncated to `effective_as_of` and recorded as a `ResolutionTrace` — is a convention other strategies may follow, not a shared class they inherit.
 
-For which strategies exist today and what each one computes, see the [user strategy guides](../user/strategies/README.md). For how to add a new one, trace an existing strategy end to end in the [Analysis Strategy Contributor Guide](ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md) rather than here.
+For which strategies exist today and what each one computes, see the [user strategy guides](../user/strategies/README.md). For how to add a new one, trace an existing strategy end to end in the [Analysis Strategy Development Guide](../TOOL_DEVELOPMENT.md) rather than here.
 
 ### Strategy settings
 

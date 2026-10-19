@@ -525,12 +525,12 @@ Current documents:
 - `docs/project/ARCHITECTURE.md`
 - `docs/project/DISCOVERY_WORKBOOK.md`
 - `docs/EVALUATIONS.md` — Step 2.5 Golden Suite purpose, execution modes, scoring boundaries, fixtures, and maintenance rules;
+- `docs/TOOL_DEVELOPMENT.md` — the one guide for adding an analysis strategy;
 - `docs/user/FINANCE_MATH.md`
 - `docs/user/GLOSSARY.md`
 - `docs/user/HARDWARE.md`
 
 Planned when their owning work lands:
-- `docs/TOOL_DEVELOPMENT.md` (replaces `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` when SWC.7 lands);
 - `docs/I18N_GUIDE.md`.
 
 A planned document must not be treated as an existing source of instructions.
@@ -644,7 +644,7 @@ The reader behind filing reading and the answer check (text in, one of a few fix
 
 1. Will WAL + connection discipline remain sufficient for future denser multi-tool/multi-agent workloads?
 2. Does `fr-CA` localization remain in v0.4?
-3. Do future additional strategies reveal a genuine need for a richer analyzer registry/plugin mechanism? This remains intentionally unresolved until concrete repetition justifies it.
+3. ~~Do future additional strategies reveal a genuine need for a richer analyzer registry/plugin mechanism? This remains intentionally unresolved until concrete repetition justifies it.~~ **Resolved 2026-10-18.** The concrete repetition arrived: four strategies each repeated their wiring across orchestration, workspace, codecs, reporting and evaluation. The answer is a closed, statically declared descriptor per strategy, in one tuple at the composition root, with two tier tuples for the functions only the command-line and evaluation layers can import; every generic consumer receives its slice by injection, and conformance tests fail when a strategy omits a required entry. Dynamic discovery, plugins and self-registration stay excluded because the strategy set is small and known, a file that registers itself hides which strategies exist and which wiring each one owes, and a loader would add a lifecycle with no consumer that needs it. A factory hierarchy stays excluded because strategies differ in what they compute, not in how they are invoked. See the [SWC decision record](milestones/v0.2/swc/SWC_CONTRACT_AND_SLICE_PLAN.md#b1-closed-descriptor-decision-and-ir2-boundary) and `AGENTS.md` §3, which now permits the descriptor in its own right.
 4. Which exact AAA corporate-bond-yield series, frequency, provider, retrieval mechanism, and licensing terms should `graham_growth_value` eventually use instead of the current explicit user override?
 5. Which future provider capabilities can honor historical `as_of` without look-ahead bias, especially for point-in-time quotes and later financial facts not yet represented by the current SEC integration?
 6. Do investors prefer direct one-off analysis, the watchlist/refresh/run-history workflow, plain-English questions, or a mix—and which information belongs in the concise default versus details?

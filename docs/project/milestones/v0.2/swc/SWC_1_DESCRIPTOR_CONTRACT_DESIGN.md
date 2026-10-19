@@ -1082,7 +1082,7 @@ command, the generator and the specimen's completeness test. It is read with `to
 | `fails` | What else the check reports when the site is missing, beyond a missing file and the names in `defines`; may be empty. |
 
 The current list of edit sites is generated from this file into a marked block in the contributor guide
-(`docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` until SWC.7 moves the guide to `docs/TOOL_DEVELOPMENT.md`,
+(`docs/TOOL_DEVELOPMENT.md`,
 which carries the block), by `scripts/generate_strategy_docs.py`; T25 compares the block with the table
 regenerated from this file. The design keeps no copy of the generated table: the table in
 [§17](#17-edit-sites-for-a-new-strategy) is design history. Only per-strategy site checks have a site; the

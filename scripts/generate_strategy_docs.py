@@ -28,7 +28,7 @@ from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_sites import Site, load_sites
 
 GENERATOR: Final[str] = "scripts/generate_strategy_docs.py"
-GUIDE_FILE: Final[Path] = REPOSITORY_ROOT / "docs" / "project" / "ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md"
+GUIDE_FILE: Final[Path] = REPOSITORY_ROOT / "docs" / "TOOL_DEVELOPMENT.md"
 USAGE_FILE: Final[Path] = REPOSITORY_ROOT / "docs" / "user" / "USAGE.md"
 WORKSPACE_FILE: Final[Path] = REPOSITORY_ROOT / "docs" / "user" / "WORKSPACE.md"
 USAGE_BLOCK_ID: Final[str] = "strategy-help-commands"

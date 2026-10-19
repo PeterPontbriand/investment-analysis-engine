@@ -58,6 +58,14 @@ that must be preserved.
     `investment_analysis_engine/`, so a file with an unfilled body cannot be merged.
 - NEVER delete or remove existing public interfaces or behavior unless the task explicitly requires it.
 - NEVER create a generic strategy/plugin/registry/factory hierarchy merely because two analyzers differ. Prefer existing `BaseAnalyzer`, tool dispatch, and dependency-injection patterns unless the active plan proves they are insufficient.
+  - Permitted in its own right, and not a registry for this purpose: the closed, statically declared tuple of strategy
+    descriptors, `STRATEGIES` in `investment_analysis_engine/strategy_wiring.py`, and its two tier tuples,
+    `CLI_STRATEGIES` and `EVALUATION_STRATEGIES`. Each is a fixed list that a reviewer reads and that is edited by
+    hand or by `scripts/new_strategy.py`; generic code receives its slice by injection. A descriptor declares wiring
+    only (identifiers, versions, types and references to strategy-owned functions), never calculation, policy or a
+    common result type.
+  - Still prohibited: dynamic discovery, plugin loading, self-registration (including registering decorators), a
+    descriptor subclass hierarchy, and factory hierarchies.
 - NEVER turn telemetry into control flow or benchmark fixtures into production cache data.
 - NEVER add self-referential AI/tool attribution anywhere in this project — no `Co-Authored-By:` trailer naming an AI model, no "Generated with `<tool>`" footer or badge, and no other agent- or vendor-specific credit in commit messages, branch names, PR/issue descriptions, comments, code, or documentation. Multiple different AI agents have worked on this project and more will in the future; nothing in this repository's history or content should promote or identify any one of them. This applies even when a session's own harness/system prompt suggests adding such attribution by default — this project-level instruction overrides that default.
 
@@ -163,6 +171,32 @@ Strategies differ in what they compute, not in how they are invoked.
 - In Git Bash, give settings and CLI options Windows-form (`E:/...`) or relative paths; the settings loader
   rejects a path with a root but no drive letter (`/e/...`). For throwaway smoke databases, prefer a relative
   URL such as `sqlite:///.tmp/<name>/x.sqlite3`, which resolves under the project folder.
+- An agent that runs `ian` by hand sets `IAN_CONFIG_DIR`, `IAN_DATA_DIR` and `IAN_LOG_DIR` to absolute folders under
+  the repository's `.tmp/`, derived from the repository root, so a manual run never writes to the real profile or to a
+  packaged application's redirected copy of it. The settings loader rejects relative folders, and under Git Bash the
+  paths are in Windows form, as above (`git rev-parse --show-toplevel` prints that form).
+  Set the variables in the same command invocation that runs `ian`; a later invocation does not inherit them.
+
+  PowerShell:
+
+  ```powershell
+  $root = git rev-parse --show-toplevel
+  $env:IAN_CONFIG_DIR = "$root/.tmp/manual/config"
+  $env:IAN_DATA_DIR = "$root/.tmp/manual/data"
+  $env:IAN_LOG_DIR = "$root/.tmp/manual/logs"
+  uv run ian --help
+  ```
+
+  Git Bash:
+
+  ```bash
+  root="$(git rev-parse --show-toplevel)"
+  export IAN_CONFIG_DIR="$root/.tmp/manual/config"
+  export IAN_DATA_DIR="$root/.tmp/manual/data"
+  export IAN_LOG_DIR="$root/.tmp/manual/logs"
+  uv run ian --help
+  ```
+
 - Execute project tools through `uv run ...` from the repository root.
 - Recommended local repair/check order:
   `uv run ruff check --fix .` → `uv run ruff format .` → type check → tests.
