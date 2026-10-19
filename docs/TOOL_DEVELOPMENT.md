@@ -26,7 +26,7 @@ Do the steps in this order. Each one ends with something you can check.
 ### 1. Run the generator
 
 ```bash
-uv run python scripts/new_strategy.py <module_name> --label "<Label>" [--alias <alias>]
+uv run python -m scripts.new_strategy <module_name> --label "<Label>" [--alias <alias>]
 ```
 
 - `<module_name>` is the snake-case package name. It gives the analysis identifier, the method identifier and the tool name. The alias defaults to the hyphenated module name.
@@ -39,20 +39,20 @@ uv run python scripts/new_strategy.py <module_name> --label "<Label>" [--alias <
 ### 2. Check the status command
 
 ```bash
-uv run python scripts/strategy_status.py <module_name> [--alias <alias>]
+uv run python -m scripts.strategy_status <module_name> [--alias <alias>]
 ```
 
 - It prints `done` or `missing` for each site in the [edit-site table](#edit-sites-of-a-strategy), in table order, and a diagnostic under each missing one. It exits with code 1 while any site is missing.
 - It runs the same check functions as the conformance tests, so the two cannot disagree.
 - It does not run the type checker; the gate does.
-- `done` means the site exists and has the required names. It does **not** mean the bodies are written: right after the generator, `analyzer`, `tool`, `execution`, `cli` and `evaluation` already show `done` while they still call `unfilled_stub`. Step 3 finds those calls.
-- Right after the generator, expect `missing` on the sites whose checks cannot run until a stub is filled (`codec`, `presenter` and `replay`; their diagnostic names `UnfilledStubError`), on the reviewed sites you have not yet written, and on `schema` and `strategy-docs` until step 5.
-- If a strategy file was deleted or a wiring entry removed, the package cannot be imported and no site can be checked. The command then prints one `missing  import` line with the Python error instead of the site list; read the error, restore the file or entry, and run the command again.
+- `done` means the site exists, has the required names and calls no `unfilled_stub`. A new-file site whose file still calls `unfilled_stub` is `missing`, and its diagnostic names the file and the line of each call.
+- Right after the generator, expect `missing` on every site whose file has an unfilled body (`analyzer`, `tool`, `codec`, `execution`, `cli`, `presenter`, `replay` and `evaluation`), on the reviewed sites you have not yet written, and on `schema` and `strategy-docs` until step 5. `codec`, `presenter` and `replay` run the strategy's stored run, which needs the `evaluation` file's sample selection; until that is written their diagnostic ends `not checked: depends on unfilled evaluation (<file>:<line>)`. Fill the site it names first.
+- If a strategy file was deleted or emptied, or a wiring entry removed, the package cannot be imported and no other site can be checked. The command matches the failing module or file against the site files and prints one `missing <site-id>` line with the file to change, and the original Python error on the next line; restore or write that site, and run the command again. An error that matches no site is printed as `missing  import` with the Python error.
 
 ### 3. Fill the stubs
 
 - Start from the financial question and the evidence it needs. Fill `vocabulary`, the models, `analyzer` and the resolver first, then the files that package the result: `selection`, `codec`, `execution`, `presenter`, `envelope`, `replay`, `tool`, `cli` and `evaluation`.
-- `uv run python -m pytest tests/test_no_unfilled_stubs.py` lists every `unfilled_stub` call that remains, with file and line. The strict type check is `uv run mypy --strict investment_analysis_engine tests scripts`.
+- The status command lists every `unfilled_stub` call that remains in a site's file, with file and line, and `uv run python -m pytest tests/test_no_unfilled_stubs.py` lists them all. The strict type check is `uv run mypy --strict investment_analysis_engine tests scripts`.
 - Financial math is deterministic Python. The authority for formula semantics is [Financial Math & Data Conventions](user/FINANCE_MATH.md); add the strategy's definitions there and in the [Glossary](user/GLOSSARY.md).
 - Keep missing, unavailable and not-applicable evidence explicit (`MetricResult`, reason codes, retained provenance). Never substitute zero.
 - Write tests for the rules, the unavailable-evidence cases and the edge cases as you go; see [Testing and quality expectations](#testing-and-quality-expectations).
@@ -85,7 +85,7 @@ uv run python -m scripts.generate_strategy_docs
 
 - The first writes the strategy's published schema under `schemas/` and rewrites the two watchlist schemas, which list every strategy. The second rewrites the strategy lists in `docs/user/USAGE.md` and `docs/user/WORKSPACE.md` and the edit-site table in this guide.
 - Add `--check` to either command to report what is out of date without writing. A current tree prints nothing and exits 0; a stale one prints each file and exits 1. Drift tests in the suite fail on stale output.
-- Run both as `uv run python -m scripts.<name>` from the repository root. A diagnostic that says `run scripts/generate_strategy_docs.py` means that same module command; running the file by its path fails with `ModuleNotFoundError: No module named 'scripts'`.
+- Run both as `uv run python -m scripts.<name>` from the repository root, the form every diagnostic and generated-block comment gives. Running `generate_schemas.py` or `generate_strategy_docs.py` by its file path fails with `ModuleNotFoundError: No module named 'scripts'`.
 
 ### 6. Run the complete gate
 
@@ -99,7 +99,8 @@ bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"
 
 - Run the wrapper that matches your shell. It runs Ruff, the strict type check and the full test suite with coverage, and keeps its complete output in `gate-output.txt`; the last line it prints is that file's path. [`AGENTS.md`](../AGENTS.md) §10 has the details.
 - The gate fails while any `unfilled_stub` call remains, while any site is missing, and while a schema or generated list is stale. The conformance tests are in `tests/test_strategy_wiring_conformance.py`, one test per site and strategy, named `test_t25_every_site_is_done_for_every_declared_strategy[<strategy>-<site>]`; the pytest failure repeats the status command's diagnostic for that site.
-- If a strategy file is deleted or a wiring entry removed, pytest cannot collect the conformance tests and reports the Python error instead (for example `ModuleNotFoundError` or `UndeclaredStrategyError`). Run the status command to see the same error under `missing  import`, then restore the file or entry.
+- If a strategy file is deleted or a wiring entry removed, pytest cannot collect the conformance test modules and reports the Python error (for example `ModuleNotFoundError` or `UndeclaredStrategyError`), followed by a line that says to run the status command. Run it: it names the site and the file to change, as in step 2.
+- A stale published schema fails the schema drift test, `tests/scripts/test_generate_schemas.py::test_published_schemas_are_current`, and the `schema` site; both end with `run uv run python -m scripts.generate_schemas`. The tier coverage test checks only that each strategy has a schema file.
 
 ## Edit sites of a strategy
 
@@ -109,7 +110,7 @@ A strategy touches the places below. Run the [status command](#2-check-the-statu
 - **Generated:** `yes` means the generator makes the change in step 1.
 - **Placeholders in a path or a check:** `{module}` is the strategy's package name, `{module_upper}` the same name in upper case, `{alias}` its hyphenated command alias and `{guide}` its upper-case guide name.
 
-<!-- BEGIN GENERATED edit-sites: written by scripts/generate_strategy_docs.py; generated, do not edit by hand. -->
+<!-- BEGIN GENERATED edit-sites: written by uv run python -m scripts.generate_strategy_docs; generated, do not edit by hand. -->
 | Site | Edit | File | Kind | Generated | Check |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `vocabulary` | Vocabulary: the strategy's identity constants and the enumerations several of its files use. Every other file of the strategy reads its identifiers from this leaf, so it imports nothing from its package. | `investment_analysis_engine/strategies/{module}/vocabulary.py` | new_file | yes | `site_vocabulary`: the file is missing, or defines no `ANALYSIS_ID`, `METHOD_ID`, `CONFIG_SCHEMA_VERSION`; the file imports from its own package |
@@ -136,8 +137,8 @@ A strategy touches the places below. Run the [status command](#2-check-the-statu
 | `help-snapshot` | Application help snapshot: the strategy's command row. The application's help is compared byte for byte with a reviewed snapshot that lists every command in the order it is added. | `tests/expected_output/cli_help/application.txt` | reviewed | no | `site_help_snapshot`: the snapshot has no command row for the alias |
 | `guide` | User guide with FINANCE_MATH.md and GLOSSARY.md links. Each strategy has an investor-facing guide. | `docs/user/strategies/{guide}.md` | reviewed | no | `site_guide`: no guide for alias X |
 | `watchlist-options` | Watchlist options of the strategy, only when it has any beyond the shared ones. A flag the selection builder reads needs a typed field in WatchlistFlags and an option on both watchlist commands. | `investment_analysis_engine/cli_watchlist_flags.py` | reviewed | no | `site_watchlist_options`: the selection builder reads a flag that WatchlistFlags or a watchlist command lacks |
-| `schema` | Published schema (run scripts/generate_schemas.py). Every strategy document has a checked-in schema. | `schemas/{alias}.schema.json` | command | no | `site_schema`: schema schemas/<alias>.schema.json is missing or out of date; run uv run python -m scripts.generate_schemas |
-| `strategy-docs` | Generated strategy lists (run scripts/generate_strategy_docs.py). The strategy lists in USAGE.md and WORKSPACE.md are generated from the descriptors, one entry per strategy. | `docs/user/USAGE.md` | command | no | `site_strategy_docs`: the strategy is missing from the generated block of USAGE.md or WORKSPACE.md, or a block is out of date; run scripts/generate_strategy_docs.py |
+| `schema` | Published schema (run uv run python -m scripts.generate_schemas). Every strategy document has a checked-in schema. | `schemas/{alias}.schema.json` | command | no | `site_schema`: schema schemas/<alias>.schema.json is missing or out of date; run uv run python -m scripts.generate_schemas |
+| `strategy-docs` | Generated strategy lists (run uv run python -m scripts.generate_strategy_docs). The strategy lists in USAGE.md and WORKSPACE.md are generated from the descriptors, one entry per strategy. | `docs/user/USAGE.md` | command | no | `site_strategy_docs`: the strategy is missing from the generated block of USAGE.md or WORKSPACE.md, or a block is out of date; run uv run python -m scripts.generate_strategy_docs |
 <!-- END GENERATED edit-sites -->
 
 ## Strategy settings

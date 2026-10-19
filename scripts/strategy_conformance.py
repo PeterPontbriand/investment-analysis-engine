@@ -45,6 +45,7 @@ from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.cli_workspace import watchlist_app
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, require
+from investment_analysis_engine.core.strategy_stub import UnfilledStubError
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate
 from investment_analysis_engine.evaluation.catalog import DETERMINISTIC_CASES, build_deterministic_requests
 from investment_analysis_engine.evaluation.composition import (
@@ -93,9 +94,10 @@ from investment_analysis_engine.workspace.strategy_types import NativeEvidence, 
 from investment_analysis_engine.workspace_documents.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
 from investment_analysis_engine.workspace_documents.run_replay import project_run
 from scripts.generate_schemas import SCHEMA_DIRECTORY, schema_text, strategy_schema_file
-from scripts.generate_strategy_docs import BlockError, block_problem, current_body, strategy_list_blocks
+from scripts.generate_strategy_docs import GENERATOR, BlockError, block_problem, current_body, strategy_list_blocks
 from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_sites import Gap, Site, StrategyNames, load_sites
+from tests.test_no_unfilled_stubs import unfilled_stub_calls
 
 _FIXTURE_CLOCK = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 
@@ -737,18 +739,31 @@ def _replay_entry_gaps(
 # ---------------------------------------------------------------------------
 
 
+SCHEMA_COMMAND = "uv run python -m scripts.generate_schemas"
+"""The command that writes the published schemas, as a diagnostic names it."""
+
+
 def published_schema_gaps(descriptors: tuple[StrategyDescriptor, ...], directory: Path = SCHEMA_DIRECTORY) -> list[str]:
-    """T10 (published schemas): each descriptor's ``json_envelope`` has a checked-in, current schema file."""
-    gaps: list[str] = []
-    for item in descriptors:
-        path = directory / strategy_schema_file(item)
-        if not path.is_file():
-            gaps.append(f"strategy {label(item)} is not wired in: published schemas (schemas/{path.name} is missing)")
-        elif path.read_bytes() != schema_text(item.json_envelope).encode("utf-8"):
-            gaps.append(
-                f"strategy {label(item)} is not wired in: published schemas (schemas/{path.name} is out of date)"
-            )
-    return gaps
+    """T10 (published schemas): each descriptor's ``json_envelope`` has a checked-in schema file.
+
+    Whether the file is current is a separate question: the schema drift test and :func:`stale_schema_gaps` answer it.
+    """
+    return [
+        f"strategy {label(item)} is not wired in: published schemas "
+        f"(schemas/{strategy_schema_file(item)} is missing); run {SCHEMA_COMMAND}"
+        for item in descriptors
+        if not (directory / strategy_schema_file(item)).is_file()
+    ]
+
+
+def stale_schema_gaps(descriptors: tuple[StrategyDescriptor, ...], directory: Path = SCHEMA_DIRECTORY) -> list[str]:
+    """Return one sentence per descriptor whose checked-in schema exists but differs from the regenerated text."""
+    return [
+        f"strategy {label(item)}: schemas/{path.name} is out of date; run {SCHEMA_COMMAND}"
+        for item in descriptors
+        if (path := directory / strategy_schema_file(item)).is_file()
+        and path.read_bytes() != schema_text(item.json_envelope).encode("utf-8")
+    ]
 
 
 def json_command_paths(app: typer.Typer) -> list[str]:
@@ -795,9 +810,13 @@ def json_command_gaps(
         for file_name, model in models:
             path = directory / file_name
             if not path.is_file():
-                gaps.append(f"command '{command}' offers --json but schemas/{file_name} is not checked in")
+                gaps.append(
+                    f"command '{command}' offers --json but schemas/{file_name} is not checked in; run {SCHEMA_COMMAND}"
+                )
             elif path.read_bytes() != schema_text(model).encode("utf-8"):
-                gaps.append(f"command '{command}' offers --json but schemas/{file_name} is out of date")
+                gaps.append(
+                    f"command '{command}' offers --json but schemas/{file_name} is out of date; run {SCHEMA_COMMAND}"
+                )
     return gaps
 
 
@@ -1791,7 +1810,7 @@ def _production_strategy_docs(
                     site_id,
                     where,
                     f"{document}: the generated block {block.block_id!r} has no entry for {names.alias!r}; "
-                    "run scripts/generate_strategy_docs.py",
+                    f"run {GENERATOR}",
                 )
             )
     return gaps
@@ -1941,6 +1960,40 @@ def _descriptor_site(
     return [Gap(site_id, where, message) for message in inspect_descriptor(item)]
 
 
+_STUB_SITE = re.compile(r"for the '(?P<site>[a-z-]+)' site")
+"""The site that an ``UnfilledStubError`` message names."""
+
+
+def _stub_messages(where: str, path: Path) -> list[str]:
+    """Return one message per call to ``unfilled_stub`` in the file, naming the file and line."""
+    return [
+        f"{where}:{line}: calls unfilled_stub({site}), a generated body that has not been written"
+        for line, site in unfilled_stub_calls(path, where)
+    ]
+
+
+def _unfilled_dependency(
+    error: UnfilledStubError, site_id: str, names: StrategyNames, context: SiteContext
+) -> str | None:
+    """Return the message that says a check could not run because another site's body is unfilled.
+
+    Returns ``""`` when the unfilled body is the checked site's own, which is reported already, and ``None`` when
+    the error names no site of this strategy whose file still calls ``unfilled_stub``.
+    """
+    match = _STUB_SITE.search(str(error))
+    if match is None or match["site"] not in _sites_by_id():
+        return None
+    stub_site = match["site"]
+    if stub_site == site_id:
+        return ""
+    stub_where = site_path(stub_site, names, context)
+    stub_path = _root(context) / stub_where
+    calls = unfilled_stub_calls(stub_path, stub_where) if stub_path.is_file() else []
+    if not calls:
+        return None
+    return f"not checked: depends on unfilled {stub_site} ({stub_where}:{calls[0][0]})"
+
+
 def _file_site(
     site_id: str,
     names: StrategyNames,
@@ -1949,10 +2002,12 @@ def _file_site(
     inspect_tree: Callable[[ast.Module], list[str]] | None = None,
     inspect_descriptor: Callable[[StrategyDescriptor], list[str]] | None = None,
 ) -> list[Gap]:
-    """A new-file site is done when the file exists and defines a name matching each of the site's ``defines``.
+    """A new-file site is done when the file exists, defines each of the site's ``defines`` and calls no stub.
 
     ``inspect_tree`` adds source-level findings, and ``inspect_descriptor`` adds findings about the declared
-    descriptor; the latter runs only when the strategy has one.
+    descriptor; the latter runs only when the strategy has one. A call to ``unfilled_stub`` in the file is a
+    finding, with its line. A descriptor check that runs stored code and reaches another site's unfilled body
+    reports ``not checked`` and names that site, its file and its line.
     """
     where = site_path(site_id, names, context)
     path = _root(context) / where
@@ -1965,11 +2020,18 @@ def _file_site(
         for pattern in _sites_by_id()[site_id].required_patterns(names)
         if not any(re.fullmatch(pattern, name) for name in defined)
     ]
+    messages.extend(_stub_messages(where, path))
     if inspect_tree is not None:
         messages.extend(inspect_tree(tree))
     item = _declared(names, context)
     if inspect_descriptor is not None and item is not None:
-        messages.extend(inspect_descriptor(item))
+        try:
+            messages.extend(inspect_descriptor(item))
+        except UnfilledStubError as error:
+            dependency = _unfilled_dependency(error, site_id, names, context)
+            if dependency is None:
+                raise
+            messages.extend([dependency] if dependency else [])
     return [Gap(site_id, where, message) for message in messages]
 
 
@@ -2404,9 +2466,6 @@ def site_watchlist_options(names: StrategyNames, context: SiteContext = PRODUCTI
     return gaps
 
 
-_SCHEMA_COMMAND = "run uv run python -m scripts.generate_schemas"
-
-
 def site_schema(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """The published schema of the strategy's document exists and is current."""
     site_id = "schema"
@@ -2415,17 +2474,16 @@ def site_schema(names: StrategyNames, context: SiteContext = PRODUCTION) -> list
     if item is None:
         if (_root(context) / where).is_file():
             return []
-        return [Gap(site_id, where, f"{where} does not exist; {_SCHEMA_COMMAND}")]
+        return [Gap(site_id, where, f"{where} does not exist; run {SCHEMA_COMMAND}")]
     directory = SCHEMA_DIRECTORY if context.schema_directory is None else context.schema_directory
-    return [
-        Gap(site_id, where, f"{message}; {_SCHEMA_COMMAND}") for message in published_schema_gaps((item,), directory)
-    ]
+    messages = [*published_schema_gaps((item,), directory), *stale_schema_gaps((item,), directory)]
+    return [Gap(site_id, where, message) for message in messages]
 
 
 def site_strategy_docs(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
     """The generated strategy lists of the user documents hold the strategy and are current.
 
     Each gap carries the site's path and names the document in its message; the remedy is always
-    ``scripts/generate_strategy_docs.py``.
+    ``uv run python -m scripts.generate_strategy_docs``.
     """
     return context.strategy_docs(names, site_path("strategy-docs", names, context), context.descriptors)

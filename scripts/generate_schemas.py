@@ -62,7 +62,9 @@ def schema_gaps(directory: Path = SCHEMA_DIRECTORY) -> list[str]:
     for name, text in expected_schemas().items():
         path = directory / name
         if not path.is_file() or path.read_bytes() != text.encode("utf-8"):
-            gaps.append(f"schema schemas/{name} is missing or out of date; run python -m scripts.generate_schemas")
+            gaps.append(
+                f"schema schemas/{name} is missing or out of date; run uv run python -m scripts.generate_schemas"
+            )
     return gaps
 
 

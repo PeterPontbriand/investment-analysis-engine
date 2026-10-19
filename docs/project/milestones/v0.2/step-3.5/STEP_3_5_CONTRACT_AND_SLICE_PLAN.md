@@ -96,6 +96,8 @@ land, a slice starts from `scripts/new_strategy.py`, which writes the typed stub
 one-line edits, and tracks progress with `scripts/strategy_status.py`. Each slice plan names the table's
 sites it touches. The guide's workflow is the reference.
 
+Whoever implements the first Step 3.5 strategy records every point where `docs/TOOL_DEVELOPMENT.md` fell short, for a follow-up.
+
 **Repetition checkpoint.** All seven strategies read SEC annual filings only and share the same selection
 fields, so their wiring is expected to be near-identical. The first strategy slice (3.5.3) owns a review
 before the second strategy starts (3.5.4a):

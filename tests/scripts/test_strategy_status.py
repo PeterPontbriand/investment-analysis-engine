@@ -7,10 +7,13 @@ from types import ModuleType
 
 import pytest
 
+from investment_analysis_engine.orchestrator.tool_names import ToolName
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from scripts import strategy_status
 from scripts.repository_root import REPOSITORY_ROOT
-from scripts.strategy_sites import load_sites
+from scripts.strategy_sites import load_sites, strategy_names
+
+FCF_GROWTH_PACKAGE = "investment_analysis_engine/strategies/fcf_growth"
 
 
 def _module_of(alias: str) -> str:
@@ -58,6 +61,115 @@ def test_an_import_failure_is_the_first_gap_and_exits_1(
     assert lines[0] == "missing  import  scripts/strategy_conformance.py"
     assert "ImportError: cannot import name 'x'" in lines[1]
     assert len(lines) == 2
+
+
+def _raised_in(relative_path: str, statement: str) -> BaseException:
+    """Return the exception ``statement`` raises when it runs as if it were in the repository file ``relative_path``."""
+    try:
+        exec(compile(statement, str(REPOSITORY_ROOT / relative_path), "exec"), {})  # noqa: S102 - fixed test statement
+    except Exception as error:  # noqa: BLE001 - the exception is the result
+        return error
+    raise AssertionError("the statement did not raise")
+
+
+def _import_fails_with(
+    error: BaseException, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> list[str]:
+    """Run the status command for fcf_growth with the conformance import failing with ``error``."""
+    real_import = importlib.import_module
+
+    def fail_for_conformance(name: str, package: str | None = None) -> ModuleType:
+        if name == strategy_status.CONFORMANCE_MODULE:
+            raise error
+        return real_import(name, package)
+
+    monkeypatch.setattr(importlib, "import_module", fail_for_conformance)
+    assert strategy_status.main(["fcf_growth", "--alias", "fcf-growth"]) == 1
+    return capsys.readouterr().out.splitlines()
+
+
+def test_a_deleted_strategy_file_is_attributed_to_its_site(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A module that does not exist is matched with the site whose file it is, not with the file that imports it."""
+    error = _raised_in(
+        "investment_analysis_engine/strategy_wiring.py",
+        "from investment_analysis_engine.strategies.fcf_growth import replay_that_is_gone",
+    )
+    missing = ModuleNotFoundError("No module named 'x'", name="investment_analysis_engine.strategies.fcf_growth.replay")
+    missing.__traceback__ = error.__traceback__
+    lines = _import_fails_with(missing, monkeypatch, capsys)
+    assert lines[0] == f"missing  replay  {FCF_GROWTH_PACKAGE}/replay.py"
+    assert "Original error: ModuleNotFoundError: No module named 'x'" in lines[1]
+    assert len(lines) == 2
+
+
+def test_an_emptied_strategy_file_is_attributed_to_its_site(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A name that a module no longer defines is matched with that module's site."""
+    path = REPOSITORY_ROOT / FCF_GROWTH_PACKAGE / "presenter.py"
+    error = ImportError("cannot import name 'render_x'", name=f"{FCF_GROWTH_PACKAGE.replace('/', '.')}.presenter")
+    error.path = str(path)
+    lines = _import_fails_with(error, monkeypatch, capsys)
+    assert lines[0] == f"missing  presenter  {FCF_GROWTH_PACKAGE}/presenter.py"
+    assert "Original error: ImportError: cannot import name 'render_x'" in lines[1]
+
+
+def test_a_removed_tool_name_member_is_attributed_to_the_tool_name_site(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An attribute the ``ToolName`` enumeration lacks is matched with its file, not with the file that reads it."""
+    try:
+        _ = ToolName.A_MEMBER_THAT_WAS_REMOVED  # type: ignore[attr-defined]
+    except AttributeError as caught:
+        error = caught
+    lines = _import_fails_with(error, monkeypatch, capsys)
+    assert lines[0] == "missing  tool-name  investment_analysis_engine/orchestrator/tool_names.py"
+    assert "AttributeError" in lines[1]
+    assert "A_MEMBER_THAT_WAS_REMOVED" in lines[1]
+
+
+def test_a_removed_tier_entry_is_attributed_to_the_tier_site(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An error raised in the tier file is matched with the tier's site, by the traceback."""
+    error = _raised_in(
+        "investment_analysis_engine/cli_strategy_wiring.py",
+        "from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError\n"
+        "raise UndeclaredStrategyError('The CLI tier has no entry for strategy x; it has entries for: y.')",
+    )
+    lines = _import_fails_with(error, monkeypatch, capsys)
+    assert lines[0] == "missing  cli-tier  investment_analysis_engine/cli_strategy_wiring.py"
+    assert "Original error: UndeclaredStrategyError: The CLI tier has no entry for strategy x" in lines[1]
+
+
+def test_the_evaluation_tier_is_attributed_by_its_file(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    error = _raised_in("investment_analysis_engine/evaluation/strategy_fixtures.py", "raise LookupError('x')")
+    lines = _import_fails_with(error, monkeypatch, capsys)
+    assert lines[0] == "missing  evaluation-tier  investment_analysis_engine/evaluation/strategy_fixtures.py"
+
+
+def test_an_error_that_matches_no_site_keeps_the_import_line(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    error = _raised_in("scripts/strategy_conformance.py", "raise RuntimeError('unrelated')")
+    lines = _import_fails_with(error, monkeypatch, capsys)
+    assert lines[0] == "missing  import  scripts/strategy_conformance.py"
+    assert "RuntimeError: unrelated" in lines[1]
+
+
+def test_the_first_file_an_error_points_at_wins_over_the_traceback() -> None:
+    """The module an ``ImportError`` names is the site, although the importing file is also a site's file."""
+    error = _raised_in(
+        "investment_analysis_engine/strategy_wiring.py",
+        "raise ImportError('x', name='investment_analysis_engine.strategies.fcf_growth.tool')",
+    )
+    site = strategy_status.attributed_site(error, strategy_names("fcf_growth", "fcf-growth"), load_sites())
+    assert site is not None
+    assert site.id == "tool"
 
 
 def test_a_check_that_raises_is_a_missing_site(

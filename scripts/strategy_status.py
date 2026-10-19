@@ -2,14 +2,20 @@
 
 Usage, from the repository root::
 
-    uv run python scripts/strategy_status.py <module_name> [--alias <alias>]
-    uv run python scripts/strategy_status.py --specimen
+    uv run python -m scripts.strategy_status <module_name> [--alias <alias>]
+    uv run python -m scripts.strategy_status --specimen
 
 For each site in ``scripts/strategy_sites.toml``, in file order, the command prints ``done`` or ``missing``,
 the site id and the resolved path; a missing site is followed by one indented line per diagnostic. A site is
 done exactly when its check function in ``scripts/strategy_conformance.py`` returns no gaps for the strategy,
-so the command and the conformance tests cannot disagree. The command does not run the type checker; the
-managed quality gate does.
+so the command and the conformance tests cannot disagree. A file of a new-file site that still calls
+``unfilled_stub`` is missing, with the line of each call; a site whose check runs stored code that needs another
+site's unfilled body is reported ``not checked``, naming that site, its file and line. The command does not run
+the type checker; the managed quality gate does.
+
+When the package cannot be imported, no check can run. The command then matches the failing module or file,
+from the exception and its traceback, against the strategy's site paths and prints ``missing <site-id>`` with
+the file to change and the original error; an error that matches no site is printed as ``missing  import``.
 
 ``--specimen`` checks the specimen strategy of the conformance tests (``tests/specimen``) instead, in the site
 context that strategy defines. Two sites are type-level and closed to the specimen; they are reported as
@@ -22,7 +28,8 @@ usage error. This is a developer script, not an ``ian`` command.
 import argparse
 import importlib
 import sys
-from collections.abc import Callable, Sequence
+import traceback
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from types import ModuleType
 
@@ -30,8 +37,10 @@ if __package__ in {None, ""}:
     # Run as a file, only this folder is on the import path; the documented working directory is the repository root.
     sys.path.insert(0, str(Path.cwd()))
 
+from scripts.repository_root import REPOSITORY_ROOT  # noqa: E402 - after the path adjustment above
 from scripts.strategy_sites import (  # noqa: E402 - after the path adjustment above
     Gap,
+    Site,
     SiteDataError,
     StrategyNames,
     load_sites,
@@ -53,6 +62,63 @@ def import_gap(error: BaseException) -> Gap:
     )
 
 
+def _module_file(module: str) -> str:
+    """Return the repository-relative path of a dotted module name's file."""
+    return module.replace(".", "/") + ".py"
+
+
+def _repository_path(filename: str) -> str | None:
+    """Return a file name's path relative to the repository root, or ``None`` when it lies outside it."""
+    if filename.startswith("<"):
+        return None
+    try:
+        return Path(filename).resolve().relative_to(REPOSITORY_ROOT).as_posix()
+    except (OSError, ValueError):
+        return None
+
+
+def _failing_files(error: BaseException) -> Iterator[str]:
+    """Yield the repository-relative files an import failure points at, the most specific first.
+
+    The order is the file or module the error itself names (a module that does not exist, a module that lacks a
+    name, the class or module that lacks an attribute), then the frames of its traceback, innermost first.
+    """
+    if isinstance(error, ImportError):
+        if error.path is not None and (relative := _repository_path(error.path)) is not None:
+            yield relative
+        if error.name:
+            yield _module_file(error.name)
+    elif isinstance(error, AttributeError):
+        owner = error.obj if hasattr(error, "obj") else None
+        module = owner.__name__ if isinstance(owner, ModuleType) else getattr(owner, "__module__", None)
+        if isinstance(module, str):
+            yield _module_file(module)
+    for frame in reversed(traceback.extract_tb(error.__traceback__)):
+        if (relative := _repository_path(frame.filename)) is not None:
+            yield relative
+
+
+def attributed_site(error: BaseException, names: StrategyNames, sites: Sequence[Site]) -> Site | None:
+    """Return the site whose file is the first of those ``error`` points at that is a site's file, if any."""
+    by_path: dict[str, Site] = {}
+    for site in sites:
+        by_path.setdefault(site.resolved_path(names), site)
+    return next((by_path[path] for path in _failing_files(error) if path in by_path), None)
+
+
+def import_failure_lines(error: BaseException, names: StrategyNames) -> list[str]:
+    """Return the report for a package that cannot be imported: the site it is attributed to, else ``import``."""
+    site = attributed_site(error, names, load_sites())
+    if site is None:
+        gap = import_gap(error)
+        return [f"missing  {gap.site_id}  {gap.path}", f"    {gap.message}"]
+    return [
+        f"missing  {site.id}  {site.resolved_path(names)}",
+        "    the package could not be imported, so no other site was checked; restore or write this site "
+        f"({site.title}), then run the command again. Original error: {type(error).__name__}: {error}",
+    ]
+
+
 def _checks(module: ModuleType) -> Callable[[str], Callable[..., list[Gap]]]:
     def lookup(name: str) -> Callable[..., list[Gap]]:
         found: Callable[..., list[Gap]] = getattr(module, name)
@@ -69,8 +135,7 @@ def report(names: StrategyNames, context: object | None = None) -> tuple[list[st
     try:
         conformance = importlib.import_module(CONFORMANCE_MODULE)
     except Exception as error:  # noqa: BLE001 - any import failure is the first gap being reported
-        gap = import_gap(error)
-        return [f"missing  {gap.site_id}  {gap.path}", f"    {gap.message}"], False
+        return import_failure_lines(error, names), False
     lookup = _checks(conformance)
     lines: list[str] = []
     complete = True

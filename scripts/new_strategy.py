@@ -2,7 +2,7 @@
 
 Usage, from the repository root::
 
-    uv run python scripts/new_strategy.py <module_name> --label "<Label>" [--alias <alias>]
+    uv run python -m scripts.new_strategy <module_name> --label "<Label>" [--alias <alias>]
 
 The generator writes the typed stubs from ``scripts/strategy_templates/`` into
 ``investment_analysis_engine/strategies/<module_name>/`` and makes the insertions a strategy needs in the five
@@ -80,7 +80,7 @@ _LABEL: Final = re.compile(r"[A-Za-z0-9][A-Za-z0-9 .&-]*")
 _FIRST_PARTY: Final = ("--config", f'lint.isort.known-first-party = ["{PACKAGE}"]')
 """Ruff cannot tell that the package of a file in a folder that does not exist yet is first-party, so it is said."""
 _NEXT_STEPS: Final = (
-    "Fill every unfilled_stub body, then run: uv run python scripts/strategy_status.py {module} --alias {alias}"
+    "Fill every unfilled_stub body, then run: uv run python -m scripts.strategy_status {module} --alias {alias}"
 )
 
 

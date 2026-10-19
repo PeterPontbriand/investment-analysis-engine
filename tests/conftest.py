@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING  # noqa: E402
 
 import pytest  # noqa: E402
 
+from tests._collection_hint import pytest_make_collect_report  # noqa: E402
 from tests._live_selection import pytest_addoption, pytest_collection_modifyitems, pytest_configure  # noqa: E402
 from tests._network_guard import block_external_sockets, block_live_yahoo  # noqa: E402
 from tests._session_isolation import stop_session_if_outside  # noqa: E402
@@ -48,6 +49,7 @@ __all__ = [
     "pytest_addoption",
     "pytest_collection_modifyitems",
     "pytest_configure",
+    "pytest_make_collect_report",
 ]
 
 

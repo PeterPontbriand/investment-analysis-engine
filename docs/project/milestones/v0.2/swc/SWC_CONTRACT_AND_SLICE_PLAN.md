@@ -66,7 +66,7 @@ document-link check and applicable documentation checks.
 | SWC.6c | [Make the pinned tests derived, and the reviewed ones sites](#swc6c--strategy-pins) | Complete | 2026-10-18 |
 | SWC.7a | [Contributor guide and permanent rules](#swc7a--contributor-guide-and-permanent-rules) | Complete | 2026-10-18 |
 | SWC.7b | [Independent review of the guide](#swc7b--independent-review-of-the-guide) | Complete | 2026-10-19 |
-| SWC.8 | [Contributor diagnostics](#swc8--contributor-diagnostics) | Next | |
+| SWC.8 | [Contributor diagnostics](#swc8--contributor-diagnostics) | In progress | |
 
 ## 3. Architectural contract
 
@@ -724,11 +724,36 @@ version and result-schema version distinct and do not silently reinterpret histo
   under an evaluation-tier test name, without the fix command) and [#164](https://github.com/PeterPontbriand/investment-analysis-engine/issues/164) (the status command reports a site `done`
   while its file still calls `unfilled_stub`). The review also gave F14 (what a Golden case must contain); it was
   fixed in the guide and needed no issue.
-- **Decision:** fix these before the first Step 3.5 strategy, so its author does not work around them. The slice's
-  open decisions go to the project owner before implementation.
-- **Scope:** the scripts and tests those issues name. No production behaviour changes.
-- **Branch:** to be named when the slice starts.
-- **Detail:** ⚠ no slice plan yet
+- **Decision:** fix these before the first Step 3.5 strategy, so its author does not work around them. The project
+  owner approved the decisions below on 2026-10-19 ([B.24](#b24-swc8-contributor-diagnostics-before-step-35-2026-10-19)).
+- **Scope:**
+  - **#161.** When the status command cannot import the package, it matches the failing module or file, from the
+    exception and its traceback, against the strategy's site files and prints `missing <site-id>` with the file to
+    change and the original error; an unmatched error keeps the `import` line. A collection hook adds one line to a
+    collection error in the conformance test modules: run the status command to see which site. The
+    `UndeclaredStrategyError` message for a missing CLI-tier entry says which tier lacks which strategy (message text
+    only).
+  - **#162.** One way to run the scripts in every diagnostic, `fails` text, generated-block marker comment and the
+    guide: `uv run python -m scripts.<name>`. Running a script by its path still works.
+  - **#163.** The coverage test checks only that each strategy has a published schema file. Staleness is reported by
+    the schema drift test and by the `schema` site, whose message ends with
+    `run uv run python -m scripts.generate_schemas`.
+  - **#164.** A new-file site whose file calls `unfilled_stub` is `missing`, naming the file and line, using the scan of
+    the stub test. A site whose check runs stored code reports
+    `not checked: depends on unfilled <site> (<file>:<line>)` in place of a raw `UnfilledStubError`.
+  - **Guide and Step 3.5.** `docs/TOOL_DEVELOPMENT.md` describes the new behaviour and uses the module form; the Step 3.5
+    contract records that whoever implements the first Step 3.5 strategy lists every point where the guide fell short.
+  - No production behaviour changes beyond the one message.
+- **Acceptance (recorded here; done after this slice merges):** SWC.8 is complete only after an independent review by a
+  model from a different vendor, with no access to this project's history or memory, passes on `main` once the pull
+  request has merged. It repeats [SWC.7b's](SWC_7B_GUIDE_REVIEW.md) Part 1 and four omission trials, and passes when all
+  four trials print messages that name the site and the fix and the review finds nothing that would block a
+  contributor. Small findings are fixed in a follow-up pull request within SWC.8 ([B.25](#b25-swc8-acceptance-review-2026-10-19)).
+  SWC.8 stays In progress when this pull request merges, and so does SWC.
+- **Branch:** `feat/swc-8-contributor-diagnostics`, from `main` after SWC.7b has merged.
+- **Detail:** [B.24](#b24-swc8-contributor-diagnostics-before-step-35-2026-10-19) (the decision),
+  [B.25](#b25-swc8-acceptance-review-2026-10-19) (the acceptance review) and the
+  [SWC.7b review record](SWC_7B_GUIDE_REVIEW.md) (the findings and the four omission trials).
 
 ## 6. Scope limits
 
@@ -1829,3 +1854,17 @@ Approved by the project owner on 2026-10-18.
   patterns the next strategy copies.
 - **Boundary.** SWC.7b changed only text. SWC.8 may change what a check or test does, in the scripts and tests the
   issues name; it changes no production behaviour. Its open decisions go to the project owner before implementation.
+
+### B.25 SWC.8 acceptance review (2026-10-19)
+
+Approved by the project owner on 2026-10-19; recorded with the slice, to be carried out after it merges.
+
+- **Who and when.** A model from a different vendor, with no access to this project's history or memory, reviews `main`
+  after the SWC.8 pull request has merged.
+- **What.** It repeats the SWC.7b Part 1 walk-through and the four omission trials (`new_file`, `edit`, `reviewed`,
+  `command`) from [`SWC_7B_GUIDE_REVIEW.md`](SWC_7B_GUIDE_REVIEW.md).
+- **Passes when** all four trials print messages that name the site and the fix, and the review finds nothing that
+  would block a contributor.
+- **Small findings** are fixed in a follow-up pull request within SWC.8. Larger ones are filed as issues.
+- **Status.** SWC.8 stays In progress when its pull request merges and becomes Complete only when this review passes;
+  SWC stays In progress in the milestone plan until then.

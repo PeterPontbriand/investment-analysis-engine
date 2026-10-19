@@ -154,7 +154,7 @@ These are the flags `watchlist create --analysis METHOD` and `watchlist add-sele
 
 Each strategy's flags and notes are in the Watchlist options section of its guide, linked from this table:
 
-<!-- BEGIN GENERATED strategy-table: written by scripts/generate_strategy_docs.py; generated, do not edit by hand. -->
+<!-- BEGIN GENERATED strategy-table: written by uv run python -m scripts.generate_strategy_docs; generated, do not edit by hand. -->
 | `--analysis` value | Strategy | Stored method id | Method-specific flags |
 | :--- | :--- | :--- | :--- |
 | `momentum` | Momentum | `sma_crossover` | [Watchlist options](strategies/MOMENTUM.md#watchlist-options) |
