@@ -20,6 +20,7 @@ from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy, add_strategy_commands
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, require
+from investment_analysis_engine.core.strategy_stub import UnfilledStubError, unfilled_stub
 from investment_analysis_engine.evaluation.composition import FixtureDependencies, compose_fixture_dependencies
 from investment_analysis_engine.evaluation.models import Case
 from investment_analysis_engine.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy
@@ -42,6 +43,8 @@ from investment_analysis_engine.strategy_wiring import (
 from investment_analysis_engine.workspace_documents.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
 from scripts import generate_strategy_docs
 from scripts import strategy_conformance as conformance
+from scripts.generate_schemas import write_schemas
+from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_sites import Site, StrategyNames, load_sites, strategy_names
 from tests._wiring_gaps import assert_wired, wiring_surfaces
 
@@ -679,20 +682,29 @@ def test_t10_every_descriptor_has_a_current_published_schema() -> None:
     assert conformance.published_schema_gaps(STRATEGIES) == []
 
 
-def test_t10_names_a_strategy_whose_schema_is_missing_or_out_of_date(tmp_path: Path) -> None:
-    """The published-schema surface is compared in both of its failure modes."""
-    from scripts.generate_schemas import SCHEMA_DIRECTORY  # noqa: PLC0415 - only this test copies the directory
-
-    for path in SCHEMA_DIRECTORY.glob("*.json"):
-        (tmp_path / path.name).write_bytes(path.read_bytes())
+def test_t10_names_a_strategy_whose_schema_is_missing_and_the_command_that_writes_it(tmp_path: Path) -> None:
+    """The published-schema surface checks that the file exists; whether it is current is the drift test's question."""
+    write_schemas(tmp_path)
     (tmp_path / "graham-number.schema.json").unlink()
     (tmp_path / "momentum.schema.json").write_bytes(b"{}\n")
     assert conformance.published_schema_gaps(STRATEGIES, tmp_path) == [
-        "strategy ('momentum', 'sma_crossover') is not wired in: published schemas "
-        "(schemas/momentum.schema.json is out of date)",
         "strategy ('graham_number', 'graham_number') is not wired in: published schemas "
-        "(schemas/graham-number.schema.json is missing)",
+        "(schemas/graham-number.schema.json is missing); run uv run python -m scripts.generate_schemas"
     ]
+
+
+def test_a_stale_schema_is_reported_by_the_schema_site_with_the_command(tmp_path: Path) -> None:
+    """A schema that exists but differs from the regenerated text is not a coverage gap; the site reports it."""
+    write_schemas(tmp_path)
+    (tmp_path / "momentum.schema.json").write_bytes(b"{}\n")
+    assert conformance.stale_schema_gaps(STRATEGIES, tmp_path) == [
+        "strategy ('momentum', 'sma_crossover'): schemas/momentum.schema.json is out of date; "
+        "run uv run python -m scripts.generate_schemas"
+    ]
+    context = replace(conformance.PRODUCTION, schema_directory=tmp_path)
+    gaps = conformance.site_schema(_names_of(MOMENTUM), context)
+    assert [gap.message for gap in gaps] == conformance.stale_schema_gaps(STRATEGIES, tmp_path)
+    assert conformance.site_schema(_names_of(FCF_GROWTH), context) == []
 
 
 def test_t21_every_json_command_has_a_typed_document_and_a_current_schema() -> None:
@@ -709,6 +721,9 @@ def test_t21_names_a_command_with_no_typed_document_model() -> None:
     assert "command 'stray' offers --json but has no typed document model" in gaps
 
 
+RUN_SCHEMAS = "run uv run python -m scripts.generate_schemas"
+
+
 def test_t21_names_a_command_whose_schema_is_missing_or_out_of_date(tmp_path: Path) -> None:
     """A model with no checked-in schema, or a stale one, fails naming the command and the file."""
     from scripts.generate_schemas import SCHEMA_DIRECTORY  # noqa: PLC0415 - only this test copies the directory
@@ -719,9 +734,14 @@ def test_t21_names_a_command_whose_schema_is_missing_or_out_of_date(tmp_path: Pa
     (tmp_path / "failure.schema.json").unlink()
     (tmp_path / "fcf-growth.schema.json").write_bytes(b"{}\n")
     gaps = conformance.json_command_gaps(STRATEGIES, app, tmp_path)
-    assert "command 'refresh' offers --json but schemas/refresh-summary.schema.json is not checked in" in gaps
-    assert "command 'fcf-growth' offers --json but schemas/fcf-growth.schema.json is out of date" in gaps
-    assert "command 'runs show' offers --json but schemas/fcf-growth.schema.json is out of date" in gaps
+    assert (
+        "command 'refresh' offers --json but schemas/refresh-summary.schema.json is not checked in; " + RUN_SCHEMAS
+        in gaps
+    )
+    assert (
+        "command 'fcf-growth' offers --json but schemas/fcf-growth.schema.json is out of date; " + RUN_SCHEMAS in gaps
+    )
+    assert "command 'runs show' offers --json but schemas/fcf-growth.schema.json is out of date; " + RUN_SCHEMAS in gaps
 
 
 def test_t24_a_duplicate_json_envelope_is_rejected_naming_the_rule_and_both_descriptors() -> None:
@@ -890,7 +910,7 @@ def test_t26_a_strategy_missing_from_a_block_is_reported_with_the_file_and_the_s
     assert any(message.startswith("USAGE.md: the generated block") and "out of date" in message for message in messages)
     assert any(message.startswith("WORKSPACE.md: the generated block") for message in messages)
     assert sum("has no entry for 'fcf-growth'" in message for message in messages) == 2
-    assert all("scripts/generate_strategy_docs.py" in message for message in messages)
+    assert all("uv run python -m scripts.generate_strategy_docs" in message for message in messages)
     assert conformance.site_strategy_docs(_names_of(MOMENTUM)) != []
     assert all("has no entry" not in gap.message for gap in conformance.site_strategy_docs(_names_of(MOMENTUM)))
 
@@ -907,4 +927,62 @@ def test_t26_a_document_without_its_markers_is_reported_with_the_file_and_the_sc
     message = generate_strategy_docs.block_problem(block)
     assert message is not None
     assert message.startswith("USAGE.md: ")
-    assert "scripts/generate_strategy_docs.py" in message
+    assert "uv run python -m scripts.generate_strategy_docs" in message
+
+
+def _copy_strategy_files(root: Path, module: str, *files: str) -> None:
+    """Copy files of one strategy's package into ``root`` at the same relative paths."""
+    folder = f"investment_analysis_engine/strategies/{module}"
+    (root / folder).mkdir(parents=True, exist_ok=True)
+    for name in files:
+        (root / folder / name).write_bytes((REPOSITORY_ROOT / folder / name).read_bytes())
+
+
+def test_a_new_file_site_that_calls_an_unfilled_stub_is_missing_with_the_file_and_line(tmp_path: Path) -> None:
+    """A file that defines every required name is still not done while a body in it calls ``unfilled_stub``."""
+    _copy_strategy_files(tmp_path, "fcf_growth", "execution.py")
+    path = tmp_path / "investment_analysis_engine/strategies/fcf_growth/execution.py"
+    text = path.read_text(encoding="utf-8")
+    path.write_text(f"{text}\n\ndef unwritten() -> None:\n    unfilled_stub('execution')\n", encoding="utf-8")
+    line = len(path.read_text(encoding="utf-8").splitlines())
+    context = replace(conformance.PRODUCTION, root=tmp_path)
+    gaps = conformance.site_execution(_names_of(FCF_GROWTH), context)
+    assert [gap.message for gap in gaps] == [
+        f"investment_analysis_engine/strategies/fcf_growth/execution.py:{line}: "
+        "calls unfilled_stub('execution'), a generated body that has not been written"
+    ]
+    path.write_text(text, encoding="utf-8")
+    assert conformance.site_execution(_names_of(FCF_GROWTH), context) == []
+
+
+def test_a_site_that_runs_stored_code_says_which_unfilled_site_it_depends_on(tmp_path: Path) -> None:
+    """The stored run needs another site's body; the check reports that site, its file and line, not the raw error."""
+    _copy_strategy_files(tmp_path, "fcf_growth", "codec.py", "evaluation.py")
+    evaluation = tmp_path / "investment_analysis_engine/strategies/fcf_growth/evaluation.py"
+    evaluation.write_text(
+        f"{evaluation.read_text(encoding='utf-8')}\n\ndef unwritten() -> None:\n    unfilled_stub('evaluation')\n",
+        encoding="utf-8",
+    )
+    line = len(evaluation.read_text(encoding="utf-8").splitlines())
+
+    def unfilled(_item: StrategyDescriptor) -> None:
+        unfilled_stub("evaluation")
+
+    context = replace(conformance.PRODUCTION, root=tmp_path, stored_run=unfilled)
+    gaps = conformance.site_codec(_names_of(FCF_GROWTH), context)
+    assert [gap.message for gap in gaps] == [
+        "not checked: depends on unfilled evaluation "
+        f"(investment_analysis_engine/strategies/fcf_growth/evaluation.py:{line})"
+    ]
+
+
+def test_an_unfilled_stub_that_no_file_still_calls_is_not_hidden(tmp_path: Path) -> None:
+    """When the named site's file has no stub call left, the error is a real fault and is raised, not summarized."""
+    _copy_strategy_files(tmp_path, "fcf_growth", "codec.py", "evaluation.py")
+
+    def unfilled(_item: StrategyDescriptor) -> None:
+        unfilled_stub("evaluation")
+
+    context = replace(conformance.PRODUCTION, root=tmp_path, stored_run=unfilled)
+    with pytest.raises(UnfilledStubError):
+        conformance.site_codec(_names_of(FCF_GROWTH), context)

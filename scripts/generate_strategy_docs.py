@@ -27,7 +27,7 @@ from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescr
 from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_sites import Site, load_sites
 
-GENERATOR: Final[str] = "scripts/generate_strategy_docs.py"
+GENERATOR: Final[str] = "uv run python -m scripts.generate_strategy_docs"
 GUIDE_FILE: Final[Path] = REPOSITORY_ROOT / "docs" / "TOOL_DEVELOPMENT.md"
 USAGE_FILE: Final[Path] = REPOSITORY_ROOT / "docs" / "user" / "USAGE.md"
 WORKSPACE_FILE: Final[Path] = REPOSITORY_ROOT / "docs" / "user" / "WORKSPACE.md"

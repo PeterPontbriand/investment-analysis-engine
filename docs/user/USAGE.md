@@ -20,7 +20,7 @@ uv run ian --help
 
 See help for a strategy:
 
-<!-- BEGIN GENERATED strategy-help-commands: written by scripts/generate_strategy_docs.py; generated, do not edit by hand. -->
+<!-- BEGIN GENERATED strategy-help-commands: written by uv run python -m scripts.generate_strategy_docs; generated, do not edit by hand. -->
 ```bash
 uv run ian momentum --help
 uv run ian graham-number --help

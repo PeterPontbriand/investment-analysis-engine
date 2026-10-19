@@ -43,7 +43,7 @@ STUB_FILL_ROLES: Final = ("analyzer", "tool", "codec", "execution", "cli", "pres
 """The generated files whose bodies the fills write; the others are complete as generated."""
 
 NOT_DONE_UNTIL_FILLED: Final = frozenset({"codec", "presenter", "replay"})
-"""Generated sites whose check needs a stored run, which needs the evaluation file's composition and a golden case."""
+"""Generated sites whose check runs a stored run, which needs the evaluation file's sample selection to be written."""
 
 NOT_GENERATED_AND_DONE: Final = frozenset({"settings", "watchlist-options"})
 """Sites the generator does not write that are done without a fill: the strategy has no settings and no extra flags."""
@@ -131,7 +131,7 @@ def _copy_repository(destination: Path) -> None:
 
 def _status(copy: Path) -> tuple[int, dict[str, tuple[str, list[str]]]]:
     """Run the status command for ``ci_probe``; return its exit code and, per site, its state and diagnostics."""
-    process = _run(copy, "scripts/strategy_status.py", MODULE)
+    process = _run(copy, "-m", "scripts.strategy_status", MODULE)
     sites: dict[str, tuple[str, list[str]]] = {}
     current = ""
     for line in process.stdout.splitlines():
@@ -197,19 +197,26 @@ def test_t28_the_generator_takes_a_strategy_through_the_whole_contributor_path(t
     _copy_repository(copy)
 
     # 1. The generator writes the stubs and the edits; the status command and the stub test report what is left.
-    generated = _run(copy, "scripts/new_strategy.py", MODULE, "--label", LABEL)
+    generated = _run(copy, "-m", "scripts.new_strategy", MODULE, "--label", LABEL)
     assert generated.returncode == 0, _output(generated)
     code, state = _status(copy)
     assert code == 1, state
     for site in sites:
         found, messages = state[site.id]
         assert found != "covered", f"{site.id} is reported as covered by this test: {messages}"
-        if site.generated and site.id not in NOT_DONE_UNTIL_FILLED:
-            assert found == "done", f"{site.id}: {messages}"
-        elif site.id in NOT_DONE_UNTIL_FILLED:
-            assert found == "missing", site.id
-            assert any("UnfilledStubError" in message for message in messages), f"{site.id}: {messages}"
-        elif site.id in NOT_GENERATED_AND_DONE:
+        assert not any("UnfilledStubError" in message for message in messages), f"{site.id}: {messages}"
+        if site.id in STUB_FILL_ROLES:
+            file = f"{PACKAGE}/strategies/{MODULE}/{site.id}.py"
+            assert found == "missing", f"{site.id} still calls unfilled_stub but is {found}"
+            assert any(message.startswith(f"{file}:") and "calls unfilled_stub(" in message for message in messages), (
+                f"{site.id}: {messages}"
+            )
+            if site.id in NOT_DONE_UNTIL_FILLED:
+                dependency = (
+                    f"not checked: depends on unfilled evaluation ({PACKAGE}/strategies/{MODULE}/evaluation.py:"
+                )
+                assert any(message.startswith(dependency) for message in messages), f"{site.id}: {messages}"
+        elif site.generated or site.id in NOT_GENERATED_AND_DONE:
             assert found == "done", f"{site.id}: {messages}"
         else:
             assert found == "missing", site.id

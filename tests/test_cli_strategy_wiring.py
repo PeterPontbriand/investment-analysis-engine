@@ -106,7 +106,7 @@ def test_the_builders_return_the_selection_class_of_their_own_strategy() -> None
 
 def test_a_missing_cli_tier_entry_fails_closed_for_the_selection_builder() -> None:
     """A strategy with no entry is reported by identity; the other strategies are not a fallback."""
-    with pytest.raises(UndeclaredStrategyError, match=r"CLI tier entry for strategy .*reported_fcf_eps_cagr"):
+    with pytest.raises(UndeclaredStrategyError, match=r"CLI tier has no entry for strategy .*reported_fcf_eps_cagr"):
         builders_by_alias(STRATEGIES, _WITHOUT_FCF)
     without_builder = {alias: builder for alias, builder in CLI_BUILDERS.items() if alias != FCF_GROWTH.alias}
     with pytest.raises(UndeclaredStrategyError, match="selection builder alias 'fcf-growth'"):
@@ -117,7 +117,7 @@ def test_a_missing_cli_tier_entry_fails_closed_for_the_selection_builder() -> No
 
 def test_a_missing_cli_tier_entry_fails_closed_for_the_refresh_executor() -> None:
     """A selection of a strategy with no entry is reported by its identifiers, never run as another strategy."""
-    with pytest.raises(UndeclaredStrategyError, match=r"CLI tier entry for strategy .*reported_fcf_eps_cagr"):
+    with pytest.raises(UndeclaredStrategyError, match=r"CLI tier has no entry for strategy .*reported_fcf_eps_cagr"):
         refreshers_by_key(STRATEGIES, _WITHOUT_FCF)
     without_executor = {key: value for key, value in CLI_REFRESHERS.items() if key[1] != FCF_GROWTH.method_id}
     with pytest.raises(UndeclaredStrategyError, match=r"refresh executor .*reported_fcf_eps_cagr"):

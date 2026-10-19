@@ -19,7 +19,7 @@ from typing import Final, Protocol
 import typer
 
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
-from investment_analysis_engine.core.strategy_errors import require, undeclared
+from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, describe, require, undeclared
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.strategies.fcf_growth.cli import build_selection as build_fcf_growth_selection
 from investment_analysis_engine.strategies.fcf_growth.cli import command as fcf_growth_command
@@ -169,7 +169,10 @@ def cli_entries(
     for descriptor in descriptors:
         key = (descriptor.analysis_id, descriptor.method_id)
         if key not in entries:
-            raise undeclared("CLI tier entry for strategy", key, entries)
+            listed = ", ".join(sorted(describe(entry_key) for entry_key in entries))
+            raise UndeclaredStrategyError(
+                f"The CLI tier has no entry for strategy {describe(key)}; it has entries for: {listed}."
+            )
     return tuple((descriptor, entries[(descriptor.analysis_id, descriptor.method_id)]) for descriptor in descriptors)
 
 

@@ -104,7 +104,7 @@ def test_the_generator_writes_the_stubs_and_adds_exactly_one_entry_to_each_close
     wiring = (root / PACKAGE / "strategy_wiring.py").read_text(encoding="utf-8")
     assert 'alias="fresh-probe"' in wiring
     assert "settings_type=None" in wiring.split("FRESH_PROBE: Final")[1]
-    assert "uv run python scripts/strategy_status.py fresh_probe --alias fresh-probe" in output
+    assert "uv run python -m scripts.strategy_status fresh_probe --alias fresh-probe" in output
 
 
 def test_a_second_run_refuses_and_writes_nothing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

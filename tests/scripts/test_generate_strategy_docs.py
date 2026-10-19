@@ -40,7 +40,7 @@ def test_the_begin_marker_names_the_generator_and_forbids_hand_edits() -> None:
     marker = begin_marker("edit-sites")
     assert marker.startswith("<!--")
     assert marker.endswith("-->")
-    assert "scripts/generate_strategy_docs.py" in marker
+    assert "uv run python -m scripts.generate_strategy_docs" in marker
     assert "generated" in marker
     assert "do not edit by hand" in marker
 
@@ -65,7 +65,7 @@ def test_a_stale_block_names_the_file_and_the_script(tmp_path: Path, monkeypatch
     monkeypatch.setattr(generator, "blocks", lambda: (block,))
     monkeypatch.setattr(generator, "REPOSITORY_ROOT", tmp_path)
     assert stale_blocks() == [
-        "guide.md: the generated block 'edit-sites' is out of date; run scripts/generate_strategy_docs.py"
+        "guide.md: the generated block 'edit-sites' is out of date; run uv run python -m scripts.generate_strategy_docs"
     ]
     assert generator.write_blocks() == [document]
     assert stale_blocks() == []
@@ -81,7 +81,7 @@ def test_a_document_without_markers_is_reported_with_the_script(
     monkeypatch.setattr(generator, "REPOSITORY_ROOT", tmp_path)
     (message,) = stale_blocks()
     assert message.startswith("guide.md: ")
-    assert "scripts/generate_strategy_docs.py" in message
+    assert "uv run python -m scripts.generate_strategy_docs" in message
 
 
 def test_main_check_reports_and_main_writes(

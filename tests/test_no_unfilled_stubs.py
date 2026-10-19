@@ -15,19 +15,31 @@ STUB_FUNCTION: Final = "unfilled_stub"
 PACKAGE_FOLDER: Final = "investment_analysis_engine"
 
 
+def unfilled_stub_calls(path: Path, display: str | None = None) -> list[tuple[int, str]]:
+    """Return ``(line, site)`` for every call to ``unfilled_stub`` in the Python file ``path``, in source order.
+
+    ``display`` names the file in a syntax error; ``path`` when ``None``.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=display or str(path))
+    found: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        function = node.func
+        name = function.id if isinstance(function, ast.Name) else getattr(function, "attr", None)
+        if name == STUB_FUNCTION:
+            found.append((node.lineno, ast.unparse(node.args[0]) if node.args else ""))
+    return sorted(found)
+
+
 def find_unfilled_stubs(root: Path) -> list[str]:
     """Return ``path:line: unfilled_stub("<site>")`` for every call to ``unfilled_stub`` under ``root``'s package."""
     found: list[str] = []
     for path in sorted((root / PACKAGE_FOLDER).rglob("*.py")):
         relative = path.relative_to(root).as_posix()
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"), filename=relative)):
-            if not isinstance(node, ast.Call):
-                continue
-            function = node.func
-            name = function.id if isinstance(function, ast.Name) else getattr(function, "attr", None)
-            if name == STUB_FUNCTION:
-                site = ast.unparse(node.args[0]) if node.args else ""
-                found.append(f"{relative}:{node.lineno}: {STUB_FUNCTION}({site})")
+        found.extend(
+            f"{relative}:{line}: {STUB_FUNCTION}({site})" for line, site in unfilled_stub_calls(path, relative)
+        )
     return found
 
 

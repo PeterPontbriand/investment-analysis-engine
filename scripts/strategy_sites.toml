@@ -276,7 +276,7 @@ fails = "the selection builder reads a flag that WatchlistFlags or a watchlist c
 
 [[site]]
 id = "schema"
-title = "Published schema (run scripts/generate_schemas.py)"
+title = "Published schema (run uv run python -m scripts.generate_schemas)"
 why = "Every strategy document has a checked-in schema."
 kind = "command"
 path = "schemas/{alias}.schema.json"
@@ -286,10 +286,10 @@ fails = "schema schemas/<alias>.schema.json is missing or out of date; run uv ru
 
 [[site]]
 id = "strategy-docs"
-title = "Generated strategy lists (run scripts/generate_strategy_docs.py)"
+title = "Generated strategy lists (run uv run python -m scripts.generate_strategy_docs)"
 why = "The strategy lists in USAGE.md and WORKSPACE.md are generated from the descriptors, one entry per strategy."
 kind = "command"
 path = "docs/user/USAGE.md"
 generated = false
 check = "site_strategy_docs"
-fails = "the strategy is missing from the generated block of USAGE.md or WORKSPACE.md, or a block is out of date; run scripts/generate_strategy_docs.py"
+fails = "the strategy is missing from the generated block of USAGE.md or WORKSPACE.md, or a block is out of date; run uv run python -m scripts.generate_strategy_docs"
