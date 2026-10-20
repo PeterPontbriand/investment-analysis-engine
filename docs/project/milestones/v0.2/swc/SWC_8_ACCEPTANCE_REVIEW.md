@@ -5,8 +5,9 @@
 - **What this is:** an independent acceptance review of the contributor guide, generator, status command, and omission diagnostics.
 - **What this is not:** a strategy implementation or a change to financial formulas, test behavior, or production behavior.
 - **Rules:** use isolated scratch worktrees, restore every omission between trials, record exact tool output, and keep status changes conditional on a pass.
-- **Outcome: Fail.** Generating the throwaway strategy makes the guide's strict MyPy command fail in a shared workspace test helper.
-- Every required omission trial produced a status report identifying the relevant site and its path or remedy; no SWC or PC status was changed.
+- **Outcome: Pass (after re-check).** The 2026-10-19 re-check found the follow-up fix clears F1.
+- **Initial outcome (2026-10-19): Fail.** The original post-generation type check failed in a shared workspace test helper; that result and its output remain recorded below.
+- Original review: every required omission trial produced a status report identifying the relevant site and its path or remedy, and no SWC or PC status changed. The F1 re-check completed SWC; PC is now Next.
 
 | Work | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
@@ -15,8 +16,8 @@
 ## Review
 
 - **Problem:** Determine whether a contributor following `docs/TOOL_DEVELOPMENT.md` can generate a strategy, use its diagnostics, and identify every required edit site.
-- **Decision:** Fail acceptance because the documented strict type check fails immediately after generation on an existing test helper whose type assumption does not support the generated selection union.
-- **Scope:** Follow the guide in a scratch worktree; run its named generator, status, stub, type-check, output-generation and drift-check commands; perform the required production-strategy omission trials in a second scratch worktree.
+- **Decision:** The initial review failed because the strict type check failed immediately after generation; after the 2026-10-19 F1 re-check passed, the overall acceptance outcome is Pass.
+- **Scope:** The original review followed the guide in scratch worktrees and performed its omission trials. This follow-up re-ran only the generator and strict type check for F1; the already-passing omission trials were not repeated.
 - **Branch:** `chore/swc-8-acceptance-review`.
 - **Detail:** See [findings and trials](#findings-and-trials).
 
@@ -26,7 +27,7 @@
 
 | ID | Where | What happened | Severity | Outcome |
 | :--- | :--- | :--- | :--- | :--- |
-| F1 | Guide §3, strict type check; `tests/workspace/test_requests.py:508` | After generating `swc8_probe`, `uv run mypy --strict investment_analysis_engine tests scripts` fails because `Swc8ProbeSelection` is included in a union that the test helper treats as `FCFGrowthSelection`. The generated strategy skeleton itself is typed, but the documented repository-wide check is blocked by this shared assumption. | blocks | Filed [issue #167](https://github.com/PeterPontbriand/investment-analysis-engine/issues/167) with the exact MyPy evidence; no test behavior was changed in this review. Fixed by the follow-up PR; awaiting re-check. |
+| F1 | Guide §3, strict type check; `tests/workspace/test_requests.py:508` | Initial review: after generating `swc8_probe`, the strict check failed because `Swc8ProbeSelection` was included in a union that the test helper treated as `FCFGrowthSelection`. Re-check (2026-10-19): generated `swc8_probe` on current `main`; the strict check passed with only the generated stubs in place, with no errors in files the generator did not write. | blocks | Fixed (2026-10-19). The documented invocation `uv run mypy --strict investment_analysis_engine tests scripts` hit `error: uv trampoline failed to canonicalize script path` in the managed Windows environment. The equivalent module invocation, `uv run python -m mypy --strict investment_analysis_engine tests scripts`, completed with `Success: no issues found in 522 source files`. |
 
 ### Part 1 — Follow the guide
 
@@ -62,11 +63,11 @@ Each omission was restored before the next trial. “Status first line” and �
 - Required trials: delete and empty a strategy-owned file; remove a tool-name member; remove each tier entry independently; delete a reviewed user guide; and stale a published schema.
 - A trial passes the diagnostic criterion when the status output names the affected site and a file to change or a concrete fix/command.
 - Acceptance also requires that following the guide does not leave a contributor blocked by an undocumented repository check failure.
-- The omission trials pass their diagnostic criterion. F1 fails the overall acceptance criterion, so SWC.8 and parent statuses remain unchanged.
+- The omission trials passed their diagnostic criterion in the original review and were not repeated. F1 passed its 2026-10-19 re-check, so SWC.8 and SWC are complete.
 
 ## Background and origin
 
-This review was run from the repository root on 2026-10-19. The throwaway strategy was generated in `.tmp/swc8-acceptance`; omission experiments used a separate `.tmp/swc8-trials` worktree. Windows asyncio self-pipe creation was blocked by the managed sandbox, so the requested diagnostic and test commands were run with approved elevated execution against the isolated worktrees. Every omission mutation was restored; both scratch worktrees are scheduled for removal after verification.
+The original review was run from the repository root on 2026-10-19. Its throwaway strategy was generated in `.tmp/swc8-acceptance`; omission experiments used a separate `.tmp/swc8-trials` worktree. Windows asyncio self-pipe creation was blocked by the managed sandbox, so the requested diagnostic and test commands were run with approved elevated execution against the isolated worktrees. Every omission mutation was restored. The F1 re-check was run on 2026-10-19 in `.tmp/swc8-f1-recheck`, a detached worktree of current `main`; that scratch worktree was removed after the check. The documented `uv run mypy` console entry point could not launch because of a uv trampoline canonicalization error, so the same MyPy check was run as a Python module using the already-synchronized project environment.
 
 ## Appendix — Exact command outcomes
 
@@ -74,5 +75,8 @@ This review was run from the repository root on 2026-10-19. The throwaway strate
 - Status after generation: exited 1 and printed every site in table order; expected missing stubs/reviewed sites were named, and `schema` and `strategy-docs` diagnostics included their regeneration commands.
 - Stub test: `uv run python -m pytest tests/test_no_unfilled_stubs.py` — 1 failed, 2 passed; the failure listed all generated unfilled bodies.
 - Type check: `uv run mypy --strict investment_analysis_engine tests scripts` — failed at `tests/workspace/test_requests.py:508` as recorded under F1.
+- F1 re-check generator: `uv run python -m scripts.new_strategy swc8_probe --label "SWC8 Probe"` — completed in the detached `.tmp/swc8-f1-recheck` worktree based on `main` at `a29474f`.
+- F1 re-check documented type-check command: `uv run mypy --strict investment_analysis_engine tests scripts` — did not launch; last line: `error: uv trampoline failed to canonicalize script path`.
+- F1 re-check successful type-check command: `uv run python -m mypy --strict investment_analysis_engine tests scripts` — exit 0; last line: `Success: no issues found in 522 source files`.
 - Generated-output checks: `uv run python -m scripts.generate_schemas --check` and `uv run python -m scripts.generate_strategy_docs --check` — exited 1 with stale generated-file paths and commands.
 - The three reviewed-output writer commands all exited 0 in the scratch copy.
