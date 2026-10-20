@@ -66,7 +66,7 @@ document-link check and applicable documentation checks.
 | SWC.6c | [Make the pinned tests derived, and the reviewed ones sites](#swc6c--strategy-pins) | Complete | 2026-10-18 |
 | SWC.7a | [Contributor guide and permanent rules](#swc7a--contributor-guide-and-permanent-rules) | Complete | 2026-10-18 |
 | SWC.7b | [Independent review of the guide](#swc7b--independent-review-of-the-guide) | Complete | 2026-10-19 |
-| SWC.8 | [Contributor diagnostics](#swc8--contributor-diagnostics) | In progress | |
+| SWC.8 | [Contributor diagnostics](#swc8--contributor-diagnostics) | Complete | 2026-10-19 |
 
 ## 3. Architectural contract
 
@@ -750,7 +750,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   request has merged. It repeats [SWC.7b's](SWC_7B_GUIDE_REVIEW.md) Part 1 and four omission trials, and passes when all
   four trials print messages that name the site and the fix and the review finds nothing that would block a
   contributor. Small findings are fixed in a follow-up pull request within SWC.8 ([B.25](#b25-swc8-acceptance-review-2026-10-19)).
-  SWC.8 stays In progress when this pull request merges, and so does SWC.
+  SWC.8 stays In progress when this pull request merges, and so does SWC. The acceptance review later passed after the F1 re-check on 2026-10-19.
 - **Branch:** `feat/swc-8-contributor-diagnostics`, from `main` after SWC.7b has merged.
 - **Detail:** [B.24](#b24-swc8-contributor-diagnostics-before-step-35-2026-10-19) (the decision),
   [B.25](#b25-swc8-acceptance-review-2026-10-19) (the acceptance review) and the
@@ -1868,9 +1868,8 @@ Approved by the project owner on 2026-10-19; recorded with the slice, to be carr
 - **Passes when** all four trials print messages that name the site and the fix, and the review finds nothing that
   would block a contributor.
 - **Small findings** are fixed in a follow-up pull request within SWC.8. Larger ones are filed as issues.
-- **Review record:** [SWC_8_ACCEPTANCE_REVIEW.md](SWC_8_ACCEPTANCE_REVIEW.md). The review failed on the strict MyPy blocker in [issue #167](https://github.com/PeterPontbriand/investment-analysis-engine/issues/167); SWC.8 remains In progress.
-- **Status.** SWC.8 stays In progress when its pull request merges and becomes Complete only when this review passes;
-  SWC stays In progress in the milestone plan until then.
+- **Review record:** [SWC_8_ACCEPTANCE_REVIEW.md](SWC_8_ACCEPTANCE_REVIEW.md). The initial review failed on the strict MyPy blocker in [issue #167](https://github.com/PeterPontbriand/investment-analysis-engine/issues/167); the 2026-10-19 F1 re-check passed.
+- **Status.** SWC.8 is Complete as of 2026-10-19 after the F1 re-check passed; SWC is Complete in the milestone plan.
 
 ### B.26 SWC.8 follow-up: the hidden union pin and T28's blind spot (2026-10-19)
 
@@ -1902,5 +1901,6 @@ Approved by the project owner on 2026-10-19; fixes [issue #167](https://github.c
   after the fills on Python 3.12 and 3.14, and a separate throwaway strategy generated in a scratch copy passes it with
   only the stubs in place (522 source files).
 - **T28's time.** About 87 s on each of Python 3.12 and 3.14, run alone; the 2-minute limit holds.
-- **Status.** SWC.8 stays In progress until the acceptance reviewer re-checks F1.
+- **Re-check (2026-10-19).** In a detached worktree of current `main`, the generator command from the guide completed. The documented `uv run mypy --strict investment_analysis_engine tests scripts` invocation could not launch in the managed Windows environment (`error: uv trampoline failed to canonicalize script path`). Running the same check as `uv run python -m mypy --strict investment_analysis_engine tests scripts` returned `Success: no issues found in 522 source files` with only the generated stubs in place and no errors in files the generator did not write. F1 passed; the omission trials were not repeated.
+- **Status.** SWC.8 is Complete as of 2026-10-19 after the acceptance reviewer re-checked F1.
 - **Branch:** `fix/swc-8-generated-union-pin`.

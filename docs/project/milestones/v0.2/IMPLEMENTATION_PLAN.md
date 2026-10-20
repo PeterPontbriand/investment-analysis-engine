@@ -50,7 +50,7 @@ current codes:
 - `LAY` — short for "Layering" ([plan](layering/LAY_CONTRACT_AND_SLICE_PLAN.md)): moves a fixed set of files and names so
   the top-level `investment_analysis_engine/` packages form layers with no import loop of any length, and changes the dependency check to
   keep it so (the decision on [issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)).
-  Its row is numbered `12A` so the rows after it keep their numbers; it runs before `PKG`. LAY.4 to LAY.8, GR.2, GR.2a, 12B, PKG.1 to PKG.3 and SWC.5 to SWC.7 are complete; then SWC.8, then PC, then Step 3.5;
+  Its row is numbered `12A` so the rows after it keep their numbers; it runs before `PKG`. LAY.4 to LAY.8, GR.2, GR.2a, 12B, PKG.1 to PKG.3 and SWC.5 to SWC.8 are complete; PC is next, then Step 3.5;
   GR.3 runs in any gap
   ([order](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).
 - `PC` — short for "Pattern Cleanup" ([plan](pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md)): removes the patterns that
@@ -94,9 +94,9 @@ sequencing meaning.
 | 12A | [Package layering (LAY)](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-15 |
 | 12B | [Remove the unreachable TTM EPS basis](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md#esc-ttm--remove-the-unreachable-ttm-eps-basis) | Complete | 2026-10-15 |
 | 14 | [`src` package rename (PKG)](pkg/PKG_RENAME_PLAN.md) | Complete | 2026-10-17 |
-| 12 | [Strategy wiring consolidation (SWC)](swc/SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
+| 12 | [Strategy wiring consolidation (SWC)](swc/SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-19 |
 | 14A | [Gate reliability (GR)](gate-reliability/GR_GATE_RELIABILITY_PLAN.md#2-sequence-and-status) | In progress | |
-| 14B | [Pattern cleanup before Step 3.5 (PC)](pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
+| 14B | [Pattern cleanup before Step 3.5 (PC)](pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Next | |
 | 15 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Planned | |
 | 16 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
 | Deferred | [ETF aggregation (P2-ETF)](#47a-p2--durable-instrument-profiles--etf-aggregate-fcf-growth) | Deferred | |
