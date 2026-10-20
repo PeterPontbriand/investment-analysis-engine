@@ -26,7 +26,7 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc2--tes
 | Slice plan | [This document](#3-the-work-units) and the parent-plan updates | Complete | 2026-10-20 |
 | #148 | [CLI test isolation is an opt-in](#148--cli-test-isolation-is-an-opt-in) | Complete | 2026-10-20 |
 | #145 | [One migrated-database helper](#145--one-migrated-database-helper) | Complete | 2026-10-20 |
-| Completion | [Plan rows and the final gate](#completion) | Next | |
+| Completion | [Plan rows and the final gate](#completion) | Complete | 2026-10-20 |
 
 ## 3. The work units
 
