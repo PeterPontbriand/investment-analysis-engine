@@ -1871,3 +1871,28 @@ Approved by the project owner on 2026-10-19; recorded with the slice, to be carr
 - **Review record:** [SWC_8_ACCEPTANCE_REVIEW.md](SWC_8_ACCEPTANCE_REVIEW.md). The review failed on the strict MyPy blocker in [issue #167](https://github.com/PeterPontbriand/investment-analysis-engine/issues/167); SWC.8 remains In progress.
 - **Status.** SWC.8 stays In progress when its pull request merges and becomes Complete only when this review passes;
   SWC stays In progress in the milestone plan until then.
+
+### B.26 SWC.8 follow-up: the hidden union pin and T28's blind spot (2026-10-19)
+
+Approved by the project owner on 2026-10-19; fixes [issue #167](https://github.com/PeterPontbriand/investment-analysis-engine/issues/167), finding F1 of the [acceptance review](SWC_8_ACCEPTANCE_REVIEW.md).
+
+- **Cause.** `tests/workspace/test_requests.py` ended an `isinstance` chain over its stored example selections in an
+  `else:` that assumed FCF Growth, so the strict type check failed once the selection union gained a member. T28
+  type-checked only the generated and edited files, so a strategy that passed T28 still failed the gate in a file its
+  author never touched.
+- **Decision 1: derive, not patch.** The stored examples are now each strategy's own `sample_selection` from
+  `EVALUATION_STRATEGIES`, and the `all_selections` fixture and the field-mutation parametrization read the same
+  tuple. The per-strategy `isinstance` chain is removed; the round trip, the idempotent re-encoding and the guard that
+  a stored selection reads no settings, file, socket, database or environment hold for every declared strategy. No
+  site was added: nothing in the file is hand-written content that cannot be derived. The hand-picked boundary values
+  (`-1`, `0`, `-5`) and the per-strategy config assertions that went with the chain are dropped; the strategies' own
+  selection tests earlier in the same file remain the place for per-strategy values.
+- **Decision 2: T28 type-checks the whole copy.** After generation and again after the fills it runs
+  `mypy --strict investment_analysis_engine tests scripts`, the command the guide documents. Design §19.4 is corrected
+  to say so.
+- **What the whole-copy check found.** No error beyond the `test_requests.py` pin: it passes after generation and
+  after the fills on Python 3.12 and 3.14, and a separate throwaway strategy generated in a scratch copy passes it with
+  only the stubs in place (522 source files).
+- **T28's time.** About 87 s on each of Python 3.12 and 3.14, run alone; the 2-minute limit holds.
+- **Status.** SWC.8 stays In progress until the acceptance reviewer re-checks F1.
+- **Branch:** `fix/swc-8-generated-union-pin`.

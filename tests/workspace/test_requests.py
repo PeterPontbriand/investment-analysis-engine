@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from investment_analysis_engine.evaluation.strategy_fixtures import EVALUATION_STRATEGIES
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection, FCFPolicySnapshot
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
@@ -420,12 +421,7 @@ def test_fcf_policy_copies_input_and_converts_independently() -> None:
 
 @pytest.fixture
 def all_selections() -> tuple[AnalysisSelection, ...]:
-    return (
-        _momentum(),
-        GrahamNumberSelection(),
-        FCFGrowthSelection(),
-        GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5),
-    )
+    return _stored_examples()
 
 
 def test_all_request_variants_round_trip_without_settings(
@@ -468,16 +464,9 @@ def test_union_rejects_bad_identifiers_and_versions(all_selections: tuple[Analys
                 AnalysisRequest.model_validate({"ticker": "KO", "selection": payload})
 
 
-def _stored_examples() -> list[AnalysisSelection]:
-    return [
-        MomentumSelection(short_window=2, long_window=5, rsi_period=1),
-        GrahamNumberSelection(eps_override=-1, bvps_override=0),
-        GrahamGrowthSelection(expected_growth=-5, aaa_yield_override=0),
-        FCFGrowthSelection(
-            policy=FCFPolicySnapshot(forward_policy=ForwardPolicy.CONFIRMATION),
-            as_of=datetime(2025, 1, 1, tzinfo=UTC),
-        ),
-    ]
+def _stored_examples() -> tuple[AnalysisSelection, ...]:
+    """Return each declared strategy's own sample selection, so a new strategy needs no edit here."""
+    return tuple(strategy.sample_selection for strategy in EVALUATION_STRATEGIES)
 
 
 def test_stored_selection_round_trips_without_settings_or_external_activity(
@@ -498,17 +487,9 @@ def test_stored_selection_round_trips_without_settings_or_external_activity(
         restored = decode_selection(selection.method_id, selection.config_schema_version, stored)
         assert restored == selection
         assert encode_selection(restored) == stored
-        if isinstance(selection, MomentumSelection):
-            assert selection.to_momentum_config().rsi_period == 1
-        elif isinstance(selection, GrahamNumberSelection):
-            assert selection.to_graham_number_config().eps_override == -1
-        elif isinstance(selection, GrahamGrowthSelection):
-            assert selection.to_graham_growth_config().expected_growth == -5
-        else:
-            assert selection.to_fcf_policy().forward_policy is ForwardPolicy.CONFIRMATION
 
 
-@pytest.mark.parametrize("index", range(4))
+@pytest.mark.parametrize("index", range(len(EVALUATION_STRATEGIES)))
 def test_stored_selection_rejects_unknown_foreign_and_mistyped_fields(index: int) -> None:
     selection = _stored_examples()[index]
     stored = json.loads(encode_selection(selection))
