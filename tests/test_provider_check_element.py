@@ -43,7 +43,6 @@ from investment_analysis_engine.reporting.failure_envelope import failure_envelo
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace_documents.refresh import RefreshSummaryDocument
 from scripts.repository_root import REPOSITORY_ROOT
-from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 from tests._direct_command_output import no_provider_check_flag
 from tests._strategy_document_output import CASES, Case, _enter_providers
 from tests.test_cli_provider_check import (
@@ -55,6 +54,8 @@ from tests.test_cli_provider_check import (
     _seed_momentum,
     runner,
 )
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
 
 
 def _element(*records: tuple[ProviderFailureKind, str]) -> Any:

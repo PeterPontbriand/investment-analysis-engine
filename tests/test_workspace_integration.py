@@ -21,6 +21,7 @@ import json
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
@@ -28,8 +29,10 @@ from investment_analysis_engine.core.constants import TrendStatus
 from investment_analysis_engine.data.market_data import MarketDataContext
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
-from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
+from tests._cli_helpers import normalize_cli_output
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
 
 runner = CliRunner()
 

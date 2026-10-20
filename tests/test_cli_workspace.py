@@ -33,8 +33,10 @@ from investment_analysis_engine.workspace.requests import AnalysisRequest
 from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
 from investment_analysis_engine.workspace.watchlists import WatchlistNotFoundError
 from scripts.repository_root import REPOSITORY_ROOT
-from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
+from tests._cli_helpers import normalize_cli_output
 from tests._wiring import encode_native
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings")
 
 runner = CliRunner()
 

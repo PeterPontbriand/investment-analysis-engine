@@ -42,8 +42,9 @@ from investment_analysis_engine.workspace.repositories.watchlists import (
     WatchlistEntryNotFoundError,
 )
 from investment_analysis_engine.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError
-from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 from tests._failure_code_table import PINNED_CLASSIFICATIONS, PinnedClassification
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
 
 # Codes raised by a command with no exception to classify: the run a command looked up does not exist.
 _COMMAND_CONTEXT_CODES = {FailureReasonCode.ANALYSIS_RUN_NOT_FOUND}

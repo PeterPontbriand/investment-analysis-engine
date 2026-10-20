@@ -2,14 +2,16 @@
 
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.evaluation.fixtures.graham import (
     SECURITY_ID,
 )
-from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
 from tests._sec_labeled_graham import sec_labeled_growth_resolver
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
 
 runner = CliRunner()
 

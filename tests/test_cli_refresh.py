@@ -52,13 +52,11 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
 )
 from investment_analysis_engine.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
-from tests._cli_helpers import (  # noqa: F401
-    isolated_cli_database,
-    normalize_cli_output,
-    stub_yahoo_identity_metadata,
-)
+from tests._cli_helpers import normalize_cli_output
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 from tests._wiring import alias_for
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
 
 runner = CliRunner()
 
@@ -75,7 +73,7 @@ def _seed(settings: ProjectSettings, name: str, entries: list[tuple[str, Analysi
     commands (they had no coherent meaning once a ticker only exists as
     part of an entry); I2 restores equivalent capability under new command
     names. Until then, tests seed entries directly against the same
-    isolated database `isolated_cli_database` already points the CLI at.
+    isolated database `isolated_cli_settings` already points the CLI at.
     """
     _create(name)
     if entries:

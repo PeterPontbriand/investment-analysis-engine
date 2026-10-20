@@ -24,8 +24,8 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc2--tes
 | Unit | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | Slice plan | [This document](#3-the-work-units) and the parent-plan updates | Complete | 2026-10-20 |
-| #148 | [CLI test isolation is an opt-in](#148--cli-test-isolation-is-an-opt-in) | Next | |
-| #145 | [One migrated-database helper](#145--one-migrated-database-helper) | Planned | |
+| #148 | [CLI test isolation is an opt-in](#148--cli-test-isolation-is-an-opt-in) | Complete | 2026-10-20 |
+| #145 | [One migrated-database helper](#145--one-migrated-database-helper) | Next | |
 | Completion | [Plan rows and the final gate](#completion) | Planned | |
 
 ## 3. The work units
@@ -98,14 +98,26 @@ modules above and `tests/test_cli_database_readiness.py`, which patches a databa
 | Test | Where | What it asserts |
 | :--- | :--- | :--- |
 | `test_no_test_module_imports_a_fixture_defined_in_a_helper_module` | `tests/test_helper_conventions.py` | An AST scan: no `test_*.py` module imports a fixture defined in a `tests/_*.py` module. Conftest files, including the inner conftest text in `tests/test_live_selection.py`, are exempt |
-| `fail_if_session_database_exists` (autouse fixture) | `tests/conftest.py` | After each test, fails that test if a database file exists at the session's own `database_url` path. The message names the rule: a test that writes to a database isolates it |
-| `test_session_database_path_is_the_one_the_guard_checks` | `tests/test_session_isolation.py` | The path the fixture checks is the file the default `database_url` names, inside the session data folder |
+| `test_the_import_scan_reports_a_fixture_imported_into_a_test_module` | `tests/test_helper_conventions.py` | The scan itself: it reports an imported fixture, and ignores an imported function and a fixture a conftest imports |
+| `fail_if_session_database_exists` (autouse fixture) | `tests/conftest.py` | After each test, fails that test if a database file exists at the session's own `database_url` path. The message names the rule: a test that writes to a database isolates it. It removes the file first, so only the test that created it fails |
+| `test_the_session_database_the_guard_checks_is_the_default_database_in_the_session_data_folder` | `tests/test_session_isolation.py` | The path the fixture checks is the file the default `database_url` names, inside the session data folder, and does not exist |
+| `test_a_database_that_is_not_a_file_has_no_session_database_file` | `tests/test_session_isolation.py` | An in-memory URL names no file to check |
+
+#### Yahoo stub copies
+
+`tests/test_cli.py` and `tests/test_cli_save_run.py` also define an autouse copy of the Yahoo stub
+(`disable_live_yfinance_identity_resolution`), as do `tests/test_cli_graham_commands.py`,
+`tests/test_graham_comparison_composition.py` and `tests/utils/_logging_command_driver.py`. They stay: they are not
+database isolation and replacing them is cleanup outside this slice.
 
 #### Telemetry file
 
-A full run leaves one file in the session folder, `logs/trajectories/<uuid>.jsonl`. The slice identifies the test that
-writes it and, if one line isolates it, fixes it; otherwise it files an issue at that time naming the test. The result
-is reported with the slice.
+A full run left one file in the session folder, `logs/trajectories/<uuid>.jsonl`. It is written by two tests in
+`tests/llm/test_client.py`: `test_integration_format_reaches_wire_when_capability_supported` and
+`test_integration_format_absent_from_wire_when_capability_unsupported`. Each builds an `AgentOrchestrator` without a
+recorder, so the orchestrator opens the JSONL sink under the telemetry folder. No single line isolates it: each test
+needs a recorder over a sink, and the suite has no shared sink. Filed as
+[#172](https://github.com/PeterPontbriand/investment-analysis-engine/issues/172).
 
 ### #145 — one migrated-database helper
 

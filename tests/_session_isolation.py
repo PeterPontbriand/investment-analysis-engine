@@ -2,7 +2,8 @@
 
 ``tests/conftest.py`` points the settings, data and log folders at one session folder before the package is imported.
 This check, run when the session starts, confirms that every resolved location is inside that folder and otherwise stops
-the session, so that no test can reach the user's real settings, database or logs.
+the session, so that no test can reach the user's real settings, database or logs. A fixture in ``tests/conftest.py``
+then fails any test that creates the session's own database file, which a test that writes to a database must isolate.
 """
 
 from __future__ import annotations
@@ -15,6 +16,16 @@ from sqlalchemy.engine import make_url
 
 from investment_analysis_engine.config import ProjectSettings
 
+SESSION_DATABASE_RULE = "A test that writes to a database isolates it: use isolated_cli_settings or migrated_database."
+
+
+def session_database_file(configured: ProjectSettings) -> Path | None:
+    """Return the file ``configured.database_url`` names, or None for a database that is not a file."""
+    database = make_url(configured.database_url).database
+    if database in (None, "", ":memory:"):
+        return None
+    return Path(database)
+
 
 def locations_outside(session_folder: Path, configured: ProjectSettings) -> list[str]:
     """Name every resolved folder, and the database file, that does not lie inside ``session_folder``."""
@@ -24,9 +35,9 @@ def locations_outside(session_folder: Path, configured: ProjectSettings) -> list
         "log folder": configured.log_dir,
         "telemetry folder": configured.telemetry_log_dir,
     }
-    database = make_url(configured.database_url).database
-    if database not in (None, "", ":memory:"):
-        locations["database"] = Path(database)
+    database = session_database_file(configured)
+    if database is not None:
+        locations["database"] = database
     return [name for name, path in locations.items() if not path.resolve().is_relative_to(session_folder.resolve())]
 
 

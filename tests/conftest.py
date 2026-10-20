@@ -30,26 +30,25 @@ os.environ["IAN_PROVIDER_CHECK"] = "false"
 
 import logging  # noqa: E402
 from collections.abc import Generator  # noqa: E402
-from typing import TYPE_CHECKING  # noqa: E402
 
 import pytest  # noqa: E402
 
+from tests._cli_isolation import isolated_cli_settings, stub_yahoo_identity_metadata  # noqa: E402
 from tests._collection_hint import pytest_make_collect_report  # noqa: E402
 from tests._live_selection import pytest_addoption, pytest_collection_modifyitems, pytest_configure  # noqa: E402
 from tests._network_guard import block_external_sockets, block_live_yahoo  # noqa: E402
-from tests._session_isolation import stop_session_if_outside  # noqa: E402
-
-if TYPE_CHECKING:
-    from investment_analysis_engine.config import ProjectSettings
+from tests._session_isolation import SESSION_DATABASE_RULE, session_database_file, stop_session_if_outside  # noqa: E402
 
 __all__ = [
     "block_external_sockets",
     "block_live_yahoo",
     "cleanup_logging_handlers",
+    "isolated_cli_settings",
     "pytest_addoption",
     "pytest_collection_modifyitems",
     "pytest_configure",
     "pytest_make_collect_report",
+    "stub_yahoo_identity_metadata",
 ]
 
 
@@ -78,7 +77,20 @@ def cleanup_logging_handlers() -> Generator[None, None, None]:
             pass
 
 
-@pytest.fixture
-def isolated_cli_settings(isolated_cli_database: ProjectSettings) -> ProjectSettings:
-    """The isolated settings the CLI commands use; requires the module to import isolated_cli_database."""
-    return isolated_cli_database
+@pytest.fixture(autouse=True)
+def fail_if_session_database_exists() -> Generator[None, None, None]:
+    """Fail the test that leaves a database at the session's own ``database_url``.
+
+    That file is the default database in the session data folder. Only a test that reaches the default database
+    creates it, so its existence after a test means the test did not isolate the database. The file is removed, with
+    its journal files, so that only the test that created it fails.
+    """
+    from investment_analysis_engine.config import settings  # noqa: PLC0415
+
+    yield
+    leftover = session_database_file(settings)
+    if leftover is None or not leftover.exists():
+        return
+    for path in (leftover, *(leftover.with_name(leftover.name + suffix) for suffix in ("-wal", "-shm", "-journal"))):
+        path.unlink(missing_ok=True)
+    pytest.fail(f"{leftover} existed after the test. {SESSION_DATABASE_RULE}", pytrace=False)

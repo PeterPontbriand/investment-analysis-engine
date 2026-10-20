@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from investment_analysis_engine.config import ProjectSettings, settings
-from tests._session_isolation import locations_outside, stop_session_if_outside
+from tests._session_isolation import locations_outside, session_database_file, stop_session_if_outside
 from tests.conftest import SESSION_FOLDER
 
 
@@ -58,3 +58,15 @@ def test_a_session_with_every_location_inside_keeps_its_folder(tmp_path: Path) -
 
 def test_a_session_with_every_location_inside_is_not_stopped() -> None:
     stop_session_if_outside(SESSION_FOLDER, settings)
+
+
+def test_the_session_database_the_guard_checks_is_the_default_database_in_the_session_data_folder() -> None:
+    database = session_database_file(settings)
+
+    assert database == settings.data_dir / "investment-analysis-engine.sqlite3"
+    assert database.resolve().is_relative_to(SESSION_FOLDER)
+    assert not database.exists()
+
+
+def test_a_database_that_is_not_a_file_has_no_session_database_file() -> None:
+    assert session_database_file(ProjectSettings(database_url="sqlite:///:memory:")) is None
